@@ -1,98 +1,253 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id B7D4D6B0031
-	for <linux-mm@kvack.org>; Sun,  8 Sep 2013 02:11:49 -0400 (EDT)
-Received: by mail-lb0-f170.google.com with SMTP id w7so4142219lbi.1
-        for <linux-mm@kvack.org>; Sat, 07 Sep 2013 23:11:47 -0700 (PDT)
-Message-ID: <522C151F.8020601@openvz.org>
-Date: Sun, 08 Sep 2013 10:11:43 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id B08596B0031
+	for <linux-mm@kvack.org>; Sun,  8 Sep 2013 05:05:16 -0400 (EDT)
+Message-ID: <522C3DB8.3060002@oracle.com>
+Date: Sun, 08 Sep 2013 17:04:56 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Subject: Re: mm: gpf in find_vma
-References: <522B9B5D.4010207@oracle.com>
-In-Reply-To: <522B9B5D.4010207@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [RFC PATCH 1/4] zbud: use page ref counter for zbud pages
+References: <1377852176-30970-1-git-send-email-k.kozlowski@samsung.com> <1377852176-30970-2-git-send-email-k.kozlowski@samsung.com>
+In-Reply-To: <1377852176-30970-2-git-send-email-k.kozlowski@samsung.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, walken@google.com, riel@redhat.com, hughd@google.com, trinity@vger.kernel.org
+To: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Dave Hansen <dave.hansen@intel.com>, Minchan Kim <minchan@kernel.org>, Tomasz Stanislawski <t.stanislaws@samsung.com>
 
-Sasha Levin wrote:
-> Hi all,
->
-> While fuzzing with trinity inside a KVM tools guest, running latest -next kernel, I've
-> stumbled on the following:
->
-> [13600.008029] general protection fault: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-> [13600.010235] Modules linked in:
-> [13600.010742] CPU: 30 PID: 26329 Comm: kworker/u128:2 Tainted: G W 3.11.0-next-20130906-sasha #3985
-> [13600.012301] task: ffff880e54630000 ti: ffff880e52380000 task.ti: ffff880e52380000
-> [13600.013553] RIP: 0010:[<ffffffff81258b82>] [<ffffffff81258b82>] find_vma+0x12/0x70
-> [13600.014929] RSP: 0018:ffff880e52381c38 EFLAGS: 00010282
-> [13600.016808] RAX: f0000040f0000040 RBX: 00007fffffffe000 RCX: ffff880e54630000
-> [13600.016808] RDX: 0000000000000000 RSI: 00007fffffffe000 RDI: ffff880000000000
-> [13600.016808] RBP: ffff880e52381c38 R08: 0000000000000017 R09: ffff880e52381d70
-> [13600.016808] R10: ffff880e52381d70 R11: 0000000000000007 R12: ffff880e54630000
-> [13600.016808] R13: ffff880000000000 R14: 000000000000000f R15: 0000000000000000
-> [13600.016808] FS: 0000000000000000(0000) GS:ffff880fe3200000(0000) knlGS:0000000000000000
-> [13600.016808] CS: 0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> [13600.016808] CR2: 0000000004a66678 CR3: 0000000e520fe000 CR4: 00000000000006e0
-> [13600.016808] Stack:
-> [13600.016808] ffff880e52381c68 ffffffff8125a36b ffff880fb7d373c8 ffff880fb6f82238
-> [13600.016808] ffff880e54630000 ffff880000000000 ffff880e52381d28 ffffffff8125622d
-> [13600.016808] ffff880e52381c98 ffffffff84109b7c 00000000b7d373c8 ffff880e52380010
-> [13600.016808] Call Trace:
-> [13600.016808] [<ffffffff8125a36b>] find_extend_vma+0x2b/0x90
-> [13600.016808] [<ffffffff8125622d>] __get_user_pages+0xdd/0x630
-> [13600.016808] [<ffffffff84109b7c>] ? _raw_spin_unlock_irqrestore+0x7c/0xa0
-> [13600.016808] [<ffffffff81256832>] get_user_pages+0x52/0x60
-> [13600.016808] [<ffffffff812adecc>] get_arg_page+0x5c/0x100
-> [13600.016808] [<ffffffff812ade58>] ? get_user_arg_ptr+0x58/0x70
-> [13600.016808] [<ffffffff812ae084>] copy_strings+0x114/0x260
-> [13600.016808] [<ffffffff812ae21b>] copy_strings_kernel+0x4b/0x60
-> [13600.016808] [<ffffffff812b0203>] do_execve_common+0x2f3/0x4d0
-> [13600.016808] [<ffffffff812b001c>] ? do_execve_common+0x10c/0x4d0
-> [13600.016808] [<ffffffff812b04a7>] do_execve+0x37/0x40
-> [13600.016808] [<ffffffff81140721>] ____call_usermodehelper+0x111/0x130
-> [13600.016808] [<ffffffff8115f270>] ? schedule_tail+0x30/0xb0
-> [13600.016808] [<ffffffff81140610>] ? __call_usermodehelper+0xb0/0xb0
-> [13600.016808] [<ffffffff841125ec>] ret_from_fork+0x7c/0xb0
-> [13600.016808] [<ffffffff81140610>] ? __call_usermodehelper+0xb0/0xb0
-> [13600.016808] Code: 40 20 83 f0 01 83 e0 01 eb 09 0f 1f 80 00 00 00 00 31 c0 c9 c3 0f 1f 40 00 55 48 89 e5 66 66 66 66
-> 90 48 8b 47 10 48 85 c0 74 0b <48> 39 70 08 76 05 48 3b 30 73 4d 48 8b 57 08 31 c0 48 85 d2 74
-> [13600.016808] RIP [<ffffffff81258b82>] find_vma+0x12/0x70
-> [13600.016808] RSP <ffff880e52381c38>
->
-> The disassembly is:
->
-> /* Check the cache first. */
-> /* (Cache hit rate is typically around 35%.) */
-> vma = ACCESS_ONCE(mm->mmap_cache);
-> 1f9: 48 8b 47 10 mov 0x10(%rdi),%rax
-> if (!(vma && vma->vm_end > addr && vma->vm_start <= addr)) {
-> 1fd: 48 85 c0 test %rax,%rax
-> 200: 74 0b je 20d <find_vma+0x1d>
-> 202: 48 39 70 08 cmp %rsi,0x8(%rax) <--- here
-> 206: 76 05 jbe 20d <find_vma+0x1d>
-> 208: 48 3b 30 cmp (%rax),%rsi
-> 20b: 73 4d jae 25a <find_vma+0x6a>
->
->
-> Note that I've started seeing this when I started testing with 64 vcpus.
+Hi Krzysztof,
 
-mm_struct pointer (%rdi) 0xffff880000000000 looks suspicious =)
+On 08/30/2013 04:42 PM, Krzysztof Kozlowski wrote:
+> Use page reference counter for zbud pages. The ref counter replaces
+> zbud_header.under_reclaim flag and ensures that zbud page won't be freed
+> when zbud_free() is called during reclaim. It allows implementation of
+> additional reclaim paths.
+> 
+> The page count is incremented when:
+>  - a handle is created and passed to zswap (in zbud_alloc()),
+>  - user-supplied eviction callback is called (in zbud_reclaim_page()).
+> 
+> Signed-off-by: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+> Signed-off-by: Tomasz Stanislawski <t.stanislaws@samsung.com>
+> Reviewed-by: Bob Liu <bob.liu@oracle.com>
 
->
->
-> Thanks,
-> Sasha
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+AFAIR, the previous version you sent out has a function  called
+rebalance_lists() which I think is a good clean up.
+But I didn't see that function any more in this version.
+
+Thanks,
+-Bob
+
+
+> ---
+>  mm/zbud.c |   97 +++++++++++++++++++++++++++++++++----------------------------
+>  1 file changed, 52 insertions(+), 45 deletions(-)
+> 
+> diff --git a/mm/zbud.c b/mm/zbud.c
+> index ad1e781..aa9a15c 100644
+> --- a/mm/zbud.c
+> +++ b/mm/zbud.c
+> @@ -109,7 +109,6 @@ struct zbud_header {
+>  	struct list_head lru;
+>  	unsigned int first_chunks;
+>  	unsigned int last_chunks;
+> -	bool under_reclaim;
+>  };
+>  
+>  /*****************
+> @@ -138,16 +137,9 @@ static struct zbud_header *init_zbud_page(struct page *page)
+>  	zhdr->last_chunks = 0;
+>  	INIT_LIST_HEAD(&zhdr->buddy);
+>  	INIT_LIST_HEAD(&zhdr->lru);
+> -	zhdr->under_reclaim = 0;
+>  	return zhdr;
+>  }
+>  
+> -/* Resets the struct page fields and frees the page */
+> -static void free_zbud_page(struct zbud_header *zhdr)
+> -{
+> -	__free_page(virt_to_page(zhdr));
+> -}
+> -
+>  /*
+>   * Encodes the handle of a particular buddy within a zbud page
+>   * Pool lock should be held as this function accesses first|last_chunks
+> @@ -188,6 +180,31 @@ static int num_free_chunks(struct zbud_header *zhdr)
+>  	return NCHUNKS - zhdr->first_chunks - zhdr->last_chunks - 1;
+>  }
+>  
+> +/*
+> + * Increases ref count for zbud page.
+> + */
+> +static void get_zbud_page(struct zbud_header *zhdr)
+> +{
+> +	get_page(virt_to_page(zhdr));
+> +}
+> +
+> +/*
+> + * Decreases ref count for zbud page and frees the page if it reaches 0
+> + * (no external references, e.g. handles).
+> + *
+> + * Returns 1 if page was freed and 0 otherwise.
+> + */
+> +static int put_zbud_page(struct zbud_header *zhdr)
+> +{
+> +	struct page *page = virt_to_page(zhdr);
+> +	if (put_page_testzero(page)) {
+> +		free_hot_cold_page(page, 0);
+> +		return 1;
+> +	}
+> +	return 0;
+> +}
+> +
+> +
+>  /*****************
+>   * API Functions
+>  *****************/
+> @@ -250,7 +267,7 @@ void zbud_destroy_pool(struct zbud_pool *pool)
+>  int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+>  			unsigned long *handle)
+>  {
+> -	int chunks, i, freechunks;
+> +	int chunks, i;
+>  	struct zbud_header *zhdr = NULL;
+>  	enum buddy bud;
+>  	struct page *page;
+> @@ -273,6 +290,7 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+>  				bud = FIRST;
+>  			else
+>  				bud = LAST;
+> +			get_zbud_page(zhdr);
+>  			goto found;
+>  		}
+>  	}
+> @@ -284,6 +302,10 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+>  		return -ENOMEM;
+>  	spin_lock(&pool->lock);
+>  	pool->pages_nr++;
+> +	/*
+> +	 * We will be using zhdr instead of page, so
+> +	 * don't increase the page count.
+> +	 */
+>  	zhdr = init_zbud_page(page);
+>  	bud = FIRST;
+>  
+> @@ -295,7 +317,7 @@ found:
+>  
+>  	if (zhdr->first_chunks == 0 || zhdr->last_chunks == 0) {
+>  		/* Add to unbuddied list */
+> -		freechunks = num_free_chunks(zhdr);
+> +		int freechunks = num_free_chunks(zhdr);
+>  		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
+>  	} else {
+>  		/* Add to buddied list */
+> @@ -326,7 +348,6 @@ found:
+>  void zbud_free(struct zbud_pool *pool, unsigned long handle)
+>  {
+>  	struct zbud_header *zhdr;
+> -	int freechunks;
+>  
+>  	spin_lock(&pool->lock);
+>  	zhdr = handle_to_zbud_header(handle);
+> @@ -337,26 +358,19 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
+>  	else
+>  		zhdr->first_chunks = 0;
+>  
+> -	if (zhdr->under_reclaim) {
+> -		/* zbud page is under reclaim, reclaim will free */
+> -		spin_unlock(&pool->lock);
+> -		return;
+> -	}
+> -
+>  	/* Remove from existing buddy list */
+>  	list_del(&zhdr->buddy);
+>  
+>  	if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
+> -		/* zbud page is empty, free */
+>  		list_del(&zhdr->lru);
+> -		free_zbud_page(zhdr);
+>  		pool->pages_nr--;
+>  	} else {
+>  		/* Add to unbuddied list */
+> -		freechunks = num_free_chunks(zhdr);
+> +		int freechunks = num_free_chunks(zhdr);
+>  		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
+>  	}
+>  
+> +	put_zbud_page(zhdr);
+>  	spin_unlock(&pool->lock);
+>  }
+>  
+> @@ -400,7 +414,7 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
+>   */
+>  int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
+>  {
+> -	int i, ret, freechunks;
+> +	int i, ret;
+>  	struct zbud_header *zhdr;
+>  	unsigned long first_handle = 0, last_handle = 0;
+>  
+> @@ -411,11 +425,24 @@ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
+>  		return -EINVAL;
+>  	}
+>  	for (i = 0; i < retries; i++) {
+> +		if (list_empty(&pool->lru)) {
+> +			/*
+> +			 * LRU was emptied during evict calls in previous
+> +			 * iteration but put_zbud_page() returned 0 meaning
+> +			 * that someone still holds the page. This may
+> +			 * happen when some other mm mechanism increased
+> +			 * the page count.
+> +			 * In such case we succedded with reclaim.
+> +			 */
+> +			spin_unlock(&pool->lock);
+> +			return 0;
+> +		}
+>  		zhdr = list_tail_entry(&pool->lru, struct zbud_header, lru);
+> +		/* Move this last element to beginning of LRU */
+>  		list_del(&zhdr->lru);
+> -		list_del(&zhdr->buddy);
+> +		list_add(&zhdr->lru, &pool->lru);
+>  		/* Protect zbud page against free */
+> -		zhdr->under_reclaim = true;
+> +		get_zbud_page(zhdr);
+>  		/*
+>  		 * We need encode the handles before unlocking, since we can
+>  		 * race with free that will set (first|last)_chunks to 0
+> @@ -440,29 +467,9 @@ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
+>  				goto next;
+>  		}
+>  next:
+> -		spin_lock(&pool->lock);
+> -		zhdr->under_reclaim = false;
+> -		if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
+> -			/*
+> -			 * Both buddies are now free, free the zbud page and
+> -			 * return success.
+> -			 */
+> -			free_zbud_page(zhdr);
+> -			pool->pages_nr--;
+> -			spin_unlock(&pool->lock);
+> +		if (put_zbud_page(zhdr))
+>  			return 0;
+> -		} else if (zhdr->first_chunks == 0 ||
+> -				zhdr->last_chunks == 0) {
+> -			/* add to unbuddied list */
+> -			freechunks = num_free_chunks(zhdr);
+> -			list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
+> -		} else {
+> -			/* add to buddied list */
+> -			list_add(&zhdr->buddy, &pool->buddied);
+> -		}
+> -
+> -		/* add to beginning of LRU */
+> -		list_add(&zhdr->lru, &pool->lru);
+> +		spin_lock(&pool->lock);
+>  	}
+>  	spin_unlock(&pool->lock);
+>  	return -EAGAIN;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
