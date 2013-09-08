@@ -1,80 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 6A2666B0031
-	for <linux-mm@kvack.org>; Sun,  8 Sep 2013 10:46:07 -0400 (EDT)
-Message-ID: <522C8DA8.6030701@oracle.com>
-Date: Sun, 08 Sep 2013 10:46:00 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 220A06B0031
+	for <linux-mm@kvack.org>; Sun,  8 Sep 2013 12:54:07 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Sun, 8 Sep 2013 22:12:14 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 6DF72394004D
+	for <linux-mm@kvack.org>; Sun,  8 Sep 2013 22:23:45 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r88Gtptj21954658
+	for <linux-mm@kvack.org>; Sun, 8 Sep 2013 22:25:52 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r88Gruji017047
+	for <linux-mm@kvack.org>; Sun, 8 Sep 2013 22:23:56 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/2] hugetlbfs: support split page table lock
+In-Reply-To: <1378416466-30913-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1378416466-30913-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1378416466-30913-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Date: Sun, 08 Sep 2013 22:23:55 +0530
+Message-ID: <871u4zi7a4.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: hugetlb: NULL ptr deref in region_truncate
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.cz, iamjoonsoo.kim@lge.com, dhillf@gmail.com, liwanp@linux.vnet.ibm.com
-Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, trinity@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kirill.shutemov@linux.intel.com, Alex Thorlton <athorlton@sgi.com>, linux-kernel@vger.kernel.org
 
-Hi all,
+Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
 
-While fuzzing with trinity inside a KVM tools guest, running latest -next kernel, I've
-stumbled on the following:
+> Currently all of page table handling by hugetlbfs code are done under
+> mm->page_table_lock. So when a process have many threads and they heavily
+> access to the memory, lock contention happens and impacts the performance.
+>
+> This patch makes hugepage support split page table lock so that we use
+> page->ptl of the leaf node of page table tree which is pte for normal pages
+> but can be pmd and/or pud for hugepages of some architectures.
+>
+> ChangeLog v3:
+>  - disable split ptl for ppc with USE_SPLIT_PTLOCKS_HUGETLB.
+>  - remove replacement in some architecture dependent code. This is justified
+>    because an allocation of pgd/pud/pmd/pte entry can race with other
+>    allocation, not with read/write access, so we can use different locks.
+>    http://thread.gmane.org/gmane.linux.kernel.mm/106292/focus=106458
+>
+> ChangeLog v2:
+>  - add split ptl on other archs missed in v1
+>  - drop changes on arch/{powerpc,tile}/mm/hugetlbpage.c
+>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+>  include/linux/hugetlb.h  | 20 +++++++++++
+>  include/linux/mm_types.h |  2 ++
+>  mm/hugetlb.c             | 92 +++++++++++++++++++++++++++++-------------------
+>  mm/mempolicy.c           |  5 +--
+>  mm/migrate.c             |  4 +--
+>  mm/rmap.c                |  2 +-
+>  6 files changed, 84 insertions(+), 41 deletions(-)
+>
+> diff --git v3.11-rc3.orig/include/linux/hugetlb.h v3.11-rc3/include/linux/hugetlb.h
+> index 0393270..5cb8a4e 100644
+> --- v3.11-rc3.orig/include/linux/hugetlb.h
+> +++ v3.11-rc3/include/linux/hugetlb.h
+> @@ -80,6 +80,24 @@ extern const unsigned long hugetlb_zero, hugetlb_infinity;
+>  extern int sysctl_hugetlb_shm_group;
+>  extern struct list_head huge_boot_pages;
+>
+> +#if USE_SPLIT_PTLOCKS_HUGETLB
+> +#define huge_pte_lockptr(mm, ptep) ({__pte_lockptr(virt_to_page(ptep)); })
+> +#else	/* !USE_SPLIT_PTLOCKS_HUGETLB */
+> +#define huge_pte_lockptr(mm, ptep) ({&(mm)->page_table_lock; })
+> +#endif	/* USE_SPLIT_PTLOCKS_HUGETLB */
+> +
+> +#define huge_pte_offset_lock(mm, address, ptlp)		\
+> +({							\
+> +	pte_t *__pte = huge_pte_offset(mm, address);	\
+> +	spinlock_t *__ptl = NULL;			\
+> +	if (__pte) {					\
+> +		__ptl = huge_pte_lockptr(mm, __pte);	\
+> +		*(ptlp) = __ptl;			\
+> +		spin_lock(__ptl);			\
+> +	}						\
+> +	__pte;						\
+> +})
 
-[  998.281867] BUG: unable to handle kernel NULL pointer dereference at 0000000000000274
-[  998.283333] IP: [<ffffffff812707c4>] region_truncate+0x64/0xd0
-[  998.284288] PGD 0
-[  998.284717] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[  998.286506] Modules linked in:
-[  998.287101] CPU: 88 PID: 24650 Comm: trinity-child85 Tainted: G    B   W 
-3.11.0-next-20130906-sasha #3985
-[  998.288844] task: ffff8800c1110000 ti: ffff8800c544a000 task.ti: ffff8800c544a000
-[  998.290257] RIP: 0010:[<ffffffff812707c4>]  [<ffffffff812707c4>] region_truncate+0x64/0xd0
-[  998.290301] RSP: 0018:ffff8800c544ba58  EFLAGS: 00010293
-[  998.290301] RAX: 0000000000000274 RBX: ffff880f47d3b0f8 RCX: 000000003fd075fc
-[  998.290301] RDX: 0000000000000000 RSI: 0000000000000000 RDI: ffff880f47d3b0f8
-[  998.290301] RBP: ffff8800c544ba78 R08: 0000000000000000 R09: 0000000000000000
-[  998.290301] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000000
-[  998.290301] R13: ffffffff8741bc60 R14: 0000000000000000 R15: ffff880e9d8b5590
-[  998.290301] FS:  00007f47f28c2700(0000) GS:ffff880fe2200000(0000) knlGS:0000000000000000
-[  998.290301] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[  998.290301] CR2: 0000000000000274 CR3: 0000000005a23000 CR4: 00000000000006e0
-[  998.290301] Stack:
-[  998.290301]  ffff880f47d3ad50 0000000000000000 ffffffff8741bc60 0000000000000000
-[  998.290301]  ffff8800c544bac8 ffffffff81274856 0000000000000000 ffff8800c544bb18
-[  998.290301]  0000000000000000 0000000000000000 0000000000000000 ffff8800c544bb18
-[  998.290301] Call Trace:
-[  998.290301]  [<ffffffff81274856>] hugetlb_unreserve_pages+0x46/0xd0
-[  998.290301]  [<ffffffff8142abe2>] truncate_hugepages+0x202/0x220
-[  998.290301]  [<ffffffff812d2ec8>] ? inode_wait_for_writeback+0x28/0x50
-[  998.290301]  [<ffffffff81150fe7>] ? bit_waitqueue+0x17/0xc0
-[  998.290301]  [<ffffffff812d2ed8>] ? inode_wait_for_writeback+0x38/0x50
-[  998.290301]  [<ffffffff8142ac18>] hugetlbfs_evict_inode+0x18/0x30
-[  998.290301]  [<ffffffff812c4001>] evict+0xc1/0x1a0
-[  998.290301]  [<ffffffff812c4243>] iput_final+0x163/0x180
-[  998.290301]  [<ffffffff812c42af>] iput+0x4f/0x60
-[  998.290301]  [<ffffffff812bf5a8>] dentry_iput+0xc8/0xf0
-[  998.290301]  [<ffffffff812c200a>] dput+0x17a/0x1a0
-[  998.290301]  [<ffffffff812a9ea7>] __fput+0x2b7/0x2d0
-[  998.290301]  [<ffffffff812a9f8e>] ____fput+0xe/0x10
-[  998.290301]  [<ffffffff81149b4e>] task_work_run+0xae/0xf0
-[  998.290301]  [<ffffffff81127c09>] do_exit+0x2d9/0x4d0
-[  998.290301]  [<ffffffff81127ea9>] do_group_exit+0xa9/0xe0
-[  998.290301]  [<ffffffff8113c185>] get_signal_to_deliver+0x475/0x4d0
-[  998.290301]  [<ffffffff81067c2b>] do_signal+0x4b/0x120
-[  998.290301]  [<ffffffff8114ba24>] ? __rcu_read_unlock+0x44/0x80
-[  998.290301]  [<ffffffff8116911c>] ? vtime_account_user+0x5c/0x70
-[  998.290301]  [<ffffffff81222215>] ? context_tracking_user_exit+0x145/0x150
-[  998.290301]  [<ffffffff81067f8a>] do_notify_resume+0x5a/0xe0
-[  998.290301]  [<ffffffff841129a0>] int_signal+0x12/0x17
-[  998.290301] Code: 0e 48 8b 00 48 39 d8 75 ee eb 6c 0f 1f 40 00 45 31 f6 48 3b 70 10 90 7e 0e 4c 
-8b 70 18 48 89 70 18 49 29 f6 48 8b 00 48 8b 40 08 <4c> 8b 28 4d 8b 65 00 4c 89 ef 4d 3b 6d 08 74 44 
-4c 39 eb 75 12
-[  998.290301] RIP  [<ffffffff812707c4>] region_truncate+0x64/0xd0
-[  998.290301]  RSP <ffff8800c544ba58>
-[  998.290301] CR2: 0000000000000274
+
+why not a static inline function ?
 
 
-Thanks,
-Sasha
+> +
+>  /* arch callbacks */
+>
+>  pte_t *huge_pte_alloc(struct mm_struct *mm,> @@ -164,6 +182,8 @@ static inline void __unmap_hugepage_range(struct mmu_gather *tlb,
+>  	BUG();
+>  }
+>
+> +#define huge_pte_lockptr(mm, ptep) 0
+> +
+>  #endif /* !CONFIG_HUGETLB_PAGE */
+>
+>  #define HUGETLB_ANON_FILE "anon_hugepage"
+> diff --git v3.11-rc3.orig/include/linux/mm_types.h v3.11-rc3/include/linux/mm_types.h
+> index fb425aa..cfb8c6f 100644
+> --- v3.11-rc3.orig/include/linux/mm_types.h
+> +++ v3.11-rc3/include/linux/mm_types.h
+> @@ -24,6 +24,8 @@
+>  struct address_space;
+>
+>  #define USE_SPLIT_PTLOCKS	(NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS)
+> +#define USE_SPLIT_PTLOCKS_HUGETLB	\
+> +	(USE_SPLIT_PTLOCKS && !defined(CONFIG_PPC))
+>
+
+Is that a common pattern ? Don't we generally use
+HAVE_ARCH_SPLIT_PTLOCKS in arch config file ? Also are we sure this is
+only an issue with PPC ?
+
+
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
