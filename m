@@ -1,51 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 17BCD6B0031
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 02:55:17 -0400 (EDT)
-MIME-version: 1.0
-Content-type: text/plain; charset=UTF-8
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout1.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MSU005NCJ5WX220@mailout1.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 09 Sep 2013 07:55:15 +0100 (BST)
-Content-transfer-encoding: 8BIT
-Message-id: <1378709713.29327.0.camel@AMDC1943>
-Subject: Re: [RFC PATCH 0/4] mm: migrate zbud pages
-From: Krzysztof Kozlowski <k.kozlowski@samsung.com>
-Date: Mon, 09 Sep 2013 08:55:13 +0200
-In-reply-to: <20130906173027.GA3741@variantweb.net>
-References: <1377852176-30970-1-git-send-email-k.kozlowski@samsung.com>
- <20130906173027.GA3741@variantweb.net>
-References: <1377852176-30970-1-git-send-email-k.kozlowski@samsung.com>
- <20130906173027.GA3741@variantweb.net>
-In-reply-to: <20130906173027.GA3741@variantweb.net>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 08E036B0031
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 04:18:24 -0400 (EDT)
+Date: Mon, 09 Sep 2013 16:18:22 +0800 
+Reply-To: dhillf@sina.com
+From: "Hillf Danton" <dhillf@sina.com>
+Subject: [patch] filemap: add missing unlock_page
+MIME-Version: 1.0
+Content-Type: text/plain; charset=GBK
+Content-Transfer-Encoding: base64
+Message-Id: <20130909081822.8D4DF428001@webmail.sinamail.sina.com.cn>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Dave Hansen <dave.hansen@intel.com>, Minchan Kim <minchan@kernel.org>
-
-On piA?, 2013-09-06 at 12:30 -0500, Seth Jennings wrote:
-> On Fri, Aug 30, 2013 at 10:42:52AM +0200, Krzysztof Kozlowski wrote:
-> > Hi,
-> > 
-> > Currently zbud pages are not movable and they cannot be allocated from CMA
-> > region. These patches add migration of zbud pages.
-> 
-> Hey Krzysztof,
-> 
-> Thanks for the patches.  I haven't had time to look at them yet but wanted to
-> let you know that I plan to early next week.
-> 
-> Seth
-
-Great, thanks! Patches rebase and builds cleanly on current
-mainline (v3.11-7890-ge5c832d).
+To: linux-mm <linux-mm@kvack.org>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Hillf Danton <dhillf@gmail.com>, Hillf Danton <dhillf@sina.com>
 
 
-Best regards,
-Krzysztof
-
+VW5sb2NrIGFuZCByZWxlYXNlIHBhZ2UgYmVmb3JlIHJldHVybmluZyBlcnJvci4NCg0KU2lnbmVk
+LW9mZi1ieTogSGlsbGYgRGFudG9uIDxkaGlsbGZAZ21haWwuY29tPg0KLS0tDQoNCi0tLSBhL21t
+L2ZpbGVtYXAuYwlNb24gU2VwICA5IDE1OjUxOjI4IDIwMTMNCisrKyBiL21tL2ZpbGVtYXAuYwlN
+b24gU2VwICA5IDE1OjUyOjU0IDIwMTMNCkBAIC0xODQ0LDYgKzE4NDQsNyBAQCByZXRyeToNCiAJ
+fQ0KIAllcnIgPSBmaWxsZXIoZGF0YSwgcGFnZSk7DQogCWlmIChlcnIgPCAwKSB7DQorCQl1bmxv
+Y2tfcGFnZShwYWdlKTsNCiAJCXBhZ2VfY2FjaGVfcmVsZWFzZShwYWdlKTsNCiAJCXJldHVybiBF
+UlJfUFRSKGVycik7DQogCX0NCi0t
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
