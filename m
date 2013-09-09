@@ -1,92 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id A8DC36B0031
-	for <linux-mm@kvack.org>; Sun,  8 Sep 2013 20:53:07 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id B7B723EE1CC
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 09:53:05 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A6D9645DE5D
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 09:53:05 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8597C45DE56
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 09:53:05 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 00C381DB8049
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 09:53:04 +0900 (JST)
-Received: from g01jpfmpwyt03.exch.g01.fujitsu.local (g01jpfmpwyt03.exch.g01.fujitsu.local [10.128.193.57])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A66B3E08004
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 09:53:04 +0900 (JST)
-Message-ID: <522D1BC4.9080500@jp.fujitsu.com>
-Date: Mon, 9 Sep 2013 09:52:20 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 454AD6B0031
+	for <linux-mm@kvack.org>; Sun,  8 Sep 2013 22:20:11 -0400 (EDT)
+Message-ID: <522D2FE5.3080606@huawei.com>
+Date: Mon, 9 Sep 2013 10:18:13 +0800
+From: Qiang Huang <h.huangqiang@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/hotplug: rename the function is_memblock_offlined_cb()
-References: <52299848.1000105@huawei.com>
-In-Reply-To: <52299848.1000105@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: [PATCH] mm, memcg: add a helper function to check may oom condition
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Toshi Kani <toshi.kani@hp.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, hannes@cmpxchg.org, Li Zefan <lizefan@huawei.com>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-(2013/09/06 17:54), Xishi Qiu wrote:
-> Function is_memblock_offlined() return 1 means memory block is offlined,
-> but is_memblock_offlined_cb() return 1 means memory block is not offlined,
-> this will confuse somebody, so rename the function.
-> Another, use "pfn_to_nid(pfn)" instead of "page_to_nid(pfn_to_page(pfn))".
->
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> ---
+Use helper function to check if we need to deal with oom condition.
 
-It looks good to me. But I have one comment.
-Please see below.
+Signed-off-by: Qiang Huang <h.huangqiang@huawei.com>
+---
+ include/linux/oom.h | 5 +++++
+ mm/memcontrol.c     | 9 +--------
+ mm/page_alloc.c     | 2 +-
+ 3 files changed, 7 insertions(+), 9 deletions(-)
 
->   mm/memory_hotplug.c |    6 +++---
->   1 files changed, 3 insertions(+), 3 deletions(-)
->
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index ca1dd3a..a95dd28 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -937,7 +937,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
->   	arg.nr_pages = nr_pages;
->   	node_states_check_changes_online(nr_pages, zone, &arg);
->
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index da60007..d061c63 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -82,6 +82,11 @@ static inline void oom_killer_enable(void)
+ 	oom_killer_disabled = false;
+ }
 
-> -	nid = page_to_nid(pfn_to_page(pfn));
-> +	nid = pfn_to_nid(pfn);
++static inline bool may_oom(gfp_t gfp_mask)
++{
++	return (gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY);
++}
++
+ extern struct task_struct *find_lock_task_mm(struct task_struct *p);
 
-Please split the cleanup from this patch since the cleanup has
-nothing to do with the description of this patch.
+ /* sysctls */
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index b73988a..e07fcfa 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2910,21 +2910,14 @@ static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
+ 	struct res_counter *fail_res;
+ 	struct mem_cgroup *_memcg;
+ 	int ret = 0;
+-	bool may_oom;
 
-Thanks,
-Yasuaki Ishimatsu
+ 	ret = res_counter_charge(&memcg->kmem, size, &fail_res);
+ 	if (ret)
+ 		return ret;
 
->
->   	ret = memory_notify(MEM_GOING_ONLINE, &arg);
->   	ret = notifier_to_errno(ret);
-> @@ -1657,7 +1657,7 @@ int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
->   }
->
->   #ifdef CONFIG_MEMORY_HOTREMOVE
-> -static int is_memblock_offlined_cb(struct memory_block *mem, void *arg)
-> +static int check_memblock_offlined_cb(struct memory_block *mem, void *arg)
->   {
->   	int ret = !is_memblock_offlined(mem);
->
-> @@ -1794,7 +1794,7 @@ void __ref remove_memory(int nid, u64 start, u64 size)
->   	 * if this is not the case.
->   	 */
->   	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
-> -				is_memblock_offlined_cb);
-> +				check_memblock_offlined_cb);
->   	if (ret) {
->   		unlock_memory_hotplug();
->   		BUG();
->
+-	/*
+-	 * Conditions under which we can wait for the oom_killer. Those are
+-	 * the same conditions tested by the core page allocator
+-	 */
+-	may_oom = (gfp & __GFP_FS) && !(gfp & __GFP_NORETRY);
+-
+ 	_memcg = memcg;
+ 	ret = __mem_cgroup_try_charge(NULL, gfp, size >> PAGE_SHIFT,
+-				      &_memcg, may_oom);
++				      &_memcg, may_oom(gfp));
 
+ 	if (ret == -EINTR)  {
+ 		/*
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b7c612d..42af675 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2589,7 +2589,7 @@ rebalance:
+ 	 * running out of options and have to consider going OOM
+ 	 */
+ 	if (!did_some_progress) {
+-		if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
++		if (may_oom(gfp_mask)) {
+ 			if (oom_killer_disabled)
+ 				goto nopage;
+ 			/* Coredumps can quickly deplete all memory reserves */
+-- 
+1.8.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
