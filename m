@@ -1,65 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 68C776B0031
-	for <linux-mm@kvack.org>; Sun,  8 Sep 2013 12:56:57 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 9 Sep 2013 02:49:26 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 515A62CE804C
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 02:56:42 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r88GeDoC57671918
-	for <linux-mm@kvack.org>; Mon, 9 Sep 2013 02:40:13 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r88GueIG010845
-	for <linux-mm@kvack.org>; Mon, 9 Sep 2013 02:56:41 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: RE: [PATCH 2/2] thp: support split page table lock
-In-Reply-To: <20130906104803.0F39CE0090@blue.fi.intel.com>
-References: <1378416466-30913-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1378416466-30913-3-git-send-email-n-horiguchi@ah.jp.nec.com> <20130906104803.0F39CE0090@blue.fi.intel.com>
-Date: Sun, 08 Sep 2013 22:26:29 +0530
-Message-ID: <87y577gsle.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id A8DC36B0031
+	for <linux-mm@kvack.org>; Sun,  8 Sep 2013 20:53:07 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id B7B723EE1CC
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 09:53:05 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A6D9645DE5D
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 09:53:05 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8597C45DE56
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 09:53:05 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 00C381DB8049
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 09:53:04 +0900 (JST)
+Received: from g01jpfmpwyt03.exch.g01.fujitsu.local (g01jpfmpwyt03.exch.g01.fujitsu.local [10.128.193.57])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A66B3E08004
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 09:53:04 +0900 (JST)
+Message-ID: <522D1BC4.9080500@jp.fujitsu.com>
+Date: Mon, 9 Sep 2013 09:52:20 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH] mm/hotplug: rename the function is_memblock_offlined_cb()
+References: <52299848.1000105@huawei.com>
+In-Reply-To: <52299848.1000105@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Thorlton <athorlton@sgi.com>, linux-kernel@vger.kernel.org
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Toshi Kani <toshi.kani@hp.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
-
-> Naoya Horiguchi wrote:
->> Thp related code also uses per process mm->page_table_lock now.
->> So making it fine-grained can provide better performance.
->> 
->> This patch makes thp support split page table lock by using page->ptl
->> of the pages storing "pmd_trans_huge" pmds.
->> 
->> Some functions like pmd_trans_huge_lock() and page_check_address_pmd()
->> are expected by their caller to pass back the pointer of ptl, so this
->> patch adds to those functions new arguments for that. Rather than that,
->> this patch gives only straightforward replacement.
->> 
->> ChangeLog v3:
->>  - fixed argument of huge_pmd_lockptr() in copy_huge_pmd()
->>  - added missing declaration of ptl in do_huge_pmd_anonymous_page()
->> 
->> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+(2013/09/06 17:54), Xishi Qiu wrote:
+> Function is_memblock_offlined() return 1 means memory block is offlined,
+> but is_memblock_offlined_cb() return 1 means memory block is not offlined,
+> this will confuse somebody, so rename the function.
+> Another, use "pfn_to_nid(pfn)" instead of "page_to_nid(pfn_to_page(pfn))".
 >
-> Generally, looks good. Few notes:
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> ---
+
+It looks good to me. But I have one comment.
+Please see below.
+
+>   mm/memory_hotplug.c |    6 +++---
+>   1 files changed, 3 insertions(+), 3 deletions(-)
 >
-> I believe you need to convert __pte_alloc() to new locking. Not sure about
-> __pte_alloc_kernel().
-> Have you check all rest mm->page_table_lock, that they shouldn't be
-> converted to new locking?
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index ca1dd3a..a95dd28 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -937,7 +937,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+>   	arg.nr_pages = nr_pages;
+>   	node_states_check_changes_online(nr_pages, zone, &arg);
+>
 
-May be we can have a CONFIG_DEBUG_VM version of pmd_populate that check 
-check with assert_spin_locked ?
+> -	nid = page_to_nid(pfn_to_page(pfn));
+> +	nid = pfn_to_nid(pfn);
 
+Please split the cleanup from this patch since the cleanup has
+nothing to do with the description of this patch.
 
--aneesh
+Thanks,
+Yasuaki Ishimatsu
+
+>
+>   	ret = memory_notify(MEM_GOING_ONLINE, &arg);
+>   	ret = notifier_to_errno(ret);
+> @@ -1657,7 +1657,7 @@ int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
+>   }
+>
+>   #ifdef CONFIG_MEMORY_HOTREMOVE
+> -static int is_memblock_offlined_cb(struct memory_block *mem, void *arg)
+> +static int check_memblock_offlined_cb(struct memory_block *mem, void *arg)
+>   {
+>   	int ret = !is_memblock_offlined(mem);
+>
+> @@ -1794,7 +1794,7 @@ void __ref remove_memory(int nid, u64 start, u64 size)
+>   	 * if this is not the case.
+>   	 */
+>   	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
+> -				is_memblock_offlined_cb);
+> +				check_memblock_offlined_cb);
+>   	if (ret) {
+>   		unlock_memory_hotplug();
+>   		BUG();
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
