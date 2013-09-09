@@ -1,39 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 791C96B0031
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 00:33:42 -0400 (EDT)
-Received: by mail-lb0-f181.google.com with SMTP id u14so4625649lbd.12
-        for <linux-mm@kvack.org>; Sun, 08 Sep 2013 21:33:40 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 993BB6B0031
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 02:09:47 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A1D7F3EE0C1
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 15:09:45 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id EA5F445DE58
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 15:09:44 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D12EB45DE50
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 15:09:44 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C26061DB803B
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 15:09:44 +0900 (JST)
+Received: from g01jpfmpwkw01.exch.g01.fujitsu.local (g01jpfmpwkw01.exch.g01.fujitsu.local [10.0.193.38])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7161F1DB8042
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 15:09:44 +0900 (JST)
+Message-ID: <522D65F3.2030400@jp.fujitsu.com>
+Date: Mon, 9 Sep 2013 15:08:51 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <522C8DA8.6030701@oracle.com>
-References: <522C8DA8.6030701@oracle.com>
-Date: Mon, 9 Sep 2013 12:33:40 +0800
-Message-ID: <CAJd=RBAd6-kX127cdTs10Ty7LJ+cGQX8NvX9H1bb4QSh4erzLw@mail.gmail.com>
-Subject: Re: hugetlb: NULL ptr deref in region_truncate
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 1/2] mm/hotplug: rename the function is_memblock_offlined_cb()
+References: <522D4038.7010609@huawei.com>
+In-Reply-To: <522D4038.7010609@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, trinity@vger.kernel.org
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Toshi Kani <toshi.kani@hp.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, kosaki.motohiro@gmail.com
 
-On Sun, Sep 8, 2013 at 10:46 PM, Sasha Levin <sasha.levin@oracle.com> wrote:
-> Hi all,
->
-> While fuzzing with trinity inside a KVM tools guest, running latest -next
-> kernel, I've
-> stumbled on the following:
->
-> [  998.281867] BUG: unable to handle kernel NULL pointer dereference at
-> 0000000000000274
-> [  998.283333] IP: [<ffffffff812707c4>] region_truncate+0x64/0xd0
-> [  998.284288] PGD 0
-> [  998.284717] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-> [  998.286506] Modules linked in:
-> [  998.287101] CPU: 88 PID: 24650 Comm: trinity-child85 Tainted: G    B   W
-> 3.11.0-next-20130906-sasha #3985
+[CCing Kosaki since he maintains mm/memory_hotplug.c]
 
- *  'B' - System has hit bad_page?
+(2013/09/09 12:27), Xishi Qiu wrote:
+> Function is_memblock_offlined() return 1 means memory block is offlined,
+> but is_memblock_offlined_cb() return 1 means memory block is not offlined,
+> this will confuse somebody, so rename the function.
+>
+
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> Acked-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> ---
+
+I have not acked your previous patch yet. But this patch seems good to me.
+So I acked the patch.
+
+Thanks,
+Yasuaki Ishimatsu
+
+>   mm/memory_hotplug.c |    4 ++--
+>   1 files changed, 2 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index ca1dd3a..85f80b7 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1657,7 +1657,7 @@ int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
+>   }
+>
+>   #ifdef CONFIG_MEMORY_HOTREMOVE
+> -static int is_memblock_offlined_cb(struct memory_block *mem, void *arg)
+> +static int check_memblock_offlined_cb(struct memory_block *mem, void *arg)
+>   {
+>   	int ret = !is_memblock_offlined(mem);
+>
+> @@ -1794,7 +1794,7 @@ void __ref remove_memory(int nid, u64 start, u64 size)
+>   	 * if this is not the case.
+>   	 */
+>   	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
+> -				is_memblock_offlined_cb);
+> +				check_memblock_offlined_cb);
+>   	if (ret) {
+>   		unlock_memory_hotplug();
+>   		BUG();
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
