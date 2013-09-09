@@ -1,142 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 74E696B0031
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 05:15:55 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 5E6776B0033
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 05:16:11 -0400 (EDT)
 From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Subject: [PATCH 1/3] sh: Move fpu_counter into ARCH specific thread_struct
-Date: Mon, 9 Sep 2013 14:45:21 +0530
-Message-ID: <1378718123-7372-1-git-send-email-vgupta@synopsys.com>
+Subject: [PATCH 2/3] x86: Move fpu_counter into ARCH specific thread_struct
+Date: Mon, 9 Sep 2013 14:45:22 +0530
+Message-ID: <1378718123-7372-2-git-send-email-vgupta@synopsys.com>
+In-Reply-To: <1378718123-7372-1-git-send-email-vgupta@synopsys.com>
+References: <1378718123-7372-1-git-send-email-vgupta@synopsys.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
-Cc: Vineet Gupta <Vineet.Gupta1@synopsys.com>, Paul Mundt <lethal@linux-sh.org>, Michel Lespinasse <walken@google.com>, Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Jesper Nilsson <jesper.nilsson@axis.com>, Chris Metcalf <cmetcalf@tilera.com>, "David S. Miller" <davem@davemloft.net>
+Cc: Vineet Gupta <Vineet.Gupta1@synopsys.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Suresh Siddha <suresh.b.siddha@intel.com>, Borislav Petkov <bp@suse.de>, Vincent Palatin <vpalatin@chromium.org>, Len Brown <len.brown@intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Paul Gortmaker <paul.gortmaker@windriver.com>, Pekka Riikonen <priikone@iki.fi>, Andrew  Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
 Only a couple of arches (sh/x86) use fpu_counter in task_struct so it
 can be moved out into ARCH specific thread_struct, reducing the size of
 task_struct for other arches.
 
-Compile tested sh defconfig + sh4-linux-gcc (4.6.3)
+Compile tested i386_defconfig + gcc 4.7.3
 
 Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
-Cc: Paul Mundt <lethal@linux-sh.org>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: x86@kernel.org
+Cc: Suresh Siddha <suresh.b.siddha@intel.com>
+Cc: Borislav Petkov <bp@suse.de>
+Cc: Vincent Palatin <vpalatin@chromium.org>
+Cc: Len Brown <len.brown@intel.com>
 Cc: Al Viro <viro@zeniv.linux.org.uk>
+Cc: Paul Gortmaker <paul.gortmaker@windriver.com>
+Cc: Pekka Riikonen <priikone@iki.fi>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jesper Nilsson <jesper.nilsson@axis.com>
-Cc: Chris Metcalf <cmetcalf@tilera.com>
-Cc: "David S. Miller" <davem@davemloft.net>
+Cc: Dave Jones <davej@redhat.com>
+Cc: Frederic Weisbecker <fweisbec@gmail.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 Cc: linux-kernel@vger.kernel.org
-Cc: linux-arch@vger.kernel.org
 ---
- arch/sh/include/asm/fpu.h          |  2 +-
- arch/sh/include/asm/processor_32.h | 10 ++++++++++
- arch/sh/include/asm/processor_64.h | 10 ++++++++++
- arch/sh/kernel/cpu/fpu.c           |  2 +-
- arch/sh/kernel/process_32.c        |  6 +++---
- 5 files changed, 25 insertions(+), 5 deletions(-)
+ arch/x86/include/asm/fpu-internal.h | 10 +++++-----
+ arch/x86/include/asm/processor.h    |  9 +++++++++
+ arch/x86/kernel/i387.c              |  2 +-
+ arch/x86/kernel/process_32.c        |  4 ++--
+ arch/x86/kernel/process_64.c        |  2 +-
+ arch/x86/kernel/traps.c             |  2 +-
+ 6 files changed, 19 insertions(+), 10 deletions(-)
 
-diff --git a/arch/sh/include/asm/fpu.h b/arch/sh/include/asm/fpu.h
-index 06c4281..09fc2bc 100644
---- a/arch/sh/include/asm/fpu.h
-+++ b/arch/sh/include/asm/fpu.h
-@@ -46,7 +46,7 @@ static inline void __unlazy_fpu(struct task_struct *tsk, struct pt_regs *regs)
- 		save_fpu(tsk);
- 		release_fpu(regs);
+diff --git a/arch/x86/include/asm/fpu-internal.h b/arch/x86/include/asm/fpu-internal.h
+index 4d0bda7..c49a613 100644
+--- a/arch/x86/include/asm/fpu-internal.h
++++ b/arch/x86/include/asm/fpu-internal.h
+@@ -365,7 +365,7 @@ static inline void drop_fpu(struct task_struct *tsk)
+ 	 * Forget coprocessor state..
+ 	 */
+ 	preempt_disable();
+-	tsk->fpu_counter = 0;
++	tsk->thread.fpu_counter = 0;
+ 	__drop_fpu(tsk);
+ 	clear_used_math();
+ 	preempt_enable();
+@@ -424,7 +424,7 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
+ 	 * or if the past 5 consecutive context-switches used math.
+ 	 */
+ 	fpu.preload = tsk_used_math(new) && (use_eager_fpu() ||
+-					     new->fpu_counter > 5);
++					     new->thread.fpu_counter > 5);
+ 	if (__thread_has_fpu(old)) {
+ 		if (!__save_init_fpu(old))
+ 			cpu = ~0;
+@@ -433,16 +433,16 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
+ 
+ 		/* Don't change CR0.TS if we just switch! */
+ 		if (fpu.preload) {
+-			new->fpu_counter++;
++			new->thread.fpu_counter++;
+ 			__thread_set_has_fpu(new);
+ 			prefetch(new->thread.fpu.state);
+ 		} else if (!use_eager_fpu())
+ 			stts();
+ 	} else {
+-		old->fpu_counter = 0;
++		old->thread.fpu_counter = 0;
+ 		old->thread.fpu.last_cpu = ~0;
+ 		if (fpu.preload) {
+-			new->fpu_counter++;
++			new->thread.fpu_counter++;
+ 			if (!use_eager_fpu() && fpu_lazy_restore(new, cpu))
+ 				fpu.preload = 0;
+ 			else
+diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
+index 24cf5ae..e331f3a 100644
+--- a/arch/x86/include/asm/processor.h
++++ b/arch/x86/include/asm/processor.h
+@@ -488,6 +488,15 @@ struct thread_struct {
+ 	unsigned long		iopl;
+ 	/* Max allowed port in the bitmap, in bytes: */
+ 	unsigned		io_bitmap_max;
++	/*
++	 * fpu_counter contains the number of consecutive context switches
++	 * that the FPU is used. If this is over a threshold, the lazy fpu
++	 * saving becomes unlazy to save the trap. This is an unsigned char
++	 * so that after 256 times the counter wraps and the behavior turns
++	 * lazy again; this to deal with bursty apps that only use FPU for
++	 * a short time
++	 */
++	unsigned char fpu_counter;
+ };
+ 
+ /*
+diff --git a/arch/x86/kernel/i387.c b/arch/x86/kernel/i387.c
+index 5d576ab..e8368c6 100644
+--- a/arch/x86/kernel/i387.c
++++ b/arch/x86/kernel/i387.c
+@@ -100,7 +100,7 @@ void unlazy_fpu(struct task_struct *tsk)
+ 		__save_init_fpu(tsk);
+ 		__thread_fpu_end(tsk);
  	} else
 -		tsk->fpu_counter = 0;
 +		tsk->thread.fpu_counter = 0;
+ 	preempt_enable();
  }
+ EXPORT_SYMBOL(unlazy_fpu);
+diff --git a/arch/x86/kernel/process_32.c b/arch/x86/kernel/process_32.c
+index f8adefc..4de6e36 100644
+--- a/arch/x86/kernel/process_32.c
++++ b/arch/x86/kernel/process_32.c
+@@ -153,7 +153,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
+ 		childregs->orig_ax = -1;
+ 		childregs->cs = __KERNEL_CS | get_kernel_rpl();
+ 		childregs->flags = X86_EFLAGS_IF | X86_EFLAGS_FIXED;
+-		p->fpu_counter = 0;
++		p->thread.fpu_counter = 0;
+ 		p->thread.io_bitmap_ptr = NULL;
+ 		memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));
+ 		return 0;
+@@ -166,7 +166,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
+ 	p->thread.ip = (unsigned long) ret_from_fork;
+ 	task_user_gs(p) = get_user_gs(current_pt_regs());
  
- static inline void unlazy_fpu(struct task_struct *tsk, struct pt_regs *regs)
-diff --git a/arch/sh/include/asm/processor_32.h b/arch/sh/include/asm/processor_32.h
-index e699a12..18e0377 100644
---- a/arch/sh/include/asm/processor_32.h
-+++ b/arch/sh/include/asm/processor_32.h
-@@ -111,6 +111,16 @@ struct thread_struct {
+-	p->fpu_counter = 0;
++	p->thread.fpu_counter = 0;
+ 	p->thread.io_bitmap_ptr = NULL;
+ 	tsk = current;
+ 	err = -ENOMEM;
+diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
+index 05646ba..9b97949 100644
+--- a/arch/x86/kernel/process_64.c
++++ b/arch/x86/kernel/process_64.c
+@@ -163,7 +163,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
+ 	p->thread.sp = (unsigned long) childregs;
+ 	p->thread.usersp = me->thread.usersp;
+ 	set_tsk_thread_flag(p, TIF_FORK);
+-	p->fpu_counter = 0;
++	p->thread.fpu_counter = 0;
+ 	p->thread.io_bitmap_ptr = NULL;
  
- 	/* Extended processor state */
- 	union thread_xstate *xstate;
-+
-+	/*
-+	 * fpu_counter contains the number of consecutive context switches
-+	 * that the FPU is used. If this is over a threshold, the lazy fpu
-+	 * saving becomes unlazy to save the trap. This is an unsigned char
-+	 * so that after 256 times the counter wraps and the behavior turns
-+	 * lazy again; this to deal with bursty apps that only use FPU for
-+	 * a short time
-+	 */
-+	unsigned char fpu_counter;
- };
+ 	savesegment(gs, p->thread.gsindex);
+diff --git a/arch/x86/kernel/traps.c b/arch/x86/kernel/traps.c
+index 1b23a1c..f350d7e 100644
+--- a/arch/x86/kernel/traps.c
++++ b/arch/x86/kernel/traps.c
+@@ -649,7 +649,7 @@ void math_state_restore(void)
+ 		return;
+ 	}
  
- #define INIT_THREAD  {						\
-diff --git a/arch/sh/include/asm/processor_64.h b/arch/sh/include/asm/processor_64.h
-index 1cc7d31..eedd4f6 100644
---- a/arch/sh/include/asm/processor_64.h
-+++ b/arch/sh/include/asm/processor_64.h
-@@ -126,6 +126,16 @@ struct thread_struct {
- 
- 	/* floating point info */
- 	union thread_xstate *xstate;
-+
-+	/*
-+	 * fpu_counter contains the number of consecutive context switches
-+	 * that the FPU is used. If this is over a threshold, the lazy fpu
-+	 * saving becomes unlazy to save the trap. This is an unsigned char
-+	 * so that after 256 times the counter wraps and the behavior turns
-+	 * lazy again; this to deal with bursty apps that only use FPU for
-+	 * a short time
-+	 */
-+	unsigned char fpu_counter;
- };
- 
- #define INIT_MMAP \
-diff --git a/arch/sh/kernel/cpu/fpu.c b/arch/sh/kernel/cpu/fpu.c
-index f8f7af5..4e33224 100644
---- a/arch/sh/kernel/cpu/fpu.c
-+++ b/arch/sh/kernel/cpu/fpu.c
-@@ -44,7 +44,7 @@ void __fpu_state_restore(void)
- 	restore_fpu(tsk);
- 
- 	task_thread_info(tsk)->status |= TS_USEDFPU;
 -	tsk->fpu_counter++;
 +	tsk->thread.fpu_counter++;
  }
+ EXPORT_SYMBOL_GPL(math_state_restore);
  
- void fpu_state_restore(struct pt_regs *regs)
-diff --git a/arch/sh/kernel/process_32.c b/arch/sh/kernel/process_32.c
-index ebd3933..2885fc9 100644
---- a/arch/sh/kernel/process_32.c
-+++ b/arch/sh/kernel/process_32.c
-@@ -156,7 +156,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
- #endif
- 		ti->addr_limit = KERNEL_DS;
- 		ti->status &= ~TS_USEDFPU;
--		p->fpu_counter = 0;
-+		p->thread.fpu_counter = 0;
- 		return 0;
- 	}
- 	*childregs = *current_pt_regs();
-@@ -189,7 +189,7 @@ __switch_to(struct task_struct *prev, struct task_struct *next)
- 	unlazy_fpu(prev, task_pt_regs(prev));
- 
- 	/* we're going to use this soon, after a few expensive things */
--	if (next->fpu_counter > 5)
-+	if (next->thread.fpu_counter > 5)
- 		prefetch(next_t->xstate);
- 
- #ifdef CONFIG_MMU
-@@ -207,7 +207,7 @@ __switch_to(struct task_struct *prev, struct task_struct *next)
- 	 * restore of the math state immediately to avoid the trap; the
- 	 * chances of needing FPU soon are obviously high now
- 	 */
--	if (next->fpu_counter > 5)
-+	if (next->thread.fpu_counter > 5)
- 		__fpu_state_restore();
- 
- 	return prev;
 -- 
 1.8.1.2
 
