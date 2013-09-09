@@ -1,42 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id BCFB16B0031
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 04:48:44 -0400 (EDT)
-Date: Mon, 9 Sep 2013 10:51:22 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [patch] filemap: add missing unlock_page
-Message-ID: <20130909075121.GA21419@shutemov.name>
-References: <20130909081822.8D4DF428001@webmail.sinamail.sina.com.cn>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id EB10B6B0031
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 05:00:28 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rp2so5893194pbb.0
+        for <linux-mm@kvack.org>; Mon, 09 Sep 2013 02:00:28 -0700 (PDT)
+Date: Mon, 9 Sep 2013 02:00:26 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, memcg: store memcg name for oom kill log
+ consistency
+In-Reply-To: <20130905135219.GE13666@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.02.1309090200110.1935@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1308282302450.14291@chino.kir.corp.google.com> <20130829133032.GB12077@dhcp22.suse.cz> <20130905135219.GE13666@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130909081822.8D4DF428001@webmail.sinamail.sina.com.cn>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@sina.com>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Hillf Danton <dhillf@gmail.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Sep 09, 2013 at 04:18:22PM +0800, Hillf Danton wrote:
-> Unlock and release page before returning error.
+On Thu, 5 Sep 2013, Michal Hocko wrote:
+
+> From 4cee36f56100f5689fe1ae22f468016ce5a0cbae Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Thu, 5 Sep 2013 15:39:20 +0200
+> Subject: [PATCH] memcg, oom: lock mem_cgroup_print_oom_info
 > 
-> Signed-off-by: Hillf Danton <dhillf@gmail.com>
-> ---
+> mem_cgroup_print_oom_info uses a static buffer (memcg_name) to store the
+> name of the cgroup. This is not safe as pointed out by David Rientjes
+> because although memcg oom is locked for its hierarchy nothing prevents
+> another parallel hierarchy to trigger oom as well and overwrite the
+> already in-use buffer.
 > 
-> --- a/mm/filemap.c	Mon Sep  9 15:51:28 2013
-> +++ b/mm/filemap.c	Mon Sep  9 15:52:54 2013
-> @@ -1844,6 +1844,7 @@ retry:
->  	}
->  	err = filler(data, page);
->  	if (err < 0) {
-> +		unlock_page(page);
->  		page_cache_release(page);
->  		return ERR_PTR(err);
->  	}
+> This patch introduces oom_info_lock hidden inside mem_cgroup_print_oom_info
+> which is held throughout the function. It make access to memcg_name safe
+> and as a bonus it also prevents parallel memcg ooms to interleave their
+> statistics which would make the printed data hard to analyze otherwise.
+> 
+> Using the spinlock is OK here because this path is not hot and
+> meaningful data is much more important.
+> 
+> Reported-by: David Rientjes <rientjes@google.com>
 
-NAK. filler() should unlock the page.
+Remove this.
 
--- 
- Kirill A. Shutemov
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
