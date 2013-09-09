@@ -1,10 +1,12 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Subject: Re: [PATCH 00/11] x86, memblock: Allocate memory near kernel image
  before SRAT parsed.
-Date: Fri, 6 Sep 2013 16:58:11 +0800
-Message-ID: <21144.2295149483$1378457922@news.gmane.org>
+Date: Mon, 9 Sep 2013 19:56:34 +0800
+Message-ID: <19126.0132044137$1378727822@news.gmane.org>
 References: <1377596268-31552-1-git-send-email-tangchen@cn.fujitsu.com>
  <20130904192215.GG26609@mtj.dyndns.org>
+ <52299935.0302450a.26c9.ffffb240SMTPIN_ADDED_BROKEN@mx.google.com>
+ <20130906151526.GA22423@mtj.dyndns.org>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -12,70 +14,45 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1VHrs4-0006zr-Nf
-	for glkm-linux-mm-2@m.gmane.org; Fri, 06 Sep 2013 10:58:29 +0200
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 377BF6B0031
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 04:58:26 -0400 (EDT)
+	id 1VJ05L-0004f1-2L
+	for glkm-linux-mm-2@m.gmane.org; Mon, 09 Sep 2013 13:56:51 +0200
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 9C8DB6B0031
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 07:56:48 -0400 (EDT)
 Received: from /spool/local
 	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 6 Sep 2013 14:18:50 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 52CF2394004E
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2013 14:28:02 +0530 (IST)
+	Mon, 9 Sep 2013 17:17:04 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id BDA7D394005A
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 17:26:24 +0530 (IST)
 Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r868wC6h47775846
-	for <linux-mm@kvack.org>; Fri, 6 Sep 2013 14:28:12 +0530
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r89BwZfv32047134
+	for <linux-mm@kvack.org>; Mon, 9 Sep 2013 17:28:36 +0530
 Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r868wCGJ000367
-	for <linux-mm@kvack.org>; Fri, 6 Sep 2013 14:28:13 +0530
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r89BuZcV001136
+	for <linux-mm@kvack.org>; Mon, 9 Sep 2013 17:26:36 +0530
 Content-Disposition: inline
-In-Reply-To: <20130904192215.GG26609@mtj.dyndns.org>
+In-Reply-To: <20130906151526.GA22423@mtj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>
 Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
 Hi Tejun,
-On Wed, Sep 04, 2013 at 03:22:15PM -0400, Tejun Heo wrote:
->Hello,
+On Fri, Sep 06, 2013 at 11:15:26AM -0400, Tejun Heo wrote:
+>Hello, Wanpeng.
 >
->On Tue, Aug 27, 2013 at 05:37:37PM +0800, Tang Chen wrote:
->> 1. Make memblock be able to allocate memory from low address to high address.
->>    Also introduce low limit to prevent memblock allocating memory too low.
->> 
->> 2. Improve init_mem_mapping() to support allocate page tables from low address 
->>    to high address.
->> 
->> 3. Introduce "movablenode" boot option to enable and disable this functionality.
->> 
->> PS: Reordering of relocate_initrd() and reserve_crashkernel() has not been done 
->>     yet. acpi_initrd_override() needs to access initrd with virtual address. So 
->>     relocate_initrd() must be done before acpi_initrd_override().
+>On Fri, Sep 06, 2013 at 04:58:11PM +0800, Wanpeng Li wrote:
+>> What's the root reason memblock alloc from high to low? To reduce 
+>> fragmentation or ...
 >
->I'm expectedly happier with this approach but some overall review
->points.
->
->* I think patch splitting went a bit too far.  e.g. it doesn't make
->  much sense or helps anything to split "introduction of a param" from
->  "the param doing something".
->
->* I think it's a lot more complex than necessary.  Just implement a
->  single function - memblock_alloc_bottom_up(@start) where specifying
->  MEMBLOCK_ALLOC_ANYWHERE restores top down behavior and do
->  memblock_alloc_bottom_up(end_of_kernel) early during boot.  If the
->  bottom up mode is set, just try allocating bottom up from the
->  specified address and if that fails do normal top down allocation.
->  No need to meddle with the callers.  The only change necessary
->  (well, aside from the reordering) outside memblock is adding two
->  calls to the above function.
->
->* I don't think "order" is the right word here.  "direction" probably
->  fits a lot better.
+>Because low memory tends to be more precious, it's just easier to pack
+>everything towards the top so that we don't have to worry about which
+>zone to use for allocation and fallback logic.
 
-What's the root reason memblock alloc from high to low? To reduce 
-fragmentation or ...
+If allocate from low to high as what this patchset done will occupy the
+precious memory you mentioned?
 
 Regards,
 Wanpeng Li 
