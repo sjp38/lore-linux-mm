@@ -1,54 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 3C7346B0034
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 05:16:18 -0400 (EDT)
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Subject: [PATCH 3/3] sched: Remove ARCH specific fpu_counter from task_struct
-Date: Mon, 9 Sep 2013 14:45:23 +0530
-Message-ID: <1378718123-7372-3-git-send-email-vgupta@synopsys.com>
-In-Reply-To: <1378718123-7372-1-git-send-email-vgupta@synopsys.com>
-References: <1378718123-7372-1-git-send-email-vgupta@synopsys.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id C26F06B0031
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 07:08:49 -0400 (EDT)
+Date: Mon, 9 Sep 2013 13:08:47 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] vmpressure: fix divide-by-0 in vmpressure_work_fn
+Message-ID: <20130909110847.GB18056@dhcp22.suse.cz>
+References: <alpine.LNX.2.00.1309062254470.11420@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LNX.2.00.1309062254470.11420@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
-Cc: Vineet Gupta <Vineet.Gupta1@synopsys.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: Anton Vorontsov <anton.vorontsov@linaro.org>, Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-fpu_counter in task_struct was used only by sh/x86.
-Both of these now carry it in ARCH specific thread_struct, hence this
-can now be removed from generic task_struct, shrinking it slightly for
-other arches.
+On Fri 06-09-13 22:59:16, Hugh Dickins wrote:
+> Hit divide-by-0 in vmpressure_work_fn(): checking vmpr->scanned before
+> taking the lock is not enough, we must check scanned afterwards too.
 
-Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
----
- include/linux/sched.h | 9 ---------
- 1 file changed, 9 deletions(-)
+As vmpressure_work_fn seems the be the only place where we set scanned
+to 0 (except for the rare occasion when scanned overflows which
+would be really surprising) then the only possible way would be two
+vmpressure_work_fn racing over the same work item. system_wq is
+!WQ_NON_REENTRANT so one work item might be processed by multiple
+workers on different CPUs. This means that the vmpr->scanned check in
+the beginning of vmpressure_work_fn is inherently racy.
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 078066d..b560364 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1051,15 +1051,6 @@ struct task_struct {
- 	struct hlist_head preempt_notifiers;
- #endif
- 
--	/*
--	 * fpu_counter contains the number of consecutive context switches
--	 * that the FPU is used. If this is over a threshold, the lazy fpu
--	 * saving becomes unlazy to save the trap. This is an unsigned char
--	 * so that after 256 times the counter wraps and the behavior turns
--	 * lazy again; this to deal with bursty apps that only use FPU for
--	 * a short time
--	 */
--	unsigned char fpu_counter;
- #ifdef CONFIG_BLK_DEV_IO_TRACE
- 	unsigned int btrace_seq;
- #endif
+Hugh's patch fixes the issue obviously but doesn't it make more sense to
+move the initial vmpr->scanned check under the lock instead?
+
+Anton, what was the initial motivation for the out of the lock
+check? Does it really optimize anything?
+
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Cc: stable@vger.kernel.org
+> ---
+> 
+>  mm/vmpressure.c |    3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> --- 3.11/mm/vmpressure.c	2013-09-02 13:46:10.000000000 -0700
+> +++ linux/mm/vmpressure.c	2013-09-06 22:43:03.596003080 -0700
+> @@ -187,6 +187,9 @@ static void vmpressure_work_fn(struct wo
+>  	vmpr->reclaimed = 0;
+>  	spin_unlock(&vmpr->sr_lock);
+>  
+> +	if (!scanned)
+> +		return;
+> +
+>  	do {
+>  		if (vmpressure_event(vmpr, scanned, reclaimed))
+>  			break;
+
 -- 
-1.8.1.2
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
