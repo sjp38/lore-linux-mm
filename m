@@ -1,61 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 552046B0032
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 16:11:09 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id un15so6618845pbc.1
-        for <linux-mm@kvack.org>; Mon, 09 Sep 2013 13:11:08 -0700 (PDT)
-Date: Mon, 9 Sep 2013 13:11:06 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] OOM killer: wait for tasks with pending SIGKILL to
- exit
-In-Reply-To: <20130909163109.GA9334@redhat.com>
-Message-ID: <alpine.DEB.2.02.1309091307170.12523@chino.kir.corp.google.com>
-References: <1378740624-2456-1-git-send-email-dserrg@gmail.com> <20130909163109.GA9334@redhat.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id B1E296B0032
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 16:13:00 -0400 (EDT)
+Date: Mon, 9 Sep 2013 16:12:38 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 0/7] improve memcg oom killer robustness v2
+Message-ID: <20130909201238.GH856@cmpxchg.org>
+References: <1375549200-19110-1-git-send-email-hannes@cmpxchg.org>
+ <20130803170831.GB23319@cmpxchg.org>
+ <20130830215852.3E5D3D66@pobox.sk>
+ <20130902123802.5B8E8CB1@pobox.sk>
+ <20130903204850.GA1412@cmpxchg.org>
+ <20130904101852.58E70042@pobox.sk>
+ <20130905115430.GB856@cmpxchg.org>
+ <20130909151010.3A3CBC6A@pobox.sk>
+ <20130909172849.GG856@cmpxchg.org>
+ <20130909215917.96932098@pobox.sk>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130909215917.96932098@pobox.sk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Sergey Dyasly <dserrg@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Rusty Russell <rusty@rustcorp.com.au>, Sha Zhengju <handai.szj@taobao.com>
+To: azurIt <azurit@pobox.sk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, 9 Sep 2013, Oleg Nesterov wrote:
-
-> > @@ -275,13 +275,16 @@ enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
-> >  	if (oom_task_origin(task))
-> >  		return OOM_SCAN_SELECT;
-> >  
-> > -	if (task->flags & PF_EXITING && !force_kill) {
-> > +	if ((task->flags & PF_EXITING || fatal_signal_pending(task)) &&
-> > +	    !force_kill) {
-> >  		/*
-> >  		 * If this task is not being ptraced on exit, then wait for it
-> >  		 * to finish before killing some other task unnecessarily.
-> >  		 */
-> > -		if (!(task->group_leader->ptrace & PT_TRACE_EXIT))
-> > +		if (!(task->group_leader->ptrace & PT_TRACE_EXIT)) {
+On Mon, Sep 09, 2013 at 09:59:17PM +0200, azurIt wrote:
+> >On Mon, Sep 09, 2013 at 03:10:10PM +0200, azurIt wrote:
+> >> >Hi azur,
+> >> >
+> >> >On Wed, Sep 04, 2013 at 10:18:52AM +0200, azurIt wrote:
+> >> >> > CC: "Andrew Morton" <akpm@linux-foundation.org>, "Michal Hocko" <mhocko@suse.cz>, "David Rientjes" <rientjes@google.com>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+> >> >> >Hello azur,
+> >> >> >
+> >> >> >On Mon, Sep 02, 2013 at 12:38:02PM +0200, azurIt wrote:
+> >> >> >> >>Hi azur,
+> >> >> >> >>
+> >> >> >> >>here is the x86-only rollup of the series for 3.2.
+> >> >> >> >>
+> >> >> >> >>Thanks!
+> >> >> >> >>Johannes
+> >> >> >> >>---
+> >> >> >> >
+> >> >> >> >
+> >> >> >> >Johannes,
+> >> >> >> >
+> >> >> >> >unfortunately, one problem arises: I have (again) cgroup which cannot be deleted :( it's a user who had very high memory usage and was reaching his limit very often. Do you need any info which i can gather now?
+> >> >> >
+> >> >> >Did the OOM killer go off in this group?
+> >> >> >
+> >> >> >Was there a warning in the syslog ("Fixing unhandled memcg OOM
+> >> >> >context")?
+> >> >> 
+> >> >> 
+> >> >> 
+> >> >> Ok, i see this message several times in my syslog logs, one of them is also for this unremovable cgroup (but maybe all of them cannot be removed, should i try?). Example of the log is here (don't know where exactly it starts and ends so here is the full kernel log):
+> >> >> http://watchdog.sk/lkml/oom_syslog.gz
+> >> >There is an unfinished OOM invocation here:
+> >> >
+> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715112] Fixing unhandled memcg OOM context set up from:
+> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715191]  [<ffffffff811105c2>] T.1154+0x622/0x8f0
+> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715274]  [<ffffffff8111153e>] mem_cgroup_cache_charge+0xbe/0xe0
+> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715357]  [<ffffffff810cf31c>] add_to_page_cache_locked+0x4c/0x140
+> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715443]  [<ffffffff810cf432>] add_to_page_cache_lru+0x22/0x50
+> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715526]  [<ffffffff810cfdd3>] find_or_create_page+0x73/0xb0
+> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715608]  [<ffffffff811493ba>] __getblk+0xea/0x2c0
+> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715692]  [<ffffffff8114ca73>] __bread+0x13/0xc0
+> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715774]  [<ffffffff81196968>] ext3_get_branch+0x98/0x140
+> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715859]  [<ffffffff81197557>] ext3_get_blocks_handle+0xd7/0xdc0
+> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715942]  [<ffffffff81198304>] ext3_get_block+0xc4/0x120
+> >> >  Aug 22 13:15:21 server01 kernel: [1251422.716023]  [<ffffffff81155c3a>] do_mpage_readpage+0x38a/0x690
+> >> >  Aug 22 13:15:21 server01 kernel: [1251422.716107]  [<ffffffff81155f8f>] mpage_readpage+0x4f/0x70
+> >> >  Aug 22 13:15:21 server01 kernel: [1251422.716188]  [<ffffffff811973a8>] ext3_readpage+0x28/0x60
+> >> >  Aug 22 13:15:21 server01 kernel: [1251422.716268]  [<ffffffff810cfa48>] filemap_fault+0x308/0x560
+> >> >  Aug 22 13:15:21 server01 kernel: [1251422.716350]  [<ffffffff810ef898>] __do_fault+0x78/0x5a0
+> >> >  Aug 22 13:15:21 server01 kernel: [1251422.716433]  [<ffffffff810f2ab4>] handle_pte_fault+0x84/0x940
+> >> >
+> >> >__getblk() has this weird loop where it tries to instantiate the page,
+> >> >frees memory on failure, then retries.  If the memcg goes OOM, the OOM
+> >> >path might be entered multiple times and each time leak the memcg
+> >> >reference of the respective previous OOM invocation.
+> >> >
+> >> >There are a few more find_or_create() sites that do not propagate an
+> >> >error and it's incredibly hard to find out whether they are even taken
+> >> >during a page fault.  It's not practical to annotate them all with
+> >> >memcg OOM toggles, so let's just catch all OOM contexts at the end of
+> >> >handle_mm_fault() and clear them if !VM_FAULT_OOM instead of treating
+> >> >this like an error.
+> >> >
+> >> >azur, here is a patch on top of your modified 3.2.  Note that Michal
+> >> >might be onto something and we are looking at multiple issues here,
+> >> >but the log excert above suggests this fix is required either way.
+> >> 
+> >> 
+> >> 
+> >> 
+> >> Johannes, is this still up to date? Thank you.
+> >
+> >No, please use the following on top of 3.2 (i.e. full replacement, not
+> >incremental to what you have):
 > 
-> can't we finally kill (or fix?) this PT_TRACE_EXIT check?
 > 
-
-Patches are always welcome.
-
-> It was added to fix the exploit I sent. But the patch was wrong,
-> that exploit could be easily modified to trigger the same problem.
 > 
-
-If the patch prevented your exploit when coredumping was done differently 
-then it was not wrong.  It may not have been as inclusive as you would 
-have liked, but then again you never proposed any kernel changes to fix it 
-yourself either.
-
-> However, now that the coredumping is killable that exploit won't
-> work, so the original reason has gone away.
+> Unfortunately it didn't compile:
 > 
-> So why do we need this check today?
 > 
+> 
+> 
+>   LD      vmlinux.o
+>   MODPOST vmlinux.o
+> WARNING: modpost: Found 4924 section mismatch(es).
+> To see full details build your kernel with:
+> 'make CONFIG_DEBUG_SECTION_MISMATCH=y'
+>   GEN     .version
+>   CHK     include/generated/compile.h
+>   UPD     include/generated/compile.h
+>   CC      init/version.o
+>   LD      init/built-in.o
+>   LD      .tmp_vmlinux1
+> arch/x86/built-in.o: In function `do_page_fault':
+> (.text+0x26a77): undefined reference to `handle_mm_fault'
+> mm/built-in.o: In function `fixup_user_fault':
+> (.text+0x224d3): undefined reference to `handle_mm_fault'
+> mm/built-in.o: In function `__get_user_pages':
+> (.text+0x24a0f): undefined reference to `handle_mm_fault'
+> make: *** [.tmp_vmlinux1] Error 1
 
-If you feel it can be removed, please propose a patch to do so with a 
-changelog that describes why it is no longer necessary.
+Oops, sorry about that.  Must be configuration dependent because it
+works for me (and handle_mm_fault is obviously defined).
+
+Do you have warnings earlier in the compilation?  You can use make -s
+to filter out everything but warnings.
+
+Or send me your configuration so I can try to reproduce it here.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
