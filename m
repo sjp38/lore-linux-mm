@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 039466B009D
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 05:33:22 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 158126B009E
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 05:33:24 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 47/50] sched: numa: add debugging
-Date: Tue, 10 Sep 2013 10:32:27 +0100
-Message-Id: <1378805550-29949-48-git-send-email-mgorman@suse.de>
+Subject: [PATCH 48/50] sched: numa: Decide whether to favour task or group weights based on swap candidate relationships
+Date: Tue, 10 Sep 2013 10:32:28 +0100
+Message-Id: <1378805550-29949-49-git-send-email-mgorman@suse.de>
 In-Reply-To: <1378805550-29949-1-git-send-email-mgorman@suse.de>
 References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,170 +13,163 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-From: Ingo Molnar <mingo@kernel.org>
+From: Rik van Riel <riel@redhat.com>
 
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Peter Zijlstra <peterz@infradead.org>
-Link: http://lkml.kernel.org/n/tip-5giqjcqnc93a89q01ymtjxpr@git.kernel.org
+This patch separately considers task and group affinities when searching
+for swap candidates during task NUMA placement. If tasks are not part of
+a group or the same group then the task weights are considered.
+Otherwise the group weights are compared.
+
+Not-signed-off-by: Rik van Riel
 ---
- include/linux/sched.h |  6 ++++++
- kernel/sched/debug.c  | 60 +++++++++++++++++++++++++++++++++++++++++++++++++--
- kernel/sched/fair.c   |  5 ++++-
- 3 files changed, 68 insertions(+), 3 deletions(-)
+ kernel/sched/fair.c | 59 ++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 36 insertions(+), 23 deletions(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 46fb36a..ac08eb6 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1357,6 +1357,7 @@ struct task_struct {
- 	unsigned long *numa_faults_buffer;
- 
- 	int numa_preferred_nid;
-+	unsigned long numa_pages_migrated;
- #endif /* CONFIG_NUMA_BALANCING */
- 
- 	struct rcu_head rcu;
-@@ -2577,6 +2578,11 @@ static inline unsigned int task_cpu(const struct task_struct *p)
- 	return task_thread_info(p)->cpu;
- }
- 
-+static inline int task_node(const struct task_struct *p)
-+{
-+	return cpu_to_node(task_cpu(p));
-+}
-+
- extern void set_task_cpu(struct task_struct *p, unsigned int cpu);
- 
- #else
-diff --git a/kernel/sched/debug.c b/kernel/sched/debug.c
-index e076bdd..49ab782 100644
---- a/kernel/sched/debug.c
-+++ b/kernel/sched/debug.c
-@@ -15,6 +15,7 @@
- #include <linux/seq_file.h>
- #include <linux/kallsyms.h>
- #include <linux/utsname.h>
-+#include <linux/mempolicy.h>
- 
- #include "sched.h"
- 
-@@ -137,6 +138,9 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
- 	SEQ_printf(m, "%15Ld %15Ld %15Ld.%06ld %15Ld.%06ld %15Ld.%06ld",
- 		0LL, 0LL, 0LL, 0L, 0LL, 0L, 0LL, 0L);
- #endif
-+#ifdef CONFIG_NUMA_BALANCING
-+	SEQ_printf(m, " %d", cpu_to_node(task_cpu(p)));
-+#endif
- #ifdef CONFIG_CGROUP_SCHED
- 	SEQ_printf(m, " %s", task_group_path(task_group(p)));
- #endif
-@@ -159,7 +163,7 @@ static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu)
- 	read_lock_irqsave(&tasklist_lock, flags);
- 
- 	do_each_thread(g, p) {
--		if (!p->on_rq || task_cpu(p) != rq_cpu)
-+		if (task_cpu(p) != rq_cpu)
- 			continue;
- 
- 		print_task(m, rq, p);
-@@ -345,7 +349,7 @@ static void sched_debug_header(struct seq_file *m)
- 	cpu_clk = local_clock();
- 	local_irq_restore(flags);
- 
--	SEQ_printf(m, "Sched Debug Version: v0.10, %s %.*s\n",
-+	SEQ_printf(m, "Sched Debug Version: v0.11, %s %.*s\n",
- 		init_utsname()->release,
- 		(int)strcspn(init_utsname()->version, " "),
- 		init_utsname()->version);
-@@ -488,6 +492,56 @@ static int __init init_sched_debug_procfs(void)
- 
- __initcall(init_sched_debug_procfs);
- 
-+#define __P(F) \
-+	SEQ_printf(m, "%-45s:%21Ld\n", #F, (long long)F)
-+#define P(F) \
-+	SEQ_printf(m, "%-45s:%21Ld\n", #F, (long long)p->F)
-+#define __PN(F) \
-+	SEQ_printf(m, "%-45s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)F))
-+#define PN(F) \
-+	SEQ_printf(m, "%-45s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)p->F))
-+
-+
-+static void sched_show_numa(struct task_struct *p, struct seq_file *m)
-+{
-+#ifdef CONFIG_NUMA_BALANCING
-+	struct mempolicy *pol;
-+	int node, i;
-+
-+	if (p->mm)
-+		P(mm->numa_scan_seq);
-+
-+	task_lock(p);
-+	pol = p->mempolicy;
-+	if (pol && !(pol->flags & MPOL_F_MORON))
-+		pol = NULL;
-+	mpol_get(pol);
-+	task_unlock(p);
-+
-+	SEQ_printf(m, "numa_migrations, %ld\n", xchg(&p->numa_pages_migrated, 0));
-+
-+	for_each_online_node(node) {
-+		for (i = 0; i < 2; i++) {
-+			unsigned long nr_faults = -1;
-+			int cpu_current, home_node;
-+
-+			if (p->numa_faults)
-+				nr_faults = p->numa_faults[2*node + i];
-+
-+			cpu_current = !i ? (task_node(p) == node) :
-+				(pol && node_isset(node, pol->v.nodes));
-+
-+			home_node = (p->numa_preferred_nid == node);
-+
-+			SEQ_printf(m, "numa_faults, %d, %d, %d, %d, %ld\n",
-+				i, node, cpu_current, home_node, nr_faults);
-+		}
-+	}
-+
-+	mpol_put(pol);
-+#endif
-+}
-+
- void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
- {
- 	unsigned long nr_switches;
-@@ -591,6 +645,8 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
- 		SEQ_printf(m, "%-45s:%21Ld\n",
- 			   "clock-delta", (long long)(t1-t0));
- 	}
-+
-+	sched_show_numa(p, m);
- }
- 
- void proc_sched_set_task(struct task_struct *p)
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 4653f71..80906fa 100644
+index 80906fa..fdb7923 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -1138,7 +1138,7 @@ static int task_numa_migrate(struct task_struct *p)
- 		.p = p,
+@@ -1039,13 +1039,15 @@ static void task_numa_assign(struct task_numa_env *env,
+  * into account that it might be best if task running on the dst_cpu should
+  * be exchanged with the source task
+  */
+-static void task_numa_compare(struct task_numa_env *env, long imp)
++static void task_numa_compare(struct task_numa_env *env,
++			      long taskimp, long groupimp)
+ {
+ 	struct rq *src_rq = cpu_rq(env->src_cpu);
+ 	struct rq *dst_rq = cpu_rq(env->dst_cpu);
+ 	struct task_struct *cur;
+ 	long dst_load, src_load;
+ 	long load;
++	long imp = (groupimp > 0) ? groupimp : taskimp;
  
- 		.src_cpu = task_cpu(p),
--		.src_nid = cpu_to_node(task_cpu(p)),
-+		.src_nid = task_node(p),
+ 	rcu_read_lock();
+ 	cur = ACCESS_ONCE(dst_rq->curr);
+@@ -1064,10 +1066,19 @@ static void task_numa_compare(struct task_numa_env *env, long imp)
+ 		if (!cpumask_test_cpu(env->src_cpu, tsk_cpus_allowed(cur)))
+ 			goto unlock;
  
- 		.imbalance_pct = 112,
+-		imp += task_weight(cur, env->src_nid) +
+-		       group_weight(cur, env->src_nid) -
+-		       task_weight(cur, env->dst_nid) -
+-		       group_weight(cur, env->dst_nid);
++		/*
++		 * If dst and source tasks are in the same NUMA group, or not
++		 * in any group then look only at task weights otherwise give
++		 * priority to the group weights.
++		 */
++		if (!cur->numa_group || ! env->p->numa_group ||
++		    cur->numa_group == env->p->numa_group) {
++			imp = taskimp + task_weight(cur, env->src_nid) -
++			      task_weight(cur, env->dst_nid);
++		} else {
++			imp = groupimp + group_weight(cur, env->src_nid) -
++			       group_weight(cur, env->dst_nid);
++		}
+ 	}
  
-@@ -1510,6 +1510,9 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
- 	if (p->numa_migrate_retry && time_after(jiffies, p->numa_migrate_retry))
- 		numa_migrate_preferred(p);
- 
-+	if (migrated)
-+		p->numa_pages_migrated += pages;
-+
- 	p->numa_faults_buffer[task_faults_idx(node, priv)] += pages;
+ 	if (imp < env->best_imp)
+@@ -1117,7 +1128,8 @@ unlock:
+ 	rcu_read_unlock();
  }
  
+-static void task_numa_find_cpu(struct task_numa_env *env, long imp)
++static void task_numa_find_cpu(struct task_numa_env *env,
++				long taskimp, long groupimp)
+ {
+ 	int cpu;
+ 
+@@ -1127,7 +1139,7 @@ static void task_numa_find_cpu(struct task_numa_env *env, long imp)
+ 			continue;
+ 
+ 		env->dst_cpu = cpu;
+-		task_numa_compare(env, imp);
++		task_numa_compare(env, taskimp, groupimp);
+ 	}
+ }
+ 
+@@ -1147,9 +1159,9 @@ static int task_numa_migrate(struct task_struct *p)
+ 		.best_cpu = -1
+ 	};
+  	struct sched_domain *sd;
+-	unsigned long weight;
++	unsigned long taskweight, groupweight;
+ 	int nid, ret;
+-	long imp;
++	long taskimp, groupimp;
+ 
+ 	/*
+ 	 * Find the lowest common scheduling domain covering the nodes of both
+@@ -1164,10 +1176,12 @@ static int task_numa_migrate(struct task_struct *p)
+ 	}
+ 	rcu_read_unlock();
+ 
+-	weight = task_weight(p, env.src_nid) + group_weight(p, env.src_nid);
++	taskweight = task_weight(p, env.src_nid);
++	groupweight = group_weight(p, env.src_nid);
+ 	update_numa_stats(&env.src_stats, env.src_nid);
+ 	env.dst_nid = p->numa_preferred_nid;
+-	imp = task_weight(p, env.dst_nid) + group_weight(p, env.dst_nid) - weight;
++	taskimp = task_weight(p, env.dst_nid) - taskweight;
++	groupimp = group_weight(p, env.dst_nid) - groupweight;
+ 	update_numa_stats(&env.dst_stats, env.dst_nid);
+ 
+ 	/*
+@@ -1175,20 +1189,21 @@ static int task_numa_migrate(struct task_struct *p)
+ 	 * alternative node with relatively better statistics.
+ 	 */
+ 	if (env.dst_stats.has_capacity) {
+-		task_numa_find_cpu(&env, imp);
++		task_numa_find_cpu(&env, taskimp, groupimp);
+ 	} else {
+ 		for_each_online_node(nid) {
+ 			if (nid == env.src_nid || nid == p->numa_preferred_nid)
+ 				continue;
+ 
+ 			/* Only consider nodes where both task and groups benefit */
+-			imp = task_weight(p, nid) + group_weight(p, nid) - weight;
+-			if (imp < 0)
++			taskimp = task_weight(p, nid) - taskweight;
++			groupimp = group_weight(p, nid) - groupweight;
++			if (taskimp < 0 && groupimp < 0)
+ 				continue;
+ 
+ 			env.dst_nid = nid;
+ 			update_numa_stats(&env.dst_stats, env.dst_nid);
+-			task_numa_find_cpu(&env, imp);
++			task_numa_find_cpu(&env, taskimp, groupimp);
+ 		}
+ 	}
+ 
+@@ -4627,10 +4642,9 @@ static bool migrate_improves_locality(struct task_struct *p, struct lb_env *env)
+ 	if (dst_nid == p->numa_preferred_nid)
+ 		return true;
+ 
+-	/* After the task has settled, check if the new node is better. */
+-	if (p->numa_migrate_seq >= sysctl_numa_balancing_settle_count &&
+-			task_weight(p, dst_nid) + group_weight(p, dst_nid) >
+-			task_weight(p, src_nid) + group_weight(p, src_nid))
++	/* If both task and group weight improve, this move is a winner. */
++	if (task_weight(p, dst_nid) > task_weight(p, src_nid) &&
++	    group_weight(p, dst_nid) > group_weight(p, src_nid))
+ 		return true;
+ 
+ 	return false;
+@@ -4657,10 +4671,9 @@ static bool migrate_degrades_locality(struct task_struct *p, struct lb_env *env)
+ 	if (src_nid == p->numa_preferred_nid)
+ 		return true;
+ 
+-	/* After the task has settled, check if the new node is worse. */
+-	if (p->numa_migrate_seq >= sysctl_numa_balancing_settle_count &&
+-			task_weight(p, dst_nid) + group_weight(p, dst_nid) <
+-			task_weight(p, src_nid) + group_weight(p, src_nid))
++	/* If either task or group weight get worse, don't do it. */
++	if (task_weight(p, dst_nid) < task_weight(p, src_nid) ||
++	    group_weight(p, dst_nid) < group_weight(p, src_nid))
+ 		return true;
+ 
+ 	return false;
 -- 
 1.8.1.4
 
