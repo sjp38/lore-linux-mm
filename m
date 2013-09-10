@@ -1,64 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id A3EB76B0031
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 23:43:58 -0400 (EDT)
-Message-ID: <522E9569.9060104@huawei.com>
-Date: Tue, 10 Sep 2013 11:43:37 +0800
-From: Li Zefan <lizefan@huawei.com>
-MIME-Version: 1.0
-Subject: [PATCH] slub: Fix calculation of cpu slabs
-Content-Type: text/plain; charset="GB2312"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 3D6866B0031
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 00:03:31 -0400 (EDT)
+Received: by mail-la0-f43.google.com with SMTP id ep20so5604561lab.2
+        for <linux-mm@kvack.org>; Mon, 09 Sep 2013 21:03:29 -0700 (PDT)
+From: Vladimir Murzin <murzin.v@gmail.com>
+Subject: [PATCH] mm: fix section mismatch warning in set_pageblock_order
+Date: Tue, 10 Sep 2013 12:03:01 +0400
+Message-Id: <1378800181-4611-1-git-send-email-murzin.v@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, mgorman@suse.de, Vladimir Murzin <murzin.v@gmail.com>
 
-  /sys/kernel/slab/:t-0000048 # cat cpu_slabs
-  231 N0=16 N1=215
-  /sys/kernel/slab/:t-0000048 # cat slabs
-  145 N0=36 N1=109
+While cross-building for PPC I've got
 
-See, the number of slabs is smaller than that of cpu slabs.
+WARNING: mm/built-in.o(.meminit.text+0xeb0): Section mismatch in reference
+from the function .free_area_init_core.isra.47() to the function
+.init.text:.set_pageblock_order() The function __meminit
+.free_area_init_core.isra.47() references a function __init
+.set_pageblock_order(). If .set_pageblock_order is only used by
+.free_area_init_core.isra.47 then annotate .set_pageblock_order with a
+matching annotation.
 
-The bug was introduced by commit 49e2258586b423684f03c278149ab46d8f8b6700
-("slub: per cpu cache for partial pages").
+Annotation for free_area_init_core depends on CONFIG_SPARSEMEM. Use the same
+annotation (__paginginit) for set_pageblock_order.
 
-We should use page->pages instead of page->pobjects when calculating
-the number of cpu partial slabs. This also fixes the mapping of slabs
-and nodes.
-
-As there's no variable storing the number of total/active objects in
-cpu partial slabs, and we don't have user interfaces requiring those
-statistics, I just add WARN_ON for those cases.
-
-Cc: <stable@vger.kernel.org> # 3.2+
-Signed-off-by: Li Zefan <lizefan@huawei.com>
+Signed-off-by: Vladimir Murzin <murzin.v@gmail.com>
 ---
- mm/slub.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ mm/page_alloc.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/slub.c b/mm/slub.c
-index e3ba1f2..6ea461d 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -4300,7 +4300,13 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index c2b59db..818e0b4 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4586,7 +4586,7 @@ static inline void setup_usemap(struct pglist_data *pgdat, struct zone *zone,
+ #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
  
- 			page = ACCESS_ONCE(c->partial);
- 			if (page) {
--				x = page->pobjects;
-+				node = page_to_nid(page);
-+				if (flags & SO_TOTAL)
-+					WARN_ON_ONCE(1);
-+				else if (flags & SO_OBJECTS)
-+					WARN_ON_ONCE(1);
-+				else
-+					x = page->pages;
- 				total += x;
- 				nodes[node] += x;
- 			}
+ /* Initialise the number of pages represented by NR_PAGEBLOCK_BITS */
+-void __init set_pageblock_order(void)
++void __paginginit set_pageblock_order(void)
+ {
+ 	unsigned int order;
+ 
+@@ -4614,7 +4614,7 @@ void __init set_pageblock_order(void)
+  * include/linux/pageblock-flags.h for the values of pageblock_order based on
+  * the kernel config
+  */
+-void __init set_pageblock_order(void)
++void __paginginit set_pageblock_order(void)
+ {
+ }
+ 
 -- 
-1.8.0.2
+1.8.1.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
