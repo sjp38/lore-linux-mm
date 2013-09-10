@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id E9FA86B0099
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 05:33:20 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id DABCA6B009A
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 05:33:21 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 45/50] sched: numa: use group fault statistics in numa placement
-Date: Tue, 10 Sep 2013 10:32:25 +0100
-Message-Id: <1378805550-29949-46-git-send-email-mgorman@suse.de>
+Subject: [PATCH 46/50] sched: numa: Prevent parallel updates to group stats during placement
+Date: Tue, 10 Sep 2013 10:32:26 +0100
+Message-Id: <1378805550-29949-47-git-send-email-mgorman@suse.de>
 In-Reply-To: <1378805550-29949-1-git-send-email-mgorman@suse.de>
 References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,300 +13,79 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-This patch uses the fraction of faults on a particular node for both task
-and group, to figure out the best node to place a task.  If the task and
-group statistics disagree on what the preferred node should be then a full
-rescan will select the node with the best combined weight.
+Having multiple tasks in a group go through task_numa_placement
+simultaneously can lead to a task picking a wrong node to run on, because
+the group stats may be in the middle of an update. This patch avoids
+parallel updates by holding the numa_group lock during placement
+decisions.
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/sched.h |   1 +
- kernel/sched/fair.c   | 134 +++++++++++++++++++++++++++++++++++++++++---------
- 2 files changed, 113 insertions(+), 22 deletions(-)
+ kernel/sched/fair.c | 35 +++++++++++++++++++++++------------
+ 1 file changed, 23 insertions(+), 12 deletions(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 4f51ceb..46fb36a 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1347,6 +1347,7 @@ struct task_struct {
- 	 * The values remain static for the duration of a PTE scan
- 	 */
- 	unsigned long *numa_faults;
-+	unsigned long total_numa_faults;
- 
- 	/*
- 	 * numa_faults_buffer records faults per node during the current
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index ecfce3e..3a92c58 100644
+index 3a92c58..4653f71 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -897,6 +897,7 @@ struct numa_group {
- 	struct list_head task_list;
- 
- 	struct rcu_head rcu;
-+	atomic_long_t total_faults;
- 	atomic_long_t faults[0];
- };
- 
-@@ -919,6 +920,51 @@ static inline unsigned long task_faults(struct task_struct *p, int nid)
- 		p->numa_faults[task_faults_idx(nid, 1)];
- }
- 
-+static inline unsigned long group_faults(struct task_struct *p, int nid)
-+{
-+	if (!p->numa_group)
-+		return 0;
-+
-+	return atomic_long_read(&p->numa_group->faults[2*nid]) +
-+	       atomic_long_read(&p->numa_group->faults[2*nid+1]);
-+}
-+
-+/*
-+ * These return the fraction of accesses done by a particular task, or
-+ * task group, on a particular numa node.  The group weight is given a
-+ * larger multiplier, in order to group tasks together that are almost
-+ * evenly spread out between numa nodes.
-+ */
-+static inline unsigned long task_weight(struct task_struct *p, int nid)
-+{
-+	unsigned long total_faults;
-+
-+	if (!p->numa_faults)
-+		return 0;
-+
-+	total_faults = p->total_numa_faults;
-+
-+	if (!total_faults)
-+		return 0;
-+
-+	return 1000 * task_faults(p, nid) / total_faults;
-+}
-+
-+static inline unsigned long group_weight(struct task_struct *p, int nid)
-+{
-+	unsigned long total_faults;
-+
-+	if (!p->numa_group)
-+		return 0;
-+
-+	total_faults = atomic_long_read(&p->numa_group->total_faults);
-+
-+	if (!total_faults)
-+		return 0;
-+
-+	return 1200 * group_faults(p, nid) / total_faults;
-+}
-+
- static unsigned long weighted_cpuload(const int cpu);
- static unsigned long source_load(int cpu, int type);
- static unsigned long target_load(int cpu, int type);
-@@ -1018,8 +1064,10 @@ static void task_numa_compare(struct task_numa_env *env, long imp)
- 		if (!cpumask_test_cpu(env->src_cpu, tsk_cpus_allowed(cur)))
- 			goto unlock;
- 
--		imp += task_faults(cur, env->src_nid) -
--		       task_faults(cur, env->dst_nid);
-+		imp += task_weight(cur, env->src_nid) +
-+		       group_weight(cur, env->src_nid) -
-+		       task_weight(cur, env->dst_nid) -
-+		       group_weight(cur, env->dst_nid);
- 	}
- 
- 	if (imp < env->best_imp)
-@@ -1099,7 +1147,7 @@ static int task_numa_migrate(struct task_struct *p)
- 		.best_cpu = -1
- 	};
-  	struct sched_domain *sd;
--	unsigned long faults;
-+	unsigned long weight;
- 	int nid, ret;
- 	long imp;
- 
-@@ -1116,10 +1164,10 @@ static int task_numa_migrate(struct task_struct *p)
- 	}
- 	rcu_read_unlock();
- 
--	faults = task_faults(p, env.src_nid);
-+	weight = task_weight(p, env.src_nid) + group_weight(p, env.src_nid);
- 	update_numa_stats(&env.src_stats, env.src_nid);
- 	env.dst_nid = p->numa_preferred_nid;
--	imp = task_faults(env.p, env.dst_nid) - faults;
-+	imp = task_weight(p, env.dst_nid) + group_weight(p, env.dst_nid) - weight;
- 	update_numa_stats(&env.dst_stats, env.dst_nid);
- 
- 	/*
-@@ -1133,8 +1181,8 @@ static int task_numa_migrate(struct task_struct *p)
- 			if (nid == env.src_nid || nid == p->numa_preferred_nid)
- 				continue;
- 
--			/* Only consider nodes that recorded more faults */
--			imp = task_faults(env.p, nid) - faults;
-+			/* Only consider nodes where both task and groups benefit */
-+			imp = task_weight(p, nid) + group_weight(p, nid) - weight;
- 			if (imp < 0)
- 				continue;
- 
-@@ -1181,8 +1229,8 @@ static void numa_migrate_preferred(struct task_struct *p)
- 
- static void task_numa_placement(struct task_struct *p)
+@@ -1231,6 +1231,7 @@ static void task_numa_placement(struct task_struct *p)
  {
--	int seq, nid, max_nid = -1;
--	unsigned long max_faults = 0;
-+	int seq, nid, max_nid = -1, max_group_nid = -1;
-+	unsigned long max_faults = 0, max_group_faults = 0;
+ 	int seq, nid, max_nid = -1, max_group_nid = -1;
+ 	unsigned long max_faults = 0, max_group_faults = 0;
++	spinlock_t *group_lock = NULL;
  
  	seq = ACCESS_ONCE(p->mm->numa_scan_seq);
  	if (p->numa_scan_seq == seq)
-@@ -1193,7 +1241,7 @@ static void task_numa_placement(struct task_struct *p)
+@@ -1239,6 +1240,12 @@ static void task_numa_placement(struct task_struct *p)
+ 	p->numa_migrate_seq++;
+ 	p->numa_scan_period_max = task_scan_max(p);
  
- 	/* Find the node with the highest number of faults */
- 	for_each_online_node(nid) {
--		unsigned long faults = 0;
-+		unsigned long faults = 0, group_faults = 0;
- 		int priv, i;
- 
- 		for (priv = 0; priv < 2; priv++) {
-@@ -1209,9 +1257,12 @@ static void task_numa_placement(struct task_struct *p)
- 
- 			faults += p->numa_faults[i];
- 			diff += p->numa_faults[i];
-+			p->total_numa_faults += diff;
- 			if (p->numa_group) {
- 				/* safe because we can only change our own group */
- 				atomic_long_add(diff, &p->numa_group->faults[i]);
-+				atomic_long_add(diff, &p->numa_group->total_faults);
-+				group_faults += atomic_long_read(&p->numa_group->faults[i]);
- 			}
- 		}
- 
-@@ -1219,6 +1270,27 @@ static void task_numa_placement(struct task_struct *p)
- 			max_faults = faults;
- 			max_nid = nid;
- 		}
-+
-+		if (group_faults > max_group_faults) {
-+			max_group_faults = group_faults;
-+			max_group_nid = nid;
-+		}
++	/* If the task is part of a group prevent parallel updates to group stats */
++	if (p->numa_group) {
++		group_lock = &p->numa_group->lock;
++		spin_lock(group_lock);
 +	}
 +
-+	/*
-+	 * If the preferred task and group nids are different, 
-+	 * iterate over the nodes again to find the best place.
-+	 */
-+	if (p->numa_group && max_nid != max_group_nid) {
-+		unsigned long weight, max_weight = 0;
+ 	/* Find the node with the highest number of faults */
+ 	for_each_online_node(nid) {
+ 		unsigned long faults = 0, group_faults = 0;
+@@ -1277,20 +1284,24 @@ static void task_numa_placement(struct task_struct *p)
+ 		}
+ 	}
+ 
+-	/*
+-	 * If the preferred task and group nids are different, 
+-	 * iterate over the nodes again to find the best place.
+-	 */
+-	if (p->numa_group && max_nid != max_group_nid) {
+-		unsigned long weight, max_weight = 0;
+-
+-		for_each_online_node(nid) {
+-			weight = task_weight(p, nid) + group_weight(p, nid);
+-			if (weight > max_weight) {
+-				max_weight = weight;
+-				max_nid = nid;
++	if (p->numa_group) {
++		/*
++		 * If the preferred task and group nids are different, 
++		 * iterate over the nodes again to find the best place.
++		 */
++		if (max_nid != max_group_nid) {
++			unsigned long weight, max_weight = 0;
 +
-+		for_each_online_node(nid) {
-+			weight = task_weight(p, nid) + group_weight(p, nid);
-+			if (weight > max_weight) {
-+				max_weight = weight;
-+				max_nid = nid;
-+			}
-+		}
++			for_each_online_node(nid) {
++				weight = task_weight(p, nid) + group_weight(p, nid);
++				if (weight > max_weight) {
++					max_weight = weight;
++					max_nid = nid;
++				}
+ 			}
+ 		}
++
++		spin_unlock(group_lock);
  	}
  
  	/* Preferred node as the node with the most faults */
-@@ -1273,6 +1345,8 @@ static void task_numa_group(struct task_struct *p, int cpu, int pid)
- 		for (i = 0; i < 2*nr_node_ids; i++)
- 			atomic_long_set(&grp->faults[i], p->numa_faults[i]);
- 
-+		atomic_long_set(&grp->total_faults, p->total_numa_faults);
-+
- 		list_add(&p->numa_entry, &grp->task_list);
- 		grp->nr_tasks++;
- 		rcu_assign_pointer(p->numa_group, grp);
-@@ -1320,6 +1394,8 @@ unlock:
- 		atomic_long_sub(p->numa_faults[i], &my_grp->faults[i]);
- 		atomic_long_add(p->numa_faults[i], &grp->faults[i]);
- 	}
-+	atomic_long_sub(p->total_numa_faults, &my_grp->total_faults);
-+	atomic_long_add(p->total_numa_faults, &grp->total_faults);
- 
- 	double_lock(&my_grp->lock, &grp->lock);
- 
-@@ -1340,12 +1416,12 @@ void task_numa_free(struct task_struct *p)
- 	struct numa_group *grp = p->numa_group;
- 	int i;
- 
--	kfree(p->numa_faults);
--
- 	if (grp) {
- 		for (i = 0; i < 2*nr_node_ids; i++)
- 			atomic_long_sub(p->numa_faults[i], &grp->faults[i]);
- 
-+		atomic_long_sub(p->total_numa_faults, &grp->total_faults);
-+
- 		spin_lock(&grp->lock);
- 		list_del(&p->numa_entry);
- 		grp->nr_tasks--;
-@@ -1353,6 +1429,8 @@ void task_numa_free(struct task_struct *p)
- 		rcu_assign_pointer(p->numa_group, NULL);
- 		put_numa_group(grp);
- 	}
-+
-+	kfree(p->numa_faults);
- }
- 
- /*
-@@ -1382,6 +1460,7 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
- 
- 		BUG_ON(p->numa_faults_buffer);
- 		p->numa_faults_buffer = p->numa_faults + (2 * nr_node_ids);
-+		p->total_numa_faults = 0;
- 	}
- 
- 	/*
-@@ -4527,12 +4606,17 @@ static bool migrate_improves_locality(struct task_struct *p, struct lb_env *env)
- 	src_nid = cpu_to_node(env->src_cpu);
- 	dst_nid = cpu_to_node(env->dst_cpu);
- 
--	if (src_nid == dst_nid ||
--	    p->numa_migrate_seq >= sysctl_numa_balancing_settle_count)
-+	if (src_nid == dst_nid)
- 		return false;
- 
--	if (dst_nid == p->numa_preferred_nid ||
--	    task_faults(p, dst_nid) > task_faults(p, src_nid))
-+	/* Always encourage migration to the preferred node. */
-+	if (dst_nid == p->numa_preferred_nid)
-+		return true;
-+
-+	/* After the task has settled, check if the new node is better. */
-+	if (p->numa_migrate_seq >= sysctl_numa_balancing_settle_count &&
-+			task_weight(p, dst_nid) + group_weight(p, dst_nid) >
-+			task_weight(p, src_nid) + group_weight(p, src_nid))
- 		return true;
- 
- 	return false;
-@@ -4552,14 +4636,20 @@ static bool migrate_degrades_locality(struct task_struct *p, struct lb_env *env)
- 	src_nid = cpu_to_node(env->src_cpu);
- 	dst_nid = cpu_to_node(env->dst_cpu);
- 
--	if (src_nid == dst_nid ||
--	    p->numa_migrate_seq >= sysctl_numa_balancing_settle_count)
-+	if (src_nid == dst_nid)
- 		return false;
- 
--	if (task_faults(p, dst_nid) < task_faults(p, src_nid))
-- 		return true;
-- 
-- 	return false;
-+	/* Migrating away from the preferred node is always bad. */
-+	if (src_nid == p->numa_preferred_nid)
-+		return true;
-+
-+	/* After the task has settled, check if the new node is worse. */
-+	if (p->numa_migrate_seq >= sysctl_numa_balancing_settle_count &&
-+			task_weight(p, dst_nid) + group_weight(p, dst_nid) <
-+			task_weight(p, src_nid) + group_weight(p, src_nid))
-+		return true;
-+
-+	return false;
- }
- 
- #else
 -- 
 1.8.1.4
 
