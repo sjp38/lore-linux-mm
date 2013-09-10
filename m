@@ -1,90 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id B9CCB6B0031
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 21:25:15 -0400 (EDT)
-Message-ID: <522E74DD.5030706@huawei.com>
-Date: Tue, 10 Sep 2013 09:24:45 +0800
-From: Qiang Huang <h.huangqiang@huawei.com>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id AED716B0031
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 21:29:13 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C13AE3EE0C2
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 10:29:11 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 93E7845DEBC
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 10:29:11 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C95745DEBA
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 10:29:11 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 70976E18005
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 10:29:11 +0900 (JST)
+Received: from g01jpfmpwkw03.exch.g01.fujitsu.local (g01jpfmpwkw03.exch.g01.fujitsu.local [10.0.193.57])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2955A1DB803B
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 10:29:11 +0900 (JST)
+Message-ID: <522E75BE.4080505@jp.fujitsu.com>
+Date: Tue, 10 Sep 2013 10:28:30 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH v2] mm, memcg: add a helper function to check may oom condition
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH 1/2] mm: thp: cleanup: mv alloc_hugepage to better place
+References: <1378093542-31971-1-git-send-email-bob.liu@oracle.com>
+In-Reply-To: <1378093542-31971-1-git-send-email-bob.liu@oracle.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, hannes@cmpxchg.org, Li Zefan <lizefan@huawei.com>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, aarcange@redhat.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, konrad.wilk@oracle.com, davidoff@qedmf.net, Bob Liu <bob.liu@oracle.com>
 
-Use helper function to check if we need to deal with oom condition.
+(2013/09/02 12:45), Bob Liu wrote:
+> Move alloc_hugepage to better place, no need for a seperate #ifndef CONFIG_NUMA
+> 
+> Signed-off-by: Bob Liu <bob.liu@oracle.com>
+> ---
 
-v2:
-Change the function name to oom_gfp_allowed() as suggested by
-David Rientjes.
+Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-Signed-off-by: Qiang Huang <h.huangqiang@huawei.com>
----
- include/linux/oom.h | 5 +++++
- mm/memcontrol.c     | 9 +--------
- mm/page_alloc.c     | 2 +-
- 3 files changed, 7 insertions(+), 9 deletions(-)
+Thanks,
+Yasuaki Ishimatsu
 
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index da60007..4cd6267 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -82,6 +82,11 @@ static inline void oom_killer_enable(void)
- 	oom_killer_disabled = false;
- }
+>   mm/huge_memory.c |   14 ++++++--------
+>   1 file changed, 6 insertions(+), 8 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index a92012a..7448cf9 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -753,14 +753,6 @@ static inline struct page *alloc_hugepage_vma(int defrag,
+>   			       HPAGE_PMD_ORDER, vma, haddr, nd);
+>   }
+>   
+> -#ifndef CONFIG_NUMA
+> -static inline struct page *alloc_hugepage(int defrag)
+> -{
+> -	return alloc_pages(alloc_hugepage_gfpmask(defrag, 0),
+> -			   HPAGE_PMD_ORDER);
+> -}
+> -#endif
+> -
+>   static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
+>   		struct vm_area_struct *vma, unsigned long haddr, pmd_t *pmd,
+>   		struct page *zero_page)
+> @@ -2204,6 +2196,12 @@ static struct page
+>   	return *hpage;
+>   }
+>   #else
+> +static inline struct page *alloc_hugepage(int defrag)
+> +{
+> +	return alloc_pages(alloc_hugepage_gfpmask(defrag, 0),
+> +			   HPAGE_PMD_ORDER);
+> +}
+> +
+>   static struct page *khugepaged_alloc_hugepage(bool *wait)
+>   {
+>   	struct page *hpage;
+> 
 
-+static inline bool oom_gfp_allowed(gfp_t gfp_mask)
-+{
-+	return (gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY);
-+}
-+
- extern struct task_struct *find_lock_task_mm(struct task_struct *p);
-
- /* sysctls */
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b73988a..392e668 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2910,21 +2910,14 @@ static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
- 	struct res_counter *fail_res;
- 	struct mem_cgroup *_memcg;
- 	int ret = 0;
--	bool may_oom;
-
- 	ret = res_counter_charge(&memcg->kmem, size, &fail_res);
- 	if (ret)
- 		return ret;
-
--	/*
--	 * Conditions under which we can wait for the oom_killer. Those are
--	 * the same conditions tested by the core page allocator
--	 */
--	may_oom = (gfp & __GFP_FS) && !(gfp & __GFP_NORETRY);
--
- 	_memcg = memcg;
- 	ret = __mem_cgroup_try_charge(NULL, gfp, size >> PAGE_SHIFT,
--				      &_memcg, may_oom);
-+				      &_memcg, oom_gfp_allowed(gfp));
-
- 	if (ret == -EINTR)  {
- 		/*
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b7c612d..079ee3d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2589,7 +2589,7 @@ rebalance:
- 	 * running out of options and have to consider going OOM
- 	 */
- 	if (!did_some_progress) {
--		if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
-+		if (oom_gfp_allowed(gfp_mask)) {
- 			if (oom_killer_disabled)
- 				goto nopage;
- 			/* Coredumps can quickly deplete all memory reserves */
--- 
-1.8.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
