@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 15E476B006C
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 05:32:52 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 349AE6B006C
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 05:32:53 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 17/50] mm: Do not flush TLB during protection change if !pte_present && !migration_entry
-Date: Tue, 10 Sep 2013 10:31:57 +0100
-Message-Id: <1378805550-29949-18-git-send-email-mgorman@suse.de>
+Subject: [PATCH 18/50] sched: numa: Slow scan rate if no NUMA hinting faults are being recorded
+Date: Tue, 10 Sep 2013 10:31:58 +0100
+Message-Id: <1378805550-29949-19-git-send-email-mgorman@suse.de>
 In-Reply-To: <1378805550-29949-1-git-send-email-mgorman@suse.de>
 References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,32 +13,39 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-NUMA PTE scanning is expensive both in terms of the scanning itself and
-the TLB flush if there are any updates. Currently non-present PTEs are
-accounted for as an update and incurring a TLB flush where it is only
-necessary for anonymous migration entries. This patch addresses the
-problem and should reduce TLB flushes.
+NUMA PTE scanning slows if a NUMA hinting fault was trapped and no page
+was migrated. For long-lived but idle processes there may be no faults
+but the scan rate will be high and just waste CPU. This patch will slow
+the scan rate for processes that are not trapping faults.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/mprotect.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ kernel/sched/fair.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 1f9b54b..1e9cef0 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -109,8 +109,9 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 				make_migration_entry_read(&entry);
- 				set_pte_at(mm, addr, pte,
- 					swp_entry_to_pte(entry));
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 29ba117..779ebd7 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -1039,6 +1039,18 @@ void task_numa_work(struct callback_head *work)
+ 
+ out:
+ 	/*
++	 * If the whole process was scanned without updates then no NUMA
++	 * hinting faults are being recorded and scan rate should be lower.
++	 */
++	if (mm->numa_scan_offset == 0 && !nr_pte_updates) {
++		p->numa_scan_period = min(p->numa_scan_period_max,
++			p->numa_scan_period << 1);
 +
-+				pages++;
- 			}
--			pages++;
- 		}
- 	} while (pte++, addr += PAGE_SIZE, addr != end);
- 	arch_leave_lazy_mmu_mode();
++		next_scan = now + msecs_to_jiffies(p->numa_scan_period);
++		mm->numa_next_scan = next_scan;
++	}
++
++	/*
+ 	 * It is possible to reach the end of the VMA list but the last few
+ 	 * VMAs are not guaranteed to the vma_migratable. If they are not, we
+ 	 * would find the !migratable VMA on the next scan but not reset the
 -- 
 1.8.1.4
 
