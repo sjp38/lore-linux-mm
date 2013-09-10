@@ -1,82 +1,236 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id D176D6B0031
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 03:02:42 -0400 (EDT)
-Message-ID: <522EC3D1.4010806@asianux.com>
-Date: Tue, 10 Sep 2013 15:01:37 +0800
-From: Chen Gang <gang.chen@asianux.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm/shmem.c: check the return value of mpol_to_str()
-References: <5215639D.1080202@asianux.com> <5227CF48.5080700@asianux.com> <alpine.DEB.2.02.1309091326210.16291@chino.kir.corp.google.com> <522E6C14.7060006@asianux.com> <alpine.DEB.2.02.1309092334570.20625@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1309092334570.20625@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id E569C6B0031
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 03:16:54 -0400 (EDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout1.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MSW003ZIEW4Z830@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 10 Sep 2013 08:16:52 +0100 (BST)
+Message-id: <1378797411.15425.17.camel@AMDC1943>
+Subject: Re: [RFC PATCH 1/4] zbud: use page ref counter for zbud pages
+From: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Date: Tue, 10 Sep 2013 09:16:51 +0200
+In-reply-to: <20130909194733.GE4701@variantweb.net>
+References: <1377852176-30970-1-git-send-email-k.kozlowski@samsung.com>
+ <1377852176-30970-2-git-send-email-k.kozlowski@samsung.com>
+ <20130909194733.GE4701@variantweb.net>
+Content-type: text/plain; charset=UTF-8
+Content-transfer-encoding: 7bit
+MIME-version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, riel@redhat.com, hughd@google.com, xemul@parallels.com, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Dave Hansen <dave.hansen@intel.com>, Minchan Kim <minchan@kernel.org>, Tomasz Stanislawski <t.stanislaws@samsung.com>
 
-On 09/10/2013 02:43 PM, David Rientjes wrote:
-> On Tue, 10 Sep 2013, Chen Gang wrote:
+Hi,
+
+On pon, 2013-09-09 at 14:47 -0500, Seth Jennings wrote:
+> On Fri, Aug 30, 2013 at 10:42:53AM +0200, Krzysztof Kozlowski wrote:
+> > Use page reference counter for zbud pages. The ref counter replaces
+> > zbud_header.under_reclaim flag and ensures that zbud page won't be freed
+> > when zbud_free() is called during reclaim. It allows implementation of
+> > additional reclaim paths.
 > 
->>> I think it would be better to keep mpol_to_str() returning void, and hence 
->>> avoiding the need for this patch, and make it so it cannot fail.  If the 
->>> mode is invalid, just store a 0 to the buffer (or "unknown"); and if 
->>> maxlen isn't large enough, make it a compile-time error (let's avoid 
->>> trying to be fancy and allocating less than 64 bytes on the stack if a 
->>> given context is known to have short mempolicy strings).
->>>
->>
->> Hmm... at least, like most of print functions, it need return a value
->> to tell the length it writes, so in my opinion, I still suggest it can
->> return a value.
->>
+> I like this idea.
 > 
-> Why?  It can just store the string into the buffer pointed to by the 
-> char *buffer and terminate it appropriately while taking care that it 
-> doesn't exceed maxlen.  Why does the caller need to know the number of 
-> bytes written?  If it really does, you could just do strlen(buffer).
+> > 
+> > The page count is incremented when:
+> >  - a handle is created and passed to zswap (in zbud_alloc()),
+> >  - user-supplied eviction callback is called (in zbud_reclaim_page()).
+> > 
+> > Signed-off-by: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+> > Signed-off-by: Tomasz Stanislawski <t.stanislaws@samsung.com>
+> > Reviewed-by: Bob Liu <bob.liu@oracle.com>
+> > ---
+> >  mm/zbud.c |   97 +++++++++++++++++++++++++++++++++----------------------------
+> >  1 file changed, 52 insertions(+), 45 deletions(-)
+> > 
+> > diff --git a/mm/zbud.c b/mm/zbud.c
+> > index ad1e781..aa9a15c 100644
+> > --- a/mm/zbud.c
+> > +++ b/mm/zbud.c
+> > @@ -109,7 +109,6 @@ struct zbud_header {
+> >  	struct list_head lru;
+> >  	unsigned int first_chunks;
+> >  	unsigned int last_chunks;
+> > -	bool under_reclaim;
+> >  };
+> > 
+> >  /*****************
+> > @@ -138,16 +137,9 @@ static struct zbud_header *init_zbud_page(struct page *page)
+> >  	zhdr->last_chunks = 0;
+> >  	INIT_LIST_HEAD(&zhdr->buddy);
+> >  	INIT_LIST_HEAD(&zhdr->lru);
+> > -	zhdr->under_reclaim = 0;
+> >  	return zhdr;
+> >  }
+> > 
+> > -/* Resets the struct page fields and frees the page */
+> > -static void free_zbud_page(struct zbud_header *zhdr)
+> > -{
+> > -	__free_page(virt_to_page(zhdr));
+> > -}
+> > -
+> >  /*
+> >   * Encodes the handle of a particular buddy within a zbud page
+> >   * Pool lock should be held as this function accesses first|last_chunks
+> > @@ -188,6 +180,31 @@ static int num_free_chunks(struct zbud_header *zhdr)
+> >  	return NCHUNKS - zhdr->first_chunks - zhdr->last_chunks - 1;
+> >  }
+> > 
+> > +/*
+> > + * Increases ref count for zbud page.
+> > + */
+> > +static void get_zbud_page(struct zbud_header *zhdr)
+> > +{
+> > +	get_page(virt_to_page(zhdr));
+> > +}
+> > +
+> > +/*
+> > + * Decreases ref count for zbud page and frees the page if it reaches 0
+> > + * (no external references, e.g. handles).
+> > + *
+> > + * Returns 1 if page was freed and 0 otherwise.
+> > + */
+> > +static int put_zbud_page(struct zbud_header *zhdr)
+> > +{
+> > +	struct page *page = virt_to_page(zhdr);
+> > +	if (put_page_testzero(page)) {
+> > +		free_hot_cold_page(page, 0);
+> > +		return 1;
+> > +	}
+> > +	return 0;
+> > +}
+> > +
+> > +
+> >  /*****************
+> >   * API Functions
+> >  *****************/
+> > @@ -250,7 +267,7 @@ void zbud_destroy_pool(struct zbud_pool *pool)
+> >  int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+> >  			unsigned long *handle)
+> >  {
+> > -	int chunks, i, freechunks;
+> > +	int chunks, i;
 > 
-> If there's a real reason for it, then that's fine, I just think it can be 
-> made to always succeed and never return < 0.  (And why is nobody checking 
-> the return value today if it's so necessary?)
+> This change (make freechunks a block local variable) is unrelated to the
+> patch description and should be its own patch.
+
+Sure, I will split this into 2 patches.
+
+
+[...]
+> >  		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
+> >  	}
+> > 
+> > +	put_zbud_page(zhdr);
+> >  	spin_unlock(&pool->lock);
+> >  }
+> > 
+> > @@ -400,7 +414,7 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
+> >   */
+> >  int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
+> >  {
+> > -	int i, ret, freechunks;
+> > +	int i, ret;
+> >  	struct zbud_header *zhdr;
+> >  	unsigned long first_handle = 0, last_handle = 0;
+> > 
+> > @@ -411,11 +425,24 @@ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
+> >  		return -EINVAL;
+> >  	}
+> >  	for (i = 0; i < retries; i++) {
+> > +		if (list_empty(&pool->lru)) {
+> > +			/*
+> > +			 * LRU was emptied during evict calls in previous
+> > +			 * iteration but put_zbud_page() returned 0 meaning
+> > +			 * that someone still holds the page. This may
+> > +			 * happen when some other mm mechanism increased
+> > +			 * the page count.
+> > +			 * In such case we succedded with reclaim.
+> > +			 */
+> > +			spin_unlock(&pool->lock);
+> > +			return 0;
+> > +		}
+> >  		zhdr = list_tail_entry(&pool->lru, struct zbud_header, lru);
+> > +		/* Move this last element to beginning of LRU */
+> >  		list_del(&zhdr->lru);
+> > -		list_del(&zhdr->buddy);
+> > +		list_add(&zhdr->lru, &pool->lru);
 > 
+> This adds the entry back to the lru list, but the entry is never removed
+> from the list.  I'm not sure how this could work.
 
-For common printing functions: sprintf(), snprintf(), scnprintf().
+The entry will be removed from LRU and un/buddied list in zbud_free()
+called from eviction handler.
 
-For some of specific printing functions: drivers/usb/host/uhci-debug.c.
+So this actually works well however I wonder if this may be a source of
+race conditions because during the call to eviction handler, the zbud
+header is still present on buddied list (till call to zbud_free()).
 
-at least they can let caller easy use.
+Another issue is that I haven't update the documentation for
+zbud_reclaim_page(). I fix this in next version.
 
 
->> For common printing functions, caller knows about the string format and
->> all parameters, and also can control them,  so for callee, it is not
->> 'quite polite' to return any failures to caller.  :-)
->>
->> But for our function, caller may not know about the string format and
->> parameters' details, so callee has duty to check and process them:
->>
->>   e.g. "if related parameter is invalid, it is neccessary to notifiy to caller".
->>
+> >  		/* Protect zbud page against free */
+> > -		zhdr->under_reclaim = true;
+> > +		get_zbud_page(zhdr);
+> >  		/*
+> >  		 * We need encode the handles before unlocking, since we can
+> >  		 * race with free that will set (first|last)_chunks to 0
+> > @@ -440,29 +467,9 @@ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
+> >  				goto next;
+> >  		}
+> >  next:
+> > -		spin_lock(&pool->lock);
+> > -		zhdr->under_reclaim = false;
+> > -		if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
+> > -			/*
+> > -			 * Both buddies are now free, free the zbud page and
+> > -			 * return success.
+> > -			 */
+> > -			free_zbud_page(zhdr);
+> > -			pool->pages_nr--;
+> > -			spin_unlock(&pool->lock);
+> > +		if (put_zbud_page(zhdr))
 > 
-> Nobody is using mpol_to_str() to determine if a mempolicy mode is valid :)  
-> If the struct mempolicy really has a bad mode, then just store "unknown" 
-> or store a 0.  If maxlen is insufficient for the longest possible string 
-> stored by mpol_to_str(), then it should be a compile-time error.
-> 
-> 
+> There is a single put_zbud_page() regardless of result of the eviction
+> attempts.  What if both buddies of a buddied zbud page are evicted?
+> Then you leak the zbud page.  What if the eviction in an unbuddied zbud
+> page failed?  Then you prematurely free the page and crash later.
 
-Hmm... what you said sounds reasonable if mpol_to_str() is a normal
-static funciton (only used within a file).
+This single put_zbud_page() puts the reference obtained few lines
+earlier.
 
-For extern function, callee (inside) can not assume anything of caller
-(outside) beyond the interface. So if failure occurs, better to report
-to caller only, and let caller to check what to do next.
+If one or two buddies are evicted then the eviction handler should call
+zbud_free(). zbud_free() will put the initial ref count (obtained from
+zbud_alloc()).
+
+If the eviction handler failed then zbud_free() won't be called so the
+initial ref count still be valid and this put_zbud_page() won't free the
+page.
+
+Let me show the flow of ref counts:
+1. zbud_alloc() for first buddy, ref count = 1
+2. zbud_alloc() for last buddy, ref count = 2
+3. zbud_reclaim_page() start, ref count = 3
+4. calling user eviction handler
+5. zbud_free() for first buddy (called from handler), ref count = 2
+6. zbud_free() for last buddy (called from handler), ref count = 1
+7. zbud_reclaim_page() end, ref count = 0 (free the page)
+
+If eviction handler fails at step 5 or 6, then the ref count won't drop
+to 0 as zswap still holds the initial reference to handle.
 
 
-Thanks.
--- 
-Chen Gang
+Thanks for comments. I appreciate them very much.
+
+
+Best regards,
+Krzysztof
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
