@@ -1,207 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 174336B0031
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 23:35:04 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 6E6E43EE1CC
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 12:35:02 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B8D145DEBB
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 12:35:02 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4172945DEB6
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 12:35:02 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F7911DB8041
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 12:35:02 +0900 (JST)
-Received: from g01jpfmpwyt03.exch.g01.fujitsu.local (g01jpfmpwyt03.exch.g01.fujitsu.local [10.128.193.57])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id CD2A41DB8038
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 12:35:01 +0900 (JST)
-Message-ID: <522E9351.6000107@jp.fujitsu.com>
-Date: Tue, 10 Sep 2013 12:34:41 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id A3EB76B0031
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 23:43:58 -0400 (EDT)
+Message-ID: <522E9569.9060104@huawei.com>
+Date: Tue, 10 Sep 2013 11:43:37 +0800
+From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] cpu/mem hotplug: Add try_online_node() for cpu_up()
-References: <1378772671-27280-1-git-send-email-toshi.kani@hp.com> <522E92A0.80502@jp.fujitsu.com>
-In-Reply-To: <522E92A0.80502@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
+Subject: [PATCH] slub: Fix calculation of cpu slabs
+Content-Type: text/plain; charset="GB2312"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rjw@sisk.pl, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-(2013/09/10 12:31), Yasuaki Ishimatsu wrote:
-> (2013/09/10 9:24), Toshi Kani wrote:
->> cpu_up() has #ifdef CONFIG_MEMORY_HOTPLUG code blocks, which
->> call mem_online_node() to put its node online if offlined and
->> then call build_all_zonelists() to initialize the zone list.
->> These steps are specific to memory hotplug, and should be
->> managed in mm/memory_hotplug.c.  lock_memory_hotplug() should
->> also be held for the whole steps.
->>
->> For this reason, this patch replaces mem_online_node() with
->> try_online_node(), which performs the whole steps with
->> lock_memory_hotplug() held.  try_online_node() is named after
->> try_offline_node() as they have similar purpose.
->>
->> There is no functional change in this patch.
->>
->> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
->> ---
->>    include/linux/memory_hotplug.h |    8 +++++++-
->>    kernel/cpu.c                   |   29 +++--------------------------
->>    mm/memory_hotplug.c            |   15 +++++++++++++--
->>    3 files changed, 23 insertions(+), 29 deletions(-)
->>
->> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
->> index dd38e62..22203c2 100644
->> --- a/include/linux/memory_hotplug.h
->> +++ b/include/linux/memory_hotplug.h
->> @@ -94,6 +94,8 @@ extern void __online_page_set_limits(struct page *page);
->>    extern void __online_page_increment_counters(struct page *page);
->>    extern void __online_page_free(struct page *page);
->>    
->> +extern int try_online_node(int nid);
->> +
->>    #ifdef CONFIG_MEMORY_HOTREMOVE
->>    extern bool is_pageblock_removable_nolock(struct page *page);
->>    extern int arch_remove_memory(u64 start, u64 size);
->> @@ -225,6 +227,11 @@ static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
->>    {
->>    }
->>    
->> +static inline int try_online_node(int nid)
->> +{
->> +	return 0;
->> +}
->> +
->>    static inline void lock_memory_hotplug(void) {}
->>    static inline void unlock_memory_hotplug(void) {}
->>    
->> @@ -256,7 +263,6 @@ static inline void remove_memory(int nid, u64 start, u64 size) {}
->>    
->>    extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
->>    		void *arg, int (*func)(struct memory_block *, void *));
->> -extern int mem_online_node(int nid);
->>    extern int add_memory(int nid, u64 start, u64 size);
->>    extern int arch_add_memory(int nid, u64 start, u64 size);
->>    extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
->> diff --git a/kernel/cpu.c b/kernel/cpu.c
->> index d7f07a2..c10b285 100644
->> --- a/kernel/cpu.c
->> +++ b/kernel/cpu.c
->> @@ -420,11 +420,6 @@ int cpu_up(unsigned int cpu)
->>    {
->>    	int err = 0;
->>    
->> -#ifdef	CONFIG_MEMORY_HOTPLUG
->> -	int nid;
->> -	pg_data_t	*pgdat;
->> -#endif
->> -
->>    	if (!cpu_possible(cpu)) {
->>    		printk(KERN_ERR "can't online cpu %d because it is not "
->>    			"configured as may-hotadd at boot time\n", cpu);
->> @@ -435,27 +430,9 @@ int cpu_up(unsigned int cpu)
->>    		return -EINVAL;
->>    	}
->>    
->> -#ifdef	CONFIG_MEMORY_HOTPLUG
->> -	nid = cpu_to_node(cpu);
->> -	if (!node_online(nid)) {
->> -		err = mem_online_node(nid);
->> -		if (err)
->> -			return err;
->> -	}
->> -
->> -	pgdat = NODE_DATA(nid);
->> -	if (!pgdat) {
-> 
->> -		printk(KERN_ERR
->> -			"Can't online cpu %d due to NULL pgdat\n", cpu);
-> 
-> Please move this comments into try_online_node() too.
+  /sys/kernel/slab/:t-0000048 # cat cpu_slabs
+  231 N0=16 N1=215
+  /sys/kernel/slab/:t-0000048 # cat slabs
+  145 N0=36 N1=109
 
-In this case, please use pr_err() instead of printk().
+See, the number of slabs is smaller than that of cpu slabs.
 
-Thanks,
-Yasuaki Ishimatsu
+The bug was introduced by commit 49e2258586b423684f03c278149ab46d8f8b6700
+("slub: per cpu cache for partial pages").
 
-> 
-> Thanks,
-> Yasuaki Ishimatsu
-> 
->> -		return -ENOMEM;
->> -	}
->> -
->> -	if (pgdat->node_zonelists->_zonerefs->zone == NULL) {
->> -		mutex_lock(&zonelists_mutex);
->> -		build_all_zonelists(NULL, NULL);
->> -		mutex_unlock(&zonelists_mutex);
->> -	}
->> -#endif
->> +	err = try_online_node(cpu_to_node(cpu));
->> +	if (err)
->> +		return err;
->>    
->>    	cpu_maps_update_begin();
->>    
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index ed85fe3..c326bdf 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -1044,14 +1044,19 @@ static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
->>    }
->>    
->>    
->> -/*
->> +/**
->> + * try_online_node - online a node if offlined
->> + *
->>     * called by cpu_up() to online a node without onlined memory.
->>     */
->> -int mem_online_node(int nid)
->> +int try_online_node(int nid)
->>    {
->>    	pg_data_t	*pgdat;
->>    	int	ret;
->>    
->> +	if (node_online(nid))
->> +		return 0;
->> +
->>    	lock_memory_hotplug();
->>    	pgdat = hotadd_new_pgdat(nid, 0);
->>    	if (!pgdat) {
->> @@ -1062,6 +1067,12 @@ int mem_online_node(int nid)
->>    	ret = register_one_node(nid);
->>    	BUG_ON(ret);
->>    
->> +	if (pgdat->node_zonelists->_zonerefs->zone == NULL) {
->> +		mutex_lock(&zonelists_mutex);
->> +		build_all_zonelists(NULL, NULL);
->> +		mutex_unlock(&zonelists_mutex);
->> +	}
->> +
->>    out:
->>    	unlock_memory_hotplug();
->>    	return ret;
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+We should use page->pages instead of page->pobjects when calculating
+the number of cpu partial slabs. This also fixes the mapping of slabs
+and nodes.
 
+As there's no variable storing the number of total/active objects in
+cpu partial slabs, and we don't have user interfaces requiring those
+statistics, I just add WARN_ON for those cases.
+
+Cc: <stable@vger.kernel.org> # 3.2+
+Signed-off-by: Li Zefan <lizefan@huawei.com>
+---
+ mm/slub.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index e3ba1f2..6ea461d 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -4300,7 +4300,13 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
+ 
+ 			page = ACCESS_ONCE(c->partial);
+ 			if (page) {
+-				x = page->pobjects;
++				node = page_to_nid(page);
++				if (flags & SO_TOTAL)
++					WARN_ON_ONCE(1);
++				else if (flags & SO_OBJECTS)
++					WARN_ON_ONCE(1);
++				else
++					x = page->pages;
+ 				total += x;
+ 				nodes[node] += x;
+ 			}
+-- 
+1.8.0.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
