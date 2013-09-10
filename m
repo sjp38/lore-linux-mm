@@ -1,165 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 8371B6B0070
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 14:37:52 -0400 (EDT)
-Date: Tue, 10 Sep 2013 14:37:40 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 0/7] improve memcg oom killer robustness v2
-Message-ID: <20130910183740.GI856@cmpxchg.org>
-References: <20130830215852.3E5D3D66@pobox.sk>
- <20130902123802.5B8E8CB1@pobox.sk>
- <20130903204850.GA1412@cmpxchg.org>
- <20130904101852.58E70042@pobox.sk>
- <20130905115430.GB856@cmpxchg.org>
- <20130909151010.3A3CBC6A@pobox.sk>
- <20130909172849.GG856@cmpxchg.org>
- <20130909215917.96932098@pobox.sk>
- <20130909201238.GH856@cmpxchg.org>
- <20130910201359.D0984EFF@pobox.sk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130910201359.D0984EFF@pobox.sk>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 857A56B0073
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 14:57:33 -0400 (EDT)
+From: Nathan Zimmer <nzimmer@sgi.com>
+Subject: [PATCH] Have __free_pages_memory() free in larger chunks.
+Date: Tue, 10 Sep 2013 13:57:24 -0500
+Message-Id: <1378839444-196190-1-git-send-email-nzimmer@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: azurIt <azurit@pobox.sk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: mingo@kernel.org, hpa@zytor.com
+Cc: Robin Holt <robin.m.holt@gmail.com>, Nathan Zimmer <nzimmer@sgi.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Rob Landley <rob@landley.net>, Mike Travis <travis@sgi.com>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Tue, Sep 10, 2013 at 08:13:59PM +0200, azurIt wrote:
-> >On Mon, Sep 09, 2013 at 09:59:17PM +0200, azurIt wrote:
-> >> >On Mon, Sep 09, 2013 at 03:10:10PM +0200, azurIt wrote:
-> >> >> >Hi azur,
-> >> >> >
-> >> >> >On Wed, Sep 04, 2013 at 10:18:52AM +0200, azurIt wrote:
-> >> >> >> > CC: "Andrew Morton" <akpm@linux-foundation.org>, "Michal Hocko" <mhocko@suse.cz>, "David Rientjes" <rientjes@google.com>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
-> >> >> >> >Hello azur,
-> >> >> >> >
-> >> >> >> >On Mon, Sep 02, 2013 at 12:38:02PM +0200, azurIt wrote:
-> >> >> >> >> >>Hi azur,
-> >> >> >> >> >>
-> >> >> >> >> >>here is the x86-only rollup of the series for 3.2.
-> >> >> >> >> >>
-> >> >> >> >> >>Thanks!
-> >> >> >> >> >>Johannes
-> >> >> >> >> >>---
-> >> >> >> >> >
-> >> >> >> >> >
-> >> >> >> >> >Johannes,
-> >> >> >> >> >
-> >> >> >> >> >unfortunately, one problem arises: I have (again) cgroup which cannot be deleted :( it's a user who had very high memory usage and was reaching his limit very often. Do you need any info which i can gather now?
-> >> >> >> >
-> >> >> >> >Did the OOM killer go off in this group?
-> >> >> >> >
-> >> >> >> >Was there a warning in the syslog ("Fixing unhandled memcg OOM
-> >> >> >> >context")?
-> >> >> >> 
-> >> >> >> 
-> >> >> >> 
-> >> >> >> Ok, i see this message several times in my syslog logs, one of them is also for this unremovable cgroup (but maybe all of them cannot be removed, should i try?). Example of the log is here (don't know where exactly it starts and ends so here is the full kernel log):
-> >> >> >> http://watchdog.sk/lkml/oom_syslog.gz
-> >> >> >There is an unfinished OOM invocation here:
-> >> >> >
-> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715112] Fixing unhandled memcg OOM context set up from:
-> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715191]  [<ffffffff811105c2>] T.1154+0x622/0x8f0
-> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715274]  [<ffffffff8111153e>] mem_cgroup_cache_charge+0xbe/0xe0
-> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715357]  [<ffffffff810cf31c>] add_to_page_cache_locked+0x4c/0x140
-> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715443]  [<ffffffff810cf432>] add_to_page_cache_lru+0x22/0x50
-> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715526]  [<ffffffff810cfdd3>] find_or_create_page+0x73/0xb0
-> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715608]  [<ffffffff811493ba>] __getblk+0xea/0x2c0
-> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715692]  [<ffffffff8114ca73>] __bread+0x13/0xc0
-> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715774]  [<ffffffff81196968>] ext3_get_branch+0x98/0x140
-> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715859]  [<ffffffff81197557>] ext3_get_blocks_handle+0xd7/0xdc0
-> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715942]  [<ffffffff81198304>] ext3_get_block+0xc4/0x120
-> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.716023]  [<ffffffff81155c3a>] do_mpage_readpage+0x38a/0x690
-> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.716107]  [<ffffffff81155f8f>] mpage_readpage+0x4f/0x70
-> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.716188]  [<ffffffff811973a8>] ext3_readpage+0x28/0x60
-> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.716268]  [<ffffffff810cfa48>] filemap_fault+0x308/0x560
-> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.716350]  [<ffffffff810ef898>] __do_fault+0x78/0x5a0
-> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.716433]  [<ffffffff810f2ab4>] handle_pte_fault+0x84/0x940
-> >> >> >
-> >> >> >__getblk() has this weird loop where it tries to instantiate the page,
-> >> >> >frees memory on failure, then retries.  If the memcg goes OOM, the OOM
-> >> >> >path might be entered multiple times and each time leak the memcg
-> >> >> >reference of the respective previous OOM invocation.
-> >> >> >
-> >> >> >There are a few more find_or_create() sites that do not propagate an
-> >> >> >error and it's incredibly hard to find out whether they are even taken
-> >> >> >during a page fault.  It's not practical to annotate them all with
-> >> >> >memcg OOM toggles, so let's just catch all OOM contexts at the end of
-> >> >> >handle_mm_fault() and clear them if !VM_FAULT_OOM instead of treating
-> >> >> >this like an error.
-> >> >> >
-> >> >> >azur, here is a patch on top of your modified 3.2.  Note that Michal
-> >> >> >might be onto something and we are looking at multiple issues here,
-> >> >> >but the log excert above suggests this fix is required either way.
-> >> >> 
-> >> >> 
-> >> >> 
-> >> >> 
-> >> >> Johannes, is this still up to date? Thank you.
-> >> >
-> >> >No, please use the following on top of 3.2 (i.e. full replacement, not
-> >> >incremental to what you have):
-> >> 
-> >> 
-> >> 
-> >> Unfortunately it didn't compile:
-> >> 
-> >> 
-> >> 
-> >> 
-> >>   LD      vmlinux.o
-> >>   MODPOST vmlinux.o
-> >> WARNING: modpost: Found 4924 section mismatch(es).
-> >> To see full details build your kernel with:
-> >> 'make CONFIG_DEBUG_SECTION_MISMATCH=y'
-> >>   GEN     .version
-> >>   CHK     include/generated/compile.h
-> >>   UPD     include/generated/compile.h
-> >>   CC      init/version.o
-> >>   LD      init/built-in.o
-> >>   LD      .tmp_vmlinux1
-> >> arch/x86/built-in.o: In function `do_page_fault':
-> >> (.text+0x26a77): undefined reference to `handle_mm_fault'
-> >> mm/built-in.o: In function `fixup_user_fault':
-> >> (.text+0x224d3): undefined reference to `handle_mm_fault'
-> >> mm/built-in.o: In function `__get_user_pages':
-> >> (.text+0x24a0f): undefined reference to `handle_mm_fault'
-> >> make: *** [.tmp_vmlinux1] Error 1
-> >
-> >Oops, sorry about that.  Must be configuration dependent because it
-> >works for me (and handle_mm_fault is obviously defined).
-> >
-> >Do you have warnings earlier in the compilation?  You can use make -s
-> >to filter out everything but warnings.
-> >
-> >Or send me your configuration so I can try to reproduce it here.
-> >
-> >Thanks!
-> 
-> 
-> Johannes,
-> 
-> the server went down early in the morning, the symptoms were similar as before - huge I/O. Can't tell what exactly happened since I wasn't able to login even on the console. But I have some info:
->  - applications were able to write to HDD so it wasn't deadlocked as before
->  - here is how it looked on graphs: http://watchdog.sk/lkml/graphs.jpg
->  - server wasn't responding from 6:36, it was down between 6:54 and 7:02 (i had to hard reboot it), I was awoken at 6:36 by really creepy sound from my phone ;)
->  - my 'load check' script successfully killed apache at 6:41 but it didn't help as you can see
->  - i have one screen with info from atop from time 6:44, looks like i/o was done by init (??!): http://watchdog.sk/lkml/atop.jpg (ignore swap warning, i have no swap)
->  - also other type of logs are available
->  - nothing like this happened before
+From: Robin Holt <robin.m.holt@gmail.com>
 
-That IO from init looks really screwy, I have no idea what's going on
-on that machine, but it looks like there is more than just a memcg
-problem...  Any chance your thirdparty security patches are concealing
-kernel daemon activity behind the init process and the IO is actually
-coming from a kernel thread like the flushers or kswapd?
+On large memory machines it can take a few minutes to get through
+free_all_bootmem().
 
-Are there OOM kill messages in the syslog?
+Currently, when free_all_bootmem() calls __free_pages_memory(), the
+number of contiguous pages that __free_pages_memory() passes to the
+buddy allocator is limited to BITS_PER_LONG.  BITS_PER_LONG was originally
+chosen to keep things similar to mm/nobootmem.c.  But it is more
+efficient to limit it to MAX_ORDER.
 
-> What do you think? I'm now running kernel with your previous patch, not with the newest one.
+       base   new  change
+8TB    202s  172s   30s
+16TB   401s  351s   50s
 
-Which one exactly?  Can you attach the diff?
+That is around 1%-3% improvement on total boot time.
+
+This patch was spun off from the boot time rfc Robin and I had been
+working on.
+
+Signed-off-by: Robin Holt <robin.m.holt@gmail.com>
+Signed-off-by: Nathan Zimmer <nzimmer@sgi.com>
+To: "H. Peter Anvin" <hpa@zytor.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>
+Cc: Linux MM <linux-mm@kvack.org>
+Cc: Rob Landley <rob@landley.net>
+Cc: Mike Travis <travis@sgi.com>
+Cc: Daniel J Blueman <daniel@numascale-asia.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Greg KH <gregkh@linuxfoundation.org>
+Cc: Yinghai Lu <yinghai@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>
+---
+ mm/nobootmem.c | 25 ++++++++-----------------
+ 1 file changed, 8 insertions(+), 17 deletions(-)
+
+diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+index 61107cf..2c254d3 100644
+--- a/mm/nobootmem.c
++++ b/mm/nobootmem.c
+@@ -82,27 +82,18 @@ void __init free_bootmem_late(unsigned long addr, unsigned long size)
+ 
+ static void __init __free_pages_memory(unsigned long start, unsigned long end)
+ {
+-	unsigned long i, start_aligned, end_aligned;
+-	int order = ilog2(BITS_PER_LONG);
++	int order;
+ 
+-	start_aligned = (start + (BITS_PER_LONG - 1)) & ~(BITS_PER_LONG - 1);
+-	end_aligned = end & ~(BITS_PER_LONG - 1);
++	while (start < end) {
++		order = min(MAX_ORDER - 1UL, __ffs(start));
+ 
+-	if (end_aligned <= start_aligned) {
+-		for (i = start; i < end; i++)
+-			__free_pages_bootmem(pfn_to_page(i), 0);
++		while (start + (1UL << order) > end)
++			order--;
+ 
+-		return;
+-	}
+-
+-	for (i = start; i < start_aligned; i++)
+-		__free_pages_bootmem(pfn_to_page(i), 0);
++		__free_pages_bootmem(pfn_to_page(start), order);
+ 
+-	for (i = start_aligned; i < end_aligned; i += BITS_PER_LONG)
+-		__free_pages_bootmem(pfn_to_page(i), order);
+-
+-	for (i = end_aligned; i < end; i++)
+-		__free_pages_bootmem(pfn_to_page(i), 0);
++		start += (1UL << order);
++	}
+ }
+ 
+ static unsigned long __init __free_memory_core(phys_addr_t start,
+-- 
+1.8.2.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
