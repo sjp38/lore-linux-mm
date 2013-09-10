@@ -1,162 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id D09F06B00A1
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 18:49:32 -0400 (EDT)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v2] cpu/mem hotplug: Add try_online_node() for cpu_up()
-Date: Tue, 10 Sep 2013 16:47:38 -0600
-Message-Id: <1378853258-28633-1-git-send-email-toshi.kani@hp.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id CDDDD6B00A3
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 19:51:05 -0400 (EDT)
+Message-ID: <1378857061.15187.1.camel@joe-AO722>
+Subject: Re: slab: krealloc with GFP_ZERO defect
+From: Joe Perches <joe@perches.com>
+Date: Tue, 10 Sep 2013 16:51:01 -0700
+In-Reply-To: <1377812836.1928.135.camel@joe-AO722>
+References: <1377812836.1928.135.camel@joe-AO722>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rjw@sisk.pl, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Toshi Kani <toshi.kani@hp.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-cpu_up() has #ifdef CONFIG_MEMORY_HOTPLUG code blocks, which
-call mem_online_node() to put its node online if offlined and
-then call build_all_zonelists() to initialize the zone list.
-These steps are specific to memory hotplug, and should be
-managed in mm/memory_hotplug.c.  lock_memory_hotplug() should
-also be held for the whole steps.
+ping?
 
-For this reason, this patch replaces mem_online_node() with
-try_online_node(), which performs the whole steps with
-lock_memory_hotplug() held.  try_online_node() is named after
-try_offline_node() as they have similar purpose.
+On Thu, 2013-08-29 at 14:47 -0700, Joe Perches wrote:
+> This sequence can return non-zeroed memory from the
+> padding area of the original allocation.
+> 
+> 	ptr = kzalloc(foo, GFP_KERNEL);
+> 	if (!ptr)
+> 		...
+> 	new_ptr = krealloc(ptr, foo + bar, GFP_KERNEL | __GFP_ZERO);
+> 
+> If the realloc size is within the first actual allocation
+> then the additional memory is not zeroed.
+> 
+> If the realloc size is not within the original allocation
+> size, any non-zeroed padding from the original allocation
+> is overwriting newly allocated zeroed memory.
+> 
+> Maybe someone more familiar with the alignment & padding can
+> add the proper memset(,0,) for the __GFP_ZERO cases and also
+> optimize kmalloc_track_caller to not use __GFP_ZERO, memcpy
+> the current (non padded) size and zero the newly returned
+> remainder if necessary.
+> 
+> from: mm/util.c
+> ---------------------------
+> static __always_inline void *__do_krealloc(const void *p, size_t new_size,
+> 					   gfp_t flags)
+> {
+> 	void *ret;
+> 	size_t ks = 0;
+> 
+> 	if (p)
+> 		ks = ksize(p);
+> 
+> 	if (ks >= new_size)
+> 		return (void *)p;
+> 
+> 	ret = kmalloc_track_caller(new_size, flags);
+> 	if (ret && p)
+> 		memcpy(ret, p, ks);
+> 
+> 	return ret;
+> }
+> 
 
-There is no functional change in this patch.
 
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
----
-v2: Added pr_err() in case of NULL pgdat in try_online_node().
----
- include/linux/memory_hotplug.h |    8 +++++++-
- kernel/cpu.c                   |   29 +++--------------------------
- mm/memory_hotplug.c            |   16 ++++++++++++++--
- 3 files changed, 24 insertions(+), 29 deletions(-)
-
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index dd38e62..22203c2 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -94,6 +94,8 @@ extern void __online_page_set_limits(struct page *page);
- extern void __online_page_increment_counters(struct page *page);
- extern void __online_page_free(struct page *page);
- 
-+extern int try_online_node(int nid);
-+
- #ifdef CONFIG_MEMORY_HOTREMOVE
- extern bool is_pageblock_removable_nolock(struct page *page);
- extern int arch_remove_memory(u64 start, u64 size);
-@@ -225,6 +227,11 @@ static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
- {
- }
- 
-+static inline int try_online_node(int nid)
-+{
-+	return 0;
-+}
-+
- static inline void lock_memory_hotplug(void) {}
- static inline void unlock_memory_hotplug(void) {}
- 
-@@ -256,7 +263,6 @@ static inline void remove_memory(int nid, u64 start, u64 size) {}
- 
- extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
- 		void *arg, int (*func)(struct memory_block *, void *));
--extern int mem_online_node(int nid);
- extern int add_memory(int nid, u64 start, u64 size);
- extern int arch_add_memory(int nid, u64 start, u64 size);
- extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
-diff --git a/kernel/cpu.c b/kernel/cpu.c
-index d7f07a2..c10b285 100644
---- a/kernel/cpu.c
-+++ b/kernel/cpu.c
-@@ -420,11 +420,6 @@ int cpu_up(unsigned int cpu)
- {
- 	int err = 0;
- 
--#ifdef	CONFIG_MEMORY_HOTPLUG
--	int nid;
--	pg_data_t	*pgdat;
--#endif
--
- 	if (!cpu_possible(cpu)) {
- 		printk(KERN_ERR "can't online cpu %d because it is not "
- 			"configured as may-hotadd at boot time\n", cpu);
-@@ -435,27 +430,9 @@ int cpu_up(unsigned int cpu)
- 		return -EINVAL;
- 	}
- 
--#ifdef	CONFIG_MEMORY_HOTPLUG
--	nid = cpu_to_node(cpu);
--	if (!node_online(nid)) {
--		err = mem_online_node(nid);
--		if (err)
--			return err;
--	}
--
--	pgdat = NODE_DATA(nid);
--	if (!pgdat) {
--		printk(KERN_ERR
--			"Can't online cpu %d due to NULL pgdat\n", cpu);
--		return -ENOMEM;
--	}
--
--	if (pgdat->node_zonelists->_zonerefs->zone == NULL) {
--		mutex_lock(&zonelists_mutex);
--		build_all_zonelists(NULL, NULL);
--		mutex_unlock(&zonelists_mutex);
--	}
--#endif
-+	err = try_online_node(cpu_to_node(cpu));
-+	if (err)
-+		return err;
- 
- 	cpu_maps_update_begin();
- 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index ed85fe3..d6fc915 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1044,17 +1044,23 @@ static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
- }
- 
- 
--/*
-+/**
-+ * try_online_node - online a node if offlined
-+ *
-  * called by cpu_up() to online a node without onlined memory.
-  */
--int mem_online_node(int nid)
-+int try_online_node(int nid)
- {
- 	pg_data_t	*pgdat;
- 	int	ret;
- 
-+	if (node_online(nid))
-+		return 0;
-+
- 	lock_memory_hotplug();
- 	pgdat = hotadd_new_pgdat(nid, 0);
- 	if (!pgdat) {
-+		pr_err("Cannot online node %d due to NULL pgdat\n", nid);
- 		ret = -ENOMEM;
- 		goto out;
- 	}
-@@ -1062,6 +1068,12 @@ int mem_online_node(int nid)
- 	ret = register_one_node(nid);
- 	BUG_ON(ret);
- 
-+	if (pgdat->node_zonelists->_zonerefs->zone == NULL) {
-+		mutex_lock(&zonelists_mutex);
-+		build_all_zonelists(NULL, NULL);
-+		mutex_unlock(&zonelists_mutex);
-+	}
-+
- out:
- 	unlock_memory_hotplug();
- 	return ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
