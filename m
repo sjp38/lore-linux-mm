@@ -1,156 +1,206 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 548136B0033
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 20:26:27 -0400 (EDT)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH] cpu/mem hotplug: Add try_online_node() for cpu_up()
-Date: Mon,  9 Sep 2013 18:24:31 -0600
-Message-Id: <1378772671-27280-1-git-send-email-toshi.kani@hp.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id A33F96B0031
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 20:46:08 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 897003EE1DA
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 09:46:06 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6AC9B45DEBC
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 09:46:06 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A99845DEB2
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 09:46:06 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 375F11DB803F
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 09:46:06 +0900 (JST)
+Received: from g01jpfmpwkw03.exch.g01.fujitsu.local (g01jpfmpwkw03.exch.g01.fujitsu.local [10.0.193.57])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DC4B21DB8038
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 09:46:05 +0900 (JST)
+Message-ID: <522E6B95.5040802@jp.fujitsu.com>
+Date: Tue, 10 Sep 2013 09:45:09 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/2] mm: thp: khugepaged: add policy for finding target
+ node
+References: <1378093542-31971-1-git-send-email-bob.liu@oracle.com> <1378093542-31971-2-git-send-email-bob.liu@oracle.com>
+In-Reply-To: <1378093542-31971-2-git-send-email-bob.liu@oracle.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rjw@sisk.pl, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Toshi Kani <toshi.kani@hp.com>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, aarcange@redhat.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, konrad.wilk@oracle.com, davidoff@qedmf.net, Bob Liu <bob.liu@oracle.com>
 
-cpu_up() has #ifdef CONFIG_MEMORY_HOTPLUG code blocks, which
-call mem_online_node() to put its node online if offlined and
-then call build_all_zonelists() to initialize the zone list.
-These steps are specific to memory hotplug, and should be
-managed in mm/memory_hotplug.c.  lock_memory_hotplug() should
-also be held for the whole steps.
+(2013/09/02 12:45), Bob Liu wrote:
+> Currently khugepaged will try to merge HPAGE_PMD_NR normal pages to a huge page
+> which is allocated from the node of the first normal page, this policy is very
+> rough and may affect userland applications.
 
-For this reason, this patch replaces mem_online_node() with
-try_online_node(), which performs the whole steps with
-lock_memory_hotplug() held.  try_online_node() is named after
-try_offline_node() as they have similar purpose.
+> Andrew Davidoff reported a related issue several days ago.
 
-There is no functional change in this patch.
+Where is an original e-mail?
+I tried to find original e-mail in my mailbox. But I cannot find it.
 
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
----
- include/linux/memory_hotplug.h |    8 +++++++-
- kernel/cpu.c                   |   29 +++--------------------------
- mm/memory_hotplug.c            |   15 +++++++++++++--
- 3 files changed, 23 insertions(+), 29 deletions(-)
+Thanks,
+Yasuaki Ishimatsu
 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index dd38e62..22203c2 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -94,6 +94,8 @@ extern void __online_page_set_limits(struct page *page);
- extern void __online_page_increment_counters(struct page *page);
- extern void __online_page_free(struct page *page);
- 
-+extern int try_online_node(int nid);
-+
- #ifdef CONFIG_MEMORY_HOTREMOVE
- extern bool is_pageblock_removable_nolock(struct page *page);
- extern int arch_remove_memory(u64 start, u64 size);
-@@ -225,6 +227,11 @@ static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
- {
- }
- 
-+static inline int try_online_node(int nid)
-+{
-+	return 0;
-+}
-+
- static inline void lock_memory_hotplug(void) {}
- static inline void unlock_memory_hotplug(void) {}
- 
-@@ -256,7 +263,6 @@ static inline void remove_memory(int nid, u64 start, u64 size) {}
- 
- extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
- 		void *arg, int (*func)(struct memory_block *, void *));
--extern int mem_online_node(int nid);
- extern int add_memory(int nid, u64 start, u64 size);
- extern int arch_add_memory(int nid, u64 start, u64 size);
- extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
-diff --git a/kernel/cpu.c b/kernel/cpu.c
-index d7f07a2..c10b285 100644
---- a/kernel/cpu.c
-+++ b/kernel/cpu.c
-@@ -420,11 +420,6 @@ int cpu_up(unsigned int cpu)
- {
- 	int err = 0;
- 
--#ifdef	CONFIG_MEMORY_HOTPLUG
--	int nid;
--	pg_data_t	*pgdat;
--#endif
--
- 	if (!cpu_possible(cpu)) {
- 		printk(KERN_ERR "can't online cpu %d because it is not "
- 			"configured as may-hotadd at boot time\n", cpu);
-@@ -435,27 +430,9 @@ int cpu_up(unsigned int cpu)
- 		return -EINVAL;
- 	}
- 
--#ifdef	CONFIG_MEMORY_HOTPLUG
--	nid = cpu_to_node(cpu);
--	if (!node_online(nid)) {
--		err = mem_online_node(nid);
--		if (err)
--			return err;
--	}
--
--	pgdat = NODE_DATA(nid);
--	if (!pgdat) {
--		printk(KERN_ERR
--			"Can't online cpu %d due to NULL pgdat\n", cpu);
--		return -ENOMEM;
--	}
--
--	if (pgdat->node_zonelists->_zonerefs->zone == NULL) {
--		mutex_lock(&zonelists_mutex);
--		build_all_zonelists(NULL, NULL);
--		mutex_unlock(&zonelists_mutex);
--	}
--#endif
-+	err = try_online_node(cpu_to_node(cpu));
-+	if (err)
-+		return err;
- 
- 	cpu_maps_update_begin();
- 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index ed85fe3..c326bdf 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1044,14 +1044,19 @@ static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
- }
- 
- 
--/*
-+/**
-+ * try_online_node - online a node if offlined
-+ *
-  * called by cpu_up() to online a node without onlined memory.
-  */
--int mem_online_node(int nid)
-+int try_online_node(int nid)
- {
- 	pg_data_t	*pgdat;
- 	int	ret;
- 
-+	if (node_online(nid))
-+		return 0;
-+
- 	lock_memory_hotplug();
- 	pgdat = hotadd_new_pgdat(nid, 0);
- 	if (!pgdat) {
-@@ -1062,6 +1067,12 @@ int mem_online_node(int nid)
- 	ret = register_one_node(nid);
- 	BUG_ON(ret);
- 
-+	if (pgdat->node_zonelists->_zonerefs->zone == NULL) {
-+		mutex_lock(&zonelists_mutex);
-+		build_all_zonelists(NULL, NULL);
-+		mutex_unlock(&zonelists_mutex);
-+	}
-+
- out:
- 	unlock_memory_hotplug();
- 	return ret;
+> 
+> Using "numactl --interleave=all ./test" to run the testcase, but the result
+> wasn't not as expected.
+> cat /proc/2814/numa_maps:
+> 7f50bd440000 interleave:0-3 anon=51403 dirty=51403 N0=435 N1=435 N2=435
+> N3=50098
+> The end results showed that most pages are from Node3 instead of interleave
+> among node0-3 which was unreasonable.
+> 
+> This patch adds a more complicated policy.
+> When searching HPAGE_PMD_NR normal pages, record which node those pages come
+> from. Alway allocate hugepage from the node with the max record. If several
+> nodes have the same max record, try to interleave among them.
+> 
+> After this patch the result was as expected:
+> 7f78399c0000 interleave:0-3 anon=51403 dirty=51403 N0=12723 N1=12723 N2=13235
+> N3=12722
+> 
+> The simple testcase is like this:
+> #include<stdio.h>
+> #include<stdlib.h>
+> 
+> int main() {
+> 	char *p;
+> 	int i;
+> 	int j;
+> 
+> 	for (i=0; i < 200; i++) {
+> 		p = (char *)malloc(1048576);
+> 		printf("malloc done\n");
+> 
+> 		if (p == 0) {
+> 			printf("Out of memory\n");
+> 			return 1;
+> 		}
+> 		for (j=0; j < 1048576; j++) {
+> 			p[j] = 'A';
+> 		}
+> 		printf("touched memory\n");
+> 
+> 		sleep(1);
+> 	}
+> 	printf("enter sleep\n");
+> 	while(1) {
+> 		sleep(100);
+> 	}
+> }
+> 
+> Reported-by: Andrew Davidoff <davidoff@qedmf.net>
+> Signed-off-by: Bob Liu <bob.liu@oracle.com>
+> ---
+>   mm/huge_memory.c |   50 +++++++++++++++++++++++++++++++++++++++++---------
+>   1 file changed, 41 insertions(+), 9 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 7448cf9..86c7f0d 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2144,7 +2144,33 @@ static void khugepaged_alloc_sleep(void)
+>   			msecs_to_jiffies(khugepaged_alloc_sleep_millisecs));
+>   }
+>   
+> +static int khugepaged_node_load[MAX_NUMNODES];
+>   #ifdef CONFIG_NUMA
+> +static int last_khugepaged_target_node = NUMA_NO_NODE;
+> +static int khugepaged_find_target_node(void)
+> +{
+> +	int i, target_node = 0, max_value = 1;
+> +
+> +	/* find first node with most normal pages hit */
+> +	for (i = 0; i < MAX_NUMNODES; i++)
+> +		if (khugepaged_node_load[i] > max_value) {
+> +			max_value = khugepaged_node_load[i];
+> +			target_node = i;
+> +		}
+> +
+> +	/* do some balance if several nodes have the same hit number */
+> +	if (target_node <= last_khugepaged_target_node) {
+> +		for (i = last_khugepaged_target_node + 1; i < MAX_NUMNODES; i++)
+> +			if (max_value == khugepaged_node_load[i]) {
+> +				target_node = i;
+> +				break;
+> +			}
+> +	}
+> +
+> +	last_khugepaged_target_node = target_node;
+> +	return target_node;
+> +}
+> +
+>   static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
+>   {
+>   	if (IS_ERR(*hpage)) {
+> @@ -2178,9 +2204,8 @@ static struct page
+>   	 * mmap_sem in read mode is good idea also to allow greater
+>   	 * scalability.
+>   	 */
+> -	*hpage  = alloc_hugepage_vma(khugepaged_defrag(), vma, address,
+> -				      node, __GFP_OTHER_NODE);
+> -
+> +	*hpage = alloc_pages_exact_node(node, alloc_hugepage_gfpmask(
+> +			khugepaged_defrag(), __GFP_OTHER_NODE), HPAGE_PMD_ORDER);
+>   	/*
+>   	 * After allocating the hugepage, release the mmap_sem read lock in
+>   	 * preparation for taking it in write mode.
+> @@ -2196,6 +2221,11 @@ static struct page
+>   	return *hpage;
+>   }
+>   #else
+> +static int khugepaged_find_target_node(void)
+> +{
+> +	return 0;
+> +}
+> +
+>   static inline struct page *alloc_hugepage(int defrag)
+>   {
+>   	return alloc_pages(alloc_hugepage_gfpmask(defrag, 0),
+> @@ -2405,6 +2435,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+>   	if (pmd_trans_huge(*pmd))
+>   		goto out;
+>   
+> +	memset(khugepaged_node_load, 0, sizeof(khugepaged_node_load));
+>   	pte = pte_offset_map_lock(mm, pmd, address, &ptl);
+>   	for (_address = address, _pte = pte; _pte < pte+HPAGE_PMD_NR;
+>   	     _pte++, _address += PAGE_SIZE) {
+> @@ -2421,12 +2452,11 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+>   		if (unlikely(!page))
+>   			goto out_unmap;
+>   		/*
+> -		 * Chose the node of the first page. This could
+> -		 * be more sophisticated and look at more pages,
+> -		 * but isn't for now.
+> +		 * Chose the node of most normal pages hit, record this
+> +		 * informaction to khugepaged_node_load[]
+>   		 */
+> -		if (node == NUMA_NO_NODE)
+> -			node = page_to_nid(page);
+> +		node = page_to_nid(page);
+> +		khugepaged_node_load[node]++;
+>   		VM_BUG_ON(PageCompound(page));
+>   		if (!PageLRU(page) || PageLocked(page) || !PageAnon(page))
+>   			goto out_unmap;
+> @@ -2441,9 +2471,11 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+>   		ret = 1;
+>   out_unmap:
+>   	pte_unmap_unlock(pte, ptl);
+> -	if (ret)
+> +	if (ret) {
+> +		node = khugepaged_find_target_node();
+>   		/* collapse_huge_page will return with the mmap_sem released */
+>   		collapse_huge_page(mm, address, hpage, vma, node);
+> +	}
+>   out:
+>   	return ret;
+>   }
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
