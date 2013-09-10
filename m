@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id A2A666B0083
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 05:33:07 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id A0EDD6B0083
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 05:33:08 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 32/50] sched: Retry migration of tasks to CPU on a preferred node
-Date: Tue, 10 Sep 2013 10:32:12 +0100
-Message-Id: <1378805550-29949-33-git-send-email-mgorman@suse.de>
+Subject: [PATCH 33/50] sched: numa: increment numa_migrate_seq when task runs in correct location
+Date: Tue, 10 Sep 2013 10:32:13 +0100
+Message-Id: <1378805550-29949-34-git-send-email-mgorman@suse.de>
 In-Reply-To: <1378805550-29949-1-git-send-email-mgorman@suse.de>
 References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,87 +13,40 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-When a preferred node is selected for a tasks there is an attempt to migrate
-the task to a CPU there. This may fail in which case the task will only
-migrate if the active load balancer takes action. This may never happen if
-the conditions are not right. This patch will check at NUMA hinting fault
-time if another attempt should be made to migrate the task. It will only
-make an attempt once every five seconds.
+From: Rik van Riel <riel@redhat.com>
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
-Signed-off-by: Peter Zijlstra <peterz@infradead.org>
+When a task is already running on its preferred node, increment
+numa_migrate_seq to indicate that the task is settled if migration is
+temporarily disabled, and memory should migrate towards it.
+
+[mgorman@suse.de: Only increment migrate_seq if migration temporarily disabled]
+Signed-off-by: Rik van Riel <riel@redhat.com>
 ---
- include/linux/sched.h |  1 +
- kernel/sched/fair.c   | 26 +++++++++++++++++++-------
- 2 files changed, 20 insertions(+), 7 deletions(-)
+ kernel/sched/fair.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 6eb8fa6..3418b0b 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1333,6 +1333,7 @@ struct task_struct {
- 	int numa_migrate_seq;
- 	unsigned int numa_scan_period;
- 	unsigned int numa_scan_period_max;
-+	unsigned long numa_migrate_retry;
- 	u64 node_stamp;			/* migration stamp  */
- 	struct callback_head numa_work;
- 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 5f0388e..5b4d94e 100644
+index 5b4d94e..fd724bc 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -1011,6 +1011,19 @@ migrate:
- 	return migrate_task_to(p, env.best_cpu);
- }
- 
-+/* Attempt to migrate a task to a CPU on the preferred node. */
-+static void numa_migrate_preferred(struct task_struct *p)
-+{
-+	/* Success if task is already running on preferred CPU */
-+	p->numa_migrate_retry = 0;
-+	if (cpu_to_node(task_cpu(p)) == p->numa_preferred_nid)
-+		return;
-+
-+	/* Otherwise, try migrate to a CPU on the preferred node */
-+	if (task_numa_migrate(p) != 0)
-+		p->numa_migrate_retry = jiffies + HZ*5;
-+}
-+
- static void task_numa_placement(struct task_struct *p)
+@@ -1016,8 +1016,16 @@ static void numa_migrate_preferred(struct task_struct *p)
  {
- 	int seq, nid, max_nid = -1;
-@@ -1045,17 +1058,12 @@ static void task_numa_placement(struct task_struct *p)
- 		}
- 	}
+ 	/* Success if task is already running on preferred CPU */
+ 	p->numa_migrate_retry = 0;
+-	if (cpu_to_node(task_cpu(p)) == p->numa_preferred_nid)
++	if (cpu_to_node(task_cpu(p)) == p->numa_preferred_nid) {
++		/*
++		 * If migration is temporarily disabled due to a task migration
++		 * then re-enable it now as the task is running on its
++		 * preferred node and memory should migrate locally
++		 */
++		if (!p->numa_migrate_seq)
++			p->numa_migrate_seq++;
+ 		return;
++	}
  
--	/*
--	 * Record the preferred node as the node with the most faults,
--	 * requeue the task to be running on the idlest CPU on the
--	 * preferred node and reset the scanning rate to recheck
--	 * the working set placement.
--	 */
-+	/* Preferred node as the node with the most faults */
- 	if (max_faults && max_nid != p->numa_preferred_nid) {
- 		/* Update the preferred nid and migrate task if possible */
- 		p->numa_preferred_nid = max_nid;
- 		p->numa_migrate_seq = 1;
--		task_numa_migrate(p);
-+		numa_migrate_preferred(p);
- 	}
- }
- 
-@@ -1111,6 +1119,10 @@ void task_numa_fault(int last_nidpid, int node, int pages, bool migrated)
- 
- 	task_numa_placement(p);
- 
-+	/* Retry task to preferred node migration if it previously failed */
-+	if (p->numa_migrate_retry && time_after(jiffies, p->numa_migrate_retry))
-+		numa_migrate_preferred(p);
-+
- 	p->numa_faults_buffer[task_faults_idx(node, priv)] += pages;
- }
- 
+ 	/* Otherwise, try migrate to a CPU on the preferred node */
+ 	if (task_numa_migrate(p) != 0)
 -- 
 1.8.1.4
 
