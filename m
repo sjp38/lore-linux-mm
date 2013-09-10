@@ -1,74 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 2038C6B0032
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 19:58:19 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 10 Sep 2013 20:51:55 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 4423C3578054
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 09:58:12 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r89Nvqot6488398
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 09:58:01 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r89Nw2Ac023119
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 09:58:03 +1000
-Date: Tue, 10 Sep 2013 07:58:00 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 00/11] x86, memblock: Allocate memory near kernel image
- before SRAT parsed.
-Message-ID: <20130909235800.GA30121@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1377596268-31552-1-git-send-email-tangchen@cn.fujitsu.com>
- <20130904192215.GG26609@mtj.dyndns.org>
- <52299935.0302450a.26c9.ffffb240SMTPIN_ADDED_BROKEN@mx.google.com>
- <20130906151526.GA22423@mtj.dyndns.org>
- <522db781.22ab440a.41b1.ffffd825SMTPIN_ADDED_BROKEN@mx.google.com>
- <20130909135815.GB25434@htj.dyndns.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130909135815.GB25434@htj.dyndns.org>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id DF2A86B0031
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 20:23:24 -0400 (EDT)
+From: Toshi Kani <toshi.kani@hp.com>
+Subject: [PATCH] mm/hotplug: Remove stop_machine() from try_offline_node()
+Date: Mon,  9 Sep 2013 18:21:29 -0600
+Message-Id: <1378772489-27171-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rjw@sisk.pl, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Toshi Kani <toshi.kani@hp.com>
 
-Hi Tejun,
-On Mon, Sep 09, 2013 at 09:58:15AM -0400, Tejun Heo wrote:
->Hello,
->
->On Mon, Sep 09, 2013 at 07:56:34PM +0800, Wanpeng Li wrote:
->> If allocate from low to high as what this patchset done will occupy the
->> precious memory you mentioned?
->
->Yeah, and that'd be the reason why this behavior is dependent on a
->kernel option.  That said, allocating some megs on top of kernel isn't
->a big deal.  The wretched ISA DMA is mostly gone now and some megs
->isn't gonna hurt 32bit DMAs in any noticeable way.  I wouldn't be too
->surprised if nobody notices after switching the default behavior to
->allocate early mem close to kernel.  Maybe the only case which might
->be impacted is 32bit highmem configs, but they're messed up no matter
->what anyway and even they shouldn't be affected noticeably if large
->mapping is in use.
+lock_device_hotplug() serializes hotplug & online/offline operations.
+The lock is held in common sysfs online/offline interfaces and ACPI
+hotplug code paths.
 
-ISA DMA is still survive for 32bit highmem configs. In my desktop:
+try_offline_node() off-lines a node if all memory sections and cpus
+are removed on the node.  It is called from acpi_processor_remove()
+and acpi_memory_remove_memory()->remove_memory() paths, both of which
+are in the ACPI hotplug code.
 
-c1000000 T _text => 16MB
-c1d09000 B _end  => 29MB
+try_offline_node() calls stop_machine() to stop all cpus while checking
+all cpu status with the assumption that the caller is not protected from
+CPU hotplug or CPU online/offline operations.  However, the caller is
+always serialized with lock_device_hotplug().  Also, the code needs to
+be properly serialized with a lock, not by stopping all cpus at a random
+place with stop_machine().
 
-This patchset will alloc after 29MB. ;-)
+This patch removes the use of stop_machine() in try_offline_node() and
+adds comments to try_offline_node() and remove_memory() that
+lock_device_hotplug() is required.
 
-Regards,
-Wanpeng Li 
+Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+---
+ mm/memory_hotplug.c |   31 ++++++++++++++++++++++---------
+ 1 file changed, 22 insertions(+), 9 deletions(-)
 
->
->Thanks.
->
->-- 
->tejun
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index ca1dd3a..0b4b0f7 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1674,9 +1674,8 @@ static int is_memblock_offlined_cb(struct memory_block *mem, void *arg)
+ 	return ret;
+ }
+ 
+-static int check_cpu_on_node(void *data)
++static int check_cpu_on_node(pg_data_t *pgdat)
+ {
+-	struct pglist_data *pgdat = data;
+ 	int cpu;
+ 
+ 	for_each_present_cpu(cpu) {
+@@ -1691,10 +1690,9 @@ static int check_cpu_on_node(void *data)
+ 	return 0;
+ }
+ 
+-static void unmap_cpu_on_node(void *data)
++static void unmap_cpu_on_node(pg_data_t *pgdat)
+ {
+ #ifdef CONFIG_ACPI_NUMA
+-	struct pglist_data *pgdat = data;
+ 	int cpu;
+ 
+ 	for_each_possible_cpu(cpu)
+@@ -1703,10 +1701,11 @@ static void unmap_cpu_on_node(void *data)
+ #endif
+ }
+ 
+-static int check_and_unmap_cpu_on_node(void *data)
++static int check_and_unmap_cpu_on_node(pg_data_t *pgdat)
+ {
+-	int ret = check_cpu_on_node(data);
++	int ret;
+ 
++	ret = check_cpu_on_node(pgdat);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -1715,11 +1714,18 @@ static int check_and_unmap_cpu_on_node(void *data)
+ 	 * the cpu_to_node() now.
+ 	 */
+ 
+-	unmap_cpu_on_node(data);
++	unmap_cpu_on_node(pgdat);
+ 	return 0;
+ }
+ 
+-/* offline the node if all memory sections of this node are removed */
++/**
++ * try_offline_node
++ *
++ * Offline a node if all memory sections and cpus of the node are removed.
++ *
++ * NOTE: The caller must call lock_device_hotplug() to serialize hotplug
++ * and online/offline operations before this call.
++ */
+ void try_offline_node(int nid)
+ {
+ 	pg_data_t *pgdat = NODE_DATA(nid);
+@@ -1745,7 +1751,7 @@ void try_offline_node(int nid)
+ 		return;
+ 	}
+ 
+-	if (stop_machine(check_and_unmap_cpu_on_node, pgdat, NULL))
++	if (check_and_unmap_cpu_on_node(pgdat))
+ 		return;
+ 
+ 	/*
+@@ -1782,6 +1788,13 @@ void try_offline_node(int nid)
+ }
+ EXPORT_SYMBOL(try_offline_node);
+ 
++/**
++ * remove_memory
++ *
++ * NOTE: The caller must call lock_device_hotplug() to serialize hotplug
++ * and online/offline operations before this call, as required by
++ * try_offline_node().
++ */
+ void __ref remove_memory(int nid, u64 start, u64 size)
+ {
+ 	int ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
