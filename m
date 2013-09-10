@@ -1,14 +1,11 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 00/11] x86, memblock: Allocate memory near kernel image
- before SRAT parsed.
-Date: Tue, 10 Sep 2013 07:58:00 +0800
-Message-ID: <27278.8297072568$1378771112@news.gmane.org>
-References: <1377596268-31552-1-git-send-email-tangchen@cn.fujitsu.com>
- <20130904192215.GG26609@mtj.dyndns.org>
- <52299935.0302450a.26c9.ffffb240SMTPIN_ADDED_BROKEN@mx.google.com>
- <20130906151526.GA22423@mtj.dyndns.org>
- <522db781.22ab440a.41b1.ffffd825SMTPIN_ADDED_BROKEN@mx.google.com>
- <20130909135815.GB25434@htj.dyndns.org>
+Subject: Re: [PATCH 2/2] mm: thp: khugepaged: add policy for finding target
+ node
+Date: Tue, 10 Sep 2013 08:55:00 +0800
+Message-ID: <26170.7332022072$1378774519@news.gmane.org>
+References: <1378093542-31971-1-git-send-email-bob.liu@oracle.com>
+ <1378093542-31971-2-git-send-email-bob.liu@oracle.com>
+ <522E6B95.5040802@jp.fujitsu.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -16,64 +13,210 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1VJBLa-0002Ai-4q
-	for glkm-linux-mm-2@m.gmane.org; Tue, 10 Sep 2013 01:58:22 +0200
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 2038C6B0032
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 19:58:19 -0400 (EDT)
+	id 1VJCEZ-0007q0-U6
+	for glkm-linux-mm-2@m.gmane.org; Tue, 10 Sep 2013 02:55:12 +0200
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 870FE6B0031
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2013 20:55:09 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 10 Sep 2013 20:51:55 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 4423C3578054
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 09:58:12 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r89Nvqot6488398
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 09:58:01 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r89Nw2Ac023119
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 09:58:03 +1000
+	Tue, 10 Sep 2013 06:15:34 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 7E4E1394004E
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 06:24:49 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8A0sx8w42533014
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 06:24:59 +0530
+Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8A0t1Yj016710
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 06:25:01 +0530
 Content-Disposition: inline
-In-Reply-To: <20130909135815.GB25434@htj.dyndns.org>
+In-Reply-To: <522E6B95.5040802@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: Bob Liu <lliubbo@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, aarcange@redhat.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, konrad.wilk@oracle.com, davidoff@qedmf.net, Bob Liu <bob.liu@oracle.com>
 
-Hi Tejun,
-On Mon, Sep 09, 2013 at 09:58:15AM -0400, Tejun Heo wrote:
->Hello,
+On Tue, Sep 10, 2013 at 09:45:09AM +0900, Yasuaki Ishimatsu wrote:
+>(2013/09/02 12:45), Bob Liu wrote:
+>> Currently khugepaged will try to merge HPAGE_PMD_NR normal pages to a huge page
+>> which is allocated from the node of the first normal page, this policy is very
+>> rough and may affect userland applications.
 >
->On Mon, Sep 09, 2013 at 07:56:34PM +0800, Wanpeng Li wrote:
->> If allocate from low to high as what this patchset done will occupy the
->> precious memory you mentioned?
+>> Andrew Davidoff reported a related issue several days ago.
 >
->Yeah, and that'd be the reason why this behavior is dependent on a
->kernel option.  That said, allocating some megs on top of kernel isn't
->a big deal.  The wretched ISA DMA is mostly gone now and some megs
->isn't gonna hurt 32bit DMAs in any noticeable way.  I wouldn't be too
->surprised if nobody notices after switching the default behavior to
->allocate early mem close to kernel.  Maybe the only case which might
->be impacted is 32bit highmem configs, but they're messed up no matter
->what anyway and even they shouldn't be affected noticeably if large
->mapping is in use.
-
-ISA DMA is still survive for 32bit highmem configs. In my desktop:
-
-c1000000 T _text => 16MB
-c1d09000 B _end  => 29MB
-
-This patchset will alloc after 29MB. ;-)
-
-Regards,
-Wanpeng Li 
-
+>Where is an original e-mail?
+>I tried to find original e-mail in my mailbox. But I cannot find it.
 >
->Thanks.
+
+http://marc.info/?l=linux-mm&m=137701470529356&w=2
+
+>Thanks,
+>Yasuaki Ishimatsu
 >
->-- 
->tejun
+>> 
+>> Using "numactl --interleave=all ./test" to run the testcase, but the result
+>> wasn't not as expected.
+>> cat /proc/2814/numa_maps:
+>> 7f50bd440000 interleave:0-3 anon=51403 dirty=51403 N0=435 N1=435 N2=435
+>> N3=50098
+>> The end results showed that most pages are from Node3 instead of interleave
+>> among node0-3 which was unreasonable.
+>> 
+>> This patch adds a more complicated policy.
+>> When searching HPAGE_PMD_NR normal pages, record which node those pages come
+>> from. Alway allocate hugepage from the node with the max record. If several
+>> nodes have the same max record, try to interleave among them.
+>> 
+>> After this patch the result was as expected:
+>> 7f78399c0000 interleave:0-3 anon=51403 dirty=51403 N0=12723 N1=12723 N2=13235
+>> N3=12722
+>> 
+>> The simple testcase is like this:
+>> #include<stdio.h>
+>> #include<stdlib.h>
+>> 
+>> int main() {
+>> 	char *p;
+>> 	int i;
+>> 	int j;
+>> 
+>> 	for (i=0; i < 200; i++) {
+>> 		p = (char *)malloc(1048576);
+>> 		printf("malloc done\n");
+>> 
+>> 		if (p == 0) {
+>> 			printf("Out of memory\n");
+>> 			return 1;
+>> 		}
+>> 		for (j=0; j < 1048576; j++) {
+>> 			p[j] = 'A';
+>> 		}
+>> 		printf("touched memory\n");
+>> 
+>> 		sleep(1);
+>> 	}
+>> 	printf("enter sleep\n");
+>> 	while(1) {
+>> 		sleep(100);
+>> 	}
+>> }
+>> 
+>> Reported-by: Andrew Davidoff <davidoff@qedmf.net>
+>> Signed-off-by: Bob Liu <bob.liu@oracle.com>
+>> ---
+>>   mm/huge_memory.c |   50 +++++++++++++++++++++++++++++++++++++++++---------
+>>   1 file changed, 41 insertions(+), 9 deletions(-)
+>> 
+>> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+>> index 7448cf9..86c7f0d 100644
+>> --- a/mm/huge_memory.c
+>> +++ b/mm/huge_memory.c
+>> @@ -2144,7 +2144,33 @@ static void khugepaged_alloc_sleep(void)
+>>   			msecs_to_jiffies(khugepaged_alloc_sleep_millisecs));
+>>   }
+>>   
+>> +static int khugepaged_node_load[MAX_NUMNODES];
+>>   #ifdef CONFIG_NUMA
+>> +static int last_khugepaged_target_node = NUMA_NO_NODE;
+>> +static int khugepaged_find_target_node(void)
+>> +{
+>> +	int i, target_node = 0, max_value = 1;
+>> +
+>> +	/* find first node with most normal pages hit */
+>> +	for (i = 0; i < MAX_NUMNODES; i++)
+>> +		if (khugepaged_node_load[i] > max_value) {
+>> +			max_value = khugepaged_node_load[i];
+>> +			target_node = i;
+>> +		}
+>> +
+>> +	/* do some balance if several nodes have the same hit number */
+>> +	if (target_node <= last_khugepaged_target_node) {
+>> +		for (i = last_khugepaged_target_node + 1; i < MAX_NUMNODES; i++)
+>> +			if (max_value == khugepaged_node_load[i]) {
+>> +				target_node = i;
+>> +				break;
+>> +			}
+>> +	}
+>> +
+>> +	last_khugepaged_target_node = target_node;
+>> +	return target_node;
+>> +}
+>> +
+>>   static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
+>>   {
+>>   	if (IS_ERR(*hpage)) {
+>> @@ -2178,9 +2204,8 @@ static struct page
+>>   	 * mmap_sem in read mode is good idea also to allow greater
+>>   	 * scalability.
+>>   	 */
+>> -	*hpage  = alloc_hugepage_vma(khugepaged_defrag(), vma, address,
+>> -				      node, __GFP_OTHER_NODE);
+>> -
+>> +	*hpage = alloc_pages_exact_node(node, alloc_hugepage_gfpmask(
+>> +			khugepaged_defrag(), __GFP_OTHER_NODE), HPAGE_PMD_ORDER);
+>>   	/*
+>>   	 * After allocating the hugepage, release the mmap_sem read lock in
+>>   	 * preparation for taking it in write mode.
+>> @@ -2196,6 +2221,11 @@ static struct page
+>>   	return *hpage;
+>>   }
+>>   #else
+>> +static int khugepaged_find_target_node(void)
+>> +{
+>> +	return 0;
+>> +}
+>> +
+>>   static inline struct page *alloc_hugepage(int defrag)
+>>   {
+>>   	return alloc_pages(alloc_hugepage_gfpmask(defrag, 0),
+>> @@ -2405,6 +2435,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+>>   	if (pmd_trans_huge(*pmd))
+>>   		goto out;
+>>   
+>> +	memset(khugepaged_node_load, 0, sizeof(khugepaged_node_load));
+>>   	pte = pte_offset_map_lock(mm, pmd, address, &ptl);
+>>   	for (_address = address, _pte = pte; _pte < pte+HPAGE_PMD_NR;
+>>   	     _pte++, _address += PAGE_SIZE) {
+>> @@ -2421,12 +2452,11 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+>>   		if (unlikely(!page))
+>>   			goto out_unmap;
+>>   		/*
+>> -		 * Chose the node of the first page. This could
+>> -		 * be more sophisticated and look at more pages,
+>> -		 * but isn't for now.
+>> +		 * Chose the node of most normal pages hit, record this
+>> +		 * informaction to khugepaged_node_load[]
+>>   		 */
+>> -		if (node == NUMA_NO_NODE)
+>> -			node = page_to_nid(page);
+>> +		node = page_to_nid(page);
+>> +		khugepaged_node_load[node]++;
+>>   		VM_BUG_ON(PageCompound(page));
+>>   		if (!PageLRU(page) || PageLocked(page) || !PageAnon(page))
+>>   			goto out_unmap;
+>> @@ -2441,9 +2471,11 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+>>   		ret = 1;
+>>   out_unmap:
+>>   	pte_unmap_unlock(pte, ptl);
+>> -	if (ret)
+>> +	if (ret) {
+>> +		node = khugepaged_find_target_node();
+>>   		/* collapse_huge_page will return with the mmap_sem released */
+>>   		collapse_huge_page(mm, address, hpage, vma, node);
+>> +	}
+>>   out:
+>>   	return ret;
+>>   }
+>> 
+>
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
