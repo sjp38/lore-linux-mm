@@ -1,45 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 20FE56B0031
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 09:20:38 -0400 (EDT)
-Date: Tue, 10 Sep 2013 14:20:32 +0100
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 6E7A16B0034
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 09:51:36 -0400 (EDT)
+Date: Tue, 10 Sep 2013 14:51:30 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [patch] mm, compaction: periodically schedule when freeing pages
-Message-ID: <20130910132032.GO22421@suse.de>
-References: <alpine.DEB.2.02.1309041625060.29607@chino.kir.corp.google.com>
+Subject: Re: [PATCH 1/9] migrate: make core migration code aware of hugepage
+Message-ID: <20130910135129.GP22421@suse.de>
+References: <1376025702-14818-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1376025702-14818-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1309041625060.29607@chino.kir.corp.google.com>
+In-Reply-To: <1376025702-14818-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Wed, Sep 04, 2013 at 04:25:59PM -0700, David Rientjes wrote:
-> We've been getting warnings about an excessive amount of time spent
-> allocating pages for migration during memory compaction without
-> scheduling.  isolate_freepages_block() already periodically checks for
-> contended locks or the need to schedule, but isolate_freepages() never
-> does.
+On Fri, Aug 09, 2013 at 01:21:34AM -0400, Naoya Horiguchi wrote:
+> Before enabling each user of page migration to support hugepage,
+> this patch enables the list of pages for migration to link not only
+> LRU pages, but also hugepages. As a result, putback_movable_pages()
+> and migrate_pages() can handle both of LRU pages and hugepages.
 > 
-> When a zone is massively long and no suitable targets can be found, this
-> iteration can be quite expensive without ever doing cond_resched().
-> 
-> Check periodically for the need to reschedule while the compaction free
-> scanner iterates.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Ok, fair enough.
+LRU pages and *allocated* hugepages.
 
-Acked-by: Mel Gorman <mgorman@suse.de>
-
-However I'm curious. Do you know why the combined use of
-compact_cached_free_pfn and pageblock skip bits is not enough for the scanner
-to quickly find a pageblock that is suitable for isolate_freepages_block()?
-Is the pageblock skip information getting cleared frequently by kswapd
-or something?
+On its own the patch looks ok but it's not obvious at this point what
+happens for pages that are on the hugetlbfs pool lists but not allocated
+by any process. They will fail to isolate because of the
+get_page_unless_zero() check. Maybe it's handled by a later patch.
 
 -- 
 Mel Gorman
