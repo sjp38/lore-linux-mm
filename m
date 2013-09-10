@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id E9F596B004D
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 05:32:45 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 0CFF06B0044
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 05:32:46 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 11/50] sched: numa: Continue PTE scanning even if migrate rate limited
-Date: Tue, 10 Sep 2013 10:31:51 +0100
-Message-Id: <1378805550-29949-12-git-send-email-mgorman@suse.de>
+Subject: [PATCH 12/50] Revert "mm: sched: numa: Delay PTE scanning until a task is scheduled on a new node"
+Date: Tue, 10 Sep 2013 10:31:52 +0100
+Message-Id: <1378805550-29949-13-git-send-email-mgorman@suse.de>
 In-Reply-To: <1378805550-29949-1-git-send-email-mgorman@suse.de>
 References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,40 +13,107 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-From: Peter Zijlstra <peterz@infradead.org>
+PTE scanning and NUMA hinting fault handling is expensive so commit
+5bca2303 ("mm: sched: numa: Delay PTE scanning until a task is scheduled
+on a new node") deferred the PTE scan until a task had been scheduled on
+another node. The problem is that in the purely shared memory case that
+this may never happen and no NUMA hinting fault information will be
+captured. We are not ruling out the possibility that something better
+can be done here but for now, this patch needs to be reverted and depend
+entirely on the scan_delay to avoid punishing short-lived processes.
 
-Avoiding marking PTEs pte_numa because a particular NUMA node is migrate rate
-limited sees like a bad idea. Even if this node can't migrate anymore other
-nodes might and we want up-to-date information to do balance decisions.
-We already rate limit the actual migrations, this should leave enough
-bandwidth to allow the non-migrating scanning. I think its important we
-keep up-to-date information if we're going to do placement based on it.
-
-Signed-off-by: Peter Zijlstra <peterz@infradead.org>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- kernel/sched/fair.c | 8 --------
- 1 file changed, 8 deletions(-)
+ include/linux/mm_types.h | 10 ----------
+ kernel/fork.c            |  3 ---
+ kernel/sched/fair.c      | 18 ------------------
+ kernel/sched/features.h  |  4 +---
+ 4 files changed, 1 insertion(+), 34 deletions(-)
 
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index faf4b7c..4f12073 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -427,20 +427,10 @@ struct mm_struct {
+ 
+ 	/* numa_scan_seq prevents two threads setting pte_numa */
+ 	int numa_scan_seq;
+-
+-	/*
+-	 * The first node a task was scheduled on. If a task runs on
+-	 * a different node than Make PTE Scan Go Now.
+-	 */
+-	int first_nid;
+ #endif
+ 	struct uprobes_state uprobes_state;
+ };
+ 
+-/* first nid will either be a valid NID or one of these values */
+-#define NUMA_PTE_SCAN_INIT	-1
+-#define NUMA_PTE_SCAN_ACTIVE	-2
+-
+ static inline void mm_init_cpumask(struct mm_struct *mm)
+ {
+ #ifdef CONFIG_CPUMASK_OFFSTACK
+diff --git a/kernel/fork.c b/kernel/fork.c
+index e23bb19..f693bdf 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -820,9 +820,6 @@ struct mm_struct *dup_mm(struct task_struct *tsk)
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 	mm->pmd_huge_pte = NULL;
+ #endif
+-#ifdef CONFIG_NUMA_BALANCING
+-	mm->first_nid = NUMA_PTE_SCAN_INIT;
+-#endif
+ 	if (!mm_init(mm, tsk))
+ 		goto fail_nomem;
+ 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index c93a56e..b5aa546 100644
+index b5aa546..2e4c8d0 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -951,14 +951,6 @@ void task_numa_work(struct callback_head *work)
- 	 */
- 	p->node_stamp += 2 * TICK_NSEC;
+@@ -901,24 +901,6 @@ void task_numa_work(struct callback_head *work)
+ 		return;
  
--	/*
--	 * Do not set pte_numa if the current running node is rate-limited.
--	 * This loses statistics on the fault but if we are unwilling to
--	 * migrate to this node, it is less likely we can do useful work
+ 	/*
+-	 * We do not care about task placement until a task runs on a node
+-	 * other than the first one used by the address space. This is
+-	 * largely because migrations are driven by what CPU the task
+-	 * is running on. If it's never scheduled on another node, it'll
+-	 * not migrate so why bother trapping the fault.
 -	 */
--	if (migrate_ratelimited(numa_node_id()))
--		return;
+-	if (mm->first_nid == NUMA_PTE_SCAN_INIT)
+-		mm->first_nid = numa_node_id();
+-	if (mm->first_nid != NUMA_PTE_SCAN_ACTIVE) {
+-		/* Are we running on a new node yet? */
+-		if (numa_node_id() == mm->first_nid &&
+-		    !sched_feat_numa(NUMA_FORCE))
+-			return;
 -
- 	start = mm->numa_scan_offset;
- 	pages = sysctl_numa_balancing_scan_size;
- 	pages <<= 20 - PAGE_SHIFT; /* MB in pages */
+-		mm->first_nid = NUMA_PTE_SCAN_ACTIVE;
+-	}
+-
+-	/*
+ 	 * Reset the scan period if enough time has gone by. Objective is that
+ 	 * scanning will be reduced if pages are properly placed. As tasks
+ 	 * can enter different phases this needs to be re-examined. Lacking
+diff --git a/kernel/sched/features.h b/kernel/sched/features.h
+index 99399f8..cba5c61 100644
+--- a/kernel/sched/features.h
++++ b/kernel/sched/features.h
+@@ -63,10 +63,8 @@ SCHED_FEAT(LB_MIN, false)
+ /*
+  * Apply the automatic NUMA scheduling policy. Enabled automatically
+  * at runtime if running on a NUMA machine. Can be controlled via
+- * numa_balancing=. Allow PTE scanning to be forced on UMA machines
+- * for debugging the core machinery.
++ * numa_balancing=
+  */
+ #ifdef CONFIG_NUMA_BALANCING
+ SCHED_FEAT(NUMA,	false)
+-SCHED_FEAT(NUMA_FORCE,	false)
+ #endif
 -- 
 1.8.1.4
 
