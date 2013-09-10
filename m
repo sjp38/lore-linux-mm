@@ -1,252 +1,321 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 1110A6B008C
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 17:13:36 -0400 (EDT)
-Date: Tue, 10 Sep 2013 21:13:34 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: RFC vmstat: On demand vmstat threads
-In-Reply-To: <CAOtvUMdfqyg80_9J8AnOaAdahuRYGC-bpemdo_oucDBPguXbVA@mail.gmail.com>
-Message-ID: <0000014109b8e5db-4b0f577e-c3b4-47fe-b7f2-0e5febbcc948-000000@email.amazonses.com>
-References: <00000140e9dfd6bd-40db3d4f-c1be-434f-8132-7820f81bb586-000000@email.amazonses.com> <CAOtvUMdfqyg80_9J8AnOaAdahuRYGC-bpemdo_oucDBPguXbVA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 252DB6B0093
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 17:18:41 -0400 (EDT)
+Date: Tue, 10 Sep 2013 17:18:24 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 0/7] improve memcg oom killer robustness v2
+Message-ID: <20130910211823.GJ856@cmpxchg.org>
+References: <20130905115430.GB856@cmpxchg.org>
+ <20130909151010.3A3CBC6A@pobox.sk>
+ <20130909172849.GG856@cmpxchg.org>
+ <20130909215917.96932098@pobox.sk>
+ <20130909201238.GH856@cmpxchg.org>
+ <20130910201359.D0984EFF@pobox.sk>
+ <20130910183740.GI856@cmpxchg.org>
+ <20130910213253.A1E666C5@pobox.sk>
+ <20130910201222.GA25972@cmpxchg.org>
+ <20130910230853.FEEC19B5@pobox.sk>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130910230853.FEEC19B5@pobox.sk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>
+To: azurIt <azurit@pobox.sk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, 10 Sep 2013, Gilad Ben-Yossef wrote:
+On Tue, Sep 10, 2013 at 11:08:53PM +0200, azurIt wrote:
+> >On Tue, Sep 10, 2013 at 09:32:53PM +0200, azurIt wrote:
+> >> >On Tue, Sep 10, 2013 at 08:13:59PM +0200, azurIt wrote:
+> >> >> >On Mon, Sep 09, 2013 at 09:59:17PM +0200, azurIt wrote:
+> >> >> >> >On Mon, Sep 09, 2013 at 03:10:10PM +0200, azurIt wrote:
+> >> >> >> >> >Hi azur,
+> >> >> >> >> >
+> >> >> >> >> >On Wed, Sep 04, 2013 at 10:18:52AM +0200, azurIt wrote:
+> >> >> >> >> >> > CC: "Andrew Morton" <akpm@linux-foundation.org>, "Michal Hocko" <mhocko@suse.cz>, "David Rientjes" <rientjes@google.com>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+> >> >> >> >> >> >Hello azur,
+> >> >> >> >> >> >
+> >> >> >> >> >> >On Mon, Sep 02, 2013 at 12:38:02PM +0200, azurIt wrote:
+> >> >> >> >> >> >> >>Hi azur,
+> >> >> >> >> >> >> >>
+> >> >> >> >> >> >> >>here is the x86-only rollup of the series for 3.2.
+> >> >> >> >> >> >> >>
+> >> >> >> >> >> >> >>Thanks!
+> >> >> >> >> >> >> >>Johannes
+> >> >> >> >> >> >> >>---
+> >> >> >> >> >> >> >
+> >> >> >> >> >> >> >
+> >> >> >> >> >> >> >Johannes,
+> >> >> >> >> >> >> >
+> >> >> >> >> >> >> >unfortunately, one problem arises: I have (again) cgroup which cannot be deleted :( it's a user who had very high memory usage and was reaching his limit very often. Do you need any info which i can gather now?
+> >> >> >> >> >> >
+> >> >> >> >> >> >Did the OOM killer go off in this group?
+> >> >> >> >> >> >
+> >> >> >> >> >> >Was there a warning in the syslog ("Fixing unhandled memcg OOM
+> >> >> >> >> >> >context")?
+> >> >> >> >> >> 
+> >> >> >> >> >> 
+> >> >> >> >> >> 
+> >> >> >> >> >> Ok, i see this message several times in my syslog logs, one of them is also for this unremovable cgroup (but maybe all of them cannot be removed, should i try?). Example of the log is here (don't know where exactly it starts and ends so here is the full kernel log):
+> >> >> >> >> >> http://watchdog.sk/lkml/oom_syslog.gz
+> >> >> >> >> >There is an unfinished OOM invocation here:
+> >> >> >> >> >
+> >> >> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715112] Fixing unhandled memcg OOM context set up from:
+> >> >> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715191]  [<ffffffff811105c2>] T.1154+0x622/0x8f0
+> >> >> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715274]  [<ffffffff8111153e>] mem_cgroup_cache_charge+0xbe/0xe0
+> >> >> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715357]  [<ffffffff810cf31c>] add_to_page_cache_locked+0x4c/0x140
+> >> >> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715443]  [<ffffffff810cf432>] add_to_page_cache_lru+0x22/0x50
+> >> >> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715526]  [<ffffffff810cfdd3>] find_or_create_page+0x73/0xb0
+> >> >> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715608]  [<ffffffff811493ba>] __getblk+0xea/0x2c0
+> >> >> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715692]  [<ffffffff8114ca73>] __bread+0x13/0xc0
+> >> >> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715774]  [<ffffffff81196968>] ext3_get_branch+0x98/0x140
+> >> >> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715859]  [<ffffffff81197557>] ext3_get_blocks_handle+0xd7/0xdc0
+> >> >> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.715942]  [<ffffffff81198304>] ext3_get_block+0xc4/0x120
+> >> >> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.716023]  [<ffffffff81155c3a>] do_mpage_readpage+0x38a/0x690
+> >> >> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.716107]  [<ffffffff81155f8f>] mpage_readpage+0x4f/0x70
+> >> >> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.716188]  [<ffffffff811973a8>] ext3_readpage+0x28/0x60
+> >> >> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.716268]  [<ffffffff810cfa48>] filemap_fault+0x308/0x560
+> >> >> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.716350]  [<ffffffff810ef898>] __do_fault+0x78/0x5a0
+> >> >> >> >> >  Aug 22 13:15:21 server01 kernel: [1251422.716433]  [<ffffffff810f2ab4>] handle_pte_fault+0x84/0x940
+> >> >> >> >> >
+> >> >> >> >> >__getblk() has this weird loop where it tries to instantiate the page,
+> >> >> >> >> >frees memory on failure, then retries.  If the memcg goes OOM, the OOM
+> >> >> >> >> >path might be entered multiple times and each time leak the memcg
+> >> >> >> >> >reference of the respective previous OOM invocation.
+> >> >> >> >> >
+> >> >> >> >> >There are a few more find_or_create() sites that do not propagate an
+> >> >> >> >> >error and it's incredibly hard to find out whether they are even taken
+> >> >> >> >> >during a page fault.  It's not practical to annotate them all with
+> >> >> >> >> >memcg OOM toggles, so let's just catch all OOM contexts at the end of
+> >> >> >> >> >handle_mm_fault() and clear them if !VM_FAULT_OOM instead of treating
+> >> >> >> >> >this like an error.
+> >> >> >> >> >
+> >> >> >> >> >azur, here is a patch on top of your modified 3.2.  Note that Michal
+> >> >> >> >> >might be onto something and we are looking at multiple issues here,
+> >> >> >> >> >but the log excert above suggests this fix is required either way.
+> >> >> >> >> 
+> >> >> >> >> 
+> >> >> >> >> 
+> >> >> >> >> 
+> >> >> >> >> Johannes, is this still up to date? Thank you.
+> >> >> >> >
+> >> >> >> >No, please use the following on top of 3.2 (i.e. full replacement, not
+> >> >> >> >incremental to what you have):
+> >> >> >> 
+> >> >> >> 
+> >> >> >> 
+> >> >> >> Unfortunately it didn't compile:
+> >> >> >> 
+> >> >> >> 
+> >> >> >> 
+> >> >> >> 
+> >> >> >>   LD      vmlinux.o
+> >> >> >>   MODPOST vmlinux.o
+> >> >> >> WARNING: modpost: Found 4924 section mismatch(es).
+> >> >> >> To see full details build your kernel with:
+> >> >> >> 'make CONFIG_DEBUG_SECTION_MISMATCH=y'
+> >> >> >>   GEN     .version
+> >> >> >>   CHK     include/generated/compile.h
+> >> >> >>   UPD     include/generated/compile.h
+> >> >> >>   CC      init/version.o
+> >> >> >>   LD      init/built-in.o
+> >> >> >>   LD      .tmp_vmlinux1
+> >> >> >> arch/x86/built-in.o: In function `do_page_fault':
+> >> >> >> (.text+0x26a77): undefined reference to `handle_mm_fault'
+> >> >> >> mm/built-in.o: In function `fixup_user_fault':
+> >> >> >> (.text+0x224d3): undefined reference to `handle_mm_fault'
+> >> >> >> mm/built-in.o: In function `__get_user_pages':
+> >> >> >> (.text+0x24a0f): undefined reference to `handle_mm_fault'
+> >> >> >> make: *** [.tmp_vmlinux1] Error 1
+> >> >> >
+> >> >> >Oops, sorry about that.  Must be configuration dependent because it
+> >> >> >works for me (and handle_mm_fault is obviously defined).
+> >> >> >
+> >> >> >Do you have warnings earlier in the compilation?  You can use make -s
+> >> >> >to filter out everything but warnings.
+> >> >> >
+> >> >> >Or send me your configuration so I can try to reproduce it here.
+> >> >> >
+> >> >> >Thanks!
+> >> >> 
+> >> >> 
+> >> >> Johannes,
+> >> >> 
+> >> >> the server went down early in the morning, the symptoms were similar as before - huge I/O. Can't tell what exactly happened since I wasn't able to login even on the console. But I have some info:
+> >> >>  - applications were able to write to HDD so it wasn't deadlocked as before
+> >> >>  - here is how it looked on graphs: http://watchdog.sk/lkml/graphs.jpg
+> >> >>  - server wasn't responding from 6:36, it was down between 6:54 and 7:02 (i had to hard reboot it), I was awoken at 6:36 by really creepy sound from my phone ;)
+> >> >>  - my 'load check' script successfully killed apache at 6:41 but it didn't help as you can see
+> >> >>  - i have one screen with info from atop from time 6:44, looks like i/o was done by init (??!): http://watchdog.sk/lkml/atop.jpg (ignore swap warning, i have no swap)
+> >> >>  - also other type of logs are available
+> >> >>  - nothing like this happened before
+> >> >
+> >> >That IO from init looks really screwy, I have no idea what's going on
+> >> >on that machine, but it looks like there is more than just a memcg
+> >> >problem...  Any chance your thirdparty security patches are concealing
+> >> >kernel daemon activity behind the init process and the IO is actually
+> >> >coming from a kernel thread like the flushers or kswapd?
+> >> 
+> >> 
+> >> 
+> >> 
+> >> I really cannot tell but I never ever saw this before and i'm using all of my patches for several years. Here are all patches which i'm using right now (+ your patch):
+> >> http://watchdog.sk/lkml/patches3
+> >> 
+> >> 
+> >> 
+> >> 
+> >> >Are there OOM kill messages in the syslog?
+> >> 
+> >> 
+> >> 
+> >> Here is full kernel log between 6:00 and 7:59:
+> >> http://watchdog.sk/lkml/kern6.log
+> >
+> >Wow, your apaches are like the hydra.  Whenever one is OOM killed,
+> >more show up!
+> 
+> 
+> 
+> Yeah, it's supposed to do this ;)
+> 
+> 
+> 
+> >> >> What do you think? I'm now running kernel with your previous patch, not with the newest one.
+> >> >
+> >> >Which one exactly?  Can you attach the diff?
+> >> 
+> >> 
+> >> 
+> >> I meant, the problem above occured on kernel with your latest patch:
+> >> http://watchdog.sk/lkml/7-2-memcg-fix.patch
+> >
+> >The above log has the following callstack:
+> >
+> >Sep 10 07:59:43 server01 kernel: [ 3846.337628]  [<ffffffff810d19fe>] dump_header+0x7e/0x1e0
+> >Sep 10 07:59:43 server01 kernel: [ 3846.337707]  [<ffffffff810d18ff>] ? find_lock_task_mm+0x2f/0x70
+> >Sep 10 07:59:43 server01 kernel: [ 3846.337790]  [<ffffffff810d18ff>] ? find_lock_task_mm+0x2f/0x70
+> >Sep 10 07:59:43 server01 kernel: [ 3846.337874]  [<ffffffff81094bb0>] ? __css_put+0x50/0x90
+> >Sep 10 07:59:43 server01 kernel: [ 3846.337952]  [<ffffffff810d1ec5>] oom_kill_process+0x85/0x2a0
+> >Sep 10 07:59:43 server01 kernel: [ 3846.338037]  [<ffffffff810d2448>] mem_cgroup_out_of_memory+0xa8/0xf0
+> >Sep 10 07:59:43 server01 kernel: [ 3846.338120]  [<ffffffff81110858>] T.1154+0x8b8/0x8f0
+> >Sep 10 07:59:43 server01 kernel: [ 3846.338201]  [<ffffffff81110fa6>] mem_cgroup_charge_common+0x56/0xa0
+> >Sep 10 07:59:43 server01 kernel: [ 3846.338283]  [<ffffffff81111035>] mem_cgroup_newpage_charge+0x45/0x50
+> >Sep 10 07:59:43 server01 kernel: [ 3846.338364]  [<ffffffff810f3039>] handle_pte_fault+0x609/0x940
+> >Sep 10 07:59:43 server01 kernel: [ 3846.338451]  [<ffffffff8102ab1f>] ? pte_alloc_one+0x3f/0x50
+> >Sep 10 07:59:43 server01 kernel: [ 3846.338532]  [<ffffffff8107e455>] ? sched_clock_local+0x25/0x90
+> >Sep 10 07:59:43 server01 kernel: [ 3846.338617]  [<ffffffff810f34d7>] handle_mm_fault+0x167/0x340
+> >Sep 10 07:59:43 server01 kernel: [ 3846.338699]  [<ffffffff8102714b>] do_page_fault+0x13b/0x490
+> >Sep 10 07:59:43 server01 kernel: [ 3846.338781]  [<ffffffff810f8848>] ? do_brk+0x208/0x3a0
+> >Sep 10 07:59:43 server01 kernel: [ 3846.338865]  [<ffffffff812dba22>] ? gr_learn_resource+0x42/0x1e0
+> >Sep 10 07:59:43 server01 kernel: [ 3846.338951]  [<ffffffff815cb7bf>] page_fault+0x1f/0x30
+> >
+> >The charge code seems to be directly invoking the OOM killer, which is
+> >not possible with 7-2-memcg-fix.  Are you sure this is the right patch
+> >for this log?  This _looks_ more like what 7-1-memcg-fix was doing,
+> >with a direct kill in the charge context and a fixup later on.
+> 
+> 
+> 
+> 
+> I, luckyly, still have the kernel source from which that kernel was build. I tried to re-apply the 7-2-memcg-fix.patch:
+> 
+> # patch -p1 --dry-run < 7-2-memcg-fix.patch 
+> patching file arch/x86/mm/fault.c
+> Reversed (or previously applied) patch detected!  Assume -R? [n] 
+> Apply anyway? [n] 
+> Skipping patch.
+> 4 out of 4 hunks ignored -- saving rejects to file arch/x86/mm/fault.c.rej
+> patching file include/linux/memcontrol.h
+> Hunk #1 succeeded at 141 with fuzz 2 (offset 21 lines).
+> Hunk #2 succeeded at 391 with fuzz 1 (offset 39 lines).
 
-> I wasn't happy with the results of my own attempt to accomplish the same and I
-> like this much better. So, for what it's worth -
+Uhm, some of it applied...  I have absolutely no idea what state that
+tree is in now...
 
-Thanks. In the meantime I found some issues with my patchset and revised
-it further. Could you have another look?
+> patching file include/linux/mm.h
+> Reversed (or previously applied) patch detected!  Assume -R? [n] 
+> Apply anyway? [n] 
+> Skipping patch.
+> 1 out of 1 hunk ignored -- saving rejects to file include/linux/mm.h.rej
+> patching file include/linux/sched.h
+> Reversed (or previously applied) patch detected!  Assume -R? [n] 
+> Apply anyway? [n] 
+> Skipping patch.
+> 1 out of 1 hunk ignored -- saving rejects to file include/linux/sched.h.rej
+> patching file mm/memcontrol.c
+> Reversed (or previously applied) patch detected!  Assume -R? [n] 
+> Apply anyway? [n] 
+> Skipping patch.
+> 10 out of 10 hunks ignored -- saving rejects to file mm/memcontrol.c.rej
+> patching file mm/memory.c
+> Reversed (or previously applied) patch detected!  Assume -R? [n] 
+> Apply anyway? [n] 
+> Skipping patch.
+> 2 out of 2 hunks ignored -- saving rejects to file mm/memory.c.rej
+> patching file mm/oom_kill.c
+> Reversed (or previously applied) patch detected!  Assume -R? [n] 
+> Apply anyway? [n] 
+> Skipping patch.
+> 1 out of 1 hunk ignored -- saving rejects to file mm/oom_kill.c.rej
+> 
+> 
+> Can you tell from this if the source has the right patch?
 
+Not reliably, I don't think.  Can you send me
 
-Subject: vmstat: On demand vmstat workers V2
+  include/linux/memcontrol.h
+  mm/memcontrol.c
+  mm/memory.c
+  mm/oom_kill.c
 
-vmstat threads are used for folding counter differentials into the
-zone, per node and global counters at certain time intervals.
+from those sources?
 
-They currently run at defined intervals on all processors which will
-cause some holdoff for processors that need minimal intrusion by the
-OS.
+It might be easier to start the application from scratch...  Keep in
+mind that 7-2 was not an incremental fix, you need to remove the
+previous memcg patches (as opposed to 7-1).
 
-This patch creates a vmstat shepherd task that monitors the
-per cpu differentials on all processors. If there are differentials
-on a processor then a vmstat worker thread local to the processors
-with the differentials is created. That worker will then start
-folding the diffs in regular intervals. Should the worker
-find that there is no work to be done then it will
-terminate itself and make the shepherd task monitor the differentials
-again.
+> >It's somewhat eerie that you have to manually apply these patches
+> >because of grsec because I have no idea of knowing what the end result
+> >is, especially since you had compile errors in this area before.  Is
+> >grsec making changes to memcg code or why are these patches not
+> >applying cleanly?
+> 
+> 
+> 
+> 
+> The problem was in mm/memory.c (first hunk) because grsec added this:
+> 
+>         pgd_t *pgd;
+>         pud_t *pud;
+>         pmd_t *pmd;
+>         pte_t *pte;
+> 
+> +#ifdef CONFIG_PAX_SEGMEXEC
+> +        struct vm_area_struct *vma_m;
+> +#endif  
+> 
+>         if (unlikely(is_vm_hugetlb_page(vma)))
+> 
+> 
+> 
+> I'm not using PAX anyway so it shouldn't be used. This was the only rejection but there were lots of fuzz too - I wasn't considering it as a problem, should I?
 
-With this patch it is possible then to have periods longer than
-2 seconds without any OS event on a "cpu" (hardware thread).
+It COULD be...  Can you send me the files listed above after
+application?
 
-The tick_do_timer_cpu is chosen to run the shepherd workers.
-So there must be at least one cpu that will keep running vmstat
-updates.
+> >> but after i had to reboot the server i booted the kernel with your previous patch:
+> >> http://watchdog.sk/lkml/7-1-memcg-fix.patch
+> >
+> >This one still has the known memcg leak.
+> 
+> 
+> 
+> I know but it's the best I have which don't take down the server (yet).
 
-Note: This patch is based on the vmstat patches in Andrew's tree
-to be merged for the 3.12 kernel.
-
-V1->V2:
-- Optimize the need_update check by using memchr_inv.
-- Clean up.
-- Fixup the wrong need_update check.
-- Drop the check for pcp.count. Too many false positives.
-
-Reviewed-by: Gilad Ben-Yossef <gilad@benyossef.com>
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-
-Index: linux/mm/vmstat.c
-===================================================================
---- linux.orig/mm/vmstat.c	2013-09-09 13:58:25.526562233 -0500
-+++ linux/mm/vmstat.c	2013-09-09 16:09:14.266402841 -0500
-@@ -14,6 +14,7 @@
- #include <linux/module.h>
- #include <linux/slab.h>
- #include <linux/cpu.h>
-+#include <linux/cpumask.h>
- #include <linux/vmstat.h>
- #include <linux/sched.h>
- #include <linux/math64.h>
-@@ -414,13 +415,18 @@ void dec_zone_page_state(struct page *pa
- EXPORT_SYMBOL(dec_zone_page_state);
- #endif
-
--static inline void fold_diff(int *diff)
-+
-+static inline int fold_diff(int *diff)
- {
- 	int i;
-+	int changes = 0;
-
- 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
--		if (diff[i])
-+		if (diff[i]) {
- 			atomic_long_add(diff[i], &vm_stat[i]);
-+			changes++;
-+	}
-+	return changes;
- }
-
- /*
-@@ -437,11 +443,12 @@ static inline void fold_diff(int *diff)
-  * with the global counters. These could cause remote node cache line
-  * bouncing and will have to be only done when necessary.
-  */
--static void refresh_cpu_vm_stats(void)
-+static int refresh_cpu_vm_stats(void)
- {
- 	struct zone *zone;
- 	int i;
- 	int global_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
-+	int changes = 0;
-
- 	for_each_populated_zone(zone) {
- 		struct per_cpu_pageset __percpu *p = zone->pageset;
-@@ -485,11 +492,14 @@ static void refresh_cpu_vm_stats(void)
- 		if (__this_cpu_dec_return(p->expire))
- 			continue;
-
--		if (__this_cpu_read(p->pcp.count))
-+		if (__this_cpu_read(p->pcp.count)) {
- 			drain_zone_pages(zone, __this_cpu_ptr(&p->pcp));
-+			changes++;
-+		}
- #endif
- 	}
--	fold_diff(global_diff);
-+	changes += fold_diff(global_diff);
-+	return changes;
- }
-
- /*
-@@ -1203,12 +1213,15 @@ static const struct file_operations proc
- #ifdef CONFIG_SMP
- static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
- int sysctl_stat_interval __read_mostly = HZ;
-+static struct cpumask *monitored_cpus;
-
- static void vmstat_update(struct work_struct *w)
- {
--	refresh_cpu_vm_stats();
--	schedule_delayed_work(this_cpu_ptr(&vmstat_work),
--		round_jiffies_relative(sysctl_stat_interval));
-+	if (refresh_cpu_vm_stats())
-+		schedule_delayed_work(this_cpu_ptr(&vmstat_work),
-+			round_jiffies_relative(sysctl_stat_interval));
-+	else
-+		cpumask_set_cpu(smp_processor_id(), monitored_cpus);
- }
-
- static void start_cpu_timer(int cpu)
-@@ -1216,7 +1229,63 @@ static void start_cpu_timer(int cpu)
- 	struct delayed_work *work = &per_cpu(vmstat_work, cpu);
-
- 	INIT_DEFERRABLE_WORK(work, vmstat_update);
--	schedule_delayed_work_on(cpu, work, __round_jiffies_relative(HZ, cpu));
-+	schedule_delayed_work_on(cpu, work,
-+		__round_jiffies_relative(sysctl_stat_interval, cpu));
-+}
-+
-+/*
-+ * Check if the diffs for a certain cpu indicate that
-+ * an update is needed.
-+ */
-+static int need_update(int cpu)
-+{
-+	struct zone *zone;
-+
-+	for_each_populated_zone(zone) {
-+		struct per_cpu_pageset *p = per_cpu_ptr(zone->pageset, cpu);
-+
-+		/*
-+		 * The fast way of checking if there are any vmstat diffs.
-+		 * This works because the diffs are byte sized items.
-+		 */
-+		if (memchr_inv(p->vm_stat_diff, 0, NR_VM_ZONE_STAT_ITEMS))
-+			return 1;
-+	}
-+	return 0;
-+}
-+
-+static struct delayed_work shepherd_work;
-+extern int tick_do_timer_cpu;
-+
-+static void vmstat_shepherd(struct work_struct *w)
-+{
-+	int cpu;
-+
-+	refresh_cpu_vm_stats();
-+	for_each_cpu(cpu, monitored_cpus)
-+		if (need_update(cpu)) {
-+			cpumask_clear_cpu(cpu, monitored_cpus);
-+			start_cpu_timer(cpu);
-+		}
-+
-+	schedule_delayed_work_on(tick_do_timer_cpu,
-+		&shepherd_work,
-+		__round_jiffies_relative(sysctl_stat_interval,
-+			tick_do_timer_cpu));
-+}
-+
-+static void start_shepherd_timer(void)
-+{
-+	INIT_DEFERRABLE_WORK(&shepherd_work, vmstat_shepherd);
-+	monitored_cpus = kmalloc(BITS_TO_LONGS(nr_cpu_ids) * sizeof(long),
-+			__GFP_NOFAIL);
-+	cpumask_copy(monitored_cpus, cpu_online_mask);
-+	cpumask_clear_cpu(tick_do_timer_cpu, monitored_cpus);
-+	schedule_delayed_work_on(tick_do_timer_cpu,
-+		&shepherd_work,
-+		__round_jiffies_relative(sysctl_stat_interval,
-+			tick_do_timer_cpu));
-+
- }
-
- /*
-@@ -1233,17 +1302,19 @@ static int vmstat_cpuup_callback(struct
- 	case CPU_ONLINE:
- 	case CPU_ONLINE_FROZEN:
- 		refresh_zone_stat_thresholds();
--		start_cpu_timer(cpu);
- 		node_set_state(cpu_to_node(cpu), N_CPU);
-+		cpumask_set_cpu(cpu, monitored_cpus);
- 		break;
- 	case CPU_DOWN_PREPARE:
- 	case CPU_DOWN_PREPARE_FROZEN:
--		cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
-+		if (!cpumask_test_cpu(cpu, monitored_cpus))
-+			cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
-+		cpumask_clear_cpu(cpu, monitored_cpus);
- 		per_cpu(vmstat_work, cpu).work.func = NULL;
- 		break;
- 	case CPU_DOWN_FAILED:
- 	case CPU_DOWN_FAILED_FROZEN:
--		start_cpu_timer(cpu);
-+		cpumask_set_cpu(cpu, monitored_cpus);
- 		break;
- 	case CPU_DEAD:
- 	case CPU_DEAD_FROZEN:
-@@ -1262,12 +1333,8 @@ static struct notifier_block vmstat_noti
- static int __init setup_vmstat(void)
- {
- #ifdef CONFIG_SMP
--	int cpu;
--
- 	register_cpu_notifier(&vmstat_notifier);
--
--	for_each_online_cpu(cpu)
--		start_cpu_timer(cpu);
-+	start_shepherd_timer();
- #endif
- #ifdef CONFIG_PROC_FS
- 	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
+Ok.  I wouldn't expect it to crash under regular load but it will
+probably create hangs again when you try to remove memcgs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
