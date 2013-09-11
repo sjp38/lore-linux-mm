@@ -1,65 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id CF9666B00A5
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 20:02:53 -0400 (EDT)
-Message-ID: <1378857771.15187.4.camel@joe-AO722>
-Subject: [PATCH] slab: Make allocations with GFP_ZERO slightly more efficient
-From: Joe Perches <joe@perches.com>
-Date: Tue, 10 Sep 2013 17:02:51 -0700
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 6DA226B00A7
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 20:57:58 -0400 (EDT)
+Date: Wed, 11 Sep 2013 09:58:15 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 01/50] sched: monolithic code dump of what is being
+ pushed upstream
+Message-ID: <20130911005815.GA24671@lge.com>
+References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
+ <1378805550-29949-2-git-send-email-mgorman@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1378805550-29949-2-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Use the likely mechanism already around valid
-pointer tests to better choose when to memset
-to 0 allocations with __GFP_ZERO
+On Tue, Sep 10, 2013 at 10:31:41AM +0100, Mel Gorman wrote:
+> @@ -5045,15 +5038,50 @@ static int need_active_balance(struct lb_env *env)
+>  
+>  static int active_load_balance_cpu_stop(void *data);
+>  
+> +static int should_we_balance(struct lb_env *env)
+> +{
+> +	struct sched_group *sg = env->sd->groups;
+> +	struct cpumask *sg_cpus, *sg_mask;
+> +	int cpu, balance_cpu = -1;
+> +
+> +	/*
+> +	 * In the newly idle case, we will allow all the cpu's
+> +	 * to do the newly idle load balance.
+> +	 */
+> +	if (env->idle == CPU_NEWLY_IDLE)
+> +		return 1;
+> +
+> +	sg_cpus = sched_group_cpus(sg);
+> +	sg_mask = sched_group_mask(sg);
+> +	/* Try to find first idle cpu */
+> +	for_each_cpu_and(cpu, sg_cpus, env->cpus) {
+> +		if (!cpumask_test_cpu(cpu, sg_mask) || !idle_cpu(cpu))
+> +			continue;
+> +
+> +		balance_cpu = cpu;
+> +		break;
+> +	}
+> +
+> +	if (balance_cpu == -1)
+> +		balance_cpu = group_balance_cpu(sg);
+> +
+> +	/*
+> +	 * First idle cpu or the first cpu(busiest) in this sched group
+> +	 * is eligible for doing load balancing at this and above domains.
+> +	 */
+> +	return balance_cpu != env->dst_cpu;
+> +}
+> +
 
-Signed-off-by: Joe Perches <joe@perches.com>
----
- mm/slab.c | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+Hello, Mel.
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 2580db0..94e7e54 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3392,11 +3392,11 @@ slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
- 	kmemleak_alloc_recursive(ptr, cachep->object_size, 1, cachep->flags,
- 				 flags);
- 
--	if (likely(ptr))
-+	if (likely(ptr)) {
- 		kmemcheck_slab_alloc(cachep, flags, ptr, cachep->object_size);
--
--	if (unlikely((flags & __GFP_ZERO) && ptr))
--		memset(ptr, 0, cachep->object_size);
-+		if (unlikely(flags & __GFP_ZERO))
-+			memset(ptr, 0, cachep->object_size);
-+	}
- 
- 	return ptr;
- }
-@@ -3457,11 +3457,11 @@ slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
- 				 flags);
- 	prefetchw(objp);
- 
--	if (likely(objp))
-+	if (likely(objp)) {
- 		kmemcheck_slab_alloc(cachep, flags, objp, cachep->object_size);
--
--	if (unlikely((flags & __GFP_ZERO) && objp))
--		memset(objp, 0, cachep->object_size);
-+		if (unlikely(flags & __GFP_ZERO))
-+			memset(objp, 0, cachep->object_size);
-+	}
- 
- 	return objp;
- }
+There is one mistake from me.
+The last return statement in should_we_balance() should be
+'return balance_cpu == env->dst_cpu'. The fix was submitted yesterday.
 
+You can get more information on below thread.
+https://lkml.org/lkml/2013/9/10/1
+
+I think that this fix is somewhat important to scheduler's behavior,
+so it may be better to update your test result with this fix.
+Sorry for notifying this.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
