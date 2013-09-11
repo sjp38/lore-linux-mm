@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 3CB786B0033
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 0C3946B0038
 	for <linux-mm@kvack.org>; Wed, 11 Sep 2013 06:05:29 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v2 4/9] x86: Support allocate memory from bottom upwards in setup_log_buf().
-Date: Wed, 11 Sep 2013 18:07:32 +0800
-Message-Id: <1378894057-30946-5-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v2 5/9] x86: Support allocate memory from bottom upwards in relocate_initrd().
+Date: Wed, 11 Sep 2013 18:07:33 +0800
+Message-Id: <1378894057-30946-6-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1378894057-30946-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1378894057-30946-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -17,39 +17,42 @@ During early boot, if the bottom up mode is set, just
 try allocating bottom up from the end of kernel image,
 and if that fails, do normal top down allocation.
 
-So in function setup_log_buf(), we add the above logic.
+So in function relocate_initrd(), we add the above logic.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- kernel/printk/printk.c |   11 +++++++++++
- 1 files changed, 11 insertions(+), 0 deletions(-)
+ arch/x86/kernel/setup.c |   10 ++++++++++
+ 1 files changed, 10 insertions(+), 0 deletions(-)
 
-diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index b4e8500..2958118 100644
---- a/kernel/printk/printk.c
-+++ b/kernel/printk/printk.c
-@@ -759,9 +759,20 @@ void __init setup_log_buf(int early)
- 	if (early) {
- 		unsigned long mem;
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index f0de629..7372be7 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -326,6 +326,15 @@ static void __init relocate_initrd(void)
+ 	char *p, *q;
  
-+		if (memblock_direction_bottom_up()) {
-+			mem = memblock_alloc_bottom_up(
+ 	/* We need to move the initrd down into directly mapped mem */
++	if (memblock_direction_bottom_up()) {
++		ramdisk_here = memblock_alloc_bottom_up(
 +						MEMBLOCK_ALLOC_ACCESSIBLE,
-+						MEMBLOCK_ALLOC_ACCESSIBLE,
-+						new_log_buf_len, PAGE_SIZE);
-+			if (mem)
-+				goto success;
-+		}
++						PFN_PHYS(max_pfn_mapped),
++						area_size, PAGE_SIZE);
++		if (ramdisk_here)
++			goto success;
++	}
 +
- 		mem = memblock_alloc(new_log_buf_len, PAGE_SIZE);
- 		if (!mem)
- 			return;
-+
+ 	ramdisk_here = memblock_find_in_range(0, PFN_PHYS(max_pfn_mapped),
+ 						 area_size, PAGE_SIZE);
+ 
+@@ -333,6 +342,7 @@ static void __init relocate_initrd(void)
+ 		panic("Cannot find place for new RAMDISK of size %lld\n",
+ 			 ramdisk_size);
+ 
 +success:
- 		new_log_buf = __va(mem);
- 	} else {
- 		new_log_buf = alloc_bootmem_nopanic(new_log_buf_len);
+ 	/* Note: this includes all the mem currently occupied by
+ 	   the initrd, we rely on that fact to keep the data intact. */
+ 	memblock_reserve(ramdisk_here, area_size);
 -- 
 1.7.1
 
