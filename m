@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id B05A66B0032
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2013 06:05:25 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 105096B0033
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2013 06:05:27 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v2 1/9] memblock: Introduce allocation direction to memblock.
-Date: Wed, 11 Sep 2013 18:07:29 +0800
-Message-Id: <1378894057-30946-2-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v2 2/9] x86, memblock: Introduce memblock_alloc_bottom_up() to memblock.
+Date: Wed, 11 Sep 2013 18:07:30 +0800
+Message-Id: <1378894057-30946-3-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1378894057-30946-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1378894057-30946-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,119 +13,89 @@ List-ID: <linux-mm.kvack.org>
 To: tj@kernel.org, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, toshi.kani@hp.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-The Linux kernel cannot migrate pages used by the kernel. As a result, kernel
-pages cannot be hot-removed. So we cannot allocate hotpluggable memory for
-the kernel.
+This patch introduces a new API memblock_alloc_bottom_up() to make memblock be
+able to allocate from bottom upwards.
 
-ACPI SRAT (System Resource Affinity Table) contains the memory hotplug info.
-But before SRAT is parsed, memblock has already started to allocate memory
-for the kernel. So we need to prevent memblock from doing this.
+During early boot, if the bottom up mode is set, just try allocating bottom up
+from the end of kernel image, and if that fails, do normal top down allocation.
 
-In a memory hotplug system, any numa node the kernel resides in should
-be unhotpluggable. And for a modern server, each node could have at least
-16GB memory. So memory around the kernel image is highly likely unhotpluggable.
-
-So the basic idea is: Allocate memory from the end of the kernel image and
-to the higher memory. Since memory allocation before SRAT is parsed won't
-be too much, it could highly likely be in the same node with kernel image.
-
-The current memblock can only allocate memory from high address to low.
-So this patch introduces the allocation direct to memblock. It could be
-used to tell memblock to allocate memory from high to low or from low
-to high.
-
+Suggested-by: Tejun Heo <tj@kernel.org>
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- include/linux/memblock.h |   22 ++++++++++++++++++++++
- mm/memblock.c            |   13 +++++++++++++
- 2 files changed, 35 insertions(+), 0 deletions(-)
+ include/linux/memblock.h |    2 ++
+ mm/memblock.c            |   38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 0 deletions(-)
 
 diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index f388203..fbf6b6d 100644
+index fbf6b6d..9a0958f 100644
 --- a/include/linux/memblock.h
 +++ b/include/linux/memblock.h
-@@ -19,6 +19,11 @@
- 
- #define INIT_MEMBLOCK_REGIONS	128
- 
-+/* Allocation order. */
-+#define MEMBLOCK_DIRECTION_HIGH_TO_LOW	0
-+#define MEMBLOCK_DIRECTION_LOW_TO_HIGH	1
-+#define MEMBLOCK_DIRECTION_DEFAULT	MEMBLOCK_DIRECTION_HIGH_TO_LOW
-+
- struct memblock_region {
- 	phys_addr_t base;
- 	phys_addr_t size;
-@@ -35,6 +40,7 @@ struct memblock_type {
- };
- 
- struct memblock {
-+	int current_direction;      /* allocate from higher or lower address */
- 	phys_addr_t current_limit;
- 	struct memblock_type memory;
- 	struct memblock_type reserved;
-@@ -146,6 +152,12 @@ phys_addr_t memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, int nid)
+@@ -151,6 +151,8 @@ phys_addr_t memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int nid);
+ phys_addr_t memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, int nid);
  
  phys_addr_t memblock_alloc(phys_addr_t size, phys_addr_t align);
++phys_addr_t memblock_alloc_bottom_up(phys_addr_t start, phys_addr_t end,
++				     phys_addr_t size, phys_addr_t align);
  
-+static inline bool memblock_direction_bottom_up(void)
-+{
-+	return memblock.current_direction == MEMBLOCK_DIRECTION_LOW_TO_HIGH;
-+}
-+
-+
- /* Flags for memblock_alloc_base() amd __memblock_alloc_base() */
- #define MEMBLOCK_ALLOC_ANYWHERE	(~(phys_addr_t)0)
- #define MEMBLOCK_ALLOC_ACCESSIBLE	0
-@@ -173,6 +185,16 @@ static inline void memblock_dump_all(void)
- }
- 
- /**
-+ * memblock_set_current_direction - Set current allocation direction to allow
-+ *                                  allocating memory from higher to lower
-+ *                                  address or from lower to higher address
-+ *
-+ * @direction: In which order to allocate memory. Could be
-+ *             MEMBLOCK_DIRECTION_{HIGH_TO_LOW|LOW_TO_HIGH}
-+ */
-+void memblock_set_current_direction(int direction);
-+
-+/**
-  * memblock_set_current_limit - Set the current allocation limit to allow
-  *                         limiting allocations to what is currently
-  *                         accessible during boot
+ static inline bool memblock_direction_bottom_up(void)
+ {
 diff --git a/mm/memblock.c b/mm/memblock.c
-index a847bfe..7add615 100644
+index 7add615..d7485b9 100644
 --- a/mm/memblock.c
 +++ b/mm/memblock.c
-@@ -32,6 +32,7 @@ struct memblock memblock __initdata_memblock = {
- 	.reserved.cnt		= 1,	/* empty dummy entry */
- 	.reserved.max		= INIT_MEMBLOCK_REGIONS,
+@@ -20,6 +20,8 @@
+ #include <linux/seq_file.h>
+ #include <linux/memblock.h>
  
-+	.current_direction	= MEMBLOCK_DIRECTION_DEFAULT,
- 	.current_limit		= MEMBLOCK_ALLOC_ANYWHERE,
- };
++#include <asm-generic/sections.h>
++
+ static struct memblock_region memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS] __initdata_memblock;
+ static struct memblock_region memblock_reserved_init_regions[INIT_MEMBLOCK_REGIONS] __initdata_memblock;
  
-@@ -977,6 +978,18 @@ void __init_memblock memblock_trim_memory(phys_addr_t align)
- 	}
+@@ -786,6 +788,42 @@ static phys_addr_t __init memblock_alloc_base_nid(phys_addr_t size,
+ 	return 0;
  }
  
-+void __init_memblock memblock_set_current_direction(int direction)
++/**
++ * memblock_alloc_bottom_up - allocate memory from bottom upwards
++ * @start: start of candidate range, can be %MEMBLOCK_ALLOC_ACCESSIBLE
++ * @@end: end of candidate range, can be %MEMBLOCK_ALLOC_{ANYWHERE|ACCESSIBLE}
++ * @size: size of free area to allocate
++ * @align: alignment of free area to allocate
++ *
++ * Allocate @size free area aligned to @align from the end of the kernel image
++ * upwards.
++ *
++ * Found address on success, %0 on failure.
++ */
++phys_addr_t __init_memblock memblock_alloc_bottom_up(phys_addr_t start,
++					phys_addr_t end, phys_addr_t size,
++					phys_addr_t align)
 +{
-+	if (direction != MEMBLOCK_DIRECTION_HIGH_TO_LOW &&
-+	    direction != MEMBLOCK_DIRECTION_LOW_TO_HIGH) {
-+		pr_warn("memblock: Failed to set allocation order. "
-+			"Invalid order type: %d\n", direction);
-+		return;
++	phys_addr_t this_start, this_end, cand;
++	u64 i;
++
++	if (start == MEMBLOCK_ALLOC_ACCESSIBLE)
++		start = __pa_symbol(_end);	/* End of kernel image. */
++	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
++		end = memblock.current_limit;
++
++	for_each_free_mem_range(i, MAX_NUMNODES, &this_start, &this_end, NULL) {
++		this_start = clamp(this_start, start, end);
++		this_end = clamp(this_end, start, end);
++
++		cand = round_up(this_start, align);
++		if (cand < this_end && this_end - cand >= size)
++			return cand;
 +	}
 +
-+	memblock.current_direction = direction;
++	return 0;
 +}
 +
- void __init_memblock memblock_set_current_limit(phys_addr_t limit)
+ phys_addr_t __init memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int nid)
  {
- 	memblock.current_limit = limit;
+ 	return memblock_alloc_base_nid(size, align, MEMBLOCK_ALLOC_ACCESSIBLE, nid);
 -- 
 1.7.1
 
