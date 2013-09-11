@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id CA8396B0031
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2013 10:33:46 -0400 (EDT)
-Date: Wed, 11 Sep 2013 14:33:45 +0000
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 4611A6B0031
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2013 10:35:27 -0400 (EDT)
+Date: Wed, 11 Sep 2013 14:35:25 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 05/16] slab: remove cachep in struct slab_rcu
-In-Reply-To: <1377161065-30552-6-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <000001410d71370d-0d495e2a-fc09-4d3a-996d-440e780b5058-000000@email.amazonses.com>
-References: <1377161065-30552-1-git-send-email-iamjoonsoo.kim@lge.com> <1377161065-30552-6-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 06/16] slab: put forward freeing slab management object
+In-Reply-To: <1377161065-30552-7-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <000001410d72beda-2c38b76c-3962-45fc-9d16-99452dbd7edc-000000@email.amazonses.com>
+References: <1377161065-30552-1-git-send-email-iamjoonsoo.kim@lge.com> <1377161065-30552-7-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,7 +17,9 @@ Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
 On Thu, 22 Aug 2013, Joonsoo Kim wrote:
 
-> We can get cachep using page in struct slab_rcu, so remove it.
+> We don't need to free slab management object in rcu context,
+> because, from now on, we don't manage this slab anymore.
+> So put forward freeing.
 
 Acked-by: Christoph Lameter <cl@linux.com>
 
