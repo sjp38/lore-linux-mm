@@ -1,67 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id CDDDD6B00A3
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 19:51:05 -0400 (EDT)
-Message-ID: <1378857061.15187.1.camel@joe-AO722>
-Subject: Re: slab: krealloc with GFP_ZERO defect
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id CF9666B00A5
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 20:02:53 -0400 (EDT)
+Message-ID: <1378857771.15187.4.camel@joe-AO722>
+Subject: [PATCH] slab: Make allocations with GFP_ZERO slightly more efficient
 From: Joe Perches <joe@perches.com>
-Date: Tue, 10 Sep 2013 16:51:01 -0700
-In-Reply-To: <1377812836.1928.135.camel@joe-AO722>
-References: <1377812836.1928.135.camel@joe-AO722>
+Date: Tue, 10 Sep 2013 17:02:51 -0700
 Content-Type: text/plain; charset="ISO-8859-1"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-ping?
+Use the likely mechanism already around valid
+pointer tests to better choose when to memset
+to 0 allocations with __GFP_ZERO
 
-On Thu, 2013-08-29 at 14:47 -0700, Joe Perches wrote:
-> This sequence can return non-zeroed memory from the
-> padding area of the original allocation.
-> 
-> 	ptr = kzalloc(foo, GFP_KERNEL);
-> 	if (!ptr)
-> 		...
-> 	new_ptr = krealloc(ptr, foo + bar, GFP_KERNEL | __GFP_ZERO);
-> 
-> If the realloc size is within the first actual allocation
-> then the additional memory is not zeroed.
-> 
-> If the realloc size is not within the original allocation
-> size, any non-zeroed padding from the original allocation
-> is overwriting newly allocated zeroed memory.
-> 
-> Maybe someone more familiar with the alignment & padding can
-> add the proper memset(,0,) for the __GFP_ZERO cases and also
-> optimize kmalloc_track_caller to not use __GFP_ZERO, memcpy
-> the current (non padded) size and zero the newly returned
-> remainder if necessary.
-> 
-> from: mm/util.c
-> ---------------------------
-> static __always_inline void *__do_krealloc(const void *p, size_t new_size,
-> 					   gfp_t flags)
-> {
-> 	void *ret;
-> 	size_t ks = 0;
-> 
-> 	if (p)
-> 		ks = ksize(p);
-> 
-> 	if (ks >= new_size)
-> 		return (void *)p;
-> 
-> 	ret = kmalloc_track_caller(new_size, flags);
-> 	if (ret && p)
-> 		memcpy(ret, p, ks);
-> 
-> 	return ret;
-> }
-> 
+Signed-off-by: Joe Perches <joe@perches.com>
+---
+ mm/slab.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
 
+diff --git a/mm/slab.c b/mm/slab.c
+index 2580db0..94e7e54 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -3392,11 +3392,11 @@ slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
+ 	kmemleak_alloc_recursive(ptr, cachep->object_size, 1, cachep->flags,
+ 				 flags);
+ 
+-	if (likely(ptr))
++	if (likely(ptr)) {
+ 		kmemcheck_slab_alloc(cachep, flags, ptr, cachep->object_size);
+-
+-	if (unlikely((flags & __GFP_ZERO) && ptr))
+-		memset(ptr, 0, cachep->object_size);
++		if (unlikely(flags & __GFP_ZERO))
++			memset(ptr, 0, cachep->object_size);
++	}
+ 
+ 	return ptr;
+ }
+@@ -3457,11 +3457,11 @@ slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
+ 				 flags);
+ 	prefetchw(objp);
+ 
+-	if (likely(objp))
++	if (likely(objp)) {
+ 		kmemcheck_slab_alloc(cachep, flags, objp, cachep->object_size);
+-
+-	if (unlikely((flags & __GFP_ZERO) && objp))
+-		memset(objp, 0, cachep->object_size);
++		if (unlikely(flags & __GFP_ZERO))
++			memset(objp, 0, cachep->object_size);
++	}
+ 
+ 	return objp;
+ }
 
 
 --
