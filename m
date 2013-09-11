@@ -1,67 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 6F2076B0031
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2013 23:11:05 -0400 (EDT)
-Received: by mail-la0-f44.google.com with SMTP id eo20so6950554lab.17
-        for <linux-mm@kvack.org>; Tue, 10 Sep 2013 20:11:03 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 8909B6B0031
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2013 01:37:35 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id v10so8743654pde.10
+        for <linux-mm@kvack.org>; Tue, 10 Sep 2013 22:37:34 -0700 (PDT)
+Date: Tue, 10 Sep 2013 22:32:48 -0700
+From: Anton Vorontsov <anton@enomsg.org>
+Subject: Re: [PATCH] vmpressure: fix divide-by-0 in vmpressure_work_fn
+Message-ID: <20130911053248.GA9064@lizard>
+References: <alpine.LNX.2.00.1309062254470.11420@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <1378805550-29949-2-git-send-email-mgorman@suse.de>
-References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
-	<1378805550-29949-2-git-send-email-mgorman@suse.de>
-Date: Wed, 11 Sep 2013 11:11:03 +0800
-Message-ID: <CAJd=RBDBoJ42OkrqsD787O2ZYt9iPvwJo6DubDcVuS0tKRv9ng@mail.gmail.com>
-Subject: Re: [PATCH 01/50] sched: monolithic code dump of what is being pushed upstream
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <alpine.LNX.2.00.1309062254470.11420@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Sep 10, 2013 at 5:31 PM, Mel Gorman <mgorman@suse.de> wrote:
-> @@ -5045,15 +5038,50 @@ static int need_active_balance(struct lb_env *env)
->
->  static int active_load_balance_cpu_stop(void *data);
->
-> +static int should_we_balance(struct lb_env *env)
-> +{
-> +       struct sched_group *sg = env->sd->groups;
-> +       struct cpumask *sg_cpus, *sg_mask;
-> +       int cpu, balance_cpu = -1;
-> +
-> +       /*
-> +        * In the newly idle case, we will allow all the cpu's
-> +        * to do the newly idle load balance.
-> +        */
-> +       if (env->idle == CPU_NEWLY_IDLE)
-> +               return 1;
-> +
-> +       sg_cpus = sched_group_cpus(sg);
-> +       sg_mask = sched_group_mask(sg);
-> +       /* Try to find first idle cpu */
-> +       for_each_cpu_and(cpu, sg_cpus, env->cpus) {
-> +               if (!cpumask_test_cpu(cpu, sg_mask) || !idle_cpu(cpu))
-> +                       continue;
-> +
-> +               balance_cpu = cpu;
-> +               break;
-> +       }
-> +
-> +       if (balance_cpu == -1)
-> +               balance_cpu = group_balance_cpu(sg);
-> +
-> +       /*
-> +        * First idle cpu or the first cpu(busiest) in this sched group
-> +        * is eligible for doing load balancing at this and above domains.
-> +        */
-> +       return balance_cpu != env->dst_cpu;
+On Fri, Sep 06, 2013 at 10:59:16PM -0700, Hugh Dickins wrote:
+> Hit divide-by-0 in vmpressure_work_fn(): checking vmpr->scanned before
+> taking the lock is not enough, we must check scanned afterwards too.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Cc: stable@vger.kernel.org
 
-FYI: Here is a bug reported by Dave Chinner.
-https://lkml.org/lkml/2013/9/10/1
+Hm... Just trying to understand this one. I don't see how this can happen,
+considering that only one instance of vmpressure_work_fn() supposed to be
+running (unlike vmpressure()), and the only place where we zero
+vmpr->scanned is vmpressure_work_fn() itself?
 
-And lets see if any changes in your SpecJBB results without it.
-
-Hillf
+> ---
+> 
+>  mm/vmpressure.c |    3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> --- 3.11/mm/vmpressure.c	2013-09-02 13:46:10.000000000 -0700
+> +++ linux/mm/vmpressure.c	2013-09-06 22:43:03.596003080 -0700
+> @@ -187,6 +187,9 @@ static void vmpressure_work_fn(struct wo
+>  	vmpr->reclaimed = 0;
+>  	spin_unlock(&vmpr->sr_lock);
+>  
+> +	if (!scanned)
+> +		return;
+> +
+>  	do {
+>  		if (vmpressure_event(vmpr, scanned, reclaimed))
+>  			break;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
