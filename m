@@ -1,96 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 825C16B0031
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2013 19:21:51 -0400 (EDT)
-Received: from /spool/local
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Wed, 11 Sep 2013 17:21:50 -0600
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 2DC351FF001A
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2013 17:21:46 -0600 (MDT)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8BNLml0326290
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2013 17:21:48 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r8BNLmOM013757
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2013 17:21:48 -0600
-Message-ID: <5230FB0A.70901@linux.vnet.ibm.com>
-Date: Wed, 11 Sep 2013 16:21:46 -0700
-From: Cody P Schafer <cody@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 45A156B0031
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2013 19:59:09 -0400 (EDT)
+Message-ID: <523103BA.7010202@sr71.net>
+Date: Wed, 11 Sep 2013 16:58:50 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
 Subject: Re: [RFC][PATCH] mm: percpu pages: up batch size to fix arithmetic??
  errror
 References: <20130911220859.EB8204BB@viggo.jf.intel.com> <5230F7DD.90905@linux.vnet.ibm.com>
 In-Reply-To: <5230F7DD.90905@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
+To: Cody P Schafer <cody@linux.vnet.ibm.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cl@linux.com
 
 On 09/11/2013 04:08 PM, Cody P Schafer wrote:
-> On 09/11/2013 03:08 PM, Dave Hansen wrote:
->> I really don't know where the:
->>
->>     batch /= 4;             /* We effectively *= 4 below */
->>     ...
->>     batch = rounddown_pow_of_two(batch + batch/2) - 1;
->>
->> came from.  The round down code at *MOST* does a *= 1.5, but
->> *averages* out to be just under 1.
->>
->> On a system with 128GB in a zone, this means that we've got
->> (you can see in /proc/zoneinfo for yourself):
->>
->>                high:  186 (744kB)
->>                batch: 31  (124kB)
->>
->> That 124kB is almost precisely 1/4 of the "1/2 of a meg" that we
->> were shooting for.  We're under-sizing the batches by about 4x.
->> This patch kills the /=4.
->>
->> ---
->> diff -puN mm/page_alloc.c~debug-pcp-sizes-1 mm/page_alloc.c
->> --- linux.git/mm/page_alloc.c~debug-pcp-sizes-1    2013-09-11
->> 14:41:08.532445664 -0700
->> +++ linux.git-davehans/mm/page_alloc.c    2013-09-11
->> 15:03:47.403912683 -0700
->> @@ -4103,7 +4103,6 @@ static int __meminit zone_batchsize(stru
->>       batch = zone->managed_pages / 1024;
->>       if (batch * PAGE_SIZE > 512 * 1024)
->>           batch = (512 * 1024) / PAGE_SIZE;
->> -    batch /= 4;        /* We effectively *= 4 below */
->>       if (batch < 1)
->>           batch = 1;
->>
->> _
->>
->
-> Looking back at the first git commit (way before my time), it appears
-> that the percpu pagesets initially had a ->high and ->low (now removed),
-> set to batch*6 and batch*2 respectively. I assume the idea was to keep
-> the number of pages in the percpu pagesets around batch*4, hence the
-> comment.
->
 > So we have this variable called "batch", and the code is trying to store
 > the _average_ number of pcp pages we want into it (not the batchsize),
 > and then we divide our "average" goal by 4 to get a batchsize. All the
 > comments refer to the size of the pcp pagesets, not to the pcp pageset
 > batchsize.
->
+
+That's a good point, I guess.  I was wondering the same thing.
+
 > Looking further, in current code we don't refill the pcp pagesets unless
 > they are completely empty (->low was removed a while ago), and then we
 > only add ->batch pages.
->
+> 
 > Has anyone looked at what type of average pcp sizing the current code
 > results in?
 
-Also, we may want to consider shrinking pcp->high down from 6*pcp->batch 
-given that the original "6*" choice was based upon ->batch actually 
-being 1/4th of the average pageset size, where now it appears closer to 
-being the average.
+It tends to be within a batch of either ->high (when we are freeing lots
+of pages) or ->low (when alloc'ing lots).  I don't see a whole lot of
+bouncing around in the middle.  For instance, there aren't a lot of gcc
+or make instances during a kernel compile that fit in to the ~0.75MB
+->high limit.
+
+Just a dumb little thing like this during a kernel compile on my 4-cpu
+laptop:
+
+ while true; do cat /proc/zoneinfo  | egrep 'count:' | tail -4; done >
+pcp-counts.1.txt
+cat pcp-counts.1.txt | awk '{print $2}' | sort -n | uniq -c | sort -n
+
+says that at least ~1/2 of the time we have <=10 pages.  That makes
+sense since the compile spends all of its runtime (relatively slowly)
+doing allocations.  It frees all its memory really quickly when it
+exits, so the window to see the times when the pools are full is smaller
+than when they are empty.
+
+I'm struggling to think of a case where the small batch sizes make sense
+these days.  Maybe if you're running a lot of little programs like ls or
+awk?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
