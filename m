@@ -1,35 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id A347B6B0031
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2013 08:51:06 -0400 (EDT)
-Received: by mail-yh0-f50.google.com with SMTP id a41so3486912yho.37
-        for <linux-mm@kvack.org>; Wed, 11 Sep 2013 05:51:05 -0700 (PDT)
-Date: Wed, 11 Sep 2013 08:51:01 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v2 0/9] x86, memblock: Allocate memory near kernel image
- before SRAT parsed.
-Message-ID: <20130911125101.GA20997@htj.dyndns.org>
-References: <1378894057-30946-1-git-send-email-tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1378894057-30946-1-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id F1E8D6B0031
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2013 09:42:27 -0400 (EDT)
+Message-ID: <1378906840.3039.0.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v2] cpu/mem hotplug: Add try_online_node() for cpu_up()
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Wed, 11 Sep 2013 07:40:40 -0600
+In-Reply-To: <522FD64B.8090206@jp.fujitsu.com>
+References: <1378853258-28633-1-git-send-email-toshi.kani@hp.com>
+	 <522FD64B.8090206@jp.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, toshi.kani@hp.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rjw@sisk.pl, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com
 
-On Wed, Sep 11, 2013 at 06:07:28PM +0800, Tang Chen wrote:
-> This patch-set is based on tj's suggestion, and not fully tested. 
-> Just for review and discussion. And according to tj's suggestion, 
-> implemented a new function memblock_alloc_bottom_up() to allocate 
-> memory from bottom upwards, whihc can simplify the code.
+On Wed, 2013-09-11 at 11:32 +0900, Yasuaki Ishimatsu wrote:
+> (2013/09/11 7:47), Toshi Kani wrote:
+> > cpu_up() has #ifdef CONFIG_MEMORY_HOTPLUG code blocks, which
+> > call mem_online_node() to put its node online if offlined and
+> > then call build_all_zonelists() to initialize the zone list.
+> > These steps are specific to memory hotplug, and should be
+> > managed in mm/memory_hotplug.c.  lock_memory_hotplug() should
+> > also be held for the whole steps.
+> > 
+> > For this reason, this patch replaces mem_online_node() with
+> > try_online_node(), which performs the whole steps with
+> > lock_memory_hotplug() held.  try_online_node() is named after
+> > try_offline_node() as they have similar purpose.
+> > 
+> > There is no functional change in this patch.
+> > 
+> > Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+> > ---
+> > v2: Added pr_err() in case of NULL pgdat in try_online_node().
+> > ---
+> 
+> Thank you for updating it. It looks good to me.
+> 
+> Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-For $DEITY's sake, can you please specify against which tree the
-patches are?  :(
-
--- 
-tejun
+Thanks Yasuaki!
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
