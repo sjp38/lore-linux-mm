@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id A86FC6B0032
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2013 08:42:20 -0400 (EDT)
-Received: by mail-lb0-f177.google.com with SMTP id w7so811089lbi.8
-        for <linux-mm@kvack.org>; Thu, 12 Sep 2013 05:42:18 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 68AFE6B0031
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2013 08:45:54 -0400 (EDT)
+Received: by mail-lb0-f182.google.com with SMTP id c11so826655lbj.41
+        for <linux-mm@kvack.org>; Thu, 12 Sep 2013 05:45:52 -0700 (PDT)
 MIME-Version: 1.0
 In-Reply-To: <1378805550-29949-42-git-send-email-mgorman@suse.de>
 References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
 	<1378805550-29949-42-git-send-email-mgorman@suse.de>
-Date: Thu, 12 Sep 2013 20:42:18 +0800
-Message-ID: <CAJd=RBBOHXT=7NGAkLtcOCMna5g2GvaQG-Xc0mzrbp_mOQ4xyw@mail.gmail.com>
+Date: Thu, 12 Sep 2013 20:45:52 +0800
+Message-ID: <CAJd=RBCdFjKkCx=3+K0PD5Hmj_C=Bggnebt28Zpdw-wOdNZnWA@mail.gmail.com>
 Subject: Re: [PATCH 41/50] sched: numa: Use {cpu, pid} to create task groups
  for shared faults
 From: Hillf Danton <dhillf@gmail.com>
@@ -34,7 +34,7 @@ On Tue, Sep 10, 2013 at 5:32 PM, Mel Gorman <mgorman@suse.de> wrote:
 > +               for (i = 0; i < 2*nr_node_ids; i++)
 > +                       atomic_long_sub(p->numa_faults[i], &grp->faults[i]);
 > +
-use after free, numa_faults ;/
+use after free :/
 
 > +               spin_lock(&grp->lock);
 > +               list_del(&p->numa_entry);
