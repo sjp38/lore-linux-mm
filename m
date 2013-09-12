@@ -1,66 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 9A9636B0031
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2013 09:46:45 -0400 (EDT)
-Received: by mail-lb0-f169.google.com with SMTP id z5so935819lbh.0
-        for <linux-mm@kvack.org>; Thu, 12 Sep 2013 06:46:43 -0700 (PDT)
-Subject: [PATCH] shmem: fix double memory uncharge on error path
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Thu, 12 Sep 2013 17:46:41 +0400
-Message-ID: <20130912134641.2306.24297.stgit@zurg>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 047BE6B0031
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2013 10:16:59 -0400 (EDT)
+Date: Thu, 12 Sep 2013 14:16:58 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC][PATCH] mm: percpu pages: up batch size to fix arithmetic??
+ errror
+In-Reply-To: <523108B7.7050101@sr71.net>
+Message-ID: <00000141128835e1-8664ca3a-c439-4d9d-89cb-308664595db4-000000@email.amazonses.com>
+References: <20130911220859.EB8204BB@viggo.jf.intel.com> <5230F7DD.90905@linux.vnet.ibm.com> <5230FB0A.70901@linux.vnet.ibm.com> <523108B7.7050101@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave@sr71.net>
+Cc: Cody P Schafer <cody@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This patch removes erroneous call of shmem_unacct_size() from error path.
-Shmem inode will release that memory reservation in shmem_evict_inode().
-So, if following call of alloc_file fails we'll free reservation twice.
+On Wed, 11 Sep 2013, Dave Hansen wrote:
 
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
----
- mm/shmem.c |    8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+> 3. We want ->high to approximate the size of the cache which is
+>    private to a given cpu.  But, that's complicated by the L3 caches
+>    and hyperthreading today.
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 8297623..ff08920 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -2946,16 +2946,16 @@ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags
- 	this.len = strlen(name);
- 	this.hash = 0; /* will go */
- 	sb = shm_mnt->mnt_sb;
-+	path.mnt = mntget(shm_mnt);
- 	path.dentry = d_alloc_pseudo(sb, &this);
- 	if (!path.dentry)
- 		goto put_memory;
- 	d_set_d_op(path.dentry, &anon_ops);
--	path.mnt = mntget(shm_mnt);
- 
- 	res = ERR_PTR(-ENOSPC);
- 	inode = shmem_get_inode(sb, NULL, S_IFREG | S_IRWXUGO, 0, flags);
- 	if (!inode)
--		goto put_dentry;
-+		goto put_memory;
- 
- 	d_instantiate(path.dentry, inode);
- 	inode->i_size = size;
-@@ -2971,10 +2971,10 @@ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags
- 
- 	return res;
- 
--put_dentry:
--	path_put(&path);
- put_memory:
- 	shmem_unacct_size(flags, size);
-+put_dentry:
-+	path_put(&path);
- 	return res;
- }
- EXPORT_SYMBOL_GPL(shmem_file_setup);
+well lets keep it well below that. There are other caches (slab related
+f.e.) that are also in constant use.
+
+> I'll take one of my big systems and run it with some various ->high
+> settings and see if it makes any difference.
+
+Do you actually see contention issues on the locks? I think we have a
+tendency to batch too much in too many caches.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
