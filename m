@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id A03CC6B0034
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2013 06:03:30 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 3C0F56B0033
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2013 06:03:31 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [RESEND PATCH v2 5/9] x86: Support allocate memory from bottom upwards in relocate_initrd().
-Date: Thu, 12 Sep 2013 17:52:13 +0800
-Message-Id: <1378979537-21196-6-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [RESEND PATCH v2 3/9] x86, dma: Support allocate memory from bottom upwards in dma_contiguous_reserve().
+Date: Thu, 12 Sep 2013 17:52:11 +0800
+Message-Id: <1378979537-21196-4-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1378979537-21196-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1378979537-21196-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -17,42 +17,51 @@ During early boot, if the bottom up mode is set, just
 try allocating bottom up from the end of kernel image,
 and if that fails, do normal top down allocation.
 
-So in function relocate_initrd(), we add the above logic.
+So in function dma_contiguous_reserve(), we add the
+above logic.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- arch/x86/kernel/setup.c |   10 ++++++++++
- 1 files changed, 10 insertions(+), 0 deletions(-)
+ drivers/base/dma-contiguous.c |   17 ++++++++++++++---
+ 1 files changed, 14 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index f0de629..7372be7 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -326,6 +326,15 @@ static void __init relocate_initrd(void)
- 	char *p, *q;
- 
- 	/* We need to move the initrd down into directly mapped mem */
-+	if (memblock_direction_bottom_up()) {
-+		ramdisk_here = memblock_alloc_bottom_up(
-+						MEMBLOCK_ALLOC_ACCESSIBLE,
-+						PFN_PHYS(max_pfn_mapped),
-+						area_size, PAGE_SIZE);
-+		if (ramdisk_here)
-+			goto success;
-+	}
+diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
+index 99802d6..aada945 100644
+--- a/drivers/base/dma-contiguous.c
++++ b/drivers/base/dma-contiguous.c
+@@ -228,17 +228,28 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
+ 			goto err;
+ 		}
+ 	} else {
++		phys_addr_t addr;
 +
- 	ramdisk_here = memblock_find_in_range(0, PFN_PHYS(max_pfn_mapped),
- 						 area_size, PAGE_SIZE);
- 
-@@ -333,6 +342,7 @@ static void __init relocate_initrd(void)
- 		panic("Cannot find place for new RAMDISK of size %lld\n",
- 			 ramdisk_size);
- 
++		if (memblock_direction_bottom_up()) {
++			addr = memblock_alloc_bottom_up(
++						MEMBLOCK_ALLOC_ACCESSIBLE,
++						limit, size, alignment);
++			if (addr)
++				goto success;
++		}
++
+ 		/*
+ 		 * Use __memblock_alloc_base() since
+ 		 * memblock_alloc_base() panic()s.
+ 		 */
+-		phys_addr_t addr = __memblock_alloc_base(size, alignment, limit);
++		addr = __memblock_alloc_base(size, alignment, limit);
+ 		if (!addr) {
+ 			ret = -ENOMEM;
+ 			goto err;
+-		} else {
+-			base = addr;
+ 		}
++
 +success:
- 	/* Note: this includes all the mem currently occupied by
- 	   the initrd, we rely on that fact to keep the data intact. */
- 	memblock_reserve(ramdisk_here, area_size);
++		base = addr;
+ 	}
+ 
+ 	/*
 -- 
 1.7.1
 
