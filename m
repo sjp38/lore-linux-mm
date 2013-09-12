@@ -1,71 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 892996B0031
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2013 20:33:17 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id un15so9795176pbc.15
-        for <linux-mm@kvack.org>; Wed, 11 Sep 2013 17:33:16 -0700 (PDT)
-Date: Wed, 11 Sep 2013 17:33:14 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] mm/shmem.c: check the return value of mpol_to_str()
-In-Reply-To: <522EC3D1.4010806@asianux.com>
-Message-ID: <alpine.DEB.2.02.1309111725290.22242@chino.kir.corp.google.com>
-References: <5215639D.1080202@asianux.com> <5227CF48.5080700@asianux.com> <alpine.DEB.2.02.1309091326210.16291@chino.kir.corp.google.com> <522E6C14.7060006@asianux.com> <alpine.DEB.2.02.1309092334570.20625@chino.kir.corp.google.com>
- <522EC3D1.4010806@asianux.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 28BA16B0031
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2013 22:10:15 -0400 (EDT)
+Received: by mail-lb0-f178.google.com with SMTP id z5so318964lbh.23
+        for <linux-mm@kvack.org>; Wed, 11 Sep 2013 19:10:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <1378805550-29949-28-git-send-email-mgorman@suse.de>
+References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
+	<1378805550-29949-28-git-send-email-mgorman@suse.de>
+Date: Thu, 12 Sep 2013 10:10:13 +0800
+Message-ID: <CAJd=RBCoJNPi0PPg3DQyRtuoKNvU42bpy9GPiNpzf5byMVQNOA@mail.gmail.com>
+Subject: Re: [PATCH 27/50] mm: numa: Scan pages with elevated page_mapcount
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <gang.chen@asianux.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, riel@redhat.com, hughd@google.com, xemul@parallels.com, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 10 Sep 2013, Chen Gang wrote:
+Hillo Mel
 
-> > Why?  It can just store the string into the buffer pointed to by the 
-> > char *buffer and terminate it appropriately while taking care that it 
-> > doesn't exceed maxlen.  Why does the caller need to know the number of 
-> > bytes written?  If it really does, you could just do strlen(buffer).
-> > 
-> > If there's a real reason for it, then that's fine, I just think it can be 
-> > made to always succeed and never return < 0.  (And why is nobody checking 
-> > the return value today if it's so necessary?)
-> > 
-> 
-> For common printing functions: sprintf(), snprintf(), scnprintf().
-> 
-> For some of specific printing functions: drivers/usb/host/uhci-debug.c.
-> 
-> at least they can let caller easy use.
-> 
+On Tue, Sep 10, 2013 at 5:32 PM, Mel Gorman <mgorman@suse.de> wrote:
+> Currently automatic NUMA balancing is unable to distinguish between false
+> shared versus private pages except by ignoring pages with an elevated
+> page_mapcount entirely. This avoids shared pages bouncing between the
+> nodes whose task is using them but that is ignored quite a lot of data.
+>
+> This patch kicks away the training wheels in preparation for adding support
+> for identifying shared/private pages is now in place. The ordering is so
+> that the impact of the shared/private detection can be easily measured. Note
+> that the patch does not migrate shared, file-backed within vmas marked
+> VM_EXEC as these are generally shared library pages. Migrating such pages
+> is not beneficial as there is an expectation they are read-shared between
+> caches and iTLB and iCache pressure is generally low.
+>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> ---
+[...]
+> @@ -1658,13 +1660,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+>         int page_lru = page_is_file_cache(page);
+>
+>         /*
+> -        * Don't migrate pages that are mapped in multiple processes.
+> -        * TODO: Handle false sharing detection instead of this hammer
+> -        */
+> -       if (page_mapcount(page) != 1)
+> -               goto out_dropref;
+> -
+Is there rmap walk when migrating THP?
 
-Nobody needs mpol_to_str() to return the number of characters written, 
-period.  It's one of the most trivial functions you're going to see in the 
-mempolicy code, it takes a pointer to a buffer and it stores characters to 
-it for display.  Nobody is going to use it for anything else.  Let's not 
-overcomplicate this trivial function.
-
-> > Nobody is using mpol_to_str() to determine if a mempolicy mode is valid :)  
-> > If the struct mempolicy really has a bad mode, then just store "unknown" 
-> > or store a 0.  If maxlen is insufficient for the longest possible string 
-> > stored by mpol_to_str(), then it should be a compile-time error.
-> > 
-> > 
-> 
-> Hmm... what you said sounds reasonable if mpol_to_str() is a normal
-> static funciton (only used within a file).
-> 
-> For extern function, callee (inside) can not assume anything of caller
-> (outside) beyond the interface. So if failure occurs, better to report
-> to caller only, and let caller to check what to do next.
-> 
-
-Are you just preaching about the best practices of software engineering?  
-mpol_to_str() should never fail at runtime, plain and simple.  If somebody 
-introduces a new mode and doesn't update it to print correctly, let's not 
-fail the read().  Let's just print "unknown".  And if someone passes too 
-small of a buffer, break it at compile time so it gets noticed and fixed.
-
-I guarantee you that any kernel developer who writes code to call 
-mpol_to_str() will be happy it never fails at runtime.  Really.
+> -       /*
+>          * Rate-limit the amount of data that is being migrated to a node.
+>          * Optimal placement is no good if the memory bus is saturated and
+>          * all the time is being spent migrating!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
