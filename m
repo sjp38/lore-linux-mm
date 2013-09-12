@@ -1,40 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 70C0E6B003C
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2013 06:04:13 -0400 (EDT)
-Message-ID: <52319218.3080609@cn.fujitsu.com>
-Date: Thu, 12 Sep 2013 18:06:16 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 86A616B0031
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2013 07:46:02 -0400 (EDT)
+Date: Thu, 12 Sep 2013 13:46:00 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] vmpressure: fix divide-by-0 in vmpressure_work_fn
+Message-ID: <20130912114600.GB4828@dhcp22.suse.cz>
+References: <alpine.LNX.2.00.1309062254470.11420@eggly.anvils>
+ <20130909110847.GB18056@dhcp22.suse.cz>
+ <20130911154057.GA16765@teo>
+ <20130911160357.GA32273@dhcp22.suse.cz>
+ <alpine.LNX.2.00.1309111233200.2912@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 0/9] x86, memblock: Allocate memory near kernel image
- before SRAT parsed.
-References: <1378894057-30946-1-git-send-email-tangchen@cn.fujitsu.com> <20130911125101.GA20997@htj.dyndns.org>
-In-Reply-To: <20130911125101.GA20997@htj.dyndns.org>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LNX.2.00.1309111233200.2912@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, toshi.kani@hp.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Anton Vorontsov <anton@enomsg.org>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 09/11/2013 08:51 PM, Tejun Heo wrote:
-> On Wed, Sep 11, 2013 at 06:07:28PM +0800, Tang Chen wrote:
->> This patch-set is based on tj's suggestion, and not fully tested.
->> Just for review and discussion. And according to tj's suggestion,
->> implemented a new function memblock_alloc_bottom_up() to allocate
->> memory from bottom upwards, whihc can simplify the code.
->
-> For $DEITY's sake, can you please specify against which tree the
-> patches are?  :(
->
+On Wed 11-09-13 13:04:33, Hugh Dickins wrote:
+> On Wed, 11 Sep 2013, Michal Hocko wrote:
+[...]
+> > From 888745909da34f8aee8a208a82d467236b828d0d Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.cz>
+> > Date: Wed, 11 Sep 2013 17:48:10 +0200
+> > Subject: [PATCH] vmpressure: fix divide-by-0 in vmpressure_work_fn
+> > 
+> > Hugh Dickins has reported a division by 0 when a vmpressure event is
+> > processed. The reason for the exception is that a single vmpressure
+> > work item (which is per memcg) might be processed by multiple CPUs
+> > because it is enqueued on system_wq which is !WQ_NON_REENTRANT.
+> > This means that the out of lock vmpr->scanned check in
+> > vmpressure_work_fn is inherently racy and the racing workers will see
+> > already zeroed scanned value after they manage to take the spin lock.
+> > 
+> > The patch simply moves the vmp->scanned check inside the sr_lock to fix
+> > the race.
+> > 
+> > The issue was there since the very beginning but "vmpressure: change
+> > vmpressure::sr_lock to spinlock" might have made it more visible as the
+> > racing workers would sleep on the mutex and give it more time to see
+> > updated value. The issue was still there, though.
+> > 
+> > Reported-by: Hugh Dickins <hughd@google.com>
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > Cc: stable@vger.kernel.org
+> 
+> Nack!  But equally Nack to my original.
+> 
+> Many thanks for looking into how this might have happened, Michal,
+> and for mentioning the WQ_NON_REENTRANT flag: which I knew nothing
+> about, but have now followed up.
+> I owe you all an abject apology: what I didn't mention in my patch
+> was that actually I hit the problem on a v3.3-based kernel to which
+> vmpressure had been backported.
+> 
+> I have not yet seen the problem on v3.11 or v3.10, and now believe
+> that it cannot happen there - which would explain why I was the
+> first to hit it.
+> 
+> When I looked up WQ_NON_REENTRANT in the latest tree, I found
+> 	WQ_NON_REENTRANT	= 1 << 0, /* DEPRECATED */
+> and git blame on that line leads to Tejun explaining
+>     
+>     dbf2576e37 ("workqueue: make all workqueues non-reentrant") made
+>     WQ_NON_REENTRANT no-op but the following patches didn't remove the
+>     flag or update the documentation.  Let's mark the flag deprecated and
+>     update the documentation accordingly.
 
-Hi tj,
+Goon point. I didn't check the code and relied on the documentation.
+Thanks for pointing this out.
 
-So sorry for the trouble. I have rebased the patches to the latest
-kernel and resent it. I cannot access to my github now, so sorry for
-that I cannot give you a tree with these patches.
+> dbf2576e37 went into v3.7, so I now believe this divide-by-0 could
+> only happen on a backport of vmpressure to an earlier kernel than that.
 
-Thanks. :)
+git grep WQ_NON_REENTRANT on kernel/workqueue.c really shows nothing so
+I guess you are right.
+
+Andrew, please drop the patch.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
