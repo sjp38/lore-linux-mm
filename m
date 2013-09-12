@@ -1,55 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 870B76B0031
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2013 20:20:26 -0400 (EDT)
-Message-ID: <523108B7.7050101@sr71.net>
-Date: Wed, 11 Sep 2013 17:20:07 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 892996B0031
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2013 20:33:17 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id un15so9795176pbc.15
+        for <linux-mm@kvack.org>; Wed, 11 Sep 2013 17:33:16 -0700 (PDT)
+Date: Wed, 11 Sep 2013 17:33:14 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2] mm/shmem.c: check the return value of mpol_to_str()
+In-Reply-To: <522EC3D1.4010806@asianux.com>
+Message-ID: <alpine.DEB.2.02.1309111725290.22242@chino.kir.corp.google.com>
+References: <5215639D.1080202@asianux.com> <5227CF48.5080700@asianux.com> <alpine.DEB.2.02.1309091326210.16291@chino.kir.corp.google.com> <522E6C14.7060006@asianux.com> <alpine.DEB.2.02.1309092334570.20625@chino.kir.corp.google.com>
+ <522EC3D1.4010806@asianux.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] mm: percpu pages: up batch size to fix arithmetic??
- errror
-References: <20130911220859.EB8204BB@viggo.jf.intel.com> <5230F7DD.90905@linux.vnet.ibm.com> <5230FB0A.70901@linux.vnet.ibm.com>
-In-Reply-To: <5230FB0A.70901@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cody P Schafer <cody@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cl@linux.com
+To: Chen Gang <gang.chen@asianux.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, riel@redhat.com, hughd@google.com, xemul@parallels.com, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-BTW, in my little test, the median ->count was 10, and the mean was 45.
+On Tue, 10 Sep 2013, Chen Gang wrote:
 
-On 09/11/2013 04:21 PM, Cody P Schafer wrote:
-> Also, we may want to consider shrinking pcp->high down from 6*pcp->batch
-> given that the original "6*" choice was based upon ->batch actually
-> being 1/4th of the average pageset size, where now it appears closer to
-> being the average.
+> > Why?  It can just store the string into the buffer pointed to by the 
+> > char *buffer and terminate it appropriately while taking care that it 
+> > doesn't exceed maxlen.  Why does the caller need to know the number of 
+> > bytes written?  If it really does, you could just do strlen(buffer).
+> > 
+> > If there's a real reason for it, then that's fine, I just think it can be 
+> > made to always succeed and never return < 0.  (And why is nobody checking 
+> > the return value today if it's so necessary?)
+> > 
+> 
+> For common printing functions: sprintf(), snprintf(), scnprintf().
+> 
+> For some of specific printing functions: drivers/usb/host/uhci-debug.c.
+> 
+> at least they can let caller easy use.
+> 
 
-One other thing: we actually had a hot _and_ a cold pageset at that
-point, and we now share one pageset for hot and cold pages.  After
-looking at it for a bit today, I'm not sure how much the history
-matters.  We probably need to take a fresh look at what we want.
+Nobody needs mpol_to_str() to return the number of characters written, 
+period.  It's one of the most trivial functions you're going to see in the 
+mempolicy code, it takes a pointer to a buffer and it stores characters to 
+it for display.  Nobody is going to use it for anything else.  Let's not 
+overcomplicate this trivial function.
 
-Anybody disagree with this?
+> > Nobody is using mpol_to_str() to determine if a mempolicy mode is valid :)  
+> > If the struct mempolicy really has a bad mode, then just store "unknown" 
+> > or store a 0.  If maxlen is insufficient for the longest possible string 
+> > stored by mpol_to_str(), then it should be a compile-time error.
+> > 
+> > 
+> 
+> Hmm... what you said sounds reasonable if mpol_to_str() is a normal
+> static funciton (only used within a file).
+> 
+> For extern function, callee (inside) can not assume anything of caller
+> (outside) beyond the interface. So if failure occurs, better to report
+> to caller only, and let caller to check what to do next.
+> 
 
-1. We want ->batch to be large enough that if all the CPUs in a zone
-   are doing allocations constantly, there is very little contention on
-   the zone_lock.
-2. If ->high gets too large, we'll end up keeping too much memory in
-   the pcp and __alloc_pages_direct_reclaim() will end up calling the
-   (expensive drain_all_pages() too often).
-3. We want ->high to approximate the size of the cache which is
-   private to a given cpu.  But, that's complicated by the L3 caches
-   and hyperthreading today.
-4. ->high can be a _bit_ larger than the CPU cache without it being a
-   real problem since not _all_ the pages being freed will be fully
-   resident in the cache.  Some will be cold, some will only have a few
-   of their cachelines resident.
-5. A 0.75MB ->high seems a bit low for CPUs with 30MB of L3 cache on
-   the socket (although 20 threads share that).
+Are you just preaching about the best practices of software engineering?  
+mpol_to_str() should never fail at runtime, plain and simple.  If somebody 
+introduces a new mode and doesn't update it to print correctly, let's not 
+fail the read().  Let's just print "unknown".  And if someone passes too 
+small of a buffer, break it at compile time so it gets noticed and fixed.
 
-I'll take one of my big systems and run it with some various ->high
-settings and see if it makes any difference.
+I guarantee you that any kernel developer who writes code to call 
+mpol_to_str() will be happy it never fails at runtime.  Really.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
