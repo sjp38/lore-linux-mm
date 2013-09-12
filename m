@@ -1,43 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id BC4216B0031
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2013 02:55:24 -0400 (EDT)
-Date: Thu, 12 Sep 2013 15:55:49 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 07/16] slab: overloading the RCU head over the LRU for
- RCU free
-Message-ID: <20130912065549.GC8055@lge.com>
-References: <1377161065-30552-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1377161065-30552-8-git-send-email-iamjoonsoo.kim@lge.com>
- <000001410d765d3a-0f3f8df2-dccb-455a-a929-f1fd018700d2-000000@email.amazonses.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <000001410d765d3a-0f3f8df2-dccb-455a-a929-f1fd018700d2-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id BBD376B0031
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2013 06:03:28 -0400 (EDT)
+From: Tang Chen <tangchen@cn.fujitsu.com>
+Subject: [RESEND PATCH v2 2/9] x86, memblock: Introduce memblock_alloc_bottom_up() to memblock.
+Date: Thu, 12 Sep 2013 17:52:10 +0800
+Message-Id: <1378979537-21196-3-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1378979537-21196-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1378979537-21196-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: tj@kernel.org, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, toshi.kani@hp.com
+Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On Wed, Sep 11, 2013 at 02:39:22PM +0000, Christoph Lameter wrote:
-> On Thu, 22 Aug 2013, Joonsoo Kim wrote:
-> 
-> > With build-time size checking, we can overload the RCU head over the LRU
-> > of struct page to free pages of a slab in rcu context. This really help to
-> > implement to overload the struct slab over the struct page and this
-> > eventually reduce memory usage and cache footprint of the SLAB.
-> 
-> Looks fine to me. Can you add the rcu_head to the struct page union? This
-> kind of overload is used frequently elsewhere as well. Then cleanup other
-> cases of such uses (such as in SLUB).
+This patch introduces a new API memblock_alloc_bottom_up() to make memblock be
+able to allocate from bottom upwards.
 
-Okay. But I will implement it seprately because I don't know where the cases
-are now and some inverstigation would be needed.
+During early boot, if the bottom up mode is set, just try allocating bottom up
+from the end of kernel image, and if that fails, do normal top down allocation.
 
-> 
-> Acked-by: Christoph Lameter <cl@linux.com>
+Suggested-by: Tejun Heo <tj@kernel.org>
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+---
+ include/linux/memblock.h |    2 ++
+ mm/memblock.c            |   38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 0 deletions(-)
 
-Thanks!
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index a7d3436..3dff812 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -153,6 +153,8 @@ phys_addr_t memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int nid);
+ phys_addr_t memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, int nid);
+ 
+ phys_addr_t memblock_alloc(phys_addr_t size, phys_addr_t align);
++phys_addr_t memblock_alloc_bottom_up(phys_addr_t start, phys_addr_t end,
++				     phys_addr_t size, phys_addr_t align);
+ 
+ static inline bool memblock_direction_bottom_up(void)
+ {
+diff --git a/mm/memblock.c b/mm/memblock.c
+index f24ca2e..2eb19f3 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -20,6 +20,8 @@
+ #include <linux/seq_file.h>
+ #include <linux/memblock.h>
+ 
++#include <asm-generic/sections.h>
++
+ static struct memblock_region memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS] __initdata_memblock;
+ static struct memblock_region memblock_reserved_init_regions[INIT_MEMBLOCK_REGIONS] __initdata_memblock;
+ 
+@@ -786,6 +788,42 @@ static phys_addr_t __init memblock_alloc_base_nid(phys_addr_t size,
+ 	return 0;
+ }
+ 
++/**
++ * memblock_alloc_bottom_up - allocate memory from bottom upwards
++ * @start: start of candidate range, can be %MEMBLOCK_ALLOC_ACCESSIBLE
++ * @@end: end of candidate range, can be %MEMBLOCK_ALLOC_{ANYWHERE|ACCESSIBLE}
++ * @size: size of free area to allocate
++ * @align: alignment of free area to allocate
++ *
++ * Allocate @size free area aligned to @align from the end of the kernel image
++ * upwards.
++ *
++ * Found address on success, %0 on failure.
++ */
++phys_addr_t __init_memblock memblock_alloc_bottom_up(phys_addr_t start,
++					phys_addr_t end, phys_addr_t size,
++					phys_addr_t align)
++{
++	phys_addr_t this_start, this_end, cand;
++	u64 i;
++
++	if (start == MEMBLOCK_ALLOC_ACCESSIBLE)
++		start = __pa_symbol(_end);	/* End of kernel image. */
++	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
++		end = memblock.current_limit;
++
++	for_each_free_mem_range(i, MAX_NUMNODES, &this_start, &this_end, NULL) {
++		this_start = clamp(this_start, start, end);
++		this_end = clamp(this_end, start, end);
++
++		cand = round_up(this_start, align);
++		if (cand < this_end && this_end - cand >= size)
++			return cand;
++	}
++
++	return 0;
++}
++
+ phys_addr_t __init memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int nid)
+ {
+ 	return memblock_alloc_base_nid(size, align, MEMBLOCK_ALLOC_ACCESSIBLE, nid);
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
