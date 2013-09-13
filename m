@@ -1,52 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id B9CEF6B0031
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2013 17:49:28 -0400 (EDT)
-Message-ID: <1379108852.13477.14.camel@misato.fc.hp.com>
-Subject: Re: [RESEND PATCH v2 3/9] x86, dma: Support allocate memory from
- bottom upwards in dma_contiguous_reserve().
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id C42A06B0031
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2013 17:55:18 -0400 (EDT)
+Message-ID: <1379109208.13477.16.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v3 2/5] memblock: Improve memblock to support allocation
+ from lower address.
 From: Toshi Kani <toshi.kani@hp.com>
-Date: Fri, 13 Sep 2013 15:47:32 -0600
-In-Reply-To: <52328839.9010309@cn.fujitsu.com>
-References: <1378979537-21196-1-git-send-email-tangchen@cn.fujitsu.com>
-	  <1378979537-21196-4-git-send-email-tangchen@cn.fujitsu.com>
-	 <1379013759.13477.12.camel@misato.fc.hp.com>
-	 <52328839.9010309@cn.fujitsu.com>
+Date: Fri, 13 Sep 2013 15:53:28 -0600
+In-Reply-To: <1379064655-20874-3-git-send-email-tangchen@cn.fujitsu.com>
+References: <1379064655-20874-1-git-send-email-tangchen@cn.fujitsu.com>
+	 <1379064655-20874-3-git-send-email-tangchen@cn.fujitsu.com>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: tj@kernel.org, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+Cc: rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, zhangyanfei@cn.fujitsu.com, liwanp@linux.vnet.ibm.com, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On Fri, 2013-09-13 at 11:36 +0800, Tang Chen wrote:
-> Hi Toshi,
-> 
-> On 09/13/2013 03:22 AM, Toshi Kani wrote:
-> ......
-> >> +		if (memblock_direction_bottom_up()) {
-> >> +			addr = memblock_alloc_bottom_up(
-> >> +						MEMBLOCK_ALLOC_ACCESSIBLE,
-> >> +						limit, size, alignment);
-> >> +			if (addr)
-> >> +				goto success;
-> >> +		}
-> >
-> > I am afraid that this version went to a wrong direction.  Allocating
-> > from the bottom up needs to be an internal logic within the memblock
-> > allocator.  It should not require the callers to be aware of the
-> > direction and make a special request.
-> >
-> 
-> I think my v1 patch-set was trying to do so. Was it too complicated ?
-> 
-> So just move this logic to memblock_find_in_range_node(), is this OK ?
+On Fri, 2013-09-13 at 17:30 +0800, Tang Chen wrote:
+ :
+> @@ -100,8 +180,7 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
+>  					phys_addr_t end, phys_addr_t size,
+>  					phys_addr_t align, int nid)
+>  {
+> -	phys_addr_t this_start, this_end, cand;
+> -	u64 i;
+> +	phys_addr_t ret;
+>  
+>  	/* pump up @end */
+>  	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
+> @@ -111,18 +190,22 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
+>  	start = max_t(phys_addr_t, start, PAGE_SIZE);
+>  	end = max(start, end);
+>  
+> -	for_each_free_mem_range_reverse(i, nid, &this_start, &this_end, NULL) {
+> -		this_start = clamp(this_start, start, end);
+> -		this_end = clamp(this_end, start, end);
+> +	if (memblock_direction_bottom_up()) {
+> +		/*
+> +		 * MEMBLOCK_ALLOC_ACCESSIBLE is 0, which is less than the end
+> +		 * of kernel image. So callers specify MEMBLOCK_ALLOC_ACCESSIBLE
+> +		 * as @start is OK.
+> +		 */
+> +		start =	max(start, __pa_symbol(_end)); /* End of kernel image. */
+>  
+> -		if (this_end < size)
+> -			continue;
+> +		ret = __memblock_find_range(start, end, size, align, nid);
+> +		if (ret)
+> +			return ret;
+>  
+> -		cand = round_down(this_end - size, align);
+> -		if (cand >= this_start)
+> -			return cand;
+> +		pr_warn("memblock: Failed to allocate memory in bottom up direction. Now try top down direction.\n");
 
-Yes, the new version looks good on this.
+Is there any chance that this retry will succeed given that start and
+end are still the same?
 
 Thanks,
 -Toshi
+
+
+>  	}
+> -	return 0;
+> +
+> +	return __memblock_find_range_rev(start, end, size, align, nid);
+>  }
+>  
+>  /**
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
