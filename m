@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id B56776B0033
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2013 10:25:23 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 347236B0034
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2013 10:25:52 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <20130913132435.GD21832@twins.programming.kicks-ass.net>
+In-Reply-To: <20130913133620.GE21832@twins.programming.kicks-ass.net>
 References: <20130910074748.GA2971@gmail.com>
  <1379077576-2472-1-git-send-email-kirill.shutemov@linux.intel.com>
  <1379077576-2472-9-git-send-email-kirill.shutemov@linux.intel.com>
- <20130913132435.GD21832@twins.programming.kicks-ass.net>
+ <20130913133620.GE21832@twins.programming.kicks-ass.net>
 Subject: Re: [PATCH 8/9] mm: implement split page table lock for PMD level
 Content-Transfer-Encoding: 7bit
-Message-Id: <20130913142513.A62ABE0090@blue.fi.intel.com>
-Date: Fri, 13 Sep 2013 17:25:13 +0300 (EEST)
+Message-Id: <20130913142543.95200E0090@blue.fi.intel.com>
+Date: Fri, 13 Sep 2013 17:25:43 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>
@@ -19,17 +19,37 @@ Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alex Thorlton <athor
 
 Peter Zijlstra wrote:
 > On Fri, Sep 13, 2013 at 04:06:15PM +0300, Kirill A. Shutemov wrote:
-> > The basic idea is the same as with PTE level: the lock is embedded into
-> > struct page of table's page.
-> > 
-> > Split pmd page table lock only makes sense on big machines.
-> > Let's say >= 32 CPUs for now.
+> > +#if USE_SPLIT_PMD_PTLOCKS
+> > +
+> > +static inline void pgtable_pmd_page_ctor(struct page *page)
+> > +{
+> > +	spin_lock_init(&page->ptl);
+> > +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> > +	page->pmd_huge_pte = NULL;
+> > +#endif
+> > +}
+> > +
+> > +static inline void pgtable_pmd_page_dtor(struct page *page)
+> > +{
+> > +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> > +	VM_BUG_ON(page->pmd_huge_pte);
+> > +#endif
+> > +}
+> > +
+> > +#define pmd_huge_pte(mm, pmd) (virt_to_page(pmd)->pmd_huge_pte)
+> > +
+> > +#else
 > 
-> Why is this? Couldn't I generate the same amount of contention on PMD
-> level as I can on PTE level in the THP case?
+> So on -rt we have the problem that spinlock_t is rather huge (its a
+> rtmutex) so instead of blowing up the pageframe like that we treat
+> page->pte as a pointer and allocate the spinlock.
+> 
+> Since allocations could fail the above ctor path gets 'interesting'.
+> 
+> It would be good if new code could assume the ctor could fail so we
+> don't have to replicate that horror-show.
 
-Hm. You are right. You just need more memory for that.
-Do you want it to be "4" too?
+Okay, I'll rework this.
 
 -- 
  Kirill A. Shutemov
