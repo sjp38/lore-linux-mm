@@ -1,41 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id C834B6B0033
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2013 10:52:17 -0400 (EDT)
-Date: Fri, 13 Sep 2013 16:52:04 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 8/9] mm: implement split page table lock for PMD level
-Message-ID: <20130913145204.GG21832@twins.programming.kicks-ass.net>
-References: <20130910074748.GA2971@gmail.com>
- <1379077576-2472-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1379077576-2472-9-git-send-email-kirill.shutemov@linux.intel.com>
- <20130913132435.GD21832@twins.programming.kicks-ass.net>
- <20130913142513.A62ABE0090@blue.fi.intel.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id D7C116B0031
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2013 11:20:40 -0400 (EDT)
+Message-ID: <52332D32.8070302@intel.com>
+Date: Fri, 13 Sep 2013 08:20:18 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130913142513.A62ABE0090@blue.fi.intel.com>
+Subject: Re: [PATCH 1/9] mm: rename SPLIT_PTLOCKS to SPLIT_PTE_PTLOCKS
+References: <20130910074748.GA2971@gmail.com> <1379077576-2472-1-git-send-email-kirill.shutemov@linux.intel.com> <1379077576-2472-2-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1379077576-2472-2-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Alex Thorlton <athorlton@sgi.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Alex Thorlton <athorlton@sgi.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Sep 13, 2013 at 05:25:13PM +0300, Kirill A. Shutemov wrote:
-> Peter Zijlstra wrote:
-> > On Fri, Sep 13, 2013 at 04:06:15PM +0300, Kirill A. Shutemov wrote:
-> > > The basic idea is the same as with PTE level: the lock is embedded into
-> > > struct page of table's page.
-> > > 
-> > > Split pmd page table lock only makes sense on big machines.
-> > > Let's say >= 32 CPUs for now.
-> > 
-> > Why is this? Couldn't I generate the same amount of contention on PMD
-> > level as I can on PTE level in the THP case?
-> 
-> Hm. You are right. You just need more memory for that.
-> Do you want it to be "4" too?
+On 09/13/2013 06:06 AM, Kirill A. Shutemov wrote:
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -207,7 +207,7 @@ config PAGEFLAGS_EXTENDED
+>  # PA-RISC 7xxx's spinlock_t would enlarge struct page from 32 to 44 bytes.
+>  # DEBUG_SPINLOCK and DEBUG_LOCK_ALLOC spinlock_t also enlarge struct page.
+>  #
+> -config SPLIT_PTLOCK_CPUS
+> +config SPLIT_PTE_PTLOCK_CPUS
+>  	int
+>  	default "999999" if ARM && !CPU_CACHE_VIPT
+>  	default "999999" if PARISC && !PA20
 
-Well, I would drop your patch-1 and use the same config var.
+If someone has a config where this is set to some non-default value,
+won't changing the name cause this to revert back to the defaults?
+
+I don't know how big of a deal it is to other folks, but you can always
+do this:
+
+config SPLIT_PTE_PTLOCK_CPUS
+  	int
+	default SPLIT_PTLOCK_CPUS if SPLIT_PTLOCK_CPUS
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
