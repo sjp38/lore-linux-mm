@@ -1,50 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 8CF306B0031
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2013 02:52:50 -0400 (EDT)
-Date: Fri, 13 Sep 2013 14:52:48 +0800 
-Reply-To: dhillf@sina.com
-From: "Hillf Danton" <dhillf@sina.com>
-Subject: Re: [RFC PATCH] ANB(Automatic NUMA Balancing): erase mm footprint of migrated page
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 243936B0031
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2013 04:11:20 -0400 (EDT)
+Date: Fri, 13 Sep 2013 09:11:11 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 01/50] sched: monolithic code dump of what is being
+ pushed upstream
+Message-ID: <20130913081111.GV22421@suse.de>
+References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
+ <1378805550-29949-2-git-send-email-mgorman@suse.de>
+ <CAJd=RBDBoJ42OkrqsD787O2ZYt9iPvwJo6DubDcVuS0tKRv9ng@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=GBK
-Content-Transfer-Encoding: base64
-Message-Id: <20130913065248.7FB62428001@webmail.sinamail.sina.com.cn>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CAJd=RBDBoJ42OkrqsD787O2ZYt9iPvwJo6DubDcVuS0tKRv9ng@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Hillf Danton <dhillf@gmail.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
+On Wed, Sep 11, 2013 at 11:11:03AM +0800, Hillf Danton wrote:
+> On Tue, Sep 10, 2013 at 5:31 PM, Mel Gorman <mgorman@suse.de> wrote:
+> > @@ -5045,15 +5038,50 @@ static int need_active_balance(struct lb_env *env)
+> >
+> >  static int active_load_balance_cpu_stop(void *data);
+> >
+> > +static int should_we_balance(struct lb_env *env)
+> > +{
+> > +       struct sched_group *sg = env->sd->groups;
+> > +       struct cpumask *sg_cpus, *sg_mask;
+> > +       int cpu, balance_cpu = -1;
+> > +
+> > +       /*
+> > +        * In the newly idle case, we will allow all the cpu's
+> > +        * to do the newly idle load balance.
+> > +        */
+> > +       if (env->idle == CPU_NEWLY_IDLE)
+> > +               return 1;
+> > +
+> > +       sg_cpus = sched_group_cpus(sg);
+> > +       sg_mask = sched_group_mask(sg);
+> > +       /* Try to find first idle cpu */
+> > +       for_each_cpu_and(cpu, sg_cpus, env->cpus) {
+> > +               if (!cpumask_test_cpu(cpu, sg_mask) || !idle_cpu(cpu))
+> > +                       continue;
+> > +
+> > +               balance_cpu = cpu;
+> > +               break;
+> > +       }
+> > +
+> > +       if (balance_cpu == -1)
+> > +               balance_cpu = group_balance_cpu(sg);
+> > +
+> > +       /*
+> > +        * First idle cpu or the first cpu(busiest) in this sched group
+> > +        * is eligible for doing load balancing at this and above domains.
+> > +        */
+> > +       return balance_cpu != env->dst_cpu;
+> 
+> FYI: Here is a bug reported by Dave Chinner.
+> https://lkml.org/lkml/2013/9/10/1
+> 
+> And lets see if any changes in your SpecJBB results without it.
+> 
 
-SGVsbG8gUmlrDQoNCk9uIEZyaSwgU2VwIDEzLCAyMDEzIGF0IDk6NDEgQU0sIFJpayB2YW4gUmll
-bCA8cmllbEByZWRoYXQuY29tPiB3cm90ZToNCj4gT24gMDkvMTIvMjAxMyAwODo0NSBQTSwgSGls
-bGYgRGFudG9uIHdyb3RlOg0KPj4gSWYgYSBwYWdlIG1vbml0b3JlZCBieSBBTkIgaXMgbWlncmF0
-ZWQsIGl0cyBmb290cHJpbnQgc2hvdWxkIGJlIGVyYXNlZCBmcm9tDQo+PiBudW1hLWhpbnQtZmF1
-bHQgYWNjb3VudCwgYmVjYXVzZSBpdCBpcyBubyBsb25nZXIgdXNlZC4gT3IgdHdvIHBhZ2VzLCB0
-aGUNCj4+IG1pZ3JhdGVkIHBhZ2UgYW5kIGl0cyB0YXJnZXQgcGFnZSwgYXJlIHVzZWQgaW4gdGhl
-IHZpZXcgb2YgdGFzayBwbGFjZW1lbnQuDQo+Pg0KPj4NCj4+IFNpZ25lZC1vZmYtYnk6IEhpbGxm
-IERhbnRvbiA8ZGhpbGxmQGdtYWlsLmNvbT4NCj4NCj4gTkFLDQo+DQo+IFRoZSBudW1hIGZhdWx0
-cyBidWZmZXIgY29udGFpbnMgdGhlIG51bWJlciBvZiBwYWdlcyBvbiBlYWNoDQo+IG5vZGUgdGhh
-dCB0aGUgdGFzayByZWNlbnRseSBmYXVsdGVkIG9uLg0KPg0KPiBJZiB0aGUgcGFnZSBnb3QgbWln
-cmF0ZWQsIGl0IGlzIG9ubHkgY291bnRlZCBvbiB0aGUgbmV3IG5vZGUsDQo+IG5vdCBvbiB0aGUg
-b2xkIG9uZS4gVGhhdCBtZWFucyB0aGVyZSBpcyBubyBuZWVkIHRvIHN1YnRyYWN0DQo+IGl0IG9u
-IHRoZSBvbGQgbm9kZS4NCj4NClllcywgSSBjdXQgYXQgd3JvbmcgcGxhY2UuDQoNClNpbmNlIG9s
-ZCBub2RlIGlzIHZhbGlkLCAgdGhlIGZvb3RwcmludCBvZiBtaWdyYXRlZCBwYWdlIGFscmVhZHkN
-CmRlcG9zaXRzIGluIC0+bnVtYV9mYXVsdHMsIGFuZCBjdXQgc2hvdWxkIGdvIHRoZXJlLg0KDQpU
-aGFua3MNCkhpbGxmDQoNCg0KLS0tIGEva2VybmVsL3NjaGVkL2ZhaXIuYwlXZWQgU2VwIDExIDE4
-OjMzOjAwIDIwMTMNCisrKyBiL2tlcm5lbC9zY2hlZC9mYWlyLmMJRnJpIFNlcCAxMyAxNDoxMDoz
-NCAyMDEzDQpAQCAtMTU2MCw2ICsxNTYwLDIzIEBAIHZvaWQgdGFza19udW1hX2ZhdWx0KGludCBs
-YXN0X2NwdXBpZCwgaW4NCiAJCXAtPm51bWFfcGFnZXNfbWlncmF0ZWQgKz0gcGFnZXM7DQogDQog
-CXAtPm51bWFfZmF1bHRzX2J1ZmZlclt0YXNrX2ZhdWx0c19pZHgobm9kZSwgcHJpdildICs9IHBh
-Z2VzOw0KKw0KKwlpZiAobWlncmF0ZWQgJiYgbGFzdF9jcHVwaWQgIT0gKC0xICYgTEFTVF9DUFVQ
-SURfTUFTSykpIHsNCisJCS8qIEVyYXNlIGZvb3RwcmludCBvZiBtaWdyYXRlZCBwYWdlICovDQor
-CQlpbnQgaWR4Ow0KKw0KKwkJaWR4ID0gY3B1cGlkX3RvX2NwdShsYXN0X2NwdXBpZCk7DQorCQlp
-ZHggPSBjcHVfdG9fbm9kZShpZHgpOw0KKwkJaWR4ID0gdGFza19mYXVsdHNfaWR4KGlkeCwgcHJp
-dik7DQorDQorCQlpZiAocGFnZXMgPiAxKQ0KKwkJCXBhZ2VzID4+PSAxOw0KKw0KKwkJaWYgKHAt
-Pm51bWFfZmF1bHRzW2lkeF0gPj0gcGFnZXMpDQorCQkgICAgcC0+bnVtYV9mYXVsdHNbaWR4XSAt
-PSBwYWdlczsNCisJCWVsc2UgaWYgKHAtPm51bWFfZmF1bHRzW2lkeF0pDQorCQkJIHAtPm51bWFf
-ZmF1bHRzW2lkeF0gPSAwOw0KKwl9DQogfQ0KIA0KIHN0YXRpYyB2b2lkIHJlc2V0X3B0ZW51bWFf
-c2NhbihzdHJ1Y3QgdGFza19zdHJ1Y3QgKnApDQotLQ==
+Thanks for pointing that out. I've picked up the one-liner fix.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
