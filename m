@@ -1,50 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id EF8396B0031
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2013 17:14:16 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id kp13so3004208pab.21
-        for <linux-mm@kvack.org>; Fri, 13 Sep 2013 14:14:16 -0700 (PDT)
-Date: Fri, 13 Sep 2013 14:14:14 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] mm/shmem.c: check the return value of mpol_to_str()
-In-Reply-To: <52312EC1.8080300@asianux.com>
-Message-ID: <alpine.DEB.2.02.1309131413130.31480@chino.kir.corp.google.com>
-References: <5215639D.1080202@asianux.com> <5227CF48.5080700@asianux.com> <alpine.DEB.2.02.1309091326210.16291@chino.kir.corp.google.com> <522E6C14.7060006@asianux.com> <alpine.DEB.2.02.1309092334570.20625@chino.kir.corp.google.com> <522EC3D1.4010806@asianux.com>
- <alpine.DEB.2.02.1309111725290.22242@chino.kir.corp.google.com> <52312EC1.8080300@asianux.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id B9CEF6B0031
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2013 17:49:28 -0400 (EDT)
+Message-ID: <1379108852.13477.14.camel@misato.fc.hp.com>
+Subject: Re: [RESEND PATCH v2 3/9] x86, dma: Support allocate memory from
+ bottom upwards in dma_contiguous_reserve().
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Fri, 13 Sep 2013 15:47:32 -0600
+In-Reply-To: <52328839.9010309@cn.fujitsu.com>
+References: <1378979537-21196-1-git-send-email-tangchen@cn.fujitsu.com>
+	  <1378979537-21196-4-git-send-email-tangchen@cn.fujitsu.com>
+	 <1379013759.13477.12.camel@misato.fc.hp.com>
+	 <52328839.9010309@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <gang.chen@asianux.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, riel@redhat.com, hughd@google.com, xemul@parallels.com, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: tj@kernel.org, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On Thu, 12 Sep 2013, Chen Gang wrote:
+On Fri, 2013-09-13 at 11:36 +0800, Tang Chen wrote:
+> Hi Toshi,
+> 
+> On 09/13/2013 03:22 AM, Toshi Kani wrote:
+> ......
+> >> +		if (memblock_direction_bottom_up()) {
+> >> +			addr = memblock_alloc_bottom_up(
+> >> +						MEMBLOCK_ALLOC_ACCESSIBLE,
+> >> +						limit, size, alignment);
+> >> +			if (addr)
+> >> +				goto success;
+> >> +		}
+> >
+> > I am afraid that this version went to a wrong direction.  Allocating
+> > from the bottom up needs to be an internal logic within the memblock
+> > allocator.  It should not require the callers to be aware of the
+> > direction and make a special request.
+> >
+> 
+> I think my v1 patch-set was trying to do so. Was it too complicated ?
+> 
+> So just move this logic to memblock_find_in_range_node(), is this OK ?
 
-> Hmm... for extern function, at present, maybe you can guarantee, but may
-> not always in the future. And "Code is mainly for making readers 'happy'
-> (e.g version mergers), not writers".
-> 
-> For extern function which more than 50 lines (used by 2 sub-systems), it
-> is strange for readers to find it no return value, also strange to let
-> *BUG_ON() on the extern function's input parameters directly.
-> 
-> If one caller wants to treat failure as BUG, can "*BUG_ON(mpol_to_str()
-> < 0)", that will be more clearer to all members (need this patch do like
-> it? :-) ).
-> 
-> 
-> BTW: in my opinion, within mpol_to_str(), the VM_BUG_ON() need be
-> replaced by returning -EINVAL.
-> 
+Yes, the new version looks good on this.
 
-Are you reading my emails?
-
-I'm asking for a compile-time error if the maxlen passed to mpol_to_str() 
-is too small; it's a constant value and can be evaluated at compile-time.  
-Then mpol_to_str() can return void if you simply store "unknown" when it's 
-an unknown mode.
-
-Sheesh.
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
