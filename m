@@ -1,79 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 5DC706B0031
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2013 22:25:04 -0400 (EDT)
-Message-ID: <5232773E.8090007@asianux.com>
-Date: Fri, 13 Sep 2013 10:23:58 +0800
-From: Chen Gang <gang.chen@asianux.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id B72436B0031
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2013 23:34:12 -0400 (EDT)
+Message-ID: <52328839.9010309@cn.fujitsu.com>
+Date: Fri, 13 Sep 2013 11:36:25 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm/shmem.c: check the return value of mpol_to_str()
-References: <5215639D.1080202@asianux.com> <5227CF48.5080700@asianux.com> <alpine.DEB.2.02.1309091326210.16291@chino.kir.corp.google.com> <522E6C14.7060006@asianux.com> <alpine.DEB.2.02.1309092334570.20625@chino.kir.corp.google.com> <522EC3D1.4010806@asianux.com> <alpine.DEB.2.02.1309111725290.22242@chino.kir.corp.google.com> <52312EC1.8080300@asianux.com> <523205A0.1000102@gmail.com>
-In-Reply-To: <523205A0.1000102@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [RESEND PATCH v2 3/9] x86, dma: Support allocate memory from
+ bottom upwards in dma_contiguous_reserve().
+References: <1378979537-21196-1-git-send-email-tangchen@cn.fujitsu.com>  <1378979537-21196-4-git-send-email-tangchen@cn.fujitsu.com> <1379013759.13477.12.camel@misato.fc.hp.com>
+In-Reply-To: <1379013759.13477.12.camel@misato.fc.hp.com>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, riel@redhat.com, hughd@google.com, xemul@parallels.com, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: tj@kernel.org, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, zhangyanfei@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On 09/13/2013 02:19 AM, KOSAKI Motohiro wrote:
->> BTW: in my opinion, within mpol_to_str(), the VM_BUG_ON() need be
->> replaced by returning -EINVAL.
-> 
-> Nope. mpol_to_str() is not carefully designed since it was born. It
-> doesn't have a way to get proper buffer size. That said, the function
-> assume all caller know proper buffer size. So, just adding EINVAL
-> doesn't solve anything. we need to add a way to get proper buffer length
-> at least if we take your way. However it is overengineering because
-> current all caller doesn't need it.
-> 
+Hi Toshi,
 
+On 09/13/2013 03:22 AM, Toshi Kani wrote:
+......
+>> +		if (memblock_direction_bottom_up()) {
+>> +			addr = memblock_alloc_bottom_up(
+>> +						MEMBLOCK_ALLOC_ACCESSIBLE,
+>> +						limit, size, alignment);
+>> +			if (addr)
+>> +				goto success;
+>> +		}
+>
+> I am afraid that this version went to a wrong direction.  Allocating
+> from the bottom up needs to be an internal logic within the memblock
+> allocator.  It should not require the callers to be aware of the
+> direction and make a special request.
+>
 
-That sounds reasonable.
+I think my v1 patch-set was trying to do so. Was it too complicated ?
 
-Hmm... but I still believe there must be a fixing way to satisfy us all.
-
-Please check the patch below whether can satisfy us all, thanks.
-
-
--------------------------------patch begin-----------------------------
-
-mm/shmem.c: use VM_BUG_ON() for mpol_to_str() when it fails.
-
-  mpol_to_str() is an extern function which may return a failure. But in
-  our case, it should not,
-
-  If it really return a failure, that means current kernel is continuing
-  blindly (e.g. some kernel structures are corrupted), should be stopped
-  as soon as possible.
-
-Signed-off-by: Chen Gang <gang.chen@asianux.com>
----
- mm/shmem.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 8612a95..3f81120 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -890,7 +890,7 @@ static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
- 	if (!mpol || mpol->mode == MPOL_DEFAULT)
- 		return;		/* show nothing */
- 
--	mpol_to_str(buffer, sizeof(buffer), mpol);
-+	VM_BUG_ON(mpol_to_str(buffer, sizeof(buffer), mpol) < 0);
- 
- 	seq_printf(seq, ",mpol=%s", buffer);
- }
--- 
-1.7.7.6
-
--------------------------------patch end-------------------------------
-
+So just move this logic to memblock_find_in_range_node(), is this OK ?
 
 Thanks.
--- 
-Chen Gang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
