@@ -1,35 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 1342E6B0034
-	for <linux-mm@kvack.org>; Sat, 14 Sep 2013 11:55:24 -0400 (EDT)
-Message-ID: <523486E4.3000206@redhat.com>
-Date: Sat, 14 Sep 2013 11:55:16 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH] mm: numa: adjust hinting fault record if page is
- migrated
-References: <20130914115335.3AA33428001@webmail.sinamail.sina.com.cn>
-In-Reply-To: <20130914115335.3AA33428001@webmail.sinamail.sina.com.cn>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id C35436B0033
+	for <linux-mm@kvack.org>; Sat, 14 Sep 2013 19:45:54 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Sun, 15 Sep 2013 05:06:00 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id DFC581258054
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2013 05:15:53 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8ENlscO39387202
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2013 05:17:55 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8ENjlbI014815
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2013 05:15:47 +0530
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [RESEND PATCH v5 1/4] mm/vmalloc: don't set area->caller twice
+Date: Sun, 15 Sep 2013 07:45:39 +0800
+Message-Id: <1379202342-23140-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dhillf@sina.com
-Cc: Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Hillf Danton <dhillf@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On 09/14/2013 07:53 AM, Hillf Danton wrote:
-> After page A on source node is migrated to page B on target node, hinting
-> fault is recorded on the target node for B. On the source node there is
-> another record for A, since a two-stage filter is used when migrating pages.
-> 
-> Page A is no longer used after migration, so we have to erase its record.
+Changelog:
+ *v1 -> v2: rebase against mmotm tree
 
-What kind of performance changes have you observed with this patch?
+The caller address has already been set in set_vmalloc_vm(), there's no need
+to set it again in __vmalloc_area_node.
 
-What benchmarks have you run, and on what kind of systems?
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+---
+ mm/vmalloc.c | 1 -
+ 1 file changed, 1 deletion(-)
 
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 1074543..d78d117 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1566,7 +1566,6 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 		pages = kmalloc_node(array_size, nested_gfp, node);
+ 	}
+ 	area->pages = pages;
+-	area->caller = caller;
+ 	if (!area->pages) {
+ 		remove_vm_area(area->addr);
+ 		kfree(area);
 -- 
-All rights reversed
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
