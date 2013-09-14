@@ -1,41 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 3D07D6B0031
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2013 22:51:39 -0400 (EDT)
-Message-ID: <5233CF32.3080409@jp.fujitsu.com>
-Date: Fri, 13 Sep 2013 22:51:30 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 641B36B0031
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2013 22:57:54 -0400 (EDT)
+Message-ID: <5233D09F.6040307@oracle.com>
+Date: Sat, 14 Sep 2013 10:57:35 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm/shmem.c: check the return value of mpol_to_str()
-References: <5215639D.1080202@asianux.com> <5227CF48.5080700@asianux.com> <alpine.DEB.2.02.1309091326210.16291@chino.kir.corp.google.com> <522E6C14.7060006@asianux.com> <alpine.DEB.2.02.1309092334570.20625@chino.kir.corp.google.com> <522EC3D1.4010806@asianux.com> <alpine.DEB.2.02.1309111725290.22242@chino.kir.corp.google.com> <523124B7.8070408@gmail.com> <alpine.DEB.2.02.1309131410290.31480@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1309131410290.31480@chino.kir.corp.google.com>
+Subject: Re: [PATCH 0/50] Basic scheduler support for automatic NUMA balancing
+ V7
+References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
+In-Reply-To: <1378805550-29949-1-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: kosaki.motohiro@gmail.com, gang.chen@asianux.com, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, hughd@google.com, xemul@parallels.com, liwanp@linux.vnet.ibm.com, gorcunov@gmail.com, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 9/13/2013 5:12 PM, David Rientjes wrote:
-> On Wed, 11 Sep 2013, KOSAKI Motohiro wrote:
-> 
->> At least, currently mpol_to_str() already have following assertion. I mean,
->> the code assume every developer know maximum length of mempolicy. I have no
->> seen any reason to bring addional complication to shmem area.
->>
->>
->> 	/*
->> 	 * Sanity check:  room for longest mode, flag and some nodes
->> 	 */
->> 	VM_BUG_ON(maxlen < strlen("interleave") + strlen("relative") + 16);
->>
-> 
-> No need to make it a runtime error, the value passed as maxlen is a 
-> constant, as is the use of sizeof(buffer), so the value is known at 
-> compile-time.  You can make this a BUILD_BUG_ON() if you are creative.
+Hi Mel,
 
-Making compile time error brings us another complication. I'd like to
-keep just one line assertion.
+On 09/10/2013 05:31 PM, Mel Gorman wrote:
+> It has been a long time since V6 of this series and time for an update. Much
+> of this is now stabilised with the most important addition being the inclusion
+> of Peter and Rik's work on grouping tasks that share pages together.
+> 
+> This series has a number of goals. It reduces overhead of automatic balancing
+> through scan rate reduction and the avoidance of TLB flushes. It selects a
+> preferred node and moves tasks towards their memory as well as moving memory
+> toward their task. It handles shared pages and groups related tasks together.
+> 
+
+I found sometimes numa balancing will be broken after khugepaged
+started, because khugepaged always allocate huge page from the node of
+the first scanned normal page during collapsing.
+
+A simple use case is when a user run his application interleaving all
+nodes using "numactl --interleave=all xxxx".
+But after khugepaged started most pages of his application will be
+located to only one specific node.
+
+I have a simple patch fix this issue in thread:
+[PATCH 2/2] mm: thp: khugepaged: add policy for finding target node
+
+I think this may related with this topic, I don't know whether this
+series can also fix the issue I mentioned.
+
+-- 
+Regards,
+-Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
