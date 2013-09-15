@@ -1,29 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id E553C6B005A
-	for <linux-mm@kvack.org>; Sat, 14 Sep 2013 20:16:11 -0400 (EDT)
-Date: Sun, 15 Sep 2013 02:16:10 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [RESEND PATCH v2 4/4] mm/hwpoison: fix the lack of one
- reference count against poisoned page
-Message-ID: <20130915001610.GT18242@two.firstfloor.org>
-References: <1379202839-23939-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1379202839-23939-4-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id CFA686B0078
+	for <linux-mm@kvack.org>; Sat, 14 Sep 2013 21:11:26 -0400 (EDT)
+Received: by mail-lb0-f181.google.com with SMTP id u14so3210019lbd.12
+        for <linux-mm@kvack.org>; Sat, 14 Sep 2013 18:11:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1379202839-23939-4-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <523486E4.3000206@redhat.com>
+References: <20130914115335.3AA33428001@webmail.sinamail.sina.com.cn>
+	<523486E4.3000206@redhat.com>
+Date: Sun, 15 Sep 2013 09:11:24 +0800
+Message-ID: <CAJd=RBDhm5ZAQdi4K+JK3FZ-=jaNz6peyLtSxMrBGcGmKX=6qw@mail.gmail.com>
+Subject: Re: [RFC PATCH] mm: numa: adjust hinting fault record if page is migrated
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: dhillf@sina.com, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Hello Rik
 
-Acked-by: Andi Kleen <ak@linux.intel.com>
+On Sat, Sep 14, 2013 at 11:55 PM, Rik van Riel <riel@redhat.com> wrote:
+> On 09/14/2013 07:53 AM, Hillf Danton wrote:
+>> After page A on source node is migrated to page B on target node, hinting
+>> fault is recorded on the target node for B. On the source node there is
+>> another record for A, since a two-stage filter is used when migrating pages.
+>>
+>> Page A is no longer used after migration, so we have to erase its record.
+>
+> What kind of performance changes have you observed with this patch?
+>
+> What benchmarks have you run, and on what kind of systems?
+>
+Due to no NUMA box, I can not answer you now.
+I will try best to borrow one next Monday.
 
--Andi
+Thanks
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
