@@ -1,130 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 47DE06B0032
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 15:01:00 -0400 (EDT)
-Received: by mail-qc0-f201.google.com with SMTP id u18so542339qcx.2
-        for <linux-mm@kvack.org>; Mon, 16 Sep 2013 12:00:59 -0700 (PDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH 2/2 v4] memcg: support hierarchical memory.numa_stats
-Date: Mon, 16 Sep 2013 12:00:23 -0700
-Message-Id: <1379358023-3093-2-git-send-email-gthelen@google.com>
-In-Reply-To: <1379358023-3093-1-git-send-email-gthelen@google.com>
-References: <1379358023-3093-1-git-send-email-gthelen@google.com>
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 75E6A6B0031
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 16:13:50 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id jt11so4550918pbb.10
+        for <linux-mm@kvack.org>; Mon, 16 Sep 2013 13:13:49 -0700 (PDT)
+Date: Mon, 16 Sep 2013 13:13:47 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2] mm/shmem.c: check the return value of mpol_to_str()
+In-Reply-To: <52367AB0.9000805@asianux.com>
+Message-ID: <alpine.DEB.2.02.1309161309490.26194@chino.kir.corp.google.com>
+References: <5215639D.1080202@asianux.com> <5227CF48.5080700@asianux.com> <alpine.DEB.2.02.1309091326210.16291@chino.kir.corp.google.com> <522E6C14.7060006@asianux.com> <alpine.DEB.2.02.1309092334570.20625@chino.kir.corp.google.com> <522EC3D1.4010806@asianux.com>
+ <alpine.DEB.2.02.1309111725290.22242@chino.kir.corp.google.com> <523124B7.8070408@gmail.com> <alpine.DEB.2.02.1309131410290.31480@chino.kir.corp.google.com> <5233CF32.3080409@jp.fujitsu.com> <52367AB0.9000805@asianux.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: hughd@google.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>
+To: Chen Gang <gang.chen@asianux.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, kosaki.motohiro@gmail.com, riel@redhat.com, hughd@google.com, xemul@parallels.com, liwanp@linux.vnet.ibm.com, gorcunov@gmail.com, linux-mm@kvack.org, akpm@linux-foundation.org
 
-From: Ying Han <yinghan@google.com>
+On Mon, 16 Sep 2013, Chen Gang wrote:
 
-From: Ying Han <yinghan@google.com>
+> Hmm... I am not quite sure: a C compiler is clever enough to know about
+> that.
+> 
+> At least, for ANSI C definition, the C compiler has no duty to know
+> about that.
+> 
+> And it is not for an optimization, either, so I guess the C compiler has
+> no enought interests to support this features (know about that).
+> 
 
-The memory.numa_stat file was not hierarchical.  Memory charged to the
-children was not shown in parent's numa_stat.
+What on earth are we talking about in this thread?
 
-This change adds the "hierarchical_" stats to the existing stats.  The
-new hierarchical stats include the sum of all children's values in
-addition to the value of the memcg.
+Rename mpol_to_str() to __mpol_to_str().  Make a static inline function in 
+mempolicy.h named mpol_to_str().  That function does BUILD_BUG_ON(maxlen < 
+64) and then calls __mpol_to_str().
 
-Tested: Create cgroup a, a/b and run workload under b.  The values of
-b are included in the "hierarchical_*" under a.
+Modify __mpol_to_str() to store "unknown" when mpol->mode does not match 
+any known MPOL_* constant.
 
-$ cd /sys/fs/cgroup
-$ echo 1 > memory.use_hierarchy
-$ mkdir a a/b
+Both functions can now return void.
 
-Run workload in a/b:
-$ (echo $BASHPID >> a/b/cgroup.procs && cat /some/file && bash) &
-
-The hierarchical_ fields in parent (a) show use of workload in a/b:
-$ cat a/memory.numa_stat
-total=0 N0=0 N1=0 N2=0 N3=0
-file=0 N0=0 N1=0 N2=0 N3=0
-anon=0 N0=0 N1=0 N2=0 N3=0
-unevictable=0 N0=0 N1=0 N2=0 N3=0
-hierarchical_total=908 N0=552 N1=317 N2=39 N3=0
-hierarchical_file=850 N0=549 N1=301 N2=0 N3=0
-hierarchical_anon=58 N0=3 N1=16 N2=39 N3=0
-hierarchical_unevictable=0 N0=0 N1=0 N2=0 N3=0
-
-$ cat a/b/memory.numa_stat
-total=908 N0=552 N1=317 N2=39 N3=0
-file=850 N0=549 N1=301 N2=0 N3=0
-anon=58 N0=3 N1=16 N2=39 N3=0
-unevictable=0 N0=0 N1=0 N2=0 N3=0
-hierarchical_total=908 N0=552 N1=317 N2=39 N3=0
-hierarchical_file=850 N0=549 N1=301 N2=0 N3=0
-hierarchical_anon=58 N0=3 N1=16 N2=39 N3=0
-hierarchical_unevictable=0 N0=0 N1=0 N2=0 N3=0
-
-Signed-off-by: Ying Han <yinghan@google.com>
-Signed-off-by: Greg Thelen <gthelen@google.com>
----
-Changelog since v3:
-- push 'iter' local variable usage closer to its usage
-- documentation fixup
-
- Documentation/cgroups/memory.txt | 10 +++++++---
- mm/memcontrol.c                  | 17 +++++++++++++++++
- 2 files changed, 24 insertions(+), 3 deletions(-)
-
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index 8af4ad1..e2bc132 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -573,15 +573,19 @@ an memcg since the pages are allowed to be allocated from any physical
- node.  One of the use cases is evaluating application performance by
- combining this information with the application's CPU allocation.
- 
--We export "total", "file", "anon" and "unevictable" pages per-node for
--each memcg.  The ouput format of memory.numa_stat is:
-+Each memcg's numa_stat file includes "total", "file", "anon" and "unevictable"
-+per-node page counts including "hierarchical_<counter>" which sums up all
-+hierarchical children's values in addition to the memcg's own value.
-+
-+The ouput format of memory.numa_stat is:
- 
- total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
- file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
- anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
- unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
-+hierarchical_<counter>=<counter pages> N0=<node 0 pages> N1=<node 1 pages> ...
- 
--And we have total = file + anon + unevictable.
-+The "total" count is sum of file + anon + unevictable.
- 
- 6. Hierarchy support
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 5806eea..d02176d 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5206,6 +5206,23 @@ static int memcg_numa_stat_show(struct cgroup_subsys_state *css,
- 		seq_putc(m, '\n');
- 	}
- 
-+	for (stat = stats; stat < stats + ARRAY_SIZE(stats); stat++) {
-+		struct mem_cgroup *iter;
-+
-+		nr = 0;
-+		for_each_mem_cgroup_tree(iter, memcg)
-+			nr += mem_cgroup_nr_lru_pages(iter, stat->lru_mask);
-+		seq_printf(m, "hierarchical_%s=%lu", stat->name, nr);
-+		for_each_node_state(nid, N_MEMORY) {
-+			nr = 0;
-+			for_each_mem_cgroup_tree(iter, memcg)
-+				nr += mem_cgroup_node_nr_lru_pages(
-+					iter, nid, stat->lru_mask);
-+			seq_printf(m, " N%d=%lu", nid, nr);
-+		}
-+		seq_putc(m, '\n');
-+	}
-+
- 	return 0;
- }
- #endif /* CONFIG_NUMA */
--- 
-1.8.4
+This is like a ten line diff.  Seriously.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
