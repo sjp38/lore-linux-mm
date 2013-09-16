@@ -1,55 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id C866C6B0071
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 11:40:41 -0400 (EDT)
-Subject: =?utf-8?q?Re=3A_=5Bpatch_0=2F7=5D_improve_memcg_oom_killer_robustness_v2?=
-Date: Mon, 16 Sep 2013 17:40:39 +0200
-From: "azurIt" <azurit@pobox.sk>
-References: <20130911191150.GN856@cmpxchg.org>, <20130911214118.7CDF2E71@pobox.sk>, <20130911200426.GO856@cmpxchg.org>, <20130914124831.4DD20346@pobox.sk>, <20130916134014.GA3674@dhcp22.suse.cz>, <20130916160119.2E76C2A1@pobox.sk>, <20130916140607.GC3674@dhcp22.suse.cz>, <20130916161316.5113F6E7@pobox.sk>, <20130916145744.GE3674@dhcp22.suse.cz>, <20130916170543.77F1ECB4@pobox.sk> <20130916152548.GF3674@dhcp22.suse.cz>
-In-Reply-To: <20130916152548.GF3674@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 143D76B003A
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 12:13:02 -0400 (EDT)
+Date: Mon, 16 Sep 2013 17:11:50 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 07/50] mm: Account for a THP NUMA hinting update as one
+ PTE update
+Message-ID: <20130916161150.GF22421@suse.de>
+References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
+ <1378805550-29949-8-git-send-email-mgorman@suse.de>
+ <20130916123645.GD9326@twins.programming.kicks-ass.net>
+ <52370A2F.90006@redhat.com>
+ <20130916145438.GT21832@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Message-Id: <20130916174039.203B03C9@pobox.sk>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20130916145438.GT21832@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
-Cc: =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>, =?utf-8?q?Andrew_Morton?= <akpm@linux-foundation.org>, =?utf-8?q?David_Rientjes?= <rientjes@google.com>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?KOSAKI_Motohiro?= <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-> CC: "Johannes Weiner" <hannes@cmpxchg.org>, "Andrew Morton" <akpm@linux-foundation.org>, "David Rientjes" <rientjes@google.com>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
->On Mon 16-09-13 17:05:43, azurIt wrote:
->> > CC: "Johannes Weiner" <hannes@cmpxchg.org>, "Andrew Morton" <akpm@linux-foundation.org>, "David Rientjes" <rientjes@google.com>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
->> >On Mon 16-09-13 16:13:16, azurIt wrote:
->> >[...]
->> >> >You can use sysrq+l via serial console to see tasks hogging the CPU or
->> >> >sysrq+t to see all the existing tasks.
->> >> 
->> >> 
->> >> Doesn't work here, it just prints 'l' resp. 't'.
->> >
->> >I am using telnet for accessing my serial consoles exported by
->> >the multiplicator or KVM and it can send sysrq via ctrl+t (Send
->> >Break). Check your serial console setup.
->> 
->> 
->> 
->> I'm using Raritan KVM and i created keyboard macro 'sysrq + l' resp.
->> 'sysrq + t'. I'm also unable to use it on my local PC. Maybe it needs
->> to be enabled somehow?
->
->Probably yes. echo 1 > /proc/sys/kernel/sysrq should enable all sysrq
->commands. You can select also some of them (have a look at
->Documentation/sysrq.txt for more information)
+On Mon, Sep 16, 2013 at 04:54:38PM +0200, Peter Zijlstra wrote:
+> On Mon, Sep 16, 2013 at 09:39:59AM -0400, Rik van Riel wrote:
+> > On 09/16/2013 08:36 AM, Peter Zijlstra wrote:
+> > > On Tue, Sep 10, 2013 at 10:31:47AM +0100, Mel Gorman wrote:
+> > >> A THP PMD update is accounted for as 512 pages updated in vmstat.  This is
+> > >> large difference when estimating the cost of automatic NUMA balancing and
+> > >> can be misleading when comparing results that had collapsed versus split
+> > >> THP. This patch addresses the accounting issue.
+> > >>
+> > >> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > >> ---
+> > >>  mm/mprotect.c | 2 +-
+> > >>  1 file changed, 1 insertion(+), 1 deletion(-)
+> > >>
+> > >> diff --git a/mm/mprotect.c b/mm/mprotect.c
+> > >> index 94722a4..2bbb648 100644
+> > >> --- a/mm/mprotect.c
+> > >> +++ b/mm/mprotect.c
+> > >> @@ -145,7 +145,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+> > >>  				split_huge_page_pmd(vma, addr, pmd);
+> > >>  			else if (change_huge_pmd(vma, pmd, addr, newprot,
+> > >>  						 prot_numa)) {
+> > >> -				pages += HPAGE_PMD_NR;
+> > >> +				pages++;
+> > > 
+> > > But now you're not counting pages anymore..
+> > 
+> > The migrate statistics still count pages. That makes sense, since the
+> > amount of work scales with the amount of memory moved.
+> 
+> Right.
+> 
+> > It is just the "number of faults" counters that actually count the
+> > number of faults again, instead of the number of pages represented
+> > by each fault.
+> 
+> So you're suggesting s/pages/faults/ or somesuch?
+> 
 
-# ls -la /proc/sys/kernel/sysrq 
-ls: cannot access /proc/sys/kernel/sysrq: No such file or directory
+It's really the number of ptes that are updated.
 
-ok, so problem is probably here:
-# CONFIG_MAGIC_SYSRQ is not set
+> > IMHO this change makes sense.
+> 
+> I never said the change didn't make sense as such. Just that we're no
+> longer counting pages in change_*_range().
 
-I will enable it with next reboot.
+well, it's still a THP page. Is it worth renaming?
 
-azur
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
