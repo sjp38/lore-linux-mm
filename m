@@ -1,76 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id AB2A06B0089
-	for <linux-mm@kvack.org>; Sun, 15 Sep 2013 15:04:11 -0400 (EDT)
-Date: Sun, 15 Sep 2013 15:04:01 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/2 v3] memcg: support hierarchical memory.numa_stats
-Message-ID: <20130915190401.GC3278@cmpxchg.org>
-References: <1378362539-18100-1-git-send-email-gthelen@google.com>
- <1378362539-18100-2-git-send-email-gthelen@google.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 913ED6B008C
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2013 21:28:42 -0400 (EDT)
+Message-ID: <52365EA3.8000103@cn.fujitsu.com>
+Date: Mon, 16 Sep 2013 09:28:03 +0800
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1378362539-18100-2-git-send-email-gthelen@google.com>
+Subject: Re: [PATCH v3 2/5] memblock: Improve memblock to support allocation
+ from lower address.
+References: <1379064655-20874-1-git-send-email-tangchen@cn.fujitsu.com>  <1379064655-20874-3-git-send-email-tangchen@cn.fujitsu.com> <1379109208.13477.16.camel@misato.fc.hp.com>
+In-Reply-To: <1379109208.13477.16.camel@misato.fc.hp.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, hughd@google.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ying Han <yinghan@google.com>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, tj@kernel.org, liwanp@linux.vnet.ibm.com, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-Hello Greg!
+Hello toshi-san,
 
-On Wed, Sep 04, 2013 at 11:28:59PM -0700, Greg Thelen wrote:
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -571,15 +571,19 @@ an memcg since the pages are allowed to be allocated from any physical
->  node.  One of the use cases is evaluating application performance by
->  combining this information with the application's CPU allocation.
->  
-> -We export "total", "file", "anon" and "unevictable" pages per-node for
-> -each memcg.  The ouput format of memory.numa_stat is:
-> +Each memcg's numa_stat file includes "total", "file", "anon" and "unevictable"
-> +per-node page counts including "hierarchical_<counter>" which sums of all
-> +hierarchical children's values in addition to the memcg's own value.
+On 09/14/2013 05:53 AM, Toshi Kani wrote:
+> On Fri, 2013-09-13 at 17:30 +0800, Tang Chen wrote:
+>  :
+>> @@ -100,8 +180,7 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
+>>  					phys_addr_t end, phys_addr_t size,
+>>  					phys_addr_t align, int nid)
+>>  {
+>> -	phys_addr_t this_start, this_end, cand;
+>> -	u64 i;
+>> +	phys_addr_t ret;
+>>  
+>>  	/* pump up @end */
+>>  	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
+>> @@ -111,18 +190,22 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
+>>  	start = max_t(phys_addr_t, start, PAGE_SIZE);
+>>  	end = max(start, end);
+>>  
+>> -	for_each_free_mem_range_reverse(i, nid, &this_start, &this_end, NULL) {
+>> -		this_start = clamp(this_start, start, end);
+>> -		this_end = clamp(this_end, start, end);
+>> +	if (memblock_direction_bottom_up()) {
+>> +		/*
+>> +		 * MEMBLOCK_ALLOC_ACCESSIBLE is 0, which is less than the end
+>> +		 * of kernel image. So callers specify MEMBLOCK_ALLOC_ACCESSIBLE
+>> +		 * as @start is OK.
+>> +		 */
+>> +		start =	max(start, __pa_symbol(_end)); /* End of kernel image. */
+>>  
+>> -		if (this_end < size)
+>> -			continue;
+>> +		ret = __memblock_find_range(start, end, size, align, nid);
+>> +		if (ret)
+>> +			return ret;
+>>  
+>> -		cand = round_down(this_end - size, align);
+>> -		if (cand >= this_start)
+>> -			return cand;
+>> +		pr_warn("memblock: Failed to allocate memory in bottom up direction. Now try top down direction.\n");
+> 
+> Is there any chance that this retry will succeed given that start and
+> end are still the same?
 
-"[...] which sums UP [...]"?
+Thanks for pointing this. We've made a mistake here. If the original start
+is less than __pa_symbol(_end), and if the bottom up search fails, then
+the top down search deserves a try with the original start argument.
 
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -5394,6 +5394,7 @@ static int memcg_numa_stat_show(struct cgroup *cont, struct cftype *cft,
->  	int nid;
->  	unsigned long nr;
->  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-> +	struct mem_cgroup *iter;
->  
->  	for (stat = stats; stat->name; stat++) {
->  		nr = mem_cgroup_nr_lru_pages(memcg, stat->lru_mask);
-> @@ -5406,6 +5407,21 @@ static int memcg_numa_stat_show(struct cgroup *cont, struct cftype *cft,
->  		seq_putc(m, '\n');
->  	}
->  
-> +	for (stat = stats; stat->name; stat++) {
+> 
+> Thanks,
+> -Toshi
+> 
+> 
+>>  	}
+>> -	return 0;
+>> +
+>> +	return __memblock_find_range_rev(start, end, size, align, nid);
+>>  }
+>>  
+>>  /**
+> 
+> 
+> 
 
-Move the struct mem_cgroup *iter declaration here?
 
-> +		nr = 0;
-> +		for_each_mem_cgroup_tree(iter, memcg)
-> +			nr += mem_cgroup_nr_lru_pages(iter, stat->lru_mask);
-> +		seq_printf(m, "hierarchical_%s=%lu", stat->name, nr);
-> +		for_each_node_state(nid, N_MEMORY) {
-> +			nr = 0;
-> +			for_each_mem_cgroup_tree(iter, memcg)
-> +				nr += mem_cgroup_node_nr_lru_pages(
-> +					iter, nid, stat->lru_mask);
-> +			seq_printf(m, " N%d=%lu", nid, nr);
-> +		}
-> +		seq_putc(m, '\n');
-> +	}
-> +
->  	return 0;
->  }
->  #endif /* CONFIG_NUMA */
-
-Rest looks fine to me.
+-- 
+Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
