@@ -1,93 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 4BA9A6B00A3
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 06:23:01 -0400 (EDT)
-Subject: =?utf-8?q?Re=3A_=5Bpatch_0=2F7=5D_improve_memcg_oom_killer_robustness_v2?=
-Date: Mon, 16 Sep 2013 12:22:59 +0200
-From: "azurIt" <azurit@pobox.sk>
-References: <20130910201222.GA25972@cmpxchg.org>, <20130910230853.FEEC19B5@pobox.sk>, <20130910211823.GJ856@cmpxchg.org>, <20130910233247.9EDF4DBA@pobox.sk>, <20130910220329.GK856@cmpxchg.org>, <20130911143305.FFEAD399@pobox.sk>, <20130911180327.GL856@cmpxchg.org>, <20130911205448.656D9D7C@pobox.sk>, <20130911191150.GN856@cmpxchg.org>, <20130911214118.7CDF2E71@pobox.sk> <20130911200426.GO856@cmpxchg.org>
-In-Reply-To: <20130911200426.GO856@cmpxchg.org>
-MIME-Version: 1.0
-Message-Id: <20130916122259.F60857D4@pobox.sk>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 1F3266B00A5
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 06:42:11 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <1379117362-gwv3vrog-mutt-n-horiguchi@ah.jp.nec.com>
+References: <1379117362-gwv3vrog-mutt-n-horiguchi@ah.jp.nec.com>
+Subject: RE: [PATCH v4] hugetlbfs: support split page table lock
+Content-Transfer-Encoding: 7bit
+Message-Id: <20130916104205.5605CE0090@blue.fi.intel.com>
+Date: Mon, 16 Sep 2013 13:42:05 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
-Cc: =?utf-8?q?Andrew_Morton?= <akpm@linux-foundation.org>, =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>, =?utf-8?q?David_Rientjes?= <rientjes@google.com>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?KOSAKI_Motohiro?= <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Alex Thorlton <athorlton@sgi.com>, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
 
-> CC: "Andrew Morton" <akpm@linux-foundation.org>, "Michal Hocko" <mhocko@suse.cz>, "David Rientjes" <rientjes@google.com>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
->On Wed, Sep 11, 2013 at 09:41:18PM +0200, azurIt wrote:
->> >On Wed, Sep 11, 2013 at 08:54:48PM +0200, azurIt wrote:
->> >> >On Wed, Sep 11, 2013 at 02:33:05PM +0200, azurIt wrote:
->> >> >> >On Tue, Sep 10, 2013 at 11:32:47PM +0200, azurIt wrote:
->> >> >> >> >On Tue, Sep 10, 2013 at 11:08:53PM +0200, azurIt wrote:
->> >> >> >> >> >On Tue, Sep 10, 2013 at 09:32:53PM +0200, azurIt wrote:
->> >> >> >> >> >> Here is full kernel log between 6:00 and 7:59:
->> >> >> >> >> >> http://watchdog.sk/lkml/kern6.log
->> >> >> >> >> >
->> >> >> >> >> >Wow, your apaches are like the hydra.  Whenever one is OOM killed,
->> >> >> >> >> >more show up!
->> >> >> >> >> 
->> >> >> >> >> 
->> >> >> >> >> 
->> >> >> >> >> Yeah, it's supposed to do this ;)
->> >> >> >
->> >> >> >How are you expecting the machine to recover from an OOM situation,
->> >> >> >though?  I guess I don't really understand what these machines are
->> >> >> >doing.  But if you are overloading them like crazy, isn't that the
->> >> >> >expected outcome?
->> >> >> 
->> >> >> 
->> >> >> 
->> >> >> 
->> >> >> 
->> >> >> There's no global OOM, server has enough of memory. OOM is occuring only in cgroups (customers who simply don't want to pay for more memory).
->> >> >
->> >> >Yes, sure, but when the cgroups are thrashing, they use the disk and
->> >> >CPU to the point where the overall system is affected.
->> >> 
->> >> 
->> >> 
->> >> 
->> >> Didn't know that there is a disk usage because of this, i never noticed anything yet.
->> >
->> >You said there was heavy IO going on...?
->> 
->> 
->> 
->> Yes, there usually was a big IO but it was related to that
->> deadlocking bug in kernel (or i assume it was). I never saw a big IO
->> in normal conditions even when there were lots of OOM in
->> cgroups. I'm even not using swap because of this so i was assuming
->> that lacks of memory is not doing any additional IO (or am i
->> wrong?). And if you mean that last problem with IO from Monday, i
->> don't exactly know what happens but it's really long time when we
->> had so big problem with IO that it disables also root login on
->> console.
->
->The deadlocking problem should be separate from this.
->
->Even without swap, the binaries and libraries of the running tasks can
->get reclaimed (and immediately faulted back from disk, i.e thrashing).
->
->Usually the OOM killer should kick in before tasks cannibalize each
->other like that.
->
->The patch you were using did in fact have the side effect of widening
->the window between tasks entering heavy reclaim and the OOM killer
->kicking in, so it could explain the IO worsening while fixing the dead
->lock problem.
->
->That followup patch tries to narrow this window by quite a bit and
->tries to stop concurrent reclaim when the group is already OOM.
->
+Naoya Horiguchi wrote:
+> Hi,
+> 
+> Kirill posted split_ptl patchset for thp today, so in this version
+> I post only hugetlbfs part. I added Kconfig variables in following
+> Kirill's patches (although without CONFIG_SPLIT_*_PTLOCK_CPUS.)
+> 
+> This patch changes many lines, but all are in hugetlbfs specific code,
+> so I think we can apply this independent of thp patches.
+> -----
+> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Date: Fri, 13 Sep 2013 18:12:30 -0400
+> Subject: [PATCH v4] hugetlbfs: support split page table lock
+> 
+> Currently all of page table handling by hugetlbfs code are done under
+> mm->page_table_lock. So when a process have many threads and they heavily
+> access to the memory, lock contention happens and impacts the performance.
+> 
+> This patch makes hugepage support split page table lock so that we use
+> page->ptl of the leaf node of page table tree which is pte for normal pages
+> but can be pmd and/or pud for hugepages of some architectures.
+> 
+> ChangeLog v4:
+>  - introduce arch dependent macro ARCH_ENABLE_SPLIT_HUGETLB_PTLOCK
+>    (only defined for x86 for now)
+>  - rename USE_SPLIT_PTLOCKS_HUGETLB to USE_SPLIT_HUGETLB_PTLOCKS
+> 
+> ChangeLog v3:
+>  - disable split ptl for ppc with USE_SPLIT_PTLOCKS_HUGETLB.
+>  - remove replacement in some architecture dependent code. This is justified
+>    because an allocation of pgd/pud/pmd/pte entry can race with other
+>    allocation, not with read/write access, so we can use different locks.
+>    http://thread.gmane.org/gmane.linux.kernel.mm/106292/focus=106458
+> 
+> ChangeLog v2:
+>  - add split ptl on other archs missed in v1
+>  - drop changes on arch/{powerpc,tile}/mm/hugetlbpage.c
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+>  arch/x86/Kconfig         |  4 +++
+>  include/linux/hugetlb.h  | 20 +++++++++++
+>  include/linux/mm_types.h |  2 ++
+>  mm/Kconfig               |  3 ++
+>  mm/hugetlb.c             | 92 +++++++++++++++++++++++++++++-------------------
+>  mm/mempolicy.c           |  5 +--
+>  mm/migrate.c             |  4 +--
+>  mm/rmap.c                |  2 +-
+>  8 files changed, 91 insertions(+), 41 deletions(-)
+> 
+> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+> index 6a5cf6a..5b83d14 100644
+> --- a/arch/x86/Kconfig
+> +++ b/arch/x86/Kconfig
+> @@ -1884,6 +1884,10 @@ config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+>  	def_bool y
+>  	depends on X86_64 || X86_PAE
+>  
+> +config ARCH_ENABLE_SPLIT_HUGETLB_PTLOCK
+> +	def_bool y
+> +	depends on X86_64 || X86_PAE
+> +
+>  menu "Power management and ACPI options"
+>  
+>  config ARCH_HIBERNATION_HEADER
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 0393270..2cdac68 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -80,6 +80,24 @@ extern const unsigned long hugetlb_zero, hugetlb_infinity;
+>  extern int sysctl_hugetlb_shm_group;
+>  extern struct list_head huge_boot_pages;
+>  
+> +#if USE_SPLIT_HUGETLB_PTLOCKS
+> +#define huge_pte_lockptr(mm, ptep) ({__pte_lockptr(virt_to_page(ptep)); })
+> +#else	/* !USE_SPLIT_HUGETLB_PTLOCKS */
+> +#define huge_pte_lockptr(mm, ptep) ({&(mm)->page_table_lock; })
+> +#endif	/* USE_SPLIT_HUGETLB_PTLOCKS */
+> +
+> +#define huge_pte_offset_lock(mm, address, ptlp)		\
+> +({							\
+> +	pte_t *__pte = huge_pte_offset(mm, address);	\
+> +	spinlock_t *__ptl = NULL;			\
+> +	if (__pte) {					\
+> +		__ptl = huge_pte_lockptr(mm, __pte);	\
+> +		*(ptlp) = __ptl;			\
+> +		spin_lock(__ptl);			\
+> +	}						\
+> +	__pte;						\
+> +})
+> +
 
-Johannes,
+[ Disclaimer: I don't know much about hugetlb. ]
 
-it's, unfortunately, happening several times per day and we cannot work like this :( i will boot previous kernel this night. If you have any patches which can help me or you, please send them so i can install them with this reboot. Thank you.
+I don't think it's correct. Few points:
 
-azur
+ - Hugetlb supports multiple page sizes: on x86_64 2M (PMD) and 1G (PUD).
+   My patchset only implements it for PMD. We don't even initialize
+   spinlock in struct page for PUD.
+ - If we enable split PMD lock we should use it *globally*. With you patch
+   we can end up with different locks used by hugetlb and rest of kernel
+   to protect the same PMD table if USE_SPLIT_HUGETLB_PTLOCKS !=
+   USE_SPLIT_PMD_PTLOCKS. It's just broken.
+
+What we should really do is take split pmd lock (using pmd_lock*) if we
+try to protect PMD level and fallback to mm->page_table_lock if we want to
+protect upper levels.
+
+>  /* arch callbacks */
+>  
+>  pte_t *huge_pte_alloc(struct mm_struct *mm,
+> @@ -164,6 +182,8 @@ static inline void __unmap_hugepage_range(struct mmu_gather *tlb,
+>  	BUG();
+>  }
+>  
+> +#define huge_pte_lockptr(mm, ptep) 0
+> +
+
+NULL?
+
+>  #endif /* !CONFIG_HUGETLB_PAGE */
+>  
+>  #define HUGETLB_ANON_FILE "anon_hugepage"
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
