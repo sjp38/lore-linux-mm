@@ -1,11 +1,9 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [RESEND PATCH v5 4/4] mm/vmalloc: fix show vmap_area information
- race with vmap_area tear down
-Date: Tue, 17 Sep 2013 07:25:06 +0800
-Message-ID: <31778.0903111727$1379373922@news.gmane.org>
+Subject: Re: [RESEND PATCH v5 1/4] mm/vmalloc: don't set area->caller twice
+Date: Tue, 17 Sep 2013 07:29:41 +0800
+Message-ID: <1125.61554783515$1379374199@news.gmane.org>
 References: <1379202342-23140-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1379202342-23140-4-git-send-email-liwanp@linux.vnet.ibm.com>
- <523777D8.2000304@jp.fujitsu.com>
+ <5237617F.6010107@jp.fujitsu.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -13,78 +11,73 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1VLiAN-0007n6-0a
-	for glkm-linux-mm-2@m.gmane.org; Tue, 17 Sep 2013 01:25:15 +0200
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 6AA716B0036
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 19:25:13 -0400 (EDT)
+	id 1VLiEm-0006CQ-Rs
+	for glkm-linux-mm-2@m.gmane.org; Tue, 17 Sep 2013 01:29:49 +0200
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id D77D26B0031
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 19:29:46 -0400 (EDT)
 Received: from /spool/local
 	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 17 Sep 2013 09:25:11 +1000
+	Tue, 17 Sep 2013 09:29:44 +1000
 Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 08FAF2BB0056
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 09:25:09 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8GN8dfK459104
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 09:08:39 +1000
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8GNP86l012457
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 09:25:08 +1000
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 2C66D2BB0054
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 09:29:43 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8GNDDKS5177602
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 09:13:13 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8GNTg7w004956
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 09:29:42 +1000
 Content-Disposition: inline
-In-Reply-To: <523777D8.2000304@jp.fujitsu.com>
+In-Reply-To: <5237617F.6010107@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 Cc: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, rientjes@google.com, kosaki.motohiro@jp.fujitsu.com, zhangyanfei@cn.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Sep 16, 2013 at 05:27:52PM -0400, KOSAKI Motohiro wrote:
+Hi KOSAKI,
+On Mon, Sep 16, 2013 at 03:52:31PM -0400, KOSAKI Motohiro wrote:
 >On 9/14/2013 7:45 PM, Wanpeng Li wrote:
 >> Changelog:
->>  *v4 -> v5: return directly for !VM_VM_AREA case and remove (VM_LAZY_FREE | VM_LAZY_FREEING) check 
+>>  *v1 -> v2: rebase against mmotm tree
 >> 
->> There is a race window between vmap_area tear down and show vmap_area information.
->> 
->> 	A                                                B
->> 
->> remove_vm_area
->> spin_lock(&vmap_area_lock);
->> va->vm = NULL;
->> va->flags &= ~VM_VM_AREA;
->> spin_unlock(&vmap_area_lock);
->> 						spin_lock(&vmap_area_lock);
->> 						if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEZING))
->> 							return 0;
->> 						if (!(va->flags & VM_VM_AREA)) {
->> 							seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
->> 								(void *)va->va_start, (void *)va->va_end,
->> 								va->va_end - va->va_start);
->> 							return 0;
->> 						}
->> free_unmap_vmap_area(va);
->> 	flush_cache_vunmap
->> 	free_unmap_vmap_area_noflush
->> 		unmap_vmap_area
->> 		free_vmap_area_noflush
->> 			va->flags |= VM_LAZY_FREE 
->> 
->> The assumption !VM_VM_AREA represents vm_map_ram allocation is introduced by 
->> commit: d4033afd(mm, vmalloc: iterate vmap_area_list, instead of vmlist, in 
->> vmallocinfo()). However, !VM_VM_AREA also represents vmap_area is being tear 
->> down in race window mentioned above. This patch fix it by don't dump any 
->> information for !VM_VM_AREA case and also remove (VM_LAZY_FREE | VM_LAZY_FREEING)
->> check since they are not possible for !VM_VM_AREA case.
->> 
->> Suggested-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>> The caller address has already been set in set_vmalloc_vm(), there's no need
 >
->Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>                                            setup_vmalloc_vm()
 >
 
-Thanks for your review. ;-)
+Thanks.
+
+>> to set it again in __vmalloc_area_node.
+>> 
+>> Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+>> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>> ---
+>>  mm/vmalloc.c | 1 -
+>>  1 file changed, 1 deletion(-)
+>> 
+>> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+>> index 1074543..d78d117 100644
+>> --- a/mm/vmalloc.c
+>> +++ b/mm/vmalloc.c
+>> @@ -1566,7 +1566,6 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+>>  		pages = kmalloc_node(array_size, nested_gfp, node);
+>>  	}
+>>  	area->pages = pages;
+>> -	area->caller = caller;
+>>  	if (!area->pages) {
+>>  		remove_vm_area(area->addr);
+>>  		kfree(area);
+>
+>Then, __vmalloc_area_node() no longer need "caller" argument. It can use area->caller instead.
+>
+
+Thanks for pointing out, I will update it in next version. 
 
 Regards,
 Wanpeng Li 
 
+>
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
 >the body to majordomo@kvack.org.  For more info on Linux MM,
