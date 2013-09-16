@@ -1,168 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id BEBA66B0032
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 17:22:55 -0400 (EDT)
-Date: Mon, 16 Sep 2013 17:22:30 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1379366550-9vhj3y8s-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130916104205.5605CE0090@blue.fi.intel.com>
-References: <1379117362-gwv3vrog-mutt-n-horiguchi@ah.jp.nec.com>
- <20130916104205.5605CE0090@blue.fi.intel.com>
-Subject: Re: [PATCH v4] hugetlbfs: support split page table lock
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 13BE46B0032
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 17:28:02 -0400 (EDT)
+Message-ID: <523777D8.2000304@jp.fujitsu.com>
+Date: Mon, 16 Sep 2013 17:27:52 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [RESEND PATCH v5 4/4] mm/vmalloc: fix show vmap_area information
+ race with vmap_area tear down
+References: <1379202342-23140-1-git-send-email-liwanp@linux.vnet.ibm.com> <1379202342-23140-4-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1379202342-23140-4-git-send-email-liwanp@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Alex Thorlton <athorlton@sgi.com>, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org
+To: liwanp@linux.vnet.ibm.com
+Cc: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, rientjes@google.com, kosaki.motohiro@jp.fujitsu.com, zhangyanfei@cn.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Sep 16, 2013 at 01:42:05PM +0300, Kirill A. Shutemov wrote:
-> Naoya Horiguchi wrote:
-> > Hi,
-> > 
-> > Kirill posted split_ptl patchset for thp today, so in this version
-> > I post only hugetlbfs part. I added Kconfig variables in following
-> > Kirill's patches (although without CONFIG_SPLIT_*_PTLOCK_CPUS.)
-> > 
-> > This patch changes many lines, but all are in hugetlbfs specific code,
-> > so I think we can apply this independent of thp patches.
-> > -----
-> > From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > Date: Fri, 13 Sep 2013 18:12:30 -0400
-> > Subject: [PATCH v4] hugetlbfs: support split page table lock
-> > 
-> > Currently all of page table handling by hugetlbfs code are done under
-> > mm->page_table_lock. So when a process have many threads and they heavily
-> > access to the memory, lock contention happens and impacts the performance.
-> > 
-> > This patch makes hugepage support split page table lock so that we use
-> > page->ptl of the leaf node of page table tree which is pte for normal pages
-> > but can be pmd and/or pud for hugepages of some architectures.
-> > 
-> > ChangeLog v4:
-> >  - introduce arch dependent macro ARCH_ENABLE_SPLIT_HUGETLB_PTLOCK
-> >    (only defined for x86 for now)
-> >  - rename USE_SPLIT_PTLOCKS_HUGETLB to USE_SPLIT_HUGETLB_PTLOCKS
-> > 
-> > ChangeLog v3:
-> >  - disable split ptl for ppc with USE_SPLIT_PTLOCKS_HUGETLB.
-> >  - remove replacement in some architecture dependent code. This is justified
-> >    because an allocation of pgd/pud/pmd/pte entry can race with other
-> >    allocation, not with read/write access, so we can use different locks.
-> >    http://thread.gmane.org/gmane.linux.kernel.mm/106292/focus=106458
-> > 
-> > ChangeLog v2:
-> >  - add split ptl on other archs missed in v1
-> >  - drop changes on arch/{powerpc,tile}/mm/hugetlbpage.c
-> > 
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > ---
-> >  arch/x86/Kconfig         |  4 +++
-> >  include/linux/hugetlb.h  | 20 +++++++++++
-> >  include/linux/mm_types.h |  2 ++
-> >  mm/Kconfig               |  3 ++
-> >  mm/hugetlb.c             | 92 +++++++++++++++++++++++++++++-------------------
-> >  mm/mempolicy.c           |  5 +--
-> >  mm/migrate.c             |  4 +--
-> >  mm/rmap.c                |  2 +-
-> >  8 files changed, 91 insertions(+), 41 deletions(-)
-> > 
-> > diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> > index 6a5cf6a..5b83d14 100644
-> > --- a/arch/x86/Kconfig
-> > +++ b/arch/x86/Kconfig
-> > @@ -1884,6 +1884,10 @@ config ARCH_ENABLE_SPLIT_PMD_PTLOCK
-> >  	def_bool y
-> >  	depends on X86_64 || X86_PAE
-> >  
-> > +config ARCH_ENABLE_SPLIT_HUGETLB_PTLOCK
-> > +	def_bool y
-> > +	depends on X86_64 || X86_PAE
-> > +
-> >  menu "Power management and ACPI options"
-> >  
-> >  config ARCH_HIBERNATION_HEADER
-> > diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> > index 0393270..2cdac68 100644
-> > --- a/include/linux/hugetlb.h
-> > +++ b/include/linux/hugetlb.h
-> > @@ -80,6 +80,24 @@ extern const unsigned long hugetlb_zero, hugetlb_infinity;
-> >  extern int sysctl_hugetlb_shm_group;
-> >  extern struct list_head huge_boot_pages;
-> >  
-> > +#if USE_SPLIT_HUGETLB_PTLOCKS
-> > +#define huge_pte_lockptr(mm, ptep) ({__pte_lockptr(virt_to_page(ptep)); })
-> > +#else	/* !USE_SPLIT_HUGETLB_PTLOCKS */
-> > +#define huge_pte_lockptr(mm, ptep) ({&(mm)->page_table_lock; })
-> > +#endif	/* USE_SPLIT_HUGETLB_PTLOCKS */
-> > +
-> > +#define huge_pte_offset_lock(mm, address, ptlp)		\
-> > +({							\
-> > +	pte_t *__pte = huge_pte_offset(mm, address);	\
-> > +	spinlock_t *__ptl = NULL;			\
-> > +	if (__pte) {					\
-> > +		__ptl = huge_pte_lockptr(mm, __pte);	\
-> > +		*(ptlp) = __ptl;			\
-> > +		spin_lock(__ptl);			\
-> > +	}						\
-> > +	__pte;						\
-> > +})
-> > +
+On 9/14/2013 7:45 PM, Wanpeng Li wrote:
+> Changelog:
+>  *v4 -> v5: return directly for !VM_VM_AREA case and remove (VM_LAZY_FREE | VM_LAZY_FREEING) check 
 > 
-> [ Disclaimer: I don't know much about hugetlb. ]
+> There is a race window between vmap_area tear down and show vmap_area information.
 > 
-> I don't think it's correct. Few points:
+> 	A                                                B
 > 
->  - Hugetlb supports multiple page sizes: on x86_64 2M (PMD) and 1G (PUD).
->    My patchset only implements it for PMD. We don't even initialize
->    spinlock in struct page for PUD.
-
-In hugetlbfs code, we use huge_pte_offset() to get leaf level entries
-which can be pud or pmd in x86. huge_pte_lockptr() uses this function,
-so we can always get the correct ptl regardless of hugepage sizes.
-As for spinlock initialization, you're right. I'll add it on huge_pte_alloc().
-
->  - If we enable split PMD lock we should use it *globally*. With you patch
->    we can end up with different locks used by hugetlb and rest of kernel
->    to protect the same PMD table if USE_SPLIT_HUGETLB_PTLOCKS !=
->    USE_SPLIT_PMD_PTLOCKS. It's just broken.
-
-I don't think so. Thp specific operations (like thp allocation, split,
-and collapse) are never called on the virtual address range covered by
-vma(VM_HUGETLB) by checking VM_HUGETLB. So no one tries to lock/unlock
-a ptl concurrently from thp context and hugetlbfs context.
-
-> What we should really do is take split pmd lock (using pmd_lock*) if we
-> try to protect PMD level and fallback to mm->page_table_lock if we want to
-> protect upper levels.
+> remove_vm_area
+> spin_lock(&vmap_area_lock);
+> va->vm = NULL;
+> va->flags &= ~VM_VM_AREA;
+> spin_unlock(&vmap_area_lock);
+> 						spin_lock(&vmap_area_lock);
+> 						if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEZING))
+> 							return 0;
+> 						if (!(va->flags & VM_VM_AREA)) {
+> 							seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
+> 								(void *)va->va_start, (void *)va->va_end,
+> 								va->va_end - va->va_start);
+> 							return 0;
+> 						}
+> free_unmap_vmap_area(va);
+> 	flush_cache_vunmap
+> 	free_unmap_vmap_area_noflush
+> 		unmap_vmap_area
+> 		free_vmap_area_noflush
+> 			va->flags |= VM_LAZY_FREE 
 > 
-> >  /* arch callbacks */
-> >  
-> >  pte_t *huge_pte_alloc(struct mm_struct *mm,
-> > @@ -164,6 +182,8 @@ static inline void __unmap_hugepage_range(struct mmu_gather *tlb,
-> >  	BUG();
-> >  }
-> >  
-> > +#define huge_pte_lockptr(mm, ptep) 0
-> > +
+> The assumption !VM_VM_AREA represents vm_map_ram allocation is introduced by 
+> commit: d4033afd(mm, vmalloc: iterate vmap_area_list, instead of vmlist, in 
+> vmallocinfo()). However, !VM_VM_AREA also represents vmap_area is being tear 
+> down in race window mentioned above. This patch fix it by don't dump any 
+> information for !VM_VM_AREA case and also remove (VM_LAZY_FREE | VM_LAZY_FREEING)
+> check since they are not possible for !VM_VM_AREA case.
 > 
-> NULL?
+> Suggested-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-OK.
-
-Thanks,
-Naoya Horiguchi
-
-> >  #endif /* !CONFIG_HUGETLB_PAGE */
-> >  
-> >  #define HUGETLB_ANON_FILE "anon_hugepage"
-> 
-> -- 
->  Kirill A. Shutemov
->
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
