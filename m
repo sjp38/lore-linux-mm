@@ -1,37 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id D03D36B009E
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 05:15:42 -0400 (EDT)
-Date: Mon, 16 Sep 2013 11:15:36 +0200
-From: Uwe =?iso-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
-Subject: Re: [PATCH] let CMA depend on MMU
-Message-ID: <20130916091536.GK24802@pengutronix.de>
-References: <1378840236-3463-1-git-send-email-u.kleine-koenig@pengutronix.de>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 9DAB96B00A0
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 05:16:53 -0400 (EDT)
+Received: by mail-ie0-f177.google.com with SMTP id qd12so6731542ieb.22
+        for <linux-mm@kvack.org>; Mon, 16 Sep 2013 02:16:53 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1378840236-3463-1-git-send-email-u.kleine-koenig@pengutronix.de>
+In-Reply-To: <20130909164750.GC4701@variantweb.net>
+References: <000601ceaac0$5be39f90$13aadeb0$%yang@samsung.com>
+	<20130909164750.GC4701@variantweb.net>
+Date: Mon, 16 Sep 2013 17:16:52 +0800
+Message-ID: <CAL1ERfNmeMCyUGyjTX4_AV41E_iCJicBoz=w16iSOUp+YKYi8A@mail.gmail.com>
+Subject: Re: [PATCH v2 4/4] mm/zswap: use GFP_NOIO instead of GFP_KERNEL
+From: Weijie Yang <weijie.yang.kh@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kernel@pengutronix.de, linux-mm@kvack.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Weijie Yang <weijie.yang@samsung.com>, minchan@kernel.org, bob.liu@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello,
+On Tue, Sep 10, 2013 at 12:47 AM, Seth Jennings
+<sjenning@linux.vnet.ibm.com> wrote:
+> On Fri, Sep 06, 2013 at 01:16:45PM +0800, Weijie Yang wrote:
+>> To avoid zswap store and reclaim functions called recursively,
+>> use GFP_NOIO instead of GFP_KERNEL
+>>
+>> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+>
+> I agree with Bob to some degree that GFP_NOIO is a broadsword here.
+> Ideally, we'd like to continue allowing writeback of dirty file pages
+> and the like.  However, I don't agree that a mutex is the way to do
+> this.
+>
+> My first thought was to use the PF_MEMALLOC task flag, but it is already
+> set for kswapd and any task doing direct reclaim.  A new task flag would
+> work but I'm not sure how acceptable that would be.
 
-On Tue, Sep 10, 2013 at 09:10:36PM +0200, Uwe Kleine-Konig wrote:
-> This fixes compilation on my no-MMU platform when enabling CMA because
-> several functions/macros like pte_offset_map, mk_pte, pte_unmap or
-> put_anon_vma are missing.
-I see the issue is fixed by commit
-de32a8177f64bc62e1b19c685dd391af664ab13f for 3.12-rc1.
+as GFP_NOIO is controversial and not the most appropriate method,
+I will keep GFP_KERNEL flag until we find a better way to resolve
+this problem.
 
-Thanks
-Uwe
-
--- 
-Pengutronix e.K.                           | Uwe Kleine-Konig            |
-Industrial Linux Solutions                 | http://www.pengutronix.de/  |
+> In the meantime, this does do away with the possibility of very deep
+> recursion between the store and reclaim paths.
+>
+> Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
