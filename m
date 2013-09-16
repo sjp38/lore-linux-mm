@@ -1,77 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 143D76B003A
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 12:13:02 -0400 (EDT)
-Date: Mon, 16 Sep 2013 17:11:50 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 07/50] mm: Account for a THP NUMA hinting update as one
- PTE update
-Message-ID: <20130916161150.GF22421@suse.de>
-References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
- <1378805550-29949-8-git-send-email-mgorman@suse.de>
- <20130916123645.GD9326@twins.programming.kicks-ass.net>
- <52370A2F.90006@redhat.com>
- <20130916145438.GT21832@twins.programming.kicks-ass.net>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id A6AE16B003C
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 12:16:43 -0400 (EDT)
+Received: by mail-ob0-f173.google.com with SMTP id vb8so4020028obc.4
+        for <linux-mm@kvack.org>; Mon, 16 Sep 2013 09:16:42 -0700 (PDT)
+Message-ID: <52372EEF.7050608@gmail.com>
+Date: Mon, 16 Sep 2013 12:16:47 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20130916145438.GT21832@twins.programming.kicks-ass.net>
+Subject: Re: [PATCH v2] mm/shmem.c: check the return value of mpol_to_str()
+References: <5215639D.1080202@asianux.com> <5227CF48.5080700@asianux.com> <alpine.DEB.2.02.1309091326210.16291@chino.kir.corp.google.com> <522E6C14.7060006@asianux.com> <alpine.DEB.2.02.1309092334570.20625@chino.kir.corp.google.com> <522EC3D1.4010806@asianux.com> <alpine.DEB.2.02.1309111725290.22242@chino.kir.corp.google.com> <52312EC1.8080300@asianux.com> <523205A0.1000102@gmail.com> <5232773E.8090007@asianux.com> <5233424A.2050704@gmail.com> <5236732C.5060804@asianux.com>
+In-Reply-To: <5236732C.5060804@asianux.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Chen Gang <gang.chen@asianux.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, riel@redhat.com, hughd@google.com, xemul@parallels.com, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Sep 16, 2013 at 04:54:38PM +0200, Peter Zijlstra wrote:
-> On Mon, Sep 16, 2013 at 09:39:59AM -0400, Rik van Riel wrote:
-> > On 09/16/2013 08:36 AM, Peter Zijlstra wrote:
-> > > On Tue, Sep 10, 2013 at 10:31:47AM +0100, Mel Gorman wrote:
-> > >> A THP PMD update is accounted for as 512 pages updated in vmstat.  This is
-> > >> large difference when estimating the cost of automatic NUMA balancing and
-> > >> can be misleading when comparing results that had collapsed versus split
-> > >> THP. This patch addresses the accounting issue.
-> > >>
-> > >> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > >> ---
-> > >>  mm/mprotect.c | 2 +-
-> > >>  1 file changed, 1 insertion(+), 1 deletion(-)
-> > >>
-> > >> diff --git a/mm/mprotect.c b/mm/mprotect.c
-> > >> index 94722a4..2bbb648 100644
-> > >> --- a/mm/mprotect.c
-> > >> +++ b/mm/mprotect.c
-> > >> @@ -145,7 +145,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
-> > >>  				split_huge_page_pmd(vma, addr, pmd);
-> > >>  			else if (change_huge_pmd(vma, pmd, addr, newprot,
-> > >>  						 prot_numa)) {
-> > >> -				pages += HPAGE_PMD_NR;
-> > >> +				pages++;
-> > > 
-> > > But now you're not counting pages anymore..
-> > 
-> > The migrate statistics still count pages. That makes sense, since the
-> > amount of work scales with the amount of memory moved.
-> 
-> Right.
-> 
-> > It is just the "number of faults" counters that actually count the
-> > number of faults again, instead of the number of pages represented
-> > by each fault.
-> 
-> So you're suggesting s/pages/faults/ or somesuch?
-> 
+(9/15/13 10:55 PM), Chen Gang wrote:
+> On 09/14/2013 12:50 AM, KOSAKI Motohiro wrote:
+>>> ---
+>>>    mm/shmem.c |    2 +-
+>>>    1 files changed, 1 insertions(+), 1 deletions(-)
+>>>
+>>> diff --git a/mm/shmem.c b/mm/shmem.c
+>>> index 8612a95..3f81120 100644
+>>> --- a/mm/shmem.c
+>>> +++ b/mm/shmem.c
+>>> @@ -890,7 +890,7 @@ static void shmem_show_mpol(struct seq_file *seq,
+>>> struct mempolicy *mpol)
+>>>        if (!mpol || mpol->mode == MPOL_DEFAULT)
+>>>            return;        /* show nothing */
+>>>
+>>> -    mpol_to_str(buffer, sizeof(buffer), mpol);
+>>> +    VM_BUG_ON(mpol_to_str(buffer, sizeof(buffer), mpol) < 0);
+>>
+>> NAK. VM_BUG_ON is a kind of assertion. It erase the contents if
+>> CONFIG_DEBUG_VM not set.
+>> An argument of assertion should not have any side effect.
+>
+> Oh, really it is. In my opinion, need use "BUG_ON(mpol_to_str() < 0)"
+> instead of "VM_BUG_ON(mpol_to_str() < 0);".
 
-It's really the number of ptes that are updated.
+BUG_ON() is safe. but I still don't like it. As far as I heard, Google
+changes BUG_ON as nop. So, BUG_ON(mpol_to_str() < 0) breaks google.
+Please treat an assertion as assertion. Not any other something.
 
-> > IMHO this change makes sense.
-> 
-> I never said the change didn't make sense as such. Just that we're no
-> longer counting pages in change_*_range().
-
-well, it's still a THP page. Is it worth renaming?
-
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
