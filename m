@@ -1,172 +1,301 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 1A6226B0098
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 07:01:21 -0400 (EDT)
-Message-ID: <5236E4D9.6010502@cn.fujitsu.com>
-Date: Mon, 16 Sep 2013 19:00:41 +0800
-From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3 0/5] x86, memblock: Allocate memory near kernel image
- before SRAT parsed.
-References: <1379064655-20874-1-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1379064655-20874-1-git-send-email-tangchen@cn.fujitsu.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 852EF6B00A9
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 07:25:56 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 4/9] mm, thp: change pmd_trans_huge_lock() to return taken lock
+Date: Mon, 16 Sep 2013 14:25:35 +0300
+Message-Id: <1379330740-5602-5-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1379330740-5602-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1379330740-5602-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tj@kernel.org
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, toshi.kani@hp.com, liwanp@linux.vnet.ibm.com, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: Alex Thorlton <athorlton@sgi.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hello tejun,
+With split ptlock it's important to know which lock pmd_trans_huge_lock()
+took. This patch adds one more parameter to the function to return the
+lock.
 
-Could you please help reviewing the patchset? As you suggested,
-we've make the patchset much simpler and cleaner.
+In most places migration to new api is trivial.
+Exception is move_huge_pmd(): we need to take two locks if pmd tables
+are different.
 
-Thanks in advance!
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ fs/proc/task_mmu.c      | 13 +++++++------
+ include/linux/huge_mm.h | 14 +++++++-------
+ mm/huge_memory.c        | 40 +++++++++++++++++++++++++++-------------
+ mm/memcontrol.c         | 10 +++++-----
+ 4 files changed, 46 insertions(+), 31 deletions(-)
 
-On 09/13/2013 05:30 PM, Tang Chen wrote:
-> This patch-set is based on tj's suggestion, and not fully tested. 
-> Just for review and discussion. 
-> 
-> This patch-set is based on the latest kernel (3.11)
-> HEAD is:
-> commit d5d04bb48f0eb89c14e76779bb46212494de0bec
-> Author: Linus Torvalds <torvalds@linux-foundation.org>
-> Date:   Wed Sep 11 19:55:12 2013 -0700
-> 
-> 
-> [Problem]
-> 
-> The current Linux cannot migrate pages used by the kerenl because
-> of the kernel direct mapping. In Linux kernel space, va = pa + PAGE_OFFSET.
-> When the pa is changed, we cannot simply update the pagetable and
-> keep the va unmodified. So the kernel pages are not migratable.
-> 
-> There are also some other issues will cause the kernel pages not migratable.
-> For example, the physical address may be cached somewhere and will be used.
-> It is not to update all the caches.
-> 
-> When doing memory hotplug in Linux, we first migrate all the pages in one
-> memory device somewhere else, and then remove the device. But if pages are
-> used by the kernel, they are not migratable. As a result, memory used by
-> the kernel cannot be hot-removed.
-> 
-> Modifying the kernel direct mapping mechanism is too difficult to do. And
-> it may cause the kernel performance down and unstable. So we use the following
-> way to do memory hotplug.
-> 
-> 
-> [What we are doing]
-> 
-> In Linux, memory in one numa node is divided into several zones. One of the
-> zones is ZONE_MOVABLE, which the kernel won't use.
-> 
-> In order to implement memory hotplug in Linux, we are going to arrange all
-> hotpluggable memory in ZONE_MOVABLE so that the kernel won't use these memory.
-> To do this, we need ACPI's help.
-> 
-> In ACPI, SRAT(System Resource Affinity Table) contains NUMA info. The memory
-> affinities in SRAT record every memory range in the system, and also, flags
-> specifying if the memory range is hotpluggable.
-> (Please refer to ACPI spec 5.0 5.2.16)
-> 
-> With the help of SRAT, we have to do the following two things to achieve our
-> goal:
-> 
-> 1. When doing memory hot-add, allow the users arranging hotpluggable as
->    ZONE_MOVABLE.
->    (This has been done by the MOVABLE_NODE functionality in Linux.)
-> 
-> 2. when the system is booting, prevent bootmem allocator from allocating
->    hotpluggable memory for the kernel before the memory initialization
->    finishes.
-> 
-> The problem 2 is the key problem we are going to solve. But before solving it,
-> we need some preparation. Please see below.
-> 
-> 
-> [Preparation]
-> 
-> Bootloader has to load the kernel image into memory. And this memory must be 
-> unhotpluggable. We cannot prevent this anyway. So in a memory hotplug system, 
-> we can assume any node the kernel resides in is not hotpluggable.
-> 
-> Before SRAT is parsed, we don't know which memory ranges are hotpluggable. But
-> memblock has already started to work. In the current kernel, memblock allocates 
-> the following memory before SRAT is parsed:
-> 
-> setup_arch()
->  |->memblock_x86_fill()            /* memblock is ready */
->  |......
->  |->early_reserve_e820_mpc_new()   /* allocate memory under 1MB */
->  |->reserve_real_mode()            /* allocate memory under 1MB */
->  |->init_mem_mapping()             /* allocate page tables, about 2MB to map 1GB memory */
->  |->dma_contiguous_reserve()       /* specified by user, should be low */
->  |->setup_log_buf()                /* specified by user, several mega bytes */
->  |->relocate_initrd()              /* could be large, but will be freed after boot, should reorder */
->  |->acpi_initrd_override()         /* several mega bytes */
->  |->reserve_crashkernel()          /* could be large, should reorder */
->  |......
->  |->initmem_init()                 /* Parse SRAT */
-> 
-> According to Tejun's advice, before SRAT is parsed, we should try our best to
-> allocate memory near the kernel image. Since the whole node the kernel resides 
-> in won't be hotpluggable, and for a modern server, a node may have at least 16GB
-> memory, allocating several mega bytes memory around the kernel image won't cross
-> to hotpluggable memory.
-> 
-> 
-> [About this patch-set]
-> 
-> So this patch-set does the following:
-> 
-> 1. Make memblock be able to allocate memory from low address to high address.
->    1) Keep all the memblock APIs' prototype unmodified.
->    2) When the direction is bottom up, keep the start address greater than the 
->       end of kernel image.
-> 
-> 2. Improve init_mem_mapping() to support allocate page tables in bottom up direction.
-> 
-> 3. Introduce "movablenode" boot option to enable and disable this functionality.
-> 
-> PS: Reordering of relocate_initrd() has not been done yet. acpi_initrd_override() 
->     needs to access initrd with virtual address. So relocate_initrd() must be done 
->     before acpi_initrd_override().
-> 
-> 
-> Change log v2 -> v3:
-> 1. According to Toshi's suggestion, move the direction checking logic into memblock.
->    And simply the code more.
-> 
-> Change log v1 -> v2:
-> 1. According to tj's suggestion, implemented a new function memblock_alloc_bottom_up() 
->    to allocate memory from bottom upwards, whihc can simplify the code.
-> 
-> 
-> Tang Chen (5):
->   memblock: Introduce allocation direction to memblock.
->   memblock: Improve memblock to support allocation from lower address.
->   x86, acpi, crash, kdump: Do reserve_crashkernel() after SRAT is
->     parsed.
->   x86, mem-hotplug: Support initialize page tables from low to high.
->   mem-hotplug: Introduce movablenode boot option to control memblock
->     allocation direction.
-> 
->  Documentation/kernel-parameters.txt |   15 ++++
->  arch/x86/kernel/setup.c             |   44 ++++++++++++-
->  arch/x86/mm/init.c                  |  121 ++++++++++++++++++++++++++--------
->  include/linux/memblock.h            |   22 ++++++
->  include/linux/memory_hotplug.h      |    5 ++
->  mm/memblock.c                       |  120 +++++++++++++++++++++++++++++++----
->  mm/memory_hotplug.c                 |    9 +++
->  7 files changed, 293 insertions(+), 43 deletions(-)
-> 
-> 
-
-
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 8e124ac..4599519 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -505,9 +505,9 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
+ 
+-	if (pmd_trans_huge_lock(pmd, vma) == 1) {
++	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
+ 		smaps_pte_entry(*(pte_t *)pmd, addr, HPAGE_PMD_SIZE, walk);
+-		spin_unlock(&walk->mm->page_table_lock);
++		spin_unlock(ptl);
+ 		mss->anonymous_thp += HPAGE_PMD_SIZE;
+ 		return 0;
+ 	}
+@@ -993,13 +993,14 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ {
+ 	struct vm_area_struct *vma;
+ 	struct pagemapread *pm = walk->private;
++	spinlock_t *ptl;
+ 	pte_t *pte;
+ 	int err = 0;
+ 	pagemap_entry_t pme = make_pme(PM_NOT_PRESENT(pm->v2));
+ 
+ 	/* find the first VMA at or above 'addr' */
+ 	vma = find_vma(walk->mm, addr);
+-	if (vma && pmd_trans_huge_lock(pmd, vma) == 1) {
++	if (vma && pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
+ 		int pmd_flags2;
+ 
+ 		if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(*pmd))
+@@ -1017,7 +1018,7 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 			if (err)
+ 				break;
+ 		}
+-		spin_unlock(&walk->mm->page_table_lock);
++		spin_unlock(ptl);
+ 		return err;
+ 	}
+ 
+@@ -1319,7 +1320,7 @@ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
+ 
+ 	md = walk->private;
+ 
+-	if (pmd_trans_huge_lock(pmd, md->vma) == 1) {
++	if (pmd_trans_huge_lock(pmd, md->vma, &ptl) == 1) {
+ 		pte_t huge_pte = *(pte_t *)pmd;
+ 		struct page *page;
+ 
+@@ -1327,7 +1328,7 @@ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
+ 		if (page)
+ 			gather_stats(page, md, pte_dirty(huge_pte),
+ 				     HPAGE_PMD_SIZE/PAGE_SIZE);
+-		spin_unlock(&walk->mm->page_table_lock);
++		spin_unlock(ptl);
+ 		return 0;
+ 	}
+ 
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 3935428..4aca0d8 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -129,15 +129,15 @@ extern void __vma_adjust_trans_huge(struct vm_area_struct *vma,
+ 				    unsigned long start,
+ 				    unsigned long end,
+ 				    long adjust_next);
+-extern int __pmd_trans_huge_lock(pmd_t *pmd,
+-				 struct vm_area_struct *vma);
++extern int __pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma,
++		spinlock_t **ptl);
+ /* mmap_sem must be held on entry */
+-static inline int pmd_trans_huge_lock(pmd_t *pmd,
+-				      struct vm_area_struct *vma)
++static inline int pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma,
++		spinlock_t **ptl)
+ {
+ 	VM_BUG_ON(!rwsem_is_locked(&vma->vm_mm->mmap_sem));
+ 	if (pmd_trans_huge(*pmd))
+-		return __pmd_trans_huge_lock(pmd, vma);
++		return __pmd_trans_huge_lock(pmd, vma, ptl);
+ 	else
+ 		return 0;
+ }
+@@ -215,8 +215,8 @@ static inline void vma_adjust_trans_huge(struct vm_area_struct *vma,
+ 					 long adjust_next)
+ {
+ }
+-static inline int pmd_trans_huge_lock(pmd_t *pmd,
+-				      struct vm_area_struct *vma)
++static inline int pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma,
++		spinlock_t **ptl)
+ {
+ 	return 0;
+ }
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index bbd41a2..59a1340 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1342,9 +1342,10 @@ out_unlock:
+ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 		 pmd_t *pmd, unsigned long addr)
+ {
++	spinlock_t *ptl;
+ 	int ret = 0;
+ 
+-	if (__pmd_trans_huge_lock(pmd, vma) == 1) {
++	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
+ 		struct page *page;
+ 		pgtable_t pgtable;
+ 		pmd_t orig_pmd;
+@@ -1359,7 +1360,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 		pgtable = pgtable_trans_huge_withdraw(tlb->mm, pmd);
+ 		if (is_huge_zero_pmd(orig_pmd)) {
+ 			atomic_dec(&tlb->mm->nr_ptes);
+-			spin_unlock(&tlb->mm->page_table_lock);
++			spin_unlock(ptl);
+ 			put_huge_zero_page();
+ 		} else {
+ 			page = pmd_page(orig_pmd);
+@@ -1368,7 +1369,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
+ 			VM_BUG_ON(!PageHead(page));
+ 			atomic_dec(&tlb->mm->nr_ptes);
+-			spin_unlock(&tlb->mm->page_table_lock);
++			spin_unlock(ptl);
+ 			tlb_remove_page(tlb, page);
+ 		}
+ 		pte_free(tlb->mm, pgtable);
+@@ -1381,14 +1382,15 @@ int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 		unsigned long addr, unsigned long end,
+ 		unsigned char *vec)
+ {
++	spinlock_t *ptl;
+ 	int ret = 0;
+ 
+-	if (__pmd_trans_huge_lock(pmd, vma) == 1) {
++	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
+ 		/*
+ 		 * All logical pages in the range are present
+ 		 * if backed by a huge page.
+ 		 */
+-		spin_unlock(&vma->vm_mm->page_table_lock);
++		spin_unlock(ptl);
+ 		memset(vec, 1, (end - addr) >> PAGE_SHIFT);
+ 		ret = 1;
+ 	}
+@@ -1401,6 +1403,7 @@ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
+ 		  unsigned long new_addr, unsigned long old_end,
+ 		  pmd_t *old_pmd, pmd_t *new_pmd)
+ {
++	spinlock_t *old_ptl, *new_ptl;
+ 	int ret = 0;
+ 	pmd_t pmd;
+ 
+@@ -1421,12 +1424,21 @@ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
+ 		goto out;
+ 	}
+ 
+-	ret = __pmd_trans_huge_lock(old_pmd, vma);
++	/*
++	 * We don't have to worry about the ordering of src and dst
++	 * ptlocks because exclusive mmap_sem prevents deadlock.
++	 */
++	ret = __pmd_trans_huge_lock(old_pmd, vma, &old_ptl);
+ 	if (ret == 1) {
++		new_ptl = pmd_lockptr(mm, new_pmd);
++		if (new_ptl != old_ptl)
++			spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
+ 		pmd = pmdp_get_and_clear(mm, old_addr, old_pmd);
+ 		VM_BUG_ON(!pmd_none(*new_pmd));
+ 		set_pmd_at(mm, new_addr, new_pmd, pmd_mksoft_dirty(pmd));
+-		spin_unlock(&mm->page_table_lock);
++		if (new_ptl != old_ptl)
++			spin_unlock(new_ptl);
++		spin_unlock(old_ptl);
+ 	}
+ out:
+ 	return ret;
+@@ -1436,9 +1448,10 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 		unsigned long addr, pgprot_t newprot, int prot_numa)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
++	spinlock_t *ptl;
+ 	int ret = 0;
+ 
+-	if (__pmd_trans_huge_lock(pmd, vma) == 1) {
++	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
+ 		pmd_t entry;
+ 		entry = pmdp_get_and_clear(mm, addr, pmd);
+ 		if (!prot_numa) {
+@@ -1454,7 +1467,7 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 			}
+ 		}
+ 		set_pmd_at(mm, addr, pmd, entry);
+-		spin_unlock(&vma->vm_mm->page_table_lock);
++		spin_unlock(ptl);
+ 		ret = 1;
+ 	}
+ 
+@@ -1468,12 +1481,13 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+  * Note that if it returns 1, this routine returns without unlocking page
+  * table locks. So callers must unlock them.
+  */
+-int __pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma)
++int __pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma,
++		spinlock_t **ptl)
+ {
+-	spin_lock(&vma->vm_mm->page_table_lock);
++	*ptl = pmd_lock(vma->vm_mm, pmd);
+ 	if (likely(pmd_trans_huge(*pmd))) {
+ 		if (unlikely(pmd_trans_splitting(*pmd))) {
+-			spin_unlock(&vma->vm_mm->page_table_lock);
++			spin_unlock(*ptl);
+ 			wait_split_huge_page(vma->anon_vma, pmd);
+ 			return -1;
+ 		} else {
+@@ -1482,7 +1496,7 @@ int __pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma)
+ 			return 1;
+ 		}
+ 	}
+-	spin_unlock(&vma->vm_mm->page_table_lock);
++	spin_unlock(*ptl);
+ 	return 0;
+ }
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index d5ff3ce..5f35b2a 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -6376,10 +6376,10 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
+ 
+-	if (pmd_trans_huge_lock(pmd, vma) == 1) {
++	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
+ 		if (get_mctgt_type_thp(vma, addr, *pmd, NULL) == MC_TARGET_PAGE)
+ 			mc.precharge += HPAGE_PMD_NR;
+-		spin_unlock(&vma->vm_mm->page_table_lock);
++		spin_unlock(ptl);
+ 		return 0;
+ 	}
+ 
+@@ -6568,9 +6568,9 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+ 	 *    to be unlocked in __split_huge_page_splitting(), where the main
+ 	 *    part of thp split is not executed yet.
+ 	 */
+-	if (pmd_trans_huge_lock(pmd, vma) == 1) {
++	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
+ 		if (mc.precharge < HPAGE_PMD_NR) {
+-			spin_unlock(&vma->vm_mm->page_table_lock);
++			spin_unlock(ptl);
+ 			return 0;
+ 		}
+ 		target_type = get_mctgt_type_thp(vma, addr, *pmd, &target);
+@@ -6587,7 +6587,7 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+ 			}
+ 			put_page(page);
+ 		}
+-		spin_unlock(&vma->vm_mm->page_table_lock);
++		spin_unlock(ptl);
+ 		return 0;
+ 	}
+ 
 -- 
-Thanks.
-Zhang Yanfei
+1.8.4.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
