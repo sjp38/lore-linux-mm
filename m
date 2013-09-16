@@ -1,46 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 245909C0008
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 08:36:58 -0400 (EDT)
-Date: Mon, 16 Sep 2013 14:36:45 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 07/50] mm: Account for a THP NUMA hinting update as one
- PTE update
-Message-ID: <20130916123645.GD9326@twins.programming.kicks-ass.net>
-References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
- <1378805550-29949-8-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 66F3F6B008A
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 08:42:02 -0400 (EDT)
+Message-ID: <5236FC88.6050409@huawei.com>
+Date: Mon, 16 Sep 2013 20:41:44 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1378805550-29949-8-git-send-email-mgorman@suse.de>
+Subject: [PATCH] mm/ksm: return NULL when doesn't get mergeable page
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 10, 2013 at 10:31:47AM +0100, Mel Gorman wrote:
-> A THP PMD update is accounted for as 512 pages updated in vmstat.  This is
-> large difference when estimating the cost of automatic NUMA balancing and
-> can be misleading when comparing results that had collapsed versus split
-> THP. This patch addresses the accounting issue.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->  mm/mprotect.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/mprotect.c b/mm/mprotect.c
-> index 94722a4..2bbb648 100644
-> --- a/mm/mprotect.c
-> +++ b/mm/mprotect.c
-> @@ -145,7 +145,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
->  				split_huge_page_pmd(vma, addr, pmd);
->  			else if (change_huge_pmd(vma, pmd, addr, newprot,
->  						 prot_numa)) {
-> -				pages += HPAGE_PMD_NR;
-> +				pages++;
+In get_mergeable_page() local variable page is not initialized,
+it may hold a garbage value, when find_mergeable_vma() return NULL,
+get_mergeable_page() may return a garbage value to the caller.
 
-But now you're not counting pages anymore..
+So initialize page as NULL.
+
+Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+---
+ mm/ksm.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mm/ksm.c b/mm/ksm.c
+index b6afe0c..87efbae 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -460,7 +460,7 @@ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
+ 	struct mm_struct *mm = rmap_item->mm;
+ 	unsigned long addr = rmap_item->address;
+ 	struct vm_area_struct *vma;
+-	struct page *page;
++	struct page *page = NULL;
+ 
+ 	down_read(&mm->mmap_sem);
+ 	vma = find_mergeable_vma(mm, addr);
+-- 
+1.7.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
