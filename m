@@ -1,35 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 1CEE66B004D
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 12:19:35 -0400 (EDT)
-Received: by mail-ob0-f177.google.com with SMTP id wp18so3980689obc.8
-        for <linux-mm@kvack.org>; Mon, 16 Sep 2013 09:19:34 -0700 (PDT)
-Message-ID: <52372F9A.1080102@gmail.com>
-Date: Mon, 16 Sep 2013 12:19:38 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id D7A9A6B003B
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 12:35:56 -0400 (EDT)
+Date: Mon, 16 Sep 2013 18:35:47 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 17/50] mm: Do not flush TLB during protection change if
+ !pte_present && !migration_entry
+Message-ID: <20130916163547.GF9326@twins.programming.kicks-ass.net>
+References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
+ <1378805550-29949-18-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/mempolicy: use NUMA_NO_NODE
-References: <5236FF32.60503@huawei.com>
-In-Reply-To: <5236FF32.60503@huawei.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1378805550-29949-18-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianguo Wu <wujianguo@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@gmail.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-(9/16/13 8:53 AM), Jianguo Wu wrote:
-> Use more appropriate NUMA_NO_NODE instead of -1
->
-> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+On Tue, Sep 10, 2013 at 10:31:57AM +0100, Mel Gorman wrote:
+> NUMA PTE scanning is expensive both in terms of the scanning itself and
+> the TLB flush if there are any updates. Currently non-present PTEs are
+> accounted for as an update and incurring a TLB flush where it is only
+> necessary for anonymous migration entries. This patch addresses the
+> problem and should reduce TLB flushes.
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 > ---
->   mm/mempolicy.c |   10 +++++-----
->   1 files changed, 5 insertions(+), 5 deletions(-)
+>  mm/mprotect.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/mprotect.c b/mm/mprotect.c
+> index 1f9b54b..1e9cef0 100644
+> --- a/mm/mprotect.c
+> +++ b/mm/mprotect.c
+> @@ -109,8 +109,9 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+>  				make_migration_entry_read(&entry);
+>  				set_pte_at(mm, addr, pte,
+>  					swp_entry_to_pte(entry));
+> +
+> +				pages++;
+>  			}
+> -			pages++;
+>  		}
+>  	} while (pte++, addr += PAGE_SIZE, addr != end);
+>  	arch_leave_lazy_mmu_mode();
 
-I think this patch don't make any functional change, right?
-
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
+Should we fold this into patch 7 ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
