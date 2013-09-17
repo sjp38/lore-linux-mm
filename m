@@ -1,157 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id A9DF16B0032
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 04:22:06 -0400 (EDT)
-Received: by mail-vb0-f45.google.com with SMTP id e15so3633540vbg.4
-        for <linux-mm@kvack.org>; Tue, 17 Sep 2013 01:22:05 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 25D8C6B0032
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 07:15:38 -0400 (EDT)
+Subject: =?utf-8?q?Re=3A_=5Bpatch_0=2F7=5D_improve_memcg_oom_killer_robustness_v2?=
+Date: Tue, 17 Sep 2013 13:15:35 +0200
+From: "azurIt" <azurit@pobox.sk>
+References: <20130911200426.GO856@cmpxchg.org>, <20130914124831.4DD20346@pobox.sk>, <20130916134014.GA3674@dhcp22.suse.cz>, <20130916160119.2E76C2A1@pobox.sk>, <20130916140607.GC3674@dhcp22.suse.cz>, <20130916161316.5113F6E7@pobox.sk>, <20130916145744.GE3674@dhcp22.suse.cz>, <20130916170543.77F1ECB4@pobox.sk>, <20130916152548.GF3674@dhcp22.suse.cz>, <20130916225246.A633145B@pobox.sk> <20130917000244.GD3278@cmpxchg.org>
+In-Reply-To: <20130917000244.GD3278@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20130917080502.GH22421@suse.de>
-References: <1378805550-29949-35-git-send-email-mgorman@suse.de>
-	<E81554BCB8813E49A8916AACC0503A851844C937@lc-shmail3.SHANGHAI.LEADCORETECH.COM>
-	<20130917080502.GH22421@suse.de>
-Date: Tue, 17 Sep 2013 16:22:05 +0800
-Message-ID: <CAF7GXvrRVdySnM9RDL8iXRLe0kP9rTDT7FB_hc+E5tX14A6QTA@mail.gmail.com>
-Subject: Re: ????: [PATCH 34/50] sched: numa: Do not trap hinting faults for
- shared libraries
-From: "Figo.zhang" <figo1802@gmail.com>
-Content-Type: multipart/alternative; boundary=047d7b34347c1f85af04e69004d7
+Message-Id: <20130917131535.94E0A843@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: ?????? <ZhangTianFei@leadcoretech.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
+Cc: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>, =?utf-8?q?Andrew_Morton?= <akpm@linux-foundation.org>, =?utf-8?q?David_Rientjes?= <rientjes@google.com>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?KOSAKI_Motohiro?= <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
---047d7b34347c1f85af04e69004d7
-Content-Type: text/plain; charset=ISO-8859-1
-
-2013/9/17 Mel Gorman <mgorman@suse.de>
-
-> On Tue, Sep 17, 2013 at 10:02:22AM +0800, ?????? wrote:
-> > index fd724bc..5d244d0 100644
-> > --- a/kernel/sched/fair.c
-> > +++ b/kernel/sched/fair.c
-> > @@ -1227,6 +1227,16 @@ void task_numa_work(struct callback_head *work)
-> >               if (!vma_migratable(vma))
-> >                       continue;
-> >
-> > +             /*
-> > +              * Shared library pages mapped by multiple processes are
-> not
-> > +              * migrated as it is expected they are cache replicated.
-> Avoid
-> > +              * hinting faults in read-only file-backed mappings or the
-> vdso
-> > +              * as migrating the pages will be of marginal benefit.
-> > +              */
-> > +             if (!vma->vm_mm ||
-> > +                 (vma->vm_file && (vma->vm_flags & (VM_READ|VM_WRITE))
-> == (VM_READ)))
-> > +                     continue;
-> > +
-> >
-> > =?? May I ask a question, we should consider some VMAs canot be scaned
-> for BalanceNuma?
-> > (VM_DONTEXPAND | VM_RESERVED | VM_INSERTPAGE |
-> >                                 VM_NONLINEAR | VM_MIXEDMAP | VM_SAO));
+______________________________________________________________
+> Od: Johannes Weiner <hannes@cmpxchg.org>
+> Komu: azurIt <azurit@pobox.sk>
+> DA!tum: 17.09.2013 02:02
+> Predmet: Re: [patch 0/7] improve memcg oom killer robustness v2
 >
-> vma_migratable check covers most of the other VMAs we do not care
-> about.  I do not see the point of checking for some of the VMA flags you
-> mention. Please state which of the additional flags that you think should
-> be checked and why.
+> CC: "Michal Hocko" <mhocko@suse.cz>, "Andrew Morton" <akpm@linux-foundation.org>, "David Rientjes" <rientjes@google.com>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+>On Mon, Sep 16, 2013 at 10:52:46PM +0200, azurIt wrote:
+>> > CC: "Johannes Weiner" <hannes@cmpxchg.org>, "Andrew Morton" <akpm@linux-foundation.org>, "David Rientjes" <rientjes@google.com>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+>> >On Mon 16-09-13 17:05:43, azurIt wrote:
+>> >> > CC: "Johannes Weiner" <hannes@cmpxchg.org>, "Andrew Morton" <akpm@linux-foundation.org>, "David Rientjes" <rientjes@google.com>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+>> >> >On Mon 16-09-13 16:13:16, azurIt wrote:
+>> >> >[...]
+>> >> >> >You can use sysrq+l via serial console to see tasks hogging the CPU or
+>> >> >> >sysrq+t to see all the existing tasks.
+>> >> >> 
+>> >> >> 
+>> >> >> Doesn't work here, it just prints 'l' resp. 't'.
+>> >> >
+>> >> >I am using telnet for accessing my serial consoles exported by
+>> >> >the multiplicator or KVM and it can send sysrq via ctrl+t (Send
+>> >> >Break). Check your serial console setup.
+>> >> 
+>> >> 
+>> >> 
+>> >> I'm using Raritan KVM and i created keyboard macro 'sysrq + l' resp.
+>> >> 'sysrq + t'. I'm also unable to use it on my local PC. Maybe it needs
+>> >> to be enabled somehow?
+>> >
+>> >Probably yes. echo 1 > /proc/sys/kernel/sysrq should enable all sysrq
+>> >commands. You can select also some of them (have a look at
+>> >Documentation/sysrq.txt for more information)
+>> 
+>> 
+>> Now it happens again and i was just looking on the server's
+>> htop. I'm sure that this time it was only one process (apache)
+>> running under user account (not root). It was taking about 100% CPU
+>> (about 100% of one core). I was able to kill it by hand inside htop
+>> but everything was very slow, server load was immediately on
+>> 500. I'm sure it must be related to that Johannes kernel patches
+>> because i'm also using i/o throttling in cgroups via Block IO
+>> controller so users are unable to create such a huge I/O. I will try
+>> to take stacks of processes but i'm not able to identify the
+>> problematic process so i will have to take them from *all* apache
+>> processes while killing them.
 >
-
-=> we should filter out the VMAs of  VM_MIXEDMAP, because of  it just set
-pte_mknuma for normal mapping pages in change_pte_range.
-
-Best,
-Figo.zhang
-
-
-
-
+>It would be fantastic if you could capture those stacks.  sysrq+t
+>captures ALL of them in one go and drops them into your syslog.
 >
-> --
-> Mel Gorman
-> SUSE Labs
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+>/proc/<pid>/stack for individual tasks works too.
 
---047d7b34347c1f85af04e69004d7
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
 
-<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><br><div class=3D"gmail=
-_quote">2013/9/17 Mel Gorman <span dir=3D"ltr">&lt;<a href=3D"mailto:mgorma=
-n@suse.de" target=3D"_blank">mgorman@suse.de</a>&gt;</span><br><blockquote =
-class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-left-width:1=
-px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:=
-1ex">
-On Tue, Sep 17, 2013 at 10:02:22AM +0800, ?????? wrote:<br>
-&gt; index fd724bc..5d244d0 100644<br>
-&gt; --- a/kernel/sched/fair.c<br>
-&gt; +++ b/kernel/sched/fair.c<br>
-&gt; @@ -1227,6 +1227,16 @@ void task_numa_work(struct callback_head *work)=
-<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!vma_migratable(vma))<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;<br>
-&gt;<br>
-&gt; + =A0 =A0 =A0 =A0 =A0 =A0 /*<br>
-&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0* Shared library pages mapped by multiple=
- processes are not<br>
-&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0* migrated as it is expected they are cac=
-he replicated. Avoid<br>
-&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0* hinting faults in read-only file-backed=
- mappings or the vdso<br>
-&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0* as migrating the pages will be of margi=
-nal benefit.<br>
-&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0*/<br>
-&gt; + =A0 =A0 =A0 =A0 =A0 =A0 if (!vma-&gt;vm_mm ||<br>
-&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (vma-&gt;vm_file &amp;&amp; (vma-&gt=
-;vm_flags &amp; (VM_READ|VM_WRITE)) =3D=3D (VM_READ)))<br>
-&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;<br>
-&gt; +<br>
-&gt;<br>
-&gt; =3D?? May I ask a question, we should consider some VMAs canot be scan=
-ed for BalanceNuma?<br>
-&gt; (VM_DONTEXPAND | VM_RESERVED | VM_INSERTPAGE |<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 VM_NON=
-LINEAR | VM_MIXEDMAP | VM_SAO));<br>
-<br>
-vma_migratable check covers most of the other VMAs we do not care<br>
-about. =A0I do not see the point of checking for some of the VMA flags you<=
-br>
-mention. Please state which of the additional flags that you think should<b=
-r>
-be checked and why.<br></blockquote><div><br></div><div>=3D&gt; we should f=
-ilter out the VMAs of =A0VM_MIXEDMAP, because of =A0it just set pte_mknuma =
-for normal mapping pages in=A0change_pte_range.</div><div><br></div><div>Be=
-st,</div>
-<div>Figo.zhang</div><div><br></div><div>=A0</div><div>=A0</div><blockquote=
- class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-left-width:=
-1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left=
-:1ex">
+Is something unusual on this stack?
 
-<span class=3D""><font color=3D"#888888"><br>
---<br>
-Mel Gorman<br>
-SUSE Labs<br>
-<br>
---<br>
-To unsubscribe, send a message with &#39;unsubscribe linux-mm&#39; in<br>
-the body to <a href=3D"mailto:majordomo@kvack.org">majordomo@kvack.org</a>.=
- =A0For more info on Linux MM,<br>
-see: <a href=3D"http://www.linux-mm.org/" target=3D"_blank">http://www.linu=
-x-mm.org/</a> .<br>
-Don&#39;t email: &lt;a href=3Dmailto:&quot;<a href=3D"mailto:dont@kvack.org=
-">dont@kvack.org</a>&quot;&gt; <a href=3D"mailto:email@kvack.org">email@kva=
-ck.org</a> &lt;/a&gt;<br>
-</font></span></blockquote></div><br></div></div>
 
---047d7b34347c1f85af04e69004d7--
+[<ffffffff810d1a5e>] dump_header+0x7e/0x1e0
+[<ffffffff810d195f>] ? find_lock_task_mm+0x2f/0x70
+[<ffffffff810d1f25>] oom_kill_process+0x85/0x2a0
+[<ffffffff810d24a8>] mem_cgroup_out_of_memory+0xa8/0xf0
+[<ffffffff8110fb76>] mem_cgroup_oom_synchronize+0x2e6/0x310
+[<ffffffff8110efc0>] ? mem_cgroup_uncharge_page+0x40/0x40
+[<ffffffff810d2703>] pagefault_out_of_memory+0x13/0x130
+[<ffffffff81026f6e>] mm_fault_error+0x9e/0x150
+[<ffffffff81027424>] do_page_fault+0x404/0x490
+[<ffffffff810f952c>] ? do_mmap_pgoff+0x3dc/0x430
+[<ffffffff815cb87f>] page_fault+0x1f/0x30
+
+
+Problem happens again but my script was unable to get stacks. I was able to see processes which were doing problems (two this time) and i have their PIDs. The stack above is from different process but from the same cgroup (memcg OOM killed it and prints it's stack into syslog).
+
+azur
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
