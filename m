@@ -1,69 +1,233 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 224626B0034
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 12:28:12 -0400 (EDT)
-Date: Tue, 17 Sep 2013 12:28:07 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: ps lockups, cgroup memory reclaim
-Message-ID: <20130917162807.GF3278@cmpxchg.org>
-References: <1309171621250.11844@wes.ijneb.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 3A47B6B0032
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 12:45:22 -0400 (EDT)
+Date: Tue, 17 Sep 2013 18:45:05 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
+Message-ID: <20130917164505.GG12926@twins.programming.kicks-ass.net>
+References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
+ <1378805550-29949-38-git-send-email-mgorman@suse.de>
+ <20130917143003.GA29354@twins.programming.kicks-ass.net>
+ <20130917162050.GK22421@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1309171621250.11844@wes.ijneb.com>
+In-Reply-To: <20130917162050.GK22421@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Hills <mark@xwax.org>
-Cc: linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>
 
-On Tue, Sep 17, 2013 at 04:50:42PM +0100, Mark Hills wrote:
-> I'm investigating intermitten kernel lockups in an HPC environment, with 
-> the RedHat kernel.
+On Tue, Sep 17, 2013 at 05:20:50PM +0100, Mel Gorman wrote:
+> > +extern struct task_struct *__cpuhp_writer;
+> > +DECLARE_PER_CPU(unsigned int, __cpuhp_refcount);
+> > +
+> > +extern void __get_online_cpus(void);
+> > +
+> > +static inline void get_online_cpus(void)
+> > +{
+> > +	might_sleep();
+> > +
+> > +	this_cpu_inc(__cpuhp_refcount);
+> > +	/*
+> > +	 * Order the refcount inc against the writer read; pairs with the full
+> > +	 * barrier in cpu_hotplug_begin().
+> > +	 */
+> > +	smp_mb();
+> > +	if (unlikely(__cpuhp_writer))
+> > +		__get_online_cpus();
+> > +}
+> > +
 > 
-> The symptoms are seen as lockups of multiple ps commands, with one 
-> consuming full CPU:
+> If the problem with get_online_cpus() is the shared global state then a
+> full barrier in the fast path is still going to hurt. Granted, it will hurt
+> a lot less and there should be no lock contention.
+
+I went for a lot less, I wasn't smart enough to get rid of it. Also,
+since its a lock op we should at least provide an ACQUIRE barrier.
+
+> However, what barrier in cpu_hotplug_begin is the comment referring to? 
+
+set_current_state() implies a full barrier and nicely separates the
+write to __cpuhp_writer and the read of __cpuph_refcount.
+
+> The
+> other barrier is in the slowpath __get_online_cpus. Did you mean to do
+> a rmb here and a wmb after __cpuhp_writer is set in cpu_hotplug_begin?
+
+No, since we're ordering LOADs and STORES (see below) we must use full
+barriers.
+
+> I'm assuming you are currently using a full barrier to guarantee that an
+> update if cpuhp_writer will be visible so get_online_cpus blocks but I'm
+> not 100% sure because of the comments.
+
+I'm ordering:
+
+  CPU0 -- get_online_cpus()	CPU1 -- cpu_hotplug_begin()
+
+  STORE __cpuhp_refcount        STORE __cpuhp_writer
+
+  MB				MB
+
+  LOAD __cpuhp_writer		LOAD __cpuhp_refcount
+
+Such that neither can miss the state of the other and we get proper
+mutual exclusion.
+
+> > +extern void __put_online_cpus(void);
+> > +
+> > +static inline void put_online_cpus(void)
+> > +{
+> > +	barrier();
 > 
->   # ps aux | grep ps
->   root     19557 68.9  0.0 108100   908 ?        D    Sep16 1045:37 ps --ppid 1 -o args=
->   root     19871  0.0  0.0 108100   908 ?        D    Sep16   0:00 ps --ppid 1 -o args=
+> Why is this barrier necessary? 
+
+To ensure the compiler keeps all loads/stores done before the
+read-unlock before it.
+
+Arguably it should be a complete RELEASE barrier. I should've put an XXX
+comment here but the brain gave out completely for the day.
+
+> I could not find anything that stated if an
+> inline function is an implicit compiler barrier but whether it is or not,
+> it's not clear why it's necessary at all.
+
+It is not, only actual function calls are an implied sync point for the
+compiler.
+
+> > +	this_cpu_dec(__cpuhp_refcount);
+> > +	if (unlikely(__cpuhp_writer))
+> > +		__put_online_cpus();
+> > +}
+> > +
+
+> > +struct task_struct *__cpuhp_writer = NULL;
+> > +EXPORT_SYMBOL_GPL(__cpuhp_writer);
+> > +
+> > +DEFINE_PER_CPU(unsigned int, __cpuhp_refcount);
+> > +EXPORT_PER_CPU_SYMBOL_GPL(__cpuhp_refcount);
+> >  
+> > +static DECLARE_WAIT_QUEUE_HEAD(cpuhp_wq);
+> > +
+> > +void __get_online_cpus(void)
+> >  {
+> > +	if (__cpuhp_writer == current)
+> >  		return;
+> >  
+> > +again:
+> > +	/*
+> > +	 * Ensure a pending reading has a 0 refcount.
+> > +	 *
+> > +	 * Without this a new reader that comes in before cpu_hotplug_begin()
+> > +	 * reads the refcount will deadlock.
+> > +	 */
+> > +	this_cpu_dec(__cpuhp_refcount);
+> > +	wait_event(cpuhp_wq, !__cpuhp_writer);
+> > +
+> > +	this_cpu_inc(__cpuhp_refcount);
+> > +	/*
+> > +	 * See get_online_cpu().
+> > +	 */
+> > +	smp_mb();
+> > +	if (unlikely(__cpuhp_writer))
+> > +		goto again;
+> >  }
 > 
-> SIGKILL on the busy one causes the other ps processes to run to completion 
-> (TERM has no effect).
+> If CPU hotplug operations are very frequent (or a stupid stress test) then
+> it's possible for a new hotplug operation to start (updating __cpuhp_writer)
+> before a caller to __get_online_cpus can update the refcount. Potentially
+> a caller to __get_online_cpus gets starved although as it only affects a
+> CPU hotplug stress test it may not be a serious issue.
 
-Any chance you can get to the stack of the non-busy blocked tasks?
+Right.. If that ever becomes a problem we should fix it, but aside from
+stress tests hotplug should be extremely rare.
 
-It would be /proc/19871/stack in this case.
+Initially I kept the reference over the wait_event() but realized (as
+per the comment) that that would deadlock cpu_hotplug_begin() for it
+would never observe !refcount.
 
-> In this case I was able to run my own ps to see the process list, but not 
-> always.
+One solution for this problem is having refcount as an array of 2 and
+flipping the index at the appropriate times.
+
+> > +EXPORT_SYMBOL_GPL(__get_online_cpus);
+> >  
+> > +void __put_online_cpus(void)
+> >  {
+> > +	unsigned int refcnt = 0;
+> > +	int cpu;
+> >  
+> > +	if (__cpuhp_writer == current)
+> > +		return;
+> >  
+> > +	for_each_possible_cpu(cpu)
+> > +		refcnt += per_cpu(__cpuhp_refcount, cpu);
+> >  
 > 
-> perf shows the locality of the spinning, roughly:
+> This can result in spurious wakeups if CPU N calls get_online_cpus after
+> its refcnt has been checked but I could not think of a case where it
+> matters.
+
+Right and right.. too many wakeups aren't a correctness issue. One
+should try and minimize them for performance reasons though :-)
+
+> > +	if (!refcnt)
+> > +		wake_up_process(__cpuhp_writer);
+> >  }
+
+
+> >  /*
+> >   * This ensures that the hotplug operation can begin only when the
+> >   * refcount goes to zero.
+> >   *
+> >   * Since cpu_hotplug_begin() is always called after invoking
+> >   * cpu_maps_update_begin(), we can be sure that only one writer is active.
+> >   */
+> >  void cpu_hotplug_begin(void)
+> >  {
+> > +	__cpuhp_writer = current;
+> >  
+> >  	for (;;) {
+> > +		unsigned int refcnt = 0;
+> > +		int cpu;
+> > +
+> > +		/*
+> > +		 * Order the setting of writer against the reading of refcount;
+> > +		 * pairs with the full barrier in get_online_cpus().
+> > +		 */
+> > +
+> > +		set_current_state(TASK_UNINTERRUPTIBLE);
+> > +
+> > +		for_each_possible_cpu(cpu)
+> > +			refcnt += per_cpu(__cpuhp_refcount, cpu);
+> > +
 > 
->   proc_pid_cmdline
->   get_user_pages
->   handle_mm_fault
->   mem_cgroup_try_charge_swapin
->   mem_cgroup_reclaim
+> CPU 0					CPU 1
+> get_online_cpus
+> refcnt++
+> 					__cpuhp_writer = current
+> 					refcnt > 0
+> 					schedule
+> __get_online_cpus slowpath
+> refcnt--
+> wait_event(!__cpuhp_writer)
 > 
-> There are two entry points, the codepaths taken are better shown by the 
-> attached profile of CPU time.
+> What wakes up __cpuhp_writer to recheck the refcnts and see that they're
+> all 0?
 
-Looks like it's spinning like crazy in shrink_mem_cgroup_zone().
-Maybe an LRU counter underflow, maybe endlessly looping on the
-should_continue_reclaim() compaction condition.  But I don't see an
-obvious connection to why killing the busy task wakes up the blocked
-one.
+The wakeup in __put_online_cpus() you just commented on?
+put_online_cpus() will drop into the slow path __put_online_cpus() if
+there's a writer and compute the refcount and perform the wakeup when
+!refcount.
 
-So yeah, it would be helpful to know what that task is waiting for.
-
-> We've had this behaviour since switching to Scientific Linux 6 (based on 
-> RHEL6, like CentOS) at kernel 2.6.32-279.9.1.el6.x86_64.
-> 
-> The example above is kernel 2.6.32-358.el6.x86_64.
-
-Can you test with the debug build?  That should trap LRU counter
-underflows at least.  If you have the possibility to recompile the
-distribution kernel I can provide you with debug patches.
+> > +		if (!refcnt)
+> >  			break;
+> > +
+> >  		schedule();
+> >  	}
+> > +	__set_current_state(TASK_RUNNING);
+> >  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
