@@ -1,77 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 984C06B0037
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 10:22:49 -0400 (EDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [RFC PATCH RESEND] mm: munlock: Prevent walking off the end of a pagetable in no-pmd configuration
-Date: Tue, 17 Sep 2013 16:22:19 +0200
-Message-Id: <1379427739-31451-1-git-send-email-vbabka@suse.cz>
-In-Reply-To: <52385A59.2080304@suse.cz>
-References: <52385A59.2080304@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 1A5E96B0037
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 10:29:00 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <1379330740-5602-9-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1379330740-5602-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1379330740-5602-9-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: RE: [PATCHv2 8/9] mm: implement split page table lock for PMD level
+Content-Transfer-Encoding: 7bit
+Message-Id: <20130917142851.5D332E0090@blue.fi.intel.com>
+Date: Tue, 17 Sep 2013 17:28:51 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, =?UTF-8?q?J=C3=B6rn=20Engel?= <joern@logfs.org>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Alex Thorlton <athorlton@sgi.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-The function __munlock_pagevec_fill() introduced in commit 7a8010cd3
-("mm: munlock: manual pte walk in fast path instead of follow_page_mask()")
-uses pmd_addr_end() for restricting its operation within current page table.
-This is insufficient on architectures/configurations where pmd is folded
-and pmd_addr_end() just returns the end of the full range to be walked. In
-this case, it allows pte++ to walk off the end of a page table resulting in
-unpredictable behaviour.
+Kirill A. Shutemov wrote:
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index b17a909..94206cb 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -24,6 +24,9 @@
+>  struct address_space;
+>  
+>  #define USE_SPLIT_PTE_PTLOCKS	(NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS)
+> +/* hugetlb hasn't converted to split locking yet */
+> +#define USE_SPLIT_PMD_PTLOCKS	(USE_SPLIT_PTE_PTLOCKS && \
+> +		CONFIG_ARCH_ENABLE_SPLIT_PMD_PTLOCK && !CONFIG_HUGETLB_PAGE)
+>  
 
-This patch fixes the function by using pgd_addr_end() and pud_addr_end()
-before pmd_addr_end(), which will yield correct page table boundary on all
-configurations. This is similar to what existing page walkers do when walking
-each level of the page table.
+I forgot to commit local changes. It should be like this:
 
-Additionaly, the patch clarifies a comment for get_locked_pte() call in the
-function.
+#define USE_SPLIT_PMD_PTLOCKS  (USE_SPLIT_PTE_PTLOCKS && \
+               IS_ENABLED(CONFIG_ARCH_ENABLE_SPLIT_PMD_PTLOCK) && \
+               !IS_ENABLED(CONFIG_HUGETLB_PAGE))
 
-Reported-by: Fengguang Wu <fengguang.wu@intel.com>
-Cc: JA?rn Engel <joern@logfs.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/mlock.c | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
-
-diff --git a/mm/mlock.c b/mm/mlock.c
-index d638026..758c0fc 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -379,10 +379,14 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
- 
- 	/*
- 	 * Initialize pte walk starting at the already pinned page where we
--	 * are sure that there is a pte.
-+	 * are sure that there is a pte, as it was pinned under the same
-+	 * mmap_sem write op.
- 	 */
- 	pte = get_locked_pte(vma->vm_mm, start,	&ptl);
--	end = min(end, pmd_addr_end(start, end));
-+	/* Make sure we do not cross the page table boundary */
-+	end = pgd_addr_end(start, end);
-+	end = pud_addr_end(start, end);
-+	end = pmd_addr_end(start, end);
- 
- 	/* The page next to the pinned page is the first we will try to get */
- 	start += PAGE_SIZE;
--- 
-1.8.1.4
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Updated patch is below.
