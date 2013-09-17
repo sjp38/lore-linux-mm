@@ -1,43 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 781F16B0032
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 18:53:27 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id p10so6204714pdj.4
-        for <linux-mm@kvack.org>; Tue, 17 Sep 2013 15:53:27 -0700 (PDT)
-Received: by mail-pa0-f49.google.com with SMTP id ld10so7380373pab.8
-        for <linux-mm@kvack.org>; Tue, 17 Sep 2013 15:53:24 -0700 (PDT)
-Date: Tue, 17 Sep 2013 15:53:23 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] mm/shmem.c: check the return value of mpol_to_str()
-In-Reply-To: <5237ABF3.4010109@asianux.com>
-Message-ID: <alpine.DEB.2.02.1309171552141.21696@chino.kir.corp.google.com>
-References: <5215639D.1080202@asianux.com> <5227CF48.5080700@asianux.com> <alpine.DEB.2.02.1309091326210.16291@chino.kir.corp.google.com> <522E6C14.7060006@asianux.com> <alpine.DEB.2.02.1309092334570.20625@chino.kir.corp.google.com> <522EC3D1.4010806@asianux.com>
- <alpine.DEB.2.02.1309111725290.22242@chino.kir.corp.google.com> <52312EC1.8080300@asianux.com> <523205A0.1000102@gmail.com> <5232773E.8090007@asianux.com> <5233424A.2050704@gmail.com> <5236732C.5060804@asianux.com> <52372EEF.7050608@gmail.com>
- <5237ABF3.4010109@asianux.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D8196B0032
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 18:56:48 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id r10so6281103pdi.28
+        for <linux-mm@kvack.org>; Tue, 17 Sep 2013 15:56:48 -0700 (PDT)
+Date: Tue, 17 Sep 2013 15:56:44 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] m: readahead: return the value which
+ force_page_cache_readahead() returns
+Message-Id: <20130917155644.cc988e7e929fee10e9c86d86@linux-foundation.org>
+In-Reply-To: <521428D0.2020708@asianux.com>
+References: <5212E328.40804@asianux.com>
+	<20130820161639.69ffa65b40c5cf761bbb727c@linux-foundation.org>
+	<521428D0.2020708@asianux.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Chen Gang <gang.chen@asianux.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, riel@redhat.com, hughd@google.com, xemul@parallels.com, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, rientjes@google.com, sasha.levin@oracle.com, linux@rasmusvillemoes.dk, kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, lczerner@redhat.com, linux-mm@kvack.org
 
-On Tue, 17 Sep 2013, Chen Gang wrote:
+On Wed, 21 Aug 2013 10:41:20 +0800 Chen Gang <gang.chen@asianux.com> wrote:
 
-> > BUG_ON() is safe. but I still don't like it. As far as I heard, Google
-> > changes BUG_ON as nop. So, BUG_ON(mpol_to_str() < 0) breaks google.
-> > Please treat an assertion as assertion. Not any other something.
-> > 
-
-Google does not disable BUG_ON(), sheesh.
-
-> Hmm... in kernel wide, BUG_ON() is 'common' 'standard' assertion, and
-> "mm/" is a common sub-system (not architecture specific), so when we
-> use BUG_ON(), we already 'express' our 'opinion' enough to readers.
+> force_page_cache_readahead() may fail, so need let the related upper
+> system calls know about it by its return value.
+> 
+> For system call fadvise64_64(), ignore return value because fadvise()
+> shall return success even if filesystem can't retrieve a hint.
 > 
 
-That's ridiculous, we're not going to panic the kernel at runtime because 
-a buffer is too small.  Make it a compile-time error like I suggested so 
-we catch this before we even build the kernel.
+Actually, force_page_cache_readahead() cannot fail - I see no code path
+via which it returns a -ve errno.
+
+Of course, that might change in the future and although readahead is
+usually a best-effort-dont-care-if-it-fails thing, I suppose that in
+the case of madvise() and sys_readahead() we should inform userspace,
+as readhead is the primary reason for thier performing the syscall.
+
+
+While we're there, please review...
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: mm/readahead.c:do_readhead(): don't check for ->readpage
+
+The callee force_page_cache_readahead() already does this and unlike
+do_readahead(), force_page_cache_readahead() remembers to check for
+->readpages() as well.
+
+
+
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/readahead.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff -puN mm/readahead.c~a mm/readahead.c
+--- a/mm/readahead.c~a
++++ a/mm/readahead.c
+@@ -569,7 +569,7 @@ static ssize_t
+ do_readahead(struct address_space *mapping, struct file *filp,
+ 	     pgoff_t index, unsigned long nr)
+ {
+-	if (!mapping || !mapping->a_ops || !mapping->a_ops->readpage)
++	if (!mapping || !mapping->a_ops)
+ 		return -EINVAL;
+ 
+ 	return force_page_cache_readahead(mapping, filp, index, nr);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
