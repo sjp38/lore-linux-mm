@@ -1,74 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 769276B0031
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 20:18:45 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 17 Sep 2013 05:48:42 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id E57D61258051
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 05:48:46 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8H0Km7634668714
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 05:50:49 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8H0IcEm009855
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 05:48:39 +0530
-Date: Tue, 17 Sep 2013 08:18:37 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [RESEND PATCH v5 3/4] mm/vmalloc: revert "mm/vmalloc.c: check
- VM_UNINITIALIZED flag in s_show instead of show_numa_info"
-Message-ID: <20130917001837.GA9692@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1379202342-23140-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1379202342-23140-3-git-send-email-liwanp@linux.vnet.ibm.com>
- <523776D4.4070402@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 433FA6B0031
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 20:46:15 -0400 (EDT)
+Message-ID: <5237A615.5050405@asianux.com>
+Date: Tue, 17 Sep 2013 08:45:09 +0800
+From: Chen Gang <gang.chen@asianux.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <523776D4.4070402@jp.fujitsu.com>
+Subject: Re: [PATCH v2] mm/shmem.c: check the return value of mpol_to_str()
+References: <5215639D.1080202@asianux.com> <5227CF48.5080700@asianux.com> <alpine.DEB.2.02.1309091326210.16291@chino.kir.corp.google.com> <522E6C14.7060006@asianux.com> <alpine.DEB.2.02.1309092334570.20625@chino.kir.corp.google.com> <522EC3D1.4010806@asianux.com> <alpine.DEB.2.02.1309111725290.22242@chino.kir.corp.google.com> <523124B7.8070408@gmail.com> <alpine.DEB.2.02.1309131410290.31480@chino.kir.corp.google.com> <5233CF32.3080409@jp.fujitsu.com> <52367AB0.9000805@asianux.com> <alpine.DEB.2.02.1309161309490.26194@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1309161309490.26194@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=GB2312
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, rientjes@google.com, zhangyanfei@cn.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, kosaki.motohiro@gmail.com, riel@redhat.com, hughd@google.com, xemul@parallels.com, liwanp@linux.vnet.ibm.com, gorcunov@gmail.com, linux-mm@kvack.org, akpm@linux-foundation.org
 
-Hi KOSAKI,
-On Mon, Sep 16, 2013 at 05:23:32PM -0400, KOSAKI Motohiro wrote:
->On 9/14/2013 7:45 PM, Wanpeng Li wrote:
->> Changelog:
->>  *v2 -> v3: revert commit d157a558 directly
->> 
->> The VM_UNINITIALIZED/VM_UNLIST flag introduced by commit f5252e00(mm: avoid
->> null pointer access in vm_struct via /proc/vmallocinfo) is used to avoid
->> accessing the pages field with unallocated page when show_numa_info() is
->> called. This patch move the check just before show_numa_info in order that
->> some messages still can be dumped via /proc/vmallocinfo. This patch revert 
->> commit d157a558 (mm/vmalloc.c: check VM_UNINITIALIZED flag in s_show instead 
->> of show_numa_info);
->
->Both d157a558 and your patch don't explain why your one is better. Yes, some
->messages _can_ be dumped. But why should we do so?
+On 09/17/2013 04:13 AM, David Rientjes wrote:
+> On Mon, 16 Sep 2013, Chen Gang wrote:
+> 
+>> Hmm... I am not quite sure: a C compiler is clever enough to know about
+>> that.
+>>
+>> At least, for ANSI C definition, the C compiler has no duty to know
+>> about that.
+>>
+>> And it is not for an optimization, either, so I guess the C compiler has
+>> no enought interests to support this features (know about that).
+>>
+> 
+> What on earth are we talking about in this thread?
+> 
 
-More messages can be dumped and original commit f5252e00(mm: avoid null pointer 
-access in vm_struct via /proc/vmallocinfo) do that. 
+??
 
->
->And No. __get_vm_area_node() doesn't use __GFP_ZERO for allocating vm_area_struct.
->dumped partial dump is not only partial, but also may be garbage.
+> Rename mpol_to_str() to __mpol_to_str().  Make a static inline function in 
+> mempolicy.h named mpol_to_str().  That function does BUILD_BUG_ON(maxlen < 
+> 64) and then calls __mpol_to_str().
+> 
+> Modify __mpol_to_str() to store "unknown" when mpol->mode does not match 
+> any known MPOL_* constant.
+> 
 
-vm_struct is allocated by kzalloc_node.
+Can we be sure 'maxlen' should not be less than 64?  For show_numa_map()
+in fs/proc/task_mmu.c, it use 50 which is less than 64, is it correct?
 
->
->I wonder why we need to call setup_vmalloc_vm() _after_ insert_vmap_area.
 
-I think it's another topic. 
+> Both functions can now return void.
+> 
+> This is like a ten line diff.  Seriously.
+> 
+> 
 
-Fill vm_struct and set VM_VM_AREA flag. If I misunderstand your
-question?
+Can we be sure that our output contents are always less than 64 bytes?
+Do we need BUG_ON() instead of all '-ENOSPC' in mpol_to_str()?
 
-Regards,
-Wanpeng Li 
+
+Hmm... If assume what you said above was always correct: "we are always
+sure 64 bytes is enough, and 'maxlen' should be never less than 64".
+
+  It would be better to use a structure (which has a member "char buf[64]") pointer instead of 'buffer' and 'maxlen'.
+   (and also still need check 64 memory bondary and '\0' within mpol_to_str).
+
+
+Thanks.
+-- 
+Chen Gang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
