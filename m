@@ -1,88 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 7A2E56B0032
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 11:14:21 -0400 (EDT)
-Date: Tue, 17 Sep 2013 11:14:08 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH resend] drop_caches: add some documentation and info
- message
-Message-ID: <20130917151408.GE3278@cmpxchg.org>
-References: <1374842669-22844-1-git-send-email-mhocko@suse.cz>
- <20130729135743.c04224fb5d8e64b2730d8263@linux-foundation.org>
- <51F9D1F6.4080001@jp.fujitsu.com>
- <20130731201708.efa5ae87.akpm@linux-foundation.org>
- <CAHGf_=r7mek+ueJWfu_6giMOueDTnMs8dY1jJrKyX+gfPys6uA@mail.gmail.com>
- <20130802073304.GA17746@dhcp22.suse.cz>
- <51FD653A.3060004@jp.fujitsu.com>
- <20130804080751.GA24005@dhcp22.suse.cz>
- <CAHGf_=o19rxB=neUPzZAeL9eeLnksKcbqCJjc+vg=EhYtnuwCw@mail.gmail.com>
- <20130805072013.GA10146@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130805072013.GA10146@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id E82EF6B0032
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 11:19:13 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <1379366550-9vhj3y8s-mutt-n-horiguchi@ah.jp.nec.com>
+References: <1379117362-gwv3vrog-mutt-n-horiguchi@ah.jp.nec.com>
+ <20130916104205.5605CE0090@blue.fi.intel.com>
+ <1379366550-9vhj3y8s-mutt-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v4] hugetlbfs: support split page table lock
+Content-Transfer-Encoding: 7bit
+Message-Id: <20130917151851.09771E0090@blue.fi.intel.com>
+Date: Tue, 17 Sep 2013 18:18:51 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, dave.hansen@intel.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, bp@suse.de, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Alex Thorlton <athorlton@sgi.com>, Mel Gorman <mgorman@suse.de>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org
 
-On Mon, Aug 05, 2013 at 09:20:13AM +0200, Michal Hocko wrote:
-> On Sun 04-08-13 21:13:44, KOSAKI Motohiro wrote:
-> > On Sun, Aug 4, 2013 at 4:07 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> > > On Sat 03-08-13 16:16:58, KOSAKI Motohiro wrote:
-> > >> >>> You missed the "!".  I'm proposing that setting the new bit 2 will
-> > >> >>> permit people to prevent the new printk if it is causing them problems.
-> > >> >>
-> > >> >> No I don't. I'm sure almost all abuse users think our usage is correct. Then,
-> > >> >> I can imagine all crazy applications start to use this flag eventually.
-> > >> >
-> > >> > I guess we do not care about those. If somebody wants to shoot his feet
-> > >> > then we cannot do much about it. The primary motivation was to find out
-> > >> > those that think this is right and they are willing to change the setup
-> > >> > once they know this is not the right way to do things.
-> > >> >
-> > >> > I think that giving a way to suppress the warning is a good step. Log
-> > >> > level might be to coarse and sysctl would be an overkill.
-> > >>
-> > >> When Dave Hansen reported this issue originally, he explained a lot of userland
-> > >> developer misuse /proc/drop_caches because they don't understand what
-> > >> drop_caches do.
-> > >> So, if they never understand the fact, why can we trust them? I have no
-> > >> idea.
-> > >
-> > > Well, most of that usage I have come across was legacy scripts which
-> > > happened to work at a certain point in time because we sucked.
-> > > Thinks have changed but such scripts happen to survive a long time.
-> > > We are primarily interested in those.
+Naoya Horiguchi wrote:
+> On Mon, Sep 16, 2013 at 01:42:05PM +0300, Kirill A. Shutemov wrote:
+> > Naoya Horiguchi wrote:
+> > > Hi,
+> > > 
+> > > Kirill posted split_ptl patchset for thp today, so in this version
+> > > I post only hugetlbfs part. I added Kconfig variables in following
+> > > Kirill's patches (although without CONFIG_SPLIT_*_PTLOCK_CPUS.)
+> > > 
+> > > This patch changes many lines, but all are in hugetlbfs specific code,
+> > > so I think we can apply this independent of thp patches.
+> > > -----
+> > > From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > > Date: Fri, 13 Sep 2013 18:12:30 -0400
+> > > Subject: [PATCH v4] hugetlbfs: support split page table lock
+> > > 
+> > > Currently all of page table handling by hugetlbfs code are done under
+> > > mm->page_table_lock. So when a process have many threads and they heavily
+> > > access to the memory, lock contention happens and impacts the performance.
+> > > 
+> > > This patch makes hugepage support split page table lock so that we use
+> > > page->ptl of the leaf node of page table tree which is pte for normal pages
+> > > but can be pmd and/or pud for hugepages of some architectures.
+> > > 
+> > > ChangeLog v4:
+> > >  - introduce arch dependent macro ARCH_ENABLE_SPLIT_HUGETLB_PTLOCK
+> > >    (only defined for x86 for now)
+> > >  - rename USE_SPLIT_PTLOCKS_HUGETLB to USE_SPLIT_HUGETLB_PTLOCKS
+> > > 
+> > > ChangeLog v3:
+> > >  - disable split ptl for ppc with USE_SPLIT_PTLOCKS_HUGETLB.
+> > >  - remove replacement in some architecture dependent code. This is justified
+> > >    because an allocation of pgd/pud/pmd/pte entry can race with other
+> > >    allocation, not with read/write access, so we can use different locks.
+> > >    http://thread.gmane.org/gmane.linux.kernel.mm/106292/focus=106458
+> > > 
+> > > ChangeLog v2:
+> > >  - add split ptl on other archs missed in v1
+> > >  - drop changes on arch/{powerpc,tile}/mm/hugetlbpage.c
+> > > 
+> > > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > > ---
+> > >  arch/x86/Kconfig         |  4 +++
+> > >  include/linux/hugetlb.h  | 20 +++++++++++
+> > >  include/linux/mm_types.h |  2 ++
+> > >  mm/Kconfig               |  3 ++
+> > >  mm/hugetlb.c             | 92 +++++++++++++++++++++++++++++-------------------
+> > >  mm/mempolicy.c           |  5 +--
+> > >  mm/migrate.c             |  4 +--
+> > >  mm/rmap.c                |  2 +-
+> > >  8 files changed, 91 insertions(+), 41 deletions(-)
+> > > 
+> > > diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+> > > index 6a5cf6a..5b83d14 100644
+> > > --- a/arch/x86/Kconfig
+> > > +++ b/arch/x86/Kconfig
+> > > @@ -1884,6 +1884,10 @@ config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+> > >  	def_bool y
+> > >  	depends on X86_64 || X86_PAE
+> > >  
+> > > +config ARCH_ENABLE_SPLIT_HUGETLB_PTLOCK
+> > > +	def_bool y
+> > > +	depends on X86_64 || X86_PAE
+> > > +
+> > >  menu "Power management and ACPI options"
+> > >  
+> > >  config ARCH_HIBERNATION_HEADER
+> > > diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> > > index 0393270..2cdac68 100644
+> > > --- a/include/linux/hugetlb.h
+> > > +++ b/include/linux/hugetlb.h
+> > > @@ -80,6 +80,24 @@ extern const unsigned long hugetlb_zero, hugetlb_infinity;
+> > >  extern int sysctl_hugetlb_shm_group;
+> > >  extern struct list_head huge_boot_pages;
+> > >  
+> > > +#if USE_SPLIT_HUGETLB_PTLOCKS
+> > > +#define huge_pte_lockptr(mm, ptep) ({__pte_lockptr(virt_to_page(ptep)); })
+> > > +#else	/* !USE_SPLIT_HUGETLB_PTLOCKS */
+> > > +#define huge_pte_lockptr(mm, ptep) ({&(mm)->page_table_lock; })
+> > > +#endif	/* USE_SPLIT_HUGETLB_PTLOCKS */
+> > > +
+> > > +#define huge_pte_offset_lock(mm, address, ptlp)		\
+> > > +({							\
+> > > +	pte_t *__pte = huge_pte_offset(mm, address);	\
+> > > +	spinlock_t *__ptl = NULL;			\
+> > > +	if (__pte) {					\
+> > > +		__ptl = huge_pte_lockptr(mm, __pte);	\
+> > > +		*(ptlp) = __ptl;			\
+> > > +		spin_lock(__ptl);			\
+> > > +	}						\
+> > > +	__pte;						\
+> > > +})
+> > > +
 > > 
-> > Well, if the main target is shell script, task_comm and pid don't help us
-> > a lot. I suggest to add ppid too.
-> 
-> I do not have any objections to add ppid.
->  
-> > >> Or, if you have different motivation w/ Dave, please let me know it.
-> > >
-> > > We have seen reports where users complained about performance drop down
-> > > when in fact the real culprit turned out to be such a clever script
-> > > which dropped caches on the background thinking it will help to free
-> > > some memory. Such cases are tedious to reveal.
+> > [ Disclaimer: I don't know much about hugetlb. ]
 > > 
-> > Imagine such script have bit-2 and no logging output. Because
-> > the script author think "we are doing the right thing".
-> > Why distro guys want such suppress messages?
+> > I don't think it's correct. Few points:
+> > 
+> >  - Hugetlb supports multiple page sizes: on x86_64 2M (PMD) and 1G (PUD).
+> >    My patchset only implements it for PMD. We don't even initialize
+> >    spinlock in struct page for PUD.
 > 
-> I am not really pushing this suppressing functionality. I just
-> understand that there might be some legitimate use for supressing and if
-> that is a must for merging the printk, I can live with that.
+> In hugetlbfs code, we use huge_pte_offset() to get leaf level entries
+> which can be pud or pmd in x86. huge_pte_lockptr() uses this function,
+> so we can always get the correct ptl regardless of hugepage sizes.
+> As for spinlock initialization, you're right. I'll add it on huge_pte_alloc().
 
-Is there any conceivable use case that legitimately drops caches at
-such a rate that the logging output becomes a problem?
+Please, don't.
+If USE_SPLIT_PMD_PTLOCKS is true, pmd_alloc_one() will do it for you
+already for PMD table.
 
-We export an interface that provides something useful in exceptional
-cases but has significant impact on the kernel's ongoing operations.
-Kernel developers want this information in problem reports.  It's the
-same thing as forcefully tainting kernels when a proprietary module is
-loaded.
+For pud it should be done in pud_alloc_one(), not in hugetlb code.
+
+We already have too many special cases for hugetlb. Don't contribute to
+the mess.
+
+> >  - If we enable split PMD lock we should use it *globally*. With you patch
+> >    we can end up with different locks used by hugetlb and rest of kernel
+> >    to protect the same PMD table if USE_SPLIT_HUGETLB_PTLOCKS !=
+> >    USE_SPLIT_PMD_PTLOCKS. It's just broken.
+> 
+> I don't think so. Thp specific operations (like thp allocation, split,
+> and collapse) are never called on the virtual address range covered by
+> vma(VM_HUGETLB) by checking VM_HUGETLB. So no one tries to lock/unlock
+> a ptl concurrently from thp context and hugetlbfs context.
+
+Two vma's can be next to each other and share the same PMD table (not
+entries) and in this case I don't see what will serialize pmd_alloc() if
+USE_SPLIT_HUGETLB_PTLOCKS != USE_SPLIT_PMD_PTLOCKS.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
