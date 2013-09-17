@@ -1,48 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 732706B0033
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 09:34:21 -0400 (EDT)
-Message-ID: <52385A59.2080304@suse.cz>
-Date: Tue, 17 Sep 2013 15:34:17 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 056E06B0034
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 10:10:17 -0400 (EDT)
+Date: Tue, 17 Sep 2013 16:10:13 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 0/7] improve memcg oom killer robustness v2
+Message-ID: <20130917141013.GA30838@dhcp22.suse.cz>
+References: <20130916134014.GA3674@dhcp22.suse.cz>
+ <20130916160119.2E76C2A1@pobox.sk>
+ <20130916140607.GC3674@dhcp22.suse.cz>
+ <20130916161316.5113F6E7@pobox.sk>
+ <20130916145744.GE3674@dhcp22.suse.cz>
+ <20130916170543.77F1ECB4@pobox.sk>
+ <20130916152548.GF3674@dhcp22.suse.cz>
+ <20130916225246.A633145B@pobox.sk>
+ <20130917000244.GD3278@cmpxchg.org>
+ <20130917131535.94E0A843@pobox.sk>
 MIME-Version: 1.0
-Subject: Re: [munlock] BUG: Bad page map in process killall5 pte:53425553
- pmd:075f4067
-References: <20130916084752.GC11479@localhost> <52372349.6030308@suse.cz> <20130917132910.GA16186@localhost>
-In-Reply-To: <20130917132910.GA16186@localhost>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130917131535.94E0A843@pobox.sk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: azurIt <azurit@pobox.sk>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 09/17/2013 03:29 PM, Fengguang Wu wrote:
-> Hi Vlastimil,
+On Tue 17-09-13 13:15:35, azurIt wrote:
+[...]
+> Is something unusual on this stack?
 > 
->>
->> Also, some of the failures during bisect were not due to this bug, but a WARNING for
->> list_add corruption which hopefully is not related to munlock. While it is probably a far stretch,
->> some kind of memory corruption could also lead to the erroneous behavior of the munlock code.
->>
->> Can you therefore please retest with the bisected patch reverted (patch below) to see if the other
->> WARNING still occurs and can be dealt with separately, so there are not potentially two bugs to
->> be chased at the same time?
 > 
-> Yes there seems to be one more bug, the attached dmesg is for the
-> kernel with your patch reverted. I'm trying to bisect the other bug
-> now.
+> [<ffffffff810d1a5e>] dump_header+0x7e/0x1e0
+> [<ffffffff810d195f>] ? find_lock_task_mm+0x2f/0x70
+> [<ffffffff810d1f25>] oom_kill_process+0x85/0x2a0
+> [<ffffffff810d24a8>] mem_cgroup_out_of_memory+0xa8/0xf0
+> [<ffffffff8110fb76>] mem_cgroup_oom_synchronize+0x2e6/0x310
+> [<ffffffff8110efc0>] ? mem_cgroup_uncharge_page+0x40/0x40
+> [<ffffffff810d2703>] pagefault_out_of_memory+0x13/0x130
+> [<ffffffff81026f6e>] mm_fault_error+0x9e/0x150
+> [<ffffffff81027424>] do_page_fault+0x404/0x490
+> [<ffffffff810f952c>] ? do_mmap_pgoff+0x3dc/0x430
+> [<ffffffff815cb87f>] page_fault+0x1f/0x30
 
-Thanks. Meanwhile I was able to reproduce the bug in my patch in a VM
-with x86_32 without PAE. As it turns out, pmd_addr_end() on such
-configuration without pmd really does not bound the address to page
-table boundary, but is a no-op. Working on a fix.
+This is a regular memcg OOM killer. Which dumps messages about what is
+going to do. So no, nothing unusual, except if it was like that for ever
+which would mean that oom_kill_process is in the endless loop. But a
+single stack doesn't tell us much.
 
-Vlastimil
-
-> Thanks,
-> Fengguang
-> 
+Just a note. When you see something hogging a cpu and you are not sure
+whether it might be in an endless loop inside the kernel it makes sense
+to take several snaphosts of the stack trace and see if it changes. If
+not and the process is not sleeping (there is no schedule on the trace)
+then it might be looping somewhere waiting for Godot. If it is sleeping
+then it is slightly harder because you would have to identify what it is
+waiting for which requires to know a deeper context.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
