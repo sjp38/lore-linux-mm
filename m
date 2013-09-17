@@ -1,65 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 1B94B6B0033
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 10:33:42 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <1379330740-5602-3-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1379330740-5602-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1379330740-5602-3-git-send-email-kirill.shutemov@linux.intel.com>
-Subject: RE: [PATCHv2 2/9] mm: convert mm->nr_ptes to atomic_t
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 61BB46B0032
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 10:57:42 -0400 (EDT)
+Received: from /spool/local
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <holzheu@linux.vnet.ibm.com>;
+	Tue, 17 Sep 2013 15:57:40 +0100
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 3E9C717D8057
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 15:57:47 +0100 (BST)
+Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8HEvO4u46727380
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 14:57:24 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av04.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8HEvaHn010202
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 08:57:36 -0600
+Date: Tue, 17 Sep 2013 16:57:34 +0200
+From: Michael Holzheu <holzheu@linux.vnet.ibm.com>
+Subject: [PATCH] mm: Fix bootmem error handling in pcpu_page_first_chunk()
+Message-ID: <20130917165734.16aa0226@holzheu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-Id: <20130917143333.4CB67E0090@blue.fi.intel.com>
-Date: Tue, 17 Sep 2013 17:33:33 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Alex Thorlton <athorlton@sgi.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Kirill A. Shutemov wrote:
-> With split page table lock for PMD level we can't hold
-> mm->page_table_lock while updating nr_ptes.
-> 
-> Let's convert it to atomic_t to avoid races.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  fs/proc/task_mmu.c       |  4 ++--
->  include/linux/mm_types.h |  2 +-
->  kernel/fork.c            |  2 +-
->  mm/huge_memory.c         | 10 +++++-----
->  mm/memory.c              |  4 ++--
->  mm/mmap.c                |  3 ++-
->  mm/oom_kill.c            |  6 +++---
->  7 files changed, 16 insertions(+), 15 deletions(-)
-> 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 7366e9d..8e124ac 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -52,7 +52,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
->  		"VmStk:\t%8lu kB\n"
->  		"VmExe:\t%8lu kB\n"
->  		"VmLib:\t%8lu kB\n"
-> -		"VmPTE:\t%8lu kB\n"
-> +		"VmPTE:\t%8zd kB\n"
->  		"VmSwap:\t%8lu kB\n",
->  		hiwater_vm << (PAGE_SHIFT-10),
->  		total_vm << (PAGE_SHIFT-10),
-> @@ -62,7 +62,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
->  		total_rss << (PAGE_SHIFT-10),
->  		data << (PAGE_SHIFT-10),
->  		mm->stack_vm << (PAGE_SHIFT-10), text, lib,
-> -		(PTRS_PER_PTE*sizeof(pte_t)*mm->nr_ptes) >> 10,
-> +		(PTRS_PER_PTE*sizeof(pte_t)*atomic_read(&mm->nr_ptes)) >> 10,
->  		swap << (PAGE_SHIFT-10));
->  }
->  
+If memory allocation of in pcpu_embed_first_chunk() fails, the
+allocated memory is not released correctly. In the release loop also
+the non-allocated elements are released which leads to the following
+kernel BUG on systems with very little memory:
 
-Erghh. There's still warning on mips. PTRS_PER_PTE is unsigned long there.
-Let's just cast it to unsigned long and don't change format line:
+[    0.000000] kernel BUG at mm/bootmem.c:307!
+[    0.000000] illegal operation: 0001 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[    0.000000] Modules linked in:
+[    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 3.10.0 #22
+[    0.000000] task: 0000000000a20ae0 ti: 0000000000a08000 task.ti: 0000000000a08000
+[    0.000000] Krnl PSW : 0400000180000000 0000000000abda7a (__free+0x116/0x154)
+[    0.000000]            R:0 T:1 IO:0 EX:0 Key:0 M:0 W:0 P:0 AS:0 CC:0 PM:0 EA:3
+...
+[    0.000000]  [<0000000000abdce2>] mark_bootmem_node+0xde/0xf0
+[    0.000000]  [<0000000000abdd9c>] mark_bootmem+0xa8/0x118
+[    0.000000]  [<0000000000abcbba>] pcpu_embed_first_chunk+0xe7a/0xf0c
+[    0.000000]  [<0000000000abcc96>] setup_per_cpu_areas+0x4a/0x28c
 
-		(unsigned long) (PTRS_PER_PTE * sizeof(pte_t) *
-				atomic_read(&mm->nr_ptes)) >> 10,
-Updated patch is below.
+To fix the problem now only allocated elements are released. This then
+leads to the correct kernel panic:
 
+[    0.000000] Kernel panic - not syncing: Failed to initialize percpu areas.
+...
+[    0.000000] Call Trace:
+[    0.000000] ([<000000000011307e>] show_trace+0x132/0x150)
+[    0.000000]  [<0000000000113160>] show_stack+0xc4/0xd4
+[    0.000000]  [<00000000007127dc>] dump_stack+0x74/0xd8
+[    0.000000]  [<00000000007123fe>] panic+0xea/0x264
+[    0.000000]  [<0000000000b14814>] setup_per_cpu_areas+0x5c/0x28c
+
+Signed-off-by: Michael Holzheu <holzheu@linux.vnet.ibm.com>
 ---
+ mm/percpu.c |    5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -1705,9 +1705,12 @@ int __init pcpu_embed_first_chunk(size_t
+ 	goto out_free;
+ 
+ out_free_areas:
+-	for (group = 0; group < ai->nr_groups; group++)
++	for (group = 0; group < ai->nr_groups; group++) {
++		if (!areas[group])
++			continue;
+ 		free_fn(areas[group],
+ 			ai->groups[group].nr_units * ai->unit_size);
++	}
+ out_free:
+ 	pcpu_free_alloc_info(ai);
+ 	if (areas)
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
