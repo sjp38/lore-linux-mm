@@ -1,119 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 7EE996B0032
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 02:28:34 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 17 Sep 2013 16:28:31 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id C218B2CE8059
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 16:28:28 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8H6Bw1Y5832982
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 16:11:58 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r8H6SRkw002283
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 16:28:28 +1000
-Date: Tue, 17 Sep 2013 14:28:25 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [RESEND PATCH v5 2/4] mm/vmalloc: revert "mm/vmalloc.c: emit the
- failure message before return"
-Message-ID: <20130917062825.GB19793@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1379202342-23140-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1379202342-23140-2-git-send-email-liwanp@linux.vnet.ibm.com>
- <523766E1.1020303@jp.fujitsu.com>
- <5237971b.4c19310a.2b36.7d41SMTPIN_ADDED_BROKEN@mx.google.com>
- <CAHGf_=pNwf0CO_sTcLxTfTYUfqUrbr8mtcXDgLUC9_wa7wR_5Q@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 8C8526B0032
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 02:59:38 -0400 (EDT)
+Message-ID: <5237FDCC.5010109@oracle.com>
+Date: Tue, 17 Sep 2013 14:59:24 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHGf_=pNwf0CO_sTcLxTfTYUfqUrbr8mtcXDgLUC9_wa7wR_5Q@mail.gmail.com>
+Subject: Re: [PATCH v2 0/5] mm: migrate zbud pages
+References: <1378889944-23192-1-git-send-email-k.kozlowski@samsung.com>
+In-Reply-To: <1378889944-23192-1-git-send-email-k.kozlowski@samsung.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, iamjoonsoo.kim@lge.com, David Rientjes <rientjes@google.com>, zhangyanfei@cn.fujitsu.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Dave Hansen <dave.hansen@intel.com>, Minchan Kim <minchan@kernel.org>
 
-Hi KOSAKI,
-On Tue, Sep 17, 2013 at 01:39:13AM -0400, KOSAKI Motohiro wrote:
->On Mon, Sep 16, 2013 at 7:41 PM, Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
->> Hi KOSAKI,
->> On Mon, Sep 16, 2013 at 04:15:29PM -0400, KOSAKI Motohiro wrote:
->>>On 9/14/2013 7:45 PM, Wanpeng Li wrote:
->>>> Changelog:
->>>>  *v2 -> v3: revert commit 46c001a2 directly
->>>>
->>>> Don't warning twice in __vmalloc_area_node and __vmalloc_node_range if
->>>> __vmalloc_area_node allocation failure. This patch revert commit 46c001a2
->>>> (mm/vmalloc.c: emit the failure message before return).
->>>>
->>>> Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
->>>> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->>>> ---
->>>>  mm/vmalloc.c | 2 +-
->>>>  1 file changed, 1 insertion(+), 1 deletion(-)
->>>>
->>>> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
->>>> index d78d117..e3ec8b4 100644
->>>> --- a/mm/vmalloc.c
->>>> +++ b/mm/vmalloc.c
->>>> @@ -1635,7 +1635,7 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
->>>>
->>>>      addr = __vmalloc_area_node(area, gfp_mask, prot, node, caller);
->>>>      if (!addr)
->>>> -            goto fail;
->>>> +            return NULL;
->>
->> The goto fail is introduced by commit (mm/vmalloc.c: emit the failure message
->> before return), and the commit author ignore there has already have warning in
->> __vmalloc_area_node.
->>
->> http://marc.info/?l=linux-mm&m=137818671125209&w=2
->
->But, module_alloc() directly calls __vmalloc_node_range(). Your fix
->makes another regression.
+Hi Krzysztof,
 
-I'm not sure what's the regression you mentioned.
+On 09/11/2013 04:58 PM, Krzysztof Kozlowski wrote:
+> Hi,
+> 
+> Currently zbud pages are not movable and they cannot be allocated from CMA
+> (Contiguous Memory Allocator) region. These patches add migration of zbud pages.
+> 
 
-Before patch:
+I agree that the migration of zbud pages is important so that system
+will not enter order-0 page fragmentation and can be helpful for page
+compaction/huge pages etc..
 
-module_alloc
- -> __vmalloc_node_range (waring for the second time)   <-|
-  -> __vmalloc_area_node  (warning for the first time)  --|
+But after I looked at the [patch 4/5], I found it will make zbud very
+complicated.
+I'd prefer to add this migration feature later until current version
+zswap/zbud becomes better enough and more stable.
 
-After patch:
+Mel mentioned several problems about zswap/zbud in thread "[PATCH v6
+0/5] zram/zsmalloc promotion".
 
-module_alloc
- -> __vmalloc_node_range                  <-|
-  -> __vmalloc_area_node (warning once)   --|
+Like "it's clunky as hell and the layering between zswap and zbud is
+twisty" and "I think I brought up its stalling behaviour during review
+when it was being merged. It would have been preferable if writeback
+could be initiated in batches and then waited on at the very least..
+ It's worse that it uses _swap_writepage directly instead of going
+through a writepage ops.  It would have been better if zbud pages
+existed on the LRU and written back with an address space ops and
+properly handled asynchonous writeback."
 
->
->
->>>This is not right fix. Now we have following call stack.
->>>
->>> __vmalloc_node
->>>       __vmalloc_node_range
->>>               __vmalloc_node
->>>
->>>Even if we remove a warning of __vmalloc_node_range, we still be able to see double warning
->>>because we call __vmalloc_node recursively.
->>
->> Different size allocation failure in your example actually.
->
->But, when we can not allocate small size memory, almost always we
->can't allocate large size too.
->
->You need some refactoring and make right fix.
+So I think it would be better if we can address those issues at first
+and it would be easier to address these issues before adding more new
+features. Welcome any ideas.
 
-There is warning in __vmalloc_area_node for different size which you
-metioned, could you point out what need refactor? ;-)
-
+-- 
 Regards,
-Wanpeng Li 
-
-
-
+-Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
