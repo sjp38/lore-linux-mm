@@ -1,82 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 1B79D6B0031
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 21:11:19 -0400 (EDT)
-Message-ID: <5237ABF3.4010109@asianux.com>
-Date: Tue, 17 Sep 2013 09:10:11 +0800
-From: Chen Gang <gang.chen@asianux.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 855426B0032
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2013 22:02:25 -0400 (EDT)
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm/shmem.c: check the return value of mpol_to_str()
-References: <5215639D.1080202@asianux.com> <5227CF48.5080700@asianux.com> <alpine.DEB.2.02.1309091326210.16291@chino.kir.corp.google.com> <522E6C14.7060006@asianux.com> <alpine.DEB.2.02.1309092334570.20625@chino.kir.corp.google.com> <522EC3D1.4010806@asianux.com> <alpine.DEB.2.02.1309111725290.22242@chino.kir.corp.google.com> <52312EC1.8080300@asianux.com> <523205A0.1000102@gmail.com> <5232773E.8090007@asianux.com> <5233424A.2050704@gmail.com> <5236732C.5060804@asianux.com> <52372EEF.7050608@gmail.com>
-In-Reply-To: <52372EEF.7050608@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+	charset="gb2312"
+Content-Transfer-Encoding: quoted-printable
+Subject: =?gb2312?B?tPC4tDogW1BBVENIIDM0LzUwXSBzY2hlZDogbnVtYTogRG8gbm90IA==?=
+	=?gb2312?B?dHJhcCBoaW50aW5nIGZhdWx0cyBmb3Igc2hhcmVkIGxpYnJhcmllcw==?=
+Date: Tue, 17 Sep 2013 10:02:22 +0800
+Message-ID: <E81554BCB8813E49A8916AACC0503A851844C937@lc-shmail3.SHANGHAI.LEADCORETECH.COM>
+In-Reply-To: <1378805550-29949-35-git-send-email-mgorman@suse.de>
+From: =?gb2312?B?1cXM7LfJ?= <ZhangTianFei@leadcoretech.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, riel@redhat.com, hughd@google.com, xemul@parallels.com, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 09/17/2013 12:16 AM, KOSAKI Motohiro wrote:
-> (9/15/13 10:55 PM), Chen Gang wrote:
->> On 09/14/2013 12:50 AM, KOSAKI Motohiro wrote:
->>>> ---
->>>>    mm/shmem.c |    2 +-
->>>>    1 files changed, 1 insertions(+), 1 deletions(-)
->>>>
->>>> diff --git a/mm/shmem.c b/mm/shmem.c
->>>> index 8612a95..3f81120 100644
->>>> --- a/mm/shmem.c
->>>> +++ b/mm/shmem.c
->>>> @@ -890,7 +890,7 @@ static void shmem_show_mpol(struct seq_file *seq,
->>>> struct mempolicy *mpol)
->>>>        if (!mpol || mpol->mode == MPOL_DEFAULT)
->>>>            return;        /* show nothing */
->>>>
->>>> -    mpol_to_str(buffer, sizeof(buffer), mpol);
->>>> +    VM_BUG_ON(mpol_to_str(buffer, sizeof(buffer), mpol) < 0);
->>>
->>> NAK. VM_BUG_ON is a kind of assertion. It erase the contents if
->>> CONFIG_DEBUG_VM not set.
->>> An argument of assertion should not have any side effect.
->>
->> Oh, really it is. In my opinion, need use "BUG_ON(mpol_to_str() < 0)"
->> instead of "VM_BUG_ON(mpol_to_str() < 0);".
-> 
-> BUG_ON() is safe. but I still don't like it. As far as I heard, Google
-> changes BUG_ON as nop. So, BUG_ON(mpol_to_str() < 0) breaks google.
-> Please treat an assertion as assertion. Not any other something.
-> 
-
-Hmm... in kernel wide, BUG_ON() is 'common' 'standard' assertion, and
-"mm/" is a common sub-system (not architecture specific), so when we
-use BUG_ON(), we already 'express' our 'opinion' enough to readers.
-
-And some architectures/users really can customize/config 'BUG/BUG_ON'
-(they can implement it by themselves, or 'nop').
-
-If they choose 'nop', they can let code size smaller (also may faster),
-but they (not we) also have duty to face related risk: "when we find OS
-is continuing blindly, we do not let it stop".
-
-
-
-Related information for BUG in "init/Kconfig" (which BUG_ON based on):
-
-config BUG
-        bool "BUG() support" if EXPERT
-        default y
-        help
-          Disabling this option eliminates support for BUG and WARN, reducing
-          the size of your kernel image and potentially quietly ignoring
-          numerous fatal conditions. You should only consider disabling this
-          option for embedded systems with no facilities for reporting errors.
-          Just say Y.
-
-
-
-Thanks.
--- 
-Chen Gang
+index fd724bc..5d244d0 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -1227,6 +1227,16 @@ void task_numa_work(struct callback_head *work)
+ 		if (!vma_migratable(vma))
+ 			continue;
+=20
++		/*
++		 * Shared library pages mapped by multiple processes are not
++		 * migrated as it is expected they are cache replicated. Avoid
++		 * hinting faults in read-only file-backed mappings or the vdso
++		 * as migrating the pages will be of marginal benefit.
++		 */
++		if (!vma->vm_mm ||
++		    (vma->vm_file && (vma->vm_flags & (VM_READ|VM_WRITE)) =3D=3D =
+(VM_READ)))
++			continue;
++
+=20
+=3D=A1=B7 May I ask a question, we should consider some VMAs canot be =
+scaned for BalanceNuma?
+(VM_DONTEXPAND | VM_RESERVED | VM_INSERTPAGE |
+				  VM_NONLINEAR | VM_MIXEDMAP | VM_SAO));
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
