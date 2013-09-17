@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 976BB6B0032
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 10:30:18 -0400 (EDT)
-Date: Tue, 17 Sep 2013 16:30:03 +0200
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 226426B0032
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 10:32:43 -0400 (EDT)
+Date: Tue, 17 Sep 2013 16:32:35 +0200
 From: Peter Zijlstra <peterz@infradead.org>
-Subject: [PATCH] hotplug: Optimize {get,put}_online_cpus()
-Message-ID: <20130917143003.GA29354@twins.programming.kicks-ass.net>
+Subject: Re: [PATCH 37/50] sched: Introduce migrate_swap()
+Message-ID: <20130917143235.GB29354@twins.programming.kicks-ass.net>
 References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
  <1378805550-29949-38-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
@@ -15,223 +15,118 @@ In-Reply-To: <1378805550-29949-38-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>
+Cc: Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Subject: hotplug: Optimize {get,put}_online_cpus()
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Tue Sep 17 16:17:11 CEST 2013
+On Tue, Sep 10, 2013 at 10:32:17AM +0100, Mel Gorman wrote:
+> TODO: I'm fairly sure we can get rid of the wake_cpu != -1 test by keeping
+> wake_cpu to the actual task cpu; just couldn't be bothered to think through
+> all the cases.
 
-The cpu hotplug lock is a purely reader biased read-write lock.
+> + * XXX worry about hotplug
 
-The current implementation uses global state, change it so the reader
-side uses per-cpu state in the uncontended fast-path.
+Combined with the {get,put}_online_cpus() optimization patch, the below
+should address the two outstanding issues.
 
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Steven Rostedt <rostedt@goodmis.org>
-Signed-off-by: Peter Zijlstra <peterz@infradead.org>
+Completely untested for now.. will try and get it some runtime later.
+
+Not-yet-signed-off-by: Peter Zijlstra <peterz@infradead.org>
 ---
- include/linux/cpu.h |   33 ++++++++++++++-
- kernel/cpu.c        |  108 ++++++++++++++++++++++++++--------------------------
- 2 files changed, 87 insertions(+), 54 deletions(-)
+ kernel/sched/core.c  |   37 ++++++++++++++++++++-----------------
+ kernel/sched/sched.h |    1 +
+ 2 files changed, 21 insertions(+), 17 deletions(-)
 
---- a/include/linux/cpu.h
-+++ b/include/linux/cpu.h
-@@ -16,6 +16,7 @@
- #include <linux/node.h>
- #include <linux/compiler.h>
- #include <linux/cpumask.h>
-+#include <linux/percpu.h>
- 
- struct device;
- 
-@@ -175,8 +176,36 @@ extern struct bus_type cpu_subsys;
- 
- extern void cpu_hotplug_begin(void);
- extern void cpu_hotplug_done(void);
--extern void get_online_cpus(void);
--extern void put_online_cpus(void);
-+
-+extern struct task_struct *__cpuhp_writer;
-+DECLARE_PER_CPU(unsigned int, __cpuhp_refcount);
-+
-+extern void __get_online_cpus(void);
-+
-+static inline void get_online_cpus(void)
-+{
-+	might_sleep();
-+
-+	this_cpu_inc(__cpuhp_refcount);
-+	/*
-+	 * Order the refcount inc against the writer read; pairs with the full
-+	 * barrier in cpu_hotplug_begin().
-+	 */
-+	smp_mb();
-+	if (unlikely(__cpuhp_writer))
-+		__get_online_cpus();
-+}
-+
-+extern void __put_online_cpus(void);
-+
-+static inline void put_online_cpus(void)
-+{
-+	barrier();
-+	this_cpu_dec(__cpuhp_refcount);
-+	if (unlikely(__cpuhp_writer))
-+		__put_online_cpus();
-+}
-+
- extern void cpu_hotplug_disable(void);
- extern void cpu_hotplug_enable(void);
- #define hotcpu_notifier(fn, pri)	cpu_notifier(fn, pri)
---- a/kernel/cpu.c
-+++ b/kernel/cpu.c
-@@ -49,88 +49,92 @@ static int cpu_hotplug_disabled;
- 
- #ifdef CONFIG_HOTPLUG_CPU
- 
--static struct {
--	struct task_struct *active_writer;
--	struct mutex lock; /* Synchronizes accesses to refcount, */
--	/*
--	 * Also blocks the new readers during
--	 * an ongoing cpu hotplug operation.
--	 */
--	int refcount;
--} cpu_hotplug = {
--	.active_writer = NULL,
--	.lock = __MUTEX_INITIALIZER(cpu_hotplug.lock),
--	.refcount = 0,
--};
-+struct task_struct *__cpuhp_writer = NULL;
-+EXPORT_SYMBOL_GPL(__cpuhp_writer);
-+
-+DEFINE_PER_CPU(unsigned int, __cpuhp_refcount);
-+EXPORT_PER_CPU_SYMBOL_GPL(__cpuhp_refcount);
- 
--void get_online_cpus(void)
-+static DECLARE_WAIT_QUEUE_HEAD(cpuhp_wq);
-+
-+void __get_online_cpus(void)
- {
--	might_sleep();
--	if (cpu_hotplug.active_writer == current)
-+	if (__cpuhp_writer == current)
- 		return;
--	mutex_lock(&cpu_hotplug.lock);
--	cpu_hotplug.refcount++;
--	mutex_unlock(&cpu_hotplug.lock);
- 
-+again:
-+	/*
-+	 * Ensure a pending reading has a 0 refcount.
-+	 *
-+	 * Without this a new reader that comes in before cpu_hotplug_begin()
-+	 * reads the refcount will deadlock.
-+	 */
-+	this_cpu_dec(__cpuhp_refcount);
-+	wait_event(cpuhp_wq, !__cpuhp_writer);
-+
-+	this_cpu_inc(__cpuhp_refcount);
-+	/*
-+	 * See get_online_cpu().
-+	 */
-+	smp_mb();
-+	if (unlikely(__cpuhp_writer))
-+		goto again;
- }
--EXPORT_SYMBOL_GPL(get_online_cpus);
-+EXPORT_SYMBOL_GPL(__get_online_cpus);
- 
--void put_online_cpus(void)
-+void __put_online_cpus(void)
- {
--	if (cpu_hotplug.active_writer == current)
--		return;
--	mutex_lock(&cpu_hotplug.lock);
-+	unsigned int refcnt = 0;
-+	int cpu;
- 
--	if (WARN_ON(!cpu_hotplug.refcount))
--		cpu_hotplug.refcount++; /* try to fix things up */
-+	if (__cpuhp_writer == current)
-+		return;
- 
--	if (!--cpu_hotplug.refcount && unlikely(cpu_hotplug.active_writer))
--		wake_up_process(cpu_hotplug.active_writer);
--	mutex_unlock(&cpu_hotplug.lock);
-+	for_each_possible_cpu(cpu)
-+		refcnt += per_cpu(__cpuhp_refcount, cpu);
- 
-+	if (!refcnt)
-+		wake_up_process(__cpuhp_writer);
- }
--EXPORT_SYMBOL_GPL(put_online_cpus);
-+EXPORT_SYMBOL_GPL(__put_online_cpus);
- 
- /*
-  * This ensures that the hotplug operation can begin only when the
-  * refcount goes to zero.
-  *
-- * Note that during a cpu-hotplug operation, the new readers, if any,
-- * will be blocked by the cpu_hotplug.lock
-- *
-  * Since cpu_hotplug_begin() is always called after invoking
-  * cpu_maps_update_begin(), we can be sure that only one writer is active.
-- *
-- * Note that theoretically, there is a possibility of a livelock:
-- * - Refcount goes to zero, last reader wakes up the sleeping
-- *   writer.
-- * - Last reader unlocks the cpu_hotplug.lock.
-- * - A new reader arrives at this moment, bumps up the refcount.
-- * - The writer acquires the cpu_hotplug.lock finds the refcount
-- *   non zero and goes to sleep again.
-- *
-- * However, this is very difficult to achieve in practice since
-- * get_online_cpus() not an api which is called all that often.
-- *
-  */
- void cpu_hotplug_begin(void)
- {
--	cpu_hotplug.active_writer = current;
-+	__cpuhp_writer = current;
- 
- 	for (;;) {
--		mutex_lock(&cpu_hotplug.lock);
--		if (likely(!cpu_hotplug.refcount))
-+		unsigned int refcnt = 0;
-+		int cpu;
-+
-+		/*
-+		 * Order the setting of writer against the reading of refcount;
-+		 * pairs with the full barrier in get_online_cpus().
-+		 */
-+
-+		set_current_state(TASK_UNINTERRUPTIBLE);
-+
-+		for_each_possible_cpu(cpu)
-+			refcnt += per_cpu(__cpuhp_refcount, cpu);
-+
-+		if (!refcnt)
- 			break;
--		__set_current_state(TASK_UNINTERRUPTIBLE);
--		mutex_unlock(&cpu_hotplug.lock);
-+
- 		schedule();
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -1035,7 +1035,7 @@ static void __migrate_swap_task(struct t
+ 		/*
+ 		 * Task isn't running anymore; make it appear like we migrated
+ 		 * it before it went to sleep. This means on wakeup we make the
+-		 * previous cpu or targer instead of where it really is.
++		 * previous cpu our target instead of where it really is.
+ 		 */
+ 		p->wake_cpu = cpu;
  	}
-+	__set_current_state(TASK_RUNNING);
- }
- 
- void cpu_hotplug_done(void)
- {
--	cpu_hotplug.active_writer = NULL;
--	mutex_unlock(&cpu_hotplug.lock);
-+	__cpuhp_writer = NULL;
-+	wake_up_all(&cpuhp_wq);
+@@ -1080,11 +1080,16 @@ static int migrate_swap_stop(void *data)
  }
  
  /*
+- * XXX worry about hotplug
++ * Cross migrate two tasks
+  */
+ int migrate_swap(struct task_struct *cur, struct task_struct *p)
+ {
+-	struct migration_swap_arg arg = {
++	struct migration_swap_arg arg;
++	int ret = -EINVAL;
++
++	get_online_cpus();
++
++       	arg = (struct migration_swap_arg){
+ 		.src_task = cur,
+ 		.src_cpu = task_cpu(cur),
+ 		.dst_task = p,
+@@ -1092,15 +1097,22 @@ int migrate_swap(struct task_struct *cur
+ 	};
+ 
+ 	if (arg.src_cpu == arg.dst_cpu)
+-		return -EINVAL;
++		goto out;
++
++	if (!cpu_active(arg.src_cpu) || !cpu_active(arg.dst_cpu))
++		goto out;
+ 
+ 	if (!cpumask_test_cpu(arg.dst_cpu, tsk_cpus_allowed(arg.src_task)))
+-		return -EINVAL;
++		goto out;
+ 
+ 	if (!cpumask_test_cpu(arg.src_cpu, tsk_cpus_allowed(arg.dst_task)))
+-		return -EINVAL;
++		goto out;
++
++	ret = stop_two_cpus(arg.dst_cpu, arg.src_cpu, migrate_swap_stop, &arg);
+ 
+-	return stop_two_cpus(arg.dst_cpu, arg.src_cpu, migrate_swap_stop, &arg);
++out:
++	put_online_cpus();
++	return ret;
+ }
+ 
+ struct migration_arg {
+@@ -1608,12 +1620,7 @@ try_to_wake_up(struct task_struct *p, un
+ 	if (p->sched_class->task_waking)
+ 		p->sched_class->task_waking(p);
+ 
+-	if (p->wake_cpu != -1) {	/* XXX make this condition go away */
+-		cpu = p->wake_cpu;
+-		p->wake_cpu = -1;
+-	}
+-
+-	cpu = select_task_rq(p, cpu, SD_BALANCE_WAKE, wake_flags);
++	cpu = select_task_rq(p, p->wake_cpu, SD_BALANCE_WAKE, wake_flags);
+ 	if (task_cpu(p) != cpu) {
+ 		wake_flags |= WF_MIGRATED;
+ 		set_task_cpu(p, cpu);
+@@ -1699,10 +1706,6 @@ static void __sched_fork(struct task_str
+ {
+ 	p->on_rq			= 0;
+ 
+-#ifdef CONFIG_SMP
+-	p->wake_cpu			= -1;
+-#endif
+-
+ 	p->se.on_rq			= 0;
+ 	p->se.exec_start		= 0;
+ 	p->se.sum_exec_runtime		= 0;
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -737,6 +737,7 @@ static inline void __set_task_cpu(struct
+ 	 */
+ 	smp_wmb();
+ 	task_thread_info(p)->cpu = cpu;
++	p->wake_cpu = cpu;
+ #endif
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
