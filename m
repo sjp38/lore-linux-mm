@@ -1,62 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 056E06B0034
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 10:10:17 -0400 (EDT)
-Date: Tue, 17 Sep 2013 16:10:13 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 0/7] improve memcg oom killer robustness v2
-Message-ID: <20130917141013.GA30838@dhcp22.suse.cz>
-References: <20130916134014.GA3674@dhcp22.suse.cz>
- <20130916160119.2E76C2A1@pobox.sk>
- <20130916140607.GC3674@dhcp22.suse.cz>
- <20130916161316.5113F6E7@pobox.sk>
- <20130916145744.GE3674@dhcp22.suse.cz>
- <20130916170543.77F1ECB4@pobox.sk>
- <20130916152548.GF3674@dhcp22.suse.cz>
- <20130916225246.A633145B@pobox.sk>
- <20130917000244.GD3278@cmpxchg.org>
- <20130917131535.94E0A843@pobox.sk>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 984C06B0037
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 10:22:49 -0400 (EDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [RFC PATCH RESEND] mm: munlock: Prevent walking off the end of a pagetable in no-pmd configuration
+Date: Tue, 17 Sep 2013 16:22:19 +0200
+Message-Id: <1379427739-31451-1-git-send-email-vbabka@suse.cz>
+In-Reply-To: <52385A59.2080304@suse.cz>
+References: <52385A59.2080304@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130917131535.94E0A843@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: azurIt <azurit@pobox.sk>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, =?UTF-8?q?J=C3=B6rn=20Engel?= <joern@logfs.org>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
 
-On Tue 17-09-13 13:15:35, azurIt wrote:
-[...]
-> Is something unusual on this stack?
-> 
-> 
-> [<ffffffff810d1a5e>] dump_header+0x7e/0x1e0
-> [<ffffffff810d195f>] ? find_lock_task_mm+0x2f/0x70
-> [<ffffffff810d1f25>] oom_kill_process+0x85/0x2a0
-> [<ffffffff810d24a8>] mem_cgroup_out_of_memory+0xa8/0xf0
-> [<ffffffff8110fb76>] mem_cgroup_oom_synchronize+0x2e6/0x310
-> [<ffffffff8110efc0>] ? mem_cgroup_uncharge_page+0x40/0x40
-> [<ffffffff810d2703>] pagefault_out_of_memory+0x13/0x130
-> [<ffffffff81026f6e>] mm_fault_error+0x9e/0x150
-> [<ffffffff81027424>] do_page_fault+0x404/0x490
-> [<ffffffff810f952c>] ? do_mmap_pgoff+0x3dc/0x430
-> [<ffffffff815cb87f>] page_fault+0x1f/0x30
+The function __munlock_pagevec_fill() introduced in commit 7a8010cd3
+("mm: munlock: manual pte walk in fast path instead of follow_page_mask()")
+uses pmd_addr_end() for restricting its operation within current page table.
+This is insufficient on architectures/configurations where pmd is folded
+and pmd_addr_end() just returns the end of the full range to be walked. In
+this case, it allows pte++ to walk off the end of a page table resulting in
+unpredictable behaviour.
 
-This is a regular memcg OOM killer. Which dumps messages about what is
-going to do. So no, nothing unusual, except if it was like that for ever
-which would mean that oom_kill_process is in the endless loop. But a
-single stack doesn't tell us much.
+This patch fixes the function by using pgd_addr_end() and pud_addr_end()
+before pmd_addr_end(), which will yield correct page table boundary on all
+configurations. This is similar to what existing page walkers do when walking
+each level of the page table.
 
-Just a note. When you see something hogging a cpu and you are not sure
-whether it might be in an endless loop inside the kernel it makes sense
-to take several snaphosts of the stack trace and see if it changes. If
-not and the process is not sleeping (there is no schedule on the trace)
-then it might be looping somewhere waiting for Godot. If it is sleeping
-then it is slightly harder because you would have to identify what it is
-waiting for which requires to know a deeper context.
+Additionaly, the patch clarifies a comment for get_locked_pte() call in the
+function.
+
+Reported-by: Fengguang Wu <fengguang.wu@intel.com>
+Cc: JA?rn Engel <joern@logfs.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Michel Lespinasse <walken@google.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ mm/mlock.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/mm/mlock.c b/mm/mlock.c
+index d638026..758c0fc 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -379,10 +379,14 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
+ 
+ 	/*
+ 	 * Initialize pte walk starting at the already pinned page where we
+-	 * are sure that there is a pte.
++	 * are sure that there is a pte, as it was pinned under the same
++	 * mmap_sem write op.
+ 	 */
+ 	pte = get_locked_pte(vma->vm_mm, start,	&ptl);
+-	end = min(end, pmd_addr_end(start, end));
++	/* Make sure we do not cross the page table boundary */
++	end = pgd_addr_end(start, end);
++	end = pud_addr_end(start, end);
++	end = pmd_addr_end(start, end);
+ 
+ 	/* The page next to the pinned page is the first we will try to get */
+ 	start += PAGE_SIZE;
 -- 
-Michal Hocko
-SUSE Labs
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
