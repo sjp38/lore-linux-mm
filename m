@@ -1,62 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id E7DDA6B0032
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 13:00:36 -0400 (EDT)
-Date: Tue, 17 Sep 2013 18:00:32 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 17/50] mm: Do not flush TLB during protection change if
- !pte_present && !migration_entry
-Message-ID: <20130917170031.GM22421@suse.de>
-References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
- <1378805550-29949-18-git-send-email-mgorman@suse.de>
- <20130916163547.GF9326@twins.programming.kicks-ass.net>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id A106F6B0032
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 14:35:13 -0400 (EDT)
+Message-ID: <5238A0D6.4090802@infradead.org>
+Date: Tue, 17 Sep 2013 11:35:02 -0700
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20130916163547.GF9326@twins.programming.kicks-ass.net>
+Subject: [PATCH 1/2] mm: fix slab.h kmalloc comments
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Linux MM <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
 
-On Mon, Sep 16, 2013 at 06:35:47PM +0200, Peter Zijlstra wrote:
-> On Tue, Sep 10, 2013 at 10:31:57AM +0100, Mel Gorman wrote:
-> > NUMA PTE scanning is expensive both in terms of the scanning itself and
-> > the TLB flush if there are any updates. Currently non-present PTEs are
-> > accounted for as an update and incurring a TLB flush where it is only
-> > necessary for anonymous migration entries. This patch addresses the
-> > problem and should reduce TLB flushes.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > ---
-> >  mm/mprotect.c | 3 ++-
-> >  1 file changed, 2 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/mm/mprotect.c b/mm/mprotect.c
-> > index 1f9b54b..1e9cef0 100644
-> > --- a/mm/mprotect.c
-> > +++ b/mm/mprotect.c
-> > @@ -109,8 +109,9 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-> >  				make_migration_entry_read(&entry);
-> >  				set_pte_at(mm, addr, pte,
-> >  					swp_entry_to_pte(entry));
-> > +
-> > +				pages++;
-> >  			}
-> > -			pages++;
-> >  		}
-> >  	} while (pte++, addr += PAGE_SIZE, addr != end);
-> >  	arch_leave_lazy_mmu_mode();
-> 
-> Should we fold this into patch 7 ?
+From: Randy Dunlap <rdunlap@infradead.org>
 
-Looking closer at it, I think folding it into the patch would overload
-the purpose of patch 7 a little too much but I shuffled the series to
-keep the patches together.
+Fix kernel-doc warning for duplicate definition of 'kmalloc':
 
--- 
-Mel Gorman
-SUSE Labs
+Documentation/DocBook/kernel-api.xml:9483: element refentry: validity error : ID API-kmalloc already defined
+<refentry id="API-kmalloc">
+
+Also combine the kernel-doc info from the 2 kmalloc definitions into one
+block and remove the "see kcalloc" comment since kmalloc now contains the
+@flags info.
+
+Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
+---
+ include/linux/slab.h |  102 ++++++++++++++++++-----------------------
+ 1 file changed, 46 insertions(+), 56 deletions(-)
+
+--- lnx-312-rc1.orig/include/linux/slab.h
++++ lnx-312-rc1/include/linux/slab.h
+@@ -381,10 +381,55 @@ static __always_inline void *kmalloc_lar
+ /**
+  * kmalloc - allocate memory
+  * @size: how many bytes of memory are required.
+- * @flags: the type of memory to allocate (see kcalloc).
++ * @flags: the type of memory to allocate.
+  *
+  * kmalloc is the normal method of allocating memory
+  * for objects smaller than page size in the kernel.
++ *
++ * The @flags argument may be one of:
++ *
++ * %GFP_USER - Allocate memory on behalf of user.  May sleep.
++ *
++ * %GFP_KERNEL - Allocate normal kernel ram.  May sleep.
++ *
++ * %GFP_ATOMIC - Allocation will not sleep.  May use emergency pools.
++ *   For example, use this inside interrupt handlers.
++ *
++ * %GFP_HIGHUSER - Allocate pages from high memory.
++ *
++ * %GFP_NOIO - Do not do any I/O at all while trying to get memory.
++ *
++ * %GFP_NOFS - Do not make any fs calls while trying to get memory.
++ *
++ * %GFP_NOWAIT - Allocation will not sleep.
++ *
++ * %GFP_THISNODE - Allocate node-local memory only.
++ *
++ * %GFP_DMA - Allocation suitable for DMA.
++ *   Should only be used for kmalloc() caches. Otherwise, use a
++ *   slab created with SLAB_DMA.
++ *
++ * Also it is possible to set different flags by OR'ing
++ * in one or more of the following additional @flags:
++ *
++ * %__GFP_COLD - Request cache-cold pages instead of
++ *   trying to return cache-warm pages.
++ *
++ * %__GFP_HIGH - This allocation has high priority and may use emergency pools.
++ *
++ * %__GFP_NOFAIL - Indicate that this allocation is in no way allowed to fail
++ *   (think twice before using).
++ *
++ * %__GFP_NORETRY - If memory is not immediately available,
++ *   then give up at once.
++ *
++ * %__GFP_NOWARN - If allocation fails, don't issue any warnings.
++ *
++ * %__GFP_REPEAT - If allocation fails initially, try once more before failing.
++ *
++ * There are other flags available as well, but these are not intended
++ * for general use, and so are not documented here. For a full list of
++ * potential flags, always refer to linux/gfp.h.
+  */
+ static __always_inline void *kmalloc(size_t size, gfp_t flags)
+ {
+@@ -495,61 +540,6 @@ int cache_show(struct kmem_cache *s, str
+ void print_slabinfo_header(struct seq_file *m);
+ 
+ /**
+- * kmalloc - allocate memory
+- * @size: how many bytes of memory are required.
+- * @flags: the type of memory to allocate.
+- *
+- * The @flags argument may be one of:
+- *
+- * %GFP_USER - Allocate memory on behalf of user.  May sleep.
+- *
+- * %GFP_KERNEL - Allocate normal kernel ram.  May sleep.
+- *
+- * %GFP_ATOMIC - Allocation will not sleep.  May use emergency pools.
+- *   For example, use this inside interrupt handlers.
+- *
+- * %GFP_HIGHUSER - Allocate pages from high memory.
+- *
+- * %GFP_NOIO - Do not do any I/O at all while trying to get memory.
+- *
+- * %GFP_NOFS - Do not make any fs calls while trying to get memory.
+- *
+- * %GFP_NOWAIT - Allocation will not sleep.
+- *
+- * %GFP_THISNODE - Allocate node-local memory only.
+- *
+- * %GFP_DMA - Allocation suitable for DMA.
+- *   Should only be used for kmalloc() caches. Otherwise, use a
+- *   slab created with SLAB_DMA.
+- *
+- * Also it is possible to set different flags by OR'ing
+- * in one or more of the following additional @flags:
+- *
+- * %__GFP_COLD - Request cache-cold pages instead of
+- *   trying to return cache-warm pages.
+- *
+- * %__GFP_HIGH - This allocation has high priority and may use emergency pools.
+- *
+- * %__GFP_NOFAIL - Indicate that this allocation is in no way allowed to fail
+- *   (think twice before using).
+- *
+- * %__GFP_NORETRY - If memory is not immediately available,
+- *   then give up at once.
+- *
+- * %__GFP_NOWARN - If allocation fails, don't issue any warnings.
+- *
+- * %__GFP_REPEAT - If allocation fails initially, try once more before failing.
+- *
+- * There are other flags available as well, but these are not intended
+- * for general use, and so are not documented here. For a full list of
+- * potential flags, always refer to linux/gfp.h.
+- *
+- * kmalloc is the normal method of allocating memory
+- * in the kernel.
+- */
+-static __always_inline void *kmalloc(size_t size, gfp_t flags);
+-
+-/**
+  * kmalloc_array - allocate memory for an array.
+  * @n: number of elements.
+  * @size: element size.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
