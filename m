@@ -1,49 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 00F6F6B0032
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 12:47:42 -0400 (EDT)
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: RE: [RESEND PATCH v2 1/4] mm/hwpoison: fix traverse hugetlbfs page
- to avoid printk flood
-Date: Tue, 17 Sep 2013 16:47:39 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F31CFEAC9@ORSMSX106.amr.corp.intel.com>
-References: <1379202839-23939-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130915001352.GQ18242@two.firstfloor.org>
- <3908561D78D1C84285E8C5FCA982C28F31CFD2D6@ORSMSX106.amr.corp.intel.com>
- <1379369397-ld8lbcn-mutt-n-horiguchi@ah.jp.nec.com>
- <20130916232345.GA3241@hacker.(null)>
- <3908561D78D1C84285E8C5FCA982C28F31CFD50B@ORSMSX106.amr.corp.intel.com>
- <20130917000817.GA5996@hacker.(null)>
-In-Reply-To: <20130917000817.GA5996@hacker.(null)>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id E7DDA6B0032
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 13:00:36 -0400 (EDT)
+Date: Tue, 17 Sep 2013 18:00:32 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 17/50] mm: Do not flush TLB during protection change if
+ !pte_present && !migration_entry
+Message-ID: <20130917170031.GM22421@suse.de>
+References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
+ <1378805550-29949-18-git-send-email-mgorman@suse.de>
+ <20130916163547.GF9326@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20130916163547.GF9326@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, "Wu,
- Fengguang" <fengguang.wu@intel.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-> Transparent huge pages are not helpful for DB workload which there is a l=
-ot of=20
-> shared memory
+On Mon, Sep 16, 2013 at 06:35:47PM +0200, Peter Zijlstra wrote:
+> On Tue, Sep 10, 2013 at 10:31:57AM +0100, Mel Gorman wrote:
+> > NUMA PTE scanning is expensive both in terms of the scanning itself and
+> > the TLB flush if there are any updates. Currently non-present PTEs are
+> > accounted for as an update and incurring a TLB flush where it is only
+> > necessary for anonymous migration entries. This patch addresses the
+> > problem and should reduce TLB flushes.
+> > 
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > ---
+> >  mm/mprotect.c | 3 ++-
+> >  1 file changed, 2 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/mm/mprotect.c b/mm/mprotect.c
+> > index 1f9b54b..1e9cef0 100644
+> > --- a/mm/mprotect.c
+> > +++ b/mm/mprotect.c
+> > @@ -109,8 +109,9 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+> >  				make_migration_entry_read(&entry);
+> >  				set_pte_at(mm, addr, pte,
+> >  					swp_entry_to_pte(entry));
+> > +
+> > +				pages++;
+> >  			}
+> > -			pages++;
+> >  		}
+> >  	} while (pte++, addr += PAGE_SIZE, addr != end);
+> >  	arch_leave_lazy_mmu_mode();
+> 
+> Should we fold this into patch 7 ?
 
-Hmm. Perhaps they should be.  If a database allocates most[1] of the memory=
- on a
-machine to a shared memory segment - that *ought* to be a candidate for usi=
-ng
-transparent huge pages.  Now that we have them they seem a better choice (m=
-uch
-more flexibility) than hugetlbfs.
+Looking closer at it, I think folding it into the patch would overload
+the purpose of patch 7 a little too much but I shuffled the series to
+keep the patches together.
 
--Tony
-
-[1] I've been told that it is normal to configure over 95% of physical memo=
-ry to the
-shared memory region to run a particular transaction based benchmark with o=
-ne
-commercial data base application.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
