@@ -1,101 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 5B4266B0032
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 15:22:13 -0400 (EDT)
-References: 
-Message-ID: <1379445730.79703.YahooMailNeo@web172205.mail.ir2.yahoo.com>
-Date: Tue, 17 Sep 2013 20:22:10 +0100 (BST)
-From: Max B <txtmb@yahoo.fr>
-Reply-To: Max B <txtmb@yahoo.fr>
-Subject: does gcc segfault when main memory is overfull?
-MIME-Version: 1.0
-Content-Type: multipart/alternative; boundary="-97308854-1164434340-1379445730=:79703"
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 97D926B0032
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 16:11:37 -0400 (EDT)
+Received: by mail-pb0-f46.google.com with SMTP id rq2so6023691pbb.19
+        for <linux-mm@kvack.org>; Tue, 17 Sep 2013 13:11:37 -0700 (PDT)
+Date: Tue, 17 Sep 2013 13:11:32 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/3] mm/vmalloc: don't warning vmalloc allocation
+ failure twice
+Message-Id: <20130917131132.30cea21dba15f42b919fe71a@linux-foundation.org>
+In-Reply-To: <1378125345-13228-2-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1378125345-13228-1-git-send-email-liwanp@linux.vnet.ibm.com>
+	<1378125345-13228-2-git-send-email-liwanp@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
----97308854-1164434340-1379445730=:79703
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
+On Mon,  2 Sep 2013 20:35:44 +0800 Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
 
-=0A=0AHi All,=0A=0Adoes gcc segfault when main memory is overfull?=A0 See b=
-elow for executable program.=0A=0A=0AIt seems to me that programs should be=
- able to access swap memory in these cases, but the behaviour has not been =
-confirmed.=0A=0AIs this the correct listserv for the present discussion? Ap=
-ologies if not.=0A=0AThanks for any/all help.=0A=0A=0ACheers,=0AMax=0A=0A=
-=0A/*=0A=A0* This program segfaults with the *bar array declaration.=0A=A0*=
-=0A=A0* I wonder why it does not write the *foo array to swap space=0A=A0* =
-then use the freed ram to allocate *bar.=0A=A0*=0A=A0* I have explored the =
-shell ulimit parameters to no avail.=0A=A0*=0A=A0* I have run this as root =
-and in userland with the same outcome.=0A=A0*=0A=A0* It seems to be a probl=
-em internal to gcc, but may also be a kernel issue.=0A=A0*=0A=A0*/=0A=0A#in=
-clude <stdio.h>=0A#include <stdlib.h>=0A=0A#define NMAX 628757505=0A=0Aint =
-main(int argc,char **argv) {=0A=A0 float *foo,*bar;=0A=0A=A0 foo=3Dcalloc(N=
-MAX,sizeof(float));=0A=A0 fprintf(stderr,"%9.3f %9.3f\n",foo[0],foo[1]);=0A=
-#if 1=0A=A0 bar=3Dcalloc(NMAX,sizeof(float));=0A=A0 fprintf(stderr,"%9.3f %=
-9.3f\n",bar[0],bar[1]);=0A#endif=0A=0A=A0 return=0A 0;=0A}=0A
----97308854-1164434340-1379445730=:79703
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
+> Don't warning twice in __vmalloc_area_node and __vmalloc_node_range if 
+> __vmalloc_area_node allocation failure.
+> 
+> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> ---
+>  mm/vmalloc.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index ee41cc6..e324d38 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -1635,7 +1635,7 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+>  
+>  	addr = __vmalloc_area_node(area, gfp_mask, prot, node, caller);
+>  	if (!addr)
+> -		goto fail;
+> +		return NULL;
+>  
+>  	/*
+>  	 * In this function, newly allocated vm_struct has VM_UNINITIALIZED
 
-<html><body><div style=3D"color:#000; background-color:#fff; font-family:ti=
-mes new roman, new york, times, serif;font-size:10pt"><div id=3D"yiv8758039=
-615"><div><div style=3D"color:#000;background-color:#fff;font-family:times =
-new roman, new york, times, serif;font-size:10pt;"><div><br></div><div styl=
-e=3D"color:rgb(0, 0, 0);font-size:13.3333px;font-family:times new roman, ne=
-w york, times, serif;background-color:transparent;font-style:normal;">Hi Al=
-l,</div><div style=3D"color:rgb(0, 0, 0);font-size:13.3333px;font-family:ti=
-mes new roman, new york, times, serif;background-color:transparent;font-sty=
-le:normal;"><br></div><div style=3D"color:rgb(0, 0, 0);font-size:13.3333px;=
-font-family:times new roman, new york, times, serif;background-color:transp=
-arent;font-style:normal;">does gcc segfault when main memory is overfull?&n=
-bsp; See below for executable program.<br></div><div style=3D"color:rgb(0, =
-0, 0);font-size:13.3333px;font-family:times new roman, new york, times,
- serif;background-color:transparent;font-style:normal;"><br></div><div styl=
-e=3D"color:rgb(0, 0, 0);font-size:13.3333px;font-family:times new roman, ne=
-w york, times, serif;background-color:transparent;font-style:normal;">It se=
-ems to me that programs should be able to access swap memory in these cases=
-, but the behaviour has not been confirmed.</div><div style=3D"color:rgb(0,=
- 0, 0);font-size:13.3333px;font-family:times new roman, new york, times, se=
-rif;background-color:transparent;font-style:normal;"><br></div><div style=
-=3D"color:rgb(0, 0, 0);font-size:13.3333px;font-family:times new roman, new=
- york, times, serif;background-color:transparent;font-style:normal;">Is thi=
-s the correct listserv for the present discussion? Apologies if not.</div><=
-div style=3D"color:rgb(0, 0, 0);font-size:13.3333px;font-family:times new r=
-oman, new york, times, serif;background-color:transparent;font-style:normal=
-;"><br></div><div style=3D"color:rgb(0, 0,
- 0);font-size:13.3333px;font-family:times new roman, new york, times, serif=
-;background-color:transparent;=0Afont-style:normal;">Thanks for any/all hel=
-p.<br></div><div style=3D"color:rgb(0, 0, 0);font-size:13.3333px;font-famil=
-y:times new roman, new york, times, serif;background-color:transparent;font=
--style:normal;"><br></div><div style=3D"color:rgb(0, 0, 0);font-size:13.333=
-3px;font-family:times new roman, new york, times, serif;background-color:tr=
-ansparent;font-style:normal;">Cheers,</div><div style=3D"color:rgb(0, 0, 0)=
-;font-size:13.3333px;font-family:times new roman, new york, times, serif;ba=
-ckground-color:transparent;font-style:normal;">Max</div><div style=3D"color=
-:rgb(0, 0, 0);font-size:13.3333px;font-family:times new roman, new york, ti=
-mes, serif;background-color:transparent;font-style:normal;"><br></div><div =
-style=3D"color:rgb(0, 0, 0);font-size:13.3333px;font-family:times new roman=
-, new york, times, serif;background-color:transparent;font-style:normal;"><=
-br></div><div style=3D"color:rgb(0, 0, 0);font-size:13.3333px;font-family:t=
-imes new roman, new york, times,
- serif;background-color:transparent;font-style:normal;">/*<br>&nbsp;* This =
-program segfaults with the *bar array declaration.<br>&nbsp;*<br>&nbsp;* I =
-wonder why it does not write the *foo array to swap space<br>&nbsp;* then u=
-se the freed ram to allocate *bar.<br>&nbsp;*<br>&nbsp;* I have explored th=
-e shell ulimit parameters to no avail.<br>&nbsp;*<br>&nbsp;* I have run thi=
-s as root and in userland with the same outcome.<br>&nbsp;*<br>&nbsp;* It s=
-eems to be a problem internal to gcc, but may also be a kernel issue.<br>&n=
-bsp;*<br>&nbsp;*/<br><br>#include &lt;stdio.h&gt;<br>#include &lt;stdlib.h&=
-gt;<br><br>#define NMAX 628757505<br><br>int main(int argc,char **argv) {<b=
-r>&nbsp; float *foo,*bar;<br><br>&nbsp; foo=3Dcalloc(NMAX,sizeof(float));<b=
-r>&nbsp; fprintf(stderr,"%9.3f %9.3f\n",foo[0],foo[1]);<br>#if 1<br>&nbsp; =
-bar=3Dcalloc(NMAX,sizeof(float));<br>&nbsp; fprintf(stderr,"%9.3f %9.3f\n",=
-bar[0],bar[1]);<br>#endif<br><br>&nbsp; return=0A 0;<br>}</div><div style=
-=3D"color:rgb(0, 0, 0);font-size:13.3333px;font-family:times new roman, new=
- york, times, serif;background-color:transparent;font-style:normal;"><br></=
-div></div></div></div></div></body></html>
----97308854-1164434340-1379445730=:79703--
+Putting a `return' in the middle of a function is often a bad thing -
+functions which have multiple return points often lead to resource and
+locking leaks.
+
+It's particularly bad to have that return *after* a bunch of "goto
+fail" statements - the result is utter spaghetti.
+
+Fix:
+
+--- a/mm/vmalloc.c~mm-vmalloc-dont-warn-about-vmalloc-allocation-failure-twice-fix
++++ a/mm/vmalloc.c
+@@ -1626,16 +1626,16 @@ void *__vmalloc_node_range(unsigned long
+ 
+ 	size = PAGE_ALIGN(size);
+ 	if (!size || (size >> PAGE_SHIFT) > totalram_pages)
+-		goto fail;
++		goto warn;
+ 
+ 	area = __get_vm_area_node(size, align, VM_ALLOC | VM_UNINITIALIZED,
+ 				  start, end, node, gfp_mask, caller);
+ 	if (!area)
+-		goto fail;
++		goto warn;
+ 
+ 	addr = __vmalloc_area_node(area, gfp_mask, prot, node, caller);
+ 	if (!addr)
+-		return NULL;
++		goto fail;
+ 
+ 	/*
+ 	 * In this function, newly allocated vm_struct has VM_UNINITIALIZED
+@@ -1653,10 +1653,11 @@ void *__vmalloc_node_range(unsigned long
+ 
+ 	return addr;
+ 
+-fail:
++warn:
+ 	warn_alloc_failed(gfp_mask, 0,
+ 			  "vmalloc: allocation failure: %lu bytes\n",
+ 			  real_size);
++fail:
+ 	return NULL;
+ }
+ 
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
