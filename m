@@ -1,122 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 25A3F6B0033
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 09:32:13 -0400 (EDT)
-Received: by mail-wi0-f170.google.com with SMTP id cb5so5003000wib.5
-        for <linux-mm@kvack.org>; Tue, 17 Sep 2013 06:32:11 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 732706B0033
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 09:34:21 -0400 (EDT)
+Message-ID: <52385A59.2080304@suse.cz>
+Date: Tue, 17 Sep 2013 15:34:17 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CAOMqctQ+XchmXk_Xno6ViAoZF-tHFPpDWoy7LVW1nooa+ywbmg@mail.gmail.com>
-References: <CAJd=RBBbJMWox5yJaNzW_jUdDfKfWe-Y7d1riYdN6huQStxzcA@mail.gmail.com>
- <CAOMqctQyS2SFraqJpzE0sRFcihFpMHRhT+3QuZhxft=SUXYVDw@mail.gmail.com> <CAOMqctQ+XchmXk_Xno6ViAoZF-tHFPpDWoy7LVW1nooa+ywbmg@mail.gmail.com>
-From: Michal Suchanek <hramrach@gmail.com>
-Date: Tue, 17 Sep 2013 15:31:31 +0200
-Message-ID: <CAOMqctT2u7E0kwpm052B9pkNo4D=sYHO+Vk=P_TziUb5KvTMKA@mail.gmail.com>
-Subject: Re: doing lots of disk writes causes oom killer to kill processes
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [munlock] BUG: Bad page map in process killall5 pte:53425553
+ pmd:075f4067
+References: <20130916084752.GC11479@localhost> <52372349.6030308@suse.cz> <20130917132910.GA16186@localhost>
+In-Reply-To: <20130917132910.GA16186@localhost>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 5 September 2013 12:12, Michal Suchanek <hramrach@gmail.com> wrote:
-> Hello
->
-> On 26 August 2013 15:51, Michal Suchanek <hramrach@gmail.com> wrote:
->> On 12 March 2013 03:15, Hillf Danton <dhillf@gmail.com> wrote:
->>>>On 11 March 2013 13:15, Michal Suchanek <hramrach@gmail.com> wrote:
->>>>>On 8 February 2013 17:31, Michal Suchanek <hramrach@gmail.com> wrote:
->>>>> Hello,
->>>>>
->>>>> I am dealing with VM disk images and performing something like wiping
->>>>> free space to prepare image for compressing and storing on server or
->>>>> copying it to external USB disk causes
->>>>>
->>>>> 1) system lockup in order of a few tens of seconds when all CPU cores
->>>>> are 100% used by system and the machine is basicaly unusable
->>>>>
->>>>> 2) oom killer killing processes
->>>>>
->>>>> This all on system with 8G ram so there should be plenty space to work with.
->>>>>
->>>>> This happens with kernels 3.6.4 or 3.7.1
->>>>>
->>>>> With earlier kernel versions (some 3.0 or 3.2 kernels) this was not a
->>>>> problem even with less ram.
->>>>>
->>>>> I have  vm.swappiness = 0 set for a long  time already.
->>>>>
->>>>>
->>>>I did some testing with 3.7.1 and with swappiness as much as 75 the
->>>>kernel still causes all cores to loop somewhere in system when writing
->>>>lots of data to disk.
->>>>
->>>>With swappiness as much as 90 processes still get killed on large disk writes.
->>>>
->>>>Given that the max is 100 the interval in which mm works at all is
->>>>going to be very narrow, less than 10% of the paramater range. This is
->>>>a severe regression as is the cpu time consumed by the kernel.
->>>>
->>>>The io scheduler is the default cfq.
->>>>
->>>>If you have any idea what to try other than downgrading to an earlier
->>>>unaffected kernel I would like to hear.
->>>>
->>> Can you try commit 3cf23841b4b7(mm/vmscan.c: avoid possible
->>> deadlock caused by too_many_isolated())?
->>>
->>> Or try 3.8 and/or 3.9, additionally?
->>>
+On 09/17/2013 03:29 PM, Fengguang Wu wrote:
+> Hi Vlastimil,
+> 
 >>
->> Hello,
+>> Also, some of the failures during bisect were not due to this bug, but a WARNING for
+>> list_add corruption which hopefully is not related to munlock. While it is probably a far stretch,
+>> some kind of memory corruption could also lead to the erroneous behavior of the munlock code.
 >>
->> with deadline IO scheduler I experience this issue less often but it
->> still happens.
->>
->> I am on 3.9.6 Debian kernel so 3.8 did not fix this problem.
->>
->> Do you have some idea what to log so that useful information about the
->> lockup is gathered?
->>
->
-> This appears to be fixed in vanilla 3.11 kernel.
->
-> I still get short intermittent lockups and cpu usage spikes up to 20%
-> on a core but nowhere near the minute+ long lockups with all cores
-> 100% on earlier kernels.
->
+>> Can you therefore please retest with the bisected patch reverted (patch below) to see if the other
+>> WARNING still occurs and can be dealt with separately, so there are not potentially two bugs to
+>> be chased at the same time?
+> 
+> Yes there seems to be one more bug, the attached dmesg is for the
+> kernel with your patch reverted. I'm trying to bisect the other bug
+> now.
 
-So I did more testing on the 3.11 kernel and while it works OK with
-tar you can get severe lockups with mc or kvm. The difference is
-probably the fact that sane tools do fsync() on files they close
-forcing the file to write out and the kernel returning possible write
-errors before they move on to next file.
+Thanks. Meanwhile I was able to reproduce the bug in my patch in a VM
+with x86_32 without PAE. As it turns out, pmd_addr_end() on such
+configuration without pmd really does not bound the address to page
+table boundary, but is a no-op. Working on a fix.
 
-With kvm writing to a file used as virtual disk the system would stall
-indefinitely until the disk driver in the emulated system would time
-out, return disk IO error, and the emulated system would stop writing.
-In top I see all CPU cores 90%+ in wait. System is unusable. With mc
-the lockups would be indefinite, probably because there is no timeout
-on writing a file in mc.
+Vlastimil
 
-I tried tuning swappiness and eleveators but the the basic problem is
-solved by neither: the dirty buffers fill up memory and system stalls
-trying to resolve the situation.
-
-Obviously the kernel puts off writing any dirty buffers until the
-memory pressure is overwhelming and the vmm flops.
-
-At least the OOM killer does not get invoked anymore since there is
-lots of memory - just Linux does not know how to use it.
-
-The solution to this problem is quite simple - use the ancient
-userspace bdflushd or what it was called. I emulate it with
-{ while true ; do sleep 5; sync ; done } &
-
-The system performance suddenly increases - to the awesome Debian stable levels.
-
-Thanks
-
-Michal
+> Thanks,
+> Fengguang
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
