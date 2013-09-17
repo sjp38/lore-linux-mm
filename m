@@ -1,83 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 61BB46B0032
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 10:57:42 -0400 (EDT)
-Received: from /spool/local
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <holzheu@linux.vnet.ibm.com>;
-	Tue, 17 Sep 2013 15:57:40 +0100
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 3E9C717D8057
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 15:57:47 +0100 (BST)
-Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8HEvO4u46727380
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 14:57:24 GMT
-Received: from d06av04.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av04.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8HEvaHn010202
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 08:57:36 -0600
-Date: Tue, 17 Sep 2013 16:57:34 +0200
-From: Michael Holzheu <holzheu@linux.vnet.ibm.com>
-Subject: [PATCH] mm: Fix bootmem error handling in pcpu_page_first_chunk()
-Message-ID: <20130917165734.16aa0226@holzheu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 7A2E56B0032
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 11:14:21 -0400 (EDT)
+Date: Tue, 17 Sep 2013 11:14:08 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH resend] drop_caches: add some documentation and info
+ message
+Message-ID: <20130917151408.GE3278@cmpxchg.org>
+References: <1374842669-22844-1-git-send-email-mhocko@suse.cz>
+ <20130729135743.c04224fb5d8e64b2730d8263@linux-foundation.org>
+ <51F9D1F6.4080001@jp.fujitsu.com>
+ <20130731201708.efa5ae87.akpm@linux-foundation.org>
+ <CAHGf_=r7mek+ueJWfu_6giMOueDTnMs8dY1jJrKyX+gfPys6uA@mail.gmail.com>
+ <20130802073304.GA17746@dhcp22.suse.cz>
+ <51FD653A.3060004@jp.fujitsu.com>
+ <20130804080751.GA24005@dhcp22.suse.cz>
+ <CAHGf_=o19rxB=neUPzZAeL9eeLnksKcbqCJjc+vg=EhYtnuwCw@mail.gmail.com>
+ <20130805072013.GA10146@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130805072013.GA10146@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, dave.hansen@intel.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, bp@suse.de, Dave Hansen <dave@linux.vnet.ibm.com>
 
-If memory allocation of in pcpu_embed_first_chunk() fails, the
-allocated memory is not released correctly. In the release loop also
-the non-allocated elements are released which leads to the following
-kernel BUG on systems with very little memory:
+On Mon, Aug 05, 2013 at 09:20:13AM +0200, Michal Hocko wrote:
+> On Sun 04-08-13 21:13:44, KOSAKI Motohiro wrote:
+> > On Sun, Aug 4, 2013 at 4:07 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> > > On Sat 03-08-13 16:16:58, KOSAKI Motohiro wrote:
+> > >> >>> You missed the "!".  I'm proposing that setting the new bit 2 will
+> > >> >>> permit people to prevent the new printk if it is causing them problems.
+> > >> >>
+> > >> >> No I don't. I'm sure almost all abuse users think our usage is correct. Then,
+> > >> >> I can imagine all crazy applications start to use this flag eventually.
+> > >> >
+> > >> > I guess we do not care about those. If somebody wants to shoot his feet
+> > >> > then we cannot do much about it. The primary motivation was to find out
+> > >> > those that think this is right and they are willing to change the setup
+> > >> > once they know this is not the right way to do things.
+> > >> >
+> > >> > I think that giving a way to suppress the warning is a good step. Log
+> > >> > level might be to coarse and sysctl would be an overkill.
+> > >>
+> > >> When Dave Hansen reported this issue originally, he explained a lot of userland
+> > >> developer misuse /proc/drop_caches because they don't understand what
+> > >> drop_caches do.
+> > >> So, if they never understand the fact, why can we trust them? I have no
+> > >> idea.
+> > >
+> > > Well, most of that usage I have come across was legacy scripts which
+> > > happened to work at a certain point in time because we sucked.
+> > > Thinks have changed but such scripts happen to survive a long time.
+> > > We are primarily interested in those.
+> > 
+> > Well, if the main target is shell script, task_comm and pid don't help us
+> > a lot. I suggest to add ppid too.
+> 
+> I do not have any objections to add ppid.
+>  
+> > >> Or, if you have different motivation w/ Dave, please let me know it.
+> > >
+> > > We have seen reports where users complained about performance drop down
+> > > when in fact the real culprit turned out to be such a clever script
+> > > which dropped caches on the background thinking it will help to free
+> > > some memory. Such cases are tedious to reveal.
+> > 
+> > Imagine such script have bit-2 and no logging output. Because
+> > the script author think "we are doing the right thing".
+> > Why distro guys want such suppress messages?
+> 
+> I am not really pushing this suppressing functionality. I just
+> understand that there might be some legitimate use for supressing and if
+> that is a must for merging the printk, I can live with that.
 
-[    0.000000] kernel BUG at mm/bootmem.c:307!
-[    0.000000] illegal operation: 0001 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[    0.000000] Modules linked in:
-[    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 3.10.0 #22
-[    0.000000] task: 0000000000a20ae0 ti: 0000000000a08000 task.ti: 0000000000a08000
-[    0.000000] Krnl PSW : 0400000180000000 0000000000abda7a (__free+0x116/0x154)
-[    0.000000]            R:0 T:1 IO:0 EX:0 Key:0 M:0 W:0 P:0 AS:0 CC:0 PM:0 EA:3
-...
-[    0.000000]  [<0000000000abdce2>] mark_bootmem_node+0xde/0xf0
-[    0.000000]  [<0000000000abdd9c>] mark_bootmem+0xa8/0x118
-[    0.000000]  [<0000000000abcbba>] pcpu_embed_first_chunk+0xe7a/0xf0c
-[    0.000000]  [<0000000000abcc96>] setup_per_cpu_areas+0x4a/0x28c
+Is there any conceivable use case that legitimately drops caches at
+such a rate that the logging output becomes a problem?
 
-To fix the problem now only allocated elements are released. This then
-leads to the correct kernel panic:
-
-[    0.000000] Kernel panic - not syncing: Failed to initialize percpu areas.
-...
-[    0.000000] Call Trace:
-[    0.000000] ([<000000000011307e>] show_trace+0x132/0x150)
-[    0.000000]  [<0000000000113160>] show_stack+0xc4/0xd4
-[    0.000000]  [<00000000007127dc>] dump_stack+0x74/0xd8
-[    0.000000]  [<00000000007123fe>] panic+0xea/0x264
-[    0.000000]  [<0000000000b14814>] setup_per_cpu_areas+0x5c/0x28c
-
-Signed-off-by: Michael Holzheu <holzheu@linux.vnet.ibm.com>
----
- mm/percpu.c |    5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
-
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -1705,9 +1705,12 @@ int __init pcpu_embed_first_chunk(size_t
- 	goto out_free;
- 
- out_free_areas:
--	for (group = 0; group < ai->nr_groups; group++)
-+	for (group = 0; group < ai->nr_groups; group++) {
-+		if (!areas[group])
-+			continue;
- 		free_fn(areas[group],
- 			ai->groups[group].nr_units * ai->unit_size);
-+	}
- out_free:
- 	pcpu_free_alloc_info(ai);
- 	if (areas)
+We export an interface that provides something useful in exceptional
+cases but has significant impact on the kernel's ongoing operations.
+Kernel developers want this information in problem reports.  It's the
+same thing as forcefully tainting kernels when a proprietary module is
+loaded.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
