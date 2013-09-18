@@ -1,80 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 7177F6B0032
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 16:38:45 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fb10so8683872pad.23
-        for <linux-mm@kvack.org>; Wed, 18 Sep 2013 13:38:45 -0700 (PDT)
-Date: Thu, 19 Sep 2013 06:38:22 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [Intel-gfx] [PATCH] [RFC] mm/shrinker: Add a shrinker flag to
- always shrink a bit
-Message-ID: <20130918203822.GA4330@dastard>
-References: <1379495401-18279-1-git-send-email-daniel.vetter@ffwll.ch>
- <5239829F.4080601@t-online.de>
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 3705A6B0032
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 16:52:25 -0400 (EDT)
+Received: by mail-pb0-f50.google.com with SMTP id uo5so7445213pbc.23
+        for <linux-mm@kvack.org>; Wed, 18 Sep 2013 13:52:24 -0700 (PDT)
+Subject: =?utf-8?q?Re=3A_=5Bpatch_0=2F7=5D_improve_memcg_oom_killer_robustness_v2?=
+Date: Wed, 18 Sep 2013 22:52:19 +0200
+From: "azurIt" <azurit@pobox.sk>
+References: <20130916145744.GE3674@dhcp22.suse.cz>, <20130916170543.77F1ECB4@pobox.sk>, <20130916152548.GF3674@dhcp22.suse.cz>, <20130916225246.A633145B@pobox.sk>, <20130917000244.GD3278@cmpxchg.org>, <20130917131535.94E0A843@pobox.sk>, <20130917141013.GA30838@dhcp22.suse.cz>, <20130918160304.6EDF2729@pobox.sk>, <20130918180455.GD856@cmpxchg.org>, <20130918181946.GE856@cmpxchg.org> <20130918195504.GF856@cmpxchg.org>
+In-Reply-To: <20130918195504.GF856@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+Message-Id: <20130918225219.670AD8C2@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <5239829F.4080601@t-online.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Knut Petersen <Knut_Petersen@t-online.de>
-Cc: Daniel Vetter <daniel.vetter@ffwll.ch>, Linux MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, DRI Development <dri-devel@lists.freedesktop.org>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
+Cc: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>, =?utf-8?q?Andrew_Morton?= <akpm@linux-foundation.org>, =?utf-8?q?David_Rientjes?= <rientjes@google.com>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?KOSAKI_Motohiro?= <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Sep 18, 2013 at 12:38:23PM +0200, Knut Petersen wrote:
-> On 18.09.2013 11:10, Daniel Vetter wrote:
-> 
-> Just now I prepared a patch changing the same function in vmscan.c
-> >Also, this needs to be rebased to the new shrinker api in 3.12, I
-> >simply haven't rolled my trees forward yet.
-> 
-> Well, you should. Since commit 81e49f  shrinker->count_objects might be
-> set to SHRINK_STOP, causing shrink_slab_node() to complain loud and often:
-> 
-> [ 1908.234595] shrink_slab: i915_gem_inactive_scan+0x0/0x9c negative objects to delete nr=-xxxxxxxxx
-> 
-> The kernel emitted a few thousand log lines like the one quoted above during the
-> last few days on my system.
-> 
-> >diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >index 2cff0d4..d81f6e0 100644
-> >--- a/mm/vmscan.c
-> >+++ b/mm/vmscan.c
-> >@@ -254,6 +254,10 @@ unsigned long shrink_slab(struct shrink_control *shrink,
-> >  			total_scan = max_pass;
-> >  		}
-> >+		/* Always try to shrink a bit to make forward progress. */
-> >+		if (shrinker->evicts_to_page_lru)
-> >+			total_scan = max_t(long, total_scan, batch_size);
-> >+
-> At that place the error message is already emitted.
-> >  		/*
-> >  		 * We need to avoid excessive windup on filesystem shrinkers
-> >  		 * due to large numbers of GFP_NOFS allocations causing the
-> 
-> Have a look at the attached patch. It fixes my problem with the erroneous/misleading
-> error messages, and I think it's right to just bail out early if SHRINK_STOP is found.
-> 
-> Do you agree ?
+> CC: "Michal Hocko" <mhocko@suse.cz>, "Andrew Morton" <akpm@linux-foundation.org>, "David Rientjes" <rientjes@google.com>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+>On Wed, Sep 18, 2013 at 02:19:46PM -0400, Johannes Weiner wrote:
+>> On Wed, Sep 18, 2013 at 02:04:55PM -0400, Johannes Weiner wrote:
+>> > On Wed, Sep 18, 2013 at 04:03:04PM +0200, azurIt wrote:
+>> > > > CC: "Johannes Weiner" <hannes@cmpxchg.org>, "Andrew Morton" <akpm@linux-foundation.org>, "David Rientjes" <rientjes@google.com>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+>> > > >On Tue 17-09-13 13:15:35, azurIt wrote:
+>> > > >[...]
+>> > > >> Is something unusual on this stack?
+>> > > >> 
+>> > > >> 
+>> > > >> [<ffffffff810d1a5e>] dump_header+0x7e/0x1e0
+>> > > >> [<ffffffff810d195f>] ? find_lock_task_mm+0x2f/0x70
+>> > > >> [<ffffffff810d1f25>] oom_kill_process+0x85/0x2a0
+>> > > >> [<ffffffff810d24a8>] mem_cgroup_out_of_memory+0xa8/0xf0
+>> > > >> [<ffffffff8110fb76>] mem_cgroup_oom_synchronize+0x2e6/0x310
+>> > > >> [<ffffffff8110efc0>] ? mem_cgroup_uncharge_page+0x40/0x40
+>> > > >> [<ffffffff810d2703>] pagefault_out_of_memory+0x13/0x130
+>> > > >> [<ffffffff81026f6e>] mm_fault_error+0x9e/0x150
+>> > > >> [<ffffffff81027424>] do_page_fault+0x404/0x490
+>> > > >> [<ffffffff810f952c>] ? do_mmap_pgoff+0x3dc/0x430
+>> > > >> [<ffffffff815cb87f>] page_fault+0x1f/0x30
+>> > > >
+>> > > >This is a regular memcg OOM killer. Which dumps messages about what is
+>> > > >going to do. So no, nothing unusual, except if it was like that for ever
+>> > > >which would mean that oom_kill_process is in the endless loop. But a
+>> > > >single stack doesn't tell us much.
+>> > > >
+>> > > >Just a note. When you see something hogging a cpu and you are not sure
+>> > > >whether it might be in an endless loop inside the kernel it makes sense
+>> > > >to take several snaphosts of the stack trace and see if it changes. If
+>> > > >not and the process is not sleeping (there is no schedule on the trace)
+>> > > >then it might be looping somewhere waiting for Godot. If it is sleeping
+>> > > >then it is slightly harder because you would have to identify what it is
+>> > > >waiting for which requires to know a deeper context.
+>> > > >-- 
+>> > > >Michal Hocko
+>> > > >SUSE Labs
+>> > > 
+>> > > 
+>> > > 
+>> > > I was finally able to get stack of problematic process :) I saved it two times from the same process, as Michal suggested (i wasn't able to take more). Here it is:
+>> > > 
+>> > > First (doesn't look very helpfull):
+>> > > [<ffffffffffffffff>] 0xffffffffffffffff
+>> > > 
+>> > > 
+>> > > Second:
+>> > > [<ffffffff810e17d1>] shrink_zone+0x481/0x650
+>> > > [<ffffffff810e2ade>] do_try_to_free_pages+0xde/0x550
+>> > > [<ffffffff810e310b>] try_to_free_pages+0x9b/0x120
+>> > > [<ffffffff81148ccd>] free_more_memory+0x5d/0x60
+>> > > [<ffffffff8114931d>] __getblk+0x14d/0x2c0
+>> > > [<ffffffff8114c973>] __bread+0x13/0xc0
+>> > > [<ffffffff811968a8>] ext3_get_branch+0x98/0x140
+>> > > [<ffffffff81197497>] ext3_get_blocks_handle+0xd7/0xdc0
+>> > > [<ffffffff81198244>] ext3_get_block+0xc4/0x120
+>> > > [<ffffffff81155b8a>] do_mpage_readpage+0x38a/0x690
+>> > > [<ffffffff81155ffb>] mpage_readpages+0xfb/0x160
+>> > > [<ffffffff811972bd>] ext3_readpages+0x1d/0x20
+>> > > [<ffffffff810d9345>] __do_page_cache_readahead+0x1c5/0x270
+>> > > [<ffffffff810d9411>] ra_submit+0x21/0x30
+>> > > [<ffffffff810cfb90>] filemap_fault+0x380/0x4f0
+>> > > [<ffffffff810ef908>] __do_fault+0x78/0x5a0
+>> > > [<ffffffff810f2b24>] handle_pte_fault+0x84/0x940
+>> > > [<ffffffff810f354a>] handle_mm_fault+0x16a/0x320
+>> > > [<ffffffff8102715b>] do_page_fault+0x13b/0x490
+>> > > [<ffffffff815cb87f>] page_fault+0x1f/0x30
+>> > > [<ffffffffffffffff>] 0xffffffffffffffff
+>> > 
+>> > Ah, crap.  I'm sorry.  You even showed us this exact trace before in
+>> > another context, but I did not fully realize what __getblk() is doing.
+>> > 
+>> > My subsequent patches made a charge attempt return -ENOMEM without
+>> > reclaim if the memcg is under OOM.  And so the reason you have these
+>> > reclaim livelocks is because __getblk never fails on -ENOMEM.  When
+>> > the allocation returns -ENOMEM, it invokes GLOBAL DIRECT RECLAIM and
+>> > tries again in an endless loop.  The memcg code would previously just
+>> > loop inside the charge, reclaiming and killing, until the allocation
+>> > succeeded.  But the new code relies on the fault stack being unwound
+>> > to complete the OOM kill.  And since the stack is not unwound with
+>> > __getblk() looping around the allocation there is no more memcg
+>> > reclaim AND no memcg OOM kill, thus no chance of exiting.
+>> > 
+>> > That code is weird but really old, so it may take a while to evaluate
+>> > all the callers as to whether this can be changed.
+>> > 
+>> > In the meantime, I would just allow __getblk to bypass the memcg limit
+>> > when it still can't charge after reclaim.  Does the below get your
+>> > machine back on track?
+>> 
+>> Scratch that.  The idea is reasonable but the implementation is not
+>> fully cooked yet.  I'll send you an update.
+>
+>Here is an update.  Full replacement on top of 3.2 since we tried a
+>dead end and it would be more painful to revert individual changes.
+>
+>The first bug you had was the same task entering OOM repeatedly and
+>leaking the memcg reference, thus creating undeletable memcgs.  My
+>fixup added a condition that if the task already set up an OOM context
+>in that fault, another charge attempt would immediately return -ENOMEM
+>without even trying reclaim anymore.  This dropped __getblk() into an
+>endless loop of waking the flushers and performing global reclaim and
+>memcg returning -ENOMEM regardless of free memory.
+>
+>The update now basically only changes this -ENOMEM to bypass, so that
+>the memory is not accounted and the limit ignored.  OOM killed tasks
+>are granted the same right, so that they can exit quickly and release
+>memory.  Likewise, we want a task that hit the OOM condition also to
+>finish the fault quickly so that it can invoke the OOM killer.
+>
+>Does the following work for you, azur?
 
-No, that's wrong. ->count_objects should never ass SHRINK_STOP.
-Indeed, it should always return a count of objects in the cache,
-regardless of the context. 
 
-SHRINK_STOP is for ->scan_objects to tell the shrinker it can make
-any progress due to the context it is called in. This allows the
-shirnker to defer the work to another call in a different context.
-However, if ->count-objects doesn't return a count, the work that
-was supposed to be done cannot be deferred, and that is what
-->count_objects should always return the number of objects in the
-cache.
 
-Cheers,
+Compiled fine, I wil install new kernel this night. Thank you!
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+azur
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
