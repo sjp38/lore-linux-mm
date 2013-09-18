@@ -1,81 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 593CA6B0034
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 10:42:53 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id rr4so7047795pbb.6
-        for <linux-mm@kvack.org>; Wed, 18 Sep 2013 07:42:53 -0700 (PDT)
-Date: Wed, 18 Sep 2013 16:42:45 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 0/7] improve memcg oom killer robustness v2
-Message-ID: <20130918144245.GC3421@dhcp22.suse.cz>
-References: <20130916145744.GE3674@dhcp22.suse.cz>
- <20130916170543.77F1ECB4@pobox.sk>
- <20130916152548.GF3674@dhcp22.suse.cz>
- <20130916225246.A633145B@pobox.sk>
- <20130917000244.GD3278@cmpxchg.org>
- <20130917131535.94E0A843@pobox.sk>
- <20130917141013.GA30838@dhcp22.suse.cz>
- <20130918160304.6EDF2729@pobox.sk>
- <20130918142400.GA3421@dhcp22.suse.cz>
- <20130918163306.3620C973@pobox.sk>
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id A5F766B0036
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 10:56:52 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id g10so7148410pdj.16
+        for <linux-mm@kvack.org>; Wed, 18 Sep 2013 07:56:52 -0700 (PDT)
+Received: by mail-we0-f173.google.com with SMTP id w62so6551208wes.4
+        for <linux-mm@kvack.org>; Wed, 18 Sep 2013 07:56:48 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130918163306.3620C973@pobox.sk>
+In-Reply-To: <20130917211317.GB6537@quack.suse.cz>
+References: <CAJd=RBBbJMWox5yJaNzW_jUdDfKfWe-Y7d1riYdN6huQStxzcA@mail.gmail.com>
+ <CAOMqctQyS2SFraqJpzE0sRFcihFpMHRhT+3QuZhxft=SUXYVDw@mail.gmail.com>
+ <CAOMqctQ+XchmXk_Xno6ViAoZF-tHFPpDWoy7LVW1nooa+ywbmg@mail.gmail.com>
+ <CAOMqctT2u7E0kwpm052B9pkNo4D=sYHO+Vk=P_TziUb5KvTMKA@mail.gmail.com> <20130917211317.GB6537@quack.suse.cz>
+From: Michal Suchanek <hramrach@gmail.com>
+Date: Wed, 18 Sep 2013 16:56:08 +0200
+Message-ID: <CAOMqctT5Wi_Y9ODAnoG-RQiO1oJ+yKR=LnF21swuupyLShL=+w@mail.gmail.com>
+Subject: Re: doing lots of disk writes causes oom killer to kill processes
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: azurIt <azurit@pobox.sk>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Hillf Danton <dhillf@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Wed 18-09-13 16:33:06, azurIt wrote:
-> > CC: "Johannes Weiner" <hannes@cmpxchg.org>, "Andrew Morton" <akpm@linux-foundation.org>, "David Rientjes" <rientjes@google.com>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
-> >On Wed 18-09-13 16:03:04, azurIt wrote:
-> >[..]
-> >> I was finally able to get stack of problematic process :) I saved it
-> >> two times from the same process, as Michal suggested (i wasn't able to
-> >> take more). Here it is:
-> >> 
-> >> First (doesn't look very helpfull):
-> >> [<ffffffffffffffff>] 0xffffffffffffffff
-> >
-> >No it is not.
-> > 
-> >> Second:
-> >> [<ffffffff810e17d1>] shrink_zone+0x481/0x650
-> >> [<ffffffff810e2ade>] do_try_to_free_pages+0xde/0x550
-> >> [<ffffffff810e310b>] try_to_free_pages+0x9b/0x120
-> >> [<ffffffff81148ccd>] free_more_memory+0x5d/0x60
-> >> [<ffffffff8114931d>] __getblk+0x14d/0x2c0
-> >> [<ffffffff8114c973>] __bread+0x13/0xc0
-> >> [<ffffffff811968a8>] ext3_get_branch+0x98/0x140
-> >> [<ffffffff81197497>] ext3_get_blocks_handle+0xd7/0xdc0
-> >> [<ffffffff81198244>] ext3_get_block+0xc4/0x120
-> >> [<ffffffff81155b8a>] do_mpage_readpage+0x38a/0x690
-> >> [<ffffffff81155ffb>] mpage_readpages+0xfb/0x160
-> >> [<ffffffff811972bd>] ext3_readpages+0x1d/0x20
-> >> [<ffffffff810d9345>] __do_page_cache_readahead+0x1c5/0x270
-> >> [<ffffffff810d9411>] ra_submit+0x21/0x30
-> >> [<ffffffff810cfb90>] filemap_fault+0x380/0x4f0
-> >> [<ffffffff810ef908>] __do_fault+0x78/0x5a0
-> >> [<ffffffff810f2b24>] handle_pte_fault+0x84/0x940
-> >> [<ffffffff810f354a>] handle_mm_fault+0x16a/0x320
-> >> [<ffffffff8102715b>] do_page_fault+0x13b/0x490
-> >> [<ffffffff815cb87f>] page_fault+0x1f/0x30
-> >> [<ffffffffffffffff>] 0xffffffffffffffff
-> >
-> >This is the direct reclaim path. You are simply running out of memory
-> >globaly. There is no memcg specific code in that trace.
-> 
-> 
-> No, i'm not. Here is htop and server graphs from this case:
+On 17 September 2013 23:13, Jan Kara <jack@suse.cz> wrote:
+>   Hello,
+>
+> On Tue 17-09-13 15:31:31, Michal Suchanek wrote:
+>> On 5 September 2013 12:12, Michal Suchanek <hramrach@gmail.com> wrote:
+>> > On 26 August 2013 15:51, Michal Suchanek <hramrach@gmail.com> wrote:
+>> >> On 12 March 2013 03:15, Hillf Danton <dhillf@gmail.com> wrote:
+>> >>>>On 11 March 2013 13:15, Michal Suchanek <hramrach@gmail.com> wrote:
+>> >>>>>On 8 February 2013 17:31, Michal Suchanek <hramrach@gmail.com> wrote:
+>> >>>>> Hello,
+>> >>>>>
+>> >>>>> I am dealing with VM disk images and performing something like wiping
+>> >>>>> free space to prepare image for compressing and storing on server or
+>> >>>>> copying it to external USB disk causes
+>> >>>>>
+>> >>>>> 1) system lockup in order of a few tens of seconds when all CPU cores
+>> >>>>> are 100% used by system and the machine is basicaly unusable
+>> >>>>>
+>> >>>>> 2) oom killer killing processes
+>> >>>>>
+>> >>>>> This all on system with 8G ram so there should be plenty space to work with.
+>> >>>>>
+>> >>>>> This happens with kernels 3.6.4 or 3.7.1
+>> >>>>>
+>> >>>>> With earlier kernel versions (some 3.0 or 3.2 kernels) this was not a
+>> >>>>> problem even with less ram.
+>> >>>>>
+>> >>>>> I have  vm.swappiness = 0 set for a long  time already.
+>> >>>>>
+>> >>>>>
+>> >>>>I did some testing with 3.7.1 and with swappiness as much as 75 the
+>> >>>>kernel still causes all cores to loop somewhere in system when writing
+>> >>>>lots of data to disk.
+>> >>>>
+>> >>>>With swappiness as much as 90 processes still get killed on large disk writes.
+>> >>>>
+>> >>>>Given that the max is 100 the interval in which mm works at all is
+>> >>>>going to be very narrow, less than 10% of the paramater range. This is
+>> >>>>a severe regression as is the cpu time consumed by the kernel.
+>> >>>>
+>> >>>>The io scheduler is the default cfq.
+>> >>>>
+>> >>>>If you have any idea what to try other than downgrading to an earlier
+>> >>>>unaffected kernel I would like to hear.
+>> >>>>
+>> >>> Can you try commit 3cf23841b4b7(mm/vmscan.c: avoid possible
+>> >>> deadlock caused by too_many_isolated())?
+>> >>>
+>> >>> Or try 3.8 and/or 3.9, additionally?
+>> >>>
+>> >>
+>> >> Hello,
+>> >>
+>> >> with deadline IO scheduler I experience this issue less often but it
+>> >> still happens.
+>> >>
+>> >> I am on 3.9.6 Debian kernel so 3.8 did not fix this problem.
+>> >>
+>> >> Do you have some idea what to log so that useful information about the
+>> >> lockup is gathered?
+>> >>
+>> >
+>> > This appears to be fixed in vanilla 3.11 kernel.
+>> >
+>> > I still get short intermittent lockups and cpu usage spikes up to 20%
+>> > on a core but nowhere near the minute+ long lockups with all cores
+>> > 100% on earlier kernels.
+>> >
+>>
+>> So I did more testing on the 3.11 kernel and while it works OK with
+>> tar you can get severe lockups with mc or kvm. The difference is
+>> probably the fact that sane tools do fsync() on files they close
+>> forcing the file to write out and the kernel returning possible write
+>> errors before they move on to next file.
+>   Sorry for chiming in a bit late. But is this really writing to a normal
+> disk? SATA drive or something else?
+>
+>> With kvm writing to a file used as virtual disk the system would stall
+>> indefinitely until the disk driver in the emulated system would time
+>> out, return disk IO error, and the emulated system would stop writing.
+>> In top I see all CPU cores 90%+ in wait. System is unusable. With mc
+>> the lockups would be indefinite, probably because there is no timeout
+>> on writing a file in mc.
+>>
+>> I tried tuning swappiness and eleveators but the the basic problem is
+>> solved by neither: the dirty buffers fill up memory and system stalls
+>> trying to resolve the situation.
+>   This is really strange. There is /proc/sys/vm/dirty_ratio, which limits
+> amount of dirty memory. By default it is set to 20% of memory which tends
+> to be too much for 8 GB machine. Can you set it to something like 5% and
+> /proc/sys/vm/dirty_background_ratio to 2%? That would be more appropriate
+> sizing (assuming standard SATA drive). Does it change anything?
 
-Bahh, right you are. I didn't look at the trace carefully. It is
-free_more_memory which calls the direct reclaim shrinking.
+The default for dirty_ratio/dirty_background_ratio is 60/40. Setting
+these to 5/2 gives about the same result as running the script that
+syncs every 5s. Setting to 30/10 gives larger data chunks and
+intermittent lockup before every chunk is written.
 
-Sorry about the confusion
--- 
-Michal Hocko
-SUSE Labs
+It is quite possible to set kernel parameters that kill the kernel but
+
+1) this is the default
+2) the parameter is set in units that do not prevent the issue in
+general (% RAM vs #blocks)
+3) WTH is the system doing? It's 4core 3GHz cpu so it can handle
+traversing a structure holding 800M data in the background. Something
+is seriously rotten somewhere.
+
+Thanks
+
+Michal
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
