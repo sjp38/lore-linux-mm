@@ -1,73 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id BDD3C6B0032
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 20:41:29 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz10so7535624pad.2
-        for <linux-mm@kvack.org>; Tue, 17 Sep 2013 17:41:29 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 18 Sep 2013 06:09:10 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 2CC88E0058
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 06:10:04 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8I0d4kX22610068
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 06:09:04 +0530
-Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8I0d5SF032293
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 06:09:06 +0530
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v3 3/4] mm/hwpoison: fix false report 2nd try page recovery
-Date: Wed, 18 Sep 2013 08:38:56 +0800
-Message-Id: <1379464737-23592-3-git-send-email-liwanp@linux.vnet.ibm.com>
-In-Reply-To: <1379464737-23592-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1379464737-23592-1-git-send-email-liwanp@linux.vnet.ibm.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 72DC16B0032
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 20:50:14 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz10so7546349pad.30
+        for <linux-mm@kvack.org>; Tue, 17 Sep 2013 17:50:14 -0700 (PDT)
+Date: Wed, 18 Sep 2013 01:50:05 +0100 (BST)
+From: Mark Hills <mark@xwax.org>
+Subject: Re: ps lockups, cgroup memory reclaim
+In-Reply-To: <20130917162807.GF3278@cmpxchg.org>
+Message-ID: <1309180141270.29932@wes.ijneb.com>
+References: <1309171621250.11844@wes.ijneb.com> <20130917162807.GF3278@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org
 
-If the page is poisoned by software inject w/ MF_COUNT_INCREASED flag, there
-is a false report 2nd try page recovery which is not truth, this patch fix it
-by report first try free buddy page recovery if MF_COUNT_INCREASED is set.
+On Tue, 17 Sep 2013, Johannes Weiner wrote:
 
-Before patch:
+> On Tue, Sep 17, 2013 at 04:50:42PM +0100, Mark Hills wrote:
+> > I'm investigating intermitten kernel lockups in an HPC environment, with 
+> > the RedHat kernel.
+> > 
+> > The symptoms are seen as lockups of multiple ps commands, with one 
+> > consuming full CPU:
+> > 
+> >   # ps aux | grep ps
+> >   root     19557 68.9  0.0 108100   908 ?        D    Sep16 1045:37 ps --ppid 1 -o args=
+> >   root     19871  0.0  0.0 108100   908 ?        D    Sep16   0:00 ps --ppid 1 -o args=
+> > 
+> > SIGKILL on the busy one causes the other ps processes to run to completion 
+> > (TERM has no effect).
+> 
+> Any chance you can get to the stack of the non-busy blocked tasks?
+> 
+> It would be /proc/19871/stack in this case.
 
-[  346.332041] Injecting memory failure at pfn 200010
-[  346.332189] MCE 0x200010: free buddy, 2nd try page recovery: Delayed
+I had to return the machine above to the cluster, but next time I'll log 
+this information.
+ 
+> > In this case I was able to run my own ps to see the process list, but not 
+> > always.
+> > 
+> > perf shows the locality of the spinning, roughly:
+> > 
+> >   proc_pid_cmdline
+> >   get_user_pages
+> >   handle_mm_fault
+> >   mem_cgroup_try_charge_swapin
+> >   mem_cgroup_reclaim
+> > 
+> > There are two entry points, the codepaths taken are better shown by the 
+> > attached profile of CPU time.
+> 
+> Looks like it's spinning like crazy in shrink_mem_cgroup_zone().
+> Maybe an LRU counter underflow, maybe endlessly looping on the
+> should_continue_reclaim() compaction condition.  But I don't see an
+> obvious connection to why killing the busy task wakes up the blocked
+> one.
 
-After patch:
+Maybe it's as simple as the lock taken at quite a high level; perhaps even 
+a lock when reading values for /proc.
 
-[  297.742600] Injecting memory failure at pfn 200010
-[  297.742941] MCE 0x200010: free buddy page recovery: Delayed
+But no need for me to guess, we'll find out next time from the /proc 
+information.
+ 
+> So yeah, it would be helpful to know what that task is waiting for.
+> 
+> > We've had this behaviour since switching to Scientific Linux 6 (based on 
+> > RHEL6, like CentOS) at kernel 2.6.32-279.9.1.el6.x86_64.
+> > 
+> > The example above is kernel 2.6.32-358.el6.x86_64.
+> 
+> Can you test with the debug build?  That should trap LRU counter
+> underflows at least.
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Acked-by: Andi Kleen <ak@linux.intel.com>
-Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
----
- mm/memory-failure.c |    6 ++++--
- 1 files changed, 4 insertions(+), 2 deletions(-)
+Ah, excellent -- I did not realise there was a kernel-debug package.
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index ed41c63..615764c 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1114,8 +1114,10 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 			 * shake_page could have turned it free.
- 			 */
- 			if (is_free_buddy_page(p)) {
--				action_result(pfn, "free buddy, 2nd try",
--						DELAYED);
-+				if (flags & MF_COUNT_INCREASED)
-+					action_result(pfn, "free buddy", DELAYED);
-+				else
-+					action_result(pfn, "free buddy, 2nd try", DELAYED);
- 				return 0;
- 			}
- 			action_result(pfn, "non LRU", IGNORED);
+I'll see if I can isolate this with more detail from that kernel 
+(including the stack trace of each task that is hung)
+
+> If you have the possibility to recompile the distribution kernel I can 
+> provide you with debug patches.
+
+Absolutely, I can deploy a patched kernels but not cluster-wide. Let's 
+hope I can get enough coverage to catch the bug.
+
+Hopefully I'll have more information soon.
+
+Thanks
+
 -- 
-1.7.5.4
+Mark
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
