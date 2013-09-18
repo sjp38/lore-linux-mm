@@ -1,74 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id B63976B0033
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 20:30:17 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id kx10so7543359pab.13
-        for <linux-mm@kvack.org>; Tue, 17 Sep 2013 17:30:17 -0700 (PDT)
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A9946B0032
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 20:39:11 -0400 (EDT)
+Received: by mail-pb0-f50.google.com with SMTP id uo5so6222089pbc.23
+        for <linux-mm@kvack.org>; Tue, 17 Sep 2013 17:39:11 -0700 (PDT)
 Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 18 Sep 2013 06:00:11 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id C687D1258056
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 06:00:16 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8I0WJtZ39125052
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 06:02:19 +0530
-Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8I0U7Ef011537
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 06:00:08 +0530
+	Wed, 18 Sep 2013 06:09:05 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id DB5D03940058
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 06:08:49 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8I0d0Ol42008738
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 06:09:00 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8I0d2tL014672
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 06:09:02 +0530
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v6 2/2] mm/vmalloc: drop "caller" argument of __vmalloc_area_node()
-Date: Wed, 18 Sep 2013 08:30:02 +0800
-Message-Id: <1379464202-21104-2-git-send-email-liwanp@linux.vnet.ibm.com>
-In-Reply-To: <1379464202-21104-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1379464202-21104-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v3 1/4] mm/hwpoison: fix traverse hugetlbfs page to avoid printk flood
+Date: Wed, 18 Sep 2013 08:38:54 +0800
+Message-Id: <1379464737-23592-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-__vmalloc_area_node() no longer need "caller" argument. It can use area->caller 
-instead. This patch drop "caller" argument of __vmalloc_area_node().
+madvise_hwpoison won't check if the page is small page or huge page and traverse
+in small page granularity against the range unconditional, which result in a printk
+flood "MCE xxx: already hardware poisoned" if the page is huge page. This patch fix
+it by increase compound_order(compound_head(page)) for huge page iterator.
 
+Testcase:
+
+#define _GNU_SOURCE
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <errno.h>
+
+#define PAGES_TO_TEST 3
+#define PAGE_SIZE	4096 * 512
+
+int main(void)
+{
+	char *mem;
+	int i;
+
+	mem = mmap(NULL, PAGES_TO_TEST * PAGE_SIZE,
+			PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, 0, 0);
+
+	if (madvise(mem, PAGES_TO_TEST * PAGE_SIZE, MADV_HWPOISON) == -1)
+		return -1;
+
+	munmap(mem, PAGES_TO_TEST * PAGE_SIZE);
+
+	return 0;
+}
+
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Acked-by: Andi Kleen <ak@linux.intel.com>
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/vmalloc.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ mm/madvise.c |    5 +++--
+ 1 files changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index d78d117..f75c2aa 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1546,7 +1546,7 @@ static void *__vmalloc_node(unsigned long size, unsigned long align,
- 			    gfp_t gfp_mask, pgprot_t prot,
- 			    int node, const void *caller);
- static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
--				 pgprot_t prot, int node, const void *caller)
-+				 pgprot_t prot, int node)
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 6975bc8..539eeb9 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -343,10 +343,11 @@ static long madvise_remove(struct vm_area_struct *vma,
+  */
+ static int madvise_hwpoison(int bhv, unsigned long start, unsigned long end)
  {
- 	const int order = 0;
- 	struct page **pages;
-@@ -1560,7 +1560,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
- 	/* Please note that the recursion is strictly bounded. */
- 	if (array_size > PAGE_SIZE) {
- 		pages = __vmalloc_node(array_size, 1, nested_gfp|__GFP_HIGHMEM,
--				PAGE_KERNEL, node, caller);
-+				PAGE_KERNEL, node, area->caller);
- 		area->flags |= VM_VPAGES;
- 	} else {
- 		pages = kmalloc_node(array_size, nested_gfp, node);
-@@ -1633,7 +1633,7 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
- 	if (!area)
- 		goto fail;
++	struct page *p;
+ 	if (!capable(CAP_SYS_ADMIN))
+ 		return -EPERM;
+-	for (; start < end; start += PAGE_SIZE) {
+-		struct page *p;
++	for (; start < end; start += PAGE_SIZE <<
++				compound_order(compound_head(p))) {
+ 		int ret;
  
--	addr = __vmalloc_area_node(area, gfp_mask, prot, node, caller);
-+	addr = __vmalloc_area_node(area, gfp_mask, prot, node);
- 	if (!addr)
- 		goto fail;
- 
+ 		ret = get_user_pages_fast(start, 1, 0, &p);
 -- 
-1.8.1.2
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
