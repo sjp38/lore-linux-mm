@@ -1,45 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FC2F6B0032
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 07:34:35 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id fz6so8154070pac.31
-        for <linux-mm@kvack.org>; Wed, 18 Sep 2013 04:34:35 -0700 (PDT)
-Message-ID: <52398FBF.5060102@t-online.de>
-Date: Wed, 18 Sep 2013 13:34:23 +0200
-From: Knut Petersen <Knut_Petersen@t-online.de>
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F2236B0032
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 10:03:10 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id un15so7082659pbc.29
+        for <linux-mm@kvack.org>; Wed, 18 Sep 2013 07:03:09 -0700 (PDT)
+Subject: =?utf-8?q?Re=3A_=5Bpatch_0=2F7=5D_improve_memcg_oom_killer_robustness_v2?=
+Date: Wed, 18 Sep 2013 16:03:04 +0200
+From: "azurIt" <azurit@pobox.sk>
+References: <20130916134014.GA3674@dhcp22.suse.cz>, <20130916160119.2E76C2A1@pobox.sk>, <20130916140607.GC3674@dhcp22.suse.cz>, <20130916161316.5113F6E7@pobox.sk>, <20130916145744.GE3674@dhcp22.suse.cz>, <20130916170543.77F1ECB4@pobox.sk>, <20130916152548.GF3674@dhcp22.suse.cz>, <20130916225246.A633145B@pobox.sk>, <20130917000244.GD3278@cmpxchg.org>, <20130917131535.94E0A843@pobox.sk> <20130917141013.GA30838@dhcp22.suse.cz>
+In-Reply-To: <20130917141013.GA30838@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [Intel-gfx] [PATCH] [RFC] mm/shrinker: Add a shrinker flag to
- always shrink a bit
-References: <1379495401-18279-1-git-send-email-daniel.vetter@ffwll.ch> <5239829F.4080601@t-online.de> <20130918105631.GS32145@phenom.ffwll.local>
-In-Reply-To: <20130918105631.GS32145@phenom.ffwll.local>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Message-Id: <20130918160304.6EDF2729@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, DRI Development <dri-devel@lists.freedesktop.org>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
+Cc: =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>, =?utf-8?q?Andrew_Morton?= <akpm@linux-foundation.org>, =?utf-8?q?David_Rientjes?= <rientjes@google.com>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?KOSAKI_Motohiro?= <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+
+> CC: "Johannes Weiner" <hannes@cmpxchg.org>, "Andrew Morton" <akpm@linux-foundation.org>, "David Rientjes" <rientjes@google.com>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+>On Tue 17-09-13 13:15:35, azurIt wrote:
+>[...]
+>> Is something unusual on this stack?
+>> 
+>> 
+>> [<ffffffff810d1a5e>] dump_header+0x7e/0x1e0
+>> [<ffffffff810d195f>] ? find_lock_task_mm+0x2f/0x70
+>> [<ffffffff810d1f25>] oom_kill_process+0x85/0x2a0
+>> [<ffffffff810d24a8>] mem_cgroup_out_of_memory+0xa8/0xf0
+>> [<ffffffff8110fb76>] mem_cgroup_oom_synchronize+0x2e6/0x310
+>> [<ffffffff8110efc0>] ? mem_cgroup_uncharge_page+0x40/0x40
+>> [<ffffffff810d2703>] pagefault_out_of_memory+0x13/0x130
+>> [<ffffffff81026f6e>] mm_fault_error+0x9e/0x150
+>> [<ffffffff81027424>] do_page_fault+0x404/0x490
+>> [<ffffffff810f952c>] ? do_mmap_pgoff+0x3dc/0x430
+>> [<ffffffff815cb87f>] page_fault+0x1f/0x30
+>
+>This is a regular memcg OOM killer. Which dumps messages about what is
+>going to do. So no, nothing unusual, except if it was like that for ever
+>which would mean that oom_kill_process is in the endless loop. But a
+>single stack doesn't tell us much.
+>
+>Just a note. When you see something hogging a cpu and you are not sure
+>whether it might be in an endless loop inside the kernel it makes sense
+>to take several snaphosts of the stack trace and see if it changes. If
+>not and the process is not sleeping (there is no schedule on the trace)
+>then it might be looping somewhere waiting for Godot. If it is sleeping
+>then it is slightly harder because you would have to identify what it is
+>waiting for which requires to know a deeper context.
+>-- 
+>Michal Hocko
+>SUSE Labs
 
 
-> Looking at the patch which introduced these error message for you, which
-> changed the ->count_objects return value from 0 to SHRINK_STOP your patch
-> below to treat 0 and SHRINK_STOP equally simply reverts the functional
-> change.
 
-Yes, for i915* it de facto restores the old behaviour.
+I was finally able to get stack of problematic process :) I saved it two times from the same process, as Michal suggested (i wasn't able to take more). Here it is:
 
-> I don't think that's the intention behind SHRINK_STOP. But if it's the
-> right think to do we better revert the offending commit directly.
-But there is other code that also returns SHRINK_STOP. So i believe it's better to
-adapt shrink_slab_node() to handle SHRINK_STOP properly than to revert 81e49f.
-
->   And since I lack clue I think that's a call for core mm guys to make.
-
-I agree. They'll probably have to apply some additional changes to
-shrink_slab_node(). It really doesn't look right to me, but they certainly
-know better what the code is supposed to do ;-)
+First (doesn't look very helpfull):
+[<ffffffffffffffff>] 0xffffffffffffffff
 
 
-cu,
-  Knut
+Second:
+[<ffffffff810e17d1>] shrink_zone+0x481/0x650
+[<ffffffff810e2ade>] do_try_to_free_pages+0xde/0x550
+[<ffffffff810e310b>] try_to_free_pages+0x9b/0x120
+[<ffffffff81148ccd>] free_more_memory+0x5d/0x60
+[<ffffffff8114931d>] __getblk+0x14d/0x2c0
+[<ffffffff8114c973>] __bread+0x13/0xc0
+[<ffffffff811968a8>] ext3_get_branch+0x98/0x140
+[<ffffffff81197497>] ext3_get_blocks_handle+0xd7/0xdc0
+[<ffffffff81198244>] ext3_get_block+0xc4/0x120
+[<ffffffff81155b8a>] do_mpage_readpage+0x38a/0x690
+[<ffffffff81155ffb>] mpage_readpages+0xfb/0x160
+[<ffffffff811972bd>] ext3_readpages+0x1d/0x20
+[<ffffffff810d9345>] __do_page_cache_readahead+0x1c5/0x270
+[<ffffffff810d9411>] ra_submit+0x21/0x30
+[<ffffffff810cfb90>] filemap_fault+0x380/0x4f0
+[<ffffffff810ef908>] __do_fault+0x78/0x5a0
+[<ffffffff810f2b24>] handle_pte_fault+0x84/0x940
+[<ffffffff810f354a>] handle_mm_fault+0x16a/0x320
+[<ffffffff8102715b>] do_page_fault+0x13b/0x490
+[<ffffffff815cb87f>] page_fault+0x1f/0x30
+[<ffffffffffffffff>] 0xffffffffffffffff
+
+
+What do you think about it?
+
+azur
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
