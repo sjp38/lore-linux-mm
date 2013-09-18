@@ -1,140 +1,239 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 3705A6B0032
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 16:52:25 -0400 (EDT)
-Received: by mail-pb0-f50.google.com with SMTP id uo5so7445213pbc.23
-        for <linux-mm@kvack.org>; Wed, 18 Sep 2013 13:52:24 -0700 (PDT)
-Subject: =?utf-8?q?Re=3A_=5Bpatch_0=2F7=5D_improve_memcg_oom_killer_robustness_v2?=
-Date: Wed, 18 Sep 2013 22:52:19 +0200
-From: "azurIt" <azurit@pobox.sk>
-References: <20130916145744.GE3674@dhcp22.suse.cz>, <20130916170543.77F1ECB4@pobox.sk>, <20130916152548.GF3674@dhcp22.suse.cz>, <20130916225246.A633145B@pobox.sk>, <20130917000244.GD3278@cmpxchg.org>, <20130917131535.94E0A843@pobox.sk>, <20130917141013.GA30838@dhcp22.suse.cz>, <20130918160304.6EDF2729@pobox.sk>, <20130918180455.GD856@cmpxchg.org>, <20130918181946.GE856@cmpxchg.org> <20130918195504.GF856@cmpxchg.org>
-In-Reply-To: <20130918195504.GF856@cmpxchg.org>
-MIME-Version: 1.0
-Message-Id: <20130918225219.670AD8C2@pobox.sk>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D2C06B0032
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 18:07:04 -0400 (EDT)
+Received: by mail-pb0-f48.google.com with SMTP id ma3so7572972pbc.35
+        for <linux-mm@kvack.org>; Wed, 18 Sep 2013 15:07:04 -0700 (PDT)
+Date: Wed, 18 Sep 2013 15:06:59 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: RFC vmstat: On demand vmstat threads
+Message-Id: <20130918150659.5091a2c3ca94b99304427ec5@linux-foundation.org>
+In-Reply-To: <0000014109b8e5db-4b0f577e-c3b4-47fe-b7f2-0e5febbcc948-000000@email.amazonses.com>
+References: <00000140e9dfd6bd-40db3d4f-c1be-434f-8132-7820f81bb586-000000@email.amazonses.com>
+	<CAOtvUMdfqyg80_9J8AnOaAdahuRYGC-bpemdo_oucDBPguXbVA@mail.gmail.com>
+	<0000014109b8e5db-4b0f577e-c3b4-47fe-b7f2-0e5febbcc948-000000@email.amazonses.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
-Cc: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>, =?utf-8?q?Andrew_Morton?= <akpm@linux-foundation.org>, =?utf-8?q?David_Rientjes?= <rientjes@google.com>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?KOSAKI_Motohiro?= <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>
 
-> CC: "Michal Hocko" <mhocko@suse.cz>, "Andrew Morton" <akpm@linux-foundation.org>, "David Rientjes" <rientjes@google.com>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
->On Wed, Sep 18, 2013 at 02:19:46PM -0400, Johannes Weiner wrote:
->> On Wed, Sep 18, 2013 at 02:04:55PM -0400, Johannes Weiner wrote:
->> > On Wed, Sep 18, 2013 at 04:03:04PM +0200, azurIt wrote:
->> > > > CC: "Johannes Weiner" <hannes@cmpxchg.org>, "Andrew Morton" <akpm@linux-foundation.org>, "David Rientjes" <rientjes@google.com>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
->> > > >On Tue 17-09-13 13:15:35, azurIt wrote:
->> > > >[...]
->> > > >> Is something unusual on this stack?
->> > > >> 
->> > > >> 
->> > > >> [<ffffffff810d1a5e>] dump_header+0x7e/0x1e0
->> > > >> [<ffffffff810d195f>] ? find_lock_task_mm+0x2f/0x70
->> > > >> [<ffffffff810d1f25>] oom_kill_process+0x85/0x2a0
->> > > >> [<ffffffff810d24a8>] mem_cgroup_out_of_memory+0xa8/0xf0
->> > > >> [<ffffffff8110fb76>] mem_cgroup_oom_synchronize+0x2e6/0x310
->> > > >> [<ffffffff8110efc0>] ? mem_cgroup_uncharge_page+0x40/0x40
->> > > >> [<ffffffff810d2703>] pagefault_out_of_memory+0x13/0x130
->> > > >> [<ffffffff81026f6e>] mm_fault_error+0x9e/0x150
->> > > >> [<ffffffff81027424>] do_page_fault+0x404/0x490
->> > > >> [<ffffffff810f952c>] ? do_mmap_pgoff+0x3dc/0x430
->> > > >> [<ffffffff815cb87f>] page_fault+0x1f/0x30
->> > > >
->> > > >This is a regular memcg OOM killer. Which dumps messages about what is
->> > > >going to do. So no, nothing unusual, except if it was like that for ever
->> > > >which would mean that oom_kill_process is in the endless loop. But a
->> > > >single stack doesn't tell us much.
->> > > >
->> > > >Just a note. When you see something hogging a cpu and you are not sure
->> > > >whether it might be in an endless loop inside the kernel it makes sense
->> > > >to take several snaphosts of the stack trace and see if it changes. If
->> > > >not and the process is not sleeping (there is no schedule on the trace)
->> > > >then it might be looping somewhere waiting for Godot. If it is sleeping
->> > > >then it is slightly harder because you would have to identify what it is
->> > > >waiting for which requires to know a deeper context.
->> > > >-- 
->> > > >Michal Hocko
->> > > >SUSE Labs
->> > > 
->> > > 
->> > > 
->> > > I was finally able to get stack of problematic process :) I saved it two times from the same process, as Michal suggested (i wasn't able to take more). Here it is:
->> > > 
->> > > First (doesn't look very helpfull):
->> > > [<ffffffffffffffff>] 0xffffffffffffffff
->> > > 
->> > > 
->> > > Second:
->> > > [<ffffffff810e17d1>] shrink_zone+0x481/0x650
->> > > [<ffffffff810e2ade>] do_try_to_free_pages+0xde/0x550
->> > > [<ffffffff810e310b>] try_to_free_pages+0x9b/0x120
->> > > [<ffffffff81148ccd>] free_more_memory+0x5d/0x60
->> > > [<ffffffff8114931d>] __getblk+0x14d/0x2c0
->> > > [<ffffffff8114c973>] __bread+0x13/0xc0
->> > > [<ffffffff811968a8>] ext3_get_branch+0x98/0x140
->> > > [<ffffffff81197497>] ext3_get_blocks_handle+0xd7/0xdc0
->> > > [<ffffffff81198244>] ext3_get_block+0xc4/0x120
->> > > [<ffffffff81155b8a>] do_mpage_readpage+0x38a/0x690
->> > > [<ffffffff81155ffb>] mpage_readpages+0xfb/0x160
->> > > [<ffffffff811972bd>] ext3_readpages+0x1d/0x20
->> > > [<ffffffff810d9345>] __do_page_cache_readahead+0x1c5/0x270
->> > > [<ffffffff810d9411>] ra_submit+0x21/0x30
->> > > [<ffffffff810cfb90>] filemap_fault+0x380/0x4f0
->> > > [<ffffffff810ef908>] __do_fault+0x78/0x5a0
->> > > [<ffffffff810f2b24>] handle_pte_fault+0x84/0x940
->> > > [<ffffffff810f354a>] handle_mm_fault+0x16a/0x320
->> > > [<ffffffff8102715b>] do_page_fault+0x13b/0x490
->> > > [<ffffffff815cb87f>] page_fault+0x1f/0x30
->> > > [<ffffffffffffffff>] 0xffffffffffffffff
->> > 
->> > Ah, crap.  I'm sorry.  You even showed us this exact trace before in
->> > another context, but I did not fully realize what __getblk() is doing.
->> > 
->> > My subsequent patches made a charge attempt return -ENOMEM without
->> > reclaim if the memcg is under OOM.  And so the reason you have these
->> > reclaim livelocks is because __getblk never fails on -ENOMEM.  When
->> > the allocation returns -ENOMEM, it invokes GLOBAL DIRECT RECLAIM and
->> > tries again in an endless loop.  The memcg code would previously just
->> > loop inside the charge, reclaiming and killing, until the allocation
->> > succeeded.  But the new code relies on the fault stack being unwound
->> > to complete the OOM kill.  And since the stack is not unwound with
->> > __getblk() looping around the allocation there is no more memcg
->> > reclaim AND no memcg OOM kill, thus no chance of exiting.
->> > 
->> > That code is weird but really old, so it may take a while to evaluate
->> > all the callers as to whether this can be changed.
->> > 
->> > In the meantime, I would just allow __getblk to bypass the memcg limit
->> > when it still can't charge after reclaim.  Does the below get your
->> > machine back on track?
->> 
->> Scratch that.  The idea is reasonable but the implementation is not
->> fully cooked yet.  I'll send you an update.
+On Tue, 10 Sep 2013 21:13:34 +0000 Christoph Lameter <cl@linux.com> wrote:
+
+> Subject: vmstat: On demand vmstat workers V2
+
+grumbles.
+
+> vmstat threads are used for folding counter differentials into the
+> zone, per node and global counters at certain time intervals.
+
+These are not "threads".  Let's please use accurate terminology
+("keventd works" is close enough) and not inappropriately repurpose
+well-understood terms.
+
+> They currently run at defined intervals on all processors which will
+> cause some holdoff for processors that need minimal intrusion by the
+> OS.
+> 
+> This patch creates a vmstat shepherd task that monitors the
+
+No, it does not call kthread_run() hence it does not create a task.  Or
+a thread.
+
+> per cpu differentials on all processors. If there are differentials
+> on a processor then a vmstat worker thread local to the processors
+> with the differentials is created. That worker will then start
+> folding the diffs in regular intervals. Should the worker
+> find that there is no work to be done then it will
+> terminate itself and make the shepherd task monitor the differentials
+> again.
+> 
+> With this patch it is possible then to have periods longer than
+> 2 seconds without any OS event on a "cpu" (hardware thread).
+
+It would be useful (actually essential) to have a description of why
+anyone cares about this.  A good and detailed description, please.
+
+> The tick_do_timer_cpu is chosen to run the shepherd workers.
+> So there must be at least one cpu that will keep running vmstat
+> updates.
+> 
+> ...
 >
->Here is an update.  Full replacement on top of 3.2 since we tried a
->dead end and it would be more painful to revert individual changes.
->
->The first bug you had was the same task entering OOM repeatedly and
->leaking the memcg reference, thus creating undeletable memcgs.  My
->fixup added a condition that if the task already set up an OOM context
->in that fault, another charge attempt would immediately return -ENOMEM
->without even trying reclaim anymore.  This dropped __getblk() into an
->endless loop of waking the flushers and performing global reclaim and
->memcg returning -ENOMEM regardless of free memory.
->
->The update now basically only changes this -ENOMEM to bypass, so that
->the memory is not accounted and the limit ignored.  OOM killed tasks
->are granted the same right, so that they can exit quickly and release
->memory.  Likewise, we want a task that hit the OOM condition also to
->finish the fault quickly so that it can invoke the OOM killer.
->
->Does the following work for you, azur?
+> --- linux.orig/mm/vmstat.c	2013-09-09 13:58:25.526562233 -0500
+> +++ linux/mm/vmstat.c	2013-09-09 16:09:14.266402841 -0500
+> @@ -14,6 +14,7 @@
+>  #include <linux/module.h>
+>  #include <linux/slab.h>
+>  #include <linux/cpu.h>
+> +#include <linux/cpumask.h>
+>  #include <linux/vmstat.h>
+>  #include <linux/sched.h>
+>  #include <linux/math64.h>
+> @@ -414,13 +415,18 @@ void dec_zone_page_state(struct page *pa
+>  EXPORT_SYMBOL(dec_zone_page_state);
+>  #endif
+> 
+> -static inline void fold_diff(int *diff)
+> +
+> +static inline int fold_diff(int *diff)
+>  {
+>  	int i;
+> +	int changes = 0;
+> 
+>  	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
+> -		if (diff[i])
+> +		if (diff[i]) {
+>  			atomic_long_add(diff[i], &vm_stat[i]);
+> +			changes++;
+> +	}
+> +	return changes;
+>  }
+> 
+>  /*
+> @@ -437,11 +443,12 @@ static inline void fold_diff(int *diff)
+>   * with the global counters. These could cause remote node cache line
+>   * bouncing and will have to be only done when necessary.
 
+Document the newly-added return value?  Especially as it's a scalar
+which is used as a boolean when it isn't just ignored.
 
+>   */
+> -static void refresh_cpu_vm_stats(void)
+> +static int refresh_cpu_vm_stats(void)
+>  {
+>  	struct zone *zone;
+>  	int i;
+>  	int global_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
+> +	int changes = 0;
+> 
+>  	for_each_populated_zone(zone) {
+>  		struct per_cpu_pageset __percpu *p = zone->pageset;
+> @@ -485,11 +492,14 @@ static void refresh_cpu_vm_stats(void)
+>  		if (__this_cpu_dec_return(p->expire))
+>  			continue;
+> 
+> -		if (__this_cpu_read(p->pcp.count))
+> +		if (__this_cpu_read(p->pcp.count)) {
+>  			drain_zone_pages(zone, __this_cpu_ptr(&p->pcp));
+> +			changes++;
+> +		}
+>  #endif
+>  	}
+> -	fold_diff(global_diff);
+> +	changes += fold_diff(global_diff);
+> +	return changes;
+>  }
+> 
+>  /*
+> @@ -1203,12 +1213,15 @@ static const struct file_operations proc
+>  #ifdef CONFIG_SMP
+>  static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
+>  int sysctl_stat_interval __read_mostly = HZ;
+> +static struct cpumask *monitored_cpus;
+> 
+>  static void vmstat_update(struct work_struct *w)
+>  {
+> -	refresh_cpu_vm_stats();
+> -	schedule_delayed_work(this_cpu_ptr(&vmstat_work),
+> -		round_jiffies_relative(sysctl_stat_interval));
+> +	if (refresh_cpu_vm_stats())
+> +		schedule_delayed_work(this_cpu_ptr(&vmstat_work),
+> +			round_jiffies_relative(sysctl_stat_interval));
+> +	else
+> +		cpumask_set_cpu(smp_processor_id(), monitored_cpus);
+>  }
+> 
+>  static void start_cpu_timer(int cpu)
+> @@ -1216,7 +1229,63 @@ static void start_cpu_timer(int cpu)
+>  	struct delayed_work *work = &per_cpu(vmstat_work, cpu);
+> 
+>  	INIT_DEFERRABLE_WORK(work, vmstat_update);
+> -	schedule_delayed_work_on(cpu, work, __round_jiffies_relative(HZ, cpu));
+> +	schedule_delayed_work_on(cpu, work,
+> +		__round_jiffies_relative(sysctl_stat_interval, cpu));
+> +}
+> +
+> +/*
+> + * Check if the diffs for a certain cpu indicate that
+> + * an update is needed.
+> + */
+> +static int need_update(int cpu)
+> +{
+> +	struct zone *zone;
+> +
+> +	for_each_populated_zone(zone) {
+> +		struct per_cpu_pageset *p = per_cpu_ptr(zone->pageset, cpu);
+> +
+> +		/*
+> +		 * The fast way of checking if there are any vmstat diffs.
+> +		 * This works because the diffs are byte sized items.
+> +		 */
+> +		if (memchr_inv(p->vm_stat_diff, 0, NR_VM_ZONE_STAT_ITEMS))
+> +			return 1;
+> +	}
+> +	return 0;
+> +}
+> +
+> +static struct delayed_work shepherd_work;
+> +extern int tick_do_timer_cpu;
 
-Compiled fine, I wil install new kernel this night. Thank you!
+This should be in a header file so we can keep definition and users in
+sync.
 
-azur
+> +static void vmstat_shepherd(struct work_struct *w)
+> +{
+> +	int cpu;
+> +
+> +	refresh_cpu_vm_stats();
+> +	for_each_cpu(cpu, monitored_cpus)
+> +		if (need_update(cpu)) {
+> +			cpumask_clear_cpu(cpu, monitored_cpus);
+> +			start_cpu_timer(cpu);
+> +		}
+> +
+> +	schedule_delayed_work_on(tick_do_timer_cpu,
+> +		&shepherd_work,
+> +		__round_jiffies_relative(sysctl_stat_interval,
+> +			tick_do_timer_cpu));
+> +}
+
+Some documentation would be nice.  The unobvious things.  ie: design
+concepts.
+
+> +static void start_shepherd_timer(void)
+
+Should be __init
+
+> +{
+> +	INIT_DEFERRABLE_WORK(&shepherd_work, vmstat_shepherd);
+
+It should be possible to do this at compile time.  Might need addition
+of core infrastructure.
+
+> +	monitored_cpus = kmalloc(BITS_TO_LONGS(nr_cpu_ids) * sizeof(long),
+> +			__GFP_NOFAIL);
+
+Please don't add new uses of __GFP_NOFAIL.
+
+Using __GFP_NOFAIL without __GFP_WAIT, __GFP_FS etc is irrational and
+I'm not sure what the page allocator will do.  It might just go into a
+non-reclaiming tight loop, as that's precisely what this usage asked it
+to do.
+
+Let's just use GFP_KERNEL and handle any failure (which shouldn't
+happen at boot time anyway).
+
+> +	cpumask_copy(monitored_cpus, cpu_online_mask);
+> +	cpumask_clear_cpu(tick_do_timer_cpu, monitored_cpus);
+
+What on earth are we using tick_do_timer_cpu for anyway? 
+tick_do_timer_cpu is cheerfully undocumented, as is this code's use of
+it.
+
+> ...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
