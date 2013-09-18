@@ -1,59 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 06FEE6B0032
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 21:38:12 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id ld10so7566713pab.36
-        for <linux-mm@kvack.org>; Tue, 17 Sep 2013 18:38:12 -0700 (PDT)
-Message-ID: <523903C0.6000609@asianux.com>
-Date: Wed, 18 Sep 2013 09:37:04 +0800
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id B21F36B0032
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 22:00:45 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id v10so6365716pde.24
+        for <linux-mm@kvack.org>; Tue, 17 Sep 2013 19:00:45 -0700 (PDT)
+Message-ID: <52390907.7050101@asianux.com>
+Date: Wed, 18 Sep 2013 09:59:35 +0800
 From: Chen Gang <gang.chen@asianux.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm/shmem.c: check the return value of mpol_to_str()
-References: <5215639D.1080202@asianux.com> <5227CF48.5080700@asianux.com> <alpine.DEB.2.02.1309091326210.16291@chino.kir.corp.google.com> <522E6C14.7060006@asianux.com> <alpine.DEB.2.02.1309092334570.20625@chino.kir.corp.google.com> <522EC3D1.4010806@asianux.com> <alpine.DEB.2.02.1309111725290.22242@chino.kir.corp.google.com> <52312EC1.8080300@asianux.com> <523205A0.1000102@gmail.com> <5232773E.8090007@asianux.com> <5233424A.2050704@gmail.com> <5236732C.5060804@asianux.com> <52372EEF.7050608@gmail.com> <5237ABF3.4010109@asianux.com> <alpine.DEB.2.02.1309171552141.21696@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1309171552141.21696@chino.kir.corp.google.com>
+Subject: Re: [PATCH v2] m: readahead: return the value which force_page_cache_readahead()
+ returns
+References: <5212E328.40804@asianux.com> <20130820161639.69ffa65b40c5cf761bbb727c@linux-foundation.org> <521428D0.2020708@asianux.com> <20130917155644.cc988e7e929fee10e9c86d86@linux-foundation.org>
+In-Reply-To: <20130917155644.cc988e7e929fee10e9c86d86@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, riel@redhat.com, hughd@google.com, xemul@parallels.com, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, rientjes@google.com, sasha.levin@oracle.com, linux@rasmusvillemoes.dk, kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, lczerner@redhat.com, linux-mm@kvack.org
 
-On 09/18/2013 06:53 AM, David Rientjes wrote:
-> On Tue, 17 Sep 2013, Chen Gang wrote:
+On 09/18/2013 06:56 AM, Andrew Morton wrote:
+> On Wed, 21 Aug 2013 10:41:20 +0800 Chen Gang <gang.chen@asianux.com> wrote:
 > 
->>> BUG_ON() is safe. but I still don't like it. As far as I heard, Google
->>> changes BUG_ON as nop. So, BUG_ON(mpol_to_str() < 0) breaks google.
->>> Please treat an assertion as assertion. Not any other something.
->>>
-> 
-> Google does not disable BUG_ON(), sheesh.
-> 
-
-That sounds a good news.
-
->> Hmm... in kernel wide, BUG_ON() is 'common' 'standard' assertion, and
->> "mm/" is a common sub-system (not architecture specific), so when we
->> use BUG_ON(), we already 'express' our 'opinion' enough to readers.
+>> force_page_cache_readahead() may fail, so need let the related upper
+>> system calls know about it by its return value.
+>>
+>> For system call fadvise64_64(), ignore return value because fadvise()
+>> shall return success even if filesystem can't retrieve a hint.
 >>
 > 
-> That's ridiculous, we're not going to panic the kernel at runtime because 
-> a buffer is too small.  Make it a compile-time error like I suggested so 
-> we catch this before we even build the kernel.
+> Actually, force_page_cache_readahead() cannot fail - I see no code path
+> via which it returns a -ve errno.
+>
+
+Hmm... except return -EINVAL, currently it is.
+
+> Of course, that might change in the future and although readahead is
+> usually a best-effort-dont-care-if-it-fails thing, I suppose that in
+> the case of madvise() and sys_readahead() we should inform userspace,
+> as readhead is the primary reason for thier performing the syscall.
 > 
 
-It seems not quite polite?  ;-)
+Yeah.
+
+> 
+> While we're there, please review...
+> 
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: mm/readahead.c:do_readhead(): don't check for ->readpage
+> 
+> The callee force_page_cache_readahead() already does this and unlike
+> do_readahead(), force_page_cache_readahead() remembers to check for
+> ->readpages() as well.
+> 
+> 
+> 
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  mm/readahead.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff -puN mm/readahead.c~a mm/readahead.c
+> --- a/mm/readahead.c~a
+> +++ a/mm/readahead.c
+> @@ -569,7 +569,7 @@ static ssize_t
+>  do_readahead(struct address_space *mapping, struct file *filp,
+>  	     pgoff_t index, unsigned long nr)
+>  {
+> -	if (!mapping || !mapping->a_ops || !mapping->a_ops->readpage)
+> +	if (!mapping || !mapping->a_ops)
+>  		return -EINVAL;
+>  
+>  	return force_page_cache_readahead(mapping, filp, index, nr);
+> _
+> 
+> 
+> 
+
+At least for me, this patch sounds good.
 
 
-BUG_ON() is widely and commonly used in kernel wide, and BUG_ON() can be
-customized by any architectures, so I guess, if google really think it
-is necessary, it will customize it.
+And for the code below in "mm/readahead.c", I guess, skipping return
+value of force_page_cache_readahead() is acceptable, but still better to
+get some comments for it
 
-If "compile-time error" will make code complex to both readers and
-writers (e.g. our case), forcing "compile-time error" may still be good
-enough to google, but may not be good enough for others.
 
-So in my opinion, for our case which is a common sub-system, not an
-architecture specific sub-system, better use "run-time error".
+505 void page_cache_sync_readahead(struct address_space *mapping,
+506                                struct file_ra_state *ra, struct file
+*filp,
+507                                pgoff_t offset, unsigned long req_size)
+508 {
+509         /* no read-ahead */
+510         if (!ra->ra_pages)
+511                 return;
+512
+513         /* be dumb */
+514         if (filp && (filp->f_mode & FMODE_RANDOM)) {
+515                 force_page_cache_readahead(mapping, filp, offset,
+req_size);
+516                 return;
+517         }
+518
+519         /* do read-ahead */
+520         ondemand_readahead(mapping, ra, filp, false, offset, req_size);
+521 }
+522 EXPORT_SYMBOL_GPL(page_cache_sync_readahead);
 
 
 Thanks.
