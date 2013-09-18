@@ -1,74 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D8196B0032
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 18:56:48 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id r10so6281103pdi.28
-        for <linux-mm@kvack.org>; Tue, 17 Sep 2013 15:56:48 -0700 (PDT)
-Date: Tue, 17 Sep 2013 15:56:44 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] m: readahead: return the value which
- force_page_cache_readahead() returns
-Message-Id: <20130917155644.cc988e7e929fee10e9c86d86@linux-foundation.org>
-In-Reply-To: <521428D0.2020708@asianux.com>
-References: <5212E328.40804@asianux.com>
-	<20130820161639.69ffa65b40c5cf761bbb727c@linux-foundation.org>
-	<521428D0.2020708@asianux.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id A29646B0032
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2013 20:30:15 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id ld10so7505289pab.36
+        for <linux-mm@kvack.org>; Tue, 17 Sep 2013 17:30:15 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Wed, 18 Sep 2013 06:00:08 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 674973940058
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 05:59:51 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8I0WEnm6357096
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 06:02:15 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8I0U3KV025760
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 06:00:04 +0530
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v6 1/2] mm/vmalloc: fix show vmap_area information race with vmap_area tear down
+Date: Wed, 18 Sep 2013 08:30:01 +0800
+Message-Id: <1379464202-21104-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <gang.chen@asianux.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, rientjes@google.com, sasha.levin@oracle.com, linux@rasmusvillemoes.dk, kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, lczerner@redhat.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Wed, 21 Aug 2013 10:41:20 +0800 Chen Gang <gang.chen@asianux.com> wrote:
+Changelog:
+ *v4 -> v5: return directly for !VM_VM_AREA case and remove (VM_LAZY_FREE | VM_LAZY_FREEING) check 
+ *v5 -> v6: add KOSAKI's ack 
 
-> force_page_cache_readahead() may fail, so need let the related upper
-> system calls know about it by its return value.
-> 
-> For system call fadvise64_64(), ignore return value because fadvise()
-> shall return success even if filesystem can't retrieve a hint.
-> 
+There is a race window between vmap_area tear down and show vmap_area information.
 
-Actually, force_page_cache_readahead() cannot fail - I see no code path
-via which it returns a -ve errno.
+	A                                                B
 
-Of course, that might change in the future and although readahead is
-usually a best-effort-dont-care-if-it-fails thing, I suppose that in
-the case of madvise() and sys_readahead() we should inform userspace,
-as readhead is the primary reason for thier performing the syscall.
+remove_vm_area
+spin_lock(&vmap_area_lock);
+va->vm = NULL;
+va->flags &= ~VM_VM_AREA;
+spin_unlock(&vmap_area_lock);
+						spin_lock(&vmap_area_lock);
+						if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEZING))
+							return 0;
+						if (!(va->flags & VM_VM_AREA)) {
+							seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
+								(void *)va->va_start, (void *)va->va_end,
+								va->va_end - va->va_start);
+							return 0;
+						}
+free_unmap_vmap_area(va);
+	flush_cache_vunmap
+	free_unmap_vmap_area_noflush
+		unmap_vmap_area
+		free_vmap_area_noflush
+			va->flags |= VM_LAZY_FREE 
 
+The assumption !VM_VM_AREA represents vm_map_ram allocation is introduced by 
+commit: d4033afd(mm, vmalloc: iterate vmap_area_list, instead of vmlist, in 
+vmallocinfo()). However, !VM_VM_AREA also represents vmap_area is being tear 
+down in race window mentioned above. This patch fix it by don't dump any 
+information for !VM_VM_AREA case and also remove (VM_LAZY_FREE | VM_LAZY_FREEING)
+check since they are not possible for !VM_VM_AREA case.
 
-While we're there, please review...
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm/readahead.c:do_readhead(): don't check for ->readpage
-
-The callee force_page_cache_readahead() already does this and unlike
-do_readahead(), force_page_cache_readahead() remembers to check for
-->readpages() as well.
-
-
-
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Suggested-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
+ mm/vmalloc.c | 15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)
 
- mm/readahead.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff -puN mm/readahead.c~a mm/readahead.c
---- a/mm/readahead.c~a
-+++ a/mm/readahead.c
-@@ -569,7 +569,7 @@ static ssize_t
- do_readahead(struct address_space *mapping, struct file *filp,
- 	     pgoff_t index, unsigned long nr)
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 5368b17..9b75028 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -2582,16 +2582,13 @@ static int s_show(struct seq_file *m, void *p)
  {
--	if (!mapping || !mapping->a_ops || !mapping->a_ops->readpage)
-+	if (!mapping || !mapping->a_ops)
- 		return -EINVAL;
+ 	struct vmap_area *va = p;
+ 	struct vm_struct *v;
+-
+-	if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEING))
+-		return 0;
+-
+-	if (!(va->flags & VM_VM_AREA)) {
+-		seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
+-			(void *)va->va_start, (void *)va->va_end,
+-					va->va_end - va->va_start);
++
++	/*
++	 * s_show can encounter race with remove_vm_area, !VM_VM_AREA on
++	 * behalf of vmap area is being tear down or vm_map_ram allocation.
++	 */
++	if (!(va->flags & VM_VM_AREA))
+ 		return 0;
+-	}
  
- 	return force_page_cache_readahead(mapping, filp, index, nr);
-_
+ 	v = va->vm;
+ 
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
