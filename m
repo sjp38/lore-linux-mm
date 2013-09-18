@@ -1,50 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 92B626B0032
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 18:17:28 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id w10so7639125pde.37
-        for <linux-mm@kvack.org>; Wed, 18 Sep 2013 15:17:28 -0700 (PDT)
-Received: by mail-pd0-f170.google.com with SMTP id x10so7670497pdj.29
-        for <linux-mm@kvack.org>; Wed, 18 Sep 2013 15:17:25 -0700 (PDT)
-Date: Wed, 18 Sep 2013 15:17:23 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] mm/shmem.c: check the return value of mpol_to_str()
-In-Reply-To: <523903C0.6000609@asianux.com>
-Message-ID: <alpine.DEB.2.02.1309181513180.2375@chino.kir.corp.google.com>
-References: <5215639D.1080202@asianux.com> <5227CF48.5080700@asianux.com> <alpine.DEB.2.02.1309091326210.16291@chino.kir.corp.google.com> <522E6C14.7060006@asianux.com> <alpine.DEB.2.02.1309092334570.20625@chino.kir.corp.google.com> <522EC3D1.4010806@asianux.com>
- <alpine.DEB.2.02.1309111725290.22242@chino.kir.corp.google.com> <52312EC1.8080300@asianux.com> <523205A0.1000102@gmail.com> <5232773E.8090007@asianux.com> <5233424A.2050704@gmail.com> <5236732C.5060804@asianux.com> <52372EEF.7050608@gmail.com>
- <5237ABF3.4010109@asianux.com> <alpine.DEB.2.02.1309171552141.21696@chino.kir.corp.google.com> <523903C0.6000609@asianux.com>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 8643F6B0032
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 18:57:50 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so8918077pab.29
+        for <linux-mm@kvack.org>; Wed, 18 Sep 2013 15:57:50 -0700 (PDT)
+Date: Thu, 19 Sep 2013 00:57:20 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: RFC vmstat: On demand vmstat threads
+In-Reply-To: <20130918150659.5091a2c3ca94b99304427ec5@linux-foundation.org>
+Message-ID: <alpine.DEB.2.02.1309190033440.4089@ionos.tec.linutronix.de>
+References: <00000140e9dfd6bd-40db3d4f-c1be-434f-8132-7820f81bb586-000000@email.amazonses.com> <CAOtvUMdfqyg80_9J8AnOaAdahuRYGC-bpemdo_oucDBPguXbVA@mail.gmail.com> <0000014109b8e5db-4b0f577e-c3b4-47fe-b7f2-0e5febbcc948-000000@email.amazonses.com>
+ <20130918150659.5091a2c3ca94b99304427ec5@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <gang.chen@asianux.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, riel@redhat.com, hughd@google.com, xemul@parallels.com, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Gilad Ben-Yossef <gilad@benyossef.com>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>
 
-On Wed, 18 Sep 2013, Chen Gang wrote:
-
-> BUG_ON() is widely and commonly used in kernel wide, and BUG_ON() can be
-> customized by any architectures, so I guess, if google really think it
-> is necessary, it will customize it.
+On Wed, 18 Sep 2013, Andrew Morton wrote:
+> On Tue, 10 Sep 2013 21:13:34 +0000 Christoph Lameter <cl@linux.com> wrote:
+> > +	cpumask_copy(monitored_cpus, cpu_online_mask);
+> > +	cpumask_clear_cpu(tick_do_timer_cpu, monitored_cpus);
 > 
-> If "compile-time error" will make code complex to both readers and
-> writers (e.g. our case), forcing "compile-time error" may still be good
-> enough to google, but may not be good enough for others.
-> 
+> What on earth are we using tick_do_timer_cpu for anyway? 
+> tick_do_timer_cpu is cheerfully undocumented, as is this code's use of
+> it.
 
-Google has nothing to do with this, it treats BUG_ON() just like 99.99% of 
-others do.
+tick_do_timer_cpu is a timer core internal variable, which holds the
+CPU NR which is responsible for calling do_timer(), i.e. the
+timekeeping stuff. This variable has two functions:
 
-> So in my opinion, for our case which is a common sub-system, not an
-> architecture specific sub-system, better use "run-time error".
-> 
+1) Prevent a thundering herd issue of a gazillion of CPUs trying to
+   grab the timekeeping lock all at once. Only the CPU which is
+   assigned to do the update is handling it.
 
-That's absolutely insane.  If code is not allocating enough memory for the 
-maximum possible length of a string to be stored by mpol_to_str(), it's a 
-bug in the code.  We do not panic and reboot the user's machine for such a 
-bug.  Instead, we break the build and require the broken code to be fixed.
+2) Hand off the duty in the NOHZ idle case by setting the value to
+   TICK_DO_TIMER_NONE, i.e. a non existing CPU. So the next cpu which
+   looks at it will take over and keep the time keeping alive.
+   The hand over procedure also covers cpu hotplug.
 
-I have told you exactly how to introduce such a compile-time error.
+(Ab)Using it for anything else outside the timers core code is just
+broken.
+
+It's working for Christophs use case as his setup will not change the
+assignment away from the boot cpu, but that's really not a brilliant
+design to start with.
+
+The vmstat accounting is not the only thing which we want to delegate
+to dedicated core(s) for the full NOHZ mode.
+
+So instead of playing broken games with explicitly not exposed core
+code variables, we should implement a core code facility which is
+aware of the NOHZ details and provides a sane way to delegate stuff to
+a certain subset of CPUs.
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
