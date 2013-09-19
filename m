@@ -1,82 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B9406B0031
-	for <linux-mm@kvack.org>; Thu, 19 Sep 2013 11:51:42 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id wz12so8540416pbc.11
-        for <linux-mm@kvack.org>; Thu, 19 Sep 2013 08:51:42 -0700 (PDT)
-Received: by mail-la0-f50.google.com with SMTP id gx14so2154133lab.37
-        for <linux-mm@kvack.org>; Thu, 19 Sep 2013 08:51:38 -0700 (PDT)
-Date: Thu, 19 Sep 2013 19:51:35 +0400
-From: Sergey Dyasly <dserrg@gmail.com>
-Subject: Re: [PATCH] OOM killer: wait for tasks with pending SIGKILL to exit
-Message-Id: <20130919195135.f53a792b125497e281b6badf@gmail.com>
-In-Reply-To: <20130911190605.5528ee4563272dbea1ed56a6@gmail.com>
-References: <1378740624-2456-1-git-send-email-dserrg@gmail.com>
-	<alpine.DEB.2.02.1309091303010.12523@chino.kir.corp.google.com>
-	<20130911190605.5528ee4563272dbea1ed56a6@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id E74F36B0031
+	for <linux-mm@kvack.org>; Thu, 19 Sep 2013 12:55:02 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id fb10so9870539pad.37
+        for <linux-mm@kvack.org>; Thu, 19 Sep 2013 09:55:02 -0700 (PDT)
+Received: by mail-lb0-f172.google.com with SMTP id x18so8141773lbi.31
+        for <linux-mm@kvack.org>; Thu, 19 Sep 2013 09:54:58 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20130918150659.5091a2c3ca94b99304427ec5@linux-foundation.org>
+References: <00000140e9dfd6bd-40db3d4f-c1be-434f-8132-7820f81bb586-000000@email.amazonses.com>
+	<CAOtvUMdfqyg80_9J8AnOaAdahuRYGC-bpemdo_oucDBPguXbVA@mail.gmail.com>
+	<0000014109b8e5db-4b0f577e-c3b4-47fe-b7f2-0e5febbcc948-000000@email.amazonses.com>
+	<20130918150659.5091a2c3ca94b99304427ec5@linux-foundation.org>
+Date: Thu, 19 Sep 2013 11:54:58 -0500
+Message-ID: <CAOtvUMf6=Znpnn4JJmXzdHaZ1TpCAXUc6SGUX5ZM20J174qn0Q@mail.gmail.com>
+Subject: Re: RFC vmstat: On demand vmstat threads
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Rusty Russell <rusty@rustcorp.com.au>, Sha Zhengju <handai.szj@taobao.com>, Oleg Nesterov <oleg@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>
 
-Ping :)
+On Wed, Sep 18, 2013 at 5:06 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Tue, 10 Sep 2013 21:13:34 +0000 Christoph Lameter <cl@linux.com> wrote:
+>
 
-On Wed, 11 Sep 2013 19:06:05 +0400
-Sergey Dyasly <dserrg@gmail.com> wrote:
+>> With this patch it is possible then to have periods longer than
+>> 2 seconds without any OS event on a "cpu" (hardware thread).
+>
+> It would be useful (actually essential) to have a description of why
+> anyone cares about this.  A good and detailed description, please.
 
-> On Mon, 9 Sep 2013 13:07:08 -0700 (PDT)
-> David Rientjes <rientjes@google.com> wrote:
-> 
-> > >  		/*
-> > >  		 * If this task is not being ptraced on exit, then wait for it
-> > >  		 * to finish before killing some other task unnecessarily.
-> > >  		 */
-> > > -		if (!(task->group_leader->ptrace & PT_TRACE_EXIT))
-> > > +		if (!(task->group_leader->ptrace & PT_TRACE_EXIT)) {
-> > > +			set_tsk_thread_flag(task, TIF_MEMDIE);
-> > 
-> > This does not, we do not give access to memory reserves unless the process 
-> > needs it to allocate memory.  The task here, which is not current, can 
-> > call into the oom killer and be granted memory reserves if necessary.
-> 
-> True. However, why TIF_MEMDIE is set for PF_EXITING task in oom_kill_process()
-> then?
-> Also, setting TIF_MEMDIE will avoid direct reclaim and memory allocation should
-> be fast if exiting task needs it.
-> 
-> > > @@ -412,16 +415,6 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
-> > >  	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
-> > >  					      DEFAULT_RATELIMIT_BURST);
-> > >  
-> > > -	/*
-> > > -	 * If the task is already exiting, don't alarm the sysadmin or kill
-> > > -	 * its children or threads, just set TIF_MEMDIE so it can die quickly
-> > > -	 */
-> > > -	if (p->flags & PF_EXITING) {
-> > > -		set_tsk_thread_flag(p, TIF_MEMDIE);
-> > > -		put_task_struct(p);
-> > > -		return;
-> > > -	}
-> > 
-> > I think you misunderstood the point of this; if a selected process is 
-> > already in the exit path then this is simply avoiding dumping oom kill 
-> > lines to the kernel log.  We want to keep doing that.
-> 
-> This happens in oom_kill_process() after victim has been selected by
-> select_bad_process(). But there is already PF_EXITING check in
-> oom_scan_process_thread() and in this case OOM code won't call oom_kill_process.
-> There is only a slight chance that victim will become PF_EXITING between
-> scan and kill.
-> 
-> The only difference is in force_kill flag, and the only case where it's set
-> is SysRq. And I think in this case OOM killer messages are a good thing to have
-> even when victim is already exiting, instead of just silence.
-> 
-> -- 
-> Sergey Dyasly <dserrg@gmail.com>
+
+Let me have a stab at this:
+
+The existing vmstat_update mechanism depends on a deferrable timer
+firing every second
+by default which registers a work queue item that runs on the local
+CPU, with the result
+that we have 1 interrupt and one additional schedulable task on each
+CPU aprox. every second.
+
+If your workload indeed causes VM activity or you are running multiple
+tasks per CPU, you probably
+have bigger issues to deal with.
+
+However, many existing workloads dedicate a CPU for a single  CPU bound task.
+This is done by high performance computing folks, by high frequency
+financial applications  folks,
+by networking folks  (Intel DPDK, EZchip NPS) and with the advent of
+systems with more and more
+CPUs over time, this  will(?) become more and more common to do since
+when you have enough CPUs
+you care less about efficiently sharing your CPU with other tasks and
+more about
+efficiently monopolizing a CPU per task.
+
+The difference of having this timer firing and workqueue kernel thread
+scheduled per second can be enormous.
+An artificial test I made measuring the worst case time to do a simple
+"i++" in an endless loop on a bare metal
+system and under Linux on an isolated CPU (cpusets or isolcpus - take
+your pick) with dynticks and with and
+without this patch, have Linux match the bare metal performance (~700
+cycles) with this patch and loose by
+couple of orders of magnitude (~200k cycles) without it[*]  - and all
+this for something that just calculates statistics.
+For  networking applications, for example, this is the difference
+between dropping packets or sustaining line rate.
+
+Statistics are important and useful, but if there is a way to not
+cause statistics gathering produce
+such a huge performance difference would be great. This is what we are
+trying to do here.
+
+Does it makes sense?
+
+[*] To be honest it required one more patch, but this one or something
+like is needed to get that one working, so...
+
+Thanks,
+Gilad
+
+
+
+
+
+-- 
+Gilad Ben-Yossef
+Chief Coffee Drinker
+gilad@benyossef.com
+Israel Cell: +972-52-8260388
+US Cell: +1-973-8260388
+http://benyossef.com
+
+"If you take a class in large-scale robotics, can you end up in a
+situation where the homework eats your dog?"
+ -- Jean-Baptiste Queru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
