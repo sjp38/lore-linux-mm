@@ -1,114 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 019826B0032
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 20:32:02 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id x10so7771565pdj.15
-        for <linux-mm@kvack.org>; Wed, 18 Sep 2013 17:32:02 -0700 (PDT)
-Received: from asianux.com (localhost.localdomain [127.0.0.1])
-	by intranet.asianux.com (Postfix) with SMTP id 292AD1840296
-	for <linux-mm@kvack.org>; Thu, 19 Sep 2013 08:31:57 +0800 (CST)
-From: "=?utf-8?B?Q2hlbixHYW5nKCDpmYjliJop?=" <gang.chen@asianux.com>
-Subject: =?utf-8?B?UmU6IFtQQVRDSCB2Ml0gbW0vc2htZW0uYzogY2hlY2sgdGhlIHJldHVybiB2YWx1ZSBvZiBtcG9sX3RvX3N0cigp?=
-Date: Thu, 19 Sep 2013 08:31:42 +0800
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 81F0E6B0031
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 21:04:30 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id un15so7773671pbc.1
+        for <linux-mm@kvack.org>; Wed, 18 Sep 2013 18:04:30 -0700 (PDT)
+Received: by mail-pd0-f171.google.com with SMTP id g10so7758580pdj.16
+        for <linux-mm@kvack.org>; Wed, 18 Sep 2013 18:04:27 -0700 (PDT)
+Date: Wed, 18 Sep 2013 18:04:25 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RESEND PATCH] mm/mempolicy: use NUMA_NO_NODE
+In-Reply-To: <5237AB84.9000404@huawei.com>
+Message-ID: <alpine.DEB.2.02.1309181804160.22497@chino.kir.corp.google.com>
+References: <5237AB84.9000404@huawei.com>
 MIME-Version: 1.0
-Content-type: text/html;
-	 charset="utf-8"
-Content-Transfer-Encoding: base64
-Message-Id: <20130919003157.292AD1840296@intranet.asianux.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?B?RGF2aWQgUmllbnRqZXM=?= <rientjes@google.com>
-Cc: =?utf-8?B?S09TQUtJIE1vdG9oaXJv?= <kosaki.motohiro@gmail.com>, =?utf-8?B?S09TQUtJIE1vdG9oaXJv?= <kosaki.motohiro@jp.fujitsu.com>, riel@redhat.com, hughd@google.com, xemul@parallels.com, =?utf-8?B?V2FucGVuZyBMaQ==?= <liwanp@linux.vnet.ibm.com>, =?utf-8?B?Q3lyaWxsIEdvcmN1bm92?= <gorcunov@gmail.com>, linux-mm@kvack.org, =?utf-8?B?QW5kcmV3IE1vcnRvbg==?= <akpm@linux-foundation.org>
+To: Jianguo Wu <wujianguo@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-PGh0bWw+CjxoZWFkPgo8bWV0YSBodHRwLWVxdWl2PSJDb250ZW50LVR5cGUiIGNvbnRlbnQ9InRl
-eHQvaHRtbDsgY2hhcnNldD0iPgo8dGl0bGU+PC90aXRsZT4KPHN0eWxlIHR5cGU9J3RleHQvY3Nz
-Jz4KYm9keSB7IGZvbnQtZmFtaWx5OlZlcmRhbmEsQXJpYWw7Zm9udC1zaXplOjEycHg7bWFyZ2lu
-LXRvcDo0O21hcmdpbi1yaWdodDo0O21hcmdpbi1ib3R0b206NDttYXJnaW4tbGVmdDo0O2JhY2tn
-cm91bmQtY29sb3I6d2hpdGU7Y29sb3I6YmxhY2s7fQpwIHttYXJnaW46MXB0O21hcmdpbi1ib3R0
-b206NC41cHQ7fQp0ZCB7Zm9udC1zaXplOjEycHg7fQo8L3N0eWxlPgo8L2hlYWQ+Cjxib2R5PgoN
-PGJyPgpGaXJzdGx5LCZuYnNwO2V4Y3VzZSZuYnNwO21lLCZuYnNwO0kmbmJzcDtzZW5kJm5ic3A7
-dGhpcyZuYnNwO21haWwmbmJzcDtpbiZuYnNwO3dlYiZuYnNwO3NpdGUmbmJzcDt3aXRoJm5ic3A7
-dGV4dCZuYnNwO3BsYWluJm5ic3A7bW9kZS4NPGJyPgoNPGJyPgomZ3Q7LS0tLS0tLSZuYnNwO09y
-aWdpbmFsJm5ic3A7TWVzc2FnZSZuYnNwOy0tLS0tLS0NPGJyPgomZ3Q7Jmd0OyZuYnNwO09uJm5i
-c3A7V2VkLCZuYnNwOzE4Jm5ic3A7U2VwJm5ic3A7MjAxMywmbmJzcDtDaGVuJm5ic3A7R2FuZyZu
-YnNwO3dyb3RlOg08YnI+CiZndDsNPGJyPgomZ3Q7Jmd0OyZuYnNwO0JVR19PTigpJm5ic3A7aXMm
-bmJzcDt3aWRlbHkmbmJzcDthbmQmbmJzcDtjb21tb25seSZuYnNwO3VzZWQmbmJzcDtpbiZuYnNw
-O2tlcm5lbCZuYnNwO3dpZGUsJm5ic3A7YW5kJm5ic3A7QlVHX09OKCkmbmJzcDtjYW4mbmJzcDti
-ZQ08YnI+CiZndDsmZ3Q7Jm5ic3A7Y3VzdG9taXplZCZuYnNwO2J5Jm5ic3A7YW55Jm5ic3A7YXJj
-aGl0ZWN0dXJlcywmbmJzcDtzbyZuYnNwO0kmbmJzcDtndWVzcywmbmJzcDtpZiZuYnNwO2dvb2ds
-ZSZuYnNwO3JlYWxseSZuYnNwO3RoaW5rJm5ic3A7aXQNPGJyPgomZ3Q7Jmd0OyZuYnNwO2lzJm5i
-c3A7bmVjZXNzYXJ5LCZuYnNwO2l0Jm5ic3A7d2lsbCZuYnNwO2N1c3RvbWl6ZSZuYnNwO2l0Lg08
-YnI+CiZndDsmZ3Q7Jm5ic3A7DTxicj4KJmd0OyZndDsmbmJzcDtJZiZuYnNwOyZxdW90O2NvbXBp
-bGUtdGltZSZuYnNwO2Vycm9yJnF1b3Q7Jm5ic3A7d2lsbCZuYnNwO21ha2UmbmJzcDtjb2RlJm5i
-c3A7Y29tcGxleCZuYnNwO3RvJm5ic3A7Ym90aCZuYnNwO3JlYWRlcnMmbmJzcDthbmQNPGJyPgom
-Z3Q7Jmd0OyZuYnNwO3dyaXRlcnMmbmJzcDsoZS5nLiZuYnNwO291ciZuYnNwO2Nhc2UpLCZuYnNw
-O2ZvcmNpbmcmbmJzcDsmcXVvdDtjb21waWxlLXRpbWUmbmJzcDtlcnJvciZxdW90OyZuYnNwO21h
-eSZuYnNwO3N0aWxsJm5ic3A7YmUmbmJzcDtnb29kDTxicj4KJmd0OyZndDsmbmJzcDtlbm91Z2gm
-bmJzcDt0byZuYnNwO2dvb2dsZSwmbmJzcDtidXQmbmJzcDttYXkmbmJzcDtub3QmbmJzcDtiZSZu
-YnNwO2dvb2QmbmJzcDtlbm91Z2gmbmJzcDtmb3ImbmJzcDtvdGhlcnMuDTxicj4KJmd0OyZndDsm
-bmJzcDsNPGJyPgomZ3Q7DTxicj4KJmd0OyZuYnNwO0dvb2dsZSZuYnNwO2hhcyZuYnNwO25vdGhp
-bmcmbmJzcDt0byZuYnNwO2RvJm5ic3A7d2l0aCZuYnNwO3RoaXMsJm5ic3A7aXQmbmJzcDt0cmVh
-dHMmbmJzcDtCVUdfT04oKSZuYnNwO2p1c3QmbmJzcDtsaWtlJm5ic3A7OTkuOTklJm5ic3A7b2Ym
-bmJzcDsNPGJyPgomZ3Q7Jm5ic3A7b3RoZXJzJm5ic3A7ZG8uDTxicj4KJmd0Ow08YnI+Cg08YnI+
-ClBsZWFzZSZuYnNwO3NlYXJjaCZuYnNwO0JVR19PTigpJm5ic3A7aW4mbmJzcDtrZXJuZWwmbmJz
-cDt3aWRlJm5ic3A7c291cmNlJm5ic3A7Y29kZSwmbmJzcDt3ZSZuYnNwO2NhbiZuYnNwO2tub3cm
-bmJzcDt3aGV0aGVyDTxicj4KaXQmbmJzcDtpcyZuYnNwO2NvbW1vbmx5Jm5ic3A7dXNlZCZuYnNw
-O29yJm5ic3A7bm90Lg08YnI+Cg08YnI+ClBsZWFzZSZuYnNwO3NlYXJjaCZuYnNwO0JVRyZuYnNw
-O2luJm5ic3A7YXJjaC8mbmJzcDtzdWItc3lzdGVtLCZuYnNwO3dlJm5ic3A7Y2FuJm5ic3A7a25v
-dyZuYnNwO3doaWNoJm5ic3A7YXJjaGl0ZWN0dXJlcw08YnI+CmN1c3RvbWl6ZSZuYnNwO0JVRy9C
-VUdfT04uDTxicj4KDTxicj4KQWZ0ZXImbmJzcDtkbyZuYnNwO3RoZSZuYnNwOzImbmJzcDt0aGlu
-Z3MsJm5ic3A7SW4mbmJzcDtteSZuYnNwO29waW5pb24sJm5ic3A7d2UmbmJzcDtjYW4mbmJzcDt0
-cmVhdCZuYnNwO0JVRy9CVUdfT04oKSZuYnNwO2lzJm5ic3A7Y29tbW9uDTxicj4KaW1wbGVtZW50
-YXRpb24sJm5ic3A7YW5kJm5ic3A7bW9zdCZuYnNwO29mJm5ic3A7YXJjaGl0ZWN0dXJlcyZuYnNw
-O3VzZXMmbmJzcDt0aGUmbmJzcDtkZWZhdWx0Jm5ic3A7b25lLg08YnI+Cg08YnI+ClBsZWFzZSZu
-YnNwO2NoZWNrJm5ic3A7YWdhaW4sJm5ic3A7dGhhbmtzLg08YnI+Cg08YnI+CiZndDsmZ3Q7Jm5i
-c3A7U28mbmJzcDtpbiZuYnNwO215Jm5ic3A7b3BpbmlvbiwmbmJzcDtmb3ImbmJzcDtvdXImbmJz
-cDtjYXNlJm5ic3A7d2hpY2gmbmJzcDtpcyZuYnNwO2EmbmJzcDtjb21tb24mbmJzcDtzdWItc3lz
-dGVtLCZuYnNwO25vdCZuYnNwO2FuDTxicj4KJmd0OyZndDsmbmJzcDthcmNoaXRlY3R1cmUmbmJz
-cDtzcGVjaWZpYyZuYnNwO3N1Yi1zeXN0ZW0sJm5ic3A7YmV0dGVyJm5ic3A7dXNlJm5ic3A7JnF1
-b3Q7cnVuLXRpbWUmbmJzcDtlcnJvciZxdW90Oy4NPGJyPgomZ3Q7Jmd0OyZuYnNwOw08YnI+CiZn
-dDsNPGJyPgomZ3Q7Jm5ic3A7VGhhdCYjMDM5O3MmbmJzcDthYnNvbHV0ZWx5Jm5ic3A7aW5zYW5l
-LiZuYnNwOyZuYnNwO0lmJm5ic3A7Y29kZSZuYnNwO2lzJm5ic3A7bm90Jm5ic3A7YWxsb2NhdGlu
-ZyZuYnNwO2Vub3VnaCZuYnNwO21lbW9yeSZuYnNwO2ZvciZuYnNwO3RoZSZuYnNwOw08YnI+CiZn
-dDsmbmJzcDttYXhpbXVtJm5ic3A7cG9zc2libGUmbmJzcDtsZW5ndGgmbmJzcDtvZiZuYnNwO2Em
-bmJzcDtzdHJpbmcmbmJzcDt0byZuYnNwO2JlJm5ic3A7c3RvcmVkJm5ic3A7YnkmbmJzcDttcG9s
-X3RvX3N0cigpLCZuYnNwO2l0JiMwMzk7cyZuYnNwO2EmbmJzcDsNPGJyPgomZ3Q7Jm5ic3A7YnVn
-Jm5ic3A7aW4mbmJzcDt0aGUmbmJzcDtjb2RlLiZuYnNwOyZuYnNwO1dlJm5ic3A7ZG8mbmJzcDtu
-b3QmbmJzcDtwYW5pYyZuYnNwO2FuZCZuYnNwO3JlYm9vdCZuYnNwO3RoZSZuYnNwO3VzZXImIzAz
-OTtzJm5ic3A7bWFjaGluZSZuYnNwO2ZvciZuYnNwO3N1Y2gmbmJzcDthJm5ic3A7DTxicj4KJmd0
-OyZuYnNwO2J1Zy4mbmJzcDsmbmJzcDtJbnN0ZWFkLCZuYnNwO3dlJm5ic3A7YnJlYWsmbmJzcDt0
-aGUmbmJzcDtidWlsZCZuYnNwO2FuZCZuYnNwO3JlcXVpcmUmbmJzcDt0aGUmbmJzcDticm9rZW4m
-bmJzcDtjb2RlJm5ic3A7dG8mbmJzcDtiZSZuYnNwO2ZpeGVkLg08YnI+CiZndDsmbmJzcDsNPGJy
-PgoNPGJyPgpQbGVhc2UmbmJzcDtzYXkmbmJzcDtpbiZuYnNwO3BvbGl0ZS4NPGJyPgoNPGJyPgpD
-YW4mbmJzcDt5b3UmbmJzcDtiZSZuYnNwO3N1cmUsJm5ic3A7dGhlJm5ic3A7JnF1b3Q7bWF4bGVu
-Jm5ic3A7PT0mbmJzcDs1MCZxdW90OyZuYnNwO2luJm5ic3A7JnF1b3Q7ZnMvcHJvYy90YXNrX21t
-dSgpJnF1b3Q7LCZuYnNwO211c3QmbmJzcDtiZSZuYnNwO2EmbmJzcDtidWc/Pw08YnI+Cg08YnI+
-CkkmbmJzcDtkb24mIzAzOTt0Jm5ic3A7a25vdyZuYnNwO3doZXRoZXImbmJzcDtpdCZuYnNwO2lz
-LCZuYnNwO21heWJlJm5ic3A7eW91Jm5ic3A7a25vdz8NPGJyPgoNPGJyPgomZ3Q7Jm5ic3A7SSZu
-YnNwO2hhdmUmbmJzcDt0b2xkJm5ic3A7eW91Jm5ic3A7ZXhhY3RseSZuYnNwO2hvdyZuYnNwO3Rv
-Jm5ic3A7aW50cm9kdWNlJm5ic3A7c3VjaCZuYnNwO2EmbmJzcDtjb21waWxlLXRpbWUmbmJzcDtl
-cnJvci4NPGJyPgoNPGJyPgpPZiZuYnNwO2NhdXNlLCZuYnNwO0kmbmJzcDthbHJlYWR5Jm5ic3A7
-a25vd24mbmJzcDthYm91dCZuYnNwO3lvdXImbmJzcDtvcGluaW9uLCZuYnNwO2FuZCZuYnNwO0km
-bmJzcDtuZXZlciZuYnNwO3NheSZuYnNwO3doYXQmbmJzcDt5b3UmbmJzcDtzYWlkJm5ic3A7aXMN
-PGJyPgp1c2VsZXNzLCZuYnNwO3RoYXQmbmJzcDtpcyZuYnNwO3RoZSZuYnNwO3JlYXNvbiZuYnNw
-O3doeSZuYnNwO0kmbmJzcDthbSZuYnNwO3N0aWxsJm5ic3A7ZGlzY3Vzc2luZyZuYnNwO3dpdGgm
-bmJzcDt5b3UuDTxicj4KDTxicj4KQWxsJm5ic3A7dG9nZXRoZXIsJm5ic3A7anVzdCZuYnNwO2lu
-Jm5ic3A7b25lJm5ic3A7b2YmbmJzcDtteSZuYnNwO29yaWdpbmFsJm5ic3A7b3BpbmlvbiwmbmJz
-cDtpZiZuYnNwO3doYXQmbmJzcDt5b3UmbmJzcDtzYWlkJm5ic3A7YWJvdmUmbmJzcDt3YXMmbmJz
-cDtyZWFsbHkNPGJyPgpjb3JyZWN0Jm5ic3A7KG1heSZuYnNwO2l0Jm5ic3A7YmUpLCZuYnNwO3Ro
-ZSZuYnNwO2Z1bmN0aW9uJm5ic3A7YXBpJm5ic3A7bmVlZCZuYnNwOyZxdW90O3VzZSZuYnNwO3N0
-cnVjdCZuYnNwOyhjb250ZW50cyZuYnNwOyZxdW90O2NoYXImbmJzcDtidWZbNjRdJnF1b3Q7KQ08
-YnI+CnBvaW50ZXImbmJzcDtpbnN0ZWFkJm5ic3A7b2YmbmJzcDsmIzAzOTtidWZmZXImIzAzOTsm
-bmJzcDthbmQmbmJzcDsmIzAzOTttYXhsZW4mIzAzOTsuJnF1b3Q7DTxicj4KDTxicj4KUGxlYXNl
-Jm5ic3A7c2VuZCZuYnNwO3lvdXImbmJzcDtwYXRjaCZuYnNwO2ZvciZuYnNwO2l0LCZuYnNwO2Rv
-biYjMDM5O3QmbmJzcDtuZWVkJm5ic3A7dGVhY2gmbmJzcDtvdGhlcnMmbmJzcDtob3cmbmJzcDt0
-byZuYnNwO3NlbmQmbmJzcDtwYXRjaCZuYnNwOyhhdA08YnI+CmxlYXN0LCZuYnNwO3RoYXQmbmJz
-cDt3aWxsJm5ic3A7YmUmbmJzcDttb3JlJm5ic3A7ZWZmaWNpZW50KS4NPGJyPgoNPGJyPgpUaGFu
-a3MuDTxicj4KLS0NPGJyPgpDaGVuJm5ic3A7R2FuZy48YnI+Cjxicj4KPGltZyBzcmM9Imh0dHA6
-Ly9pbnRyYW5ldC5hc2lhbnV4LmNvbS9tYWlsL2NoZWNrL2NoZWNrTWFpbC5ocz9ubz0lM0ElM0E4
-JTNEJTNDJmlkPW1rZG0lMjRpYm9kJnVxPTI2NWI2NDAyMzg1Nzg0YTJmMTMyM2U2MThjMjU3NzEy
-MzE0MjAyOTAmY289JTNBJTNBJTNBJTNBJTNCIiB3aWR0aD0xIGhlaWdodD0xIGJvcmRlcj0wPgo8
-L2JvZHk+PC9odG1sPg==
+On Tue, 17 Sep 2013, Jianguo Wu wrote:
+
+> Use more appropriate NUMA_NO_NODE instead of -1
+> 
+> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
