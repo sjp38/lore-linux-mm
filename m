@@ -1,93 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F98A6B0032
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 19:52:36 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id lf1so8890674pab.24
-        for <linux-mm@kvack.org>; Wed, 18 Sep 2013 16:52:35 -0700 (PDT)
-Date: Thu, 19 Sep 2013 09:52:28 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [Intel-gfx] [PATCH] [RFC] mm/shrinker: Add a shrinker flag to
- always shrink a bit
-Message-ID: <20130918235228.GG9901@dastard>
-References: <1379495401-18279-1-git-send-email-daniel.vetter@ffwll.ch>
- <5239829F.4080601@t-online.de>
- <20130918203822.GA4330@dastard>
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D2EB6B0032
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2013 20:25:06 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id y10so7729473pdj.22
+        for <linux-mm@kvack.org>; Wed, 18 Sep 2013 17:25:06 -0700 (PDT)
+References: <1379445730.79703.YahooMailNeo@web172205.mail.ir2.yahoo.com>
+Message-ID: <1379550301.48901.YahooMailNeo@web172202.mail.ir2.yahoo.com>
+Date: Thu, 19 Sep 2013 01:25:01 +0100 (BST)
+From: Max B <txtmb@yahoo.fr>
+Reply-To: Max B <txtmb@yahoo.fr>
+Subject: shouldn't gcc use swap space as temp storage??
+In-Reply-To: <1379445730.79703.YahooMailNeo@web172205.mail.ir2.yahoo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20130918203822.GA4330@dastard>
+Content-Type: multipart/alternative; boundary="-1007433603-216861906-1379550301=:48901"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Knut Petersen <Knut_Petersen@t-online.de>
-Cc: Daniel Vetter <daniel.vetter@ffwll.ch>, Linux MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, DRI Development <dri-devel@lists.freedesktop.org>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-[my keyboard my be on the fritz - it's not typing what I'm thinking...]
+---1007433603-216861906-1379550301=:48901
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-On Thu, Sep 19, 2013 at 06:38:22AM +1000, Dave Chinner wrote:
-> On Wed, Sep 18, 2013 at 12:38:23PM +0200, Knut Petersen wrote:
-> > On 18.09.2013 11:10, Daniel Vetter wrote:
-> > 
-> > Just now I prepared a patch changing the same function in vmscan.c
-> > >Also, this needs to be rebased to the new shrinker api in 3.12, I
-> > >simply haven't rolled my trees forward yet.
-> > 
-> > Well, you should. Since commit 81e49f  shrinker->count_objects might be
-> > set to SHRINK_STOP, causing shrink_slab_node() to complain loud and often:
-> > 
-> > [ 1908.234595] shrink_slab: i915_gem_inactive_scan+0x0/0x9c negative objects to delete nr=-xxxxxxxxx
-> > 
-> > The kernel emitted a few thousand log lines like the one quoted above during the
-> > last few days on my system.
-> > 
-> > >diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > >index 2cff0d4..d81f6e0 100644
-> > >--- a/mm/vmscan.c
-> > >+++ b/mm/vmscan.c
-> > >@@ -254,6 +254,10 @@ unsigned long shrink_slab(struct shrink_control *shrink,
-> > >  			total_scan = max_pass;
-> > >  		}
-> > >+		/* Always try to shrink a bit to make forward progress. */
-> > >+		if (shrinker->evicts_to_page_lru)
-> > >+			total_scan = max_t(long, total_scan, batch_size);
-> > >+
-> > At that place the error message is already emitted.
-> > >  		/*
-> > >  		 * We need to avoid excessive windup on filesystem shrinkers
-> > >  		 * due to large numbers of GFP_NOFS allocations causing the
-> > 
-> > Have a look at the attached patch. It fixes my problem with the erroneous/misleading
-> > error messages, and I think it's right to just bail out early if SHRINK_STOP is found.
-> > 
-> > Do you agree ?
-> 
-> No, that's wrong. ->count_objects should never ass SHRINK_STOP.
+=0A=0A=0A=0A=0A=0AHi All,=0A=0ASee below for executable program.=0A=0A=0ASh=
+ouldn't gcc use swap space as temp storage?=A0 Either my machine is set up =
+improperly, or gcc does not (cannot?) access this capability.=0A=0A=0AIt se=
+ems to me that programs should be able to access swap memory in these cases=
+, but the behaviour has not been confirmed.=0A=0ACan someone please confirm=
+ or correct me?=0A=0A=0AApologies if this is not the correct listserv for t=
+he present discussion.=0A=0A=0AThanks for any/all help.=0A=0A=0ACheers,=0AM=
+ax=0A=0A=0A/*=0A=A0* This program segfaults with the *bar array declaration=
+.=0A=A0*=0A=A0* I wonder why it does not write the *foo array to swap space=
+=0A=A0* then use the freed ram to allocate *bar.=0A=A0*=0A=A0* I have explo=
+red the shell ulimit parameters to no avail.=0A=A0*=0A=A0* I have run this =
+as root and in userland with the same outcome.=0A=A0*=0A=A0* It seems to be=
+ a problem internal to gcc, but may also be a kernel issue.=0A=A0*=0A=A0*/=
+=0A=0A#include <stdio.h>=0A#include <stdlib.h>=0A=0A#define NMAX 628757505=
+=0A=0Aint main(int argc,char **argv) {=0A=A0 float *foo,*bar;=0A=0A=A0 foo=
+=3Dcalloc(NMAX,sizeof(float));=0A=A0 fprintf(stderr,"%9.3f %9.3f\n",foo[0],=
+foo[1]);=0A#if 1=0A=A0 bar=3Dcalloc(NMAX,sizeof(float));=0A=A0 fprintf(stde=
+rr,"%9.3f %9.3f\n",bar[0],bar[1]);=0A#endif=0A=0A=A0 return=0A 0;=0A}
+---1007433603-216861906-1379550301=:48901
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-						*pass
-
-> Indeed, it should always return a count of objects in the cache,
-> regardless of the context. 
-> 
-> SHRINK_STOP is for ->scan_objects to tell the shrinker it can make
-
-							*can't
-
-> any progress due to the context it is called in. This allows the
-> shirnker to defer the work to another call in a different context.
-> However, if ->count-objects doesn't return a count, the work that
-> was supposed to be done cannot be deferred, and that is what
-
-							 *why
-
-> ->count_objects should always return the number of objects in the
-> cache.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+<html><body><div style=3D"color:#000; background-color:#fff; font-family:ti=
+mes new roman, new york, times, serif;font-size:10pt"><br><div style=3D"fon=
+t-family: times new roman, new york, times, serif; font-size: 10pt;"><div s=
+tyle=3D"font-family: times new roman, new york, times, serif; font-size: 12=
+pt;"><div class=3D"y_msg_container"><br><div id=3D"yiv4732563312"><div><div=
+ style=3D"color:#000;background-color:#fff;font-family:times new roman, new=
+ york, times, serif;font-size:10pt;"><div id=3D"yiv4732563312"><div><div st=
+yle=3D"color:#000;background-color:#fff;font-family:times new roman, new yo=
+rk, times, serif;font-size:10pt;"><div><br></div><div style=3D"color:rgb(0,=
+ 0, 0);font-size:13.3333px;font-family:times new roman, new york, times, se=
+rif;background-color:transparent;font-style:normal;">Hi All,</div><div styl=
+e=3D"color:rgb(0, 0, 0);font-size:13.3333px;font-family:times new roman, ne=
+w york, times, serif;background-color:transparent;font-style:normal;"><br><=
+/div><div
+ style=3D"color:rgb(0, 0, 0);font-size:13.3333px;font-family:times new roma=
+n, new york, times, serif;background-color:transparent;font-style:normal;">=
+See below for executable program.<br></div><div style=3D"color:rgb(0, 0, 0)=
+;font-size:13.3333px;font-family:times new roman, new york, times, serif;ba=
+ckground-color:transparent;font-style:normal;"><br>Shouldn't gcc use swap s=
+pace as temp storage?&nbsp; Either my machine is set up improperly, or gcc =
+does not (cannot?) access this capability.<br><br></div><div style=3D"color=
+:rgb(0, 0, 0);font-size:13.3333px;font-family:times new roman, new york, ti=
+mes, serif;background-color:transparent;font-style:normal;">It seems to me =
+that programs should be able to access swap memory in these cases, but the =
+behaviour has not been confirmed.<br><br>Can someone please confirm or corr=
+ect me?<br></div><div style=3D"color:rgb(0, 0, 0);font-size:13.3333px;font-=
+family:times new roman, new york, times,
+ serif;background-color:transparent;font-style:normal;"><br>Apologies if th=
+is is not the correct listserv for the present discussion.<br><br></div><di=
+v style=3D"color:rgb(0, 0,=0A 0);font-size:13.3333px;font-family:times new =
+roman, new york, times, serif;background-color:transparent;font-style:norma=
+l;">Thanks for any/all help.<br></div><div style=3D"color:rgb(0, 0, 0);font=
+-size:13.3333px;font-family:times new roman, new york, times, serif;backgro=
+und-color:transparent;font-style:normal;"><br></div><div style=3D"color:rgb=
+(0, 0, 0);font-size:13.3333px;font-family:times new roman, new york, times,=
+ serif;background-color:transparent;font-style:normal;">Cheers,</div><div s=
+tyle=3D"color:rgb(0, 0, 0);font-size:13.3333px;font-family:times new roman,=
+ new york, times, serif;background-color:transparent;font-style:normal;">Ma=
+x</div><div style=3D"color:rgb(0, 0, 0);font-size:13.3333px;font-family:tim=
+es new roman, new york, times, serif;background-color:transparent;font-styl=
+e:normal;"><br></div><div style=3D"color:rgb(0, 0, 0);font-size:13.3333px;f=
+ont-family:times new roman, new york, times,
+ serif;background-color:transparent;font-style:normal;"><br></div><div styl=
+e=3D"color:rgb(0, 0, 0);font-size:13.3333px;font-family:times new roman, ne=
+w york, times, serif;background-color:transparent;font-style:normal;">/*<br=
+>&nbsp;* This program segfaults with the *bar array declaration.<br>&nbsp;*=
+<br>&nbsp;* I wonder why it does not write the *foo array to swap space<br>=
+&nbsp;* then use the freed ram to allocate *bar.<br>&nbsp;*<br>&nbsp;* I ha=
+ve explored the shell ulimit parameters to no avail.<br>&nbsp;*<br>&nbsp;* =
+I have run this as root and in userland with the same outcome.<br>&nbsp;*<b=
+r>&nbsp;* It seems to be a problem internal to gcc, but may also be a kerne=
+l issue.<br>&nbsp;*<br>&nbsp;*/<br><br>#include &lt;stdio.h&gt;<br>#include=
+ &lt;stdlib.h&gt;<br><br>#define NMAX 628757505<br><br>int main(int argc,ch=
+ar **argv) {<br>&nbsp; float *foo,*bar;<br><br>&nbsp; foo=3Dcalloc(NMAX,siz=
+eof(float));<br>&nbsp; fprintf(stderr,"%9.3f
+ %9.3f\n",foo[0],foo[1]);<br>#if 1<br>&nbsp; bar=3Dcalloc(NMAX,sizeof(float=
+));<br>&nbsp; fprintf(stderr,"%9.3f %9.3f\n",bar[0],bar[1]);<br>#endif<br><=
+br>&nbsp; return=0A 0;<br>}</div><div style=3D"color:rgb(0, 0, 0);font-size=
+:13.3333px;font-family:times new roman, new york, times, serif;background-c=
+olor:transparent;font-style:normal;"><br></div></div></div></div></div></di=
+v></div><br><br></div> </div> </div>  </div></body></html>
+---1007433603-216861906-1379550301=:48901--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
