@@ -1,90 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id B06226B0031
-	for <linux-mm@kvack.org>; Fri, 20 Sep 2013 05:55:38 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id q10so190423pdj.21
-        for <linux-mm@kvack.org>; Fri, 20 Sep 2013 02:55:38 -0700 (PDT)
-Date: Fri, 20 Sep 2013 11:55:26 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 46/50] sched: numa: Prevent parallel updates to group
- stats during placement
-Message-ID: <20130920095526.GT9326@twins.programming.kicks-ass.net>
-References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
- <1378805550-29949-47-git-send-email-mgorman@suse.de>
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A7FA6B0031
+	for <linux-mm@kvack.org>; Fri, 20 Sep 2013 06:41:24 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id w10so226240pde.23
+        for <linux-mm@kvack.org>; Fri, 20 Sep 2013 03:41:23 -0700 (PDT)
+Date: Fri, 20 Sep 2013 12:41:02 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: RFC vmstat: On demand vmstat threads
+In-Reply-To: <000001413796641f-017482d3-1194-499b-8f2a-d7686c1ae61f-000000@email.amazonses.com>
+Message-ID: <alpine.DEB.2.02.1309201238560.4089@ionos.tec.linutronix.de>
+References: <00000140e9dfd6bd-40db3d4f-c1be-434f-8132-7820f81bb586-000000@email.amazonses.com> <CAOtvUMdfqyg80_9J8AnOaAdahuRYGC-bpemdo_oucDBPguXbVA@mail.gmail.com> <0000014109b8e5db-4b0f577e-c3b4-47fe-b7f2-0e5febbcc948-000000@email.amazonses.com>
+ <20130918150659.5091a2c3ca94b99304427ec5@linux-foundation.org> <alpine.DEB.2.02.1309190033440.4089@ionos.tec.linutronix.de> <000001413796641f-017482d3-1194-499b-8f2a-d7686c1ae61f-000000@email.amazonses.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1378805550-29949-47-git-send-email-mgorman@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>
 
-On Tue, Sep 10, 2013 at 10:32:26AM +0100, Mel Gorman wrote:
-> Having multiple tasks in a group go through task_numa_placement
-> simultaneously can lead to a task picking a wrong node to run on, because
-> the group stats may be in the middle of an update. This patch avoids
-> parallel updates by holding the numa_group lock during placement
-> decisions.
+On Thu, 19 Sep 2013, Christoph Lameter wrote:
+> On Thu, 19 Sep 2013, Thomas Gleixner wrote:
 > 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->  kernel/sched/fair.c | 35 +++++++++++++++++++++++------------
->  1 file changed, 23 insertions(+), 12 deletions(-)
+> > The vmstat accounting is not the only thing which we want to delegate
+> > to dedicated core(s) for the full NOHZ mode.
+> >
+> > So instead of playing broken games with explicitly not exposed core
+> > code variables, we should implement a core code facility which is
+> > aware of the NOHZ details and provides a sane way to delegate stuff to
+> > a certain subset of CPUs.
 > 
-> diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-> index 3a92c58..4653f71 100644
-> --- a/kernel/sched/fair.c
-> +++ b/kernel/sched/fair.c
-> @@ -1231,6 +1231,7 @@ static void task_numa_placement(struct task_struct *p)
->  {
->  	int seq, nid, max_nid = -1, max_group_nid = -1;
->  	unsigned long max_faults = 0, max_group_faults = 0;
-> +	spinlock_t *group_lock = NULL;
->  
->  	seq = ACCESS_ONCE(p->mm->numa_scan_seq);
->  	if (p->numa_scan_seq == seq)
-> @@ -1239,6 +1240,12 @@ static void task_numa_placement(struct task_struct *p)
->  	p->numa_migrate_seq++;
->  	p->numa_scan_period_max = task_scan_max(p);
->  
-> +	/* If the task is part of a group prevent parallel updates to group stats */
-> +	if (p->numa_group) {
-> +		group_lock = &p->numa_group->lock;
-> +		spin_lock(group_lock);
-> +	}
-> +
->  	/* Find the node with the highest number of faults */
->  	for_each_online_node(nid) {
->  		unsigned long faults = 0, group_faults = 0;
-> @@ -1277,20 +1284,24 @@ static void task_numa_placement(struct task_struct *p)
->  		}
->  	}
->  
-> +	if (p->numa_group) {
-> +		/*
-> +		 * If the preferred task and group nids are different, 
-> +		 * iterate over the nodes again to find the best place.
-> +		 */
-> +		if (max_nid != max_group_nid) {
-> +			unsigned long weight, max_weight = 0;
-> +
-> +			for_each_online_node(nid) {
-> +				weight = task_weight(p, nid) + group_weight(p, nid);
-> +				if (weight > max_weight) {
-> +					max_weight = weight;
-> +					max_nid = nid;
-> +				}
->  			}
->  		}
-> +
-> +		spin_unlock(group_lock);
->  	}
->  
->  	/* Preferred node as the node with the most faults */
+> I would be happy to use such a facility. Otherwise I would just be adding
+> yet another kernel option or boot parameter I guess.
 
-If you're going to hold locks you can also do away with all that
-atomic_long_*() nonsense :-)
+Uuurgh, no.
+
+The whole delegation stuff is necessary not just for vmstat. We have
+the same issue for scheduler stats and other parts of the kernel, so
+we are better off in having a core facility to schedule such functions
+in consistency with the current full NOHZ state.
+
+Thanks,
+
+	tglx
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
