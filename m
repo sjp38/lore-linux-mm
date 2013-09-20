@@ -1,42 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 62B2B6B0037
-	for <linux-mm@kvack.org>; Fri, 20 Sep 2013 08:37:14 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id fz6so657732pac.17
-        for <linux-mm@kvack.org>; Fri, 20 Sep 2013 05:37:14 -0700 (PDT)
-Date: Fri, 20 Sep 2013 14:36:56 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 46/50] sched: numa: Prevent parallel updates to group
- stats during placement
-Message-ID: <20130920123656.GS12926@twins.programming.kicks-ass.net>
-References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
- <1378805550-29949-47-git-send-email-mgorman@suse.de>
- <20130920095526.GT9326@twins.programming.kicks-ass.net>
- <20130920123151.GX22421@suse.de>
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id C6E7E6B0037
+	for <linux-mm@kvack.org>; Fri, 20 Sep 2013 08:52:34 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id kq13so670179pab.11
+        for <linux-mm@kvack.org>; Fri, 20 Sep 2013 05:52:34 -0700 (PDT)
+Subject: [PATCH] writeback: fix delayed sync(2)
+From: Maxim Patlasov <MPatlasov@parallels.com>
+Date: Fri, 20 Sep 2013 16:52:26 +0400
+Message-ID: <20130920125029.17356.66782.stgit@dhcp-10-30-17-2.sw.ru>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130920123151.GX22421@suse.de>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: tj@kernel.org, akpm@linux-foundation.org, fengguang.wu@intel.com, jack@suse.cz, linux-kernel@vger.kernel.org
 
-On Fri, Sep 20, 2013 at 01:31:52PM +0100, Mel Gorman wrote:
->  static inline unsigned long group_weight(struct task_struct *p, int nid)
->  {
-> +	if (!p->numa_group || !p->numa_group->total_faults)
->  		return 0;
->  
-> +	return 1200 * group_faults(p, nid) / p->numa_group->total_faults;
->  }
+Problem statement: if sync(2) races with bdi_wakeup_thread_delayed
+(which is called when the first inode for a bdi is marked dirty), it's
+possible that sync will be delayed for long (5 secs if dirty_writeback_interval
+is set to default value).
 
-Unrelated to this change; I recently thought we might want to change
-these weight factors based on if the task was predominantly private or
-shared.
+How it works: sync schedules bdi work for immediate processing by calling
+mod_delayed_work with 'delay' equal to 0. Bdi work is queued to pool->worklist
+and wake_up_worker(pool) is called, but before worker gets the work from
+the list, __mark_inode_dirty intervenes calling bdi_wakeup_thread_delayed
+who calls mod_delayed_work with 'timeout' equal to dirty_writeback_interval
+multiplied by 10. mod_delayed_work dives into try_to_grab_pending who
+successfully steals the work from the worklist. Then it's re-queued with that
+new delay. Until the timeout is lapsed, sync(2) sits on wait_for_completion in
+sync_inodes_sb.
 
-For shared we use the bigger weight for group, for private we use the
-bigger weight for task.
+The patch uses queue_delayed_work for __mark_inode_dirty. This should be safe
+because even if queue_delayed_work returns false (if the work is already on
+a queue), bdi_writeback_workfn will re-schedule itself by looking at
+wb->b_dirty.
+
+Signed-off-by: Maxim Patlasov <MPatlasov@parallels.com>
+---
+ mm/backing-dev.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index ce682f7..3fde024 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -294,7 +294,7 @@ void bdi_wakeup_thread_delayed(struct backing_dev_info *bdi)
+ 	unsigned long timeout;
+ 
+ 	timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
+-	mod_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
++	queue_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
