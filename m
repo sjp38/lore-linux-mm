@@ -1,49 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A7FA6B0031
-	for <linux-mm@kvack.org>; Fri, 20 Sep 2013 06:41:24 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id w10so226240pde.23
-        for <linux-mm@kvack.org>; Fri, 20 Sep 2013 03:41:23 -0700 (PDT)
-Date: Fri, 20 Sep 2013 12:41:02 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: RFC vmstat: On demand vmstat threads
-In-Reply-To: <000001413796641f-017482d3-1194-499b-8f2a-d7686c1ae61f-000000@email.amazonses.com>
-Message-ID: <alpine.DEB.2.02.1309201238560.4089@ionos.tec.linutronix.de>
-References: <00000140e9dfd6bd-40db3d4f-c1be-434f-8132-7820f81bb586-000000@email.amazonses.com> <CAOtvUMdfqyg80_9J8AnOaAdahuRYGC-bpemdo_oucDBPguXbVA@mail.gmail.com> <0000014109b8e5db-4b0f577e-c3b4-47fe-b7f2-0e5febbcc948-000000@email.amazonses.com>
- <20130918150659.5091a2c3ca94b99304427ec5@linux-foundation.org> <alpine.DEB.2.02.1309190033440.4089@ionos.tec.linutronix.de> <000001413796641f-017482d3-1194-499b-8f2a-d7686c1ae61f-000000@email.amazonses.com>
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 4383C6B0031
+	for <linux-mm@kvack.org>; Fri, 20 Sep 2013 07:21:37 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id lb1so581106pab.40
+        for <linux-mm@kvack.org>; Fri, 20 Sep 2013 04:21:36 -0700 (PDT)
+Received: by mail-wg0-f45.google.com with SMTP id y10so339499wgg.0
+        for <linux-mm@kvack.org>; Fri, 20 Sep 2013 04:21:33 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <CAJd=RBD_6FMHS3Dg_Zqugs4YCHHDeCgrxypANpPP5K2xTLE0bA@mail.gmail.com>
+References: <CAJd=RBBbJMWox5yJaNzW_jUdDfKfWe-Y7d1riYdN6huQStxzcA@mail.gmail.com>
+ <CAOMqctQyS2SFraqJpzE0sRFcihFpMHRhT+3QuZhxft=SUXYVDw@mail.gmail.com>
+ <CAOMqctQ+XchmXk_Xno6ViAoZF-tHFPpDWoy7LVW1nooa+ywbmg@mail.gmail.com>
+ <CAOMqctT2u7E0kwpm052B9pkNo4D=sYHO+Vk=P_TziUb5KvTMKA@mail.gmail.com>
+ <20130917211317.GB6537@quack.suse.cz> <CAOMqctT5Wi_Y9ODAnoG-RQiO1oJ+yKR=LnF21swuupyLShL=+w@mail.gmail.com>
+ <CAJd=RBD_6FMHS3Dg_Zqugs4YCHHDeCgrxypANpPP5K2xTLE0bA@mail.gmail.com>
+From: Michal Suchanek <hramrach@gmail.com>
+Date: Fri, 20 Sep 2013 13:20:53 +0200
+Message-ID: <CAOMqctSyovsfff++g=cUfRLmyBM9nHrQ7RB4R7z96-aXr9QcEw@mail.gmail.com>
+Subject: Re: doing lots of disk writes causes oom killer to kill processes
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>
+To: Hillf Danton <dhillf@gmail.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>
 
-On Thu, 19 Sep 2013, Christoph Lameter wrote:
-> On Thu, 19 Sep 2013, Thomas Gleixner wrote:
-> 
-> > The vmstat accounting is not the only thing which we want to delegate
-> > to dedicated core(s) for the full NOHZ mode.
-> >
-> > So instead of playing broken games with explicitly not exposed core
-> > code variables, we should implement a core code facility which is
-> > aware of the NOHZ details and provides a sane way to delegate stuff to
-> > a certain subset of CPUs.
-> 
-> I would be happy to use such a facility. Otherwise I would just be adding
-> yet another kernel option or boot parameter I guess.
+Hello,
 
-Uuurgh, no.
+On 19 September 2013 10:07, Hillf Danton <dhillf@gmail.com> wrote:
+> Hello Michal
+>
+> Take it easy please, the kernel is made by human hands.
+>
+> Can you please try the diff(and sorry if mail agent reformats it)?
+>
+> Best Regards
+> Hillf
+>
+>
+> --- a/mm/vmscan.c Wed Sep 18 08:44:08 2013
+> +++ b/mm/vmscan.c Wed Sep 18 09:31:34 2013
+> @@ -1543,8 +1543,11 @@ shrink_inactive_list(unsigned long nr_to
+>   * implies that pages are cycling through the LRU faster than
+>   * they are written so also forcibly stall.
+>   */
+> - if (nr_unqueued_dirty == nr_taken || nr_immediate)
+> + if (nr_unqueued_dirty == nr_taken || nr_immediate) {
+> + if (current_is_kswapd())
+> + wakeup_flusher_threads(0, WB_REASON_TRY_TO_FREE_PAGES);
+>   congestion_wait(BLK_RW_ASYNC, HZ/10);
+> + }
+>   }
+>
+>   /*
+> --
 
-The whole delegation stuff is necessary not just for vmstat. We have
-the same issue for scheduler stats and other parts of the kernel, so
-we are better off in having a core facility to schedule such functions
-in consistency with the current full NOHZ state.
+I applied the patch and raised the dirty block ratios to 30/10 and the
+default 60/40 while imaging a VM and did not observe any problems so I
+guess this solves it.
 
-Thanks,
+Thanks
 
-	tglx
-
-
+Michal
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
