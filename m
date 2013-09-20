@@ -1,76 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 028F86B0031
-	for <linux-mm@kvack.org>; Thu, 19 Sep 2013 23:16:08 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rp2so9224406pbb.28
-        for <linux-mm@kvack.org>; Thu, 19 Sep 2013 20:16:08 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 71EA96B0033
+	for <linux-mm@kvack.org>; Thu, 19 Sep 2013 23:16:10 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rp2so9209371pbb.0
+        for <linux-mm@kvack.org>; Thu, 19 Sep 2013 20:16:10 -0700 (PDT)
 From: Jonathan Brassow <jbrassow@redhat.com>
-Subject: [PATCH] Problems with RAID 4/5/6 and kmem_cache
-Date: Thu, 19 Sep 2013 22:15:59 -0500
-Message-Id: <1379646960-12553-1-git-send-email-jbrassow@redhat.com>
+Subject: [PATCH] RAID5: Change kmem_cache name string of RAID 4/5/6 stripe cache
+Date: Thu, 19 Sep 2013 22:16:00 -0500
+Message-Id: <1379646960-12553-2-git-send-email-jbrassow@redhat.com>
+In-Reply-To: <1379646960-12553-1-git-send-email-jbrassow@redhat.com>
+References: <1379646960-12553-1-git-send-email-jbrassow@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-raid@vger.kernel.org
 Cc: linux-mm@kvack.org, cl@linux.com, Jonathan Brassow <jbrassow@redhat.com>
 
-I'm sending a patch that changes the name string used with
-kmem_cache_create.  While I believe this is a bug in the kmem_cache
-implementation, it doesn't hurt to work-around it in this simple way.
+The unique portion of the kmem_cache name used when dm-raid is creating
+a RAID 4/5/6 array is the memory address of it's associated 'mddev'
+structure.  This is not always unique.  The memory associated
+with the 'mddev' structure can be freed and a future 'mddev' structure
+can be allocated from the exact same spot.  This causes an identical
+name to the old cache to be created when kmem_cache_create is called.
+If an old name is still present amoung slab_caches due to cache merging,
+the call will fail.  This is not theoretical, I see this regularly when
+performing device-mapper RAID 4/5/6 tests (although, strangely only on
+Fedora-19).
 
-The problem with kmem_cache* is this:
-*) Assume CONFIG_SLUB is set
-1) kmem_cache_create(name="foo-a")
-- creates new kmem_cache structure
-2) kmem_cache_create(name="foo-b")
-- If identical cache characteristics, it will be merged with the previously
-  created cache associated with "foo-a".  The cache's refcount will be 
-  incremented and an alias will be created via sysfs_slab_alias().
-3) kmem_cache_destroy(<ptr>)
-- Attempting to destroy cache associated with "foo-a", but instead the
-  refcount is simply decremented.  I don't even think the sysfs aliases are
-  ever removed...
-4) kmem_cache_create(name="foo-a")               
-- This FAILS because kmem_cache_sanity_check colides with the existing
-  name ("foo-a") associated with the non-removed cache.
+Making the unique portion of the kmem_cache name based on jiffies fixes
+this problem.
 
-This is a problem for RAID (specifically dm-raid) because the name used
-for the kmem_cache_create is ("raid%d-%p", level, mddev).  If the cache
-persists for long enough, the memory address of an old mddev will be 
-reused for a new mddev - causing an identical formulation of the cache
-name.  Even though kmem_cache_destory had long ago been used to delete
-the old cache, the merging of caches has cause the name and cache of that
-old instance to be preserved and causes a colision (and thus failure) in
-kmem_cache_create().  I see this regularly in my testing.
-
-I haven't tried to reproduce this using MD-specific tools, but I would
-think it would be even easier to reproduce there because of the cache
-name being used.  (Perhaps create two similar RAID4/5/6 arrays.  Remove
-the first one and then try to recreate the first one.  The cache should
-stay and the re-use of the name should collide.)
-
-There are a few ways I can think of to correct this bug in kmem_cache,
-but none of them seem that clean.
-1) force kmem_cache_destroy to be called with a name so that the
-   proper alias can be removed (and the name of the cache possibly
-   updated).
-2) Change structures around so that we return something small from
-   kmem_cache_create that contains a name and pointer to the mergable
-   cache.  If new caches are mergable with existing ones, then we
-   only have to create the small structure.  Having that pointer allows
-   us to properly remove the reference and corresponding name when
-   calling kmem_cache_destroy().
-Perhaps there are cleaner options.  In the meantime, please accept my
-MD RAID4/5/6 workaround patch.
-
-thanks,
- brassow
-
-Jonathan Brassow (1):
-  RAID5: Change kmem_cache name string of RAID 4/5/6 stripe cache
-
+Signed-off-by: Jonathan Brassow <jbrassow@redhat.com>
+---
  drivers/md/raid5.c |    2 +-
  1 files changed, 1 insertions(+), 1 deletions(-)
 
+diff --git a/drivers/md/raid5.c b/drivers/md/raid5.c
+index 7ff4f25..f731ce9 100644
+--- a/drivers/md/raid5.c
++++ b/drivers/md/raid5.c
+@@ -1618,7 +1618,7 @@ static int grow_stripes(struct r5conf *conf, int num)
+ 			"raid%d-%s", conf->level, mdname(conf->mddev));
+ 	else
+ 		sprintf(conf->cache_name[0],
+-			"raid%d-%p", conf->level, conf->mddev);
++			"raid%d-%llu", conf->level, get_jiffies_64());
+ 	sprintf(conf->cache_name[1], "%s-alt", conf->cache_name[0]);
+ 
+ 	conf->active_name = 0;
 -- 
 1.7.7.6
 
