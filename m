@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id B17EB6B004D
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 10C176B005C
 	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 08:06:18 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id un15so3147727pbc.29
+Received: by mail-pb0-f41.google.com with SMTP id rp2so3151955pbb.28
         for <linux-mm@kvack.org>; Mon, 23 Sep 2013 05:06:18 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 21/22] thp, mm: split huge page on mmap file page
-Date: Mon, 23 Sep 2013 15:05:49 +0300
-Message-Id: <1379937950-8411-22-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 22/22] ramfs: enable transparent huge page cache
+Date: Mon, 23 Sep 2013 15:05:50 +0300
+Message-Id: <1379937950-8411-23-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,30 +15,50 @@ List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We are not ready to mmap file-backed tranparent huge pages. Let's split
-them on fault attempt.
+ramfs is the most simple fs from page cache point of view. Let's start
+transparent huge page cache enabling here.
 
-Later we'll implement mmap() properly and this code path be used for
-fallback cases.
+ramfs pages are not movable[1] and switching to transhuge pages doesn't
+affect that. We need to fix this eventually.
+
+[1] http://lkml.org/lkml/2013/4/2/720
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/filemap.c | 2 ++
- 1 file changed, 2 insertions(+)
+ fs/ramfs/file-mmu.c | 2 +-
+ fs/ramfs/inode.c    | 6 +++++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 9bbc024e4c..01a8f9945a 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1736,6 +1736,8 @@ retry_find:
- 			goto no_cached_page;
- 	}
+diff --git a/fs/ramfs/file-mmu.c b/fs/ramfs/file-mmu.c
+index 4884ac5ae9..ae787bf9ba 100644
+--- a/fs/ramfs/file-mmu.c
++++ b/fs/ramfs/file-mmu.c
+@@ -32,7 +32,7 @@
  
-+	if (PageTransCompound(page))
-+		split_huge_page(compound_trans_head(page));
- 	if (!lock_page_or_retry(page, vma->vm_mm, vmf->flags)) {
- 		page_cache_release(page);
- 		return ret | VM_FAULT_RETRY;
+ const struct address_space_operations ramfs_aops = {
+ 	.readpage	= simple_readpage,
+-	.write_begin	= simple_write_begin,
++	.write_begin	= simple_thp_write_begin,
+ 	.write_end	= simple_write_end,
+ 	.set_page_dirty = __set_page_dirty_no_writeback,
+ };
+diff --git a/fs/ramfs/inode.c b/fs/ramfs/inode.c
+index 39d14659a8..5dafdfcd86 100644
+--- a/fs/ramfs/inode.c
++++ b/fs/ramfs/inode.c
+@@ -61,7 +61,11 @@ struct inode *ramfs_get_inode(struct super_block *sb,
+ 		inode_init_owner(inode, dir, mode);
+ 		inode->i_mapping->a_ops = &ramfs_aops;
+ 		inode->i_mapping->backing_dev_info = &ramfs_backing_dev_info;
+-		mapping_set_gfp_mask(inode->i_mapping, GFP_HIGHUSER);
++		/*
++		 * TODO: make ramfs pages movable
++		 */
++		mapping_set_gfp_mask(inode->i_mapping,
++				GFP_TRANSHUGE & ~__GFP_MOVABLE);
+ 		mapping_set_unevictable(inode->i_mapping);
+ 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+ 		switch (mode & S_IFMT) {
 -- 
 1.8.4.rc3
 
