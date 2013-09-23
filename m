@@ -1,66 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 975176B0031
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 02:08:02 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so1870338pad.2
-        for <linux-mm@kvack.org>; Sun, 22 Sep 2013 23:08:02 -0700 (PDT)
-Received: by mail-ie0-f172.google.com with SMTP id x13so5675875ief.31
-        for <linux-mm@kvack.org>; Sun, 22 Sep 2013 23:08:00 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <523FA230.3020902@oracle.com>
-References: <000701ceaac0$71c43590$554ca0b0$%yang@samsung.com>
-	<20130909162909.GB4701@variantweb.net>
-	<523FA230.3020902@oracle.com>
-Date: Mon, 23 Sep 2013 14:07:59 +0800
-Message-ID: <CAL1ERfM7Xzbi5UNqwNnMtg=aeeTABL8ad9h7XL4VVSR_iVRxTA@mail.gmail.com>
-Subject: Re: [PATCH v2 3/4] mm/zswap: avoid unnecessary page scanning
-From: Weijie Yang <weijie.yang.kh@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A8BB6B0031
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 04:21:49 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so2003062pab.32
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 01:21:48 -0700 (PDT)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout3.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MTK003Z2KJI3CX0@mailout3.samsung.com> for
+ linux-mm@kvack.org; Mon, 23 Sep 2013 17:21:45 +0900 (KST)
+From: Weijie Yang <weijie.yang@samsung.com>
+Subject: [PATCH v3 0/3] mm/zswap bugfix: memory leaks and other problems
+Date: Mon, 23 Sep 2013 16:19:36 +0800
+Message-id: <000001ceb835$f0899910$d19ccb30$%yang@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8
+Content-transfer-encoding: 7bit
+Content-language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <bob.liu@oracle.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Weijie Yang <weijie.yang@samsung.com>, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: sjenning@linux.vnet.ibm.com, bob.liu@oracle.com, minchan@kernel.org, weijie.yang.kh@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, d.j.shin@samsung.com, heesub.shin@samsung.com, kyungmin.park@samsung.com, hau.chen@samsung.com, bifeng.tong@samsung.com, rui.xie@samsung.com
 
-On Mon, Sep 23, 2013 at 10:06 AM, Bob Liu <bob.liu@oracle.com> wrote:
->
-> On 09/10/2013 12:29 AM, Seth Jennings wrote:
->> On Fri, Sep 06, 2013 at 01:16:45PM +0800, Weijie Yang wrote:
->>> add SetPageReclaim before __swap_writepage so that page can be moved to the
->>> tail of the inactive list, which can avoid unnecessary page scanning as this
->>> page was reclaimed by swap subsystem before.
->>>
->>> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
->>
->> Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
->>
->
-> Below is a reply from Mel in original thread "[PATCHv11 3/4] zswap: add
-> to mm/"
-> ------------------
->> +     /* start writeback */
->> +     SetPageReclaim(page);
->> +     __swap_writepage(page, &wbc, end_swap_bio_write);
->> +     page_cache_release(page);
->> +     zswap_written_back_pages++;
->> +
->
-> SetPageReclaim? Why?. If the page is under writeback then why do you not
-> mark it as that? Do not free pages that are currently under writeback
-> obviously. It's likely that it was PageWriteback you wanted in zbud.c too.
-> --------------------
+This patch series fix a few bugs in mm/zswap based on Linux-3.11.
 
-Thanks for reminding this.
+v2 --> v3
+	- keep GFP_KERNEL flag
 
-The purpose of using this flag in PATCHv11 and this patch is different.
+v1 --> v2
+	- free memory in zswap_frontswap_invalidate_area(in patch 1)
+	- fix whitespace corruption (line wrapping)
+	
+Corresponding mail thread: https://lkml.org/lkml/2013/8/18/59
 
-In PATCHv11, it was repurposed to protect zbud page against free,
-and now it is replaced with zhdr->under_reclaim.
+These issues fixed/optimized are:
 
-In this patch, this flag is for its original purpose(to be reclaimed asap)
+ 1. memory leaks when re-swapon
+ 
+ 2. memory leaks when invalidate and reclaim occur concurrently
+ 
+ 3. avoid unnecessary page scanning
 
-> --
-> Regards,
-> -Bob
+
+Issues discussed in that mail thread NOT fixed as it happens rarely or
+not a big problem or controversial:
+
+ 1. a "theoretical race condition" when reclaim page
+When a handle alloced from zbud, zbud considers this handle is used
+validly by upper(zswap) and can be a candidate for reclaim. But zswap has
+to initialize it such as setting swapentry and adding it to rbtree.
+so there is a race condition, such as:
+ thread 0: obtain handle x from zbud_alloc
+ thread 1: zbud_reclaim_page is called
+ thread 1: callback zswap_writeback_entry to reclaim handle x
+ thread 1: get swpentry from handle x (it is random value now)
+ thread 1: bad thing may happen
+ thread 0: initialize handle x with swapentry
+
+2. frontswap_map bitmap not cleared after zswap reclaim
+Frontswap uses frontswap_map bitmap to track page in "backend" implementation,
+when zswap reclaim a page, the corresponding bitmap record is not cleared.
+
+3. the potential that zswap store and reclaim functions called recursively
+
+
+ mm/zswap.c |   28 ++++++++++++++++++++--------
+ 1 file changed, 20 insertions(+), 8 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
