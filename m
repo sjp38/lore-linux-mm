@@ -1,38 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 39B046B0031
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 11:16:05 -0400 (EDT)
-Received: by mail-pb0-f45.google.com with SMTP id mc17so3324185pbc.32
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 08:16:04 -0700 (PDT)
-Date: Mon, 23 Sep 2013 15:10:07 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: RFC vmstat: On demand vmstat threads
-In-Reply-To: <alpine.DEB.2.02.1309201930590.4089@ionos.tec.linutronix.de>
-Message-ID: <000001414b5ebafe-a82f870f-283a-4210-a1d8-4035e2720c4f-000000@email.amazonses.com>
-References: <00000140e9dfd6bd-40db3d4f-c1be-434f-8132-7820f81bb586-000000@email.amazonses.com> <CAOtvUMdfqyg80_9J8AnOaAdahuRYGC-bpemdo_oucDBPguXbVA@mail.gmail.com> <0000014109b8e5db-4b0f577e-c3b4-47fe-b7f2-0e5febbcc948-000000@email.amazonses.com>
- <20130918150659.5091a2c3ca94b99304427ec5@linux-foundation.org> <alpine.DEB.2.02.1309190033440.4089@ionos.tec.linutronix.de> <000001413796641f-017482d3-1194-499b-8f2a-d7686c1ae61f-000000@email.amazonses.com> <alpine.DEB.2.02.1309201238560.4089@ionos.tec.linutronix.de>
- <20130920164201.GB30381@localhost.localdomain> <alpine.DEB.2.02.1309201930590.4089@ionos.tec.linutronix.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id BCCB26B0033
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 11:18:54 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id w10so3320825pde.23
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 08:18:54 -0700 (PDT)
+Date: Mon, 23 Sep 2013 11:13:03 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
+Message-ID: <20130923111303.04b99db8@gandalf.local.home>
+In-Reply-To: <20130923145446.GX9326@twins.programming.kicks-ass.net>
+References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
+	<1378805550-29949-38-git-send-email-mgorman@suse.de>
+	<20130917143003.GA29354@twins.programming.kicks-ass.net>
+	<20130917162050.GK22421@suse.de>
+	<20130917164505.GG12926@twins.programming.kicks-ass.net>
+	<20130918154939.GZ26785@twins.programming.kicks-ass.net>
+	<20130919143241.GB26785@twins.programming.kicks-ass.net>
+	<20130923105017.030e0aef@gandalf.local.home>
+	<20130923145446.GX9326@twins.programming.kicks-ass.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Frederic Weisbecker <fweisbec@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, Peter Zijlstra <peterz@infradead.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Fri, 20 Sep 2013, Thomas Gleixner wrote:
+On Mon, 23 Sep 2013 16:54:46 +0200
+Peter Zijlstra <peterz@infradead.org> wrote:
 
-> Now when a cpu becomes isolated we stop the callback scheduling on
-> that cpu and assign it to the cpu with the smallest NUMA
-> distance. So that cpu will process the data for itself and for the
-> newly isolated cpu.
+> On Mon, Sep 23, 2013 at 10:50:17AM -0400, Steven Rostedt wrote:
+> > On Thu, 19 Sep 2013 16:32:41 +0200
+> > Peter Zijlstra <peterz@infradead.org> wrote:
+> > 
+> > 
+> > > +extern void __get_online_cpus(void);
+> > > +
+> > > +static inline void get_online_cpus(void)
+> > > +{
+> > > +	might_sleep();
+> > > +
+> > > +	preempt_disable();
+> > > +	if (likely(!__cpuhp_writer || __cpuhp_writer == current))
+> > > +		this_cpu_inc(__cpuhp_refcount);
+> > > +	else
+> > > +		__get_online_cpus();
+> > > +	preempt_enable();
+> > > +}
+> > 
+> > 
+> > This isn't much different than srcu_read_lock(). What about doing
+> > something like this:
+> > 
+> > static inline void get_online_cpus(void)
+> > {
+> > 	might_sleep();
+> > 
+> > 	srcu_read_lock(&cpuhp_srcu);
+> > 	if (unlikely(__cpuhp_writer || __cpuhp_writer != current)) {
+> > 		srcu_read_unlock(&cpuhp_srcu);
+> > 		__get_online_cpus();
+> > 		current->online_cpus_held++;
+> > 	}
+> > }
+> 
+> There's a full memory barrier in srcu_read_lock(), while there was no
+> such thing in the previous fast path.
 
-That is not possible for many percpu threads since they rely on running on
-a specific cpu for optimization purposes. Running on a different processor
-makes these threads racy.
+Yeah, I mentioned this to Paul, and we talked about making
+srcu_read_lock() work with no mb's. But currently, doesn't
+get_online_cpus() just take a mutex? What's wrong with a mb() as it
+still kicks ass over what is currently there today?
 
-What is needed is to be able to switch these things off and on. Something
-on a different cpu may monitor if processing on that specific cpu is
-needed or not but it cannot perform the vmstat updates.
+> 
+> Also, why current->online_cpus_held()? That would make the write side
+> O(nr_tasks) instead of O(nr_cpus).
+
+?? I'm not sure I understand this. The online_cpus_held++ was there for
+recursion. Can't get_online_cpus() nest? I was thinking it can. If so,
+once the "__cpuhp_writer" is set, we need to do __put_online_cpus() as
+many times as we did a __get_online_cpus(). I don't know where the
+O(nr_tasks) comes from. The ref here was just to account for doing the
+old "get_online_cpus" instead of a srcu_read_lock().
+
+> 
+> > static inline void put_online_cpus(void)
+> > {
+> > 	if (unlikely(current->online_cpus_held)) {
+> > 		current->online_cpus_held--;
+> > 		__put_online_cpus();
+> > 		return;
+> > 	}
+> > 
+> > 	srcu_read_unlock(&cpuhp_srcu);
+> > }
+> 
+> Also, you might not have noticed but, srcu_read_{,un}lock() have an
+> extra idx thing to pass about. That doesn't fit with the hotplug api.
+
+I'll have to look a that, as I'm not exactly sure about the idx thing.
+
+> 
+> > 
+> > Then have the writer simply do:
+> > 
+> > 	__cpuhp_write = current;
+> > 	synchronize_srcu(&cpuhp_srcu);
+> > 
+> > 	<grab the mutex here>
+> 
+> How does that do reader preference?
+
+Well, the point I was trying to do was to let readers go very fast
+(well, with a mb instead of a mutex), and then when the CPU hotplug
+happens, it goes back to the current method.
+
+That is, once we set __cpuhp_write, and then run synchronize_srcu(),
+the system will be in a state that does what it does today (grabbing
+mutexes, and upping refcounts).
+
+I thought the whole point was to speed up the get_online_cpus() when no
+hotplug is happening. This does that, and is rather simple. It only
+gets slow when hotplug is in effect.
+
+-- Steve
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
