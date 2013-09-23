@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FBA26B0034
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 12:58:53 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id q10so3431940pdj.7
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 09:58:53 -0700 (PDT)
-Received: by mail-pb0-f52.google.com with SMTP id wz12so3408008pbc.39
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 09:46:34 -0700 (PDT)
-Message-ID: <52407058.8070806@gmail.com>
-Date: Tue, 24 Sep 2013 00:46:16 +0800
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 79A366B0036
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 12:59:58 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id lf10so2548287pab.3
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 09:59:58 -0700 (PDT)
+Received: by mail-pa0-f48.google.com with SMTP id bj1so2517988pad.7
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 09:58:26 -0700 (PDT)
+Message-ID: <5240731B.9070906@gmail.com>
+Date: Tue, 24 Sep 2013 00:58:03 +0800
 From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 4/5] x86, mem-hotplug: Support initialize page tables
- from low to high.
-References: <1379064655-20874-1-git-send-email-tangchen@cn.fujitsu.com> <1379064655-20874-5-git-send-email-tangchen@cn.fujitsu.com> <20130923155331.GE14547@htj.dyndns.org>
-In-Reply-To: <20130923155331.GE14547@htj.dyndns.org>
+Subject: Re: [PATCH v3 5/5] mem-hotplug: Introduce movablenode boot option
+ to control memblock allocation direction.
+References: <1379064655-20874-1-git-send-email-tangchen@cn.fujitsu.com> <1379064655-20874-6-git-send-email-tangchen@cn.fujitsu.com> <20130923155713.GF14547@htj.dyndns.org>
+In-Reply-To: <20130923155713.GF14547@htj.dyndns.org>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -23,22 +23,53 @@ Cc: Tang Chen <tangchen@cn.fujitsu.com>, rjw@sisk.pl, lenb@kernel.org, tglx@linu
 
 Hello tejun,
 
-On 09/23/2013 11:53 PM, Tejun Heo wrote:
-> Hey,
+On 09/23/2013 11:57 PM, Tejun Heo wrote:
+> Hello,
 > 
-> On Fri, Sep 13, 2013 at 05:30:54PM +0800, Tang Chen wrote:
->> init_mem_mapping() is called before SRAT is parsed. And memblock will allocate
->> memory for page tables. To prevent page tables being allocated within hotpluggable
->> memory, we will allocate page tables from the end of kernel image to the higher
->> memory.
+> On Fri, Sep 13, 2013 at 05:30:55PM +0800, Tang Chen wrote:
+>> +#ifdef CONFIG_MOVABLE_NODE
+>> +	if (movablenode_enable_srat) {
+>> +		/*
+>> +		 * When ACPI SRAT is parsed, which is done in initmem_init(),
+>> +		 * set memblock back to the default behavior.
+>> +		 */
+>> +		memblock_set_current_direction(MEMBLOCK_DIRECTION_DEFAULT);
+>> +	}
+>> +#endif /* CONFIG_MOVABLE_NODE */
 > 
-> The same comment about patch split as before.  Please make splitting
-> out memory_map_from_high() a separate patch.  Also, please choose one
-> pair to describe the direction.  The series is currently using four
-> variants - top_down/bottom_up, high_to_low/low_to_high,
-> from_high/from_low. rev/[none].  Please choose one and stick with it.
+> It's kinda weird to have ifdef around the above when all the actual
+> code would be compiled and linked regardless of the above ifdef.
+> Wouldn't it make more sense to conditionalize
+> memblock_direction_bottom_up() so that it's constant false to allow
+> the compiler to drop unnecessary code?
 
-OK. will do the split and choose one pair. Thanks for the reminding again.
+you mean we define memblock_set_bottom_up and memblock_bottom_up like below:
+
+#ifdef CONFIG_MOVABLE_NODE
+void memblock_set_bottom_up(bool enable)
+{
+        /* do something */
+}
+
+bool memblock_bottom_up()
+{
+        return  direction == bottom_up;
+}
+#else
+void memblock_set_bottom_up(bool enable)
+{
+        /* empty */
+}
+
+bool memblock_bottom_up()
+{
+        return false;
+}
+#endif
+
+right?
+
+thanks.
 
 > 
 > Thanks.
