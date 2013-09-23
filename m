@@ -1,55 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 48C266B0031
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 13:57:51 -0400 (EDT)
-Received: by mail-ie0-f170.google.com with SMTP id x13so7204169ief.1
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 10:57:50 -0700 (PDT)
-Date: Mon, 23 Sep 2013 19:50:52 +0200
-From: Oleg Nesterov <oleg@redhat.com>
+Received: from mail-oa0-f50.google.com (mail-oa0-f50.google.com [209.85.219.50])
+	by kanga.kvack.org (Postfix) with ESMTP id D3BFC6B0031
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 14:30:25 -0400 (EDT)
+Received: by mail-oa0-f50.google.com with SMTP id j1so924800oag.23
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 11:30:25 -0700 (PDT)
+Received: from /spool/local
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Mon, 23 Sep 2013 11:11:56 -0600
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 25C701FF0062
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 11:11:13 -0600 (MDT)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8NHAfMd196412
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 11:10:42 -0600
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r8NHCJHB018254
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 11:12:20 -0600
+Date: Mon, 23 Sep 2013 10:04:00 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
-Message-ID: <20130923175052.GA20991@redhat.com>
-References: <1378805550-29949-1-git-send-email-mgorman@suse.de> <1378805550-29949-38-git-send-email-mgorman@suse.de> <20130917143003.GA29354@twins.programming.kicks-ass.net> <20130917162050.GK22421@suse.de> <20130917164505.GG12926@twins.programming.kicks-ass.net> <20130918154939.GZ26785@twins.programming.kicks-ass.net> <20130919143241.GB26785@twins.programming.kicks-ass.net>
+Message-ID: <20130923170400.GA1390@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20130917143003.GA29354@twins.programming.kicks-ass.net>
+ <20130917162050.GK22421@suse.de>
+ <20130917164505.GG12926@twins.programming.kicks-ass.net>
+ <20130918154939.GZ26785@twins.programming.kicks-ass.net>
+ <20130919143241.GB26785@twins.programming.kicks-ass.net>
+ <20130923105017.030e0aef@gandalf.local.home>
+ <20130923145446.GX9326@twins.programming.kicks-ass.net>
+ <20130923111303.04b99db8@gandalf.local.home>
+ <20130923155059.GO9093@linux.vnet.ibm.com>
+ <20130923160130.GC9326@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130919143241.GB26785@twins.programming.kicks-ass.net>
+In-Reply-To: <20130923160130.GC9326@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>
-Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, Thomas Gleixner <tglx@linutronix.de>
 
-And somehow I didn't notice that cpuhp_set_state() doesn't look right,
+On Mon, Sep 23, 2013 at 06:01:30PM +0200, Peter Zijlstra wrote:
+> On Mon, Sep 23, 2013 at 08:50:59AM -0700, Paul E. McKenney wrote:
+> > Not a problem, just stuff the idx into some per-task thing.  Either
+> > task_struct or taskinfo will work fine.
+> 
+> Still not seeing the point of using srcu though..
+> 
+> srcu_read_lock() vs synchronize_srcu() is the same but far more
+> expensive than preempt_disable() vs synchronize_sched().
 
-On 09/19, Peter Zijlstra wrote:
->  void cpu_hotplug_begin(void)
->  {
-> -	cpu_hotplug.active_writer = current;
-> +	lockdep_assert_held(&cpu_add_remove_lock);
->  
-> -	for (;;) {
-> -		mutex_lock(&cpu_hotplug.lock);
-> -		if (likely(!cpu_hotplug.refcount))
-> -			break;
-> -		__set_current_state(TASK_UNINTERRUPTIBLE);
-> -		mutex_unlock(&cpu_hotplug.lock);
-> -		schedule();
-> -	}
-> +	__cpuhp_writer = current;
-> +
-> +	/* After this everybody will observe _writer and take the slow path. */
-> +	synchronize_sched();
-> +
-> +	/* Wait for no readers -- reader preference */
-> +	cpuhp_wait_refcount();
-> +
-> +	/* Stop new readers. */
-> +	cpuhp_set_state(1);
+Heh!  You want the old-style SRCU.  ;-)
 
-But this stops all readers, not only new. Even if cpuhp_wait_refcount()
-was correct, a new reader can come right before cpuhp_set_state(1) and
-then it can call another recursive get_online_cpus() right after.
+> > Or to put it another way, if the underlying slow-path mutex is
+> > reader-preference, then the whole thing will be reader-preference.
+> 
+> Right, so 1) we have no such mutex so we're going to have to open-code
+> that anyway, and 2) like I just explained in the other email, I want the
+> pending writer case to be _fast_ as well.
 
-Oleg.
+At some point I suspect that we will want some form of fairness, but in
+the meantime, good point.
+
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
