@@ -1,45 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 486026B0031
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 12:42:57 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id kl14so2502530pab.25
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 09:42:56 -0700 (PDT)
-Date: Mon, 23 Sep 2013 18:02:54 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
-Message-ID: <20130923160254.GD9326@twins.programming.kicks-ass.net>
-References: <20130917143003.GA29354@twins.programming.kicks-ass.net>
- <20130917162050.GK22421@suse.de>
- <20130917164505.GG12926@twins.programming.kicks-ass.net>
- <20130918154939.GZ26785@twins.programming.kicks-ass.net>
- <20130919143241.GB26785@twins.programming.kicks-ass.net>
- <20130923105017.030e0aef@gandalf.local.home>
- <20130923145446.GX9326@twins.programming.kicks-ass.net>
- <20130923111303.04b99db8@gandalf.local.home>
- <20130923152223.GZ9326@twins.programming.kicks-ass.net>
- <20130923115908.6e710d29@gandalf.local.home>
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FBA26B0034
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 12:58:53 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id q10so3431940pdj.7
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 09:58:53 -0700 (PDT)
+Received: by mail-pb0-f52.google.com with SMTP id wz12so3408008pbc.39
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 09:46:34 -0700 (PDT)
+Message-ID: <52407058.8070806@gmail.com>
+Date: Tue, 24 Sep 2013 00:46:16 +0800
+From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130923115908.6e710d29@gandalf.local.home>
+Subject: Re: [PATCH v3 4/5] x86, mem-hotplug: Support initialize page tables
+ from low to high.
+References: <1379064655-20874-1-git-send-email-tangchen@cn.fujitsu.com> <1379064655-20874-5-git-send-email-tangchen@cn.fujitsu.com> <20130923155331.GE14547@htj.dyndns.org>
+In-Reply-To: <20130923155331.GE14547@htj.dyndns.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Tejun Heo <tj@kernel.org>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, toshi.kani@hp.com, zhangyanfei@cn.fujitsu.com, liwanp@linux.vnet.ibm.com, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
-On Mon, Sep 23, 2013 at 11:59:08AM -0400, Steven Rostedt wrote:
-> On Mon, 23 Sep 2013 17:22:23 +0200
-> Peter Zijlstra <peterz@infradead.org> wrote:
-> 
-> > Still no point in using srcu for this; preempt_disable +
-> > synchronize_sched() is similar and much faster -- its the rcu_sched
-> > equivalent of what you propose.
-> 
-> To be honest, I sent this out last week and it somehow got trashed by
-> my laptop and connecting to my smtp server. Where the last version of
-> your patch still had the memory barrier ;-)
+Hello tejun,
 
-Ah, ok, yes in that case things start to make sense again.
+On 09/23/2013 11:53 PM, Tejun Heo wrote:
+> Hey,
+> 
+> On Fri, Sep 13, 2013 at 05:30:54PM +0800, Tang Chen wrote:
+>> init_mem_mapping() is called before SRAT is parsed. And memblock will allocate
+>> memory for page tables. To prevent page tables being allocated within hotpluggable
+>> memory, we will allocate page tables from the end of kernel image to the higher
+>> memory.
+> 
+> The same comment about patch split as before.  Please make splitting
+> out memory_map_from_high() a separate patch.  Also, please choose one
+> pair to describe the direction.  The series is currently using four
+> variants - top_down/bottom_up, high_to_low/low_to_high,
+> from_high/from_low. rev/[none].  Please choose one and stick with it.
+
+OK. will do the split and choose one pair. Thanks for the reminding again.
+
+> 
+> Thanks.
+> 
+
+
+-- 
+Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
