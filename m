@@ -1,69 +1,442 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f50.google.com (mail-oa0-f50.google.com [209.85.219.50])
-	by kanga.kvack.org (Postfix) with ESMTP id D3BFC6B0031
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 14:30:25 -0400 (EDT)
-Received: by mail-oa0-f50.google.com with SMTP id j1so924800oag.23
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 11:30:25 -0700 (PDT)
+Received: from mail-oa0-f53.google.com (mail-oa0-f53.google.com [209.85.219.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DBCB6B0031
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 14:35:14 -0400 (EDT)
+Received: by mail-oa0-f53.google.com with SMTP id i7so952689oag.12
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 11:35:14 -0700 (PDT)
 Received: from /spool/local
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Mon, 23 Sep 2013 11:11:56 -0600
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 25C701FF0062
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 11:11:13 -0600 (MDT)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8NHAfMd196412
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 11:10:42 -0600
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r8NHCJHB018254
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 11:12:20 -0600
-Date: Mon, 23 Sep 2013 10:04:00 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
-Message-ID: <20130923170400.GA1390@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20130917143003.GA29354@twins.programming.kicks-ass.net>
- <20130917162050.GK22421@suse.de>
- <20130917164505.GG12926@twins.programming.kicks-ass.net>
- <20130918154939.GZ26785@twins.programming.kicks-ass.net>
- <20130919143241.GB26785@twins.programming.kicks-ass.net>
- <20130923105017.030e0aef@gandalf.local.home>
- <20130923145446.GX9326@twins.programming.kicks-ass.net>
- <20130923111303.04b99db8@gandalf.local.home>
- <20130923155059.GO9093@linux.vnet.ibm.com>
- <20130923160130.GC9326@twins.programming.kicks-ass.net>
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjennings@variantweb.net>;
+	Mon, 23 Sep 2013 12:03:22 -0600
+Received: from b01cxnp22033.gho.pok.ibm.com (b01cxnp22033.gho.pok.ibm.com [9.57.198.23])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id B76AAC90049
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 14:03:18 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by b01cxnp22033.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8NI3IDI46661696
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 18:03:19 GMT
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r8NI3GYB032175
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 14:03:18 -0400
+Date: Mon, 23 Sep 2013 13:02:30 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm: move pool limit setting from zswap to zbud
+Message-ID: <20130923180230.GB23643@variantweb.net>
+References: <1379902151-15549-1-git-send-email-bob.liu@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130923160130.GC9326@twins.programming.kicks-ass.net>
+In-Reply-To: <1379902151-15549-1-git-send-email-bob.liu@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, k.kozlowski@samsung.com, mgorman@suse.de, Bob Liu <bob.liu@oracle.com>
 
-On Mon, Sep 23, 2013 at 06:01:30PM +0200, Peter Zijlstra wrote:
-> On Mon, Sep 23, 2013 at 08:50:59AM -0700, Paul E. McKenney wrote:
-> > Not a problem, just stuff the idx into some per-task thing.  Either
-> > task_struct or taskinfo will work fine.
+On Mon, Sep 23, 2013 at 10:09:11AM +0800, Bob Liu wrote:
+> It's more reasonable to set the pool limit in zbud because it's the allocate.
+> The higher layer should not necessarily care about how many pages are in use
+> and the allocator is what is responsible for the physical resource and deferring
+> the sizing of it to a higher layer will complicate the API.
 > 
-> Still not seeing the point of using srcu though..
+> This patch try to move the max pool limit setting from zswap to zbud, after this
+> patch the reclaim call layer(zswap-->zbud-->zswap) also becomes cleaner
+> (zbud-->zswap).
+
+Thanks for the patch.
+
+First thing is that the zbud_* globals should be pool local to keep things
+modular.
+
+Second is that this does make the layering a little better in that zswap
+doesn't need to query the pool size.  However the reclaim still calls back into
+zswap.  I'm just not sure how much this gets us.
+
+Also, by moving this policy into the zbud, we'll have to duplicate the same
+logic in any future allocator (zsmalloc) as well.
+
 > 
-> srcu_read_lock() vs synchronize_srcu() is the same but far more
-> expensive than preempt_disable() vs synchronize_sched().
-
-Heh!  You want the old-style SRCU.  ;-)
-
-> > Or to put it another way, if the underlying slow-path mutex is
-> > reader-preference, then the whole thing will be reader-preference.
+> Signed-off-by: Bob Liu <bob.liu@oracle.com>
+> ---
+>  include/linux/zbud.h |    1 -
+>  mm/zbud.c            |   98 ++++++++++++++++++++++++++++++++++++++++----------
+>  mm/zswap.c           |   56 ++++++-----------------------
+>  3 files changed, 90 insertions(+), 65 deletions(-)
 > 
-> Right, so 1) we have no such mutex so we're going to have to open-code
-> that anyway, and 2) like I just explained in the other email, I want the
-> pending writer case to be _fast_ as well.
-
-At some point I suspect that we will want some form of fairness, but in
-the meantime, good point.
-
-							Thanx, Paul
+> diff --git a/include/linux/zbud.h b/include/linux/zbud.h
+> index 2571a5c..7f9ca38 100644
+> --- a/include/linux/zbud.h
+> +++ b/include/linux/zbud.h
+> @@ -14,7 +14,6 @@ void zbud_destroy_pool(struct zbud_pool *pool);
+>  int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+>  	unsigned long *handle);
+>  void zbud_free(struct zbud_pool *pool, unsigned long handle);
+> -int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries);
+>  void *zbud_map(struct zbud_pool *pool, unsigned long handle);
+>  void zbud_unmap(struct zbud_pool *pool, unsigned long handle);
+>  u64 zbud_get_pool_size(struct zbud_pool *pool);
+> diff --git a/mm/zbud.c b/mm/zbud.c
+> index 9451361..1c1acb1 100644
+> --- a/mm/zbud.c
+> +++ b/mm/zbud.c
+> @@ -69,6 +69,17 @@
+>  #define NCHUNKS		(PAGE_SIZE >> CHUNK_SHIFT)
+>  #define ZHDR_SIZE_ALIGNED CHUNK_SIZE
+> 
+> +static u64 zbud_pool_pages;		/* nr pages allocated by zbud */
+> +static u64 zbud_compressed_pages;	/* nr compressed pages sotred in zbud pool */
+> +static u64 zbud_max_pool_pages;		/* max pages can be allocated to zbud pool */
+> +static u64 zbud_pool_limit_hit;		/* count of pool limit hit */
+> +static u64 zbud_reclaim_fail;		/* nr reclaim failure after pool limit was reached */
+> +
+> +/* The maximum percentage of memory that the compressed pool can occupy */
+> +static unsigned int zbud_max_pool_percent = 20;
+> +module_param_named(max_pool_percent,
+> +			zbud_max_pool_percent, uint, 0644);
+> +
+>  /**
+>   * struct zbud_pool - stores metadata for each zbud pool
+>   * @lock:	protects all pool fields and first|last_chunk fields of any
+> @@ -80,7 +91,7 @@
+>   *		these zbud pages are full
+>   * @lru:	list tracking the zbud pages in LRU order by most recently
+>   *		added buddy.
+> - * @pages_nr:	number of zbud pages in the pool.
+> + * @pool_list:	link to global pool list.
+>   * @ops:	pointer to a structure of user defined operations specified at
+>   *		pool creation time.
+>   *
+> @@ -92,9 +103,14 @@ struct zbud_pool {
+>  	struct list_head unbuddied[NCHUNKS];
+>  	struct list_head buddied;
+>  	struct list_head lru;
+> -	u64 pages_nr;
+> +	struct list_head pool_list;
+>  	struct zbud_ops *ops;
+>  };
+> +static DEFINE_SPINLOCK(zbud_pool_lock);
+> +/*
+> + * Glocal pool list, collect all zbud pools protected by zbud_pool_lock.
+> + */
+> +LIST_HEAD(zbud_pool_list);
+> 
+>  /*
+>   * struct zbud_header - zbud page metadata occupying the first chunk of each
+> @@ -120,6 +136,7 @@ enum buddy {
+>  	FIRST,
+>  	LAST
+>  };
+> +static int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries);
+> 
+>  /* Converts an allocation size in bytes to size in zbud chunks */
+>  static int size_to_chunks(int size)
+> @@ -146,6 +163,7 @@ static struct zbud_header *init_zbud_page(struct page *page)
+>  static void free_zbud_page(struct zbud_header *zhdr)
+>  {
+>  	__free_page(virt_to_page(zhdr));
+> +	zbud_pool_pages--;
+>  }
+> 
+>  /*
+> @@ -212,8 +230,12 @@ struct zbud_pool *zbud_create_pool(gfp_t gfp, struct zbud_ops *ops)
+>  		INIT_LIST_HEAD(&pool->unbuddied[i]);
+>  	INIT_LIST_HEAD(&pool->buddied);
+>  	INIT_LIST_HEAD(&pool->lru);
+> -	pool->pages_nr = 0;
+>  	pool->ops = ops;
+> +
+> +	/* Add to global pool list */
+> +	spin_lock(&zbud_pool_lock);
+> +	list_add(&pool->pool_list, &zbud_pool_list);
+> +	spin_unlock(&zbud_pool_lock);
+>  	return pool;
+>  }
+> 
+> @@ -225,6 +247,9 @@ struct zbud_pool *zbud_create_pool(gfp_t gfp, struct zbud_ops *ops)
+>   */
+>  void zbud_destroy_pool(struct zbud_pool *pool)
+>  {
+> +	spin_lock(&zbud_pool_lock);
+> +	list_del(&pool->pool_list);
+> +	spin_unlock(&zbud_pool_lock);
+>  	kfree(pool);
+>  }
+> 
+> @@ -279,15 +304,30 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+> 
+>  	/* Couldn't find unbuddied zbud page, create new one */
+>  	spin_unlock(&pool->lock);
+> -	page = alloc_page(gfp);
+> -	if (!page)
+> +	if (zbud_pool_pages > zbud_max_pool_pages) {
+> +		struct zbud_pool *zpool;
+> +		zbud_pool_limit_hit++;
+> +		list_for_each_entry(zpool, &zbud_pool_list, pool_list) {
+> +			if (zbud_reclaim_page(zpool, 8))
+> +				zbud_reclaim_fail++;
+> +		}
+> +		/*
+> +		 * Once reach the limit, don't alloc new page in this
+> +		 * store.
+> +		 */
+>  		return -ENOMEM;
+> +	} else {
+> +		page = alloc_page(gfp);
+> +		if (!page)
+> +			return -ENOMEM;
+> +		zbud_pool_pages++;
+> +	}
+>  	spin_lock(&pool->lock);
+> -	pool->pages_nr++;
+>  	zhdr = init_zbud_page(page);
+>  	bud = FIRST;
+> 
+>  found:
+> +	zbud_compressed_pages++;
+>  	if (bud == FIRST)
+>  		zhdr->first_chunks = chunks;
+>  	else
+> @@ -337,6 +377,7 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
+>  	else
+>  		zhdr->first_chunks = 0;
+> 
+> +	zbud_compressed_pages--;
+>  	if (zhdr->under_reclaim) {
+>  		/* zbud page is under reclaim, reclaim will free */
+>  		spin_unlock(&pool->lock);
+> @@ -350,7 +391,6 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
+>  		/* zbud page is empty, free */
+>  		list_del(&zhdr->lru);
+>  		free_zbud_page(zhdr);
+> -		pool->pages_nr--;
+>  	} else {
+>  		/* Add to unbuddied list */
+>  		freechunks = num_free_chunks(zhdr);
+> @@ -398,7 +438,7 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
+>   * no pages to evict or an eviction handler is not registered, -EAGAIN if
+>   * the retry limit was hit.
+>   */
+> -int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
+> +static int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
+>  {
+>  	int i, ret, freechunks;
+>  	struct zbud_header *zhdr;
+> @@ -448,7 +488,6 @@ next:
+>  			 * return success.
+>  			 */
+>  			free_zbud_page(zhdr);
+> -			pool->pages_nr--;
+>  			spin_unlock(&pool->lock);
+>  			return 0;
+>  		} else if (zhdr->first_chunks == 0 ||
+> @@ -494,22 +533,45 @@ void zbud_unmap(struct zbud_pool *pool, unsigned long handle)
+>  {
+>  }
+> 
+> -/**
+> - * zbud_get_pool_size() - gets the zbud pool size in pages
+> - * @pool:	pool whose size is being queried
+> - *
+> - * Returns: size in pages of the given pool.  The pool lock need not be
+> - * taken to access pages_nr.
+> - */
+> -u64 zbud_get_pool_size(struct zbud_pool *pool)
+> +#ifdef CONFIG_DEBUG_FS
+> +#include <linux/debugfs.h>
+> +
+> +static struct dentry *zbud_debugfs_root;
+> +static int __init zbud_debugfs_init(void)
+>  {
+> -	return pool->pages_nr;
+> +	if (!debugfs_initialized())
+> +		return -ENODEV;
+> +
+> +	zbud_debugfs_root = debugfs_create_dir("zbud", NULL);
+> +	if (!zbud_debugfs_root)
+> +		return -ENOMEM;
+> +
+> +	debugfs_create_u64("pool_pages", S_IRUGO,
+> +			zbud_debugfs_root, &zbud_pool_pages);
+> +	debugfs_create_u64("compressed_pages", S_IRUGO,
+> +			zbud_debugfs_root, &zbud_compressed_pages);
+> +	debugfs_create_u64("allowed_max_pool_pages", S_IRUGO,
+> +			zbud_debugfs_root, &zbud_max_pool_pages);
+> +	debugfs_create_u64("pool_limit_hit", S_IRUGO,
+> +			zbud_debugfs_root, &zbud_pool_limit_hit);
+> +	debugfs_create_u64("reclaim_fail", S_IRUGO,
+> +			zbud_debugfs_root, &zbud_reclaim_fail);
+> +
+> +	return 0;
+> +}
+> +#else
+> +static int __init zbud_debugfs_init(void)
+> +{
+> +	return 0;
+>  }
+> +#endif
+> 
+>  static int __init init_zbud(void)
+>  {
+>  	/* Make sure the zbud header will fit in one chunk */
+>  	BUILD_BUG_ON(sizeof(struct zbud_header) > ZHDR_SIZE_ALIGNED);
+> +	zbud_max_pool_pages = totalram_pages * zbud_max_pool_percent / 100;
+> +	zbud_debugfs_init();
+>  	pr_info("loaded\n");
+>  	return 0;
+>  }
+> diff --git a/mm/zswap.c b/mm/zswap.c
+> index 841e35f..4a8b3c2 100644
+> --- a/mm/zswap.c
+> +++ b/mm/zswap.c
+> @@ -45,11 +45,6 @@
+>  /*********************************
+>  * statistics
+>  **********************************/
+> -/* Number of memory pages used by the compressed pool */
+> -static u64 zswap_pool_pages;
+> -/* The number of compressed pages currently stored in zswap */
+> -static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
+> -
+>  /*
+>   * The statistics below are not protected from concurrent access for
+>   * performance reasons so they may not be a 100% accurate.  However,
+> @@ -57,12 +52,8 @@ static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
+>   * certain event is occurring.
+>  */
+> 
+> -/* Pool limit was hit (see zswap_max_pool_percent) */
+> -static u64 zswap_pool_limit_hit;
+>  /* Pages written back when pool limit was reached */
+>  static u64 zswap_written_back_pages;
+> -/* Store failed due to a reclaim failure after pool limit was reached */
+> -static u64 zswap_reject_reclaim_fail;
+>  /* Compressed page was too big for the allocator to (optimally) store */
+>  static u64 zswap_reject_compress_poor;
+>  /* Store failed because underlying allocator could not get memory */
+> @@ -71,6 +62,10 @@ static u64 zswap_reject_alloc_fail;
+>  static u64 zswap_reject_kmemcache_fail;
+>  /* Duplicate store was encountered (rare) */
+>  static u64 zswap_duplicate_entry;
+> +/* Succ compressed a page and stored in zswap */
+> +static u64 zswap_succ_store;
+> +/* Succ loaded a page from zswap */
+> +static u64 zswap_succ_load;
+> 
+>  /*********************************
+>  * tunables
+> @@ -84,11 +79,6 @@ module_param_named(enabled, zswap_enabled, bool, 0);
+>  static char *zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
+>  module_param_named(compressor, zswap_compressor, charp, 0);
+> 
+> -/* The maximum percentage of memory that the compressed pool can occupy */
+> -static unsigned int zswap_max_pool_percent = 20;
+> -module_param_named(max_pool_percent,
+> -			zswap_max_pool_percent, uint, 0644);
+> -
+>  /*********************************
+>  * compression functions
+>  **********************************/
+> @@ -359,15 +349,6 @@ cleanup:
+>  	return -ENOMEM;
+>  }
+> 
+> -/*********************************
+> -* helpers
+> -**********************************/
+> -static bool zswap_is_full(void)
+> -{
+> -	return (totalram_pages * zswap_max_pool_percent / 100 <
+> -		zswap_pool_pages);
+> -}
+> -
+>  /*
+>   * Carries out the common pattern of freeing and entry's zsmalloc allocation,
+>   * freeing the entry itself, and decrementing the number of stored pages.
+> @@ -376,8 +357,6 @@ static void zswap_free_entry(struct zswap_tree *tree, struct zswap_entry *entry)
+>  {
+>  	zbud_free(tree->pool, entry->handle);
+>  	zswap_entry_cache_free(entry);
+> -	atomic_dec(&zswap_stored_pages);
+> -	zswap_pool_pages = zbud_get_pool_size(tree->pool);
+>  }
+> 
+>  /*********************************
+> @@ -617,16 +596,6 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+>  		goto reject;
+>  	}
+> 
+> -	/* reclaim space if needed */
+> -	if (zswap_is_full()) {
+> -		zswap_pool_limit_hit++;
+> -		if (zbud_reclaim_page(tree->pool, 8)) {
+> -			zswap_reject_reclaim_fail++;
+> -			ret = -ENOMEM;
+> -			goto reject;
+> -		}
+> -	}
+> -
+>  	/* allocate entry */
+>  	entry = zswap_entry_cache_alloc(GFP_KERNEL);
+>  	if (!entry) {
+> @@ -686,8 +655,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+>  	spin_unlock(&tree->lock);
+> 
+>  	/* update stats */
+> -	atomic_inc(&zswap_stored_pages);
+> -	zswap_pool_pages = zbud_get_pool_size(tree->pool);
+> +	zswap_succ_store++;
+> 
+>  	return 0;
+> 
+> @@ -733,6 +701,7 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
+>  	zbud_unmap(tree->pool, entry->handle);
+>  	BUG_ON(ret);
+> 
+> +	zswap_succ_load++;
+>  	spin_lock(&tree->lock);
+>  	refcount = zswap_entry_put(entry);
+>  	if (likely(refcount)) {
+> @@ -800,7 +769,6 @@ static void zswap_frontswap_invalidate_area(unsigned type)
+>  	rbtree_postorder_for_each_entry_safe(entry, n, &tree->rbroot, rbnode) {
+>  		zbud_free(tree->pool, entry->handle);
+>  		zswap_entry_cache_free(entry);
+> -		atomic_dec(&zswap_stored_pages);
+>  	}
+>  	tree->rbroot = RB_ROOT;
+>  	spin_unlock(&tree->lock);
+> @@ -856,10 +824,6 @@ static int __init zswap_debugfs_init(void)
+>  	if (!zswap_debugfs_root)
+>  		return -ENOMEM;
+> 
+> -	debugfs_create_u64("pool_limit_hit", S_IRUGO,
+> -			zswap_debugfs_root, &zswap_pool_limit_hit);
+> -	debugfs_create_u64("reject_reclaim_fail", S_IRUGO,
+> -			zswap_debugfs_root, &zswap_reject_reclaim_fail);
+>  	debugfs_create_u64("reject_alloc_fail", S_IRUGO,
+>  			zswap_debugfs_root, &zswap_reject_alloc_fail);
+>  	debugfs_create_u64("reject_kmemcache_fail", S_IRUGO,
+> @@ -870,10 +834,10 @@ static int __init zswap_debugfs_init(void)
+>  			zswap_debugfs_root, &zswap_written_back_pages);
+>  	debugfs_create_u64("duplicate_entry", S_IRUGO,
+>  			zswap_debugfs_root, &zswap_duplicate_entry);
+> -	debugfs_create_u64("pool_pages", S_IRUGO,
+> -			zswap_debugfs_root, &zswap_pool_pages);
+> -	debugfs_create_atomic_t("stored_pages", S_IRUGO,
+> -			zswap_debugfs_root, &zswap_stored_pages);
+> +	debugfs_create_u64("succ_store_page", S_IRUGO,
+> +			zswap_debugfs_root, &zswap_succ_store);
+> +	debugfs_create_u64("succ_load_page", S_IRUGO,
+> +			zswap_debugfs_root, &zswap_succ_load);
+> 
+>  	return 0;
+>  }
+> -- 
+> 1.7.10.4
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
