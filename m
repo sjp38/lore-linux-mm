@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FBEC6B0031
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 06:39:37 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id jt11so3030311pbb.24
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 03:39:36 -0700 (PDT)
-Message-ID: <524019D0.9070706@huawei.com>
-Date: Mon, 23 Sep 2013 18:37:04 +0800
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EC7E6B0031
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 06:44:36 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id q10so3042998pdj.20
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 03:44:35 -0700 (PDT)
+Message-ID: <52401AB2.8000605@huawei.com>
+Date: Mon, 23 Sep 2013 18:40:50 +0800
 From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Subject: [Resend with ACK][PATCH] mm/arch: use NUMA_NODE
+Subject: [Resend with ACK][PATCH] mm/arch: use NUMA_NO_NODE
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ralf Baechle <ralf@linux-mips.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linux-s390@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org
+Cc: Ralf Baechle <ralf@linux-mips.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, linux-arm-kernel@lists.infradead.org, linux-mips@linux-mips.org, linux-s390@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org, linux-parisc@vger.kernel.org
 
 Use more appropriate NUMA_NO_NODE instead of -1 in all archs' module_alloc()
 
