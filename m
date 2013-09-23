@@ -1,94 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id AE04C6B0039
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 10:55:09 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id q10so3288504pdj.7
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 07:55:09 -0700 (PDT)
-Date: Mon, 23 Sep 2013 16:54:46 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
-Message-ID: <20130923145446.GX9326@twins.programming.kicks-ass.net>
-References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
- <1378805550-29949-38-git-send-email-mgorman@suse.de>
- <20130917143003.GA29354@twins.programming.kicks-ass.net>
- <20130917162050.GK22421@suse.de>
- <20130917164505.GG12926@twins.programming.kicks-ass.net>
- <20130918154939.GZ26785@twins.programming.kicks-ass.net>
- <20130919143241.GB26785@twins.programming.kicks-ass.net>
- <20130923105017.030e0aef@gandalf.local.home>
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 32B806B0031
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 11:05:30 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id z10so3333734pdj.31
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 08:05:29 -0700 (PDT)
+Date: Mon, 23 Sep 2013 15:03:27 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: RFC vmstat: On demand vmstat threads
+In-Reply-To: <alpine.DEB.2.02.1309201238560.4089@ionos.tec.linutronix.de>
+Message-ID: <000001414b58b5dd-f3b4dc76-8ec0-4694-b1f0-34e138a712a7-000000@email.amazonses.com>
+References: <00000140e9dfd6bd-40db3d4f-c1be-434f-8132-7820f81bb586-000000@email.amazonses.com> <CAOtvUMdfqyg80_9J8AnOaAdahuRYGC-bpemdo_oucDBPguXbVA@mail.gmail.com> <0000014109b8e5db-4b0f577e-c3b4-47fe-b7f2-0e5febbcc948-000000@email.amazonses.com>
+ <20130918150659.5091a2c3ca94b99304427ec5@linux-foundation.org> <alpine.DEB.2.02.1309190033440.4089@ionos.tec.linutronix.de> <000001413796641f-017482d3-1194-499b-8f2a-d7686c1ae61f-000000@email.amazonses.com>
+ <alpine.DEB.2.02.1309201238560.4089@ionos.tec.linutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130923105017.030e0aef@gandalf.local.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>
 
-On Mon, Sep 23, 2013 at 10:50:17AM -0400, Steven Rostedt wrote:
-> On Thu, 19 Sep 2013 16:32:41 +0200
-> Peter Zijlstra <peterz@infradead.org> wrote:
-> 
-> 
-> > +extern void __get_online_cpus(void);
-> > +
-> > +static inline void get_online_cpus(void)
-> > +{
-> > +	might_sleep();
-> > +
-> > +	preempt_disable();
-> > +	if (likely(!__cpuhp_writer || __cpuhp_writer == current))
-> > +		this_cpu_inc(__cpuhp_refcount);
-> > +	else
-> > +		__get_online_cpus();
-> > +	preempt_enable();
-> > +}
-> 
-> 
-> This isn't much different than srcu_read_lock(). What about doing
-> something like this:
-> 
-> static inline void get_online_cpus(void)
-> {
-> 	might_sleep();
-> 
-> 	srcu_read_lock(&cpuhp_srcu);
-> 	if (unlikely(__cpuhp_writer || __cpuhp_writer != current)) {
-> 		srcu_read_unlock(&cpuhp_srcu);
-> 		__get_online_cpus();
-> 		current->online_cpus_held++;
-> 	}
-> }
+On Fri, 20 Sep 2013, Thomas Gleixner wrote:
 
-There's a full memory barrier in srcu_read_lock(), while there was no
-such thing in the previous fast path.
+> The whole delegation stuff is necessary not just for vmstat. We have
+> the same issue for scheduler stats and other parts of the kernel, so
+> we are better off in having a core facility to schedule such functions
+> in consistency with the current full NOHZ state.
 
-Also, why current->online_cpus_held()? That would make the write side
-O(nr_tasks) instead of O(nr_cpus).
+Ok how do I make use of such a facility? What is the status of work on
+such a thing?
 
-> static inline void put_online_cpus(void)
-> {
-> 	if (unlikely(current->online_cpus_held)) {
-> 		current->online_cpus_held--;
-> 		__put_online_cpus();
-> 		return;
-> 	}
-> 
-> 	srcu_read_unlock(&cpuhp_srcu);
-> }
-
-Also, you might not have noticed but, srcu_read_{,un}lock() have an
-extra idx thing to pass about. That doesn't fit with the hotplug api.
-
-> 
-> Then have the writer simply do:
-> 
-> 	__cpuhp_write = current;
-> 	synchronize_srcu(&cpuhp_srcu);
-> 
-> 	<grab the mutex here>
-
-How does that do reader preference?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
