@@ -1,65 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FBE16B0039
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 13:11:24 -0400 (EDT)
-Received: by mail-ie0-f173.google.com with SMTP id ar20so7159236iec.32
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 10:11:23 -0700 (PDT)
-Received: by mail-ye0-f194.google.com with SMTP id l12so498520yen.9
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 10:11:21 -0700 (PDT)
-Date: Mon, 23 Sep 2013 13:11:08 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v3 5/5] mem-hotplug: Introduce movablenode boot option to
- control memblock allocation direction.
-Message-ID: <20130923171108.GG14547@htj.dyndns.org>
-References: <1379064655-20874-1-git-send-email-tangchen@cn.fujitsu.com>
- <1379064655-20874-6-git-send-email-tangchen@cn.fujitsu.com>
- <20130923155713.GF14547@htj.dyndns.org>
- <5240731B.9070906@gmail.com>
+Received: from mail-oa0-f54.google.com (mail-oa0-f54.google.com [209.85.219.54])
+	by kanga.kvack.org (Postfix) with ESMTP id E89BC6B0031
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 13:31:41 -0400 (EDT)
+Received: by mail-oa0-f54.google.com with SMTP id n5so842278oag.41
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 10:31:41 -0700 (PDT)
+Date: Mon, 23 Sep 2013 19:30:14 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
+Message-ID: <20130923173014.GF9326@twins.programming.kicks-ass.net>
+References: <20130917162050.GK22421@suse.de>
+ <20130917164505.GG12926@twins.programming.kicks-ass.net>
+ <20130918154939.GZ26785@twins.programming.kicks-ass.net>
+ <20130919143241.GB26785@twins.programming.kicks-ass.net>
+ <20130923105017.030e0aef@gandalf.local.home>
+ <20130923145446.GX9326@twins.programming.kicks-ass.net>
+ <20130923111303.04b99db8@gandalf.local.home>
+ <20130923155059.GO9093@linux.vnet.ibm.com>
+ <20130923160130.GC9326@twins.programming.kicks-ass.net>
+ <20130923170400.GA1390@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5240731B.9070906@gmail.com>
+In-Reply-To: <20130923170400.GA1390@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, rjw@sisk.pl, lenb@kernel.org, tglx@linutronix.de, mingo@elte.hu, hpa@zytor.com, akpm@linux-foundation.org, toshi.kani@hp.com, zhangyanfei@cn.fujitsu.com, liwanp@linux.vnet.ibm.com, trenn@suse.de, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com, prarit@redhat.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, Thomas Gleixner <tglx@linutronix.de>
 
-Hello,
+On Mon, Sep 23, 2013 at 10:04:00AM -0700, Paul E. McKenney wrote:
+> At some point I suspect that we will want some form of fairness, but in
+> the meantime, good point.
 
-On Tue, Sep 24, 2013 at 12:58:03AM +0800, Zhang Yanfei wrote:
-> you mean we define memblock_set_bottom_up and memblock_bottom_up like below:
-> 
-> #ifdef CONFIG_MOVABLE_NODE
-> void memblock_set_bottom_up(bool enable)
-> {
->         /* do something */
-> }
-> 
-> bool memblock_bottom_up()
-> {
->         return  direction == bottom_up;
-> }
-> #else
-> void memblock_set_bottom_up(bool enable)
-> {
->         /* empty */
-> }
-> 
-> bool memblock_bottom_up()
-> {
->         return false;
-> }
-> #endif
-> 
-> right?
+I figured we could start a timer on hotplug to force quiesce the readers
+after about 10 minutes or so ;-)
 
-Yeah, the compiler would be able to drop bottom_up code if
-!MOVABLE_NODE as long as the implementation functions are static.
+Should be a proper discouragement from (ab)using this hotplug stuff...
 
-Thanks.
-
--- 
-tejun
+Muwhahaha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
