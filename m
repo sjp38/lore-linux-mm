@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 5579F6B003C
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id A78466B0044
 	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 08:06:17 -0400 (EDT)
-Received: by mail-pb0-f45.google.com with SMTP id mc17so3131395pbc.18
+Received: by mail-pb0-f47.google.com with SMTP id rr4so3110813pbb.6
         for <linux-mm@kvack.org>; Mon, 23 Sep 2013 05:06:17 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 12/22] thp, mm: add event counters for huge page alloc on file write or read
-Date: Mon, 23 Sep 2013 15:05:40 +0300
-Message-Id: <1379937950-8411-13-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 17/22] thp, libfs: initial thp support
+Date: Mon, 23 Sep 2013 15:05:45 +0300
+Message-Id: <1379937950-8411-18-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,91 +15,136 @@ List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Existing stats specify source of thp page: fault or collapse. We're
-going allocate a new huge page with write(2) and read(2). It's nither
-fault nor collapse.
+simple_readpage() and simple_write_end() are modified to handle huge
+pages.
 
-Let's introduce new events for that.
+simple_thp_write_begin() is introduced to allocate huge pages on write.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- Documentation/vm/transhuge.txt | 7 +++++++
- include/linux/huge_mm.h        | 5 +++++
- include/linux/vm_event_item.h  | 4 ++++
- mm/vmstat.c                    | 4 ++++
- 4 files changed, 20 insertions(+)
+ fs/libfs.c              | 58 +++++++++++++++++++++++++++++++++++++++++++++----
+ include/linux/fs.h      |  7 ++++++
+ include/linux/pagemap.h |  8 +++++++
+ 3 files changed, 69 insertions(+), 4 deletions(-)
 
-diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
-index 4cc15c40f4..a78f738403 100644
---- a/Documentation/vm/transhuge.txt
-+++ b/Documentation/vm/transhuge.txt
-@@ -202,6 +202,10 @@ thp_collapse_alloc is incremented by khugepaged when it has found
- 	a range of pages to collapse into one huge page and has
- 	successfully allocated a new huge page to store the data.
+diff --git a/fs/libfs.c b/fs/libfs.c
+index 3a3a9b53bf..807f66098e 100644
+--- a/fs/libfs.c
++++ b/fs/libfs.c
+@@ -364,7 +364,7 @@ EXPORT_SYMBOL(simple_setattr);
  
-+thp_write_alloc and thp_read_alloc are incremented every time a huge
-+	page is	successfully allocated to handle write(2) to a file or
-+	read(2) from file.
+ int simple_readpage(struct file *file, struct page *page)
+ {
+-	clear_highpage(page);
++	clear_pagecache_page(page);
+ 	flush_dcache_page(page);
+ 	SetPageUptodate(page);
+ 	unlock_page(page);
+@@ -424,9 +424,14 @@ int simple_write_end(struct file *file, struct address_space *mapping,
+ 
+ 	/* zero the stale part of the page if we did a short copy */
+ 	if (copied < len) {
+-		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
+-
+-		zero_user(page, from + copied, len - copied);
++		unsigned from;
++		if (PageTransHugeCache(page)) {
++			from = pos & ~HPAGE_PMD_MASK;
++			zero_huge_user(page, from + copied, len - copied);
++		} else {
++			from = pos & ~PAGE_CACHE_MASK;
++			zero_user(page, from + copied, len - copied);
++		}
+ 	}
+ 
+ 	if (!PageUptodate(page))
+@@ -445,6 +450,51 @@ int simple_write_end(struct file *file, struct address_space *mapping,
+ 	return copied;
+ }
+ 
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
++int simple_thp_write_begin(struct file *file, struct address_space *mapping,
++		loff_t pos, unsigned len, unsigned flags,
++		struct page **pagep, void **fsdata)
++{
++	struct page *page = NULL;
++	pgoff_t index;
 +
- thp_fault_fallback is incremented if a page fault fails to allocate
- 	a huge page and instead falls back to using small pages.
- 
-@@ -209,6 +213,9 @@ thp_collapse_alloc_failed is incremented if khugepaged found a range
- 	of pages that should be collapsed into one huge page but failed
- 	the allocation.
- 
-+thp_write_alloc_failed and thp_read_alloc_failed are incremented if
-+	huge page allocation failed when tried on write(2) or read(2).
++	index = pos >> PAGE_CACHE_SHIFT;
 +
- thp_split is incremented every time a huge page is split into base
- 	pages. This can happen for a variety of reasons but a common
- 	reason is that a huge page is old and is being reclaimed.
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 9747af1117..3700ada4d2 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -183,6 +183,11 @@ extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vm
- #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
- #define HPAGE_PMD_SIZE ({ BUILD_BUG(); 0; })
- 
-+#define THP_WRITE_ALLOC		({ BUILD_BUG(); 0; })
-+#define THP_WRITE_ALLOC_FAILED	({ BUILD_BUG(); 0; })
-+#define THP_READ_ALLOC		({ BUILD_BUG(); 0; })
-+#define THP_READ_ALLOC_FAILED	({ BUILD_BUG(); 0; })
++	/*
++	 * Do not allocate a huge page in the first huge page range in page
++	 * cache. This way we can avoid most small files overhead.
++	 */
++	if (mapping_can_have_hugepages(mapping) &&
++			 pos >= HPAGE_PMD_SIZE) {
++		page = grab_cache_page_write_begin(mapping,
++				index & ~HPAGE_CACHE_INDEX_MASK,
++				flags | AOP_FLAG_TRANSHUGE);
++		/* fallback to small page */
++		if (!page) {
++			unsigned long offset;
++			offset = pos & ~PAGE_CACHE_MASK;
++			/* adjust the len to not cross small page boundary */
++			len = min_t(unsigned long,
++					len, PAGE_CACHE_SIZE - offset);
++		}
++		BUG_ON(page && !PageTransHuge(page));
++	}
++	if (!page)
++		return simple_write_begin(file, mapping, pos, len, flags,
++				pagep, fsdata);
 +
- #define hpage_nr_pages(x) 1
++	*pagep = page;
++
++	if (!PageUptodate(page) && len != HPAGE_PMD_SIZE) {
++		unsigned from = pos & ~HPAGE_PMD_MASK;
++
++		zero_huge_user_segment(page, 0, from);
++		zero_huge_user_segment(page, from + len, HPAGE_PMD_SIZE);
++	}
++	return 0;
++}
++#endif
++
+ /*
+  * the inodes created here are not hashed. If you use iunique to generate
+  * unique inode values later for this filesystem, then you must take care
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 42ccdeddd9..71a5ce4472 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2566,6 +2566,13 @@ extern int simple_write_begin(struct file *file, struct address_space *mapping,
+ extern int simple_write_end(struct file *file, struct address_space *mapping,
+ 			loff_t pos, unsigned len, unsigned copied,
+ 			struct page *page, void *fsdata);
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
++extern int simple_thp_write_begin(struct file *file,
++		struct address_space *mapping, loff_t pos, unsigned len,
++		unsigned flags,	struct page **pagep, void **fsdata);
++#else
++#define simple_thp_write_begin simple_write_begin
++#endif
  
- #define transparent_hugepage_enabled(__vma) 0
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 1855f0a22a..8e071bbaa0 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -66,6 +66,10 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		THP_FAULT_FALLBACK,
- 		THP_COLLAPSE_ALLOC,
- 		THP_COLLAPSE_ALLOC_FAILED,
-+		THP_WRITE_ALLOC,
-+		THP_WRITE_ALLOC_FAILED,
-+		THP_READ_ALLOC,
-+		THP_READ_ALLOC_FAILED,
- 		THP_SPLIT,
- 		THP_ZERO_PAGE_ALLOC,
- 		THP_ZERO_PAGE_ALLOC_FAILED,
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 9af0d8536b..5d1eb7dbf1 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -847,6 +847,10 @@ const char * const vmstat_text[] = {
- 	"thp_fault_fallback",
- 	"thp_collapse_alloc",
- 	"thp_collapse_alloc_failed",
-+	"thp_write_alloc",
-+	"thp_write_alloc_failed",
-+	"thp_read_alloc",
-+	"thp_read_alloc_failed",
- 	"thp_split",
- 	"thp_zero_page_alloc",
- 	"thp_zero_page_alloc_failed",
+ extern struct dentry *simple_lookup(struct inode *, struct dentry *, unsigned int flags);
+ extern ssize_t generic_read_dir(struct file *, char __user *, size_t, loff_t *);
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index ad60dcc50e..967aadbc5e 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -572,4 +572,12 @@ static inline int add_to_page_cache(struct page *page,
+ 	return error;
+ }
+ 
++static inline void clear_pagecache_page(struct page *page)
++{
++	if (PageTransHuge(page))
++		zero_huge_user(page, 0, HPAGE_PMD_SIZE);
++	else
++		clear_highpage(page);
++}
++
+ #endif /* _LINUX_PAGEMAP_H */
 -- 
 1.8.4.rc3
 
