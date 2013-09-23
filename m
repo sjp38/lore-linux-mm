@@ -1,66 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 4836E6B0031
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 05:45:56 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id z10so3020554pdj.3
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 02:45:55 -0700 (PDT)
-From: Ming Liu <ming.liu@windriver.com>
-Subject: [PATCH] oom: avoid killing init if it assume the oom killed thread's mm
-Date: Mon, 23 Sep 2013 17:45:28 +0800
-Message-ID: <1379929528-19179-1-git-send-email-ming.liu@windriver.com>
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FBEC6B0031
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 06:39:37 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id jt11so3030311pbb.24
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 03:39:36 -0700 (PDT)
+Message-ID: <524019D0.9070706@huawei.com>
+Date: Mon, 23 Sep 2013 18:37:04 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: [Resend with ACK][PATCH] mm/arch: use NUMA_NODE
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, rientjes@google.com, mhocko@suse.cz, rusty@rustcorp.com.au, hannes@cmpxchg.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ralf Baechle <ralf@linux-mips.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linux-s390@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org
 
-After selecting a task to kill, the oom killer iterates all processes and
-kills all other user threads that share the same mm_struct in different
-thread groups.
+Use more appropriate NUMA_NO_NODE instead of -1 in all archs' module_alloc()
 
-But in some extreme cases, the selected task happens to be a vfork child
-of init process sharing the same mm_struct with it, which causes kernel
-panic on init getting killed. This panic is observed in a busybox shell
-that busybox itself is init, with a kthread keeps consuming memories.
-
-Signed-off-by: Ming Liu <ming.liu@windriver.com>
+Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+Acked-by: Ralf Baechle <ralf@linux-mips.org>
 ---
- mm/oom_kill.c |   16 ++++++++--------
- 1 files changed, 8 insertions(+), 8 deletions(-)
+ arch/arm/kernel/module.c    |    2 +-
+ arch/arm64/kernel/module.c  |    2 +-
+ arch/mips/kernel/module.c   |    2 +-
+ arch/parisc/kernel/module.c |    2 +-
+ arch/s390/kernel/module.c   |    2 +-
+ arch/sparc/kernel/module.c  |    2 +-
+ arch/x86/kernel/module.c    |    2 +-
+ 7 files changed, 7 insertions(+), 7 deletions(-)
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 314e9d2..7db4881 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -479,17 +479,17 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 	task_unlock(victim);
+diff --git a/arch/arm/kernel/module.c b/arch/arm/kernel/module.c
+index 85c3fb6..8f4cff3 100644
+--- a/arch/arm/kernel/module.c
++++ b/arch/arm/kernel/module.c
+@@ -40,7 +40,7 @@
+ void *module_alloc(unsigned long size)
+ {
+ 	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+-				GFP_KERNEL, PAGE_KERNEL_EXEC, -1,
++				GFP_KERNEL, PAGE_KERNEL_EXEC, NUMA_NO_NODE,
+ 				__builtin_return_address(0));
+ }
+ #endif
+diff --git a/arch/arm64/kernel/module.c b/arch/arm64/kernel/module.c
+index ca0e3d5..8f898bd 100644
+--- a/arch/arm64/kernel/module.c
++++ b/arch/arm64/kernel/module.c
+@@ -29,7 +29,7 @@
+ void *module_alloc(unsigned long size)
+ {
+ 	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+-				    GFP_KERNEL, PAGE_KERNEL_EXEC, -1,
++				    GFP_KERNEL, PAGE_KERNEL_EXEC, NUMA_NO_NODE,
+ 				    __builtin_return_address(0));
+ }
  
- 	/*
--	 * Kill all user processes sharing victim->mm in other thread groups, if
--	 * any.  They don't get access to memory reserves, though, to avoid
--	 * depletion of all memory.  This prevents mm->mmap_sem livelock when an
--	 * oom killed thread cannot exit because it requires the semaphore and
--	 * its contended by another thread trying to allocate memory itself.
--	 * That thread will now get access to memory reserves since it has a
--	 * pending fatal signal.
-+	 * Kill all user processes except init sharing victim->mm in other
-+	 * thread groups, if any.  They don't get access to memory reserves,
-+	 * though, to avoid depletion of all memory.  This prevents mm->mmap_sem
-+	 * livelock when an oom killed thread cannot exit because it requires
-+	 * the semaphore and its contended by another thread trying to allocate
-+	 * memory itself. That thread will now get access to memory reserves
-+	 * since it has a pending fatal signal.
- 	 */
- 	for_each_process(p)
- 		if (p->mm == mm && !same_thread_group(p, victim) &&
--		    !(p->flags & PF_KTHREAD)) {
-+		    !(p->flags & PF_KTHREAD) && !is_global_init(p)) {
- 			if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
- 				continue;
+diff --git a/arch/mips/kernel/module.c b/arch/mips/kernel/module.c
+index 977a623..b507e07 100644
+--- a/arch/mips/kernel/module.c
++++ b/arch/mips/kernel/module.c
+@@ -46,7 +46,7 @@ static DEFINE_SPINLOCK(dbe_lock);
+ void *module_alloc(unsigned long size)
+ {
+ 	return __vmalloc_node_range(size, 1, MODULE_START, MODULE_END,
+-				GFP_KERNEL, PAGE_KERNEL, -1,
++				GFP_KERNEL, PAGE_KERNEL, NUMA_NO_NODE,
+ 				__builtin_return_address(0));
+ }
+ #endif
+diff --git a/arch/parisc/kernel/module.c b/arch/parisc/kernel/module.c
+index 2a625fb..50dfafc 100644
+--- a/arch/parisc/kernel/module.c
++++ b/arch/parisc/kernel/module.c
+@@ -219,7 +219,7 @@ void *module_alloc(unsigned long size)
+ 	 * init_data correctly */
+ 	return __vmalloc_node_range(size, 1, VMALLOC_START, VMALLOC_END,
+ 				    GFP_KERNEL | __GFP_HIGHMEM,
+-				    PAGE_KERNEL_RWX, -1,
++				    PAGE_KERNEL_RWX, NUMA_NO_NODE,
+ 				    __builtin_return_address(0));
+ }
  
+diff --git a/arch/s390/kernel/module.c b/arch/s390/kernel/module.c
+index 7845e15..b89b591 100644
+--- a/arch/s390/kernel/module.c
++++ b/arch/s390/kernel/module.c
+@@ -50,7 +50,7 @@ void *module_alloc(unsigned long size)
+ 	if (PAGE_ALIGN(size) > MODULES_LEN)
+ 		return NULL;
+ 	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+-				    GFP_KERNEL, PAGE_KERNEL, -1,
++				    GFP_KERNEL, PAGE_KERNEL, NUMA_NO_NODE,
+ 				    __builtin_return_address(0));
+ }
+ #endif
+diff --git a/arch/sparc/kernel/module.c b/arch/sparc/kernel/module.c
+index 4435488..97655e0 100644
+--- a/arch/sparc/kernel/module.c
++++ b/arch/sparc/kernel/module.c
+@@ -29,7 +29,7 @@ static void *module_map(unsigned long size)
+ 	if (PAGE_ALIGN(size) > MODULES_LEN)
+ 		return NULL;
+ 	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+-				GFP_KERNEL, PAGE_KERNEL, -1,
++				GFP_KERNEL, PAGE_KERNEL, NUMA_NO_NODE,
+ 				__builtin_return_address(0));
+ }
+ #else
+diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
+index 216a4d7..18be189 100644
+--- a/arch/x86/kernel/module.c
++++ b/arch/x86/kernel/module.c
+@@ -49,7 +49,7 @@ void *module_alloc(unsigned long size)
+ 		return NULL;
+ 	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+ 				GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL_EXEC,
+-				-1, __builtin_return_address(0));
++				NUMA_NO_NODE, __builtin_return_address(0));
+ }
+ 
+ #ifdef CONFIG_X86_32
 -- 
-1.7.0.4
+1.7.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
