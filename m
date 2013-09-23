@@ -1,428 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EA9E6B0031
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 04:58:18 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id g10so2976016pdj.12
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 01:58:17 -0700 (PDT)
-Message-ID: <5240025F.6000805@huawei.com>
-Date: Mon, 23 Sep 2013 16:57:03 +0800
-From: Li Zefan <lizefan@huawei.com>
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 38D2F6B0031
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 05:30:15 -0400 (EDT)
+Received: by mail-pb0-f47.google.com with SMTP id rr4so2985978pbb.34
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 02:30:14 -0700 (PDT)
+Date: Mon, 23 Sep 2013 11:29:55 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
+Message-ID: <20130923092955.GV9326@twins.programming.kicks-ass.net>
+References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
+ <1378805550-29949-38-git-send-email-mgorman@suse.de>
+ <20130917143003.GA29354@twins.programming.kicks-ass.net>
+ <20130917162050.GK22421@suse.de>
+ <20130917164505.GG12926@twins.programming.kicks-ass.net>
+ <20130918154939.GZ26785@twins.programming.kicks-ass.net>
+ <20130919143241.GB26785@twins.programming.kicks-ass.net>
+ <20130921163404.GA8545@redhat.com>
 MIME-Version: 1.0
-Subject: [PATCH v6 5/5] cgroup: kill css_id
-References: <524001F8.6070205@huawei.com>
-In-Reply-To: <524001F8.6070205@huawei.com>
-Content-Type: text/plain; charset="GB2312"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130921163404.GA8545@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA
- Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>
 
-The only user of css_id was memcg, and it has been convered to use
-cgroup->id, so kill css_id.
+On Sat, Sep 21, 2013 at 06:34:04PM +0200, Oleg Nesterov wrote:
+> > So the slow path is still per-cpu and mostly uncontended even in the
+> > pending writer case.
+> 
+> Is it really important? I mean, per-cpu/uncontended even if the writer
+> is pending?
 
-Signed-off-by: Li Zefan <lizefan@huwei.com>
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-Acked-by: Tejun Heo <tj@kernel.org>
----
- include/linux/cgroup.h |  37 --------
- kernel/cgroup.c        | 248 +------------------------------------------------
- 2 files changed, 1 insertion(+), 284 deletions(-)
+I think so, once we make {get,put}_online_cpus() really cheap they'll
+get in more and more places, and the global count with pending writer
+will make things crawl on bigger machines.
 
-diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-index 3561d30..39c1d94 100644
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
-@@ -612,11 +612,6 @@ struct cgroup_subsys {
- 	int subsys_id;
- 	int disabled;
- 	int early_init;
--	/*
--	 * True if this subsys uses ID. ID is not available before cgroup_init()
--	 * (not available in early_init time.)
--	 */
--	bool use_id;
- 
- 	/*
- 	 * If %false, this subsystem is properly hierarchical -
-@@ -642,9 +637,6 @@ struct cgroup_subsys {
- 	 */
- 	struct cgroupfs_root *root;
- 	struct list_head sibling;
--	/* used when use_id == true */
--	struct idr idr;
--	spinlock_t id_lock;
- 
- 	/* list of cftype_sets */
- 	struct list_head cftsets;
-@@ -875,35 +867,6 @@ int css_scan_tasks(struct cgroup_subsys_state *css,
- int cgroup_attach_task_all(struct task_struct *from, struct task_struct *);
- int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from);
- 
--/*
-- * CSS ID is ID for cgroup_subsys_state structs under subsys. This only works
-- * if cgroup_subsys.use_id == true. It can be used for looking up and scanning.
-- * CSS ID is assigned at cgroup allocation (create) automatically
-- * and removed when subsys calls free_css_id() function. This is because
-- * the lifetime of cgroup_subsys_state is subsys's matter.
-- *
-- * Looking up and scanning function should be called under rcu_read_lock().
-- * Taking cgroup_mutex is not necessary for following calls.
-- * But the css returned by this routine can be "not populated yet" or "being
-- * destroyed". The caller should check css and cgroup's status.
-- */
--
--/*
-- * Typically Called at ->destroy(), or somewhere the subsys frees
-- * cgroup_subsys_state.
-- */
--void free_css_id(struct cgroup_subsys *ss, struct cgroup_subsys_state *css);
--
--/* Find a cgroup_subsys_state which has given ID */
--
--struct cgroup_subsys_state *css_lookup(struct cgroup_subsys *ss, int id);
--
--/* Returns true if root is ancestor of cg */
--bool css_is_ancestor(struct cgroup_subsys_state *cg,
--		     const struct cgroup_subsys_state *root);
--
--/* Get id and depth of css */
--unsigned short css_id(struct cgroup_subsys_state *css);
- struct cgroup_subsys_state *css_from_dir(struct dentry *dentry,
- 					 struct cgroup_subsys *ss);
- 
-diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-index b3ffe76..41f71c3 100644
---- a/kernel/cgroup.c
-+++ b/kernel/cgroup.c
-@@ -125,38 +125,6 @@ struct cfent {
- };
- 
- /*
-- * CSS ID -- ID per subsys's Cgroup Subsys State(CSS). used only when
-- * cgroup_subsys->use_id != 0.
-- */
--#define CSS_ID_MAX	(65535)
--struct css_id {
--	/*
--	 * The css to which this ID points. This pointer is set to valid value
--	 * after cgroup is populated. If cgroup is removed, this will be NULL.
--	 * This pointer is expected to be RCU-safe because destroy()
--	 * is called after synchronize_rcu(). But for safe use, css_tryget()
--	 * should be used for avoiding race.
--	 */
--	struct cgroup_subsys_state __rcu *css;
--	/*
--	 * ID of this css.
--	 */
--	unsigned short id;
--	/*
--	 * Depth in hierarchy which this ID belongs to.
--	 */
--	unsigned short depth;
--	/*
--	 * ID is freed by RCU. (and lookup routine is RCU safe.)
--	 */
--	struct rcu_head rcu_head;
--	/*
--	 * Hierarchy of CSS ID belongs to.
--	 */
--	unsigned short stack[0]; /* Array of Length (depth+1) */
--};
--
--/*
-  * cgroup_event represents events which userspace want to receive.
-  */
- struct cgroup_event {
-@@ -387,9 +355,6 @@ struct cgrp_cset_link {
- static struct css_set init_css_set;
- static struct cgrp_cset_link init_cgrp_cset_link;
- 
--static int cgroup_init_idr(struct cgroup_subsys *ss,
--			   struct cgroup_subsys_state *css);
--
- /*
-  * css_set_lock protects the list of css_set objects, and the chain of
-  * tasks off each css_set.  Nests outside task->alloc_lock due to
-@@ -841,8 +806,6 @@ static struct backing_dev_info cgroup_backing_dev_info = {
- 	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
- };
- 
--static int alloc_css_id(struct cgroup_subsys_state *child_css);
--
- static struct inode *cgroup_new_inode(umode_t mode, struct super_block *sb)
- {
- 	struct inode *inode = new_inode(sb);
-@@ -4240,21 +4203,6 @@ static int cgroup_populate_dir(struct cgroup *cgrp, unsigned long subsys_mask)
- 				goto err;
- 		}
- 	}
--
--	/* This cgroup is ready now */
--	for_each_root_subsys(cgrp->root, ss) {
--		struct cgroup_subsys_state *css = cgroup_css(cgrp, ss);
--		struct css_id *id = rcu_dereference_protected(css->id, true);
--
--		/*
--		 * Update id->css pointer and make this css visible from
--		 * CSS ID functions. This pointer will be dereferened
--		 * from RCU-read-side without locks.
--		 */
--		if (id)
--			rcu_assign_pointer(id->css, css);
--	}
--
- 	return 0;
- err:
- 	cgroup_clear_dir(cgrp, subsys_mask);
-@@ -4323,7 +4271,6 @@ static void init_css(struct cgroup_subsys_state *css, struct cgroup_subsys *ss,
- 	css->cgroup = cgrp;
- 	css->ss = ss;
- 	css->flags = 0;
--	css->id = NULL;
- 
- 	if (cgrp->parent)
- 		css->parent = cgroup_css(cgrp->parent, ss);
-@@ -4455,12 +4402,6 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
- 			goto err_free_all;
- 
- 		init_css(css, ss, cgrp);
--
--		if (ss->use_id) {
--			err = alloc_css_id(css);
--			if (err)
--				goto err_free_all;
--		}
- 	}
- 
- 	/*
-@@ -4925,12 +4866,6 @@ int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
- 
- 	/* our new subsystem will be attached to the dummy hierarchy. */
- 	init_css(css, ss, cgroup_dummy_top);
--	/* init_idr must be after init_css() because it sets css->id. */
--	if (ss->use_id) {
--		ret = cgroup_init_idr(ss, css);
--		if (ret)
--			goto err_unload;
--	}
- 
- 	/*
- 	 * Now we need to entangle the css into the existing css_sets. unlike
-@@ -4996,9 +4931,6 @@ void cgroup_unload_subsys(struct cgroup_subsys *ss)
- 
- 	offline_css(cgroup_css(cgroup_dummy_top, ss));
- 
--	if (ss->use_id)
--		idr_destroy(&ss->idr);
--
- 	/* deassign the subsys_id */
- 	cgroup_subsys[ss->subsys_id] = NULL;
- 
-@@ -5025,8 +4957,7 @@ void cgroup_unload_subsys(struct cgroup_subsys *ss)
- 	/*
- 	 * remove subsystem's css from the cgroup_dummy_top and free it -
- 	 * need to free before marking as null because ss->css_free needs
--	 * the cgrp->subsys pointer to find their state. note that this
--	 * also takes care of freeing the css_id.
-+	 * the cgrp->subsys pointer to find their state.
- 	 */
- 	ss->css_free(cgroup_css(cgroup_dummy_top, ss));
- 	RCU_INIT_POINTER(cgroup_dummy_top->subsys[ss->subsys_id], NULL);
-@@ -5097,8 +5028,6 @@ int __init cgroup_init(void)
- 	for_each_builtin_subsys(ss, i) {
- 		if (!ss->early_init)
- 			cgroup_init_subsys(ss);
--		if (ss->use_id)
--			cgroup_init_idr(ss, init_css_set.subsys[ss->subsys_id]);
- 	}
- 
- 	/* allocate id for the dummy hierarchy */
-@@ -5518,181 +5447,6 @@ static int __init cgroup_disable(char *str)
- }
- __setup("cgroup_disable=", cgroup_disable);
- 
--/*
-- * Functons for CSS ID.
-- */
--
--/* to get ID other than 0, this should be called when !cgroup_is_dead() */
--unsigned short css_id(struct cgroup_subsys_state *css)
--{
--	struct css_id *cssid;
--
--	/*
--	 * This css_id() can return correct value when somone has refcnt
--	 * on this or this is under rcu_read_lock(). Once css->id is allocated,
--	 * it's unchanged until freed.
--	 */
--	cssid = rcu_dereference_raw(css->id);
--
--	if (cssid)
--		return cssid->id;
--	return 0;
--}
--EXPORT_SYMBOL_GPL(css_id);
--
--/**
-- *  css_is_ancestor - test "root" css is an ancestor of "child"
-- * @child: the css to be tested.
-- * @root: the css supporsed to be an ancestor of the child.
-- *
-- * Returns true if "root" is an ancestor of "child" in its hierarchy. Because
-- * this function reads css->id, the caller must hold rcu_read_lock().
-- * But, considering usual usage, the csses should be valid objects after test.
-- * Assuming that the caller will do some action to the child if this returns
-- * returns true, the caller must take "child";s reference count.
-- * If "child" is valid object and this returns true, "root" is valid, too.
-- */
--
--bool css_is_ancestor(struct cgroup_subsys_state *child,
--		    const struct cgroup_subsys_state *root)
--{
--	struct css_id *child_id;
--	struct css_id *root_id;
--
--	child_id  = rcu_dereference(child->id);
--	if (!child_id)
--		return false;
--	root_id = rcu_dereference(root->id);
--	if (!root_id)
--		return false;
--	if (child_id->depth < root_id->depth)
--		return false;
--	if (child_id->stack[root_id->depth] != root_id->id)
--		return false;
--	return true;
--}
--
--void free_css_id(struct cgroup_subsys *ss, struct cgroup_subsys_state *css)
--{
--	struct css_id *id = rcu_dereference_protected(css->id, true);
--
--	/* When this is called before css_id initialization, id can be NULL */
--	if (!id)
--		return;
--
--	BUG_ON(!ss->use_id);
--
--	rcu_assign_pointer(id->css, NULL);
--	rcu_assign_pointer(css->id, NULL);
--	spin_lock(&ss->id_lock);
--	idr_remove(&ss->idr, id->id);
--	spin_unlock(&ss->id_lock);
--	kfree_rcu(id, rcu_head);
--}
--EXPORT_SYMBOL_GPL(free_css_id);
--
--/*
-- * This is called by init or create(). Then, calls to this function are
-- * always serialized (By cgroup_mutex() at create()).
-- */
--
--static struct css_id *get_new_cssid(struct cgroup_subsys *ss, int depth)
--{
--	struct css_id *newid;
--	int ret, size;
--
--	BUG_ON(!ss->use_id);
--
--	size = sizeof(*newid) + sizeof(unsigned short) * (depth + 1);
--	newid = kzalloc(size, GFP_KERNEL);
--	if (!newid)
--		return ERR_PTR(-ENOMEM);
--
--	idr_preload(GFP_KERNEL);
--	spin_lock(&ss->id_lock);
--	/* Don't use 0. allocates an ID of 1-65535 */
--	ret = idr_alloc(&ss->idr, newid, 1, CSS_ID_MAX + 1, GFP_NOWAIT);
--	spin_unlock(&ss->id_lock);
--	idr_preload_end();
--
--	/* Returns error when there are no free spaces for new ID.*/
--	if (ret < 0)
--		goto err_out;
--
--	newid->id = ret;
--	newid->depth = depth;
--	return newid;
--err_out:
--	kfree(newid);
--	return ERR_PTR(ret);
--
--}
--
--static int __init_or_module cgroup_init_idr(struct cgroup_subsys *ss,
--					    struct cgroup_subsys_state *rootcss)
--{
--	struct css_id *newid;
--
--	spin_lock_init(&ss->id_lock);
--	idr_init(&ss->idr);
--
--	newid = get_new_cssid(ss, 0);
--	if (IS_ERR(newid))
--		return PTR_ERR(newid);
--
--	newid->stack[0] = newid->id;
--	RCU_INIT_POINTER(newid->css, rootcss);
--	RCU_INIT_POINTER(rootcss->id, newid);
--	return 0;
--}
--
--static int alloc_css_id(struct cgroup_subsys_state *child_css)
--{
--	struct cgroup_subsys_state *parent_css = css_parent(child_css);
--	struct css_id *child_id, *parent_id;
--	int i, depth;
--
--	parent_id = rcu_dereference_protected(parent_css->id, true);
--	depth = parent_id->depth + 1;
--
--	child_id = get_new_cssid(child_css->ss, depth);
--	if (IS_ERR(child_id))
--		return PTR_ERR(child_id);
--
--	for (i = 0; i < depth; i++)
--		child_id->stack[i] = parent_id->stack[i];
--	child_id->stack[depth] = child_id->id;
--	/*
--	 * child_id->css pointer will be set after this cgroup is available
--	 * see cgroup_populate_dir()
--	 */
--	rcu_assign_pointer(child_css->id, child_id);
--
--	return 0;
--}
--
--/**
-- * css_lookup - lookup css by id
-- * @ss: cgroup subsys to be looked into.
-- * @id: the id
-- *
-- * Returns pointer to cgroup_subsys_state if there is valid one with id.
-- * NULL if not. Should be called under rcu_read_lock()
-- */
--struct cgroup_subsys_state *css_lookup(struct cgroup_subsys *ss, int id)
--{
--	struct css_id *cssid = NULL;
--
--	BUG_ON(!ss->use_id);
--	cssid = idr_find(&ss->idr, id);
--
--	if (unlikely(!cssid))
--		return NULL;
--
--	return rcu_dereference(cssid->css);
--}
--EXPORT_SYMBOL_GPL(css_lookup);
--
- /**
-  * css_from_dir - get corresponding css from the dentry of a cgroup dir
-  * @dentry: directory dentry of interest
--- 
-1.8.0.2
+> Otherwise we could do
+
+<snip>
+
+> I already sent this code in 2010, it needs some trivial updates.
+
+Yeah, I found that a few days ago.. but per the above I didn't like the
+pending writer case.
+
+> But. We already have percpu_rw_semaphore,
+
+Oh urgh, forgot about that one. /me goes read.
+
+/me curses loudly.. that thing has an _expedited() call in it, those
+should die.
+
+Also, it suffers the same problem. I think esp. for hotplug we should be
+100% geared towards readers and pretty much damn writers.
+
+I'd dread to think what would happen if a 4k cpu machine were to land in
+the slow path on that global mutex. Readers would never go-away and
+progress would make a glacier seem fast.
+
+> Note also that percpu_down_write/percpu_up_write can be improved wrt
+> synchronize_sched(). We can turn the 2nd one into call_rcu(), and the
+> 1nd one can be avoided if another percpu_down_write() comes "soon after"
+> percpu_down_up().
+
+Write side be damned ;-)
+
+It is anyway with a pure read bias and a large machine..
+
+> As for the patch itself, I am not sure.
+> 
+> > +static void cpuph_wait_refcount(void)
+> 
+> It seems, this can succeed while it should not, see below.
+> 
+> >  void cpu_hotplug_begin(void)
+> >  {
+> > +	lockdep_assert_held(&cpu_add_remove_lock);
+> >
+> > +	__cpuhp_writer = current;
+> > +
+> > +	/* After this everybody will observe _writer and take the slow path. */
+> > +	synchronize_sched();
+> 
+> Yes, the reader should see _writer, but:
+> 
+> > +	/* Wait for no readers -- reader preference */
+> > +	cpuhp_wait_refcount();
+> 
+> but how we can ensure the writer sees the results of the reader's updates?
+> 
+> Suppose that we have 2 CPU's, __cpuhp_refcount[0] = 0, __cpuhp_refcount[1] = 1.
+> IOW, we have a single R reader which takes this lock on CPU_1 and sleeps.
+> 
+> Now,
+> 
+> 	- The writer calls cpuph_wait_refcount()
+> 
+> 	- cpuph_wait_refcount() does refcnt += __cpuhp_refcount[0].
+> 	  refcnt == 0.
+> 
+> 	- another reader comes on CPU_0, increments __cpuhp_refcount[0].
+> 
+> 	- this reader migrates to CPU_1 and does put_online_cpus(),
+> 	  this decrements __cpuhp_refcount[1] which becomes zero.
+> 
+> 	- cpuph_wait_refcount() continues and reads __cpuhp_refcount[1]
+> 	  which is zero. refcnt == 0, return.
+> 
+> 	- The writer does cpuhp_set_state(1).
+> 
+> 	- The reader R (original reader) wakes up, calls get_online_cpus()
+> 	  recursively, and sleeps in wait_event(!__cpuhp_writer).
+
+Ah indeed.. 
+
+The best I can come up with is something like:
+
+static unsigned int cpuhp_refcount(void)
+{
+	unsigned int refcount = 0;
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		refcount += per_cpu(__cpuhp_refcount, cpu);
+}
+
+static void cpuhp_wait_refcount(void)
+{
+	for (;;) {
+		unsigned int rc1, rc2;
+
+		rc1 = cpuhp_refcount();
+		set_current_state(TASK_UNINTERRUPTIBLE); /* MB */
+		rc2 = cpuhp_refcount();
+
+		if (rc1 == rc2 && !rc1)
+			break;
+
+		schedule();
+	}
+	__set_current_state(TASK_RUNNING);
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
