@@ -1,129 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EC7E6B0031
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 06:44:36 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id q10so3042998pdj.20
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 03:44:35 -0700 (PDT)
-Message-ID: <52401AB2.8000605@huawei.com>
-Date: Mon, 23 Sep 2013 18:40:50 +0800
-From: Jianguo Wu <wujianguo@huawei.com>
-MIME-Version: 1.0
-Subject: [Resend with ACK][PATCH] mm/arch: use NUMA_NO_NODE
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id CA23C6B0031
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 08:06:05 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id bj1so2213827pad.35
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 05:06:05 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 03/22] memcg, thp: charge huge cache pages
+Date: Mon, 23 Sep 2013 15:05:31 +0300
+Message-Id: <1379937950-8411-4-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ralf Baechle <ralf@linux-mips.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, linux-arm-kernel@lists.infradead.org, linux-mips@linux-mips.org, linux-s390@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org, linux-parisc@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Use more appropriate NUMA_NO_NODE instead of -1 in all archs' module_alloc()
+mem_cgroup_cache_charge() has check for PageCompound(). The check
+prevents charging huge cache pages.
 
-Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
-Acked-by: Ralf Baechle <ralf@linux-mips.org>
+I don't see a reason why the check is present. Looks like it's just
+legacy (introduced in 52d4b9a memcg: allocate all page_cgroup at boot).
+
+Let's just drop it.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
 ---
- arch/arm/kernel/module.c    |    2 +-
- arch/arm64/kernel/module.c  |    2 +-
- arch/mips/kernel/module.c   |    2 +-
- arch/parisc/kernel/module.c |    2 +-
- arch/s390/kernel/module.c   |    2 +-
- arch/sparc/kernel/module.c  |    2 +-
- arch/x86/kernel/module.c    |    2 +-
- 7 files changed, 7 insertions(+), 7 deletions(-)
+ mm/memcontrol.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/arch/arm/kernel/module.c b/arch/arm/kernel/module.c
-index 85c3fb6..8f4cff3 100644
---- a/arch/arm/kernel/module.c
-+++ b/arch/arm/kernel/module.c
-@@ -40,7 +40,7 @@
- void *module_alloc(unsigned long size)
- {
- 	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
--				GFP_KERNEL, PAGE_KERNEL_EXEC, -1,
-+				GFP_KERNEL, PAGE_KERNEL_EXEC, NUMA_NO_NODE,
- 				__builtin_return_address(0));
- }
- #endif
-diff --git a/arch/arm64/kernel/module.c b/arch/arm64/kernel/module.c
-index ca0e3d5..8f898bd 100644
---- a/arch/arm64/kernel/module.c
-+++ b/arch/arm64/kernel/module.c
-@@ -29,7 +29,7 @@
- void *module_alloc(unsigned long size)
- {
- 	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
--				    GFP_KERNEL, PAGE_KERNEL_EXEC, -1,
-+				    GFP_KERNEL, PAGE_KERNEL_EXEC, NUMA_NO_NODE,
- 				    __builtin_return_address(0));
- }
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index d5ff3ce130..0b87a1bd25 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3963,8 +3963,7 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
  
-diff --git a/arch/mips/kernel/module.c b/arch/mips/kernel/module.c
-index 977a623..b507e07 100644
---- a/arch/mips/kernel/module.c
-+++ b/arch/mips/kernel/module.c
-@@ -46,7 +46,7 @@ static DEFINE_SPINLOCK(dbe_lock);
- void *module_alloc(unsigned long size)
- {
- 	return __vmalloc_node_range(size, 1, MODULE_START, MODULE_END,
--				GFP_KERNEL, PAGE_KERNEL, -1,
-+				GFP_KERNEL, PAGE_KERNEL, NUMA_NO_NODE,
- 				__builtin_return_address(0));
- }
- #endif
-diff --git a/arch/parisc/kernel/module.c b/arch/parisc/kernel/module.c
-index 2a625fb..50dfafc 100644
---- a/arch/parisc/kernel/module.c
-+++ b/arch/parisc/kernel/module.c
-@@ -219,7 +219,7 @@ void *module_alloc(unsigned long size)
- 	 * init_data correctly */
- 	return __vmalloc_node_range(size, 1, VMALLOC_START, VMALLOC_END,
- 				    GFP_KERNEL | __GFP_HIGHMEM,
--				    PAGE_KERNEL_RWX, -1,
-+				    PAGE_KERNEL_RWX, NUMA_NO_NODE,
- 				    __builtin_return_address(0));
- }
+ 	if (mem_cgroup_disabled())
+ 		return 0;
+-	if (PageCompound(page))
+-		return 0;
++	VM_BUG_ON(PageCompound(page) && !PageTransHuge(page));
  
-diff --git a/arch/s390/kernel/module.c b/arch/s390/kernel/module.c
-index 7845e15..b89b591 100644
---- a/arch/s390/kernel/module.c
-+++ b/arch/s390/kernel/module.c
-@@ -50,7 +50,7 @@ void *module_alloc(unsigned long size)
- 	if (PAGE_ALIGN(size) > MODULES_LEN)
- 		return NULL;
- 	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
--				    GFP_KERNEL, PAGE_KERNEL, -1,
-+				    GFP_KERNEL, PAGE_KERNEL, NUMA_NO_NODE,
- 				    __builtin_return_address(0));
- }
- #endif
-diff --git a/arch/sparc/kernel/module.c b/arch/sparc/kernel/module.c
-index 4435488..97655e0 100644
---- a/arch/sparc/kernel/module.c
-+++ b/arch/sparc/kernel/module.c
-@@ -29,7 +29,7 @@ static void *module_map(unsigned long size)
- 	if (PAGE_ALIGN(size) > MODULES_LEN)
- 		return NULL;
- 	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
--				GFP_KERNEL, PAGE_KERNEL, -1,
-+				GFP_KERNEL, PAGE_KERNEL, NUMA_NO_NODE,
- 				__builtin_return_address(0));
- }
- #else
-diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
-index 216a4d7..18be189 100644
---- a/arch/x86/kernel/module.c
-+++ b/arch/x86/kernel/module.c
-@@ -49,7 +49,7 @@ void *module_alloc(unsigned long size)
- 		return NULL;
- 	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
- 				GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL_EXEC,
--				-1, __builtin_return_address(0));
-+				NUMA_NO_NODE, __builtin_return_address(0));
- }
- 
- #ifdef CONFIG_X86_32
+ 	if (!PageSwapCache(page))
+ 		ret = mem_cgroup_charge_common(page, mm, gfp_mask, type);
 -- 
-1.7.1
-
+1.8.4.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
