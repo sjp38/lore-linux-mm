@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 51E846B0072
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id E723A6B0070
 	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 08:06:47 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id wz12so3110995pbc.25
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 05:06:46 -0700 (PDT)
+Received: by mail-pa0-f47.google.com with SMTP id kp14so2223692pab.34
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 05:06:47 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 04/22] thp: compile-time and sysfs knob for thp pagecache
-Date: Mon, 23 Sep 2013 15:05:32 +0300
-Message-Id: <1379937950-8411-5-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 07/22] thp, mm: rewrite add_to_page_cache_locked() to support huge pages
+Date: Mon, 23 Sep 2013 15:05:35 +0300
+Message-Id: <1379937950-8411-8-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,143 +15,161 @@ List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For now, TRANSPARENT_HUGEPAGE_PAGECACHE is only implemented for x86_64.
-It's disabled by default.
-
-Radix tree perload overhead can be significant on !BASE_FULL systems, so
-let's add dependency.
-
-/sys/kernel/mm/transparent_hugepage/page_cache is runtime knob for the
-feature.
+For huge page we add to radix tree HPAGE_CACHE_NR pages at once: head
+page for the specified index and HPAGE_CACHE_NR-1 tail pages for
+following indexes.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- Documentation/vm/transhuge.txt |  9 +++++++++
- include/linux/huge_mm.h        | 14 ++++++++++++++
- mm/Kconfig                     | 11 +++++++++++
- mm/huge_memory.c               | 23 +++++++++++++++++++++++
- 4 files changed, 57 insertions(+)
+ include/linux/huge_mm.h    | 24 ++++++++++++++++++++++++
+ include/linux/page-flags.h | 13 +++++++++++++
+ mm/filemap.c               | 45 +++++++++++++++++++++++++++++++++++----------
+ 3 files changed, 72 insertions(+), 10 deletions(-)
 
-diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
-index 4a63953a41..4cc15c40f4 100644
---- a/Documentation/vm/transhuge.txt
-+++ b/Documentation/vm/transhuge.txt
-@@ -103,6 +103,15 @@ echo always >/sys/kernel/mm/transparent_hugepage/enabled
- echo madvise >/sys/kernel/mm/transparent_hugepage/enabled
- echo never >/sys/kernel/mm/transparent_hugepage/enabled
- 
-+If TRANSPARENT_HUGEPAGE_PAGECACHE is enabled kernel will use huge pages in
-+page cache if possible. It can be disable and re-enabled via sysfs:
-+
-+echo 0 >/sys/kernel/mm/transparent_hugepage/page_cache
-+echo 1 >/sys/kernel/mm/transparent_hugepage/page_cache
-+
-+If it's disabled kernel will not add new huge pages to page cache and
-+split them on mapping, but already mapped pages will stay intakt.
-+
- It's also possible to limit defrag efforts in the VM to generate
- hugepages in case they're not immediately free to madvise regions or
- to never try to defrag memory and simply fallback to regular pages
 diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 3935428c57..fb0847572c 100644
+index fb0847572c..9747af1117 100644
 --- a/include/linux/huge_mm.h
 +++ b/include/linux/huge_mm.h
-@@ -40,6 +40,7 @@ enum transparent_hugepage_flag {
- 	TRANSPARENT_HUGEPAGE_DEFRAG_FLAG,
- 	TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
- 	TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG,
-+	TRANSPARENT_HUGEPAGE_PAGECACHE,
- 	TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG,
- #ifdef CONFIG_DEBUG_VM
- 	TRANSPARENT_HUGEPAGE_DEBUG_COW_FLAG,
-@@ -229,4 +230,17 @@ static inline int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_str
+@@ -230,6 +230,20 @@ static inline int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_str
  
  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
  
-+static inline bool transparent_hugepage_pagecache(void)
-+{
-+	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE))
-+		return false;
-+	if (!(transparent_hugepage_flags & (1<<TRANSPARENT_HUGEPAGE_FLAG)))
-+		return false;
-+
-+	if (!(transparent_hugepage_flags &
-+				((1<<TRANSPARENT_HUGEPAGE_FLAG) |
-+				 (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG))))
-+                 return false;
-+	return transparent_hugepage_flags & (1<<TRANSPARENT_HUGEPAGE_PAGECACHE);
-+}
- #endif /* _LINUX_HUGE_MM_H */
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 026771a9b0..562f12fd89 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -420,6 +420,17 @@ choice
- 	  benefit.
- endchoice
- 
-+config TRANSPARENT_HUGEPAGE_PAGECACHE
-+	bool "Transparent Hugepage Support for page cache"
-+	depends on X86_64 && TRANSPARENT_HUGEPAGE
-+	# avoid radix tree preload overhead
-+	depends on BASE_FULL
-+	help
-+	  Enabling the option adds support hugepages for file-backed
-+	  mappings. It requires transparent hugepage support from
-+	  filesystem side. For now, the only filesystem which supports
-+	  hugepages is ramfs.
-+
- config CROSS_MEMORY_ATTACH
- 	bool "Cross Memory Support"
- 	depends on MMU
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 7489884682..59f099b93f 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -42,6 +42,9 @@ unsigned long transparent_hugepage_flags __read_mostly =
- #endif
- 	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_FLAG)|
- 	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG)|
 +#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
-+	(1<<TRANSPARENT_HUGEPAGE_PAGECACHE)|
-+#endif
- 	(1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG);
- 
- /* default scan 8*512 pte (or vmas) every 30 second */
-@@ -362,6 +365,23 @@ static ssize_t defrag_store(struct kobject *kobj,
- static struct kobj_attribute defrag_attr =
- 	__ATTR(defrag, 0644, defrag_show, defrag_store);
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
-+static ssize_t page_cache_show(struct kobject *kobj,
-+		struct kobj_attribute *attr, char *buf)
-+{
-+	return single_flag_show(kobj, attr, buf,
-+				TRANSPARENT_HUGEPAGE_PAGECACHE);
-+}
-+static ssize_t page_cache_store(struct kobject *kobj,
-+		struct kobj_attribute *attr, const char *buf, size_t count)
-+{
-+	return single_flag_store(kobj, attr, buf, count,
-+				 TRANSPARENT_HUGEPAGE_PAGECACHE);
-+}
-+static struct kobj_attribute page_cache_attr =
-+	__ATTR(page_cache, 0644, page_cache_show, page_cache_store);
++
++#define HPAGE_CACHE_ORDER      (HPAGE_SHIFT - PAGE_CACHE_SHIFT)
++#define HPAGE_CACHE_NR         (1L << HPAGE_CACHE_ORDER)
++#define HPAGE_CACHE_INDEX_MASK (HPAGE_CACHE_NR - 1)
++
++#else
++
++#define HPAGE_CACHE_ORDER      ({ BUILD_BUG(); 0; })
++#define HPAGE_CACHE_NR         ({ BUILD_BUG(); 0; })
++#define HPAGE_CACHE_INDEX_MASK ({ BUILD_BUG(); 0; })
++
 +#endif
 +
- static ssize_t use_zero_page_show(struct kobject *kobj,
- 		struct kobj_attribute *attr, char *buf)
+ static inline bool transparent_hugepage_pagecache(void)
  {
-@@ -397,6 +417,9 @@ static struct kobj_attribute debug_cow_attr =
- static struct attribute *hugepage_attr[] = {
- 	&enabled_attr.attr,
- 	&defrag_attr.attr,
+ 	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE))
+@@ -243,4 +257,14 @@ static inline bool transparent_hugepage_pagecache(void)
+                  return false;
+ 	return transparent_hugepage_flags & (1<<TRANSPARENT_HUGEPAGE_PAGECACHE);
+ }
++
++static inline int hpagecache_nr_pages(struct page *page)
++{
++	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE))
++		return hpage_nr_pages(page);
++
++	BUG_ON(PageTransHuge(page));
++	return 1;
++}
++
+ #endif /* _LINUX_HUGE_MM_H */
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 6d53675c2b..6d2d7ce3e1 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -452,6 +452,19 @@ static inline int PageTransTail(struct page *page)
+ }
+ #endif
+ 
 +#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
-+	&page_cache_attr.attr,
++static inline int PageTransHugeCache(struct page *page)
++{
++	return PageTransHuge(page);
++}
++#else
++
++static inline int PageTransHugeCache(struct page *page)
++{
++	return 0;
++}
 +#endif
- 	&use_zero_page_attr.attr,
- #ifdef CONFIG_DEBUG_VM
- 	&debug_cow_attr.attr,
++
+ /*
+  * If network-based swap is enabled, sl*b must keep track of whether pages
+  * were allocated from pfmemalloc reserves.
+diff --git a/mm/filemap.c b/mm/filemap.c
+index c7e42aee5c..d2d6c0ebe9 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -460,38 +460,63 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+ 		pgoff_t offset, gfp_t gfp_mask)
+ {
+ 	int error;
++	int i, nr;
+ 
+ 	VM_BUG_ON(!PageLocked(page));
+ 	VM_BUG_ON(PageSwapBacked(page));
+ 
++	/* memory cgroup controller handles thp pages on its side */
+ 	error = mem_cgroup_cache_charge(page, current->mm,
+ 					gfp_mask & GFP_RECLAIM_MASK);
+ 	if (error)
+ 		return error;
+ 
+-	error = radix_tree_maybe_preload(gfp_mask & ~__GFP_HIGHMEM);
++	if (PageTransHugeCache(page))
++		BUILD_BUG_ON(HPAGE_CACHE_NR > RADIX_TREE_PRELOAD_NR);
++
++	nr = hpagecache_nr_pages(page);
++
++	error = radix_tree_maybe_preload_contig(nr, gfp_mask & ~__GFP_HIGHMEM);
+ 	if (error) {
+ 		mem_cgroup_uncharge_cache_page(page);
+ 		return error;
+ 	}
+ 
++	spin_lock_irq(&mapping->tree_lock);
+ 	page_cache_get(page);
+-	page->mapping = mapping;
+ 	page->index = offset;
+-
+-	spin_lock_irq(&mapping->tree_lock);
+-	error = radix_tree_insert(&mapping->page_tree, offset, page);
++	page->mapping = mapping;
++	for (i = 0; i < nr; i++) {
++		error = radix_tree_insert(&mapping->page_tree,
++				offset + i, page);
++		/*
++		 * In the midle of THP we can collide with small page which was
++		 * established before THP page cache is enabled or by other VMA
++		 * with bad alignement (most likely MAP_FIXED).
++		 */
++		if (error) {
++			i--; /* failed to insert anything at offset + i */
++			goto err_insert;
++		}
++	}
+ 	radix_tree_preload_end();
+-	if (unlikely(error))
+-		goto err_insert;
+-	mapping->nrpages++;
+-	__inc_zone_page_state(page, NR_FILE_PAGES);
++	mapping->nrpages += nr;
++	__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, nr);
++	if (PageTransHuge(page))
++		__inc_zone_page_state(page, NR_FILE_TRANSPARENT_HUGEPAGES);
+ 	spin_unlock_irq(&mapping->tree_lock);
+ 	trace_mm_filemap_add_to_page_cache(page);
+ 	return 0;
+ err_insert:
+-	page->mapping = NULL;
++	radix_tree_preload_end();
++	if (i != 0)
++		error = -ENOSPC; /* no space for a huge page */
++
+ 	/* Leave page->index set: truncation relies upon it */
++	page->mapping = NULL;
++	for (; i >= 0; i--)
++		radix_tree_delete(&mapping->page_tree, offset + i);
++
+ 	spin_unlock_irq(&mapping->tree_lock);
+ 	mem_cgroup_uncharge_cache_page(page);
+ 	page_cache_release(page);
 -- 
 1.8.4.rc3
 
