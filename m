@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 01CB96B004D
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 08:06:17 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id q10so3145560pdj.35
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 05:06:17 -0700 (PDT)
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 602356B003D
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 08:06:18 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id xb4so3127758pbc.22
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 05:06:18 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 19/22] thp: handle file pages in split_huge_page()
-Date: Mon, 23 Sep 2013 15:05:47 +0300
-Message-Id: <1379937950-8411-20-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 18/22] truncate: support huge pages
+Date: Mon, 23 Sep 2013 15:05:46 +0300
+Message-Id: <1379937950-8411-19-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,222 +15,300 @@ List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The base scheme is the same as for anonymous pages, but we walk by
-mapping->i_mmap rather then anon_vma->rb_root.
+truncate_inode_pages_range() drops whole huge page at once if it's fully
+inside the range.
 
-When we add a huge page to page cache we take only reference to head
-page, but on split we need to take addition reference to all tail pages
-since they are still in page cache after splitting.
+If a huge page is only partly in the range we zero out the part,
+exactly like we do for partial small pages.
+
+In some cases it worth to split the huge page instead, if we need to
+truncate it partly and free some memory. But split_huge_page() now
+truncates the file, so we need to break truncate<->split interdependency
+at some point.
+
+invalidate_mapping_pages() just skips huge pages if they are not fully
+in the range.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c | 120 +++++++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 107 insertions(+), 13 deletions(-)
+ include/linux/pagemap.h |   9 ++++
+ mm/truncate.c           | 125 ++++++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 109 insertions(+), 25 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 59f099b93f..3c45c62cde 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1584,6 +1584,7 @@ static void __split_huge_page_refcount(struct page *page,
- 	struct zone *zone = page_zone(page);
- 	struct lruvec *lruvec;
- 	int tail_count = 0;
-+	int initial_tail_refcount;
- 
- 	/* prevent PageLRU to go away from under us, and freeze lru stats */
- 	spin_lock_irq(&zone->lru_lock);
-@@ -1593,6 +1594,13 @@ static void __split_huge_page_refcount(struct page *page,
- 	/* complete memcg works before add pages to LRU */
- 	mem_cgroup_split_huge_fixup(page);
- 
-+	/*
-+	 * When we add a huge page to page cache we take only reference to head
-+	 * page, but on split we need to take addition reference to all tail
-+	 * pages since they are still in page cache after splitting.
-+	 */
-+	initial_tail_refcount = PageAnon(page) ? 0 : 1;
-+
- 	for (i = HPAGE_PMD_NR - 1; i >= 1; i--) {
- 		struct page *page_tail = page + i;
- 
-@@ -1615,8 +1623,9 @@ static void __split_huge_page_refcount(struct page *page,
- 		 * atomic_set() here would be safe on all archs (and
- 		 * not only on x86), it's safer to use atomic_add().
- 		 */
--		atomic_add(page_mapcount(page) + page_mapcount(page_tail) + 1,
--			   &page_tail->_count);
-+		atomic_add(initial_tail_refcount + page_mapcount(page) +
-+				page_mapcount(page_tail) + 1,
-+				&page_tail->_count);
- 
- 		/* after clearing PageTail the gup refcount can be released */
- 		smp_mb();
-@@ -1655,23 +1664,23 @@ static void __split_huge_page_refcount(struct page *page,
- 		*/
- 		page_tail->_mapcount = page->_mapcount;
- 
--		BUG_ON(page_tail->mapping);
- 		page_tail->mapping = page->mapping;
- 
- 		page_tail->index = page->index + i;
- 		page_nid_xchg_last(page_tail, page_nid_last(page));
- 
--		BUG_ON(!PageAnon(page_tail));
- 		BUG_ON(!PageUptodate(page_tail));
- 		BUG_ON(!PageDirty(page_tail));
--		BUG_ON(!PageSwapBacked(page_tail));
- 
- 		lru_add_page_tail(page, page_tail, lruvec, list);
- 	}
- 	atomic_sub(tail_count, &page->_count);
- 	BUG_ON(atomic_read(&page->_count) <= 0);
- 
--	__mod_zone_page_state(zone, NR_ANON_TRANSPARENT_HUGEPAGES, -1);
-+	if (PageAnon(page))
-+		__mod_zone_page_state(zone, NR_ANON_TRANSPARENT_HUGEPAGES, -1);
-+	else
-+		__mod_zone_page_state(zone, NR_FILE_TRANSPARENT_HUGEPAGES, -1);
- 
- 	ClearPageCompound(page);
- 	compound_unlock(page);
-@@ -1771,7 +1780,7 @@ static int __split_huge_page_map(struct page *page,
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 967aadbc5e..8ce130fe56 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -580,4 +580,13 @@ static inline void clear_pagecache_page(struct page *page)
+ 		clear_highpage(page);
  }
  
- /* must be called with anon_vma->root->rwsem held */
--static void __split_huge_page(struct page *page,
-+static void __split_anon_huge_page(struct page *page,
- 			      struct anon_vma *anon_vma,
- 			      struct list_head *list)
++static inline void zero_pagecache_segment(struct page *page,
++		unsigned start, unsigned len)
++{
++	if (PageTransHugeCache(page))
++		zero_huge_user_segment(page, start, len);
++	else
++		zero_user_segment(page, start, len);
++}
++
+ #endif /* _LINUX_PAGEMAP_H */
+diff --git a/mm/truncate.c b/mm/truncate.c
+index 353b683afd..ba62ab2168 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -203,10 +203,10 @@ int invalidate_inode_page(struct page *page)
+ void truncate_inode_pages_range(struct address_space *mapping,
+ 				loff_t lstart, loff_t lend)
  {
-@@ -1795,7 +1804,7 @@ static void __split_huge_page(struct page *page,
- 	 * and establishes a child pmd before
- 	 * __split_huge_page_splitting() freezes the parent pmd (so if
- 	 * we fail to prevent copy_huge_pmd() from running until the
--	 * whole __split_huge_page() is complete), we will still see
-+	 * whole __split_anon_huge_page() is complete), we will still see
- 	 * the newly established pmd of the child later during the
- 	 * walk, to be able to set it as pmd_trans_splitting too.
- 	 */
-@@ -1826,14 +1835,11 @@ static void __split_huge_page(struct page *page,
-  * from the hugepage.
-  * Return 0 if the hugepage is split successfully otherwise return 1.
-  */
--int split_huge_page_to_list(struct page *page, struct list_head *list)
-+static int split_anon_huge_page(struct page *page, struct list_head *list)
- {
- 	struct anon_vma *anon_vma;
- 	int ret = 1;
++	struct inode	*inode = mapping->host;
+ 	pgoff_t		start;		/* inclusive */
+ 	pgoff_t		end;		/* exclusive */
+-	unsigned int	partial_start;	/* inclusive */
+-	unsigned int	partial_end;	/* exclusive */
++	bool		partial_start, partial_end;
+ 	struct pagevec	pvec;
+ 	pgoff_t		index;
+ 	int		i;
+@@ -215,15 +215,13 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 	if (mapping->nrpages == 0)
+ 		return;
  
--	BUG_ON(is_huge_zero_page(page));
--	BUG_ON(!PageAnon(page));
--
+-	/* Offsets within partial pages */
++	/* Whether we have to do partial truncate */
+ 	partial_start = lstart & (PAGE_CACHE_SIZE - 1);
+ 	partial_end = (lend + 1) & (PAGE_CACHE_SIZE - 1);
+ 
  	/*
- 	 * The caller does not necessarily hold an mmap_sem that would prevent
- 	 * the anon_vma disappearing so we first we take a reference to it
-@@ -1851,7 +1857,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 		goto out_unlock;
+ 	 * 'start' and 'end' always covers the range of pages to be fully
+-	 * truncated. Partial pages are covered with 'partial_start' at the
+-	 * start of the range and 'partial_end' at the end of the range.
+-	 * Note that 'end' is exclusive while 'lend' is inclusive.
++	 * truncated. Note that 'end' is exclusive while 'lend' is inclusive.
+ 	 */
+ 	start = (lstart + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+ 	if (lend == -1)
+@@ -236,10 +234,12 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 	else
+ 		end = (lend + 1) >> PAGE_CACHE_SHIFT;
  
- 	BUG_ON(!PageSwapBacked(page));
--	__split_huge_page(page, anon_vma, list);
-+	__split_anon_huge_page(page, anon_vma, list);
- 	count_vm_event(THP_SPLIT);
++	i_split_down_read(inode);
+ 	pagevec_init(&pvec, 0);
+ 	index = start;
+ 	while (index < end && pagevec_lookup(&pvec, mapping, index,
+ 			min(end - index, (pgoff_t)PAGEVEC_SIZE))) {
++		bool thp = false;
+ 		mem_cgroup_uncharge_start();
+ 		for (i = 0; i < pagevec_count(&pvec); i++) {
+ 			struct page *page = pvec.pages[i];
+@@ -249,6 +249,23 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			if (index >= end)
+ 				break;
  
- 	BUG_ON(PageCompound(page));
-@@ -1862,6 +1868,94 @@ out:
- 	return ret;
++			thp = PageTransHugeCache(page);
++			if (thp) {
++				/* the range starts in middle of huge page */
++			       if (index < start) {
++				       partial_start = true;
++				       start = index + HPAGE_CACHE_NR;
++				       break;
++			       }
++
++			       /* the range ends on huge page */
++			       if (index == (end & ~HPAGE_CACHE_INDEX_MASK)) {
++				       partial_end = true;
++				       end = index;
++				       break;
++			       }
++			}
++
+ 			if (!trylock_page(page))
+ 				continue;
+ 			WARN_ON(page->index != index);
+@@ -258,54 +275,88 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			}
+ 			truncate_inode_page(mapping, page);
+ 			unlock_page(page);
++			if (thp)
++				break;
+ 		}
+ 		pagevec_release(&pvec);
+ 		mem_cgroup_uncharge_end();
+ 		cond_resched();
+-		index++;
++		if (thp)
++			index += HPAGE_CACHE_NR;
++		else
++			index++;
+ 	}
+ 
+ 	if (partial_start) {
+-		struct page *page = find_lock_page(mapping, start - 1);
++		struct page *page;
++
++		page = find_get_page(mapping, start - 1);
+ 		if (page) {
+-			unsigned int top = PAGE_CACHE_SIZE;
+-			if (start > end) {
+-				/* Truncation within a single page */
+-				top = partial_end;
+-				partial_end = 0;
++			pgoff_t index_mask;
++			loff_t page_cache_mask;
++			unsigned pstart, pend;
++
++			if (PageTransHugeCache(page)) {
++				index_mask = HPAGE_CACHE_INDEX_MASK;
++				page_cache_mask = HPAGE_PMD_MASK;
++			} else {
++				index_mask = 0UL;
++				page_cache_mask = PAGE_CACHE_MASK;
+ 			}
++
++			pstart = lstart & ~page_cache_mask;
++			if ((end & ~index_mask) == page->index) {
++				pend = (lend + 1) & ~page_cache_mask;
++				end = page->index;
++				partial_end = false; /* handled here */
++			} else
++				pend = PAGE_CACHE_SIZE << compound_order(page);
++
++			lock_page(page);
+ 			wait_on_page_writeback(page);
+-			zero_user_segment(page, partial_start, top);
++			zero_pagecache_segment(page, pstart, pend);
+ 			cleancache_invalidate_page(mapping, page);
+ 			if (page_has_private(page))
+-				do_invalidatepage(page, partial_start,
+-						  top - partial_start);
++				do_invalidatepage(page, pstart,
++						pend - pstart);
+ 			unlock_page(page);
+ 			page_cache_release(page);
+ 		}
+ 	}
+ 	if (partial_end) {
+-		struct page *page = find_lock_page(mapping, end);
++		struct page *page;
++
++		page = find_lock_page(mapping, end);
+ 		if (page) {
++			loff_t page_cache_mask;
++			unsigned pend;
++
++			if (PageTransHugeCache(page))
++				page_cache_mask = HPAGE_PMD_MASK;
++			else
++				page_cache_mask = PAGE_CACHE_MASK;
++			pend = (lend + 1) & ~page_cache_mask;
++			end = page->index;
+ 			wait_on_page_writeback(page);
+-			zero_user_segment(page, 0, partial_end);
++			zero_pagecache_segment(page, 0, pend);
+ 			cleancache_invalidate_page(mapping, page);
+ 			if (page_has_private(page))
+-				do_invalidatepage(page, 0,
+-						  partial_end);
++				do_invalidatepage(page, 0, pend);
+ 			unlock_page(page);
+ 			page_cache_release(page);
+ 		}
+ 	}
+ 	/*
+-	 * If the truncation happened within a single page no pages
+-	 * will be released, just zeroed, so we can bail out now.
++	 * If the truncation happened within a single page no
++	 * pages will be released, just zeroed, so we can bail
++	 * out now.
+ 	 */
+ 	if (start >= end)
+-		return;
++		goto out;
+ 
+ 	index = start;
+ 	for ( ; ; ) {
++		bool thp = false;
+ 		cond_resched();
+ 		if (!pagevec_lookup(&pvec, mapping, index,
+ 			min(end - index, (pgoff_t)PAGEVEC_SIZE))) {
+@@ -327,16 +378,24 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			if (index >= end)
+ 				break;
+ 
++			thp = PageTransHugeCache(page);
+ 			lock_page(page);
+ 			WARN_ON(page->index != index);
+ 			wait_on_page_writeback(page);
+ 			truncate_inode_page(mapping, page);
+ 			unlock_page(page);
++			if (thp)
++				break;
+ 		}
+ 		pagevec_release(&pvec);
+ 		mem_cgroup_uncharge_end();
+-		index++;
++		if (thp)
++			index += HPAGE_CACHE_NR;
++		else
++			index++;
+ 	}
++out:
++	i_split_up_read(inode);
+ 	cleancache_invalidate_inode(mapping);
  }
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
-+static void __split_file_mapping(struct page *page)
-+{
-+	struct address_space *mapping = page->mapping;
-+	struct radix_tree_iter iter;
-+	void **slot;
-+	int count = 1;
-+
-+	spin_lock(&mapping->tree_lock);
-+	radix_tree_for_each_slot(slot, &mapping->page_tree,
-+			&iter, page->index + 1) {
-+		struct page *slot_page;
-+
-+		slot_page = radix_tree_deref_slot_protected(slot,
-+				&mapping->tree_lock);
-+		BUG_ON(slot_page != page);
-+		radix_tree_replace_slot(slot, page + count);
-+		if (++count == HPAGE_CACHE_NR)
-+			break;
-+	}
-+	BUG_ON(count != HPAGE_CACHE_NR);
-+	spin_unlock(&mapping->tree_lock);
-+}
-+
-+static int split_file_huge_page(struct page *page, struct list_head *list)
-+{
-+	struct address_space *mapping = page->mapping;
+ EXPORT_SYMBOL(truncate_inode_pages_range);
+@@ -375,6 +434,7 @@ EXPORT_SYMBOL(truncate_inode_pages);
+ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+ 		pgoff_t start, pgoff_t end)
+ {
 +	struct inode *inode = mapping->host;
-+	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-+	struct vm_area_struct *vma;
-+	int mapcount, mapcount2;
-+
-+	BUG_ON(!PageHead(page));
-+	BUG_ON(PageTail(page));
-+
-+	down_write(&inode->i_split_sem);
-+	mutex_lock(&mapping->i_mmap_mutex);
-+	mapcount = 0;
-+	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
-+		unsigned long addr = vma_address(page, vma);
-+		mapcount += __split_huge_page_splitting(page, vma, addr);
-+	}
-+
-+	if (mapcount != page_mapcount(page))
-+		printk(KERN_ERR "mapcount %d page_mapcount %d\n",
-+		       mapcount, page_mapcount(page));
-+	BUG_ON(mapcount != page_mapcount(page));
-+
-+	__split_huge_page_refcount(page, list);
-+	__split_file_mapping(page);
-+
-+	mapcount2 = 0;
-+	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
-+		unsigned long addr = vma_address(page, vma);
-+		mapcount2 += __split_huge_page_map(page, vma, addr);
-+	}
-+
-+	if (mapcount != mapcount2)
-+		printk(KERN_ERR "mapcount %d mapcount2 %d page_mapcount %d\n",
-+		       mapcount, mapcount2, page_mapcount(page));
-+	BUG_ON(mapcount != mapcount2);
-+	count_vm_event(THP_SPLIT);
-+	mutex_unlock(&mapping->i_mmap_mutex);
-+	up_write(&inode->i_split_sem);
-+
-+	/*
-+	 * Drop small pages beyond i_size if any.
-+	 */
-+	truncate_inode_pages(mapping, i_size_read(inode));
-+	return 0;
-+}
-+#else
-+static int split_file_huge_page(struct page *page, struct list_head *list)
-+{
-+	BUG();
-+}
-+#endif
-+
-+int split_huge_page_to_list(struct page *page, struct list_head *list)
-+{
-+	BUG_ON(is_huge_zero_page(page));
-+
-+	if (PageAnon(page))
-+		return split_anon_huge_page(page, list);
-+	else
-+		return split_file_huge_page(page, list);
-+}
-+
- #define VM_NO_THP (VM_SPECIAL|VM_MIXEDMAP|VM_HUGETLB|VM_SHARED|VM_MAYSHARE)
+ 	struct pagevec pvec;
+ 	pgoff_t index = start;
+ 	unsigned long ret;
+@@ -389,9 +449,11 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+ 	 * (most pages are dirty), and already skips over any difficulties.
+ 	 */
  
- int hugepage_madvise(struct vm_area_struct *vma,
++	i_split_down_read(inode);
+ 	pagevec_init(&pvec, 0);
+ 	while (index <= end && pagevec_lookup(&pvec, mapping, index,
+ 			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
++		bool thp = false;
+ 		mem_cgroup_uncharge_start();
+ 		for (i = 0; i < pagevec_count(&pvec); i++) {
+ 			struct page *page = pvec.pages[i];
+@@ -401,6 +463,15 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+ 			if (index > end)
+ 				break;
+ 
++			/* skip huge page if it's not fully in the range */
++			thp = PageTransHugeCache(page);
++			if (thp) {
++			       if (index < start)
++				       break;
++			       if (index == (end & ~HPAGE_CACHE_INDEX_MASK))
++				       break;
++			}
++
+ 			if (!trylock_page(page))
+ 				continue;
+ 			WARN_ON(page->index != index);
+@@ -417,8 +488,12 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+ 		pagevec_release(&pvec);
+ 		mem_cgroup_uncharge_end();
+ 		cond_resched();
+-		index++;
++		if (thp)
++			index += HPAGE_CACHE_NR;
++		else
++			index++;
+ 	}
++	i_split_up_read(inode);
+ 	return count;
+ }
+ EXPORT_SYMBOL(invalidate_mapping_pages);
 -- 
 1.8.4.rc3
 
