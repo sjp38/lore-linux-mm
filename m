@@ -1,78 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id CD44E6B0031
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 17:46:25 -0400 (EDT)
-Received: by mail-ie0-f179.google.com with SMTP id e14so7233934iej.24
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 14:46:25 -0700 (PDT)
-Received: by mail-pa0-f52.google.com with SMTP id kl14so2817965pab.11
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 14:46:22 -0700 (PDT)
-Date: Mon, 23 Sep 2013 14:46:12 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] mm/shmem.c: check the return value of mpol_to_str()
-In-Reply-To: <20130919003142.B72EC1840296@intranet.asianux.com>
-Message-ID: <alpine.DEB.2.02.1309231439360.11167@chino.kir.corp.google.com>
-References: <20130919003142.B72EC1840296@intranet.asianux.com>
+Received: from mail-oa0-f53.google.com (mail-oa0-f53.google.com [209.85.219.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CD196B0031
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 18:08:14 -0400 (EDT)
+Received: by mail-oa0-f53.google.com with SMTP id i7so1281123oag.12
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 15:08:14 -0700 (PDT)
+Received: from /spool/local
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjennings@variantweb.net>;
+	Mon, 23 Sep 2013 16:08:12 -0600
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id BBAD919D8043
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 16:08:08 -0600 (MDT)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8NM84Vm205736
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 16:08:04 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r8NM83iS009650
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 16:08:04 -0600
+Date: Mon, 23 Sep 2013 17:07:57 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 0/5] mm: migrate zbud pages
+Message-ID: <20130923220757.GC16191@variantweb.net>
+References: <1378889944-23192-1-git-send-email-k.kozlowski@samsung.com>
+ <5237FDCC.5010109@oracle.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="531381512-1670063046-1379972773=:11167"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5237FDCC.5010109@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?Chen=2CGang=28_=E9=99=88=E5=88=9A=29?= <gang.chen@asianux.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, riel@redhat.com, hughd@google.com, xemul@parallels.com, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Bob Liu <bob.liu@oracle.com>
+Cc: Krzysztof Kozlowski <k.kozlowski@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Dave Hansen <dave.hansen@intel.com>, Minchan Kim <minchan@kernel.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
-
---531381512-1670063046-1379972773=:11167
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: 8BIT
-
-On Thu, 19 Sep 2013, Chen,Gang( e??a??) wrote:
-
-> PleaseA searchA BUG_ON()A inA kernelA wideA sourceA code,A weA canA knowA whether
-> itA isA commonlyA usedA orA not.
+On Tue, Sep 17, 2013 at 02:59:24PM +0800, Bob Liu wrote:
+> Mel mentioned several problems about zswap/zbud in thread "[PATCH v6
+> 0/5] zram/zsmalloc promotion".
 > 
-> PleaseA searchA BUGA inA arch/A sub-system,A weA canA knowA whichA architectures
-> customizeA BUG/BUG_ON.
+> Like "it's clunky as hell and the layering between zswap and zbud is
+> twisty" and "I think I brought up its stalling behaviour during review
+> when it was being merged. It would have been preferable if writeback
+> could be initiated in batches and then waited on at the very least..
+>  It's worse that it uses _swap_writepage directly instead of going
+> through a writepage ops.  It would have been better if zbud pages
+> existed on the LRU and written back with an address space ops and
+> properly handled asynchonous writeback."
 > 
-> AfterA doA theA 2A things,A InA myA opinion,A weA canA treatA BUG/BUG_ON()A isA common
-> implementation,A andA mostA ofA architecturesA usesA theA defaultA one.
-> 
-> PleaseA checkA again,A thanks.
-> 
+> So I think it would be better if we can address those issues at first
+> and it would be easier to address these issues before adding more new
+> features. Welcome any ideas.
 
-BUG_ON() is used for fatal conditions where continuing could potentially 
-be harmful.  Obviously it is commonly used in a kernel.  That doesn't mean 
-we BUG_ON() when a string hasn't been defined for a mempolicy mode.  
-mpol_to_str() is not critical.
+I just had an idea this afternoon to potentially kill both these birds with one
+stone: Replace the rbtree in zswap with an address_space.
 
-It is not a fatal condition, and nothing you say is going to convince 
-anybody on this thread that it's a fatal condition.
+Each swap type would have its own page_tree to organize the compressed objects
+by type and offset (radix tree is more suited for this anyway) and a_ops that
+could be called by shrink_page_list() (writepage) or the migration code
+(migratepage).
 
-> >A That'sA absolutelyA insane.A A IfA codeA isA notA allocatingA enoughA memoryA forA theA 
-> >A maximumA possibleA lengthA ofA aA stringA toA beA storedA byA mpol_to_str(),A it'sA aA 
-> >A bugA inA theA code.A A WeA doA notA panicA andA rebootA theA user'sA machineA forA suchA aA 
-> >A bug.A A Instead,A weA breakA theA buildA andA requireA theA brokenA codeA toA beA fixed.
-> >A 
-> 
-> PleaseA sayA inA polite.
-> 
+Then zbud pages could be put on the normal LRU list, maybe at the beginning of
+the inactive LRU so they would live for another cycle through the list, then be
+reclaimed in the normal way with the mapping->a_ops->writepage() pointing to a
+zswap_writepage() function that would decompress the pages and call
+__swap_writepage() on them.
 
-You want a polite response when you're insisting that we declare absolute 
-failure, BUG_ON(), stop, and reboot the kernel because a mempolicy mode 
-isn't defined as a string in mpol_to_str()?  That sounds like an impolite 
-response to the user, so see my politeness to you as coming from the users 
-of the systems you just crashed.
+This might actually do away with the explicit pool size too as the compressed
+pool pages wouldn't be outside the control of the MM anymore.
 
-This is a compile-time problem, not run-time.
+I'm just starting to explore this but I think it has promise.
 
-> CanA youA beA sure,A theA "maxlenA ==A 50"A inA "fs/proc/task_mmu()",A mustA beA aA bug??
-> 
-
-I asked you to figure out the longest string possible to be stored by 
-mpol_to_str().  There's nothing mysterious about that function.  It's 
-deterministic.  If you really can't figure out the value this should be, 
-then you shouldn't be touching mpol_to_str().
---531381512-1670063046-1379972773=:11167--
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
