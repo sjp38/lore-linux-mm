@@ -1,50 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id CA23C6B0031
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 08:06:05 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id bj1so2213827pad.35
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 05:06:05 -0700 (PDT)
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id EA7606B0033
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 08:06:08 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id fa1so3477650pad.5
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 05:06:08 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 03/22] memcg, thp: charge huge cache pages
-Date: Mon, 23 Sep 2013 15:05:31 +0300
-Message-Id: <1379937950-8411-4-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 06/22] thp: represent file thp pages in meminfo and friends
+Date: Mon, 23 Sep 2013 15:05:34 +0300
+Message-Id: <1379937950-8411-7-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-mem_cgroup_cache_charge() has check for PageCompound(). The check
-prevents charging huge cache pages.
+The patch adds new zone stat to count file transparent huge pages and
+adjust related places.
 
-I don't see a reason why the check is present. Looks like it's just
-legacy (introduced in 52d4b9a memcg: allocate all page_cgroup at boot).
+For now we don't count mapped or dirty file thp pages separately.
 
-Let's just drop it.
+The patch depends on patch
+ thp: account anon transparent huge pages into NR_ANON_PAGES
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
 ---
- mm/memcontrol.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ drivers/base/node.c    | 4 ++++
+ fs/proc/meminfo.c      | 3 +++
+ include/linux/mmzone.h | 1 +
+ mm/vmstat.c            | 1 +
+ 4 files changed, 9 insertions(+)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index d5ff3ce130..0b87a1bd25 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3963,8 +3963,7 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index bc9f43bf7e..de261f5722 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -119,6 +119,7 @@ static ssize_t node_read_meminfo(struct device *dev,
+ 		       "Node %d SUnreclaim:     %8lu kB\n"
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 		       "Node %d AnonHugePages:  %8lu kB\n"
++		       "Node %d FileHugePages:  %8lu kB\n"
+ #endif
+ 			,
+ 		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
+@@ -140,6 +141,9 @@ static ssize_t node_read_meminfo(struct device *dev,
+ 		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
+ 			, nid,
+ 			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
++			HPAGE_PMD_NR)
++			, nid,
++			K(node_page_state(nid, NR_FILE_TRANSPARENT_HUGEPAGES) *
+ 			HPAGE_PMD_NR));
+ #else
+ 		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index 59d85d6088..a62952cd4f 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -104,6 +104,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ #endif
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 		"AnonHugePages:  %8lu kB\n"
++		"FileHugePages:  %8lu kB\n"
+ #endif
+ 		,
+ 		K(i.totalram),
+@@ -158,6 +159,8 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 		,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
+ 		   HPAGE_PMD_NR)
++		,K(global_page_state(NR_FILE_TRANSPARENT_HUGEPAGES) *
++		   HPAGE_PMD_NR)
+ #endif
+ 		);
  
- 	if (mem_cgroup_disabled())
- 		return 0;
--	if (PageCompound(page))
--		return 0;
-+	VM_BUG_ON(PageCompound(page) && !PageTransHuge(page));
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index bd791e452a..8b4525bd4f 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -143,6 +143,7 @@ enum zone_stat_item {
+ 	NUMA_OTHER,		/* allocation from other node */
+ #endif
+ 	NR_ANON_TRANSPARENT_HUGEPAGES,
++	NR_FILE_TRANSPARENT_HUGEPAGES,
+ 	NR_FREE_CMA_PAGES,
+ 	NR_VM_ZONE_STAT_ITEMS };
  
- 	if (!PageSwapCache(page))
- 		ret = mem_cgroup_charge_common(page, mm, gfp_mask, type);
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 9bb3145779..9af0d8536b 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -771,6 +771,7 @@ const char * const vmstat_text[] = {
+ 	"numa_other",
+ #endif
+ 	"nr_anon_transparent_hugepages",
++	"nr_file_transparent_hugepages",
+ 	"nr_free_cma",
+ 	"nr_dirty_threshold",
+ 	"nr_dirty_background_threshold",
 -- 
 1.8.4.rc3
 
