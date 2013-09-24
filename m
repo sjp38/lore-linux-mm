@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 523886B0031
-	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 09:17:59 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lj1so4974321pab.15
-        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 06:17:58 -0700 (PDT)
-Received: by mail-pb0-f51.google.com with SMTP id jt11so4533499pbb.24
-        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 06:17:56 -0700 (PDT)
-Message-ID: <524190DC.4060605@gmail.com>
-Date: Tue, 24 Sep 2013 21:17:16 +0800
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 82FF46B0031
+	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 09:21:14 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id bj1so4976213pad.14
+        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 06:21:14 -0700 (PDT)
+Received: by mail-pb0-f44.google.com with SMTP id xa7so4564903pbc.3
+        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 06:21:12 -0700 (PDT)
+Message-ID: <52419198.1010906@gmail.com>
+Date: Tue, 24 Sep 2013 21:20:24 +0800
 From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/6] memblock: Introduce bottom-up allocation mode
-References: <524162DA.30004@cn.fujitsu.com> <524163CF.3010303@cn.fujitsu.com> <20130924121725.GC2366@htj.dyndns.org>
-In-Reply-To: <20130924121725.GC2366@htj.dyndns.org>
+Subject: Re: [PATCH 3/6] x86/mm: Factor out of top-down direct mapping setup
+References: <524162DA.30004@cn.fujitsu.com> <52416431.1090107@cn.fujitsu.com> <20130924122712.GD2366@htj.dyndns.org>
+In-Reply-To: <20130924122712.GD2366@htj.dyndns.org>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -22,125 +22,97 @@ Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Rafael J . Wysocki" <rjw@sisk.pl
 
 Hello tejun,
 
-On 09/24/2013 08:17 PM, Tejun Heo wrote:
-> On Tue, Sep 24, 2013 at 06:05:03PM +0800, Zhang Yanfei wrote:
->> +/* Allocation direction */
->> +enum {
->> +	MEMBLOCK_DIRECTION_TOP_DOWN,
->> +	MEMBLOCK_DIRECTION_BOTTOM_UP,
->> +	NR_MEMLBOCK_DIRECTIONS
->> +};
->> +
->>  struct memblock_region {
->>  	phys_addr_t base;
->>  	phys_addr_t size;
->> @@ -35,6 +42,7 @@ struct memblock_type {
->>  };
->>  
->>  struct memblock {
->> +	int current_direction;  /* current allocation direction */
-> 
-> Just use boolean bottom_up here too?  No need for the constants.
-
-OKay. Will try this way.
-
-> 
->> @@ -20,6 +20,8 @@
->>  #include <linux/seq_file.h>
->>  #include <linux/memblock.h>
->>  
->> +#include <asm-generic/sections.h>
->> +
-> 
-> Why is the above added by this patch?
-
-Oh, we use _end in this file which is defined in that header file.
-
-> 
->>  /**
->> + * __memblock_find_range - find free area utility
->> + * @start: start of candidate range
->> + * @end: end of candidate range, can be %MEMBLOCK_ALLOC_{ANYWHERE|ACCESSIBLE}
->> + * @size: size of free area to find
->> + * @align: alignment of free area to find
->> + * @nid: nid of the free area to find, %MAX_NUMNODES for any node
+On 09/24/2013 08:27 PM, Tejun Heo wrote:
+> On Tue, Sep 24, 2013 at 06:06:41PM +0800, Zhang Yanfei wrote:
+>> +/**
+>> + * memory_map_top_down - Map [map_start, map_end) top down
+>> + * @map_start: start address of the target memory range
+>> + * @map_end: end address of the target memory range
 >> + *
->> + * Utility called from memblock_find_in_range_node(), find free area bottom-up.
->> + *
->> + * RETURNS:
->> + * Found address on success, %0 on failure.
+>> + * This function will setup direct mapping for memory range [map_start, map_end)
+>> + * in a heuristic way. In the beginning, step_size is small. The more memory we
+>> + * map memory in the next loop.
+>> + */
 > 
-> I don't think we prefix numeric literals with %.
+> The comment reads a bit weird to me.  The step size is increased
+> gradually but that really isn't really a heuristic and it doesn't
+> mention mapping direction.
 
-OKay. Will remove %
+Ok, will change the words and add the comment of direction.
 
 > 
 > ...
->> @@ -127,6 +162,10 @@ __memblock_find_range_rev(phys_addr_t start, phys_addr_t end,
->>   *
->>   * Find @size free area aligned to @align in the specified range and node.
->>   *
->> + * When allocation direction is bottom-up, the @start should be greater
->> + * than the end of the kernel image. Otherwise, it will be trimmed. And also,
->> + * if bottom-up allocation failed, will try to allocate memory top-down.
-> 
-> It'd be nice to explain that bottom-up allocation is limited to above
-> kernel image and what it's used for here.
-
-OK. Will add the comment.
-
-> 
->> + *
->>   * RETURNS:
->>   * Found address on success, %0 on failure.
->>   */
->> @@ -134,6 +173,8 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
->>  					phys_addr_t end, phys_addr_t size,
->>  					phys_addr_t align, int nid)
->>  {
->> +	int ret;
->> +
->>  	/* pump up @end */
->>  	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
->>  		end = memblock.current_limit;
->> @@ -142,6 +183,28 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
->>  	start = max_t(phys_addr_t, start, PAGE_SIZE);
->>  	end = max(start, end);
+>> @@ -430,19 +430,13 @@ void __init init_mem_mapping(void)
+>>  	min_pfn_mapped = real_end >> PAGE_SHIFT;
+>>  	last_start = start = real_end;
 >>  
->> +	if (memblock_bottom_up()) {
->> +		phys_addr_t bottom_up_start;
->> +
->> +		/* make sure we will allocate above the kernel */
->> +		bottom_up_start = max_t(phys_addr_t, start, __pa_symbol(_end));
->> +
->> +		/* ok, try bottom-up allocation first */
->> +		ret = __memblock_find_range(bottom_up_start, end,
->> +					    size, align, nid);
->> +		if (ret)
->> +			return ret;
->> +
->> +		/*
->> +		 * we always limit bottom-up allocation above the kernel,
->> +		 * but top-down allocation doesn't have the limit, so
->> +		 * retrying top-down allocation may succeed when bottom-up
->> +		 * allocation failed.
->> +		 */
->> +		pr_warn("memblock: Failed to allocate memory in bottom up "
->> +			"direction. Now try top down direction.\n");
+>> -	/*
+>> -	 * We start from the top (end of memory) and go to the bottom.
+>> -	 * The memblock_find_in_range() gets us a block of RAM from the
+>> -	 * end of RAM in [min_pfn_mapped, max_pfn_mapped) used as new pages
+>> -	 * for page table.
+>> -	 */
 > 
-> Maybe just print warning only on the first failure?
+> I think this comment should stay here with the variable names
+> updated.
 
-Hmmm... This message is for each memblock allocation, that said, if the
-allocation this time fails, it prints the message and we use so called top-down.
-But next time, we still use bottom up first again.
-
-Did you mean if we fail on one bottom-up allocation, then we never try
-bottom-up again and will always use top-down? 
-
-Thanks. 
+OK, agreed
 
 > 
-> Otherwise, looks good to me.
+>> -	while (last_start > ISA_END_ADDRESS) {
+>> +	while (last_start > map_start) {
+>>  		if (last_start > step_size) {
+>>  			start = round_down(last_start - 1, step_size);
+>> -			if (start < ISA_END_ADDRESS)
+>> -				start = ISA_END_ADDRESS;
+>> +			if (start < map_start)
+>> +				start = map_start;
+>>  		} else
+>> -			start = ISA_END_ADDRESS;
+>> +			start = map_start;
+>>  		new_mapped_ram_size = init_range_memory_mapping(start,
+>>  							last_start);
+>>  		last_start = start;
+>> @@ -453,8 +447,32 @@ void __init init_mem_mapping(void)
+>>  		mapped_ram_size += new_mapped_ram_size;
+>>  	}
+>>  
+>> -	if (real_end < end)
+>> -		init_range_memory_mapping(real_end, end);
+>> +	if (real_end < map_end)
+>> +		init_range_memory_mapping(real_end, map_end);
+>> +}
+>> +
+>> +void __init init_mem_mapping(void)
+>> +{
+>> +	unsigned long end;
+>> +
+>> +	probe_page_size_mask();
+>> +
+>> +#ifdef CONFIG_X86_64
+>> +	end = max_pfn << PAGE_SHIFT;
+>> +#else
+>> +	end = max_low_pfn << PAGE_SHIFT;
+>> +#endif
+>> +
+>> +	/* the ISA range is always mapped regardless of memory holes */
+>> +	init_memory_mapping(0, ISA_END_ADDRESS);
+>> +
+>> +	/*
+>> +	 * We start from the top (end of memory) and go to the bottom.
+>> +	 * The memblock_find_in_range() gets us a block of RAM from the
+>> +	 * end of RAM in [min_pfn_mapped, max_pfn_mapped) used as new pages
+>> +	 * for page table.
+>> +	 */
+> 
+> And just mention the range and direction in the comment here?
+
+OK, agreed.
+
+Thanks
+
+> 
+>> +	memory_map_top_down(ISA_END_ADDRESS, end);
 > 
 > Thanks.
 > 
