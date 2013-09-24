@@ -1,91 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 797D16B0034
-	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 16:35:24 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id wz12so5013549pbc.25
-        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 13:35:24 -0700 (PDT)
-Date: Tue, 24 Sep 2013 22:35:12 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
-Message-ID: <20130924203512.GS9326@twins.programming.kicks-ass.net>
-References: <20130917164505.GG12926@twins.programming.kicks-ass.net>
- <20130918154939.GZ26785@twins.programming.kicks-ass.net>
- <20130919143241.GB26785@twins.programming.kicks-ass.net>
- <20130923175052.GA20991@redhat.com>
- <20130924123821.GT12926@twins.programming.kicks-ass.net>
- <20130924160359.GA2739@redhat.com>
- <20130924124341.64d57912@gandalf.local.home>
- <20130924170631.GB5059@redhat.com>
- <20130924174717.GH9093@linux.vnet.ibm.com>
- <20130924180005.GA7148@redhat.com>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D1BF6B0034
+	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 16:55:07 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id fb1so4173336pad.23
+        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 13:55:07 -0700 (PDT)
+Message-ID: <5241FC12.4090107@infradead.org>
+Date: Tue, 24 Sep 2013 13:54:42 -0700
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130924180005.GA7148@redhat.com>
+Subject: Re: [PATCH resend] typo: replace kernelcore with Movable
+References: <a1714d6a349ac584626a164631c5e2b74d91326d.1380012101.git.wpan@redhat.com>
+In-Reply-To: <a1714d6a349ac584626a164631c5e2b74d91326d.1380012101.git.wpan@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Steven Rostedt <rostedt@goodmis.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Weiping Pan <wpan@redhat.com>
+Cc: linux-mm@kvack.org, rob@landley.net, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Sep 24, 2013 at 08:00:05PM +0200, Oleg Nesterov wrote:
-> On 09/24, Paul E. McKenney wrote:
-> >
-> > On Tue, Sep 24, 2013 at 07:06:31PM +0200, Oleg Nesterov wrote:
-> > >
-> > > If gcc can actually do something wrong, then I suspect this barrier()
-> > > should be unconditional.
-> >
-> > If you are saying that there should be a barrier() on all return paths
-> > from get_online_cpus(), I agree.
+On 09/24/13 01:48, Weiping Pan wrote:
+> Han Pingtian found a typo in Documentation/kernel-parameters.txt
+> about "kernelcore=", that "kernelcore" should be replaced with "Movable" here.
 > 
-> Paul, Peter, could you provide any (even completely artificial) example
-> to explain me why do we need this barrier() ? I am puzzled. And
-> preempt_enable() already has barrier...
+> I sent this patch a 8 months ago and got ack from Mel Gorman,
+> http://marc.info/?l=linux-mm&m=135756720602638&w=2
+> but it has not been merged so I resent it again.
 > 
-> 	get_online_cpus();
-> 	do_something();
+> Signed-off-by: Weiping Pan <wpan@redhat.com>
+
+so add:
+Acked-by: Mel Gorman <mgorman@suse.de>
+
+and Cc: Andrew Morton.  He can easily merge it.
+
+Thanks.
+
+> ---
+>  Documentation/kernel-parameters.txt |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
-> Yes, we need to ensure gcc doesn't reorder this code so that
-> do_something() comes before get_online_cpus(). But it can't? At least
-> it should check current->cpuhp_ref != 0 first? And if it is non-zero
-> we do not really care, we are already in the critical section and
-> this ->cpuhp_ref has only meaning in put_online_cpus().
+> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+> index 1a036cd9..c3ea235 100644
+> --- a/Documentation/kernel-parameters.txt
+> +++ b/Documentation/kernel-parameters.txt
+> @@ -1357,7 +1357,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+>  			pages. In the event, a node is too small to have both
+>  			kernelcore and Movable pages, kernelcore pages will
+>  			take priority and other nodes will have a larger number
+> -			of kernelcore pages.  The Movable zone is used for the
+> +			of Movable pages.  The Movable zone is used for the
+>  			allocation of pages that may be reclaimed or moved
+>  			by the page migration subsystem.  This means that
+>  			HugeTLB pages may not be allocated from this zone.
 > 
-> Confused...
 
 
-So the reason I put it in was because of the inline; it could possibly
-make it do:
-
-  test  0, current->cpuhp_ref
-  je	label1:
-  inc	current->cpuhp_ref
-
-label2:
-  do_something();
-
-label1:
-  inc	%gs:__preempt_count
-  test	0, __cpuhp_writer
-  jne	label3
-  inc	%gs:__cpuhp_refcount
-label5
-  dec	%gs:__preempt_count
-  je	label4
-  jmp	label2
-label3:
-  call	__get_online_cpus();
-  jmp	label5
-label4:
-  call	____preempt_schedule();
-  jmp	label2
-
-In which case the recursive fast path doesn't have a barrier() between
-taking the ref and starting do_something().
-
-I wanted to make absolutely sure nothing of do_something leaked before
-the label2 thing. The other labels all have barrier() from the
-preempt_count ops.
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
