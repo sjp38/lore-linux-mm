@@ -1,72 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 23D616B0031
-	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 05:20:28 -0400 (EDT)
-Received: by mail-ob0-f181.google.com with SMTP id gq1so4636624obb.12
-        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 02:20:27 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout4.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MTM00HUYHWM1N90@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 24 Sep 2013 10:20:24 +0100 (BST)
-Message-id: <1380014422.31179.4.camel@AMDC1943>
-Subject: Re: [PATCH v2 0/5] mm: migrate zbud pages
-From: Krzysztof Kozlowski <k.kozlowski@samsung.com>
-Date: Tue, 24 Sep 2013 11:20:22 +0200
-In-reply-to: <20130923220757.GC16191@variantweb.net>
-References: <1378889944-23192-1-git-send-email-k.kozlowski@samsung.com>
- <5237FDCC.5010109@oracle.com> <20130923220757.GC16191@variantweb.net>
-Content-type: text/plain; charset=UTF-8
-Content-transfer-encoding: 7bit
-MIME-version: 1.0
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 90CD66B0031
+	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 06:01:53 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id q10so4395958pdj.34
+        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 03:01:53 -0700 (PDT)
+Message-ID: <524162DA.30004@cn.fujitsu.com>
+Date: Tue, 24 Sep 2013 18:00:58 +0800
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: [PATCH v4 0/6] x86, memblock: Allocate memory near kernel image before
+ SRAT parsed
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Bob Liu <bob.liu@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Dave Hansen <dave.hansen@intel.com>, Minchan Kim <minchan@kernel.org>
+To: "Rafael J . Wysocki" <rjw@sisk.pl>, lenb@kernel.org, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, prarit@redhat.com
+Cc: "x86@kernel.org" <x86@kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, imtangchen@gmail.com, Zhang Yanfei <zhangyanfei.yes@gmail.com>, zhangyanfei@cn.fujitsu.com
 
-Hi,
+The v4 version is based on today's linus tree (3.12-rc2)
+HEAD is:
+commit 4a10c2ac2f368583138b774ca41fac4207911983
+Author: Linus Torvalds <torvalds@linux-foundation.org>
+Date:   Mon Sep 23 15:41:09 2013 -0700
 
-On pon, 2013-09-23 at 17:07 -0500, Seth Jennings wrote:
-> On Tue, Sep 17, 2013 at 02:59:24PM +0800, Bob Liu wrote:
-> > Mel mentioned several problems about zswap/zbud in thread "[PATCH v6
-> > 0/5] zram/zsmalloc promotion".
-> > 
-> > Like "it's clunky as hell and the layering between zswap and zbud is
-> > twisty" and "I think I brought up its stalling behaviour during review
-> > when it was being merged. It would have been preferable if writeback
-> > could be initiated in batches and then waited on at the very least..
-> >  It's worse that it uses _swap_writepage directly instead of going
-> > through a writepage ops.  It would have been better if zbud pages
-> > existed on the LRU and written back with an address space ops and
-> > properly handled asynchonous writeback."
-> > 
-> > So I think it would be better if we can address those issues at first
-> > and it would be easier to address these issues before adding more new
-> > features. Welcome any ideas.
-> 
-> I just had an idea this afternoon to potentially kill both these birds with one
-> stone: Replace the rbtree in zswap with an address_space.
-> 
-> Each swap type would have its own page_tree to organize the compressed objects
-> by type and offset (radix tree is more suited for this anyway) and a_ops that
-> could be called by shrink_page_list() (writepage) or the migration code
-> (migratepage).
-> 
-> Then zbud pages could be put on the normal LRU list, maybe at the beginning of
-> the inactive LRU so they would live for another cycle through the list, then be
-> reclaimed in the normal way with the mapping->a_ops->writepage() pointing to a
-> zswap_writepage() function that would decompress the pages and call
-> __swap_writepage() on them.
-
-How exactly the address space can be used here? Do you want to point to
-zbud pages in address_space.page_tree? If yes then which index should be
-used?
+    Linux 3.12-rc2
 
 
-Best regards,
-Krzysztof
+[Problem]
+
+The current Linux cannot migrate pages used by the kerenl because
+of the kernel direct mapping. In Linux kernel space, va = pa + PAGE_OFFSET.
+When the pa is changed, we cannot simply update the pagetable and
+keep the va unmodified. So the kernel pages are not migratable.
+
+There are also some other issues will cause the kernel pages not migratable.
+For example, the physical address may be cached somewhere and will be used.
+It is not to update all the caches.
+
+When doing memory hotplug in Linux, we first migrate all the pages in one
+memory device somewhere else, and then remove the device. But if pages are
+used by the kernel, they are not migratable. As a result, memory used by
+the kernel cannot be hot-removed.
+
+Modifying the kernel direct mapping mechanism is too difficult to do. And
+it may cause the kernel performance down and unstable. So we use the following
+way to do memory hotplug.
 
 
+[What we are doing]
+
+In Linux, memory in one numa node is divided into several zones. One of the
+zones is ZONE_MOVABLE, which the kernel won't use.
+
+In order to implement memory hotplug in Linux, we are going to arrange all
+hotpluggable memory in ZONE_MOVABLE so that the kernel won't use these memory.
+To do this, we need ACPI's help.
+
+In ACPI, SRAT(System Resource Affinity Table) contains NUMA info. The memory
+affinities in SRAT record every memory range in the system, and also, flags
+specifying if the memory range is hotpluggable.
+(Please refer to ACPI spec 5.0 5.2.16)
+
+With the help of SRAT, we have to do the following two things to achieve our
+goal:
+
+1. When doing memory hot-add, allow the users arranging hotpluggable as
+   ZONE_MOVABLE.
+   (This has been done by the MOVABLE_NODE functionality in Linux.)
+
+2. when the system is booting, prevent bootmem allocator from allocating
+   hotpluggable memory for the kernel before the memory initialization
+   finishes.
+
+The problem 2 is the key problem we are going to solve. But before solving it,
+we need some preparation. Please see below.
+
+
+[Preparation]
+
+Bootloader has to load the kernel image into memory. And this memory must be 
+unhotpluggable. We cannot prevent this anyway. So in a memory hotplug system, 
+we can assume any node the kernel resides in is not hotpluggable.
+
+Before SRAT is parsed, we don't know which memory ranges are hotpluggable. But
+memblock has already started to work. In the current kernel, memblock allocates 
+the following memory before SRAT is parsed:
+
+setup_arch()
+ |->memblock_x86_fill()            /* memblock is ready */
+ |......
+ |->early_reserve_e820_mpc_new()   /* allocate memory under 1MB */
+ |->reserve_real_mode()            /* allocate memory under 1MB */
+ |->init_mem_mapping()             /* allocate page tables, about 2MB to map 1GB memory */
+ |->dma_contiguous_reserve()       /* specified by user, should be low */
+ |->setup_log_buf()                /* specified by user, several mega bytes */
+ |->relocate_initrd()              /* could be large, but will be freed after boot, should reorder */
+ |->acpi_initrd_override()         /* several mega bytes */
+ |->reserve_crashkernel()          /* could be large, should reorder */
+ |......
+ |->initmem_init()                 /* Parse SRAT */
+
+According to Tejun's advice, before SRAT is parsed, we should try our best to
+allocate memory near the kernel image. Since the whole node the kernel resides 
+in won't be hotpluggable, and for a modern server, a node may have at least 16GB
+memory, allocating several mega bytes memory around the kernel image won't cross
+to hotpluggable memory.
+
+
+[About this patch-set]
+
+So this patch-set does the following:
+
+1. Make memblock be able to allocate memory bottom up.
+   1) Keep all the memblock APIs' prototype unmodified.
+   2) When the direction is bottom up, keep the start address greater than the 
+      end of kernel image.
+
+2. Improve init_mem_mapping() to support allocate page tables in bottom up direction.
+
+3. Introduce "movablenode" boot option to enable and disable this functionality.
+
+PS: Reordering of relocate_initrd() has not been done yet. acpi_initrd_override() 
+    needs to access initrd with virtual address. So relocate_initrd() must be done 
+    before acpi_initrd_override().
+
+Change log v3 -> v4:
+1. Use bottom-up/top-down to unify things. Thanks tj.
+2. Factor out of current top-down implementation and then introduce bottom-up mode,
+   not mixing them in one patch. Thanks tj.
+3. Changes function naming: memblock_direction_bottom_up -> memblock_bottom_up
+4. Use memblock_set_bottom_up to replace memblock_set_current_direction, which makes
+   the code simpler. Thanks tj.
+5. Define two implementions of function memblock_bottom_up and memblock_set_bottom_up
+   in order not to use #ifdef in the boot code. Thanks tj.
+6. Add comments to explain why retry top-down allocation when bottom_up allocation
+   failed. Thanks tj and toshi!
+
+Change log v2 -> v3:
+1. According to Toshi's suggestion, move the direction checking logic into memblock.
+   And simply the code more.
+
+Change log v1 -> v2:
+1. According to tj's suggestion, implemented a new function memblock_alloc_bottom_up() 
+   to allocate memory from bottom upwards, whihc can simplify the code.
+
+
+Tang Chen (6):
+  memblock: Factor out of top-down allocation
+  memblock: Introduce bottom-up allocation mode
+  x86/mm: Factor out of top-down direct mapping setup
+  x86/mem-hotplug: Support initialize page tables bottom up
+  x86, acpi, crash, kdump: Do reserve_crashkernel() after SRAT is
+    parsed.
+  mem-hotplug: Introduce movablenode boot option
+
+ Documentation/kernel-parameters.txt |   15 ++++
+ arch/x86/kernel/setup.c             |   16 ++++-
+ arch/x86/mm/init.c                  |  125 +++++++++++++++++++++++++++-------
+ include/linux/memblock.h            |   26 +++++++
+ mm/memblock.c                       |  106 ++++++++++++++++++++++++++---
+ mm/memory_hotplug.c                 |   27 ++++++++
+ 6 files changed, 276 insertions(+), 39 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
