@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id DAC196B0036
-	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 12:39:32 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rp2so4836359pbb.28
-        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 09:39:32 -0700 (PDT)
-Date: Tue, 24 Sep 2013 12:39:27 -0400
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E3F16B0037
+	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 12:43:47 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id kx10so5209550pab.13
+        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 09:43:47 -0700 (PDT)
+Date: Tue, 24 Sep 2013 12:43:41 -0400
 From: Steven Rostedt <rostedt@goodmis.org>
 Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
-Message-ID: <20130924123927.32da5c1e@gandalf.local.home>
-In-Reply-To: <20130924123821.GT12926@twins.programming.kicks-ass.net>
+Message-ID: <20130924124341.64d57912@gandalf.local.home>
+In-Reply-To: <20130924160359.GA2739@redhat.com>
 References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
 	<1378805550-29949-38-git-send-email-mgorman@suse.de>
 	<20130917143003.GA29354@twins.programming.kicks-ass.net>
@@ -18,69 +18,47 @@ References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
 	<20130919143241.GB26785@twins.programming.kicks-ass.net>
 	<20130923175052.GA20991@redhat.com>
 	<20130924123821.GT12926@twins.programming.kicks-ass.net>
+	<20130924160359.GA2739@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Oleg Nesterov <oleg@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Tue, 24 Sep 2013 14:38:21 +0200
-Peter Zijlstra <peterz@infradead.org> wrote:
+On Tue, 24 Sep 2013 18:03:59 +0200
+Oleg Nesterov <oleg@redhat.com> wrote:
 
-> +#define cpuhp_writer_wait(cond)						\
-> +do {									\
-> +	for (;;) {							\
-> +		set_current_state(TASK_UNINTERRUPTIBLE);		\
-> +		if (cond)						\
-> +			break;						\
-> +		schedule();						\
-> +	}								\
-> +	__set_current_state(TASK_RUNNING);				\
-> +} while (0)
-> +
-> +void __get_online_cpus(void)
+> On 09/24, Peter Zijlstra wrote:
+> >
+> > +static inline void get_online_cpus(void)
+> > +{
+> > +	might_sleep();
+> > +
+> > +	if (current->cpuhp_ref++) {
+> > +		barrier();
+> > +		return;
+> 
+> I don't undestand this barrier()... we are going to return if we already
+> hold the lock, do we really need it?
 
-The above really needs a comment about how it is used. Otherwise, I can
-envision someone calling this as "oh I can use this when I'm in a
-preempt disable section", and the comment below for the
-preempt_enable_no_resched() will no longer be true.
+I'm confused too. Unless gcc moves this after the release, but the
+release uses preempt_disable() which is its own barrier.
+
+If anything, it requires a comment.
 
 -- Steve
 
-
->  {
-> -	if (cpu_hotplug.active_writer == current)
-> +	if (cpuhp_writer_task == current)
->  		return;
-> -	mutex_lock(&cpu_hotplug.lock);
->  
-> -	if (WARN_ON(!cpu_hotplug.refcount))
-> -		cpu_hotplug.refcount++; /* try to fix things up */
-> +	atomic_inc(&cpuhp_waitcount);
-> +
-> +	/*
-> +	 * We either call schedule() in the wait, or we'll fall through
-> +	 * and reschedule on the preempt_enable() in get_online_cpus().
-> +	 */
-> +	preempt_enable_no_resched();
-> +	wait_event(cpuhp_wq, !__cpuhp_writer);
-> +	preempt_disable();
-> +
-> +	/*
-> +	 * It would be possible for cpu_hotplug_done() to complete before
-> +	 * the atomic_inc() above; in which case there is no writer waiting
-> +	 * and doing a wakeup would be BAD (tm).
-> +	 *
-> +	 * If however we still observe cpuhp_writer_task here we know
-> +	 * cpu_hotplug_done() is currently stuck waiting for cpuhp_waitcount.
-> +	 */
-> +	if (atomic_dec_and_test(&cpuhp_waitcount) && cpuhp_writer_task)
-> +		cpuhp_writer_wake();
-> +}
-> +EXPORT_SYMBOL_GPL(__get_online_cpus);
->  
+> 
+> The same for put_online_cpus().
+> 
+> > +void __get_online_cpus(void)
+> >  {
+> > -	if (cpu_hotplug.active_writer == current)
+> > +	if (cpuhp_writer_task == current)
+> >  		return;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
