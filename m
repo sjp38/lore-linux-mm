@@ -1,105 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 4022F6B0031
-	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 08:27:20 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id g10so4533610pdj.16
-        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 05:27:19 -0700 (PDT)
-Received: by mail-qc0-f171.google.com with SMTP id x19so3023061qcw.30
-        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 05:27:16 -0700 (PDT)
-Date: Tue, 24 Sep 2013 08:27:12 -0400
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 01AB76B0031
+	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 08:33:46 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id fb1so3645734pad.9
+        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 05:33:46 -0700 (PDT)
+Received: by mail-yh0-f41.google.com with SMTP id f73so1923907yha.14
+        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 05:33:44 -0700 (PDT)
+Date: Tue, 24 Sep 2013 08:33:40 -0400
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 3/6] x86/mm: Factor out of top-down direct mapping setup
-Message-ID: <20130924122712.GD2366@htj.dyndns.org>
+Subject: Re: [PATCH 4/6] x86/mem-hotplug: Support initialize page tables
+ bottom up
+Message-ID: <20130924123340.GE2366@htj.dyndns.org>
 References: <524162DA.30004@cn.fujitsu.com>
- <52416431.1090107@cn.fujitsu.com>
+ <5241649B.3090302@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <52416431.1090107@cn.fujitsu.com>
+In-Reply-To: <5241649B.3090302@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 Cc: "Rafael J . Wysocki" <rjw@sisk.pl>, lenb@kernel.org, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, prarit@redhat.com, "x86@kernel.org" <x86@kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, imtangchen@gmail.com, Zhang Yanfei <zhangyanfei.yes@gmail.com>
 
-On Tue, Sep 24, 2013 at 06:06:41PM +0800, Zhang Yanfei wrote:
+Hello,
+
+On Tue, Sep 24, 2013 at 06:08:27PM +0800, Zhang Yanfei wrote:
+> +#ifdef CONFIG_MOVABLE_NODE
+
+You don't need the above ifdef.  The compiler will be able to cull the
+code as long as memblock_bottom_up() is defined as constant
+expression when !MOVABLE_NODE.
+
 > +/**
-> + * memory_map_top_down - Map [map_start, map_end) top down
+> + * memory_map_bottom_up - Map [map_start, map_end) bottom up
 > + * @map_start: start address of the target memory range
 > + * @map_end: end address of the target memory range
 > + *
 > + * This function will setup direct mapping for memory range [map_start, map_end)
 > + * in a heuristic way. In the beginning, step_size is small. The more memory we
 > + * map memory in the next loop.
-> + */
 
-The comment reads a bit weird to me.  The step size is increased
-gradually but that really isn't really a heuristic and it doesn't
-mention mapping direction.
+The same comment as before.  Now we have two function with the
+identical comment but behaving differently, which isn't nice.
 
 ...
-> @@ -430,19 +430,13 @@ void __init init_mem_mapping(void)
->  	min_pfn_mapped = real_end >> PAGE_SHIFT;
->  	last_start = start = real_end;
->  
-> -	/*
-> -	 * We start from the top (end of memory) and go to the bottom.
-> -	 * The memblock_find_in_range() gets us a block of RAM from the
-> -	 * end of RAM in [min_pfn_mapped, max_pfn_mapped) used as new pages
-> -	 * for page table.
-> -	 */
+> +	 * If the allocation is in bottom-up direction, we start from the
+> +	 * bottom and go to the top: first [kernel_end, end) and then
+> +	 * [ISA_END_ADDRESS, kernel_end). Otherwise, we start from the top
+> +	 * (end of memory) and go to the bottom.
+> +	 *
+> +	 * The memblock_find_in_range() gets us a block of RAM in
+> +	 * [min_pfn_mapped, max_pfn_mapped) used as new pages for page table.
+>  	 */
+> -	memory_map_top_down(ISA_END_ADDRESS, end);
+> +	if (memblock_bottom_up()) {
+> +		unsigned long kernel_end;
+> +
+> +		kernel_end = round_up(__pa_symbol(_end), PMD_SIZE);
+> +		memory_map_bottom_up(kernel_end, end);
+> +		memory_map_bottom_up(ISA_END_ADDRESS, kernel_end);
 
-I think this comment should stay here with the variable names
-updated.
-
-> -	while (last_start > ISA_END_ADDRESS) {
-> +	while (last_start > map_start) {
->  		if (last_start > step_size) {
->  			start = round_down(last_start - 1, step_size);
-> -			if (start < ISA_END_ADDRESS)
-> -				start = ISA_END_ADDRESS;
-> +			if (start < map_start)
-> +				start = map_start;
->  		} else
-> -			start = ISA_END_ADDRESS;
-> +			start = map_start;
->  		new_mapped_ram_size = init_range_memory_mapping(start,
->  							last_start);
->  		last_start = start;
-> @@ -453,8 +447,32 @@ void __init init_mem_mapping(void)
->  		mapped_ram_size += new_mapped_ram_size;
->  	}
->  
-> -	if (real_end < end)
-> -		init_range_memory_mapping(real_end, end);
-> +	if (real_end < map_end)
-> +		init_range_memory_mapping(real_end, map_end);
-> +}
-> +
-> +void __init init_mem_mapping(void)
-> +{
-> +	unsigned long end;
-> +
-> +	probe_page_size_mask();
-> +
-> +#ifdef CONFIG_X86_64
-> +	end = max_pfn << PAGE_SHIFT;
-> +#else
-> +	end = max_low_pfn << PAGE_SHIFT;
-> +#endif
-> +
-> +	/* the ISA range is always mapped regardless of memory holes */
-> +	init_memory_mapping(0, ISA_END_ADDRESS);
-> +
-> +	/*
-> +	 * We start from the top (end of memory) and go to the bottom.
-> +	 * The memblock_find_in_range() gets us a block of RAM from the
-> +	 * end of RAM in [min_pfn_mapped, max_pfn_mapped) used as new pages
-> +	 * for page table.
-> +	 */
-
-And just mention the range and direction in the comment here?
-
-> +	memory_map_top_down(ISA_END_ADDRESS, end);
+Hmm... so, this is kinda weird.  We're doing it in two chunks and
+mapping memory between ISA_END_ADDRESS and kernel_end right on top of
+ISA_END_ADDRESS?  Can't you give enough information to the mapping
+function so that it can map everything on top of kernel_end in single
+go?
 
 Thanks.
 
