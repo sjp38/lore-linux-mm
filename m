@@ -1,62 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D1BF6B0034
-	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 16:55:07 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fb1so4173336pad.23
-        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 13:55:07 -0700 (PDT)
-Message-ID: <5241FC12.4090107@infradead.org>
-Date: Tue, 24 Sep 2013 13:54:42 -0700
-From: Randy Dunlap <rdunlap@infradead.org>
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id EEEE16B0031
+	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 17:02:38 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id q10so5094117pdj.21
+        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 14:02:38 -0700 (PDT)
+Date: Tue, 24 Sep 2013 23:02:21 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
+Message-ID: <20130924210221.GF26785@twins.programming.kicks-ass.net>
+References: <1378805550-29949-38-git-send-email-mgorman@suse.de>
+ <20130917143003.GA29354@twins.programming.kicks-ass.net>
+ <20130917162050.GK22421@suse.de>
+ <20130917164505.GG12926@twins.programming.kicks-ass.net>
+ <20130918154939.GZ26785@twins.programming.kicks-ass.net>
+ <20130919143241.GB26785@twins.programming.kicks-ass.net>
+ <20130921163404.GA8545@redhat.com>
+ <20130923092955.GV9326@twins.programming.kicks-ass.net>
+ <20130923173203.GA20392@redhat.com>
+ <20130924202423.GW12926@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH resend] typo: replace kernelcore with Movable
-References: <a1714d6a349ac584626a164631c5e2b74d91326d.1380012101.git.wpan@redhat.com>
-In-Reply-To: <a1714d6a349ac584626a164631c5e2b74d91326d.1380012101.git.wpan@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130924202423.GW12926@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weiping Pan <wpan@redhat.com>
-Cc: linux-mm@kvack.org, rob@landley.net, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>
 
-On 09/24/13 01:48, Weiping Pan wrote:
-> Han Pingtian found a typo in Documentation/kernel-parameters.txt
-> about "kernelcore=", that "kernelcore" should be replaced with "Movable" here.
-> 
-> I sent this patch a 8 months ago and got ack from Mel Gorman,
-> http://marc.info/?l=linux-mm&m=135756720602638&w=2
-> but it has not been merged so I resent it again.
-> 
-> Signed-off-by: Weiping Pan <wpan@redhat.com>
+On Tue, Sep 24, 2013 at 10:24:23PM +0200, Peter Zijlstra wrote:
+> +void __get_online_cpus(void)
+> +{
+> +	if (__cpuhp_writer == 1) {
+take_ref:
+> +		/* See __srcu_read_lock() */
+> +		__this_cpu_inc(__cpuhp_refcount);
+> +		smp_mb();
+> +		__this_cpu_inc(cpuhp_seq);
+> +		return;
+> +	}
+> +
+> +	atomic_inc(&cpuhp_waitcount);
+> +
+>  	/*
+> +	 * We either call schedule() in the wait, or we'll fall through
+> +	 * and reschedule on the preempt_enable() in get_online_cpus().
+>  	 */
+> +	preempt_enable_no_resched();
+> +	wait_event(cpuhp_readers, !__cpuhp_writer);
+> +	preempt_disable();
+>  
+> +	/*
+> +	 * XXX list_empty_careful(&cpuhp_readers.task_list) ?
+> +	 */
+> +	if (atomic_dec_and_test(&cpuhp_waitcount))
+> +		wake_up_all(&cpuhp_writer);
+	goto take_ref;
+> +}
+> +EXPORT_SYMBOL_GPL(__get_online_cpus);
 
-so add:
-Acked-by: Mel Gorman <mgorman@suse.de>
-
-and Cc: Andrew Morton.  He can easily merge it.
-
-Thanks.
-
-> ---
->  Documentation/kernel-parameters.txt |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-> index 1a036cd9..c3ea235 100644
-> --- a/Documentation/kernel-parameters.txt
-> +++ b/Documentation/kernel-parameters.txt
-> @@ -1357,7 +1357,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
->  			pages. In the event, a node is too small to have both
->  			kernelcore and Movable pages, kernelcore pages will
->  			take priority and other nodes will have a larger number
-> -			of kernelcore pages.  The Movable zone is used for the
-> +			of Movable pages.  The Movable zone is used for the
->  			allocation of pages that may be reclaimed or moved
->  			by the page migration subsystem.  This means that
->  			HugeTLB pages may not be allocated from this zone.
-> 
-
-
--- 
-~Randy
+It would probably be a good idea to increment __cpuhp_refcount after the
+wait_event.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
