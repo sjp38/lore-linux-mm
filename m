@@ -1,40 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 03D146B0031
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 20:05:40 -0400 (EDT)
-Received: by mail-ob0-f173.google.com with SMTP id vb8so4252509obc.32
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 17:05:40 -0700 (PDT)
-Date: Tue, 24 Sep 2013 09:06:03 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v3 1/3] mm/zswap: bugfix: memory leak when re-swapon
-Message-ID: <20130924000603.GF17725@bbox>
-References: <000301ceb836$7b4a1340$71de39c0$%yang@samsung.com>
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 65EBF6B0031
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 20:32:43 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id xb4so3836201pbc.36
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 17:32:43 -0700 (PDT)
+Message-ID: <5240DD83.1070509@huawei.com>
+Date: Tue, 24 Sep 2013 08:32:03 +0800
+From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <000301ceb836$7b4a1340$71de39c0$%yang@samsung.com>
+Subject: Re: [PATCH v6 0/5] memcg, cgroup: kill css id
+References: <524001F8.6070205@huawei.com> <20130923130816.GH30946@htj.dyndns.org> <20130923131215.GI30946@htj.dyndns.org>
+In-Reply-To: <20130923131215.GI30946@htj.dyndns.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang@samsung.com>
-Cc: akpm@linux-foundation.org, sjenning@linux.vnet.ibm.com, bob.liu@oracle.com, weijie.yang.kh@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, d.j.shin@samsung.com, heesub.shin@samsung.com, kyungmin.park@samsung.com, hau.chen@samsung.com, bifeng.tong@samsung.com, rui.xie@samsung.com
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Sep 23, 2013 at 04:21:49PM +0800, Weijie Yang wrote:
-> zswap_tree is not freed when swapoff, and it got re-kmalloc in swapon,
-> so memory-leak occurs.
+On 2013/9/23 21:12, Tejun Heo wrote:
+> On Mon, Sep 23, 2013 at 09:08:16AM -0400, Tejun Heo wrote:
+>> Hello,
+>>
+>> On Mon, Sep 23, 2013 at 04:55:20PM +0800, Li Zefan wrote:
+>>> The whole patchset has been acked and reviewed by Michal and Tejun.
+>>> Could you merge it into mm tree?
+>>
+>> Ah... I really hoped that this had been merged during -rc1 window.
+>> Andrew, would it be okay to carry this series through cgroup tree?  It
+>> doesn't really have much to do with mm proper and it's a PITA to have
+>> to keep updating css_id code from cgroup side when it's scheduled to
+>> go away.  If carried in -mm, it's likely to cause conflicts with
+>> ongoing cgroup changes too.
+
+I would love to see this patchset go through cgroup tree. The changes to
+memcg is quite small, and as -mm tree is based on -next it won't cause
+future conflicts.
+
 > 
-> Modify: free memory of zswap_tree in zswap_frontswap_invalidate_area().
+> Also, wasn't this already in -mm during the last devel cycle?  ISTR
+> conflicts with it in -mm with other cgroup core changes.  Is there any
+> specific reason why this wasn't merged during the merge windw?
 > 
-> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
-> Reviewed-by: Bob Liu <bob.liu@oracle.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: stable@vger.kernel.org
-> Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-Reviewed-by: Minchan Kim <minchan@kernel.org>
-
--- 
-Kind regards,
-Minchan Kim
+No, it never went into -mm tree... I guess it's because Andrew was too
+busy and overlooked this patchset?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
