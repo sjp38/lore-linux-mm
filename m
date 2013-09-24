@@ -1,52 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 027766B0031
-	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 17:29:24 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id q10so5120048pdj.21
-        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 14:29:24 -0700 (PDT)
-Date: Tue, 24 Sep 2013 22:28:53 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: mm: insure topdown mmap chooses addresses above security
-	minimum
-Message-ID: <20130924212853.GK12758@n2100.arm.linux.org.uk>
-References: <1380057811-5352-1-git-send-email-timothy.c.pepper@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1380057811-5352-1-git-send-email-timothy.c.pepper@linux.intel.com>
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id A7E7D6B0031
+	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 18:22:28 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id v10so5172535pde.24
+        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 15:22:28 -0700 (PDT)
+Subject: [PATCH v5 0/6]  rwsem: performance optimizations
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <cover.1380057198.git.tim.c.chen@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 24 Sep 2013 15:22:21 -0700
+Message-ID: <1380061341.3467.49.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Timothy Pepper <timothy.c.pepper@linux.intel.com>
-Cc: linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-arm-kernel@lists.infradead.org, Ralf Baechle <ralf@linux-mips.org>, linux-mips@linux-mips.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, Paul Mundt <lethal@linux-sh.org>, linux-sh@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, sparclinux@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Tim Chen <tim.c.chen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On Tue, Sep 24, 2013 at 02:23:31PM -0700, Timothy Pepper wrote:
-> diff --git a/arch/arm/mm/mmap.c b/arch/arm/mm/mmap.c
-> index 0c63562..0e7355d 100644
-> --- a/arch/arm/mm/mmap.c
-> +++ b/arch/arm/mm/mmap.c
-> @@ -9,6 +9,7 @@
->  #include <linux/io.h>
->  #include <linux/personality.h>
->  #include <linux/random.h>
-> +#include <linux/security.h>
->  #include <asm/cachetype.h>
->  
->  #define COLOUR_ALIGN(addr,pgoff)		\
-> @@ -146,7 +147,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
->  
->  	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
->  	info.length = len;
-> -	info.low_limit = PAGE_SIZE;
-> +	info.low_limit = max(PAGE_SIZE, PAGE_ALIGN(mmap_min_addr));
->  	info.high_limit = mm->mmap_base;
->  	info.align_mask = do_align ? (PAGE_MASK & (SHMLBA - 1)) : 0;
->  	info.align_offset = pgoff << PAGE_SHIFT;
+We have incorporated various suggestions from Ingo for version 5 of this patchset
+and will like to have it merged if there are no objections.
 
-This looks sane for ARM.
+In this patchset, we introduce two categories of optimizations to read
+write semaphore.  The first four patches from Alex Shi reduce cache bouncing of the
+sem->count field by doing a pre-read of the sem->count and avoid cmpxchg
+if possible.
 
-Acked-by: Russell King <rmk+kernel@arm.linux.org.uk>
+The last two patches introduce similar optimistic spinning logic as
+the mutex code for the writer lock acquisition of rwsem.
 
-Thanks.
+Without these optimizations, Davidlohr Bueso saw a -8% regression to
+aim7's shared and high_systime workloads when he switched i_mmap_mutex to
+rwsem.  Tests were on 8 socket 80 cores system.  With the patchset, he
+get significant improvements to the aim7 suite instead of regressions:
+
+alltests (+16.3%), custom (+20%), disk (+19.5%), high_systime (+7%),
+shared (+18.4%) and short (+6.3%).
+
+Tim Chen also got a +5% improvements to exim mail server workload on a 40 core system.
+
+Thanks to Ingo Molnar, Peter Hurley and Peter Zijlstra for reviewing this patchset.
+
+Regards,
+Tim Chen
+
+Changelog:
+
+v5:
+1. Try optimistic spinning before we put the writer on the wait queue
+to avoid bottlenecking at wait queue.  This provides 5% boost to exim workload
+and between 2% to 8% boost to aim7. 
+2. Put MCS locking code into its own mcslock.h file for better reuse
+between mutex.c and rwsem.c
+3. Remove the configuration RWSEM_SPIN_ON_WRITE_OWNER and make the 
+operations default per Ingo's suggestions.
+
+v4:
+1. Fixed a bug in task_struct definition in rwsem_can_spin_on_owner
+2. Fix another typo for RWSEM_SPIN_ON_WRITE_OWNER config option
+
+v3:
+1. Added ACCESS_ONCE to sem->count access in rwsem_can_spin_on_owner.
+2. Fix typo bug for RWSEM_SPIN_ON_WRITE_OWNER option in init/Kconfig
+
+v2:
+1. Reorganize changes to down_write_trylock and do_wake into 4 patches and fixed
+   a bug referencing &sem->count when sem->count is intended.
+2. Fix unsafe sem->owner de-reference in rwsem_can_spin_on_owner.
+the option to be on for more seasoning but can be turned off should it be detrimental.
+3. Various patch comments update
+
+
+
+Alex Shi (4):
+  rwsem: check the lock before cpmxchg in down_write_trylock
+  rwsem: remove 'out' label in do_wake
+  rwsem: remove try_reader_grant label do_wake
+  rwsem/wake: check lock before do atomic update
+
+Tim Chen (2):
+  MCS Lock: Restructure the MCS lock defines and locking code into its
+    own file
+  rwsem: do optimistic spinning for writer lock acquisition
+
+ include/asm-generic/rwsem.h |    8 +-
+ include/linux/rwsem.h       |    8 +-
+ kernel/mutex.c              |   58 ++----------
+ kernel/rwsem.c              |   19 ++++-
+ lib/rwsem.c                 |  218 ++++++++++++++++++++++++++++++++++++++-----
+ 5 files changed, 228 insertions(+), 83 deletions(-)
+
+-- 
+1.7.4.4
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
