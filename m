@@ -1,113 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F0FD6B0031
-	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 21:54:40 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id kl14so3006896pab.25
-        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 18:54:40 -0700 (PDT)
-Date: Tue, 24 Sep 2013 11:54:20 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: [PATCH v6 0/5] memcg, cgroup: kill css id
-Message-Id: <20130924115420.a69505b10763ef89953698a8@canb.auug.org.au>
-In-Reply-To: <20130924015211.GD3482@htj.dyndns.org>
-References: <524001F8.6070205@huawei.com>
-	<20130923130816.GH30946@htj.dyndns.org>
-	<20130923131215.GI30946@htj.dyndns.org>
-	<5240DD83.1070509@huawei.com>
-	<20130923175247.ea5156de.akpm@linux-foundation.org>
-	<20130924013058.GB3482@htj.dyndns.org>
-	<20130924015211.GD3482@htj.dyndns.org>
-Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
- micalg="PGP-SHA256";
- boundary="Signature=_Tue__24_Sep_2013_11_54_20_+1000_RAsT_ht736N3B=Zx"
+Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C92D6B0031
+	for <linux-mm@kvack.org>; Mon, 23 Sep 2013 22:29:48 -0400 (EDT)
+Received: by mail-ie0-f174.google.com with SMTP id u16so7901852iet.33
+        for <linux-mm@kvack.org>; Mon, 23 Sep 2013 19:29:48 -0700 (PDT)
+Message-ID: <5240F8D8.5040809@asianux.com>
+Date: Tue, 24 Sep 2013 10:28:40 +0800
+From: Chen Gang <gang.chen@asianux.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2] mm/shmem.c: check the return value of mpol_to_str()
+References: <20130919003142.B72EC1840296@intranet.asianux.com> <alpine.DEB.2.02.1309231439360.11167@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1309231439360.11167@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, riel@redhat.com, hughd@google.com, xemul@parallels.com, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
---Signature=_Tue__24_Sep_2013_11_54_20_+1000_RAsT_ht736N3B=Zx
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On 09/24/2013 05:46 AM, David Rientjes wrote:
+> On Thu, 19 Sep 2013, Chen,Gang( e??a??) wrote:
+> 
+>> Please search BUG_ON() in kernel wide source code, we can know whether
+>> it is commonly used or not.
+>>
+>> Please search BUG in arch/ sub-system, we can know which architectures
+>> customize BUG/BUG_ON.
+>>
+>> After do the 2 things, In my opinion, we can treat BUG/BUG_ON() is common
+>> implementation, and most of architectures uses the default one.
+>>
+>> Please check again, thanks.
+>>
+> 
+> BUG_ON() is used for fatal conditions where continuing could potentially 
+> be harmful.  Obviously it is commonly used in a kernel.  That doesn't mean 
+> we BUG_ON() when a string hasn't been defined for a mempolicy mode.  
+> mpol_to_str() is not critical.
+> 
+> It is not a fatal condition, and nothing you say is going to convince 
+> anybody on this thread that it's a fatal condition.
+> 
 
-Hi Tejun,
+If mpol_to_str() fail, the buffer passed to next seq_printf() may cause
+memory over flow.
 
-On Mon, 23 Sep 2013 21:52:11 -0400 Tejun Heo <tj@kernel.org> wrote:
->
-> (cc'ing Stephen, hi!)
+So in current implementation, if mpol_to_str() fails, it may cause
+critical issue ("it's a fatal condition").
 
-Hi :-)
+My original fix is "check and return if fail", but related members think
+it shouldn't fail, so use BUG_ON(): "when fails, means OS is continuing
+blindly, and next, may cause direct critical issue".
 
-> On Mon, Sep 23, 2013 at 09:30:58PM -0400, Tejun Heo wrote:
-> >=20
-> > On Mon, Sep 23, 2013 at 05:52:47PM -0700, Andrew Morton wrote:
-> > > > I would love to see this patchset go through cgroup tree. The chang=
-es to
-> > > > memcg is quite small,
-> > >=20
-> > > It seems logical to put this in the cgroup tree as that's where most =
-of
-> > > the impact occurs.
-> >=20
-> > Cool, applying the changes to cgroup/for-3.13.
->=20
-> Stephen, Andrew, cgroup/for-3.13 will cause a minor conflict in
-> mm/memcontrol.c with the patch which reverts Michal's reclaim changes.
->=20
->   static void __mem_cgroup_free(struct mem_cgroup *memcg)
->   {
-> 	  int node;
-> 	  size_t size =3D memcg_size();
->=20
->   <<<<<<< HEAD
->   =3D=3D=3D=3D=3D=3D=3D
-> 	  mem_cgroup_remove_from_trees(memcg);
-> 	  free_css_id(&mem_cgroup_subsys, &memcg->css);
->=20
->   >>>>>>> 1fa8f71dfa6e28c89afad7ac71dcb19b8c8da8b7
-> 	  for_each_node(node)
-> 		  free_mem_cgroup_per_zone_info(memcg, node);
->=20
-> It's a context conflict and just removing free_css_id() call resolves
-> it.
->=20
->   static void __mem_cgroup_free(struct mem_cgroup *memcg)
->   {
-> 	  int node;
-> 	  size_t size =3D memcg_size();
->=20
-> 	  mem_cgroup_remove_from_trees(memcg);
->=20
-> 	  for_each_node(node)
-> 		  free_mem_cgroup_per_zone_info(memcg, node);
+>>>  That's absolutely insane.  If code is not allocating enough memory for the 
+>>>  maximum possible length of a string to be stored by mpol_to_str(), it's a 
+>>>  bug in the code.  We do not panic and reboot the user's machine for such a 
+>>>  bug.  Instead, we break the build and require the broken code to be fixed.
+>>>  
+>>
+>> Please say in polite.
+>>
+> 
+> You want a polite response when you're insisting that we declare absolute 
+> failure, BUG_ON(), stop, and reboot the kernel because a mempolicy mode 
+> isn't defined as a string in mpol_to_str()?  That sounds like an impolite 
+> response to the user, so see my politeness to you as coming from the users 
+> of the systems you just crashed.
+> 
 
-Thanks for the heads up, I guess I'll see that tomorrow.
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
+Hmm... Except God, we (everyone, include real users) only can discuss
+judge, and check things and actions based on the proves, but has no
+right to discuss, judge and check persons.
 
---Signature=_Tue__24_Sep_2013_11_54_20_+1000_RAsT_ht736N3B=Zx
-Content-Type: application/pgp-signature
+When it is just discussing (not get a conclusion), it is impolite to
+make a conclusion forcefully by oneself with his/her own feelings.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.21 (GNU/Linux)
+And when we really get a conclusion, we need use the words which only
+can express the result clearly (e.g. correct, incorrect) to make a
+conclusion, not use words also contents his/her own feelings.
 
-iQIcBAEBCAAGBQJSQPDRAAoJEECxmPOUX5FE55AP/13eg9hHuo1OMUOknTklxTW5
-Lu2i8Ic+9Ku5DTkEKN4Q/CLgvL4chcJXB9xFG5V/OWjE6Rn+DdhAMGQqiRBKdb85
-tPJS98hTFQiVR4yJOg24N4ZiZYNP1fZKBRJR76ZfHcKY5ai6v7cqiJt2o0dFhh5G
-cOUzrRq9quSjX+VDTfXj0Uw4tUMTFXdV4ar8y8XrjgczQ5NmzA568xwkqvSkvs+Z
-qXUb3I0Y+e3EZ3MrqWu3YLW7z8dmPae+xprMa3y1Renhyl0w5sQcTqU0VULpe0mj
-1R53fi8fu0rCAZGfT4eUQ7zb4eteggPnBHe8O5XZvouLqHMVUpsLITuj6DoIarQm
-L1NMlnnPLYpCWGUF38zrvnwZ/zufQXnIr+RGptM889qSP0YmrUIUqoLQIYNC2tNF
-GPFYKdVftsPfU8v/ITl+yXzrKDnc3Nz4pb/dW6XJPiQ+NumHWZX10MahjSMjBVsl
-HovFxNqp81NKrjTwgSEWhqWnlQTrp4tmt+PmB+YPJcr+viRlCy8CqAlagwLzpmie
-wmKVqLzeHzMlJQHwUxFKffMFYE1N3IkSnCop2RGbFDlyglKigd1iGk9Psekw60no
-jelE3X4eh5UoBmgNxBgInHfUub1kEbb9gItRZ4RpNYNPYCGrq2lctCrekyt3OujD
-XmHkD7nK9jFcz7oVjdD8
-=Ni4y
------END PGP SIGNATURE-----
 
---Signature=_Tue__24_Sep_2013_11_54_20_+1000_RAsT_ht736N3B=Zx--
+> This is a compile-time problem, not run-time.
+> 
+
+Hmm... I am not quite familiar with the details, but at least for me,
+what you said is acceptable (at least, we can try).
+
+Current mpol_to_str() interface leads all readers have to treat it as
+run-time problem, not as compile-time problem.
+
+So in my opinion, if really try the compile-time fix, the interface need
+be changed: "need use struct (have a member buf[64];) pointer instead of
+'buffer' and 'maxlen' parameters".
+
+
+>> Can you be sure, the "maxlen == 50" in "fs/proc/task_mmu()", must be a bug??
+>>
+> 
+> I asked you to figure out the longest string possible to be stored by 
+> mpol_to_str().  There's nothing mysterious about that function.  It's 
+> deterministic.  If you really can't figure out the value this should be, 
+> then you shouldn't be touching mpol_to_str().
+> 
+
+At present, it seems easy to get longest string, so you can try, don't
+need me; in future, I don't know whether it will be changed, maybe you
+know (need give a length long enough for future using).
+
+
+I don't plan to touch mpol_to_str(), in my opinion, just treat it as
+run-time problem is still acceptable: it is clear enough for readers and
+writers.
+
+Hmm... at last, I still welcome you to try to send your compile-time fix
+patch for it (although I am not quite sure whether it will be acceptable
+by other members).
+
+
+Thanks.
+-- 
+Chen Gang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
