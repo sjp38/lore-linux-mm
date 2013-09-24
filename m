@@ -1,61 +1,390 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A1046B0034
-	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 12:09:02 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lj1so5198496pab.29
-        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 09:09:01 -0700 (PDT)
-Received: by mail-pb0-f45.google.com with SMTP id mc17so4755707pbc.4
-        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 09:08:59 -0700 (PDT)
-Message-ID: <5241B8FA.1030004@gmail.com>
-Date: Wed, 25 Sep 2013 00:08:26 +0800
-From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B90A6B0036
+	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 12:10:19 -0400 (EDT)
+Received: by mail-pb0-f48.google.com with SMTP id ma3so4707080pbc.7
+        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 09:10:19 -0700 (PDT)
+Date: Tue, 24 Sep 2013 18:09:59 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
+Message-ID: <20130924160959.GO9326@twins.programming.kicks-ass.net>
+References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
+ <1378805550-29949-38-git-send-email-mgorman@suse.de>
+ <20130917143003.GA29354@twins.programming.kicks-ass.net>
+ <20130917162050.GK22421@suse.de>
+ <20130917164505.GG12926@twins.programming.kicks-ass.net>
+ <20130918154939.GZ26785@twins.programming.kicks-ass.net>
+ <20130919143241.GB26785@twins.programming.kicks-ass.net>
+ <20130923175052.GA20991@redhat.com>
+ <20130924123821.GT12926@twins.programming.kicks-ass.net>
+ <20130924144236.GB9093@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 6/6] mem-hotplug: Introduce movablenode boot option
-References: <524162DA.30004@cn.fujitsu.com>  <5241655E.1000007@cn.fujitsu.com> <20130924124121.GG2366@htj.dyndns.org>  <5241944B.4050103@gmail.com> <5241AEC0.6040505@gmail.com> <1380038410.14046.12.camel@misato.fc.hp.com>
-In-Reply-To: <1380038410.14046.12.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130924144236.GB9093@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: Tejun Heo <tj@kernel.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, lenb@kernel.org, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, prarit@redhat.com, "x86@kernel.org" <x86@kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, imtangchen@gmail.com
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Oleg Nesterov <oleg@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>
 
-Hello toshi-san
-
-On 09/25/2013 12:00 AM, Toshi Kani wrote:
-> On Tue, 2013-09-24 at 23:24 +0800, Zhang Yanfei wrote:
->> Hello tejun,
->>
->> On 09/24/2013 09:31 PM, Zhang Yanfei wrote:
->>>> This came up during earlier review but never was addressed.  Is
->>>>> "movablenode" the right name?  Shouldn't it be something which
->>>>> explicitly shows that it's to prepare for memory hotplug?  Also, maybe
->>>>> the above param should generate warning if CONFIG_MOVABLE_NODE isn't
->>>>> enabled?
->>> hmmm...as for the option name, if this option is set, it means, the kernel
->>> could support the functionality that a whole node is the so called
->>> movable node, which only has ZONE MOVABLE zone in it. So we choose
->>> to name the parameter "movablenode".
->>>
->>> As for the warning, will add it.
->>
->> I am now preparing the v5 version. Only in this patch we haven't come to an
->> agreement. So as for the boot option name, after my explanation, do you still
->> have the objection? Or you could suggest a good name for us, that'll be
->> very thankful:)
+On Tue, Sep 24, 2013 at 07:42:36AM -0700, Paul E. McKenney wrote:
+> > +#define cpuhp_writer_wake()						\
+> > +	wake_up_process(cpuhp_writer_task)
+> > +
+> > +#define cpuhp_writer_wait(cond)						\
+> > +do {									\
+> > +	for (;;) {							\
+> > +		set_current_state(TASK_UNINTERRUPTIBLE);		\
+> > +		if (cond)						\
+> > +			break;						\
+> > +		schedule();						\
+> > +	}								\
+> > +	__set_current_state(TASK_RUNNING);				\
+> > +} while (0)
 > 
-> I do not think the granularity has to stay as a node, and this option
-> does nothing to with other devices that may be included in a node.  So,
-> how about using "movablemem"?
+> Why not wait_event()?  Presumably the above is a bit lighter weight,
+> but is that even something that can be measured?
+
+I didn't want to mix readers and writers on cpuhp_wq, and I suppose I
+could create a second waitqueue; that might also be a better solution
+for the NULL thing below.
+
+> > +	atomic_inc(&cpuhp_waitcount);
+> > +
+> > +	/*
+> > +	 * We either call schedule() in the wait, or we'll fall through
+> > +	 * and reschedule on the preempt_enable() in get_online_cpus().
+> > +	 */
+> > +	preempt_enable_no_resched();
+> > +	wait_event(cpuhp_wq, !__cpuhp_writer);
 > 
+> Finally!  A good use for preempt_enable_no_resched().  ;-)
 
-As I explained before, we use movablenode to mean a node could only have
-a MOVABLE zone from the memory aspect. So I still think movablenode seems
-better than movablemem. movablemem seems vaguer here....
+Hehe, there were a few others, but tglx removed most with the
+schedule_preempt_disabled() primitive.
 
--- 
-Thanks.
-Zhang Yanfei
+In fact, I considered a wait_event_preempt_disabled() but was too lazy.
+That whole wait_event macro fest looks like it could use an iteration or
+two of collapse anyhow.
+
+> > +	preempt_disable();
+> > +
+> > +	/*
+> > +	 * It would be possible for cpu_hotplug_done() to complete before
+> > +	 * the atomic_inc() above; in which case there is no writer waiting
+> > +	 * and doing a wakeup would be BAD (tm).
+> > +	 *
+> > +	 * If however we still observe cpuhp_writer_task here we know
+> > +	 * cpu_hotplug_done() is currently stuck waiting for cpuhp_waitcount.
+> > +	 */
+> > +	if (atomic_dec_and_test(&cpuhp_waitcount) && cpuhp_writer_task)
+> 
+> OK, I'll bite...  What sequence of events results in the
+> atomic_dec_and_test() returning true but there being no
+> cpuhp_writer_task?
+> 
+> Ah, I see it...
+
+<snip>
+
+Indeed, and
+
+> But what prevents the following sequence of events?
+
+<snip>
+
+> o	Task B's call to cpuhp_writer_wake() sees a NULL pointer.
+
+Quite so.. nothing. See there was a reason I kept being confused about
+it.
+
+> >  void cpu_hotplug_begin(void)
+> >  {
+> > +	unsigned int count = 0;
+> > +	int cpu;
+> > +
+> > +	lockdep_assert_held(&cpu_add_remove_lock);
+> > 
+> > +	__cpuhp_writer = 1;
+> > +	cpuhp_writer_task = current;
+> 
+> At this point, the value of cpuhp_slowcount can go negative.  Can't see
+> that this causes a problem, given the atomic_add() below.
+
+Agreed.
+
+> > +
+> > +	/* After this everybody will observe writer and take the slow path. */
+> > +	synchronize_sched();
+> > +
+> > +	/* Collapse the per-cpu refcount into slowcount */
+> > +	for_each_possible_cpu(cpu) {
+> > +		count += per_cpu(__cpuhp_refcount, cpu);
+> > +		per_cpu(__cpuhp_refcount, cpu) = 0;
+> >  	}
+> 
+> The above is safe because the readers are no longer changing their
+> __cpuhp_refcount values.
+
+Yes, I'll expand the comment.
+
+So how about something like this?
+
+---
+--- a/include/linux/cpu.h
++++ b/include/linux/cpu.h
+@@ -16,6 +16,7 @@
+ #include <linux/node.h>
+ #include <linux/compiler.h>
+ #include <linux/cpumask.h>
++#include <linux/percpu.h>
+ 
+ struct device;
+ 
+@@ -173,10 +174,50 @@ extern struct bus_type cpu_subsys;
+ #ifdef CONFIG_HOTPLUG_CPU
+ /* Stop CPUs going up and down. */
+ 
++extern void cpu_hotplug_init_task(struct task_struct *p);
++
+ extern void cpu_hotplug_begin(void);
+ extern void cpu_hotplug_done(void);
+-extern void get_online_cpus(void);
+-extern void put_online_cpus(void);
++
++extern struct task_struct *__cpuhp_writer;
++DECLARE_PER_CPU(unsigned int, __cpuhp_refcount);
++
++extern void __get_online_cpus(void);
++
++static inline void get_online_cpus(void)
++{
++	might_sleep();
++
++	/* Support reader-in-reader recursion */
++	if (current->cpuhp_ref++) {
++		barrier();
++		return;
++	}
++
++	preempt_disable();
++	if (likely(!__cpuhp_writer))
++		__this_cpu_inc(__cpuhp_refcount);
++	else
++		__get_online_cpus();
++	preempt_enable();
++}
++
++extern void __put_online_cpus(void);
++
++static inline void put_online_cpus(void)
++{
++	barrier();
++	if (--current->cpuhp_ref)
++		return;
++
++	preempt_disable();
++	if (likely(!__cpuhp_writer))
++		__this_cpu_dec(__cpuhp_refcount);
++	else
++		__put_online_cpus();
++	preempt_enable();
++}
++
+ extern void cpu_hotplug_disable(void);
+ extern void cpu_hotplug_enable(void);
+ #define hotcpu_notifier(fn, pri)	cpu_notifier(fn, pri)
+@@ -200,6 +241,8 @@ static inline void cpu_hotplug_driver_un
+ 
+ #else		/* CONFIG_HOTPLUG_CPU */
+ 
++static inline void cpu_hotplug_init_task(struct task_struct *p) {}
++
+ static inline void cpu_hotplug_begin(void) {}
+ static inline void cpu_hotplug_done(void) {}
+ #define get_online_cpus()	do { } while (0)
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1454,6 +1454,9 @@ struct task_struct {
+ 	unsigned int	sequential_io;
+ 	unsigned int	sequential_io_avg;
+ #endif
++#ifdef CONFIG_HOTPLUG_CPU
++	int		cpuhp_ref;
++#endif
+ };
+ 
+ /* Future-safe accessor for struct task_struct's cpus_allowed. */
+--- a/kernel/cpu.c
++++ b/kernel/cpu.c
+@@ -49,88 +49,100 @@ static int cpu_hotplug_disabled;
+ 
+ #ifdef CONFIG_HOTPLUG_CPU
+ 
+-static struct {
+-	struct task_struct *active_writer;
+-	struct mutex lock; /* Synchronizes accesses to refcount, */
+-	/*
+-	 * Also blocks the new readers during
+-	 * an ongoing cpu hotplug operation.
+-	 */
+-	int refcount;
+-} cpu_hotplug = {
+-	.active_writer = NULL,
+-	.lock = __MUTEX_INITIALIZER(cpu_hotplug.lock),
+-	.refcount = 0,
+-};
++struct task_struct *__cpuhp_writer;
++EXPORT_SYMBOL_GPL(__cpuhp_writer);
+ 
+-void get_online_cpus(void)
+-{
+-	might_sleep();
+-	if (cpu_hotplug.active_writer == current)
+-		return;
+-	mutex_lock(&cpu_hotplug.lock);
+-	cpu_hotplug.refcount++;
+-	mutex_unlock(&cpu_hotplug.lock);
++DEFINE_PER_CPU(unsigned int, __cpuhp_refcount);
++EXPORT_PER_CPU_SYMBOL_GPL(__cpuhp_refcount);
++
++static atomic_t cpuhp_waitcount;
++static atomic_t cpuhp_slowcount;
++static DECLARE_WAIT_QUEUE_HEAD(cpuhp_readers);
++static DECLARE_WAIT_QUEUE_HEAD(cpuhp_writer);
+ 
++void cpu_hotplug_init_task(struct task_struct *p)
++{
++	p->cpuhp_ref = 0;
+ }
+-EXPORT_SYMBOL_GPL(get_online_cpus);
+ 
+-void put_online_cpus(void)
++void __get_online_cpus(void)
+ {
+-	if (cpu_hotplug.active_writer == current)
++	/* Support reader-in-writer recursion */
++	if (__cpuhp_writer == current)
+ 		return;
+-	mutex_lock(&cpu_hotplug.lock);
+ 
+-	if (WARN_ON(!cpu_hotplug.refcount))
+-		cpu_hotplug.refcount++; /* try to fix things up */
++	atomic_inc(&cpuhp_waitcount);
+ 
+-	if (!--cpu_hotplug.refcount && unlikely(cpu_hotplug.active_writer))
+-		wake_up_process(cpu_hotplug.active_writer);
+-	mutex_unlock(&cpu_hotplug.lock);
++	/*
++	 * We either call schedule() in the wait, or we'll fall through
++	 * and reschedule on the preempt_enable() in get_online_cpus().
++	 */
++	preempt_enable_no_resched();
++	wait_event(cpuhp_readers, !__cpuhp_writer);
++	preempt_disable();
++
++	if (atomic_dec_and_test(&cpuhp_waitcount))
++		wake_up_all(&cpuhp_writer);
++}
++EXPORT_SYMBOL_GPL(__get_online_cpus);
++
++void __put_online_cpus(void)
++{
++	if (__cpuhp_writer == current)
++		return;
+ 
++	if (atomic_dec_and_test(&cpuhp_slowcount))
++		wake_up_all(&cpuhp_writer);
+ }
+-EXPORT_SYMBOL_GPL(put_online_cpus);
++EXPORT_SYMBOL_GPL(__put_online_cpus);
+ 
+ /*
+  * This ensures that the hotplug operation can begin only when the
+  * refcount goes to zero.
+  *
+- * Note that during a cpu-hotplug operation, the new readers, if any,
+- * will be blocked by the cpu_hotplug.lock
+- *
+  * Since cpu_hotplug_begin() is always called after invoking
+  * cpu_maps_update_begin(), we can be sure that only one writer is active.
+- *
+- * Note that theoretically, there is a possibility of a livelock:
+- * - Refcount goes to zero, last reader wakes up the sleeping
+- *   writer.
+- * - Last reader unlocks the cpu_hotplug.lock.
+- * - A new reader arrives at this moment, bumps up the refcount.
+- * - The writer acquires the cpu_hotplug.lock finds the refcount
+- *   non zero and goes to sleep again.
+- *
+- * However, this is very difficult to achieve in practice since
+- * get_online_cpus() not an api which is called all that often.
+- *
+  */
+ void cpu_hotplug_begin(void)
+ {
+-	cpu_hotplug.active_writer = current;
++	unsigned int count = 0;
++	int cpu;
++
++	lockdep_assert_held(&cpu_add_remove_lock);
+ 
+-	for (;;) {
+-		mutex_lock(&cpu_hotplug.lock);
+-		if (likely(!cpu_hotplug.refcount))
+-			break;
+-		__set_current_state(TASK_UNINTERRUPTIBLE);
+-		mutex_unlock(&cpu_hotplug.lock);
+-		schedule();
++	__cpuhp_writer = current;
++
++	/* 
++	 * After this everybody will observe writer and take the slow path.
++	 */
++	synchronize_sched();
++
++	/* 
++	 * Collapse the per-cpu refcount into slowcount. This is safe because
++	 * readers are now taking the slow path (per the above) which doesn't
++	 * touch __cpuhp_refcount.
++	 */
++	for_each_possible_cpu(cpu) {
++		count += per_cpu(__cpuhp_refcount, cpu);
++		per_cpu(__cpuhp_refcount, cpu) = 0;
+ 	}
++	atomic_add(count, &cpuhp_slowcount);
++
++	/* Wait for all readers to go away */
++	wait_event(cpuhp_writer, !atomic_read(&cpuhp_slowcount));
+ }
+ 
+ void cpu_hotplug_done(void)
+ {
+-	cpu_hotplug.active_writer = NULL;
+-	mutex_unlock(&cpu_hotplug.lock);
++	/* Signal the writer is done */
++	cpuhp_writer = NULL;
++	wake_up_all(&cpuhp_readers);
++
++	/* 
++	 * Wait for any pending readers to be running. This ensures readers
++	 * after writer and avoids writers starving readers.
++	 */
++	wait_event(cpuhp_writer, !atomic_read(&cpuhp_waitcount));
+ }
+ 
+ /*
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -1736,6 +1736,8 @@ static void __sched_fork(unsigned long c
+ 	INIT_LIST_HEAD(&p->numa_entry);
+ 	p->numa_group = NULL;
+ #endif /* CONFIG_NUMA_BALANCING */
++
++	cpu_hotplug_init_task(p);
+ }
+ 
+ #ifdef CONFIG_NUMA_BALANCING
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
