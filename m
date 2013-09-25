@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B6C36B0096
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 19:25:14 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id g10so319249pdj.26
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 16:25:14 -0700 (PDT)
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id C99F06B009A
+	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 19:25:40 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id kx10so476855pab.27
+        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 16:25:40 -0700 (PDT)
 Received: from /spool/local
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Thu, 26 Sep 2013 04:55:10 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id A2363125803F
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 04:55:20 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8PNRRfp40894482
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 04:57:27 +0530
-Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8PNP5XM012271
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 04:55:06 +0530
+	Thu, 26 Sep 2013 09:25:36 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id E51702CE8040
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:25:33 +1000 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8PN8rQY43581502
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:08:53 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r8PNPWsm019351
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:25:33 +1000
 From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Subject: [RFC PATCH v4 32/40] mm: Set pageblock migratetype when allocating
- regions from region allocator
-Date: Thu, 26 Sep 2013 04:50:59 +0530
-Message-ID: <20130925232057.26184.12331.stgit@srivatsabhat.in.ibm.com>
+Subject: [RFC PATCH v4 34/40] mm: Restructure the compaction part of CMA for
+ wider use
+Date: Thu, 26 Sep 2013 04:51:22 +0530
+Message-ID: <20130925232120.26184.71686.stgit@srivatsabhat.in.ibm.com>
 In-Reply-To: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com>
 References: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com>
 MIME-Version: 1.0
@@ -32,52 +32,234 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, mgorman@suse.de, dave@sr71.net, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl
 Cc: gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, isimatu.yasuaki@jp.fujitsu.com, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, srivatsa.bhat@linux.vnet.ibm.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-We would like to maintain memory regions such that all memory pertaining to
-given a memory region serves allocations of a single migratetype. IOW, we
-don't want to permanently mix allocations of different migratetypes within
-the same region.
-
-So, when allocating a region from the region allocator to the page allocator,
-set the pageblock migratetype of all that memory to the migratetype for which
-the page allocator requested memory.
-
-Note that this still allows temporary sharing of pages between different
-migratetypes; it just ensures that there is no *permanent* mixing of
-migratetypes within a given memory region.
-
-An important advantage to be noted here is that the region allocator doesn't
-have to manage memory in a granularity lesser than a memory region, in *any*
-situation. This is because the freepage migratetype and the fallback mechanism
-allows temporary sharing of free memory between different migratetypes when
-the system is short on memory, but eventually all the memory gets freed to
-the original migratetype (because we set the pageblock migratetype of all the
-freepages appropriately when allocating regions).
-
-This greatly simplifies the design of the region allocator, since it doesn't
-have to keep track of memory in smaller chunks than a memory region.
+CMA uses bits and pieces of the memory compaction algorithms to perform
+large contiguous allocations. Those algorithms would be useful for
+memory power management too, to evacuate entire regions of memory.
+So rewrite the code in a way that helps us to easily reuse the code for
+both use-cases.
 
 Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
 ---
 
- mm/page_alloc.c |    4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ mm/compaction.c |   81 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/internal.h   |   40 +++++++++++++++++++++++++++
+ mm/page_alloc.c |   51 +++++++++--------------------------
+ 3 files changed, 134 insertions(+), 38 deletions(-)
 
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 511b191..c775066 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -816,6 +816,87 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 	return ISOLATE_SUCCESS;
+ }
+ 
++/*
++ * Make free pages available within the given range, using compaction to
++ * migrate used pages elsewhere.
++ *
++ * [start, end) must belong to a single zone.
++ *
++ * This function is roughly based on the logic inside compact_zone().
++ */
++int compact_range(struct compact_control *cc, struct aggression_control *ac,
++		  struct free_page_control *fc, unsigned long start,
++		  unsigned long end)
++{
++	unsigned long pfn = start;
++	int ret = 0, tries, migrate_mode;
++
++	if (ac->prep_all)
++		migrate_prep();
++	else
++		migrate_prep_local();
++
++	while (pfn < end || !list_empty(&cc->migratepages)) {
++		if (list_empty(&cc->migratepages)) {
++			cc->nr_migratepages = 0;
++			pfn = isolate_migratepages_range(cc->zone, cc,
++					pfn, end, ac->isolate_unevictable);
++
++			if (!pfn) {
++				ret = -EINTR;
++				break;
++			}
++		}
++
++		for (tries = 0; tries < ac->max_tries; tries++) {
++			unsigned long nr_migrate, nr_remaining;
++
++			if (fatal_signal_pending(current)){
++				ret = -EINTR;
++				goto out;
++			}
++
++			if (ac->reclaim_clean) {
++				int nr_reclaimed;
++
++				nr_reclaimed =
++					reclaim_clean_pages_from_list(cc->zone,
++							&cc->migratepages);
++
++				cc->nr_migratepages -= nr_reclaimed;
++			}
++
++			migrate_mode = cc->sync ? MIGRATE_SYNC : MIGRATE_ASYNC;
++			nr_migrate = cc->nr_migratepages;
++			ret = migrate_pages(&cc->migratepages,
++					    fc->free_page_alloc, fc->alloc_data,
++					    migrate_mode, ac->reason);
++
++			update_nr_listpages(cc);
++			nr_remaining = cc->nr_migratepages;
++			trace_mm_compaction_migratepages(
++				nr_migrate - nr_remaining, nr_remaining);
++		}
++
++		if (tries == ac->max_tries) {
++			ret = ret < 0 ? ret : -EBUSY;
++			break;
++		}
++	}
++
++out:
++	if (ret < 0)
++		putback_movable_pages(&cc->migratepages);
++
++	/* Release free pages and check accounting */
++	if (fc->release_freepages)
++		cc->nr_freepages -= fc->release_freepages(fc->free_data);
++
++	VM_BUG_ON(cc->nr_freepages != 0);
++
++	return ret;
++}
++
+ static int compact_finished(struct zone *zone,
+ 			    struct compact_control *cc)
+ {
+diff --git a/mm/internal.h b/mm/internal.h
+index 684f7aa..acb50f8 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -107,6 +107,42 @@ extern bool is_free_buddy_page(struct page *page);
+ /*
+  * in mm/compaction.c
+  */
++
++struct free_page_control {
++
++	/* Function used to allocate free pages as target of migration. */
++	struct page * (*free_page_alloc)(struct page *migratepage,
++					 unsigned long data,
++					 int **result);
++
++	unsigned long alloc_data;	/* Private data for free_page_alloc() */
++
++	/*
++	 * Function to release the accumulated free pages after the compaction
++	 * run.
++	 */
++	unsigned long (*release_freepages)(unsigned long info);
++	unsigned long free_data;	/* Private data for release_freepages() */
++};
++
++/*
++ * aggression_control gives us fine-grained control to specify how aggressively
++ * we want to compact memory.
++ */
++struct aggression_control {
++	bool isolate_unevictable;	/* Isolate unevictable pages too */
++	bool prep_all;			/* Use migrate_prep() instead of
++					 * migrate_prep_local().
++					 */
++	bool reclaim_clean;		/* Reclaim clean page-cache pages */
++	int max_tries;			/* No. of tries to migrate the
++					 * isolated pages before giving up.
++					 */
++	int reason;			/* Reason for compaction, passed on
++					 * as reason for migrate_pages().
++					 */
++};
++
+ /*
+  * compact_control is used to track pages being migrated and the free pages
+  * they are being migrated to during memory compaction. The free_pfn starts
+@@ -141,6 +177,10 @@ unsigned long
+ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+ 	unsigned long low_pfn, unsigned long end_pfn, bool unevictable);
+ 
++int compact_range(struct compact_control *cc, struct aggression_control *ac,
++		  struct free_page_control *fc, unsigned long start,
++		  unsigned long end);
++
+ #endif
+ 
+ /*
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index fd32533..c4cbd80 100644
+index a15ac96..70c3d7a 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1017,8 +1017,10 @@ static void __del_from_region_allocator(struct zone *zone, unsigned int order,
- 	reg_area = &reg_alloc->region[region_id].region_area[order];
- 	ralloc_list = &reg_area->list;
+@@ -6893,46 +6893,21 @@ static unsigned long pfn_max_align_up(unsigned long pfn)
+ static int __alloc_contig_migrate_range(struct compact_control *cc,
+ 					unsigned long start, unsigned long end)
+ {
+-	/* This function is based on compact_zone() from compaction.c. */
+-	unsigned long nr_reclaimed;
+-	unsigned long pfn = start;
+-	unsigned int tries = 0;
+-	int ret = 0;
+-
+-	migrate_prep();
+-
+-	while (pfn < end || !list_empty(&cc->migratepages)) {
+-		if (fatal_signal_pending(current)) {
+-			ret = -EINTR;
+-			break;
+-		}
+-
+-		if (list_empty(&cc->migratepages)) {
+-			cc->nr_migratepages = 0;
+-			pfn = isolate_migratepages_range(cc->zone, cc,
+-							 pfn, end, true);
+-			if (!pfn) {
+-				ret = -EINTR;
+-				break;
+-			}
+-			tries = 0;
+-		} else if (++tries == 5) {
+-			ret = ret < 0 ? ret : -EBUSY;
+-			break;
+-		}
++	struct aggression_control ac = {
++		.isolate_unevictable = true,
++		.prep_all = true,
++		.reclaim_clean = true,
++		.max_tries = 5,
++		.reason = MR_CMA,
++	};
  
--	list_for_each_entry(page, ralloc_list, lru)
-+	list_for_each_entry(page, ralloc_list, lru) {
- 		set_freepage_migratetype(page, migratetype);
-+		set_pageblock_migratetype(page, migratetype);
-+	}
+-		nr_reclaimed = reclaim_clean_pages_from_list(cc->zone,
+-							&cc->migratepages);
+-		cc->nr_migratepages -= nr_reclaimed;
++	struct free_page_control fc = {
++		.free_page_alloc = alloc_migrate_target,
++		.alloc_data = 0,
++		.release_freepages = NULL,
++	};
  
- 	free_list = &zone->free_area[order].free_list[migratetype];
+-		ret = migrate_pages(&cc->migratepages, alloc_migrate_target,
+-				    0, MIGRATE_SYNC, MR_CMA);
+-	}
+-	if (ret < 0) {
+-		putback_movable_pages(&cc->migratepages);
+-		return ret;
+-	}
+-	return 0;
++	return compact_range(cc, &ac, &fc, start, end);
+ }
  
+ /**
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
