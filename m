@@ -1,94 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id B56BD6B0034
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 13:12:50 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id y10so6305586pdj.25
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 10:12:50 -0700 (PDT)
-From: "Timothy Pepper" <timothy.c.pepper@linux.intel.com>
-Date: Wed, 25 Sep 2013 10:12:43 -0700
-Subject: Re: mm: insure topdown mmap chooses addresses above security minimum
-Message-ID: <20130925171243.GA7428@tcpepper-desk.jf.intel.com>
-References: <1380057811-5352-1-git-send-email-timothy.c.pepper@linux.intel.com>
- <20130925073048.GB27960@gmail.com>
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 718F66B0031
+	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 13:43:28 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id x10so6441020pdj.1
+        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 10:43:28 -0700 (PDT)
+Date: Wed, 25 Sep 2013 19:43:07 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
+Message-ID: <20130925174307.GA3220@laptop.programming.kicks-ass.net>
+References: <20130917143003.GA29354@twins.programming.kicks-ass.net>
+ <20130917162050.GK22421@suse.de>
+ <20130917164505.GG12926@twins.programming.kicks-ass.net>
+ <20130918154939.GZ26785@twins.programming.kicks-ass.net>
+ <20130919143241.GB26785@twins.programming.kicks-ass.net>
+ <20130921163404.GA8545@redhat.com>
+ <20130923092955.GV9326@twins.programming.kicks-ass.net>
+ <20130923173203.GA20392@redhat.com>
+ <20130924202423.GW12926@twins.programming.kicks-ass.net>
+ <20130925155515.GA17447@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130925073048.GB27960@gmail.com>
+In-Reply-To: <20130925155515.GA17447@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, Ralf Baechle <ralf@linux-mips.org>, linux-mips@linux-mips.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, Paul Mundt <lethal@linux-sh.org>, linux-sh@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, sparclinux@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, James Morris <james.l.morris@oracle.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>
 
-On Wed 25 Sep at 09:30:49 +0200 mingo@kernel.org said:
-> >  	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
-> >  	info.length = len;
-> > -	info.low_limit = PAGE_SIZE;
-> > +	info.low_limit = max(PAGE_SIZE, PAGE_ALIGN(mmap_min_addr));
-> >  	info.high_limit = mm->mmap_base;
-> >  	info.align_mask = filp ? get_align_mask() : 0;
-> >  	info.align_offset = pgoff << PAGE_SHIFT;
+On Wed, Sep 25, 2013 at 05:55:15PM +0200, Oleg Nesterov wrote:
+> On 09/24, Peter Zijlstra wrote:
+> >
+> > So now we drop from a no memory barriers fast path, into a memory
+> > barrier 'slow' path into blocking.
 > 
-> There appears to be a lot of repetition in these methods - instead of 
-> changing 6 places it would be more future-proof to first factor out the 
-> common bits and then to apply the fix to the shared implementation.
+> Cough... can't understand the above ;) In fact I can't understand
+> the patch... see below. But in any case, afaics the fast path
+> needs mb() unless you add another synchronize_sched() into
+> cpu_hotplug_done().
 
-Besides that existing redundancy in the multiple somewhat similar
-arch_get_unmapped_area_topdown() functions, I was expecting people might
-question the added redundancy of the six instances of:
+Sure we can add more ;-) But I went with perpcu_up_write(), it too does
+the sync_sched() before clearing the fast path state.
 
-	max(PAGE_SIZE, PAGE_ALIGN(mmap_min_addr));
+> > +static inline void get_online_cpus(void)
+> > +{
+> > +	might_sleep();
+> > +
+> > +	/* Support reader-in-reader recursion */
+> > +	if (current->cpuhp_ref++) {
+> > +		barrier();
+> > +		return;
+> > +	}
+> > +
+> > +	preempt_disable();
+> > +	if (likely(!__cpuhp_writer))
+> > +		__this_cpu_inc(__cpuhp_refcount);
+> 
+> mb() to ensure the reader can't miss, say, a STORE done inside
+> the cpu_hotplug_begin/end section.
+> 
+> put_online_cpus() needs mb() as well.
 
-There's also a seventh similar instance if you consider
-mm/mmap.c:round_hint_to_min() and its call stack.  I'm inclined to
-think mmap_min_addr should be validated/aligned in one place, namely on
-initialization and input in security/min_addr.c:update_mmap_min_addr(),
-with mmap_min_addr always stored as an aligned value.
+OK, I'm not getting this; why isn't the sync_sched sufficient to get out
+of this fast path without barriers?
 
-In the past commit 40401530 Al Viro arguably moved that checking out
-of the security code and toward the mmap code.  Granted at that point
-though there was only the round_hint_to_min() insuring the value in
-mmap_min_addr was page aligned before use in that call path.  I'm thinking
-something like:
+> > +void __get_online_cpus(void)
+> > +{
+> > +	if (__cpuhp_writer == 1) {
+> > +		/* See __srcu_read_lock() */
+> > +		__this_cpu_inc(__cpuhp_refcount);
+> > +		smp_mb();
+> > +		__this_cpu_inc(cpuhp_seq);
+> > +		return;
+> > +	}
+> 
+> OK, cpuhp_seq should guarantee cpuhp_readers_active_check() gets
+> the "stable" numbers. Looks suspicious... but lets assume this
+> works.
 
-diff --git a/security/min_addr.c b/security/min_addr.c
---- a/security/min_addr.c
-+++ b/security/min_addr.c
-@@ -14,14 +14,16 @@ unsigned long dac_mmap_min_addr = CONFIG_DEFAULT_MMAP_MIN_ADDR;
-  */
- static void update_mmap_min_addr(void)
- {
-+	unsigned long addr;
- #ifdef CONFIG_LSM_MMAP_MIN_ADDR
- 	if (dac_mmap_min_addr > CONFIG_LSM_MMAP_MIN_ADDR)
--		mmap_min_addr = dac_mmap_min_addr;
-+		addr = dac_mmap_min_addr;
- 	else
--		mmap_min_addr = CONFIG_LSM_MMAP_MIN_ADDR;
-+		addr = CONFIG_LSM_MMAP_MIN_ADDR;
- #else
--	mmap_min_addr = dac_mmap_min_addr;
-+	addr = dac_mmap_min_addr;
- #endif
-+	mmap_min_addr = max(PAGE_SIZE, PAGE_ALIGN(addr));
- }
- 
- /*
+I 'borrowed' it from SRCU, so if its broken here its broken there too I
+suppose.
 
-But this possibly has implications beyond the mmap code.
+> However, I do not see how "__cpuhp_writer == 1" can work, please
+> see below.
+> 
+> > +	if (atomic_dec_and_test(&cpuhp_waitcount))
+> > +		wake_up_all(&cpuhp_writer);
+> 
+> Same problem as in previous version. __get_online_cpus() succeeds
+> without incrementing __cpuhp_refcount. "goto start" can't help
+> afaics.
 
-Al Viro, James Morris: any thoughts on the above?
+I added a goto into the cond-block, not before the cond; but see the
+version below.
 
-Michel, Rik: what do you think of common helpers called by
-ARM, MIPS, SH, Sparc, x86_64 arch_get_unmapped_area_topdown()
-and arch_get_unmapped_area() to handle initialization of struct
-vm_unmapped_area_info info fields which are currently mostly common?
-Given the nuances of "mostly common" I'm not sure the result would
-actually be positive for overall readability / self-documenting-ness of
-the per arch files.
+> >  void cpu_hotplug_begin(void)
+> >  {
+> > +	unsigned int count = 0;
+> > +	int cpu;
+> >  
+> > +	lockdep_assert_held(&cpu_add_remove_lock);
+> > +
+> > +	/* allow reader-in-writer recursion */
+> > +	current->cpuhp_ref++;
+> > +
+> > +	/* make readers take the slow path */
+> > +	__cpuhp_writer = 1;
+> > +
+> > +	/* See percpu_down_write() */
+> > +	synchronize_sched();
+> 
+> Suppose there are no readers at this point,
+> 
+> > +
+> > +	/* make readers block */
+> > +	__cpuhp_writer = 2;
+> > +
+> > +	/* Wait for all readers to go away */
+> > +	wait_event(cpuhp_writer, cpuhp_readers_active_check());
+> 
+> So wait_event() "quickly" returns.
+> 
+> Now. Why the new reader should see __cpuhp_writer = 2 ? It can
+> still see it == 1, and take that "if (__cpuhp_writer == 1)" path
+> above.
 
--- 
-Tim Pepper <timothy.c.pepper@linux.intel.com>
-Intel Open Source Technology Center
+OK, .. I see the hole, no immediate way to fix it -- too tired atm.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
