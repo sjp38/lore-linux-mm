@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B4B36B0088
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 19:24:19 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rp2so313643pbb.14
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 16:24:19 -0700 (PDT)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id A0EC06B0071
+	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 19:24:32 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id bj1so471527pad.35
+        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 16:24:32 -0700 (PDT)
 Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Thu, 26 Sep 2013 04:54:14 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id DE7D5394004D
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 04:53:55 +0530 (IST)
+	Thu, 26 Sep 2013 04:54:25 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 29968394004D
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 04:54:08 +0530 (IST)
 Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8PNO97q47317180
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 04:54:09 +0530
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8PNQeOh38207528
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 04:56:40 +0530
 Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8PNOAJV020557
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 04:54:11 +0530
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8PNOLlj020894
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 04:54:23 +0530
 From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Subject: [RFC PATCH v4 28/40] mm: Provide a mechanism to check if a given page
- is in the region allocator
-Date: Thu, 26 Sep 2013 04:50:04 +0530
-Message-ID: <20130925232002.26184.73188.stgit@srivatsabhat.in.ibm.com>
+Subject: [RFC PATCH v4 29/40] mm: Add a way to request pages of a particular
+ region from the region allocator
+Date: Thu, 26 Sep 2013 04:50:15 +0530
+Message-ID: <20130925232014.26184.62048.stgit@srivatsabhat.in.ibm.com>
 In-Reply-To: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com>
 References: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com>
 MIME-Version: 1.0
@@ -32,60 +32,97 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, mgorman@suse.de, dave@sr71.net, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl
 Cc: gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, isimatu.yasuaki@jp.fujitsu.com, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, srivatsa.bhat@linux.vnet.ibm.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-With the introduction of the region allocator, a freepage can be either
-in one of the buddy freelists or in the region allocator. In cases where we
-want to move freepages to a given migratetype's freelists, we will need to
-know where they were originally located. So provide a helper to distinguish
-whether the freepage resides in the region allocator or the buddy freelists.
+When moving freepages from one migratetype to another (using move_freepages()
+or equivalent), we might encounter situations in which we would like to move
+pages that are in the region allocator. In such cases, we need a way to
+request pages of a particular region from the region allocator.
+
+We already have the code to perform the heavy-lifting of actually moving the
+pages of a region from the region allocator to a requested freelist or
+migratetype. So just reorganize that code in such a way that we can also
+pin-point a region and specify that we want the region allocator to allocate
+pages from that particular region.
 
 Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
 ---
 
- mm/page_alloc.c |   31 +++++++++++++++++++++++++++++++
- 1 file changed, 31 insertions(+)
+ mm/page_alloc.c |   40 ++++++++++++++++++++++++----------------
+ 1 file changed, 24 insertions(+), 16 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ca7b959..ac04b45 100644
+index ac04b45..ed5298c 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1048,6 +1048,37 @@ static int del_from_region_allocator(struct zone *zone, unsigned int order,
+@@ -1003,24 +1003,18 @@ static void add_to_region_allocator(struct zone *z, struct free_list *free_list,
+ 		*next_region = region_id;
  }
  
- /*
-+ * Return 1 if the page is in the region allocator, else return 0
-+ * (which usually means that the page is in the buddy freelists).
-+ */
-+static int page_in_region_allocator(struct page *page)
-+{
-+	struct region_allocator *reg_alloc;
-+	struct free_area_region *reg_area;
-+	int order, region_id;
-+
-+	/* We keep only MAX_ORDER-1 pages in the region allocator */
-+	order = page_order(page);
-+	if (order != MAX_ORDER-1)
-+		return 0;
-+
-+	/*
-+	 * It is sufficient to check if (any of) the pages belonging to
-+	 * that region are in the region allocator, because a page resides
-+	 * in the region allocator if and only if all the pages of that
-+	 * region are also in the region allocator.
-+	 */
-+	region_id = page_zone_region_id(page);
-+	reg_alloc = &page_zone(page)->region_allocator;
+-/* Delete freepages from the region allocator and add them to buddy freelists */
+-static int del_from_region_allocator(struct zone *zone, unsigned int order,
+-				     int migratetype)
++static void __del_from_region_allocator(struct zone *zone, unsigned int order,
++					int migratetype, int region_id)
+ {
+ 	struct region_allocator *reg_alloc;
+ 	struct free_area_region *reg_area;
+ 	struct list_head *ralloc_list;
+ 	struct free_list *free_list;
+ 	unsigned long nr_pages;
+-	int next_region;
++	struct page *page;
+ 
+ 	reg_alloc = &zone->region_allocator;
+-
+-	next_region = reg_alloc->next_region;
+-	if (next_region < 0)
+-		return -ENOMEM;
+-
+-	reg_area = &reg_alloc->region[next_region].region_area[order];
 +	reg_area = &reg_alloc->region[region_id].region_area[order];
+ 	ralloc_list = &reg_area->list;
+ 
+ 	list_for_each_entry(page, ralloc_list, lru)
+@@ -1029,20 +1023,34 @@ static int del_from_region_allocator(struct zone *zone, unsigned int order,
+ 	free_list = &zone->free_area[order].free_list[migratetype];
+ 
+ 	nr_pages = add_to_freelist_bulk(ralloc_list, free_list, order,
+-					next_region);
++					region_id);
+ 
+ 	reg_area->nr_free -= nr_pages;
+ 	WARN_ON(reg_area->nr_free != 0);
+ 
+ 	/* Pick a new next_region */
+-	clear_bit(next_region, reg_alloc->ralloc_mask);
+-	next_region = find_first_bit(reg_alloc->ralloc_mask,
++	clear_bit(region_id, reg_alloc->ralloc_mask);
++	region_id = find_first_bit(reg_alloc->ralloc_mask,
+ 				     MAX_NR_ZONE_REGIONS);
+ 
+-	if (next_region >= MAX_NR_ZONE_REGIONS)
+-		next_region = -1; /* No free regions available */
++	if (region_id >= MAX_NR_ZONE_REGIONS)
++		region_id = -1; /* No free regions available */
 +
-+	if (reg_area->nr_free)
-+		return 1;
-+
-+	return 0;
++	reg_alloc->next_region = region_id;
 +}
 +
-+/*
-  * Freeing function for a buddy system allocator.
-  *
-  * The concept of a buddy system is to maintain direct-mapped table
++/* Delete freepages from the region allocator and add them to buddy freelists */
++static int del_from_region_allocator(struct zone *zone, unsigned int order,
++				     int migratetype)
++{
++	int next_region;
++
++	next_region = zone->region_allocator.next_region;
++
++	if (next_region < 0)
++		return -ENOMEM;
+ 
+-	reg_alloc->next_region = next_region;
++	__del_from_region_allocator(zone, order, migratetype, next_region);
+ 
+ 	return 0;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
