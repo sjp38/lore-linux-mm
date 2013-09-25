@@ -1,84 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 91E896B0031
-	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 23:25:45 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y13so5439919pdi.5
-        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 20:25:45 -0700 (PDT)
-Date: Tue, 24 Sep 2013 23:25:30 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: [patch] mm, mempolicy: make mpol_to_str robust and always succeed
-Message-ID: <20130925032530.GA4771@redhat.com>
-References: <5215639D.1080202@asianux.com>
- <5227CF48.5080700@asianux.com>
- <alpine.DEB.2.02.1309241957280.26415@chino.kir.corp.google.com>
- <20130925031127.GA4210@redhat.com>
- <alpine.DEB.2.02.1309242012070.27940@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1309242012070.27940@chino.kir.corp.google.com>
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F91F6B0031
+	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 23:32:22 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id g10so5439232pdj.40
+        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 20:32:22 -0700 (PDT)
+Message-ID: <1380079935.2163.3.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH v5 0/6]  rwsem: performance optimizations
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Tue, 24 Sep 2013 20:32:15 -0700
+In-Reply-To: <1380061341.3467.49.camel@schen9-DESK>
+References: <1380061341.3467.49.camel@schen9-DESK>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chen Gang <gang.chen@asianux.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On Tue, Sep 24, 2013 at 08:18:16PM -0700, David Rientjes wrote:
- > On Tue, 24 Sep 2013, Dave Jones wrote:
- > 
- > >  >  	case MPOL_BIND:
- > >  > -		/* Fall through */
- > >  >  	case MPOL_INTERLEAVE:
- > >  >  		nodes = pol->v.nodes;
- > >  >  		break;
- > > 
- > > Any reason not to leave this ?
- > > 
- > > "missing break" is the 2nd most common thing that coverity picks up.
- > > Most of them are false positives like the above, but the lack of annotations
- > > in our source makes it time-consuming to pick through them all to find the
- > > real bugs.
- > > 
- > 
- > Check out things like drivers/mfd/wm5110-tables.c that do things like
- > 
- > 	switch (reg) {
- > 	case ARIZONA_SOFTWARE_RESET:
- > 	case ARIZONA_DEVICE_REVISION:
- > 	case ARIZONA_CTRL_IF_SPI_CFG_1:
- > 	case ARIZONA_CTRL_IF_I2C1_CFG_1:
- > 	case ARIZONA_CTRL_IF_I2C2_CFG_1:
- > 	case ARIZONA_CTRL_IF_I2C1_CFG_2:
- > 	case ARIZONA_CTRL_IF_I2C2_CFG_2:
- > 	...
- > 
- > and that file has over 1,000 case statements.  Having a
+On Tue, 2013-09-24 at 15:22 -0700, Tim Chen wrote:
+> We have incorporated various suggestions from Ingo for version 5 of this patchset
+> and will like to have it merged if there are no objections.
+> 
+> In this patchset, we introduce two categories of optimizations to read
+> write semaphore.  The first four patches from Alex Shi reduce cache bouncing of the
+> sem->count field by doing a pre-read of the sem->count and avoid cmpxchg
+> if possible.
+> 
+> The last two patches introduce similar optimistic spinning logic as
+> the mutex code for the writer lock acquisition of rwsem.
 
-yikes, at first I thought that was output from a code generator.
- 
- > 	/* fall through */
- > 
- > for all of them would be pretty annoying.
- 
-agreed, but with that example, it seems pretty obvious (to me at least)
-that the lack of break's is intentional.  Where it gets trickier to
-make quick judgment calls is cases like the one I mentioned above,
-where there are only a few cases, and there's real code involved in
-some but not all cases.
+Right. We address the general 'mutexes out perform writer-rwsems'
+situations that has been seen in more than one case. Users now need not
+worry about performance issues when choosing between these two locking
+mechanisms.
 
- > I don't remember any coding style rule about this (in fact 
- > Documentation/CodingStyle has examples of case statements without such a 
- > comment), I think it's just personal preference so I'll leave it to Andrew 
- > and what he prefers.
- > 
- > (And if he prefers the /* fall through */ then we should ask that it be 
- > added to checkpatch.pl since it warns about a million other things and not 
- > this.)
+Thanks,
+Davidlohr
 
-The question of course is how much gain there is in doing anything at all here.
-So far, I've only seen false positives from that checker, but there are hundreds
-of them to pick through, so who knows what's further down the pile.
-
-	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
