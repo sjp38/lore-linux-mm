@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id ACA2C6B004D
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 19:20:46 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id ld10so470827pab.8
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 16:20:46 -0700 (PDT)
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 8ED776B005A
+	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 19:21:02 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id y10so319157pdj.22
+        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 16:21:02 -0700 (PDT)
 Received: from /spool/local
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Thu, 26 Sep 2013 09:20:42 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id DB21D3578050
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:20:39 +1000 (EST)
+	Thu, 26 Sep 2013 09:20:58 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 4B03B2BB0052
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:20:56 +1000 (EST)
 Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8PN3o6G42336346
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:03:50 +1000
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8PNKixl65077256
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:20:45 +1000
 Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8PNKcWI020046
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:20:39 +1000
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8PNKsDg020364
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:20:55 +1000
 From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Subject: [RFC PATCH v4 12/40] mm: Add support to accurately track
- per-memory-region allocation
-Date: Thu, 26 Sep 2013 04:46:28 +0530
-Message-ID: <20130925231626.26184.25777.stgit@srivatsabhat.in.ibm.com>
+Subject: [RFC PATCH v4 13/40] mm: Print memory region statistics to understand
+ the buddy allocator behavior
+Date: Thu, 26 Sep 2013 04:46:44 +0530
+Message-ID: <20130925231642.26184.60271.stgit@srivatsabhat.in.ibm.com>
 In-Reply-To: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com>
 References: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com>
 MIME-Version: 1.0
@@ -32,238 +32,78 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, mgorman@suse.de, dave@sr71.net, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl
 Cc: gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, isimatu.yasuaki@jp.fujitsu.com, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, srivatsa.bhat@linux.vnet.ibm.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The page allocator can make smarter decisions to influence memory power
-management, if we track the per-region memory allocations closely.
-So add the necessary support to accurately track allocations on a per-region
-basis.
+In order to observe the behavior of the region-aware buddy allocator, modify
+vmstat.c to also print memory region related statistics. In particular, enable
+memory region-related info in /proc/zoneinfo and /proc/buddyinfo, since they
+would help us to atleast (roughly) observe how the new buddy allocator is
+behaving.
+
+For now, the region statistics correspond to the zone memory regions and not
+the (absolute) node memory regions, and some of the statistics (especially the
+no. of present pages) might not be very accurate. But since we account for
+and print the free page statistics for every zone memory region accurately, we
+should be able to observe the new page allocator behavior to a reasonable
+degree of accuracy.
 
 Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
 ---
 
- include/linux/mmzone.h |    2 +
- mm/page_alloc.c        |   65 +++++++++++++++++++++++++++++++++++-------------
- 2 files changed, 50 insertions(+), 17 deletions(-)
+ mm/vmstat.c |   34 ++++++++++++++++++++++++++++++----
+ 1 file changed, 30 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 472c76a..155c1a1 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -86,6 +86,7 @@ static inline int get_pageblock_migratetype(struct page *page)
- struct mem_region_list {
- 	struct list_head	*page_block;
- 	unsigned long		nr_free;
-+	struct zone_mem_region	*zone_region;
- };
- 
- struct free_list {
-@@ -342,6 +343,7 @@ struct zone_mem_region {
- 	unsigned long end_pfn;
- 	unsigned long present_pages;
- 	unsigned long spanned_pages;
-+	unsigned long nr_free;
- };
- 
- struct zone {
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index daac5fd..fbaa2dc 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -635,7 +635,8 @@ out:
- 	return prev_region_id;
- }
- 
--static void add_to_freelist(struct page *page, struct free_list *free_list)
-+static void add_to_freelist(struct page *page, struct free_list *free_list,
-+			    int order)
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index c967043..8e8c8bd 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -866,11 +866,28 @@ const char * const vmstat_text[] = {
+ static void frag_show_print(struct seq_file *m, pg_data_t *pgdat,
+ 						struct zone *zone)
  {
- 	struct list_head *prev_region_list, *lru;
- 	struct mem_region_list *region;
-@@ -646,6 +647,7 @@ static void add_to_freelist(struct page *page, struct free_list *free_list)
+-	int order;
++	int i, order, t;
++	struct free_area *area;
  
- 	region = &free_list->mr_list[region_id];
- 	region->nr_free++;
-+	region->zone_region->nr_free += 1 << order;
- 
- 	if (region->page_block) {
- 		list_add_tail(lru, region->page_block);
-@@ -700,9 +702,10 @@ out:
-  * inside the freelist.
-  */
- static void rmqueue_del_from_freelist(struct page *page,
--				      struct free_list *free_list)
-+				      struct free_list *free_list, int order)
- {
- 	struct list_head *lru = &page->lru;
-+	struct mem_region_list *mr_list;
- 	int region_id;
- 
- #ifdef CONFIG_DEBUG_PAGEALLOC
-@@ -712,8 +715,11 @@ static void rmqueue_del_from_freelist(struct page *page,
- 
- 	list_del(lru);
- 
-+	mr_list = free_list->next_region;
-+	mr_list->zone_region->nr_free -= 1 << order;
+-	seq_printf(m, "Node %d, zone %8s ", pgdat->node_id, zone->name);
+-	for (order = 0; order < MAX_ORDER; ++order)
+-		seq_printf(m, "%6lu ", zone->free_area[order].nr_free);
++	seq_printf(m, "Node %d, zone %8s \n", pgdat->node_id, zone->name);
 +
- 	/* Fastpath */
--	if (--(free_list->next_region->nr_free)) {
-+	if (--(mr_list->nr_free)) {
- 
- #ifdef CONFIG_DEBUG_PAGEALLOC
- 		WARN(free_list->next_region->nr_free < 0,
-@@ -735,7 +741,8 @@ static void rmqueue_del_from_freelist(struct page *page,
- }
- 
- /* Generic delete function for region-aware buddy allocator. */
--static void del_from_freelist(struct page *page, struct free_list *free_list)
-+static void del_from_freelist(struct page *page, struct free_list *free_list,
-+			      int order)
- {
- 	struct list_head *prev_page_lru, *lru, *p;
- 	struct mem_region_list *region;
-@@ -745,11 +752,12 @@ static void del_from_freelist(struct page *page, struct free_list *free_list)
- 
- 	/* Try to fastpath, if deleting from the head of the list */
- 	if (lru == free_list->list.next)
--		return rmqueue_del_from_freelist(page, free_list);
-+		return rmqueue_del_from_freelist(page, free_list, order);
- 
- 	region_id = page_zone_region_id(page);
- 	region = &free_list->mr_list[region_id];
- 	region->nr_free--;
-+	region->zone_region->nr_free -= 1 << order;
- 
- #ifdef CONFIG_DEBUG_PAGEALLOC
- 	WARN(region->nr_free < 0, "%s: nr_free is negative\n", __func__);
-@@ -804,10 +812,10 @@ page_found:
-  * Move a given page from one freelist to another.
-  */
- static void move_page_freelist(struct page *page, struct free_list *old_list,
--			       struct free_list *new_list)
-+			       struct free_list *new_list, int order)
- {
--	del_from_freelist(page, old_list);
--	add_to_freelist(page, new_list);
-+	del_from_freelist(page, old_list, order);
-+	add_to_freelist(page, new_list, order);
- }
- 
- /*
-@@ -877,7 +885,7 @@ static inline void __free_one_page(struct page *page,
- 
- 			area = &zone->free_area[order];
- 			mt = get_freepage_migratetype(buddy);
--			del_from_freelist(buddy, &area->free_list[mt]);
-+			del_from_freelist(buddy, &area->free_list[mt], order);
- 			area->nr_free--;
- 			rmv_page_order(buddy);
- 			set_freepage_migratetype(buddy, migratetype);
-@@ -913,12 +921,13 @@ static inline void __free_one_page(struct page *page,
- 			 * switch off this entire "is next-higher buddy free?"
- 			 * logic when memory regions are used.
- 			 */
--			add_to_freelist(page, &area->free_list[migratetype]);
-+			add_to_freelist(page, &area->free_list[migratetype],
-+					order);
- 			goto out;
- 		}
- 	}
- 
--	add_to_freelist(page, &area->free_list[migratetype]);
-+	add_to_freelist(page, &area->free_list[migratetype], order);
- out:
- 	area->nr_free++;
- }
-@@ -1139,7 +1148,8 @@ static inline void expand(struct zone *zone, struct page *page,
- 			continue;
- 		}
- #endif
--		add_to_freelist(&page[size], &area->free_list[migratetype]);
-+		add_to_freelist(&page[size], &area->free_list[migratetype],
-+				high);
- 		area->nr_free++;
- 		set_page_order(&page[size], high);
- 
-@@ -1213,7 +1223,8 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
- 
- 		page = list_entry(area->free_list[migratetype].list.next,
- 							struct page, lru);
--		rmqueue_del_from_freelist(page, &area->free_list[migratetype]);
-+		rmqueue_del_from_freelist(page, &area->free_list[migratetype],
-+					  current_order);
- 		rmv_page_order(page);
- 		area->nr_free--;
- 		expand(zone, page, order, current_order, area, migratetype);
-@@ -1286,7 +1297,7 @@ int move_freepages(struct zone *zone,
- 		old_mt = get_freepage_migratetype(page);
- 		area = &zone->free_area[order];
- 		move_page_freelist(page, &area->free_list[old_mt],
--				    &area->free_list[migratetype]);
-+				    &area->free_list[migratetype], order);
- 		set_freepage_migratetype(page, migratetype);
- 		page += 1 << order;
- 		pages_moved += 1 << order;
-@@ -1406,7 +1417,8 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
- 
- 			/* Remove the page from the freelists */
- 			mt = get_freepage_migratetype(page);
--			del_from_freelist(page, &area->free_list[mt]);
-+			del_from_freelist(page, &area->free_list[mt],
-+					  current_order);
- 			rmv_page_order(page);
- 
- 			/*
-@@ -1767,7 +1779,7 @@ static int __isolate_free_page(struct page *page, unsigned int order)
- 
- 	/* Remove page from free list */
- 	mt = get_freepage_migratetype(page);
--	del_from_freelist(page, &zone->free_area[order].free_list[mt]);
-+	del_from_freelist(page, &zone->free_area[order].free_list[mt], order);
- 	zone->free_area[order].nr_free--;
- 	rmv_page_order(page);
- 
-@@ -5204,6 +5216,22 @@ static void __meminit init_node_memory_regions(struct pglist_data *pgdat)
- 	pgdat->nr_node_regions = idx;
- }
- 
-+static void __meminit zone_init_free_lists_late(struct zone *zone)
-+{
-+	struct mem_region_list *mr_list;
-+	int order, t, i;
++	for (i = 0; i < zone->nr_zone_regions; i++) {
 +
-+	for_each_migratetype_order(order, t) {
-+		for (i = 0; i < zone->nr_zone_regions; i++) {
-+			mr_list =
-+				&zone->free_area[order].free_list[t].mr_list[i];
++		seq_printf(m, "\t\t Region %6d ", i);
 +
-+			mr_list->nr_free = 0;
-+			mr_list->zone_region = &zone->zone_regions[i];
++		for (order = 0; order < MAX_ORDER; ++order) {
++			unsigned long nr_free = 0;
++
++			area = &zone->free_area[order];
++
++			for (t = 0; t < MIGRATE_TYPES; t++) {
++				nr_free +=
++					area->free_list[t].mr_list[i].nr_free;
++			}
++			seq_printf(m, "%6lu ", nr_free);
 +		}
++		seq_putc(m, '\n');
 +	}
-+}
-+
- /*
-  * Zone-region indices are used to map node-memory-regions to
-  * zone-memory-regions. Initialize all of them to an invalid value (-1),
-@@ -5272,6 +5300,8 @@ static void __meminit init_zone_memory_regions(struct pglist_data *pgdat)
+ 	seq_putc(m, '\n');
+ }
  
- 		z->nr_zone_regions = idx;
+@@ -1057,6 +1074,15 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+ 		   zone->present_pages,
+ 		   zone->managed_pages);
  
-+		zone_init_free_lists_late(z);
++	seq_printf(m, "\n\nPer-region page stats\t present\t free\n\n");
++	for (i = 0; i < zone->nr_zone_regions; i++) {
++		struct zone_mem_region *region;
 +
- 		/*
- 		 * Revisit the last visited node memory region, in case it
- 		 * spans multiple zones.
-@@ -6795,7 +6825,8 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
- 		       pfn, 1 << order, end_pfn);
- #endif
- 		mt = get_freepage_migratetype(page);
--		del_from_freelist(page, &zone->free_area[order].free_list[mt]);
-+		del_from_freelist(page, &zone->free_area[order].free_list[mt],
-+				  order);
- 		rmv_page_order(page);
- 		zone->free_area[order].nr_free--;
- #ifdef CONFIG_HIGHMEM
++		region = &zone->zone_regions[i];
++		seq_printf(m, "\tRegion %6d \t %6lu \t %6lu\n", i,
++				region->present_pages, region->nr_free);
++	}
++
+ 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
+ 		seq_printf(m, "\n    %-12s %lu", vmstat_text[i],
+ 				zone_page_state(zone, i));
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
