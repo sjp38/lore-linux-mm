@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 509246B005C
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 19:21:18 -0400 (EDT)
-Received: by mail-pb0-f53.google.com with SMTP id up15so303835pbc.40
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 16:21:17 -0700 (PDT)
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F2E06B003C
+	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 19:21:35 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id md4so310482pbc.16
+        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 16:21:34 -0700 (PDT)
 Received: from /spool/local
 	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Thu, 26 Sep 2013 09:21:14 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 0F8DD2CE8052
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:21:12 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8PNL0eE7995814
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:21:00 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8PNLA2f028786
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:21:11 +1000
+	Thu, 26 Sep 2013 09:21:30 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 7EBE32BB0055
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:21:28 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8PN4lQP34013276
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:04:48 +1000
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8PNLQ1C020831
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:21:27 +1000
 From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Subject: [RFC PATCH v4 14/40] mm: Enable per-memory-region fragmentation stats
- in pagetypeinfo
-Date: Thu, 26 Sep 2013 04:47:00 +0530
-Message-ID: <20130925231658.26184.52456.stgit@srivatsabhat.in.ibm.com>
+Subject: [RFC PATCH v4 15/40] mm: Add aggressive bias to prefer lower regions
+ during page allocation
+Date: Thu, 26 Sep 2013 04:47:16 +0530
+Message-ID: <20130925231714.26184.93687.stgit@srivatsabhat.in.ibm.com>
 In-Reply-To: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com>
 References: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com>
 MIME-Version: 1.0
@@ -32,147 +32,89 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, mgorman@suse.de, dave@sr71.net, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl
 Cc: gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, isimatu.yasuaki@jp.fujitsu.com, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, srivatsa.bhat@linux.vnet.ibm.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Pagetypeinfo is invaluable in observing the fragmentation of memory
-into different migratetypes. Modify this code to also print out the
-fragmentation statistics at a per-zone-memory-region granularity
-(along with the existing per-zone reporting).
+While allocating pages from buddy freelists, there could be situations
+in which we have a ready freepage of the required order in a *higher*
+numbered memory region, and there also exists a freepage of a higher
+page order in a *lower* numbered memory region.
 
-This helps us observe the effects of influencing memory allocation
-decisions at the page-allocator level and understand the extent to
-which they help in consolidation.
+To make the consolidation logic more aggressive, try to split up the
+higher order buddy page of a lower numbered region and allocate it,
+rather than allocating pages from a higher numbered region.
+
+This ensures that we spill over to a new region only when we truly
+don't have enough contiguous memory in any lower numbered region to
+satisfy that allocation request.
 
 Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
 ---
 
- mm/vmstat.c |   86 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 84 insertions(+), 2 deletions(-)
+ mm/page_alloc.c |   44 ++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 34 insertions(+), 10 deletions(-)
 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 8e8c8bd..bb44d30 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -926,6 +926,35 @@ static void pagetypeinfo_showfree_print(struct seq_file *m,
- 	}
- }
- 
-+static void pagetypeinfo_showfree_region_print(struct seq_file *m,
-+					       pg_data_t *pgdat,
-+					       struct zone *zone)
-+{
-+	int order, mtype, i;
-+
-+	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++) {
-+
-+		for (i = 0; i < zone->nr_zone_regions; i++) {
-+			seq_printf(m, "Node %4d, zone %8s, R%3d %12s ",
-+						pgdat->node_id,
-+						zone->name,
-+						i,
-+						migratetype_names[mtype]);
-+
-+			for (order = 0; order < MAX_ORDER; ++order) {
-+				struct free_area *area;
-+
-+				area = &(zone->free_area[order]);
-+
-+				seq_printf(m, "%6lu ",
-+				   area->free_list[mtype].mr_list[i].nr_free);
-+			}
-+			seq_putc(m, '\n');
-+		}
-+
-+	}
-+}
-+
- /* Print out the free pages at each order for each migatetype */
- static int pagetypeinfo_showfree(struct seq_file *m, void *arg)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index fbaa2dc..dc02a80 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1211,8 +1211,9 @@ static inline
+ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+ 						int migratetype)
  {
-@@ -940,6 +969,11 @@ static int pagetypeinfo_showfree(struct seq_file *m, void *arg)
+-	unsigned int current_order;
+-	struct free_area *area;
++	unsigned int current_order, alloc_order;
++	struct free_area *area, *other_area;
++	int alloc_region, other_region;
+ 	struct page *page;
  
- 	walk_zones_in_node(m, pgdat, pagetypeinfo_showfree_print);
+ 	/* Find a page of the appropriate size in the preferred list */
+@@ -1221,17 +1222,40 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+ 		if (list_empty(&area->free_list[migratetype].list))
+ 			continue;
  
-+	seq_putc(m, '\n');
-+
-+	/* Print the free pages at each migratetype, per memory region */
-+	walk_zones_in_node(m, pgdat, pagetypeinfo_showfree_region_print);
-+
- 	return 0;
- }
- 
-@@ -971,24 +1005,72 @@ static void pagetypeinfo_showblockcount_print(struct seq_file *m,
+-		page = list_entry(area->free_list[migratetype].list.next,
+-							struct page, lru);
+-		rmqueue_del_from_freelist(page, &area->free_list[migratetype],
+-					  current_order);
+-		rmv_page_order(page);
+-		area->nr_free--;
+-		expand(zone, page, order, current_order, area, migratetype);
+-		return page;
++		alloc_order = current_order;
++		alloc_region = area->free_list[migratetype].next_region -
++				area->free_list[migratetype].mr_list;
++		current_order++;
++		goto try_others;
  	}
  
- 	/* Print counts */
--	seq_printf(m, "Node %d, zone %8s ", pgdat->node_id, zone->name);
-+	seq_printf(m, "Node %d, zone %8s      ", pgdat->node_id, zone->name);
- 	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++)
- 		seq_printf(m, "%12lu ", count[mtype]);
- 	seq_putc(m, '\n');
- }
- 
-+static void pagetypeinfo_showblockcount_region_print(struct seq_file *m,
-+					pg_data_t *pgdat, struct zone *zone)
-+{
-+	int mtype, i;
-+	unsigned long pfn;
-+	unsigned long start_pfn, end_pfn;
-+	unsigned long count[MIGRATE_TYPES] = { 0, };
+ 	return NULL;
 +
-+	for (i = 0; i < zone->nr_zone_regions; i++) {
-+		start_pfn = zone->zone_regions[i].start_pfn;
-+		end_pfn = zone->zone_regions[i].end_pfn;
++try_others:
++	/* Try to aggressively prefer lower numbered regions for allocations */
++	for ( ; current_order < MAX_ORDER; ++current_order) {
++		other_area = &(zone->free_area[current_order]);
++		if (list_empty(&other_area->free_list[migratetype].list))
++			continue;
 +
-+		for (pfn = start_pfn; pfn < end_pfn;
-+						pfn += pageblock_nr_pages) {
-+			struct page *page;
++		other_region = other_area->free_list[migratetype].next_region -
++				other_area->free_list[migratetype].mr_list;
 +
-+			if (!pfn_valid(pfn))
-+				continue;
-+
-+			page = pfn_to_page(pfn);
-+
-+			/* Watch for unexpected holes punched in the memmap */
-+			if (!memmap_valid_within(pfn, page, zone))
-+				continue;
-+
-+			mtype = get_pageblock_migratetype(page);
-+
-+			if (mtype < MIGRATE_TYPES)
-+				count[mtype]++;
++		if (other_region < alloc_region) {
++			alloc_region = other_region;
++			alloc_order = current_order;
 +		}
-+
-+		/* Print counts */
-+		seq_printf(m, "Node %d, zone %8s R%3d ", pgdat->node_id,
-+			   zone->name, i);
-+		for (mtype = 0; mtype < MIGRATE_TYPES; mtype++)
-+			seq_printf(m, "%12lu ", count[mtype]);
-+		seq_putc(m, '\n');
-+
-+		/* Reset the counters */
-+		for (mtype = 0; mtype < MIGRATE_TYPES; mtype++)
-+			count[mtype] = 0;
 +	}
-+}
 +
- /* Print out the free pages at each order for each migratetype */
- static int pagetypeinfo_showblockcount(struct seq_file *m, void *arg)
- {
- 	int mtype;
- 	pg_data_t *pgdat = (pg_data_t *)arg;
- 
--	seq_printf(m, "\n%-23s", "Number of blocks type ");
-+	seq_printf(m, "\n%-23s", "Number of blocks type      ");
- 	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++)
- 		seq_printf(m, "%12s ", migratetype_names[mtype]);
- 	seq_putc(m, '\n');
- 	walk_zones_in_node(m, pgdat, pagetypeinfo_showblockcount_print);
- 
-+	/* Print out the pageblock info for per memory region */
-+	seq_putc(m, '\n');
-+	walk_zones_in_node(m, pgdat, pagetypeinfo_showblockcount_region_print);
-+
- 	return 0;
++	area = &(zone->free_area[alloc_order]);
++	page = list_entry(area->free_list[migratetype].list.next, struct page,
++			  lru);
++	rmqueue_del_from_freelist(page, &area->free_list[migratetype],
++				  alloc_order);
++	rmv_page_order(page);
++	area->nr_free--;
++	expand(zone, page, order, alloc_order, area, migratetype);
++	return page;
  }
+ 
  
 
 --
