@@ -1,46 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 378226B0034
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 11:35:50 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id kp14so5343347pab.24
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 08:35:49 -0700 (PDT)
-Date: Wed, 25 Sep 2013 17:35:33 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
-Message-ID: <20130925153533.GN3081@twins.programming.kicks-ass.net>
-References: <20130919143241.GB26785@twins.programming.kicks-ass.net>
- <20130923175052.GA20991@redhat.com>
- <20130924123821.GT12926@twins.programming.kicks-ass.net>
- <20130924160359.GA2739@redhat.com>
- <20130924124341.64d57912@gandalf.local.home>
- <20130924170631.GB5059@redhat.com>
- <20130924174717.GH9093@linux.vnet.ibm.com>
- <20130924180005.GA7148@redhat.com>
- <20130924203512.GS9326@twins.programming.kicks-ass.net>
- <20130925151642.GA13244@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130925151642.GA13244@redhat.com>
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 71D9C6B0031
+	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 11:59:36 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rp2so6234368pbb.0
+        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 08:59:36 -0700 (PDT)
+Subject: Re: [PATCH v5 5/6] MCS Lock: Restructure the MCS lock defines and
+ locking code into its own file
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <20130925055556.GA3081@twins.programming.kicks-ass.net>
+References: <cover.1380057198.git.tim.c.chen@linux.intel.com>
+	 <1380061366.3467.54.camel@schen9-DESK>
+	 <20130925055556.GA3081@twins.programming.kicks-ass.net>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 25 Sep 2013 08:58:53 -0700
+Message-ID: <1380124733.3467.61.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Steven Rostedt <rostedt@goodmis.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On Wed, Sep 25, 2013 at 05:16:42PM +0200, Oleg Nesterov wrote:
-> Yes, but my point was, this can only happen in recursive fast path.
+On Wed, 2013-09-25 at 07:55 +0200, Peter Zijlstra wrote:
+> On Tue, Sep 24, 2013 at 03:22:46PM -0700, Tim Chen wrote:
+> > We will need the MCS lock code for doing optimistic spinning for rwsem.
+> > Extracting the MCS code from mutex.c and put into its own file allow us
+> > to reuse this code easily for rwsem.
+> > 
+> > Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+> > Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+> > ---
+> >  kernel/mutex.c |   58 ++++++-------------------------------------------------
+> >  1 files changed, 7 insertions(+), 51 deletions(-)
+> 
+> Wasn't this patch supposed to add include/linux/mcslock.h ?
 
-Right, I understood.
+Thanks for catching it.  I will correct it.
 
-> And in this case (I think) we do not care, we are already in the critical
-> section.
-
-I tend to agree, however paranoia..
-
-> OK, please forget. I guess I will never understand this ;)
-
-It might just be I'm less certain about there not being any avenue of
-mischief.
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
