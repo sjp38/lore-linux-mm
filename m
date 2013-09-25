@@ -1,97 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id A6EC36B0031
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 03:21:57 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lj1so6120718pab.29
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 00:21:57 -0700 (PDT)
-Received: by mail-ie0-f174.google.com with SMTP id u16so10256169iet.33
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 00:21:55 -0700 (PDT)
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 935FD6B0031
+	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 03:26:50 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id y10so5705018pdj.22
+        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 00:26:50 -0700 (PDT)
+Subject: =?utf-8?q?Re=3A_=5Bpatch_0=2F7=5D_improve_memcg_oom_killer_robustness_v2?=
+Date: Wed, 25 Sep 2013 09:26:45 +0200
+From: "azurIt" <azurit@pobox.sk>
+References: <20130916145744.GE3674@dhcp22.suse.cz>, <20130916170543.77F1ECB4@pobox.sk>, <20130916152548.GF3674@dhcp22.suse.cz>, <20130916225246.A633145B@pobox.sk>, <20130917000244.GD3278@cmpxchg.org>, <20130917131535.94E0A843@pobox.sk>, <20130917141013.GA30838@dhcp22.suse.cz>, <20130918160304.6EDF2729@pobox.sk>, <20130918180455.GD856@cmpxchg.org>, <20130918181946.GE856@cmpxchg.org> <20130918195504.GF856@cmpxchg.org>
+In-Reply-To: <20130918195504.GF856@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20130924011134.GI17725@bbox>
-References: <000001ceb835$f0899910$d19ccb30$%yang@samsung.com>
-	<20130924011134.GI17725@bbox>
-Date: Wed, 25 Sep 2013 15:21:54 +0800
-Message-ID: <CAL1ERfPNzMBgX7yGDpVRQP-OZPMZWg0wHOXt75px6uxkHD8CpQ@mail.gmail.com>
-Subject: Re: [PATCH v3 0/3] mm/zswap bugfix: memory leaks and other problems
-From: Weijie Yang <weijie.yang.kh@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-Id: <20130925092645.FC22FCD6@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Weijie Yang <weijie.yang@samsung.com>, akpm@linux-foundation.org, sjenning@linux.vnet.ibm.com, bob.liu@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, d.j.shin@samsung.com, heesub.shin@samsung.com, kyungmin.park@samsung.com, hau.chen@samsung.com, bifeng.tong@samsung.com, rui.xie@samsung.com
+To: =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
+Cc: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>, =?utf-8?q?Andrew_Morton?= <akpm@linux-foundation.org>, =?utf-8?q?David_Rientjes?= <rientjes@google.com>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?KOSAKI_Motohiro?= <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 24, 2013 at 9:11 AM, Minchan Kim <minchan@kernel.org> wrote:
-> On Mon, Sep 23, 2013 at 04:19:36PM +0800, Weijie Yang wrote:
->> This patch series fix a few bugs in mm/zswap based on Linux-3.11.
->>
->> v2 --> v3
->>       - keep GFP_KERNEL flag
+> CC: "Michal Hocko" <mhocko@suse.cz>, "Andrew Morton" <akpm@linux-foundation.org>, "David Rientjes" <rientjes@google.com>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+>On Wed, Sep 18, 2013 at 02:19:46PM -0400, Johannes Weiner wrote:
+>> On Wed, Sep 18, 2013 at 02:04:55PM -0400, Johannes Weiner wrote:
+>> > On Wed, Sep 18, 2013 at 04:03:04PM +0200, azurIt wrote:
+>> > > > CC: "Johannes Weiner" <hannes@cmpxchg.org>, "Andrew Morton" <akpm@linux-foundation.org>, "David Rientjes" <rientjes@google.com>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+>> > > >On Tue 17-09-13 13:15:35, azurIt wrote:
+>> > > >[...]
+>> > > >> Is something unusual on this stack?
+>> > > >> 
+>> > > >> 
+>> > > >> [<ffffffff810d1a5e>] dump_header+0x7e/0x1e0
+>> > > >> [<ffffffff810d195f>] ? find_lock_task_mm+0x2f/0x70
+>> > > >> [<ffffffff810d1f25>] oom_kill_process+0x85/0x2a0
+>> > > >> [<ffffffff810d24a8>] mem_cgroup_out_of_memory+0xa8/0xf0
+>> > > >> [<ffffffff8110fb76>] mem_cgroup_oom_synchronize+0x2e6/0x310
+>> > > >> [<ffffffff8110efc0>] ? mem_cgroup_uncharge_page+0x40/0x40
+>> > > >> [<ffffffff810d2703>] pagefault_out_of_memory+0x13/0x130
+>> > > >> [<ffffffff81026f6e>] mm_fault_error+0x9e/0x150
+>> > > >> [<ffffffff81027424>] do_page_fault+0x404/0x490
+>> > > >> [<ffffffff810f952c>] ? do_mmap_pgoff+0x3dc/0x430
+>> > > >> [<ffffffff815cb87f>] page_fault+0x1f/0x30
+>> > > >
+>> > > >This is a regular memcg OOM killer. Which dumps messages about what is
+>> > > >going to do. So no, nothing unusual, except if it was like that for ever
+>> > > >which would mean that oom_kill_process is in the endless loop. But a
+>> > > >single stack doesn't tell us much.
+>> > > >
+>> > > >Just a note. When you see something hogging a cpu and you are not sure
+>> > > >whether it might be in an endless loop inside the kernel it makes sense
+>> > > >to take several snaphosts of the stack trace and see if it changes. If
+>> > > >not and the process is not sleeping (there is no schedule on the trace)
+>> > > >then it might be looping somewhere waiting for Godot. If it is sleeping
+>> > > >then it is slightly harder because you would have to identify what it is
+>> > > >waiting for which requires to know a deeper context.
+>> > > >-- 
+>> > > >Michal Hocko
+>> > > >SUSE Labs
+>> > > 
+>> > > 
+>> > > 
+>> > > I was finally able to get stack of problematic process :) I saved it two times from the same process, as Michal suggested (i wasn't able to take more). Here it is:
+>> > > 
+>> > > First (doesn't look very helpfull):
+>> > > [<ffffffffffffffff>] 0xffffffffffffffff
+>> > > 
+>> > > 
+>> > > Second:
+>> > > [<ffffffff810e17d1>] shrink_zone+0x481/0x650
+>> > > [<ffffffff810e2ade>] do_try_to_free_pages+0xde/0x550
+>> > > [<ffffffff810e310b>] try_to_free_pages+0x9b/0x120
+>> > > [<ffffffff81148ccd>] free_more_memory+0x5d/0x60
+>> > > [<ffffffff8114931d>] __getblk+0x14d/0x2c0
+>> > > [<ffffffff8114c973>] __bread+0x13/0xc0
+>> > > [<ffffffff811968a8>] ext3_get_branch+0x98/0x140
+>> > > [<ffffffff81197497>] ext3_get_blocks_handle+0xd7/0xdc0
+>> > > [<ffffffff81198244>] ext3_get_block+0xc4/0x120
+>> > > [<ffffffff81155b8a>] do_mpage_readpage+0x38a/0x690
+>> > > [<ffffffff81155ffb>] mpage_readpages+0xfb/0x160
+>> > > [<ffffffff811972bd>] ext3_readpages+0x1d/0x20
+>> > > [<ffffffff810d9345>] __do_page_cache_readahead+0x1c5/0x270
+>> > > [<ffffffff810d9411>] ra_submit+0x21/0x30
+>> > > [<ffffffff810cfb90>] filemap_fault+0x380/0x4f0
+>> > > [<ffffffff810ef908>] __do_fault+0x78/0x5a0
+>> > > [<ffffffff810f2b24>] handle_pte_fault+0x84/0x940
+>> > > [<ffffffff810f354a>] handle_mm_fault+0x16a/0x320
+>> > > [<ffffffff8102715b>] do_page_fault+0x13b/0x490
+>> > > [<ffffffff815cb87f>] page_fault+0x1f/0x30
+>> > > [<ffffffffffffffff>] 0xffffffffffffffff
+>> > 
+>> > Ah, crap.  I'm sorry.  You even showed us this exact trace before in
+>> > another context, but I did not fully realize what __getblk() is doing.
+>> > 
+>> > My subsequent patches made a charge attempt return -ENOMEM without
+>> > reclaim if the memcg is under OOM.  And so the reason you have these
+>> > reclaim livelocks is because __getblk never fails on -ENOMEM.  When
+>> > the allocation returns -ENOMEM, it invokes GLOBAL DIRECT RECLAIM and
+>> > tries again in an endless loop.  The memcg code would previously just
+>> > loop inside the charge, reclaiming and killing, until the allocation
+>> > succeeded.  But the new code relies on the fault stack being unwound
+>> > to complete the OOM kill.  And since the stack is not unwound with
+>> > __getblk() looping around the allocation there is no more memcg
+>> > reclaim AND no memcg OOM kill, thus no chance of exiting.
+>> > 
+>> > That code is weird but really old, so it may take a while to evaluate
+>> > all the callers as to whether this can be changed.
+>> > 
+>> > In the meantime, I would just allow __getblk to bypass the memcg limit
+>> > when it still can't charge after reclaim.  Does the below get your
+>> > machine back on track?
+>> 
+>> Scratch that.  The idea is reasonable but the implementation is not
+>> fully cooked yet.  I'll send you an update.
 >
-> Why do you drop this?
+>Here is an update.  Full replacement on top of 3.2 since we tried a
+>dead end and it would be more painful to revert individual changes.
 >
-> It's plain BUG. I read Bob's reply but it couldn't justify to let the pain
-> remain. First of all, let's fix it and better idea could come later.
-
-Hi, Minchan. Thanks for review
-
-What I thought is that better idea could come sooner if I keep this
-flag rather than fixing it
-
-Yes, you are right. Fixing a bug has a higher priority than waiting
-for better idea.
-
-I will add it again in the next version patch set.
-
->>
->> v1 --> v2
->>       - free memory in zswap_frontswap_invalidate_area(in patch 1)
->>       - fix whitespace corruption (line wrapping)
->>
->> Corresponding mail thread: https://lkml.org/lkml/2013/8/18/59
->>
->> These issues fixed/optimized are:
->>
->>  1. memory leaks when re-swapon
->>
->>  2. memory leaks when invalidate and reclaim occur concurrently
->>
->>  3. avoid unnecessary page scanning
->>
->>
->> Issues discussed in that mail thread NOT fixed as it happens rarely or
->> not a big problem or controversial:
->>
->>  1. a "theoretical race condition" when reclaim page
->> When a handle alloced from zbud, zbud considers this handle is used
->> validly by upper(zswap) and can be a candidate for reclaim. But zswap has
->> to initialize it such as setting swapentry and adding it to rbtree.
->> so there is a race condition, such as:
->>  thread 0: obtain handle x from zbud_alloc
->>  thread 1: zbud_reclaim_page is called
->>  thread 1: callback zswap_writeback_entry to reclaim handle x
->>  thread 1: get swpentry from handle x (it is random value now)
->>  thread 1: bad thing may happen
->>  thread 0: initialize handle x with swapentry
->>
->> 2. frontswap_map bitmap not cleared after zswap reclaim
->> Frontswap uses frontswap_map bitmap to track page in "backend" implementation,
->> when zswap reclaim a page, the corresponding bitmap record is not cleared.
->>
->> 3. the potential that zswap store and reclaim functions called recursively
->>
->>
->>  mm/zswap.c |   28 ++++++++++++++++++++--------
->>  1 file changed, 20 insertions(+), 8 deletions(-)
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>The first bug you had was the same task entering OOM repeatedly and
+>leaking the memcg reference, thus creating undeletable memcgs.  My
+>fixup added a condition that if the task already set up an OOM context
+>in that fault, another charge attempt would immediately return -ENOMEM
+>without even trying reclaim anymore.  This dropped __getblk() into an
+>endless loop of waking the flushers and performing global reclaim and
+>memcg returning -ENOMEM regardless of free memory.
 >
-> --
-> Kind regards,
-> Minchan Kim
+>The update now basically only changes this -ENOMEM to bypass, so that
+>the memory is not accounted and the limit ignored.  OOM killed tasks
+>are granted the same right, so that they can exit quickly and release
+>memory.  Likewise, we want a task that hit the OOM condition also to
+>finish the fault quickly so that it can invoke the OOM killer.
+>
+>Does the following work for you, azur?
+
+
+Today it is one week without any problem so i'm *disabling* several of my scripts which were suppose to fix problems related to 'my' kernel bugs (so servers won't go down). I will also install patches on several other servers and will report back in few weeks if no problems occurs. Thank you! :)
+
+Btw, will it be then possible to include these patches to vanilla 3.2? Who can decide it?
+
+azur
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
