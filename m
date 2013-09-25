@@ -1,61 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 14CC36B0037
-	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 21:04:06 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id x10so5374356pdj.1
-        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 18:04:05 -0700 (PDT)
-Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 25 Sep 2013 11:04:01 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 897672BB0053
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 11:03:59 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8P13mPk62521474
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 11:03:48 +1000
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8P13w9G005181
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 11:03:58 +1000
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v7 4/4] revert mm/vmalloc.c: emit the failure message before return
-Date: Wed, 25 Sep 2013 09:02:44 +0800
-Message-Id: <1380070964-12975-4-git-send-email-liwanp@linux.vnet.ibm.com>
-In-Reply-To: <1380070964-12975-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1380070964-12975-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 03E0D6B0031
+	for <linux-mm@kvack.org>; Tue, 24 Sep 2013 22:34:58 -0400 (EDT)
+Received: by mail-pb0-f54.google.com with SMTP id ro12so5426527pbb.27
+        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 19:34:58 -0700 (PDT)
+Received: by mail-pd0-f173.google.com with SMTP id p10so5419606pdj.4
+        for <linux-mm@kvack.org>; Tue, 24 Sep 2013 19:34:56 -0700 (PDT)
+Date: Tue, 24 Sep 2013 19:34:54 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] oom: avoid killing init if it assume the oom killed
+ thread's mm
+In-Reply-To: <1379929528-19179-1-git-send-email-ming.liu@windriver.com>
+Message-ID: <alpine.DEB.2.02.1309241933590.26187@chino.kir.corp.google.com>
+References: <1379929528-19179-1-git-send-email-ming.liu@windriver.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Ming Liu <ming.liu@windriver.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.cz, rusty@rustcorp.com.au, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Changelog:
- *v2 -> v3: revert commit 46c001a2 directly
+On Mon, 23 Sep 2013, Ming Liu wrote:
 
-Don't warning twice in __vmalloc_area_node and __vmalloc_node_range if
-__vmalloc_area_node allocation failure. This patch revert commit 46c001a2
-(mm/vmalloc.c: emit the failure message before return).
+> After selecting a task to kill, the oom killer iterates all processes and
+> kills all other user threads that share the same mm_struct in different
+> thread groups.
+> 
+> But in some extreme cases, the selected task happens to be a vfork child
+> of init process sharing the same mm_struct with it, which causes kernel
+> panic on init getting killed. This panic is observed in a busybox shell
+> that busybox itself is init, with a kthread keeps consuming memories.
+> 
 
-Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
----
- mm/vmalloc.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index e523a14..fa4eee8 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1635,7 +1635,7 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
- 
- 	addr = __vmalloc_area_node(area, gfp_mask, prot, node);
- 	if (!addr)
--		goto fail;
-+		return NULL;
- 
- 	/*
- 	 * In this function, newly allocated vm_struct has VM_UNINITIALIZED
--- 
-1.7.5.4
+We shouldn't be selecting a process where mm == init_mm in the first 
+place, so this wouldn't fix the issue entirely.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
