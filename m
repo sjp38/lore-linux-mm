@@ -1,54 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E1676B0033
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 13:44:46 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so6323550pdj.8
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 10:44:45 -0700 (PDT)
-Received: by mail-bk0-f44.google.com with SMTP id mz10so13bkb.3
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 10:44:42 -0700 (PDT)
-Date: Wed, 25 Sep 2013 19:44:36 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: mm: insure topdown mmap chooses addresses above security minimum
-Message-ID: <20130925174436.GA14037@gmail.com>
-References: <1380057811-5352-1-git-send-email-timothy.c.pepper@linux.intel.com>
- <20130925073048.GB27960@gmail.com>
- <20130925171243.GA7428@tcpepper-desk.jf.intel.com>
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EB736B0031
+	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 13:57:05 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id y13so12365pdi.5
+        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 10:57:04 -0700 (PDT)
+Received: by mail-pa0-f52.google.com with SMTP id kl14so165887pab.11
+        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 10:57:00 -0700 (PDT)
+Date: Wed, 25 Sep 2013 10:56:58 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] oom: avoid killing init if it assume the oom killed
+ thread's mm
+In-Reply-To: <52427970.8010905@windriver.com>
+Message-ID: <alpine.DEB.2.02.1309251056020.17676@chino.kir.corp.google.com>
+References: <1379929528-19179-1-git-send-email-ming.liu@windriver.com> <alpine.DEB.2.02.1309241933590.26187@chino.kir.corp.google.com> <52427970.8010905@windriver.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130925171243.GA7428@tcpepper-desk.jf.intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Timothy Pepper <timothy.c.pepper@linux.intel.com>
-Cc: linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, Ralf Baechle <ralf@linux-mips.org>, linux-mips@linux-mips.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, Paul Mundt <lethal@linux-sh.org>, linux-sh@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, sparclinux@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, James Morris <james.l.morris@oracle.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>
+To: Ming Liu <ming.liu@windriver.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.cz, rusty@rustcorp.com.au, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Wed, 25 Sep 2013, Ming Liu wrote:
 
-* Timothy Pepper <timothy.c.pepper@linux.intel.com> wrote:
-
-> On Wed 25 Sep at 09:30:49 +0200 mingo@kernel.org said:
-> > >  	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
-> > >  	info.length = len;
-> > > -	info.low_limit = PAGE_SIZE;
-> > > +	info.low_limit = max(PAGE_SIZE, PAGE_ALIGN(mmap_min_addr));
-> > >  	info.high_limit = mm->mmap_base;
-> > >  	info.align_mask = filp ? get_align_mask() : 0;
-> > >  	info.align_offset = pgoff << PAGE_SHIFT;
-> > 
-> > There appears to be a lot of repetition in these methods - instead of 
-> > changing 6 places it would be more future-proof to first factor out the 
-> > common bits and then to apply the fix to the shared implementation.
+> > We shouldn't be selecting a process where mm == init_mm in the first
+> > place, so this wouldn't fix the issue entirely.
 > 
-> Besides that existing redundancy in the multiple somewhat similar
-> arch_get_unmapped_area_topdown() functions, I was expecting people might
-> question the added redundancy of the six instances of:
+> But if we add a control point for "mm == init_mm" in the first place(ie. in
+> oom_unkillable_task), that would forbid the processes sharing mm with init to
+> be selected, is that reasonable? Actually my fix is just to protect init
+> process to be killed for its vfork child being selected and I think it's the
+> only place where there is the risk. If my understanding is wrong, pls correct
+> me.
 > 
-> 	max(PAGE_SIZE, PAGE_ALIGN(mmap_min_addr));
 
-That redundancy would be automatically addressed by my suggestion.
-
-Thanks,
-
-	Ingo
+We never want to select a process where task->mm == init_mm because if we 
+kill it we won't free any memory, regardless of vfork().  The goal of the 
+oom killer is solely to free memory, so it always tries to avoid needless 
+killing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
