@@ -1,57 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id A6ACD6B0031
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 04:31:11 -0400 (EDT)
-Received: by mail-pb0-f48.google.com with SMTP id ma3so5718175pbc.35
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 01:31:11 -0700 (PDT)
-Received: by mail-ve0-f181.google.com with SMTP id oy12so4516570veb.12
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 01:31:08 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAL1ERfP70oz=tbVEAfDhgNzgLsvnpbWeOCPOMBpmKTUn0v_Lfg@mail.gmail.com>
-References: <CAL1ERfOiT7QV4UUoKi8+gwbHc9an4rUWriufpOJOUdnTYHHEAw@mail.gmail.com>
-	<52118042.30101@oracle.com>
-	<20130819054742.GA28062@bbox>
-	<CAL1ERfN3AUYwWTctGBjVcgb-mwAmc15-FayLz48P1d0GzogncA@mail.gmail.com>
-	<20130821074939.GE3022@bbox>
-	<CAL1ERfP70oz=tbVEAfDhgNzgLsvnpbWeOCPOMBpmKTUn0v_Lfg@mail.gmail.com>
-Date: Wed, 25 Sep 2013 16:31:08 +0800
-Message-ID: <CAA_GA1ffZVEkbifGfV6zZTTOcityHwYuQotJHBG4L9CJF7LXcA@mail.gmail.com>
-Subject: Re: [BUG REPORT] ZSWAP: theoretical race condition issues
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 05D956B0031
+	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 05:24:06 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id bj1so6240045pad.14
+        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 02:24:06 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <CACz4_2drFs5LsM8mTFNOWGHAs0QbsNfHAhiBXJ7jM3qkGerd5w@mail.gmail.com>
+References: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <CACz4_2drFs5LsM8mTFNOWGHAs0QbsNfHAhiBXJ7jM3qkGerd5w@mail.gmail.com>
+Subject: Re: [PATCHv6 00/22] Transparent huge page cache: phase 1, everything
+ but mmap()
+Content-Transfer-Encoding: 7bit
+Message-Id: <20130925092355.E785EE0090@blue.fi.intel.com>
+Date: Wed, 25 Sep 2013 12:23:55 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang.kh@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Bob Liu <bob.liu@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Ning Qu <quning@google.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Sep 25, 2013 at 4:09 PM, Weijie Yang <weijie.yang.kh@gmail.com> wrote:
-> I think I find a new issue, for integrity of this mail thread, I reply
-> to this mail.
->
-> It is a concurrence issue either, when duplicate store and reclaim
-> concurrentlly.
->
-> zswap entry x with offset A is already stored in zswap backend.
-> Consider the following scenario:
->
-> thread 0: reclaim entry x (get refcount, but not call zswap_get_swap_cache_page)
->
-> thread 1: store new page with the same offset A, alloc a new zswap entry y.
->   store finished. shrink_page_list() call __remove_mapping(), and now
-> it is not in swap_cache
->
+Ning Qu wrote:
+> Hi, Kirill,
+> 
+> Seems you dropped one patch in v5, is that intentional? Just wondering ...
+> 
+>   thp, mm: handle tail pages in page_cache_get_speculative()
 
-But I don't think swap layer will call zswap with the same offset A.
-
-> thread 0: zswap_get_swap_cache_page called. old page data is added to swap_cache
->
-> Now, swap cache has old data rather than new data for offset A.
-> error will happen If do_swap_page() get page from swap_cache.
->
+It's not needed anymore, since we don't have tail pages in radix tree.
 
 -- 
-Regards,
---Bob
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
