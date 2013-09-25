@@ -1,34 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AFE56B0031
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 11:05:26 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id q10so6202989pdj.34
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 08:05:25 -0700 (PDT)
-Date: Wed, 25 Sep 2013 08:05:14 -0700
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: [PATCHv6 00/22] Transparent huge page cache: phase 1, everything
- but mmap()
-Message-ID: <20130925150514.GD2018@tassilo.jf.intel.com>
-References: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20130924163740.4bc7db61e3e520798220dc4c@linux-foundation.org>
- <20130924234950.GC2018@tassilo.jf.intel.com>
- <20130924165848.4f3ba25b4de236fa746fb7ee@linux-foundation.org>
- <20130925111538.CCE16E0090@blue.fi.intel.com>
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id A2D0F6B0034
+	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 11:23:57 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id y10so6154768pdj.8
+        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 08:23:57 -0700 (PDT)
+Date: Wed, 25 Sep 2013 17:16:42 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
+Message-ID: <20130925151642.GA13244@redhat.com>
+References: <20130918154939.GZ26785@twins.programming.kicks-ass.net> <20130919143241.GB26785@twins.programming.kicks-ass.net> <20130923175052.GA20991@redhat.com> <20130924123821.GT12926@twins.programming.kicks-ass.net> <20130924160359.GA2739@redhat.com> <20130924124341.64d57912@gandalf.local.home> <20130924170631.GB5059@redhat.com> <20130924174717.GH9093@linux.vnet.ibm.com> <20130924180005.GA7148@redhat.com> <20130924203512.GS9326@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130925111538.CCE16E0090@blue.fi.intel.com>
+In-Reply-To: <20130924203512.GS9326@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Steven Rostedt <rostedt@goodmis.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>
 
-> (it may require dynamic linker change to align length to huge page
-> boundary) 
+On 09/24, Peter Zijlstra wrote:
+>
+> On Tue, Sep 24, 2013 at 08:00:05PM +0200, Oleg Nesterov wrote:
+> >
+> > Yes, we need to ensure gcc doesn't reorder this code so that
+> > do_something() comes before get_online_cpus(). But it can't? At least
+> > it should check current->cpuhp_ref != 0 first? And if it is non-zero
+> > we do not really care, we are already in the critical section and
+> > this ->cpuhp_ref has only meaning in put_online_cpus().
+> >
+> > Confused...
+>
+>
+> So the reason I put it in was because of the inline; it could possibly
+> make it do:
 
-x86-64 binaries should be already padded for this.
+[...snip...]
 
--Andi
+> In which case the recursive fast path doesn't have a barrier() between
+> taking the ref and starting do_something().
+
+Yes, but my point was, this can only happen in recursive fast path.
+And in this case (I think) we do not care, we are already in the critical
+section.
+
+current->cpuhp_ref doesn't matter at all until we call put_online_cpus().
+
+Suppose that gcc knows for sure that current->cpuhp_ref != 0. Then I
+think, for example,
+
+	get_online_cpus();
+	do_something();
+	put_online_cpus();
+
+converted to
+
+	do_something();
+	current->cpuhp_ref++;
+	current->cpuhp_ref--;
+
+is fine. do_something() should not depend on ->cpuhp_ref.
+
+OK, please forget. I guess I will never understand this ;)
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
