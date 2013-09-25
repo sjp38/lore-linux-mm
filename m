@@ -1,60 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 16A9E6B0031
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 18:06:56 -0400 (EDT)
-Received: by mail-pb0-f49.google.com with SMTP id xb4so247569pbc.8
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 15:06:55 -0700 (PDT)
-Received: by mail-pa0-f52.google.com with SMTP id kl14so404896pab.25
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 15:06:53 -0700 (PDT)
-Date: Wed, 25 Sep 2013 15:06:51 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, mempolicy: make mpol_to_str robust and always
- succeed
-In-Reply-To: <20130925143009.913fb1c042abe10d91c86c8b@linux-foundation.org>
-Message-ID: <alpine.DEB.2.02.1309251505330.1835@chino.kir.corp.google.com>
-References: <5215639D.1080202@asianux.com> <5227CF48.5080700@asianux.com> <alpine.DEB.2.02.1309241957280.26415@chino.kir.corp.google.com> <20130925031127.GA4210@redhat.com> <alpine.DEB.2.02.1309242012070.27940@chino.kir.corp.google.com> <20130925032530.GA4771@redhat.com>
- <alpine.DEB.2.02.1309251057080.17676@chino.kir.corp.google.com> <20130925143009.913fb1c042abe10d91c86c8b@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DC8A6B0031
+	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 18:10:34 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id x10so262484pdj.15
+        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 15:10:34 -0700 (PDT)
+Subject: [PATCH v6 0/6] rwsem: performance optimizations
+From: Tim Chen <tim.c.chen@linux.intel.com>
+References: <cover.1380144003.git.tim.c.chen@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 25 Sep 2013 15:10:28 -0700
+Message-ID: <1380147028.3467.62.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Jones <davej@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chen Gang <gang.chen@asianux.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Tim Chen <tim.c.chen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On Wed, 25 Sep 2013, Andrew Morton wrote:
+We fixed a missing file and fixed various style issues for
+version 6 of this patchset. We will like to have it merged if
+there are no objections.
 
-> > I fully agree and have code in the oom killer that has the "fall through" 
-> > comment if there's code in between the case statements, but I think things 
-> > like
-> > 
-> > 	case MPOL_BIND:
-> > 	case MPOL_INTERLEAVE:
-> > 		...
-> > 
-> > is quite easy to read.  I don't feel strongly at all, though, so I'll just 
-> > leave it to Andrew's preference.
-> 
-> I've never even thought about it, but that won't prevent me from
-> pretending otherwise!  How about:
-> 
-> This:
-> 
-> 	case WIBBLE:
-> 		something();
-> 		something_else();
-> 	case WOBBLE:
-> 
-> needs a /* fall through */ comment (because it *looks* like a mistake),
-> whereas
-> 
-> 	case WIBBLE:
-> 	case WOBBLE:
-> 
-> does not?
-> 
+In this patchset, we introduce two categories of optimizations to read
+write semaphore.  The first four patches from Alex Shi reduce cache
+bouncing of the sem->count field by doing a pre-read of the sem->count
+and avoid cmpxchg if possible.
 
-The switch-case examples given in Documentation/CodingStyle agree with 
-that.
+The last two patches introduce similar optimistic spinning logic as the
+mutex code for the writer lock acquisition of rwsem. This addresses the
+general 'mutexes out perform writer-rwsems' situations that has been
+seen in more than one case.  Users now need not worry about performance
+issues when choosing between these two locking mechanisms.
+
+Without these optimizations, Davidlohr Bueso saw a -8% regression to
+aim7's shared and high_systime workloads when he switched i_mmap_mutex
+to rwsem.  Tests were on 8 socket 80 cores system.  With the patchset,
+he got significant improvements to the aim7 suite instead of regressions:
+
+alltests (+16.3%), custom (+20%), disk (+19.5%), high_systime (+7%),
+shared (+18.4%) and short (+6.3%).
+
+Tim Chen also got a +5% improvements to exim mail server workload on a
+40 core system.
+
+Thanks to Ingo Molnar, Peter Hurley and Peter Zijlstra for reviewing
+this patchset.
+
+Regards,
+Tim Chen
+
+Changelog:
+
+v6:
+1. Fix missing mcslock.h file.
+2. Fix various code style issues.
+
+v5:
+1. Try optimistic spinning before we put the writer on the wait queue
+to avoid bottlenecking at wait queue.  This provides 5% boost to exim workload
+and between 2% to 8% boost to aim7. 
+2. Put MCS locking code into its own mcslock.h file for better reuse
+between mutex.c and rwsem.c
+3. Remove the configuration RWSEM_SPIN_ON_WRITE_OWNER and make the 
+operations default per Ingo's suggestions.
+
+v4:
+1. Fixed a bug in task_struct definition in rwsem_can_spin_on_owner
+2. Fix another typo for RWSEM_SPIN_ON_WRITE_OWNER config option
+
+v3:
+1. Added ACCESS_ONCE to sem->count access in rwsem_can_spin_on_owner.
+2. Fix typo bug for RWSEM_SPIN_ON_WRITE_OWNER option in init/Kconfig
+
+v2:
+1. Reorganize changes to down_write_trylock and do_wake into 4 patches and fixed
+   a bug referencing &sem->count when sem->count is intended.
+2. Fix unsafe sem->owner de-reference in rwsem_can_spin_on_owner.
+the option to be on for more seasoning but can be turned off should it be detrimental.
+3. Various patch comments update
+
+Alex Shi (4):
+  rwsem: check the lock before cpmxchg in down_write_trylock
+  rwsem: remove 'out' label in do_wake
+  rwsem: remove try_reader_grant label do_wake
+  rwsem/wake: check lock before do atomic update
+
+Tim Chen (2):
+  MCS Lock: Restructure the MCS lock defines and locking code into its
+    own file
+  rwsem: do optimistic spinning for writer lock acquisition
+
+ include/asm-generic/rwsem.h |    8 +-
+ include/linux/mcslock.h     |   58 +++++++++++
+ include/linux/rwsem.h       |    6 +-
+ kernel/mutex.c              |   58 ++----------
+ kernel/rwsem.c              |   19 ++++-
+ lib/rwsem.c                 |  228 +++++++++++++++++++++++++++++++++++++-----
+ 6 files changed, 292 insertions(+), 85 deletions(-)
+ create mode 100644 include/linux/mcslock.h
+
+-- 
+1.7.4.4
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
