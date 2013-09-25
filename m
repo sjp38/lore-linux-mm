@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C3586B00A5
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 19:26:59 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id un15so321022pbc.1
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 16:26:58 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 1FBFC6B00A7
+	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 19:27:15 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id un15so313517pbc.29
+        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 16:27:14 -0700 (PDT)
 Received: from /spool/local
 	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Thu, 26 Sep 2013 09:26:55 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 92FEE2CE8040
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:26:53 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8PNQgDB5767458
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:26:42 +1000
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8PNQqvb021192
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:26:53 +1000
+	Thu, 26 Sep 2013 09:27:11 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id C009E2BB0040
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:27:09 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8PNATmR63111326
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:10:29 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8PNR83Y003560
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:27:09 +1000
 From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Subject: [RFC PATCH v4 39/40] mm: Add intelligence in kmempowerd to ignore
- regions unsuitable for evacuation
-Date: Thu, 26 Sep 2013 04:52:42 +0530
-Message-ID: <20130925232240.26184.54998.stgit@srivatsabhat.in.ibm.com>
+Subject: [RFC PATCH v4 40/40] mm: Add triggers in the page-allocator to kick
+ off region evacuation
+Date: Thu, 26 Sep 2013 04:52:58 +0530
+Message-ID: <20130925232256.26184.77601.stgit@srivatsabhat.in.ibm.com>
 In-Reply-To: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com>
 References: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com>
 MIME-Version: 1.0
@@ -32,93 +32,103 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, mgorman@suse.de, dave@sr71.net, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl
 Cc: gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, isimatu.yasuaki@jp.fujitsu.com, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, srivatsa.bhat@linux.vnet.ibm.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Enhance kmempowerd to determine situations where evacuating a region would prove
-to be too costly or counter-productive, and ignore those regions for region
-evacuation.
+Now that we have the entire infrastructure to perform targeted region
+evacuation from a dedicated kthread (kmempowerd), modify the page-allocator
+to invoke the region-evacuator at opportune points.
 
-For example, if the region has a significant number of used pages (say more than
-32), then evacuation will involve more work and might not be justifiable. Also,
-compacting region 0 would be pointless, since that is the target of all our
-compaction runs. Add these checks in the region-evacuator.
+At a basic level, the most obvious opportunity to try region-evacuation is
+when a page is freed back to the page-allocator. The rationale behind this is
+explained below.
+
+The page-allocator already has the intelligence to allocate pages such that
+they are consolidated within as few regions as possible. That is, due to the
+sorted-buddy design, it will _not_ spill allocations to a new region as long
+as there is still memory available in lower-numbered regions to satisfy the
+allocation request.
+
+So, the fragmentation happens _after_ they are allocated, i.e., once the
+entity starts freeing the memory in a random fashion. This freeing of pages
+presents an opportunity to the MM subsystem: if the pages freed belong to
+lower-numbered regions, then there is a chance that pages from higher-numbered
+regions could be moved to these freshly freed pages, thereby causing further
+consolidation of regions.
+
+With this in mind, add the region-evac trigger in the page-freeing path.
+Along with that, also add appropriate checks and intelligence necessary to
+avoid compaction attempts that don't provide any net benefit. For example,
+we can avoid compacting regions in ZONE_DMA, or regions that have mostly only
+MIGRATE_UNMOVABLE allocations etc. These checks are done best at the
+page-allocator side. Apart from them, also perform the same eligibility checks
+that the region-evacuator employs, to avoid useless wakeups of kmempowerd.
 
 Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
 ---
 
- include/linux/mmzone.h |    2 ++
- mm/compaction.c        |   25 +++++++++++++++++++++++--
- mm/internal.h          |    2 ++
- 3 files changed, 27 insertions(+), 2 deletions(-)
+ mm/page_alloc.c |   38 ++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 36 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 257afdf..f383cc8d4 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -84,6 +84,8 @@ static inline int get_pageblock_migratetype(struct page *page)
- 	return get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
- }
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 4571d30..48b748e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -639,6 +639,29 @@ out:
+ static void add_to_region_allocator(struct zone *z, struct free_list *free_list,
+ 				    int region_id);
  
-+#define MAX_MEMPWR_MIGRATE_PAGES	32
-+
- struct mem_region_list {
- 	struct list_head	*page_block;
- 	unsigned long		nr_free;
-diff --git a/mm/compaction.c b/mm/compaction.c
-index b56be89..41585b0 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1297,9 +1297,26 @@ void queue_mempower_work(struct pglist_data *pgdat, struct zone *zone,
- 	queue_kthread_work(&pgdat->mempower_worker, &mpwork->work);
- }
- 
-+int should_evacuate_region(struct zone *z, struct zone_mem_region *region)
++static inline int region_is_evac_candidate(struct zone *z,
++					   struct zone_mem_region *region,
++					   int migratetype)
 +{
-+	unsigned long pages_in_use;
 +
-+	/* Don't try to evacuate region 0, since its the target of migration */
-+	if (region == z->zone_regions)
++	/* Don't start evacuation too early during boot */
++	if (system_state != SYSTEM_RUNNING)
 +		return 0;
 +
-+	pages_in_use = region->present_pages - region->nr_free;
++	/* Don't bother evacuating regions in ZONE_DMA */
++	if (zone_idx(z) == ZONE_DMA)
++		return 0;
 +
-+	if (pages_in_use > 0 && pages_in_use <= MAX_MEMPWR_MIGRATE_PAGES)
-+		return 1;
++	/*
++	 * Don't try evacuations in regions not containing MOVABLE or
++	 * RECLAIMABLE allocations.
++	 */
++	if (!(migratetype == MIGRATE_MOVABLE ||
++		migratetype == MIGRATE_RECLAIMABLE))
++		return 0;
 +
-+	return 0;
++	return should_evacuate_region(z, region);
 +}
-+
- static void kmempowerd(struct kthread_work *work)
+ 
+ static inline int can_return_region(struct mem_region_list *region, int order,
+ 				    struct free_list *free_list)
+@@ -683,7 +706,9 @@ static void add_to_freelist(struct page *page, struct free_list *free_list,
  {
- 	struct mempower_work *mpwork;
-+	struct zone_mem_region *zmr;
- 	struct zone *zone;
- 	unsigned long flags;
- 	int region_id;
-@@ -1315,8 +1332,12 @@ repeat:
- 	if (bitmap_empty(mpwork_mask, nr_zone_region_bits))
- 		return;
+ 	struct list_head *prev_region_list, *lru;
+ 	struct mem_region_list *region;
+-	int region_id, prev_region_id;
++	int region_id, prev_region_id, migratetype;
++	struct zone *zone;
++	struct pglist_data *pgdat;
  
--	for_each_set_bit(region_id, mpwork_mask, nr_zone_region_bits)
--		evacuate_mem_region(zone, &zone->zone_regions[region_id]);
-+	for_each_set_bit(region_id, mpwork_mask, nr_zone_region_bits) {
-+		zmr = &zone->zone_regions[region_id];
-+
-+		if (should_evacuate_region(zone, zmr))
-+			evacuate_mem_region(zone, zmr);
+ 	lru = &page->lru;
+ 	region_id = page_zone_region_id(page);
+@@ -741,8 +766,17 @@ try_return_region:
+ 	 * Try to return the freepages of a memory region to the region
+ 	 * allocator, if possible.
+ 	 */
+-	if (can_return_region(region, order, free_list))
++	if (can_return_region(region, order, free_list)) {
+ 		add_to_region_allocator(page_zone(page), free_list, region_id);
++		return;
 +	}
- 
- 	spin_lock_irqsave(&mpwork->lock, flags);
- 
-diff --git a/mm/internal.h b/mm/internal.h
-index 3fbc9f6..5b4658c 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -184,6 +184,8 @@ int compact_range(struct compact_control *cc, struct aggression_control *ac,
- void queue_mempower_work(struct pglist_data *pgdat, struct zone *zone,
- 			 int region_id);
- 
-+int should_evacuate_region(struct zone *z, struct zone_mem_region *region);
 +
- #endif
++	zone = page_zone(page);
++	migratetype = get_pageblock_migratetype(page);
++	pgdat = NODE_DATA(page_to_nid(page));
++
++	if (region_is_evac_candidate(zone, region->zone_region, migratetype))
++		queue_mempower_work(pgdat, zone, region_id);
+ }
  
  /*
 
