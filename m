@@ -1,53 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F80E6B0032
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 11:39:58 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id q10so1314135pdj.6
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 08:39:57 -0700 (PDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so1307510pdj.8
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 08:39:55 -0700 (PDT)
-Message-ID: <5244553A.2050700@gmail.com>
-Date: Thu, 26 Sep 2013 23:39:38 +0800
-From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v5 3/6] x86/mm: Factor out of top-down direct mapping
- setup
-References: <5241D897.1090905@gmail.com> <5241D9F2.80908@gmail.com> <20130926144642.GE3482@htj.dyndns.org>
-In-Reply-To: <20130926144642.GE3482@htj.dyndns.org>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id ACC856B0032
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 11:42:36 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id fa1so1479502pad.5
+        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 08:42:36 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <20130926105052.0205AE0090@blue.fi.intel.com>
+References: <1379330740-5602-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20130919171727.GC6802@sgi.com>
+ <20130920123137.BE2F7E0090@blue.fi.intel.com>
+ <20130924164443.GB2940@sgi.com>
+ <20130926105052.0205AE0090@blue.fi.intel.com>
+Subject: Re: [PATCHv2 0/9] split page table lock for PMD tables
 Content-Transfer-Encoding: 7bit
+Message-Id: <20130926154224.D2CFFE0090@blue.fi.intel.com>
+Date: Thu, 26 Sep 2013 18:42:24 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: "Rafael J . Wysocki" <rjw@sisk.pl>, lenb@kernel.org, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, prarit@redhat.com, "x86@kernel.org" <x86@kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, imtangchen@gmail.com, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Alex Thorlton <athorlton@sgi.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 09/26/2013 10:46 PM, Tejun Heo wrote:
-> On Wed, Sep 25, 2013 at 02:29:06AM +0800, Zhang Yanfei wrote:
->> +/**
->> + * memory_map_top_down - Map [map_start, map_end) top down
->> + * @map_start: start address of the target memory range
->> + * @map_end: end address of the target memory range
->> + *
->> + * This function will setup direct mapping for memory range
->> + * [map_start, map_end) in top-down.
+Kirill A. Shutemov wrote:
+> Alex Thorlton wrote:
+> > > THP off:
+> > > --------
+> ...
+> > >       36.540185552 seconds time elapsed                                          ( +- 18.36% )
+> > 
+> > I'm assuming this was THP off, no patchset, correct?
 > 
-> Can you please put a bit more effort into the function description?
-
-Sorry.... I will try to make a more detailed description.
-
+> Yes. But THP off patched is *very* close to this, so I didn't post it separately.
 > 
-> Other than that,
+> > Here are my results from this test on 3.12-rc1:
+> ...
+> >     1138.759708820 seconds time elapsed                                          ( +-  0.47% )
+> > 
+> > And the same test on 3.12-rc1 with your patchset:
+> > 
+> >  Performance counter stats for './runt -t -c 512 -b 512m' (5 runs):
+> ...
+> >     1115.214191126 seconds time elapsed                                          ( +-  0.18% )
+> > 
+> > Looks like we're getting a mild performance increase here, but we still
+> > have a problem.
 > 
->  Acked-by: Tejun Heo <tj@kernel.org>
+> Let me guess: you have HUGETLBFS enabled in your config, right? ;)
+> 
+> HUGETLBFS hasn't converted to new locking and we disable split pmd lock if
+> HUGETLBFS is enabled.
+> 
+> I'm going to convert HUGETLBFS too, but it might take some time.
 
-Thanks.
+Okay, here is a bit reworked patch from Naoya Horiguchi.
+It might need more cleanup.
 
--- 
-Thanks.
-Zhang Yanfei
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Please, test and review.
