@@ -1,29 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id E6FAD6B0031
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:13:31 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id kx10so1304774pab.27
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 06:13:31 -0700 (PDT)
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id D97C86B0031
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:20:43 -0400 (EDT)
+Received: by mail-pb0-f54.google.com with SMTP id ro12so1134557pbb.27
+        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 06:20:43 -0700 (PDT)
 Received: from /spool/local
 	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Thu, 26 Sep 2013 18:43:26 +0530
+	Thu, 26 Sep 2013 18:50:38 +0530
 Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 6CFF8125803F
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 18:43:36 +0530 (IST)
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 09FD7394005E
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 18:50:21 +0530 (IST)
 Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8QDDKWJ45875214
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 18:43:21 +0530
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8QDKYZp47775940
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 18:50:34 +0530
 Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8QDDL9i026978
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 18:43:22 +0530
-Message-ID: <524431FF.50904@linux.vnet.ibm.com>
-Date: Thu, 26 Sep 2013 18:39:19 +0530
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8QDKXRl024345
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 18:50:34 +0530
+Message-ID: <524433AF.8010102@linux.vnet.ibm.com>
+Date: Thu, 26 Sep 2013 18:46:31 +0530
 From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Subject: Re: [Results] [RFC PATCH v4 00/40] mm: Memory Power Management
-References: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com> <52437128.7030402@linux.vnet.ibm.com> <20130925164057.6bbaf23bdc5057c42b2ab010@linux-foundation.org> <20130925234734.GK18242@two.firstfloor.org> <52438A6B.30202@linux.intel.com>
-In-Reply-To: <52438A6B.30202@linux.intel.com>
+References: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com> <52437128.7030402@linux.vnet.ibm.com> <20130925164057.6bbaf23bdc5057c42b2ab010@linux-foundation.org> <20130925234734.GK18242@two.firstfloor.org> <52438AA9.3020809@linux.intel.com>
+In-Reply-To: <52438AA9.3020809@linux.intel.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -31,7 +31,7 @@ List-ID: <linux-mm.kvack.org>
 To: Arjan van de Ven <arjan@linux.intel.com>
 Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, mgorman@suse.de, dave@sr71.net, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, riel@redhat.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, isimatu.yasuaki@jp.fujitsu.com, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, thomas.abraham@linaro.org, amit.kachhap@linaro.org
 
-On 09/26/2013 06:44 AM, Arjan van de Ven wrote:
+On 09/26/2013 06:45 AM, Arjan van de Ven wrote:
 > On 9/25/2013 4:47 PM, Andi Kleen wrote:
 >>> Also, the changelogs don't appear to discuss one obvious downside: the
 >>> latency incurred in bringing a bank out of one of the low-power states
@@ -42,34 +42,23 @@ On 09/26/2013 06:44 AM, Arjan van de Ven wrote:
 >> default
 >> in most setups today.
 > 
-> yet grouping is often defeated (in current systems) due to hw level
-> interleaving ;-(
-> sometimes that's a bios setting though.
+> btw note that those kind of memory power savings are content-preserving,
+> so likely a whole chunk of these patches is not actually needed on SNB
+> (or anything else Intel sells or sold)
 > 
 
-True, and I plan to tweak those hardware settings in the prototype powerpc
-platform and evaluate the power vs performance trade-offs of various
-interleaving schemes in conjunction with this patchset.
+Umm, why not? By consolidating the allocations to fewer memory regions,
+this patchset also indirectly consolidates the *references* as well. And
+its the lack of memory references that really makes the hardware transition
+the unreferenced banks to low-power (content-preserving) states. So from what
+I understand, this patchset should provide noticeable benefits on Intel/SNB
+platforms as well.
 
-> in internal experimental bioses we've been able to observe a "swing" of
-> a few watts
-> (not with these patches but with some other tricks)...
+(BTW, even in the prototype powerpc hardware that I mentioned, the primary
+memory power savings is expected to come from content-preserving states. So
+its not like this patchset was designed only for content-losing/full-poweroff
+type of scenarios).
 
-Great! So, would you have the opportunity to try out this patchset as well
-on those systems that you have? I can modify the patchset to take memory
-region info from whatever source you want me to take it from and then we'll
-have realistic power-savings numbers to evaluate this patchset and its benefits
-on Intel/x86 platforms.
-
-> I'm curious to see how these patches do for Srivatsa
-> 
-
-As I mentioned in my other mail, I don't yet have a setup for doing actual
-power-measurements. Hence, so far I was focussing on the algorithmic aspects
-of the patchset and was trying to get an excellent consolidation ratio,
-without hurting performance too much. Going forward, I'll work on getting the
-power-measurements as well on the powerpc platform that I have.
- 
 Regards,
 Srivatsa S. Bhat
 
