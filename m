@@ -1,134 +1,429 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id D3F736B0031
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 06:51:01 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id v10so994748pde.10
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 03:51:01 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <20130924164443.GB2940@sgi.com>
-References: <1379330740-5602-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20130919171727.GC6802@sgi.com>
- <20130920123137.BE2F7E0090@blue.fi.intel.com>
- <20130924164443.GB2940@sgi.com>
-Subject: Re: [PATCHv2 0/9] split page table lock for PMD tables
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130926105052.0205AE0090@blue.fi.intel.com>
-Date: Thu, 26 Sep 2013 13:50:51 +0300 (EEST)
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id C9E7A6B0037
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 07:11:06 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id xa7so993991pbc.31
+        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 04:11:06 -0700 (PDT)
+Date: Thu, 26 Sep 2013 13:10:42 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
+Message-ID: <20130926111042.GS3081@twins.programming.kicks-ass.net>
+References: <20130919143241.GB26785@twins.programming.kicks-ass.net>
+ <20130921163404.GA8545@redhat.com>
+ <20130923092955.GV9326@twins.programming.kicks-ass.net>
+ <20130923173203.GA20392@redhat.com>
+ <20130924202423.GW12926@twins.programming.kicks-ass.net>
+ <20130925155515.GA17447@redhat.com>
+ <20130925174307.GA3220@laptop.programming.kicks-ass.net>
+ <20130925175055.GA25914@redhat.com>
+ <20130925184015.GC3657@laptop.programming.kicks-ass.net>
+ <20130925212200.GA7959@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130925212200.GA7959@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Thorlton <athorlton@sgi.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Oleg Nesterov <oleg@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>
 
-Alex Thorlton wrote:
-> > THP off:
-> > --------
-...
-> >       36.540185552 seconds time elapsed                                          ( +- 18.36% )
-> 
-> I'm assuming this was THP off, no patchset, correct?
+On Wed, Sep 25, 2013 at 02:22:00PM -0700, Paul E. McKenney wrote:
+> A couple of nits and some commentary, but if there are races, they are
+> quite subtle.  ;-)
 
-Yes. But THP off patched is *very* close to this, so I didn't post it separately.
+*whee*..
 
-> Here are my results from this test on 3.12-rc1:
-...
->     1138.759708820 seconds time elapsed                                          ( +-  0.47% )
-> 
-> And the same test on 3.12-rc1 with your patchset:
-> 
->  Performance counter stats for './runt -t -c 512 -b 512m' (5 runs):
-...
->     1115.214191126 seconds time elapsed                                          ( +-  0.18% )
-> 
-> Looks like we're getting a mild performance increase here, but we still
-> have a problem.
+I made one little change in the logic; I moved the waitcount increment
+to before the __put_online_cpus() call, such that the writer will have
+to wait for us to wake up before trying again -- not for us to actually
+have acquired the read lock, for that we'd need to mess up
+__get_online_cpus() a bit more.
 
-Let me guess: you have HUGETLBFS enabled in your config, right? ;)
+Complete patch below.
 
-HUGETLBFS hasn't converted to new locking and we disable split pmd lock if
-HUGETLBFS is enabled.
+---
+Subject: hotplug: Optimize {get,put}_online_cpus()
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Tue Sep 17 16:17:11 CEST 2013
 
-I'm going to convert HUGETLBFS too, but it might take some time.
+The current implementation of get_online_cpus() is global of nature
+and thus not suited for any kind of common usage.
 
-Without HUGETLBFS numbers looks pretty solid on my machine:
+Re-implement the current recursive r/w cpu hotplug lock such that the
+read side locks are as light as possible.
 
-THP off, v3.12-rc2:
--------------------
+The current cpu hotplug lock is entirely reader biased; but since
+readers are expensive there aren't a lot of them about and writer
+starvation isn't a particular problem.
 
- Performance counter stats for './thp_memscale -c 80 -b 512m' (5 runs):
+However by making the reader side more usable there is a fair chance
+it will get used more and thus the starvation issue becomes a real
+possibility.
 
-    1037072.835207 task-clock                #   57.426 CPUs utilized            ( +-  3.59% )
-            95,093 context-switches          #    0.092 K/sec                    ( +-  3.93% )
-               140 cpu-migrations            #    0.000 K/sec                    ( +-  5.28% )
-        10,000,550 page-faults               #    0.010 M/sec                    ( +-  0.00% )
- 2,455,210,400,261 cycles                    #    2.367 GHz                      ( +-  3.62% ) [83.33%]
- 2,429,281,882,056 stalled-cycles-frontend   #   98.94% frontend cycles idle     ( +-  3.67% ) [83.33%]
- 1,975,960,019,659 stalled-cycles-backend    #   80.48% backend  cycles idle     ( +-  3.88% ) [66.68%]
-    46,503,296,013 instructions              #    0.02  insns per cycle
-                                             #   52.24  stalled cycles per insn  ( +-  3.21% ) [83.34%]
-     9,278,997,542 branches                  #    8.947 M/sec                    ( +-  4.00% ) [83.34%]
-        89,881,640 branch-misses             #    0.97% of all branches          ( +-  1.17% ) [83.33%]
+Therefore this new implementation is fair, alternating readers and
+writers; this however requires per-task state to allow the reader
+recursion.
 
-      18.059261877 seconds time elapsed                                          ( +-  2.65% )
+Many comments are contributed by Paul McKenney, and many previous
+attempts were shown to be inadequate by both Paul and Oleg; many
+thanks to them for persisting to poke holes in my attempts.
 
-THP on, v3.12-rc2:
-------------------
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Steven Rostedt <rostedt@goodmis.org>
+Signed-off-by: Peter Zijlstra <peterz@infradead.org>
+---
+ include/linux/cpu.h   |   58 +++++++++++++
+ include/linux/sched.h |    3 
+ kernel/cpu.c          |  209 +++++++++++++++++++++++++++++++++++---------------
+ kernel/sched/core.c   |    2 
+ 4 files changed, 208 insertions(+), 64 deletions(-)
 
- Performance counter stats for './thp_memscale -c 80 -b 512m' (5 runs):
-
-    3114745.395974 task-clock                #   73.875 CPUs utilized            ( +-  1.84% )
-           267,356 context-switches          #    0.086 K/sec                    ( +-  1.84% )
-                99 cpu-migrations            #    0.000 K/sec                    ( +-  1.40% )
-            58,313 page-faults               #    0.019 K/sec                    ( +-  0.28% )
- 7,416,635,817,510 cycles                    #    2.381 GHz                      ( +-  1.83% ) [83.33%]
- 7,342,619,196,993 stalled-cycles-frontend   #   99.00% frontend cycles idle     ( +-  1.88% ) [83.33%]
- 6,267,671,641,967 stalled-cycles-backend    #   84.51% backend  cycles idle     ( +-  2.03% ) [66.67%]
-   117,819,935,165 instructions              #    0.02  insns per cycle
-                                             #   62.32  stalled cycles per insn  ( +-  4.39% ) [83.34%]
-    28,899,314,777 branches                  #    9.278 M/sec                    ( +-  4.48% ) [83.34%]
-        71,787,032 branch-misses             #    0.25% of all branches          ( +-  1.03% ) [83.33%]
-
-      42.162306788 seconds time elapsed                                          ( +-  1.73% )
-
-THP off, patched, no HUGETLBFS:
--------------------------------
-
- Performance counter stats for './thp_memscale -c 80 -b 512m' (5 runs):
-
-     943301.957892 task-clock                #   56.256 CPUs utilized            ( +-  3.01% )
-            86,218 context-switches          #    0.091 K/sec                    ( +-  3.17% )
-               121 cpu-migrations            #    0.000 K/sec                    ( +-  6.64% )
-        10,000,551 page-faults               #    0.011 M/sec                    ( +-  0.00% )
- 2,230,462,457,654 cycles                    #    2.365 GHz                      ( +-  3.04% ) [83.32%]
- 2,204,616,385,805 stalled-cycles-frontend   #   98.84% frontend cycles idle     ( +-  3.09% ) [83.32%]
- 1,778,640,046,926 stalled-cycles-backend    #   79.74% backend  cycles idle     ( +-  3.47% ) [66.69%]
-    45,995,472,617 instructions              #    0.02  insns per cycle
-                                             #   47.93  stalled cycles per insn  ( +-  2.51% ) [83.34%]
-     9,179,700,174 branches                  #    9.731 M/sec                    ( +-  3.04% ) [83.35%]
-        89,166,529 branch-misses             #    0.97% of all branches          ( +-  1.45% ) [83.33%]
-
-      16.768027318 seconds time elapsed                                          ( +-  2.47% )
-
-THP on, patched, no HUGETLBFS:
-------------------------------
-
- Performance counter stats for './thp_memscale -c 80 -b 512m' (5 runs):
-
-     458793.837905 task-clock                #   54.632 CPUs utilized            ( +-  0.79% )
-            41,831 context-switches          #    0.091 K/sec                    ( +-  0.97% )
-                98 cpu-migrations            #    0.000 K/sec                    ( +-  1.66% )
-            57,829 page-faults               #    0.126 K/sec                    ( +-  0.62% )
- 1,077,543,336,716 cycles                    #    2.349 GHz                      ( +-  0.81% ) [83.33%]
- 1,067,403,802,964 stalled-cycles-frontend   #   99.06% frontend cycles idle     ( +-  0.87% ) [83.33%]
-   864,764,616,143 stalled-cycles-backend    #   80.25% backend  cycles idle     ( +-  0.73% ) [66.68%]
-    16,129,177,440 instructions              #    0.01  insns per cycle
-                                             #   66.18  stalled cycles per insn  ( +-  7.94% ) [83.35%]
-     3,618,938,569 branches                  #    7.888 M/sec                    ( +-  8.46% ) [83.36%]
-        33,242,032 branch-misses             #    0.92% of all branches          ( +-  2.02% ) [83.32%]
-
-       8.397885779 seconds time elapsed                                          ( +-  0.18% )
-
--- 
- Kirill A. Shutemov
+--- a/include/linux/cpu.h
++++ b/include/linux/cpu.h
+@@ -16,6 +16,7 @@
+ #include <linux/node.h>
+ #include <linux/compiler.h>
+ #include <linux/cpumask.h>
++#include <linux/percpu.h>
+ 
+ struct device;
+ 
+@@ -173,10 +174,61 @@ extern struct bus_type cpu_subsys;
+ #ifdef CONFIG_HOTPLUG_CPU
+ /* Stop CPUs going up and down. */
+ 
++extern void cpu_hotplug_init_task(struct task_struct *p);
++
+ extern void cpu_hotplug_begin(void);
+ extern void cpu_hotplug_done(void);
+-extern void get_online_cpus(void);
+-extern void put_online_cpus(void);
++
++extern int __cpuhp_state;
++DECLARE_PER_CPU(unsigned int, __cpuhp_refcount);
++
++extern void __get_online_cpus(void);
++
++static inline void get_online_cpus(void)
++{
++	might_sleep();
++
++	/* Support reader recursion */
++	/* The value was >= 1 and remains so, reordering causes no harm. */
++	if (current->cpuhp_ref++)
++		return;
++
++	preempt_disable();
++	if (likely(!__cpuhp_state)) {
++		/* The barrier here is supplied by synchronize_sched(). */
++		__this_cpu_inc(__cpuhp_refcount);
++	} else {
++		__get_online_cpus(); /* Unconditional memory barrier. */
++	}
++	preempt_enable();
++	/*
++	 * The barrier() from preempt_enable() prevents the compiler from
++	 * bleeding the critical section out.
++	 */
++}
++
++extern void __put_online_cpus(void);
++
++static inline void put_online_cpus(void)
++{
++	/* The value was >= 1 and remains so, reordering causes no harm. */
++	if (--current->cpuhp_ref)
++		return;
++
++	/*
++	 * The barrier() in preempt_disable() prevents the compiler from
++	 * bleeding the critical section out.
++	 */
++	preempt_disable();
++	if (likely(!__cpuhp_state)) {
++		/* The barrier here is supplied by synchronize_sched().  */
++		__this_cpu_dec(__cpuhp_refcount);
++	} else {
++		__put_online_cpus(); /* Unconditional memory barrier. */
++	}
++	preempt_enable();
++}
++
+ extern void cpu_hotplug_disable(void);
+ extern void cpu_hotplug_enable(void);
+ #define hotcpu_notifier(fn, pri)	cpu_notifier(fn, pri)
+@@ -200,6 +252,8 @@ static inline void cpu_hotplug_driver_un
+ 
+ #else		/* CONFIG_HOTPLUG_CPU */
+ 
++static inline void cpu_hotplug_init_task(struct task_struct *p) {}
++
+ static inline void cpu_hotplug_begin(void) {}
+ static inline void cpu_hotplug_done(void) {}
+ #define get_online_cpus()	do { } while (0)
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1454,6 +1454,9 @@ struct task_struct {
+ 	unsigned int	sequential_io;
+ 	unsigned int	sequential_io_avg;
+ #endif
++#ifdef CONFIG_HOTPLUG_CPU
++	int		cpuhp_ref;
++#endif
+ };
+ 
+ /* Future-safe accessor for struct task_struct's cpus_allowed. */
+--- a/kernel/cpu.c
++++ b/kernel/cpu.c
+@@ -49,88 +49,173 @@ static int cpu_hotplug_disabled;
+ 
+ #ifdef CONFIG_HOTPLUG_CPU
+ 
+-static struct {
+-	struct task_struct *active_writer;
+-	struct mutex lock; /* Synchronizes accesses to refcount, */
+-	/*
+-	 * Also blocks the new readers during
+-	 * an ongoing cpu hotplug operation.
+-	 */
+-	int refcount;
+-} cpu_hotplug = {
+-	.active_writer = NULL,
+-	.lock = __MUTEX_INITIALIZER(cpu_hotplug.lock),
+-	.refcount = 0,
+-};
++enum { readers_fast = 0, readers_slow, readers_block };
++
++int __cpuhp_state;
++EXPORT_SYMBOL_GPL(__cpuhp_state);
++
++DEFINE_PER_CPU(unsigned int, __cpuhp_refcount);
++EXPORT_PER_CPU_SYMBOL_GPL(__cpuhp_refcount);
++
++static DEFINE_PER_CPU(unsigned int, cpuhp_seq);
++static atomic_t cpuhp_waitcount;
++static DECLARE_WAIT_QUEUE_HEAD(cpuhp_readers);
++static DECLARE_WAIT_QUEUE_HEAD(cpuhp_writer);
++
++void cpu_hotplug_init_task(struct task_struct *p)
++{
++	p->cpuhp_ref = 0;
++}
++
++void __get_online_cpus(void)
++{
++again:
++	/* See __srcu_read_lock() */
++	__this_cpu_inc(__cpuhp_refcount);
++	smp_mb(); /* A matches B, E */
++	__this_cpu_inc(cpuhp_seq);
++
++	if (unlikely(__cpuhp_state == readers_block)) {
++		/*
++		 * Make sure an outgoing writer sees the waitcount to ensure
++		 * we make progress.
++		 */
++		atomic_inc(&cpuhp_waitcount);
++		__put_online_cpus();
++
++		/*
++		 * We either call schedule() in the wait, or we'll fall through
++		 * and reschedule on the preempt_enable() in get_online_cpus().
++		 */
++		preempt_enable_no_resched();
++		__wait_event(cpuhp_readers, __cpuhp_state != readers_block);
++		preempt_disable();
++
++		if (atomic_dec_and_test(&cpuhp_waitcount))
++			wake_up_all(&cpuhp_writer);
++
++		goto again;
++	}
++}
++EXPORT_SYMBOL_GPL(__get_online_cpus);
+ 
+-void get_online_cpus(void)
++void __put_online_cpus(void)
+ {
+-	might_sleep();
+-	if (cpu_hotplug.active_writer == current)
+-		return;
+-	mutex_lock(&cpu_hotplug.lock);
+-	cpu_hotplug.refcount++;
+-	mutex_unlock(&cpu_hotplug.lock);
++	/* See __srcu_read_unlock() */
++	smp_mb(); /* C matches D */
++	/*
++	 * In other words, if they see our decrement (presumably to aggregate
++	 * zero, as that is the only time it matters) they will also see our
++	 * critical section.
++	 */
++	this_cpu_dec(__cpuhp_refcount);
+ 
++	/* Prod writer to recheck readers_active */
++	wake_up_all(&cpuhp_writer);
+ }
+-EXPORT_SYMBOL_GPL(get_online_cpus);
++EXPORT_SYMBOL_GPL(__put_online_cpus);
++
++#define per_cpu_sum(var)						\
++({ 									\
++ 	typeof(var) __sum = 0;						\
++ 	int cpu;							\
++ 	for_each_possible_cpu(cpu)					\
++ 		__sum += per_cpu(var, cpu);				\
++ 	__sum;								\
++)}
+ 
+-void put_online_cpus(void)
++/*
++ * See srcu_readers_active_idx_check() for a rather more detailed explanation.
++ */
++static bool cpuhp_readers_active_check(void)
+ {
+-	if (cpu_hotplug.active_writer == current)
+-		return;
+-	mutex_lock(&cpu_hotplug.lock);
++	unsigned int seq = per_cpu_sum(cpuhp_seq);
++
++	smp_mb(); /* B matches A */
++
++	/*
++	 * In other words, if we see __get_online_cpus() cpuhp_seq increment,
++	 * we are guaranteed to also see its __cpuhp_refcount increment.
++	 */
+ 
+-	if (WARN_ON(!cpu_hotplug.refcount))
+-		cpu_hotplug.refcount++; /* try to fix things up */
++	if (per_cpu_sum(__cpuhp_refcount) != 0)
++		return false;
+ 
+-	if (!--cpu_hotplug.refcount && unlikely(cpu_hotplug.active_writer))
+-		wake_up_process(cpu_hotplug.active_writer);
+-	mutex_unlock(&cpu_hotplug.lock);
++	smp_mb(); /* D matches C */
+ 
++	/*
++	 * On equality, we know that there could not be any "sneak path" pairs
++	 * where we see a decrement but not the corresponding increment for a
++	 * given reader. If we saw its decrement, the memory barriers guarantee
++	 * that we now see its cpuhp_seq increment.
++	 */
++
++	return per_cpu_sum(cpuhp_seq) == seq;
+ }
+-EXPORT_SYMBOL_GPL(put_online_cpus);
+ 
+ /*
+- * This ensures that the hotplug operation can begin only when the
+- * refcount goes to zero.
+- *
+- * Note that during a cpu-hotplug operation, the new readers, if any,
+- * will be blocked by the cpu_hotplug.lock
+- *
+- * Since cpu_hotplug_begin() is always called after invoking
+- * cpu_maps_update_begin(), we can be sure that only one writer is active.
+- *
+- * Note that theoretically, there is a possibility of a livelock:
+- * - Refcount goes to zero, last reader wakes up the sleeping
+- *   writer.
+- * - Last reader unlocks the cpu_hotplug.lock.
+- * - A new reader arrives at this moment, bumps up the refcount.
+- * - The writer acquires the cpu_hotplug.lock finds the refcount
+- *   non zero and goes to sleep again.
+- *
+- * However, this is very difficult to achieve in practice since
+- * get_online_cpus() not an api which is called all that often.
+- *
++ * This will notify new readers to block and wait for all active readers to
++ * complete.
+  */
+ void cpu_hotplug_begin(void)
+ {
+-	cpu_hotplug.active_writer = current;
++	/*
++	 * Since cpu_hotplug_begin() is always called after invoking
++	 * cpu_maps_update_begin(), we can be sure that only one writer is
++	 * active.
++	 */
++	lockdep_assert_held(&cpu_add_remove_lock);
+ 
+-	for (;;) {
+-		mutex_lock(&cpu_hotplug.lock);
+-		if (likely(!cpu_hotplug.refcount))
+-			break;
+-		__set_current_state(TASK_UNINTERRUPTIBLE);
+-		mutex_unlock(&cpu_hotplug.lock);
+-		schedule();
+-	}
++	/* Allow reader-in-writer recursion. */
++	current->cpuhp_ref++;
++
++	/* Notify readers to take the slow path. */
++	__cpuhp_state = readers_slow;
++
++	/* See percpu_down_write(); guarantees all readers take the slow path */
++	synchronize_sched();
++
++	/*
++	 * Notify new readers to block; up until now, and thus throughout the
++	 * longish synchronize_sched() above, new readers could still come in.
++	 */
++	__cpuhp_state = readers_block;
++
++	smp_mb(); /* E matches A */
++
++	/*
++	 * If they don't see our writer of readers_block to __cpuhp_state,
++	 * then we are guaranteed to see their __cpuhp_refcount increment, and
++	 * therefore will wait for them.
++	 */
++
++	/* Wait for all now active readers to complete. */
++	wait_event(cpuhp_writer, cpuhp_readers_active_check());
+ }
+ 
+ void cpu_hotplug_done(void)
+ {
+-	cpu_hotplug.active_writer = NULL;
+-	mutex_unlock(&cpu_hotplug.lock);
++	/* Signal the writer is done, no fast path yet. */
++	__cpuhp_state = readers_slow;
++	wake_up_all(&cpuhp_readers);
++
++	/*
++	 * The wait_event()/wake_up_all() prevents the race where the readers
++	 * are delayed between fetching __cpuhp_state and blocking.
++	 */
++
++	/* See percpu_up_write(); readers will no longer attempt to block. */
++	synchronize_sched();
++
++	/* Let 'em rip */
++	__cpuhp_state = readers_fast;
++	current->cpuhp_ref--;
++
++	/*
++	 * Wait for any pending readers to be running. This ensures readers
++	 * after writer and avoids writers starving readers.
++	 */
++	wait_event(cpuhp_writer, !atomic_read(&cpuhp_waitcount));
+ }
+ 
+ /*
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -1736,6 +1736,8 @@ static void __sched_fork(unsigned long c
+ 	INIT_LIST_HEAD(&p->numa_entry);
+ 	p->numa_group = NULL;
+ #endif /* CONFIG_NUMA_BALANCING */
++
++	cpu_hotplug_init_task(p);
+ }
+ 
+ #ifdef CONFIG_NUMA_BALANCING
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
