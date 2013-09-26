@@ -1,49 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 60AFD6B0032
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 12:08:49 -0400 (EDT)
-Received: by mail-pb0-f53.google.com with SMTP id up15so1336788pbc.12
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:08:49 -0700 (PDT)
-Received: by mail-qe0-f44.google.com with SMTP id 3so957521qeb.3
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:08:46 -0700 (PDT)
-Date: Thu, 26 Sep 2013 12:08:42 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v5 4/6] x86/mem-hotplug: Support initialize page tables
- in bottom-up
-Message-ID: <20130926160842.GC32391@mtj.dyndns.org>
-References: <5241D897.1090905@gmail.com>
- <5241DA5B.8000909@gmail.com>
- <20130926144851.GF3482@htj.dyndns.org>
- <52445606.7030108@gmail.com>
- <20130926154813.GA32391@mtj.dyndns.org>
- <52445AB5.8030306@gmail.com>
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 65C1B6B0032
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 12:13:30 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id w10so1374005pde.9
+        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:13:30 -0700 (PDT)
+Date: Thu, 26 Sep 2013 18:13:11 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
+Message-ID: <20130926161311.GG3657@laptop.programming.kicks-ass.net>
+References: <20130923092955.GV9326@twins.programming.kicks-ass.net>
+ <20130923173203.GA20392@redhat.com>
+ <20130924202423.GW12926@twins.programming.kicks-ass.net>
+ <20130925155515.GA17447@redhat.com>
+ <20130925174307.GA3220@laptop.programming.kicks-ass.net>
+ <20130925175055.GA25914@redhat.com>
+ <20130925184015.GC3657@laptop.programming.kicks-ass.net>
+ <20130925212200.GA7959@linux.vnet.ibm.com>
+ <20130926111042.GS3081@twins.programming.kicks-ass.net>
+ <20130926155321.GA4342@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <52445AB5.8030306@gmail.com>
+In-Reply-To: <20130926155321.GA4342@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
-Cc: "Rafael J . Wysocki" <rjw@sisk.pl>, lenb@kernel.org, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, prarit@redhat.com, "x86@kernel.org" <x86@kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, imtangchen@gmail.com, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>
 
-On Fri, Sep 27, 2013 at 12:03:01AM +0800, Zhang Yanfei wrote:
-> Ah, I see. You are saying another issue. He is worrying that if we use
-> kexec to load the kernel high, say we have 16GB, we put the kernel in
-> 15.99GB (just an example), so we only have less than 100MB above the kernel.
+On Thu, Sep 26, 2013 at 05:53:21PM +0200, Oleg Nesterov wrote:
+> On 09/26, Peter Zijlstra wrote:
+> >  void cpu_hotplug_done(void)
+> >  {
+> > -	cpu_hotplug.active_writer = NULL;
+> > -	mutex_unlock(&cpu_hotplug.lock);
+> > +	/* Signal the writer is done, no fast path yet. */
+> > +	__cpuhp_state = readers_slow;
+> > +	wake_up_all(&cpuhp_readers);
+> > +
+> > +	/*
+> > +	 * The wait_event()/wake_up_all() prevents the race where the readers
+> > +	 * are delayed between fetching __cpuhp_state and blocking.
+> > +	 */
+> > +
+> > +	/* See percpu_up_write(); readers will no longer attempt to block. */
+> > +	synchronize_sched();
 > 
-> But as I've explained to him, in almost all the cases, if we want our
-> memory hotplug work, we don't do that. And yeah, assume we have this
-> problem, it'd fall back to top down and that return backs to patch 2,
-> we will trigger the WARN_ONCE, and the admin will know what has happened.
+> Shouldn't you move wake_up_all(&cpuhp_readers) down after
+> synchronize_sched() (or add another one) ? To ensure that a reader can't
+> see state = BLOCK after wakeup().
 
-Alright,
+Well, if they are blocked, the wake_up_all() will do an actual
+try_to_wake_up() which issues a MB as per smp_mb__before_spinlock().
 
- Acked-by: Tejun Heo <tj@kernel.org>
+The woken task will get a MB from passing through the context switch to
+make it actually run. And therefore; like Paul's comment says; it cannot
+observe the previous BLOCK state but must indeed see the just issued
+SLOW state.
 
-Thanks.
-
--- 
-tejun
+Right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
