@@ -1,48 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 855616B0037
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 14:18:49 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id p10so1507590pdj.32
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 11:18:49 -0700 (PDT)
-Subject: Re: [PATCH v6 5/6] MCS Lock: Restructure the MCS lock defines and
- locking code into its own file
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <20130926084010.GQ3081@twins.programming.kicks-ass.net>
-References: <cover.1380144003.git.tim.c.chen@linux.intel.com>
-	 <1380147049.3467.67.camel@schen9-DESK> <20130926064629.GB19090@gmail.com>
-	 <20130926084010.GQ3081@twins.programming.kicks-ass.net>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 26 Sep 2013 11:18:42 -0700
-Message-ID: <1380219522.3467.72.camel@schen9-DESK>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 5337A6B0032
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 14:31:30 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id xa7so1497917pbc.3
+        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 11:31:30 -0700 (PDT)
+Date: Thu, 26 Sep 2013 11:30:22 -0700
+From: Zach Brown <zab@redhat.com>
+Subject: Re: [PATCHv6 00/22] Transparent huge page cache: phase 1, everything
+ but mmap()
+Message-ID: <20130926183022.GN30372@lenny.home.zabbo.net>
+References: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20130924163740.4bc7db61e3e520798220dc4c@linux-foundation.org>
+ <20130924234950.GC2018@tassilo.jf.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130924234950.GC2018@tassilo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Andi Kleen <ak@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, 2013-09-26 at 10:40 +0200, Peter Zijlstra wrote:
-> On Thu, Sep 26, 2013 at 08:46:29AM +0200, Ingo Molnar wrote:
-> > > +/*
-> > > + * MCS lock defines
-> > > + *
-> > > + * This file contains the main data structure and API definitions of MCS lock.
-> > 
-> > A (very) short blurb about what an MCS lock is would be nice here.
+> > Sigh.  A pox on whoever thought up huge pages. 
 > 
-> A while back I suggested including a link to something like:
-> 
-> http://www.cise.ufl.edu/tr/DOC/REP-1992-71.pdf
-> 
-> Its a fairly concise write-up of the idea; only 6 pages. The sad part
-> about linking to the web is that links tend to go dead after a while.
+> managing 1TB+ of memory in 4K chunks is just insane.
+> The question of larger pages is not "if", but only "when".
 
-Link rot is a problem.  If I provide a few details about MCS lock I
-think people should be able to google for it.
+And "how"!
 
-Tim
+Sprinking a bunch of magical if (thp) {} else {} throughtout the code
+looks like a stunningly bad idea to me.  It'd take real work to
+restructure the code such that the current paths are a degenerate case
+of the larger thp page case, but that's the work that needs doing in my
+estimation.
 
-
+- z
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
