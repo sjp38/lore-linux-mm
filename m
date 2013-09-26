@@ -1,53 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id BD8846B0031
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 22:23:44 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id r10so478018pdi.41
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 19:23:44 -0700 (PDT)
-Date: Thu, 26 Sep 2013 10:23:10 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [munlock] BUG: Bad page map in process killall5 pte:cf17e720
- pmd:05a22067
-Message-ID: <20130926022310.GA12047@localhost>
-References: <20130926004028.GB9394@localhost>
- <52439258.3010904@oracle.com>
- <20130926015924.GA10453@localhost>
- <CAA_GA1frX9rCc8i=8nJFLu+BTPjTP6ZkEvGdMph4TXqH0_yaDg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAA_GA1frX9rCc8i=8nJFLu+BTPjTP6ZkEvGdMph4TXqH0_yaDg@mail.gmail.com>
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F87B6B0031
+	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 22:59:48 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id g10so517106pdj.2
+        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 19:59:48 -0700 (PDT)
+Date: Wed, 25 Sep 2013 19:59:53 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Results] [RFC PATCH v4 00/40] mm: Memory Power Management
+Message-Id: <20130925195953.826a9f7d.akpm@linux-foundation.org>
+In-Reply-To: <20130926015016.GM18242@two.firstfloor.org>
+References: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com>
+	<52437128.7030402@linux.vnet.ibm.com>
+	<20130925164057.6bbaf23bdc5057c42b2ab010@linux-foundation.org>
+	<20130925234734.GK18242@two.firstfloor.org>
+	<52438AA9.3020809@linux.intel.com>
+	<20130925182129.a7db6a0fd2c7cc3b43fda92d@linux-foundation.org>
+	<20130926015016.GM18242@two.firstfloor.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: Bob Liu <bob.liu@oracle.com>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Arjan van de Ven <arjan@linux.intel.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, mgorman@suse.de, dave@sr71.net, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, riel@redhat.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, isimatu.yasuaki@jp.fujitsu.com, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Sep 26, 2013 at 10:17:59AM +0800, Bob Liu wrote:
-> On Thu, Sep 26, 2013 at 9:59 AM, Fengguang Wu <fengguang.wu@intel.com> wrote:
-> > Hi Bob,
-> >
-> > On Thu, Sep 26, 2013 at 09:48:08AM +0800, Bob Liu wrote:
-> >> Hi Fengguang,
-> >>
-> >> Would you please have a try with the attached patch?
-> >> It added a small fix based on Vlastimil's patch.
-> >
-> > Thanks for the quick response! I just noticed Andrew added this patch
-> > to -mm tree:
-> >
-> > ------------------------------------------------------
-> > From: Vlastimil Babka <vbabka@suse.cz>
-> > Subject: mm/mlock.c: prevent walking off the end of a pagetable in no-pmd configuration
-> >
-> > What's the git tree your v2 patch based on? If you already had a git
+On Thu, 26 Sep 2013 03:50:16 +0200 Andi Kleen <andi@firstfloor.org> wrote:
+
+> On Wed, Sep 25, 2013 at 06:21:29PM -0700, Andrew Morton wrote:
+> > On Wed, 25 Sep 2013 18:15:21 -0700 Arjan van de Ven <arjan@linux.intel.com> wrote:
+> > 
+> > > On 9/25/2013 4:47 PM, Andi Kleen wrote:
+> > > >> Also, the changelogs don't appear to discuss one obvious downside: the
+> > > >> latency incurred in bringing a bank out of one of the low-power states
+> > > >> and back into full operation.  Please do discuss and quantify that to
+> > > >> the best of your knowledge.
+> > > >
+> > > > On Sandy Bridge the memry wakeup overhead is really small. It's on by default
+> > > > in most setups today.
+> > > 
+> > > btw note that those kind of memory power savings are content-preserving,
+> > > so likely a whole chunk of these patches is not actually needed on SNB
+> > > (or anything else Intel sells or sold)
+> > 
+> > (head spinning a bit).  Could you please expand on this rather a lot?
 > 
-> It's based on v3.12-rc1.  Should I send you a new one based on latest mmotm?
+> As far as I understand there is a range of aggressiveness. You could
+> just group memory a bit better (assuming you can sufficiently predict
+> the future or have some interface to let someone tell you about it).
+> 
+> Or you can actually move memory around later to get as low footprint
+> as possible.
+> 
+> This patchkit seems to do both, with the later parts being on the
+> aggressive side (move things around) 
+> 
+> If you had non content preserving memory saving you would 
+> need to be aggressive as you couldn't afford any mistakes.
+> 
+> If you had very slow wakeup you also couldn't afford mistakes,
+> as those could cost a lot of time.
+> 
+> On SandyBridge is not slow and it's preserving, so some mistakes are ok.
+> 
+> But being aggressive (so move things around) may still help you saving
+> more power -- i guess only benchmarks can tell. It's a trade off between
+> potential gain and potential worse case performance regression.
+> It may also depend on the workload.
+> 
+> At least right now the numbers seem to be positive.
 
-Not necessary for now. However it'd be good to know whether Vlastimil
-has reviewed your v2 fix.
-
-Thanks,
-Fengguang
+OK.  But why are "a whole chunk of these patches not actually needed on SNB
+(or anything else Intel sells or sold)"?  What's the difference between
+Intel products and whatever-it-is-this-patchset-was-designed-for?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
