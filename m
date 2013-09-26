@@ -1,50 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id D6EC46B0032
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 17:44:57 -0400 (EDT)
-Received: by mail-pb0-f45.google.com with SMTP id mc17so1693615pbc.4
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 14:44:57 -0700 (PDT)
-Date: Thu, 26 Sep 2013 16:44:59 -0500
-From: Alex Thorlton <athorlton@sgi.com>
-Subject: Re: [PATCHv2 0/9] split page table lock for PMD tables
-Message-ID: <20130926214459.GB22939@sgi.com>
-References: <1379330740-5602-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20130919171727.GC6802@sgi.com>
- <20130920123137.BE2F7E0090@blue.fi.intel.com>
- <20130924164443.GB2940@sgi.com>
- <20130926105052.0205AE0090@blue.fi.intel.com>
- <20130926211935.GJ2940@sgi.com>
- <20130926213807.1D82AE0090@blue.fi.intel.com>
- <20130926214246.32EDCE0090@blue.fi.intel.com>
+	by kanga.kvack.org (Postfix) with ESMTP id DDF4F6B0032
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 18:16:41 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id mc17so1720296pbc.18
+        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 15:16:41 -0700 (PDT)
+Message-ID: <5244B22C.9020503@sr71.net>
+Date: Thu, 26 Sep 2013 15:16:12 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130926214246.32EDCE0090@blue.fi.intel.com>
+Subject: Re: [RFC PATCH v4 06/40] mm: Demarcate and maintain pageblocks in
+ region-order in the zones' freelists
+References: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com> <20130925231454.26184.19783.stgit@srivatsabhat.in.ibm.com>
+In-Reply-To: <20130925231454.26184.19783.stgit@srivatsabhat.in.ibm.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, akpm@linux-foundation.org, mgorman@suse.de, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl
+Cc: gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, isimatu.yasuaki@jp.fujitsu.com, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Sep 27, 2013 at 12:42:46AM +0300, Kirill A. Shutemov wrote:
-> Kirill A. Shutemov wrote:
-> > Alex Thorlton wrote:
-> > > > Let me guess: you have HUGETLBFS enabled in your config, right? ;)
-> > > > 
-> > > > HUGETLBFS hasn't converted to new locking and we disable split pmd lock if
-> > > > HUGETLBFS is enabled.
-> > > 
-> > > Ahhhhh, that's got it!  I double checked my config a million times to
-> > > make sure that I wasn't going crazy, but I must've missed that. With
-> > > that fixed, it's performing exactly how I thought it should.  Looking
-> > > great to me!
-> > 
-> > Can I use your Reviewed-by?
-> 
-> s/Reviewed-by/Tested-by/
+On 09/25/2013 04:14 PM, Srivatsa S. Bhat wrote:
+> @@ -605,16 +713,22 @@ static inline void __free_one_page(struct page *page,
+>  		buddy_idx = __find_buddy_index(combined_idx, order + 1);
+>  		higher_buddy = higher_page + (buddy_idx - combined_idx);
+>  		if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
+> -			list_add_tail(&page->lru,
+> -				&zone->free_area[order].free_list[migratetype].list);
+> +
+> +			/*
+> +			 * Implementing an add_to_freelist_tail() won't be
+> +			 * very useful because both of them (almost) add to
+> +			 * the tail within the region. So we could potentially
+> +			 * switch off this entire "is next-higher buddy free?"
+> +			 * logic when memory regions are used.
+> +			 */
+> +			add_to_freelist(page, &area->free_list[migratetype]);
+>  			goto out;
+>  		}
+>  	}
 
-That too.  Whatever you need, haha.
+Commit 6dda9d55b says that this had some discrete performance gains.
+It's a bummer that this deoptimizes it, and I think that (expected)
+performance degredation at least needs to be referenced _somewhere_.
 
-- Alex
+I also find it very hard to take code seriously which stuff like this:
+
+> +#ifdef CONFIG_DEBUG_PAGEALLOC
+> +		WARN(region->nr_free == 0, "%s: nr_free messed up\n", __func__);
+> +#endif
+
+nine times.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
