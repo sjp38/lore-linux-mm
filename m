@@ -1,71 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id DB7676B0032
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 13:58:35 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id un15so1462759pbc.15
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 10:58:35 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Thu, 26 Sep 2013 23:28:26 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id E5D82394004E
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 23:28:05 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8QI0dLG31588584
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 23:30:39 +0530
-Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8QHwK0Q009905
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 23:28:20 +0530
-Message-ID: <524474C3.4030604@linux.vnet.ibm.com>
-Date: Thu, 26 Sep 2013 23:24:11 +0530
-From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 75C396B0037
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 14:06:40 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id bj1so1659346pad.0
+        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 11:06:40 -0700 (PDT)
+Message-ID: <524477AC.9090400@linux.intel.com>
+Date: Thu, 26 Sep 2013 11:06:36 -0700
+From: Arjan van de Ven <arjan@linux.intel.com>
 MIME-Version: 1.0
 Subject: Re: [Results] [RFC PATCH v4 00/40] mm: Memory Power Management
-References: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com> <52437128.7030402@linux.vnet.ibm.com> <20130925164057.6bbaf23bdc5057c42b2ab010@linux-foundation.org> <52442F6F.5020703@linux.vnet.ibm.com> <3908561D78D1C84285E8C5FCA982C28F31D1B6BE@ORSMSX106.amr.corp.intel.com>
-In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F31D1B6BE@ORSMSX106.amr.corp.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
+References: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com> <52437128.7030402@linux.vnet.ibm.com> <20130925164057.6bbaf23bdc5057c42b2ab010@linux-foundation.org> <20130925234734.GK18242@two.firstfloor.org> <52438AA9.3020809@linux.intel.com> <20130925182129.a7db6a0fd2c7cc3b43fda92d@linux-foundation.org> <20130926015016.GM18242@two.firstfloor.org> <20130925195953.826a9f7d.akpm@linux-foundation.org> <524439D5.8020306@linux.vnet.ibm.com> <52445993.7050608@linux.intel.com> <52446841.2030301@linux.vnet.ibm.com>
+In-Reply-To: <52446841.2030301@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "mgorman@suse.de" <mgorman@suse.de>, "dave@sr71.net" <dave@sr71.net>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "matthew.garrett@nebula.com" <matthew.garrett@nebula.com>, "riel@redhat.com" <riel@redhat.com>, "arjan@linux.intel.com" <arjan@linux.intel.com>, "srinivas.pandruvada@linux.intel.com" <srinivas.pandruvada@linux.intel.com>, "willy@linux.intel.com" <willy@linux.intel.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "lenb@kernel.org" <lenb@kernel.org>, "rjw@sisk.pl" <rjw@sisk.pl>, "gargankita@gmail.com" <gargankita@gmail.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>, "svaidy@linux.vnet.ibm.com" <svaidy@linux.vnet.ibm.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "santosh.shilimkar@ti.com" <santosh.shilimkar@ti.com>, "kosaki.motohiro@gmail.com" <kosaki.motohiro@gmail.com>, "linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "maxime.coquelin@stericsson.com" <maxime.coquelin@stericsson.com>, "loic.pallardy@stericsson.com" <loic.pallardy@stericsson.com>, "amit.kachhap@linaro.org" <amit.kachhap@linaro.org>, "thomas.abraham@linaro.org" <thomas.abraham@linaro.org>
+To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, mgorman@suse.de, dave@sr71.net, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, riel@redhat.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, isimatu.yasuaki@jp.fujitsu.com, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, thomas.abraham@linaro.org, amit.kachhap@linaro.org
 
-On 09/26/2013 10:52 PM, Luck, Tony wrote:
->> As Andi mentioned, the wakeup latency is not expected to be noticeable. And
->> these power-savings logic is turned on in the hardware by default. So its not
->> as if this patchset is going to _introduce_ that latency. This patchset only
->> tries to make the Linux MM _cooperate_ with the (already existing) hardware
->> power-savings logic and thereby get much better memory power-savings benefits
->> out of it.
-> 
-> You will still get the blame :-)   By grouping active memory areas along h/w power
-> boundaries you enable the power saving modes to kick in (where before they didn't
-> because of scattered access to all areas).  This seems very similar to scheduler changes
-> that allow processors to go idle long enough to enter deep C-states ... upsetting
-> users who notice the exit latency.
+>>>>
+>>>
+>>> Arjan, are you referring to the fact that Intel/SNB systems can exploit
+>>> memory self-refresh only when the entire system goes idle? Is that why
+>>> this
+>>> patchset won't turn out to be that useful on those platforms?
+>>
+>> no we can use other things (CKE and co) all the time.
+>>
+>
+> Ah, ok..
+>
+>> just that we found that statistical grouping gave 95%+ of the benefit,
+>> without the cost of being aggressive on going to a 100.00% grouping
+>>
+>
+> And how do you do that statistical grouping? Don't you need patches similar
+> to those in this patchset? Or are you saying that the existing vanilla
+> kernel itself does statistical grouping somehow?
 
-Yeah, but hopefully the exit latency won't turn out to be _that_ bad ;-)
-And from what Arjan said in his other mail, it does look like it is in the acceptable
-range. So memory power management shouldn't pose any significant latency issues due to
-the wakeup latency of the hardware. I'm more concerned about the software overhead
-added by these patches in the core MM paths.. I _have_ added quite a few optimizations
-and specialized access-structures to speed things up in this patchset, but some more
-thought and effort might be needed to keep their overhead low enough to be acceptable.
+so the way I scanned your patchset.. half of it is about grouping,
+the other half (roughly) is about moving stuff.
 
-> 
-> The interleave problem mentioned elsewhere in this thread is possibly a big problem.
-> High core counts mean that memory bandwidth can be the bottleneck for several
-> workloads.  Dropping, or reducing, the degree of interleaving will seriously impact
-> bandwidth (unless your applications are spread out "just right").
-> 
+the grouping makes total sense to me.
+actively moving is the part that I am very worried about; that part burns power to do
+(and performance).... for which the ROI is somewhat unclear to me
+(but... data speaks. I can easily be convinced with data that proves one way or the other)
 
-Hmmm, yes, interleaving is certainly one of the hard problems in this whole thing
-when it comes to striking a balance or a good trade-off between power-savings vs
-performance...
- 
-Regards,
-Srivatsa S. Bhat
+is moving stuff around the 95%-of-the-work-for-the-last-5%-of-the-theoretical-gain
+or is statistical grouping enough to get > 95% of the gain... without the cost of moving.
+
+
+>
+> Also, I didn't fully understand how NUMA policy will help in this case..
+> If you want to group memory allocations/references into fewer memory regions
+> _within_ a node, will NUMA policy really help? For example, in this patchset,
+> everything (all the allocation/reference shaping) is done _within_ the
+> NUMA boundary, assuming that the memory regions are subsets of a NUMA node.
+>
+> Regards,
+> Srivatsa S. Bhat
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
