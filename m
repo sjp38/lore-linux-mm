@@ -1,153 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id F02A46B0031
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 04:48:08 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id rd3so1010951pab.18
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 01:48:08 -0700 (PDT)
-Received: by mail-ie0-f169.google.com with SMTP id tp5so987281ieb.28
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 01:48:04 -0700 (PDT)
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 76AA46B0031
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 05:37:28 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so1066752pab.29
+        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 02:37:28 -0700 (PDT)
+Received: by mail-ea0-f178.google.com with SMTP id a15so390203eae.23
+        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 02:37:24 -0700 (PDT)
+Date: Thu, 26 Sep 2013 11:37:20 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v6 5/6] MCS Lock: Restructure the MCS lock defines and
+ locking code into its own file
+Message-ID: <20130926093720.GB24596@gmail.com>
+References: <cover.1380144003.git.tim.c.chen@linux.intel.com>
+ <1380147049.3467.67.camel@schen9-DESK>
+ <20130926064629.GB19090@gmail.com>
+ <20130926084010.GQ3081@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <20130926075725.GA22339@bbox>
-References: <CAL1ERfOiT7QV4UUoKi8+gwbHc9an4rUWriufpOJOUdnTYHHEAw@mail.gmail.com>
-	<52118042.30101@oracle.com>
-	<20130819054742.GA28062@bbox>
-	<CAL1ERfN3AUYwWTctGBjVcgb-mwAmc15-FayLz48P1d0GzogncA@mail.gmail.com>
-	<20130821074939.GE3022@bbox>
-	<CAL1ERfP70oz=tbVEAfDhgNzgLsvnpbWeOCPOMBpmKTUn0v_Lfg@mail.gmail.com>
-	<CAA_GA1ffZVEkbifGfV6zZTTOcityHwYuQotJHBG4L9CJF7LXcA@mail.gmail.com>
-	<CAL1ERfOqoo+tPNYQn+e=pqP761gk+bAd7AyeXfoxogfNy0N6Lg@mail.gmail.com>
-	<20130926055802.GA20634@bbox>
-	<CAL1ERfN8PpSZxRmLiwm4i-XZWzRaPJ0A=Af76Dtopcf2xYnBtQ@mail.gmail.com>
-	<20130926075725.GA22339@bbox>
-Date: Thu, 26 Sep 2013 16:48:03 +0800
-Message-ID: <CAL1ERfNh5ss2F6X8QuYxhZ7f2g6mcJvn6pJow2ecRk8dT13CGg@mail.gmail.com>
-Subject: Re: [BUG REPORT] ZSWAP: theoretical race condition issues
-From: Weijie Yang <weijie.yang.kh@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130926084010.GQ3081@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Bob Liu <lliubbo@gmail.com>, Bob Liu <bob.liu@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On Thu, Sep 26, 2013 at 3:57 PM, Minchan Kim <minchan@kernel.org> wrote:
-> On Thu, Sep 26, 2013 at 03:26:33PM +0800, Weijie Yang wrote:
->> On Thu, Sep 26, 2013 at 1:58 PM, Minchan Kim <minchan@kernel.org> wrote:
->> > Hello Weigie,
->> >
->> > On Wed, Sep 25, 2013 at 05:33:43PM +0800, Weijie Yang wrote:
->> >> On Wed, Sep 25, 2013 at 4:31 PM, Bob Liu <lliubbo@gmail.com> wrote:
->> >> > On Wed, Sep 25, 2013 at 4:09 PM, Weijie Yang <weijie.yang.kh@gmail.com> wrote:
->> >> >> I think I find a new issue, for integrity of this mail thread, I reply
->> >> >> to this mail.
->> >> >>
->> >> >> It is a concurrence issue either, when duplicate store and reclaim
->> >> >> concurrentlly.
->> >> >>
->> >> >> zswap entry x with offset A is already stored in zswap backend.
->> >> >> Consider the following scenario:
->> >> >>
->> >> >> thread 0: reclaim entry x (get refcount, but not call zswap_get_swap_cache_page)
->> >> >>
->> >> >> thread 1: store new page with the same offset A, alloc a new zswap entry y.
->> >> >>   store finished. shrink_page_list() call __remove_mapping(), and now
->> >> >> it is not in swap_cache
->> >> >>
->> >> >
->> >> > But I don't think swap layer will call zswap with the same offset A.
->> >>
->> >> 1. store page of offset A in zswap
->> >> 2. some time later, pagefault occur, load page data from zswap.
->> >>   But notice that zswap entry x is still in zswap because it is not
->> >> frontswap_tmem_exclusive_gets_enabled.
->> >
->> > frontswap_tmem_exclusive_gets_enabled is just option to see tradeoff
->> > between CPU burining by frequent swapout and memory footprint by duplicate
->> > copy in swap cache and frontswap backend so it shouldn't affect the stability.
->>
->> Thanks for explain this.
->> I don't mean to say this option affects the stability,  but that zswap
->> only realize
->> one option. Maybe it's better to realize both options for different workloads.
->
-> "zswap only relize one option"
-> What does it mena? Sorry. I couldn't parse your intention. :)
-> You mean zswap should do something special to support frontswap_tmem_exclusive_gets?
 
-Yes. But I am not sure whether it is worth.
+* Peter Zijlstra <peterz@infradead.org> wrote:
 
->>
->> >>  this page is with PageSwapCache(page) and page_private(page) = entry.val
->> >> 3. change this page data, and it become dirty
->> >
->> > If non-shared swapin page become redirty, it should remove the page from
->> > swapcache. If shared swapin page become redirty, it should do CoW so it's a
->> > new page so that it doesn't live in swap cache. It means it should have new
->> > offset which is different with old's one for swap out.
->> >
->> > What's wrong with that?
->>
->> It is really not a right scene for duplicate store. And I can not think out one.
->> If duplicate store is impossible, How about delete the handle code in zswap?
->> If it does exist, I think there is a potential issue as I described.
->
-> You mean "zswap_duplicate_entry"?
-> AFAIR, I already had a question to Seth when zswap was born but AFAIRC,
-> he said that he didn't know exact reason but he saw that case during
-> experiement so copy the code peice from zcache.
->
-> Do you see the case, too?
+> On Thu, Sep 26, 2013 at 08:46:29AM +0200, Ingo Molnar wrote:
+> > > +/*
+> > > + * MCS lock defines
+> > > + *
+> > > + * This file contains the main data structure and API definitions of MCS lock.
+> > 
+> > A (very) short blurb about what an MCS lock is would be nice here.
+> 
+> A while back I suggested including a link to something like:
+> 
+> http://www.cise.ufl.edu/tr/DOC/REP-1992-71.pdf
+> 
+> Its a fairly concise write-up of the idea; only 6 pages. The sad part 
+> about linking to the web is that links tend to go dead after a while.
 
-Yes, I mean duplicate store.
-I check the /Documentation/vm/frontswap.txt, it mentions "duplicate stores",
-but I am still confused.
+So what I wanted to see was to add just a few sentences summing up the 
+concept - so that people blundering into this file in include/linux/ have 
+an idea what it's all about!
 
-I wrote a zcache varietas which swap out compressed page to swapfile.
-I did see that case when I test it on andorid smartphone(arm v7),
-and it happens rarely and occasionally.
-In one test, only 1 duplicate store occur in about 3157162 times stores.
+Thanks,
 
-> Anyway, we need to dive into that to know what happens and then open
-> our eyes for clear solution before dumping meaningless patch.
->
-> I hope Seth or Bob already know it.
->
->>
->> >> 4. some time later again, swap this page on the same offset A.
->> >>
->> >> so, a duplicate store happens.
->> >>
->> >> what I can think is that use flags and CAS to protect store and reclaim on
->> >> the same offset  happens concurrentlly.
->> >>
->> >> >> thread 0: zswap_get_swap_cache_page called. old page data is added to swap_cache
->> >> >>
->> >> >> Now, swap cache has old data rather than new data for offset A.
->> >> >> error will happen If do_swap_page() get page from swap_cache.
->> >> >>
->> >> >
->> >> > --
->> >> > Regards,
->> >> > --Bob
->> >>
->> >> --
->> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> >> the body to majordomo@kvack.org.  For more info on Linux MM,
->> >> see: http://www.linux-mm.org/ .
->> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->> >
->> > --
->> > Kind regards,
->> > Minchan Kim
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
-> --
-> Kind regards,
-> Minchan Kim
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
