@@ -1,117 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 07D886B0032
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 17:41:48 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y13so1711975pdi.19
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 14:41:48 -0700 (PDT)
-Subject: Re: [PATCH v6 5/6] MCS Lock: Restructure the MCS lock defines and
- locking code into its own file
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <1380229794.2602.36.camel@j-VirtualBox>
-References: <cover.1380144003.git.tim.c.chen@linux.intel.com>
-	 <1380147049.3467.67.camel@schen9-DESK>
-	 <CAGQ1y=7Ehkr+ot3tDZtHv6FR6RQ9fXBVY0=LOyWjmGH_UjH7xA@mail.gmail.com>
-	 <1380226007.2170.2.camel@buesod1.americas.hpqcorp.net>
-	 <1380226997.2602.11.camel@j-VirtualBox>
-	 <1380228059.2170.10.camel@buesod1.americas.hpqcorp.net>
-	 <1380229794.2602.36.camel@j-VirtualBox>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 26 Sep 2013 14:41:42 -0700
-Message-ID: <1380231702.3467.85.camel@schen9-DESK>
-Mime-Version: 1.0
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id CEEF56B0036
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 17:42:55 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id mc17so1687054pbc.32
+        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 14:42:55 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <20130926213807.1D82AE0090@blue.fi.intel.com>
+References: <1379330740-5602-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20130919171727.GC6802@sgi.com>
+ <20130920123137.BE2F7E0090@blue.fi.intel.com>
+ <20130924164443.GB2940@sgi.com>
+ <20130926105052.0205AE0090@blue.fi.intel.com>
+ <20130926211935.GJ2940@sgi.com>
+ <20130926213807.1D82AE0090@blue.fi.intel.com>
+Subject: Re: [PATCHv2 0/9] split page table lock for PMD tables
 Content-Transfer-Encoding: 7bit
+Message-Id: <20130926214246.32EDCE0090@blue.fi.intel.com>
+Date: Fri, 27 Sep 2013 00:42:46 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Low <jason.low2@hp.com>
-Cc: Davidlohr Bueso <davidlohr@hp.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Alex Thorlton <athorlton@sgi.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 2013-09-26 at 14:09 -0700, Jason Low wrote:
-> On Thu, 2013-09-26 at 13:40 -0700, Davidlohr Bueso wrote:
-> > On Thu, 2013-09-26 at 13:23 -0700, Jason Low wrote:
-> > > On Thu, 2013-09-26 at 13:06 -0700, Davidlohr Bueso wrote:
-> > > > On Thu, 2013-09-26 at 12:27 -0700, Jason Low wrote:
-> > > > > On Wed, Sep 25, 2013 at 3:10 PM, Tim Chen <tim.c.chen@linux.intel.com> wrote:
-> > > > > > We will need the MCS lock code for doing optimistic spinning for rwsem.
-> > > > > > Extracting the MCS code from mutex.c and put into its own file allow us
-> > > > > > to reuse this code easily for rwsem.
-> > > > > >
-> > > > > > Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
-> > > > > > Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
-> > > > > > ---
-> > > > > >  include/linux/mcslock.h |   58 +++++++++++++++++++++++++++++++++++++++++++++++
-> > > > > >  kernel/mutex.c          |   58 +++++-----------------------------------------
-> > > > > >  2 files changed, 65 insertions(+), 51 deletions(-)
-> > > > > >  create mode 100644 include/linux/mcslock.h
-> > > > > >
-> > > > > > diff --git a/include/linux/mcslock.h b/include/linux/mcslock.h
-> > > > > > new file mode 100644
-> > > > > > index 0000000..20fd3f0
-> > > > > > --- /dev/null
-> > > > > > +++ b/include/linux/mcslock.h
-> > > > > > @@ -0,0 +1,58 @@
-> > > > > > +/*
-> > > > > > + * MCS lock defines
-> > > > > > + *
-> > > > > > + * This file contains the main data structure and API definitions of MCS lock.
-> > > > > > + */
-> > > > > > +#ifndef __LINUX_MCSLOCK_H
-> > > > > > +#define __LINUX_MCSLOCK_H
-> > > > > > +
-> > > > > > +struct mcs_spin_node {
-> > > > > > +       struct mcs_spin_node *next;
-> > > > > > +       int               locked;       /* 1 if lock acquired */
-> > > > > > +};
-> > > > > > +
-> > > > > > +/*
-> > > > > > + * We don't inline mcs_spin_lock() so that perf can correctly account for the
-> > > > > > + * time spent in this lock function.
-> > > > > > + */
-> > > > > > +static noinline
-> > > > > > +void mcs_spin_lock(struct mcs_spin_node **lock, struct mcs_spin_node *node)
-> > > > > > +{
-> > > > > > +       struct mcs_spin_node *prev;
-> > > > > > +
-> > > > > > +       /* Init node */
-> > > > > > +       node->locked = 0;
-> > > > > > +       node->next   = NULL;
-> > > > > > +
-> > > > > > +       prev = xchg(lock, node);
-> > > > > > +       if (likely(prev == NULL)) {
-> > > > > > +               /* Lock acquired */
-> > > > > > +               node->locked = 1;
-> > > > > 
-> > > > > If we don't spin on the local node, is it necessary to set this variable?
-> > > > 
-> > > > I don't follow, the whole idea is to spin on the local variable.
+Kirill A. Shutemov wrote:
+> Alex Thorlton wrote:
+> > > Let me guess: you have HUGETLBFS enabled in your config, right? ;)
 > > > 
-> > > If prev == NULL, doesn't that mean it won't proceed to spin on the
-> > > variable because the lock is already free and we call return? In that
-> > > case where we directly acquire the lock, I was wondering if it is
-> > > necessary to set node->locked = 1.
+> > > HUGETLBFS hasn't converted to new locking and we disable split pmd lock if
+> > > HUGETLBFS is enabled.
 > > 
-> > Yes, that's true, but we need to flag the lock as acquired (the node's
-> > lock is initially set to unlocked), otherwise others trying to acquire
-> > the lock can spin forever:
-> > 
-> > 	/* Wait until the lock holder passes the lock down */
-> > 	while (!ACCESS_ONCE(node->locked))
-> > 		arch_mutex_cpu_relax();
-> > 
-> > The ->locked variable in this implementation refers to if the lock is
-> > acquired, and *not* to if busy-waiting is necessary.
+> > Ahhhhh, that's got it!  I double checked my config a million times to
+> > make sure that I wasn't going crazy, but I must've missed that. With
+> > that fixed, it's performing exactly how I thought it should.  Looking
+> > great to me!
 > 
-> hmm, others threads acquiring the lock will be spinning on their own
-> local nodes, not this node's node->locked. And if prev == NULL, the
-> current thread won't be reading it's node->lock either since we return.
-> So what other thread is going to be reading this node's node->lock?
-> 
-> Thanks,
-> Jason
+> Can I use your Reviewed-by?
 
-I think setting node->locked = 1 for the prev==NULL case is not
-necessary functionally, but was done for semantics consistency.
+s/Reviewed-by/Tested-by/
 
-Tim
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
