@@ -1,99 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 20D706B0031
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 01:57:31 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id lf10so830780pab.17
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 22:57:30 -0700 (PDT)
-Date: Thu, 26 Sep 2013 14:58:02 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [BUG REPORT] ZSWAP: theoretical race condition issues
-Message-ID: <20130926055802.GA20634@bbox>
-References: <CAL1ERfOiT7QV4UUoKi8+gwbHc9an4rUWriufpOJOUdnTYHHEAw@mail.gmail.com>
- <52118042.30101@oracle.com>
- <20130819054742.GA28062@bbox>
- <CAL1ERfN3AUYwWTctGBjVcgb-mwAmc15-FayLz48P1d0GzogncA@mail.gmail.com>
- <20130821074939.GE3022@bbox>
- <CAL1ERfP70oz=tbVEAfDhgNzgLsvnpbWeOCPOMBpmKTUn0v_Lfg@mail.gmail.com>
- <CAA_GA1ffZVEkbifGfV6zZTTOcityHwYuQotJHBG4L9CJF7LXcA@mail.gmail.com>
- <CAL1ERfOqoo+tPNYQn+e=pqP761gk+bAd7AyeXfoxogfNy0N6Lg@mail.gmail.com>
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 678E76B0031
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 02:46:36 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id mc17so720345pbc.4
+        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 23:46:35 -0700 (PDT)
+Received: by mail-ee0-f48.google.com with SMTP id l10so291993eei.21
+        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 23:46:32 -0700 (PDT)
+Date: Thu, 26 Sep 2013 08:46:29 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v6 5/6] MCS Lock: Restructure the MCS lock defines and
+ locking code into its own file
+Message-ID: <20130926064629.GB19090@gmail.com>
+References: <cover.1380144003.git.tim.c.chen@linux.intel.com>
+ <1380147049.3467.67.camel@schen9-DESK>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAL1ERfOqoo+tPNYQn+e=pqP761gk+bAd7AyeXfoxogfNy0N6Lg@mail.gmail.com>
+In-Reply-To: <1380147049.3467.67.camel@schen9-DESK>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang.kh@gmail.com>
-Cc: Bob Liu <lliubbo@gmail.com>, Bob Liu <bob.liu@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-Hello Weigie,
 
-On Wed, Sep 25, 2013 at 05:33:43PM +0800, Weijie Yang wrote:
-> On Wed, Sep 25, 2013 at 4:31 PM, Bob Liu <lliubbo@gmail.com> wrote:
-> > On Wed, Sep 25, 2013 at 4:09 PM, Weijie Yang <weijie.yang.kh@gmail.com> wrote:
-> >> I think I find a new issue, for integrity of this mail thread, I reply
-> >> to this mail.
-> >>
-> >> It is a concurrence issue either, when duplicate store and reclaim
-> >> concurrentlly.
-> >>
-> >> zswap entry x with offset A is already stored in zswap backend.
-> >> Consider the following scenario:
-> >>
-> >> thread 0: reclaim entry x (get refcount, but not call zswap_get_swap_cache_page)
-> >>
-> >> thread 1: store new page with the same offset A, alloc a new zswap entry y.
-> >>   store finished. shrink_page_list() call __remove_mapping(), and now
-> >> it is not in swap_cache
-> >>
-> >
-> > But I don't think swap layer will call zswap with the same offset A.
+* Tim Chen <tim.c.chen@linux.intel.com> wrote:
+
+> We will need the MCS lock code for doing optimistic spinning for rwsem.
+> Extracting the MCS code from mutex.c and put into its own file allow us
+> to reuse this code easily for rwsem.
 > 
-> 1. store page of offset A in zswap
-> 2. some time later, pagefault occur, load page data from zswap.
->   But notice that zswap entry x is still in zswap because it is not
-> frontswap_tmem_exclusive_gets_enabled.
-
-frontswap_tmem_exclusive_gets_enabled is just option to see tradeoff
-between CPU burining by frequent swapout and memory footprint by duplicate
-copy in swap cache and frontswap backend so it shouldn't affect the stability.
-
->  this page is with PageSwapCache(page) and page_private(page) = entry.val
-> 3. change this page data, and it become dirty
-
-If non-shared swapin page become redirty, it should remove the page from
-swapcache. If shared swapin page become redirty, it should do CoW so it's a
-new page so that it doesn't live in swap cache. It means it should have new
-offset which is different with old's one for swap out.
-
-What's wrong with that?
-
-
-> 4. some time later again, swap this page on the same offset A.
+> Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+> ---
+>  include/linux/mcslock.h |   58 +++++++++++++++++++++++++++++++++++++++++++++++
+>  kernel/mutex.c          |   58 +++++-----------------------------------------
+>  2 files changed, 65 insertions(+), 51 deletions(-)
+>  create mode 100644 include/linux/mcslock.h
 > 
-> so, a duplicate store happens.
-> 
-> what I can think is that use flags and CAS to protect store and reclaim on
-> the same offset  happens concurrentlly.
-> 
-> >> thread 0: zswap_get_swap_cache_page called. old page data is added to swap_cache
-> >>
-> >> Now, swap cache has old data rather than new data for offset A.
-> >> error will happen If do_swap_page() get page from swap_cache.
-> >>
-> >
-> > --
-> > Regards,
-> > --Bob
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> diff --git a/include/linux/mcslock.h b/include/linux/mcslock.h
+> new file mode 100644
+> index 0000000..20fd3f0
+> --- /dev/null
+> +++ b/include/linux/mcslock.h
+> @@ -0,0 +1,58 @@
+> +/*
+> + * MCS lock defines
+> + *
+> + * This file contains the main data structure and API definitions of MCS lock.
 
--- 
-Kind regards,
-Minchan Kim
+A (very) short blurb about what an MCS lock is would be nice here.
+
+> + */
+> +#ifndef __LINUX_MCSLOCK_H
+> +#define __LINUX_MCSLOCK_H
+> +
+> +struct mcs_spin_node {
+> +	struct mcs_spin_node *next;
+> +	int		  locked;	/* 1 if lock acquired */
+> +};
+
+The vertical alignment looks broken here.
+
+> +
+> +/*
+> + * We don't inline mcs_spin_lock() so that perf can correctly account for the
+> + * time spent in this lock function.
+> + */
+> +static noinline
+> +void mcs_spin_lock(struct mcs_spin_node **lock, struct mcs_spin_node *node)
+> +{
+> +	struct mcs_spin_node *prev;
+> +
+> +	/* Init node */
+> +	node->locked = 0;
+> +	node->next   = NULL;
+> +
+> +	prev = xchg(lock, node);
+> +	if (likely(prev == NULL)) {
+> +		/* Lock acquired */
+> +		node->locked = 1;
+> +		return;
+> +	}
+> +	ACCESS_ONCE(prev->next) = node;
+> +	smp_wmb();
+> +	/* Wait until the lock holder passes the lock down */
+> +	while (!ACCESS_ONCE(node->locked))
+> +		arch_mutex_cpu_relax();
+> +}
+> +
+> +static void mcs_spin_unlock(struct mcs_spin_node **lock, struct mcs_spin_node *node)
+> +{
+> +	struct mcs_spin_node *next = ACCESS_ONCE(node->next);
+> +
+> +	if (likely(!next)) {
+> +		/*
+> +		 * Release the lock by setting it to NULL
+> +		 */
+> +		if (cmpxchg(lock, node, NULL) == node)
+> +			return;
+> +		/* Wait until the next pointer is set */
+> +		while (!(next = ACCESS_ONCE(node->next)))
+> +			arch_mutex_cpu_relax();
+> +	}
+> +	ACCESS_ONCE(next->locked) = 1;
+> +	smp_wmb();
+> +}
+> +
+> +#endif
+
+We typically close header guards not via a plain #endif but like this:
+
+#endif /* __LINUX_SPINLOCK_H */
+
+#endif /* __LINUX_SPINLOCK_TYPES_H */
+
+etc.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
