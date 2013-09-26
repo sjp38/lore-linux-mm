@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id E9D246B0031
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 21:14:23 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id y10so411550pdj.39
-        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 18:14:23 -0700 (PDT)
-Message-ID: <52438A6B.30202@linux.intel.com>
-Date: Wed, 25 Sep 2013 18:14:19 -0700
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E67F6B0055
+	for <linux-mm@kvack.org>; Wed, 25 Sep 2013 21:15:29 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so570426pad.16
+        for <linux-mm@kvack.org>; Wed, 25 Sep 2013 18:15:29 -0700 (PDT)
+Message-ID: <52438AA9.3020809@linux.intel.com>
+Date: Wed, 25 Sep 2013 18:15:21 -0700
 From: Arjan van de Ven <arjan@linux.intel.com>
 MIME-Version: 1.0
 Subject: Re: [Results] [RFC PATCH v4 00/40] mm: Memory Power Management
@@ -27,12 +27,9 @@ On 9/25/2013 4:47 PM, Andi Kleen wrote:
 > On Sandy Bridge the memry wakeup overhead is really small. It's on by default
 > in most setups today.
 
-yet grouping is often defeated (in current systems) due to hw level interleaving ;-(
-sometimes that's a bios setting though.
-
-in internal experimental bioses we've been able to observe a "swing" of a few watts
-(not with these patches but with some other tricks)...
-I'm curious to see how these patches do for Srivatsa
+btw note that those kind of memory power savings are content-preserving,
+so likely a whole chunk of these patches is not actually needed on SNB
+(or anything else Intel sells or sold)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
