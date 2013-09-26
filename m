@@ -1,83 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 951ED6B0032
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 11:58:27 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rp2so1319545pbb.14
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 08:58:27 -0700 (PDT)
-Message-ID: <52445993.7050608@linux.intel.com>
-Date: Thu, 26 Sep 2013 08:58:11 -0700
-From: Arjan van de Ven <arjan@linux.intel.com>
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C95F6B0032
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 12:03:32 -0400 (EDT)
+Received: by mail-pb0-f50.google.com with SMTP id uo5so1319590pbc.37
+        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:03:31 -0700 (PDT)
+Received: by mail-pa0-f46.google.com with SMTP id fa1so1504398pad.5
+        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 09:03:29 -0700 (PDT)
+Message-ID: <52445AB5.8030306@gmail.com>
+Date: Fri, 27 Sep 2013 00:03:01 +0800
+From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [Results] [RFC PATCH v4 00/40] mm: Memory Power Management
-References: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com> <52437128.7030402@linux.vnet.ibm.com> <20130925164057.6bbaf23bdc5057c42b2ab010@linux-foundation.org> <20130925234734.GK18242@two.firstfloor.org> <52438AA9.3020809@linux.intel.com> <20130925182129.a7db6a0fd2c7cc3b43fda92d@linux-foundation.org> <20130926015016.GM18242@two.firstfloor.org> <20130925195953.826a9f7d.akpm@linux-foundation.org> <524439D5.8020306@linux.vnet.ibm.com>
-In-Reply-To: <524439D5.8020306@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH v5 4/6] x86/mem-hotplug: Support initialize page tables
+ in bottom-up
+References: <5241D897.1090905@gmail.com> <5241DA5B.8000909@gmail.com> <20130926144851.GF3482@htj.dyndns.org> <52445606.7030108@gmail.com> <20130926154813.GA32391@mtj.dyndns.org>
+In-Reply-To: <20130926154813.GA32391@mtj.dyndns.org>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, mgorman@suse.de, dave@sr71.net, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, riel@redhat.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, isimatu.yasuaki@jp.fujitsu.com, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, thomas.abraham@linaro.org, amit.kachhap@linaro.org
+To: Tejun Heo <tj@kernel.org>
+Cc: "Rafael J . Wysocki" <rjw@sisk.pl>, lenb@kernel.org, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, prarit@redhat.com, "x86@kernel.org" <x86@kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, imtangchen@gmail.com, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On 9/26/2013 6:42 AM, Srivatsa S. Bhat wrote:
-> On 09/26/2013 08:29 AM, Andrew Morton wrote:
->> On Thu, 26 Sep 2013 03:50:16 +0200 Andi Kleen <andi@firstfloor.org> wrote:
+On 09/26/2013 11:48 PM, Tejun Heo wrote:
+> On Thu, Sep 26, 2013 at 11:43:02PM +0800, Zhang Yanfei wrote:
+>>> As Yinghai pointed out in another thread, do we need to worry about
+>>> falling back to top-down?
 >>
->>> On Wed, Sep 25, 2013 at 06:21:29PM -0700, Andrew Morton wrote:
->>>> On Wed, 25 Sep 2013 18:15:21 -0700 Arjan van de Ven <arjan@linux.intel.com> wrote:
->>>>
->>>>> On 9/25/2013 4:47 PM, Andi Kleen wrote:
->>>>>>> Also, the changelogs don't appear to discuss one obvious downside: the
->>>>>>> latency incurred in bringing a bank out of one of the low-power states
->>>>>>> and back into full operation.  Please do discuss and quantify that to
->>>>>>> the best of your knowledge.
->>>>>>
->>>>>> On Sandy Bridge the memry wakeup overhead is really small. It's on by default
->>>>>> in most setups today.
->>>>>
->>>>> btw note that those kind of memory power savings are content-preserving,
->>>>> so likely a whole chunk of these patches is not actually needed on SNB
->>>>> (or anything else Intel sells or sold)
->>>>
->>>> (head spinning a bit).  Could you please expand on this rather a lot?
->>>
->>> As far as I understand there is a range of aggressiveness. You could
->>> just group memory a bit better (assuming you can sufficiently predict
->>> the future or have some interface to let someone tell you about it).
->>>
->>> Or you can actually move memory around later to get as low footprint
->>> as possible.
->>>
->>> This patchkit seems to do both, with the later parts being on the
->>> aggressive side (move things around)
->>>
->>> If you had non content preserving memory saving you would
->>> need to be aggressive as you couldn't afford any mistakes.
->>>
->>> If you had very slow wakeup you also couldn't afford mistakes,
->>> as those could cost a lot of time.
->>>
->>> On SandyBridge is not slow and it's preserving, so some mistakes are ok.
->>>
->>> But being aggressive (so move things around) may still help you saving
->>> more power -- i guess only benchmarks can tell. It's a trade off between
->>> potential gain and potential worse case performance regression.
->>> It may also depend on the workload.
->>>
->>> At least right now the numbers seem to be positive.
->>
->> OK.  But why are "a whole chunk of these patches not actually needed on SNB
->> (or anything else Intel sells or sold)"?  What's the difference between
->> Intel products and whatever-it-is-this-patchset-was-designed-for?
->>
->
-> Arjan, are you referring to the fact that Intel/SNB systems can exploit
-> memory self-refresh only when the entire system goes idle? Is that why this
-> patchset won't turn out to be that useful on those platforms?
+>> I've explained to him. Nop, we don't need to worry about that. Because even
+>> the min_pfn_mapped becomes ISA_END_ADDRESS in the second call below, we won't
+>> allocate memory below the kernel because we have limited the allocation above
+>> the kernel.
+> 
+> Maybe I misunderstood but wasn't he worrying about there not being
+> enough space above kernel?  In that case, it'd automatically fall back
+> to top-down allocation anyway, right?
 
-no we can use other things (CKE and co) all the time.
+Ah, I see. You are saying another issue. He is worrying that if we use
+kexec to load the kernel high, say we have 16GB, we put the kernel in
+15.99GB (just an example), so we only have less than 100MB above the kernel.
 
-just that we found that statistical grouping gave 95%+ of the benefit,
-without the cost of being aggressive on going to a 100.00% grouping
+But as I've explained to him, in almost all the cases, if we want our
+memory hotplug work, we don't do that. And yeah, assume we have this
+problem, it'd fall back to top down and that return backs to patch 2,
+we will trigger the WARN_ONCE, and the admin will know what has happened.
+
+Thanks.
+-- 
+Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
