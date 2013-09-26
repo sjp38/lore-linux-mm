@@ -1,57 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 18F2E6B0032
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 14:44:19 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id z10so1537396pdj.31
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 11:44:18 -0700 (PDT)
-Received: by mail-pd0-f175.google.com with SMTP id q10so1528653pdj.6
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 11:44:15 -0700 (PDT)
-Date: Thu, 26 Sep 2013 11:44:13 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH V1] oom: avoid selecting threads sharing mm with init
-In-Reply-To: <1380182957-3231-1-git-send-email-ming.liu@windriver.com>
-Message-ID: <alpine.DEB.2.02.1309261143160.10904@chino.kir.corp.google.com>
-References: <1380182957-3231-1-git-send-email-ming.liu@windriver.com>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id C6A9C6B0032
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 14:53:33 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id kx10so1719107pab.27
+        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 11:53:33 -0700 (PDT)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [Results] [RFC PATCH v4 00/40] mm: Memory Power Management
+Date: Thu, 26 Sep 2013 18:50:55 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F31D1BA12@ORSMSX106.amr.corp.intel.com>
+References: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com>
+ <52437128.7030402@linux.vnet.ibm.com>
+ <20130925164057.6bbaf23bdc5057c42b2ab010@linux-foundation.org>
+ <20130925234734.GK18242@two.firstfloor.org>
+ <52438AA9.3020809@linux.intel.com>
+ <20130925182129.a7db6a0fd2c7cc3b43fda92d@linux-foundation.org>
+ <20130926015016.GM18242@two.firstfloor.org>
+ <20130925195953.826a9f7d.akpm@linux-foundation.org>
+ <524439D5.8020306@linux.vnet.ibm.com> <52445993.7050608@linux.intel.com>
+ <52446841.2030301@linux.vnet.ibm.com> <524477AC.9090400@linux.intel.com>
+ <52447DED.5080205@linux.vnet.ibm.com>
+In-Reply-To: <52447DED.5080205@linux.vnet.ibm.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Liu <ming.liu@windriver.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.cz, rusty@rustcorp.com.au, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Arjan van de Ven <arjan@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, "mgorman@suse.de" <mgorman@suse.de>, "dave@sr71.net" <dave@sr71.net>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "matthew.garrett@nebula.com" <matthew.garrett@nebula.com>, "riel@redhat.com" <riel@redhat.com>, "srinivas.pandruvada@linux.intel.com" <srinivas.pandruvada@linux.intel.com>, "willy@linux.intel.com" <willy@linux.intel.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "lenb@kernel.org" <lenb@kernel.org>, "rjw@sisk.pl" <rjw@sisk.pl>, "gargankita@gmail.com" <gargankita@gmail.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>, "svaidy@linux.vnet.ibm.com" <svaidy@linux.vnet.ibm.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "santosh.shilimkar@ti.com" <santosh.shilimkar@ti.com>, "kosaki.motohiro@gmail.com" <kosaki.motohiro@gmail.com>, "linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "maxime.coquelin@stericsson.com" <maxime.coquelin@stericsson.com>, "loic.pallardy@stericsson.com" <loic.pallardy@stericsson.com>, "thomas.abraham@linaro.org" <thomas.abraham@linaro.org>, "amit.kachhap@linaro.org" <amit.kachhap@linaro.org>
 
-On Thu, 26 Sep 2013, Ming Liu wrote:
+> And that's it! No other case for page movement. And with this conservativ=
+e
+> approach itself, I'm getting great consolidation ratios!
+> I am also thinking of adding more smartness in the code to be very choosy=
+ in
+> doing the movement, and do it only in cases where it is almost guaranteed=
+ to
+> be beneficial. For example, I can make the kmempowerd kthread more "lazy"
+> while moving/reclaiming stuff; I can bias the page movements such that "c=
+old"
+> pages are left around (since they are not expected to be referenced much
+> anyway) and only the (few) hot pages are moved... etc.
 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 314e9d2..7e50a95 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -113,11 +113,22 @@ struct task_struct *find_lock_task_mm(struct task_struct *p)
->  static bool oom_unkillable_task(struct task_struct *p,
->  		const struct mem_cgroup *memcg, const nodemask_t *nodemask)
->  {
-> +	struct task_struct *init_tsk;
-> +
->  	if (is_global_init(p))
->  		return true;
->  	if (p->flags & PF_KTHREAD)
->  		return true;
->  
-> +	/* It won't help free memory if p is sharing mm with init */
-> +	rcu_read_lock();
-> +	init_tsk = find_task_by_pid_ns(1, &init_pid_ns);
-> +	if(p->mm == init_tsk->mm) {
-> +		rcu_read_unlock();
-> +		return true;
-> +	}
-> +	rcu_read_unlock();
-> +
->  	/* When mem_cgroup_out_of_memory() and p is not member of the group */
->  	if (memcg && !task_in_mem_cgroup(p, memcg))
->  		return true;
+Can (or should) this migrator coordinate with khugepaged - I'd hate to see =
+them
+battling over where to move pages ... or undermining each other (your daemo=
+n
+frees up a 512MB area ... and khugepaged immediately grabs a couple of 2MB
+pages from it to upgrade some process with a scattershot of 4K pages).
 
-You're aware of init_mm?
-
-Can you post the kernel log when one of these "extreme cases" happens?
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
