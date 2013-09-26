@@ -1,110 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id AF3546B0032
-	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 17:10:01 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id bj1so1875018pad.28
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 14:10:01 -0700 (PDT)
-Message-ID: <1380229794.2602.36.camel@j-VirtualBox>
-Subject: Re: [PATCH v6 5/6] MCS Lock: Restructure the MCS lock defines and
- locking code into its own file
-From: Jason Low <jason.low2@hp.com>
-Date: Thu, 26 Sep 2013 14:09:54 -0700
-In-Reply-To: <1380228059.2170.10.camel@buesod1.americas.hpqcorp.net>
-References: <cover.1380144003.git.tim.c.chen@linux.intel.com>
-	 <1380147049.3467.67.camel@schen9-DESK>
-	 <CAGQ1y=7Ehkr+ot3tDZtHv6FR6RQ9fXBVY0=LOyWjmGH_UjH7xA@mail.gmail.com>
-	 <1380226007.2170.2.camel@buesod1.americas.hpqcorp.net>
-	 <1380226997.2602.11.camel@j-VirtualBox>
-	 <1380228059.2170.10.camel@buesod1.americas.hpqcorp.net>
-Content-Type: text/plain; charset="UTF-8"
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 74E1B6B0032
+	for <linux-mm@kvack.org>; Thu, 26 Sep 2013 17:13:43 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id x10so1694018pdj.29
+        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 14:13:43 -0700 (PDT)
+Message-ID: <5244A368.4080208@sr71.net>
+Date: Thu, 26 Sep 2013 14:13:12 -0700
+From: Dave Hansen <dave@sr71.net>
+MIME-Version: 1.0
+Subject: Re: [PATCHv6 00/22] Transparent huge page cache: phase 1, everything
+ but mmap()
+References: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Ning Qu <quning@google.com>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Luck, Tony" <tony.luck@intel.com>Andi Kleen <ak@linux.intel.com>
 
-On Thu, 2013-09-26 at 13:40 -0700, Davidlohr Bueso wrote:
-> On Thu, 2013-09-26 at 13:23 -0700, Jason Low wrote:
-> > On Thu, 2013-09-26 at 13:06 -0700, Davidlohr Bueso wrote:
-> > > On Thu, 2013-09-26 at 12:27 -0700, Jason Low wrote:
-> > > > On Wed, Sep 25, 2013 at 3:10 PM, Tim Chen <tim.c.chen@linux.intel.com> wrote:
-> > > > > We will need the MCS lock code for doing optimistic spinning for rwsem.
-> > > > > Extracting the MCS code from mutex.c and put into its own file allow us
-> > > > > to reuse this code easily for rwsem.
-> > > > >
-> > > > > Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
-> > > > > Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
-> > > > > ---
-> > > > >  include/linux/mcslock.h |   58 +++++++++++++++++++++++++++++++++++++++++++++++
-> > > > >  kernel/mutex.c          |   58 +++++-----------------------------------------
-> > > > >  2 files changed, 65 insertions(+), 51 deletions(-)
-> > > > >  create mode 100644 include/linux/mcslock.h
-> > > > >
-> > > > > diff --git a/include/linux/mcslock.h b/include/linux/mcslock.h
-> > > > > new file mode 100644
-> > > > > index 0000000..20fd3f0
-> > > > > --- /dev/null
-> > > > > +++ b/include/linux/mcslock.h
-> > > > > @@ -0,0 +1,58 @@
-> > > > > +/*
-> > > > > + * MCS lock defines
-> > > > > + *
-> > > > > + * This file contains the main data structure and API definitions of MCS lock.
-> > > > > + */
-> > > > > +#ifndef __LINUX_MCSLOCK_H
-> > > > > +#define __LINUX_MCSLOCK_H
-> > > > > +
-> > > > > +struct mcs_spin_node {
-> > > > > +       struct mcs_spin_node *next;
-> > > > > +       int               locked;       /* 1 if lock acquired */
-> > > > > +};
-> > > > > +
-> > > > > +/*
-> > > > > + * We don't inline mcs_spin_lock() so that perf can correctly account for the
-> > > > > + * time spent in this lock function.
-> > > > > + */
-> > > > > +static noinline
-> > > > > +void mcs_spin_lock(struct mcs_spin_node **lock, struct mcs_spin_node *node)
-> > > > > +{
-> > > > > +       struct mcs_spin_node *prev;
-> > > > > +
-> > > > > +       /* Init node */
-> > > > > +       node->locked = 0;
-> > > > > +       node->next   = NULL;
-> > > > > +
-> > > > > +       prev = xchg(lock, node);
-> > > > > +       if (likely(prev == NULL)) {
-> > > > > +               /* Lock acquired */
-> > > > > +               node->locked = 1;
-> > > > 
-> > > > If we don't spin on the local node, is it necessary to set this variable?
-> > > 
-> > > I don't follow, the whole idea is to spin on the local variable.
-> > 
-> > If prev == NULL, doesn't that mean it won't proceed to spin on the
-> > variable because the lock is already free and we call return? In that
-> > case where we directly acquire the lock, I was wondering if it is
-> > necessary to set node->locked = 1.
-> 
-> Yes, that's true, but we need to flag the lock as acquired (the node's
-> lock is initially set to unlocked), otherwise others trying to acquire
-> the lock can spin forever:
-> 
-> 	/* Wait until the lock holder passes the lock down */
-> 	while (!ACCESS_ONCE(node->locked))
-> 		arch_mutex_cpu_relax();
-> 
-> The ->locked variable in this implementation refers to if the lock is
-> acquired, and *not* to if busy-waiting is necessary.
+On 09/23/2013 05:05 AM, Kirill A. Shutemov wrote:
+> To proof that the proposed changes are functional we enable the feature
+> for the most simple file system -- ramfs. ramfs is not that useful by
+> itself, but it's good pilot project.
 
-hmm, others threads acquiring the lock will be spinning on their own
-local nodes, not this node's node->locked. And if prev == NULL, the
-current thread won't be reading it's node->lock either since we return.
-So what other thread is going to be reading this node's node->lock?
+This does, at the least, give us a shared memory mechanism that can move
+between large and small pages.  We don't have anything which can do that
+today.
 
-Thanks,
-Jason
+Tony Luck was just mentioning that if we have a small (say 1-bit) memory
+failure in a hugetlbfs page, then we end up tossing out the entire 2MB.
+ The app gets a chance to recover the contents, but it has to do it for
+the entire 2MB.  Ideally, we'd like to break the 2M down in to 4k pages,
+which lets us continue using the remaining 2M-4k, and leaves the app to
+rebuild 4k of its data instead of 2M.
+
+If you look at the diffstat, it's also pretty obvious that virtually
+none of this code is actually specific to ramfs.  It'll all get used as
+the foundation for the "real" filesystems too.  I'm very interested in
+how those end up looking, too, but I think Kirill is selling his patches
+a bit short calling this a toy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
