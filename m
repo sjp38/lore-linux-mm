@@ -1,52 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B43D6B0036
-	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 16:42:19 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id lf10so3261538pab.31
-        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 13:42:18 -0700 (PDT)
-Date: Fri, 27 Sep 2013 22:42:14 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Mapping range locking and related stuff
-Message-ID: <20130927204214.GA6445@quack.suse.cz>
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D7486B0031
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 16:46:54 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id r10so3103316pdi.28
+        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 13:46:53 -0700 (PDT)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Fri, 27 Sep 2013 16:46:51 -0400
+Received: from b01cxnp23034.gho.pok.ibm.com (b01cxnp23034.gho.pok.ibm.com [9.57.198.29])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 2BD806E8048
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 16:46:48 -0400 (EDT)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by b01cxnp23034.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8RKkmAl62390478
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 20:46:48 GMT
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r8RKkjiS022117
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 14:46:48 -0600
+Message-ID: <5245EEAD.7010901@linux.vnet.ibm.com>
+Date: Fri, 27 Sep 2013 13:46:37 -0700
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [PATCHv4 02/10] mm: convert mm->nr_ptes to atomic_t
+References: <1380287787-30252-1-git-send-email-kirill.shutemov@linux.intel.com> <1380287787-30252-3-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1380287787-30252-3-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dchinner@redhat.com
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alex Thorlton <athorlton@sgi.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-  Hello,
+On 09/27/2013 06:16 AM, Kirill A. Shutemov wrote:
+> With split page table lock for PMD level we can't hold
+> mm->page_table_lock while updating nr_ptes.
+>
+> Let's convert it to atomic_t to avoid races.
+>
 
-  so recently I've spent some time rummaging in get_user_pages(), fault
-code etc. The use of mmap_sem is really messy in some places (like V4L
-drivers, infiniband,...). It is held over a deep & wide call chains and
-it's not clear what's protected by it, just in the middle of that is a call
-to get_user_pages(). Anyway that's mostly a side note.
+> ---
 
-The main issue I found is with the range locking itself. Consider someone
-doing:
-  fd = open("foo", O_RDWR);
-  base = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-  write(fd, base, 4096);
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index 84e0c56e1e..99f19e850d 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -339,6 +339,7 @@ struct mm_struct {
+>   	pgd_t * pgd;
+>   	atomic_t mm_users;			/* How many users with user space? */
+>   	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
+> +	atomic_t nr_ptes;			/* Page table pages */
+>   	int map_count;				/* number of VMAs */
+>
+>   	spinlock_t page_table_lock;		/* Protects page tables and some counters */
+> @@ -360,7 +361,6 @@ struct mm_struct {
+>   	unsigned long exec_vm;		/* VM_EXEC & ~VM_WRITE */
+>   	unsigned long stack_vm;		/* VM_GROWSUP/DOWN */
+>   	unsigned long def_flags;
+> -	unsigned long nr_ptes;		/* Page table pages */
+>   	unsigned long start_code, end_code, start_data, end_data;
+>   	unsigned long start_brk, brk, start_stack;
+>   	unsigned long arg_start, arg_end, env_start, env_end;
 
-The write() is an interesting way to do nothing but if the mapping range
-lock will be acquired early (like in generic_file_aio_write()), then this
-would deadlock because generic_perform_write() will try to fault in
-destination buffer and that will try to get the range lock for the same
-range again.
-
-Prefaulting buffer before we get the range lock isn't really an option
-since the write(2) can be rather large. So we really either have to lock
-page faults differently or use per page locking as I originally wanted.
-I'm still thinking what would be the best solution for this. Ideas are
-welcome.
-
-								Honza
-
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Will 32bits always be enough here? Should atomic_long_t be used instead?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
