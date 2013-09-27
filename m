@@ -1,107 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 53D9B6B0037
-	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 02:38:58 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id kp14so2390030pab.10
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 23:38:58 -0700 (PDT)
-Received: from /spool/local
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Fri, 27 Sep 2013 16:38:52 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 0E80B2BB0052
-	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 16:38:44 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8R6Libk3604836
-	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 16:21:52 +1000
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r8R6cYqP010018
-	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 16:38:35 +1000
-Message-ID: <524526EF.1080101@linux.vnet.ibm.com>
-Date: Fri, 27 Sep 2013 12:04:23 +0530
-From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D70B6B0032
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 04:08:09 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id x10so2289623pdj.29
+        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 01:08:08 -0700 (PDT)
+Received: by mail-pb0-f50.google.com with SMTP id uo5so2221890pbc.23
+        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 01:08:06 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v4 06/40] mm: Demarcate and maintain pageblocks in
- region-order in the zones' freelists
-References: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com> <20130925231454.26184.19783.stgit@srivatsabhat.in.ibm.com> <5244B22C.9020503@sr71.net>
-In-Reply-To: <5244B22C.9020503@sr71.net>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20130927062633.GB6726@gmail.com>
+References: <5241D897.1090905@gmail.com>
+	<5241DB62.2090300@gmail.com>
+	<20130926145326.GH3482@htj.dyndns.org>
+	<52446413.50504@gmail.com>
+	<20130927062633.GB6726@gmail.com>
+Date: Fri, 27 Sep 2013 16:08:06 +0800
+Message-ID: <CANBD6kGStR-4dJRjoveNv7CtUu04gpsZZhBd=B6_=gMqrDZX6w@mail.gmail.com>
+Subject: Re: [PATCH v5 6/6] mem-hotplug: Introduce movablenode boot option
+From: Yanfei Zhang <zhangyanfei.yes@gmail.com>
+Content-Type: multipart/alternative; boundary=047d7bb0500083f98004e758fc73
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, isimatu.yasuaki@jp.fujitsu.com, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "maxime.coquelin@stericsson.com" <maxime.coquelin@stericsson.com>, "loic.pallardy@stericsson.com" <loic.pallardy@stericsson.com>, "thomas.abraham@linaro.org" <thomas.abraham@linaro.org>, "amit.kachhap@linaro.org" <amit.kachhap@linaro.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>, "Rafael J . Wysocki" <rjw@sisk.pl>, "lenb@kernel.org" <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "mingo@elte.hu" <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "izumi.taku@jp.fujitsu.com" <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "vasilis.liaskovitis@profitbricks.com" <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "prarit@redhat.com" <prarit@redhat.com>, "x86@kernel.org" <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "imtangchen@gmail.com" <imtangchen@gmail.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On 09/27/2013 03:46 AM, Dave Hansen wrote:
-> On 09/25/2013 04:14 PM, Srivatsa S. Bhat wrote:
->> @@ -605,16 +713,22 @@ static inline void __free_one_page(struct page *page,
->>  		buddy_idx = __find_buddy_index(combined_idx, order + 1);
->>  		higher_buddy = higher_page + (buddy_idx - combined_idx);
->>  		if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
->> -			list_add_tail(&page->lru,
->> -				&zone->free_area[order].free_list[migratetype].list);
->> +
->> +			/*
->> +			 * Implementing an add_to_freelist_tail() won't be
->> +			 * very useful because both of them (almost) add to
->> +			 * the tail within the region. So we could potentially
->> +			 * switch off this entire "is next-higher buddy free?"
->> +			 * logic when memory regions are used.
->> +			 */
->> +			add_to_freelist(page, &area->free_list[migratetype]);
->>  			goto out;
->>  		}
->>  	}
-> 
-> Commit 6dda9d55b says that this had some discrete performance gains.
+--047d7bb0500083f98004e758fc73
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-I had seen the comments about this but not the patch which made that change.
-Thanks for pointing the commit to me! But now that I went through the changelog
-carefully, it appears as if there were only some slight benefits in huge page
-allocation benchmarks, and the results were either inconclusive or unsubstantial
-in most other benchmarks that the author tried.
+hello Ingo,
 
-> It's a bummer that this deoptimizes it, and I think that (expected)
-> performance degredation at least needs to be referenced _somewhere_.
+=E5=9C=A8 2013=E5=B9=B49=E6=9C=8827=E6=97=A5=E6=98=9F=E6=9C=9F=E4=BA=94=EF=
+=BC=8CIngo Molnar =E5=86=99=E9=81=93=EF=BC=9A
+
+>
+> * Zhang Yanfei <zhangyanfei.yes@gmail.com <javascript:;>> wrote:
+>
+> > OK. Trying below:
+> >
+> > movablenode   [KNL,X86] This option enables the kernel to arrange
+> >               hotpluggable memory into ZONE_MOVABLE zone. If memory
+> >               in a node is all hotpluggable, the option may make
+> >               the whole node has only one ZONE_MOVABLE zone, so that
+> >               the whole node can be hot-removed after system is up.
+> >               Note that this option may cause NUMA performance down.
+>
+> That paragraph doesn't really parse in several places ...
+
+
+Sorry=E2=80=A6could you point out the places a bit?
+
+
+>
+> Also, more importantly, please explain why this needs to be a boot option=
+.
+> In terms of user friendliness boot options are at the bottom of the list,
+> and boot options also don't really help feature tests.
+>
+> Presumably the feature is safe and has no costs, and hence could be added
+> as a regular .config option, with a boot option only as an additional
+> configurability option?
+
+
+Yeah, the kernel already has config MOVABLE_NODE, which is the config
+enabing this feature, and we introduce this boot option to expand the
+configurability.
+
+Thanks.
+Zhang
+
+
+>
+> Thanks,
+>
+>         Ingo
 >
 
-I'm not so sure about that. Yes, I know that my patchset treats all pages
-equally (by adding all of them _far_ _away_ from the head of the list), but
-given that the above commit didn't show any significant improvements, I doubt
-whether my patchset will lead to any noticeable _degradation_. Perhaps I'll try
-out the huge-page allocation benchmark and observe what happens with my patchset.
- 
-> I also find it very hard to take code seriously which stuff like this:
-> 
->> +#ifdef CONFIG_DEBUG_PAGEALLOC
->> +		WARN(region->nr_free == 0, "%s: nr_free messed up\n", __func__);
->> +#endif
-> 
-> nine times.
-> 
+--047d7bb0500083f98004e758fc73
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-Hmm, those debug checks were pretty invaluable for me when testing the code.
-I retained them in the patches so that if other people test it and find
-problems, they would be able to send bug reports with good amount of info as
-to what exactly went wrong. Besides, this patchset adds a ton of new code, and
-this list manipulation framework along with the bitmap-based radix tree is one
-of the core components. If that goes for a toss, everything from there onwards
-will be a train-wreck! So I felt having these checks and balances would be very
-useful to validate the correct working of each piece and to debug complex
-problems easily.
+hello Ingo,<br><br>=E5=9C=A8 2013=E5=B9=B49=E6=9C=8827=E6=97=A5=E6=98=9F=E6=
+=9C=9F=E4=BA=94=EF=BC=8CIngo Molnar  =E5=86=99=E9=81=93=EF=BC=9A<br><blockq=
+uote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc =
+solid;padding-left:1ex"><br>
+* Zhang Yanfei &lt;<a href=3D"javascript:;" onclick=3D"_e(event, &#39;cvml&=
+#39;, &#39;zhangyanfei.yes@gmail.com&#39;)">zhangyanfei.yes@gmail.com</a>&g=
+t; wrote:<br>
+<br>
+&gt; OK. Trying below:<br>
+&gt;<br>
+&gt; movablenode =C2=A0 [KNL,X86] This option enables the kernel to arrange=
+<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 hotpluggable memory i=
+nto ZONE_MOVABLE zone. If memory<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 in a node is all hotp=
+luggable, the option may make<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 the whole node has on=
+ly one ZONE_MOVABLE zone, so that<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 the whole node can be=
+ hot-removed after system is up.<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Note that this option=
+ may cause NUMA performance down.<br>
+<br>
+That paragraph doesn&#39;t really parse in several places ...</blockquote><=
+div><br></div><div>Sorry=E2=80=A6could you point out the places a bit?</div=
+><div>=C2=A0</div><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .=
+8ex;border-left:1px #ccc solid;padding-left:1ex">
 
-But please help me understand your point correctly - are you suggesting that
-I remove these checks completely or just make them gel well with the other code
-so that they don't become such an eyesore as they are at the moment (with all
-the #ifdefs sticking out etc)?
+<br>
+Also, more importantly, please explain why this needs to be a boot option.<=
+br>
+In terms of user friendliness boot options are at the bottom of the list,<b=
+r>
+and boot options also don&#39;t really help feature tests.<br>
+<br>
+Presumably the feature is safe and has no costs, and hence could be added<b=
+r>
+as a regular .config option, with a boot option only as an additional<br>
+configurability option?</blockquote><div><br></div><div>Yeah, the kernel al=
+ready has config MOVABLE_NODE, which is the config enabing this feature, an=
+d we introduce this boot option to expand the configurability.</div><div>
+<br></div><div>Thanks.</div><div>Zhang<span></span></div><div>=C2=A0</div><=
+blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px=
+ #ccc solid;padding-left:1ex">
+<br>
+Thanks,<br>
+<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 Ingo<br>
+</blockquote>
 
-If you are suggesting the latter, I completely agree with you. I'll find out
-a way to do that, and if you have any suggestions, please let me know!
-
-Thank you!
-
-Regards,
-Srivatsa S. Bhat
+--047d7bb0500083f98004e758fc73--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
