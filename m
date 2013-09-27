@@ -1,58 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C3366B0031
-	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 16:16:21 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id x10so3063638pdj.15
-        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 13:16:20 -0700 (PDT)
-Received: by mail-bk0-f50.google.com with SMTP id mz11so1190088bkb.9
-        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 13:16:17 -0700 (PDT)
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 321866B0031
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 16:38:41 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id fb1so3264948pad.37
+        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 13:38:40 -0700 (PDT)
+Received: by mail-pa0-f47.google.com with SMTP id kp14so3243175pab.6
+        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 13:38:38 -0700 (PDT)
+Message-ID: <5245ECC3.8070200@gmail.com>
+Date: Fri, 27 Sep 2013 13:38:27 -0700
+From: Frank Rowand <frowand.list@gmail.com>
+Reply-To: frowand.list@gmail.com
 MIME-Version: 1.0
-In-Reply-To: <1380310733.3467.118.camel@schen9-DESK>
-References: <cover.1380144003.git.tim.c.chen@linux.intel.com>
-	<1380147049.3467.67.camel@schen9-DESK>
-	<20130927152953.GA4464@linux.vnet.ibm.com>
-	<1380310733.3467.118.camel@schen9-DESK>
-Date: Fri, 27 Sep 2013 13:16:16 -0700
-Message-ID: <CAGQ1y=7bvd00iU_0byqmVAe5NoEJ=SwkVbdbcj8+O6=Bh27jzQ@mail.gmail.com>
-Subject: Re: [PATCH v6 5/6] MCS Lock: Restructure the MCS lock defines and
- locking code into its own file
-From: Jason Low <jason.low2@hp.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: [PATCH] slub: Proper kmemleak tracking if CONFIG_SLUB_DEBUG disabled
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>, Waiman Long <Waiman.Long@hp.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, Linux Kernel list <linux-kernel@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, "Bobniev, Roman" <Roman.Bobniev@sonymobile.com>
+Cc: "Bird, Tim" <Tim.Bird@sonymobile.com>, =?ISO-8859-1?Q?=22Andersson=2C?= =?ISO-8859-1?Q?_Bj=F6rn=22?= <Bjorn.Andersson@sonymobile.com>
 
-On Fri, Sep 27, 2013 at 12:38 PM, Tim Chen <tim.c.chen@linux.intel.com> wrote:
+From: Roman Bobniev <roman.bobniev@sonymobile.com>
 
-> BTW, is the above memory barrier necessary?  It seems like the xchg
-> instruction already provided a memory barrier.
->
-> Now if we made the changes that Jason suggested:
->
->
->         /* Init node */
-> -       node->locked = 0;
->         node->next   = NULL;
->
->         prev = xchg(lock, node);
->         if (likely(prev == NULL)) {
->                 /* Lock acquired */
-> -               node->locked = 1;
->                 return;
->         }
-> +       node->locked = 0;
->         ACCESS_ONCE(prev->next) = node;
->         smp_wmb();
->
-> We are probably still okay as other cpus do not read the value of
-> node->locked, which is a local variable.
+When kmemleak checking is enabled and CONFIG_SLUB_DEBUG is
+disabled, the kmemleak code for small block allocation is
+disabled.  This results in false kmemleak errors when memory
+is freed.
 
-Similarly, I was wondering if we should also move smp_wmb() so that it
-is before the ACCESS_ONCE(prev->next) = node and after the
-node->locked = 0. Would we want to guarantee that the node->locked
-gets set before it is added to the linked list where a previous thread
-calling mcs_spin_unlock() would potentially modify node->locked?
+Move the kmemleak code for small block allocation out from
+under CONFIG_SLUB_DEBUG.
+
+Signed-off-by: Roman Bobniev <roman.bobniev@sonymobile.com>
+Signed-off-by: Frank Rowand <frank.rowand@sonymobile.com>
+---
+ mm/slub.c |    6 	3 +	3 -	0 !
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+Index: b/mm/slub.c
+===================================================================
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -947,13 +947,10 @@ static inline void slab_post_alloc_hook(
+ {
+ 	flags &= gfp_allowed_mask;
+ 	kmemcheck_slab_alloc(s, flags, object, slab_ksize(s));
+-	kmemleak_alloc_recursive(object, s->object_size, 1, s->flags, flags);
+ }
+ 
+ static inline void slab_free_hook(struct kmem_cache *s, void *x)
+ {
+-	kmemleak_free_recursive(x, s->flags);
+-
+ 	/*
+ 	 * Trouble is that we may no longer disable interupts in the fast path
+ 	 * So in order to make the debug calls that expect irqs to be
+@@ -2418,6 +2415,8 @@ redo:
+ 		memset(object, 0, s->object_size);
+ 
+ 	slab_post_alloc_hook(s, gfpflags, object);
++	kmemleak_alloc_recursive(object, s->objsize, 1, s->flags,
++				 gfpflags & gfp_allowed_mask);
+ 
+ 	return object;
+ }
+@@ -2614,6 +2613,7 @@ static __always_inline void slab_free(st
+ 	struct kmem_cache_cpu *c;
+ 	unsigned long tid;
+ 
++	kmemleak_free_recursive(x, s->flags);
+ 	slab_free_hook(s, x);
+ 
+ redo:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
