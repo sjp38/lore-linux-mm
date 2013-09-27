@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 11EC190001F
-	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 09:28:27 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fb1so2795936pad.37
-        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 06:28:27 -0700 (PDT)
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id A44A1900020
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 09:28:28 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id r10so2612569pdi.14
+        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 06:28:28 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 35/63] sched: numa: Do not trap hinting faults for shared libraries
-Date: Fri, 27 Sep 2013 14:27:20 +0100
-Message-Id: <1380288468-5551-36-git-send-email-mgorman@suse.de>
+Subject: [PATCH 36/63] mm: numa: Only trap pmd hinting faults if we would otherwise trap PTE faults
+Date: Fri, 27 Sep 2013 14:27:21 +0100
+Message-Id: <1380288468-5551-37-git-send-email-mgorman@suse.de>
 In-Reply-To: <1380288468-5551-1-git-send-email-mgorman@suse.de>
 References: <1380288468-5551-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,42 +15,49 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-NUMA hinting faults will not migrate a shared executable page mapped by
-multiple processes on the grounds that the data is probably in the CPU
-cache already and the page may just bounce between tasks running on multipl
-nodes. Even if the migration is avoided, there is still the overhead of
-trapping the fault, updating the statistics, making scheduler placement
-decisions based on the information etc. If we are never going to migrate
-the page, it is overhead for no gain and worse a process may be placed on
-a sub-optimal node for shared executable pages. This patch avoids trapping
-faults for shared libraries entirely.
+Base page PMD faulting is meant to batch handle NUMA hinting faults from
+PTEs. However, even is no PTE faults would ever be handled within a
+range the kernel still traps PMD hinting faults. This patch avoids the
+overhead.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- kernel/sched/fair.c | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ mm/mprotect.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 1a17e5e..cd90e44 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -1231,6 +1231,16 @@ void task_numa_work(struct callback_head *work)
- 		if (!vma_migratable(vma) || !vma_policy_mof(p, vma))
- 			continue;
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index f0b087d..5aae390 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -146,6 +146,8 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
  
-+		/*
-+		 * Shared library pages mapped by multiple processes are not
-+		 * migrated as it is expected they are cache replicated. Avoid
-+		 * hinting faults in read-only file-backed mappings or the vdso
-+		 * as migrating the pages will be of marginal benefit.
-+		 */
-+		if (!vma->vm_mm ||
-+		    (vma->vm_file && (vma->vm_flags & (VM_READ|VM_WRITE)) == (VM_READ)))
-+			continue;
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
++		unsigned long this_pages;
 +
- 		do {
- 			start = max(start, vma->vm_start);
- 			end = ALIGN(start + (pages << PAGE_SHIFT), HPAGE_SIZE);
+ 		next = pmd_addr_end(addr, end);
+ 		if (pmd_trans_huge(*pmd)) {
+ 			if (next - addr != HPAGE_PMD_SIZE)
+@@ -165,8 +167,9 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+ 		}
+ 		if (pmd_none_or_clear_bad(pmd))
+ 			continue;
+-		pages += change_pte_range(vma, pmd, addr, next, newprot,
++		this_pages = change_pte_range(vma, pmd, addr, next, newprot,
+ 				 dirty_accountable, prot_numa, &all_same_nidpid);
++		pages += this_pages;
+ 
+ 		/*
+ 		 * If we are changing protections for NUMA hinting faults then
+@@ -174,7 +177,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+ 		 * node. This allows a regular PMD to be handled as one fault
+ 		 * and effectively batches the taking of the PTL
+ 		 */
+-		if (prot_numa && all_same_nidpid)
++		if (prot_numa && this_pages && all_same_nidpid)
+ 			change_pmd_protnuma(vma->vm_mm, addr, pmd);
+ 	} while (pmd++, addr = next, addr != end);
+ 
 -- 
 1.8.1.4
 
