@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CD8C90000D
-	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 09:28:12 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id p10so2601896pdj.32
-        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 06:28:12 -0700 (PDT)
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D58F90000F
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 09:28:13 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id y10so2577571pdj.8
+        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 06:28:13 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 18/63] sched: numa: Slow scan rate if no NUMA hinting faults are being recorded
-Date: Fri, 27 Sep 2013 14:27:03 +0100
-Message-Id: <1380288468-5551-19-git-send-email-mgorman@suse.de>
+Subject: [PATCH 19/63] sched: Track NUMA hinting faults on per-node basis
+Date: Fri, 27 Sep 2013 14:27:04 +0100
+Message-Id: <1380288468-5551-20-git-send-email-mgorman@suse.de>
 In-Reply-To: <1380288468-5551-1-git-send-email-mgorman@suse.de>
 References: <1380288468-5551-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,39 +15,111 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-NUMA PTE scanning slows if a NUMA hinting fault was trapped and no page
-was migrated. For long-lived but idle processes there may be no faults
-but the scan rate will be high and just waste CPU. This patch will slow
-the scan rate for processes that are not trapping faults.
+This patch tracks what nodes numa hinting faults were incurred on.
+This information is later used to schedule a task on the node storing
+the pages most frequently faulted by the task.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- kernel/sched/fair.c | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ include/linux/sched.h |  2 ++
+ kernel/sched/core.c   |  3 +++
+ kernel/sched/fair.c   | 11 ++++++++++-
+ kernel/sched/sched.h  | 12 ++++++++++++
+ 4 files changed, 27 insertions(+), 1 deletion(-)
 
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 49b426e..dfba435 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1334,6 +1334,8 @@ struct task_struct {
+ 	unsigned int numa_scan_period_max;
+ 	u64 node_stamp;			/* migration stamp  */
+ 	struct callback_head numa_work;
++
++	unsigned long *numa_faults;
+ #endif /* CONFIG_NUMA_BALANCING */
+ 
+ 	struct rcu_head rcu;
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 9d7a33a..dbc2de6 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -1644,6 +1644,7 @@ static void __sched_fork(struct task_struct *p)
+ 	p->numa_migrate_seq = p->mm ? p->mm->numa_scan_seq - 1 : 0;
+ 	p->numa_scan_period = sysctl_numa_balancing_scan_delay;
+ 	p->numa_work.next = &p->numa_work;
++	p->numa_faults = NULL;
+ #endif /* CONFIG_NUMA_BALANCING */
+ }
+ 
+@@ -1905,6 +1906,8 @@ static void finish_task_switch(struct rq *rq, struct task_struct *prev)
+ 	if (mm)
+ 		mmdrop(mm);
+ 	if (unlikely(prev_state == TASK_DEAD)) {
++		task_numa_free(prev);
++
+ 		/*
+ 		 * Remove function-return probe instances associated with this
+ 		 * task and put them back on the free list.
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 8b71a5e..cdd656c 100644
+index cdd656c..55ec7ad 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -1039,6 +1039,18 @@ void task_numa_work(struct callback_head *work)
+@@ -902,7 +902,14 @@ void task_numa_fault(int node, int pages, bool migrated)
+ 	if (!numabalancing_enabled)
+ 		return;
  
- out:
- 	/*
-+	 * If the whole process was scanned without updates then no NUMA
-+	 * hinting faults are being recorded and scan rate should be lower.
-+	 */
-+	if (mm->numa_scan_offset == 0 && !nr_pte_updates) {
-+		p->numa_scan_period = min(p->numa_scan_period_max,
-+			p->numa_scan_period << 1);
+-	/* FIXME: Allocate task-specific structure for placement policy here */
++	/* Allocate buffer to track faults on a per-node basis */
++	if (unlikely(!p->numa_faults)) {
++		int size = sizeof(*p->numa_faults) * nr_node_ids;
 +
-+		next_scan = now + msecs_to_jiffies(p->numa_scan_period);
-+		mm->numa_next_scan = next_scan;
++		p->numa_faults = kzalloc(size, GFP_KERNEL|__GFP_NOWARN);
++		if (!p->numa_faults)
++			return;
 +	}
+ 
+ 	/*
+ 	 * If pages are properly placed (did not migrate) then scan slower.
+@@ -918,6 +925,8 @@ void task_numa_fault(int node, int pages, bool migrated)
+ 	}
+ 
+ 	task_numa_placement(p);
 +
-+	/*
- 	 * It is possible to reach the end of the VMA list but the last few
- 	 * VMAs are not guaranteed to the vma_migratable. If they are not, we
- 	 * would find the !migratable VMA on the next scan but not reset the
++	p->numa_faults[node] += pages;
+ }
+ 
+ static void reset_ptenuma_scan(struct task_struct *p)
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 7c17661..46c2068 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -6,6 +6,7 @@
+ #include <linux/spinlock.h>
+ #include <linux/stop_machine.h>
+ #include <linux/tick.h>
++#include <linux/slab.h>
+ 
+ #include "cpupri.h"
+ #include "cpuacct.h"
+@@ -553,6 +554,17 @@ static inline u64 rq_clock_task(struct rq *rq)
+ 	return rq->clock_task;
+ }
+ 
++#ifdef CONFIG_NUMA_BALANCING
++static inline void task_numa_free(struct task_struct *p)
++{
++	kfree(p->numa_faults);
++}
++#else /* CONFIG_NUMA_BALANCING */
++static inline void task_numa_free(struct task_struct *p)
++{
++}
++#endif /* CONFIG_NUMA_BALANCING */
++
+ #ifdef CONFIG_SMP
+ 
+ #define rcu_dereference_check_sched_domain(p) \
 -- 
 1.8.1.4
 
