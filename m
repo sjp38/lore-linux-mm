@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 977ED900013
-	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 09:28:25 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id z10so2606254pdj.31
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 46D3990001D
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 09:28:26 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id kp14so2773146pab.38
         for <linux-mm@kvack.org>; Fri, 27 Sep 2013 06:28:25 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 32/63] sched: Avoid overloading CPUs on a preferred NUMA node
-Date: Fri, 27 Sep 2013 14:27:17 +0100
-Message-Id: <1380288468-5551-33-git-send-email-mgorman@suse.de>
+Subject: [PATCH 33/63] sched: Retry migration of tasks to CPU on a preferred node
+Date: Fri, 27 Sep 2013 14:27:18 +0100
+Message-Id: <1380288468-5551-34-git-send-email-mgorman@suse.de>
 In-Reply-To: <1380288468-5551-1-git-send-email-mgorman@suse.de>
 References: <1380288468-5551-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,198 +15,91 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-This patch replaces find_idlest_cpu_node with task_numa_find_cpu.
-find_idlest_cpu_node has two critical limitations. It does not take the
-scheduling class into account when calculating the load and it is unsuitable
-for using when comparing loads between NUMA nodes.
+When a preferred node is selected for a tasks there is an attempt to migrate
+the task to a CPU there. This may fail in which case the task will only
+migrate if the active load balancer takes action. This may never happen if
+the conditions are not right. This patch will check at NUMA hinting fault
+time if another attempt should be made to migrate the task. It will only
+make an attempt once every five seconds.
 
-task_numa_find_cpu uses similar load calculations to wake_affine() when
-selecting the least loaded CPU within a scheduling domain common to the
-source and destimation nodes. It avoids causing CPU load imbalances in
-the machine by refusing to migrate if the relative load on the target
-CPU is higher than the source CPU.
-
-Signed-off-by: Peter Zijlstra <peterz@infradead.org>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Peter Zijlstra <peterz@infradead.org>
 ---
- kernel/sched/fair.c | 131 ++++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 102 insertions(+), 29 deletions(-)
+ include/linux/sched.h |  1 +
+ kernel/sched/fair.c   | 30 +++++++++++++++++++++++-------
+ 2 files changed, 24 insertions(+), 7 deletions(-)
 
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 6eb8fa6..3418b0b 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1333,6 +1333,7 @@ struct task_struct {
+ 	int numa_migrate_seq;
+ 	unsigned int numa_scan_period;
+ 	unsigned int numa_scan_period_max;
++	unsigned long numa_migrate_retry;
+ 	u64 node_stamp;			/* migration stamp  */
+ 	struct callback_head numa_work;
+ 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index f9329d5..b130014 100644
+index b130014..00ccc68 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -901,28 +901,114 @@ static inline unsigned long task_faults(struct task_struct *p, int nid)
+@@ -1011,6 +1011,23 @@ migrate:
+ 	return migrate_task_to(p, env.best_cpu);
  }
  
- static unsigned long weighted_cpuload(const int cpu);
-+static unsigned long source_load(int cpu, int type);
-+static unsigned long target_load(int cpu, int type);
-+static unsigned long power_of(int cpu);
-+static long effective_load(struct task_group *tg, int cpu, long wl, long wg);
- 
-+struct numa_stats {
-+	unsigned long load;
-+	s64 eff_load;
-+	unsigned long faults;
-+};
- 
--static int
--find_idlest_cpu_node(int this_cpu, int nid)
--{
--	unsigned long load, min_load = ULONG_MAX;
--	int i, idlest_cpu = this_cpu;
-+struct task_numa_env {
-+	struct task_struct *p;
- 
--	BUG_ON(cpu_to_node(this_cpu) == nid);
-+	int src_cpu, src_nid;
-+	int dst_cpu, dst_nid;
- 
--	rcu_read_lock();
--	for_each_cpu(i, cpumask_of_node(nid)) {
--		load = weighted_cpuload(i);
-+	struct numa_stats src_stats, dst_stats;
- 
--		if (load < min_load) {
--			min_load = load;
--			idlest_cpu = i;
-+	unsigned long best_load;
-+	int best_cpu;
-+};
-+
-+static int task_numa_migrate(struct task_struct *p)
++/* Attempt to migrate a task to a CPU on the preferred node. */
++static void numa_migrate_preferred(struct task_struct *p)
 +{
-+	int node_cpu = cpumask_first(cpumask_of_node(p->numa_preferred_nid));
-+	struct task_numa_env env = {
-+		.p = p,
-+		.src_cpu = task_cpu(p),
-+		.src_nid = cpu_to_node(task_cpu(p)),
-+		.dst_cpu = node_cpu,
-+		.dst_nid = p->numa_preferred_nid,
-+		.best_load = ULONG_MAX,
-+		.best_cpu = task_cpu(p),
-+	};
-+	struct sched_domain *sd;
-+	int cpu;
-+	struct task_group *tg = task_group(p);
-+	unsigned long weight;
-+	bool balanced;
-+	int imbalance_pct, idx = -1;
++	/* Success if task is already running on preferred CPU */
++	p->numa_migrate_retry = 0;
++	if (cpu_to_node(task_cpu(p)) == p->numa_preferred_nid)
++		return;
 +
-+	/*
-+	 * Find the lowest common scheduling domain covering the nodes of both
-+	 * the CPU the task is currently running on and the target NUMA node.
-+	 */
-+	rcu_read_lock();
-+	for_each_domain(env.src_cpu, sd) {
-+		if (cpumask_test_cpu(node_cpu, sched_domain_span(sd))) {
-+			/*
-+			 * busy_idx is used for the load decision as it is the
-+			 * same index used by the regular load balancer for an
-+			 * active cpu.
-+			 */
-+			idx = sd->busy_idx;
-+			imbalance_pct = sd->imbalance_pct;
-+			break;
++	/* This task has no NUMA fault statistics yet */
++	if (unlikely(p->numa_preferred_nid == -1))
++		return;
++
++	/* Otherwise, try migrate to a CPU on the preferred node */
++	if (task_numa_migrate(p) != 0)
++		p->numa_migrate_retry = jiffies + HZ*5;
++}
++
+ static void task_numa_placement(struct task_struct *p)
+ {
+ 	int seq, nid, max_nid = -1;
+@@ -1045,17 +1062,12 @@ static void task_numa_placement(struct task_struct *p)
  		}
  	}
- 	rcu_read_unlock();
  
--	return idlest_cpu;
-+	if (WARN_ON_ONCE(idx == -1))
-+		return 0;
-+
-+	/*
-+	 * XXX the below is mostly nicked from wake_affine(); we should
-+	 * see about sharing a bit if at all possible; also it might want
-+	 * some per entity weight love.
-+	 */
-+	weight = p->se.load.weight;
-+	env.src_stats.load = source_load(env.src_cpu, idx);
-+	env.src_stats.eff_load = 100 + (imbalance_pct - 100) / 2;
-+	env.src_stats.eff_load *= power_of(env.src_cpu);
-+	env.src_stats.eff_load *= env.src_stats.load + effective_load(tg, env.src_cpu, -weight, -weight);
-+
-+	for_each_cpu(cpu, cpumask_of_node(env.dst_nid)) {
-+		env.dst_cpu = cpu;
-+		env.dst_stats.load = target_load(cpu, idx);
-+
-+		/* If the CPU is idle, use it */
-+		if (!env.dst_stats.load) {
-+			env.best_cpu = cpu;
-+			goto migrate;
-+		}
-+
-+		/* Otherwise check the target CPU load */
-+		env.dst_stats.eff_load = 100;
-+		env.dst_stats.eff_load *= power_of(cpu);
-+		env.dst_stats.eff_load *= env.dst_stats.load + effective_load(tg, cpu, weight, weight);
-+
-+		/*
-+		 * Destination is considered balanced if the destination CPU is
-+		 * less loaded than the source CPU. Unfortunately there is a
-+		 * risk that a task running on a lightly loaded CPU will not
-+		 * migrate to its preferred node due to load imbalances.
-+		 */
-+		balanced = (env.dst_stats.eff_load <= env.src_stats.eff_load);
-+		if (!balanced)
-+			continue;
-+
-+		if (env.dst_stats.eff_load < env.best_load) {
-+			env.best_load = env.dst_stats.eff_load;
-+			env.best_cpu = cpu;
-+		}
-+	}
-+
-+migrate:
-+	return migrate_task_to(p, env.best_cpu);
- }
- 
- static void task_numa_placement(struct task_struct *p)
-@@ -966,22 +1052,10 @@ static void task_numa_placement(struct task_struct *p)
- 	 * the working set placement.
- 	 */
+-	/*
+-	 * Record the preferred node as the node with the most faults,
+-	 * requeue the task to be running on the idlest CPU on the
+-	 * preferred node and reset the scanning rate to recheck
+-	 * the working set placement.
+-	 */
++	/* Preferred node as the node with the most faults */
  	if (max_faults && max_nid != p->numa_preferred_nid) {
--		int preferred_cpu;
--
--		/*
--		 * If the task is not on the preferred node then find the most
--		 * idle CPU to migrate to.
--		 */
--		preferred_cpu = task_cpu(p);
--		if (cpu_to_node(preferred_cpu) != max_nid) {
--			preferred_cpu = find_idlest_cpu_node(preferred_cpu,
--							     max_nid);
--		}
--
  		/* Update the preferred nid and migrate task if possible */
  		p->numa_preferred_nid = max_nid;
  		p->numa_migrate_seq = 1;
--		migrate_task_to(p, preferred_cpu);
-+		task_numa_migrate(p);
+-		task_numa_migrate(p);
++		numa_migrate_preferred(p);
  	}
  }
  
-@@ -3274,7 +3348,7 @@ static long effective_load(struct task_group *tg, int cpu, long wl, long wg)
- {
- 	struct sched_entity *se = tg->se[cpu];
+@@ -1111,6 +1123,10 @@ void task_numa_fault(int last_nidpid, int node, int pages, bool migrated)
  
--	if (!tg->parent)	/* the trivial, non-cgroup case */
-+	if (!tg->parent || !wl)	/* the trivial, non-cgroup case */
- 		return wl;
+ 	task_numa_placement(p);
  
- 	for_each_sched_entity(se) {
-@@ -3327,8 +3401,7 @@ static long effective_load(struct task_group *tg, int cpu, long wl, long wg)
++	/* Retry task to preferred node migration if it previously failed */
++	if (p->numa_migrate_retry && time_after(jiffies, p->numa_migrate_retry))
++		numa_migrate_preferred(p);
++
+ 	p->numa_faults_buffer[task_faults_idx(node, priv)] += pages;
  }
- #else
  
--static inline unsigned long effective_load(struct task_group *tg, int cpu,
--		unsigned long wl, unsigned long wg)
-+static long effective_load(struct task_group *tg, int cpu, long wl, long wg)
- {
- 	return wl;
- }
 -- 
 1.8.1.4
 
