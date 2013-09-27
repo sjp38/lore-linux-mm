@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id D8FD3900026
-	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 09:28:35 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id q10so2573328pdj.7
-        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 06:28:35 -0700 (PDT)
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 33E50900026
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 09:28:37 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id g10so2585708pdj.40
+        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 06:28:36 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 43/63] sched: numa: Use {cpu, pid} to create task groups for shared faults
-Date: Fri, 27 Sep 2013 14:27:28 +0100
-Message-Id: <1380288468-5551-44-git-send-email-mgorman@suse.de>
+Subject: [PATCH 44/63] sched: numa: Report a NUMA task group ID
+Date: Fri, 27 Sep 2013 14:27:29 +0100
+Message-Id: <1380288468-5551-45-git-send-email-mgorman@suse.de>
 In-Reply-To: <1380288468-5551-1-git-send-email-mgorman@suse.de>
 References: <1380288468-5551-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,335 +15,90 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-From: Peter Zijlstra <peterz@infradead.org>
+It is desirable to model from userspace how the scheduler groups tasks
+over time. This patch adds an ID to the numa_group and reports it via
+/proc/PID/status.
 
-While parallel applications tend to align their data on the cache
-boundary, they tend not to align on the page or THP boundary.
-Consequently tasks that partition their data can still "false-share"
-pages presenting a problem for optimal NUMA placement.
-
-This patch uses NUMA hinting faults to chain tasks together into
-numa_groups. As well as storing the NID a task was running on when
-accessing a page a truncated representation of the faulting PID is
-stored. If subsequent faults are from different PIDs it is reasonable
-to assume that those two tasks share a page and are candidates for
-being grouped together. Note that this patch makes no scheduling
-decisions based on the grouping information.
-
-Not-signed-off-by: Peter Zijlstra <peterz@infradead.org>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/mm.h    |  11 ++++
- include/linux/sched.h |   3 +
- kernel/sched/core.c   |   3 +
- kernel/sched/fair.c   | 165 +++++++++++++++++++++++++++++++++++++++++++++++---
- kernel/sched/sched.h  |   5 +-
- mm/memory.c           |   8 +++
- 6 files changed, 182 insertions(+), 13 deletions(-)
+ fs/proc/array.c       | 2 ++
+ include/linux/sched.h | 5 +++++
+ kernel/sched/fair.c   | 7 +++++++
+ 3 files changed, 14 insertions(+)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 61dc023..505c3fc 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -698,6 +698,12 @@ static inline bool cpupid_cpu_unset(int cpupid)
- 	return cpupid_to_cpu(cpupid) == (-1 & LAST__CPU_MASK);
- }
- 
-+static inline bool __cpupid_match_pid(pid_t task_pid, int cpupid)
-+{
-+	return (task_pid & LAST__PID_MASK) == cpupid_to_pid(cpupid);
-+}
-+
-+#define cpupid_match_pid(task, cpupid) __cpupid_match_pid(task->pid, cpupid)
- #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
- static inline int page_cpupid_xchg_last(struct page *page, int cpupid)
- {
-@@ -767,6 +773,11 @@ static inline bool cpupid_pid_unset(int cpupid)
- static inline void page_cpupid_reset_last(struct page *page)
- {
- }
-+
-+static inline bool cpupid_match_pid(struct task_struct *task, int cpupid)
-+{
-+	return false;
-+}
- #endif /* CONFIG_NUMA_BALANCING */
- 
- static inline struct zone *page_zone(const struct page *page)
+diff --git a/fs/proc/array.c b/fs/proc/array.c
+index cbd0f1b..1bd2077 100644
+--- a/fs/proc/array.c
++++ b/fs/proc/array.c
+@@ -183,6 +183,7 @@ static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
+ 	seq_printf(m,
+ 		"State:\t%s\n"
+ 		"Tgid:\t%d\n"
++		"Ngid:\t%d\n"
+ 		"Pid:\t%d\n"
+ 		"PPid:\t%d\n"
+ 		"TracerPid:\t%d\n"
+@@ -190,6 +191,7 @@ static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
+ 		"Gid:\t%d\t%d\t%d\t%d\n",
+ 		get_task_state(p),
+ 		task_tgid_nr_ns(p, ns),
++		task_numa_group_id(p),
+ 		pid_nr_ns(pid, ns),
+ 		ppid, tpid,
+ 		from_kuid_munged(user_ns, cred->uid),
 diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 3e8c547..ea057a2 100644
+index ea057a2..4fad1f17 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -1338,6 +1338,9 @@ struct task_struct {
- 	u64 node_stamp;			/* migration stamp  */
- 	struct callback_head numa_work;
+@@ -1436,12 +1436,17 @@ struct task_struct {
  
-+	struct list_head numa_entry;
-+	struct numa_group *numa_group;
-+
- 	/*
- 	 * Exponential decaying average of faults on a per-node basis.
- 	 * Scheduling placement decisions are made based on the these counts.
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index f7a44dd..123ac92 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -1740,6 +1740,9 @@ static void __sched_fork(struct task_struct *p)
- 	p->numa_work.next = &p->numa_work;
- 	p->numa_faults = NULL;
- 	p->numa_faults_buffer = NULL;
-+
-+	INIT_LIST_HEAD(&p->numa_entry);
-+	p->numa_group = NULL;
- #endif /* CONFIG_NUMA_BALANCING */
+ #ifdef CONFIG_NUMA_BALANCING
+ extern void task_numa_fault(int last_node, int node, int pages, bool migrated);
++extern pid_t task_numa_group_id(struct task_struct *p);
+ extern void set_numabalancing_state(bool enabled);
+ #else
+ static inline void task_numa_fault(int last_node, int node, int pages,
+ 				   bool migrated)
+ {
  }
- 
++static inline pid_t task_numa_group_id(struct task_struct *p)
++{
++	return 0;
++}
+ static inline void set_numabalancing_state(bool enabled)
+ {
+ }
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 7408951..a5673c6 100644
+index a5673c6..abdbb7c 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -888,6 +888,17 @@ static unsigned int task_scan_max(struct task_struct *p)
-  */
- unsigned int sysctl_numa_balancing_settle_count __read_mostly = 4;
+@@ -893,12 +893,18 @@ struct numa_group {
  
-+struct numa_group {
-+	atomic_t refcount;
-+
-+	spinlock_t lock; /* nr_tasks, tasks */
-+	int nr_tasks;
-+	struct list_head task_list;
-+
-+	struct rcu_head rcu;
-+	atomic_long_t faults[0];
-+};
+ 	spinlock_t lock; /* nr_tasks, tasks */
+ 	int nr_tasks;
++	pid_t gid;
+ 	struct list_head task_list;
+ 
+ 	struct rcu_head rcu;
+ 	atomic_long_t faults[0];
+ };
+ 
++pid_t task_numa_group_id(struct task_struct *p)
++{
++	return p->numa_group ? p->numa_group->gid : 0;
++}
 +
  static inline int task_faults_idx(int nid, int priv)
  {
  	return 2 * nid + priv;
-@@ -1182,7 +1193,10 @@ static void task_numa_placement(struct task_struct *p)
- 		int priv, i;
+@@ -1265,6 +1271,7 @@ static void task_numa_group(struct task_struct *p, int cpupid)
+ 		atomic_set(&grp->refcount, 1);
+ 		spin_lock_init(&grp->lock);
+ 		INIT_LIST_HEAD(&grp->task_list);
++		grp->gid = p->pid;
  
- 		for (priv = 0; priv < 2; priv++) {
-+			long diff;
-+
- 			i = task_faults_idx(nid, priv);
-+			diff = -p->numa_faults[i];
- 
- 			/* Decay existing window, copy faults since last scan */
- 			p->numa_faults[i] >>= 1;
-@@ -1190,6 +1204,11 @@ static void task_numa_placement(struct task_struct *p)
- 			p->numa_faults_buffer[i] = 0;
- 
- 			faults += p->numa_faults[i];
-+			diff += p->numa_faults[i];
-+			if (p->numa_group) {
-+				/* safe because we can only change our own group */
-+				atomic_long_add(diff, &p->numa_group->faults[i]);
-+			}
- 		}
- 
- 		if (faults > max_faults) {
-@@ -1207,6 +1226,131 @@ static void task_numa_placement(struct task_struct *p)
- 	}
- }
- 
-+static inline int get_numa_group(struct numa_group *grp)
-+{
-+	return atomic_inc_not_zero(&grp->refcount);
-+}
-+
-+static inline void put_numa_group(struct numa_group *grp)
-+{
-+	if (atomic_dec_and_test(&grp->refcount))
-+		kfree_rcu(grp, rcu);
-+}
-+
-+static void double_lock(spinlock_t *l1, spinlock_t *l2)
-+{
-+	if (l1 > l2)
-+		swap(l1, l2);
-+
-+	spin_lock(l1);
-+	spin_lock_nested(l2, SINGLE_DEPTH_NESTING);
-+}
-+
-+static void task_numa_group(struct task_struct *p, int cpupid)
-+{
-+	struct numa_group *grp, *my_grp;
-+	struct task_struct *tsk;
-+	bool join = false;
-+	int cpu = cpupid_to_cpu(cpupid);
-+	int i;
-+
-+	if (unlikely(!p->numa_group)) {
-+		unsigned int size = sizeof(struct numa_group) +
-+				    2*nr_node_ids*sizeof(atomic_long_t);
-+
-+		grp = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
-+		if (!grp)
-+			return;
-+
-+		atomic_set(&grp->refcount, 1);
-+		spin_lock_init(&grp->lock);
-+		INIT_LIST_HEAD(&grp->task_list);
-+
-+		for (i = 0; i < 2*nr_node_ids; i++)
-+			atomic_long_set(&grp->faults[i], p->numa_faults[i]);
-+
-+		list_add(&p->numa_entry, &grp->task_list);
-+		grp->nr_tasks++;
-+		rcu_assign_pointer(p->numa_group, grp);
-+	}
-+
-+	rcu_read_lock();
-+	tsk = ACCESS_ONCE(cpu_rq(cpu)->curr);
-+
-+	if (!cpupid_match_pid(tsk, cpupid))
-+		goto unlock;
-+
-+	grp = rcu_dereference(tsk->numa_group);
-+	if (!grp)
-+		goto unlock;
-+
-+	my_grp = p->numa_group;
-+	if (grp == my_grp)
-+		goto unlock;
-+
-+	/*
-+	 * Only join the other group if its bigger; if we're the bigger group,
-+	 * the other task will join us.
-+	 */
-+	if (my_grp->nr_tasks > grp->nr_tasks)
-+		goto unlock;
-+
-+	/*
-+	 * Tie-break on the grp address.
-+	 */
-+	if (my_grp->nr_tasks == grp->nr_tasks && my_grp > grp)
-+		goto unlock;
-+
-+	if (!get_numa_group(grp))
-+		goto unlock;
-+
-+	join = true;
-+
-+unlock:
-+	rcu_read_unlock();
-+
-+	if (!join)
-+		return;
-+
-+	for (i = 0; i < 2*nr_node_ids; i++) {
-+		atomic_long_sub(p->numa_faults[i], &my_grp->faults[i]);
-+		atomic_long_add(p->numa_faults[i], &grp->faults[i]);
-+	}
-+
-+	double_lock(&my_grp->lock, &grp->lock);
-+
-+	list_move(&p->numa_entry, &grp->task_list);
-+	my_grp->nr_tasks--;
-+	grp->nr_tasks++;
-+
-+	spin_unlock(&my_grp->lock);
-+	spin_unlock(&grp->lock);
-+
-+	rcu_assign_pointer(p->numa_group, grp);
-+
-+	put_numa_group(my_grp);
-+}
-+
-+void task_numa_free(struct task_struct *p)
-+{
-+	struct numa_group *grp = p->numa_group;
-+	int i;
-+
-+	if (grp) {
-+		for (i = 0; i < 2*nr_node_ids; i++)
-+			atomic_long_sub(p->numa_faults[i], &grp->faults[i]);
-+
-+		spin_lock(&grp->lock);
-+		list_del(&p->numa_entry);
-+		grp->nr_tasks--;
-+		spin_unlock(&grp->lock);
-+		rcu_assign_pointer(p->numa_group, NULL);
-+		put_numa_group(grp);
-+	}
-+
-+	kfree(p->numa_faults);
-+}
-+
- /*
-  * Got a PROT_NONE fault for a page on @node.
-  */
-@@ -1222,15 +1366,6 @@ void task_numa_fault(int last_cpupid, int node, int pages, bool migrated)
- 	if (!p->mm)
- 		return;
- 
--	/*
--	 * First accesses are treated as private, otherwise consider accesses
--	 * to be private if the accessing pid has not changed
--	 */
--	if (!cpupid_pid_unset(last_cpupid))
--		priv = ((p->pid & LAST__PID_MASK) == cpupid_to_pid(last_cpupid));
--	else
--		priv = 1;
--
- 	/* Allocate buffer to track faults on a per-node basis */
- 	if (unlikely(!p->numa_faults)) {
- 		int size = sizeof(*p->numa_faults) * 2 * nr_node_ids;
-@@ -1245,6 +1380,18 @@ void task_numa_fault(int last_cpupid, int node, int pages, bool migrated)
- 	}
- 
- 	/*
-+	 * First accesses are treated as private, otherwise consider accesses
-+	 * to be private if the accessing pid has not changed
-+	 */
-+	if (unlikely(last_cpupid == (-1 & LAST_CPUPID_MASK))) {
-+		priv = 1;
-+	} else {
-+		priv = cpupid_match_pid(p, last_cpupid);
-+		if (!priv)
-+			task_numa_group(p, last_cpupid);
-+	}
-+
-+	/*
- 	 * If pages are properly placed (did not migrate) then scan slower.
- 	 * This is reset periodically in case of phase changes
- 	 */
-diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 82ff03a..e0875dc 100644
---- a/kernel/sched/sched.h
-+++ b/kernel/sched/sched.h
-@@ -557,10 +557,7 @@ static inline u64 rq_clock_task(struct rq *rq)
- #ifdef CONFIG_NUMA_BALANCING
- extern int migrate_task_to(struct task_struct *p, int cpu);
- extern int migrate_swap(struct task_struct *, struct task_struct *);
--static inline void task_numa_free(struct task_struct *p)
--{
--	kfree(p->numa_faults);
--}
-+extern void task_numa_free(struct task_struct *p);
- #else /* CONFIG_NUMA_BALANCING */
- static inline void task_numa_free(struct task_struct *p)
- {
-diff --git a/mm/memory.c b/mm/memory.c
-index 6b558a5..f779403 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2730,6 +2730,14 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		get_page(dirty_page);
- 
- reuse:
-+		/*
-+		 * Clear the pages cpupid information as the existing
-+		 * information potentially belongs to a now completely
-+		 * unrelated process.
-+		 */
-+		if (old_page)
-+			page_cpupid_xchg_last(old_page, (1 << LAST_CPUPID_SHIFT) - 1);
-+
- 		flush_cache_page(vma, address, pte_pfn(orig_pte));
- 		entry = pte_mkyoung(orig_pte);
- 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+ 		for (i = 0; i < 2*nr_node_ids; i++)
+ 			atomic_long_set(&grp->faults[i], p->numa_faults[i]);
 -- 
 1.8.1.4
 
