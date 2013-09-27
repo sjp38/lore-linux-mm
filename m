@@ -1,53 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 6287A6B0032
-	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 02:26:41 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id v10so2194035pde.10
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 23:26:41 -0700 (PDT)
-Received: by mail-ee0-f47.google.com with SMTP id d49so972318eek.6
-        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 23:26:37 -0700 (PDT)
-Date: Fri, 27 Sep 2013 08:26:33 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v5 6/6] mem-hotplug: Introduce movablenode boot option
-Message-ID: <20130927062633.GB6726@gmail.com>
-References: <5241D897.1090905@gmail.com>
- <5241DB62.2090300@gmail.com>
- <20130926145326.GH3482@htj.dyndns.org>
- <52446413.50504@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52446413.50504@gmail.com>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id A056D6B0036
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 02:27:01 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id kx10so2375743pab.27
+        for <linux-mm@kvack.org>; Thu, 26 Sep 2013 23:27:01 -0700 (PDT)
+Message-ID: <1380263214.5774.12.camel@j-VirtualBox>
+Subject: Re: [PATCH v6 5/6] MCS Lock: Restructure the MCS lock defines and
+ locking code into its own file
+From: Jason Low <jason.low2@hp.com>
+Date: Thu, 26 Sep 2013 23:26:54 -0700
+In-Reply-To: <20130927060213.GA6673@gmail.com>
+References: <cover.1380144003.git.tim.c.chen@linux.intel.com>
+	 <1380147049.3467.67.camel@schen9-DESK>
+	 <CAGQ1y=7Ehkr+ot3tDZtHv6FR6RQ9fXBVY0=LOyWjmGH_UjH7xA@mail.gmail.com>
+	 <1380226007.2170.2.camel@buesod1.americas.hpqcorp.net>
+	 <1380226997.2602.11.camel@j-VirtualBox>
+	 <1380228059.2170.10.camel@buesod1.americas.hpqcorp.net>
+	 <1380229794.2602.36.camel@j-VirtualBox>
+	 <1380231702.3467.85.camel@schen9-DESK>
+	 <1380235333.3229.39.camel@j-VirtualBox>
+	 <1380236265.3467.103.camel@schen9-DESK> <20130927060213.GA6673@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
-Cc: Tejun Heo <tj@kernel.org>, "Rafael J . Wysocki" <rjw@sisk.pl>, lenb@kernel.org, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, prarit@redhat.com, "x86@kernel.org" <x86@kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, imtangchen@gmail.com, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Davidlohr Bueso <davidlohr@hp.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-
-* Zhang Yanfei <zhangyanfei.yes@gmail.com> wrote:
-
-> OK. Trying below:
+On Fri, 2013-09-27 at 08:02 +0200, Ingo Molnar wrote:
+> * Tim Chen <tim.c.chen@linux.intel.com> wrote:
 > 
-> movablenode	[KNL,X86] This option enables the kernel to arrange
-> 		hotpluggable memory into ZONE_MOVABLE zone. If memory
-> 		in a node is all hotpluggable, the option may make
-> 		the whole node has only one ZONE_MOVABLE zone, so that
-> 		the whole node can be hot-removed after system is up.
-> 		Note that this option may cause NUMA performance down.
+> > > If we prefer to optimize this a bit though, perhaps we can first move 
+> > > the node->lock = 0 so that it gets executed after the "if (likely(prev 
+> > > == NULL)) {}" code block and then delete "node->lock = 1" inside the 
+> > > code block.
+> > 
+> > I suppose we can save one single assignment. The gain is probably not 
+> > noticeable as once we set node->next to NULL, node->locked is likely in 
+> > local cache line and the assignment operation is cheap.
+> 
+> Would be nice to have this as a separate, add-on patch. Every single 
+> instruction removal that has no downside is an upside!
+> 
+> You can add a comment that explains it.
 
-That paragraph doesn't really parse in several places ...
-
-Also, more importantly, please explain why this needs to be a boot option. 
-In terms of user friendliness boot options are at the bottom of the list, 
-and boot options also don't really help feature tests.
-
-Presumably the feature is safe and has no costs, and hence could be added 
-as a regular .config option, with a boot option only as an additional 
-configurability option?
-
-Thanks,
-
-	Ingo
+Yup, especially a spin lock (and one that I have found to be be used
+very frequently when running workloads on big machines).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
