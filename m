@@ -1,76 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C6C96B0032
-	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 07:23:54 -0400 (EDT)
-Received: by mail-pb0-f49.google.com with SMTP id xb4so2444393pbc.22
-        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 04:23:54 -0700 (PDT)
-Date: Fri, 27 Sep 2013 13:23:23 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v6 5/6] MCS Lock: Restructure the MCS lock defines and
- locking code into its own file
-Message-ID: <20130927112323.GJ3657@laptop.programming.kicks-ass.net>
-References: <1380147049.3467.67.camel@schen9-DESK>
- <CAGQ1y=7Ehkr+ot3tDZtHv6FR6RQ9fXBVY0=LOyWjmGH_UjH7xA@mail.gmail.com>
- <1380226007.2170.2.camel@buesod1.americas.hpqcorp.net>
- <1380226997.2602.11.camel@j-VirtualBox>
- <1380228059.2170.10.camel@buesod1.americas.hpqcorp.net>
- <1380229794.2602.36.camel@j-VirtualBox>
- <1380231702.3467.85.camel@schen9-DESK>
- <1380235333.3229.39.camel@j-VirtualBox>
- <1380236265.3467.103.camel@schen9-DESK>
- <20130927060213.GA6673@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130927060213.GA6673@gmail.com>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 6836B6B0031
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 09:16:43 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id bj1so2774890pad.35
+        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 06:16:43 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 01/10] mm: rename USE_SPLIT_PTLOCKS to USE_SPLIT_PTE_PTLOCKS
+Date: Fri, 27 Sep 2013 16:16:18 +0300
+Message-Id: <1380287787-30252-2-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1380287787-30252-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1380287787-30252-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Jason Low <jason.low2@hp.com>, Davidlohr Bueso <davidlohr@hp.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Joe Perches <joe@perches.com>
+To: Alex Thorlton <athorlton@sgi.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Fri, Sep 27, 2013 at 08:02:13AM +0200, Ingo Molnar wrote:
-> Would be nice to have this as a separate, add-on patch. Every single 
-> instruction removal that has no downside is an upside!
-> 
-> You can add a comment that explains it.
+We're going to introduce split page table lock for PMD level.
+Let's rename existing split ptlock for PTE level to avoid confusion.
 
-If someone is going to do add-on patches to the mcslock.h file, please
-also consider doing a patch that adds comments to the memory barriers in
-there.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Tested-by: Alex Thorlton <athorlton@sgi.com>
+---
+ arch/arm/mm/fault-armv.c | 6 +++---
+ arch/x86/xen/mmu.c       | 6 +++---
+ include/linux/mm.h       | 6 +++---
+ include/linux/mm_types.h | 8 ++++----
+ 4 files changed, 13 insertions(+), 13 deletions(-)
 
-Also, checkpatch.pl should really warn about that; and it appears there
-code in there for that; however:
-
-# grep -C3 smp_mb scripts/checkpatch.pl 
-                        }
-                }
-# check for memory barriers without a comment.
-                if ($line =~ /\b(mb|rmb|wmb|read_barrier_depends|smp_mb|smp_rmb|smp_wmb|smp_read_barrier_depends)\(/) {
-                        if (!ctx_has_comment($first_line, $linenr)) {
-                                CHK("MEMORY_BARRIER",
-                                    "memory barrier without comment\n" . $herecurr);
-# grep -C3 smp_wmb kernel/mutex.c
-                return;
-        }
-        ACCESS_ONCE(prev->next) = node;
-        smp_wmb();
-        /* Wait until the lock holder passes the lock down */
-        while (!ACCESS_ONCE(node->locked))
-                arch_mutex_cpu_relax();
---
-                        arch_mutex_cpu_relax();
-        }
-        ACCESS_ONCE(next->locked) = 1;
-        smp_wmb();
-}
-
-/*
-# scripts/checkpatch.pl -f kernel/mutex.c 2>&1 | grep memory
-#
-
-so that appears to be completely broken :/
-
-Joe, any clue what's up with that?
+diff --git a/arch/arm/mm/fault-armv.c b/arch/arm/mm/fault-armv.c
+index 2a5907b5c8..ff379ac115 100644
+--- a/arch/arm/mm/fault-armv.c
++++ b/arch/arm/mm/fault-armv.c
+@@ -65,7 +65,7 @@ static int do_adjust_pte(struct vm_area_struct *vma, unsigned long address,
+ 	return ret;
+ }
+ 
+-#if USE_SPLIT_PTLOCKS
++#if USE_SPLIT_PTE_PTLOCKS
+ /*
+  * If we are using split PTE locks, then we need to take the page
+  * lock here.  Otherwise we are using shared mm->page_table_lock
+@@ -84,10 +84,10 @@ static inline void do_pte_unlock(spinlock_t *ptl)
+ {
+ 	spin_unlock(ptl);
+ }
+-#else /* !USE_SPLIT_PTLOCKS */
++#else /* !USE_SPLIT_PTE_PTLOCKS */
+ static inline void do_pte_lock(spinlock_t *ptl) {}
+ static inline void do_pte_unlock(spinlock_t *ptl) {}
+-#endif /* USE_SPLIT_PTLOCKS */
++#endif /* USE_SPLIT_PTE_PTLOCKS */
+ 
+ static int adjust_pte(struct vm_area_struct *vma, unsigned long address,
+ 	unsigned long pfn)
+diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
+index fdc3ba28ca..455c873ce0 100644
+--- a/arch/x86/xen/mmu.c
++++ b/arch/x86/xen/mmu.c
+@@ -796,7 +796,7 @@ static spinlock_t *xen_pte_lock(struct page *page, struct mm_struct *mm)
+ {
+ 	spinlock_t *ptl = NULL;
+ 
+-#if USE_SPLIT_PTLOCKS
++#if USE_SPLIT_PTE_PTLOCKS
+ 	ptl = __pte_lockptr(page);
+ 	spin_lock_nest_lock(ptl, &mm->page_table_lock);
+ #endif
+@@ -1637,7 +1637,7 @@ static inline void xen_alloc_ptpage(struct mm_struct *mm, unsigned long pfn,
+ 
+ 			__set_pfn_prot(pfn, PAGE_KERNEL_RO);
+ 
+-			if (level == PT_PTE && USE_SPLIT_PTLOCKS)
++			if (level == PT_PTE && USE_SPLIT_PTE_PTLOCKS)
+ 				__pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
+ 
+ 			xen_mc_issue(PARAVIRT_LAZY_MMU);
+@@ -1671,7 +1671,7 @@ static inline void xen_release_ptpage(unsigned long pfn, unsigned level)
+ 		if (!PageHighMem(page)) {
+ 			xen_mc_batch();
+ 
+-			if (level == PT_PTE && USE_SPLIT_PTLOCKS)
++			if (level == PT_PTE && USE_SPLIT_PTE_PTLOCKS)
+ 				__pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, pfn);
+ 
+ 			__set_pfn_prot(pfn, PAGE_KERNEL);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 8b6e55ee88..6cf8ddb45b 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1232,7 +1232,7 @@ static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long a
+ }
+ #endif /* CONFIG_MMU && !__ARCH_HAS_4LEVEL_HACK */
+ 
+-#if USE_SPLIT_PTLOCKS
++#if USE_SPLIT_PTE_PTLOCKS
+ /*
+  * We tuck a spinlock to guard each pagetable page into its struct page,
+  * at page->private, with BUILD_BUG_ON to make sure that this will not
+@@ -1245,14 +1245,14 @@ static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long a
+ } while (0)
+ #define pte_lock_deinit(page)	((page)->mapping = NULL)
+ #define pte_lockptr(mm, pmd)	({(void)(mm); __pte_lockptr(pmd_page(*(pmd)));})
+-#else	/* !USE_SPLIT_PTLOCKS */
++#else	/* !USE_SPLIT_PTE_PTLOCKS */
+ /*
+  * We use mm->page_table_lock to guard all pagetable pages of the mm.
+  */
+ #define pte_lock_init(page)	do {} while (0)
+ #define pte_lock_deinit(page)	do {} while (0)
+ #define pte_lockptr(mm, pmd)	({(void)(pmd); &(mm)->page_table_lock;})
+-#endif /* USE_SPLIT_PTLOCKS */
++#endif /* USE_SPLIT_PTE_PTLOCKS */
+ 
+ static inline void pgtable_page_ctor(struct page *page)
+ {
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index d9851eeb6e..84e0c56e1e 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -23,7 +23,7 @@
+ 
+ struct address_space;
+ 
+-#define USE_SPLIT_PTLOCKS	(NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS)
++#define USE_SPLIT_PTE_PTLOCKS	(NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS)
+ 
+ /*
+  * Each physical page in the system has a struct page associated with
+@@ -141,7 +141,7 @@ struct page {
+ 						 * indicates order in the buddy
+ 						 * system if PG_buddy is set.
+ 						 */
+-#if USE_SPLIT_PTLOCKS
++#if USE_SPLIT_PTE_PTLOCKS
+ 		spinlock_t ptl;
+ #endif
+ 		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
+@@ -309,14 +309,14 @@ enum {
+ 	NR_MM_COUNTERS
+ };
+ 
+-#if USE_SPLIT_PTLOCKS && defined(CONFIG_MMU)
++#if USE_SPLIT_PTE_PTLOCKS && defined(CONFIG_MMU)
+ #define SPLIT_RSS_COUNTING
+ /* per-thread cached information, */
+ struct task_rss_stat {
+ 	int events;	/* for synchronization threshold */
+ 	int count[NR_MM_COUNTERS];
+ };
+-#endif /* USE_SPLIT_PTLOCKS */
++#endif /* USE_SPLIT_PTE_PTLOCKS */
+ 
+ struct mm_rss_stat {
+ 	atomic_long_t count[NR_MM_COUNTERS];
+-- 
+1.8.4.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
