@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 33E50900026
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C106900026
 	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 09:28:37 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id g10so2585708pdj.40
-        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 06:28:36 -0700 (PDT)
+Received: by mail-pb0-f47.google.com with SMTP id rr4so2542809pbb.20
+        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 06:28:37 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 44/63] sched: numa: Report a NUMA task group ID
-Date: Fri, 27 Sep 2013 14:27:29 +0100
-Message-Id: <1380288468-5551-45-git-send-email-mgorman@suse.de>
+Subject: [PATCH 45/63] mm: numa: copy cpupid on page migration
+Date: Fri, 27 Sep 2013 14:27:30 +0100
+Message-Id: <1380288468-5551-46-git-send-email-mgorman@suse.de>
 In-Reply-To: <1380288468-5551-1-git-send-email-mgorman@suse.de>
 References: <1380288468-5551-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,90 +15,48 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-It is desirable to model from userspace how the scheduler groups tasks
-over time. This patch adds an ID to the numa_group and reports it via
-/proc/PID/status.
+From: Rik van Riel <riel@redhat.com>
 
+After page migration, the new page has the nidpid unset. This makes
+every fault on a recently migrated page look like a first numa fault,
+leading to another page migration.
+
+Copying over the nidpid at page migration time should prevent erroneous
+migrations of recently migrated pages.
+
+Signed-off-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- fs/proc/array.c       | 2 ++
- include/linux/sched.h | 5 +++++
- kernel/sched/fair.c   | 7 +++++++
- 3 files changed, 14 insertions(+)
+ mm/migrate.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
-diff --git a/fs/proc/array.c b/fs/proc/array.c
-index cbd0f1b..1bd2077 100644
---- a/fs/proc/array.c
-+++ b/fs/proc/array.c
-@@ -183,6 +183,7 @@ static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
- 	seq_printf(m,
- 		"State:\t%s\n"
- 		"Tgid:\t%d\n"
-+		"Ngid:\t%d\n"
- 		"Pid:\t%d\n"
- 		"PPid:\t%d\n"
- 		"TracerPid:\t%d\n"
-@@ -190,6 +191,7 @@ static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
- 		"Gid:\t%d\t%d\t%d\t%d\n",
- 		get_task_state(p),
- 		task_tgid_nr_ns(p, ns),
-+		task_numa_group_id(p),
- 		pid_nr_ns(pid, ns),
- 		ppid, tpid,
- 		from_kuid_munged(user_ns, cred->uid),
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index ea057a2..4fad1f17 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1436,12 +1436,17 @@ struct task_struct {
- 
- #ifdef CONFIG_NUMA_BALANCING
- extern void task_numa_fault(int last_node, int node, int pages, bool migrated);
-+extern pid_t task_numa_group_id(struct task_struct *p);
- extern void set_numabalancing_state(bool enabled);
- #else
- static inline void task_numa_fault(int last_node, int node, int pages,
- 				   bool migrated)
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 6ff845f..1e1dbc9 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -439,6 +439,8 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
+  */
+ void migrate_page_copy(struct page *newpage, struct page *page)
  {
- }
-+static inline pid_t task_numa_group_id(struct task_struct *p)
-+{
-+	return 0;
-+}
- static inline void set_numabalancing_state(bool enabled)
- {
- }
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index a5673c6..abdbb7c 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -893,12 +893,18 @@ struct numa_group {
- 
- 	spinlock_t lock; /* nr_tasks, tasks */
- 	int nr_tasks;
-+	pid_t gid;
- 	struct list_head task_list;
- 
- 	struct rcu_head rcu;
- 	atomic_long_t faults[0];
- };
- 
-+pid_t task_numa_group_id(struct task_struct *p)
-+{
-+	return p->numa_group ? p->numa_group->gid : 0;
-+}
++	int cpupid;
 +
- static inline int task_faults_idx(int nid, int priv)
- {
- 	return 2 * nid + priv;
-@@ -1265,6 +1271,7 @@ static void task_numa_group(struct task_struct *p, int cpupid)
- 		atomic_set(&grp->refcount, 1);
- 		spin_lock_init(&grp->lock);
- 		INIT_LIST_HEAD(&grp->task_list);
-+		grp->gid = p->pid;
+ 	if (PageHuge(page) || PageTransHuge(page))
+ 		copy_huge_page(newpage, page);
+ 	else
+@@ -475,6 +477,13 @@ void migrate_page_copy(struct page *newpage, struct page *page)
+ 			__set_page_dirty_nobuffers(newpage);
+  	}
  
- 		for (i = 0; i < 2*nr_node_ids; i++)
- 			atomic_long_set(&grp->faults[i], p->numa_faults[i]);
++	/*
++	 * Copy NUMA information to the new page, to prevent over-eager
++	 * future migrations of this same page.
++	 */
++	cpupid = page_cpupid_xchg_last(page, -1);
++	page_cpupid_xchg_last(newpage, cpupid);
++
+ 	mlock_migrate_page(newpage, page);
+ 	ksm_migrate_page(newpage, page);
+ 	/*
 -- 
 1.8.1.4
 
