@@ -1,42 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CCAC6B0031
-	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 18:45:18 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id g10so3174383pdj.16
-        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 15:45:18 -0700 (PDT)
-Message-ID: <1380321790.14046.49.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v5 3/6] x86/mm: Factor out of top-down direct mapping
- setup
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Fri, 27 Sep 2013 16:43:10 -0600
-In-Reply-To: <5241D9F2.80908@gmail.com>
-References: <5241D897.1090905@gmail.com> <5241D9F2.80908@gmail.com>
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 5587F6B0031
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 18:46:52 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id y10so3185489pdj.22
+        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 15:46:52 -0700 (PDT)
+Subject: Re: [PATCH v6 5/6] MCS Lock: Restructure the MCS lock defines and
+ locking code into its own file
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <20130927203858.GB9093@linux.vnet.ibm.com>
+References: <cover.1380144003.git.tim.c.chen@linux.intel.com>
+	 <1380147049.3467.67.camel@schen9-DESK>
+	 <20130927152953.GA4464@linux.vnet.ibm.com>
+	 <1380310733.3467.118.camel@schen9-DESK>
+	 <20130927203858.GB9093@linux.vnet.ibm.com>
 Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 27 Sep 2013 15:46:45 -0700
+Message-ID: <1380322005.3467.186.camel@schen9-DESK>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
-Cc: "Rafael J . Wysocki" <rjw@sisk.pl>, lenb@kernel.org, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, prarit@redhat.com, "x86@kernel.org" <x86@kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, imtangchen@gmail.com, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: paulmck@linux.vnet.ibm.com, Jason Low <jason.low2@hp.com>
+Cc: Waiman Long <Waiman.Long@hp.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On Wed, 2013-09-25 at 02:29 +0800, Zhang Yanfei wrote:
-> From: Tang Chen <tangchen@cn.fujitsu.com>
+On Fri, 2013-09-27 at 13:38 -0700, Paul E. McKenney wrote:
+> On Fri, Sep 27, 2013 at 12:38:53PM -0700, Tim Chen wrote:
+> > On Fri, 2013-09-27 at 08:29 -0700, Paul E. McKenney wrote:
+> > > On Wed, Sep 25, 2013 at 03:10:49PM -0700, Tim Chen wrote:
+> > > > We will need the MCS lock code for doing optimistic spinning for rwsem.
+> > > > Extracting the MCS code from mutex.c and put into its own file allow us
+> > > > to reuse this code easily for rwsem.
+> > > > 
+> > > > Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+> > > > Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+> > > > ---
+> > > >  include/linux/mcslock.h |   58 +++++++++++++++++++++++++++++++++++++++++++++++
+> > > >  kernel/mutex.c          |   58 +++++-----------------------------------------
+> > > >  2 files changed, 65 insertions(+), 51 deletions(-)
+> > > >  create mode 100644 include/linux/mcslock.h
+> > > > 
+> > > > diff --git a/include/linux/mcslock.h b/include/linux/mcslock.h
+> > > > new file mode 100644
+> > > > index 0000000..20fd3f0
+> > > > --- /dev/null
+> > > > +++ b/include/linux/mcslock.h
+> > > > @@ -0,0 +1,58 @@
+> > > > +/*
+> > > > + * MCS lock defines
+> > > > + *
+> > > > + * This file contains the main data structure and API definitions of MCS lock.
+> > > > + */
+> > > > +#ifndef __LINUX_MCSLOCK_H
+> > > > +#define __LINUX_MCSLOCK_H
+> > > > +
+> > > > +struct mcs_spin_node {
+> > > > +	struct mcs_spin_node *next;
+> > > > +	int		  locked;	/* 1 if lock acquired */
+> > > > +};
+> > > > +
+> > > > +/*
+> > > > + * We don't inline mcs_spin_lock() so that perf can correctly account for the
+> > > > + * time spent in this lock function.
+> > > > + */
+> > > > +static noinline
+> > > > +void mcs_spin_lock(struct mcs_spin_node **lock, struct mcs_spin_node *node)
+> > > > +{
+> > > > +	struct mcs_spin_node *prev;
+> > > > +
+> > > > +	/* Init node */
+> > > > +	node->locked = 0;
+> > > > +	node->next   = NULL;
+> > > > +
+> > > > +	prev = xchg(lock, node);
+> > > > +	if (likely(prev == NULL)) {
+> > > > +		/* Lock acquired */
+> > > > +		node->locked = 1;
+> > > > +		return;
+> > > > +	}
+> > > > +	ACCESS_ONCE(prev->next) = node;
+> > > > +	smp_wmb();
+> > 
+> > BTW, is the above memory barrier necessary?  It seems like the xchg
+> > instruction already provided a memory barrier.
+> > 
+> > Now if we made the changes that Jason suggested:
+> > 
+> > 
+> >         /* Init node */
+> > -       node->locked = 0;
+> >         node->next   = NULL;
+> > 
+> >         prev = xchg(lock, node);
+> >         if (likely(prev == NULL)) {
+> >                 /* Lock acquired */
+> > -               node->locked = 1;
+> >                 return;
+> >         }
+> > +       node->locked = 0;
+> >         ACCESS_ONCE(prev->next) = node;
+> >         smp_wmb();
+> > 
+> > We are probably still okay as other cpus do not read the value of
+> > node->locked, which is a local variable.
 > 
-> This patch creates a new function memory_map_top_down to
-> factor out of the top-down direct memory mapping pagetable
-> setup. This is also a preparation for the following patch,
-> which will introduce the bottom-up memory mapping. That said,
-> we will put the two ways of pagetable setup into separate
-> functions, and choose to use which way in init_mem_mapping,
-> which makes the code more clear.
+> I don't immediately see the need for the smp_wmb() in either case.
+
+
+Thinking a bit more, the following could happen in Jason's 
+initial patch proposal.  In this case variable "prev" referenced 
+by CPU1 points to "node" referenced by CPU2  
+
+	CPU 1 (calling lock)			CPU 2 (calling unlock)
+	ACCESS_ONCE(prev->next) = node
+						*next = ACCESS_ONCE(node->next);
+						ACCESS_ONCE(next->locked) = 1;
+	node->locked = 0;
+
+Then we will be spinning forever on CPU1 as we overwrite the lock passed
+from CPU2 before we check it.  The original code assign 
+"node->locked = 0" before xchg does not have this issue.
+Doing the following change of moving smp_wmb immediately
+after node->locked assignment (suggested by Jason)
+
+	node->locked = 0;
+	smp_wmb();
+	ACCESS_ONCE(prev->next) = node;
+
+could avoid the problem, but will need closer scrutiny to see if
+there are other pitfalls if wmb happen before 
+	
+	ACCESS_ONCE(prev->next) = node;
+
+
+> > 
+> > > > +	/* Wait until the lock holder passes the lock down */
+> > > > +	while (!ACCESS_ONCE(node->locked))
+> > > > +		arch_mutex_cpu_relax();
 > 
-> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-> Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+> However, you do need a full memory barrier here in order to ensure that
+> you see the effects of the previous lock holder's critical section.
 
-Acked-by: Toshi Kani <toshi.kani@hp.com>
+Is it necessary to add a memory barrier after acquiring
+the lock if the previous lock holder execute smp_wmb before passing
+the lock?
 
-Thanks,
--Toshi
+Thanks.
+
+Tim
 
 
 --
