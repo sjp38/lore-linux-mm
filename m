@@ -1,69 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id AFC666B0031
-	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 19:16:28 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id g10so3193994pdj.2
-        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 16:16:28 -0700 (PDT)
-Message-ID: <1380323662.14046.51.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v5 5/6] x86, acpi, crash, kdump: Do
- reserve_crashkernel() after SRAT is parsed
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Fri, 27 Sep 2013 17:14:22 -0600
-In-Reply-To: <5241DB3A.6090002@gmail.com>
-References: <5241D897.1090905@gmail.com> <5241DB3A.6090002@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FAAE6B0031
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 19:32:11 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id jt11so3182789pbb.10
+        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 16:32:10 -0700 (PDT)
+Date: Sat, 28 Sep 2013 09:32:02 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Mapping range locking and related stuff
+Message-ID: <20130927233202.GY26872@dastard>
+References: <20130927204214.GA6445@quack.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130927204214.GA6445@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
-Cc: "Rafael J . Wysocki" <rjw@sisk.pl>, lenb@kernel.org, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, prarit@redhat.com, "x86@kernel.org" <x86@kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, imtangchen@gmail.com, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Jan Kara <jack@suse.cz>
+Cc: dchinner@redhat.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 2013-09-25 at 02:34 +0800, Zhang Yanfei wrote:
-> From: Tang Chen <tangchen@cn.fujitsu.com>
+On Fri, Sep 27, 2013 at 10:42:14PM +0200, Jan Kara wrote:
+>   Hello,
 > 
-> Memory reserved for crashkernel could be large. So we should not allocate
-> this memory bottom up from the end of kernel image.
+>   so recently I've spent some time rummaging in get_user_pages(), fault
+> code etc. The use of mmap_sem is really messy in some places (like V4L
+> drivers, infiniband,...). It is held over a deep & wide call chains and
+> it's not clear what's protected by it, just in the middle of that is a call
+> to get_user_pages(). Anyway that's mostly a side note.
 > 
-> When SRAT is parsed, we will be able to know whihc memory is hotpluggable,
-> and we can avoid allocating this memory for the kernel. So reorder
-> reserve_crashkernel() after SRAT is parsed.
+> The main issue I found is with the range locking itself. Consider someone
+> doing:
+>   fd = open("foo", O_RDWR);
+>   base = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+>   write(fd, base, 4096);
 > 
-> Acked-by: Tejun Heo <tj@kernel.org>
-> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-> Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-> ---
->  arch/x86/kernel/setup.c |    8 ++++++--
->  1 files changed, 6 insertions(+), 2 deletions(-)
-> 
-> diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-> index f0de629..36cfce3 100644
-> --- a/arch/x86/kernel/setup.c
-> +++ b/arch/x86/kernel/setup.c
-> @@ -1120,8 +1120,6 @@ void __init setup_arch(char **cmdline_p)
->  	acpi_initrd_override((void *)initrd_start, initrd_end - initrd_start);
->  #endif
->  
-> -	reserve_crashkernel();
-> -
->  	vsmp_init();
->  
->  	io_delay_init();
-> @@ -1136,6 +1134,12 @@ void __init setup_arch(char **cmdline_p)
->  	initmem_init();
->  	memblock_find_dma_reserve();
->  
-> +	/*
-> +	 * Reserve memory for crash kernel after SRAT is parsed so that it
-> +	 * won't consume hotpluggable memory.
-> +	 */
-> +	reserve_crashkernel();
+> The write() is an interesting way to do nothing but if the mapping range
+> lock will be acquired early (like in generic_file_aio_write()), then this
+> would deadlock because generic_perform_write() will try to fault in
+> destination buffer and that will try to get the range lock for the same
+> range again.
 
-Out of curiosity, is there any particular reason why it is moved after
-memblock_find_dma_reserve(), not initmem_init()?
+Quite frankly, I'd like to see EFAULT or EDEADLOCK returned to the
+caller doing something like this. It's a stupid thing to do, and
+while I beleive in giving people enough rope to hang themselves,
+the contortions we are going through here to provide that rope
+doesn't seem worthwhile at all.
 
-Thanks,
--Toshi
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
