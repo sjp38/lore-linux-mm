@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AEF7900021
-	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 09:28:31 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fb1so2758233pad.23
-        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 06:28:30 -0700 (PDT)
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E040900023
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 09:28:32 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id un15so2571960pbc.29
+        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 06:28:31 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 38/63] sched: Introduce migrate_swap()
-Date: Fri, 27 Sep 2013 14:27:23 +0100
-Message-Id: <1380288468-5551-39-git-send-email-mgorman@suse.de>
+Subject: [PATCH 39/63] sched: numa: Use a system-wide search to find swap/migration candidates
+Date: Fri, 27 Sep 2013 14:27:24 +0100
+Message-Id: <1380288468-5551-40-git-send-email-mgorman@suse.de>
 In-Reply-To: <1380288468-5551-1-git-send-email-mgorman@suse.de>
 References: <1380288468-5551-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,281 +15,408 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-From: Peter Zijlstra <peterz@infradead.org>
+This patch implements a system-wide search for swap/migration candidates
+based on total NUMA hinting faults. It has a balance limit, however it
+doesn't properly consider total node balance.
 
-Use the new stop_two_cpus() to implement migrate_swap(), a function that
-flips two tasks between their respective cpus.
+In the old scheme a task selected a preferred node based on the highest
+number of private faults recorded on the node. In this scheme, the preferred
+node is based on the total number of faults. If the preferred node for a
+task changes then task_numa_migrate will search the whole system looking
+for tasks to swap with that would improve both the overall compute
+balance and minimise the expected number of remote NUMA hinting faults.
 
-I'm fairly sure there's a less crude way than employing the stop_two_cpus()
-method, but everything I tried either got horribly fragile and/or complex. So
-keep it simple for now.
+Not there is no guarantee that the node the source task is placed
+on by task_numa_migrate() has any relationship to the newly selected
+task->numa_preferred_nid due to compute overloading.
 
-The notable detail is how we 'migrate' tasks that aren't runnable
-anymore. We'll make it appear like we migrated them before they went to
-sleep. The sole difference is the previous cpu in the wakeup path, so we
-override this.
-
-TODO: I'm fairly sure we can get rid of the wake_cpu != -1 test by keeping
-wake_cpu to the actual task cpu; just couldn't be bothered to think through
-all the cases.
-
+[riel@redhat.com: Do not swap with tasks that cannot run on source cpu]
 Signed-off-by: Peter Zijlstra <peterz@infradead.org>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/sched.h    |   1 +
- kernel/sched/core.c      | 103 ++++++++++++++++++++++++++++++++++++++++++++---
- kernel/sched/fair.c      |   3 +-
- kernel/sched/idle_task.c |   2 +-
- kernel/sched/rt.c        |   5 +--
- kernel/sched/sched.h     |   3 +-
- kernel/sched/stop_task.c |   2 +-
- 7 files changed, 105 insertions(+), 14 deletions(-)
+ kernel/sched/core.c  |   4 +
+ kernel/sched/fair.c  | 253 ++++++++++++++++++++++++++++++++++++---------------
+ kernel/sched/sched.h |  13 +++
+ 3 files changed, 199 insertions(+), 71 deletions(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 3418b0b..3e8c547 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1035,6 +1035,7 @@ struct task_struct {
- #ifdef CONFIG_SMP
- 	struct llist_node wake_entry;
- 	int on_cpu;
-+	int wake_cpu;
- #endif
- 	int on_rq;
- 
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 374da2b..67f2b7b 100644
+index 67f2b7b..f7a44dd 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -1032,6 +1032,90 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
- 	__set_task_cpu(p, new_cpu);
+@@ -5248,6 +5248,7 @@ static void destroy_sched_domains(struct sched_domain *sd, int cpu)
+  */
+ DEFINE_PER_CPU(struct sched_domain *, sd_llc);
+ DEFINE_PER_CPU(int, sd_llc_id);
++DEFINE_PER_CPU(struct sched_domain *, sd_numa);
+ 
+ static void update_top_cache_domain(int cpu)
+ {
+@@ -5260,6 +5261,9 @@ static void update_top_cache_domain(int cpu)
+ 
+ 	rcu_assign_pointer(per_cpu(sd_llc, cpu), sd);
+ 	per_cpu(sd_llc_id, cpu) = id;
++
++	sd = lowest_flag_domain(cpu, SD_NUMA);
++	rcu_assign_pointer(per_cpu(sd_numa, cpu), sd);
  }
  
-+static void __migrate_swap_task(struct task_struct *p, int cpu)
+ /*
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 9b59f5d..b0e25f9 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -816,6 +816,8 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
+  * Scheduling class queueing methods:
+  */
+ 
++static unsigned long task_h_load(struct task_struct *p);
++
+ #ifdef CONFIG_NUMA_BALANCING
+ /*
+  * Approximate time to scan a full NUMA task in ms. The task scan period is
+@@ -906,12 +908,40 @@ static unsigned long target_load(int cpu, int type);
+ static unsigned long power_of(int cpu);
+ static long effective_load(struct task_group *tg, int cpu, long wl, long wg);
+ 
++/* Cached statistics for all CPUs within a node */
+ struct numa_stats {
++	unsigned long nr_running;
+ 	unsigned long load;
+-	s64 eff_load;
+-	unsigned long faults;
++
++	/* Total compute capacity of CPUs on a node */
++	unsigned long power;
++
++	/* Approximate capacity in terms of runnable tasks on a node */
++	unsigned long capacity;
++	int has_capacity;
+ };
+ 
++/*
++ * XXX borrowed from update_sg_lb_stats
++ */
++static void update_numa_stats(struct numa_stats *ns, int nid)
 +{
-+	if (p->on_rq) {
-+		struct rq *src_rq, *dst_rq;
++	int cpu;
 +
-+		src_rq = task_rq(p);
-+		dst_rq = cpu_rq(cpu);
++	memset(ns, 0, sizeof(*ns));
++	for_each_cpu(cpu, cpumask_of_node(nid)) {
++		struct rq *rq = cpu_rq(cpu);
 +
-+		deactivate_task(src_rq, p, 0);
-+		set_task_cpu(p, cpu);
-+		activate_task(dst_rq, p, 0);
-+		check_preempt_curr(dst_rq, p, 0);
-+	} else {
-+		/*
-+		 * Task isn't running anymore; make it appear like we migrated
-+		 * it before it went to sleep. This means on wakeup we make the
-+		 * previous cpu or targer instead of where it really is.
-+		 */
-+		p->wake_cpu = cpu;
++		ns->nr_running += rq->nr_running;
++		ns->load += weighted_cpuload(cpu);
++		ns->power += power_of(cpu);
 +	}
++
++	ns->load = (ns->load * SCHED_POWER_SCALE) / ns->power;
++	ns->capacity = DIV_ROUND_CLOSEST(ns->power, SCHED_POWER_SCALE);
++	ns->has_capacity = (ns->nr_running < ns->capacity);
 +}
 +
-+struct migration_swap_arg {
-+	struct task_struct *src_task, *dst_task;
-+	int src_cpu, dst_cpu;
-+};
+ struct task_numa_env {
+ 	struct task_struct *p;
+ 
+@@ -920,95 +950,178 @@ struct task_numa_env {
+ 
+ 	struct numa_stats src_stats, dst_stats;
+ 
+-	unsigned long best_load;
++	int imbalance_pct, idx;
 +
-+static int migrate_swap_stop(void *data)
++	struct task_struct *best_task;
++	long best_imp;
+ 	int best_cpu;
+ };
+ 
++static void task_numa_assign(struct task_numa_env *env,
++			     struct task_struct *p, long imp)
 +{
-+	struct migration_swap_arg *arg = data;
-+	struct rq *src_rq, *dst_rq;
-+	int ret = -EAGAIN;
++	if (env->best_task)
++		put_task_struct(env->best_task);
++	if (p)
++		get_task_struct(p);
 +
-+	src_rq = cpu_rq(arg->src_cpu);
-+	dst_rq = cpu_rq(arg->dst_cpu);
-+
-+	double_rq_lock(src_rq, dst_rq);
-+	if (task_cpu(arg->dst_task) != arg->dst_cpu)
-+		goto unlock;
-+
-+	if (task_cpu(arg->src_task) != arg->src_cpu)
-+		goto unlock;
-+
-+	if (!cpumask_test_cpu(arg->dst_cpu, tsk_cpus_allowed(arg->src_task)))
-+		goto unlock;
-+
-+	if (!cpumask_test_cpu(arg->src_cpu, tsk_cpus_allowed(arg->dst_task)))
-+		goto unlock;
-+
-+	__migrate_swap_task(arg->src_task, arg->dst_cpu);
-+	__migrate_swap_task(arg->dst_task, arg->src_cpu);
-+
-+	ret = 0;
-+
-+unlock:
-+	double_rq_unlock(src_rq, dst_rq);
-+
-+	return ret;
++	env->best_task = p;
++	env->best_imp = imp;
++	env->best_cpu = env->dst_cpu;
 +}
 +
 +/*
-+ * XXX worry about hotplug
++ * This checks if the overall compute and NUMA accesses of the system would
++ * be improved if the source tasks was migrated to the target dst_cpu taking
++ * into account that it might be best if task running on the dst_cpu should
++ * be exchanged with the source task
 + */
-+int migrate_swap(struct task_struct *cur, struct task_struct *p)
++static void task_numa_compare(struct task_numa_env *env, long imp)
 +{
-+	struct migration_swap_arg arg = {
-+		.src_task = cur,
-+		.src_cpu = task_cpu(cur),
-+		.dst_task = p,
-+		.dst_cpu = task_cpu(p),
-+	};
++	struct rq *src_rq = cpu_rq(env->src_cpu);
++	struct rq *dst_rq = cpu_rq(env->dst_cpu);
++	struct task_struct *cur;
++	long dst_load, src_load;
++	long load;
 +
-+	if (arg.src_cpu == arg.dst_cpu)
-+		return -EINVAL;
++	rcu_read_lock();
++	cur = ACCESS_ONCE(dst_rq->curr);
++	if (cur->pid == 0) /* idle */
++		cur = NULL;
 +
-+	if (!cpumask_test_cpu(arg.dst_cpu, tsk_cpus_allowed(arg.src_task)))
-+		return -EINVAL;
++	/*
++	 * "imp" is the fault differential for the source task between the
++	 * source and destination node. Calculate the total differential for
++	 * the source task and potential destination task. The more negative
++	 * the value is, the more rmeote accesses that would be expected to
++	 * be incurred if the tasks were swapped.
++	 */
++	if (cur) {
++		/* Skip this swap candidate if cannot move to the source cpu */
++		if (!cpumask_test_cpu(env->src_cpu, tsk_cpus_allowed(cur)))
++			goto unlock;
 +
-+	if (!cpumask_test_cpu(arg.src_cpu, tsk_cpus_allowed(arg.dst_task)))
-+		return -EINVAL;
-+
-+	return stop_two_cpus(arg.dst_cpu, arg.src_cpu, migrate_swap_stop, &arg);
-+}
-+
- struct migration_arg {
- 	struct task_struct *task;
- 	int dest_cpu;
-@@ -1251,9 +1335,9 @@ out:
-  * The caller (fork, wakeup) owns p->pi_lock, ->cpus_allowed is stable.
-  */
- static inline
--int select_task_rq(struct task_struct *p, int sd_flags, int wake_flags)
-+int select_task_rq(struct task_struct *p, int cpu, int sd_flags, int wake_flags)
- {
--	int cpu = p->sched_class->select_task_rq(p, sd_flags, wake_flags);
-+	cpu = p->sched_class->select_task_rq(p, cpu, sd_flags, wake_flags);
- 
- 	/*
- 	 * In order not to call set_task_cpu() on a blocking task we need
-@@ -1528,7 +1612,12 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
- 	if (p->sched_class->task_waking)
- 		p->sched_class->task_waking(p);
- 
--	cpu = select_task_rq(p, SD_BALANCE_WAKE, wake_flags);
-+	if (p->wake_cpu != -1) {	/* XXX make this condition go away */
-+		cpu = p->wake_cpu;
-+		p->wake_cpu = -1;
++		imp += task_faults(cur, env->src_nid) -
++		       task_faults(cur, env->dst_nid);
 +	}
 +
-+	cpu = select_task_rq(p, cpu, SD_BALANCE_WAKE, wake_flags);
- 	if (task_cpu(p) != cpu) {
- 		wake_flags |= WF_MIGRATED;
- 		set_task_cpu(p, cpu);
-@@ -1614,6 +1703,10 @@ static void __sched_fork(struct task_struct *p)
- {
- 	p->on_rq			= 0;
- 
-+#ifdef CONFIG_SMP
-+	p->wake_cpu			= -1;
-+#endif
++	if (imp < env->best_imp)
++		goto unlock;
 +
- 	p->se.on_rq			= 0;
- 	p->se.exec_start		= 0;
- 	p->se.sum_exec_runtime		= 0;
-@@ -1765,7 +1858,7 @@ void wake_up_new_task(struct task_struct *p)
- 	 *  - cpus_allowed can change in the fork path
- 	 *  - any previously selected cpu might disappear through hotplug
- 	 */
--	set_task_cpu(p, select_task_rq(p, SD_BALANCE_FORK, 0));
-+	set_task_cpu(p, select_task_rq(p, task_cpu(p), SD_BALANCE_FORK, 0));
- #endif
- 
- 	/* Initialize new task's runnable average */
-@@ -2093,7 +2186,7 @@ void sched_exec(void)
- 	int dest_cpu;
- 
- 	raw_spin_lock_irqsave(&p->pi_lock, flags);
--	dest_cpu = p->sched_class->select_task_rq(p, SD_BALANCE_EXEC, 0);
-+	dest_cpu = p->sched_class->select_task_rq(p, task_cpu(p), SD_BALANCE_EXEC, 0);
- 	if (dest_cpu == smp_processor_id())
- 		goto unlock;
- 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index cd90e44..9b59f5d 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -3659,11 +3659,10 @@ done:
-  * preempt must be disabled.
-  */
- static int
--select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
-+select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_flags)
++	if (!cur) {
++		/* Is there capacity at our destination? */
++		if (env->src_stats.has_capacity &&
++		    !env->dst_stats.has_capacity)
++			goto unlock;
++
++		goto balance;
++	}
++
++	/* Balance doesn't matter much if we're running a task per cpu */
++	if (src_rq->nr_running == 1 && dst_rq->nr_running == 1)
++		goto assign;
++
++	/*
++	 * In the overloaded case, try and keep the load balanced.
++	 */
++balance:
++	dst_load = env->dst_stats.load;
++	src_load = env->src_stats.load;
++
++	/* XXX missing power terms */
++	load = task_h_load(env->p);
++	dst_load += load;
++	src_load -= load;
++
++	if (cur) {
++		load = task_h_load(cur);
++		dst_load -= load;
++		src_load += load;
++	}
++
++	/* make src_load the smaller */
++	if (dst_load < src_load)
++		swap(dst_load, src_load);
++
++	if (src_load * env->imbalance_pct < dst_load * 100)
++		goto unlock;
++
++assign:
++	task_numa_assign(env, cur, imp);
++unlock:
++	rcu_read_unlock();
++}
++
+ static int task_numa_migrate(struct task_struct *p)
  {
- 	struct sched_domain *tmp, *affine_sd = NULL, *sd = NULL;
- 	int cpu = smp_processor_id();
--	int prev_cpu = task_cpu(p);
- 	int new_cpu = cpu;
- 	int want_affine = 0;
- 	int sync = wake_flags & WF_SYNC;
-diff --git a/kernel/sched/idle_task.c b/kernel/sched/idle_task.c
-index d8da010..516c3d9 100644
---- a/kernel/sched/idle_task.c
-+++ b/kernel/sched/idle_task.c
-@@ -9,7 +9,7 @@
- 
- #ifdef CONFIG_SMP
- static int
--select_task_rq_idle(struct task_struct *p, int sd_flag, int flags)
-+select_task_rq_idle(struct task_struct *p, int cpu, int sd_flag, int flags)
- {
- 	return task_cpu(p); /* IDLE tasks as never migrated */
- }
-diff --git a/kernel/sched/rt.c b/kernel/sched/rt.c
-index 01970c8..d81866d 100644
---- a/kernel/sched/rt.c
-+++ b/kernel/sched/rt.c
-@@ -1169,13 +1169,10 @@ static void yield_task_rt(struct rq *rq)
- static int find_lowest_rq(struct task_struct *task);
- 
- static int
--select_task_rq_rt(struct task_struct *p, int sd_flag, int flags)
-+select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags)
- {
- 	struct task_struct *curr;
- 	struct rq *rq;
+-	int node_cpu = cpumask_first(cpumask_of_node(p->numa_preferred_nid));
+ 	struct task_numa_env env = {
+ 		.p = p,
++
+ 		.src_cpu = task_cpu(p),
+ 		.src_nid = cpu_to_node(task_cpu(p)),
+-		.dst_cpu = node_cpu,
+-		.dst_nid = p->numa_preferred_nid,
+-		.best_load = ULONG_MAX,
+-		.best_cpu = task_cpu(p),
++
++		.imbalance_pct = 112,
++
++		.best_task = NULL,
++		.best_imp = 0,
++		.best_cpu = -1
+ 	};
+ 	struct sched_domain *sd;
 -	int cpu;
--
--	cpu = task_cpu(p);
+-	struct task_group *tg = task_group(p);
+-	unsigned long weight;
+-	bool balanced;
+-	int imbalance_pct, idx = -1;
++	unsigned long faults;
++	int nid, cpu, ret;
  
- 	if (p->nr_cpus_allowed == 1)
- 		goto out;
+ 	/*
+-	 * Find the lowest common scheduling domain covering the nodes of both
+-	 * the CPU the task is currently running on and the target NUMA node.
++	 * Pick the lowest SD_NUMA domain, as that would have the smallest
++	 * imbalance and would be the first to start moving tasks about.
++	 *
++	 * And we want to avoid any moving of tasks about, as that would create
++	 * random movement of tasks -- counter the numa conditions we're trying
++	 * to satisfy here.
+ 	 */
+ 	rcu_read_lock();
+-	for_each_domain(env.src_cpu, sd) {
+-		if (cpumask_test_cpu(node_cpu, sched_domain_span(sd))) {
+-			/*
+-			 * busy_idx is used for the load decision as it is the
+-			 * same index used by the regular load balancer for an
+-			 * active cpu.
+-			 */
+-			idx = sd->busy_idx;
+-			imbalance_pct = sd->imbalance_pct;
+-			break;
+-		}
+-	}
++	sd = rcu_dereference(per_cpu(sd_numa, env.src_cpu));
++	env.imbalance_pct = 100 + (sd->imbalance_pct - 100) / 2;
+ 	rcu_read_unlock();
+ 
+-	if (WARN_ON_ONCE(idx == -1))
+-		return 0;
++	faults = task_faults(p, env.src_nid);
++	update_numa_stats(&env.src_stats, env.src_nid);
+ 
+-	/*
+-	 * XXX the below is mostly nicked from wake_affine(); we should
+-	 * see about sharing a bit if at all possible; also it might want
+-	 * some per entity weight love.
+-	 */
+-	weight = p->se.load.weight;
+-	env.src_stats.load = source_load(env.src_cpu, idx);
+-	env.src_stats.eff_load = 100 + (imbalance_pct - 100) / 2;
+-	env.src_stats.eff_load *= power_of(env.src_cpu);
+-	env.src_stats.eff_load *= env.src_stats.load + effective_load(tg, env.src_cpu, -weight, -weight);
+-
+-	for_each_cpu(cpu, cpumask_of_node(env.dst_nid)) {
+-		env.dst_cpu = cpu;
+-		env.dst_stats.load = target_load(cpu, idx);
+-
+-		/* If the CPU is idle, use it */
+-		if (!env.dst_stats.load) {
+-			env.best_cpu = cpu;
+-			goto migrate;
+-		}
++	/* Find an alternative node with relatively better statistics */
++	for_each_online_node(nid) {
++		long imp;
+ 
+-		/* Otherwise check the target CPU load */
+-		env.dst_stats.eff_load = 100;
+-		env.dst_stats.eff_load *= power_of(cpu);
+-		env.dst_stats.eff_load *= env.dst_stats.load + effective_load(tg, cpu, weight, weight);
++		if (nid == env.src_nid)
++			continue;
+ 
+-		/*
+-		 * Destination is considered balanced if the destination CPU is
+-		 * less loaded than the source CPU. Unfortunately there is a
+-		 * risk that a task running on a lightly loaded CPU will not
+-		 * migrate to its preferred node due to load imbalances.
+-		 */
+-		balanced = (env.dst_stats.eff_load <= env.src_stats.eff_load);
+-		if (!balanced)
++		/* Only consider nodes that recorded more faults */
++		imp = task_faults(p, nid) - faults;
++		if (imp < 0)
+ 			continue;
+ 
+-		if (env.dst_stats.eff_load < env.best_load) {
+-			env.best_load = env.dst_stats.eff_load;
+-			env.best_cpu = cpu;
++		env.dst_nid = nid;
++		update_numa_stats(&env.dst_stats, env.dst_nid);
++		for_each_cpu(cpu, cpumask_of_node(nid)) {
++			/* Skip this CPU if the source task cannot migrate */
++			if (!cpumask_test_cpu(cpu, tsk_cpus_allowed(p)))
++				continue;
++
++			env.dst_cpu = cpu;
++			task_numa_compare(&env, imp);
+ 		}
+ 	}
+ 
+-migrate:
+-	return migrate_task_to(p, env.best_cpu);
++	/* No better CPU than the current one was found. */
++	if (env.best_cpu == -1)
++		return -EAGAIN;
++
++	if (env.best_task == NULL) {
++		int ret = migrate_task_to(p, env.best_cpu);
++		return ret;
++	}
++
++	ret = migrate_swap(p, env.best_task);
++	put_task_struct(env.best_task);
++	return ret;
+ }
+ 
+ /* Attempt to migrate a task to a CPU on the preferred node. */
+@@ -1050,7 +1163,7 @@ static void task_numa_placement(struct task_struct *p)
+ 
+ 	/* Find the node with the highest number of faults */
+ 	for_each_online_node(nid) {
+-		unsigned long faults;
++		unsigned long faults = 0;
+ 		int priv, i;
+ 
+ 		for (priv = 0; priv < 2; priv++) {
+@@ -1060,10 +1173,10 @@ static void task_numa_placement(struct task_struct *p)
+ 			p->numa_faults[i] >>= 1;
+ 			p->numa_faults[i] += p->numa_faults_buffer[i];
+ 			p->numa_faults_buffer[i] = 0;
++
++			faults += p->numa_faults[i];
+ 		}
+ 
+-		/* Find maximum private faults */
+-		faults = p->numa_faults[task_faults_idx(nid, 1)];
+ 		if (faults > max_faults) {
+ 			max_faults = faults;
+ 			max_nid = nid;
+@@ -4409,8 +4522,6 @@ static int move_one_task(struct lb_env *env)
+ 	return 0;
+ }
+ 
+-static unsigned long task_h_load(struct task_struct *p);
+-
+ static const unsigned int sched_nr_migrate_break = 32;
+ 
+ /*
 diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 778f875..99b1ecd 100644
+index 99b1ecd..82ff03a 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -556,6 +556,7 @@ static inline u64 rq_clock_task(struct rq *rq)
- 
- #ifdef CONFIG_NUMA_BALANCING
- extern int migrate_task_to(struct task_struct *p, int cpu);
-+extern int migrate_swap(struct task_struct *, struct task_struct *);
- static inline void task_numa_free(struct task_struct *p)
- {
- 	kfree(p->numa_faults);
-@@ -988,7 +989,7 @@ struct sched_class {
- 	void (*put_prev_task) (struct rq *rq, struct task_struct *p);
- 
- #ifdef CONFIG_SMP
--	int  (*select_task_rq)(struct task_struct *p, int sd_flag, int flags);
-+	int  (*select_task_rq)(struct task_struct *p, int task_cpu, int sd_flag, int flags);
- 	void (*migrate_task_rq)(struct task_struct *p, int next_cpu);
- 
- 	void (*pre_schedule) (struct rq *this_rq, struct task_struct *task);
-diff --git a/kernel/sched/stop_task.c b/kernel/sched/stop_task.c
-index e08fbee..47197de 100644
---- a/kernel/sched/stop_task.c
-+++ b/kernel/sched/stop_task.c
-@@ -11,7 +11,7 @@
- 
- #ifdef CONFIG_SMP
- static int
--select_task_rq_stop(struct task_struct *p, int sd_flag, int flags)
-+select_task_rq_stop(struct task_struct *p, int cpu, int sd_flag, int flags)
- {
- 	return task_cpu(p); /* stop tasks as never migrate */
+@@ -608,8 +608,21 @@ static inline struct sched_domain *highest_flag_domain(int cpu, int flag)
+ 	return hsd;
  }
+ 
++static inline struct sched_domain *lowest_flag_domain(int cpu, int flag)
++{
++	struct sched_domain *sd;
++
++	for_each_domain(cpu, sd) {
++		if (sd->flags & flag)
++			break;
++	}
++
++	return sd;
++}
++
+ DECLARE_PER_CPU(struct sched_domain *, sd_llc);
+ DECLARE_PER_CPU(int, sd_llc_id);
++DECLARE_PER_CPU(struct sched_domain *, sd_numa);
+ 
+ struct sched_group_power {
+ 	atomic_t ref;
 -- 
 1.8.1.4
 
