@@ -1,102 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 4513F6B0081
-	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 10:58:40 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id kq14so2910087pab.12
-        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 07:58:39 -0700 (PDT)
-Received: by mail-la0-f44.google.com with SMTP id eo20so2271809lab.17
-        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 07:58:36 -0700 (PDT)
-Date: Fri, 27 Sep 2013 18:58:33 +0400
-From: Sergey Dyasly <dserrg@gmail.com>
-Subject: Re: [PATCH] OOM killer: wait for tasks with pending SIGKILL to exit
-Message-Id: <20130927185833.6c72b77ab105d70d4996ebef@gmail.com>
-In-Reply-To: <alpine.DEB.2.02.1309251328130.24412@chino.kir.corp.google.com>
-References: <1378740624-2456-1-git-send-email-dserrg@gmail.com>
-	<alpine.DEB.2.02.1309091303010.12523@chino.kir.corp.google.com>
-	<20130911190605.5528ee4563272dbea1ed56a6@gmail.com>
-	<alpine.DEB.2.02.1309251328130.24412@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id B04676B0074
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 11:18:02 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id wz12so2660844pbc.39
+        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 08:18:02 -0700 (PDT)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Fri, 27 Sep 2013 11:17:58 -0400
+Received: from b01cxnp23034.gho.pok.ibm.com (b01cxnp23034.gho.pok.ibm.com [9.57.198.29])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 1831E6E8048
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 11:17:55 -0400 (EDT)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by b01cxnp23034.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r8RFHthV9699768
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 15:17:55 GMT
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r8RFKsBI006384
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 09:20:56 -0600
+Date: Fri, 27 Sep 2013 08:17:50 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH] checkpatch: Make the memory barrier test noisier
+Message-ID: <20130927151749.GA2149@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <1380235333.3229.39.camel@j-VirtualBox>
+ <1380236265.3467.103.camel@schen9-DESK>
+ <20130927060213.GA6673@gmail.com>
+ <20130927112323.GJ3657@laptop.programming.kicks-ass.net>
+ <1380289495.17366.91.camel@joe-AO722>
+ <20130927134802.GA15690@laptop.programming.kicks-ass.net>
+ <1380291257.17366.103.camel@joe-AO722>
+ <20130927142605.GC15690@laptop.programming.kicks-ass.net>
+ <1380292495.17366.106.camel@joe-AO722>
+ <20130927145007.GD15690@laptop.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130927145007.GD15690@laptop.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Rusty Russell <rusty@rustcorp.com.au>, Sha Zhengju <handai.szj@taobao.com>, Oleg Nesterov <oleg@redhat.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Joe Perches <joe@perches.com>, Ingo Molnar <mingo@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, Jason Low <jason.low2@hp.com>, Davidlohr Bueso <davidlohr@hp.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On Wed, 25 Sep 2013 13:31:32 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
-
-> On Wed, 11 Sep 2013, Sergey Dyasly wrote:
+On Fri, Sep 27, 2013 at 04:50:07PM +0200, Peter Zijlstra wrote:
+> On Fri, Sep 27, 2013 at 07:34:55AM -0700, Joe Perches wrote:
+> > That would make it seem as if all barriers are SMP no?
 > 
-> > > >  		/*
-> > > >  		 * If this task is not being ptraced on exit, then wait for it
-> > > >  		 * to finish before killing some other task unnecessarily.
-> > > >  		 */
-> > > > -		if (!(task->group_leader->ptrace & PT_TRACE_EXIT))
-> > > > +		if (!(task->group_leader->ptrace & PT_TRACE_EXIT)) {
-> > > > +			set_tsk_thread_flag(task, TIF_MEMDIE);
-> > > 
-> > > This does not, we do not give access to memory reserves unless the process 
-> > > needs it to allocate memory.  The task here, which is not current, can 
-> > > call into the oom killer and be granted memory reserves if necessary.
-> > 
-> > True. However, why TIF_MEMDIE is set for PF_EXITING task in oom_kill_process()
-> > then?
+> I would think any memory barrier is ordering against someone else; if
+> not smp then a device/hardware -- like for instance the hardware page
+> table walker.
 > 
-> If current needs access to memory reserves while PF_EXITING, it should 
-> call the page allocator, find that it is out of memory, and call the oom 
-> killer to silently be granted memory reserves.
+> Barriers are fundamentally about order; and order only makes sense if
+> there's more than 1 party to the game.
 
-I understand this and you are repeating yourself :)
-What you are saying contradicts current OOMk code the way I read it. Comment in
-oom_kill_process() says:
+Oddly enough, there is one exception that proves the rule...  On Itanium,
+suppose we have the following code, with x initially equal to zero:
 
-"If the task is already exiting ... set TIF_MEMDIE so it can die quickly"
+CPU 1: ACCESS_ONCE(x) = 1;
 
-I just want to know the right solution.
+CPU 2: r1 = ACCESS_ONCE(x); r2 = ACCESS_ONCE(x);
 
-> > > > @@ -412,16 +415,6 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
-> > > >  	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
-> > > >  					      DEFAULT_RATELIMIT_BURST);
-> > > >  
-> > > > -	/*
-> > > > -	 * If the task is already exiting, don't alarm the sysadmin or kill
-> > > > -	 * its children or threads, just set TIF_MEMDIE so it can die quickly
-> > > > -	 */
-> > > > -	if (p->flags & PF_EXITING) {
-> > > > -		set_tsk_thread_flag(p, TIF_MEMDIE);
-> > > > -		put_task_struct(p);
-> > > > -		return;
-> > > > -	}
-> > > 
-> > > I think you misunderstood the point of this; if a selected process is 
-> > > already in the exit path then this is simply avoiding dumping oom kill 
-> > > lines to the kernel log.  We want to keep doing that.
-> > 
-> > This happens in oom_kill_process() after victim has been selected by
-> > select_bad_process(). But there is already PF_EXITING check in
-> > oom_scan_process_thread() and in this case OOM code won't call oom_kill_process.
+Itanium architects have told me that it really is possible for CPU 2 to
+see r1==1 and r2==0.  Placing a memory barrier between CPU 2's pair of
+fetches prevents this, but without any other memory barrier to pair with.
+
+> > Maybe just refer to Documentation/memory-barriers.txt
+> > and/or say something like "please document appropriately"
 > 
-> select_bad_process() is one of three callers to oom_kill_process().
-
-You are mistaken, oom_kill_process() is only called from out_of_memory()
-and mem_cgroup_out_of_memory().
-
-> > The only difference is in force_kill flag, and the only case where it's set
-> > is SysRq. And I think in this case OOM killer messages are a good thing to have
-> > even when victim is already exiting, instead of just silence.
-> > 
+> Documentation/memory-barriers.txt is always good; appropriately doesn't
+> seem to quantify anything much at all. Someone might think:
 > 
-> Read the comment about why we don't emit anything to the kernel log in 
-> this case; the process is already exiting, there's no need to kill it or 
-> make anyone believe that it was killed.
+> /*  */
+> smp_mb();
+> 
+> appropriate... 
 
-Yes, but there is already the PF_EXITING check in oom_scan_process_thread(),
-and in this case oom_kill_process() won't be even called. That's why it's
-redundant.
+I end up doing this:
 
---
-Sergey Dyasly <dserrg@gmail.com>
+/* */
+smp_mb(); /* See above block comment. */
+
+But it would be nice for the prior comment to be recognized as belonging
+to the memory barrier without the additional "See above" comment.
+
+In any case, please feel free to add:
+
+Acked-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+
+to the original checkpatch.pl patch.
+
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
