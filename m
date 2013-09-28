@@ -1,82 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id E55526B0031
-	for <linux-mm@kvack.org>; Sat, 28 Sep 2013 12:13:08 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id bj1so4073677pad.28
-        for <linux-mm@kvack.org>; Sat, 28 Sep 2013 09:13:08 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <20130928001314.GQ856@cmpxchg.org>
-References: <1380287787-30252-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1380287787-30252-3-git-send-email-kirill.shutemov@linux.intel.com>
- <5245EEAD.7010901@linux.vnet.ibm.com>
- <20130927222451.3406EE0090@blue.fi.intel.com>
- <20130928001314.GQ856@cmpxchg.org>
-Subject: Re: [PATCHv4 02/10] mm: convert mm->nr_ptes to atomic_t
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130928161256.D1517E0090@blue.fi.intel.com>
-Date: Sat, 28 Sep 2013 19:12:56 +0300 (EEST)
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id DF3456B0032
+	for <linux-mm@kvack.org>; Sat, 28 Sep 2013 12:38:03 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id lf10so4064128pab.3
+        for <linux-mm@kvack.org>; Sat, 28 Sep 2013 09:38:03 -0700 (PDT)
+Date: Sat, 28 Sep 2013 18:31:04 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
+Message-ID: <20130928163104.GA23352@redhat.com>
+References: <20130925175055.GA25914@redhat.com> <20130925184015.GC3657@laptop.programming.kicks-ass.net> <20130925212200.GA7959@linux.vnet.ibm.com> <20130926111042.GS3081@twins.programming.kicks-ass.net> <20130926165840.GA863@redhat.com> <20130926175016.GI3657@laptop.programming.kicks-ass.net> <20130927181532.GA8401@redhat.com> <20130927204116.GJ15690@laptop.programming.kicks-ass.net> <20130928124859.GA13425@redhat.com> <20130928144720.GL15690@laptop.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130928144720.GL15690@laptop.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Alex Thorlton <athorlton@sgi.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Viresh Kumar <viresh.kumar@linaro.org>
 
-Johannes Weiner wrote:
-> On Sat, Sep 28, 2013 at 01:24:51AM +0300, Kirill A. Shutemov wrote:
-> > Cody P Schafer wrote:
-> > > On 09/27/2013 06:16 AM, Kirill A. Shutemov wrote:
-> > > > With split page table lock for PMD level we can't hold
-> > > > mm->page_table_lock while updating nr_ptes.
-> > > >
-> > > > Let's convert it to atomic_t to avoid races.
-> > > >
-> > > 
-> > > > ---
-> > > 
-> > > > diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> > > > index 84e0c56e1e..99f19e850d 100644
-> > > > --- a/include/linux/mm_types.h
-> > > > +++ b/include/linux/mm_types.h
-> > > > @@ -339,6 +339,7 @@ struct mm_struct {
-> > > >   	pgd_t * pgd;
-> > > >   	atomic_t mm_users;			/* How many users with user space? */
-> > > >   	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
-> > > > +	atomic_t nr_ptes;			/* Page table pages */
-> > > >   	int map_count;				/* number of VMAs */
-> > > >
-> > > >   	spinlock_t page_table_lock;		/* Protects page tables and some counters */
-> > > > @@ -360,7 +361,6 @@ struct mm_struct {
-> > > >   	unsigned long exec_vm;		/* VM_EXEC & ~VM_WRITE */
-> > > >   	unsigned long stack_vm;		/* VM_GROWSUP/DOWN */
-> > > >   	unsigned long def_flags;
-> > > > -	unsigned long nr_ptes;		/* Page table pages */
-> > > >   	unsigned long start_code, end_code, start_data, end_data;
-> > > >   	unsigned long start_brk, brk, start_stack;
-> > > >   	unsigned long arg_start, arg_end, env_start, env_end;
-> > > 
-> > > Will 32bits always be enough here? Should atomic_long_t be used instead?
-> > 
-> > Good question!
-> > 
-> > On x86_64 we need one table to cover 2M (512 entries by 4k, 21 bits) of
-> > virtual address space. Total size of virtual memory which can be covered
-> > by 31-bit (32 - sign) nr_ptes is 52 bits (31 + 21).
-> > 
-> > Currently, on x86_64 with 4-level page tables we can use at most 48 bit of
-> > virtual address space (only half of it available for userspace), so we
-> > pretty safe here.
-> > 
-> > Although, it can be a potential problem, if (when) x86_64 will implement
-> > 5-level page tables -- 57-bits of virtual address space.
-> > 
-> > Any thoughts?
-> 
-> I'd just go with atomic_long_t to avoid having to worry about this in
-> the first place.  It's been ulong forever and I'm not aware of struct
-> mm_struct size being an urgent issue.  Cutting this type in half and
-> adding overflow checks adds more problems than it solves.
+On 09/28, Peter Zijlstra wrote:
+>
+> On Sat, Sep 28, 2013 at 02:48:59PM +0200, Oleg Nesterov wrote:
+>
+> > Please note that this wait_event() adds a problem... it doesn't allow
+> > to "offload" the final synchronize_sched(). Suppose a 4k cpu machine
+> > does disable_nonboot_cpus(), we do not want 2 * 4k * synchronize_sched's
+> > in this case. We can solve this, but this wait_event() complicates
+> > the problem.
+>
+> That seems like a particularly easy fix; something like so?
 
-Good point. Updated patch is below.
-It will cause few trivial conflicts in other patches. The whole patchset
-can be found here:
+Yes, but...
 
-git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git thp/split_pmd_ptl/v5
+> @@ -586,6 +603,11 @@ int disable_nonboot_cpus(void)
+>
+> +	cpu_hotplug_done();
+> +
+> +	for_each_cpu(cpu, frozen_cpus)
+> +		cpu_notify_nofail(CPU_POST_DEAD_FROZEN, (void*)(long)cpu);
+
+This changes the protocol, I simply do not know if it is fine in general
+to do __cpu_down(another_cpu) without CPU_POST_DEAD(previous_cpu). Say,
+currently it is possible that CPU_DOWN_PREPARE takes some global lock
+released by CPU_DOWN_FAILED or CPU_POST_DEAD.
+
+Hmm. Now that workqueues do not use CPU_POST_DEAD, it has only 2 users,
+mce_cpu_callback() and cpufreq_cpu_callback() and the 1st one even ignores
+this notification if FROZEN. So yes, probably this is fine, but needs an
+ack from cpufreq maintainers (cc'ed), for example to ensure that it is
+fine to call __cpufreq_remove_dev_prepare() twice without _finish().
+
+Oleg.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
