@@ -1,97 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id C65BC6B0031
-	for <linux-mm@kvack.org>; Sat, 28 Sep 2013 00:34:10 -0400 (EDT)
-Received: by mail-pb0-f48.google.com with SMTP id ma3so3343337pbc.35
-        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 21:34:10 -0700 (PDT)
-Received: by mail-bk0-f44.google.com with SMTP id mz10so1269871bkb.31
-        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 21:34:06 -0700 (PDT)
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 544F66B0031
+	for <linux-mm@kvack.org>; Sat, 28 Sep 2013 02:50:00 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id fb1so3702420pad.9
+        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 23:49:59 -0700 (PDT)
+Received: by mail-we0-f182.google.com with SMTP id q59so3622952wes.27
+        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 23:49:56 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20130928021947.GF9093@linux.vnet.ibm.com>
-References: <cover.1380144003.git.tim.c.chen@linux.intel.com>
-	<1380147049.3467.67.camel@schen9-DESK>
-	<20130927152953.GA4464@linux.vnet.ibm.com>
-	<1380310733.3467.118.camel@schen9-DESK>
-	<20130927203858.GB9093@linux.vnet.ibm.com>
-	<1380322005.3467.186.camel@schen9-DESK>
-	<20130927230137.GE9093@linux.vnet.ibm.com>
-	<CAGQ1y=7YbB_BouYZVJwAZ9crkSMLVCxg8hoqcO_7sXHRrZ90_A@mail.gmail.com>
-	<20130928021947.GF9093@linux.vnet.ibm.com>
-Date: Fri, 27 Sep 2013 21:34:06 -0700
-Message-ID: <CAGQ1y=5RnRsWdOe5CX6WYEJ2vUCFtHpj+PNC85NuEDH4bMdb0w@mail.gmail.com>
-Subject: Re: [PATCH v6 5/6] MCS Lock: Restructure the MCS lock defines and
- locking code into its own file
-From: Jason Low <jason.low2@hp.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <0000014142863060-919062ff-7284-445d-b3ec-f38cc8d5a6c8-000000@email.amazonses.com>
+References: <1379646960-12553-1-git-send-email-jbrassow@redhat.com>
+	<0000014142863060-919062ff-7284-445d-b3ec-f38cc8d5a6c8-000000@email.amazonses.com>
+Date: Sat, 28 Sep 2013 09:49:56 +0300
+Message-ID: <CAOJsxLGaNe_cap7fx8ZRZPWqkQhUbpA07Qhtgsg_+c5JdgV=qQ@mail.gmail.com>
+Subject: Re: [PATCH] Problems with RAID 4/5/6 and kmem_cache
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul McKenney <paulmck@linux.vnet.ibm.com>
-Cc: Jason Low <jason.low2@hp.com>, Tim Chen <tim.c.chen@linux.intel.com>, Waiman Long <Waiman.Long@hp.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Jonathan Brassow <jbrassow@redhat.com>, linux-raid@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, Sep 27, 2013 at 7:19 PM, Paul E. McKenney
-<paulmck@linux.vnet.ibm.com> wrote:
-> On Fri, Sep 27, 2013 at 04:54:06PM -0700, Jason Low wrote:
->> On Fri, Sep 27, 2013 at 4:01 PM, Paul E. McKenney
->> <paulmck@linux.vnet.ibm.com> wrote:
->> > Yep.  The previous lock holder's smp_wmb() won't keep either the compiler
->> > or the CPU from reordering things for the new lock holder.  They could for
->> > example reorder the critical section to precede the node->locked check,
->> > which would be very bad.
->>
->> Paul, Tim, Longman,
->>
->> How would you like the proposed changes below?
+On Sun, Sep 22, 2013 at 12:56 AM, Christoph Lameter <cl@linux.com> wrote:
+> On Thu, 19 Sep 2013, Jonathan Brassow wrote:
 >
-> Could you point me at what this applies to?  I can find flaws looking
-> at random pieces, given a little luck, but at some point I need to look
-> at the whole thing.  ;-)
+>> 4) kmem_cache_create(name="foo-a")
+>> - This FAILS because kmem_cache_sanity_check colides with the existing
+>>   name ("foo-a") associated with the non-removed cache.
+>
+> That should not happen. breakage you see will result. Oh. I see the move
+> to common code resulted in the SLAB checks being used for SLUB.
+>
+> The following patch should fix this.
+>
+> Subject: slab_common: Do not check for duplicate slab names
+>
+> SLUB can alias multiple slab kmem_create_requests to one slab cache
+> to save memory and increase the cache hotness. As a result the name
+> of the slab can be stale. Only check the name for duplicates if we are
+> in debug mode where we do not merge multiple caches.
+>
+> Signed-off-by: Christoph Lameter <cl@linux.com>
+>
+> Index: linux/mm/slab_common.c
+> ===================================================================
+> --- linux.orig/mm/slab_common.c 2013-09-20 11:49:13.052208294 -0500
+> +++ linux/mm/slab_common.c      2013-09-21 16:55:23.097131481 -0500
+> @@ -56,6 +56,7 @@
+>                         continue;
+>                 }
+>
+> +#if !defined(CONFIG_SLUB) || !defined(CONFIG_SLUB_DEBUG_ON)
+>                 /*
+>                  * For simplicity, we won't check this in the list of memcg
+>                  * caches. We have control over memcg naming, and if there
+> @@ -69,6 +70,7 @@
+>                         s = NULL;
+>                         return -EINVAL;
+>                 }
+> +#endif
+>         }
+>
+>         WARN_ON(strchr(name, ' '));     /* It confuses parsers */
 
-Sure. Here is a link to the patch we are trying to modify:
-https://lkml.org/lkml/2013/9/25/532
+Applied to slab/urgent, thanks!
 
-Also, below is what the mcs_spin_lock() and mcs_spin_unlock()
-functions would look like after applying the proposed changes.
-
-static noinline
-void mcs_spin_lock(struct mcs_spin_node **lock, struct mcs_spin_node *node)
-{
-        struct mcs_spin_node *prev;
-
-        /* Init node */
-        node->locked = 0;
-        node->next   = NULL;
-
-        prev = xchg(lock, node);
-        if (likely(prev == NULL)) {
-                /* Lock acquired. No need to set node->locked since it
-won't be used */
-                return;
-        }
-        ACCESS_ONCE(prev->next) = node;
-        /* Wait until the lock holder passes the lock down */
-        while (!ACCESS_ONCE(node->locked))
-                arch_mutex_cpu_relax();
-        smp_mb();
-}
-
-static void mcs_spin_unlock(struct mcs_spin_node **lock, struct
-mcs_spin_node *node)
-{
-        struct mcs_spin_node *next = ACCESS_ONCE(node->next);
-
-        if (likely(!next)) {
-                /*
-                 * Release the lock by setting it to NULL
-                 */
-                if (cmpxchg(lock, node, NULL) == node)
-                        return;
-                /* Wait until the next pointer is set */
-                while (!(next = ACCESS_ONCE(node->next)))
-                        arch_mutex_cpu_relax();
-        }
-        smp_wmb();
-        ACCESS_ONCE(next->locked) = 1;
-}
+Do we need to come up with something less #ifdeffy for v3.13?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
