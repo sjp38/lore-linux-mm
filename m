@@ -1,120 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A0456B0031
-	for <linux-mm@kvack.org>; Fri, 27 Sep 2013 22:59:17 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id lf10so3545138pab.17
-        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 19:59:16 -0700 (PDT)
-Message-ID: <524645F0.4020906@hp.com>
-Date: Fri, 27 Sep 2013 22:58:56 -0400
-From: Waiman Long <waiman.long@hp.com>
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id C65BC6B0031
+	for <linux-mm@kvack.org>; Sat, 28 Sep 2013 00:34:10 -0400 (EDT)
+Received: by mail-pb0-f48.google.com with SMTP id ma3so3343337pbc.35
+        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 21:34:10 -0700 (PDT)
+Received: by mail-bk0-f44.google.com with SMTP id mz10so1269871bkb.31
+        for <linux-mm@kvack.org>; Fri, 27 Sep 2013 21:34:06 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <20130928021947.GF9093@linux.vnet.ibm.com>
+References: <cover.1380144003.git.tim.c.chen@linux.intel.com>
+	<1380147049.3467.67.camel@schen9-DESK>
+	<20130927152953.GA4464@linux.vnet.ibm.com>
+	<1380310733.3467.118.camel@schen9-DESK>
+	<20130927203858.GB9093@linux.vnet.ibm.com>
+	<1380322005.3467.186.camel@schen9-DESK>
+	<20130927230137.GE9093@linux.vnet.ibm.com>
+	<CAGQ1y=7YbB_BouYZVJwAZ9crkSMLVCxg8hoqcO_7sXHRrZ90_A@mail.gmail.com>
+	<20130928021947.GF9093@linux.vnet.ibm.com>
+Date: Fri, 27 Sep 2013 21:34:06 -0700
+Message-ID: <CAGQ1y=5RnRsWdOe5CX6WYEJ2vUCFtHpj+PNC85NuEDH4bMdb0w@mail.gmail.com>
 Subject: Re: [PATCH v6 5/6] MCS Lock: Restructure the MCS lock defines and
  locking code into its own file
-References: <cover.1380144003.git.tim.c.chen@linux.intel.com>  <1380147049.3467.67.camel@schen9-DESK>  <20130927152953.GA4464@linux.vnet.ibm.com> <1380305348.3467.109.camel@schen9-DESK>
-In-Reply-To: <1380305348.3467.109.camel@schen9-DESK>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Jason Low <jason.low2@hp.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: paulmck@linux.vnet.ibm.com, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Paul McKenney <paulmck@linux.vnet.ibm.com>
+Cc: Jason Low <jason.low2@hp.com>, Tim Chen <tim.c.chen@linux.intel.com>, Waiman Long <Waiman.Long@hp.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On 09/27/2013 02:09 PM, Tim Chen wrote:
-> On Fri, 2013-09-27 at 08:29 -0700, Paul E. McKenney wrote:
->> On Wed, Sep 25, 2013 at 03:10:49PM -0700, Tim Chen wrote:
->>> We will need the MCS lock code for doing optimistic spinning for rwsem.
->>> Extracting the MCS code from mutex.c and put into its own file allow us
->>> to reuse this code easily for rwsem.
->>>
->>> Signed-off-by: Tim Chen<tim.c.chen@linux.intel.com>
->>> Signed-off-by: Davidlohr Bueso<davidlohr@hp.com>
->>> ---
->>>   include/linux/mcslock.h |   58 +++++++++++++++++++++++++++++++++++++++++++++++
->>>   kernel/mutex.c          |   58 +++++-----------------------------------------
->>>   2 files changed, 65 insertions(+), 51 deletions(-)
->>>   create mode 100644 include/linux/mcslock.h
->>>
->>> diff --git a/include/linux/mcslock.h b/include/linux/mcslock.h
->>> new file mode 100644
->>> index 0000000..20fd3f0
->>> --- /dev/null
->>> +++ b/include/linux/mcslock.h
->>> @@ -0,0 +1,58 @@
->>> +/*
->>> + * MCS lock defines
->>> + *
->>> + * This file contains the main data structure and API definitions of MCS lock.
->>> + */
->>> +#ifndef __LINUX_MCSLOCK_H
->>> +#define __LINUX_MCSLOCK_H
->>> +
->>> +struct mcs_spin_node {
->>> +	struct mcs_spin_node *next;
->>> +	int		  locked;	/* 1 if lock acquired */
->>> +};
->>> +
->>> +/*
->>> + * We don't inline mcs_spin_lock() so that perf can correctly account for the
->>> + * time spent in this lock function.
->>> + */
->>> +static noinline
->>> +void mcs_spin_lock(struct mcs_spin_node **lock, struct mcs_spin_node *node)
->>> +{
->>> +	struct mcs_spin_node *prev;
->>> +
->>> +	/* Init node */
->>> +	node->locked = 0;
->>> +	node->next   = NULL;
->>> +
->>> +	prev = xchg(lock, node);
->>> +	if (likely(prev == NULL)) {
->>> +		/* Lock acquired */
->>> +		node->locked = 1;
->>> +		return;
->>> +	}
->>> +	ACCESS_ONCE(prev->next) = node;
->>> +	smp_wmb();
->>> +	/* Wait until the lock holder passes the lock down */
->>> +	while (!ACCESS_ONCE(node->locked))
->>> +		arch_mutex_cpu_relax();
->>> +}
->>> +
->>> +static void mcs_spin_unlock(struct mcs_spin_node **lock, struct mcs_spin_node *node)
->>> +{
->>> +	struct mcs_spin_node *next = ACCESS_ONCE(node->next);
->>> +
->>> +	if (likely(!next)) {
->>> +		/*
->>> +		 * Release the lock by setting it to NULL
->>> +		 */
->>> +		if (cmpxchg(lock, node, NULL) == node)
->>> +			return;
->>> +		/* Wait until the next pointer is set */
->>> +		while (!(next = ACCESS_ONCE(node->next)))
->>> +			arch_mutex_cpu_relax();
->>> +	}
->>> +	ACCESS_ONCE(next->locked) = 1;
->>> +	smp_wmb();
->> Shouldn't the memory barrier precede the "ACCESS_ONCE(next->locked) = 1;"?
->> Maybe in an "else" clause of the prior "if" statement, given that the
->> cmpxchg() does it otherwise.
+On Fri, Sep 27, 2013 at 7:19 PM, Paul E. McKenney
+<paulmck@linux.vnet.ibm.com> wrote:
+> On Fri, Sep 27, 2013 at 04:54:06PM -0700, Jason Low wrote:
+>> On Fri, Sep 27, 2013 at 4:01 PM, Paul E. McKenney
+>> <paulmck@linux.vnet.ibm.com> wrote:
+>> > Yep.  The previous lock holder's smp_wmb() won't keep either the compiler
+>> > or the CPU from reordering things for the new lock holder.  They could for
+>> > example reorder the critical section to precede the node->locked check,
+>> > which would be very bad.
 >>
->> Otherwise, in the case where the "if" conditionn is false, the critical
->> section could bleed out past the unlock.
-> Yes, I agree with you that the smp_wmb should be moved before
-> ACCESS_ONCE to prevent critical section from bleeding.  Copying Waiman
-> who is the original author of the mcs code to see if he has any comments
-> on things we may have missed.
+>> Paul, Tim, Longman,
+>>
+>> How would you like the proposed changes below?
 >
-> Tim
+> Could you point me at what this applies to?  I can find flaws looking
+> at random pieces, given a little luck, but at some point I need to look
+> at the whole thing.  ;-)
 
-As a more general lock/unlock mechanism, I also agreed that we should 
-move smp_wmb() before ACCESS_ONCE(). For the mutex case, it is used as a 
-queuing mechanism rather than guarding critical section, so it doesn't 
-really matter.
+Sure. Here is a link to the patch we are trying to modify:
+https://lkml.org/lkml/2013/9/25/532
 
-Regards,
-Longman
+Also, below is what the mcs_spin_lock() and mcs_spin_unlock()
+functions would look like after applying the proposed changes.
+
+static noinline
+void mcs_spin_lock(struct mcs_spin_node **lock, struct mcs_spin_node *node)
+{
+        struct mcs_spin_node *prev;
+
+        /* Init node */
+        node->locked = 0;
+        node->next   = NULL;
+
+        prev = xchg(lock, node);
+        if (likely(prev == NULL)) {
+                /* Lock acquired. No need to set node->locked since it
+won't be used */
+                return;
+        }
+        ACCESS_ONCE(prev->next) = node;
+        /* Wait until the lock holder passes the lock down */
+        while (!ACCESS_ONCE(node->locked))
+                arch_mutex_cpu_relax();
+        smp_mb();
+}
+
+static void mcs_spin_unlock(struct mcs_spin_node **lock, struct
+mcs_spin_node *node)
+{
+        struct mcs_spin_node *next = ACCESS_ONCE(node->next);
+
+        if (likely(!next)) {
+                /*
+                 * Release the lock by setting it to NULL
+                 */
+                if (cmpxchg(lock, node, NULL) == node)
+                        return;
+                /* Wait until the next pointer is set */
+                while (!(next = ACCESS_ONCE(node->next)))
+                        arch_mutex_cpu_relax();
+        }
+        smp_wmb();
+        ACCESS_ONCE(next->locked) = 1;
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
