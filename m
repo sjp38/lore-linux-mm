@@ -1,93 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 83EE66B0031
-	for <linux-mm@kvack.org>; Sat, 28 Sep 2013 22:05:24 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id g10so4122584pdj.30
-        for <linux-mm@kvack.org>; Sat, 28 Sep 2013 19:05:23 -0700 (PDT)
-Received: by mail-vb0-f54.google.com with SMTP id q14so2878539vbe.13
-        for <linux-mm@kvack.org>; Sat, 28 Sep 2013 19:05:21 -0700 (PDT)
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id F08A86B0031
+	for <linux-mm@kvack.org>; Sun, 29 Sep 2013 05:19:39 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id un15so4329235pbc.15
+        for <linux-mm@kvack.org>; Sun, 29 Sep 2013 02:19:39 -0700 (PDT)
+Received: by mail-pd0-f173.google.com with SMTP id p10so4374363pdj.32
+        for <linux-mm@kvack.org>; Sun, 29 Sep 2013 02:19:37 -0700 (PDT)
+Date: Sun, 29 Sep 2013 17:19:23 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [RFC 0/4] cleancache: SSD backed cleancache backend
+Message-ID: <20130929091923.GA376@kernel.org>
+References: <20130926141428.392345308@kernel.org>
+ <20130926161401.GA3288@medulla.variantweb.net>
 MIME-Version: 1.0
-In-Reply-To: <1380288468-5551-30-git-send-email-mgorman@suse.de>
-References: <1380288468-5551-1-git-send-email-mgorman@suse.de>
-	<1380288468-5551-30-git-send-email-mgorman@suse.de>
-Date: Sun, 29 Sep 2013 10:05:21 +0800
-Message-ID: <CAF7GXvrYaHhGHn5ASb1AA78=m5uKNuza=K0Ddsq0mCp1N8gNSQ@mail.gmail.com>
-Subject: Re: [PATCH 29/63] sched: Set preferred NUMA node based on number of
- private faults
-From: "Figo.zhang" <figo1802@gmail.com>
-Content-Type: multipart/alternative; boundary=001a1132e6e2e27d0a04e77c267a
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130926161401.GA3288@medulla.variantweb.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, bob.liu@oracle.com, dan.magenheimer@oracle.com
 
---001a1132e6e2e27d0a04e77c267a
-Content-Type: text/plain; charset=ISO-8859-1
+On Thu, Sep 26, 2013 at 11:14:01AM -0500, Seth Jennings wrote:
+> On Thu, Sep 26, 2013 at 10:14:28PM +0800, Shaohua Li wrote:
+> > Hi,
+> > 
+> > This is a cleancache backend which caches page to disk, usually a SSD. The
+> > usage model is similar like Windows readyboost. Eg, user plugs a USB drive,
+> > and we use the USB drive to cache clean pages to reduce IO to hard disks.
+> 
+> Very interesting! A few thoughts:
+> 
+> It seems that this is doing at the page level what bcache/dm-cache do at
+> the block layer.  What is the advantage of doing it this way?
 
-> @@ -2317,8 +2319,8 @@ int mpol_misplaced(struct page *page, struct
-> vm_area_struct *vma, unsigned long
->                  * it less likely we act on an unlikely task<->page
->                  * relation.
->                  */
-> -               last_nid = page_nid_xchg_last(page, polnid);
-> -               if (last_nid != polnid)
-> +               last_nidpid = page_nidpid_xchg_last(page, this_nidpid);
-> +               if (!nidpid_pid_unset(last_nidpid) &&
-> nidpid_to_nid(last_nidpid) != polnid)
->                         goto out;
->         }
->
->
-Suppose that the first accessed page it will check the "if (curnid !=
-polnid)" and maybe migrate the page later.
-so maybe modify like that:
+That's true. It's only helpful for case of temporary caching. If a SSD is
+dedicated for caching, bcache/dm-cache is always generic.
 
-+               last_nidpid = page_nidpid_xchg_last(page, this_nidpid);
-+               if  (nidpid_pid_unset(last_nidpid))
-+                     goto out;
-+               else if (nidpid_to_nid(last_nidpid) != polnid)
-                        goto out;
-
-Best,
-Figo.zhang
-
---001a1132e6e2e27d0a04e77c267a
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><br><div class=3D"gmail=
-_quote"><blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex=
-;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style=
-:solid;padding-left:1ex">
-<br>
-@@ -2317,8 +2319,8 @@ int mpol_misplaced(struct page *page, struct vm_area_=
-struct *vma, unsigned long<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* it less likely we act on an unlikely t=
-ask&lt;-&gt;page<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* relation.<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/<br>
-- =A0 =A0 =A0 =A0 =A0 =A0 =A0 last_nid =3D page_nid_xchg_last(page, polnid)=
-;<br>
-- =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (last_nid !=3D polnid)<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 last_nidpid =3D page_nidpid_xchg_last(page, t=
-his_nidpid);<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!nidpid_pid_unset(last_nidpid) &amp;&amp;=
- nidpid_to_nid(last_nidpid) !=3D polnid)<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto out;<br>
-=A0 =A0 =A0 =A0 }<br>
-<br></blockquote><div><br></div><div>Suppose that the first accessed page i=
-t will check the &quot;if (curnid !=3D polnid)&quot; and maybe migrate the =
-page later.</div><div>so maybe modify like that:</div><div><br></div><div>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 last_nidpid =3D page_nidpid_xchg_last(page, t=
-his_nidpid);<br></div><div>+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 if =A0(nidpid_pid_=
-unset(last_nidpid))</div><div>+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 got=
-o out;</div><div>+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 else if (nidpid_to_nid(last_=
-nidpid) !=3D polnid)<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto out;<br></div><div><br=
-></div><div>Best,</div><div>Figo.zhang</div><div>=A0=A0</div></div></div></=
-div>
-
---001a1132e6e2e27d0a04e77c267a--
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
