@@ -1,65 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id E5FF86B0031
-	for <linux-mm@kvack.org>; Mon, 30 Sep 2013 11:18:10 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id un15so5730148pbc.15
-        for <linux-mm@kvack.org>; Mon, 30 Sep 2013 08:18:10 -0700 (PDT)
-Date: Mon, 30 Sep 2013 16:18:02 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 11/63] mm: Close races between THP migration and PMD numa
- clearing
-Message-ID: <20130930151802.GG2425@suse.de>
-References: <1380288468-5551-1-git-send-email-mgorman@suse.de>
- <1380288468-5551-12-git-send-email-mgorman@suse.de>
- <20130930084735.GA2425@suse.de>
- <20130930101048.55fa2acd@annuminas.surriel.com>
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DAF86B0031
+	for <linux-mm@kvack.org>; Mon, 30 Sep 2013 11:28:21 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id lf10so6038517pab.31
+        for <linux-mm@kvack.org>; Mon, 30 Sep 2013 08:28:21 -0700 (PDT)
+Message-ID: <52499875.4060101@sr71.net>
+Date: Mon, 30 Sep 2013 08:27:49 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20130930101048.55fa2acd@annuminas.surriel.com>
+Subject: Re: [PATCHv6 00/22] Transparent huge page cache: phase 1, everything
+ but mmap()
+References: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com> <20130924163740.4bc7db61e3e520798220dc4c@linux-foundation.org> <20130930100249.GB2425@suse.de>
+In-Reply-To: <20130930100249.GB2425@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, jstancek@redhat.com
+To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Ning Qu <quning@google.com>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Sep 30, 2013 at 10:10:48AM -0400, Rik van Riel wrote:
-> On Mon, 30 Sep 2013 09:52:59 +0100
-> Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > On Fri, Sep 27, 2013 at 02:26:56PM +0100, Mel Gorman wrote:
-> > > @@ -1732,9 +1732,9 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
-> > >  	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-> > >  	entry = pmd_mkhuge(entry);
-> > >  
-> > > -	page_add_new_anon_rmap(new_page, vma, haddr);
-> > > -
-> > > +	pmdp_clear_flush(vma, address, pmd);
-> > >  	set_pmd_at(mm, haddr, pmd, entry);
-> > > +	page_add_new_anon_rmap(new_page, vma, haddr);
-> > >  	update_mmu_cache_pmd(vma, address, &entry);
-> > >  	page_remove_rmap(page);
-> > >  	/*
-> > 
-> > pmdp_clear_flush should have used haddr
-> 
-> Dang, we both discovered this over the weekend? :)
-> 
+On 09/30/2013 03:02 AM, Mel Gorman wrote:
+> I am afraid I never looked too closely once I learned that the primary
+> motivation for this was relieving iTLB pressure in a very specific
+> case. AFAIK, this is not a problem in the vast majority of modern CPUs
+> and I found it very hard to be motivated to review the series as a result.
+> I suspected that in many cases that the cost of IO would continue to dominate
+> performance instead of TLB pressure. I also found it unlikely that there
+> was a workload that was tmpfs based that used enough memory to be hurt
+> by TLB pressure. My feedback was that a much more compelling case for the
+> series was needed but this discussion all happened on IRC unfortunately.
 
-Saw it this morning running a debugging build.
+FWIW, I'm mostly intrigued by the possibilities of how this can speed up
+_software_, and I'm rather uninterested in what it can do for the TLB.
+Page cache is particularly painful today, precisely because hugetlbfs
+and anonymous-thp aren't available there.  If you have an app with
+hundreds of GB of files that it wants to mmap(), even if it's in the
+page cache, it takes _minutes_ to just fault in.  One example:
 
-> In related news, it looks like update_mmu_cache_pmd should
-> probably use haddr, too...
-> 
-
-Does anything care? Other calls to update_mmu_cache_pmd are using address
-and not haddr so if this is a problem, it's a problem in a few places. Of
-the arches that support THP, only sparc appears to do anything useful and
-it shifts the address HPAGE_SHIFT so it does not matter if the address
-was aligned or not.
-
--- 
-Mel Gorman
-SUSE Labs
+	https://lkml.org/lkml/2013/6/27/698
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
