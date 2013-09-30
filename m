@@ -1,37 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 83C286B0032
-	for <linux-mm@kvack.org>; Mon, 30 Sep 2013 18:02:11 -0400 (EDT)
-Received: by mail-pb0-f44.google.com with SMTP id xa7so6158200pbc.31
-        for <linux-mm@kvack.org>; Mon, 30 Sep 2013 15:02:11 -0700 (PDT)
-Date: Mon, 30 Sep 2013 15:02:07 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: pagevec: cleanup: drop pvec->cold argument in all
- places
-Message-Id: <20130930150207.3661b5c146b6ecea84194547@linux-foundation.org>
-In-Reply-To: <1380357239-30102-1-git-send-email-bob.liu@oracle.com>
-References: <1380357239-30102-1-git-send-email-bob.liu@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EF606B0039
+	for <linux-mm@kvack.org>; Mon, 30 Sep 2013 18:08:31 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id g10so6209347pdj.40
+        for <linux-mm@kvack.org>; Mon, 30 Sep 2013 15:08:30 -0700 (PDT)
+Received: by mail-pb0-f50.google.com with SMTP id uo5so6195109pbc.9
+        for <linux-mm@kvack.org>; Mon, 30 Sep 2013 15:08:27 -0700 (PDT)
+Date: Mon, 30 Sep 2013 15:08:25 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] OOM killer: wait for tasks with pending SIGKILL to
+ exit
+In-Reply-To: <20130927185833.6c72b77ab105d70d4996ebef@gmail.com>
+Message-ID: <alpine.DEB.2.02.1309301457590.28109@chino.kir.corp.google.com>
+References: <1378740624-2456-1-git-send-email-dserrg@gmail.com> <alpine.DEB.2.02.1309091303010.12523@chino.kir.corp.google.com> <20130911190605.5528ee4563272dbea1ed56a6@gmail.com> <alpine.DEB.2.02.1309251328130.24412@chino.kir.corp.google.com>
+ <20130927185833.6c72b77ab105d70d4996ebef@gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com, minchan@kernel.org, Bob Liu <bob.liu@oracle.com>
+To: Sergey Dyasly <dserrg@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Rusty Russell <rusty@rustcorp.com.au>, Sha Zhengju <handai.szj@taobao.com>, Oleg Nesterov <oleg@redhat.com>
 
-On Sat, 28 Sep 2013 16:33:58 +0800 Bob Liu <lliubbo@gmail.com> wrote:
+On Fri, 27 Sep 2013, Sergey Dyasly wrote:
 
-> Nobody uses the pvec->cold argument of pagevec and it's also unreasonable for
-> pages in pagevec released as cold page, so drop the cold argument from pagevec.
+> What you are saying contradicts current OOMk code the way I read it. Comment in
+> oom_kill_process() says:
+> 
+> "If the task is already exiting ... set TIF_MEMDIE so it can die quickly"
+> 
+> I just want to know the right solution.
+> 
 
-Is it unreasonable?  I'd say it's unreasonable to assume that all pages
-in all cases are likely to be cache-hot.  Example: what if the pages
-are being truncated and were found to be on the inactive LRU,
-unreferenced?
+That's a comment, not code.  The point of the PF_EXITING special handling 
+in oom_kill_process() is to avoid telling sysadmins that a process has 
+been killed to free memory when it has already called exit() and to avoid 
+sacrificing one of its children for the exiting process.
 
-A useful exercise would be to go through all those pagevec_init() sites
-and convince ourselves that the decision at each place was the correct
-one.
+It may or may not need access to memory reserves to actually exit after 
+PF_EXITING depending on whether it needs to allocate memory for 
+coredumping or anything else.  So instead of waiting for it to recall the 
+oom killer, TIF_MEMDIE is set anyway.  The point is that PF_EXITING 
+processes can already get TIF_MEMDIE immediately when their memory 
+allocation fails so there's no reason not to set it now as an 
+optimization.
+
+But we definitely want to avoid printing anything to the kernel log when 
+the process has already called exit() and issuing the SIGKILL at that 
+point would be pointless.
+
+> You are mistaken, oom_kill_process() is only called from out_of_memory()
+> and mem_cgroup_out_of_memory().
+> 
+
+out_of_memory() calls oom_kill_process() in two places, plus the call from 
+mem_cgroup_out_of_memory(), making three calls in the tree.  Not that this 
+matters in the slightest, though.
+
+> > Read the comment about why we don't emit anything to the kernel log in 
+> > this case; the process is already exiting, there's no need to kill it or 
+> > make anyone believe that it was killed.
+> 
+> Yes, but there is already the PF_EXITING check in oom_scan_process_thread(),
+> and in this case oom_kill_process() won't be even called. That's why it's
+> redundant.
+> 
+
+You apparently have no idea how long select_bad_process() runs on a large 
+system with thousands of processes.  Keep in mind that SGI requested the 
+addition of the oom_kill_allocating_task sysctl specifically because of 
+how long select_bad_process() runs.  The PF_EXITING check in 
+oom_kill_process() is simply an optimization to return early and with 
+access to memory reserves so it can exit as quickly as possible and 
+without the kernel stating it's killing something that has already called 
+exit().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
