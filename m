@@ -1,59 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 09C696B0031
-	for <linux-mm@kvack.org>; Mon, 30 Sep 2013 12:37:10 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id v10so5871960pde.38
-        for <linux-mm@kvack.org>; Mon, 30 Sep 2013 09:37:10 -0700 (PDT)
-Message-ID: <5249A8A4.9060400@hp.com>
-Date: Mon, 30 Sep 2013 12:36:52 -0400
-From: Waiman Long <waiman.long@hp.com>
+	by kanga.kvack.org (Postfix) with ESMTP id A9A146B0036
+	for <linux-mm@kvack.org>; Mon, 30 Sep 2013 12:45:13 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id v10so5950657pde.10
+        for <linux-mm@kvack.org>; Mon, 30 Sep 2013 09:45:13 -0700 (PDT)
+Date: Mon, 30 Sep 2013 18:38:10 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [RFC] introduce synchronize_sched_{enter,exit}()
+Message-ID: <20130930163810.GA25642@redhat.com>
+References: <1378805550-29949-1-git-send-email-mgorman@suse.de> <1378805550-29949-38-git-send-email-mgorman@suse.de> <20130917143003.GA29354@twins.programming.kicks-ass.net> <20130929183634.GA15563@redhat.com> <20130930125942.GB12926@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 5/6] MCS Lock: Restructure the MCS lock defines and
- locking code into its own file
-References: <cover.1380144003.git.tim.c.chen@linux.intel.com>  <1380147049.3467.67.camel@schen9-DESK>  <20130927152953.GA4464@linux.vnet.ibm.com>  <1380310733.3467.118.camel@schen9-DESK>  <20130927203858.GB9093@linux.vnet.ibm.com>  <1380322005.3467.186.camel@schen9-DESK>  <20130927230137.GE9093@linux.vnet.ibm.com>  <CAGQ1y=7YbB_BouYZVJwAZ9crkSMLVCxg8hoqcO_7sXHRrZ90_A@mail.gmail.com>  <20130928021947.GF9093@linux.vnet.ibm.com>  <CAGQ1y=5RnRsWdOe5CX6WYEJ2vUCFtHpj+PNC85NuEDH4bMdb0w@mail.gmail.com>  <52499E13.8050109@hp.com> <1380557440.14213.6.camel@j-VirtualBox>
-In-Reply-To: <1380557440.14213.6.camel@j-VirtualBox>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130930125942.GB12926@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Low <jason.low2@hp.com>
-Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On 09/30/2013 12:10 PM, Jason Low wrote:
-> On Mon, 2013-09-30 at 11:51 -0400, Waiman Long wrote:
->> On 09/28/2013 12:34 AM, Jason Low wrote:
->>>> Also, below is what the mcs_spin_lock() and mcs_spin_unlock()
->>>> functions would look like after applying the proposed changes.
->>>>
->>>> static noinline
->>>> void mcs_spin_lock(struct mcs_spin_node **lock, struct mcs_spin_node *node)
->>>> {
->>>>           struct mcs_spin_node *prev;
->>>>
->>>>           /* Init node */
->>>>           node->locked = 0;
->>>>           node->next   = NULL;
->>>>
->>>>           prev = xchg(lock, node);
->>>>           if (likely(prev == NULL)) {
->>>>                   /* Lock acquired. No need to set node->locked since it
->>>> won't be used */
->>>>                   return;
->>>>           }
->>>>           ACCESS_ONCE(prev->next) = node;
->>>>           /* Wait until the lock holder passes the lock down */
->>>>           while (!ACCESS_ONCE(node->locked))
->>>>                   arch_mutex_cpu_relax();
->>>>           smp_mb();
->> I wonder if a memory barrier is really needed here.
-> If the compiler can reorder the while (!ACCESS_ONCE(node->locked)) check
-> so that the check occurs after an instruction in the critical section,
-> then the barrier may be necessary.
+On 09/30, Peter Zijlstra wrote:
 >
+> On Sun, Sep 29, 2013 at 08:36:34PM +0200, Oleg Nesterov wrote:
+> > Why? Say, percpu_rw_semaphore, or upcoming changes in get_online_cpus(),
+> > (Peter, I think they should be unified anyway, but lets ignore this for
+> > now).
+>
+> If you think the percpu_rwsem users can benefit sure.. So far its good I
+> didn't go the percpu_rwsem route for it looks like we got something
+> better at the end of it ;-)
 
-In that case, just a barrier() call should be enough.
+I think you could simply improve percpu_rwsem instead. Once we add
+task_struct->cpuhp_ctr percpu_rwsem and get_online_cpus/hotplug_begin
+becomes absolutely congruent.
 
--Longman
+OTOH, it would be simpler to change hotplug first, then copy-and-paste
+the improvents into percpu_rwsem, then see if we can simply convert
+cpu_hotplug_begin/end into percpu_down/up_write.
+
+> Well, if we make percpu_rwsem the defacto container of the pattern and
+> use that throughout, we'd have only a single implementation
+
+Not sure. I think it can have other users. But even if not, please look
+at "struct sb_writers". Yes, I believe it makes sense to use percpu_rwsem
+here, but note that it is actually array of semaphores. I do not think
+each element needs its own xxx_struct.
+
+> and don't
+> need the abstraction.
+
+And even if struct percpu_rw_semaphore will be the only container of
+xxx_struct, I think the code looks better and more understandable this
+way, exactly because it adds the new abstraction layer. Performance-wise
+this should be free.
+
+> > static void cb_rcu_func(struct rcu_head *rcu)
+> > {
+> > 	struct xxx_struct *xxx = container_of(rcu, struct xxx_struct, cb_head);
+> > 	long flags;
+> >
+> > 	BUG_ON(xxx->gp_state != GP_PASSED);
+> > 	BUG_ON(xxx->cb_state == CB_IDLE);
+> >
+> > 	spin_lock_irqsave(&xxx->xxx_lock, flags);
+> > 	if (xxx->gp_count) {
+> > 		xxx->cb_state = CB_IDLE;
+>
+> This seems to be when a new xxx_begin() has happened after our last
+> xxx_end() and the sync_sched() from xxx_begin() merges with the
+> xxx_end() one and we're done.
+
+Yes,
+
+> > 	} else if (xxx->cb_state == CB_REPLAY) {
+> > 		xxx->cb_state = CB_PENDING;
+> > 		call_rcu_sched(&xxx->cb_head, cb_rcu_func);
+>
+> A later xxx_exit() has happened, and we need to requeue to catch a later
+> GP.
+
+Exactly.
+
+> So I don't immediately see the point of the concurrent write side;
+> percpu_rwsem wouldn't allow this and afaict neither would
+> freeze_super().
+
+Oh I disagree. Even ignoring the fact I believe xxx_struct itself
+can have more users (I can be wrong of course), I do think that
+percpu_down_write_nonexclusive() makes sense (except "exclusive"
+should be the argument of percpu_init_rwsem). And in fact the
+initial implementation I sent didn't even has the "exclusive" mode.
+
+Please look at uprobes (currently the only user). We do not really
+need the global write-lock, we can do the per-uprobe locking. However,
+every caller needs to block the percpu_down_read() callers (dup_mmap).
+
+> Other than that; yes this makes sense if you care about write side
+> performance and I think its solid.
+
+Great ;)
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
