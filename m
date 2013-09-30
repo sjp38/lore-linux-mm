@@ -1,65 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F2CE6B003B
-	for <linux-mm@kvack.org>; Mon, 30 Sep 2013 12:10:51 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id kp14so6072535pab.24
-        for <linux-mm@kvack.org>; Mon, 30 Sep 2013 09:10:50 -0700 (PDT)
-Message-ID: <1380557440.14213.6.camel@j-VirtualBox>
-Subject: Re: [PATCH v6 5/6] MCS Lock: Restructure the MCS lock defines and
- locking code into its own file
-From: Jason Low <jason.low2@hp.com>
-Date: Mon, 30 Sep 2013 09:10:40 -0700
-In-Reply-To: <52499E13.8050109@hp.com>
-References: <cover.1380144003.git.tim.c.chen@linux.intel.com>
-	 <1380147049.3467.67.camel@schen9-DESK>
-	 <20130927152953.GA4464@linux.vnet.ibm.com>
-	 <1380310733.3467.118.camel@schen9-DESK>
-	 <20130927203858.GB9093@linux.vnet.ibm.com>
-	 <1380322005.3467.186.camel@schen9-DESK>
-	 <20130927230137.GE9093@linux.vnet.ibm.com>
-	 <CAGQ1y=7YbB_BouYZVJwAZ9crkSMLVCxg8hoqcO_7sXHRrZ90_A@mail.gmail.com>
-	 <20130928021947.GF9093@linux.vnet.ibm.com>
-	 <CAGQ1y=5RnRsWdOe5CX6WYEJ2vUCFtHpj+PNC85NuEDH4bMdb0w@mail.gmail.com>
-	 <52499E13.8050109@hp.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B5056B0031
+	for <linux-mm@kvack.org>; Mon, 30 Sep 2013 12:25:15 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id xa7so5813243pbc.3
+        for <linux-mm@kvack.org>; Mon, 30 Sep 2013 09:25:15 -0700 (PDT)
+Date: Mon, 30 Sep 2013 18:25:09 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: Mapping range locking and related stuff
+Message-ID: <20130930162509.GB800@quack.suse.cz>
+References: <20130927204214.GA6445@quack.suse.cz>
+ <20130927233202.GY26872@dastard>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130927233202.GY26872@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <waiman.long@hp.com>
-Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jan Kara <jack@suse.cz>, dchinner@redhat.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 2013-09-30 at 11:51 -0400, Waiman Long wrote:
-> On 09/28/2013 12:34 AM, Jason Low wrote:
-> >> Also, below is what the mcs_spin_lock() and mcs_spin_unlock()
-> >> functions would look like after applying the proposed changes.
-> >>
-> >> static noinline
-> >> void mcs_spin_lock(struct mcs_spin_node **lock, struct mcs_spin_node *node)
-> >> {
-> >>          struct mcs_spin_node *prev;
-> >>
-> >>          /* Init node */
-> >>          node->locked = 0;
-> >>          node->next   = NULL;
-> >>
-> >>          prev = xchg(lock, node);
-> >>          if (likely(prev == NULL)) {
-> >>                  /* Lock acquired. No need to set node->locked since it
-> >> won't be used */
-> >>                  return;
-> >>          }
-> >>          ACCESS_ONCE(prev->next) = node;
-> >>          /* Wait until the lock holder passes the lock down */
-> >>          while (!ACCESS_ONCE(node->locked))
-> >>                  arch_mutex_cpu_relax();
-> >>          smp_mb();
+On Sat 28-09-13 09:32:02, Dave Chinner wrote:
+> On Fri, Sep 27, 2013 at 10:42:14PM +0200, Jan Kara wrote:
+> >   Hello,
+> > 
+> >   so recently I've spent some time rummaging in get_user_pages(), fault
+> > code etc. The use of mmap_sem is really messy in some places (like V4L
+> > drivers, infiniband,...). It is held over a deep & wide call chains and
+> > it's not clear what's protected by it, just in the middle of that is a call
+> > to get_user_pages(). Anyway that's mostly a side note.
+> > 
+> > The main issue I found is with the range locking itself. Consider someone
+> > doing:
+> >   fd = open("foo", O_RDWR);
+> >   base = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+> >   write(fd, base, 4096);
+> > 
+> > The write() is an interesting way to do nothing but if the mapping range
+> > lock will be acquired early (like in generic_file_aio_write()), then this
+> > would deadlock because generic_perform_write() will try to fault in
+> > destination buffer and that will try to get the range lock for the same
+> > range again.
 > 
-> I wonder if a memory barrier is really needed here.
+> Quite frankly, I'd like to see EFAULT or EDEADLOCK returned to the
+> caller doing something like this. It's a stupid thing to do, and
+> while I beleive in giving people enough rope to hang themselves,
+> the contortions we are going through here to provide that rope
+> doesn't seem worthwhile at all.
+  Well, what I wrote above was kind of minimal example. But if you would
+like to solve all deadlocks of this kind (when more processes are
+involved), you would have to forbid giving any file mapping (private or
+shared) as a buffer for IO. And I'm afraid we cannot really afford that
+because there may be reasonable uses for that.
 
-If the compiler can reorder the while (!ACCESS_ONCE(node->locked)) check
-so that the check occurs after an instruction in the critical section,
-then the barrier may be necessary.
+Standards conformant solution would be to prefault a chunk of pages and
+return short IO as soon as we hit unmapped page in the buffer. But I was
+already fending off application developers complaining Linux returns short
+write when you try to write more than 2 GB. So I'm *sure* we would break a
+lot of userspace if we suddently start returning short writes for much
+smaller requests. Crappy userspace ;)
+
+I have a way to make things work but it doesn't make the locking simpler
+from the current situation which is sad. The logic is as follows:
+
+We will have range lock (basically a range-equivalent of current i_mutex).
+Each range can also have a flag set saying that pages cannot be inserted in
+a given range. 
+
+Punch hole / truncate lock the range with the flag set.
+Write & direct IO lock the range without the flag set.
+Read & page fault work on per-page basis and create page for given index
+only after waiting for held range locks with flag set covering that index.
+
+This achieves:
+1) Exclusion among punch hole, truncate, writes, direct IO.
+2) Exclusion between punch hole, truncate and page creation in given range.
+3) Exclusion among reads, page faults, writes is achieved by PageLock as
+currently.
+
+Direct IO write will have the same consistency problems with mmap as it
+currently has.
+
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
