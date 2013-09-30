@@ -1,135 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Mon, 30 Sep 2013 17:50:57 -0400
-From: Benjamin LaHaise <bcrl@kvack.org>
-Subject: [PATCH] aio: fix use-after-free in aio_migratepage
-Message-ID: <20130930215057.GA28362@kvack.org>
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 83C286B0032
+	for <linux-mm@kvack.org>; Mon, 30 Sep 2013 18:02:11 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id xa7so6158200pbc.31
+        for <linux-mm@kvack.org>; Mon, 30 Sep 2013 15:02:11 -0700 (PDT)
+Date: Mon, 30 Sep 2013 15:02:07 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: pagevec: cleanup: drop pvec->cold argument in all
+ places
+Message-Id: <20130930150207.3661b5c146b6ecea84194547@linux-foundation.org>
+In-Reply-To: <1380357239-30102-1-git-send-email-bob.liu@oracle.com>
+References: <1380357239-30102-1-git-send-email-bob.liu@oracle.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-aio@kvack.org
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Bob Liu <lliubbo@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com, minchan@kernel.org, Bob Liu <bob.liu@oracle.com>
 
-[sent for review -- hopefully a couple of other people can ack this]
+On Sat, 28 Sep 2013 16:33:58 +0800 Bob Liu <lliubbo@gmail.com> wrote:
 
-Dmitry Vyukov managed to trigger a case where aio_migratepage can cause a
-use-after-free during teardown of the aio ring buffer's mapping.  This turns
-out to be caused by access to the ioctx's ring_pages via the migratepage
-operation which was not being protected by any locks during ioctx freeing.
-Use the address_space's private_lock to protect use and updates of the mapping's
-private_data, and make ioctx teardown unlink the ioctx from the address space.
+> Nobody uses the pvec->cold argument of pagevec and it's also unreasonable for
+> pages in pagevec released as cold page, so drop the cold argument from pagevec.
 
-Reported-by: Dmitry Vyukov <dvyukov@google.com>
-Tested-by: Dmitry Vyukov <dvyukov@google.com>
-Signed-off-by: Benjamin LaHaise <bcrl@kvack.org>
----
- fs/aio.c | 52 +++++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 37 insertions(+), 15 deletions(-)
+Is it unreasonable?  I'd say it's unreasonable to assume that all pages
+in all cases are likely to be cache-hot.  Example: what if the pages
+are being truncated and were found to be on the inactive LRU,
+unreferenced?
 
-diff --git a/fs/aio.c b/fs/aio.c
-index 6b868f0..067e3d3 100644
---- a/fs/aio.c
-+++ b/fs/aio.c
-@@ -167,10 +167,25 @@ static int __init aio_setup(void)
- }
- __initcall(aio_setup);
- 
-+static void put_aio_ring_file(struct kioctx *ctx)
-+{
-+	struct file *aio_ring_file = ctx->aio_ring_file;
-+	if (aio_ring_file) {
-+		truncate_setsize(aio_ring_file->f_inode, 0);
-+
-+		/* Prevent further access to the kioctx from migratepages */
-+		spin_lock(&aio_ring_file->f_inode->i_mapping->private_lock);
-+		aio_ring_file->f_inode->i_mapping->private_data = NULL;
-+		ctx->aio_ring_file = NULL;
-+		spin_unlock(&aio_ring_file->f_inode->i_mapping->private_lock);
-+
-+		fput(aio_ring_file);
-+	}
-+}
-+
- static void aio_free_ring(struct kioctx *ctx)
- {
- 	int i;
--	struct file *aio_ring_file = ctx->aio_ring_file;
- 
- 	for (i = 0; i < ctx->nr_pages; i++) {
- 		pr_debug("pid(%d) [%d] page->count=%d\n", current->pid, i,
-@@ -178,14 +193,10 @@ static void aio_free_ring(struct kioctx *ctx)
- 		put_page(ctx->ring_pages[i]);
- 	}
- 
-+	put_aio_ring_file(ctx);
-+
- 	if (ctx->ring_pages && ctx->ring_pages != ctx->internal_pages)
- 		kfree(ctx->ring_pages);
--
--	if (aio_ring_file) {
--		truncate_setsize(aio_ring_file->f_inode, 0);
--		fput(aio_ring_file);
--		ctx->aio_ring_file = NULL;
--	}
- }
- 
- static int aio_ring_mmap(struct file *file, struct vm_area_struct *vma)
-@@ -207,9 +218,8 @@ static int aio_set_page_dirty(struct page *page)
- static int aio_migratepage(struct address_space *mapping, struct page *new,
- 			struct page *old, enum migrate_mode mode)
- {
--	struct kioctx *ctx = mapping->private_data;
-+	struct kioctx *ctx;
- 	unsigned long flags;
--	unsigned idx = old->index;
- 	int rc;
- 
- 	/* Writeback must be complete */
-@@ -224,10 +234,23 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
- 
- 	get_page(new);
- 
--	spin_lock_irqsave(&ctx->completion_lock, flags);
--	migrate_page_copy(new, old);
--	ctx->ring_pages[idx] = new;
--	spin_unlock_irqrestore(&ctx->completion_lock, flags);
-+	/* We can potentially race against kioctx teardown here.  Use the
-+	 * address_space's private data lock to protect the mapping's
-+	 * private_data.
-+	 */
-+	spin_lock(&mapping->private_lock);
-+	ctx = mapping->private_data;
-+	if (ctx) {
-+		pgoff_t idx;
-+		spin_lock_irqsave(&ctx->completion_lock, flags);
-+		migrate_page_copy(new, old);
-+		idx = old->index;
-+		if (idx < (pgoff_t)ctx->nr_pages)
-+			ctx->ring_pages[idx] = new;
-+		spin_unlock_irqrestore(&ctx->completion_lock, flags);
-+	} else
-+		rc = -EBUSY;
-+	spin_unlock(&mapping->private_lock);
- 
- 	return rc;
- }
-@@ -617,8 +640,7 @@ out_freepcpu:
- out_freeref:
- 	free_percpu(ctx->users.pcpu_count);
- out_freectx:
--	if (ctx->aio_ring_file)
--		fput(ctx->aio_ring_file);
-+	put_aio_ring_file(ctx);
- 	kmem_cache_free(kioctx_cachep, ctx);
- 	pr_debug("error allocating ioctx %d\n", err);
- 	return ERR_PTR(err);
--- 
-1.8.2.1
-
-
--- 
-"Thought is the essence of where you are now."
+A useful exercise would be to go through all those pagevec_init() sites
+and convince ourselves that the decision at each place was the correct
+one.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
