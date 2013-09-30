@@ -1,55 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id CAD8D6B0031
-	for <linux-mm@kvack.org>; Mon, 30 Sep 2013 17:35:19 -0400 (EDT)
-Received: by mail-pb0-f48.google.com with SMTP id ma3so6108777pbc.21
-        for <linux-mm@kvack.org>; Mon, 30 Sep 2013 14:35:19 -0700 (PDT)
-Date: Mon, 30 Sep 2013 14:35:14 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm, hugetlb: correct missing private flag clearing
-Message-Id: <20130930143514.63fc5b2b4316caed33e1c1b1@linux-foundation.org>
-In-Reply-To: <1380527985-18499-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1380527985-18499-1-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Mon, 30 Sep 2013 17:50:57 -0400
+From: Benjamin LaHaise <bcrl@kvack.org>
+Subject: [PATCH] aio: fix use-after-free in aio_migratepage
+Message-ID: <20130930215057.GA28362@kvack.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
+To: linux-aio@kvack.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 30 Sep 2013 16:59:44 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+[sent for review -- hopefully a couple of other people can ack this]
 
-> We should clear the page's private flag when returing the page to
-> the page allocator or the hugepage pool. This patch fixes it.
-> 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
-> Hello, Andrew.
-> 
-> I sent the new version of commit ('07443a8') before you did pull request,
-> but it isn't included. It may be losted :)
-> So I send this fix. IMO, this is good for v3.12.
-> 
-> Thanks.
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index b49579c..691f226 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -653,6 +653,7 @@ static void free_huge_page(struct page *page)
->  	BUG_ON(page_count(page));
->  	BUG_ON(page_mapcount(page));
->  	restore_reserve = PagePrivate(page);
-> +	ClearPagePrivate(page);
->  
+Dmitry Vyukov managed to trigger a case where aio_migratepage can cause a
+use-after-free during teardown of the aio ring buffer's mapping.  This turns
+out to be caused by access to the ioctx's ring_pages via the migratepage
+operation which was not being protected by any locks during ioctx freeing.
+Use the address_space's private_lock to protect use and updates of the mapping's
+private_data, and make ioctx teardown unlink the ioctx from the address space.
 
-You describe it as a fix, but what does it fix?  IOW, what are the
-user-visible effects of the change?
+Reported-by: Dmitry Vyukov <dvyukov@google.com>
+Tested-by: Dmitry Vyukov <dvyukov@google.com>
+Signed-off-by: Benjamin LaHaise <bcrl@kvack.org>
+---
+ fs/aio.c | 52 +++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 37 insertions(+), 15 deletions(-)
 
-update_and_free_page() already clears PG_private, but afaict the bit
-remains unaltered if free_huge_page() takes the enqueue_huge_page()
-route.
+diff --git a/fs/aio.c b/fs/aio.c
+index 6b868f0..067e3d3 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -167,10 +167,25 @@ static int __init aio_setup(void)
+ }
+ __initcall(aio_setup);
+ 
++static void put_aio_ring_file(struct kioctx *ctx)
++{
++	struct file *aio_ring_file = ctx->aio_ring_file;
++	if (aio_ring_file) {
++		truncate_setsize(aio_ring_file->f_inode, 0);
++
++		/* Prevent further access to the kioctx from migratepages */
++		spin_lock(&aio_ring_file->f_inode->i_mapping->private_lock);
++		aio_ring_file->f_inode->i_mapping->private_data = NULL;
++		ctx->aio_ring_file = NULL;
++		spin_unlock(&aio_ring_file->f_inode->i_mapping->private_lock);
++
++		fput(aio_ring_file);
++	}
++}
++
+ static void aio_free_ring(struct kioctx *ctx)
+ {
+ 	int i;
+-	struct file *aio_ring_file = ctx->aio_ring_file;
+ 
+ 	for (i = 0; i < ctx->nr_pages; i++) {
+ 		pr_debug("pid(%d) [%d] page->count=%d\n", current->pid, i,
+@@ -178,14 +193,10 @@ static void aio_free_ring(struct kioctx *ctx)
+ 		put_page(ctx->ring_pages[i]);
+ 	}
+ 
++	put_aio_ring_file(ctx);
++
+ 	if (ctx->ring_pages && ctx->ring_pages != ctx->internal_pages)
+ 		kfree(ctx->ring_pages);
+-
+-	if (aio_ring_file) {
+-		truncate_setsize(aio_ring_file->f_inode, 0);
+-		fput(aio_ring_file);
+-		ctx->aio_ring_file = NULL;
+-	}
+ }
+ 
+ static int aio_ring_mmap(struct file *file, struct vm_area_struct *vma)
+@@ -207,9 +218,8 @@ static int aio_set_page_dirty(struct page *page)
+ static int aio_migratepage(struct address_space *mapping, struct page *new,
+ 			struct page *old, enum migrate_mode mode)
+ {
+-	struct kioctx *ctx = mapping->private_data;
++	struct kioctx *ctx;
+ 	unsigned long flags;
+-	unsigned idx = old->index;
+ 	int rc;
+ 
+ 	/* Writeback must be complete */
+@@ -224,10 +234,23 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
+ 
+ 	get_page(new);
+ 
+-	spin_lock_irqsave(&ctx->completion_lock, flags);
+-	migrate_page_copy(new, old);
+-	ctx->ring_pages[idx] = new;
+-	spin_unlock_irqrestore(&ctx->completion_lock, flags);
++	/* We can potentially race against kioctx teardown here.  Use the
++	 * address_space's private data lock to protect the mapping's
++	 * private_data.
++	 */
++	spin_lock(&mapping->private_lock);
++	ctx = mapping->private_data;
++	if (ctx) {
++		pgoff_t idx;
++		spin_lock_irqsave(&ctx->completion_lock, flags);
++		migrate_page_copy(new, old);
++		idx = old->index;
++		if (idx < (pgoff_t)ctx->nr_pages)
++			ctx->ring_pages[idx] = new;
++		spin_unlock_irqrestore(&ctx->completion_lock, flags);
++	} else
++		rc = -EBUSY;
++	spin_unlock(&mapping->private_lock);
+ 
+ 	return rc;
+ }
+@@ -617,8 +640,7 @@ out_freepcpu:
+ out_freeref:
+ 	free_percpu(ctx->users.pcpu_count);
+ out_freectx:
+-	if (ctx->aio_ring_file)
+-		fput(ctx->aio_ring_file);
++	put_aio_ring_file(ctx);
+ 	kmem_cache_free(kioctx_cachep, ctx);
+ 	pr_debug("error allocating ioctx %d\n", err);
+ 	return ERR_PTR(err);
+-- 
+1.8.2.1
+
+
+-- 
+"Thought is the essence of where you are now."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
