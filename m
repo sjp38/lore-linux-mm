@@ -1,43 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DAF86B0031
-	for <linux-mm@kvack.org>; Mon, 30 Sep 2013 11:28:21 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id lf10so6038517pab.31
-        for <linux-mm@kvack.org>; Mon, 30 Sep 2013 08:28:21 -0700 (PDT)
-Message-ID: <52499875.4060101@sr71.net>
-Date: Mon, 30 Sep 2013 08:27:49 -0700
-From: Dave Hansen <dave@sr71.net>
+	by kanga.kvack.org (Postfix) with ESMTP id DEDFE6B0031
+	for <linux-mm@kvack.org>; Mon, 30 Sep 2013 11:52:03 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id lf10so6076853pab.3
+        for <linux-mm@kvack.org>; Mon, 30 Sep 2013 08:52:03 -0700 (PDT)
+Message-ID: <52499E13.8050109@hp.com>
+Date: Mon, 30 Sep 2013 11:51:47 -0400
+From: Waiman Long <waiman.long@hp.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv6 00/22] Transparent huge page cache: phase 1, everything
- but mmap()
-References: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com> <20130924163740.4bc7db61e3e520798220dc4c@linux-foundation.org> <20130930100249.GB2425@suse.de>
-In-Reply-To: <20130930100249.GB2425@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15
+Subject: Re: [PATCH v6 5/6] MCS Lock: Restructure the MCS lock defines and
+ locking code into its own file
+References: <cover.1380144003.git.tim.c.chen@linux.intel.com> <1380147049.3467.67.camel@schen9-DESK> <20130927152953.GA4464@linux.vnet.ibm.com> <1380310733.3467.118.camel@schen9-DESK> <20130927203858.GB9093@linux.vnet.ibm.com> <1380322005.3467.186.camel@schen9-DESK> <20130927230137.GE9093@linux.vnet.ibm.com> <CAGQ1y=7YbB_BouYZVJwAZ9crkSMLVCxg8hoqcO_7sXHRrZ90_A@mail.gmail.com> <20130928021947.GF9093@linux.vnet.ibm.com> <CAGQ1y=5RnRsWdOe5CX6WYEJ2vUCFtHpj+PNC85NuEDH4bMdb0w@mail.gmail.com>
+In-Reply-To: <CAGQ1y=5RnRsWdOe5CX6WYEJ2vUCFtHpj+PNC85NuEDH4bMdb0w@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Ning Qu <quning@google.com>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Jason Low <jason.low2@hp.com>
+Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On 09/30/2013 03:02 AM, Mel Gorman wrote:
-> I am afraid I never looked too closely once I learned that the primary
-> motivation for this was relieving iTLB pressure in a very specific
-> case. AFAIK, this is not a problem in the vast majority of modern CPUs
-> and I found it very hard to be motivated to review the series as a result.
-> I suspected that in many cases that the cost of IO would continue to dominate
-> performance instead of TLB pressure. I also found it unlikely that there
-> was a workload that was tmpfs based that used enough memory to be hurt
-> by TLB pressure. My feedback was that a much more compelling case for the
-> series was needed but this discussion all happened on IRC unfortunately.
+On 09/28/2013 12:34 AM, Jason Low wrote:
+>> Also, below is what the mcs_spin_lock() and mcs_spin_unlock()
+>> functions would look like after applying the proposed changes.
+>>
+>> static noinline
+>> void mcs_spin_lock(struct mcs_spin_node **lock, struct mcs_spin_node *node)
+>> {
+>>          struct mcs_spin_node *prev;
+>>
+>>          /* Init node */
+>>          node->locked = 0;
+>>          node->next   = NULL;
+>>
+>>          prev = xchg(lock, node);
+>>          if (likely(prev == NULL)) {
+>>                  /* Lock acquired. No need to set node->locked since it
+>> won't be used */
+>>                  return;
+>>          }
+>>          ACCESS_ONCE(prev->next) = node;
+>>          /* Wait until the lock holder passes the lock down */
+>>          while (!ACCESS_ONCE(node->locked))
+>>                  arch_mutex_cpu_relax();
+>>          smp_mb();
 
-FWIW, I'm mostly intrigued by the possibilities of how this can speed up
-_software_, and I'm rather uninterested in what it can do for the TLB.
-Page cache is particularly painful today, precisely because hugetlbfs
-and anonymous-thp aren't available there.  If you have an app with
-hundreds of GB of files that it wants to mmap(), even if it's in the
-page cache, it takes _minutes_ to just fault in.  One example:
+I wonder if a memory barrier is really needed here.
 
-	https://lkml.org/lkml/2013/6/27/698
+>> }
+>>
+>> static void mcs_spin_unlock(struct mcs_spin_node **lock, struct
+>> mcs_spin_node *node)
+>> {
+>>          struct mcs_spin_node *next = ACCESS_ONCE(node->next);
+>>
+>>          if (likely(!next)) {
+>>                  /*
+>>                   * Release the lock by setting it to NULL
+>>                   */
+>>                  if (cmpxchg(lock, node, NULL) == node)
+>>                          return;
+>>                  /* Wait until the next pointer is set */
+>>                  while (!(next = ACCESS_ONCE(node->next)))
+>>                          arch_mutex_cpu_relax();
+>>          }
+>>          smp_wmb();
+>>          ACCESS_ONCE(next->locked) = 1;
+>> }
+
+Instead, I think what we need may be:
+
+if (likely(!next)) {
+     ....
+} else
+     smp_mb();
+ACCESS_ONCE(next->locked) = 1;
+
+That will ensure a memory barrier in the unlock path.
+
+Regards,
+Longman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
