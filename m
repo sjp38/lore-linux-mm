@@ -1,96 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 776616B0031
-	for <linux-mm@kvack.org>; Mon, 30 Sep 2013 10:11:20 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id lf10so5949545pab.17
-        for <linux-mm@kvack.org>; Mon, 30 Sep 2013 07:11:19 -0700 (PDT)
-Date: Mon, 30 Sep 2013 10:10:48 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH 11/63] mm: Close races between THP migration and PMD
- numa clearing
-Message-ID: <20130930101048.55fa2acd@annuminas.surriel.com>
-In-Reply-To: <20130930084735.GA2425@suse.de>
-References: <1380288468-5551-1-git-send-email-mgorman@suse.de>
-	<1380288468-5551-12-git-send-email-mgorman@suse.de>
-	<20130930084735.GA2425@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 167AE6B0032
+	for <linux-mm@kvack.org>; Mon, 30 Sep 2013 10:24:22 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id bj1so5934298pad.21
+        for <linux-mm@kvack.org>; Mon, 30 Sep 2013 07:24:21 -0700 (PDT)
+Date: Mon, 30 Sep 2013 16:24:00 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC] introduce synchronize_sched_{enter,exit}()
+Message-ID: <20130930142400.GK26785@twins.programming.kicks-ass.net>
+References: <1378805550-29949-1-git-send-email-mgorman@suse.de>
+ <1378805550-29949-38-git-send-email-mgorman@suse.de>
+ <20130917143003.GA29354@twins.programming.kicks-ass.net>
+ <20130929183634.GA15563@redhat.com>
+ <20130930125942.GB12926@twins.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130930125942.GB12926@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, jstancek@redhat.com
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Mon, 30 Sep 2013 09:52:59 +0100
-Mel Gorman <mgorman@suse.de> wrote:
+On Mon, Sep 30, 2013 at 02:59:42PM +0200, Peter Zijlstra wrote:
 
-> On Fri, Sep 27, 2013 at 02:26:56PM +0100, Mel Gorman wrote:
-> > @@ -1732,9 +1732,9 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
-> >  	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-> >  	entry = pmd_mkhuge(entry);
-> >  
-> > -	page_add_new_anon_rmap(new_page, vma, haddr);
-> > -
-> > +	pmdp_clear_flush(vma, address, pmd);
-> >  	set_pmd_at(mm, haddr, pmd, entry);
-> > +	page_add_new_anon_rmap(new_page, vma, haddr);
-> >  	update_mmu_cache_pmd(vma, address, &entry);
-> >  	page_remove_rmap(page);
-> >  	/*
+> > 
+> > static void cb_rcu_func(struct rcu_head *rcu)
+> > {
+> > 	struct xxx_struct *xxx = container_of(rcu, struct xxx_struct, cb_head);
+> > 	long flags;
+> > 
+> > 	BUG_ON(xxx->gp_state != GP_PASSED);
+> > 	BUG_ON(xxx->cb_state == CB_IDLE);
+> > 
+> > 	spin_lock_irqsave(&xxx->xxx_lock, flags);
+> > 	if (xxx->gp_count) {
+> > 		xxx->cb_state = CB_IDLE;
 > 
-> pmdp_clear_flush should have used haddr
+> This seems to be when a new xxx_begin() has happened after our last
+> xxx_end() and the sync_sched() from xxx_begin() merges with the
+> xxx_end() one and we're done.
+> 
+> > 	} else if (xxx->cb_state == CB_REPLAY) {
+> > 		xxx->cb_state = CB_PENDING;
+> > 		call_rcu_sched(&xxx->cb_head, cb_rcu_func);
+> 
+> A later xxx_exit() has happened, and we need to requeue to catch a later
+> GP.
+> 
+> > 	} else {
+> > 		xxx->cb_state = CB_IDLE;
+> > 		xxx->gp_state = GP_IDLE;
+> 
+> Nothing fancy happened and we're done.
+> 
+> > 	}
+> > 	spin_unlock_irqrestore(&xxx->xxx_lock, flags);
+> > }
+> > 
+> > void xxx_exit(struct xxx_struct *xxx)
+> > {
+> > 	spin_lock_irq(&xxx->xxx_lock);
+> > 	if (!--xxx->gp_count) {
+> > 		if (xxx->cb_state == CB_IDLE) {
+> > 			xxx->cb_state = CB_PENDING;
+> > 			call_rcu_sched(&xxx->cb_head, cb_rcu_func);
+> > 		} else if (xxx->cb_state == CB_PENDING) {
+> > 			xxx->cb_state = CB_REPLAY;
+> > 		}
+> > 	}
+> > 	spin_unlock_irq(&xxx->xxx_lock);
+> > }
+> 
+> So I don't immediately see the point of the concurrent write side;
+> percpu_rwsem wouldn't allow this and afaict neither would
+> freeze_super().
+> 
+> Other than that; yes this makes sense if you care about write side
+> performance and I think its solid.
 
-Dang, we both discovered this over the weekend? :)
+Hmm, wait. I don't see how this is equivalent to:
 
-In related news, it looks like update_mmu_cache_pmd should
-probably use haddr, too...
+xxx_end()
+{
+	synchronize_sched();
+	atomic_dec(&xxx->counter);
+}
 
-----
+For that we'd have to decrement xxx->gp_count from cb_rcu_func(),
+wouldn't we?
 
-Subject: mm,numa: make THP migration mmu calls use haddr
-
-The THP NUMA migration function migrate_misplaced_transhuge_page makes
-several calls into the architecture specific MMU code. Those calls all
-expect the virtual address of the huge page boundary, not the fault
-address from somewhere inside the huge page.
-
-This fixes the below bug.
-
-[   80.106362] kernel BUG at mm/pgtable-generic.c:103! 
-...
-[   80.333720] Call Trace: 
-[   80.336450]  [<ffffffff811d5f8b>] migrate_misplaced_transhuge_page+0x1eb/0x500 
-[   80.344505]  [<ffffffff811d8883>] do_huge_pmd_numa_page+0x1a3/0x330 
-[   80.351497]  [<ffffffff811a3cc5>] handle_mm_fault+0x285/0x370 
-[   80.357898]  [<ffffffff816d7df2>] __do_page_fault+0x172/0x5a0 
-[   80.364307]  [<ffffffff8137a3dd>] ? trace_hardirqs_off_thunk+0x3a/0x3c 
-[   80.371585]  [<ffffffff816d822e>] do_page_fault+0xe/0x10 
-[   80.377510]  [<ffffffff816d41c8>] page_fault+0x28/0x30 
-
-Signed-off-by: Rik van Riel <riel@redhat.com>
-Reported-by: Jan Stancek <jstancek@redhat.com>
-Tested-by: Jan Stancek <jstancek@redhat.com>
----
- mm/migrate.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 1e1dbc9..5454151 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1736,10 +1736,10 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
- 	entry = pmd_mkhuge(entry);
- 
--	pmdp_clear_flush(vma, address, pmd);
-+	pmdp_clear_flush(vma, haddr, pmd);
- 	set_pmd_at(mm, haddr, pmd, entry);
- 	page_add_new_anon_rmap(new_page, vma, haddr);
--	update_mmu_cache_pmd(vma, address, &entry);
-+	update_mmu_cache_pmd(vma, haddr, &entry);
- 	page_remove_rmap(page);
- 	/*
- 	 * Finish the charge transaction under the page table lock to
+Without that there's no guarantee the fast path readers will have a MB
+to observe the write critical section, unless I'm completely missing
+something obviuos here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
