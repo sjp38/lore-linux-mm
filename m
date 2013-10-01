@@ -1,69 +1,390 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id F3B536B0031
-	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 16:01:22 -0400 (EDT)
-Received: by mail-pb0-f44.google.com with SMTP id xa7so7633105pbc.17
-        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 13:01:22 -0700 (PDT)
-Message-ID: <524B2A01.4080403@hp.com>
-Date: Tue, 01 Oct 2013 16:01:05 -0400
-From: Waiman Long <waiman.long@hp.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v6 5/6] MCS Lock: Restructure the MCS lock defines and
- locking code into its own file
-References: <cover.1380144003.git.tim.c.chen@linux.intel.com>  <1380147049.3467.67.camel@schen9-DESK>  <20130927152953.GA4464@linux.vnet.ibm.com>  <1380310733.3467.118.camel@schen9-DESK>  <20130927203858.GB9093@linux.vnet.ibm.com>  <1380322005.3467.186.camel@schen9-DESK>  <20130927230137.GE9093@linux.vnet.ibm.com>  <CAGQ1y=7YbB_BouYZVJwAZ9crkSMLVCxg8hoqcO_7sXHRrZ90_A@mail.gmail.com>  <20130928021947.GF9093@linux.vnet.ibm.com>  <CAGQ1y=5RnRsWdOe5CX6WYEJ2vUCFtHpj+PNC85NuEDH4bMdb0w@mail.gmail.com>  <52499E13.8050109@hp.com> <1380557440.14213.6.camel@j-VirtualBox>  <5249A8A4.9060400@hp.com> <1380646092.11046.6.camel@schen9-DESK>
-In-Reply-To: <1380646092.11046.6.camel@schen9-DESK>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 22A0F6B0031
+	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 16:21:51 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id kl14so1343pab.11
+        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 13:21:50 -0700 (PDT)
+Received: by mail-qc0-f201.google.com with SMTP id u18so720514qcx.4
+        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 13:21:47 -0700 (PDT)
+From: Colin Cross <ccross@android.com>
+Subject: [PATCHv2 1/2] mm: rearrange madvise code to allow for reuse
+Date: Tue,  1 Oct 2013 13:21:39 -0700
+Message-Id: <1380658901-11666-1-git-send-email-ccross@android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Jason Low <jason.low2@hp.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Jan Glauber <jan.glauber@gmail.com>
+Cc: Colin Cross <ccross@android.com>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, David Rientjes <rientjes@google.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-On 10/01/2013 12:48 PM, Tim Chen wrote:
-> On Mon, 2013-09-30 at 12:36 -0400, Waiman Long wrote:
->> On 09/30/2013 12:10 PM, Jason Low wrote:
->>> On Mon, 2013-09-30 at 11:51 -0400, Waiman Long wrote:
->>>> On 09/28/2013 12:34 AM, Jason Low wrote:
->>>>>> Also, below is what the mcs_spin_lock() and mcs_spin_unlock()
->>>>>> functions would look like after applying the proposed changes.
->>>>>>
->>>>>> static noinline
->>>>>> void mcs_spin_lock(struct mcs_spin_node **lock, struct mcs_spin_node *node)
->>>>>> {
->>>>>>            struct mcs_spin_node *prev;
->>>>>>
->>>>>>            /* Init node */
->>>>>>            node->locked = 0;
->>>>>>            node->next   = NULL;
->>>>>>
->>>>>>            prev = xchg(lock, node);
->>>>>>            if (likely(prev == NULL)) {
->>>>>>                    /* Lock acquired. No need to set node->locked since it
->>>>>> won't be used */
->>>>>>                    return;
->>>>>>            }
->>>>>>            ACCESS_ONCE(prev->next) = node;
->>>>>>            /* Wait until the lock holder passes the lock down */
->>>>>>            while (!ACCESS_ONCE(node->locked))
->>>>>>                    arch_mutex_cpu_relax();
->>>>>>            smp_mb();
->>>> I wonder if a memory barrier is really needed here.
->>> If the compiler can reorder the while (!ACCESS_ONCE(node->locked)) check
->>> so that the check occurs after an instruction in the critical section,
->>> then the barrier may be necessary.
->>>
->> In that case, just a barrier() call should be enough.
-> The cpu could still be executing out of order load instruction from the
-> critical section before checking node->locked?  Probably smp_mb() is
-> still needed.
->
-> Tim
+This patch refactors the madvise syscall to allow for parts of it
+to be reused by a prctl syscall that affects vmas.
 
-But this is the lock function, a barrier() call should be enough to 
-prevent the critical section from creeping up there. We certainly need 
-some kind of memory barrier at the end of the unlock function.
+Move the code that walks vmas in a virtual address range into a
+function that takes a function pointer as a parameter.  The only
+caller for now is sys_madvise, which uses it to call
+madvise_vma_behavior on each vma, but the next patch will add
+an additional caller.
 
--Longman
+Move handling all vma behaviors inside madvise_behavior, and
+rename it to madvise_vma_behavior.
+
+Move the code that updates the flags on a vma, including splitting
+or merging the vma as necessary, into a new function called
+madvise_update_vma.  The next patch will add support for updating
+a new anon_name field as well.
+
+Signed-off-by: Colin Cross <ccross@android.com>
+---
+ mm/madvise.c | 272 +++++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 151 insertions(+), 121 deletions(-)
+
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 7055883..b8820fd 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -39,65 +39,20 @@ static int madvise_need_mmap_write(int behavior)
+ }
+ 
+ /*
+- * We can potentially split a vm area into separate
+- * areas, each area with its own behavior.
++ * Update the vm_flags on regiion of a vma, splitting it or merging it as
++ * necessary.  Must be called with mmap_sem held for writing;
+  */
+-static long madvise_behavior(struct vm_area_struct * vma,
+-		     struct vm_area_struct **prev,
+-		     unsigned long start, unsigned long end, int behavior)
++static int madvise_update_vma(struct vm_area_struct *vma,
++		     struct vm_area_struct **prev, unsigned long start,
++		     unsigned long end, unsigned long new_flags)
+ {
+ 	struct mm_struct * mm = vma->vm_mm;
+-	int error = 0;
+ 	pgoff_t pgoff;
+-	unsigned long new_flags = vma->vm_flags;
+-
+-	switch (behavior) {
+-	case MADV_NORMAL:
+-		new_flags = new_flags & ~VM_RAND_READ & ~VM_SEQ_READ;
+-		break;
+-	case MADV_SEQUENTIAL:
+-		new_flags = (new_flags & ~VM_RAND_READ) | VM_SEQ_READ;
+-		break;
+-	case MADV_RANDOM:
+-		new_flags = (new_flags & ~VM_SEQ_READ) | VM_RAND_READ;
+-		break;
+-	case MADV_DONTFORK:
+-		new_flags |= VM_DONTCOPY;
+-		break;
+-	case MADV_DOFORK:
+-		if (vma->vm_flags & VM_IO) {
+-			error = -EINVAL;
+-			goto out;
+-		}
+-		new_flags &= ~VM_DONTCOPY;
+-		break;
+-	case MADV_DONTDUMP:
+-		new_flags |= VM_DONTDUMP;
+-		break;
+-	case MADV_DODUMP:
+-		if (new_flags & VM_SPECIAL) {
+-			error = -EINVAL;
+-			goto out;
+-		}
+-		new_flags &= ~VM_DONTDUMP;
+-		break;
+-	case MADV_MERGEABLE:
+-	case MADV_UNMERGEABLE:
+-		error = ksm_madvise(vma, start, end, behavior, &new_flags);
+-		if (error)
+-			goto out;
+-		break;
+-	case MADV_HUGEPAGE:
+-	case MADV_NOHUGEPAGE:
+-		error = hugepage_madvise(vma, &new_flags, behavior);
+-		if (error)
+-			goto out;
+-		break;
+-	}
++	int error;
+ 
+ 	if (new_flags == vma->vm_flags) {
+ 		*prev = vma;
+-		goto out;
++		return 0;
+ 	}
+ 
+ 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
+@@ -113,13 +68,13 @@ static long madvise_behavior(struct vm_area_struct * vma,
+ 	if (start != vma->vm_start) {
+ 		error = split_vma(mm, vma, start, 1);
+ 		if (error)
+-			goto out;
++			return error;
+ 	}
+ 
+ 	if (end != vma->vm_end) {
+ 		error = split_vma(mm, vma, end, 0);
+ 		if (error)
+-			goto out;
++			return error;
+ 	}
+ 
+ success:
+@@ -128,10 +83,7 @@ success:
+ 	 */
+ 	vma->vm_flags = new_flags;
+ 
+-out:
+-	if (error == -ENOMEM)
+-		error = -EAGAIN;
+-	return error;
++	return 0;
+ }
+ 
+ #ifdef CONFIG_SWAP
+@@ -337,6 +289,77 @@ static long madvise_remove(struct vm_area_struct *vma,
+ 	return error;
+ }
+ 
++/*
++ * Apply an madvise behavior to a region of a vma.  madvise_update_vma
++ * will handle splitting a vm area into separate areas, each area with its own
++ * behavior.
++ */
++static int madvise_vma_behavior(struct vm_area_struct *vma,
++		     struct vm_area_struct **prev,
++		     unsigned long start, unsigned long end,
++		     unsigned long behavior)
++{
++	int error = 0;
++	unsigned long new_flags = vma->vm_flags;
++
++	switch (behavior) {
++	case MADV_REMOVE:
++		return madvise_remove(vma, prev, start, end);
++	case MADV_WILLNEED:
++		return madvise_willneed(vma, prev, start, end);
++	case MADV_DONTNEED:
++		return madvise_dontneed(vma, prev, start, end);
++	case MADV_NORMAL:
++		new_flags = new_flags & ~VM_RAND_READ & ~VM_SEQ_READ;
++		break;
++	case MADV_SEQUENTIAL:
++		new_flags = (new_flags & ~VM_RAND_READ) | VM_SEQ_READ;
++		break;
++	case MADV_RANDOM:
++		new_flags = (new_flags & ~VM_SEQ_READ) | VM_RAND_READ;
++		break;
++	case MADV_DONTFORK:
++		new_flags |= VM_DONTCOPY;
++		break;
++	case MADV_DOFORK:
++		if (vma->vm_flags & VM_IO) {
++			error = -EINVAL;
++			goto out;
++		}
++		new_flags &= ~VM_DONTCOPY;
++		break;
++	case MADV_DONTDUMP:
++		new_flags |= VM_DONTDUMP;
++		break;
++	case MADV_DODUMP:
++		if (new_flags & VM_SPECIAL) {
++			error = -EINVAL;
++			goto out;
++		}
++		new_flags &= ~VM_DONTDUMP;
++		break;
++	case MADV_MERGEABLE:
++	case MADV_UNMERGEABLE:
++		error = ksm_madvise(vma, start, end, behavior, &new_flags);
++		if (error)
++			goto out;
++		break;
++	case MADV_HUGEPAGE:
++	case MADV_NOHUGEPAGE:
++		error = hugepage_madvise(vma, &new_flags, behavior);
++		if (error)
++			goto out;
++		break;
++	}
++
++	error = madvise_update_vma(vma, prev, start, end, new_flags);
++
++out:
++	if (error == -ENOMEM)
++		error = -EAGAIN;
++	return error;
++}
++
+ #ifdef CONFIG_MEMORY_FAILURE
+ /*
+  * Error injection support for memory error handling.
+@@ -369,22 +392,6 @@ static int madvise_hwpoison(int bhv, unsigned long start, unsigned long end)
+ }
+ #endif
+ 
+-static long
+-madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
+-		unsigned long start, unsigned long end, int behavior)
+-{
+-	switch (behavior) {
+-	case MADV_REMOVE:
+-		return madvise_remove(vma, prev, start, end);
+-	case MADV_WILLNEED:
+-		return madvise_willneed(vma, prev, start, end);
+-	case MADV_DONTNEED:
+-		return madvise_dontneed(vma, prev, start, end);
+-	default:
+-		return madvise_behavior(vma, prev, start, end, behavior);
+-	}
+-}
+-
+ static int
+ madvise_behavior_valid(int behavior)
+ {
+@@ -415,6 +422,73 @@ madvise_behavior_valid(int behavior)
+ }
+ 
+ /*
++ * Walk the vmas in range [start,end), and call the visit function on each one.
++ * The visit function will get start and end parameters that cover the overlap
++ * between the current vma and the original range.  Any unmapped regions in the
++ * original range will result in this function returning -ENOMEM while still
++ * calling the visit function on all of the existing vmas in the range.
++ * Must be called with the mmap_sem held for reading or writing.
++ */
++static
++int madvise_walk_vmas(unsigned long start, unsigned long end,
++		unsigned long arg,
++		int (*visit)(struct vm_area_struct *vma,
++			struct vm_area_struct **prev, unsigned long start,
++			unsigned long end, unsigned long arg))
++{
++	struct vm_area_struct *vma;
++	struct vm_area_struct *prev;
++	unsigned long tmp;
++	int unmapped_error = 0;
++
++	/*
++	 * If the interval [start,end) covers some unmapped address
++	 * ranges, just ignore them, but return -ENOMEM at the end.
++	 * - different from the way of handling in mlock etc.
++	 */
++	vma = find_vma_prev(current->mm, start, &prev);
++	if (vma && start > vma->vm_start)
++		prev = vma;
++
++	for (;;) {
++		int error;
++
++		/* Still start < end. */
++		if (!vma)
++			return -ENOMEM;
++
++		/* Here start < (end|vma->vm_end). */
++		if (start < vma->vm_start) {
++			unmapped_error = -ENOMEM;
++			start = vma->vm_start;
++			if (start >= end)
++				break;
++		}
++
++		/* Here vma->vm_start <= start < (end|vma->vm_end) */
++		tmp = vma->vm_end;
++		if (end < tmp)
++			tmp = end;
++
++		/* Here vma->vm_start <= start < tmp <= (end|vma->vm_end). */
++		error = visit(vma, &prev, start, tmp, arg);
++		if (error)
++			return error;
++		start = tmp;
++		if (prev && start < prev->vm_end)
++			start = prev->vm_end;
++		if (start >= end)
++			break;
++		if (prev)
++			vma = prev->vm_next;
++		else	/* madvise_remove dropped mmap_sem */
++			vma = find_vma(current->mm, start);
++	}
++
++	return unmapped_error;
++}
++
++/*
+  * The madvise(2) system call.
+  *
+  * Applications can use madvise() to advise the kernel how it should
+@@ -458,9 +532,7 @@ madvise_behavior_valid(int behavior)
+  */
+ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
+ {
+-	unsigned long end, tmp;
+-	struct vm_area_struct * vma, *prev;
+-	int unmapped_error = 0;
++	unsigned long end;
+ 	int error = -EINVAL;
+ 	int write;
+ 	size_t len;
+@@ -495,52 +567,10 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
+ 	else
+ 		down_read(&current->mm->mmap_sem);
+ 
+-	/*
+-	 * If the interval [start,end) covers some unmapped address
+-	 * ranges, just ignore them, but return -ENOMEM at the end.
+-	 * - different from the way of handling in mlock etc.
+-	 */
+-	vma = find_vma_prev(current->mm, start, &prev);
+-	if (vma && start > vma->vm_start)
+-		prev = vma;
+-
+ 	blk_start_plug(&plug);
+-	for (;;) {
+-		/* Still start < end. */
+-		error = -ENOMEM;
+-		if (!vma)
+-			goto out;
+-
+-		/* Here start < (end|vma->vm_end). */
+-		if (start < vma->vm_start) {
+-			unmapped_error = -ENOMEM;
+-			start = vma->vm_start;
+-			if (start >= end)
+-				goto out;
+-		}
+-
+-		/* Here vma->vm_start <= start < (end|vma->vm_end) */
+-		tmp = vma->vm_end;
+-		if (end < tmp)
+-			tmp = end;
+-
+-		/* Here vma->vm_start <= start < tmp <= (end|vma->vm_end). */
+-		error = madvise_vma(vma, &prev, start, tmp, behavior);
+-		if (error)
+-			goto out;
+-		start = tmp;
+-		if (prev && start < prev->vm_end)
+-			start = prev->vm_end;
+-		error = unmapped_error;
+-		if (start >= end)
+-			goto out;
+-		if (prev)
+-			vma = prev->vm_next;
+-		else	/* madvise_remove dropped mmap_sem */
+-			vma = find_vma(current->mm, start);
+-	}
+-out:
++	error = madvise_walk_vmas(start, end, behavior, madvise_vma_behavior);
+ 	blk_finish_plug(&plug);
++
+ 	if (write)
+ 		up_write(&current->mm->mmap_sem);
+ 	else
+-- 
+1.8.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
