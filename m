@@ -1,123 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id DF5BE6B0031
-	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 17:13:13 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y13so7796974pdi.19
-        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 14:13:13 -0700 (PDT)
-Message-ID: <524B3AC2.1090904@intel.com>
-Date: Tue, 01 Oct 2013 14:12:34 -0700
-From: Dave Hansen <dave.hansen@intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCHv2 2/2] mm: add a field to store names for private anonymous
- memory
-References: <1380658901-11666-1-git-send-email-ccross@android.com> <1380658901-11666-2-git-send-email-ccross@android.com>
-In-Reply-To: <1380658901-11666-2-git-send-email-ccross@android.com>
-Content-Type: text/plain; charset=ISO-8859-1
+	by kanga.kvack.org (Postfix) with ESMTP id 5B6876B0031
+	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 17:16:34 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id y13so7800253pdi.19
+        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 14:16:34 -0700 (PDT)
+Subject: Re: [PATCH v6 5/6] MCS Lock: Restructure the MCS lock defines and
+ locking code into its own file
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <524B2A01.4080403@hp.com>
+References: <cover.1380144003.git.tim.c.chen@linux.intel.com>
+	 <1380147049.3467.67.camel@schen9-DESK>
+	 <20130927152953.GA4464@linux.vnet.ibm.com>
+	 <1380310733.3467.118.camel@schen9-DESK>
+	 <20130927203858.GB9093@linux.vnet.ibm.com>
+	 <1380322005.3467.186.camel@schen9-DESK>
+	 <20130927230137.GE9093@linux.vnet.ibm.com>
+	 <CAGQ1y=7YbB_BouYZVJwAZ9crkSMLVCxg8hoqcO_7sXHRrZ90_A@mail.gmail.com>
+	 <20130928021947.GF9093@linux.vnet.ibm.com>
+	 <CAGQ1y=5RnRsWdOe5CX6WYEJ2vUCFtHpj+PNC85NuEDH4bMdb0w@mail.gmail.com>
+	 <52499E13.8050109@hp.com> <1380557440.14213.6.camel@j-VirtualBox>
+	 <5249A8A4.9060400@hp.com> <1380646092.11046.6.camel@schen9-DESK>
+	 <524B2A01.4080403@hp.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 01 Oct 2013 14:16:28 -0700
+Message-ID: <1380662188.11046.37.camel@schen9-DESK>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Colin Cross <ccross@android.com>, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Jan Glauber <jan.glauber@gmail.com>
-Cc: Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Pavel Emelyanov <xemul@parallels.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Jiang Liu <jiang.liu@huawei.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, David Howells <dhowells@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Dave Jones <davej@redhat.com>, Robin Holt <holt@sgi.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, open@kvack.org, list@kvack.org, DOCUMENTATION <linux-doc@vger.kernel.org>open@kvack.orglist@kvack.org, MEMORY MANAGEMENT <linux-mm@kvack.org>
+To: Waiman Long <waiman.long@hp.com>
+Cc: Jason Low <jason.low2@hp.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On 10/01/2013 01:21 PM, Colin Cross wrote:
-> +static void seq_print_vma_name(struct seq_file *m, struct vm_area_struct *vma)
-> +{
-> +	const char __user *name = vma_get_anon_name(vma);
-> +	struct mm_struct *mm = vma->vm_mm;
-> +
-> +	unsigned long page_start_vaddr;
-> +	unsigned long page_offset;
-> +	unsigned long num_pages;
-> +	unsigned long max_len = NAME_MAX;
-> +	int i;
-> +
-> +	page_start_vaddr = (unsigned long)name & PAGE_MASK;
-> +	page_offset = (unsigned long)name - page_start_vaddr;
-> +	num_pages = DIV_ROUND_UP(page_offset + max_len, PAGE_SIZE);
-> +
-> +	seq_puts(m, "[anon:");
-> +
-> +	for (i = 0; i < num_pages; i++) {
-> +		int len;
-> +		int write_len;
-> +		const char *kaddr;
-> +		long pages_pinned;
-> +		struct page *page;
-> +
-> +		pages_pinned = get_user_pages(current, mm, page_start_vaddr,
-> +				1, 0, 0, &page, NULL);
-> +		if (pages_pinned < 1) {
-> +			seq_puts(m, "<fault>]");
-> +			return;
-> +		}
-> +
-> +		kaddr = (const char *)kmap(page);
-> +		len = min(max_len, PAGE_SIZE - page_offset);
-> +		write_len = strnlen(kaddr + page_offset, len);
-> +		seq_write(m, kaddr + page_offset, write_len);
-> +		kunmap(page);
-> +		put_page(page);
-> +
-> +		/* if strnlen hit a null terminator then we're done */
-> +		if (write_len != len)
-> +			break;
-> +
-> +		max_len -= len;
-> +		page_offset = 0;
-> +		page_start_vaddr += PAGE_SIZE;
-> +	}
-> +
-> +	seq_putc(m, ']');
-> +}
+On Tue, 2013-10-01 at 16:01 -0400, Waiman Long wrote:
+> On 10/01/2013 12:48 PM, Tim Chen wrote:
+> > On Mon, 2013-09-30 at 12:36 -0400, Waiman Long wrote:
+> >> On 09/30/2013 12:10 PM, Jason Low wrote:
+> >>> On Mon, 2013-09-30 at 11:51 -0400, Waiman Long wrote:
+> >>>> On 09/28/2013 12:34 AM, Jason Low wrote:
+> >>>>>> Also, below is what the mcs_spin_lock() and mcs_spin_unlock()
+> >>>>>> functions would look like after applying the proposed changes.
+> >>>>>>
+> >>>>>> static noinline
+> >>>>>> void mcs_spin_lock(struct mcs_spin_node **lock, struct mcs_spin_node *node)
+> >>>>>> {
+> >>>>>>            struct mcs_spin_node *prev;
+> >>>>>>
+> >>>>>>            /* Init node */
+> >>>>>>            node->locked = 0;
+> >>>>>>            node->next   = NULL;
+> >>>>>>
+> >>>>>>            prev = xchg(lock, node);
+> >>>>>>            if (likely(prev == NULL)) {
+> >>>>>>                    /* Lock acquired. No need to set node->locked since it
+> >>>>>> won't be used */
+> >>>>>>                    return;
+> >>>>>>            }
+> >>>>>>            ACCESS_ONCE(prev->next) = node;
+> >>>>>>            /* Wait until the lock holder passes the lock down */
+> >>>>>>            while (!ACCESS_ONCE(node->locked))
+> >>>>>>                    arch_mutex_cpu_relax();
+> >>>>>>            smp_mb();
+> >>>> I wonder if a memory barrier is really needed here.
+> >>> If the compiler can reorder the while (!ACCESS_ONCE(node->locked)) check
+> >>> so that the check occurs after an instruction in the critical section,
+> >>> then the barrier may be necessary.
+> >>>
+> >> In that case, just a barrier() call should be enough.
+> > The cpu could still be executing out of order load instruction from the
+> > critical section before checking node->locked?  Probably smp_mb() is
+> > still needed.
+> >
+> > Tim
+> 
+> But this is the lock function, a barrier() call should be enough to 
+> prevent the critical section from creeping up there. We certainly need 
+> some kind of memory barrier at the end of the unlock function.
 
-Is there a reason you can't use access_process_vm(), or share some code
-with proc_pid_cmdline()?  It seems to be doing a bunch of the same stuff
-that you are.  Also, considering that this roll-your-own code, and it's
-digging around in user-supplied addresses, it seems like the kind of
-thing that's prone to introducing security problems.  Could you share
-some of your logic around how misuse of this mechanism is prevented?
+I may be missing something.  My understanding is that barrier only
+prevents the compiler from rearranging instructions, but not for cpu out
+of order execution (as in smp_mb). So cpu could read memory in the next
+critical section, before node->locked is true, (i.e. unlock has been
+completed).  If we only have a simple barrier at end of mcs_lock, then
+say the code on CPU1 is
 
-If the range this is going after spans two pages, and the second is
-bogus, you'll end up with :
+	mcs_lock
+	x = 1;
+	...
+	x = 2;
+	mcs_unlock
 
-	[anon: foo<fault>]
+and CPU 2 is
 
-I guess that's OK, but I find it a wee bit funky.
+	mcs_lock
+	y = x;
+	...
+	mcs_unlock
 
+We expect y to be 2 after the "y = x" assignment.  But we
+we may execute the code as
 
->  #ifdef CONFIG_NUMA
->  /*
->   * These functions are for numa_maps but called in generic **maps seq_file
-> @@ -336,6 +386,12 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
->  				pad_len_spaces(m, len);
->  				seq_printf(m, "[stack:%d]", tid);
->  			}
-> +			goto done;
-> +		}
-> +
-> +		if (vma_get_anon_name(vma)) {
-> +			pad_len_spaces(m, len);
-> +			seq_print_vma_name(m, vma);
->  		}
->  	}
->  
-> @@ -635,6 +691,12 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
->  
->  	show_smap_vma_flags(m, vma);
->  
-> +	if (vma_get_anon_name(vma)) {
-> +		seq_puts(m, "Name:           ");
-> +		seq_print_vma_name(m, vma);
-> +		seq_putc(m, '\n');
-> +	}
+	CPU1		CPU2
+		
+	x = 1;
+	...		y = x;  ( y=1, out of order load)
+	x = 2
+	mcs_unlock
+			Check node->locked==true
+			continue executing critical section (y=1 when we expect y=2)
 
-FWIW, I'm not a fan of using "get" in function names unless it's taking
-some kind of reference.  I'd probably call it "vma_user_anon_ptr()" or
-something.
+So we get y to be 1 when we expect that it should be 2.  Adding smp_mb
+after the node->locked check in lock code
 
-I dug through the implementation a bit, and don't see any showstoppers,
-but it does churn around the VMA merging code enough to make me a bit
-nervous.  I hope you tested it well. :)
+           ACCESS_ONCE(prev->next) = node;
+           /* Wait until the lock holder passes the lock down */
+           while (!ACCESS_ONCE(node->locked))
+                    arch_mutex_cpu_relax();
+           smp_mb();
+
+should prevent this scenario.  
+
+Thanks.
+Tim
+			
+> 
+> -Longman
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
