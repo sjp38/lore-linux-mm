@@ -1,148 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D96F6B0031
-	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 13:11:24 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id v10so7499014pde.38
-        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 10:11:24 -0700 (PDT)
-Received: by mail-ve0-f179.google.com with SMTP id c14so5561715vea.10
-        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 10:11:21 -0700 (PDT)
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ED526B0031
+	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 13:15:39 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id y10so7535401pdj.22
+        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 10:15:38 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Wed, 2 Oct 2013 03:15:34 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id E60172CE8055
+	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 03:15:28 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r91HFFEY2294130
+	for <linux-mm@kvack.org>; Wed, 2 Oct 2013 03:15:17 +1000
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r91HFPJ6001087
+	for <linux-mm@kvack.org>; Wed, 2 Oct 2013 03:15:26 +1000
+Message-ID: <524B0233.8070203@linux.vnet.ibm.com>
+Date: Tue, 01 Oct 2013 22:41:15 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20131001083828.GA8093@suse.de>
-References: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20130924163740.4bc7db61e3e520798220dc4c@linux-foundation.org>
- <20130930100249.GB2425@suse.de> <20130930101029.GC2425@suse.de>
- <20130930185106.GD2125@tassilo.jf.intel.com> <20131001083828.GA8093@suse.de>
-From: Ning Qu <quning@google.com>
-Date: Tue, 1 Oct 2013 10:11:00 -0700
-Message-ID: <CACz4_2e+oU-7CDp8mzYOKXCtrA+EKN_bkQUDF4Yb7GyJ_todxQ@mail.gmail.com>
-Subject: Re: [PATCHv6 00/22] Transparent huge page cache: phase 1, everything
- but mmap()
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
+References: <20130925175055.GA25914@redhat.com> <20130928144720.GL15690@laptop.programming.kicks-ass.net> <20130928163104.GA23352@redhat.com> <7632387.20FXkuCITr@vostro.rjw.lan>
+In-Reply-To: <7632387.20FXkuCITr@vostro.rjw.lan>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Cc: Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>, Viresh Kumar <viresh.kumar@linaro.org>
 
-I can throw in some numbers for one of the test case I am working on.
+On 10/01/2013 01:41 AM, Rafael J. Wysocki wrote:
+> On Saturday, September 28, 2013 06:31:04 PM Oleg Nesterov wrote:
+>> On 09/28, Peter Zijlstra wrote:
+>>>
+>>> On Sat, Sep 28, 2013 at 02:48:59PM +0200, Oleg Nesterov wrote:
+>>>
+>>>> Please note that this wait_event() adds a problem... it doesn't allow
+>>>> to "offload" the final synchronize_sched(). Suppose a 4k cpu machine
+>>>> does disable_nonboot_cpus(), we do not want 2 * 4k * synchronize_sched's
+>>>> in this case. We can solve this, but this wait_event() complicates
+>>>> the problem.
+>>>
+>>> That seems like a particularly easy fix; something like so?
+>>
+>> Yes, but...
+>>
+>>> @@ -586,6 +603,11 @@ int disable_nonboot_cpus(void)
+>>>
+>>> +	cpu_hotplug_done();
+>>> +
+>>> +	for_each_cpu(cpu, frozen_cpus)
+>>> +		cpu_notify_nofail(CPU_POST_DEAD_FROZEN, (void*)(long)cpu);
+>>
+>> This changes the protocol, I simply do not know if it is fine in general
+>> to do __cpu_down(another_cpu) without CPU_POST_DEAD(previous_cpu). Say,
+>> currently it is possible that CPU_DOWN_PREPARE takes some global lock
+>> released by CPU_DOWN_FAILED or CPU_POST_DEAD.
+>>
+>> Hmm. Now that workqueues do not use CPU_POST_DEAD, it has only 2 users,
+>> mce_cpu_callback() and cpufreq_cpu_callback() and the 1st one even ignores
+>> this notification if FROZEN. So yes, probably this is fine, but needs an
+>> ack from cpufreq maintainers (cc'ed), for example to ensure that it is
+>> fine to call __cpufreq_remove_dev_prepare() twice without _finish().
+> 
+> To my eyes it will return -EBUSY when it tries to stop an already stopped
+> governor, which will cause the entire chain to fail I guess.
+>
+> Srivatsa has touched that code most recently, so he should know better, though.
+> 
 
-One of the workload is using sysv shm to load GB level files into
-memory, which is shared with other worker processes for long term. We
-could load as much file which fits all the physical memory available.
-And also, the heap is pretty big (GB level as well) to handle those
-data.
+Yes it will return -EBUSY, but unfortunately it gets scarier from that
+point onwards. When it gets an -EBUSY, __cpufreq_remove_dev_prepare() aborts
+its work mid-way and returns, but doesn't bubble up the error to the CPU-hotplug
+core. So the CPU hotplug code will continue to take that CPU down, with
+further notifications such as CPU_DEAD, and chaos will ensue.
 
-For the workload I just mentioned, with thp, we have about 8%
-performance improvement, 5% from thp anonymous memory and 3% from thp
-page cache. It might not look so good but it's pretty good without
-changing one line of code in application, which is the beauty of thp.
+And we can't exactly "fix" this by simply returning the error code to CPU-hotplug
+(since that would mean that suspend/resume would _always_ fail). Perhaps we can
+teach cpufreq to ignore the error in this particular case (since the governor has
+already been stopped and that's precisely what this function wanted to do as well),
+but the problems don't seem to end there.
 
-Before that, we have been using hugetlbfs, then we have to reserve a
-huge amount of memory at boot time, no matter those memory will be
-used or not. It is working but no other major services could ever
-share the server resources anymore.
-Best wishes,
---=20
-Ning Qu (=E6=9B=B2=E5=AE=81) | Software Engineer | quning@google.com | +1-4=
-08-418-6066
+The other issue is that the CPUs in the policy->cpus mask are removed in the
+_dev_finish() stage. So if that stage is post-poned like this, then _dev_prepare()
+will get thoroughly confused since it also depends on seeing an updated
+policy->cpus mask to decide when to nominate a new policy->cpu etc. (And the
+cpu nomination code itself might start ping-ponging between CPUs, since none of
+the CPUs would have been removed from the policy->cpus mask).
 
+So, to summarize, this change to CPU hotplug code will break cpufreq (and
+suspend/resume) as things stand today, but I don't think these problems are
+insurmountable though.. 
+ 
+However, as Oleg said, its definitely worth considering whether this proposed
+change in semantics is going to hurt us in the future. CPU_POST_DEAD has certainly
+proved to be very useful in certain challenging situations (commit 1aee40ac9c
+explains one such example), so IMHO we should be very careful not to undermine
+its utility.
 
-On Tue, Oct 1, 2013 at 1:38 AM, Mel Gorman <mgorman@suse.de> wrote:
-> On Mon, Sep 30, 2013 at 11:51:06AM -0700, Andi Kleen wrote:
->> > AFAIK, this is not a problem in the vast majority of modern CPUs
->>
->> Let's do some simple math: e.g. a Sandy Bridge system has 512 4K iTLB L2=
- entries.
->> That's around 2MB. There's more and more code whose footprint exceeds
->> that.
->>
->
-> With an expectation that it is read-mostly data, replicated between the
-> caches accessing it and TLB refills taking very little time. This is not
-> universally true and there are exceptions but even recent papers on TLB
-> behaviour have tended to dismiss the iTLB refill overhead as a negligible
-> portion of the overall workload of interest.
->
->> Besides iTLB is not the only target. It is also useful for
->> data of course.
->>
->
-> True, but how useful? I have not seen an example of a workload showing th=
-at
-> dTLB pressure on file-backed data was a major component of the workload. =
-I
-> would expect that sysV shared memory is an exception but does that requir=
-e
-> generic support for all filesystems or can tmpfs be special cased when
-> it's used for shared memory?
->
-> For normal data, if it's read-only data then there would be some benefit =
-to
-> using huge pages once the data is in page cache. How common are workloads
-> that mmap() large amounts of read-only data? Possibly some databases
-> depending on the workload although there I would expect that the data is
-> placed in shared memory.
->
-> If the mmap()s data is being written then the cost of IO is likely to
-> dominate, not TLB pressure. For write-mostly workloads there are greater
-> concerns because dirty tracking can only be done at the huge page boundar=
-y
-> potentially leading to greater amounts of IO and degraded performance
-> overall.
->
-> I could be completely wrong here but these were the concerns I had when
-> I first glanced through the patches. The changelogs had no information
-> to convince me otherwise so I never dedicated the time to reviewing the
-> patches in detail. I raised my concerns and then dropped it.
->
->> > > and I found it very hard to be motivated to review the series as a r=
-esult.
->> > > I suspected that in many cases that the cost of IO would continue to=
- dominate
->> > > performance instead of TLB pressure
->>
->> The trend is to larger and larger memories, keeping things in memory.
->>
->
-> Yes, but using huge pages is not *necessarily* the answer. For fault
-> scalability it probably would be a lot easier to batch handle faults if
-> readahead indicates accesses are sequential. Background zeroing of pages
-> could be revisited for fault intensive workloads. A potential alternative
-> is that a contiguous page is allocated, zerod as one lump, split the page=
-s
-> and put onto a local per-task list although the details get messy. Reclai=
-m
-> scanning could be heavily modified to use collections of pages instead of
-> single pages (although I'm not aware of the proper design of such a thing=
-).
->
-> Again, this could be completely off the mark but if it was me that was
-> working on this problem, I would have some profile data from some workloa=
-ds
-> to make sure the part I'm optimising was a noticable percentage of the
-> workload and included that in the patch leader. I would hope that the dat=
-a
-> was compelling enough to convince reviewers to pay close attention to the
-> series as the complexity would then be justified. Based on how complex TH=
-P
-> was for anonymous pages, I would be tempted to treat THP for file-backed
-> data as a last resort.
->
->> In fact there's a good argument that memory sizes are growing faster
->> than TLB capacities. And without large TLBs we're even further off
->> the curve.
->>
->
-> I'll admit this is also true. It was considered to be true in the 90's
-> when huge pages were first being thrown around as a possible solution to
-> the problem. One paper recently suggested using segmentation for large
-> memory segments but the workloads they examined looked like they would
-> be dominated by anonymous access, not file-backed data with one exception
-> where the workload frequently accessed compile-time constants.
->
-> --
-> Mel Gorman
-> SUSE Labs
+Regards,
+Srivatsa S. Bhat
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
