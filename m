@@ -1,605 +1,458 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A3316B0031
-	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 16:22:03 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id g10so7703046pdj.26
-        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 13:22:02 -0700 (PDT)
-Received: by mail-vb0-f74.google.com with SMTP id w16so720215vbf.3
-        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 13:21:59 -0700 (PDT)
-From: Colin Cross <ccross@android.com>
-Subject: [PATCHv2 2/2] mm: add a field to store names for private anonymous memory
-Date: Tue,  1 Oct 2013 13:21:40 -0700
-Message-Id: <1380658901-11666-2-git-send-email-ccross@android.com>
-In-Reply-To: <1380658901-11666-1-git-send-email-ccross@android.com>
-References: <1380658901-11666-1-git-send-email-ccross@android.com>
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 56CB66B0031
+	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 16:40:28 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id xa7so7678141pbc.17
+        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 13:40:28 -0700 (PDT)
+Received: from /spool/local
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Tue, 1 Oct 2013 14:40:12 -0600
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id C393819D803E
+	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 14:40:07 -0600 (MDT)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r91Ke92o322608
+	for <linux-mm@kvack.org>; Tue, 1 Oct 2013 14:40:09 -0600
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r91KhEHD032131
+	for <linux-mm@kvack.org>; Tue, 1 Oct 2013 14:43:14 -0600
+Date: Tue, 1 Oct 2013 13:40:07 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
+Message-ID: <20131001204007.GA13320@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20130921163404.GA8545@redhat.com>
+ <20130923092955.GV9326@twins.programming.kicks-ass.net>
+ <20130923173203.GA20392@redhat.com>
+ <20130924202423.GW12926@twins.programming.kicks-ass.net>
+ <20130925155515.GA17447@redhat.com>
+ <20130925174307.GA3220@laptop.programming.kicks-ass.net>
+ <20130925175055.GA25914@redhat.com>
+ <20130925184015.GC3657@laptop.programming.kicks-ass.net>
+ <20130925212200.GA7959@linux.vnet.ibm.com>
+ <20130926111042.GS3081@twins.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130926111042.GS3081@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Jan Glauber <jan.glauber@gmail.com>
-Cc: Colin Cross <ccross@android.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@gnu.org>, Kees Cook <keescook@chromium.org>, Pavel Emelyanov <xemul@parallels.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Jiang Liu <jiang.liu@huawei.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, David Howells <dhowells@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Dave Jones <davej@redhat.com>, Robin Holt <holt@sgi.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>
 
-In many userspace applications, and especially in VM based
-applications like Android uses heavily, there are multiple different
-allocators in use.  At a minimum there is libc malloc and the stack,
-and in many cases there are libc malloc, the stack, direct syscalls to
-mmap anonymous memory, and multiple VM heaps (one for small objects,
-one for big objects, etc.).  Each of these layers usually has its own
-tools to inspect its usage; malloc by compiling a debug version, the
-VM through heap inspection tools, and for direct syscalls there is
-usually no way to track them.
+On Thu, Sep 26, 2013 at 01:10:42PM +0200, Peter Zijlstra wrote:
+> On Wed, Sep 25, 2013 at 02:22:00PM -0700, Paul E. McKenney wrote:
+> > A couple of nits and some commentary, but if there are races, they are
+> > quite subtle.  ;-)
+> 
+> *whee*..
+> 
+> I made one little change in the logic; I moved the waitcount increment
+> to before the __put_online_cpus() call, such that the writer will have
+> to wait for us to wake up before trying again -- not for us to actually
+> have acquired the read lock, for that we'd need to mess up
+> __get_online_cpus() a bit more.
+> 
+> Complete patch below.
 
-On Android we heavily use a set of tools that use an extended version
-of the logic covered in Documentation/vm/pagemap.txt to walk all pages
-mapped in userspace and slice their usage by process, shared (COW) vs.
-unique mappings, backing, etc.  This can account for real physical
-memory usage even in cases like fork without exec (which Android uses
-heavily to share as many private COW pages as possible between
-processes), Kernel SamePage Merging, and clean zero pages.  It
-produces a measurement of the pages that only exist in that process
-(USS, for unique), and a measurement of the physical memory usage of
-that process with the cost of shared pages being evenly split between
-processes that share them (PSS).
+OK, looks like Oleg is correct, the cpuhp_seq can be dispensed with.
 
-If all anonymous memory is indistinguishable then figuring out the
-real physical memory usage (PSS) of each heap requires either a pagemap
-walking tool that can understand the heap debugging of every layer, or
-for every layer's heap debugging tools to implement the pagemap
-walking logic, in which case it is hard to get a consistent view of
-memory across the whole system.
+I still don't see anything wrong with it, so time for a serious stress
+test on a large system.  ;-)
 
-This patch adds a field to /proc/pid/maps and /proc/pid/smaps to
-show a userspace-provided name for anonymous vmas.  The names of
-named anonymous vmas are shown in /proc/pid/maps as [anon:<name>]
-and in /proc/pid/smaps in a new "Name" field that is only present
-for named anonymous vmas.  If the userspace pointer is no longer
-valid all or part of the name will be replaced with "<fault>".
+Additional commentary interspersed.
 
-Userspace can set the name for a region of memory by calling
-prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, start, len, (unsigned long)name);
-Setting the name to NULL clears it.
+							Thanx, Paul
 
-The name is stored in a user pointer in the shared union in
-vm_area_struct that points to a null terminated string inside
-the user process.  vmas that point to the same address and are
-otherwise mergeable will be merged, but vmas that point to
-equivalent strings at different addresses will not be merged.
+> ---
+> Subject: hotplug: Optimize {get,put}_online_cpus()
+> From: Peter Zijlstra <peterz@infradead.org>
+> Date: Tue Sep 17 16:17:11 CEST 2013
+> 
+> The current implementation of get_online_cpus() is global of nature
+> and thus not suited for any kind of common usage.
+> 
+> Re-implement the current recursive r/w cpu hotplug lock such that the
+> read side locks are as light as possible.
+> 
+> The current cpu hotplug lock is entirely reader biased; but since
+> readers are expensive there aren't a lot of them about and writer
+> starvation isn't a particular problem.
+> 
+> However by making the reader side more usable there is a fair chance
+> it will get used more and thus the starvation issue becomes a real
+> possibility.
+> 
+> Therefore this new implementation is fair, alternating readers and
+> writers; this however requires per-task state to allow the reader
+> recursion.
+> 
+> Many comments are contributed by Paul McKenney, and many previous
+> attempts were shown to be inadequate by both Paul and Oleg; many
+> thanks to them for persisting to poke holes in my attempts.
+> 
+> Cc: Oleg Nesterov <oleg@redhat.com>
+> Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Steven Rostedt <rostedt@goodmis.org>
+> Signed-off-by: Peter Zijlstra <peterz@infradead.org>
+> ---
+>  include/linux/cpu.h   |   58 +++++++++++++
+>  include/linux/sched.h |    3 
+>  kernel/cpu.c          |  209 +++++++++++++++++++++++++++++++++++---------------
+>  kernel/sched/core.c   |    2 
+>  4 files changed, 208 insertions(+), 64 deletions(-)
 
-The idea to store a userspace pointer to reduce the complexity
-within mm (at the expense of the complexity of reading
-/proc/pid/mem) came from Dave Hansen.  This results in no
-runtime overhead in the mm subsystem other than comparing
-the anon_name pointers when considering vma merging.  The pointer
-is stored in a union with fields that are only used on file-backed
-mappings, so it does not increase memory usage.
+I stripped the removed lines to keep my eyes from going buggy.
 
-Signed-off-by: Colin Cross <ccross@android.com>
----
+> --- a/include/linux/cpu.h
+> +++ b/include/linux/cpu.h
+> @@ -16,6 +16,7 @@
+>  #include <linux/node.h>
+>  #include <linux/compiler.h>
+>  #include <linux/cpumask.h>
+> +#include <linux/percpu.h>
+> 
+>  struct device;
+> 
+> @@ -173,10 +174,61 @@ extern struct bus_type cpu_subsys;
+>  #ifdef CONFIG_HOTPLUG_CPU
+>  /* Stop CPUs going up and down. */
+> 
+> +extern void cpu_hotplug_init_task(struct task_struct *p);
+> +
+>  extern void cpu_hotplug_begin(void);
+>  extern void cpu_hotplug_done(void);
+> +
+> +extern int __cpuhp_state;
+> +DECLARE_PER_CPU(unsigned int, __cpuhp_refcount);
+> +
+> +extern void __get_online_cpus(void);
+> +
+> +static inline void get_online_cpus(void)
+> +{
+> +	might_sleep();
+> +
+> +	/* Support reader recursion */
+> +	/* The value was >= 1 and remains so, reordering causes no harm. */
+> +	if (current->cpuhp_ref++)
+> +		return;
+> +
+> +	preempt_disable();
+> +	if (likely(!__cpuhp_state)) {
+> +		/* The barrier here is supplied by synchronize_sched(). */
 
-v2: updates the commit message to explain in more detail why the
-    patch is useful.
+I guess I shouldn't complain about the comment given where it came
+from, but...
 
- Documentation/filesystems/proc.txt |  6 ++++
- fs/proc/task_mmu.c                 | 62 ++++++++++++++++++++++++++++++++++++++
- include/linux/mm.h                 |  5 ++-
- include/linux/mm_types.h           | 15 +++++++++
- include/uapi/linux/prctl.h         |  3 ++
- kernel/sys.c                       | 24 +++++++++++++++
- mm/madvise.c                       | 56 +++++++++++++++++++++++++++++++---
- mm/mempolicy.c                     |  2 +-
- mm/mlock.c                         |  3 +-
- mm/mmap.c                          | 44 ++++++++++++++++-----------
- mm/mprotect.c                      |  3 +-
- 11 files changed, 197 insertions(+), 26 deletions(-)
+A more accurate comment would say that we are in an RCU-sched read-side
+critical section, so the writer cannot both change __cpuhp_state from
+readers_fast and start checking counters while we are here.  So if we see
+!__cpuhp_state, we know that the writer won't be checking until we past
+the preempt_enable() and that once the synchronize_sched() is done,
+the writer will see anything we did within this RCU-sched read-side
+critical section.
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index fcc22c9..77269c6 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -369,6 +369,8 @@ is not associated with a file:
-  [stack:1001]             = the stack of the thread with tid 1001
-  [vdso]                   = the "virtual dynamic shared object",
-                             the kernel system call handler
-+ [anon:<name>]            = an anonymous mapping that has been
-+                            named by userspace
- 
-  or if empty, the mapping is anonymous.
- 
-@@ -419,6 +421,7 @@ KernelPageSize:        4 kB
- MMUPageSize:           4 kB
- Locked:              374 kB
- VmFlags: rd ex mr mw me de
-+Name:           name from userspace
- 
- the first of these lines shows the same information as is displayed for the
- mapping in /proc/PID/maps.  The remaining lines show the size of the mapping
-@@ -469,6 +472,9 @@ Note that there is no guarantee that every flag and associated mnemonic will
- be present in all further kernel releases. Things get changed, the flags may
- be vanished or the reverse -- new added.
- 
-+The "Name" field will only be present on a mapping that has been named by
-+userspace, and will show the name passed in by userspace.
-+
- This file is only present if the CONFIG_MMU kernel configuration option is
- enabled.
- 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 107d026..a9a6ddf 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -91,6 +91,56 @@ static void pad_len_spaces(struct seq_file *m, int len)
- 	seq_printf(m, "%*c", len, ' ');
- }
- 
-+static void seq_print_vma_name(struct seq_file *m, struct vm_area_struct *vma)
-+{
-+	const char __user *name = vma_get_anon_name(vma);
-+	struct mm_struct *mm = vma->vm_mm;
-+
-+	unsigned long page_start_vaddr;
-+	unsigned long page_offset;
-+	unsigned long num_pages;
-+	unsigned long max_len = NAME_MAX;
-+	int i;
-+
-+	page_start_vaddr = (unsigned long)name & PAGE_MASK;
-+	page_offset = (unsigned long)name - page_start_vaddr;
-+	num_pages = DIV_ROUND_UP(page_offset + max_len, PAGE_SIZE);
-+
-+	seq_puts(m, "[anon:");
-+
-+	for (i = 0; i < num_pages; i++) {
-+		int len;
-+		int write_len;
-+		const char *kaddr;
-+		long pages_pinned;
-+		struct page *page;
-+
-+		pages_pinned = get_user_pages(current, mm, page_start_vaddr,
-+				1, 0, 0, &page, NULL);
-+		if (pages_pinned < 1) {
-+			seq_puts(m, "<fault>]");
-+			return;
-+		}
-+
-+		kaddr = (const char *)kmap(page);
-+		len = min(max_len, PAGE_SIZE - page_offset);
-+		write_len = strnlen(kaddr + page_offset, len);
-+		seq_write(m, kaddr + page_offset, write_len);
-+		kunmap(page);
-+		put_page(page);
-+
-+		/* if strnlen hit a null terminator then we're done */
-+		if (write_len != len)
-+			break;
-+
-+		max_len -= len;
-+		page_offset = 0;
-+		page_start_vaddr += PAGE_SIZE;
-+	}
-+
-+	seq_putc(m, ']');
-+}
-+
- #ifdef CONFIG_NUMA
- /*
-  * These functions are for numa_maps but called in generic **maps seq_file
-@@ -336,6 +386,12 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
- 				pad_len_spaces(m, len);
- 				seq_printf(m, "[stack:%d]", tid);
- 			}
-+			goto done;
-+		}
-+
-+		if (vma_get_anon_name(vma)) {
-+			pad_len_spaces(m, len);
-+			seq_print_vma_name(m, vma);
- 		}
- 	}
- 
-@@ -635,6 +691,12 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 
- 	show_smap_vma_flags(m, vma);
- 
-+	if (vma_get_anon_name(vma)) {
-+		seq_puts(m, "Name:           ");
-+		seq_print_vma_name(m, vma);
-+		seq_putc(m, '\n');
-+	}
-+
- 	if (m->count < m->size)  /* vma is copied successfully */
- 		m->version = (vma != get_gate_vma(task->mm))
- 			? vma->vm_start : 0;
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index f022460..4ccb9e4 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1499,7 +1499,7 @@ extern int vma_adjust(struct vm_area_struct *vma, unsigned long start,
- extern struct vm_area_struct *vma_merge(struct mm_struct *,
- 	struct vm_area_struct *prev, unsigned long addr, unsigned long end,
- 	unsigned long vm_flags, struct anon_vma *, struct file *, pgoff_t,
--	struct mempolicy *);
-+	struct mempolicy *, const char __user *);
- extern struct anon_vma *find_mergeable_anon_vma(struct vm_area_struct *);
- extern int split_vma(struct mm_struct *,
- 	struct vm_area_struct *, unsigned long addr, int new_below);
-@@ -1842,5 +1842,8 @@ void __init setup_nr_node_ids(void);
- static inline void setup_nr_node_ids(void) {}
- #endif
- 
-+int madvise_set_anon_name(unsigned long start, unsigned long len_in,
-+				unsigned long name_addr);
-+
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_H */
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index faf4b7c..16de160 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -255,6 +255,10 @@ struct vm_area_struct {
- 	 * For areas with an address space and backing store,
- 	 * linkage into the address_space->i_mmap interval tree, or
- 	 * linkage of vma in the address_space->i_mmap_nonlinear list.
-+	 *
-+	 * For private anonymous mappings, a pointer to a null terminated string
-+	 * in the user process containing the name given to the vma, or NULL
-+	 * if unnamed.
- 	 */
- 	union {
- 		struct {
-@@ -262,6 +266,7 @@ struct vm_area_struct {
- 			unsigned long rb_subtree_last;
- 		} linear;
- 		struct list_head nonlinear;
-+		const char __user *anon_name;
- 	} shared;
- 
- 	/*
-@@ -454,4 +459,14 @@ static inline cpumask_t *mm_cpumask(struct mm_struct *mm)
- 	return mm->cpu_vm_mask_var;
- }
- 
-+
-+/* Return the name for an anonymous mapping or NULL for a file-backed mapping */
-+static inline const char __user *vma_get_anon_name(struct vm_area_struct *vma)
-+{
-+	if (vma->vm_file)
-+		return NULL;
-+
-+	return vma->shared.anon_name;
-+}
-+
- #endif /* _LINUX_MM_TYPES_H */
-diff --git a/include/uapi/linux/prctl.h b/include/uapi/linux/prctl.h
-index 289760f..063bf75 100644
---- a/include/uapi/linux/prctl.h
-+++ b/include/uapi/linux/prctl.h
-@@ -149,4 +149,7 @@
- 
- #define PR_GET_TID_ADDRESS	40
- 
-+#define PR_SET_VMA		41
-+# define PR_SET_VMA_ANON_NAME		0
-+
- #endif /* _LINUX_PRCTL_H */
-diff --git a/kernel/sys.c b/kernel/sys.c
-index 771129b..5e0948c 100644
---- a/kernel/sys.c
-+++ b/kernel/sys.c
-@@ -1836,6 +1836,27 @@ static int prctl_get_tid_address(struct task_struct *me, int __user **tid_addr)
- }
- #endif
- 
-+static int prctl_set_vma(unsigned long opt, unsigned long addr,
-+		unsigned long len, unsigned long arg)
-+{
-+	struct mm_struct *mm = current->mm;
-+	int error;
-+
-+	down_write(&mm->mmap_sem);
-+
-+	switch (opt) {
-+	case PR_SET_VMA_ANON_NAME:
-+		error = madvise_set_anon_name(addr, len, arg);
-+		break;
-+	default:
-+		error = -EINVAL;
-+	}
-+
-+	up_write(&mm->mmap_sem);
-+
-+	return error;
-+}
-+
- SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
- 		unsigned long, arg4, unsigned long, arg5)
- {
-@@ -1999,6 +2020,9 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
- 		if (arg2 || arg3 || arg4 || arg5)
- 			return -EINVAL;
- 		return current->no_new_privs ? 1 : 0;
-+	case PR_SET_VMA:
-+		error = prctl_set_vma(arg2, arg3, arg4, arg5);
-+		break;
- 	default:
- 		error = -EINVAL;
- 		break;
-diff --git a/mm/madvise.c b/mm/madvise.c
-index b8820fd..b2f8738 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -44,20 +44,23 @@ static int madvise_need_mmap_write(int behavior)
-  */
- static int madvise_update_vma(struct vm_area_struct *vma,
- 		     struct vm_area_struct **prev, unsigned long start,
--		     unsigned long end, unsigned long new_flags)
-+		     unsigned long end, unsigned long new_flags,
-+		     const char __user *new_anon_name)
- {
- 	struct mm_struct * mm = vma->vm_mm;
- 	pgoff_t pgoff;
- 	int error;
- 
--	if (new_flags == vma->vm_flags) {
-+	if (new_flags == vma->vm_flags &&
-+			new_anon_name == vma_get_anon_name(vma)) {
- 		*prev = vma;
- 		return 0;
- 	}
- 
- 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
- 	*prev = vma_merge(mm, *prev, start, end, new_flags, vma->anon_vma,
--				vma->vm_file, pgoff, vma_policy(vma));
-+				vma->vm_file, pgoff, vma_policy(vma),
-+				new_anon_name);
- 	if (*prev) {
- 		vma = *prev;
- 		goto success;
-@@ -82,10 +85,30 @@ success:
- 	 * vm_flags is protected by the mmap_sem held in write mode.
- 	 */
- 	vma->vm_flags = new_flags;
-+	if (!vma->vm_file)
-+		vma->shared.anon_name = new_anon_name;
- 
- 	return 0;
- }
- 
-+static int madvise_vma_anon_name(struct vm_area_struct *vma,
-+		     struct vm_area_struct **prev,
-+		     unsigned long start, unsigned long end,
-+		     unsigned long name_addr)
-+{
-+	int error;
-+
-+	/* Only anonymous mappings can be named */
-+	if (vma->vm_file)
-+		return -EINVAL;
-+
-+	error = madvise_update_vma(vma, prev, start, end, vma->vm_flags,
-+			(const char __user *)name_addr);
-+	if (error == -ENOMEM)
-+		error = -EAGAIN;
-+	return error;
-+}
-+
- #ifdef CONFIG_SWAP
- static int swapin_walk_pmd_entry(pmd_t *pmd, unsigned long start,
- 	unsigned long end, struct mm_walk *walk)
-@@ -352,7 +375,8 @@ static int madvise_vma_behavior(struct vm_area_struct *vma,
- 		break;
- 	}
- 
--	error = madvise_update_vma(vma, prev, start, end, new_flags);
-+	error = madvise_update_vma(vma, prev, start, end, new_flags,
-+				vma_get_anon_name(vma));
- 
- out:
- 	if (error == -ENOMEM)
-@@ -488,6 +512,30 @@ int madvise_walk_vmas(unsigned long start, unsigned long end,
- 	return unmapped_error;
- }
- 
-+int madvise_set_anon_name(unsigned long start, unsigned long len_in,
-+		unsigned long name_addr)
-+{
-+	unsigned long end;
-+	unsigned long len;
-+
-+	if (start & ~PAGE_MASK)
-+		return -EINVAL;
-+	len = (len_in + ~PAGE_MASK) & PAGE_MASK;
-+
-+	/* Check to see whether len was rounded up from small -ve to zero */
-+	if (len_in && !len)
-+		return -EINVAL;
-+
-+	end = start + len;
-+	if (end < start)
-+		return -EINVAL;
-+
-+	if (end == start)
-+		return 0;
-+
-+	return madvise_walk_vmas(start, end, name_addr, madvise_vma_anon_name);
-+}
-+
- /*
-  * The madvise(2) system call.
-  *
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 4baf12e..550ea39 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -728,7 +728,7 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
- 			((vmstart - vma->vm_start) >> PAGE_SHIFT);
- 		prev = vma_merge(mm, prev, vmstart, vmend, vma->vm_flags,
- 				  vma->anon_vma, vma->vm_file, pgoff,
--				  new_pol);
-+				  new_pol, vma->vm_name);
- 		if (prev) {
- 			vma = prev;
- 			next = vma->vm_next;
-diff --git a/mm/mlock.c b/mm/mlock.c
-index 79b7cf7..33861c7 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -287,7 +287,8 @@ static int mlock_fixup(struct vm_area_struct *vma, struct vm_area_struct **prev,
- 
- 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
- 	*prev = vma_merge(mm, *prev, start, end, newflags, vma->anon_vma,
--			  vma->vm_file, pgoff, vma_policy(vma));
-+			  vma->vm_file, pgoff, vma_policy(vma),
-+			  vma_get_anon_name(vma));
- 	if (*prev) {
- 		vma = *prev;
- 		goto success;
-diff --git a/mm/mmap.c b/mm/mmap.c
-index f9c97d1..488fe4e 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -893,7 +893,8 @@ again:			remove_next = 1 + (end > next->vm_end);
-  * per-vma resources, so we don't attempt to merge those.
-  */
- static inline int is_mergeable_vma(struct vm_area_struct *vma,
--			struct file *file, unsigned long vm_flags)
-+			struct file *file, unsigned long vm_flags,
-+			const char __user *anon_name)
- {
- 	if (vma->vm_flags ^ vm_flags)
- 		return 0;
-@@ -901,6 +902,8 @@ static inline int is_mergeable_vma(struct vm_area_struct *vma,
- 		return 0;
- 	if (vma->vm_ops && vma->vm_ops->close)
- 		return 0;
-+	if (vma_get_anon_name(vma) != anon_name)
-+		return 0;
- 	return 1;
- }
- 
-@@ -931,9 +934,10 @@ static inline int is_mergeable_anon_vma(struct anon_vma *anon_vma1,
-  */
- static int
- can_vma_merge_before(struct vm_area_struct *vma, unsigned long vm_flags,
--	struct anon_vma *anon_vma, struct file *file, pgoff_t vm_pgoff)
-+	struct anon_vma *anon_vma, struct file *file, pgoff_t vm_pgoff,
-+	const char __user *anon_name)
- {
--	if (is_mergeable_vma(vma, file, vm_flags) &&
-+	if (is_mergeable_vma(vma, file, vm_flags, anon_name) &&
- 	    is_mergeable_anon_vma(anon_vma, vma->anon_vma, vma)) {
- 		if (vma->vm_pgoff == vm_pgoff)
- 			return 1;
-@@ -950,9 +954,10 @@ can_vma_merge_before(struct vm_area_struct *vma, unsigned long vm_flags,
-  */
- static int
- can_vma_merge_after(struct vm_area_struct *vma, unsigned long vm_flags,
--	struct anon_vma *anon_vma, struct file *file, pgoff_t vm_pgoff)
-+	struct anon_vma *anon_vma, struct file *file, pgoff_t vm_pgoff,
-+	const char __user *anon_name)
- {
--	if (is_mergeable_vma(vma, file, vm_flags) &&
-+	if (is_mergeable_vma(vma, file, vm_flags, anon_name) &&
- 	    is_mergeable_anon_vma(anon_vma, vma->anon_vma, vma)) {
- 		pgoff_t vm_pglen;
- 		vm_pglen = vma_pages(vma);
-@@ -963,9 +968,9 @@ can_vma_merge_after(struct vm_area_struct *vma, unsigned long vm_flags,
- }
- 
- /*
-- * Given a mapping request (addr,end,vm_flags,file,pgoff), figure out
-- * whether that can be merged with its predecessor or its successor.
-- * Or both (it neatly fills a hole).
-+ * Given a mapping request (addr,end,vm_flags,file,pgoff,anon_name),
-+ * figure out whether that can be merged with its predecessor or its
-+ * successor.  Or both (it neatly fills a hole).
-  *
-  * In most cases - when called for mmap, brk or mremap - [addr,end) is
-  * certain not to be mapped by the time vma_merge is called; but when
-@@ -995,7 +1000,8 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
- 			struct vm_area_struct *prev, unsigned long addr,
- 			unsigned long end, unsigned long vm_flags,
- 		     	struct anon_vma *anon_vma, struct file *file,
--			pgoff_t pgoff, struct mempolicy *policy)
-+			pgoff_t pgoff, struct mempolicy *policy,
-+			const char __user *anon_name)
- {
- 	pgoff_t pglen = (end - addr) >> PAGE_SHIFT;
- 	struct vm_area_struct *area, *next;
-@@ -1021,15 +1027,15 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
- 	 */
- 	if (prev && prev->vm_end == addr &&
-   			mpol_equal(vma_policy(prev), policy) &&
--			can_vma_merge_after(prev, vm_flags,
--						anon_vma, file, pgoff)) {
-+			can_vma_merge_after(prev, vm_flags, anon_vma,
-+						file, pgoff, anon_name)) {
- 		/*
- 		 * OK, it can.  Can we now merge in the successor as well?
- 		 */
- 		if (next && end == next->vm_start &&
- 				mpol_equal(policy, vma_policy(next)) &&
--				can_vma_merge_before(next, vm_flags,
--					anon_vma, file, pgoff+pglen) &&
-+				can_vma_merge_before(next, vm_flags, anon_vma,
-+						file, pgoff+pglen, anon_name) &&
- 				is_mergeable_anon_vma(prev->anon_vma,
- 						      next->anon_vma, NULL)) {
- 							/* cases 1, 6 */
-@@ -1049,8 +1055,8 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
- 	 */
- 	if (next && end == next->vm_start &&
-  			mpol_equal(policy, vma_policy(next)) &&
--			can_vma_merge_before(next, vm_flags,
--					anon_vma, file, pgoff+pglen)) {
-+			can_vma_merge_before(next, vm_flags, anon_vma,
-+					file, pgoff+pglen, anon_name)) {
- 		if (prev && addr < prev->vm_end)	/* case 4 */
- 			err = vma_adjust(prev, prev->vm_start,
- 				addr, prev->vm_pgoff, NULL);
-@@ -1521,7 +1527,8 @@ munmap_back:
- 	/*
- 	 * Can we just expand an old mapping?
- 	 */
--	vma = vma_merge(mm, prev, addr, addr + len, vm_flags, NULL, file, pgoff, NULL);
-+	vma = vma_merge(mm, prev, addr, addr + len, vm_flags, NULL, file, pgoff,
-+			NULL, NULL);
- 	if (vma)
- 		goto out;
- 
-@@ -2637,7 +2644,7 @@ static unsigned long do_brk(unsigned long addr, unsigned long len)
- 
- 	/* Can we just expand an old private anonymous mapping? */
- 	vma = vma_merge(mm, prev, addr, addr + len, flags,
--					NULL, NULL, pgoff, NULL);
-+					NULL, NULL, pgoff, NULL, NULL);
- 	if (vma)
- 		goto out;
- 
-@@ -2795,7 +2802,8 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
- 	if (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent))
- 		return NULL;	/* should never get here */
- 	new_vma = vma_merge(mm, prev, addr, addr + len, vma->vm_flags,
--			vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma));
-+			vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma),
-+			vma_get_anon_name(vma));
- 	if (new_vma) {
- 		/*
- 		 * Source vma may have been merged into new_vma
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 94722a4..94d50b7 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -271,7 +271,8 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
- 	 */
- 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
- 	*pprev = vma_merge(mm, *pprev, start, end, newflags,
--			vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma));
-+			vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma),
-+			vma_get_anon_name(vma));
- 	if (*pprev) {
- 		vma = *pprev;
- 		goto success;
--- 
-1.8.4
+(The writer -can- change __cpuhp_state from readers_slow to readers_block
+while we are in this read-side critical section and then start summing
+counters, but that corresponds to a different "if" statement.)
+
+> +		__this_cpu_inc(__cpuhp_refcount);
+> +	} else {
+> +		__get_online_cpus(); /* Unconditional memory barrier. */
+> +	}
+> +	preempt_enable();
+> +	/*
+> +	 * The barrier() from preempt_enable() prevents the compiler from
+> +	 * bleeding the critical section out.
+> +	 */
+> +}
+> +
+> +extern void __put_online_cpus(void);
+> +
+> +static inline void put_online_cpus(void)
+> +{
+> +	/* The value was >= 1 and remains so, reordering causes no harm. */
+> +	if (--current->cpuhp_ref)
+> +		return;
+> +
+> +	/*
+> +	 * The barrier() in preempt_disable() prevents the compiler from
+> +	 * bleeding the critical section out.
+> +	 */
+> +	preempt_disable();
+> +	if (likely(!__cpuhp_state)) {
+> +		/* The barrier here is supplied by synchronize_sched().  */
+
+Same here, both for the implied self-criticism and the more complete story.
+
+Due to the basic RCU guarantee, the writer cannot both change __cpuhp_state
+and start checking counters while we are in this RCU-sched read-side
+critical section.  And again, if the synchronize_sched() had to wait on
+us (or if we were early enough that no waiting was needed), then once
+the synchronize_sched() completes, the writer will see anything that we
+did within this RCU-sched read-side critical section.
+
+> +		__this_cpu_dec(__cpuhp_refcount);
+> +	} else {
+> +		__put_online_cpus(); /* Unconditional memory barrier. */
+> +	}
+> +	preempt_enable();
+> +}
+> +
+>  extern void cpu_hotplug_disable(void);
+>  extern void cpu_hotplug_enable(void);
+>  #define hotcpu_notifier(fn, pri)	cpu_notifier(fn, pri)
+> @@ -200,6 +252,8 @@ static inline void cpu_hotplug_driver_un
+> 
+>  #else		/* CONFIG_HOTPLUG_CPU */
+> 
+> +static inline void cpu_hotplug_init_task(struct task_struct *p) {}
+> +
+>  static inline void cpu_hotplug_begin(void) {}
+>  static inline void cpu_hotplug_done(void) {}
+>  #define get_online_cpus()	do { } while (0)
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -1454,6 +1454,9 @@ struct task_struct {
+>  	unsigned int	sequential_io;
+>  	unsigned int	sequential_io_avg;
+>  #endif
+> +#ifdef CONFIG_HOTPLUG_CPU
+> +	int		cpuhp_ref;
+> +#endif
+>  };
+> 
+>  /* Future-safe accessor for struct task_struct's cpus_allowed. */
+> --- a/kernel/cpu.c
+> +++ b/kernel/cpu.c
+> @@ -49,88 +49,173 @@ static int cpu_hotplug_disabled;
+> 
+>  #ifdef CONFIG_HOTPLUG_CPU
+> 
+> +enum { readers_fast = 0, readers_slow, readers_block };
+> +
+> +int __cpuhp_state;
+> +EXPORT_SYMBOL_GPL(__cpuhp_state);
+> +
+> +DEFINE_PER_CPU(unsigned int, __cpuhp_refcount);
+> +EXPORT_PER_CPU_SYMBOL_GPL(__cpuhp_refcount);
+> +
+> +static DEFINE_PER_CPU(unsigned int, cpuhp_seq);
+> +static atomic_t cpuhp_waitcount;
+> +static DECLARE_WAIT_QUEUE_HEAD(cpuhp_readers);
+> +static DECLARE_WAIT_QUEUE_HEAD(cpuhp_writer);
+> +
+> +void cpu_hotplug_init_task(struct task_struct *p)
+> +{
+> +	p->cpuhp_ref = 0;
+> +}
+> +
+> +void __get_online_cpus(void)
+> +{
+> +again:
+> +	/* See __srcu_read_lock() */
+> +	__this_cpu_inc(__cpuhp_refcount);
+> +	smp_mb(); /* A matches B, E */
+> +	// __this_cpu_inc(cpuhp_seq);
+
+Deleting the above per Oleg's suggestion.  We still need the preceding
+memory barrier.
+
+> +
+> +	if (unlikely(__cpuhp_state == readers_block)) {
+> +		/*
+> +		 * Make sure an outgoing writer sees the waitcount to ensure
+> +		 * we make progress.
+> +		 */
+> +		atomic_inc(&cpuhp_waitcount);
+> +		__put_online_cpus();
+
+The decrement happens on the same CPU as the increment, avoiding the
+increment-on-one-CPU-and-decrement-on-another problem.
+
+And yes, if the reader misses the writer's assignment of readers_block
+to __cpuhp_state, then the writer is guaranteed to see the reader's
+increment.  Conversely, any readers that increment their __cpuhp_refcount
+after the writer looks are guaranteed to see the readers_block value,
+which in turn means that they are guaranteed to immediately decrement
+their __cpuhp_refcount, so that it doesn't matter that the writer
+missed them.
+
+Unfortunately, this trick does not apply back to SRCU, at least not
+without adding a second memory barrier to the srcu_read_lock() path
+(one to separate reading the index from incrementing the counter and
+another to separate incrementing the counter from the critical section.
+Can't have everything, I guess!
+
+> +
+> +		/*
+> +		 * We either call schedule() in the wait, or we'll fall through
+> +		 * and reschedule on the preempt_enable() in get_online_cpus().
+> +		 */
+> +		preempt_enable_no_resched();
+> +		__wait_event(cpuhp_readers, __cpuhp_state != readers_block);
+> +		preempt_disable();
+> +
+> +		if (atomic_dec_and_test(&cpuhp_waitcount))
+> +			wake_up_all(&cpuhp_writer);
+
+I still don't see why this is a wake_up_all() given that there can be
+only one writer.  Not that it makes much difference, but...
+
+> +
+> +		goto again;
+> +	}
+> +}
+> +EXPORT_SYMBOL_GPL(__get_online_cpus);
+> 
+> +void __put_online_cpus(void)
+>  {
+> +	/* See __srcu_read_unlock() */
+> +	smp_mb(); /* C matches D */
+> +	/*
+> +	 * In other words, if they see our decrement (presumably to aggregate
+> +	 * zero, as that is the only time it matters) they will also see our
+> +	 * critical section.
+> +	 */
+> +	this_cpu_dec(__cpuhp_refcount);
+> 
+> +	/* Prod writer to recheck readers_active */
+> +	wake_up_all(&cpuhp_writer);
+>  }
+> +EXPORT_SYMBOL_GPL(__put_online_cpus);
+> +
+> +#define per_cpu_sum(var)						\
+> +({ 									\
+> + 	typeof(var) __sum = 0;						\
+> + 	int cpu;							\
+> + 	for_each_possible_cpu(cpu)					\
+> + 		__sum += per_cpu(var, cpu);				\
+> + 	__sum;								\
+> +)}
+> 
+> +/*
+> + * See srcu_readers_active_idx_check() for a rather more detailed explanation.
+> + */
+> +static bool cpuhp_readers_active_check(void)
+>  {
+> +	// unsigned int seq = per_cpu_sum(cpuhp_seq);
+
+Delete the above per Oleg's suggestion.
+
+> +
+> +	smp_mb(); /* B matches A */
+> +
+> +	/*
+> +	 * In other words, if we see __get_online_cpus() cpuhp_seq increment,
+> +	 * we are guaranteed to also see its __cpuhp_refcount increment.
+> +	 */
+> 
+> +	if (per_cpu_sum(__cpuhp_refcount) != 0)
+> +		return false;
+> 
+> +	smp_mb(); /* D matches C */
+> 
+> +	/*
+> +	 * On equality, we know that there could not be any "sneak path" pairs
+> +	 * where we see a decrement but not the corresponding increment for a
+> +	 * given reader. If we saw its decrement, the memory barriers guarantee
+> +	 * that we now see its cpuhp_seq increment.
+> +	 */
+> +
+> +	// return per_cpu_sum(cpuhp_seq) == seq;
+
+Delete the above per Oleg's suggestion, but actually need to replace with
+"return true;".  We should be able to get rid of the first memory barrier
+(B matches A) because the smp_mb() in cpu_hotplug_begin() covers it, but we
+cannot git rid of the second memory barrier (D matches C).
+
+>  }
+> 
+>  /*
+> + * This will notify new readers to block and wait for all active readers to
+> + * complete.
+>   */
+>  void cpu_hotplug_begin(void)
+>  {
+> +	/*
+> +	 * Since cpu_hotplug_begin() is always called after invoking
+> +	 * cpu_maps_update_begin(), we can be sure that only one writer is
+> +	 * active.
+> +	 */
+> +	lockdep_assert_held(&cpu_add_remove_lock);
+> 
+> +	/* Allow reader-in-writer recursion. */
+> +	current->cpuhp_ref++;
+> +
+> +	/* Notify readers to take the slow path. */
+> +	__cpuhp_state = readers_slow;
+> +
+> +	/* See percpu_down_write(); guarantees all readers take the slow path */
+> +	synchronize_sched();
+> +
+> +	/*
+> +	 * Notify new readers to block; up until now, and thus throughout the
+> +	 * longish synchronize_sched() above, new readers could still come in.
+> +	 */
+> +	__cpuhp_state = readers_block;
+> +
+> +	smp_mb(); /* E matches A */
+> +
+> +	/*
+> +	 * If they don't see our writer of readers_block to __cpuhp_state,
+> +	 * then we are guaranteed to see their __cpuhp_refcount increment, and
+> +	 * therefore will wait for them.
+> +	 */
+> +
+> +	/* Wait for all now active readers to complete. */
+> +	wait_event(cpuhp_writer, cpuhp_readers_active_check());
+>  }
+> 
+>  void cpu_hotplug_done(void)
+>  {
+> +	/* Signal the writer is done, no fast path yet. */
+> +	__cpuhp_state = readers_slow;
+> +	wake_up_all(&cpuhp_readers);
+
+And one reason that we cannot just immediately flip to readers_fast
+is that new readers might fail to see the results of this writer's
+critical section.
+
+> +
+> +	/*
+> +	 * The wait_event()/wake_up_all() prevents the race where the readers
+> +	 * are delayed between fetching __cpuhp_state and blocking.
+> +	 */
+> +
+> +	/* See percpu_up_write(); readers will no longer attempt to block. */
+> +	synchronize_sched();
+> +
+> +	/* Let 'em rip */
+> +	__cpuhp_state = readers_fast;
+> +	current->cpuhp_ref--;
+> +
+> +	/*
+> +	 * Wait for any pending readers to be running. This ensures readers
+> +	 * after writer and avoids writers starving readers.
+> +	 */
+> +	wait_event(cpuhp_writer, !atomic_read(&cpuhp_waitcount));
+>  }
+> 
+>  /*
+> --- a/kernel/sched/core.c
+> +++ b/kernel/sched/core.c
+> @@ -1736,6 +1736,8 @@ static void __sched_fork(unsigned long c
+>  	INIT_LIST_HEAD(&p->numa_entry);
+>  	p->numa_group = NULL;
+>  #endif /* CONFIG_NUMA_BALANCING */
+> +
+> +	cpu_hotplug_init_task(p);
+>  }
+> 
+>  #ifdef CONFIG_NUMA_BALANCING
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
