@@ -1,95 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A3EB6B003B
-	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 11:27:37 -0400 (EDT)
-Received: by mail-pb0-f43.google.com with SMTP id md4so7285128pbc.2
-        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 08:27:36 -0700 (PDT)
-Received: by mail-la0-f45.google.com with SMTP id eh20so6058143lab.32
-        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 08:27:33 -0700 (PDT)
-Date: Tue, 1 Oct 2013 19:26:40 +0400
-From: Sergey Dyasly <dserrg@gmail.com>
-Subject: Re: [PATCH] OOM killer: wait for tasks with pending SIGKILL to exit
-Message-Id: <20131001192640.ed55682d3113b00b402bbef5@gmail.com>
-In-Reply-To: <alpine.DEB.2.02.1309301457590.28109@chino.kir.corp.google.com>
-References: <1378740624-2456-1-git-send-email-dserrg@gmail.com>
-	<alpine.DEB.2.02.1309091303010.12523@chino.kir.corp.google.com>
-	<20130911190605.5528ee4563272dbea1ed56a6@gmail.com>
-	<alpine.DEB.2.02.1309251328130.24412@chino.kir.corp.google.com>
-	<20130927185833.6c72b77ab105d70d4996ebef@gmail.com>
-	<alpine.DEB.2.02.1309301457590.28109@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 8035F6B003D
+	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 11:39:02 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id kx10so7635157pab.41
+        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 08:39:02 -0700 (PDT)
+Received: from /spool/local
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Tue, 1 Oct 2013 09:38:40 -0600
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 9FADA19D8036
+	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 09:38:32 -0600 (MDT)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r91FcUFI177582
+	for <linux-mm@kvack.org>; Tue, 1 Oct 2013 09:38:33 -0600
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r91FfZMW028355
+	for <linux-mm@kvack.org>; Tue, 1 Oct 2013 09:41:36 -0600
+Date: Tue, 1 Oct 2013 08:38:29 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
+Message-ID: <20131001153829.GE5790@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20130925155515.GA17447@redhat.com>
+ <20130925174307.GA3220@laptop.programming.kicks-ass.net>
+ <20130925175055.GA25914@redhat.com>
+ <20130925184015.GC3657@laptop.programming.kicks-ass.net>
+ <20130925212200.GA7959@linux.vnet.ibm.com>
+ <20130926111042.GS3081@twins.programming.kicks-ass.net>
+ <20130926165840.GA863@redhat.com>
+ <20130926175016.GI3657@laptop.programming.kicks-ass.net>
+ <20130927181532.GA8401@redhat.com>
+ <20130929135646.GA3743@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130929135646.GA3743@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Rusty Russell <rusty@rustcorp.com.au>, Sha Zhengju <handai.szj@taobao.com>, Oleg Nesterov <oleg@redhat.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>
 
-It seems to me that we are going nowhere with this discussion...
+On Sun, Sep 29, 2013 at 03:56:46PM +0200, Oleg Nesterov wrote:
+> On 09/27, Oleg Nesterov wrote:
+> >
+> > I tried hard to find any hole in this version but failed, I believe it
+> > is correct.
+> 
+> And I still believe it is. But now I am starting to think that we
+> don't need cpuhp_seq. (and imo cpuhp_waitcount, but this is minor).
 
-If you are ok with the first change in my patch regarding fatal_signal_pending,
-I can send new patch with just that change.
+Here is one scenario that I believe requires cpuhp_seq:
 
+1.	Task 0 on CPU 0 increments its counter on entry.
 
-On Mon, 30 Sep 2013 15:08:25 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
+2.	Task 1 on CPU 1 starts summing the counters and gets to
+	CPU 4.  The sum thus far is 1 (Task 0).
 
-> On Fri, 27 Sep 2013, Sergey Dyasly wrote:
-> 
-> > What you are saying contradicts current OOMk code the way I read it. Comment in
-> > oom_kill_process() says:
-> > 
-> > "If the task is already exiting ... set TIF_MEMDIE so it can die quickly"
-> > 
-> > I just want to know the right solution.
-> > 
-> 
-> That's a comment, not code.  The point of the PF_EXITING special handling 
-> in oom_kill_process() is to avoid telling sysadmins that a process has 
-> been killed to free memory when it has already called exit() and to avoid 
-> sacrificing one of its children for the exiting process.
-> 
-> It may or may not need access to memory reserves to actually exit after 
-> PF_EXITING depending on whether it needs to allocate memory for 
-> coredumping or anything else.  So instead of waiting for it to recall the 
-> oom killer, TIF_MEMDIE is set anyway.  The point is that PF_EXITING 
-> processes can already get TIF_MEMDIE immediately when their memory 
-> allocation fails so there's no reason not to set it now as an 
-> optimization.
-> 
-> But we definitely want to avoid printing anything to the kernel log when 
-> the process has already called exit() and issuing the SIGKILL at that 
-> point would be pointless.
-> 
-> > You are mistaken, oom_kill_process() is only called from out_of_memory()
-> > and mem_cgroup_out_of_memory().
-> > 
-> 
-> out_of_memory() calls oom_kill_process() in two places, plus the call from 
-> mem_cgroup_out_of_memory(), making three calls in the tree.  Not that this 
-> matters in the slightest, though.
-> 
-> > > Read the comment about why we don't emit anything to the kernel log in 
-> > > this case; the process is already exiting, there's no need to kill it or 
-> > > make anyone believe that it was killed.
-> > 
-> > Yes, but there is already the PF_EXITING check in oom_scan_process_thread(),
-> > and in this case oom_kill_process() won't be even called. That's why it's
-> > redundant.
-> > 
-> 
-> You apparently have no idea how long select_bad_process() runs on a large 
-> system with thousands of processes.  Keep in mind that SGI requested the 
-> addition of the oom_kill_allocating_task sysctl specifically because of 
-> how long select_bad_process() runs.  The PF_EXITING check in 
-> oom_kill_process() is simply an optimization to return early and with 
-> access to memory reserves so it can exit as quickly as possible and 
-> without the kernel stating it's killing something that has already called 
-> exit().
+3.	Task 2 on CPU 2 increments its counter on entry.
+	Upon completing its entry code, it re-enables preemption.
 
+4.	Task 2 is preempted, and starts running on CPU 5.
 
--- 
-Sergey Dyasly <dserrg@gmail.com>
+5.	Task 2 decrements its counter on exit.
+
+6.	Task 1 continues summing.  Due to the fact that it saw Task 2's
+	exit but not its entry, the sum is zero.
+
+One of cpuhp_seq's jobs is to prevent this scenario.
+
+That said, bozo here still hasn't gotten to look at Peter's newest patch,
+so perhaps it prevents this scenario some other way, perhaps by your
+argument below.
+
+> > We need to ensure 2 things:
+> >
+> > 1. The reader should notic state = BLOCK or the writer should see
+> >    inc(__cpuhp_refcount). This is guaranteed by 2 mb's in
+> >    __get_online_cpus() and in cpu_hotplug_begin().
+> >
+> >    We do not care if the writer misses some inc(__cpuhp_refcount)
+> >    in per_cpu_sum(__cpuhp_refcount), that reader(s) should notice
+> >    state = readers_block (and inc(cpuhp_seq) can't help anyway).
+> 
+> Yes!
+
+OK, I will look over the patch with this in mind.
+
+> > 2. If the writer sees the result of this_cpu_dec(__cpuhp_refcount)
+> >    from __put_online_cpus() (note that the writer can miss the
+> >    corresponding inc() if it was done on another CPU, so this dec()
+> >    can lead to sum() == 0),
+> 
+> But this can't happen in this version? Somehow I forgot that
+> __get_online_cpus() does inc/get under preempt_disable(), always on
+> the same CPU. And thanks to mb's the writer should not miss the
+> reader which has already passed the "state != BLOCK" check.
+> 
+> To simplify the discussion, lets ignore the "readers_fast" state,
+> synchronize_sched() logic looks obviously correct. IOW, lets discuss
+> only the SLOW -> BLOCK transition.
+> 
+> 	cput_hotplug_begin()
+> 	{
+> 		state = BLOCK;
+> 
+> 		mb();
+> 
+> 		wait_event(cpuhp_writer,
+> 				per_cpu_sum(__cpuhp_refcount) == 0);
+> 	}
+> 
+> should work just fine? Ignoring all details, we have
+> 
+> 	get_online_cpus()
+> 	{
+> 	again:
+> 		preempt_disable();
+> 
+> 		__this_cpu_inc(__cpuhp_refcount);
+> 
+> 		mb();
+> 
+> 		if (state == BLOCK) {
+> 
+> 			mb();
+> 
+> 			__this_cpu_dec(__cpuhp_refcount);
+> 			wake_up_all(cpuhp_writer);
+> 
+> 			preempt_enable();
+> 			wait_event(state != BLOCK);
+> 			goto again;
+> 		}
+> 
+> 		preempt_enable();
+> 	}
+> 
+> It seems to me that these mb's guarantee all we need, no?
+> 
+> It looks really simple. The reader can only succed if it doesn't see
+> BLOCK, in this case per_cpu_sum() should see the change,
+> 
+> We have
+> 
+> 	WRITER					READER on CPU X
+> 
+> 	state = BLOCK;				__cpuhp_refcount[X]++;
+> 
+> 	mb();					mb();
+> 
+> 	...
+> 	count += __cpuhp_refcount[X];		if (state != BLOCK)
+> 	...						return;
+> 
+> 						mb();
+> 						__cpuhp_refcount[X]--;
+> 
+> Either reader or writer should notice the STORE we care about.
+> 
+> If a reader can decrement __cpuhp_refcount, we have 2 cases:
+> 
+> 	1. It is the reader holding this lock. In this case we
+> 	   can't miss the corresponding inc() done by this reader,
+> 	   because this reader didn't see BLOCK in the past.
+> 
+> 	   It is just the
+> 
+> 			A == B == 0
+> 	   	CPU_0			CPU_1
+> 	   	-----			-----
+> 	   	A = 1;			B = 1;
+> 	   	mb();			mb();
+> 	   	b = B;			a = A;
+> 
+> 	   pattern, at least one CPU should see 1 in its a/b.
+> 
+> 	2. It is the reader which tries to take this lock and
+> 	   noticed state == BLOCK. We could miss the result of
+> 	   its inc(), but we do not care, this reader is going
+> 	   to block.
+> 
+> 	   _If_ the reader could migrate between inc/dec, then
+> 	   yes, we have a problem. Because that dec() could make
+> 	   the result of per_cpu_sum() = 0. IOW, we could miss
+> 	   inc() but notice dec(). But given that it does this
+> 	   on the same CPU this is not possible.
+> 
+> So why do we need cpuhp_seq?
+
+Good question, I will look again.
+
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
