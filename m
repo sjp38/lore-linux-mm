@@ -1,35 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 290476B0031
-	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 18:46:15 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id r10so9138pdi.27
-        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 15:46:14 -0700 (PDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so156299pad.2
-        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 15:46:12 -0700 (PDT)
-Date: Tue, 1 Oct 2013 15:46:10 -0700 (PDT)
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id D30916B0031
+	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 19:31:27 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so196376pab.29
+        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 16:31:27 -0700 (PDT)
+Received: by mail-pd0-f169.google.com with SMTP id r10so51600pdi.28
+        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 16:31:25 -0700 (PDT)
+Date: Tue, 1 Oct 2013 16:31:23 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] OOM killer: wait for tasks with pending SIGKILL to
- exit
-In-Reply-To: <20131001192640.ed55682d3113b00b402bbef5@gmail.com>
-Message-ID: <alpine.DEB.2.02.1310011545310.14977@chino.kir.corp.google.com>
-References: <1378740624-2456-1-git-send-email-dserrg@gmail.com> <alpine.DEB.2.02.1309091303010.12523@chino.kir.corp.google.com> <20130911190605.5528ee4563272dbea1ed56a6@gmail.com> <alpine.DEB.2.02.1309251328130.24412@chino.kir.corp.google.com>
- <20130927185833.6c72b77ab105d70d4996ebef@gmail.com> <alpine.DEB.2.02.1309301457590.28109@chino.kir.corp.google.com> <20131001192640.ed55682d3113b00b402bbef5@gmail.com>
+Subject: [patch for-3.12] mm, memcg: protect mem_cgroup_read_events for cpu
+ hotplug
+Message-ID: <alpine.DEB.2.02.1310011629350.27758@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Dyasly <dserrg@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Rusty Russell <rusty@rustcorp.com.au>, Sha Zhengju <handai.szj@taobao.com>, Oleg Nesterov <oleg@redhat.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 1 Oct 2013, Sergey Dyasly wrote:
+for_each_online_cpu() needs the protection of {get,put}_online_cpus() so
+cpu_online_mask doesn't change during the iteration.
 
-> If you are ok with the first change in my patch regarding fatal_signal_pending,
-> I can send new patch with just that change.
-> 
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/memcontrol.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
-The entire patch is pointless, there's no need to give access to memory 
-reserves simply because it is PF_EXITING.  If it needs memory, it will 
-call the oom killer itself.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -866,6 +866,7 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
+ 	unsigned long val = 0;
+ 	int cpu;
+ 
++	get_online_cpus();
+ 	for_each_online_cpu(cpu)
+ 		val += per_cpu(memcg->stat->events[idx], cpu);
+ #ifdef CONFIG_HOTPLUG_CPU
+@@ -873,6 +874,7 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
+ 	val += memcg->nocpu_base.events[idx];
+ 	spin_unlock(&memcg->pcp_counter_lock);
+ #endif
++	put_online_cpus();
+ 	return val;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
