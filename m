@@ -1,131 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id F39E06B003A
-	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 06:00:08 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y13so7011608pdi.33
-        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 03:00:08 -0700 (PDT)
-Message-ID: <524A991D.3050005@cn.fujitsu.com>
-Date: Tue, 01 Oct 2013 17:42:53 +0800
-From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: [PATCH -mm 0/8] Arrange hotpluggable memory as ZONE_MOVABLE
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id BC68D6B0031
+	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 07:47:26 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id g10so7096749pdj.16
+        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 04:47:26 -0700 (PDT)
+From: Andrew Vagin <avagin@openvz.org>
+Subject: [PATCH] mm: don't forget to free shrinker->nr_deferred
+Date: Tue,  1 Oct 2013 15:47:47 +0400
+Message-Id: <1380628067-923868-1-git-send-email-avagin@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: robert.moore@intel.com, lv.zheng@intel.com, "Rafael J . Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, Rik van Riel <riel@redhat.com>, prarit@redhat.com, Toshi Kani <toshi.kani@hp.com>
-Cc: "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, Tang Chen <tangchen@cn.fujitsu.com>, imtangchen@gmail.com, Zhang Yanfei <zhangyanfei.yes@gmail.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrew Vagin <avagin@openvz.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@openvz.org>
 
-Hello guys, this is the part2 of our memory hotplug work. This part
-is based on the part1:
-    "x86, memblock: Allocate memory near kernel image before SRAT parsed"
+This leak was added by v3.11-8748-g1d3d443 "vmscan: per-node deferred work"
 
-You could refer part1 from: https://lkml.org/lkml/2013/9/24/421
+unreferenced object 0xffff88006ada3bd0 (size 8):
+  comm "criu", pid 14781, jiffies 4295238251 (age 105.641s)
+  hex dump (first 8 bytes):
+    00 00 00 00 00 00 00 00                          ........
+  backtrace:
+    [<ffffffff8170caee>] kmemleak_alloc+0x5e/0xc0
+    [<ffffffff811c0527>] __kmalloc+0x247/0x310
+    [<ffffffff8117848c>] register_shrinker+0x3c/0xa0
+    [<ffffffff811e115b>] sget+0x5ab/0x670
+    [<ffffffff812532f4>] proc_mount+0x54/0x170
+    [<ffffffff811e1893>] mount_fs+0x43/0x1b0
+    [<ffffffff81202dd2>] vfs_kern_mount+0x72/0x110
+    [<ffffffff81202e89>] kern_mount_data+0x19/0x30
+    [<ffffffff812530a0>] pid_ns_prepare_proc+0x20/0x40
+    [<ffffffff81083c56>] alloc_pid+0x466/0x4a0
+    [<ffffffff8105aeda>] copy_process+0xc6a/0x1860
+    [<ffffffff8105beab>] do_fork+0x8b/0x370
+    [<ffffffff8105c1a6>] SyS_clone+0x16/0x20
+    [<ffffffff8171f739>] stub_clone+0x69/0x90
+    [<ffffffffffffffff>] 0xffffffffffffffff
 
-Any comments are welcome! Thanks!
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Glauber Costa <glommer@openvz.org>
+Signed-off-by: Andrew Vagin <avagin@openvz.org>
+---
+ mm/vmscan.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
-[Problem]
-
-The current Linux cannot migrate pages used by the kerenl because
-of the kernel direct mapping. In Linux kernel space, va = pa + PAGE_OFFSET.
-When the pa is changed, we cannot simply update the pagetable and
-keep the va unmodified. So the kernel pages are not migratable.
-
-There are also some other issues will cause the kernel pages not migratable.
-For example, the physical address may be cached somewhere and will be used.
-It is not to update all the caches.
-
-When doing memory hotplug in Linux, we first migrate all the pages in one
-memory device somewhere else, and then remove the device. But if pages are
-used by the kernel, they are not migratable. As a result, memory used by
-the kernel cannot be hot-removed.
-
-Modifying the kernel direct mapping mechanism is too difficult to do. And
-it may cause the kernel performance down and unstable. So we use the following
-way to do memory hotplug.
-
-
-[What we are doing]
-
-In Linux, memory in one numa node is divided into several zones. One of the
-zones is ZONE_MOVABLE, which the kernel won't use.
-
-In order to implement memory hotplug in Linux, we are going to arrange all
-hotpluggable memory in ZONE_MOVABLE so that the kernel won't use these memory.
-
-To do this, we need ACPI's help.
-
-
-[How we do this]
-
-In ACPI, SRAT(System Resource Affinity Table) contains NUMA info. The memory
-affinities in SRAT record every memory range in the system, and also, flags
-specifying if the memory range is hotpluggable.
-(Please refer to ACPI spec 5.0 5.2.16)
-
-With the help of SRAT, we have to do the following two things to achieve our
-goal:
-
-1. When doing memory hot-add, allow the users arranging hotpluggable as
-   ZONE_MOVABLE.
-   (This has been done by the MOVABLE_NODE functionality in Linux.)
-
-2. when the system is booting, prevent bootmem allocator from allocating
-   hotpluggable memory for the kernel before the memory initialization
-   finishes.
-   (This is what we are going to do. See below.)
-
-
-[About this patch-set]
-
-In previous part's patches, we have make the kernel allocate memory near
-kernel image before SRAT parsed to avoid allocating hotpluggable memory
-for kernel. So this patch-set does the following things:
-
-1. Improve memblock to support flags, which are used to indicate different 
-   memory type.
-
-2. Mark all hotpluggable memory in memblock.memory[].
-
-3. Make the default memblock allocator skip hotpluggable memory.
-
-4. Improve "movable_node" boot option to have higher priority of movablecore
-   and kernelcore boot option.
-
-Tang Chen (7):
-  memblock, numa: Introduce flag into memblock.
-  memblock, mem_hotplug: Introduce MEMBLOCK_HOTPLUG flag to mark
-    hotpluggable regions
-  memblock: Make memblock_set_node() support different memblock_type.
-  acpi, numa, mem_hotplug: Mark hotpluggable memory in memblock
-  acpi, numa, mem_hotplug: Mark all nodes the kernel resides
-    un-hotpluggable
-  memblock, mem_hotplug: Make memblock skip hotpluggable regions by
-    default.
-  x86, numa, acpi, memory-hotplug: Make movable_node have higher
-    priority
-
-Yasuaki Ishimatsu (1):
-  x86: get pg_data_t's memory from other node
-
- arch/metag/mm/init.c           |    3 +-
- arch/metag/mm/numa.c           |    3 +-
- arch/microblaze/mm/init.c      |    3 +-
- arch/powerpc/mm/mem.c          |    2 +-
- arch/powerpc/mm/numa.c         |    8 ++-
- arch/sh/kernel/setup.c         |    4 +-
- arch/sparc/mm/init_64.c        |    5 +-
- arch/x86/kernel/setup.c        |    7 --
- arch/x86/mm/init_32.c          |    2 +-
- arch/x86/mm/init_64.c          |    2 +-
- arch/x86/mm/numa.c             |   63 +++++++++++++++++++--
- arch/x86/mm/srat.c             |   13 ++++
- include/linux/memblock.h       |   22 +++++++-
- include/linux/memory_hotplug.h |    5 ++
- mm/memblock.c                  |  124 ++++++++++++++++++++++++++++++++++------
- mm/memory_hotplug.c            |    3 +
- mm/page_alloc.c                |   30 +++++++++-
- 17 files changed, 253 insertions(+), 46 deletions(-)
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index beb3577..fbd191a 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -210,6 +210,8 @@ void unregister_shrinker(struct shrinker *shrinker)
+ 	down_write(&shrinker_rwsem);
+ 	list_del(&shrinker->list);
+ 	up_write(&shrinker_rwsem);
++
++	kfree(shrinker->nr_deferred);
+ }
+ EXPORT_SYMBOL(unregister_shrinker);
+ 
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
