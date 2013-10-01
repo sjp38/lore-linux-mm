@@ -1,63 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 0901D6B0039
-	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 13:36:30 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id wz12so7389441pbc.25
-        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 10:36:30 -0700 (PDT)
-Date: Tue, 1 Oct 2013 19:36:15 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
-Message-ID: <20131001173615.GW3657@laptop.programming.kicks-ass.net>
-References: <20130925175055.GA25914@redhat.com>
- <20130928144720.GL15690@laptop.programming.kicks-ass.net>
- <20130928163104.GA23352@redhat.com>
- <7632387.20FXkuCITr@vostro.rjw.lan>
- <524B0233.8070203@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <524B0233.8070203@linux.vnet.ibm.com>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id D098F6B0036
+	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 13:43:52 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id fa1so7816971pad.33
+        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 10:43:52 -0700 (PDT)
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: [PATCH] mm: kmemleak: Avoid false negatives on vmalloc'ed objects
+Date: Tue,  1 Oct 2013 18:43:27 +0100
+Message-Id: <1380649407-27101-1-git-send-email-catalin.marinas@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>, Oleg Nesterov <oleg@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>, Viresh Kumar <viresh.kumar@linaro.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Oct 01, 2013 at 10:41:15PM +0530, Srivatsa S. Bhat wrote:
-> However, as Oleg said, its definitely worth considering whether this proposed
-> change in semantics is going to hurt us in the future. CPU_POST_DEAD has certainly
-> proved to be very useful in certain challenging situations (commit 1aee40ac9c
-> explains one such example), so IMHO we should be very careful not to undermine
-> its utility.
+Commit 248ac0e1 (mm/vmalloc: remove guard page from between vmap blocks)
+had the side effect of making vmap_area.va_end member point to the next
+vmap_area.va_start. This was creating an artificial reference to
+vmalloc'ed objects and kmemleak was rarely reporting vmalloc() leaks.
 
-Urgh.. crazy things. I've always understood POST_DEAD to mean 'will be
-called at some time after the unplug' with no further guarantees. And my
-patch preserves that.
+This patch marks the vmap_area containing pointers explicitly and
+reduces the min ref_count to 2 as vm_struct still contains a reference
+to the vmalloc'ed object. The kmemleak add_scan_area() function has been
+improved to allow a SIZE_MAX argument covering the rest of the object
+(for simpler calling sites).
 
-Its not at all clear to me why cpufreq needs more; 1aee40ac9c certainly
-doesn't explain it.
+Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+---
 
-What's wrong with leaving a cleanup handle in percpu storage and
-effectively doing:
+It looks like it's been a while since kmemleak's effectiveness on
+catching vmalloc leaks was reduced. Let's see if the reports increase
+now.
 
-struct cpu_destroy {
-	void (*destroy)(void *);
-	void *args;
-};
+ mm/kmemleak.c |  4 +++-
+ mm/vmalloc.c  | 14 ++++++++++----
+ 2 files changed, 13 insertions(+), 5 deletions(-)
 
-DEFINE_PER_CPU(struct cpu_destroy, cpu_destroy);
-
-	POST_DEAD:
-	{
-		struct cpu_destroy x = per_cpu(cpu_destroy, cpu);
-		if (x.destroy)
-			x.destroy(x.arg);
-	}
-
-POST_DEAD cannot fail; so CPU_DEAD/CPU_DOWN_PREPARE can simply assume it
-will succeed; it has to.
-
-The cpufreq situation simply doesn't make any kind of sense to me.
-
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index 8d84859..ecf1f83 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -753,7 +753,9 @@ static void add_scan_area(unsigned long ptr, size_t size, gfp_t gfp)
+ 	}
+ 
+ 	spin_lock_irqsave(&object->lock, flags);
+-	if (ptr + size > object->pointer + object->size) {
++	if (size == SIZE_MAX) {
++		size = object->pointer + object->size - ptr;
++	} else if (ptr + size > object->pointer + object->size) {
+ 		kmemleak_warn("Scan area larger than object 0x%08lx\n", ptr);
+ 		dump_object_info(object);
+ 		kmem_cache_free(scan_area_cache, area);
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 1074543..e2be0f8 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -359,6 +359,12 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+ 	if (unlikely(!va))
+ 		return ERR_PTR(-ENOMEM);
+ 
++	/*
++	 * Only scan the relevant parts containing pointers to other objects
++	 * to avoid false negatives.
++	 */
++	kmemleak_scan_area(&va->rb_node, SIZE_MAX, gfp_mask & GFP_RECLAIM_MASK);
++
+ retry:
+ 	spin_lock(&vmap_area_lock);
+ 	/*
+@@ -1646,11 +1652,11 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+ 	clear_vm_uninitialized_flag(area);
+ 
+ 	/*
+-	 * A ref_count = 3 is needed because the vm_struct and vmap_area
+-	 * structures allocated in the __get_vm_area_node() function contain
+-	 * references to the virtual address of the vmalloc'ed block.
++	 * A ref_count = 2 is needed because vm_struct allocated in
++	 * __get_vm_area_node() contains a reference to the virtual address of
++	 * the vmalloc'ed block.
+ 	 */
+-	kmemleak_alloc(addr, real_size, 3, gfp_mask);
++	kmemleak_alloc(addr, real_size, 2, gfp_mask);
+ 
+ 	return addr;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
