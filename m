@@ -1,45 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D3C739C0007
-	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 10:29:06 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id jt11so945343pbb.24
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 07:29:06 -0700 (PDT)
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 772A0900006
+	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 10:29:07 -0400 (EDT)
+Received: by mail-pb0-f47.google.com with SMTP id rr4so947600pbb.34
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 07:29:07 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 12/26] pvr2fb: Convert pvr2fb_write() to use get_user_pages_fast()
-Date: Wed,  2 Oct 2013 16:27:53 +0200
-Message-Id: <1380724087-13927-13-git-send-email-jack@suse.cz>
+Subject: [PATCH 21/26] ib: Convert ipath_get_user_pages() to get_user_pages_unlocked()
+Date: Wed,  2 Oct 2013 16:28:02 +0200
+Message-Id: <1380724087-13927-22-git-send-email-jack@suse.cz>
 In-Reply-To: <1380724087-13927-1-git-send-email-jack@suse.cz>
 References: <1380724087-13927-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, linux-fbdev@vger.kernel.org, Tomi Valkeinen <tomi.valkeinen@ti.com>, Jean-Christophe Plagniol-Villard <plagnioj@jcrosoft.com>
+Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Mike Marciniszyn <infinipath@intel.com>, Roland Dreier <roland@kernel.org>, linux-rdma@vger.kernel.org
 
-CC: linux-fbdev@vger.kernel.org
-CC: Tomi Valkeinen <tomi.valkeinen@ti.com>
-CC: Jean-Christophe Plagniol-Villard <plagnioj@jcrosoft.com>
+Convert ipath_get_user_pages() to use get_user_pages_unlocked(). This
+shortens the section where we hold mmap_sem for writing and also removes
+the knowledge about get_user_pages() locking from ipath driver. We also
+fix a bug in testing pinned number of pages when changing the code.
+
+CC: Mike Marciniszyn <infinipath@intel.com>
+CC: Roland Dreier <roland@kernel.org>
+CC: linux-rdma@vger.kernel.org
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- drivers/video/pvr2fb.c | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ drivers/infiniband/hw/ipath/ipath_user_pages.c | 62 +++++++++++---------------
+ 1 file changed, 27 insertions(+), 35 deletions(-)
 
-diff --git a/drivers/video/pvr2fb.c b/drivers/video/pvr2fb.c
-index df07860563e6..31e1345a88a8 100644
---- a/drivers/video/pvr2fb.c
-+++ b/drivers/video/pvr2fb.c
-@@ -686,11 +686,7 @@ static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
- 	if (!pages)
- 		return -ENOMEM;
+diff --git a/drivers/infiniband/hw/ipath/ipath_user_pages.c b/drivers/infiniband/hw/ipath/ipath_user_pages.c
+index dc66c4506916..a89af9654112 100644
+--- a/drivers/infiniband/hw/ipath/ipath_user_pages.c
++++ b/drivers/infiniband/hw/ipath/ipath_user_pages.c
+@@ -52,40 +52,58 @@ static void __ipath_release_user_pages(struct page **p, size_t num_pages,
+ 	}
+ }
  
--	down_read(&current->mm->mmap_sem);
--	ret = get_user_pages(current, current->mm, (unsigned long)buf,
--			     nr_pages, WRITE, 0, pages, NULL);
--	up_read(&current->mm->mmap_sem);
+-/* call with current->mm->mmap_sem held */
+-static int __ipath_get_user_pages(unsigned long start_page, size_t num_pages,
+-				  struct page **p, struct vm_area_struct **vma)
++/**
++ * ipath_get_user_pages - lock user pages into memory
++ * @start_page: the start page
++ * @num_pages: the number of pages
++ * @p: the output page structures
++ *
++ * This function takes a given start page (page aligned user virtual
++ * address) and pins it and the following specified number of pages.  For
++ * now, num_pages is always 1, but that will probably change at some point
++ * (because caller is doing expected sends on a single virtually contiguous
++ * buffer, so we can do all pages at once).
++ */
++int ipath_get_user_pages(unsigned long start_page, size_t num_pages,
++			 struct page **p)
+ {
+ 	unsigned long lock_limit;
+ 	size_t got;
+ 	int ret;
+ 
++	down_write(&current->mm->mmap_sem);
+ 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+ 
+-	if (num_pages > lock_limit) {
++	if (current->mm->pinned_vm + num_pages > lock_limit && 
++	    !capable(CAP_IPC_LOCK)) {
++		up_write(&current->mm->mmap_sem);
+ 		ret = -ENOMEM;
+ 		goto bail;
+ 	}
++	current->mm->pinned_vm += num_pages;
++	up_write(&current->mm->mmap_sem);
+ 
+ 	ipath_cdbg(VERBOSE, "pin %lx pages from vaddr %lx\n",
+ 		   (unsigned long) num_pages, start_page);
+ 
+ 	for (got = 0; got < num_pages; got += ret) {
+-		ret = get_user_pages(current, current->mm,
+-				     start_page + got * PAGE_SIZE,
+-				     num_pages - got, 1, 1,
+-				     p + got, vma);
++		ret = get_user_pages_unlocked(current, current->mm,
++					      start_page + got * PAGE_SIZE,
++					      num_pages - got, 1, 1,
++					      p + got);
+ 		if (ret < 0)
+ 			goto bail_release;
+ 	}
+ 
+-	current->mm->pinned_vm += num_pages;
+ 
+ 	ret = 0;
+ 	goto bail;
+ 
+ bail_release:
+ 	__ipath_release_user_pages(p, got, 0);
++	down_write(&current->mm->mmap_sem);
++	current->mm->pinned_vm -= num_pages;
++	up_write(&current->mm->mmap_sem);
+ bail:
+ 	return ret;
+ }
+@@ -146,32 +164,6 @@ dma_addr_t ipath_map_single(struct pci_dev *hwdev, void *ptr, size_t size,
+ 	return phys;
+ }
+ 
+-/**
+- * ipath_get_user_pages - lock user pages into memory
+- * @start_page: the start page
+- * @num_pages: the number of pages
+- * @p: the output page structures
+- *
+- * This function takes a given start page (page aligned user virtual
+- * address) and pins it and the following specified number of pages.  For
+- * now, num_pages is always 1, but that will probably change at some point
+- * (because caller is doing expected sends on a single virtually contiguous
+- * buffer, so we can do all pages at once).
+- */
+-int ipath_get_user_pages(unsigned long start_page, size_t num_pages,
+-			 struct page **p)
+-{
+-	int ret;
 -
-+	ret = get_user_pages_fast((unsigned long)buf, nr_pages, WRITE, pages);
- 	if (ret < nr_pages) {
- 		nr_pages = ret;
- 		ret = -EINVAL;
+-	down_write(&current->mm->mmap_sem);
+-
+-	ret = __ipath_get_user_pages(start_page, num_pages, p, NULL);
+-
+-	up_write(&current->mm->mmap_sem);
+-
+-	return ret;
+-}
+-
+ void ipath_release_user_pages(struct page **p, size_t num_pages)
+ {
+ 	down_write(&current->mm->mmap_sem);
 -- 
 1.8.1.4
 
