@@ -1,57 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E09C900004
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 4412D9C000A
 	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 10:29:06 -0400 (EDT)
-Received: by mail-pb0-f44.google.com with SMTP id xa7so956864pbc.3
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 07:29:06 -0700 (PDT)
+Received: by mail-pd0-f177.google.com with SMTP id y10so947933pdj.36
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 07:29:05 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 14/26] nfs: Convert direct IO to use get_user_pages_fast()
-Date: Wed,  2 Oct 2013 16:27:55 +0200
-Message-Id: <1380724087-13927-15-git-send-email-jack@suse.cz>
+Subject: [PATCH 25/26] ib: Convert mthca_map_user_db() to use get_user_pages_fast()
+Date: Wed,  2 Oct 2013 16:28:06 +0200
+Message-Id: <1380724087-13927-26-git-send-email-jack@suse.cz>
 In-Reply-To: <1380724087-13927-1-git-send-email-jack@suse.cz>
 References: <1380724087-13927-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Trond Myklebust <Trond.Myklebust@netapp.com>, linux-nfs@vger.kernel.org
+Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Roland Dreier <roland@kernel.org>, linux-rdma@vger.kernel.org
 
-CC: Trond Myklebust <Trond.Myklebust@netapp.com>
-CC: linux-nfs@vger.kernel.org
+Function mthca_map_user_db() appears to call get_user_pages() without
+holding mmap_sem. Fix the bug by using get_user_pages_fast() instead
+which also takes care of the locking.
+
+CC: Roland Dreier <roland@kernel.org>
+CC: linux-rdma@vger.kernel.org
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/nfs/direct.c | 12 ++++--------
- 1 file changed, 4 insertions(+), 8 deletions(-)
+ drivers/infiniband/hw/mthca/mthca_memfree.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/fs/nfs/direct.c b/fs/nfs/direct.c
-index 91ff089d3412..1aaf4aa2b3d7 100644
---- a/fs/nfs/direct.c
-+++ b/fs/nfs/direct.c
-@@ -337,10 +337,8 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_pageio_descriptor *de
- 		if (!pagevec)
- 			break;
- 		if (uio) {
--			down_read(&current->mm->mmap_sem);
--			result = get_user_pages(current, current->mm, user_addr,
--					npages, 1, 0, pagevec, NULL);
--			up_read(&current->mm->mmap_sem);
-+			result = get_user_pages_fast(user_addr, npages, 1,
-+						     pagevec);
- 			if (result < 0)
- 				break;
- 		} else {
-@@ -658,10 +656,8 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_pageio_descriptor *d
- 			break;
+diff --git a/drivers/infiniband/hw/mthca/mthca_memfree.c b/drivers/infiniband/hw/mthca/mthca_memfree.c
+index 7d2e42dd6926..c3543b27a2a7 100644
+--- a/drivers/infiniband/hw/mthca/mthca_memfree.c
++++ b/drivers/infiniband/hw/mthca/mthca_memfree.c
+@@ -472,8 +472,7 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
+ 		goto out;
+ 	}
  
- 		if (uio) {
--			down_read(&current->mm->mmap_sem);
--			result = get_user_pages(current, current->mm, user_addr,
--						npages, 0, 0, pagevec, NULL);
--			up_read(&current->mm->mmap_sem);
-+			result = get_user_pages_fast(user_addr, npages, 0,
-+						     pagevec);
- 			if (result < 0)
- 				break;
- 		} else {
+-	ret = get_user_pages(current, current->mm, uaddr & PAGE_MASK, 1, 1, 0,
+-			     pages, NULL);
++	ret = get_user_pages_fast(uaddr & PAGE_MASK, 1, 1, pages);
+ 	if (ret < 0)
+ 		goto out;
+ 
 -- 
 1.8.1.4
 
