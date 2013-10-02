@@ -1,68 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C3776B004D
-	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 15:39:37 -0400 (EDT)
-Received: by mail-pb0-f43.google.com with SMTP id md4so1350519pbc.2
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 12:39:36 -0700 (PDT)
-Date: Wed, 2 Oct 2013 21:39:33 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 16/26] mm: Provide get_user_pages_unlocked()
-Message-ID: <20131002193933.GC16998@quack.suse.cz>
-References: <1380724087-13927-1-git-send-email-jack@suse.cz>
- <1380724087-13927-17-git-send-email-jack@suse.cz>
- <524C499B.9090707@gmail.com>
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id AC68A6B0055
+	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 15:41:10 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id x10so1361482pdj.29
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 12:41:10 -0700 (PDT)
+From: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+Subject: Re: [PATCH 05/26] omap3isp: Make isp_video_buffer_prepare_user() use get_user_pages_fast()
+Date: Wed, 02 Oct 2013 21:41:10 +0200
+Message-ID: <11048370.rLWI050cLv@avalon>
+In-Reply-To: <1380724087-13927-6-git-send-email-jack@suse.cz>
+References: <1380724087-13927-1-git-send-email-jack@suse.cz> <1380724087-13927-6-git-send-email-jack@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <524C499B.9090707@gmail.com>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-media@vger.kernel.org
 
-On Wed 02-10-13 12:28:11, KOSAKI Motohiro wrote:
-> (10/2/13 10:27 AM), Jan Kara wrote:
-> > Provide a wrapper for get_user_pages() which takes care of acquiring and
-> > releasing mmap_sem. Using this function reduces amount of places in
-> > which we deal with mmap_sem.
-> > 
-> > Signed-off-by: Jan Kara <jack@suse.cz>
-> > ---
-> >   include/linux/mm.h | 14 ++++++++++++++
-> >   1 file changed, 14 insertions(+)
-> > 
-> > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > index 8b6e55ee8855..70031ead06a5 100644
-> > --- a/include/linux/mm.h
-> > +++ b/include/linux/mm.h
-> > @@ -1031,6 +1031,20 @@ long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-> >   		    struct vm_area_struct **vmas);
-> >   int get_user_pages_fast(unsigned long start, int nr_pages, int write,
-> >   			struct page **pages);
-> > +static inline long
-> > +get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
-> > +		 	unsigned long start, unsigned long nr_pages,
-> > +			int write, int force, struct page **pages)
-> > +{
-> > +	long ret;
-> > +
-> > +	down_read(&mm->mmap_sem);
-> > +	ret = get_user_pages(tsk, mm, start, nr_pages, write, force, pages,
-> > +			     NULL);
-> > +	up_read(&mm->mmap_sem);
-> > +	return ret;
-> > +}
+Hi Jan,
+
+Thank you for the patch.
+
+On Wednesday 02 October 2013 16:27:46 Jan Kara wrote:
+> CC: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+> CC: linux-media@vger.kernel.org
+> Signed-off-by: Jan Kara <jack@suse.cz>
+
+Acked-by: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+
+Could you briefly explain where you're headed with this ? The V4L2 subsystem 
+has suffered for quite a long time from potentiel AB-BA deadlocks, due the 
+drivers taking the mmap_sem semaphore while holding the V4L2 buffers queue 
+lock in the code path below, and taking them in reverse order in the mmap() 
+path (as the mm core takes the mmap_sem semaphore before calling the mmap() 
+operation). We've solved that by releasing the V4L2 buffers queue lock before 
+taking the mmap_sem lock below and taking it back after releasing the mmap_sem 
+lock. Having an explicit indication that the mmap_sem lock was taken helped 
+keeping the problem in mind. I'm not against hiding it in 
+get_user_pages_fast(), but I'd like to know what the next step is. Maybe it 
+would also be worth it adding a /* get_user_pages_fast() takes the mmap_sem */ 
+comment before the call ?
+
+> ---
+>  drivers/media/platform/omap3isp/ispqueue.c | 10 +++-------
+>  1 file changed, 3 insertions(+), 7 deletions(-)
 > 
-> Hmmm. I like the idea, but I really dislike this name. I don't like xx_unlocked 
-> function takes a lock. It is a source of confusing, I believe. 
-  Sure, I'm not very happy about the name either. As Christoph wrote
-probably renaming all get_user_pages() variants might be appropriate. I'll
-think about names some more.
-
-								Honza
+> diff --git a/drivers/media/platform/omap3isp/ispqueue.c
+> b/drivers/media/platform/omap3isp/ispqueue.c index
+> e15f01342058..bed380395e6c 100644
+> --- a/drivers/media/platform/omap3isp/ispqueue.c
+> +++ b/drivers/media/platform/omap3isp/ispqueue.c
+> @@ -331,13 +331,9 @@ static int isp_video_buffer_prepare_user(struct
+> isp_video_buffer *buf) if (buf->pages == NULL)
+>  		return -ENOMEM;
+> 
+> -	down_read(&current->mm->mmap_sem);
+> -	ret = get_user_pages(current, current->mm, data & PAGE_MASK,
+> -			     buf->npages,
+> -			     buf->vbuf.type == V4L2_BUF_TYPE_VIDEO_CAPTURE, 0,
+> -			     buf->pages, NULL);
+> -	up_read(&current->mm->mmap_sem);
+> -
+> +	ret = get_user_pages_fast(data & PAGE_MASK, buf->npages,
+> +				  buf->vbuf.type == V4L2_BUF_TYPE_VIDEO_CAPTURE,
+> +				  buf->pages);
+>  	if (ret != buf->npages) {
+>  		buf->npages = ret < 0 ? 0 : ret;
+>  		isp_video_buffer_cleanup(buf);
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Regards,
+
+Laurent Pinchart
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
