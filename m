@@ -1,43 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 67FE66B0036
-	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 13:15:39 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id rd3so1304188pab.32
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 10:15:39 -0700 (PDT)
-Message-ID: <524C54B8.2060107@ubuntu.com>
-Date: Wed, 02 Oct 2013 13:15:36 -0400
-From: Phillip Susi <psusi@ubuntu.com>
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id BC5A46B0036
+	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 13:48:29 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rp2so1221051pbb.28
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 10:48:29 -0700 (PDT)
+Message-ID: <524C5BFB.5050501@zytor.com>
+Date: Wed, 02 Oct 2013 10:46:35 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Subject: readahead man page incorrectly says it blocks
+Subject: Re: [RESEND PATCH] x86: add phys addr validity check for /dev/mem
+ mmap
+References: <20131002160514.GA25471@localhost.localdomain>
+In-Reply-To: <20131002160514.GA25471@localhost.localdomain>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Frantisek Hrbata <fhrbata@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, oleg@redhat.com, kamaleshb@in.ibm.com, hechjie@cn.ibm.com, akpm@linux-foundation.org, dave.hansen@intel.com
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+On 10/02/2013 09:05 AM, Frantisek Hrbata wrote:
+> +
+> +int valid_phys_addr_range(phys_addr_t addr, size_t count)
+> +{
+> +	return addr + count <= __pa(high_memory);
+> +}
+> +
+> +int valid_mmap_phys_addr_range(unsigned long pfn, size_t count)
+> +{
+> +	resource_size_t addr = (pfn << PAGE_SHIFT) + count;
+> +	return phys_addr_valid(addr);
+> +}
+> 
 
-The man page for readahead(2) incorrectly claims that it blocks until
-all of the requested data has been read.  I filed a bug a few months
-ago to have this corrected, but I think it is being ignored now
-because they don't believe me that it isn't supposed to block.  Could
-someone help back me up and get this fixed?
+The latter has overflow problems.
 
-https://bugzilla.kernel.org/show_bug.cgi?id=54271
+The former I realize matches the current /dev/mem, but it is still just
+plain wrong in multiple ways.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.17 (MingW32)
-Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
-
-iQEcBAEBAgAGBQJSTFS4AAoJEJrBOlT6nu756hwIAJKQZnvazqLi8excUCrqc+HQ
-TSokhlBLBqRtk5nGN6X0UpDZ6KPFn0qsRpnhQApyk46nU/ru1YbbZLEtHgrWwaFW
-g2V+L248hIyYOYSAr/RCj9g4Zx5yMit6BOM1virD0VJ0cRDSA6mbNI0bVmTxEf+f
-9UF2rwnXW63u3NwGjEMboVWCCOrfV3AGCTC31KTY/e2e1SUIlD8IIaRxW0RkVmVj
-PCmSVPvpaZoLaDgQ0F+sBBzLrCp9r72UT7j58Zzurj1GaIG2VEVAXKKij0b2Xtxg
-vjzflgrMd72pLhb+ppk/RP20FWmp6PJ3wKbK7zVrvILVHzSaoncDApURG/nBpHE=
-=zmD3
------END PGP SIGNATURE-----
+	-hpa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
