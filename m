@@ -1,30 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id BDB3E6B0038
-	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 10:43:32 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id wz12so962936pbc.25
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 07:43:32 -0700 (PDT)
-Date: Wed, 2 Oct 2013 14:43:29 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] Problems with RAID 4/5/6 and kmem_cache
-In-Reply-To: <CAOJsxLGaNe_cap7fx8ZRZPWqkQhUbpA07Qhtgsg_+c5JdgV=qQ@mail.gmail.com>
-Message-ID: <00000141799facf7-d62f6643-9499-4a8b-8a13-b9c751316d97-000000@email.amazonses.com>
-References: <1379646960-12553-1-git-send-email-jbrassow@redhat.com> <0000014142863060-919062ff-7284-445d-b3ec-f38cc8d5a6c8-000000@email.amazonses.com> <CAOJsxLGaNe_cap7fx8ZRZPWqkQhUbpA07Qhtgsg_+c5JdgV=qQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 640456B0039
+	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 10:43:54 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id kq14so1113431pab.40
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 07:43:54 -0700 (PDT)
+From: Jan Kara <jack@suse.cz>
+Subject: [PATCH 0/26] get_user_pages() cleanup
+Date: Wed,  2 Oct 2013 16:27:41 +0200
+Message-Id: <1380724087-13927-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Jonathan Brassow <jbrassow@redhat.com>, linux-raid@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <andreas.dilger@intel.com>, Andy Walls <awalls@md.metrocast.net>, Arnd Bergmann <arnd@arndb.de>, Benjamin LaHaise <bcrl@kvack.org>, ceph-devel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, David Airlie <airlied@linux.ie>, dri-devel@lists.freedesktop.org, Gleb Natapov <gleb@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, hpdd-discuss@lists.01.org, Jarod Wilson <jarod@wilsonet.com>, Jayant Mangalampalli <jayant.mangalampalli@intel.com>, Jean-Christophe Plagniol-Villard <plagnioj@jcrosoft.com>, Jesper Nilsson <jesper.nilsson@axis.com>, Kai Makisara <Kai.Makisara@kolumbus.fi>, kvm@vger.kernel.org, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, linux-aio@kvack.org, linux-cris-kernel@axis.com, linux-fbdev@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-media@vger.kernel.org, linux-nfs@vger.kernel.org, linux-rdma@vger.kernel.org, linux-scsi@vger.kernel.org, Manu Abraham <abraham.manu@gmail.com>, Mark Allyn <mark.a.allyn@intel.com>, Mikael Starvik <starvik@axis.com>, Mike Marciniszyn <infinipath@intel.com>, Naren Sankar <nsankar@broadcom.com>, Paolo Bonzini <pbonzini@redhat.com>, Peng Tao <tao.peng@emc.com>, Roland Dreier <roland@kernel.org>, Sage Weil <sage@inktank.com>, Scott Davilla <davilla@4pi.com>, Timur Tabi <timur@freescale.com>, Tomi Valkeinen <tomi.valkeinen@ti.com>, Tony Luck <tony.luck@intel.com>, Trond Myklebust <Trond.Myklebust@netapp.com>
 
-On Sat, 28 Sep 2013, Pekka Enberg wrote:
+  Hello,
 
-> Do we need to come up with something less #ifdeffy for v3.13?
+  In my quest for changing locking around page faults to make things easier for
+filesystems I found out get_user_pages() users could use a cleanup.  The
+knowledge about necessary locking for get_user_pages() is in tons of places in
+drivers and quite a few of them actually get it wrong (don't have mmap_sem when
+calling get_user_pages() or hold mmap_sem when calling copy_from_user() in the
+surrounding code). Rather often this actually doesn't seem necessary. This
+patch series converts lots of places to use either get_user_pages_fast()
+or a new simple wrapper get_user_pages_unlocked() to remove the knowledge
+of mmap_sem from the drivers. I'm still looking into converting a few remaining
+drivers (most notably v4l2) which are more complex.
 
-It would be nice to have something that also checks the runtime debug
-configuration. But so far debugging is only switchable at runtime for SLUB
-and not for SLAB. We could get that when we unify the object debugging in
-both allocators.
+As I already wrote, in some cases I actually think drivers were buggy (and I
+note that in corresponding changelogs). I would really like to ask respective
+maintainers to have a look at the patches in their area. Also any other
+comments are welcome. Thanks.
+
+								Honza
+
+PS: Sorry for the huge recipient list but I don't really know how to trim it
+    down...
+
+CC: Alexander Viro <viro@zeniv.linux.org.uk>
+CC: Andreas Dilger <andreas.dilger@intel.com>
+CC: Andy Walls <awalls@md.metrocast.net>
+CC: Arnd Bergmann <arnd@arndb.de>
+CC: Benjamin LaHaise <bcrl@kvack.org>
+CC: ceph-devel@vger.kernel.org
+CC: Dan Williams <dan.j.williams@intel.com>
+CC: David Airlie <airlied@linux.ie>
+CC: dri-devel@lists.freedesktop.org
+CC: Gleb Natapov <gleb@redhat.com>
+CC: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+CC: hpdd-discuss@lists.01.org
+CC: Jarod Wilson <jarod@wilsonet.com>
+CC: Jayant Mangalampalli <jayant.mangalampalli@intel.com>
+CC: Jean-Christophe Plagniol-Villard <plagnioj@jcrosoft.com>
+CC: Jesper Nilsson <jesper.nilsson@axis.com>
+CC: Kai Makisara <Kai.Makisara@kolumbus.fi>
+CC: kvm@vger.kernel.org
+CC: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+CC: linux-aio@kvack.org
+CC: linux-cris-kernel@axis.com
+CC: linux-fbdev@vger.kernel.org
+CC: linux-fsdevel@vger.kernel.org
+CC: linux-ia64@vger.kernel.org
+CC: linux-media@vger.kernel.org
+CC: linux-nfs@vger.kernel.org
+CC: linux-rdma@vger.kernel.org
+CC: linux-scsi@vger.kernel.org
+CC: Manu Abraham <abraham.manu@gmail.com>
+CC: Mark Allyn <mark.a.allyn@intel.com>
+CC: Mikael Starvik <starvik@axis.com>
+CC: Mike Marciniszyn <infinipath@intel.com>
+CC: Naren Sankar <nsankar@broadcom.com>
+CC: Paolo Bonzini <pbonzini@redhat.com>
+CC: Peng Tao <tao.peng@emc.com>
+CC: Roland Dreier <roland@kernel.org>
+CC: Sage Weil <sage@inktank.com>
+CC: Scott Davilla <davilla@4pi.com>
+CC: Timur Tabi <timur@freescale.com>
+CC: Tomi Valkeinen <tomi.valkeinen@ti.com>
+CC: Tony Luck <tony.luck@intel.com>
+CC: Trond Myklebust <Trond.Myklebust@netapp.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
