@@ -1,46 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 852E56B0038
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id CD6DA6B0038
 	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 10:29:02 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id ld10so1089033pab.8
+Received: by mail-pb0-f44.google.com with SMTP id xa7so949402pbc.31
         for <linux-mm@kvack.org>; Wed, 02 Oct 2013 07:29:02 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 13/26] fsl_hypervisor: Convert ioctl_memcpy() to use get_user_pages_fast()
-Date: Wed,  2 Oct 2013 16:27:54 +0200
-Message-Id: <1380724087-13927-14-git-send-email-jack@suse.cz>
+Subject: [PATCH 16/26] mm: Provide get_user_pages_unlocked()
+Date: Wed,  2 Oct 2013 16:27:57 +0200
+Message-Id: <1380724087-13927-17-git-send-email-jack@suse.cz>
 In-Reply-To: <1380724087-13927-1-git-send-email-jack@suse.cz>
 References: <1380724087-13927-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Timur Tabi <timur@freescale.com>
+Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>
 
-CC: Timur Tabi <timur@freescale.com>
+Provide a wrapper for get_user_pages() which takes care of acquiring and
+releasing mmap_sem. Using this function reduces amount of places in
+which we deal with mmap_sem.
+
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- drivers/virt/fsl_hypervisor.c | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ include/linux/mm.h | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
 
-diff --git a/drivers/virt/fsl_hypervisor.c b/drivers/virt/fsl_hypervisor.c
-index d294f67d6f84..791a46a5dd2a 100644
---- a/drivers/virt/fsl_hypervisor.c
-+++ b/drivers/virt/fsl_hypervisor.c
-@@ -242,13 +242,8 @@ static long ioctl_memcpy(struct fsl_hv_ioctl_memcpy __user *p)
- 	sg_list = PTR_ALIGN(sg_list_unaligned, sizeof(struct fh_sg_list));
- 
- 	/* Get the physical addresses of the source buffer */
--	down_read(&current->mm->mmap_sem);
--	num_pinned = get_user_pages(current, current->mm,
--		param.local_vaddr - lb_offset, num_pages,
--		(param.source == -1) ? READ : WRITE,
--		0, pages, NULL);
--	up_read(&current->mm->mmap_sem);
--
-+	num_pinned = get_user_pages_fast(param.local_vaddr - lb_offset,
-+		num_pages, (param.source == -1) ? READ : WRITE, pages);
- 	if (num_pinned != num_pages) {
- 		/* get_user_pages() failed */
- 		pr_debug("fsl-hv: could not lock source buffer\n");
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 8b6e55ee8855..70031ead06a5 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1031,6 +1031,20 @@ long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		    struct vm_area_struct **vmas);
+ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 			struct page **pages);
++static inline long
++get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
++		 	unsigned long start, unsigned long nr_pages,
++			int write, int force, struct page **pages)
++{
++	long ret;
++
++	down_read(&mm->mmap_sem);
++	ret = get_user_pages(tsk, mm, start, nr_pages, write, force, pages,
++			     NULL);
++	up_read(&mm->mmap_sem);
++	return ret;
++}
++
+ struct kvec;
+ int get_kernel_pages(const struct kvec *iov, int nr_pages, int write,
+ 			struct page **pages);
 -- 
 1.8.1.4
 
