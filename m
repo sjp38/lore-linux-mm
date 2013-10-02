@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D2D26B0031
-	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 08:25:26 -0400 (EDT)
-Received: by mail-pb0-f45.google.com with SMTP id mc17so805741pbc.4
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 05:25:25 -0700 (PDT)
-Date: Wed, 2 Oct 2013 14:25:07 +0200
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 253E56B0031
+	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 09:31:59 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id jt11so870966pbb.24
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 06:31:58 -0700 (PDT)
+Date: Wed, 2 Oct 2013 15:31:37 +0200
 From: Peter Zijlstra <peterz@infradead.org>
 Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
-Message-ID: <20131002122507.GB28601@twins.programming.kicks-ass.net>
+Message-ID: <20131002133137.GG28601@twins.programming.kicks-ass.net>
 References: <20130928144720.GL15690@laptop.programming.kicks-ass.net>
  <20130928163104.GA23352@redhat.com>
  <7632387.20FXkuCITr@vostro.rjw.lan>
@@ -28,17 +28,12 @@ To: Oleg Nesterov <oleg@redhat.com>
 Cc: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>, Viresh Kumar <viresh.kumar@linaro.org>
 
 On Wed, Oct 02, 2013 at 02:13:56PM +0200, Oleg Nesterov wrote:
-> On 10/02, Peter Zijlstra wrote:
-> > And given the construct; I'm not entirely sure you can do away with the
-> > sync_sched() in between. While its clear to me you can merge the two
-> > into one; leaving it out entirely doesn't seem right.
-> 
-> Could you explain?
+> In short: unless a gp elapses between _exit() and _enter(), the next
+> _enter() does nothing and avoids synchronize_sched().
 
-Somehow I thought the fastpath got enabled; it doesn't since we never
-hit GP_IDLE, so we don't actually need that.
-
-You're right.
+That does however make the entire scheme entirely writer biased;
+increasing the need for the waitcount thing I have. Otherwise we'll
+starve pending readers.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
