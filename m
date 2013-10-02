@@ -1,47 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 51A919C0003
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id A62AD900004
 	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 10:29:05 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y13so992782pdi.33
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 07:29:04 -0700 (PDT)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so1102402pab.29
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 07:29:05 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 10/26] lustre: Convert ll_get_user_pages() to use get_user_pages_fast()
-Date: Wed,  2 Oct 2013 16:27:51 +0200
-Message-Id: <1380724087-13927-11-git-send-email-jack@suse.cz>
+Subject: [PATCH 22/26] ib: Convert ipath_user_sdma_pin_pages() to use get_user_pages_unlocked()
+Date: Wed,  2 Oct 2013 16:28:03 +0200
+Message-Id: <1380724087-13927-23-git-send-email-jack@suse.cz>
 In-Reply-To: <1380724087-13927-1-git-send-email-jack@suse.cz>
 References: <1380724087-13927-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Greg Kroah-Hartman <greg@kroah.com>, Peng Tao <tao.peng@emc.com>, Andreas Dilger <andreas.dilger@intel.com>, hpdd-discuss@lists.01.org
+Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Mike Marciniszyn <infinipath@intel.com>, Roland Dreier <roland@kernel.org>, linux-rdma@vger.kernel.org
 
-CC: Greg Kroah-Hartman <greg@kroah.com>
-CC: Peng Tao <tao.peng@emc.com>
-CC: Andreas Dilger <andreas.dilger@intel.com>
-CC: hpdd-discuss@lists.01.org
+Function ipath_user_sdma_queue_pkts() gets called with mmap_sem held for
+writing. Except for get_user_pages() deep down in
+ipath_user_sdma_pin_pages() we don't seem to need mmap_sem at all. Even
+more interestingly the function ipath_user_sdma_queue_pkts() (and also
+ipath_user_sdma_coalesce() called somewhat later) call copy_from_user()
+which can hit a page fault and we deadlock on trying to get mmap_sem
+when handling that fault. So just make ipath_user_sdma_pin_pages() use
+get_user_pages_unlocked() and leave mmap_sem locking for mm.
+
+CC: Mike Marciniszyn <infinipath@intel.com>
+CC: Roland Dreier <roland@kernel.org>
+CC: linux-rdma@vger.kernel.org
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- drivers/staging/lustre/lustre/llite/rw26.c | 7 ++-----
+ drivers/infiniband/hw/ipath/ipath_user_sdma.c | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/staging/lustre/lustre/llite/rw26.c b/drivers/staging/lustre/lustre/llite/rw26.c
-index 96c29ad2fc8c..7e3e0967993b 100644
---- a/drivers/staging/lustre/lustre/llite/rw26.c
-+++ b/drivers/staging/lustre/lustre/llite/rw26.c
-@@ -202,11 +202,8 @@ static inline int ll_get_user_pages(int rw, unsigned long user_addr,
+diff --git a/drivers/infiniband/hw/ipath/ipath_user_sdma.c b/drivers/infiniband/hw/ipath/ipath_user_sdma.c
+index f5cb13b21445..462c9b136e85 100644
+--- a/drivers/infiniband/hw/ipath/ipath_user_sdma.c
++++ b/drivers/infiniband/hw/ipath/ipath_user_sdma.c
+@@ -280,8 +280,8 @@ static int ipath_user_sdma_pin_pages(const struct ipath_devdata *dd,
+ 	int j;
+ 	int ret;
  
- 	OBD_ALLOC_LARGE(*pages, *max_pages * sizeof(**pages));
- 	if (*pages) {
--		down_read(&current->mm->mmap_sem);
--		result = get_user_pages(current, current->mm, user_addr,
--					*max_pages, (rw == READ), 0, *pages,
--					NULL);
--		up_read(&current->mm->mmap_sem);
-+		result = get_user_pages_fast(user_addr, *max_pages,
-+					     (rw == READ), *pages);
- 		if (unlikely(result <= 0))
- 			OBD_FREE_LARGE(*pages, *max_pages * sizeof(**pages));
- 	}
+-	ret = get_user_pages(current, current->mm, addr,
+-			     npages, 0, 1, pages, NULL);
++	ret = get_user_pages_unlocked(current, current->mm, addr,
++				      npages, 0, 1, pages);
+ 
+ 	if (ret != npages) {
+ 		int i;
+@@ -811,10 +811,7 @@ int ipath_user_sdma_writev(struct ipath_devdata *dd,
+ 	while (dim) {
+ 		const int mxp = 8;
+ 
+-		down_write(&current->mm->mmap_sem);
+ 		ret = ipath_user_sdma_queue_pkts(dd, pq, &list, iov, dim, mxp);
+-		up_write(&current->mm->mmap_sem);
+-
+ 		if (ret <= 0)
+ 			goto done_unlock;
+ 		else {
 -- 
 1.8.1.4
 
