@@ -1,53 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F47D6B0036
-	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 12:38:55 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id g10so1132523pdj.2
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 09:38:54 -0700 (PDT)
-Date: Wed, 2 Oct 2013 18:31:52 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] hotplug: Optimize {get,put}_online_cpus()
-Message-ID: <20131002163152.GA16233@redhat.com>
-References: <524B0233.8070203@linux.vnet.ibm.com> <20131001173615.GW3657@laptop.programming.kicks-ass.net> <20131001174508.GA17411@redhat.com> <20131001175640.GQ15690@laptop.programming.kicks-ass.net> <20131001180750.GA18261@redhat.com> <20131002090859.GE12926@twins.programming.kicks-ass.net> <20131002121356.GA21581@redhat.com> <20131002133137.GG28601@twins.programming.kicks-ass.net> <20131002140020.GA25256@redhat.com> <20131002151734.GT3081@twins.programming.kicks-ass.net>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 67FE66B0036
+	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 13:15:39 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so1304188pab.32
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 10:15:39 -0700 (PDT)
+Message-ID: <524C54B8.2060107@ubuntu.com>
+Date: Wed, 02 Oct 2013 13:15:36 -0400
+From: Phillip Susi <psusi@ubuntu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131002151734.GT3081@twins.programming.kicks-ass.net>
+Subject: readahead man page incorrectly says it blocks
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>, Viresh Kumar <viresh.kumar@linaro.org>
+To: linux-mm@kvack.org
 
-On 10/02, Peter Zijlstra wrote:
->
-> On Wed, Oct 02, 2013 at 04:00:20PM +0200, Oleg Nesterov wrote:
-> > And again, even
-> >
-> > 	for (;;) {
-> > 		percpu_down_write();
-> > 		percpu_up_write();
-> > 	}
-> >
-> > should not completely block the readers.
->
-> Sure there's a tiny window, but don't forget that a reader will have to
-> wait for the gp_state cacheline to transfer to shared state and the
-> per-cpu refcount cachelines to be brought back into exclusive mode and
-> the above can be aggressive enough that by that time we'll observe
-> state == blocked again.
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-Sure, but don't forget that other callers of cpu_down() do a lot more
-work before/after they actually call cpu_hotplug_begin/end().
+The man page for readahead(2) incorrectly claims that it blocks until
+all of the requested data has been read.  I filed a bug a few months
+ago to have this corrected, but I think it is being ignored now
+because they don't believe me that it isn't supposed to block.  Could
+someone help back me up and get this fixed?
 
-> So I'll stick to waitcount -- as you can see in the patches I've just
-> posted.
+https://bugzilla.kernel.org/show_bug.cgi?id=54271
 
-I still do not believe we need this waitcount "in practice" ;)
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.17 (MingW32)
+Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
 
-But even if I am right this is minor and we can reconsider this later,
-so please forget.
-
-Oleg.
+iQEcBAEBAgAGBQJSTFS4AAoJEJrBOlT6nu756hwIAJKQZnvazqLi8excUCrqc+HQ
+TSokhlBLBqRtk5nGN6X0UpDZ6KPFn0qsRpnhQApyk46nU/ru1YbbZLEtHgrWwaFW
+g2V+L248hIyYOYSAr/RCj9g4Zx5yMit6BOM1virD0VJ0cRDSA6mbNI0bVmTxEf+f
+9UF2rwnXW63u3NwGjEMboVWCCOrfV3AGCTC31KTY/e2e1SUIlD8IIaRxW0RkVmVj
+PCmSVPvpaZoLaDgQ0F+sBBzLrCp9r72UT7j58Zzurj1GaIG2VEVAXKKij0b2Xtxg
+vjzflgrMd72pLhb+ppk/RP20FWmp6PJ3wKbK7zVrvILVHzSaoncDApURG/nBpHE=
+=zmD3
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
