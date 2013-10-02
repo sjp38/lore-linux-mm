@@ -1,136 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D3C269C000B
-	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 10:29:07 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id jt11so993579pbb.10
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 07:29:06 -0700 (PDT)
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 15D739C000E
+	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 10:29:08 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id kq14so1091145pab.26
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 07:29:07 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 23/26] ib: Convert qib_get_user_pages() to get_user_pages_unlocked()
-Date: Wed,  2 Oct 2013 16:28:04 +0200
-Message-Id: <1380724087-13927-24-git-send-email-jack@suse.cz>
+Subject: [PATCH 01/26] cris: Convert cryptocop to use get_user_pages_fast()
+Date: Wed,  2 Oct 2013 16:27:42 +0200
+Message-Id: <1380724087-13927-2-git-send-email-jack@suse.cz>
 In-Reply-To: <1380724087-13927-1-git-send-email-jack@suse.cz>
 References: <1380724087-13927-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Mike Marciniszyn <infinipath@intel.com>, Roland Dreier <roland@kernel.org>, linux-rdma@vger.kernel.org
+Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, linux-cris-kernel@axis.com, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jesper.nilsson@axis.com>
 
-Convert qib_get_user_pages() to use get_user_pages_unlocked().  This
-shortens the section where we hold mmap_sem for writing and also removes
-the knowledge about get_user_pages() locking from ipath driver. We also
-fix a bug in testing pinned number of pages when changing the code.
-
-CC: Mike Marciniszyn <infinipath@intel.com>
-CC: Roland Dreier <roland@kernel.org>
-CC: linux-rdma@vger.kernel.org
+CC: linux-cris-kernel@axis.com
+CC: Mikael Starvik <starvik@axis.com>
+CC: Jesper Nilsson <jesper.nilsson@axis.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- drivers/infiniband/hw/qib/qib_user_pages.c | 62 +++++++++++++-----------------
- 1 file changed, 26 insertions(+), 36 deletions(-)
+ arch/cris/arch-v32/drivers/cryptocop.c | 35 ++++++++++------------------------
+ 1 file changed, 10 insertions(+), 25 deletions(-)
 
-diff --git a/drivers/infiniband/hw/qib/qib_user_pages.c b/drivers/infiniband/hw/qib/qib_user_pages.c
-index 2bc1d2b96298..57ce83c2d1d9 100644
---- a/drivers/infiniband/hw/qib/qib_user_pages.c
-+++ b/drivers/infiniband/hw/qib/qib_user_pages.c
-@@ -48,39 +48,55 @@ static void __qib_release_user_pages(struct page **p, size_t num_pages,
- 	}
- }
- 
--/*
-- * Call with current->mm->mmap_sem held.
-+/**
-+ * qib_get_user_pages - lock user pages into memory
-+ * @start_page: the start page
-+ * @num_pages: the number of pages
-+ * @p: the output page structures
-+ *
-+ * This function takes a given start page (page aligned user virtual
-+ * address) and pins it and the following specified number of pages.  For
-+ * now, num_pages is always 1, but that will probably change at some point
-+ * (because caller is doing expected sends on a single virtually contiguous
-+ * buffer, so we can do all pages at once).
-  */
--static int __qib_get_user_pages(unsigned long start_page, size_t num_pages,
--				struct page **p, struct vm_area_struct **vma)
-+int qib_get_user_pages(unsigned long start_page, size_t num_pages,
-+		       struct page **p)
- {
- 	unsigned long lock_limit;
- 	size_t got;
- 	int ret;
-+	struct mm_struct *mm = current->mm;
- 
-+	down_write(&mm->mmap_sem);
- 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
- 
--	if (num_pages > lock_limit && !capable(CAP_IPC_LOCK)) {
-+	if (mm->pinned_vm + num_pages > lock_limit && !capable(CAP_IPC_LOCK)) {
-+		up_write(&mm->mmap_sem);
- 		ret = -ENOMEM;
- 		goto bail;
- 	}
-+	mm->pinned_vm += num_pages;
-+	up_write(&mm->mmap_sem);
- 
- 	for (got = 0; got < num_pages; got += ret) {
--		ret = get_user_pages(current, current->mm,
--				     start_page + got * PAGE_SIZE,
--				     num_pages - got, 1, 1,
--				     p + got, vma);
-+		ret = get_user_pages_unlocked(current, mm,
-+					      start_page + got * PAGE_SIZE,
-+					      num_pages - got, 1, 1,
-+					      p + got);
- 		if (ret < 0)
- 			goto bail_release;
+diff --git a/arch/cris/arch-v32/drivers/cryptocop.c b/arch/cris/arch-v32/drivers/cryptocop.c
+index 877da1908234..df7ceeff1086 100644
+--- a/arch/cris/arch-v32/drivers/cryptocop.c
++++ b/arch/cris/arch-v32/drivers/cryptocop.c
+@@ -2716,43 +2716,28 @@ static int cryptocop_ioctl_process(struct inode *inode, struct file *filp, unsig
+ 		}
  	}
  
--	current->mm->pinned_vm += num_pages;
+-	/* Acquire the mm page semaphore. */
+-	down_read(&current->mm->mmap_sem);
+-
+-	err = get_user_pages(current,
+-			     current->mm,
+-			     (unsigned long int)(oper.indata + prev_ix),
+-			     noinpages,
+-			     0,  /* read access only for in data */
+-			     0, /* no force */
+-			     inpages,
+-			     NULL);
++	err = get_user_pages_fast((unsigned long)(oper.indata + prev_ix),
++				  noinpages,
++				  0,  /* read access only for in data */
++				  inpages);
  
- 	ret = 0;
- 	goto bail;
+ 	if (err < 0) {
+-		up_read(&current->mm->mmap_sem);
+ 		nooutpages = noinpages = 0;
+-		DEBUG_API(printk("cryptocop_ioctl_process: get_user_pages indata\n"));
++		DEBUG_API(printk("cryptocop_ioctl_process: get_user_pages_fast indata\n"));
+ 		goto error_cleanup;
+ 	}
+ 	noinpages = err;
+ 	if (oper.do_cipher){
+-		err = get_user_pages(current,
+-				     current->mm,
+-				     (unsigned long int)oper.cipher_outdata,
+-				     nooutpages,
+-				     1, /* write access for out data */
+-				     0, /* no force */
+-				     outpages,
+-				     NULL);
+-		up_read(&current->mm->mmap_sem);
++		err = get_user_pages_fast((unsigned long)oper.cipher_outdata,
++					  nooutpages,
++					  1, /* write access for out data */
++					  outpages);
+ 		if (err < 0) {
+ 			nooutpages = 0;
+-			DEBUG_API(printk("cryptocop_ioctl_process: get_user_pages outdata\n"));
++			DEBUG_API(printk("cryptocop_ioctl_process: get_user_pages_fast outdata\n"));
+ 			goto error_cleanup;
+ 		}
+ 		nooutpages = err;
+-	} else {
+-		up_read(&current->mm->mmap_sem);
+ 	}
  
- bail_release:
- 	__qib_release_user_pages(p, got, 0);
-+	down_write(&mm->mmap_sem);
-+	mm->pinned_vm -= num_pages;
-+	up_write(&mm->mmap_sem);
- bail:
- 	return ret;
- }
-@@ -117,32 +133,6 @@ dma_addr_t qib_map_page(struct pci_dev *hwdev, struct page *page,
- 	return phys;
- }
- 
--/**
-- * qib_get_user_pages - lock user pages into memory
-- * @start_page: the start page
-- * @num_pages: the number of pages
-- * @p: the output page structures
-- *
-- * This function takes a given start page (page aligned user virtual
-- * address) and pins it and the following specified number of pages.  For
-- * now, num_pages is always 1, but that will probably change at some point
-- * (because caller is doing expected sends on a single virtually contiguous
-- * buffer, so we can do all pages at once).
-- */
--int qib_get_user_pages(unsigned long start_page, size_t num_pages,
--		       struct page **p)
--{
--	int ret;
--
--	down_write(&current->mm->mmap_sem);
--
--	ret = __qib_get_user_pages(start_page, num_pages, p, NULL);
--
--	up_write(&current->mm->mmap_sem);
--
--	return ret;
--}
--
- void qib_release_user_pages(struct page **p, size_t num_pages)
- {
- 	if (current->mm) /* during close after signal, mm can be NULL */
+ 	/* Add 6 to nooutpages to make room for possibly inserted buffers for storing digest and
 -- 
 1.8.1.4
 
