@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 6153E6B0036
-	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 12:27:37 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so1256626pad.2
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 09:27:37 -0700 (PDT)
-Received: by mail-ye0-f176.google.com with SMTP id m4so256542yen.35
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 09:27:34 -0700 (PDT)
-Message-ID: <524C499B.9090707@gmail.com>
-Date: Wed, 02 Oct 2013 12:28:11 -0400
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id B26ED6B0036
+	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 12:31:56 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id bj1so1254064pad.35
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 09:31:56 -0700 (PDT)
+Received: by mail-ye0-f174.google.com with SMTP id q4so255538yen.19
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 09:31:53 -0700 (PDT)
+Message-ID: <524C4AA1.7000409@gmail.com>
+Date: Wed, 02 Oct 2013 12:32:33 -0400
 From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 16/26] mm: Provide get_user_pages_unlocked()
-References: <1380724087-13927-1-git-send-email-jack@suse.cz> <1380724087-13927-17-git-send-email-jack@suse.cz>
-In-Reply-To: <1380724087-13927-17-git-send-email-jack@suse.cz>
+Subject: Re: [PATCH 18/26] mm: Convert process_vm_rw_pages() to use get_user_pages_unlocked()
+References: <1380724087-13927-1-git-send-email-jack@suse.cz> <1380724087-13927-19-git-send-email-jack@suse.cz>
+In-Reply-To: <1380724087-13927-19-git-send-email-jack@suse.cz>
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -21,44 +21,34 @@ To: Jan Kara <jack@suse.cz>
 Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, kosaki.motohiro@gmail.com
 
 (10/2/13 10:27 AM), Jan Kara wrote:
-> Provide a wrapper for get_user_pages() which takes care of acquiring and
-> releasing mmap_sem. Using this function reduces amount of places in
-> which we deal with mmap_sem.
-> 
 > Signed-off-by: Jan Kara <jack@suse.cz>
 > ---
->   include/linux/mm.h | 14 ++++++++++++++
->   1 file changed, 14 insertions(+)
+>   mm/process_vm_access.c | 8 ++------
+>   1 file changed, 2 insertions(+), 6 deletions(-)
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 8b6e55ee8855..70031ead06a5 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1031,6 +1031,20 @@ long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->   		    struct vm_area_struct **vmas);
->   int get_user_pages_fast(unsigned long start, int nr_pages, int write,
->   			struct page **pages);
-> +static inline long
-> +get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
-> +		 	unsigned long start, unsigned long nr_pages,
-> +			int write, int force, struct page **pages)
-> +{
-> +	long ret;
-> +
-> +	down_read(&mm->mmap_sem);
-> +	ret = get_user_pages(tsk, mm, start, nr_pages, write, force, pages,
-> +			     NULL);
-> +	up_read(&mm->mmap_sem);
-> +	return ret;
-> +}
+> diff --git a/mm/process_vm_access.c b/mm/process_vm_access.c
+> index fd26d0433509..c1bc47d8ed90 100644
+> --- a/mm/process_vm_access.c
+> +++ b/mm/process_vm_access.c
+> @@ -64,12 +64,8 @@ static int process_vm_rw_pages(struct task_struct *task,
+>   	*bytes_copied = 0;
+>   
+>   	/* Get the pages we're interested in */
+> -	down_read(&mm->mmap_sem);
+> -	pages_pinned = get_user_pages(task, mm, pa,
+> -				      nr_pages_to_copy,
+> -				      vm_write, 0, process_pages, NULL);
+> -	up_read(&mm->mmap_sem);
+> -
+> +	pages_pinned = get_user_pages_unlocked(task, mm, pa, nr_pages_to_copy,
+> +					       vm_write, 0, process_pages);
+>   	if (pages_pinned != nr_pages_to_copy) {
+>   		rc = -EFAULT;
+>   		goto end;
 
-Hmmm. I like the idea, but I really dislike this name. I don't like xx_unlocked 
-function takes a lock. It is a source of confusing, I believe. 
-
-
-
-
-
+This is wrong because original code is wrong. In this function, page may be pointed to 
+anon pages. Then, you should keep to take mmap_sem until finish to copying. Otherwise
+concurrent fork() makes nasty COW issue.
 
 
 --
