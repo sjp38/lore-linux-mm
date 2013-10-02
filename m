@@ -1,86 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 15D739C000E
-	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 10:29:08 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id kq14so1091145pab.26
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 07:29:07 -0700 (PDT)
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id CCBA19C000C
+	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 10:29:15 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id y13so953476pdi.19
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 07:29:15 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 01/26] cris: Convert cryptocop to use get_user_pages_fast()
-Date: Wed,  2 Oct 2013 16:27:42 +0200
-Message-Id: <1380724087-13927-2-git-send-email-jack@suse.cz>
+Subject: [PATCH 11/26] sep: Convert sep_lock_user_pages() to get_user_pages_fast()
+Date: Wed,  2 Oct 2013 16:27:52 +0200
+Message-Id: <1380724087-13927-12-git-send-email-jack@suse.cz>
 In-Reply-To: <1380724087-13927-1-git-send-email-jack@suse.cz>
 References: <1380724087-13927-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, linux-cris-kernel@axis.com, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jesper.nilsson@axis.com>
+Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Mark Allyn <mark.a.allyn@intel.com>, Jayant Mangalampalli <jayant.mangalampalli@intel.com>
 
-CC: linux-cris-kernel@axis.com
-CC: Mikael Starvik <starvik@axis.com>
-CC: Jesper Nilsson <jesper.nilsson@axis.com>
+CC: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+CC: Mark Allyn <mark.a.allyn@intel.com>
+CC: Jayant Mangalampalli <jayant.mangalampalli@intel.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- arch/cris/arch-v32/drivers/cryptocop.c | 35 ++++++++++------------------------
- 1 file changed, 10 insertions(+), 25 deletions(-)
+ drivers/staging/sep/sep_main.c | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)
 
-diff --git a/arch/cris/arch-v32/drivers/cryptocop.c b/arch/cris/arch-v32/drivers/cryptocop.c
-index 877da1908234..df7ceeff1086 100644
---- a/arch/cris/arch-v32/drivers/cryptocop.c
-+++ b/arch/cris/arch-v32/drivers/cryptocop.c
-@@ -2716,43 +2716,28 @@ static int cryptocop_ioctl_process(struct inode *inode, struct file *filp, unsig
- 		}
+diff --git a/drivers/staging/sep/sep_main.c b/drivers/staging/sep/sep_main.c
+index 6a98a208bbf2..11f5b2117457 100644
+--- a/drivers/staging/sep/sep_main.c
++++ b/drivers/staging/sep/sep_main.c
+@@ -1263,13 +1263,8 @@ static int sep_lock_user_pages(struct sep_device *sep,
  	}
  
--	/* Acquire the mm page semaphore. */
+ 	/* Convert the application virtual address into a set of physical */
 -	down_read(&current->mm->mmap_sem);
+-	result = get_user_pages(current, current->mm, app_virt_addr,
+-		num_pages,
+-		((in_out_flag == SEP_DRIVER_IN_FLAG) ? 0 : 1),
+-		0, page_array, NULL);
 -
--	err = get_user_pages(current,
--			     current->mm,
--			     (unsigned long int)(oper.indata + prev_ix),
--			     noinpages,
--			     0,  /* read access only for in data */
--			     0, /* no force */
--			     inpages,
--			     NULL);
-+	err = get_user_pages_fast((unsigned long)(oper.indata + prev_ix),
-+				  noinpages,
-+				  0,  /* read access only for in data */
-+				  inpages);
+-	up_read(&current->mm->mmap_sem);
++	result = get_user_pages_fast(app_virt_addr, num_pages,
++		((in_out_flag == SEP_DRIVER_IN_FLAG) ? 0 : 1), page_array);
  
- 	if (err < 0) {
--		up_read(&current->mm->mmap_sem);
- 		nooutpages = noinpages = 0;
--		DEBUG_API(printk("cryptocop_ioctl_process: get_user_pages indata\n"));
-+		DEBUG_API(printk("cryptocop_ioctl_process: get_user_pages_fast indata\n"));
- 		goto error_cleanup;
- 	}
- 	noinpages = err;
- 	if (oper.do_cipher){
--		err = get_user_pages(current,
--				     current->mm,
--				     (unsigned long int)oper.cipher_outdata,
--				     nooutpages,
--				     1, /* write access for out data */
--				     0, /* no force */
--				     outpages,
--				     NULL);
--		up_read(&current->mm->mmap_sem);
-+		err = get_user_pages_fast((unsigned long)oper.cipher_outdata,
-+					  nooutpages,
-+					  1, /* write access for out data */
-+					  outpages);
- 		if (err < 0) {
- 			nooutpages = 0;
--			DEBUG_API(printk("cryptocop_ioctl_process: get_user_pages outdata\n"));
-+			DEBUG_API(printk("cryptocop_ioctl_process: get_user_pages_fast outdata\n"));
- 			goto error_cleanup;
- 		}
- 		nooutpages = err;
--	} else {
--		up_read(&current->mm->mmap_sem);
- 	}
- 
- 	/* Add 6 to nooutpages to make room for possibly inserted buffers for storing digest and
+ 	/* Check the number of pages locked - if not all then exit with error */
+ 	if (result != num_pages) {
 -- 
 1.8.1.4
 
