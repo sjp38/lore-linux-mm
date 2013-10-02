@@ -1,50 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id D30916B0031
-	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 19:31:27 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lj1so196376pab.29
-        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 16:31:27 -0700 (PDT)
-Received: by mail-pd0-f169.google.com with SMTP id r10so51600pdi.28
-        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 16:31:25 -0700 (PDT)
-Date: Tue, 1 Oct 2013 16:31:23 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch for-3.12] mm, memcg: protect mem_cgroup_read_events for cpu
- hotplug
-Message-ID: <alpine.DEB.2.02.1310011629350.27758@chino.kir.corp.google.com>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C72C6B0031
+	for <linux-mm@kvack.org>; Tue,  1 Oct 2013 20:37:19 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so257207pab.32
+        for <linux-mm@kvack.org>; Tue, 01 Oct 2013 17:37:18 -0700 (PDT)
+Message-ID: <524B6AB0.6030009@jp.fujitsu.com>
+Date: Tue, 01 Oct 2013 20:37:04 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCHv2 2/2] mm: add a field to store names for private anonymous
+ memory
+References: <1380658901-11666-1-git-send-email-ccross@android.com> <1380658901-11666-2-git-send-email-ccross@android.com>
+In-Reply-To: <1380658901-11666-2-git-send-email-ccross@android.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: ccross@android.com
+Cc: linux-kernel@vger.kernel.org, penberg@kernel.org, dave.hansen@intel.com, peterz@infradead.org, mingo@kernel.org, oleg@redhat.com, ebiederm@xmission.com, jan.glauber@gmail.com, rob@landley.net, akpm@linux-foundation.org, gorcunov@openvz.org, rientjes@google.com, dave@gnu.org, keescook@chromium.org, xemul@parallels.com, liwanp@linux.vnet.ibm.com, walken@google.com, mgorman@suse.de, riel@redhat.com, jiang.liu@huawei.com, khlebnikov@openvz.org, paulmck@linux.vnet.ibm.com, dhowells@redhat.com, arnd@arndb.de, davej@redhat.com, holt@sgi.com, rafael.j.wysocki@intel.com, shli@fusionio.com, sasha.levin@oracle.com, kosaki.motohiro@jp.fujitsu.com, hughd@google.com, hannes@cmpxchg.org, a.p.zijlstra@chello.nl, linux-doc@vger.kernel.org, linux-mm@kvack.org
 
-for_each_online_cpu() needs the protection of {get,put}_online_cpus() so
-cpu_online_mask doesn't change during the iteration.
+> +static void seq_print_vma_name(struct seq_file *m, struct vm_area_struct *vma)
+> +{
+> +	const char __user *name = vma_get_anon_name(vma);
+> +	struct mm_struct *mm = vma->vm_mm;
+> +
+> +	unsigned long page_start_vaddr;
+> +	unsigned long page_offset;
+> +	unsigned long num_pages;
+> +	unsigned long max_len = NAME_MAX;
+> +	int i;
+> +
+> +	page_start_vaddr = (unsigned long)name & PAGE_MASK;
+> +	page_offset = (unsigned long)name - page_start_vaddr;
+> +	num_pages = DIV_ROUND_UP(page_offset + max_len, PAGE_SIZE);
+> +
+> +	seq_puts(m, "[anon:");
+> +
+> +	for (i = 0; i < num_pages; i++) {
+> +		int len;
+> +		int write_len;
+> +		const char *kaddr;
+> +		long pages_pinned;
+> +		struct page *page;
+> +
+> +		pages_pinned = get_user_pages(current, mm, page_start_vaddr,
+> +				1, 0, 0, &page, NULL);
+> +		if (pages_pinned < 1) {
+> +			seq_puts(m, "<fault>]");
+> +			return;
+> +		}
+> +
+> +		kaddr = (const char *)kmap(page);
+> +		len = min(max_len, PAGE_SIZE - page_offset);
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/memcontrol.c | 2 ++
- 1 file changed, 2 insertions(+)
+You can't show the name if the name is placed in end of page.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -866,6 +866,7 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
- 	unsigned long val = 0;
- 	int cpu;
- 
-+	get_online_cpus();
- 	for_each_online_cpu(cpu)
- 		val += per_cpu(memcg->stat->events[idx], cpu);
- #ifdef CONFIG_HOTPLUG_CPU
-@@ -873,6 +874,7 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
- 	val += memcg->nocpu_base.events[idx];
- 	spin_unlock(&memcg->pcp_counter_lock);
- #endif
-+	put_online_cpus();
- 	return val;
- }
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
