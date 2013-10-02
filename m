@@ -1,50 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 93CD16B0036
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id D6D4A6B0037
 	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 10:29:00 -0400 (EDT)
-Received: by mail-pb0-f50.google.com with SMTP id uo5so944746pbc.23
+Received: by mail-pb0-f48.google.com with SMTP id ma3so949850pbc.35
         for <linux-mm@kvack.org>; Wed, 02 Oct 2013 07:29:00 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 04/26] drm: Convert via driver to use get_user_pages_fast()
-Date: Wed,  2 Oct 2013 16:27:45 +0200
-Message-Id: <1380724087-13927-5-git-send-email-jack@suse.cz>
+Subject: [PATCH 02/26] ia64: Use get_user_pages_fast() in err_inject.c
+Date: Wed,  2 Oct 2013 16:27:43 +0200
+Message-Id: <1380724087-13927-3-git-send-email-jack@suse.cz>
 In-Reply-To: <1380724087-13927-1-git-send-email-jack@suse.cz>
 References: <1380724087-13927-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, David Airlie <airlied@linux.ie>, dri-devel@lists.freedesktop.org
+Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Tony Luck <tony.luck@intel.com>, linux-ia64@vger.kernel.org
 
-CC: David Airlie <airlied@linux.ie>
-CC: dri-devel@lists.freedesktop.org
+Convert get_user_pages() call to get_user_pages_fast(). This actually
+fixes an apparent bug where get_user_pages() has been called without
+mmap_sem for an arbitrary user-provided address.
+
+CC: Tony Luck <tony.luck@intel.com>
+CC: linux-ia64@vger.kernel.org
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- drivers/gpu/drm/via/via_dmablit.c | 12 ++++--------
- 1 file changed, 4 insertions(+), 8 deletions(-)
+ arch/ia64/kernel/err_inject.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/drivers/gpu/drm/via/via_dmablit.c b/drivers/gpu/drm/via/via_dmablit.c
-index 8b0f25904e6d..7e3766667d78 100644
---- a/drivers/gpu/drm/via/via_dmablit.c
-+++ b/drivers/gpu/drm/via/via_dmablit.c
-@@ -238,14 +238,10 @@ via_lock_all_dma_pages(drm_via_sg_info_t *vsg,  drm_via_dmablit_t *xfer)
- 	vsg->pages = vzalloc(sizeof(struct page *) * vsg->num_pages);
- 	if (NULL == vsg->pages)
- 		return -ENOMEM;
--	down_read(&current->mm->mmap_sem);
--	ret = get_user_pages(current, current->mm,
--			     (unsigned long)xfer->mem_addr,
--			     vsg->num_pages,
--			     (vsg->direction == DMA_FROM_DEVICE),
--			     0, vsg->pages, NULL);
--
--	up_read(&current->mm->mmap_sem);
-+	ret = get_user_pages_fast((unsigned long)xfer->mem_addr,
-+				  vsg->num_pages,
-+				  (vsg->direction == DMA_FROM_DEVICE),
-+				  vsg->pages);
- 	if (ret != vsg->num_pages) {
- 		if (ret < 0)
- 			return ret;
+diff --git a/arch/ia64/kernel/err_inject.c b/arch/ia64/kernel/err_inject.c
+index f59c0b844e88..75d35906a86b 100644
+--- a/arch/ia64/kernel/err_inject.c
++++ b/arch/ia64/kernel/err_inject.c
+@@ -142,8 +142,7 @@ store_virtual_to_phys(struct device *dev, struct device_attribute *attr,
+ 	u64 virt_addr=simple_strtoull(buf, NULL, 16);
+ 	int ret;
+ 
+-        ret = get_user_pages(current, current->mm, virt_addr,
+-                        1, VM_READ, 0, NULL, NULL);
++	ret = get_user_pages_fast(virt_addr, 1, VM_READ, NULL);
+ 	if (ret<=0) {
+ #ifdef ERR_INJ_DEBUG
+ 		printk("Virtual address %lx is not existing.\n",virt_addr);
 -- 
 1.8.1.4
 
