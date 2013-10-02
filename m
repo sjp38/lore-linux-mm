@@ -1,96 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id B1B229C0003
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CAE9900002
 	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 10:29:04 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id rr4so947539pbb.34
+Received: by mail-pb0-f52.google.com with SMTP id wz12so940797pbc.39
         for <linux-mm@kvack.org>; Wed, 02 Oct 2013 07:29:04 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 06/26] vmw_vmci: Convert driver to use get_user_pages_fast()
-Date: Wed,  2 Oct 2013 16:27:47 +0200
-Message-Id: <1380724087-13927-7-git-send-email-jack@suse.cz>
+Subject: [PATCH 20/26] ib: Convert ib_umem_get() to get_user_pages_unlocked()
+Date: Wed,  2 Oct 2013 16:28:01 +0200
+Message-Id: <1380724087-13927-21-git-send-email-jack@suse.cz>
 In-Reply-To: <1380724087-13927-1-git-send-email-jack@suse.cz>
 References: <1380724087-13927-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Roland Dreier <roland@kernel.org>, linux-rdma@vger.kernel.org
 
-Convert vmci_host_setup_notify() and qp_host_get_user_memory() to use
-get_user_pages_fast() instead of get_user_pages(). Note that
-qp_host_get_user_memory() was using mmap_sem for writing without an
-apparent reason.
+Convert ib_umem_get() to use get_user_pages_unlocked(). This
+significantly shortens the section where mmap_sem is held (we only need
+it for updating of mm->pinned_vm and inside get_user_pages()) and removes
+the knowledge about locking of get_user_pages().
 
-CC: Arnd Bergmann <arnd@arndb.de>
-CC: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+CC: Roland Dreier <roland@kernel.org>
+CC: linux-rdma@vger.kernel.org
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- drivers/misc/vmw_vmci/vmci_host.c       |  6 +-----
- drivers/misc/vmw_vmci/vmci_queue_pair.c | 21 ++++++---------------
- 2 files changed, 7 insertions(+), 20 deletions(-)
+ drivers/infiniband/core/umem.c | 41 +++++++++++++++++------------------------
+ 1 file changed, 17 insertions(+), 24 deletions(-)
 
-diff --git a/drivers/misc/vmw_vmci/vmci_host.c b/drivers/misc/vmw_vmci/vmci_host.c
-index d4722b3dc8ec..1723a6e4f2e8 100644
---- a/drivers/misc/vmw_vmci/vmci_host.c
-+++ b/drivers/misc/vmw_vmci/vmci_host.c
-@@ -243,11 +243,7 @@ static int vmci_host_setup_notify(struct vmci_ctx *context,
- 	/*
- 	 * Lock physical page backing a given user VA.
- 	 */
--	down_read(&current->mm->mmap_sem);
--	retval = get_user_pages(current, current->mm,
--				PAGE_ALIGN(uva),
--				1, 1, 0, &page, NULL);
--	up_read(&current->mm->mmap_sem);
-+	retval = get_user_pages_fast(PAGE_ALIGN(uva), 1, 1, &page);
- 	if (retval != 1)
- 		return VMCI_ERROR_GENERIC;
- 
-diff --git a/drivers/misc/vmw_vmci/vmci_queue_pair.c b/drivers/misc/vmw_vmci/vmci_queue_pair.c
-index a0515a6d6ebd..1b7b303085d2 100644
---- a/drivers/misc/vmw_vmci/vmci_queue_pair.c
-+++ b/drivers/misc/vmw_vmci/vmci_queue_pair.c
-@@ -732,13 +732,9 @@ static int qp_host_get_user_memory(u64 produce_uva,
- 	int retval;
- 	int err = VMCI_SUCCESS;
- 
--	down_write(&current->mm->mmap_sem);
--	retval = get_user_pages(current,
--				current->mm,
--				(uintptr_t) produce_uva,
--				produce_q->kernel_if->num_pages,
--				1, 0,
--				produce_q->kernel_if->u.h.header_page, NULL);
-+	retval = get_user_pages_fast((uintptr_t) produce_uva,
-+				     produce_q->kernel_if->num_pages, 1,
-+				     produce_q->kernel_if->u.h.header_page);
- 	if (retval < produce_q->kernel_if->num_pages) {
- 		pr_warn("get_user_pages(produce) failed (retval=%d)", retval);
- 		qp_release_pages(produce_q->kernel_if->u.h.header_page,
-@@ -747,12 +743,9 @@ static int qp_host_get_user_memory(u64 produce_uva,
- 		goto out;
+diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
+index a84112322071..0640a89021a9 100644
+--- a/drivers/infiniband/core/umem.c
++++ b/drivers/infiniband/core/umem.c
+@@ -80,7 +80,6 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
+ {
+ 	struct ib_umem *umem;
+ 	struct page **page_list;
+-	struct vm_area_struct **vma_list;
+ 	struct ib_umem_chunk *chunk;
+ 	unsigned long locked;
+ 	unsigned long lock_limit;
+@@ -125,34 +124,31 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
+ 		return ERR_PTR(-ENOMEM);
  	}
  
--	retval = get_user_pages(current,
--				current->mm,
--				(uintptr_t) consume_uva,
--				consume_q->kernel_if->num_pages,
--				1, 0,
--				consume_q->kernel_if->u.h.header_page, NULL);
-+	retval = get_user_pages_fast((uintptr_t) consume_uva,
-+				     consume_q->kernel_if->num_pages, 1,
-+				     consume_q->kernel_if->u.h.header_page);
- 	if (retval < consume_q->kernel_if->num_pages) {
- 		pr_warn("get_user_pages(consume) failed (retval=%d)", retval);
- 		qp_release_pages(consume_q->kernel_if->u.h.header_page,
-@@ -763,8 +756,6 @@ static int qp_host_get_user_memory(u64 produce_uva,
- 	}
- 
-  out:
--	up_write(&current->mm->mmap_sem);
+-	/*
+-	 * if we can't alloc the vma_list, it's not so bad;
+-	 * just assume the memory is not hugetlb memory
+-	 */
+-	vma_list = (struct vm_area_struct **) __get_free_page(GFP_KERNEL);
+-	if (!vma_list)
+-		umem->hugetlb = 0;
 -
- 	return err;
- }
+ 	npages = PAGE_ALIGN(size + umem->offset) >> PAGE_SHIFT;
  
+ 	down_write(&current->mm->mmap_sem);
+ 
+-	locked     = npages + current->mm->pinned_vm;
+ 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+-
+-	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
+-		ret = -ENOMEM;
+-		goto out;
++	locked = npages;
++	if (npages + current->mm->pinned_vm > lock_limit &&
++	    !capable(CAP_IPC_LOCK)) {
++		up_write(&current->mm->mmap_sem);
++		kfree(umem);
++		free_page((unsigned long) page_list);
++		return ERR_PTR(-ENOMEM);
+ 	}
++	current->mm->pinned_vm += npages;
++
++	up_write(&current->mm->mmap_sem);
+ 
+ 	cur_base = addr & PAGE_MASK;
+ 
+ 	ret = 0;
+ 	while (npages) {
+-		ret = get_user_pages(current, current->mm, cur_base,
++		ret = get_user_pages_unlocked(current, current->mm, cur_base,
+ 				     min_t(unsigned long, npages,
+ 					   PAGE_SIZE / sizeof (struct page *)),
+-				     1, !umem->writable, page_list, vma_list);
++				     1, !umem->writable, page_list);
+ 
+ 		if (ret < 0)
+ 			goto out;
+@@ -174,8 +170,7 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
+ 			chunk->nents = min_t(int, ret, IB_UMEM_MAX_PAGE_CHUNK);
+ 			sg_init_table(chunk->page_list, chunk->nents);
+ 			for (i = 0; i < chunk->nents; ++i) {
+-				if (vma_list &&
+-				    !is_vm_hugetlb_page(vma_list[i + off]))
++				if (!PageHuge(page_list[i + off]))
+ 					umem->hugetlb = 0;
+ 				sg_set_page(&chunk->page_list[i], page_list[i + off], PAGE_SIZE, 0);
+ 			}
+@@ -206,12 +201,10 @@ out:
+ 	if (ret < 0) {
+ 		__ib_umem_release(context->device, umem, 0);
+ 		kfree(umem);
+-	} else
+-		current->mm->pinned_vm = locked;
+-
+-	up_write(&current->mm->mmap_sem);
+-	if (vma_list)
+-		free_page((unsigned long) vma_list);
++		down_write(&current->mm->mmap_sem);
++		current->mm->pinned_vm -= locked;
++		up_write(&current->mm->mmap_sem);
++	}
+ 	free_page((unsigned long) page_list);
+ 
+ 	return ret < 0 ? ERR_PTR(ret) : umem;
 -- 
 1.8.1.4
 
