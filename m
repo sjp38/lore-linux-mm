@@ -1,35 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 225BE6B0039
-	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 14:54:44 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id q10so1283590pdj.7
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 11:54:43 -0700 (PDT)
-Message-ID: <524C6BCD.2000007@zytor.com>
-Date: Wed, 02 Oct 2013 11:54:05 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id EFB486B0038
+	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 15:19:46 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id wz12so1325294pbc.11
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 12:19:46 -0700 (PDT)
+Message-ID: <524C71C1.9060408@hp.com>
+Date: Wed, 02 Oct 2013 15:19:29 -0400
+From: Waiman Long <waiman.long@hp.com>
 MIME-Version: 1.0
-Subject: Re: [RESEND PATCH] x86: add phys addr validity check for /dev/mem
- mmap
-References: <20131002160514.GA25471@localhost.localdomain> <524C5BFB.5050501@zytor.com> <20131002183155.GA2975@localhost.localdomain> <524C6799.9060800@zytor.com> <20131002184803.GB2975@localhost.localdomain>
-In-Reply-To: <20131002184803.GB2975@localhost.localdomain>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v6 5/6] MCS Lock: Restructure the MCS lock defines and
+ locking code into its own file
+References: <cover.1380144003.git.tim.c.chen@linux.intel.com>  <1380147049.3467.67.camel@schen9-DESK>  <CAGQ1y=7Ehkr+ot3tDZtHv6FR6RQ9fXBVY0=LOyWjmGH_UjH7xA@mail.gmail.com>  <1380226007.2170.2.camel@buesod1.americas.hpqcorp.net>  <1380226997.2602.11.camel@j-VirtualBox>  <1380228059.2170.10.camel@buesod1.americas.hpqcorp.net>  <1380229794.2602.36.camel@j-VirtualBox>  <1380231702.3467.85.camel@schen9-DESK> <1380235333.3229.39.camel@j-VirtualBox>
+In-Reply-To: <1380235333.3229.39.camel@j-VirtualBox>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Frantisek Hrbata <fhrbata@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, oleg@redhat.com, kamaleshb@in.ibm.com, hechjie@cn.ibm.com, akpm@linux-foundation.org, dave.hansen@intel.com
+To: Jason Low <jason.low2@hp.com>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Davidlohr Bueso <davidlohr@hp.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On 10/02/2013 11:48 AM, Frantisek Hrbata wrote:
-> 
-> Ok, I can try to look into this. I just want to point out that some other archs
-> like arm are doing it the same way. I simply replaced the generic check functions
-> in drivers/char/mem.c with x86 specific ones.
-> 
+On 09/26/2013 06:42 PM, Jason Low wrote:
+> On Thu, 2013-09-26 at 14:41 -0700, Tim Chen wrote:
+>> Okay, that would makes sense for consistency because we always
+>> first set node->lock = 0 at the top of the function.
+>>
+>> If we prefer to optimize this a bit though, perhaps we can
+>> first move the node->lock = 0 so that it gets executed after the
+>> "if (likely(prev == NULL)) {}" code block and then delete
+>> "node->lock = 1" inside the code block.
+>>
+>> static noinline
+>> void mcs_spin_lock(struct mcs_spin_node **lock, struct mcs_spin_node *node)
+>> {
+>>         struct mcs_spin_node *prev;
+>>
+>>         /* Init node */
+>>         node->next   = NULL;
+>>
+>>         prev = xchg(lock, node);
+>>         if (likely(prev == NULL)) {
+>>                 /* Lock acquired */
+>>                 return;
+>>         }
+>>         node->locked = 0;
 
-I know.  It is a longstanding problem.
+You can remove the locked flag setting statement inside if (prev == 
+NULL), but you can't clear the locked flag after xchg(). In the interval 
+between xchg() and locked=0, the previous lock owner may come in and set 
+the flag. Now if your clear it, the thread will loop forever. You have 
+to clear it before xchg().
 
-	-hpa
-
+-Longman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
