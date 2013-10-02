@@ -1,100 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id D86266B003D
-	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 16:18:43 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id g10so1440898pdj.16
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 13:18:43 -0700 (PDT)
-Date: Wed, 2 Oct 2013 22:18:38 +0200
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BC426B0037
+	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 16:43:45 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id kx10so1570328pab.27
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 13:43:45 -0700 (PDT)
+Date: Wed, 2 Oct 2013 22:29:41 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 05/26] omap3isp: Make isp_video_buffer_prepare_user() use
- get_user_pages_fast()
-Message-ID: <20131002201838.GE16998@quack.suse.cz>
+Subject: Re: [PATCH 0/26] get_user_pages() cleanup
+Message-ID: <20131002202941.GF16998@quack.suse.cz>
 References: <1380724087-13927-1-git-send-email-jack@suse.cz>
- <1380724087-13927-6-git-send-email-jack@suse.cz>
- <11048370.rLWI050cLv@avalon>
+ <20131002162009.GA5778@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <11048370.rLWI050cLv@avalon>
+In-Reply-To: <20131002162009.GA5778@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-media@vger.kernel.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <andreas.dilger@intel.com>, Andy Walls <awalls@md.metrocast.net>, Arnd Bergmann <arnd@arndb.de>, Benjamin LaHaise <bcrl@kvack.org>, ceph-devel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, David Airlie <airlied@linux.ie>, dri-devel@lists.freedesktop.org, Gleb Natapov <gleb@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, hpdd-discuss@ml01.01.org, Jarod Wilson <jarod@wilsonet.com>, Jayant Mangalampalli <jayant.mangalampalli@intel.com>, Jean-Christophe Plagniol-Villard <plagnioj@jcrosoft.com>, Jesper Nilsson <jesper.nilsson@axis.com>, Kai Makisara <Kai.Makisara@kolumbus.fi>, kvm@vger.kernel.org, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, linux-aio@kvack.org, linux-cris-kernel@axis.com, linux-fbdev@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-media@vger.kernel.org, linux-nfs@vger.kernel.org, linux-rdma@vger.kernel.org, linux-scsi@vger.kernel.org, Manu Abraham <abraham.manu@gmail.com>, Mark Allyn <mark.a.allyn@intel.com>, Mikael Starvik <starvik@axis.com>, Mike Marciniszyn <infinipath@intel.com>, Naren Sankar <nsankar@broadcom.com>, Paolo Bonzini <pbonzini@redhat.com>, Peng Tao <tao.peng@emc.com>, Roland Dreier <roland@kernel.org>, Sage Weil <sage@inktank.com>, Scott Davilla <davilla@4pi.com>, Timur Tabi <timur@freescale.com>, Tomi Valkeinen <tomi.valkeinen@ti.com>, Tony Luck <tony.luck@intel.com>, Trond Myklebust <Trond.Myklebust@netapp.com>
 
-On Wed 02-10-13 21:41:10, Laurent Pinchart wrote:
-> Hi Jan,
+On Wed 02-10-13 09:20:09, Christoph Hellwig wrote:
+> On Wed, Oct 02, 2013 at 04:27:41PM +0200, Jan Kara wrote:
+> >   Hello,
+> > 
+> >   In my quest for changing locking around page faults to make things easier for
+> > filesystems I found out get_user_pages() users could use a cleanup.  The
+> > knowledge about necessary locking for get_user_pages() is in tons of places in
+> > drivers and quite a few of them actually get it wrong (don't have mmap_sem when
+> > calling get_user_pages() or hold mmap_sem when calling copy_from_user() in the
+> > surrounding code). Rather often this actually doesn't seem necessary. This
+> > patch series converts lots of places to use either get_user_pages_fast()
+> > or a new simple wrapper get_user_pages_unlocked() to remove the knowledge
+> > of mmap_sem from the drivers. I'm still looking into converting a few remaining
+> > drivers (most notably v4l2) which are more complex.
 > 
-> Thank you for the patch.
-> 
-> On Wednesday 02 October 2013 16:27:46 Jan Kara wrote:
-> > CC: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-> > CC: linux-media@vger.kernel.org
-> > Signed-off-by: Jan Kara <jack@suse.cz>
-> 
-> Acked-by: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-  Thanks!
-> 
-> Could you briefly explain where you're headed with this ?
-  My motivation is that currently filesystems have to workaround locking
-problems with ->page_mkwrite() (the write page fault handler) being called
-with mmap_sem held. The plan is to provide ability to ->page_mkwrite()
-handler to drop mmap_sem. And that needs an audit of all get_user_pages()
-callers to verify they won't be broken by this locking change. So I've
-started with making this audit simpler.
-
-> The V4L2 subsystem has suffered for quite a long time from potentiel
-> AB-BA deadlocks, due the drivers taking the mmap_sem semaphore while
-> holding the V4L2 buffers queue lock in the code path below, and taking
-> them in reverse order in the mmap() path (as the mm core takes the
-> mmap_sem semaphore before calling the mmap() operation).
-  Yeah, I've read about this in some comment in V4L2. Also there are some
-places (drivers/media/platform/omap/omap_vout.c and
-drivers/media/v4l2-core/) which acquire mmap_sem pretty early to avoid lock
-inversion with the queue lock. These are actually causing me quite some
-headache :)
-
-> We've solved that by releasing the V4L2 buffers queue lock before 
-> taking the mmap_sem lock below and taking it back after releasing the mmap_sem 
-> lock. Having an explicit indication that the mmap_sem lock was taken helped 
-> keeping the problem in mind. I'm not against hiding it in 
-> get_user_pages_fast(), but I'd like to know what the next step is. Maybe it 
-> would also be worth it adding a /* get_user_pages_fast() takes the mmap_sem */ 
-> comment before the call ?
-  OK, I can add the comment. Thanks for review.
+> Even looking over the kerneldoc comment next to it I still fail to
+> understand when you'd want to use get_user_pages_fast and when not.
+  AFAIU get_user_pages_fast() should be used
+1) if you don't need any special get_user_pages() arguments (like calling
+   it for mm of a different process, forcing COW, or similar).
+2) you don't expect pages to be unmapped (then get_user_pages_fast() is
+actually somewhat slower because it walks page tables twice).
 
 								Honza
-
-> > ---
-> >  drivers/media/platform/omap3isp/ispqueue.c | 10 +++-------
-> >  1 file changed, 3 insertions(+), 7 deletions(-)
-> > 
-> > diff --git a/drivers/media/platform/omap3isp/ispqueue.c
-> > b/drivers/media/platform/omap3isp/ispqueue.c index
-> > e15f01342058..bed380395e6c 100644
-> > --- a/drivers/media/platform/omap3isp/ispqueue.c
-> > +++ b/drivers/media/platform/omap3isp/ispqueue.c
-> > @@ -331,13 +331,9 @@ static int isp_video_buffer_prepare_user(struct
-> > isp_video_buffer *buf) if (buf->pages == NULL)
-> >  		return -ENOMEM;
-> > 
-> > -	down_read(&current->mm->mmap_sem);
-> > -	ret = get_user_pages(current, current->mm, data & PAGE_MASK,
-> > -			     buf->npages,
-> > -			     buf->vbuf.type == V4L2_BUF_TYPE_VIDEO_CAPTURE, 0,
-> > -			     buf->pages, NULL);
-> > -	up_read(&current->mm->mmap_sem);
-> > -
-> > +	ret = get_user_pages_fast(data & PAGE_MASK, buf->npages,
-> > +				  buf->vbuf.type == V4L2_BUF_TYPE_VIDEO_CAPTURE,
-> > +				  buf->pages);
-> >  	if (ret != buf->npages) {
-> >  		buf->npages = ret < 0 ? 0 : ret;
-> >  		isp_video_buffer_cleanup(buf);
-> -- 
-> Regards,
-> 
-> Laurent Pinchart
-> 
 -- 
 Jan Kara <jack@suse.cz>
 SUSE Labs, CR
