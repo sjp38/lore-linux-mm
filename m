@@ -1,45 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D6D4A6B0037
-	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 10:29:00 -0400 (EDT)
-Received: by mail-pb0-f48.google.com with SMTP id ma3so949850pbc.35
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 320446B0037
+	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 10:29:01 -0400 (EDT)
+Received: by mail-pb0-f46.google.com with SMTP id rq2so951393pbb.19
         for <linux-mm@kvack.org>; Wed, 02 Oct 2013 07:29:00 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 02/26] ia64: Use get_user_pages_fast() in err_inject.c
-Date: Wed,  2 Oct 2013 16:27:43 +0200
-Message-Id: <1380724087-13927-3-git-send-email-jack@suse.cz>
+Subject: [PATCH 07/26] st: Convert sgl_map_user_pages() to use get_user_pages_fast()
+Date: Wed,  2 Oct 2013 16:27:48 +0200
+Message-Id: <1380724087-13927-8-git-send-email-jack@suse.cz>
 In-Reply-To: <1380724087-13927-1-git-send-email-jack@suse.cz>
 References: <1380724087-13927-1-git-send-email-jack@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Tony Luck <tony.luck@intel.com>, linux-ia64@vger.kernel.org
+Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, linux-scsi@vger.kernel.org, Kai Makisara <Kai.Makisara@kolumbus.fi>
 
-Convert get_user_pages() call to get_user_pages_fast(). This actually
-fixes an apparent bug where get_user_pages() has been called without
-mmap_sem for an arbitrary user-provided address.
-
-CC: Tony Luck <tony.luck@intel.com>
-CC: linux-ia64@vger.kernel.org
+CC: linux-scsi@vger.kernel.org
+CC: Kai Makisara <Kai.Makisara@kolumbus.fi>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- arch/ia64/kernel/err_inject.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ drivers/scsi/st.c | 18 +++++-------------
+ 1 file changed, 5 insertions(+), 13 deletions(-)
 
-diff --git a/arch/ia64/kernel/err_inject.c b/arch/ia64/kernel/err_inject.c
-index f59c0b844e88..75d35906a86b 100644
---- a/arch/ia64/kernel/err_inject.c
-+++ b/arch/ia64/kernel/err_inject.c
-@@ -142,8 +142,7 @@ store_virtual_to_phys(struct device *dev, struct device_attribute *attr,
- 	u64 virt_addr=simple_strtoull(buf, NULL, 16);
- 	int ret;
+diff --git a/drivers/scsi/st.c b/drivers/scsi/st.c
+index ff44b3c2cff2..ba11299c3740 100644
+--- a/drivers/scsi/st.c
++++ b/drivers/scsi/st.c
+@@ -4514,19 +4514,11 @@ static int sgl_map_user_pages(struct st_buffer *STbp,
+ 	if ((pages = kmalloc(max_pages * sizeof(*pages), GFP_KERNEL)) == NULL)
+ 		return -ENOMEM;
  
--        ret = get_user_pages(current, current->mm, virt_addr,
--                        1, VM_READ, 0, NULL, NULL);
-+	ret = get_user_pages_fast(virt_addr, 1, VM_READ, NULL);
- 	if (ret<=0) {
- #ifdef ERR_INJ_DEBUG
- 		printk("Virtual address %lx is not existing.\n",virt_addr);
+-        /* Try to fault in all of the necessary pages */
+-	down_read(&current->mm->mmap_sem);
+-        /* rw==READ means read from drive, write into memory area */
+-	res = get_user_pages(
+-		current,
+-		current->mm,
+-		uaddr,
+-		nr_pages,
+-		rw == READ,
+-		0, /* don't force */
+-		pages,
+-		NULL);
+-	up_read(&current->mm->mmap_sem);
++        /*
++	 * Try to fault in all of the necessary pages. rw==READ means read
++	 * from drive, write into memory area.
++	 */
++	res = get_user_pages_fast(uaddr, nr_pages, rw == READ, pages);
+ 
+ 	/* Errors and no page mapped should return here */
+ 	if (res < nr_pages)
 -- 
 1.8.1.4
 
