@@ -1,63 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id E1B1C6B0031
-	for <linux-mm@kvack.org>; Thu,  3 Oct 2013 06:22:43 -0400 (EDT)
-Received: by mail-pb0-f49.google.com with SMTP id xb4so2239912pbc.36
-        for <linux-mm@kvack.org>; Thu, 03 Oct 2013 03:22:43 -0700 (PDT)
-Received: from list by plane.gmane.org with local (Exim 4.69)
-	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
-	id 1VRg3F-0001E4-JW
-	for linux-mm@kvack.org; Thu, 03 Oct 2013 12:22:33 +0200
-Received: from 217-67-201-162.itsa.net.pl ([217.67.201.162])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Thu, 03 Oct 2013 12:22:33 +0200
-Received: from k.kozlowski by 217-67-201-162.itsa.net.pl with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Thu, 03 Oct 2013 12:22:33 +0200
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id D23086B0031
+	for <linux-mm@kvack.org>; Thu,  3 Oct 2013 09:25:09 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so2624959pab.29
+        for <linux-mm@kvack.org>; Thu, 03 Oct 2013 06:25:09 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout1.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MU300B7KH7NJJE0@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 03 Oct 2013 14:24:21 +0100 (BST)
+Message-id: <1380806660.3392.30.camel@AMDC1943>
+Subject: Re: [PATCH v2 0/5] mm: migrate zbud pages
 From: Krzysztof Kozlowski <k.kozlowski@samsung.com>
-Subject: Re: [PATCH 06/14] vrange: Add basic functions to purge volatile
- pages
-Date: Thu, 03 Oct 2013 12:22:24 +0200
-Message-ID: <1380795744.3392.3.camel@AMDC1943>
-References: <1380761503-14509-1-git-send-email-john.stultz@linaro.org>
-	 <1380761503-14509-7-git-send-email-john.stultz@linaro.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <1380761503-14509-7-git-send-email-john.stultz@linaro.org>
+Date: Thu, 03 Oct 2013 15:24:20 +0200
+In-reply-to: <20131001210431.GA8941@variantweb.net>
+References: <1378889944-23192-1-git-send-email-k.kozlowski@samsung.com>
+ <5237FDCC.5010109@oracle.com> <20130923220757.GC16191@variantweb.net>
+ <524318DE.7070106@samsung.com> <20130925215744.GA25852@variantweb.net>
+ <52455B05.1010603@samsung.com> <20130927220045.GA751@variantweb.net>
+ <1380529726.11375.11.camel@AMDC1943> <20131001210431.GA8941@variantweb.net>
+Content-type: text/plain; charset=UTF-8
+Content-transfer-encoding: 7bit
+MIME-version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Tomasz Stanislawski <t.stanislaws@samsung.com>, Bob Liu <bob.liu@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Dave Hansen <dave.hansen@intel.com>, Minchan Kim <minchan@kernel.org>
 
-On =C5=9Bro, 2013-10-02 at 17:51 -0700, John Stultz wrote:
-> +static void try_to_discard_one(struct vrange_root *vroot, struct page *p=
-age,
-> +				struct vm_area_struct *vma, unsigned long addr)
-> +{
-> +	struct mm_struct *mm =3D vma->vm_mm;
-> +	pte_t *pte;
-> +	pte_t pteval;
-> +	spinlock_t *ptl;
-> +
-> +	VM_BUG_ON(!PageLocked(page));
-> +
-> +	pte =3D page_check_address(page, mm, addr, &ptl, 0);
-> +	if (!pte)
-> +		return;
-> +
-> +	BUG_ON(vma->vm_flags & (VM_SPECIAL|VM_LOCKED|VM_MIXEDMAP|VM_HUGETLB));
-> +
-> +	flush_cache_page(vma, addr, page_to_pfn(page));
+On wto, 2013-10-01 at 16:04 -0500, Seth Jennings wrote:
+> Yes, it is very similar.  I'm beginning to like aspects of this patch
+> more as I explore this issue more.
+> 
+> At first, I balked at the idea of yet another abstraction layer, but it
+> is very hard to avoid unless you want to completely collapse zswap and
+> zbud into one another and dissolve the layering.  Then you could do a
+> direct swap_offset -> address mapping.
 
-It seems that this patch is different in your GIT repo
-(git://git.linaro.org/people/jstultz/android-dev.git dev/vrange-v9). In
-GIT it is missing the fix: s/address/addr.
+After discussion with Tomasz Stanislawski we had an idea of merging the
+trees (zswap's rb and zbud's radix added in these patches) into one tree
+in zbud layer.
+
+This would simplify the design (if migration was added, of course).
+
+The idea looks like:
+1. Get rid of the red-black tree in zswap.
+2. Add radix tree to zbud (or use radix tree from address space).
+ - Use offset (from swp_entry) as index to radix tree.
+ - zbud page (struct page) stored in tree.
+4. With both buddies filled one zbud page would be put in radix tree
+twice.
+5. zbud API would look like:
+zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp, pgoff_t offset)
+zbud_free(struct zbud_pool *pool, pgoff_t offset)
+zbud_map(struct zbud_pool *pool, pgoff_t offset)
+etc.
+
+6. zbud_map/unmap() would be a little more complex than now as it would
+took over some code from zswap (finding offset in tree).
+
+7. The radix tree would be used for:
+ - finding entry by offset (for zswap_frontswap_load() and others),
+ - migration.
+
+8. In case of migration colliding with zbud_map/unmap() the locking
+could be limited (in comparison to my patch). Calling zbud_map() would
+mark a page "dirty". During migration if page was "dirtied" then
+migration would fail with EAGAIN. Of course migration won't start if
+zbud buddy was mapped.
+
+
+What do you think about this?
+
 
 Best regards,
 Krzysztof
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
