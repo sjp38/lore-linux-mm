@@ -1,42 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C6ED6B0031
-	for <linux-mm@kvack.org>; Thu,  3 Oct 2013 16:42:08 -0400 (EDT)
-Received: by mail-pb0-f45.google.com with SMTP id mc17so2989872pbc.4
-        for <linux-mm@kvack.org>; Thu, 03 Oct 2013 13:42:07 -0700 (PDT)
-Date: Thu, 3 Oct 2013 13:42:04 -0700
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id DF1CB6B0031
+	for <linux-mm@kvack.org>; Thu,  3 Oct 2013 16:58:26 -0400 (EDT)
+Received: by mail-pb0-f47.google.com with SMTP id rr4so3000128pbb.6
+        for <linux-mm@kvack.org>; Thu, 03 Oct 2013 13:58:26 -0700 (PDT)
+Date: Thu, 3 Oct 2013 13:58:22 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] mm/sparsemem: Fix a bug in free_map_bootmem when
- CONFIG_SPARSEMEM_VMEMMAP
-Message-Id: <20131003134204.e408977b42cb85984473cfd6@linux-foundation.org>
-In-Reply-To: <524CE532.1030001@gmail.com>
-References: <524CE4C1.8060508@gmail.com>
-	<524CE532.1030001@gmail.com>
+Subject: Re: [PATCH 1/2] mm,fs: introduce helpers around i_mmap_mutex
+Message-Id: <20131003135822.e0b2ca10fe5a460714bb82a3@linux-foundation.org>
+In-Reply-To: <1380745066-9925-2-git-send-email-davidlohr@hp.com>
+References: <1380745066-9925-1-git-send-email-davidlohr@hp.com>
+	<1380745066-9925-2-git-send-email-davidlohr@hp.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
-Cc: Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Toshi Kani <toshi.kani@hp.com>, isimatu.yasuaki@jp.fujitsu.com, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, aswin@hp.com, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 03 Oct 2013 11:32:02 +0800 Zhang Yanfei <zhangyanfei.yes@gmail.com> wrote:
+On Wed,  2 Oct 2013 13:17:45 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
 
-> We pass the number of pages which hold page structs of a memory
-> section to function free_map_bootmem. This is right when
-> !CONFIG_SPARSEMEM_VMEMMAP but wrong when CONFIG_SPARSEMEM_VMEMMAP.
-> When CONFIG_SPARSEMEM_VMEMMAP, we should pass the number of pages
-> of a memory section to free_map_bootmem.
+> Various parts of the kernel acquire and release this mutex,
+> so add i_mmap_lock_write() and immap_unlock_write() helper
+> functions that will encapsulate this logic. The next patch
+> will make use of these.
 > 
-> So the fix is removing the nr_pages parameter. When
-> CONFIG_SPARSEMEM_VMEMMAP, we directly use the prefined marco
-> PAGES_PER_SECTION in free_map_bootmem. When !CONFIG_SPARSEMEM_VMEMMAP,
-> we calculate page numbers needed to hold the page structs for a
-> memory section and use the value in free_map_bootmem.
+> ...
+>
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -478,6 +478,16 @@ struct block_device {
+>  
+>  int mapping_tagged(struct address_space *mapping, int tag);
+>  
+> +static inline void i_mmap_lock_write(struct address_space *mapping)
+> +{
+> +	mutex_lock(&mapping->i_mmap_mutex);
+> +}
 
-What were the runtime user-visible effects of that bug?
+I don't understand the thinking behind the "_write".  There is no
+"_read" and all callsites use "_write", so why not call it
+i_mmap_lock()?
 
-Please always include this information when fixing a bug.
+I *assume* the answer is "so we can later convert some sites to a new
+i_mmap_lock_read()".  If so, the changelog should have discussed this. 
+If not, still confused.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
