@@ -1,113 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B2D86B006E
-	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 20:52:34 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id kp14so1814288pab.10
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 17:52:33 -0700 (PDT)
-Received: by mail-pa0-f47.google.com with SMTP id kp14so1796452pab.6
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 17:52:31 -0700 (PDT)
-From: John Stultz <john.stultz@linaro.org>
-Subject: [PATCH 14/14] vrange: Add vmstat counter about purged page
-Date: Wed,  2 Oct 2013 17:51:43 -0700
-Message-Id: <1380761503-14509-15-git-send-email-john.stultz@linaro.org>
-In-Reply-To: <1380761503-14509-1-git-send-email-john.stultz@linaro.org>
-References: <1380761503-14509-1-git-send-email-john.stultz@linaro.org>
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 79D776B0031
+	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 23:30:22 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id g10so1809563pdj.26
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 20:30:22 -0700 (PDT)
+Received: by mail-pb0-f52.google.com with SMTP id wz12so1804426pbc.39
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 20:30:19 -0700 (PDT)
+Message-ID: <524CE4C1.8060508@gmail.com>
+Date: Thu, 03 Oct 2013 11:30:09 +0800
+From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+MIME-Version: 1.0
+Subject: [PATCH 1/2] mm/sparsemem: Use PAGES_PER_SECTION to remove redundant
+ nr_pages parameter
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dhaval.giani@gmail.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Rob Clark <robdclark@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, John Stultz <john.stultz@linaro.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Toshi Kani <toshi.kani@hp.com>, isimatu.yasuaki@jp.fujitsu.com, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-From: Minchan Kim <minchan@kernel.org>
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-This patch adds the number of purged page in vmstat so admin can see
-how many of volatile pages are discarded by VM until now.
+For below functions,
+- sparse_add_one_section()
+- kmalloc_section_memmap()
+- __kmalloc_section_memmap()
+- __kfree_section_memmap()
+they are always invoked to operate on one memory section, so it is
+redundant to always pass a nr_pages parameter, which is the page
+numbers in one section. So we can directly use predefined marco
+PAGES_PER_SECTION instead of passing the parameter.
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Android Kernel Team <kernel-team@android.com>
-Cc: Robert Love <rlove@google.com>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Dmitry Adamushko <dmitry.adamushko@gmail.com>
-Cc: Dave Chinner <david@fromorbit.com>
-Cc: Neil Brown <neilb@suse.de>
-Cc: Andrea Righi <andrea@betterlinux.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Mike Hommey <mh@glandium.org>
-Cc: Taras Glek <tglek@mozilla.com>
-Cc: Dhaval Giani <dhaval.giani@gmail.com>
-Cc: Jan Kara <jack@suse.cz>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Rob Clark <robdclark@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org <linux-mm@kvack.org>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
-Signed-off-by: John Stultz <john.stultz@linaro.org>
+Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- include/linux/vm_event_item.h |  2 ++
- mm/vmstat.c                   |  2 ++
- mm/vrange.c                   | 10 ++++++++++
- 3 files changed, 14 insertions(+)
+ include/linux/memory_hotplug.h |    3 +--
+ mm/memory_hotplug.c            |    3 +--
+ mm/sparse.c                    |   33 +++++++++++++++------------------
+ 3 files changed, 17 insertions(+), 22 deletions(-)
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index bd6cf61..c4aea92 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -25,6 +25,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		FOR_ALL_ZONES(PGALLOC),
- 		PGFREE, PGACTIVATE, PGDEACTIVATE,
- 		PGFAULT, PGMAJFAULT,
-+		PGDISCARD_DIRECT,
-+		PGDISCARD_KSWAPD,
- 		FOR_ALL_ZONES(PGREFILL),
- 		FOR_ALL_ZONES(PGSTEAL_KSWAPD),
- 		FOR_ALL_ZONES(PGSTEAL_DIRECT),
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 20c2ef4..4f35f46 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -756,6 +756,8 @@ const char * const vmstat_text[] = {
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index dd38e62..57ac2a9 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -262,8 +262,7 @@ extern int arch_add_memory(int nid, u64 start, u64 size);
+ extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+ extern bool is_memblock_offlined(struct memory_block *mem);
+ extern void remove_memory(int nid, u64 start, u64 size);
+-extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+-								int nr_pages);
++extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn);
+ extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms);
+ extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
+ 					  unsigned long pnum);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index ed85fe3..d457bf8 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -402,13 +402,12 @@ static int __meminit __add_zone(struct zone *zone, unsigned long phys_start_pfn)
+ static int __meminit __add_section(int nid, struct zone *zone,
+ 					unsigned long phys_start_pfn)
+ {
+-	int nr_pages = PAGES_PER_SECTION;
+ 	int ret;
  
- 	"pgfault",
- 	"pgmajfault",
-+	"pgdiscard_direct",
-+	"pgdiscard_kswapd",
+ 	if (pfn_valid(phys_start_pfn))
+ 		return -EEXIST;
  
- 	TEXTS_FOR_ZONES("pgrefill")
- 	TEXTS_FOR_ZONES("pgsteal_kswapd")
-diff --git a/mm/vrange.c b/mm/vrange.c
-index c30e3dd..8931fab 100644
---- a/mm/vrange.c
-+++ b/mm/vrange.c
-@@ -894,6 +894,10 @@ int discard_vpage(struct page *page)
+-	ret = sparse_add_one_section(zone, phys_start_pfn, nr_pages);
++	ret = sparse_add_one_section(zone, phys_start_pfn);
  
- 		if (page_freeze_refs(page, 1)) {
- 			unlock_page(page);
-+			if (current_is_kswapd())
-+				count_vm_event(PGDISCARD_KSWAPD);
-+			else
-+				count_vm_event(PGDISCARD_DIRECT);
- 			return 0;
- 		}
+ 	if (ret < 0)
+ 		return ret;
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 4ac1d7e..fbb9dbc 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -590,16 +590,15 @@ void __init sparse_init(void)
+ 
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ #ifdef CONFIG_SPARSEMEM_VMEMMAP
+-static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
+-						 unsigned long nr_pages)
++static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid)
+ {
+ 	/* This will make the necessary allocations eventually. */
+ 	return sparse_mem_map_populate(pnum, nid);
+ }
+-static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
++static void __kfree_section_memmap(struct page *memmap)
+ {
+ 	unsigned long start = (unsigned long)memmap;
+-	unsigned long end = (unsigned long)(memmap + nr_pages);
++	unsigned long end = (unsigned long)(memmap + PAGES_PER_SECTION);
+ 
+ 	vmemmap_free(start, end);
+ }
+@@ -613,10 +612,10 @@ static void free_map_bootmem(struct page *memmap, unsigned long nr_pages)
+ }
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ #else
+-static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
++static struct page *__kmalloc_section_memmap(void)
+ {
+ 	struct page *page, *ret;
+-	unsigned long memmap_size = sizeof(struct page) * nr_pages;
++	unsigned long memmap_size = sizeof(struct page) * PAGES_PER_SECTION;
+ 
+ 	page = alloc_pages(GFP_KERNEL|__GFP_NOWARN, get_order(memmap_size));
+ 	if (page)
+@@ -634,19 +633,18 @@ got_map_ptr:
+ 	return ret;
+ }
+ 
+-static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
+-						  unsigned long nr_pages)
++static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid)
+ {
+-	return __kmalloc_section_memmap(nr_pages);
++	return __kmalloc_section_memmap();
+ }
+ 
+-static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
++static void __kfree_section_memmap(struct page *memmap)
+ {
+ 	if (is_vmalloc_addr(memmap))
+ 		vfree(memmap);
+ 	else
+ 		free_pages((unsigned long)memmap,
+-			   get_order(sizeof(struct page) * nr_pages));
++			   get_order(sizeof(struct page) * PAGES_PER_SECTION));
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+@@ -684,8 +682,7 @@ static void free_map_bootmem(struct page *memmap, unsigned long nr_pages)
+  * set.  If this is <=0, then that means that the passed-in
+  * map was not consumed and must be freed.
+  */
+-int __meminit sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+-			   int nr_pages)
++int __meminit sparse_add_one_section(struct zone *zone, unsigned long start_pfn)
+ {
+ 	unsigned long section_nr = pfn_to_section_nr(start_pfn);
+ 	struct pglist_data *pgdat = zone->zone_pgdat;
+@@ -702,12 +699,12 @@ int __meminit sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+ 	ret = sparse_index_init(section_nr, pgdat->node_id);
+ 	if (ret < 0 && ret != -EEXIST)
+ 		return ret;
+-	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id, nr_pages);
++	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id);
+ 	if (!memmap)
+ 		return -ENOMEM;
+ 	usemap = __kmalloc_section_usemap();
+ 	if (!usemap) {
+-		__kfree_section_memmap(memmap, nr_pages);
++		__kfree_section_memmap(memmap);
+ 		return -ENOMEM;
  	}
-@@ -1144,6 +1148,12 @@ static int discard_vrange(struct vrange *vrange)
- 		ret = __discard_vrange_file(mapping, vrange, &nr_discard);
+ 
+@@ -719,7 +716,7 @@ int __meminit sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+ 		goto out;
  	}
  
-+	if (!ret) {
-+		if (current_is_kswapd())
-+			count_vm_events(PGDISCARD_KSWAPD, nr_discard);
-+		else
-+			count_vm_events(PGDISCARD_DIRECT, nr_discard);
-+	}
- out:
- 	__vroot_put(vroot);
- 	return nr_discard;
+-	memset(memmap, 0, sizeof(struct page) * nr_pages);
++	memset(memmap, 0, sizeof(struct page) * PAGES_PER_SECTION);
+ 
+ 	ms->section_mem_map |= SECTION_MARKED_PRESENT;
+ 
+@@ -729,7 +726,7 @@ out:
+ 	pgdat_resize_unlock(pgdat, &flags);
+ 	if (ret <= 0) {
+ 		kfree(usemap);
+-		__kfree_section_memmap(memmap, nr_pages);
++		__kfree_section_memmap(memmap);
+ 	}
+ 	return ret;
+ }
+@@ -771,7 +768,7 @@ static void free_section_usemap(struct page *memmap, unsigned long *usemap)
+ 	if (PageSlab(usemap_page) || PageCompound(usemap_page)) {
+ 		kfree(usemap);
+ 		if (memmap)
+-			__kfree_section_memmap(memmap, PAGES_PER_SECTION);
++			__kfree_section_memmap(memmap);
+ 		return;
+ 	}
+ 
 -- 
-1.8.1.2
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
