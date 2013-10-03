@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FA926B005C
-	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 20:52:23 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id r10so1686607pdi.28
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 593C76B005C
+	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 20:52:25 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id p10so1670212pdj.18
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 17:52:24 -0700 (PDT)
+Received: by mail-pb0-f49.google.com with SMTP id xb4so1657412pbc.8
         for <linux-mm@kvack.org>; Wed, 02 Oct 2013 17:52:22 -0700 (PDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so1663541pdj.36
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 17:52:20 -0700 (PDT)
 From: John Stultz <john.stultz@linaro.org>
-Subject: [PATCH 09/14] vrange: Add vrange LRU list for purging
-Date: Wed,  2 Oct 2013 17:51:38 -0700
-Message-Id: <1380761503-14509-10-git-send-email-john.stultz@linaro.org>
+Subject: [PATCH 10/14] vrange: Add core shrinking logic for swapless system
+Date: Wed,  2 Oct 2013 17:51:39 -0700
+Message-Id: <1380761503-14509-11-git-send-email-john.stultz@linaro.org>
 In-Reply-To: <1380761503-14509-1-git-send-email-john.stultz@linaro.org>
 References: <1380761503-14509-1-git-send-email-john.stultz@linaro.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,17 +19,36 @@ Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>,
 
 From: Minchan Kim <minchan@kernel.org>
 
-This patch adds vrange LRU list for managing vranges to purge by
-something (In this implementation, I will use slab shrinker introduced
-by upcoming patches).
+This patch adds the core volatile range shrinking logic
+needed to allow volatile range purging to function on
+swapless systems.
 
-This is necessary to purge vranges on swapless system because currently
-the VM only ages anonymous pages if the system has a swap device.
+This patch does not wire in the specific range purging logic,
+but that will be added in the following patches.
 
-In this case, because we would otherwise be duplicating the page LRUs
-tracking of hot/cold pages, we utilize a vrange LRU, to manage the
-shrinking order. Thus the shrinker will discard the entire vrange at
-once, and vranges are purged in the order they are marked volatile.
+The reason I use shrinker is that Dave and Glauber are trying to
+make slab shrinker being aware of node/memcg so if the patchset
+reach on mainline, we also can support node/memcg in vrange, easily.
+
+Another reason I selected slab shrinker is that normally slab shrinker
+is called after normal reclaim of file-backed page(ex, page cache)
+so reclaiming preference would be this, I expect.(TODO: invstigate
+and might need more tunes in reclaim path)
+
+        page cache -> vrange by slab shrinking -> anon page
+
+It does make sense because page cache can have stream data so there is
+no point to shrink vrange pages if there are lots of streaming pages
+in page cache.
+
+In this version, I didn't check it works well but it's design concept
+so we can make it work via modify page reclaim path.
+I will have more experiment.
+
+One of disadvantage with using slab shrink is that slab shrinker isn't
+called in using memcg so memcg-noswap system cannot take advantage of it.
+Hmm, Maybe I will jump into relcaim code to hook some point to control
+vrange page shrinking more freely.
 
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Android Kernel Team <kernel-team@android.com>
@@ -54,161 +73,135 @@ Cc: Rob Clark <robdclark@gmail.com>
 Cc: Minchan Kim <minchan@kernel.org>
 Cc: linux-mm@kvack.org <linux-mm@kvack.org>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
+[jstultz: Renamed some functions and minor cleanups]
 Signed-off-by: John Stultz <john.stultz@linaro.org>
 ---
- include/linux/vrange_types.h |  2 ++
- mm/vrange.c                  | 61 ++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 58 insertions(+), 5 deletions(-)
+ mm/vrange.c | 89 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 86 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/vrange_types.h b/include/linux/vrange_types.h
-index 0d48b42..d7d451c 100644
---- a/include/linux/vrange_types.h
-+++ b/include/linux/vrange_types.h
-@@ -20,6 +20,8 @@ struct vrange {
- 	struct interval_tree_node node;
- 	struct vrange_root *owner;
- 	int purged;
-+	struct list_head lru;
-+	atomic_t refcount;
- };
- #endif
- 
 diff --git a/mm/vrange.c b/mm/vrange.c
-index c19a966..33e3ac1 100644
+index 33e3ac1..e7c5a25 100644
 --- a/mm/vrange.c
 +++ b/mm/vrange.c
-@@ -14,8 +14,21 @@
+@@ -25,11 +25,19 @@ static inline unsigned int vrange_size(struct vrange *range)
+ 	return range->node.last + 1 - range->node.start;
+ }
  
- static struct kmem_cache *vrange_cachep;
- 
-+static struct vrange_list {
-+	struct list_head list;
-+	unsigned long size;
-+	struct mutex lock;
-+} vrange_list;
++static int shrink_vrange(struct shrinker *s, struct shrink_control *sc);
 +
-+static inline unsigned int vrange_size(struct vrange *range)
-+{
-+	return range->node.last + 1 - range->node.start;
-+}
++static struct shrinker vrange_shrinker = {
++	.shrink = shrink_vrange,
++	.seeks = DEFAULT_SEEKS
++};
 +
  static int __init vrange_init(void)
  {
-+	INIT_LIST_HEAD(&vrange_list.list);
-+	mutex_init(&vrange_list.lock);
+ 	INIT_LIST_HEAD(&vrange_list.list);
+ 	mutex_init(&vrange_list.lock);
  	vrange_cachep = KMEM_CACHE(vrange, SLAB_PANIC);
++	register_shrinker(&vrange_shrinker);
  	return 0;
  }
-@@ -27,19 +40,56 @@ static struct vrange *__vrange_alloc(gfp_t flags)
- 	if (!vrange)
- 		return vrange;
- 	vrange->owner = NULL;
-+	INIT_LIST_HEAD(&vrange->lru);
-+	atomic_set(&vrange->refcount, 1);
-+
- 	return vrange;
- }
- 
- static void __vrange_free(struct vrange *range)
+ module_init(vrange_init);
+@@ -58,9 +66,14 @@ static void __vrange_free(struct vrange *range)
+ static inline void __vrange_lru_add(struct vrange *range)
  {
- 	WARN_ON(range->owner);
-+	WARN_ON(atomic_read(&range->refcount) != 0);
-+	WARN_ON(!list_empty(&range->lru));
-+
- 	kmem_cache_free(vrange_cachep, range);
+ 	mutex_lock(&vrange_list.lock);
+-	WARN_ON(!list_empty(&range->lru));
+-	list_add(&range->lru, &vrange_list.list);
+-	vrange_list.size += vrange_size(range);
++	/*
++	 * We need this check because it could be raced with
++	 * shrink_vrange and vrange_resize
++	 */
++	if (list_empty(&range->lru)) {
++		list_add(&range->lru, &vrange_list.list);
++		vrange_list.size += vrange_size(range);
++	}
+ 	mutex_unlock(&vrange_list.lock);
  }
  
-+static inline void __vrange_lru_add(struct vrange *range)
+@@ -84,6 +97,14 @@ static void __vrange_add(struct vrange *range, struct vrange_root *vroot)
+ 	__vrange_lru_add(range);
+ }
+ 
++static inline int __vrange_get(struct vrange *vrange)
 +{
-+	mutex_lock(&vrange_list.lock);
-+	WARN_ON(!list_empty(&range->lru));
-+	list_add(&range->lru, &vrange_list.list);
-+	vrange_list.size += vrange_size(range);
-+	mutex_unlock(&vrange_list.lock);
++	if (!atomic_inc_not_zero(&vrange->refcount))
++		return 0;
++
++	return 1;
 +}
 +
-+static inline void __vrange_lru_del(struct vrange *range)
-+{
-+	mutex_lock(&vrange_list.lock);
-+	if (!list_empty(&range->lru)) {
-+		list_del_init(&range->lru);
-+		vrange_list.size -= vrange_size(range);
-+		WARN_ON(range->owner);
-+	}
-+	mutex_unlock(&vrange_list.lock);
-+}
-+
- static void __vrange_add(struct vrange *range, struct vrange_root *vroot)
+ static inline void __vrange_put(struct vrange *range)
  {
- 	range->owner = vroot;
- 	interval_tree_insert(&range->node, &vroot->v_rb);
+ 	if (atomic_dec_and_test(&range->refcount)) {
+@@ -647,3 +668,65 @@ int discard_vpage(struct page *page)
+ 
+ 	return 1;
+ }
 +
-+	WARN_ON(atomic_read(&range->refcount) <= 0);
-+	__vrange_lru_add(range);
++static struct vrange *vrange_isolate(void)
++{
++	struct vrange *vrange = NULL;
++	mutex_lock(&vrange_list.lock);
++	while (!list_empty(&vrange_list.list)) {
++		vrange = list_entry(vrange_list.list.prev,
++				struct vrange, lru);
++		list_del_init(&vrange->lru);
++		vrange_list.size -= vrange_size(vrange);
++
++		/* vrange is going to destroy */
++		if (__vrange_get(vrange))
++			break;
++
++		vrange = NULL;
++	}
++
++	mutex_unlock(&vrange_list.lock);
++	return vrange;
 +}
 +
-+static inline void __vrange_put(struct vrange *range)
++static unsigned int discard_vrange(struct vrange *vrange)
 +{
-+	if (atomic_dec_and_test(&range->refcount)) {
-+		__vrange_lru_del(range);
-+		__vrange_free(range);
-+	}
- }
- 
- static void __vrange_remove(struct vrange *range)
-@@ -64,6 +114,7 @@ static inline void __vrange_resize(struct vrange *range,
- 	bool purged = range->purged;
- 
- 	__vrange_remove(range);
-+	__vrange_lru_del(range);
- 	__vrange_set(range, start_idx, end_idx, purged);
- 	__vrange_add(range, vroot);
- }
-@@ -100,7 +151,7 @@ static int vrange_add(struct vrange_root *vroot,
- 		range = vrange_from_node(node);
- 		/* old range covers new range fully */
- 		if (node->start <= start_idx && node->last >= end_idx) {
--			__vrange_free(new_range);
-+			__vrange_put(new_range);
- 			goto out;
- 		}
- 
-@@ -109,7 +160,7 @@ static int vrange_add(struct vrange_root *vroot,
- 		purged |= range->purged;
- 
- 		__vrange_remove(range);
--		__vrange_free(range);
-+		__vrange_put(range);
- 
- 		node = next;
- 	}
-@@ -150,7 +201,7 @@ static int vrange_remove(struct vrange_root *vroot,
- 		if (start_idx <= node->start && end_idx >= node->last) {
- 			/* argumented range covers the range fully */
- 			__vrange_remove(range);
--			__vrange_free(range);
++	return 0;
++}
++
++static int shrink_vrange(struct shrinker *s, struct shrink_control *sc)
++{
++	struct vrange *range = NULL;
++	long nr_to_scan = sc->nr_to_scan;
++	long size = vrange_list.size;
++
++	if (!nr_to_scan)
++		return size;
++
++	if (sc->nr_to_scan && !(sc->gfp_mask & __GFP_IO))
++		return -1;
++
++	while (size > 0 && nr_to_scan > 0) {
++		range = vrange_isolate();
++		if (!range)
++			break;
++
++		/* range is removing so don't bother */
++		if (!range->owner) {
 +			__vrange_put(range);
- 		} else if (node->start >= start_idx) {
- 			/*
- 			 * Argumented range covers over the left of the
-@@ -181,7 +232,7 @@ static int vrange_remove(struct vrange_root *vroot,
- 	vrange_unlock(vroot);
- 
- 	if (!used_new)
--		__vrange_free(new_range);
-+		__vrange_put(new_range);
- 
- 	return 0;
- }
-@@ -204,7 +255,7 @@ void vrange_root_cleanup(struct vrange_root *vroot)
- 	while ((node = rb_first(&vroot->v_rb))) {
- 		range = vrange_entry(node);
- 		__vrange_remove(range);
--		__vrange_free(range);
++			size -= vrange_size(range);
++			nr_to_scan -= vrange_size(range);
++			continue;
++		}
++
++		if (discard_vrange(range) < 0)
++			__vrange_lru_add(range);
 +		__vrange_put(range);
- 	}
- 	vrange_unlock(vroot);
- }
++
++		size -= vrange_size(range);
++		nr_to_scan -= vrange_size(range);
++	}
++
++	return size;
++}
 -- 
 1.8.1.2
 
