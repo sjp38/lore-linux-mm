@@ -1,59 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FCE06B0031
-	for <linux-mm@kvack.org>; Thu,  3 Oct 2013 17:00:40 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id q10so2990404pdj.20
-        for <linux-mm@kvack.org>; Thu, 03 Oct 2013 14:00:40 -0700 (PDT)
-Message-ID: <1380834035.2280.5.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH 1/2] mm,fs: introduce helpers around i_mmap_mutex
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Thu, 03 Oct 2013 14:00:35 -0700
-In-Reply-To: <20131003135822.e0b2ca10fe5a460714bb82a3@linux-foundation.org>
-References: <1380745066-9925-1-git-send-email-davidlohr@hp.com>
-	 <1380745066-9925-2-git-send-email-davidlohr@hp.com>
-	 <20131003135822.e0b2ca10fe5a460714bb82a3@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A8E86B0031
+	for <linux-mm@kvack.org>; Thu,  3 Oct 2013 17:10:12 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id md4so3016986pbc.2
+        for <linux-mm@kvack.org>; Thu, 03 Oct 2013 14:10:12 -0700 (PDT)
+Date: Thu, 3 Oct 2013 14:10:08 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: pagevec: cleanup: drop pvec->cold argument in all
+ places
+Message-Id: <20131003141008.0bf310445041a0919fe84fb9@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.02.1310012243220.5682@chino.kir.corp.google.com>
+References: <1380357239-30102-1-git-send-email-bob.liu@oracle.com>
+	<20130930150207.3661b5c146b6ecea84194547@linux-foundation.org>
+	<alpine.DEB.2.02.1310012243220.5682@chino.kir.corp.google.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, aswin@hp.com, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com, minchan@kernel.org, Bob Liu <bob.liu@oracle.com>
 
-On Thu, 2013-10-03 at 13:58 -0700, Andrew Morton wrote:
-> On Wed,  2 Oct 2013 13:17:45 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
+On Tue, 1 Oct 2013 22:47:36 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+
+> On Mon, 30 Sep 2013, Andrew Morton wrote:
 > 
-> > Various parts of the kernel acquire and release this mutex,
-> > so add i_mmap_lock_write() and immap_unlock_write() helper
-> > functions that will encapsulate this logic. The next patch
-> > will make use of these.
+> > > Nobody uses the pvec->cold argument of pagevec and it's also unreasonable for
+> > > pages in pagevec released as cold page, so drop the cold argument from pagevec.
 > > 
-> > ...
-> >
-> > --- a/include/linux/fs.h
-> > +++ b/include/linux/fs.h
-> > @@ -478,6 +478,16 @@ struct block_device {
-> >  
-> >  int mapping_tagged(struct address_space *mapping, int tag);
-> >  
-> > +static inline void i_mmap_lock_write(struct address_space *mapping)
-> > +{
-> > +	mutex_lock(&mapping->i_mmap_mutex);
-> > +}
+> > Is it unreasonable?  I'd say it's unreasonable to assume that all pages
+> > in all cases are likely to be cache-hot.  Example: what if the pages
+> > are being truncated and were found to be on the inactive LRU,
+> > unreferenced?
+> > 
+> > A useful exercise would be to go through all those pagevec_init() sites
+> > and convince ourselves that the decision at each place was the correct
+> > one.
+> > 
 > 
-> I don't understand the thinking behind the "_write".  There is no
-> "_read" and all callsites use "_write", so why not call it
-> i_mmap_lock()?
-> 
-> I *assume* the answer is "so we can later convert some sites to a new
-> i_mmap_lock_read()".  If so, the changelog should have discussed this. 
-> If not, still confused.
-> 
+> Agreed, and the "cold" argument to release_pages() becomes a no-op if this 
+> patch is merged meaning that anything released through it will 
+> automatically go to the start of the pcp lists.  If the pages aren't hot 
+> then this is exactly the opposite of what we wanted to do; the fact that 
+> the pvec length doesn't take into account the size of cpu cache can almost 
+> guarantee that everything isn't cache hot.
 
-Yes, that's exactly right. I'll resend with an updated changelog.
+The hot/cold pages code was very marginal when we first merged it and I
+suspect it has rotted since.
 
-Thanks,
-Davidlohr
+It would be a useful exercise for someone to disable it then run some
+benchmarks with a view to removing it all.  But the problem I have with
+this approach is perhaps the code *could* become effective if some
+careful maintenance work was done on it - we should at least get the
+hot/cold decisions optimised before making a decision about the overall
+desirability of keeping it.
+
 
 
 --
