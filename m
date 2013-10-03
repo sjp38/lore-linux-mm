@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 980796B003C
-	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 20:52:08 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id q10so1656959pdj.20
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 17:52:08 -0700 (PDT)
-Received: by mail-pd0-f179.google.com with SMTP id v10so1664223pde.24
-        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 17:52:06 -0700 (PDT)
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C7C86B003D
+	for <linux-mm@kvack.org>; Wed,  2 Oct 2013 20:52:11 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id q10so1663201pdj.35
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 17:52:11 -0700 (PDT)
+Received: by mail-pa0-f54.google.com with SMTP id kx10so1812596pab.27
+        for <linux-mm@kvack.org>; Wed, 02 Oct 2013 17:52:09 -0700 (PDT)
 From: John Stultz <john.stultz@linaro.org>
-Subject: [PATCH 03/14] vrange: Clear volatility on new mmaps
-Date: Wed,  2 Oct 2013 17:51:32 -0700
-Message-Id: <1380761503-14509-4-git-send-email-john.stultz@linaro.org>
+Subject: [PATCH 04/14] vrange: Add support for volatile ranges on file mappings
+Date: Wed,  2 Oct 2013 17:51:33 -0700
+Message-Id: <1380761503-14509-5-git-send-email-john.stultz@linaro.org>
 In-Reply-To: <1380761503-14509-1-git-send-email-john.stultz@linaro.org>
 References: <1380761503-14509-1-git-send-email-john.stultz@linaro.org>
 Sender: owner-linux-mm@kvack.org
@@ -17,29 +17,19 @@ List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: John Stultz <john.stultz@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dhaval.giani@gmail.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Rob Clark <robdclark@gmail.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-At lsf-mm, the issue was brought up that there is a precedence with
-interfaces like mlock, such that new mappings in a pre-existing range
-do no inherit the mlock state.
+Like with the mm struct, this patch add basic support for
+volatile ranges on file address_space structures. This allows
+for volatile ranges to be set on mmapped files that can be
+shared between processes.
 
-This is mostly because mlock only modifies the existing vmas, and so
-any new mmaps create new vmas, which won't be mlocked.
+The semantics on the volatile range sharing is that the
+volatility is shared, just as the data is shared. Thus
+if one process marks the range as volatile, the data is
+volatile in all processes that have those pages mapped.
 
-Since volatility is not stored in the vma (for good cause, specifically
-as we'd have to have manage file volatility differently from anonymous
-and we're likely to manage volatility on small chunks of memory, which
-would cause lots of vma splitting and churn), this patch clears volitility
-on new mappings, to ensure that we don't inherit volatility if memory in
-an existing volatile range is unmapped and then re-mapped with something
-else.
-
-Thus, this patch forces any volatility to be cleared on mmap.
-
-XXX: We expect this patch to be not well loved by mm folks, and are open
-to alternative methods here. Its more of a place holder to address
-the issue from lsf-mm and hopefully will spur some further discussion.
-
-Minchan does have an alternative solution, but I'm not a big fan of it
-yet, so this simpler approach is a placeholder for now.
+It is advised that processes coordinate when using volatile
+ranges on shared mappings (much as they must coordinate when
+writing to shared data).
 
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Android Kernel Team <kernel-team@android.com>
@@ -65,66 +55,61 @@ Cc: Minchan Kim <minchan@kernel.org>
 Cc: linux-mm@kvack.org <linux-mm@kvack.org>
 Signed-off-by: John Stultz <john.stultz@linaro.org>
 ---
- include/linux/vrange.h | 2 ++
- mm/mmap.c              | 5 +++++
- mm/vrange.c            | 8 ++++++++
- 3 files changed, 15 insertions(+)
+ fs/inode.c         | 4 ++++
+ include/linux/fs.h | 4 ++++
+ 2 files changed, 8 insertions(+)
 
-diff --git a/include/linux/vrange.h b/include/linux/vrange.h
-index 2b96ee1..ef153c8 100644
---- a/include/linux/vrange.h
-+++ b/include/linux/vrange.h
-@@ -36,6 +36,8 @@ static inline int vrange_type(struct vrange *vrange)
- 	return vrange->owner->type;
- }
- 
-+extern int vrange_clear(struct vrange_root *vroot,
-+				unsigned long start, unsigned long end);
- extern void vrange_root_cleanup(struct vrange_root *vroot);
- extern int vrange_fork(struct mm_struct *new,
- 					struct mm_struct *old);
-diff --git a/mm/mmap.c b/mm/mmap.c
-index f9c97d1..ed7056f 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -36,6 +36,7 @@
- #include <linux/sched/sysctl.h>
- #include <linux/notifier.h>
- #include <linux/memory.h>
+diff --git a/fs/inode.c b/fs/inode.c
+index d6dfb09..5364f91 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -17,6 +17,7 @@
+ #include <linux/prefetch.h>
+ #include <linux/buffer_head.h> /* for inode_has_buffers */
+ #include <linux/ratelimit.h>
 +#include <linux/vrange.h>
+ #include "internal.h"
  
- #include <asm/uaccess.h>
- #include <asm/cacheflush.h>
-@@ -1502,6 +1503,10 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
- 	/* Clear old maps */
- 	error = -ENOMEM;
- munmap_back:
+ /*
+@@ -352,6 +353,7 @@ void address_space_init_once(struct address_space *mapping)
+ 	spin_lock_init(&mapping->private_lock);
+ 	mapping->i_mmap = RB_ROOT;
+ 	INIT_LIST_HEAD(&mapping->i_mmap_nonlinear);
++	vrange_root_init(&mapping->vroot, VRANGE_FILE, mapping);
+ }
+ EXPORT_SYMBOL(address_space_init_once);
+ 
+@@ -1419,6 +1421,8 @@ static void iput_final(struct inode *inode)
+ 		inode_lru_list_del(inode);
+ 	spin_unlock(&inode->i_lock);
+ 
++	vrange_root_cleanup(&inode->i_mapping->vroot);
 +
-+	/* zap any volatile ranges */
-+	vrange_clear(&mm->vroot, addr, addr + len);
-+
- 	if (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent)) {
- 		if (do_munmap(mm, addr, len))
- 			return -ENOMEM;
-diff --git a/mm/vrange.c b/mm/vrange.c
-index 4ddcc3e9..f2d1588 100644
---- a/mm/vrange.c
-+++ b/mm/vrange.c
-@@ -166,6 +166,14 @@ static int vrange_remove(struct vrange_root *vroot,
- 	return 0;
+ 	evict(inode);
  }
  
-+int vrange_clear(struct vrange_root *vroot,
-+					unsigned long start, unsigned long end)
-+{
-+	int purged;
-+
-+	return vrange_remove(vroot, start, end - 1, &purged);
-+}
-+
- void vrange_root_cleanup(struct vrange_root *vroot)
- {
- 	struct vrange *range;
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 9818747..6ec2953 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -28,6 +28,7 @@
+ #include <linux/lockdep.h>
+ #include <linux/percpu-rwsem.h>
+ #include <linux/blk_types.h>
++#include <linux/vrange_types.h>
+ 
+ #include <asm/byteorder.h>
+ #include <uapi/linux/fs.h>
+@@ -413,6 +414,9 @@ struct address_space {
+ 	struct rb_root		i_mmap;		/* tree of private and shared mappings */
+ 	struct list_head	i_mmap_nonlinear;/*list VM_NONLINEAR mappings */
+ 	struct mutex		i_mmap_mutex;	/* protect tree, count, list */
++#ifdef CONFIG_MMU
++	struct vrange_root	vroot;
++#endif
+ 	/* Protected by tree_lock together with the radix tree */
+ 	unsigned long		nrpages;	/* number of total pages */
+ 	pgoff_t			writeback_index;/* writeback starts here */
 -- 
 1.8.1.2
 
