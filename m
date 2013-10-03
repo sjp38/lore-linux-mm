@@ -1,106 +1,332 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D7D66B0032
-	for <linux-mm@kvack.org>; Thu,  3 Oct 2013 11:39:57 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lj1so2801477pab.29
-        for <linux-mm@kvack.org>; Thu, 03 Oct 2013 08:39:56 -0700 (PDT)
-Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjennings@medulla.variantweb.net>;
-	Thu, 3 Oct 2013 11:39:53 -0400
-Received: from b01cxnp22036.gho.pok.ibm.com (b01cxnp22036.gho.pok.ibm.com [9.57.198.26])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 792BB6E8044
-	for <linux-mm@kvack.org>; Thu,  3 Oct 2013 11:39:50 -0400 (EDT)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by b01cxnp22036.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r93Fdpa656950982
-	for <linux-mm@kvack.org>; Thu, 3 Oct 2013 15:39:51 GMT
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r93FdlMx023526
-	for <linux-mm@kvack.org>; Thu, 3 Oct 2013 11:39:47 -0400
-Date: Thu, 3 Oct 2013 10:39:46 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 0/5] mm: migrate zbud pages
-Message-ID: <20131003153946.GA4695@medulla.variantweb.net>
-References: <1378889944-23192-1-git-send-email-k.kozlowski@samsung.com>
- <5237FDCC.5010109@oracle.com>
- <20130923220757.GC16191@variantweb.net>
- <524318DE.7070106@samsung.com>
- <20130925215744.GA25852@variantweb.net>
- <52455B05.1010603@samsung.com>
- <20130927220045.GA751@variantweb.net>
- <1380529726.11375.11.camel@AMDC1943>
- <20131001210431.GA8941@variantweb.net>
- <1380806660.3392.30.camel@AMDC1943>
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 6425F6B0036
+	for <linux-mm@kvack.org>; Thu,  3 Oct 2013 13:40:43 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id r10so2822255pdi.27
+        for <linux-mm@kvack.org>; Thu, 03 Oct 2013 10:40:43 -0700 (PDT)
+Date: Thu, 3 Oct 2013 17:40:40 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: vmstat: On demand vmstat workers V3
+Message-ID: <000001417f6834f1-32b83f22-8bde-4b9e-b591-bc31329660e4-000000@email.amazonses.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1380806660.3392.30.camel@AMDC1943>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Krzysztof Kozlowski <k.kozlowski@samsung.com>
-Cc: Tomasz Stanislawski <t.stanislaws@samsung.com>, Bob Liu <bob.liu@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Dave Hansen <dave.hansen@intel.com>, Minchan Kim <minchan@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Oct 03, 2013 at 03:24:20PM +0200, Krzysztof Kozlowski wrote:
-> On wto, 2013-10-01 at 16:04 -0500, Seth Jennings wrote:
-> > Yes, it is very similar.  I'm beginning to like aspects of this patch
-> > more as I explore this issue more.
-> > 
-> > At first, I balked at the idea of yet another abstraction layer, but it
-> > is very hard to avoid unless you want to completely collapse zswap and
-> > zbud into one another and dissolve the layering.  Then you could do a
-> > direct swap_offset -> address mapping.
-> 
-> After discussion with Tomasz Stanislawski we had an idea of merging the
-> trees (zswap's rb and zbud's radix added in these patches) into one tree
-> in zbud layer.
+V2->V3:
+- Introduce a new tick_get_housekeeping_cpu() function. Not sure
+  if that is exactly what we want but it is a start. Thomas?
+- Migrate the shepherd task if the output of
+  tick_get_housekeeping_cpu() changes.
+- Fixes recommended by Andrew.
 
-I have also been converging on this idea.  It took me a while because I
-just wouldn't entertain the idea of there being no translation at the
-zswap layer.  But I'm starting to think this is the best way.
+V1->V2:
+- Optimize the need_update check by using memchr_inv.
+- Clean up.
 
-It does create more work for any new allocator as a lot of the
-complexity has been shifted to that layer.  However, it is the only
-layer that it makes since to do this management (reclaim/migration).
+vmstat workers are used for folding counter differentials into the
+zone, per node and global counters at certain time intervals.
+They currently run at defined intervals on all processors which will
+cause some holdoff for processors that need minimal intrusion by the
+OS.
 
-> 
-> This would simplify the design (if migration was added, of course).
-> 
-> The idea looks like:
-> 1. Get rid of the red-black tree in zswap.
-> 2. Add radix tree to zbud (or use radix tree from address space).
->  - Use offset (from swp_entry) as index to radix tree.
->  - zbud page (struct page) stored in tree.
-> 4. With both buddies filled one zbud page would be put in radix tree
-> twice.
-> 5. zbud API would look like:
-> zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp, pgoff_t offset)
-> zbud_free(struct zbud_pool *pool, pgoff_t offset)
-> zbud_map(struct zbud_pool *pool, pgoff_t offset)
-> etc.
-> 
-> 6. zbud_map/unmap() would be a little more complex than now as it would
-> took over some code from zswap (finding offset in tree).
-> 
-> 7. The radix tree would be used for:
->  - finding entry by offset (for zswap_frontswap_load() and others),
->  - migration.
-> 
-> 8. In case of migration colliding with zbud_map/unmap() the locking
-> could be limited (in comparison to my patch). Calling zbud_map() would
-> mark a page "dirty". During migration if page was "dirtied" then
-> migration would fail with EAGAIN. Of course migration won't start if
-> zbud buddy was mapped.
-> 
-> 
-> What do you think about this?
+The current vmstat_update mechanism depends on a deferrable timer
+firing every other second by default which registers a work queue item
+that runs on the local CPU, with the result that we have 1 interrupt
+and one additional schedulable task on each CPU every 2 seconds
+If a workload indeed causes VM activity or multiple tasks are running
+on a CPU, then there are probably bigger issues to deal with.
 
-I like it.  We just need to keep reclaim in mind as well as migration.
-i.e. need to design with the knowledge that zbud pages will be on the
-LRU lists.
+However, some workloads dedicate a CPU for a single CPU bound task.
+This is done in high performance computing, in high frequency
+financial applications, in networking (Intel DPDK, EZchip NPS) and with
+the advent of systems with more and more CPUs over time, this may become
+more and more common to do since when one has enough CPUs
+one cares less about efficiently sharing a CPU with other tasks and
+more about efficiently monopolizing a CPU per task.
 
-Thanks for thinking about this!
+The difference of having this timer firing and workqueue kernel thread
+scheduled per second can be enormous. An artificial test measuring the
+worst case time to do a simple "i++" in an endless loop on a bare metal
+system and under Linux on an isolated CPU with dynticks and with and
+without this patch, have Linux match the bare metal performance
+(~700 cycles) with this patch and loose by couple of orders of magnitude
+(~200k cycles) without it[*].  The loss occurs for something that just
+calculates statistics. For networking applications, for example, this
+could be the difference between dropping packets or sustaining line rate.
 
-Seth
+Statistics are important and useful, but it would be great if there
+would be a way to not cause statistics gathering produce a huge
+performance difference. This patche does just that.
+
+This patch creates a vmstat shepherd worker that monitors the
+per cpu differentials on all processors. If there are differentials
+on a processor then a vmstat worker local to the processors
+with the differentials is created. That worker will then start
+folding the diffs in regular intervals. Should the worker
+find that there is no work to be done then it will make the shepherd
+worker monitor the differentials again.
+
+With this patch it is possible then to have periods longer than
+2 seconds without any OS event on a "cpu" (hardware thread).
+
+Reviewed-by: Gilad Ben-Yossef <gilad@benyossef.com>
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+
+Index: linux/mm/vmstat.c
+===================================================================
+--- linux.orig/mm/vmstat.c	2013-10-03 12:06:06.501932283 -0500
++++ linux/mm/vmstat.c	2013-10-03 12:27:49.403384459 -0500
+@@ -14,12 +14,14 @@
+ #include <linux/module.h>
+ #include <linux/slab.h>
+ #include <linux/cpu.h>
++#include <linux/cpumask.h>
+ #include <linux/vmstat.h>
+ #include <linux/sched.h>
+ #include <linux/math64.h>
+ #include <linux/writeback.h>
+ #include <linux/compaction.h>
+ #include <linux/mm_inline.h>
++#include <linux/tick.h>
+
+ #include "internal.h"
+
+@@ -417,13 +419,22 @@ void dec_zone_page_state(struct page *pa
+ EXPORT_SYMBOL(dec_zone_page_state);
+ #endif
+
+-static inline void fold_diff(int *diff)
++
++/*
++ * Fold a differential into the global counters.
++ * Returns the number of counters updated.
++ */
++static inline int fold_diff(int *diff)
+ {
+ 	int i;
++	int changes = 0;
+
+ 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
+-		if (diff[i])
++		if (diff[i]) {
+ 			atomic_long_add(diff[i], &vm_stat[i]);
++			changes++;
++	}
++	return changes;
+ }
+
+ /*
+@@ -439,12 +450,15 @@ static inline void fold_diff(int *diff)
+  * statistics in the remote zone struct as well as the global cachelines
+  * with the global counters. These could cause remote node cache line
+  * bouncing and will have to be only done when necessary.
++ *
++ * The function returns the number of global counters updated.
+  */
+-static void refresh_cpu_vm_stats(void)
++static int refresh_cpu_vm_stats(void)
+ {
+ 	struct zone *zone;
+ 	int i;
+ 	int global_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
++	int changes = 0;
+
+ 	for_each_populated_zone(zone) {
+ 		struct per_cpu_pageset __percpu *p = zone->pageset;
+@@ -484,15 +498,17 @@ static void refresh_cpu_vm_stats(void)
+ 			continue;
+ 		}
+
+-
+ 		if (__this_cpu_dec_return(p->expire))
+ 			continue;
+
+-		if (__this_cpu_read(p->pcp.count))
++		if (__this_cpu_read(p->pcp.count)) {
+ 			drain_zone_pages(zone, __this_cpu_ptr(&p->pcp));
++			changes++;
++		}
+ #endif
+ 	}
+-	fold_diff(global_diff);
++	changes += fold_diff(global_diff);
++	return changes;
+ }
+
+ /*
+@@ -1213,12 +1229,15 @@ static const struct file_operations proc
+ #ifdef CONFIG_SMP
+ static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
+ int sysctl_stat_interval __read_mostly = HZ;
++static struct cpumask *monitored_cpus;
+
+ static void vmstat_update(struct work_struct *w)
+ {
+-	refresh_cpu_vm_stats();
+-	schedule_delayed_work(&__get_cpu_var(vmstat_work),
+-		round_jiffies_relative(sysctl_stat_interval));
++	if (refresh_cpu_vm_stats())
++		schedule_delayed_work(this_cpu_ptr(&vmstat_work),
++			round_jiffies_relative(sysctl_stat_interval));
++	else
++		cpumask_set_cpu(smp_processor_id(), monitored_cpus);
+ }
+
+ static void start_cpu_timer(int cpu)
+@@ -1226,7 +1245,70 @@ static void start_cpu_timer(int cpu)
+ 	struct delayed_work *work = &per_cpu(vmstat_work, cpu);
+
+ 	INIT_DEFERRABLE_WORK(work, vmstat_update);
+-	schedule_delayed_work_on(cpu, work, __round_jiffies_relative(HZ, cpu));
++	schedule_delayed_work_on(cpu, work,
++		__round_jiffies_relative(sysctl_stat_interval, cpu));
++}
++
++/*
++ * Check if the diffs for a certain cpu indicate that
++ * an update is needed.
++ */
++static bool need_update(int cpu)
++{
++	struct zone *zone;
++
++	for_each_populated_zone(zone) {
++		struct per_cpu_pageset *p = per_cpu_ptr(zone->pageset, cpu);
++
++		/*
++		 * The fast way of checking if there are any vmstat diffs.
++		 * This works because the diffs are byte sized items.
++		 */
++		if (memchr_inv(p->vm_stat_diff, 0, NR_VM_ZONE_STAT_ITEMS))
++			return true;
++	}
++	return false;
++}
++
++static void vmstat_shepherd(struct work_struct *w)
++{
++	int cpu;
++	int s = tick_get_housekeeping_cpu();
++	struct delayed_work *d = per_cpu_ptr(&vmstat_work, s);
++
++	refresh_cpu_vm_stats();
++
++	for_each_cpu(cpu, monitored_cpus)
++		if (need_update(cpu)) {
++			cpumask_clear_cpu(cpu, monitored_cpus);
++			start_cpu_timer(cpu);
++		}
++
++	if (s != smp_processor_id()) {
++		/* Timekeeping was moved. Move the shepherd worker */
++		cpumask_set_cpu(smp_processor_id(), monitored_cpus);
++		cpumask_clear_cpu(s, monitored_cpus);
++		cancel_delayed_work_sync(d);
++		INIT_DEFERRABLE_WORK(d, vmstat_shepherd);
++	}
++
++	schedule_delayed_work_on(s, d,
++		__round_jiffies_relative(sysctl_stat_interval, s));
++
++}
++
++static void __init start_shepherd_timer(void)
++{
++	int cpu = tick_get_housekeeping_cpu();
++	struct delayed_work *d = per_cpu_ptr(&vmstat_work, cpu);
++
++	INIT_DEFERRABLE_WORK(d, vmstat_shepherd);
++	monitored_cpus = kmalloc(BITS_TO_LONGS(nr_cpu_ids) * sizeof(long),
++			GFP_KERNEL);
++	cpumask_copy(monitored_cpus, cpu_online_mask);
++	cpumask_clear_cpu(cpu, monitored_cpus);
++	schedule_delayed_work_on(cpu, d,
++		__round_jiffies_relative(sysctl_stat_interval, cpu));
+ }
+
+ /*
+@@ -1243,17 +1325,19 @@ static int vmstat_cpuup_callback(struct
+ 	case CPU_ONLINE:
+ 	case CPU_ONLINE_FROZEN:
+ 		refresh_zone_stat_thresholds();
+-		start_cpu_timer(cpu);
+ 		node_set_state(cpu_to_node(cpu), N_CPU);
++		cpumask_set_cpu(cpu, monitored_cpus);
+ 		break;
+ 	case CPU_DOWN_PREPARE:
+ 	case CPU_DOWN_PREPARE_FROZEN:
+-		cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
++		if (!cpumask_test_cpu(cpu, monitored_cpus))
++			cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
++		cpumask_clear_cpu(cpu, monitored_cpus);
+ 		per_cpu(vmstat_work, cpu).work.func = NULL;
+ 		break;
+ 	case CPU_DOWN_FAILED:
+ 	case CPU_DOWN_FAILED_FROZEN:
+-		start_cpu_timer(cpu);
++		cpumask_set_cpu(cpu, monitored_cpus);
+ 		break;
+ 	case CPU_DEAD:
+ 	case CPU_DEAD_FROZEN:
+@@ -1272,12 +1356,8 @@ static struct notifier_block vmstat_noti
+ static int __init setup_vmstat(void)
+ {
+ #ifdef CONFIG_SMP
+-	int cpu;
+-
+ 	register_cpu_notifier(&vmstat_notifier);
+-
+-	for_each_online_cpu(cpu)
+-		start_cpu_timer(cpu);
++	start_shepherd_timer();
+ #endif
+ #ifdef CONFIG_PROC_FS
+ 	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
+Index: linux/kernel/time/tick-common.c
+===================================================================
+--- linux.orig/kernel/time/tick-common.c	2013-10-03 12:06:06.501932283 -0500
++++ linux/kernel/time/tick-common.c	2013-10-03 12:06:06.501932283 -0500
+@@ -206,6 +206,24 @@ static void tick_setup_device(struct tic
+ 		tick_setup_oneshot(newdev, handler, next_event);
+ }
+
++/*
++ * Return a cpu number that may be used to run housekeeping
++ * tasks. This is usually the timekeeping cpu unless that
++ * is not available. Then we simply fall back to the current
++ * cpu.
++ */
++int tick_get_housekeeping_cpu(void)
++{
++	int cpu;
++
++	if (system_state < SYSTEM_RUNNING || tick_do_timer_cpu < 0)
++		cpu = raw_smp_processor_id();
++	else
++		cpu = tick_do_timer_cpu;
++
++	return cpu;
++}
++
+ void tick_install_replacement(struct clock_event_device *newdev)
+ {
+ 	struct tick_device *td = &__get_cpu_var(tick_cpu_device);
+Index: linux/include/linux/tick.h
+===================================================================
+--- linux.orig/include/linux/tick.h	2013-10-03 12:06:06.501932283 -0500
++++ linux/include/linux/tick.h	2013-10-03 12:06:06.501932283 -0500
+@@ -77,6 +77,7 @@ struct tick_sched {
+ extern void __init tick_init(void);
+ extern int tick_is_oneshot_available(void);
+ extern struct tick_device *tick_get_device(int cpu);
++extern int tick_get_housekeeping_cpu(void);
+
+ # ifdef CONFIG_HIGH_RES_TIMERS
+ extern int tick_init_highres(void);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
