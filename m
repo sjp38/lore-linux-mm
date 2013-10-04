@@ -1,73 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 51FE86B0031
-	for <linux-mm@kvack.org>; Fri,  4 Oct 2013 09:47:02 -0400 (EDT)
-Received: by mail-pb0-f46.google.com with SMTP id rq2so3992713pbb.5
-        for <linux-mm@kvack.org>; Fri, 04 Oct 2013 06:47:01 -0700 (PDT)
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id B80446B0031
+	for <linux-mm@kvack.org>; Fri,  4 Oct 2013 09:52:53 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id g10so4034845pdj.2
+        for <linux-mm@kvack.org>; Fri, 04 Oct 2013 06:52:53 -0700 (PDT)
 From: "Marciniszyn, Mike" <mike.marciniszyn@intel.com>
 Subject: RE: [PATCH 23/26] ib: Convert qib_get_user_pages() to
  get_user_pages_unlocked()
-Date: Fri, 4 Oct 2013 13:46:57 +0000
-Message-ID: <32E1700B9017364D9B60AED9960492BC211B015E@FMSMSX107.amr.corp.intel.com>
+Date: Fri, 4 Oct 2013 13:52:49 +0000
+Message-ID: <32E1700B9017364D9B60AED9960492BC211B0176@FMSMSX107.amr.corp.intel.com>
 References: <1380724087-13927-1-git-send-email-jack@suse.cz>
  <1380724087-13927-24-git-send-email-jack@suse.cz>
- <32E1700B9017364D9B60AED9960492BC211AEF75@FMSMSX107.amr.corp.intel.com>
- <20131002152811.GC32181@quack.suse.cz>
- <32E1700B9017364D9B60AED9960492BC211AF005@FMSMSX107.amr.corp.intel.com>
- <20131002153842.GD32181@quack.suse.cz>
- <32E1700B9017364D9B60AED9960492BC211B0123@FMSMSX107.amr.corp.intel.com>
-In-Reply-To: <32E1700B9017364D9B60AED9960492BC211B0123@FMSMSX107.amr.corp.intel.com>
+In-Reply-To: <1380724087-13927-24-git-send-email-jack@suse.cz>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, infinipath <infinipath@intel.com>, Roland Dreier <roland@kernel.org>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, infinipath <infinipath@intel.com>, Roland Dreier <roland@kernel.org>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>
 
-Inadvertent send!
+> Convert qib_get_user_pages() to use get_user_pages_unlocked().  This
+> shortens the section where we hold mmap_sem for writing and also removes
+> the knowledge about get_user_pages() locking from ipath driver. We also f=
+ix
+> a bug in testing pinned number of pages when changing the code.
+>=20
+
+This patch and the sibling ipath patch will nominally take the mmap_sem twi=
+ce where the old routine only took it once.   This is a performance issue.
+
+Is the intent here to deprecate get_user_pages()?
+
+I agree, the old code's lock limit test is broke and needs to be fixed.   I=
+ like the elimination of the silly wrapper routine!
+
+Could the lock limit test be pushed into another version of the wrapper so =
+that there is only one set of mmap_sem transactions?
 
 Mike
-
-> -----Original Message-----
-> From: Marciniszyn, Mike
-> Sent: Friday, October 04, 2013 9:39 AM
-> To: Jan Kara
-> Cc: LKML; linux-mm@kvack.org; infinipath; Roland Dreier; linux-
-> rdma@vger.kernel.org
-> Subject: RE: [PATCH 23/26] ib: Convert qib_get_user_pages() to
-> get_user_pages_unlocked()
->=20
->=20
->=20
-> > -----Original Message-----
-> > From: Jan Kara [mailto:jack@suse.cz]
-> > Sent: Wednesday, October 02, 2013 11:39 AM
-> > To: Marciniszyn, Mike
-> > Cc: Jan Kara; LKML; linux-mm@kvack.org; infinipath; Roland Dreier;
-> > linux- rdma@vger.kernel.org
-> > Subject: Re: [PATCH 23/26] ib: Convert qib_get_user_pages() to
-> > get_user_pages_unlocked()
-> >
-> > On Wed 02-10-13 15:32:47, Marciniszyn, Mike wrote:
-> > > > > The risk of GUP fast is the loss of the "force" arg on GUP fast,
-> > > > > which I don't see as significant give our use case.
-> > > >   Yes. I was discussing with Roland some time ago whether the
-> > > > force argument is needed and he said it is. So I kept the
-> > > > arguments of
-> > > > get_user_pages() intact and just simplified the locking...
-> > >
-> > > The PSM side of the code is a more traditional use of GUP (like
-> > > direct I/O), so I think it is a different use case than the locking
-> > > for IB memory regions.
-> >   Ah, I see. Whatever suits you best. I don't really care as long as
-> > get_user_pages() locking doesn't leak into IB drivers :)
-> >
-> > 								Honza
-> > --
-> > Jan Kara <jack@suse.cz>
-> > SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
