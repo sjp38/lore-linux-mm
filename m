@@ -1,129 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id EDBF26B0031
-	for <linux-mm@kvack.org>; Thu,  3 Oct 2013 19:56:17 -0400 (EDT)
-Received: by mail-pb0-f45.google.com with SMTP id mc17so3160237pbc.32
-        for <linux-mm@kvack.org>; Thu, 03 Oct 2013 16:56:17 -0700 (PDT)
-Received: by mail-pb0-f52.google.com with SMTP id wz12so3124910pbc.25
-        for <linux-mm@kvack.org>; Thu, 03 Oct 2013 16:56:15 -0700 (PDT)
-Message-ID: <524E0419.3080909@linaro.org>
-Date: Thu, 03 Oct 2013 16:56:09 -0700
-From: John Stultz <john.stultz@linaro.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH 00/14] Volatile Ranges v9
-References: <1380761503-14509-1-git-send-email-john.stultz@linaro.org>
-In-Reply-To: <1380761503-14509-1-git-send-email-john.stultz@linaro.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id CC14C6B0031
+	for <linux-mm@kvack.org>; Thu,  3 Oct 2013 20:34:39 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id wz12so3173245pbc.39
+        for <linux-mm@kvack.org>; Thu, 03 Oct 2013 17:34:39 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <20131003233800.8A003E0090@blue.fi.intel.com>
+References: <1380287787-30252-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1380287787-30252-10-git-send-email-kirill.shutemov@linux.intel.com>
+ <20131003161109.aa568784d6fc48e61dc1d33e@linux-foundation.org>
+ <20131003233800.8A003E0090@blue.fi.intel.com>
+Subject: Re: [PATCHv4 09/10] mm: implement split page table lock for PMD level
 Content-Transfer-Encoding: 7bit
+Message-Id: <20131004003428.E418EE0090@blue.fi.intel.com>
+Date: Fri,  4 Oct 2013 03:34:28 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>, LKML <linux-kernel@vger.kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dhaval.giani@gmail.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Rob Clark <robdclark@gmail.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alex Thorlton <athorlton@sgi.com>, Ingo Molnar <mingo@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 10/02/2013 05:51 PM, John Stultz wrote:
-> So its been awhile since the last release of the volatile ranges
-> patches, and while Minchan and I have been busy with other things,
-> we have been slowly chipping away at issues and differences
-> trying to get a patchset that we both agree on.
->
-> There's still a few smaller issues, but we figured any further
-> polishing of the patch series in private would be unproductive
-> and it would be much better to send the patches out for review
-> and comment and get some wider opinions.
->
-> Whats new in v9:
-> * Updated to v3.11
-> * Added vrange purging logic to purge anonymous pages on
->   swapless systems
-> * Added logic to allocate the vroot structure dynamically
->   to avoid added overhead to mm and address_space structures
-> * Lots of minor tweaks, changes and cleanups
->
-> Still TODO:
-> * Sort out better solution for clearing volatility on new mmaps
-> 	- Minchan has a different approach here
-> * Sort out apparent shrinker livelock that occasionally crops
->   up under severe pressure
->  
-> Feedback or thoughts here would be particularly helpful!
+Kirill A. Shutemov wrote:
+> Andrew Morton wrote:
+> > On Fri, 27 Sep 2013 16:16:26 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+> > 
+> > > The basic idea is the same as with PTE level: the lock is embedded into
+> > > struct page of table's page.
+> > > 
+> > > We can't use mm->pmd_huge_pte to store pgtables for THP, since we don't
+> > > take mm->page_table_lock anymore. Let's reuse page->lru of table's page
+> > > for that.
+> > > 
+> > > pgtable_pmd_page_ctor() returns true, if initialization is successful
+> > > and false otherwise. Current implementation never fails, but assumption
+> > > that constructor can fail will help to port it to -rt where spinlock_t
+> > > is rather huge and cannot be embedded into struct page -- dynamic
+> > > allocation is required.
+> > 
+> > spinlock_t is rather large when lockdep is enabled.  What happens?
+> 
+> The same as with PTE split lock: CONFIG_SPLIT_PTLOCK_CPUS set to 999999
+> if DEBUG_SPINLOCK || DEBUG_LOCK_ALLOC. It effectively blocks split locks
+> usage if spinlock_t is too big.
 
-Andrew noted that I've forgotten to provide sufficient overview of what
-volatile ranges does, and given its been while, folks may want a quick
-introduction/reminder.
+Hm. It seems CONFIG_GENERIC_LOCKBREAK on 32bit systems is a problem too:
+it makes sizeof(spinlock_t) 8 bythes and it increases sizeof(struct page)
+by 4 bytes. I don't think it's a good idea.
 
-Volatile ranges provides a method for userland to inform the kernel that
-a range of memory is safe to discard (ie: can be regenerated) but
-userspace may want to try access it in the future.  It can be thought of
-as similar to MADV_DONTNEED, but that the actual freeing of the memory
-is delayed and only done under memory pressure, and the user can try to
-cancel the action and be able to quickly access any unpurged pages. The
-idea originated from Android's ashmem, but I've since learned that other
-OSes provide similar functionality.
-
-This funcitonality allows for a number of interesting uses:
-* Userland caches that have kernel triggered eviction under memory
-pressure. This allows for the kernel to "rightsize" userspace caches for
-current system-wide workload. Things like image bitmap caches, or
-rendered HTML in a hidden browser tab, where the data is not visible and
-can be regenerated if needed, are good examples.
-
-* Opportunistic freeing of memory that may be quickly reused. Minchan
-has done a malloc implementation where free() marks the pages as
-volatile, allowing the kernel to reclaim under pressure. This avoids the
-unmapping and remapping of anonymous pages on free/malloc. So if
-userland wants to malloc memory quickly after the free, it just needs to
-mark the pages as non-volatile, and only purged pages will have to be
-faulted back in.
-
-The syscall interface is defined in patch 5/14 in this series, but
-briefly there are two ways to utilze the functionality:
-
-Explicit marking method:
-1) Userland marks a range of memory that can be regenerated if necessary
-as volatile
-2) Before accessing the memory again, userland marks the memroy as
-nonvolatile, and the kernel will provide notifcation if any pages in the
-range has been purged.
-
-Optimistic method:
-1) Userland marks a large range of data as volatile
-2) Userland continues to access the data as it needs.
-3) If userland accesses a page that has been purged, the kernel will
-send a SIGBUS
-4) Userspace can trap the SIGBUS, mark the afected pages as
-non-volatile, and refill the data as needed before continuing on
-
-
-Other details:
-The interface takes a range of memory, which can cover anonymous pages
-as well as mmapped file pages. In the case that the pages are from a
-shared mmapped file, the volatility set on those file pages is global.
-Thus much as writes to those pages are shared to other processes, pages
-marked volatile will be volatile to any other processes that have the
-file mapped as well. It is advised that processes coordinate when using
-volatile ranges on shared mappings (much as they must coordinate when
-writing to shared data). Any uncleared volatility on mmapped files will
-last until the the file is closed by all users (ie: volatility isn't
-persistent on disk).
-
-Volatility on anonymous pages are inherited across forks, but cleared on
-exec.
-
-You can read more about the history of volatile ranges here:
-http://permalink.gmane.org/gmane.linux.kernel.mm/98848
-http://permalink.gmane.org/gmane.linux.kernel.mm/98676
-https://lwn.net/Articles/522135/
-https://lwn.net/Kernel/Index/#Volatile_ranges
-
-
-thanks
--john
-
-thanks
--john
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Completely untested patch is below.
