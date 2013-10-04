@@ -1,49 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id CC14C6B0031
-	for <linux-mm@kvack.org>; Thu,  3 Oct 2013 20:34:39 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id wz12so3173245pbc.39
-        for <linux-mm@kvack.org>; Thu, 03 Oct 2013 17:34:39 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <20131003233800.8A003E0090@blue.fi.intel.com>
-References: <1380287787-30252-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1380287787-30252-10-git-send-email-kirill.shutemov@linux.intel.com>
- <20131003161109.aa568784d6fc48e61dc1d33e@linux-foundation.org>
- <20131003233800.8A003E0090@blue.fi.intel.com>
-Subject: Re: [PATCHv4 09/10] mm: implement split page table lock for PMD level
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id BA4866B0031
+	for <linux-mm@kvack.org>; Thu,  3 Oct 2013 21:28:07 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id md4so3239691pbc.2
+        for <linux-mm@kvack.org>; Thu, 03 Oct 2013 18:28:07 -0700 (PDT)
+Message-ID: <1380850082.2280.18.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH 1/2] mm,fs: introduce helpers around i_mmap_mutex
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Thu, 03 Oct 2013 18:28:02 -0700
+In-Reply-To: <1380834035.2280.5.camel@buesod1.americas.hpqcorp.net>
+References: <1380745066-9925-1-git-send-email-davidlohr@hp.com>
+	 <1380745066-9925-2-git-send-email-davidlohr@hp.com>
+	 <20131003135822.e0b2ca10fe5a460714bb82a3@linux-foundation.org>
+	 <1380834035.2280.5.camel@buesod1.americas.hpqcorp.net>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Message-Id: <20131004003428.E418EE0090@blue.fi.intel.com>
-Date: Fri,  4 Oct 2013 03:34:28 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alex Thorlton <athorlton@sgi.com>, Ingo Molnar <mingo@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, aswin@hp.com, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-Kirill A. Shutemov wrote:
-> Andrew Morton wrote:
-> > On Fri, 27 Sep 2013 16:16:26 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+On Thu, 2013-10-03 at 14:00 -0700, Davidlohr Bueso wrote:
+> On Thu, 2013-10-03 at 13:58 -0700, Andrew Morton wrote:
+> > On Wed,  2 Oct 2013 13:17:45 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
 > > 
-> > > The basic idea is the same as with PTE level: the lock is embedded into
-> > > struct page of table's page.
+> > > Various parts of the kernel acquire and release this mutex,
+> > > so add i_mmap_lock_write() and immap_unlock_write() helper
+> > > functions that will encapsulate this logic. The next patch
+> > > will make use of these.
 > > > 
-> > > We can't use mm->pmd_huge_pte to store pgtables for THP, since we don't
-> > > take mm->page_table_lock anymore. Let's reuse page->lru of table's page
-> > > for that.
-> > > 
-> > > pgtable_pmd_page_ctor() returns true, if initialization is successful
-> > > and false otherwise. Current implementation never fails, but assumption
-> > > that constructor can fail will help to port it to -rt where spinlock_t
-> > > is rather huge and cannot be embedded into struct page -- dynamic
-> > > allocation is required.
+> > > ...
+> > >
+> > > --- a/include/linux/fs.h
+> > > +++ b/include/linux/fs.h
+> > > @@ -478,6 +478,16 @@ struct block_device {
+> > >  
+> > >  int mapping_tagged(struct address_space *mapping, int tag);
+> > >  
+> > > +static inline void i_mmap_lock_write(struct address_space *mapping)
+> > > +{
+> > > +	mutex_lock(&mapping->i_mmap_mutex);
+> > > +}
 > > 
-> > spinlock_t is rather large when lockdep is enabled.  What happens?
+> > I don't understand the thinking behind the "_write".  There is no
+> > "_read" and all callsites use "_write", so why not call it
+> > i_mmap_lock()?
+> > 
+> > I *assume* the answer is "so we can later convert some sites to a new
+> > i_mmap_lock_read()".  If so, the changelog should have discussed this. 
+> > If not, still confused.
+> > 
 > 
-> The same as with PTE split lock: CONFIG_SPLIT_PTLOCK_CPUS set to 999999
-> if DEBUG_SPINLOCK || DEBUG_LOCK_ALLOC. It effectively blocks split locks
-> usage if spinlock_t is too big.
+> Yes, that's exactly right. I'll resend with an updated changelog.
 
-Hm. It seems CONFIG_GENERIC_LOCKBREAK on 32bit systems is a problem too:
-it makes sizeof(spinlock_t) 8 bythes and it increases sizeof(struct page)
-by 4 bytes. I don't think it's a good idea.
+So here's an updated changelog, I left it generic enough for us not to
+rely on the lock type characteristics, since if/when changed, it can
+remain a sleeping lock (rwsem) or not, for rwlock_t.
 
-Completely untested patch is below.
+8<-----------------------------------------
+From: Davidlohr Bueso <davidlohr@hp.com>
+Subject: [PATCH 1/2] mm,fs: introduce helpers around i_mmap_mutex
+
+Various parts of the kernel acquire and release this mutex,
+so add i_mmap_lock_write() and immap_unlock_write() helper
+functions that will encapsulate this logic. The next patch
+will make use of these.
+
+Note that since this lock is currently a mutex, only introduce
+write related functions. In the future, the lock type can be
+changed and reading semantics can be added such that the lock 
+can be shared when allowed.
+
+Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+---
+ include/linux/fs.h | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 3f40547..b32e64f 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -478,6 +478,16 @@ struct block_device {
+ 
+ int mapping_tagged(struct address_space *mapping, int tag);
+ 
++static inline void i_mmap_lock_write(struct address_space *mapping)
++{
++	mutex_lock(&mapping->i_mmap_mutex);
++}
++
++static inline void i_mmap_unlock_write(struct address_space *mapping)
++{
++	mutex_unlock(&mapping->i_mmap_mutex);
++}
++
+ /*
+  * Might pages of this file be mapped into userspace?
+  */
+-- 
+1.8.1.4
+
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
