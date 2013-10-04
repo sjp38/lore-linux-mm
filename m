@@ -1,57 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 905286B0031
-	for <linux-mm@kvack.org>; Fri,  4 Oct 2013 14:33:23 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id r10so4360123pdi.41
-        for <linux-mm@kvack.org>; Fri, 04 Oct 2013 11:33:23 -0700 (PDT)
-Date: Fri, 4 Oct 2013 20:33:15 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 23/26] ib: Convert qib_get_user_pages() to
- get_user_pages_unlocked()
-Message-ID: <20131004183315.GA19557@quack.suse.cz>
-References: <1380724087-13927-1-git-send-email-jack@suse.cz>
- <1380724087-13927-24-git-send-email-jack@suse.cz>
- <32E1700B9017364D9B60AED9960492BC211B0176@FMSMSX107.amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <32E1700B9017364D9B60AED9960492BC211B0176@FMSMSX107.amr.corp.intel.com>
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id B7A5E6B0031
+	for <linux-mm@kvack.org>; Fri,  4 Oct 2013 15:02:58 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id r10so4420060pdi.14
+        for <linux-mm@kvack.org>; Fri, 04 Oct 2013 12:02:58 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 1/2] smaps: show VM_SOFTDIRTY flag in VmFlags line
+Date: Fri,  4 Oct 2013 15:02:14 -0400
+Message-Id: <1380913335-17466-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Marciniszyn, Mike" <mike.marciniszyn@intel.com>
-Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, infinipath <infinipath@intel.com>, Roland Dreier <roland@kernel.org>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Pavel Emelyanov <xemul@parallels.com>, linux-kernel@vger.kernel.org
 
-On Fri 04-10-13 13:52:49, Marciniszyn, Mike wrote:
-> > Convert qib_get_user_pages() to use get_user_pages_unlocked().  This
-> > shortens the section where we hold mmap_sem for writing and also removes
-> > the knowledge about get_user_pages() locking from ipath driver. We also fix
-> > a bug in testing pinned number of pages when changing the code.
-> > 
-> 
-> This patch and the sibling ipath patch will nominally take the mmap_sem
-> twice where the old routine only took it once.   This is a performance
-> issue.
-  It will take mmap_sem only once during normal operation. Only if
-get_user_pages_unlocked() fail, we have to take mmap_sem again to undo
-the change of mm->pinned_vm.
+This flag shows that soft dirty bit is not enabled yet.
+You can enable it by "echo 4 > /proc/pid/clear_refs."
 
-> Is the intent here to deprecate get_user_pages()?
-  Well, as much as I'd like to, there are really places in mm code which
-need to call get_user_pages() while holding mmap_sem to be able to inspect
-corresponding vmas etc. So I want to reduce get_user_pages() use as much as
-possible but I'm not really hoping in completely removing it.
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ fs/proc/task_mmu.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
-> I agree, the old code's lock limit test is broke and needs to be fixed.
-> I like the elimination of the silly wrapper routine!
-> 
-> Could the lock limit test be pushed into another version of the wrapper
-> so that there is only one set of mmap_sem transactions?
-  I'm sorry, I don't understand what you mean here...
-
-								Honza
+diff --git v3.12-rc2-mmots-2013-09-24-17-03.orig/fs/proc/task_mmu.c v3.12-rc2-mmots-2013-09-24-17-03/fs/proc/task_mmu.c
+index 7366e9d..c591928 100644
+--- v3.12-rc2-mmots-2013-09-24-17-03.orig/fs/proc/task_mmu.c
++++ v3.12-rc2-mmots-2013-09-24-17-03/fs/proc/task_mmu.c
+@@ -561,6 +561,9 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
+ 		[ilog2(VM_NONLINEAR)]	= "nl",
+ 		[ilog2(VM_ARCH_1)]	= "ar",
+ 		[ilog2(VM_DONTDUMP)]	= "dd",
++#ifdef CONFIG_MEM_SOFT_DIRTY
++		[ilog2(VM_SOFTDIRTY)]	= "sd",
++#endif
+ 		[ilog2(VM_MIXEDMAP)]	= "mm",
+ 		[ilog2(VM_HUGEPAGE)]	= "hg",
+ 		[ilog2(VM_NOHUGEPAGE)]	= "nh",
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
