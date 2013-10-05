@@ -1,86 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B76E16B0031
-	for <linux-mm@kvack.org>; Sat,  5 Oct 2013 03:48:26 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so4925160pdj.8
-        for <linux-mm@kvack.org>; Sat, 05 Oct 2013 00:48:26 -0700 (PDT)
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 6633D6B0031
+	for <linux-mm@kvack.org>; Sat,  5 Oct 2013 07:31:03 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id q10so5048909pdj.7
+        for <linux-mm@kvack.org>; Sat, 05 Oct 2013 04:31:03 -0700 (PDT)
 Received: from /spool/local
 	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sat, 5 Oct 2013 17:48:21 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 554FA3578052
-	for <linux-mm@kvack.org>; Sat,  5 Oct 2013 17:48:20 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r957VMGn63766662
-	for <linux-mm@kvack.org>; Sat, 5 Oct 2013 17:31:28 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r957mD3u023981
-	for <linux-mm@kvack.org>; Sat, 5 Oct 2013 17:48:13 +1000
-Date: Sat, 5 Oct 2013 15:48:11 +0800
+	Sat, 5 Oct 2013 21:30:58 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 8D3A82CE8053
+	for <linux-mm@kvack.org>; Sat,  5 Oct 2013 21:30:53 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r95BDjMV10617088
+	for <linux-mm@kvack.org>; Sat, 5 Oct 2013 21:13:52 +1000
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r95BUjkY008141
+	for <linux-mm@kvack.org>; Sat, 5 Oct 2013 21:30:45 +1000
+Date: Sat, 5 Oct 2013 19:30:43 +0800
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] slub: Fix calculation of cpu slabs
-Message-ID: <524fc449.06a3420a.03dc.ffffb760SMTPIN_ADDED_BROKEN@mx.google.com>
+Subject: Re: [PATCH] Have __free_pages_memory() free in larger chunks.
+Message-ID: <524ff876.06a3420a.03dc.2be1SMTPIN_ADDED_BROKEN@mx.google.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <522E9569.9060104@huawei.com>
+References: <1378839444-196190-1-git-send-email-nzimmer@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <522E9569.9060104@huawei.com>
+In-Reply-To: <1378839444-196190-1-git-send-email-nzimmer@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Nathan Zimmer <nzimmer@sgi.com>
+Cc: mingo@kernel.org, hpa@zytor.com, Robin Holt <robin.m.holt@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Rob Landley <rob@landley.net>, Mike Travis <travis@sgi.com>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Tue, Sep 10, 2013 at 11:43:37AM +0800, Li Zefan wrote:
->  /sys/kernel/slab/:t-0000048 # cat cpu_slabs
->  231 N0=16 N1=215
->  /sys/kernel/slab/:t-0000048 # cat slabs
->  145 N0=36 N1=109
+On Tue, Sep 10, 2013 at 01:57:24PM -0500, Nathan Zimmer wrote:
+>From: Robin Holt <robin.m.holt@gmail.com>
 >
->See, the number of slabs is smaller than that of cpu slabs.
+>On large memory machines it can take a few minutes to get through
+>free_all_bootmem().
 >
->The bug was introduced by commit 49e2258586b423684f03c278149ab46d8f8b6700
->("slub: per cpu cache for partial pages").
+>Currently, when free_all_bootmem() calls __free_pages_memory(), the
+>number of contiguous pages that __free_pages_memory() passes to the
+>buddy allocator is limited to BITS_PER_LONG.  BITS_PER_LONG was originally
+>chosen to keep things similar to mm/nobootmem.c.  But it is more
+>efficient to limit it to MAX_ORDER.
 >
->We should use page->pages instead of page->pobjects when calculating
->the number of cpu partial slabs. This also fixes the mapping of slabs
->and nodes.
+>       base   new  change
+>8TB    202s  172s   30s
+>16TB   401s  351s   50s
 >
->As there's no variable storing the number of total/active objects in
->cpu partial slabs, and we don't have user interfaces requiring those
->statistics, I just add WARN_ON for those cases.
+>That is around 1%-3% improvement on total boot time.
 >
->Cc: <stable@vger.kernel.org> # 3.2+
->Signed-off-by: Li Zefan <lizefan@huawei.com>
+>This patch was spun off from the boot time rfc Robin and I had been
+>working on.
+>
+>Signed-off-by: Robin Holt <robin.m.holt@gmail.com>
+>Signed-off-by: Nathan Zimmer <nzimmer@sgi.com>
+>To: "H. Peter Anvin" <hpa@zytor.com>
+>To: Ingo Molnar <mingo@kernel.org>
+>Cc: Linux Kernel <linux-kernel@vger.kernel.org>
+>Cc: Linux MM <linux-mm@kvack.org>
+>Cc: Rob Landley <rob@landley.net>
+>Cc: Mike Travis <travis@sgi.com>
+>Cc: Daniel J Blueman <daniel@numascale-asia.com>
+>Cc: Andrew Morton <akpm@linux-foundation.org>
+>Cc: Greg KH <gregkh@linuxfoundation.org>
+>Cc: Yinghai Lu <yinghai@kernel.org>
+>Cc: Mel Gorman <mgorman@suse.de>
 
 Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
 >---
-> mm/slub.c | 8 +++++++-
-> 1 file changed, 7 insertions(+), 1 deletion(-)
+> mm/nobootmem.c | 25 ++++++++-----------------
+> 1 file changed, 8 insertions(+), 17 deletions(-)
 >
->diff --git a/mm/slub.c b/mm/slub.c
->index e3ba1f2..6ea461d 100644
->--- a/mm/slub.c
->+++ b/mm/slub.c
->@@ -4300,7 +4300,13 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
+>diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+>index 61107cf..2c254d3 100644
+>--- a/mm/nobootmem.c
+>+++ b/mm/nobootmem.c
+>@@ -82,27 +82,18 @@ void __init free_bootmem_late(unsigned long addr, unsigned long size)
 >
-> 			page = ACCESS_ONCE(c->partial);
-> 			if (page) {
->-				x = page->pobjects;
->+				node = page_to_nid(page);
->+				if (flags & SO_TOTAL)
->+					WARN_ON_ONCE(1);
->+				else if (flags & SO_OBJECTS)
->+					WARN_ON_ONCE(1);
->+				else
->+					x = page->pages;
-> 				total += x;
-> 				nodes[node] += x;
-> 			}
+> static void __init __free_pages_memory(unsigned long start, unsigned long end)
+> {
+>-	unsigned long i, start_aligned, end_aligned;
+>-	int order = ilog2(BITS_PER_LONG);
+>+	int order;
+>
+>-	start_aligned = (start + (BITS_PER_LONG - 1)) & ~(BITS_PER_LONG - 1);
+>-	end_aligned = end & ~(BITS_PER_LONG - 1);
+>+	while (start < end) {
+>+		order = min(MAX_ORDER - 1UL, __ffs(start));
+>
+>-	if (end_aligned <= start_aligned) {
+>-		for (i = start; i < end; i++)
+>-			__free_pages_bootmem(pfn_to_page(i), 0);
+>+		while (start + (1UL << order) > end)
+>+			order--;
+>
+>-		return;
+>-	}
+>-
+>-	for (i = start; i < start_aligned; i++)
+>-		__free_pages_bootmem(pfn_to_page(i), 0);
+>+		__free_pages_bootmem(pfn_to_page(start), order);
+>
+>-	for (i = start_aligned; i < end_aligned; i += BITS_PER_LONG)
+>-		__free_pages_bootmem(pfn_to_page(i), order);
+>-
+>-	for (i = end_aligned; i < end; i++)
+>-		__free_pages_bootmem(pfn_to_page(i), 0);
+>+		start += (1UL << order);
+>+	}
+> }
+>
+> static unsigned long __init __free_memory_core(phys_addr_t start,
 >-- 
->1.8.0.2
+>1.8.2.1
 >
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
