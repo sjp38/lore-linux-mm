@@ -1,91 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D43A6B0031
-	for <linux-mm@kvack.org>; Sat,  5 Oct 2013 02:52:25 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id p10so4939600pdj.4
-        for <linux-mm@kvack.org>; Fri, 04 Oct 2013 23:52:24 -0700 (PDT)
-Received: by mail-pd0-f179.google.com with SMTP id v10so4939915pde.24
-        for <linux-mm@kvack.org>; Fri, 04 Oct 2013 23:52:22 -0700 (PDT)
-Message-ID: <524FB719.30502@gmail.com>
-Date: Sat, 05 Oct 2013 14:52:09 +0800
-From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id B76E16B0031
+	for <linux-mm@kvack.org>; Sat,  5 Oct 2013 03:48:26 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id y10so4925160pdj.8
+        for <linux-mm@kvack.org>; Sat, 05 Oct 2013 00:48:26 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Sat, 5 Oct 2013 17:48:21 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 554FA3578052
+	for <linux-mm@kvack.org>; Sat,  5 Oct 2013 17:48:20 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r957VMGn63766662
+	for <linux-mm@kvack.org>; Sat, 5 Oct 2013 17:31:28 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r957mD3u023981
+	for <linux-mm@kvack.org>; Sat, 5 Oct 2013 17:48:13 +1000
+Date: Sat, 5 Oct 2013 15:48:11 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH] slub: Fix calculation of cpu slabs
+Message-ID: <524fc449.06a3420a.03dc.ffffb760SMTPIN_ADDED_BROKEN@mx.google.com>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <522E9569.9060104@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] mm/sparsemem: Fix a bug in free_map_bootmem when
- CONFIG_SPARSEMEM_VMEMMAP
-References: <524CE4C1.8060508@gmail.com> <524CE532.1030001@gmail.com> <524fa9a0.a5e8420a.188e.5eb1SMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <524fa9a0.a5e8420a.188e.5eb1SMTPIN_ADDED_BROKEN@mx.google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <522E9569.9060104@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Toshi Kani <toshi.kani@hp.com>, isimatu.yasuaki@jp.fujitsu.com, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Li Zefan <lizefan@huawei.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hello wanpeng,
+On Tue, Sep 10, 2013 at 11:43:37AM +0800, Li Zefan wrote:
+>  /sys/kernel/slab/:t-0000048 # cat cpu_slabs
+>  231 N0=16 N1=215
+>  /sys/kernel/slab/:t-0000048 # cat slabs
+>  145 N0=36 N1=109
+>
+>See, the number of slabs is smaller than that of cpu slabs.
+>
+>The bug was introduced by commit 49e2258586b423684f03c278149ab46d8f8b6700
+>("slub: per cpu cache for partial pages").
+>
+>We should use page->pages instead of page->pobjects when calculating
+>the number of cpu partial slabs. This also fixes the mapping of slabs
+>and nodes.
+>
+>As there's no variable storing the number of total/active objects in
+>cpu partial slabs, and we don't have user interfaces requiring those
+>statistics, I just add WARN_ON for those cases.
+>
+>Cc: <stable@vger.kernel.org> # 3.2+
+>Signed-off-by: Li Zefan <lizefan@huawei.com>
 
-On 10/05/2013 01:54 PM, Wanpeng Li wrote:
-> Hi Yanfei,
-> On Thu, Oct 03, 2013 at 11:32:02AM +0800, Zhang Yanfei wrote:
->> From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
->>
->> We pass the number of pages which hold page structs of a memory
->> section to function free_map_bootmem. This is right when
->> !CONFIG_SPARSEMEM_VMEMMAP but wrong when CONFIG_SPARSEMEM_VMEMMAP.
->> When CONFIG_SPARSEMEM_VMEMMAP, we should pass the number of pages
->> of a memory section to free_map_bootmem.
->>
->> So the fix is removing the nr_pages parameter. When
->> CONFIG_SPARSEMEM_VMEMMAP, we directly use the prefined marco
->> PAGES_PER_SECTION in free_map_bootmem. When !CONFIG_SPARSEMEM_VMEMMAP,
->> we calculate page numbers needed to hold the page structs for a
->> memory section and use the value in free_map_bootmem.
->>
->> Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
->> ---
->> mm/sparse.c |   17 +++++++----------
->> 1 files changed, 7 insertions(+), 10 deletions(-)
->>
->> diff --git a/mm/sparse.c b/mm/sparse.c
->> index fbb9dbc..908c134 100644
->> --- a/mm/sparse.c
->> +++ b/mm/sparse.c
->> @@ -603,10 +603,10 @@ static void __kfree_section_memmap(struct page *memmap)
->> 	vmemmap_free(start, end);
->> }
->> #ifdef CONFIG_MEMORY_HOTREMOVE
->> -static void free_map_bootmem(struct page *memmap, unsigned long nr_pages)
->> +static void free_map_bootmem(struct page *memmap)
->> {
->> 	unsigned long start = (unsigned long)memmap;
->> -	unsigned long end = (unsigned long)(memmap + nr_pages);
->> +	unsigned long end = (unsigned long)(memmap + PAGES_PER_SECTION);
->>
->> 	vmemmap_free(start, end);
->> }
->> @@ -648,11 +648,13 @@ static void __kfree_section_memmap(struct page *memmap)
->> }
->>
->> #ifdef CONFIG_MEMORY_HOTREMOVE
->> -static void free_map_bootmem(struct page *memmap, unsigned long nr_pages)
->> +static void free_map_bootmem(struct page *memmap)
->> {
->> 	unsigned long maps_section_nr, removing_section_nr, i;
->> 	unsigned long magic;
->> 	struct page *page = virt_to_page(memmap);
->> +	unsigned long nr_pages = get_order(sizeof(struct page) *
->> +					   PAGES_PER_SECTION);
-> 
-> Why replace PAGE_ALIGN(XXX) >> PAGE_SHIFT by get_order(XXX)? This will result 
-> in memory leak.
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-oops... I will correct this by sending a new version.
-
-Thanks.
-
-
--- 
-Thanks.
-Zhang Yanfei
+>---
+> mm/slub.c | 8 +++++++-
+> 1 file changed, 7 insertions(+), 1 deletion(-)
+>
+>diff --git a/mm/slub.c b/mm/slub.c
+>index e3ba1f2..6ea461d 100644
+>--- a/mm/slub.c
+>+++ b/mm/slub.c
+>@@ -4300,7 +4300,13 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
+>
+> 			page = ACCESS_ONCE(c->partial);
+> 			if (page) {
+>-				x = page->pobjects;
+>+				node = page_to_nid(page);
+>+				if (flags & SO_TOTAL)
+>+					WARN_ON_ONCE(1);
+>+				else if (flags & SO_OBJECTS)
+>+					WARN_ON_ONCE(1);
+>+				else
+>+					x = page->pages;
+> 				total += x;
+> 				nodes[node] += x;
+> 			}
+>-- 
+>1.8.0.2
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
