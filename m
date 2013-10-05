@@ -1,124 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id D2A416B0031
-	for <linux-mm@kvack.org>; Sat,  5 Oct 2013 01:54:45 -0400 (EDT)
-Received: by mail-pb0-f46.google.com with SMTP id rq2so4887454pbb.33
-        for <linux-mm@kvack.org>; Fri, 04 Oct 2013 22:54:45 -0700 (PDT)
-Received: from /spool/local
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sat, 5 Oct 2013 15:54:40 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id D03162BB0040
-	for <linux-mm@kvack.org>; Sat,  5 Oct 2013 15:54:37 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r955bT6R65601606
-	for <linux-mm@kvack.org>; Sat, 5 Oct 2013 15:37:37 +1000
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r955sSJX018258
-	for <linux-mm@kvack.org>; Sat, 5 Oct 2013 15:54:29 +1000
-Date: Sat, 5 Oct 2013 13:54:26 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/2] mm/sparsemem: Fix a bug in free_map_bootmem when
- CONFIG_SPARSEMEM_VMEMMAP
-Message-ID: <524fa9a4.e7fd440a.035a.1cf3SMTPIN_ADDED_BROKEN@mx.google.com>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <524CE4C1.8060508@gmail.com>
- <524CE532.1030001@gmail.com>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id C4F056B0032
+	for <linux-mm@kvack.org>; Sat,  5 Oct 2013 02:28:11 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so5057703pad.30
+        for <linux-mm@kvack.org>; Fri, 04 Oct 2013 23:28:11 -0700 (PDT)
+From: "Dilger, Andreas" <andreas.dilger@intel.com>
+Subject: Re: [PATCH 10/26] lustre: Convert ll_get_user_pages() to use
+ get_user_pages_fast()
+Date: Sat, 5 Oct 2013 06:27:43 +0000
+Message-ID: <CE750CA8.75301%andreas.dilger@intel.com>
+In-Reply-To: <1380724087-13927-11-git-send-email-jack@suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <78094AFAA7D9084EB3F62453362B75D3@intel.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <524CE532.1030001@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Toshi Kani <toshi.kani@hp.com>, isimatu.yasuaki@jp.fujitsu.com, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg Kroah-Hartman <greg@kroah.com>, Peng Tao <tao.peng@emc.com>, "hpdd-discuss@lists.01.org" <hpdd-discuss@lists.01.org>
 
-Hi Yanfei,
-On Thu, Oct 03, 2013 at 11:32:02AM +0800, Zhang Yanfei wrote:
->From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
->
->We pass the number of pages which hold page structs of a memory
->section to function free_map_bootmem. This is right when
->!CONFIG_SPARSEMEM_VMEMMAP but wrong when CONFIG_SPARSEMEM_VMEMMAP.
->When CONFIG_SPARSEMEM_VMEMMAP, we should pass the number of pages
->of a memory section to free_map_bootmem.
->
->So the fix is removing the nr_pages parameter. When
->CONFIG_SPARSEMEM_VMEMMAP, we directly use the prefined marco
->PAGES_PER_SECTION in free_map_bootmem. When !CONFIG_SPARSEMEM_VMEMMAP,
->we calculate page numbers needed to hold the page structs for a
->memory section and use the value in free_map_bootmem.
->
->Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+On 2013/10/02 8:27 AM, "Jan Kara" <jack@suse.cz> wrote:
+>CC: Greg Kroah-Hartman <greg@kroah.com>
+>CC: Peng Tao <tao.peng@emc.com>
+>CC: Andreas Dilger <andreas.dilger@intel.com>
+>CC: hpdd-discuss@lists.01.org
+>Signed-off-by: Jan Kara <jack@suse.cz>
+
+Acked-by: Andreas Dilger <andreas.dilger@intel.com>
+
 >---
-> mm/sparse.c |   17 +++++++----------
-> 1 files changed, 7 insertions(+), 10 deletions(-)
+> drivers/staging/lustre/lustre/llite/rw26.c | 7 ++-----
+> 1 file changed, 2 insertions(+), 5 deletions(-)
 >
->diff --git a/mm/sparse.c b/mm/sparse.c
->index fbb9dbc..908c134 100644
->--- a/mm/sparse.c
->+++ b/mm/sparse.c
->@@ -603,10 +603,10 @@ static void __kfree_section_memmap(struct page *memmap)
-> 	vmemmap_free(start, end);
-> }
-> #ifdef CONFIG_MEMORY_HOTREMOVE
->-static void free_map_bootmem(struct page *memmap, unsigned long nr_pages)
->+static void free_map_bootmem(struct page *memmap)
-> {
-> 	unsigned long start = (unsigned long)memmap;
->-	unsigned long end = (unsigned long)(memmap + nr_pages);
->+	unsigned long end = (unsigned long)(memmap + PAGES_PER_SECTION);
->
-> 	vmemmap_free(start, end);
-> }
->@@ -648,11 +648,13 @@ static void __kfree_section_memmap(struct page *memmap)
-> }
->
-> #ifdef CONFIG_MEMORY_HOTREMOVE
->-static void free_map_bootmem(struct page *memmap, unsigned long nr_pages)
->+static void free_map_bootmem(struct page *memmap)
-> {
-> 	unsigned long maps_section_nr, removing_section_nr, i;
-> 	unsigned long magic;
-> 	struct page *page = virt_to_page(memmap);
->+	unsigned long nr_pages = get_order(sizeof(struct page) *
->+					   PAGES_PER_SECTION);
+>diff --git a/drivers/staging/lustre/lustre/llite/rw26.c
+>b/drivers/staging/lustre/lustre/llite/rw26.c
+>index 96c29ad2fc8c..7e3e0967993b 100644
+>--- a/drivers/staging/lustre/lustre/llite/rw26.c
+>+++ b/drivers/staging/lustre/lustre/llite/rw26.c
+>@@ -202,11 +202,8 @@ static inline int ll_get_user_pages(int rw, unsigned
+>long user_addr,
+>=20
+> 	OBD_ALLOC_LARGE(*pages, *max_pages * sizeof(**pages));
+> 	if (*pages) {
+>-		down_read(&current->mm->mmap_sem);
+>-		result =3D get_user_pages(current, current->mm, user_addr,
+>-					*max_pages, (rw =3D=3D READ), 0, *pages,
+>-					NULL);
+>-		up_read(&current->mm->mmap_sem);
+>+		result =3D get_user_pages_fast(user_addr, *max_pages,
+>+					     (rw =3D=3D READ), *pages);
+> 		if (unlikely(result <=3D 0))
+> 			OBD_FREE_LARGE(*pages, *max_pages * sizeof(**pages));
+> 	}
 
-Why replace PAGE_ALIGN(XXX) >> PAGE_SHIFT by get_order(XXX)? This will result 
-in memory leak.
 
-Regards,
-Wanpeng Li 
+Cheers, Andreas
+--=20
+Andreas Dilger
 
->
-> 	for (i = 0; i < nr_pages; i++, page++) {
-> 		magic = (unsigned long) page->lru.next;
->@@ -756,7 +758,6 @@ static inline void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
-> static void free_section_usemap(struct page *memmap, unsigned long *usemap)
-> {
-> 	struct page *usemap_page;
->-	unsigned long nr_pages;
->
-> 	if (!usemap)
-> 		return;
->@@ -777,12 +778,8 @@ static void free_section_usemap(struct page *memmap, unsigned long *usemap)
-> 	 * on the section which has pgdat at boot time. Just keep it as is now.
-> 	 */
->
->-	if (memmap) {
->-		nr_pages = PAGE_ALIGN(PAGES_PER_SECTION * sizeof(struct page))
->-			>> PAGE_SHIFT;
->-
->-		free_map_bootmem(memmap, nr_pages);
->-	}
->+	if (memmap)
->+		free_map_bootmem(memmap);
-> }
->
-> void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
->-- 
->1.7.1
+Lustre Software Architect
+Intel High Performance Data Division
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
