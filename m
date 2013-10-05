@@ -1,16 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D008E6B0031
-	for <linux-mm@kvack.org>; Sat,  5 Oct 2013 13:31:46 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id bj1so5520412pad.21
-        for <linux-mm@kvack.org>; Sat, 05 Oct 2013 10:31:46 -0700 (PDT)
-Received: by mail-pd0-f171.google.com with SMTP id g10so5331945pdj.30
-        for <linux-mm@kvack.org>; Sat, 05 Oct 2013 10:31:44 -0700 (PDT)
-Message-ID: <52504CF8.6000708@gmail.com>
-Date: Sun, 06 Oct 2013 01:31:36 +0800
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 82A426B0036
+	for <linux-mm@kvack.org>; Sat,  5 Oct 2013 13:32:50 -0400 (EDT)
+Received: by mail-pb0-f50.google.com with SMTP id uo5so5289239pbc.23
+        for <linux-mm@kvack.org>; Sat, 05 Oct 2013 10:32:50 -0700 (PDT)
+Received: by mail-pd0-f173.google.com with SMTP id p10so5353433pdj.4
+        for <linux-mm@kvack.org>; Sat, 05 Oct 2013 10:32:47 -0700 (PDT)
+Message-ID: <52504D38.1030402@gmail.com>
+Date: Sun, 06 Oct 2013 01:32:40 +0800
 From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
 MIME-Version: 1.0
-Subject: [PATCH 1/2] mm/page_alloc.c: Implement an empty get_pfn_range_for_nid
+Subject: [PATCH 2/2] mm/page_alloc.c: Get rid of unused marco LONG_ALIGN
+References: <52504CF8.6000708@gmail.com>
+In-Reply-To: <52504CF8.6000708@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -20,40 +22,26 @@ Cc: Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@
 
 From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-Implement an empty get_pfn_range_for_nid for !CONFIG_HAVE_MEMBLOCK_NODE_MAP,
-so that we could remove the #ifdef in free_area_init_node.
+The macro is nowhere used, so remove it.
 
 Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- mm/page_alloc.c |    7 +++++--
- 1 files changed, 5 insertions(+), 2 deletions(-)
+ mm/page_alloc.c |    2 --
+ 1 files changed, 0 insertions(+), 2 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index dd886fa..1fb13b6 100644
+index 1fb13b6..9d8508d 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -4566,6 +4566,11 @@ static unsigned long __meminit zone_absent_pages_in_node(int nid,
+@@ -3881,8 +3881,6 @@ static inline unsigned long wait_table_bits(unsigned long size)
+ 	return ffz(~size);
  }
  
- #else /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
-+void __meminit get_pfn_range_for_nid(unsigned int nid,
-+			unsigned long *ignored, unsigned long *ignored)
-+{
-+}
-+
- static inline unsigned long __meminit zone_spanned_pages_in_node(int nid,
- 					unsigned long zone_type,
- 					unsigned long node_start_pfn,
-@@ -4871,9 +4876,7 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
- 	pgdat->node_id = nid;
- 	pgdat->node_start_pfn = node_start_pfn;
- 	init_zone_allows_reclaim(nid);
--#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
--#endif
- 	calculate_node_totalpages(pgdat, start_pfn, end_pfn,
- 				  zones_size, zholes_size);
- 
+-#define LONG_ALIGN(x) (((x)+(sizeof(long))-1)&~((sizeof(long))-1))
+-
+ /*
+  * Check if a pageblock contains reserved pages
+  */
 -- 
 1.7.1
 
