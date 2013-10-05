@@ -1,126 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 6633D6B0031
-	for <linux-mm@kvack.org>; Sat,  5 Oct 2013 07:31:03 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id q10so5048909pdj.7
-        for <linux-mm@kvack.org>; Sat, 05 Oct 2013 04:31:03 -0700 (PDT)
-Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sat, 5 Oct 2013 21:30:58 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 8D3A82CE8053
-	for <linux-mm@kvack.org>; Sat,  5 Oct 2013 21:30:53 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r95BDjMV10617088
-	for <linux-mm@kvack.org>; Sat, 5 Oct 2013 21:13:52 +1000
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r95BUjkY008141
-	for <linux-mm@kvack.org>; Sat, 5 Oct 2013 21:30:45 +1000
-Date: Sat, 5 Oct 2013 19:30:43 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] Have __free_pages_memory() free in larger chunks.
-Message-ID: <524ff876.06a3420a.03dc.2be1SMTPIN_ADDED_BROKEN@mx.google.com>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1378839444-196190-1-git-send-email-nzimmer@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1378839444-196190-1-git-send-email-nzimmer@sgi.com>
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E98C6B0031
+	for <linux-mm@kvack.org>; Sat,  5 Oct 2013 08:00:44 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id r10so5192389pdi.28
+        for <linux-mm@kvack.org>; Sat, 05 Oct 2013 05:00:44 -0700 (PDT)
+Message-ID: <1380974541.1905.12.camel@palomino.walls.org>
+Subject: Re: [PATCH 19/26] ivtv: Convert driver to use
+ get_user_pages_unlocked()
+From: Andy Walls <awalls@md.metrocast.net>
+Date: Sat, 05 Oct 2013 08:02:21 -0400
+In-Reply-To: <1380724087-13927-20-git-send-email-jack@suse.cz>
+References: <1380724087-13927-1-git-send-email-jack@suse.cz>
+	 <1380724087-13927-20-git-send-email-jack@suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nathan Zimmer <nzimmer@sgi.com>
-Cc: mingo@kernel.org, hpa@zytor.com, Robin Holt <robin.m.holt@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Rob Landley <rob@landley.net>, Mike Travis <travis@sgi.com>, Daniel J Blueman <daniel@numascale-asia.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>
+To: Jan Kara <jack@suse.cz>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-media@vger.kernel.org
 
-On Tue, Sep 10, 2013 at 01:57:24PM -0500, Nathan Zimmer wrote:
->From: Robin Holt <robin.m.holt@gmail.com>
->
->On large memory machines it can take a few minutes to get through
->free_all_bootmem().
->
->Currently, when free_all_bootmem() calls __free_pages_memory(), the
->number of contiguous pages that __free_pages_memory() passes to the
->buddy allocator is limited to BITS_PER_LONG.  BITS_PER_LONG was originally
->chosen to keep things similar to mm/nobootmem.c.  But it is more
->efficient to limit it to MAX_ORDER.
->
->       base   new  change
->8TB    202s  172s   30s
->16TB   401s  351s   50s
->
->That is around 1%-3% improvement on total boot time.
->
->This patch was spun off from the boot time rfc Robin and I had been
->working on.
->
->Signed-off-by: Robin Holt <robin.m.holt@gmail.com>
->Signed-off-by: Nathan Zimmer <nzimmer@sgi.com>
->To: "H. Peter Anvin" <hpa@zytor.com>
->To: Ingo Molnar <mingo@kernel.org>
->Cc: Linux Kernel <linux-kernel@vger.kernel.org>
->Cc: Linux MM <linux-mm@kvack.org>
->Cc: Rob Landley <rob@landley.net>
->Cc: Mike Travis <travis@sgi.com>
->Cc: Daniel J Blueman <daniel@numascale-asia.com>
->Cc: Andrew Morton <akpm@linux-foundation.org>
->Cc: Greg KH <gregkh@linuxfoundation.org>
->Cc: Yinghai Lu <yinghai@kernel.org>
->Cc: Mel Gorman <mgorman@suse.de>
+Hi Jan:
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+<rant>
+This patch alone does not have suffcient information for me to evaluate
+it.  get_user_pages_unlocked() is added in another patch which I did not
+receive, and which I cannot find in any list archives.
 
->---
-> mm/nobootmem.c | 25 ++++++++-----------------
-> 1 file changed, 8 insertions(+), 17 deletions(-)
->
->diff --git a/mm/nobootmem.c b/mm/nobootmem.c
->index 61107cf..2c254d3 100644
->--- a/mm/nobootmem.c
->+++ b/mm/nobootmem.c
->@@ -82,27 +82,18 @@ void __init free_bootmem_late(unsigned long addr, unsigned long size)
->
-> static void __init __free_pages_memory(unsigned long start, unsigned long end)
-> {
->-	unsigned long i, start_aligned, end_aligned;
->-	int order = ilog2(BITS_PER_LONG);
->+	int order;
->
->-	start_aligned = (start + (BITS_PER_LONG - 1)) & ~(BITS_PER_LONG - 1);
->-	end_aligned = end & ~(BITS_PER_LONG - 1);
->+	while (start < end) {
->+		order = min(MAX_ORDER - 1UL, __ffs(start));
->
->-	if (end_aligned <= start_aligned) {
->-		for (i = start; i < end; i++)
->-			__free_pages_bootmem(pfn_to_page(i), 0);
->+		while (start + (1UL << order) > end)
->+			order--;
->
->-		return;
->-	}
->-
->-	for (i = start; i < start_aligned; i++)
->-		__free_pages_bootmem(pfn_to_page(i), 0);
->+		__free_pages_bootmem(pfn_to_page(start), order);
->
->-	for (i = start_aligned; i < end_aligned; i += BITS_PER_LONG)
->-		__free_pages_bootmem(pfn_to_page(i), order);
->-
->-	for (i = end_aligned; i < end; i++)
->-		__free_pages_bootmem(pfn_to_page(i), 0);
->+		start += (1UL << order);
->+	}
-> }
->
-> static unsigned long __init __free_memory_core(phys_addr_t start,
->-- 
->1.8.2.1
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I wasted quite a bit of time looking for this additional patch:
+
+https://git.kernel.org/cgit/linux/kernel/git/jack/linux-fs.git/commit/?h=get_user_pages&id=624fc1bfb70fb65d32d31fbd16427ad9c234653e
+
+</rant>
+
+If I found the correct patch for adding get_user_pages_unlocked(), then
+the patch below looks fine.
+
+Reviewed-by: Andy Walls <awalls@md.metrocast.net>
+Acked-by: Andy Walls <awalls@md.metrocast.net>
+
+Regards,
+Andy
+
+On Wed, 2013-10-02 at 16:28 +0200, Jan Kara wrote:
+> CC: Andy Walls <awalls@md.metrocast.net>
+> CC: linux-media@vger.kernel.org
+> Signed-off-by: Jan Kara <jack@suse.cz>
+> ---
+>  drivers/media/pci/ivtv/ivtv-udma.c |  6 ++----
+>  drivers/media/pci/ivtv/ivtv-yuv.c  | 12 ++++++------
+>  2 files changed, 8 insertions(+), 10 deletions(-)
+> 
+> diff --git a/drivers/media/pci/ivtv/ivtv-udma.c b/drivers/media/pci/ivtv/ivtv-udma.c
+> index 7338cb2d0a38..6012e5049076 100644
+> --- a/drivers/media/pci/ivtv/ivtv-udma.c
+> +++ b/drivers/media/pci/ivtv/ivtv-udma.c
+> @@ -124,10 +124,8 @@ int ivtv_udma_setup(struct ivtv *itv, unsigned long ivtv_dest_addr,
+>  	}
+>  
+>  	/* Get user pages for DMA Xfer */
+> -	down_read(&current->mm->mmap_sem);
+> -	err = get_user_pages(current, current->mm,
+> -			user_dma.uaddr, user_dma.page_count, 0, 1, dma->map, NULL);
+> -	up_read(&current->mm->mmap_sem);
+> +	err = get_user_pages_unlocked(current, current->mm, user_dma.uaddr,
+> +				      user_dma.page_count, 0, 1, dma->map);
+>  
+>  	if (user_dma.page_count != err) {
+>  		IVTV_DEBUG_WARN("failed to map user pages, returned %d instead of %d\n",
+> diff --git a/drivers/media/pci/ivtv/ivtv-yuv.c b/drivers/media/pci/ivtv/ivtv-yuv.c
+> index 2ad65eb29832..9365995917d8 100644
+> --- a/drivers/media/pci/ivtv/ivtv-yuv.c
+> +++ b/drivers/media/pci/ivtv/ivtv-yuv.c
+> @@ -75,15 +75,15 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
+>  	ivtv_udma_get_page_info (&uv_dma, (unsigned long)args->uv_source, 360 * uv_decode_height);
+>  
+>  	/* Get user pages for DMA Xfer */
+> -	down_read(&current->mm->mmap_sem);
+> -	y_pages = get_user_pages(current, current->mm, y_dma.uaddr, y_dma.page_count, 0, 1, &dma->map[0], NULL);
+> +	y_pages = get_user_pages_unlocked(current, current->mm, y_dma.uaddr,
+> +					  y_dma.page_count, 0, 1, &dma->map[0]);
+>  	uv_pages = 0; /* silence gcc. value is set and consumed only if: */
+>  	if (y_pages == y_dma.page_count) {
+> -		uv_pages = get_user_pages(current, current->mm,
+> -					  uv_dma.uaddr, uv_dma.page_count, 0, 1,
+> -					  &dma->map[y_pages], NULL);
+> +		uv_pages = get_user_pages_unlocked(current, current->mm,
+> +						   uv_dma.uaddr,
+> +						   uv_dma.page_count, 0, 1,
+> +						   &dma->map[y_pages]);
+>  	}
+> -	up_read(&current->mm->mmap_sem);
+>  
+>  	if (y_pages != y_dma.page_count || uv_pages != uv_dma.page_count) {
+>  		int rc = -EFAULT;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
