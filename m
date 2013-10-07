@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id BD073900007
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 06:29:56 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id rd3so7106313pab.4
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 03:29:56 -0700 (PDT)
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id B24B69C0005
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 06:29:57 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id x10so7106652pdj.1
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 03:29:57 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 12/63] mm: numa: Do not migrate or account for hinting faults on the zero page
-Date: Mon,  7 Oct 2013 11:28:50 +0100
-Message-Id: <1381141781-10992-13-git-send-email-mgorman@suse.de>
+Subject: [PATCH 13/63] sched: numa: Mitigate chance that same task always updates PTEs
+Date: Mon,  7 Oct 2013 11:28:51 +0100
+Message-Id: <1381141781-10992-14-git-send-email-mgorman@suse.de>
 In-Reply-To: <1381141781-10992-1-git-send-email-mgorman@suse.de>
 References: <1381141781-10992-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,61 +15,89 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-The zero page is not replicated between nodes and is often shared between
-processes. The data is read-only and likely to be cached in local CPUs
-if heavily accessed meaning that the remote memory access cost is less
-of a concern. This patch prevents trapping faults on the zero pages. For
-tasks using the zero page this will reduce the number of PTE updates,
-TLB flushes and hinting faults.
+From: Peter Zijlstra <peterz@infradead.org>
 
-[peterz@infradead.org: Correct use of is_huge_zero_page]
+With a trace_printk("working\n"); right after the cmpxchg in
+task_numa_work() we can see that of a 4 thread process, its always the
+same task winning the race and doing the protection change.
+
+This is a problem since the task doing the protection change has a
+penalty for taking faults -- it is busy when marking the PTEs. If its
+always the same task the ->numa_faults[] get severely skewed.
+
+Avoid this by delaying the task doing the protection change such that
+it is unlikely to win the privilege again.
+
+Before:
+
+root@interlagos:~# grep "thread 0/.*working" /debug/tracing/trace | tail -15
+      thread 0/0-3232  [022] ....   212.787402: task_numa_work: working
+      thread 0/0-3232  [022] ....   212.888473: task_numa_work: working
+      thread 0/0-3232  [022] ....   212.989538: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.090602: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.191667: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.292734: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.393804: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.494869: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.596937: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.699000: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.801067: task_numa_work: working
+      thread 0/0-3232  [022] ....   213.903155: task_numa_work: working
+      thread 0/0-3232  [022] ....   214.005201: task_numa_work: working
+      thread 0/0-3232  [022] ....   214.107266: task_numa_work: working
+      thread 0/0-3232  [022] ....   214.209342: task_numa_work: working
+
+After:
+
+root@interlagos:~# grep "thread 0/.*working" /debug/tracing/trace | tail -15
+      thread 0/0-3253  [005] ....   136.865051: task_numa_work: working
+      thread 0/2-3255  [026] ....   136.965134: task_numa_work: working
+      thread 0/3-3256  [024] ....   137.065217: task_numa_work: working
+      thread 0/3-3256  [024] ....   137.165302: task_numa_work: working
+      thread 0/3-3256  [024] ....   137.265382: task_numa_work: working
+      thread 0/0-3253  [004] ....   137.366465: task_numa_work: working
+      thread 0/2-3255  [026] ....   137.466549: task_numa_work: working
+      thread 0/0-3253  [004] ....   137.566629: task_numa_work: working
+      thread 0/0-3253  [004] ....   137.666711: task_numa_work: working
+      thread 0/1-3254  [028] ....   137.766799: task_numa_work: working
+      thread 0/0-3253  [004] ....   137.866876: task_numa_work: working
+      thread 0/2-3255  [026] ....   137.966960: task_numa_work: working
+      thread 0/1-3254  [028] ....   138.067041: task_numa_work: working
+      thread 0/2-3255  [026] ....   138.167123: task_numa_work: working
+      thread 0/3-3256  [024] ....   138.267207: task_numa_work: working
+
+Signed-off-by: Peter Zijlstra <peterz@infradead.org>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/huge_memory.c | 10 +++++++++-
- mm/memory.c      |  1 +
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ kernel/sched/fair.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index de8d5cf..8677dbf 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1291,6 +1291,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		goto out_unlock;
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index b22f52a..8b9ff79 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -946,6 +946,12 @@ void task_numa_work(struct callback_head *work)
+ 		return;
  
- 	page = pmd_page(pmd);
-+	BUG_ON(is_huge_zero_page(page));
- 	page_nid = page_to_nid(page);
- 	count_vm_numa_event(NUMA_HINT_FAULTS);
- 	if (page_nid == this_nid)
-@@ -1481,8 +1482,15 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 		} else {
- 			struct page *page = pmd_page(*pmd);
+ 	/*
++	 * Delay this task enough that another task of this mm will likely win
++	 * the next time around.
++	 */
++	p->node_stamp += 2 * TICK_NSEC;
++
++	/*
+ 	 * Do not set pte_numa if the current running node is rate-limited.
+ 	 * This loses statistics on the fault but if we are unwilling to
+ 	 * migrate to this node, it is less likely we can do useful work
+@@ -1026,7 +1032,7 @@ void task_tick_numa(struct rq *rq, struct task_struct *curr)
+ 	if (now - curr->node_stamp > period) {
+ 		if (!curr->node_stamp)
+ 			curr->numa_scan_period = sysctl_numa_balancing_scan_period_min;
+-		curr->node_stamp = now;
++		curr->node_stamp += period;
  
--			/* only check non-shared pages */
-+			/*
-+			 * Only check non-shared pages. Do not trap faults
-+			 * against the zero page. The read-only data is likely
-+			 * to be read-cached on the local CPU cache and it is
-+			 * less useful to know about local vs remote hits on
-+			 * the zero page.
-+			 */
- 			if (page_mapcount(page) == 1 &&
-+			    !is_huge_zero_page(page) &&
- 			    !pmd_numa(*pmd)) {
- 				entry = pmdp_get_and_clear(mm, addr, pmd);
- 				entry = pmd_mknuma(entry);
-diff --git a/mm/memory.c b/mm/memory.c
-index 42ae82e..ed51f15 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3564,6 +3564,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		pte_unmap_unlock(ptep, ptl);
- 		return 0;
- 	}
-+	BUG_ON(is_zero_pfn(page_to_pfn(page)));
- 
- 	page_nid = page_to_nid(page);
- 	target_nid = numa_migrate_prep(page, vma, addr, page_nid);
+ 		if (!time_before(jiffies, curr->mm->numa_next_scan)) {
+ 			init_task_work(work, task_numa_work); /* TODO: move this into sched_fork() */
 -- 
 1.8.4
 
