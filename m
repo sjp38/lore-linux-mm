@@ -1,74 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D9466B0038
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 12:09:14 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so7520593pad.2
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 09:09:13 -0700 (PDT)
-Date: Mon, 7 Oct 2013 12:09:09 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCHv5 11/11] x86, mm: enable split page table lock for PMD
- level
-Message-ID: <20131007160909.GA15214@home.goodmis.org>
-References: <1381154053-4848-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1381154053-4848-12-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 911CC6B0036
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 12:22:53 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rp2so7363352pbb.0
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 09:22:53 -0700 (PDT)
+Received: by mail-wi0-f179.google.com with SMTP id hm2so5138165wib.12
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 09:22:48 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1381154053-4848-12-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Mon, 7 Oct 2013 18:22:48 +0200
+Message-ID: <CAP145pinoutWaVCAf1xk8X-Bc8Uu=d2DD8k3w_o=V7caNLqNLA@mail.gmail.com>
+Subject: Deadlock (un-killable processes) in sys_futex
+From: =?UTF-8?B?Um9iZXJ0IMWad2nEmWNraQ==?= <robert@swiecki.net>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Alex Thorlton <athorlton@sgi.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Oct 07, 2013 at 04:54:13PM +0300, Kirill A. Shutemov wrote:
->  
->  config ARCH_HIBERNATION_HEADER
-> diff --git a/arch/x86/include/asm/pgalloc.h b/arch/x86/include/asm/pgalloc.h
-> index b4389a468f..e2fb2b6934 100644
-> --- a/arch/x86/include/asm/pgalloc.h
-> +++ b/arch/x86/include/asm/pgalloc.h
-> @@ -80,12 +80,21 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
->  #if PAGETABLE_LEVELS > 2
->  static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
->  {
-> -	return (pmd_t *)get_zeroed_page(GFP_KERNEL|__GFP_REPEAT);
-> +	struct page *page;
-> +	page = alloc_pages(GFP_KERNEL | __GFP_REPEAT| __GFP_ZERO, 0);
-> +	if (!page)
-> +		return NULL;
-> +	if (!pgtable_pmd_page_ctor(page)) {
-> +		__free_pages(page, 0);
-> +		return NULL;
+After fuzzing the linux kernel (3.12-rc4) I have two processes which
+are stuck in an un-killable state. This is not specific to 3.12-rc4,
+as I'm able to reproduce it on most modern kernels (e.g. Ubuntu's 3.5)
+after a few minutes of fuzzing with a syscall fuzzer.
 
-Thanks for thinking about us -rt folks :-)
+The debug data can be found here: http://alt.swiecki.net/linux/20327/
+- process PIDs: 20327 and 13735
 
-Yeah, this is good, as we can't put the lock into the page table.
+It includes..
 
-Consider this and the previous patch:
+ftrace report (probably the most useful):
+I'm not expert in this kernel area (futex/mm), but it seems like a
+constatnt loop between fault_in_user_writeable() and do_page_fault():
+http://alt.swiecki.net/linux/20327/20327.trace.report.txt
 
-Reviewed-by: Steven Rostedt <rostedt@goodmis.org>
+/proc/pid/maps, /proc/pid/status:
+http://alt.swiecki.net/linux/20327/20327.maps.txt
+http://alt.swiecki.net/linux/20327/20327.status.txt
 
--- Steve
+kdb stacktraces showing that both processes (single-threaded) are
+stuck in sys_futex:
+http://alt.swiecki.net/linux/20327/20327.kdb.txt
+http://alt.swiecki.net/linux/20327/13735.kdb.txt
 
-> +	}
-> +	return (pmd_t *)page_address(page);
->  }
->  
->  static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
->  {
->  	BUG_ON((unsigned long)pmd & (PAGE_SIZE-1));
-> +	pgtable_pmd_page_dtor(virt_to_page(pmd));
->  	free_page((unsigned long)pmd);
->  }
->  
-> -- 
-> 1.8.4.rc3
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+kgdb stacktraces displaying rather corrupted data:
+http://alt.swiecki.net/linux/20327/20327.kgdb.txt
+http://alt.swiecki.net/linux/20327/13735.kgdb.txt
+
+kernel conf:
+http://alt.swiecki.net/linux/20327/config-3.12-rc4.txt
+
+--=20
+Robert =C5=9Awi=C4=99cki
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
