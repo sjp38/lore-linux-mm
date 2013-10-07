@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 8565D6B003C
+	by kanga.kvack.org (Postfix) with ESMTP id D50486B0055
 	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 09:54:35 -0400 (EDT)
-Received: by mail-pb0-f53.google.com with SMTP id up15so7092925pbc.40
+Received: by mail-pb0-f53.google.com with SMTP id up15so7098608pbc.26
         for <linux-mm@kvack.org>; Mon, 07 Oct 2013 06:54:35 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv5 03/11] mm: convert mm->nr_ptes to atomic_long_t
-Date: Mon,  7 Oct 2013 16:54:05 +0300
-Message-Id: <1381154053-4848-4-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv5 02/11] mm: rename USE_SPLIT_PTLOCKS to USE_SPLIT_PTE_PTLOCKS
+Date: Mon,  7 Oct 2013 16:54:04 +0300
+Message-Id: <1381154053-4848-3-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1381154053-4848-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1381154053-4848-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,181 +15,144 @@ List-ID: <linux-mm.kvack.org>
 To: Alex Thorlton <athorlton@sgi.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With split page table lock for PMD level we can't hold
-mm->page_table_lock while updating nr_ptes.
-
-Let's convert it to atomic_long_t to avoid races.
+We're going to introduce split page table lock for PMD level.
+Let's rename existing split ptlock for PTE level to avoid confusion.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Tested-by: Alex Thorlton <athorlton@sgi.com>
 ---
- fs/proc/task_mmu.c       |  3 ++-
- include/linux/mm_types.h |  2 +-
- kernel/fork.c            |  2 +-
- mm/huge_memory.c         | 10 +++++-----
- mm/memory.c              |  4 ++--
- mm/mmap.c                |  3 ++-
- mm/oom_kill.c            |  6 +++---
- 7 files changed, 16 insertions(+), 14 deletions(-)
+ arch/arm/mm/fault-armv.c | 6 +++---
+ arch/x86/xen/mmu.c       | 6 +++---
+ include/linux/mm.h       | 6 +++---
+ include/linux/mm_types.h | 8 ++++----
+ 4 files changed, 13 insertions(+), 13 deletions(-)
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 7366e9d63c..fda6c4f2bb 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -62,7 +62,8 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
- 		total_rss << (PAGE_SHIFT-10),
- 		data << (PAGE_SHIFT-10),
- 		mm->stack_vm << (PAGE_SHIFT-10), text, lib,
--		(PTRS_PER_PTE*sizeof(pte_t)*mm->nr_ptes) >> 10,
-+		(PTRS_PER_PTE * sizeof(pte_t) *
-+		 atomic_long_read(&mm->nr_ptes)) >> 10,
- 		swap << (PAGE_SHIFT-10));
+diff --git a/arch/arm/mm/fault-armv.c b/arch/arm/mm/fault-armv.c
+index 2a5907b5c8..ff379ac115 100644
+--- a/arch/arm/mm/fault-armv.c
++++ b/arch/arm/mm/fault-armv.c
+@@ -65,7 +65,7 @@ static int do_adjust_pte(struct vm_area_struct *vma, unsigned long address,
+ 	return ret;
  }
  
+-#if USE_SPLIT_PTLOCKS
++#if USE_SPLIT_PTE_PTLOCKS
+ /*
+  * If we are using split PTE locks, then we need to take the page
+  * lock here.  Otherwise we are using shared mm->page_table_lock
+@@ -84,10 +84,10 @@ static inline void do_pte_unlock(spinlock_t *ptl)
+ {
+ 	spin_unlock(ptl);
+ }
+-#else /* !USE_SPLIT_PTLOCKS */
++#else /* !USE_SPLIT_PTE_PTLOCKS */
+ static inline void do_pte_lock(spinlock_t *ptl) {}
+ static inline void do_pte_unlock(spinlock_t *ptl) {}
+-#endif /* USE_SPLIT_PTLOCKS */
++#endif /* USE_SPLIT_PTE_PTLOCKS */
+ 
+ static int adjust_pte(struct vm_area_struct *vma, unsigned long address,
+ 	unsigned long pfn)
+diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
+index fdc3ba28ca..455c873ce0 100644
+--- a/arch/x86/xen/mmu.c
++++ b/arch/x86/xen/mmu.c
+@@ -796,7 +796,7 @@ static spinlock_t *xen_pte_lock(struct page *page, struct mm_struct *mm)
+ {
+ 	spinlock_t *ptl = NULL;
+ 
+-#if USE_SPLIT_PTLOCKS
++#if USE_SPLIT_PTE_PTLOCKS
+ 	ptl = __pte_lockptr(page);
+ 	spin_lock_nest_lock(ptl, &mm->page_table_lock);
+ #endif
+@@ -1637,7 +1637,7 @@ static inline void xen_alloc_ptpage(struct mm_struct *mm, unsigned long pfn,
+ 
+ 			__set_pfn_prot(pfn, PAGE_KERNEL_RO);
+ 
+-			if (level == PT_PTE && USE_SPLIT_PTLOCKS)
++			if (level == PT_PTE && USE_SPLIT_PTE_PTLOCKS)
+ 				__pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
+ 
+ 			xen_mc_issue(PARAVIRT_LAZY_MMU);
+@@ -1671,7 +1671,7 @@ static inline void xen_release_ptpage(unsigned long pfn, unsigned level)
+ 		if (!PageHighMem(page)) {
+ 			xen_mc_batch();
+ 
+-			if (level == PT_PTE && USE_SPLIT_PTLOCKS)
++			if (level == PT_PTE && USE_SPLIT_PTE_PTLOCKS)
+ 				__pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, pfn);
+ 
+ 			__set_pfn_prot(pfn, PAGE_KERNEL);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 8b6e55ee88..6cf8ddb45b 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1232,7 +1232,7 @@ static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long a
+ }
+ #endif /* CONFIG_MMU && !__ARCH_HAS_4LEVEL_HACK */
+ 
+-#if USE_SPLIT_PTLOCKS
++#if USE_SPLIT_PTE_PTLOCKS
+ /*
+  * We tuck a spinlock to guard each pagetable page into its struct page,
+  * at page->private, with BUILD_BUG_ON to make sure that this will not
+@@ -1245,14 +1245,14 @@ static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long a
+ } while (0)
+ #define pte_lock_deinit(page)	((page)->mapping = NULL)
+ #define pte_lockptr(mm, pmd)	({(void)(mm); __pte_lockptr(pmd_page(*(pmd)));})
+-#else	/* !USE_SPLIT_PTLOCKS */
++#else	/* !USE_SPLIT_PTE_PTLOCKS */
+ /*
+  * We use mm->page_table_lock to guard all pagetable pages of the mm.
+  */
+ #define pte_lock_init(page)	do {} while (0)
+ #define pte_lock_deinit(page)	do {} while (0)
+ #define pte_lockptr(mm, pmd)	({(void)(pmd); &(mm)->page_table_lock;})
+-#endif /* USE_SPLIT_PTLOCKS */
++#endif /* USE_SPLIT_PTE_PTLOCKS */
+ 
+ static inline void pgtable_page_ctor(struct page *page)
+ {
 diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 84e0c56e1e..149ad17ceb 100644
+index d9851eeb6e..84e0c56e1e 100644
 --- a/include/linux/mm_types.h
 +++ b/include/linux/mm_types.h
-@@ -339,6 +339,7 @@ struct mm_struct {
- 	pgd_t * pgd;
- 	atomic_t mm_users;			/* How many users with user space? */
- 	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
-+	atomic_long_t nr_ptes;			/* Page table pages */
- 	int map_count;				/* number of VMAs */
+@@ -23,7 +23,7 @@
  
- 	spinlock_t page_table_lock;		/* Protects page tables and some counters */
-@@ -360,7 +361,6 @@ struct mm_struct {
- 	unsigned long exec_vm;		/* VM_EXEC & ~VM_WRITE */
- 	unsigned long stack_vm;		/* VM_GROWSUP/DOWN */
- 	unsigned long def_flags;
--	unsigned long nr_ptes;		/* Page table pages */
- 	unsigned long start_code, end_code, start_data, end_data;
- 	unsigned long start_brk, brk, start_stack;
- 	unsigned long arg_start, arg_end, env_start, env_end;
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 086fe73ad6..5c8a19482a 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -532,7 +532,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
- 	mm->flags = (current->mm) ?
- 		(current->mm->flags & MMF_INIT_MASK) : default_dump_filter;
- 	mm->core_state = NULL;
--	mm->nr_ptes = 0;
-+	atomic_long_set(&mm->nr_ptes, 0);
- 	memset(&mm->rss_stat, 0, sizeof(mm->rss_stat));
- 	spin_lock_init(&mm->page_table_lock);
- 	mm_init_aio(mm);
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 7489884682..e31600f465 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -737,7 +737,7 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 		pgtable_trans_huge_deposit(mm, pmd, pgtable);
- 		set_pmd_at(mm, haddr, pmd, entry);
- 		add_mm_counter(mm, MM_ANONPAGES, HPAGE_PMD_NR);
--		mm->nr_ptes++;
-+		atomic_long_inc(&mm->nr_ptes);
- 		spin_unlock(&mm->page_table_lock);
- 	}
+ struct address_space;
  
-@@ -778,7 +778,7 @@ static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
- 	entry = pmd_mkhuge(entry);
- 	pgtable_trans_huge_deposit(mm, pmd, pgtable);
- 	set_pmd_at(mm, haddr, pmd, entry);
--	mm->nr_ptes++;
-+	atomic_long_inc(&mm->nr_ptes);
- 	return true;
- }
+-#define USE_SPLIT_PTLOCKS	(NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS)
++#define USE_SPLIT_PTE_PTLOCKS	(NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS)
  
-@@ -903,7 +903,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	pmd = pmd_mkold(pmd_wrprotect(pmd));
- 	pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
- 	set_pmd_at(dst_mm, addr, dst_pmd, pmd);
--	dst_mm->nr_ptes++;
-+	atomic_long_inc(&dst_mm->nr_ptes);
+ /*
+  * Each physical page in the system has a struct page associated with
+@@ -141,7 +141,7 @@ struct page {
+ 						 * indicates order in the buddy
+ 						 * system if PG_buddy is set.
+ 						 */
+-#if USE_SPLIT_PTLOCKS
++#if USE_SPLIT_PTE_PTLOCKS
+ 		spinlock_t ptl;
+ #endif
+ 		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
+@@ -309,14 +309,14 @@ enum {
+ 	NR_MM_COUNTERS
+ };
  
- 	ret = 0;
- out_unlock:
-@@ -1358,7 +1358,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
- 		pgtable = pgtable_trans_huge_withdraw(tlb->mm, pmd);
- 		if (is_huge_zero_pmd(orig_pmd)) {
--			tlb->mm->nr_ptes--;
-+			atomic_long_dec(&tlb->mm->nr_ptes);
- 			spin_unlock(&tlb->mm->page_table_lock);
- 			put_huge_zero_page();
- 		} else {
-@@ -1367,7 +1367,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 			VM_BUG_ON(page_mapcount(page) < 0);
- 			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
- 			VM_BUG_ON(!PageHead(page));
--			tlb->mm->nr_ptes--;
-+			atomic_long_dec(&tlb->mm->nr_ptes);
- 			spin_unlock(&tlb->mm->page_table_lock);
- 			tlb_remove_page(tlb, page);
- 		}
-diff --git a/mm/memory.c b/mm/memory.c
-index ca00039471..975ab644f6 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -382,7 +382,7 @@ static void free_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
- 	pgtable_t token = pmd_pgtable(*pmd);
- 	pmd_clear(pmd);
- 	pte_free_tlb(tlb, token, addr);
--	tlb->mm->nr_ptes--;
-+	atomic_long_dec(&tlb->mm->nr_ptes);
- }
+-#if USE_SPLIT_PTLOCKS && defined(CONFIG_MMU)
++#if USE_SPLIT_PTE_PTLOCKS && defined(CONFIG_MMU)
+ #define SPLIT_RSS_COUNTING
+ /* per-thread cached information, */
+ struct task_rss_stat {
+ 	int events;	/* for synchronization threshold */
+ 	int count[NR_MM_COUNTERS];
+ };
+-#endif /* USE_SPLIT_PTLOCKS */
++#endif /* USE_SPLIT_PTE_PTLOCKS */
  
- static inline void free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
-@@ -575,7 +575,7 @@ int __pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
- 	spin_lock(&mm->page_table_lock);
- 	wait_split_huge_page = 0;
- 	if (likely(pmd_none(*pmd))) {	/* Has another populated it ? */
--		mm->nr_ptes++;
-+		atomic_long_inc(&mm->nr_ptes);
- 		pmd_populate(mm, pmd, new);
- 		new = NULL;
- 	} else if (unlikely(pmd_trans_splitting(*pmd)))
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 9d548512ff..846dae00a5 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2726,7 +2726,8 @@ void exit_mmap(struct mm_struct *mm)
- 	}
- 	vm_unacct_memory(nr_accounted);
- 
--	WARN_ON(mm->nr_ptes > (FIRST_USER_ADDRESS+PMD_SIZE-1)>>PMD_SHIFT);
-+	WARN_ON(atomic_long_read(&mm->nr_ptes) >
-+			(FIRST_USER_ADDRESS+PMD_SIZE-1)>>PMD_SHIFT);
- }
- 
- /* Insert vm structure into process list sorted by address
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 314e9d2743..51d9b680ae 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -161,7 +161,7 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
- 	 * The baseline for the badness score is the proportion of RAM that each
- 	 * task's rss, pagetable and swap space use.
- 	 */
--	points = get_mm_rss(p->mm) + p->mm->nr_ptes +
-+	points = get_mm_rss(p->mm) + atomic_long_read(&p->mm->nr_ptes) +
- 		 get_mm_counter(p->mm, MM_SWAPENTS);
- 	task_unlock(p);
- 
-@@ -364,10 +364,10 @@ static void dump_tasks(const struct mem_cgroup *memcg, const nodemask_t *nodemas
- 			continue;
- 		}
- 
--		pr_info("[%5d] %5d %5d %8lu %8lu %7lu %8lu         %5hd %s\n",
-+		pr_info("[%5d] %5d %5d %8lu %8lu %7ld %8lu         %5hd %s\n",
- 			task->pid, from_kuid(&init_user_ns, task_uid(task)),
- 			task->tgid, task->mm->total_vm, get_mm_rss(task->mm),
--			task->mm->nr_ptes,
-+			atomic_long_read(&task->mm->nr_ptes),
- 			get_mm_counter(task->mm, MM_SWAPENTS),
- 			task->signal->oom_score_adj, task->comm);
- 		task_unlock(task);
+ struct mm_rss_stat {
+ 	atomic_long_t count[NR_MM_COUNTERS];
 -- 
 1.8.4.rc3
 
