@@ -1,54 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 3379A6B003A
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 09:21:59 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rp2so7143911pbb.28
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 06:21:58 -0700 (PDT)
-Message-ID: <5252B56C.8030903@parallels.com>
-Date: Mon, 7 Oct 2013 17:21:48 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] smaps: show VM_SOFTDIRTY flag in VmFlags line
-References: <1380913335-17466-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1380913335-17466-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 294916B003C
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 09:54:35 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id md4so7102881pbc.30
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 06:54:34 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv5 04/11] mm: introduce api for split page table lock for PMD level
+Date: Mon,  7 Oct 2013 16:54:06 +0300
+Message-Id: <1381154053-4848-5-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1381154053-4848-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1381154053-4848-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org
+To: Alex Thorlton <athorlton@sgi.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 10/04/2013 11:02 PM, Naoya Horiguchi wrote:
-> This flag shows that soft dirty bit is not enabled yet.
-> You can enable it by "echo 4 > /proc/pid/clear_refs."
+Basic api, backed by mm->page_table_lock for now. Actual implementation
+will be added later.
 
-The comment is not correct. Per-VMA soft-dirty flag means, that
-VMA is "newly created" one and thus represents a new (dirty) are
-in task's VM.
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Tested-by: Alex Thorlton <athorlton@sgi.com>
+---
+ include/linux/mm.h | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
 
-Other than this -- yes, it's nice to have this flag in smaps.
-
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
->  fs/proc/task_mmu.c | 3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git v3.12-rc2-mmots-2013-09-24-17-03.orig/fs/proc/task_mmu.c v3.12-rc2-mmots-2013-09-24-17-03/fs/proc/task_mmu.c
-> index 7366e9d..c591928 100644
-> --- v3.12-rc2-mmots-2013-09-24-17-03.orig/fs/proc/task_mmu.c
-> +++ v3.12-rc2-mmots-2013-09-24-17-03/fs/proc/task_mmu.c
-> @@ -561,6 +561,9 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
->  		[ilog2(VM_NONLINEAR)]	= "nl",
->  		[ilog2(VM_ARCH_1)]	= "ar",
->  		[ilog2(VM_DONTDUMP)]	= "dd",
-> +#ifdef CONFIG_MEM_SOFT_DIRTY
-> +		[ilog2(VM_SOFTDIRTY)]	= "sd",
-> +#endif
->  		[ilog2(VM_MIXEDMAP)]	= "mm",
->  		[ilog2(VM_HUGEPAGE)]	= "hg",
->  		[ilog2(VM_NOHUGEPAGE)]	= "nh",
-> 
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 6cf8ddb45b..e3481c6b52 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1294,6 +1294,19 @@ static inline void pgtable_page_dtor(struct page *page)
+ 	((unlikely(pmd_none(*(pmd))) && __pte_alloc_kernel(pmd, address))? \
+ 		NULL: pte_offset_kernel(pmd, address))
+ 
++static inline spinlock_t *pmd_lockptr(struct mm_struct *mm, pmd_t *pmd)
++{
++	return &mm->page_table_lock;
++}
++
++
++static inline spinlock_t *pmd_lock(struct mm_struct *mm, pmd_t *pmd)
++{
++	spinlock_t *ptl = pmd_lockptr(mm, pmd);
++	spin_lock(ptl);
++	return ptl;
++}
++
+ extern void free_area_init(unsigned long * zones_size);
+ extern void free_area_init_node(int nid, unsigned long * zones_size,
+ 		unsigned long zone_start_pfn, unsigned long *zholes_size);
+-- 
+1.8.4.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
