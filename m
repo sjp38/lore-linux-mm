@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id BD8C46B003C
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 10:02:01 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id r10so7227353pdi.0
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 07:02:01 -0700 (PDT)
-Message-ID: <5252BECA.4080302@redhat.com>
-Date: Mon, 07 Oct 2013 10:01:46 -0400
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id E75E56B003D
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 10:02:25 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so7338837pad.16
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 07:02:25 -0700 (PDT)
+Message-ID: <5252BEE4.20707@redhat.com>
+Date: Mon, 07 Oct 2013 10:02:12 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 06/63] mm: Prevent parallel splits during THP migration
-References: <1381141781-10992-1-git-send-email-mgorman@suse.de> <1381141781-10992-7-git-send-email-mgorman@suse.de>
-In-Reply-To: <1381141781-10992-7-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 07/63] mm: numa: Sanitize task_numa_fault() callsites
+References: <1381141781-10992-1-git-send-email-mgorman@suse.de> <1381141781-10992-8-git-send-email-mgorman@suse.de>
+In-Reply-To: <1381141781-10992-8-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,16 +19,38 @@ To: Mel Gorman <mgorman@suse.de>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
 On 10/07/2013 06:28 AM, Mel Gorman wrote:
-> THP migrations are serialised by the page lock but on its own that does
-> not prevent THP splits. If the page is split during THP migration then
-> the pmd_same checks will prevent page table corruption but the unlock page
-> and other fix-ups potentially will cause corruption. This patch takes the
-> anon_vma lock to prevent parallel splits during migration.
+> There are three callers of task_numa_fault():
+> 
+>  - do_huge_pmd_numa_page():
+>      Accounts against the current node, not the node where the
+>      page resides, unless we migrated, in which case it accounts
+>      against the node we migrated to.
+> 
+>  - do_numa_page():
+>      Accounts against the current node, not the node where the
+>      page resides, unless we migrated, in which case it accounts
+>      against the node we migrated to.
+> 
+>  - do_pmd_numa_page():
+>      Accounts not at all when the page isn't migrated, otherwise
+>      accounts against the node we migrated towards.
+> 
+> This seems wrong to me; all three sites should have the same
+> sementaics, furthermore we should accounts against where the page
+> really is, we already know where the task is.
+> 
+> So modify all three sites to always account; we did after all receive
+> the fault; and always account to where the page is after migration,
+> regardless of success.
+> 
+> They all still differ on when they clear the PTE/PMD; ideally that
+> would get sorted too.
 > 
 > Cc: stable <stable@vger.kernel.org>
+> Signed-off-by: Peter Zijlstra <peterz@infradead.org>
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 -- 
 All rights reversed
