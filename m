@@ -1,36 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 7054C6B003C
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 08:47:38 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id kq14so7234481pab.40
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 05:47:38 -0700 (PDT)
-Message-ID: <5252AD5F.4040101@redhat.com>
-Date: Mon, 07 Oct 2013 08:47:27 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 3379A6B003A
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 09:21:59 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rp2so7143911pbb.28
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 06:21:58 -0700 (PDT)
+Message-ID: <5252B56C.8030903@parallels.com>
+Date: Mon, 7 Oct 2013 17:21:48 +0400
+From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 04/63] mm: numa: Do not account for a hinting fault if
- we raced
-References: <1381141781-10992-1-git-send-email-mgorman@suse.de> <1381141781-10992-5-git-send-email-mgorman@suse.de>
-In-Reply-To: <1381141781-10992-5-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 1/2] smaps: show VM_SOFTDIRTY flag in VmFlags line
+References: <1380913335-17466-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1380913335-17466-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org
 
-On 10/07/2013 06:28 AM, Mel Gorman wrote:
-> If another task handled a hinting fault in parallel then do not double
-> account for it.
+On 10/04/2013 11:02 PM, Naoya Horiguchi wrote:
+> This flag shows that soft dirty bit is not enabled yet.
+> You can enable it by "echo 4 > /proc/pid/clear_refs."
+
+The comment is not correct. Per-VMA soft-dirty flag means, that
+VMA is "newly created" one and thus represents a new (dirty) are
+in task's VM.
+
+Other than this -- yes, it's nice to have this flag in smaps.
+
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+>  fs/proc/task_mmu.c | 3 +++
+>  1 file changed, 3 insertions(+)
 > 
-> Cc: stable <stable@vger.kernel.org>
-> Signed-off-by: Peter Zijlstra <peterz@infradead.org>
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> diff --git v3.12-rc2-mmots-2013-09-24-17-03.orig/fs/proc/task_mmu.c v3.12-rc2-mmots-2013-09-24-17-03/fs/proc/task_mmu.c
+> index 7366e9d..c591928 100644
+> --- v3.12-rc2-mmots-2013-09-24-17-03.orig/fs/proc/task_mmu.c
+> +++ v3.12-rc2-mmots-2013-09-24-17-03/fs/proc/task_mmu.c
+> @@ -561,6 +561,9 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
+>  		[ilog2(VM_NONLINEAR)]	= "nl",
+>  		[ilog2(VM_ARCH_1)]	= "ar",
+>  		[ilog2(VM_DONTDUMP)]	= "dd",
+> +#ifdef CONFIG_MEM_SOFT_DIRTY
+> +		[ilog2(VM_SOFTDIRTY)]	= "sd",
+> +#endif
+>  		[ilog2(VM_MIXEDMAP)]	= "mm",
+>  		[ilog2(VM_HUGEPAGE)]	= "hg",
+>  		[ilog2(VM_NOHUGEPAGE)]	= "nh",
+> 
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
-
--- 
-All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
