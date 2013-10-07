@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id A7FA49C0019
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 06:30:19 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id rr4so6818361pbb.20
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 03:30:19 -0700 (PDT)
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EB289C001D
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 06:30:20 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id y13so7068752pdi.33
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 03:30:20 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 37/63] stop_machine: Introduce stop_two_cpus()
-Date: Mon,  7 Oct 2013 11:29:15 +0100
-Message-Id: <1381141781-10992-38-git-send-email-mgorman@suse.de>
+Subject: [PATCH 38/63] sched: Introduce migrate_swap()
+Date: Mon,  7 Oct 2013 11:29:16 +0100
+Message-Id: <1381141781-10992-39-git-send-email-mgorman@suse.de>
 In-Reply-To: <1381141781-10992-1-git-send-email-mgorman@suse.de>
 References: <1381141781-10992-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -17,366 +17,280 @@ Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org
 
 From: Peter Zijlstra <peterz@infradead.org>
 
-Introduce stop_two_cpus() in order to allow controlled swapping of two
-tasks. It repurposes the stop_machine() state machine but only stops
-the two cpus which we can do with on-stack structures and avoid
-machine wide synchronization issues.
+Use the new stop_two_cpus() to implement migrate_swap(), a function that
+flips two tasks between their respective cpus.
 
-The ordering of CPUs is important to avoid deadlocks. If unordered then
-two cpus calling stop_two_cpus on each other simultaneously would attempt
-to queue in the opposite order on each CPU causing an AB-BA style deadlock.
-By always having the lowest number CPU doing the queueing of works, we can
-guarantee that works are always queued in the same order, and deadlocks
-are avoided.
+I'm fairly sure there's a less crude way than employing the stop_two_cpus()
+method, but everything I tried either got horribly fragile and/or complex. So
+keep it simple for now.
 
-[riel@redhat.com: Deadlock avoidance]
+The notable detail is how we 'migrate' tasks that aren't runnable
+anymore. We'll make it appear like we migrated them before they went to
+sleep. The sole difference is the previous cpu in the wakeup path, so we
+override this.
+
 Signed-off-by: Peter Zijlstra <peterz@infradead.org>
-Signed-off-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/stop_machine.h |   1 +
- kernel/stop_machine.c        | 272 +++++++++++++++++++++++++++----------------
- 2 files changed, 175 insertions(+), 98 deletions(-)
+ include/linux/sched.h    |   2 +
+ kernel/sched/core.c      | 106 ++++++++++++++++++++++++++++++++++++++++++++---
+ kernel/sched/fair.c      |   3 +-
+ kernel/sched/idle_task.c |   2 +-
+ kernel/sched/rt.c        |   5 +--
+ kernel/sched/sched.h     |   4 +-
+ kernel/sched/stop_task.c |   2 +-
+ 7 files changed, 110 insertions(+), 14 deletions(-)
 
-diff --git a/include/linux/stop_machine.h b/include/linux/stop_machine.h
-index 3b5e910..d2abbdb 100644
---- a/include/linux/stop_machine.h
-+++ b/include/linux/stop_machine.h
-@@ -28,6 +28,7 @@ struct cpu_stop_work {
- };
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 4dd0c94..703b256 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1033,6 +1033,8 @@ struct task_struct {
+ 	struct task_struct *last_wakee;
+ 	unsigned long wakee_flips;
+ 	unsigned long wakee_flip_decay_ts;
++
++	int wake_cpu;
+ #endif
+ 	int on_rq;
  
- int stop_one_cpu(unsigned int cpu, cpu_stop_fn_t fn, void *arg);
-+int stop_two_cpus(unsigned int cpu1, unsigned int cpu2, cpu_stop_fn_t fn, void *arg);
- void stop_one_cpu_nowait(unsigned int cpu, cpu_stop_fn_t fn, void *arg,
- 			 struct cpu_stop_work *work_buf);
- int stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg);
-diff --git a/kernel/stop_machine.c b/kernel/stop_machine.c
-index c09f295..32a6c44 100644
---- a/kernel/stop_machine.c
-+++ b/kernel/stop_machine.c
-@@ -115,6 +115,166 @@ int stop_one_cpu(unsigned int cpu, cpu_stop_fn_t fn, void *arg)
- 	return done.executed ? done.ret : -ENOENT;
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 124bb40..0862196 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -1017,6 +1017,102 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
+ 	__set_task_cpu(p, new_cpu);
  }
  
-+/* This controls the threads on each CPU. */
-+enum multi_stop_state {
-+	/* Dummy starting state for thread. */
-+	MULTI_STOP_NONE,
-+	/* Awaiting everyone to be scheduled. */
-+	MULTI_STOP_PREPARE,
-+	/* Disable interrupts. */
-+	MULTI_STOP_DISABLE_IRQ,
-+	/* Run the function */
-+	MULTI_STOP_RUN,
-+	/* Exit */
-+	MULTI_STOP_EXIT,
-+};
-+
-+struct multi_stop_data {
-+	int			(*fn)(void *);
-+	void			*data;
-+	/* Like num_online_cpus(), but hotplug cpu uses us, so we need this. */
-+	unsigned int		num_threads;
-+	const struct cpumask	*active_cpus;
-+
-+	enum multi_stop_state	state;
-+	atomic_t		thread_ack;
-+};
-+
-+static void set_state(struct multi_stop_data *msdata,
-+		      enum multi_stop_state newstate)
++static void __migrate_swap_task(struct task_struct *p, int cpu)
 +{
-+	/* Reset ack counter. */
-+	atomic_set(&msdata->thread_ack, msdata->num_threads);
-+	smp_wmb();
-+	msdata->state = newstate;
++	if (p->on_rq) {
++		struct rq *src_rq, *dst_rq;
++
++		src_rq = task_rq(p);
++		dst_rq = cpu_rq(cpu);
++
++		deactivate_task(src_rq, p, 0);
++		set_task_cpu(p, cpu);
++		activate_task(dst_rq, p, 0);
++		check_preempt_curr(dst_rq, p, 0);
++	} else {
++		/*
++		 * Task isn't running anymore; make it appear like we migrated
++		 * it before it went to sleep. This means on wakeup we make the
++		 * previous cpu our targer instead of where it really is.
++		 */
++		p->wake_cpu = cpu;
++	}
 +}
 +
-+/* Last one to ack a state moves to the next state. */
-+static void ack_state(struct multi_stop_data *msdata)
-+{
-+	if (atomic_dec_and_test(&msdata->thread_ack))
-+		set_state(msdata, msdata->state + 1);
-+}
-+
-+/* This is the cpu_stop function which stops the CPU. */
-+static int multi_cpu_stop(void *data)
-+{
-+	struct multi_stop_data *msdata = data;
-+	enum multi_stop_state curstate = MULTI_STOP_NONE;
-+	int cpu = smp_processor_id(), err = 0;
-+	unsigned long flags;
-+	bool is_active;
-+
-+	/*
-+	 * When called from stop_machine_from_inactive_cpu(), irq might
-+	 * already be disabled.  Save the state and restore it on exit.
-+	 */
-+	local_save_flags(flags);
-+
-+	if (!msdata->active_cpus)
-+		is_active = cpu == cpumask_first(cpu_online_mask);
-+	else
-+		is_active = cpumask_test_cpu(cpu, msdata->active_cpus);
-+
-+	/* Simple state machine */
-+	do {
-+		/* Chill out and ensure we re-read multi_stop_state. */
-+		cpu_relax();
-+		if (msdata->state != curstate) {
-+			curstate = msdata->state;
-+			switch (curstate) {
-+			case MULTI_STOP_DISABLE_IRQ:
-+				local_irq_disable();
-+				hard_irq_disable();
-+				break;
-+			case MULTI_STOP_RUN:
-+				if (is_active)
-+					err = msdata->fn(msdata->data);
-+				break;
-+			default:
-+				break;
-+			}
-+			ack_state(msdata);
-+		}
-+	} while (curstate != MULTI_STOP_EXIT);
-+
-+	local_irq_restore(flags);
-+	return err;
-+}
-+
-+struct irq_cpu_stop_queue_work_info {
-+	int cpu1;
-+	int cpu2;
-+	struct cpu_stop_work *work1;
-+	struct cpu_stop_work *work2;
++struct migration_swap_arg {
++	struct task_struct *src_task, *dst_task;
++	int src_cpu, dst_cpu;
 +};
++
++static int migrate_swap_stop(void *data)
++{
++	struct migration_swap_arg *arg = data;
++	struct rq *src_rq, *dst_rq;
++	int ret = -EAGAIN;
++
++	src_rq = cpu_rq(arg->src_cpu);
++	dst_rq = cpu_rq(arg->dst_cpu);
++
++	double_rq_lock(src_rq, dst_rq);
++	if (task_cpu(arg->dst_task) != arg->dst_cpu)
++		goto unlock;
++
++	if (task_cpu(arg->src_task) != arg->src_cpu)
++		goto unlock;
++
++	if (!cpumask_test_cpu(arg->dst_cpu, tsk_cpus_allowed(arg->src_task)))
++		goto unlock;
++
++	if (!cpumask_test_cpu(arg->src_cpu, tsk_cpus_allowed(arg->dst_task)))
++		goto unlock;
++
++	__migrate_swap_task(arg->src_task, arg->dst_cpu);
++	__migrate_swap_task(arg->dst_task, arg->src_cpu);
++
++	ret = 0;
++
++unlock:
++	double_rq_unlock(src_rq, dst_rq);
++
++	return ret;
++}
 +
 +/*
-+ * This function is always run with irqs and preemption disabled.
-+ * This guarantees that both work1 and work2 get queued, before
-+ * our local migrate thread gets the chance to preempt us.
++ * Cross migrate two tasks
 + */
-+static void irq_cpu_stop_queue_work(void *arg)
++int migrate_swap(struct task_struct *cur, struct task_struct *p)
 +{
-+	struct irq_cpu_stop_queue_work_info *info = arg;
-+	cpu_stop_queue_work(info->cpu1, info->work1);
-+	cpu_stop_queue_work(info->cpu2, info->work2);
++	struct migration_swap_arg arg;
++	int ret = -EINVAL;
++
++	get_online_cpus();
++
++	arg = (struct migration_swap_arg){
++		.src_task = cur,
++		.src_cpu = task_cpu(cur),
++		.dst_task = p,
++		.dst_cpu = task_cpu(p),
++	};
++
++	if (arg.src_cpu == arg.dst_cpu)
++		goto out;
++
++	if (!cpu_active(arg.src_cpu) || !cpu_active(arg.dst_cpu))
++		goto out;
++
++	if (!cpumask_test_cpu(arg.dst_cpu, tsk_cpus_allowed(arg.src_task)))
++		goto out;
++
++	if (!cpumask_test_cpu(arg.src_cpu, tsk_cpus_allowed(arg.dst_task)))
++		goto out;
++
++	ret = stop_two_cpus(arg.dst_cpu, arg.src_cpu, migrate_swap_stop, &arg);
++
++out:
++	put_online_cpus();
++	return ret;
 +}
 +
-+/**
-+ * stop_two_cpus - stops two cpus
-+ * @cpu1: the cpu to stop
-+ * @cpu2: the other cpu to stop
-+ * @fn: function to execute
-+ * @arg: argument to @fn
-+ *
-+ * Stops both the current and specified CPU and runs @fn on one of them.
-+ *
-+ * returns when both are completed.
-+ */
-+int stop_two_cpus(unsigned int cpu1, unsigned int cpu2, cpu_stop_fn_t fn, void *arg)
-+{
-+	int call_cpu;
-+	struct cpu_stop_done done;
-+	struct cpu_stop_work work1, work2;
-+	struct irq_cpu_stop_queue_work_info call_args;
-+	struct multi_stop_data msdata = {
-+		.fn = fn,
-+		.data = arg,
-+		.num_threads = 2,
-+		.active_cpus = cpumask_of(cpu1),
-+	};
-+
-+	work1 = work2 = (struct cpu_stop_work){
-+		.fn = multi_cpu_stop,
-+		.arg = &msdata,
-+		.done = &done
-+	};
-+
-+	call_args = (struct irq_cpu_stop_queue_work_info){
-+		.cpu1 = cpu1,
-+		.cpu2 = cpu2,
-+		.work1 = &work1,
-+		.work2 = &work2,
-+	};
-+
-+	cpu_stop_init_done(&done, 2);
-+	set_state(&msdata, MULTI_STOP_PREPARE);
-+
-+	/*
-+	 * Queuing needs to be done by the lowest numbered CPU, to ensure
-+	 * that works are always queued in the same order on every CPU.
-+	 * This prevents deadlocks.
-+	 */
-+	call_cpu = min(cpu1, cpu2);
-+
-+	smp_call_function_single(call_cpu, &irq_cpu_stop_queue_work,
-+				 &call_args, 0);
-+
-+	wait_for_completion(&done.completion);
-+	return done.executed ? done.ret : -ENOENT;
-+}
-+
- /**
-  * stop_one_cpu_nowait - stop a cpu but don't wait for completion
-  * @cpu: cpu to stop
-@@ -359,98 +519,14 @@ early_initcall(cpu_stop_init);
- 
- #ifdef CONFIG_STOP_MACHINE
- 
--/* This controls the threads on each CPU. */
--enum stopmachine_state {
--	/* Dummy starting state for thread. */
--	STOPMACHINE_NONE,
--	/* Awaiting everyone to be scheduled. */
--	STOPMACHINE_PREPARE,
--	/* Disable interrupts. */
--	STOPMACHINE_DISABLE_IRQ,
--	/* Run the function */
--	STOPMACHINE_RUN,
--	/* Exit */
--	STOPMACHINE_EXIT,
--};
--
--struct stop_machine_data {
--	int			(*fn)(void *);
--	void			*data;
--	/* Like num_online_cpus(), but hotplug cpu uses us, so we need this. */
--	unsigned int		num_threads;
--	const struct cpumask	*active_cpus;
--
--	enum stopmachine_state	state;
--	atomic_t		thread_ack;
--};
--
--static void set_state(struct stop_machine_data *smdata,
--		      enum stopmachine_state newstate)
--{
--	/* Reset ack counter. */
--	atomic_set(&smdata->thread_ack, smdata->num_threads);
--	smp_wmb();
--	smdata->state = newstate;
--}
--
--/* Last one to ack a state moves to the next state. */
--static void ack_state(struct stop_machine_data *smdata)
--{
--	if (atomic_dec_and_test(&smdata->thread_ack))
--		set_state(smdata, smdata->state + 1);
--}
--
--/* This is the cpu_stop function which stops the CPU. */
--static int stop_machine_cpu_stop(void *data)
--{
--	struct stop_machine_data *smdata = data;
--	enum stopmachine_state curstate = STOPMACHINE_NONE;
--	int cpu = smp_processor_id(), err = 0;
--	unsigned long flags;
--	bool is_active;
--
--	/*
--	 * When called from stop_machine_from_inactive_cpu(), irq might
--	 * already be disabled.  Save the state and restore it on exit.
--	 */
--	local_save_flags(flags);
--
--	if (!smdata->active_cpus)
--		is_active = cpu == cpumask_first(cpu_online_mask);
--	else
--		is_active = cpumask_test_cpu(cpu, smdata->active_cpus);
--
--	/* Simple state machine */
--	do {
--		/* Chill out and ensure we re-read stopmachine_state. */
--		cpu_relax();
--		if (smdata->state != curstate) {
--			curstate = smdata->state;
--			switch (curstate) {
--			case STOPMACHINE_DISABLE_IRQ:
--				local_irq_disable();
--				hard_irq_disable();
--				break;
--			case STOPMACHINE_RUN:
--				if (is_active)
--					err = smdata->fn(smdata->data);
--				break;
--			default:
--				break;
--			}
--			ack_state(smdata);
--		}
--	} while (curstate != STOPMACHINE_EXIT);
--
--	local_irq_restore(flags);
--	return err;
--}
--
- int __stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus)
+ struct migration_arg {
+ 	struct task_struct *task;
+ 	int dest_cpu;
+@@ -1236,9 +1332,9 @@ out:
+  * The caller (fork, wakeup) owns p->pi_lock, ->cpus_allowed is stable.
+  */
+ static inline
+-int select_task_rq(struct task_struct *p, int sd_flags, int wake_flags)
++int select_task_rq(struct task_struct *p, int cpu, int sd_flags, int wake_flags)
  {
--	struct stop_machine_data smdata = { .fn = fn, .data = data,
--					    .num_threads = num_online_cpus(),
--					    .active_cpus = cpus };
-+	struct multi_stop_data msdata = {
-+		.fn = fn,
-+		.data = data,
-+		.num_threads = num_online_cpus(),
-+		.active_cpus = cpus,
-+	};
+-	int cpu = p->sched_class->select_task_rq(p, sd_flags, wake_flags);
++	cpu = p->sched_class->select_task_rq(p, cpu, sd_flags, wake_flags);
  
- 	if (!stop_machine_initialized) {
- 		/*
-@@ -461,7 +537,7 @@ int __stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus)
- 		unsigned long flags;
- 		int ret;
+ 	/*
+ 	 * In order not to call set_task_cpu() on a blocking task we need
+@@ -1513,7 +1609,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
+ 	if (p->sched_class->task_waking)
+ 		p->sched_class->task_waking(p);
  
--		WARN_ON_ONCE(smdata.num_threads != 1);
-+		WARN_ON_ONCE(msdata.num_threads != 1);
+-	cpu = select_task_rq(p, SD_BALANCE_WAKE, wake_flags);
++	cpu = select_task_rq(p, p->wake_cpu, SD_BALANCE_WAKE, wake_flags);
+ 	if (task_cpu(p) != cpu) {
+ 		wake_flags |= WF_MIGRATED;
+ 		set_task_cpu(p, cpu);
+@@ -1752,7 +1848,7 @@ void wake_up_new_task(struct task_struct *p)
+ 	 *  - cpus_allowed can change in the fork path
+ 	 *  - any previously selected cpu might disappear through hotplug
+ 	 */
+-	set_task_cpu(p, select_task_rq(p, SD_BALANCE_FORK, 0));
++	set_task_cpu(p, select_task_rq(p, task_cpu(p), SD_BALANCE_FORK, 0));
+ #endif
  
- 		local_irq_save(flags);
- 		hard_irq_disable();
-@@ -472,8 +548,8 @@ int __stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus)
- 	}
+ 	/* Initialize new task's runnable average */
+@@ -2080,7 +2176,7 @@ void sched_exec(void)
+ 	int dest_cpu;
  
- 	/* Set the initial state and stop all online cpus. */
--	set_state(&smdata, STOPMACHINE_PREPARE);
--	return stop_cpus(cpu_online_mask, stop_machine_cpu_stop, &smdata);
-+	set_state(&msdata, MULTI_STOP_PREPARE);
-+	return stop_cpus(cpu_online_mask, multi_cpu_stop, &msdata);
+ 	raw_spin_lock_irqsave(&p->pi_lock, flags);
+-	dest_cpu = p->sched_class->select_task_rq(p, SD_BALANCE_EXEC, 0);
++	dest_cpu = p->sched_class->select_task_rq(p, task_cpu(p), SD_BALANCE_EXEC, 0);
+ 	if (dest_cpu == smp_processor_id())
+ 		goto unlock;
+ 
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 8760231..b19c044 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -3706,11 +3706,10 @@ done:
+  * preempt must be disabled.
+  */
+ static int
+-select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
++select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_flags)
+ {
+ 	struct sched_domain *tmp, *affine_sd = NULL, *sd = NULL;
+ 	int cpu = smp_processor_id();
+-	int prev_cpu = task_cpu(p);
+ 	int new_cpu = cpu;
+ 	int want_affine = 0;
+ 	int sync = wake_flags & WF_SYNC;
+diff --git a/kernel/sched/idle_task.c b/kernel/sched/idle_task.c
+index d8da010..516c3d9 100644
+--- a/kernel/sched/idle_task.c
++++ b/kernel/sched/idle_task.c
+@@ -9,7 +9,7 @@
+ 
+ #ifdef CONFIG_SMP
+ static int
+-select_task_rq_idle(struct task_struct *p, int sd_flag, int flags)
++select_task_rq_idle(struct task_struct *p, int cpu, int sd_flag, int flags)
+ {
+ 	return task_cpu(p); /* IDLE tasks as never migrated */
+ }
+diff --git a/kernel/sched/rt.c b/kernel/sched/rt.c
+index 01970c8..d81866d 100644
+--- a/kernel/sched/rt.c
++++ b/kernel/sched/rt.c
+@@ -1169,13 +1169,10 @@ static void yield_task_rt(struct rq *rq)
+ static int find_lowest_rq(struct task_struct *task);
+ 
+ static int
+-select_task_rq_rt(struct task_struct *p, int sd_flag, int flags)
++select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags)
+ {
+ 	struct task_struct *curr;
+ 	struct rq *rq;
+-	int cpu;
+-
+-	cpu = task_cpu(p);
+ 
+ 	if (p->nr_cpus_allowed == 1)
+ 		goto out;
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index dca80b8..e9ab96c 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -555,6 +555,7 @@ static inline u64 rq_clock_task(struct rq *rq)
+ 
+ #ifdef CONFIG_NUMA_BALANCING
+ extern int migrate_task_to(struct task_struct *p, int cpu);
++extern int migrate_swap(struct task_struct *, struct task_struct *);
+ static inline void task_numa_free(struct task_struct *p)
+ {
+ 	kfree(p->numa_faults);
+@@ -732,6 +733,7 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
+ 	 */
+ 	smp_wmb();
+ 	task_thread_info(p)->cpu = cpu;
++	p->wake_cpu = cpu;
+ #endif
  }
  
- int stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus)
-@@ -513,25 +589,25 @@ EXPORT_SYMBOL_GPL(stop_machine);
- int stop_machine_from_inactive_cpu(int (*fn)(void *), void *data,
- 				  const struct cpumask *cpus)
+@@ -987,7 +989,7 @@ struct sched_class {
+ 	void (*put_prev_task) (struct rq *rq, struct task_struct *p);
+ 
+ #ifdef CONFIG_SMP
+-	int  (*select_task_rq)(struct task_struct *p, int sd_flag, int flags);
++	int  (*select_task_rq)(struct task_struct *p, int task_cpu, int sd_flag, int flags);
+ 	void (*migrate_task_rq)(struct task_struct *p, int next_cpu);
+ 
+ 	void (*pre_schedule) (struct rq *this_rq, struct task_struct *task);
+diff --git a/kernel/sched/stop_task.c b/kernel/sched/stop_task.c
+index e08fbee..47197de 100644
+--- a/kernel/sched/stop_task.c
++++ b/kernel/sched/stop_task.c
+@@ -11,7 +11,7 @@
+ 
+ #ifdef CONFIG_SMP
+ static int
+-select_task_rq_stop(struct task_struct *p, int sd_flag, int flags)
++select_task_rq_stop(struct task_struct *p, int cpu, int sd_flag, int flags)
  {
--	struct stop_machine_data smdata = { .fn = fn, .data = data,
-+	struct multi_stop_data msdata = { .fn = fn, .data = data,
- 					    .active_cpus = cpus };
- 	struct cpu_stop_done done;
- 	int ret;
- 
- 	/* Local CPU must be inactive and CPU hotplug in progress. */
- 	BUG_ON(cpu_active(raw_smp_processor_id()));
--	smdata.num_threads = num_active_cpus() + 1;	/* +1 for local */
-+	msdata.num_threads = num_active_cpus() + 1;	/* +1 for local */
- 
- 	/* No proper task established and can't sleep - busy wait for lock. */
- 	while (!mutex_trylock(&stop_cpus_mutex))
- 		cpu_relax();
- 
- 	/* Schedule work on other CPUs and execute directly for local CPU */
--	set_state(&smdata, STOPMACHINE_PREPARE);
-+	set_state(&msdata, MULTI_STOP_PREPARE);
- 	cpu_stop_init_done(&done, num_active_cpus());
--	queue_stop_cpus_work(cpu_active_mask, stop_machine_cpu_stop, &smdata,
-+	queue_stop_cpus_work(cpu_active_mask, multi_cpu_stop, &msdata,
- 			     &done);
--	ret = stop_machine_cpu_stop(&smdata);
-+	ret = multi_cpu_stop(&msdata);
- 
- 	/* Busy wait for completion. */
- 	while (!completion_done(&done.completion))
+ 	return task_cpu(p); /* stop tasks as never migrate */
+ }
 -- 
 1.8.4
 
