@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 094D1900004
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 06:29:55 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id x10so7106618pdj.1
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 03:29:55 -0700 (PDT)
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id BD073900007
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 06:29:56 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so7106313pab.4
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 03:29:56 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 11/63] mm: Only flush TLBs if a transhuge PMD is modified for NUMA pte scanning
-Date: Mon,  7 Oct 2013 11:28:49 +0100
-Message-Id: <1381141781-10992-12-git-send-email-mgorman@suse.de>
+Subject: [PATCH 12/63] mm: numa: Do not migrate or account for hinting faults on the zero page
+Date: Mon,  7 Oct 2013 11:28:50 +0100
+Message-Id: <1381141781-10992-13-git-send-email-mgorman@suse.de>
 In-Reply-To: <1381141781-10992-1-git-send-email-mgorman@suse.de>
 References: <1381141781-10992-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,93 +15,61 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-NUMA PTE scanning is expensive both in terms of the scanning itself and
-the TLB flush if there are any updates. The TLB flush is avoided if no
-PTEs are updated but there is a bug where transhuge PMDs are considered
-to be updated even if they were already pmd_numa. This patch addresses
-the problem and TLB flushes should be reduced.
+The zero page is not replicated between nodes and is often shared between
+processes. The data is read-only and likely to be cached in local CPUs
+if heavily accessed meaning that the remote memory access cost is less
+of a concern. This patch prevents trapping faults on the zero pages. For
+tasks using the zero page this will reduce the number of PTE updates,
+TLB flushes and hinting faults.
 
+[peterz@infradead.org: Correct use of is_huge_zero_page]
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/huge_memory.c | 19 ++++++++++++++++---
- mm/mprotect.c    | 14 ++++++++++----
- 2 files changed, 26 insertions(+), 7 deletions(-)
+ mm/huge_memory.c | 10 +++++++++-
+ mm/memory.c      |  1 +
+ 2 files changed, 10 insertions(+), 1 deletion(-)
 
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index d4928769..de8d5cf 100644
+index de8d5cf..8677dbf 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -1458,6 +1458,12 @@ out:
- 	return ret;
- }
+@@ -1291,6 +1291,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		goto out_unlock;
  
-+/*
-+ * Returns
-+ *  - 0 if PMD could not be locked
-+ *  - 1 if PMD was locked but protections unchange and TLB flush unnecessary
-+ *  - HPAGE_PMD_NR is protections changed and TLB flush necessary
-+ */
- int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 		unsigned long addr, pgprot_t newprot, int prot_numa)
- {
-@@ -1466,9 +1472,11 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 
- 	if (__pmd_trans_huge_lock(pmd, vma) == 1) {
- 		pmd_t entry;
--		entry = pmdp_get_and_clear(mm, addr, pmd);
-+		ret = 1;
- 		if (!prot_numa) {
-+			entry = pmdp_get_and_clear(mm, addr, pmd);
- 			entry = pmd_modify(entry, newprot);
-+			ret = HPAGE_PMD_NR;
- 			BUG_ON(pmd_write(entry));
+ 	page = pmd_page(pmd);
++	BUG_ON(is_huge_zero_page(page));
+ 	page_nid = page_to_nid(page);
+ 	count_vm_numa_event(NUMA_HINT_FAULTS);
+ 	if (page_nid == this_nid)
+@@ -1481,8 +1482,15 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
  		} else {
  			struct page *page = pmd_page(*pmd);
-@@ -1476,12 +1484,17 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			/* only check non-shared pages */
- 			if (page_mapcount(page) == 1 &&
- 			    !pmd_numa(*pmd)) {
-+				entry = pmdp_get_and_clear(mm, addr, pmd);
- 				entry = pmd_mknuma(entry);
-+				ret = HPAGE_PMD_NR;
- 			}
- 		}
--		set_pmd_at(mm, addr, pmd, entry);
-+
-+		/* Set PMD if cleared earlier */
-+		if (ret == HPAGE_PMD_NR)
-+			set_pmd_at(mm, addr, pmd, entry);
-+
- 		spin_unlock(&vma->vm_mm->page_table_lock);
--		ret = 1;
- 	}
  
- 	return ret;
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 7bdbd4b..2da33dc 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -144,10 +144,16 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
- 		if (pmd_trans_huge(*pmd)) {
- 			if (next - addr != HPAGE_PMD_SIZE)
- 				split_huge_page_pmd(vma, addr, pmd);
--			else if (change_huge_pmd(vma, pmd, addr, newprot,
--						 prot_numa)) {
--				pages++;
--				continue;
-+			else {
-+				int nr_ptes = change_huge_pmd(vma, pmd, addr,
-+						newprot, prot_numa);
-+
-+				if (nr_ptes) {
-+					if (nr_ptes == HPAGE_PMD_NR)
-+						pages++;
-+
-+					continue;
-+				}
- 			}
- 			/* fall through */
- 		}
+-			/* only check non-shared pages */
++			/*
++			 * Only check non-shared pages. Do not trap faults
++			 * against the zero page. The read-only data is likely
++			 * to be read-cached on the local CPU cache and it is
++			 * less useful to know about local vs remote hits on
++			 * the zero page.
++			 */
+ 			if (page_mapcount(page) == 1 &&
++			    !is_huge_zero_page(page) &&
+ 			    !pmd_numa(*pmd)) {
+ 				entry = pmdp_get_and_clear(mm, addr, pmd);
+ 				entry = pmd_mknuma(entry);
+diff --git a/mm/memory.c b/mm/memory.c
+index 42ae82e..ed51f15 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3564,6 +3564,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		pte_unmap_unlock(ptep, ptl);
+ 		return 0;
+ 	}
++	BUG_ON(is_zero_pfn(page_to_pfn(page)));
+ 
+ 	page_nid = page_to_nid(page);
+ 	target_nid = numa_migrate_prep(page, vma, addr, page_nid);
 -- 
 1.8.4
 
