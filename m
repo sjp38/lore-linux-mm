@@ -1,57 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 78D8E6B0037
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 19:09:12 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id v10so7783122pde.24
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 16:09:12 -0700 (PDT)
-Date: Mon, 7 Oct 2013 16:09:07 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCHv5 00/11] split page table lock for PMD tables
-Message-Id: <20131007160907.3a4aca3e7eae404767ed3a8e@linux-foundation.org>
-In-Reply-To: <1381154053-4848-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1381154053-4848-1-git-send-email-kirill.shutemov@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CECD6B0037
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 19:14:29 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id fb1so7949791pad.23
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 16:14:29 -0700 (PDT)
+Received: by mail-pa0-f51.google.com with SMTP id kp14so7961809pab.38
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 16:14:26 -0700 (PDT)
+Message-ID: <5253404D.2030503@linaro.org>
+Date: Mon, 07 Oct 2013 16:14:21 -0700
+From: John Stultz <john.stultz@linaro.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH 05/14] vrange: Add new vrange(2) system call
+References: <1380761503-14509-1-git-send-email-john.stultz@linaro.org> <1380761503-14509-6-git-send-email-john.stultz@linaro.org> <52533C12.9090007@zytor.com>
+In-Reply-To: <52533C12.9090007@zytor.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Alex Thorlton <athorlton@sgi.com>, Ingo Molnar <mingo@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dhaval.giani@gmail.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Rob Clark <robdclark@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon,  7 Oct 2013 16:54:02 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+On 10/07/2013 03:56 PM, H. Peter Anvin wrote:
+> On 10/02/2013 05:51 PM, John Stultz wrote:
+>> From: Minchan Kim <minchan@kernel.org>
+>>
+>> This patch adds new system call sys_vrange.
+>>
+>> NAME
+>> 	vrange - Mark or unmark range of memory as volatile
+>>
+> vrange() is about as nondescriptive as one can get -- there is exactly
+> one letter that has any connection with that this does.
 
-> Alex Thorlton noticed that some massively threaded workloads work poorly,
-> if THP enabled. This patchset fixes this by introducing split page table
-> lock for PMD tables. hugetlbfs is not covered yet.
-> 
-> This patchset is based on work by Naoya Horiguchi.
 
-I think I'll summarise the results thusly:
+Hrm. Any suggestions? Would volatile_range() be better?
 
-: THP off, v3.12-rc2: 18.059261877 seconds time elapsed
-: THP off, patched:   16.768027318 seconds time elapsed
-: 
-: THP on, v3.12-rc2:  42.162306788 seconds time elapsed
-: THP on, patched:    8.397885779 seconds time elapsed
-: 
-: HUGETLB, v3.12-rc2: 47.574936948 seconds time elapsed
-: HUGETLB, patched:   19.447481153 seconds time elapsed
 
-What sort of machines are we talking about here?  Can mortals expect to
-see such results on their hardware, or is this mainly on SGI nuttyware?
+>
+>> SYNOPSIS
+>> 	int vrange(unsigned_long start, size_t length, int mode,
+>> 			 int *purged);
+>>
+>> DESCRIPTION
+>> 	Applications can use vrange(2) to advise the kernel how it should
+>> 	handle paging I/O in this VM area.  The idea is to help the kernel
+>> 	discard pages of vrange instead of reclaiming when memory pressure
+>> 	happens. It means kernel doesn't discard any pages of vrange if
+>> 	there is no memory pressure.
+>>
+>> 	mode:
+>> 	VRANGE_VOLATILE
+>> 		hint to kernel so VM can discard in vrange pages when
+>> 		memory pressure happens.
+>> 	VRANGE_NONVOLATILE
+>> 		hint to kernel so VM doesn't discard vrange pages
+>> 		any more.
+>>
+>> 	If user try to access purged memory without VRANGE_NOVOLATILE call,
+>> 	he can encounter SIGBUS if the page was discarded by kernel.
+>>
+>> 	purged: Pointer to an integer which will return 1 if
+>> 	mode == VRANGE_NONVOLATILE and any page in the affected range
+>> 	was purged. If purged returns zero during a mode ==
+>> 	VRANGE_NONVOLATILE call, it means all of the pages in the range
+>> 	are intact.
+> I'm a bit confused about the "purged"
+>
+> From an earlier version of the patch:
+>
+>> - What's different with madvise(DONTNEED)?
+>>
+>>   System call semantic
+>>
+>>   DONTNEED makes sure user always can see zero-fill pages after
+>>   he calls madvise while vrange can see data or encounter SIGBUS.
+> This difference doesn't seem to be a huge one.  The other one seems to
+> be the blocking status of MADV_DONTNEED, which perhaps may be better
+> handled by adding an option (MADV_LAZY) perhaps?
+>
+> That way we would have lazy vs. immediate, and zero versus SIGBUS.
 
-I'm seeing very few reviewed-by's and acked-by's in here, which is a
-bit surprising and disappointing for a large patchset at v5.  Are you
-sure none were missed?
+And some sort of lazy-cancling call as well.
 
-The new code is enabled only for x86.  Why is this?  What must arch
-maintainers do to enable it?  Have you any particular suggestions,
-warnings etc to make their lives easier?
 
-I assume the patchset won't damage bisectability?  If our bisecter has
-only the first eight patches applied, the fact that
-CONFIG_ARCH_ENABLE_SPLIT_PMD_PTLOCK cannot be enabled protects from
-failures?
+>
+> I see from the change history of the patch that this was an madvise() at
+> some point, but was changed into a separate system call at some point,
+> does anyone remember why that was?  A quick look through my LKML
+> archives doesn't really make it clear.
+
+The reason we can't use madvise, is that to properly handle error cases
+and report the pruge state, we need an extra argument.
+
+In much earlier versions, we just returned an error when setting
+NONVOLATILE if the data was purged. However, since we have to possibly
+do allocations when marking a range as non-volatile, we needed a way to
+properly handle that allocation failing. We can't just return ENOMEM, as
+we may have already marked purged memory as non-volatile.
+
+Thus, that's why with vrange, we return the number of bytes modified,
+along with the purge state. That way, if an error does occur we can
+return the purge state of the bytes successfully modified, and only
+return an error if nothing was changed, much like when a write fails.
+
+thanks
+-john
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
