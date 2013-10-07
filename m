@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 657C29C003B
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 06:30:42 -0400 (EDT)
-Received: by mail-pb0-f50.google.com with SMTP id uo5so6849292pbc.23
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A87E9C003C
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 06:30:43 -0400 (EDT)
+Received: by mail-pb0-f48.google.com with SMTP id ma3so6800122pbc.7
         for <linux-mm@kvack.org>; Mon, 07 Oct 2013 03:30:42 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 62/63] sched: numa: use unsigned longs for numa group fault stats
-Date: Mon,  7 Oct 2013 11:29:40 +0100
-Message-Id: <1381141781-10992-63-git-send-email-mgorman@suse.de>
+Subject: [PATCH 63/63] sched: numa: periodically retry task_numa_migrate
+Date: Mon,  7 Oct 2013 11:29:41 +0100
+Message-Id: <1381141781-10992-64-git-send-email-mgorman@suse.de>
 In-Reply-To: <1381141781-10992-1-git-send-email-mgorman@suse.de>
 References: <1381141781-10992-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,131 +15,71 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-As Peter says "If you're going to hold locks you can also do away with all
-that atomic_long_*() nonsense". Lock aquisition moved slightly to protect
-the updates.
+From: Rik van Riel <riel@redhat.com>
 
+Short spikes of CPU load can lead to a task being migrated
+away from its preferred node for temporary reasons.
+
+It is important that the task is migrated back to where it
+belongs, in order to avoid migrating too much memory to its
+new location, and generally disturbing a task's NUMA location.
+
+This patch fixes NUMA placement for 4 specjbb instances on
+a 4 node system. Without this patch, things take longer to
+converge, and processes are not always completely on their
+own node.
+
+Signed-off-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- kernel/sched/fair.c | 49 ++++++++++++++++++++-----------------------------
- 1 file changed, 20 insertions(+), 29 deletions(-)
+ kernel/sched/fair.c | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)
 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 9e2271b..f45dd4c 100644
+index f45dd4c..1d5ea2d 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -916,8 +916,8 @@ struct numa_group {
- 	struct list_head task_list;
+@@ -1259,18 +1259,19 @@ static int task_numa_migrate(struct task_struct *p)
+ /* Attempt to migrate a task to a CPU on the preferred node. */
+ static void numa_migrate_preferred(struct task_struct *p)
+ {
+-	/* Success if task is already running on preferred CPU */
+-	p->numa_migrate_retry = 0;
+-	if (cpu_to_node(task_cpu(p)) == p->numa_preferred_nid)
++	/* This task has no NUMA fault statistics yet */
++	if (unlikely(p->numa_preferred_nid == -1 || !p->numa_faults))
+ 		return;
  
- 	struct rcu_head rcu;
--	atomic_long_t total_faults;
--	atomic_long_t faults[0];
-+	unsigned long total_faults;
-+	unsigned long faults[0];
- };
+-	/* This task has no NUMA fault statistics yet */
+-	if (unlikely(p->numa_preferred_nid == -1))
++	/* Periodically retry migrating the task to the preferred node */
++	p->numa_migrate_retry = jiffies + HZ;
++
++	/* Success if task is already running on preferred CPU */
++	if (cpu_to_node(task_cpu(p)) == p->numa_preferred_nid)
+ 		return;
  
- pid_t task_numa_group_id(struct task_struct *p)
-@@ -944,8 +944,7 @@ static inline unsigned long group_faults(struct task_struct *p, int nid)
- 	if (!p->numa_group)
- 		return 0;
- 
--	return atomic_long_read(&p->numa_group->faults[2*nid]) +
--	       atomic_long_read(&p->numa_group->faults[2*nid+1]);
-+	return p->numa_group->faults[2*nid] + p->numa_group->faults[2*nid+1];
+ 	/* Otherwise, try migrate to a CPU on the preferred node */
+-	if (task_numa_migrate(p) != 0)
+-		p->numa_migrate_retry = jiffies + HZ*5;
++	task_numa_migrate(p);
  }
  
  /*
-@@ -971,17 +970,10 @@ static inline unsigned long task_weight(struct task_struct *p, int nid)
+@@ -1629,8 +1630,11 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
  
- static inline unsigned long group_weight(struct task_struct *p, int nid)
- {
--	unsigned long total_faults;
--
--	if (!p->numa_group)
--		return 0;
--
--	total_faults = atomic_long_read(&p->numa_group->total_faults);
--
--	if (!total_faults)
-+	if (!p->numa_group || !p->numa_group->total_faults)
- 		return 0;
+ 	task_numa_placement(p);
  
--	return 1000 * group_faults(p, nid) / total_faults;
-+	return 1000 * group_faults(p, nid) / p->numa_group->total_faults;
- }
+-	/* Retry task to preferred node migration if it previously failed */
+-	if (p->numa_migrate_retry && time_after(jiffies, p->numa_migrate_retry))
++	/*
++	 * Retry task to preferred node migration periodically, in case it
++	 * case it previously failed, or the scheduler moved us.
++	 */
++	if (time_after(jiffies, p->numa_migrate_retry))
+ 		numa_migrate_preferred(p);
  
- static unsigned long weighted_cpuload(const int cpu);
-@@ -1397,9 +1389,9 @@ static void task_numa_placement(struct task_struct *p)
- 			p->total_numa_faults += diff;
- 			if (p->numa_group) {
- 				/* safe because we can only change our own group */
--				atomic_long_add(diff, &p->numa_group->faults[i]);
--				atomic_long_add(diff, &p->numa_group->total_faults);
--				group_faults += atomic_long_read(&p->numa_group->faults[i]);
-+				p->numa_group->faults[i] += diff;
-+				p->numa_group->total_faults += diff;
-+				group_faults += p->numa_group->faults[i];
- 			}
- 		}
- 
-@@ -1475,7 +1467,7 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
- 
- 	if (unlikely(!p->numa_group)) {
- 		unsigned int size = sizeof(struct numa_group) +
--				    2*nr_node_ids*sizeof(atomic_long_t);
-+				    2*nr_node_ids*sizeof(unsigned long);
- 
- 		grp = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
- 		if (!grp)
-@@ -1487,9 +1479,9 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
- 		grp->gid = p->pid;
- 
- 		for (i = 0; i < 2*nr_node_ids; i++)
--			atomic_long_set(&grp->faults[i], p->numa_faults[i]);
-+			grp->faults[i] = p->numa_faults[i];
- 
--		atomic_long_set(&grp->total_faults, p->total_numa_faults);
-+		grp->total_faults = p->total_numa_faults;
- 
- 		list_add(&p->numa_entry, &grp->task_list);
- 		grp->nr_tasks++;
-@@ -1543,14 +1535,14 @@ unlock:
- 	if (!join)
- 		return;
- 
-+	double_lock(&my_grp->lock, &grp->lock);
-+
- 	for (i = 0; i < 2*nr_node_ids; i++) {
--		atomic_long_sub(p->numa_faults[i], &my_grp->faults[i]);
--		atomic_long_add(p->numa_faults[i], &grp->faults[i]);
-+		my_grp->faults[i] -= p->numa_faults[i];
-+		grp->faults[i] += p->numa_faults[i];
- 	}
--	atomic_long_sub(p->total_numa_faults, &my_grp->total_faults);
--	atomic_long_add(p->total_numa_faults, &grp->total_faults);
--
--	double_lock(&my_grp->lock, &grp->lock);
-+	my_grp->total_faults -= p->total_numa_faults;
-+	grp->total_faults += p->total_numa_faults;
- 
- 	list_move(&p->numa_entry, &grp->task_list);
- 	my_grp->nr_tasks--;
-@@ -1571,12 +1563,11 @@ void task_numa_free(struct task_struct *p)
- 	void *numa_faults = p->numa_faults;
- 
- 	if (grp) {
-+		spin_lock(&grp->lock);
- 		for (i = 0; i < 2*nr_node_ids; i++)
--			atomic_long_sub(p->numa_faults[i], &grp->faults[i]);
--
--		atomic_long_sub(p->total_numa_faults, &grp->total_faults);
-+			grp->faults[i] -= p->numa_faults[i];
-+		grp->total_faults -= p->total_numa_faults;
- 
--		spin_lock(&grp->lock);
- 		list_del(&p->numa_entry);
- 		grp->nr_tasks--;
- 		spin_unlock(&grp->lock);
+ 	if (migrated)
 -- 
 1.8.4
 
