@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id E052B9C0024
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 06:30:27 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id r10so6984736pdi.14
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 03:30:27 -0700 (PDT)
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id C428F9C0024
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 06:30:28 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id md4so6905731pbc.2
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 03:30:28 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 46/63] mm: numa: Do not group on RO pages
-Date: Mon,  7 Oct 2013 11:29:24 +0100
-Message-Id: <1381141781-10992-47-git-send-email-mgorman@suse.de>
+Subject: [PATCH 47/63] mm: numa: Do not batch handle PMD pages
+Date: Mon,  7 Oct 2013 11:29:25 +0100
+Message-Id: <1381141781-10992-48-git-send-email-mgorman@suse.de>
 In-Reply-To: <1381141781-10992-1-git-send-email-mgorman@suse.de>
 References: <1381141781-10992-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,207 +15,248 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-From: Peter Zijlstra <peterz@infradead.org>
+With the THP migration races closed it is still possible to occasionally
+see corruption. The problem is related to handling PMD pages in batch.
+When a page fault is handled it can be assumed that the page being
+faulted will also be flushed from the TLB. The same flushing does not
+happen when handling PMD pages in batch. Fixing is straight forward but
+there are a number of reasons not to
 
-And here's a little something to make sure not the whole world ends up
-in a single group.
+1. Multiple TLB flushes may have to be sent depending on what pages get
+   migrated
+2. The handling of PMDs in batch means that faults get accounted to
+   the task that is handling the fault. While care is taken to only
+   mark PMDs where the last CPU and PID match it can still have problems
+   due to PID truncation when matching PIDs.
+3. Batching on the PMD level may reduce faults but setting pmd_numa
+   requires taking a heavy lock that can contend with THP migration
+   and handling the fault requires the release/acquisition of the PTL
+   for every page migrated. It's still pretty heavy.
 
-As while we don't migrate shared executable pages, we do scan/fault on
-them. And since everybody links to libc, everybody ends up in the same
-group.
+PMD batch handling is not something that people ever have been happy
+with. This patch removes it and later patches will deal with the
+additional fault overhead using more installigent migrate rate adaption.
 
-[riel@redhat.com: mapcount 1]
-Suggested-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Peter Zijlstra <peterz@infradead.org>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/sched.h |  7 +++++--
- kernel/sched/fair.c   |  5 +++--
- mm/huge_memory.c      | 15 +++++++++++++--
- mm/memory.c           | 30 ++++++++++++++++++++++++++----
- 4 files changed, 47 insertions(+), 10 deletions(-)
+ mm/memory.c   | 101 ++--------------------------------------------------------
+ mm/mprotect.c |  47 ++-------------------------
+ 2 files changed, 4 insertions(+), 144 deletions(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 1618417..56c31c7 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1440,13 +1440,16 @@ struct task_struct {
- /* Future-safe accessor for struct task_struct's cpus_allowed. */
- #define tsk_cpus_allowed(tsk) (&(tsk)->cpus_allowed)
- 
-+#define TNF_MIGRATED	0x01
-+#define TNF_NO_GROUP	0x02
-+
- #ifdef CONFIG_NUMA_BALANCING
--extern void task_numa_fault(int last_node, int node, int pages, bool migrated);
-+extern void task_numa_fault(int last_node, int node, int pages, int flags);
- extern pid_t task_numa_group_id(struct task_struct *p);
- extern void set_numabalancing_state(bool enabled);
- #else
- static inline void task_numa_fault(int last_node, int node, int pages,
--				   bool migrated)
-+				   int flags)
- {
- }
- static inline pid_t task_numa_group_id(struct task_struct *p)
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 2f60f05..a9ce454 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -1361,9 +1361,10 @@ void task_numa_free(struct task_struct *p)
- /*
-  * Got a PROT_NONE fault for a page on @node.
-  */
--void task_numa_fault(int last_cpupid, int node, int pages, bool migrated)
-+void task_numa_fault(int last_cpupid, int node, int pages, int flags)
- {
- 	struct task_struct *p = current;
-+	bool migrated = flags & TNF_MIGRATED;
- 	int priv;
- 
- 	if (!numabalancing_enabled)
-@@ -1394,7 +1395,7 @@ void task_numa_fault(int last_cpupid, int node, int pages, bool migrated)
- 		priv = 1;
- 	} else {
- 		priv = cpupid_match_pid(p, last_cpupid);
--		if (!priv)
-+		if (!priv && !(flags & TNF_NO_GROUP))
- 			task_numa_group(p, last_cpupid);
- 	}
- 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index becf92c..7ab4e32 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1285,6 +1285,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	int target_nid, last_cpupid = -1;
- 	bool page_locked;
- 	bool migrated = false;
-+	int flags = 0;
- 
- 	spin_lock(&mm->page_table_lock);
- 	if (unlikely(!pmd_same(pmd, *pmdp)))
-@@ -1299,6 +1300,14 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
- 
- 	/*
-+	 * Avoid grouping on DSO/COW pages in specific and RO pages
-+	 * in general, RO pages shouldn't hurt as much anyway since
-+	 * they can be in shared cache state.
-+	 */
-+	if (!pmd_write(pmd))
-+		flags |= TNF_NO_GROUP;
-+
-+	/*
- 	 * Acquire the page lock to serialise THP migrations but avoid dropping
- 	 * page_table_lock if at all possible
- 	 */
-@@ -1343,8 +1352,10 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	spin_unlock(&mm->page_table_lock);
- 	migrated = migrate_misplaced_transhuge_page(mm, vma,
- 				pmdp, pmd, addr, page, target_nid);
--	if (migrated)
-+	if (migrated) {
-+		flags |= TNF_MIGRATED;
- 		page_nid = target_nid;
-+	}
- 
- 	goto out;
- clear_pmdnuma:
-@@ -1362,7 +1373,7 @@ out:
- 		page_unlock_anon_vma_read(anon_vma);
- 
- 	if (page_nid != -1)
--		task_numa_fault(last_cpupid, page_nid, HPAGE_PMD_NR, migrated);
-+		task_numa_fault(last_cpupid, page_nid, HPAGE_PMD_NR, flags);
- 
- 	return 0;
- }
 diff --git a/mm/memory.c b/mm/memory.c
-index c57efa2..eba846b 100644
+index eba846b..9898eeb 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -3547,6 +3547,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	int last_cpupid;
- 	int target_nid;
- 	bool migrated = false;
-+	int flags = 0;
- 
- 	/*
- 	* The "pte" at this point cannot be used safely without
-@@ -3575,6 +3576,14 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	}
- 	BUG_ON(is_zero_pfn(page_to_pfn(page)));
- 
-+	/*
-+	 * Avoid grouping on DSO/COW pages in specific and RO pages
-+	 * in general, RO pages shouldn't hurt as much anyway since
-+	 * they can be in shared cache state.
-+	 */
-+	if (!pte_write(pte))
-+		flags |= TNF_NO_GROUP;
-+
- 	last_cpupid = page_cpupid_last(page);
- 	page_nid = page_to_nid(page);
- 	target_nid = numa_migrate_prep(page, vma, addr, page_nid);
-@@ -3586,12 +3595,14 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 
- 	/* Migrate to the requested node */
- 	migrated = migrate_misplaced_page(page, vma, target_nid);
--	if (migrated)
-+	if (migrated) {
- 		page_nid = target_nid;
-+		flags |= TNF_MIGRATED;
-+	}
- 
- out:
- 	if (page_nid != -1)
--		task_numa_fault(last_cpupid, page_nid, 1, migrated);
-+		task_numa_fault(last_cpupid, page_nid, 1, flags);
+@@ -3606,103 +3606,6 @@ out:
  	return 0;
  }
  
-@@ -3632,6 +3643,7 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		int page_nid = -1;
- 		int target_nid;
- 		bool migrated = false;
-+		int flags = 0;
- 
- 		if (!pte_present(pteval))
- 			continue;
-@@ -3651,20 +3663,30 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		if (unlikely(!page))
- 			continue;
- 
-+		/*
-+		 * Avoid grouping on DSO/COW pages in specific and RO pages
-+		 * in general, RO pages shouldn't hurt as much anyway since
-+		 * they can be in shared cache state.
-+		 */
-+		if (!pte_write(pteval))
-+			flags |= TNF_NO_GROUP;
-+
- 		last_cpupid = page_cpupid_last(page);
- 		page_nid = page_to_nid(page);
- 		target_nid = numa_migrate_prep(page, vma, addr, page_nid);
- 		pte_unmap_unlock(pte, ptl);
- 		if (target_nid != -1) {
- 			migrated = migrate_misplaced_page(page, vma, target_nid);
--			if (migrated)
-+			if (migrated) {
- 				page_nid = target_nid;
-+				flags |= TNF_MIGRATED;
-+			}
- 		} else {
- 			put_page(page);
+-/* NUMA hinting page fault entry point for regular pmds */
+-#ifdef CONFIG_NUMA_BALANCING
+-static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+-		     unsigned long addr, pmd_t *pmdp)
+-{
+-	pmd_t pmd;
+-	pte_t *pte, *orig_pte;
+-	unsigned long _addr = addr & PMD_MASK;
+-	unsigned long offset;
+-	spinlock_t *ptl;
+-	bool numa = false;
+-	int last_cpupid;
+-
+-	spin_lock(&mm->page_table_lock);
+-	pmd = *pmdp;
+-	if (pmd_numa(pmd)) {
+-		set_pmd_at(mm, _addr, pmdp, pmd_mknonnuma(pmd));
+-		numa = true;
+-	}
+-	spin_unlock(&mm->page_table_lock);
+-
+-	if (!numa)
+-		return 0;
+-
+-	/* we're in a page fault so some vma must be in the range */
+-	BUG_ON(!vma);
+-	BUG_ON(vma->vm_start >= _addr + PMD_SIZE);
+-	offset = max(_addr, vma->vm_start) & ~PMD_MASK;
+-	VM_BUG_ON(offset >= PMD_SIZE);
+-	orig_pte = pte = pte_offset_map_lock(mm, pmdp, _addr, &ptl);
+-	pte += offset >> PAGE_SHIFT;
+-	for (addr = _addr + offset; addr < _addr + PMD_SIZE; pte++, addr += PAGE_SIZE) {
+-		pte_t pteval = *pte;
+-		struct page *page;
+-		int page_nid = -1;
+-		int target_nid;
+-		bool migrated = false;
+-		int flags = 0;
+-
+-		if (!pte_present(pteval))
+-			continue;
+-		if (!pte_numa(pteval))
+-			continue;
+-		if (addr >= vma->vm_end) {
+-			vma = find_vma(mm, addr);
+-			/* there's a pte present so there must be a vma */
+-			BUG_ON(!vma);
+-			BUG_ON(addr < vma->vm_start);
+-		}
+-		if (pte_numa(pteval)) {
+-			pteval = pte_mknonnuma(pteval);
+-			set_pte_at(mm, addr, pte, pteval);
+-		}
+-		page = vm_normal_page(vma, addr, pteval);
+-		if (unlikely(!page))
+-			continue;
+-
+-		/*
+-		 * Avoid grouping on DSO/COW pages in specific and RO pages
+-		 * in general, RO pages shouldn't hurt as much anyway since
+-		 * they can be in shared cache state.
+-		 */
+-		if (!pte_write(pteval))
+-			flags |= TNF_NO_GROUP;
+-
+-		last_cpupid = page_cpupid_last(page);
+-		page_nid = page_to_nid(page);
+-		target_nid = numa_migrate_prep(page, vma, addr, page_nid);
+-		pte_unmap_unlock(pte, ptl);
+-		if (target_nid != -1) {
+-			migrated = migrate_misplaced_page(page, vma, target_nid);
+-			if (migrated) {
+-				page_nid = target_nid;
+-				flags |= TNF_MIGRATED;
+-			}
+-		} else {
+-			put_page(page);
+-		}
+-
+-		if (page_nid != -1)
+-			task_numa_fault(last_cpupid, page_nid, 1, flags);
+-
+-		pte = pte_offset_map_lock(mm, pmdp, addr, &ptl);
+-	}
+-	pte_unmap_unlock(orig_pte, ptl);
+-
+-	return 0;
+-}
+-#else
+-static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+-		     unsigned long addr, pmd_t *pmdp)
+-{
+-	BUG();
+-	return 0;
+-}
+-#endif /* CONFIG_NUMA_BALANCING */
+-
+ /*
+  * These routines also need to handle stuff like marking pages dirty
+  * and/or accessed for architectures that don't do it in hardware (most
+@@ -3841,8 +3744,8 @@ retry:
  		}
- 
- 		if (page_nid != -1)
--			task_numa_fault(last_cpupid, page_nid, 1, migrated);
-+			task_numa_fault(last_cpupid, page_nid, 1, flags);
- 
- 		pte = pte_offset_map_lock(mm, pmdp, addr, &ptl);
  	}
+ 
+-	if (pmd_numa(*pmd))
+-		return do_pmd_numa_page(mm, vma, address, pmd);
++	/* THP should already have been handled */
++	BUG_ON(pmd_numa(*pmd));
+ 
+ 	/*
+ 	 * Use __pte_alloc instead of pte_alloc_map, because we can't
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 9a74855..a0302ac 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -37,15 +37,12 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
+ 
+ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 		unsigned long addr, unsigned long end, pgprot_t newprot,
+-		int dirty_accountable, int prot_numa, bool *ret_all_same_cpupid)
++		int dirty_accountable, int prot_numa)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	pte_t *pte, oldpte;
+ 	spinlock_t *ptl;
+ 	unsigned long pages = 0;
+-	bool all_same_cpupid = true;
+-	int last_cpu = -1;
+-	int last_pid = -1;
+ 
+ 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+ 	arch_enter_lazy_mmu_mode();
+@@ -64,19 +61,6 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 
+ 				page = vm_normal_page(vma, addr, oldpte);
+ 				if (page) {
+-					int cpupid = page_cpupid_last(page);
+-					int this_cpu = cpupid_to_cpu(cpupid);
+-					int this_pid = cpupid_to_pid(cpupid);
+-
+-					if (last_cpu == -1)
+-						last_cpu = this_cpu;
+-					if (last_pid == -1)
+-						last_pid = this_pid;
+-					if (last_cpu != this_cpu ||
+-					    last_pid != this_pid) {
+-						all_same_cpupid = false;
+-					}
+-
+ 					if (!pte_numa(oldpte)) {
+ 						ptent = pte_mknuma(ptent);
+ 						updated = true;
+@@ -115,26 +99,9 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 	arch_leave_lazy_mmu_mode();
+ 	pte_unmap_unlock(pte - 1, ptl);
+ 
+-	*ret_all_same_cpupid = all_same_cpupid;
+ 	return pages;
+ }
+ 
+-#ifdef CONFIG_NUMA_BALANCING
+-static inline void change_pmd_protnuma(struct mm_struct *mm, unsigned long addr,
+-				       pmd_t *pmd)
+-{
+-	spin_lock(&mm->page_table_lock);
+-	set_pmd_at(mm, addr & PMD_MASK, pmd, pmd_mknuma(*pmd));
+-	spin_unlock(&mm->page_table_lock);
+-}
+-#else
+-static inline void change_pmd_protnuma(struct mm_struct *mm, unsigned long addr,
+-				       pmd_t *pmd)
+-{
+-	BUG();
+-}
+-#endif /* CONFIG_NUMA_BALANCING */
+-
+ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+ 		pud_t *pud, unsigned long addr, unsigned long end,
+ 		pgprot_t newprot, int dirty_accountable, int prot_numa)
+@@ -142,7 +109,6 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+ 	pmd_t *pmd;
+ 	unsigned long next;
+ 	unsigned long pages = 0;
+-	bool all_same_cpupid;
+ 
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+@@ -168,17 +134,8 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+ 		if (pmd_none_or_clear_bad(pmd))
+ 			continue;
+ 		this_pages = change_pte_range(vma, pmd, addr, next, newprot,
+-				 dirty_accountable, prot_numa, &all_same_cpupid);
++				 dirty_accountable, prot_numa);
+ 		pages += this_pages;
+-
+-		/*
+-		 * If we are changing protections for NUMA hinting faults then
+-		 * set pmd_numa if the examined pages were all on the same
+-		 * node. This allows a regular PMD to be handled as one fault
+-		 * and effectively batches the taking of the PTL
+-		 */
+-		if (prot_numa && this_pages && all_same_cpupid)
+-			change_pmd_protnuma(vma->vm_mm, addr, pmd);
+ 	} while (pmd++, addr = next, addr != end);
+ 
+ 	return pages;
 -- 
 1.8.4
 
