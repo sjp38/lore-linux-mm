@@ -1,17 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 9460F6B0032
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 14:02:29 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id rr4so7346223pbb.20
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 11:02:29 -0700 (PDT)
-Message-ID: <5252F728.4010401@redhat.com>
-Date: Mon, 07 Oct 2013 14:02:16 -0400
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 290156B0036
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 14:02:52 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id z10so7536565pdj.31
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 11:02:51 -0700 (PDT)
+Message-ID: <5252F73F.5030809@redhat.com>
+Date: Mon, 07 Oct 2013 14:02:39 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 18/63] sched: numa: Slow scan rate if no NUMA hinting
- faults are being recorded
-References: <1381141781-10992-1-git-send-email-mgorman@suse.de> <1381141781-10992-19-git-send-email-mgorman@suse.de>
-In-Reply-To: <1381141781-10992-19-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 19/63] sched: Track NUMA hinting faults on per-node basis
+References: <1381141781-10992-1-git-send-email-mgorman@suse.de> <1381141781-10992-20-git-send-email-mgorman@suse.de>
+In-Reply-To: <1381141781-10992-20-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -20,14 +19,14 @@ To: Mel Gorman <mgorman@suse.de>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
 On 10/07/2013 06:28 AM, Mel Gorman wrote:
-> NUMA PTE scanning slows if a NUMA hinting fault was trapped and no page
-> was migrated. For long-lived but idle processes there may be no faults
-> but the scan rate will be high and just waste CPU. This patch will slow
-> the scan rate for processes that are not trapping faults.
+> This patch tracks what nodes numa hinting faults were incurred on.
+> This information is later used to schedule a task on the node storing
+> the pages most frequently faulted by the task.
 > 
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+
 
 -- 
 All rights reversed
