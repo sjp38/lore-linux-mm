@@ -1,55 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 911CC6B0036
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 12:22:53 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rp2so7363352pbb.0
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 09:22:53 -0700 (PDT)
-Received: by mail-wi0-f179.google.com with SMTP id hm2so5138165wib.12
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 09:22:48 -0700 (PDT)
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C7986B0032
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 13:10:40 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id md4so7349253pbc.30
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 10:10:40 -0700 (PDT)
+Message-ID: <5252EAFF.8040700@redhat.com>
+Date: Mon, 07 Oct 2013 13:10:23 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Date: Mon, 7 Oct 2013 18:22:48 +0200
-Message-ID: <CAP145pinoutWaVCAf1xk8X-Bc8Uu=d2DD8k3w_o=V7caNLqNLA@mail.gmail.com>
-Subject: Deadlock (un-killable processes) in sys_futex
-From: =?UTF-8?B?Um9iZXJ0IMWad2nEmWNraQ==?= <robert@swiecki.net>
+Subject: Re: [PATCH 12/63] mm: numa: Do not migrate or account for hinting
+ faults on the zero page
+References: <1381141781-10992-1-git-send-email-mgorman@suse.de> <1381141781-10992-13-git-send-email-mgorman@suse.de>
+In-Reply-To: <1381141781-10992-13-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-After fuzzing the linux kernel (3.12-rc4) I have two processes which
-are stuck in an un-killable state. This is not specific to 3.12-rc4,
-as I'm able to reproduce it on most modern kernels (e.g. Ubuntu's 3.5)
-after a few minutes of fuzzing with a syscall fuzzer.
+On 10/07/2013 06:28 AM, Mel Gorman wrote:
+> The zero page is not replicated between nodes and is often shared between
+> processes. The data is read-only and likely to be cached in local CPUs
+> if heavily accessed meaning that the remote memory access cost is less
+> of a concern. This patch prevents trapping faults on the zero pages. For
+> tasks using the zero page this will reduce the number of PTE updates,
+> TLB flushes and hinting faults.
+> 
+> [peterz@infradead.org: Correct use of is_huge_zero_page]
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-The debug data can be found here: http://alt.swiecki.net/linux/20327/
-- process PIDs: 20327 and 13735
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-It includes..
 
-ftrace report (probably the most useful):
-I'm not expert in this kernel area (futex/mm), but it seems like a
-constatnt loop between fault_in_user_writeable() and do_page_fault():
-http://alt.swiecki.net/linux/20327/20327.trace.report.txt
-
-/proc/pid/maps, /proc/pid/status:
-http://alt.swiecki.net/linux/20327/20327.maps.txt
-http://alt.swiecki.net/linux/20327/20327.status.txt
-
-kdb stacktraces showing that both processes (single-threaded) are
-stuck in sys_futex:
-http://alt.swiecki.net/linux/20327/20327.kdb.txt
-http://alt.swiecki.net/linux/20327/13735.kdb.txt
-
-kgdb stacktraces displaying rather corrupted data:
-http://alt.swiecki.net/linux/20327/20327.kgdb.txt
-http://alt.swiecki.net/linux/20327/13735.kgdb.txt
-
-kernel conf:
-http://alt.swiecki.net/linux/20327/config-3.12-rc4.txt
-
---=20
-Robert =C5=9Awi=C4=99cki
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
