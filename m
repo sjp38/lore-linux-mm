@@ -1,135 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C6126B0038
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 18:58:01 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id y10so7706302pdj.25
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 15:58:01 -0700 (PDT)
-Subject: Re: [PATCH v8 0/9] rwsem performance optimizations
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <20131003073212.GC5775@gmail.com>
-References: <cover.1380748401.git.tim.c.chen@linux.intel.com>
-	 <1380753493.11046.82.camel@schen9-DESK>  <20131003073212.GC5775@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 07 Oct 2013 15:57:54 -0700
-Message-ID: <1381186674.11046.105.camel@schen9-DESK>
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 78D8E6B0037
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 19:09:12 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id v10so7783122pde.24
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 16:09:12 -0700 (PDT)
+Date: Mon, 7 Oct 2013 16:09:07 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCHv5 00/11] split page table lock for PMD tables
+Message-Id: <20131007160907.3a4aca3e7eae404767ed3a8e@linux-foundation.org>
+In-Reply-To: <1381154053-4848-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1381154053-4848-1-git-send-email-kirill.shutemov@linux.intel.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Jason Low <jason.low2@hp.com>, Waiman Long <Waiman.Long@hp.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Alex Thorlton <athorlton@sgi.com>, Ingo Molnar <mingo@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 2013-10-03 at 09:32 +0200, Ingo Molnar wrote:
-> * Tim Chen <tim.c.chen@linux.intel.com> wrote:
-> 
-> > For version 8 of the patchset, we included the patch from Waiman to 
-> > streamline wakeup operations and also optimize the MCS lock used in 
-> > rwsem and mutex.
-> 
-> I'd be feeling a lot easier about this patch series if you also had 
-> performance figures that show how mmap_sem is affected.
-> 
-> These:
-> 
-> > Tim got the following improvement for exim mail server 
-> > workload on 40 core system:
-> > 
-> > Alex+Tim's patchset:    	   +4.8%
-> > Alex+Tim+Waiman's patchset:        +5.3%
-> 
-> appear to be mostly related to the anon_vma->rwsem. But once that lock is 
-> changed to an rwlock_t, this measurement falls away.
-> 
-> Peter Zijlstra suggested the following testcase:
-> 
-> ===============================>
-> In fact, try something like this from userspace:
-> 
-> n-threads:
-> 
->   pthread_mutex_lock(&mutex);
->   foo = mmap();
->   pthread_mutex_lock(&mutex);
-> 
->   /* work */
-> 
->   pthread_mutex_unlock(&mutex);
->   munma(foo);
->   pthread_mutex_unlock(&mutex);
-> 
-> vs
-> 
-> n-threads:
-> 
->   foo = mmap();
->   /* work */
->   munmap(foo);
+On Mon,  7 Oct 2013 16:54:02 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 
-
-Ingo,
-
-I ran the vanilla kernel, the kernel with all rwsem patches and the
-kernel with all patches except the optimistic spin one.  
-I am listing two presentations of the data.  Please note that
-there is about 5% run-run variation.
-
-% change in performance vs vanilla kernel
-#threads	all	without optspin
-mmap only		
-1		1.9%	1.6%
-5		43.8%	2.6%
-10		22.7%	-3.0%
-20		-12.0%	-4.5%
-40		-26.9%	-2.0%
-mmap with mutex acquisition		
-1		-2.1%	-3.0%
-5		-1.9%	1.0%
-10		4.2%	12.5%
-20		-4.1%	0.6%
-40		-2.8%	-1.9%
-
-The optimistic spin case does very well at low to moderate contentions,
-but worse when there are very heavy contentions for the pure mmap case.
-For the case with pthread mutex, there's not much change from vanilla
-kernel.
-
-% change in performance of the mmap with pthread-mutex vs pure mmap
-#threads	vanilla	all	without optspin
-1		3.0%	-1.0%	-1.7%
-5		7.2%	-26.8%	5.5%
-10		5.2%	-10.6%	22.1%
-20		6.8%	16.4%	12.5%
-40		-0.2%	32.7%	0.0%
-
-In general, vanilla and no-optspin case perform better with 
-pthread-mutex.  For the case with optspin, mmap with 
-pthread-mutex is worse at low to moderate contention and better
-at high contention.
-
-Tim
-
+> Alex Thorlton noticed that some massively threaded workloads work poorly,
+> if THP enabled. This patchset fixes this by introducing split page table
+> lock for PMD tables. hugetlbfs is not covered yet.
 > 
-> I've had reports that the former was significantly faster than the
-> latter.
-> <===============================
-> 
-> this could be put into a standalone testcase, or you could add it as a new 
-> subcommand of 'perf bench', which already has some pthread code, see for 
-> example in tools/perf/bench/sched-messaging.c. Adding:
-> 
->    perf bench mm threads
-> 
-> or so would be a natural thing to have.
-> 
-> Thanks,
-> 
-> 	Ingo
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> This patchset is based on work by Naoya Horiguchi.
 
+I think I'll summarise the results thusly:
+
+: THP off, v3.12-rc2: 18.059261877 seconds time elapsed
+: THP off, patched:   16.768027318 seconds time elapsed
+: 
+: THP on, v3.12-rc2:  42.162306788 seconds time elapsed
+: THP on, patched:    8.397885779 seconds time elapsed
+: 
+: HUGETLB, v3.12-rc2: 47.574936948 seconds time elapsed
+: HUGETLB, patched:   19.447481153 seconds time elapsed
+
+What sort of machines are we talking about here?  Can mortals expect to
+see such results on their hardware, or is this mainly on SGI nuttyware?
+
+I'm seeing very few reviewed-by's and acked-by's in here, which is a
+bit surprising and disappointing for a large patchset at v5.  Are you
+sure none were missed?
+
+The new code is enabled only for x86.  Why is this?  What must arch
+maintainers do to enable it?  Have you any particular suggestions,
+warnings etc to make their lives easier?
+
+I assume the patchset won't damage bisectability?  If our bisecter has
+only the first eight patches applied, the fact that
+CONFIG_ARCH_ENABLE_SPLIT_PMD_PTLOCK cannot be enabled protects from
+failures?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
