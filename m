@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 225266B0036
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C0856B0039
 	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 06:29:49 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id bj1so7116597pad.21
+Received: by mail-pb0-f44.google.com with SMTP id xa7so6906619pbc.17
         for <linux-mm@kvack.org>; Mon, 07 Oct 2013 03:29:48 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 02/63] mm: numa: Document automatic NUMA balancing sysctls
-Date: Mon,  7 Oct 2013 11:28:40 +0100
-Message-Id: <1381141781-10992-3-git-send-email-mgorman@suse.de>
+Subject: [PATCH 03/63] sched, numa: Comment fixlets
+Date: Mon,  7 Oct 2013 11:28:41 +0100
+Message-Id: <1381141781-10992-4-git-send-email-mgorman@suse.de>
 In-Reply-To: <1381141781-10992-1-git-send-email-mgorman@suse.de>
 References: <1381141781-10992-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,89 +15,50 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
+From: Peter Zijlstra <peterz@infradead.org>
+
+Fix a 80 column violation and a PTE vs PMD reference.
+
 Cc: stable <stable@vger.kernel.org>
+Signed-off-by: Peter Zijlstra <peterz@infradead.org>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- Documentation/sysctl/kernel.txt | 66 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 66 insertions(+)
+ kernel/sched/fair.c | 8 ++++----
+ mm/huge_memory.c    | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/Documentation/sysctl/kernel.txt b/Documentation/sysctl/kernel.txt
-index 9d4c1d1..1428c66 100644
---- a/Documentation/sysctl/kernel.txt
-+++ b/Documentation/sysctl/kernel.txt
-@@ -355,6 +355,72 @@ utilize.
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 7c70201..b22f52a 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -988,10 +988,10 @@ void task_numa_work(struct callback_head *work)
  
- ==============================================================
+ out:
+ 	/*
+-	 * It is possible to reach the end of the VMA list but the last few VMAs are
+-	 * not guaranteed to the vma_migratable. If they are not, we would find the
+-	 * !migratable VMA on the next scan but not reset the scanner to the start
+-	 * so check it now.
++	 * It is possible to reach the end of the VMA list but the last few
++	 * VMAs are not guaranteed to the vma_migratable. If they are not, we
++	 * would find the !migratable VMA on the next scan but not reset the
++	 * scanner to the start so check it now.
+ 	 */
+ 	if (vma)
+ 		mm->numa_scan_offset = start;
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 7489884..19dbb08 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1305,7 +1305,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	spin_unlock(&mm->page_table_lock);
+ 	lock_page(page);
  
-+numa_balancing
-+
-+Enables/disables automatic page fault based NUMA memory
-+balancing. Memory is moved automatically to nodes
-+that access it often.
-+
-+Enables/disables automatic NUMA memory balancing. On NUMA machines, there
-+is a performance penalty if remote memory is accessed by a CPU. When this
-+feature is enabled the kernel samples what task thread is accessing memory
-+by periodically unmapping pages and later trapping a page fault. At the
-+time of the page fault, it is determined if the data being accessed should
-+be migrated to a local memory node.
-+
-+The unmapping of pages and trapping faults incur additional overhead that
-+ideally is offset by improved memory locality but there is no universal
-+guarantee. If the target workload is already bound to NUMA nodes then this
-+feature should be disabled. Otherwise, if the system overhead from the
-+feature is too high then the rate the kernel samples for NUMA hinting
-+faults may be controlled by the numa_balancing_scan_period_min_ms,
-+numa_balancing_scan_delay_ms, numa_balancing_scan_period_reset,
-+numa_balancing_scan_period_max_ms and numa_balancing_scan_size_mb sysctls.
-+
-+==============================================================
-+
-+numa_balancing_scan_period_min_ms, numa_balancing_scan_delay_ms,
-+numa_balancing_scan_period_max_ms, numa_balancing_scan_period_reset,
-+numa_balancing_scan_size_mb
-+
-+Automatic NUMA balancing scans tasks address space and unmaps pages to
-+detect if pages are properly placed or if the data should be migrated to a
-+memory node local to where the task is running.  Every "scan delay" the task
-+scans the next "scan size" number of pages in its address space. When the
-+end of the address space is reached the scanner restarts from the beginning.
-+
-+In combination, the "scan delay" and "scan size" determine the scan rate.
-+When "scan delay" decreases, the scan rate increases.  The scan delay and
-+hence the scan rate of every task is adaptive and depends on historical
-+behaviour. If pages are properly placed then the scan delay increases,
-+otherwise the scan delay decreases.  The "scan size" is not adaptive but
-+the higher the "scan size", the higher the scan rate.
-+
-+Higher scan rates incur higher system overhead as page faults must be
-+trapped and potentially data must be migrated. However, the higher the scan
-+rate, the more quickly a tasks memory is migrated to a local node if the
-+workload pattern changes and minimises performance impact due to remote
-+memory accesses. These sysctls control the thresholds for scan delays and
-+the number of pages scanned.
-+
-+numa_balancing_scan_period_min_ms is the minimum delay in milliseconds
-+between scans. It effectively controls the maximum scanning rate for
-+each task.
-+
-+numa_balancing_scan_delay_ms is the starting "scan delay" used for a task
-+when it initially forks.
-+
-+numa_balancing_scan_period_max_ms is the maximum delay between scans. It
-+effectively controls the minimum scanning rate for each task.
-+
-+numa_balancing_scan_size_mb is how many megabytes worth of pages are
-+scanned for a given scan.
-+
-+numa_balancing_scan_period_reset is a blunt instrument that controls how
-+often a tasks scan delay is reset to detect sudden changes in task behaviour.
-+
-+==============================================================
-+
- osrelease, ostype & version:
- 
- # cat osrelease
+-	/* Confirm the PTE did not while locked */
++	/* Confirm the PMD did not change while page_table_lock was released */
+ 	spin_lock(&mm->page_table_lock);
+ 	if (unlikely(!pmd_same(pmd, *pmdp))) {
+ 		unlock_page(page);
 -- 
 1.8.4
 
