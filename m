@@ -1,17 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 6624B6B0038
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 15:07:53 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id g10so7542179pdj.40
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 12:07:53 -0700 (PDT)
-Message-ID: <5253067A.2040607@redhat.com>
-Date: Mon, 07 Oct 2013 15:07:38 -0400
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 83DC96B0032
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 15:09:08 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id jt11so7497245pbb.24
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 12:09:08 -0700 (PDT)
+Message-ID: <525306C8.9000607@redhat.com>
+Date: Mon, 07 Oct 2013 15:08:56 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 40/63] sched: numa: Favor placing a task on the preferred
- node
-References: <1381141781-10992-1-git-send-email-mgorman@suse.de> <1381141781-10992-41-git-send-email-mgorman@suse.de>
-In-Reply-To: <1381141781-10992-41-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 42/63] mm: numa: Change page last {nid,pid} into {cpu,pid}
+References: <1381141781-10992-1-git-send-email-mgorman@suse.de> <1381141781-10992-43-git-send-email-mgorman@suse.de>
+In-Reply-To: <1381141781-10992-43-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -20,13 +19,14 @@ To: Mel Gorman <mgorman@suse.de>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
 On 10/07/2013 06:29 AM, Mel Gorman wrote:
-> A tasks preferred node is selected based on the number of faults
-> recorded for a node but the actual task_numa_migate() conducts a global
-> search regardless of the preferred nid. This patch checks if the
-> preferred nid has capacity and if so, searches for a CPU within that
-> node. This avoids a global search when the preferred node is not
-> overloaded.
+> From: Peter Zijlstra <peterz@infradead.org>
 > 
+> Change the per page last fault tracking to use cpu,pid instead of
+> nid,pid. This will allow us to try and lookup the alternate task more
+> easily. Note that even though it is the cpu that is store in the page
+> flags that the mpol_misplaced decision is still based on the node.
+> 
+> Signed-off-by: Peter Zijlstra <peterz@infradead.org>
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
