@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 059F49C0017
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 06:30:13 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id fa1so7123062pad.33
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 03:30:13 -0700 (PDT)
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id CD3169C0017
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 06:30:15 -0400 (EDT)
+Received: by mail-pb0-f46.google.com with SMTP id rq2so6877336pbb.5
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 03:30:15 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 31/63] mm: numa: only unmap migrate-on-fault VMAs
-Date: Mon,  7 Oct 2013 11:29:09 +0100
-Message-Id: <1381141781-10992-32-git-send-email-mgorman@suse.de>
+Subject: [PATCH 33/63] sched: Retry migration of tasks to CPU on a preferred node
+Date: Mon,  7 Oct 2013 11:29:11 +0100
+Message-Id: <1381141781-10992-34-git-send-email-mgorman@suse.de>
 In-Reply-To: <1381141781-10992-1-git-send-email-mgorman@suse.de>
 References: <1381141781-10992-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,83 +15,91 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-There is a 90% regression observed with a large Oracle performance test
-on a 4 node system. Profiles indicated that the overhead was due to
-contention on sp_lock when looking up shared memory policies. These
-policies do not have the appropriate flags to allow them to be
-automatically balanced so trapping faults on them is pointless. This
-patch skips VMAs that do not have MPOL_F_MOF set.
+When a preferred node is selected for a tasks there is an attempt to migrate
+the task to a CPU there. This may fail in which case the task will only
+migrate if the active load balancer takes action. This may never happen if
+the conditions are not right. This patch will check at NUMA hinting fault
+time if another attempt should be made to migrate the task. It will only
+make an attempt once every five seconds.
 
-[riel@redhat.com: Initial patch]
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Reported-and-tested-by: Joe Mario <jmario@redhat.com>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Peter Zijlstra <peterz@infradead.org>
 ---
- include/linux/mempolicy.h |  1 +
- kernel/sched/fair.c       |  2 +-
- mm/mempolicy.c            | 24 ++++++++++++++++++++++++
- 3 files changed, 26 insertions(+), 1 deletion(-)
+ include/linux/sched.h |  1 +
+ kernel/sched/fair.c   | 30 +++++++++++++++++++++++-------
+ 2 files changed, 24 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
-index da6716b..ea4d249 100644
---- a/include/linux/mempolicy.h
-+++ b/include/linux/mempolicy.h
-@@ -136,6 +136,7 @@ struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 8a3aa9e..4dd0c94 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1331,6 +1331,7 @@ struct task_struct {
+ 	int numa_migrate_seq;
+ 	unsigned int numa_scan_period;
+ 	unsigned int numa_scan_period_max;
++	unsigned long numa_migrate_retry;
+ 	u64 node_stamp;			/* migration stamp  */
+ 	struct callback_head numa_work;
  
- struct mempolicy *get_vma_policy(struct task_struct *tsk,
- 		struct vm_area_struct *vma, unsigned long addr);
-+bool vma_policy_mof(struct task_struct *task, struct vm_area_struct *vma);
- 
- extern void numa_default_policy(void);
- extern void numa_policy_init(void);
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index b7052ed..1789e3c 100644
+index fd6e9e1..559175b 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -1130,7 +1130,7 @@ void task_numa_work(struct callback_head *work)
- 		vma = mm->mmap;
- 	}
- 	for (; vma; vma = vma->vm_next) {
--		if (!vma_migratable(vma))
-+		if (!vma_migratable(vma) || !vma_policy_mof(p, vma))
- 			continue;
- 
- 		do {
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 196d8da..0e895a2 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1679,6 +1679,30 @@ struct mempolicy *get_vma_policy(struct task_struct *task,
- 	return pol;
+@@ -1011,6 +1011,23 @@ migrate:
+ 	return migrate_task_to(p, env.best_cpu);
  }
  
-+bool vma_policy_mof(struct task_struct *task, struct vm_area_struct *vma)
++/* Attempt to migrate a task to a CPU on the preferred node. */
++static void numa_migrate_preferred(struct task_struct *p)
 +{
-+	struct mempolicy *pol = get_task_policy(task);
-+	if (vma) {
-+		if (vma->vm_ops && vma->vm_ops->get_policy) {
-+			bool ret = false;
++	/* Success if task is already running on preferred CPU */
++	p->numa_migrate_retry = 0;
++	if (cpu_to_node(task_cpu(p)) == p->numa_preferred_nid)
++		return;
 +
-+			pol = vma->vm_ops->get_policy(vma, vma->vm_start);
-+			if (pol && (pol->flags & MPOL_F_MOF))
-+				ret = true;
-+			mpol_cond_put(pol);
++	/* This task has no NUMA fault statistics yet */
++	if (unlikely(p->numa_preferred_nid == -1))
++		return;
 +
-+			return ret;
-+		} else if (vma->vm_policy) {
-+			pol = vma->vm_policy;
-+		}
-+	}
-+
-+	if (!pol)
-+		return default_policy.flags & MPOL_F_MOF;
-+
-+	return pol->flags & MPOL_F_MOF;
++	/* Otherwise, try migrate to a CPU on the preferred node */
++	if (task_numa_migrate(p) != 0)
++		p->numa_migrate_retry = jiffies + HZ*5;
 +}
 +
- static int apply_policy_zone(struct mempolicy *policy, enum zone_type zone)
+ static void task_numa_placement(struct task_struct *p)
  {
- 	enum zone_type dynamic_policy_zone = policy_zone;
+ 	int seq, nid, max_nid = -1;
+@@ -1045,17 +1062,12 @@ static void task_numa_placement(struct task_struct *p)
+ 		}
+ 	}
+ 
+-	/*
+-	 * Record the preferred node as the node with the most faults,
+-	 * requeue the task to be running on the idlest CPU on the
+-	 * preferred node and reset the scanning rate to recheck
+-	 * the working set placement.
+-	 */
++	/* Preferred node as the node with the most faults */
+ 	if (max_faults && max_nid != p->numa_preferred_nid) {
+ 		/* Update the preferred nid and migrate task if possible */
+ 		p->numa_preferred_nid = max_nid;
+ 		p->numa_migrate_seq = 1;
+-		task_numa_migrate(p);
++		numa_migrate_preferred(p);
+ 	}
+ }
+ 
+@@ -1111,6 +1123,10 @@ void task_numa_fault(int last_nidpid, int node, int pages, bool migrated)
+ 
+ 	task_numa_placement(p);
+ 
++	/* Retry task to preferred node migration if it previously failed */
++	if (p->numa_migrate_retry && time_after(jiffies, p->numa_migrate_retry))
++		numa_migrate_preferred(p);
++
+ 	p->numa_faults_buffer[task_faults_idx(node, priv)] += pages;
+ }
+ 
 -- 
 1.8.4
 
