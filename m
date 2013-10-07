@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BE626B0037
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 14:40:55 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so7542055pdj.22
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 11:40:54 -0700 (PDT)
-Message-ID: <52530029.7080002@redhat.com>
-Date: Mon, 07 Oct 2013 14:40:41 -0400
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id E036C6B0038
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 14:41:19 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id kl14so7613752pab.25
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 11:41:19 -0700 (PDT)
+Message-ID: <5253003D.4070502@redhat.com>
+Date: Mon, 07 Oct 2013 14:41:01 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 24/63] sched: Reschedule task on preferred NUMA node once
- selected
-References: <1381141781-10992-1-git-send-email-mgorman@suse.de> <1381141781-10992-25-git-send-email-mgorman@suse.de>
-In-Reply-To: <1381141781-10992-25-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 25/63] sched: Add infrastructure for split shared/private
+ accounting of NUMA hinting faults
+References: <1381141781-10992-1-git-send-email-mgorman@suse.de> <1381141781-10992-26-git-send-email-mgorman@suse.de>
+In-Reply-To: <1381141781-10992-26-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -20,15 +20,16 @@ To: Mel Gorman <mgorman@suse.de>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
 On 10/07/2013 06:29 AM, Mel Gorman wrote:
-> A preferred node is selected based on the node the most NUMA hinting
-> faults was incurred on. There is no guarantee that the task is running
-> on that node at the time so this patch rescheules the task to run on
-> the most idle CPU of the selected node when selected. This avoids
-> waiting for the balancer to make a decision.
+> Ideally it would be possible to distinguish between NUMA hinting faults
+> that are private to a task and those that are shared.  This patch prepares
+> infrastructure for separately accounting shared and private faults by
+> allocating the necessary buffers and passing in relevant information. For
+> now, all faults are treated as private and detection will be introduced
+> later.
 > 
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 -- 
 All rights reversed
