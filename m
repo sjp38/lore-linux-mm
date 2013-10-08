@@ -1,41 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id E16B86B0031
-	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 16:06:27 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id v10so9112880pde.38
-        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 13:06:27 -0700 (PDT)
-Date: Tue, 8 Oct 2013 13:06:24 -0700
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id A27366B0031
+	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 16:08:57 -0400 (EDT)
+Received: by mail-pb0-f54.google.com with SMTP id ro12so9198629pbb.27
+        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 13:08:57 -0700 (PDT)
+Date: Tue, 8 Oct 2013 13:08:53 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 0/3] Soft dirty tracking fixes
-Message-Id: <20131008130624.d7c50cef20d968e8c0484a41@linux-foundation.org>
-In-Reply-To: <20131008200224.GB19040@moon>
-References: <20131008090019.527108154@gmail.com>
-	<20131008125013.85dcccf418260d43b6cb120a@linux-foundation.org>
-	<20131008200224.GB19040@moon>
+Subject: Re: [PATCH] frontswap: enable call to invalidate area on swapoff
+Message-Id: <20131008130853.96139b79a0a4d3aaacc79ed2@linux-foundation.org>
+In-Reply-To: <1381220000.16135.10.camel@AMDC1943>
+References: <1381159541-13981-1-git-send-email-k.kozlowski@samsung.com>
+	<20131007150338.1fdee18b536bb1d9fe41a07b@linux-foundation.org>
+	<1381220000.16135.10.camel@AMDC1943>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Cc: linux-mm@kvack.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, Shaohua Li <shli@fusionio.com>, Minchan Kim <minchan@kernel.org>
 
-On Wed, 9 Oct 2013 00:02:24 +0400 Cyrill Gorcunov <gorcunov@gmail.com> wrote:
+On Tue, 08 Oct 2013 10:13:20 +0200 Krzysztof Kozlowski <k.kozlowski@samsung.com> wrote:
 
-> On Tue, Oct 08, 2013 at 12:50:13PM -0700, Andrew Morton wrote:
+> On pon, 2013-10-07 at 15:03 -0700, Andrew Morton wrote:
+> > On Mon, 07 Oct 2013 17:25:41 +0200 Krzysztof Kozlowski <k.kozlowski@samsung.com> wrote:
 > > 
-> > Do you consider the problems which patches 1 and 2 address to be
-> > sufficiently serious to justify backporting into -stable?
+> > > During swapoff the frontswap_map was NULL-ified before calling
+> > > frontswap_invalidate_area(). However the frontswap_invalidate_area()
+> > > exits early if frontswap_map is NULL. Invalidate was never called during
+> > > swapoff.
+> > > 
+> > > This patch moves frontswap_map_set() in swapoff just after calling
+> > > frontswap_invalidate_area() so outside of locks
+> > > (swap_lock and swap_info_struct->lock). This shouldn't be a problem as
+> > > during swapon the frontswap_map_set() is called also outside of any
+> > > locks.
+> > > 
+> > 
+> > Ahem.  So there's a bunch of code in __frontswap_invalidate_area()
+> > which hasn't ever been executed and nobody noticed it.  So perhaps that
+> > code isn't actually needed?
+> > 
+> > More seriously, this patch looks like it enables code which hasn't been
+> > used or tested before.  How well tested was this?
+> > 
+> > Are there any runtime-visible effects from this change?
 > 
-> Good question! Yeah, since dirty bit traking is in 3.11 already,
-> it would be great to merge these two patches into -stable.
+> I tested zswap on x86 and x86-64 and there was no difference. This is
+> good as there shouldn't be visible anything because swapoff is unusing
+> all pages anyway:
+> 	try_to_unuse(type, false, 0); /* force all pages to be unused */
+> 
+> I haven't tested other frontswap users.
 
-OK.
-
-> Should I resend them with stable team CC'ed?
-
-Nope, I added cc:stable to the changelogs so they should receive
-consideration by Greg automatically.
+So is that code in __frontswap_invalidate_area() unneeded?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
