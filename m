@@ -1,33 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A6A36B0037
-	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 04:59:48 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id r10so8456163pdi.28
-        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 01:59:47 -0700 (PDT)
-Received: by mail-la0-f46.google.com with SMTP id eh20so6612102lab.33
-        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 01:59:41 -0700 (PDT)
-Date: Tue, 8 Oct 2013 12:59:01 +0400
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id E45476B0037
+	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 05:02:41 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rp2so8375041pbb.0
+        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 02:02:41 -0700 (PDT)
+Received: by mail-la0-f53.google.com with SMTP id el20so6696300lab.12
+        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 02:02:38 -0700 (PDT)
+Message-Id: <20131008090019.527108154@gmail.com>
+Date: Tue, 08 Oct 2013 13:00:19 +0400
 From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCH 1/2 v2] smaps: show VM_SOFTDIRTY flag in VmFlags line
-Message-ID: <20131008085901.GN6036@moon>
-References: <1380913335-17466-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <5252B56C.8030903@parallels.com>
- <1381155304-2ro6e10t-mutt-n-horiguchi@ah.jp.nec.com>
- <20131007175125.7bb300853d37b6a64eba248d@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131007175125.7bb300853d37b6a64eba248d@linux-foundation.org>
+Subject: [patch 0/3] Soft dirty tracking fixes
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Pavel Emelyanov <xemul@parallels.com>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Oct 07, 2013 at 05:51:25PM -0700, Andrew Morton wrote:
-> 
-> Documentation/filesystems/proc.txt needs updating, please.
+Hi! Here is a couple of fixes for soft dirty pages tracking.
+While first two patches are adressing issues, the last one
+is rather a cleanup which I've been asked to implement long
+ago, but I'm not sure if anyone picked it up.
 
-I'll do this today.
+Please take a look, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
