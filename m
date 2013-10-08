@@ -1,53 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 935D66B0039
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 23:06:21 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id x10so8183531pdj.1
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 20:06:21 -0700 (PDT)
-Date: Tue, 8 Oct 2013 12:07:36 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 05/14] vrange: Add new vrange(2) system call
-Message-ID: <20131008030736.GA29509@bbox>
-References: <5253404D.2030503@linaro.org>
- <52534331.2060402@zytor.com>
- <52534692.7010400@linaro.org>
- <525347BE.7040606@zytor.com>
- <525349AE.1070904@linaro.org>
- <52534AEC.5040403@zytor.com>
- <20131008001306.GD25780@bbox>
- <52535EE1.3060700@zytor.com>
- <20131008020847.GH25780@bbox>
- <52537326.7000505@gmail.com>
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id BEB3F6B0039
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 23:28:40 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id v10so8027368pde.24
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 20:28:40 -0700 (PDT)
+Received: by mail-ie0-f180.google.com with SMTP id u16so17812417iet.39
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 20:28:37 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52537326.7000505@gmail.com>
+In-Reply-To: <1380761503-14509-8-git-send-email-john.stultz@linaro.org>
+References: <1380761503-14509-1-git-send-email-john.stultz@linaro.org> <1380761503-14509-8-git-send-email-john.stultz@linaro.org>
+From: Zhan Jianyu <nasa4836@gmail.com>
+Date: Tue, 8 Oct 2013 11:27:57 +0800
+Message-ID: <CAHz2CGWS+jWQU=v=5AnAgab1DrPr+snWvc62mf43Tx0aQUA8nA@mail.gmail.com>
+Subject: Re: [PATCH 07/14] vrange: Purge volatile pages when memory is tight
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, John Stultz <john.stultz@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dhaval.giani@gmail.com>, Jan Kara <jack@suse.cz>, Michel Lespinasse <walken@google.com>, Rob Clark <robdclark@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: John Stultz <john.stultz@linaro.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dhaval.giani@gmail.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Rob Clark <robdclark@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hi KOSAKI,
+On Thu, Oct 3, 2013 at 8:51 AM, John Stultz <john.stultz@linaro.org> wrote:
+>  static inline int page_referenced(struct page *page, int is_locked,
+>                                   struct mem_cgroup *memcg,
+> -                                 unsigned long *vm_flags)
+> +                                 unsigned long *vm_flags,
+> +                                 int *is_vrange)
+>  {
+>         *vm_flags = 0;
+> +       *is_vrange = 0;
+>         return 0;
+>  }
 
-On Mon, Oct 07, 2013 at 10:51:18PM -0400, KOSAKI Motohiro wrote:
-> >Maybe, int madvise5(addr, length, MADV_DONTNEED|MADV_LAZY|MADV_SIGBUS,
-> >         &purged, &ret);
-> >
-> >Another reason to make it hard is that madvise(2) is tight coupled with
-> >with vmas split/merge. It needs mmap_sem's write-side lock and it hurt
-> >anon-vrange test performance much heavily and userland might want to
-> >make volatile range with small unit like "page size" so it's undesireable
-> >to make it with vma. Then, we should filter out to avoid vma split/merge
-> >in implementation if only MADV_LAZY case? Doable but it could make code
-> >complicated and lost consistency with other variant of madvise.
-> 
-> I haven't seen your performance test result. Could please point out URLs?
+I don't know if it is appropriate to add a parameter in such a  core
+function for an optional functionality. Maybe the is_vrange flag
+should be squashed into the vm_flags ? I am not sure .
 
-https://lkml.org/lkml/2013/3/12/105
 
--- 
-Kind regards,
-Minchan Kim
+
+
+--
+
+Regards,
+Zhan Jianyu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
