@@ -1,44 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B0126B0037
-	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 11:29:22 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id jt11so8965843pbb.10
-        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 08:29:22 -0700 (PDT)
-Received: by mail-pd0-f174.google.com with SMTP id y13so8816266pdi.19
-        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 08:29:19 -0700 (PDT)
-Message-ID: <525424A8.80608@gmail.com>
-Date: Tue, 08 Oct 2013 23:28:40 +0800
-From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 89C156B0031
+	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 12:14:48 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id ld10so9049414pab.36
+        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 09:14:48 -0700 (PDT)
+Message-ID: <52542F53.4020807@sr71.net>
+Date: Tue, 08 Oct 2013 09:14:11 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH part1 v6 0/6] x86, memblock: Allocate memory near kernel
- image before SRAT parsed
-References: <524E2032.4020106@gmail.com> <20131008042302.GA14353@gmail.com>
-In-Reply-To: <20131008042302.GA14353@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 1/2] vmsplice: unmap gifted pages for recipient
+References: <1381177293-27125-1-git-send-email-rcj@linux.vnet.ibm.com> <1381177293-27125-2-git-send-email-rcj@linux.vnet.ibm.com>
+In-Reply-To: <1381177293-27125-2-git-send-email-rcj@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Rafael J . Wysocki" <rjw@sisk.pl>, lenb@kernel.org, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, "H. Peter Anvin" <hpa@zytor.com>, Tejun Heo <tj@kernel.org>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, prarit@redhat.com, "x86@kernel.org" <x86@kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, imtangchen@gmail.com, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>
+To: Robert C Jennings <rcj@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Matt Helsley <matt.helsley@gmail.com>, Anthony Liguori <anthony@codemonkey.ws>, Michael Roth <mdroth@linux.vnet.ibm.com>, Lei Li <lilei@linux.vnet.ibm.com>, Leonardo Garcia <lagarcia@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>
 
-Hello Ingo,
+On 10/07/2013 01:21 PM, Robert C Jennings wrote:
+> +					} else {
+> +						if (vma)
+> +							zap_page_range(vma,
+> +								user_start,
+> +								(user_end -
+> +								 user_start),
+> +								NULL);
+> +						vma = find_vma_intersection(
+> +								current->mm,
+> +								useraddr,
+> +								(useraddr +
+> +								 PAGE_SIZE));
+> +						if (!IS_ERR_OR_NULL(vma)) {
+> +							user_start = useraddr;
+> +							user_end = (useraddr +
+> +								    PAGE_SIZE);
+> +						} else
+> +							vma = NULL;
+> +					}
 
-On 10/08/2013 12:23 PM, Ingo Molnar wrote:
-> 
-> * Zhang Yanfei <zhangyanfei.yes@gmail.com> wrote:
-> 
->> Hello, here is the v6 version. Any comments are welcome!
-> 
-> Ok, I think this is as good as this feature can get without hardware 
-> support.
-> 
-
-Without hardware/firmware support, we cannot know which memory is
-hotpluggable.
-
--- 
-Thanks.
-Zhang Yanfei
+This is pretty unspeakably hideous.  Was there truly no better way to do
+this?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
