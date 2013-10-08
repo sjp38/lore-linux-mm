@@ -1,56 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 963436B003A
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 20:51:29 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lj1so8165678pab.29
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 17:51:29 -0700 (PDT)
-Date: Mon, 7 Oct 2013 17:51:25 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2 v2] smaps: show VM_SOFTDIRTY flag in VmFlags line
-Message-Id: <20131007175125.7bb300853d37b6a64eba248d@linux-foundation.org>
-In-Reply-To: <1381155304-2ro6e10t-mutt-n-horiguchi@ah.jp.nec.com>
-References: <1380913335-17466-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<5252B56C.8030903@parallels.com>
-	<1381155304-2ro6e10t-mutt-n-horiguchi@ah.jp.nec.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C8BB6B0039
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 21:26:31 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id xb4so7893151pbc.22
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 18:26:31 -0700 (PDT)
+Message-ID: <52535EE1.3060700@zytor.com>
+Date: Mon, 07 Oct 2013 18:24:49 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 05/14] vrange: Add new vrange(2) system call
+References: <1380761503-14509-1-git-send-email-john.stultz@linaro.org> <1380761503-14509-6-git-send-email-john.stultz@linaro.org> <52533C12.9090007@zytor.com> <5253404D.2030503@linaro.org> <52534331.2060402@zytor.com> <52534692.7010400@linaro.org> <525347BE.7040606@zytor.com> <525349AE.1070904@linaro.org> <52534AEC.5040403@zytor.com> <20131008001306.GD25780@bbox>
+In-Reply-To: <20131008001306.GD25780@bbox>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Pavel Emelyanov <xemul@parallels.com>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: John Stultz <john.stultz@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dhaval.giani@gmail.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Rob Clark <robdclark@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, 07 Oct 2013 10:15:04 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+On 10/07/2013 05:13 PM, Minchan Kim wrote:
+>>
+>> The point is that MADV_DONTNEED is very similar in that sense,
+>> especially if allowed to be lazy.  It makes a lot of sense to permit
+>> both scrubbing modes orthogonally.
+>>
+>> The point you're making has to do with withdrawal of permission to flush
+>> on demand, which is a result of having the lazy mode (ongoing
+>> permission) and having to be able to withdraw such permission.
+> 
+> I'm sorry I could not understand what you wanted to say.
+> Could you elaborate a bit?
+> 
 
-> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Date: Fri, 4 Oct 2013 13:42:13 -0400
-> Subject: [PATCH] smaps: show VM_SOFTDIRTY flag in VmFlags line
-> 
-> This flag shows that the VMA is "newly created" and thus represents
-> "dirty" in the task's VM.
-> You can clear it by "echo 4 > /proc/pid/clear_refs."
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
->  fs/proc/task_mmu.c | 3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 7366e9d..c591928 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -561,6 +561,9 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
->  		[ilog2(VM_NONLINEAR)]	= "nl",
->  		[ilog2(VM_ARCH_1)]	= "ar",
->  		[ilog2(VM_DONTDUMP)]	= "dd",
-> +#ifdef CONFIG_MEM_SOFT_DIRTY
-> +		[ilog2(VM_SOFTDIRTY)]	= "sd",
-> +#endif
->  		[ilog2(VM_MIXEDMAP)]	= "mm",
->  		[ilog2(VM_HUGEPAGE)]	= "hg",
->  		[ilog2(VM_NOHUGEPAGE)]	= "nh",
+Basically, you need this because of MADV_LAZY or the equivalent, so it
+would be applicable to a similar variant of madvise().
 
-Documentation/filesystems/proc.txt needs updating, please.
+As such I would suggest that an madvise4() call would be appropriate.
+
+	-hpa
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
