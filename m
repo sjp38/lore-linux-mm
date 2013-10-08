@@ -1,77 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 12E096B0037
-	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 04:49:40 -0400 (EDT)
-Received: by mail-pb0-f48.google.com with SMTP id ma3so8183640pbc.7
-        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 01:49:40 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <20131007160907.3a4aca3e7eae404767ed3a8e@linux-foundation.org>
-References: <1381154053-4848-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20131007160907.3a4aca3e7eae404767ed3a8e@linux-foundation.org>
-Subject: Re: [PATCHv5 00/11] split page table lock for PMD tables
-Content-Transfer-Encoding: 7bit
-Message-Id: <20131008084927.BC193E0090@blue.fi.intel.com>
-Date: Tue,  8 Oct 2013 11:49:27 +0300 (EEST)
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A6A36B0037
+	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 04:59:48 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id r10so8456163pdi.28
+        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 01:59:47 -0700 (PDT)
+Received: by mail-la0-f46.google.com with SMTP id eh20so6612102lab.33
+        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 01:59:41 -0700 (PDT)
+Date: Tue, 8 Oct 2013 12:59:01 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH 1/2 v2] smaps: show VM_SOFTDIRTY flag in VmFlags line
+Message-ID: <20131008085901.GN6036@moon>
+References: <1380913335-17466-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <5252B56C.8030903@parallels.com>
+ <1381155304-2ro6e10t-mutt-n-horiguchi@ah.jp.nec.com>
+ <20131007175125.7bb300853d37b6a64eba248d@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131007175125.7bb300853d37b6a64eba248d@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alex Thorlton <athorlton@sgi.com>, Ingo Molnar <mingo@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Pavel Emelyanov <xemul@parallels.com>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org
 
-Andrew Morton wrote:
-> On Mon,  7 Oct 2013 16:54:02 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+On Mon, Oct 07, 2013 at 05:51:25PM -0700, Andrew Morton wrote:
 > 
-> > Alex Thorlton noticed that some massively threaded workloads work poorly,
-> > if THP enabled. This patchset fixes this by introducing split page table
-> > lock for PMD tables. hugetlbfs is not covered yet.
-> > 
-> > This patchset is based on work by Naoya Horiguchi.
-> 
-> I think I'll summarise the results thusly:
-> 
-> : THP off, v3.12-rc2: 18.059261877 seconds time elapsed
-> : THP off, patched:   16.768027318 seconds time elapsed
-> : 
-> : THP on, v3.12-rc2:  42.162306788 seconds time elapsed
-> : THP on, patched:    8.397885779 seconds time elapsed
-> : 
-> : HUGETLB, v3.12-rc2: 47.574936948 seconds time elapsed
-> : HUGETLB, patched:   19.447481153 seconds time elapsed
-> 
-> What sort of machines are we talking about here?  Can mortals expect to
-> see such results on their hardware, or is this mainly on SGI nuttyware?
+> Documentation/filesystems/proc.txt needs updating, please.
 
-I've tested on 4 socket Westmere: 40 cores / 80 threads.
-
-With 4 threads, I can see 8% improvement on THP.
-Nothing comparing to 36 times on Alex's 512 cores, but still...
-
-> I'm seeing very few reviewed-by's and acked-by's in here, which is a
-> bit surprising and disappointing for a large patchset at v5.  Are you
-> sure none were missed?
-
-Peter looked through, but I haven't got any tags from him.
-
-> The new code is enabled only for x86.  Why is this?
-
-x86 is the only hardware I have to test.
-
-> What must arch maintainers do to enable it?  Have you any particular
-> suggestions, warnings etc to make their lives easier?
-
-The last patch is a good illustration what need to be done. It's very
-straight forward, I don't see any pitfalls.
-
-> I assume the patchset won't damage bisectability?  If our bisecter has
-> only the first eight patches applied, the fact that
-> CONFIG_ARCH_ENABLE_SPLIT_PMD_PTLOCK cannot be enabled protects from
-> failures?
-
-Unless CONFIG_ARCH_ENABLE_SPLIT_PMD_PTLOCK defined, pmd_lockptr() will
-return mm->page_table_lock: we can convert code to new api stet-by-step
-without breaking anything.
-
--- 
- Kirill A. Shutemov
+I'll do this today.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
