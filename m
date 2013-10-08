@@ -1,67 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 363CA6B0031
-	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 16:48:30 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id lf10so618pab.3
-        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 13:48:29 -0700 (PDT)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjennings@medulla.variantweb.net>;
-	Tue, 8 Oct 2013 14:48:27 -0600
-Received: from b01cxnp22034.gho.pok.ibm.com (b01cxnp22034.gho.pok.ibm.com [9.57.198.24])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id AD4EA6E80A5
-	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 16:48:21 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by b01cxnp22034.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r98KmLhI62324760
-	for <linux-mm@kvack.org>; Tue, 8 Oct 2013 20:48:21 GMT
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r98KmL7i020412
-	for <linux-mm@kvack.org>; Tue, 8 Oct 2013 17:48:21 -0300
-Date: Tue, 8 Oct 2013 15:48:19 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3 4/6] zbud: memset zbud_header to 0 during init
-Message-ID: <20131008204819.GC8798@medulla.variantweb.net>
-References: <1381238980-2491-1-git-send-email-k.kozlowski@samsung.com>
- <1381238980-2491-5-git-send-email-k.kozlowski@samsung.com>
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id B90BD6B0031
+	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 17:23:21 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id xa7so9249523pbc.31
+        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 14:23:21 -0700 (PDT)
+Message-ID: <525477A4.5060504@sr71.net>
+Date: Tue, 08 Oct 2013 14:22:44 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1381238980-2491-5-git-send-email-k.kozlowski@samsung.com>
+Subject: Re: [PATCH 1/2] vmsplice: unmap gifted pages for recipient
+References: <1381177293-27125-1-git-send-email-rcj@linux.vnet.ibm.com> <1381177293-27125-2-git-send-email-rcj@linux.vnet.ibm.com> <52542F53.4020807@sr71.net> <20131008194819.GB6129@linux.vnet.ibm.com>
+In-Reply-To: <20131008194819.GB6129@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Krzysztof Kozlowski <k.kozlowski@samsung.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Tomasz Stanislawski <t.stanislaws@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Dave Hansen <dave.hansen@intel.com>, Minchan Kim <minchan@kernel.org>
+To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Matt Helsley <matt.helsley@gmail.com>, Anthony Liguori <anthony@codemonkey.ws>, Michael Roth <mdroth@linux.vnet.ibm.com>, Lei Li <lilei@linux.vnet.ibm.com>, Leonardo Garcia <lagarcia@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue, Oct 08, 2013 at 03:29:38PM +0200, Krzysztof Kozlowski wrote:
-> memset zbud_header to 0 during init instead of manually assigning 0 to
-> members. Currently only two members needs to be initialized to 0 but
-> further patches will add more of them.
+On 10/08/2013 12:48 PM, Robert Jennings wrote:
+> * Dave Hansen (dave@sr71.net) wrote:
+>> On 10/07/2013 01:21 PM, Robert C Jennings wrote:
+>>> +					} else {
+>>> +						if (vma)
+>>> +							zap_page_range(vma,
+>>> +								user_start,
+>>> +								(user_end -
+>>> +								 user_start),
+>>> +								NULL);
+>>> +						vma = find_vma_intersection(
+>>> +								current->mm,
+>>> +								useraddr,
+>>> +								(useraddr +
+>>> +								 PAGE_SIZE));
+>>> +						if (!IS_ERR_OR_NULL(vma)) {
+>>> +							user_start = useraddr;
+>>> +							user_end = (useraddr +
+>>> +								    PAGE_SIZE);
+>>> +						} else
+>>> +							vma = NULL;
+>>> +					}
+>>
+>> This is pretty unspeakably hideous.  Was there truly no better way to do
+>> this?
+> 
+> I was hoping to find a better way to coalesce pipe buffers and zap
+> entire VMAs (and it needs better documentation but your argument is with
+> structure and I agree). I would love suggestions for improving this but
+> that is not to say that I've abandoned it; I'm still looking for ways
+> to make this cleaner.
 
-Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Doing the VMA search each and every time seems a bit silly.  Do one
+find_vma(), the look at the _end_ virtual address of the VMA.  You can
+continue to collect your set of zap_page_range() addresses as long as
+you do not hit the end of that address range.
 
-> 
-> Signed-off-by: Krzysztof Kozlowski <k.kozlowski@samsung.com>
-> ---
->  mm/zbud.c |    3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
-> 
-> diff --git a/mm/zbud.c b/mm/zbud.c
-> index 6db0557..0edd880 100644
-> --- a/mm/zbud.c
-> +++ b/mm/zbud.c
-> @@ -133,8 +133,7 @@ static int size_to_chunks(int size)
->  static struct zbud_header *init_zbud_page(struct page *page)
->  {
->  	struct zbud_header *zhdr = page_address(page);
-> -	zhdr->first_chunks = 0;
-> -	zhdr->last_chunks = 0;
-> +	memset(zhdr, 0, sizeof(*zhdr));
->  	INIT_LIST_HEAD(&zhdr->buddy);
->  	INIT_LIST_HEAD(&zhdr->lru);
->  	return zhdr;
-> -- 
-> 1.7.9.5
-> 
+If and only if you hit the end of the vma, do the zap_page_range(), and
+then look up the VMA again.
+
+Storing the .useraddr still seems odd to me, and you haven't fully
+explained why you're doing it or how it is safe, or why you store both
+virtual addresses and file locations in it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
