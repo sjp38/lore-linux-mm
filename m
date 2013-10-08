@@ -1,82 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 873046B0037
-	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 03:15:45 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y13so8295472pdi.5
-        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 00:15:45 -0700 (PDT)
-Date: Tue, 8 Oct 2013 16:17:00 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 05/14] vrange: Add new vrange(2) system call
-Message-ID: <20131008071700.GC29509@bbox>
-References: <525347BE.7040606@zytor.com>
- <525349AE.1070904@linaro.org>
- <52534AEC.5040403@zytor.com>
- <20131008001306.GD25780@bbox>
- <52535EE1.3060700@zytor.com>
- <20131008020847.GH25780@bbox>
- <52537326.7000505@gmail.com>
- <20131008030736.GA29509@bbox>
- <52538B95.6080208@gmail.com>
- <20131008071202.GB29509@bbox>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131008071202.GB29509@bbox>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 52D326B0032
+	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 04:13:25 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so8450173pad.30
+        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 01:13:24 -0700 (PDT)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout3.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MUC00G32C69HKC0@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 08 Oct 2013 09:13:21 +0100 (BST)
+Message-id: <1381220000.16135.10.camel@AMDC1943>
+Subject: Re: [PATCH] frontswap: enable call to invalidate area on swapoff
+From: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Date: Tue, 08 Oct 2013 10:13:20 +0200
+In-reply-to: <20131007150338.1fdee18b536bb1d9fe41a07b@linux-foundation.org>
+References: <1381159541-13981-1-git-send-email-k.kozlowski@samsung.com>
+ <20131007150338.1fdee18b536bb1d9fe41a07b@linux-foundation.org>
+Content-type: text/plain; charset=UTF-8
+Content-transfer-encoding: 7bit
+MIME-version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, John Stultz <john.stultz@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dhaval.giani@gmail.com>, Jan Kara <jack@suse.cz>, Michel Lespinasse <walken@google.com>, Rob Clark <robdclark@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, Shaohua Li <shli@fusionio.com>, Minchan Kim <minchan@kernel.org>
 
-On Tue, Oct 08, 2013 at 04:12:02PM +0900, Minchan Kim wrote:
-> On Tue, Oct 08, 2013 at 12:35:33AM -0400, KOSAKI Motohiro wrote:
-> > (10/7/13 11:07 PM), Minchan Kim wrote:
-> > >Hi KOSAKI,
-> > >
-> > >On Mon, Oct 07, 2013 at 10:51:18PM -0400, KOSAKI Motohiro wrote:
-> > >>>Maybe, int madvise5(addr, length, MADV_DONTNEED|MADV_LAZY|MADV_SIGBUS,
-> > >>>         &purged, &ret);
-> > >>>
-> > >>>Another reason to make it hard is that madvise(2) is tight coupled with
-> > >>>with vmas split/merge. It needs mmap_sem's write-side lock and it hurt
-> > >>>anon-vrange test performance much heavily and userland might want to
-> > >>>make volatile range with small unit like "page size" so it's undesireable
-> > >>>to make it with vma. Then, we should filter out to avoid vma split/merge
-> > >>>in implementation if only MADV_LAZY case? Doable but it could make code
-> > >>>complicated and lost consistency with other variant of madvise.
-> > >>
-> > >>I haven't seen your performance test result. Could please point out URLs?
-> > >
-> > >https://lkml.org/lkml/2013/3/12/105
+On pon, 2013-10-07 at 15:03 -0700, Andrew Morton wrote:
+> On Mon, 07 Oct 2013 17:25:41 +0200 Krzysztof Kozlowski <k.kozlowski@samsung.com> wrote:
+> 
+> > During swapoff the frontswap_map was NULL-ified before calling
+> > frontswap_invalidate_area(). However the frontswap_invalidate_area()
+> > exits early if frontswap_map is NULL. Invalidate was never called during
+> > swapoff.
 > > 
-> > It's not comparison with and without vma merge. I'm interest how much benefit
-> > vmas operation avoiding have.
+> > This patch moves frontswap_map_set() in swapoff just after calling
+> > frontswap_invalidate_area() so outside of locks
+> > (swap_lock and swap_info_struct->lock). This shouldn't be a problem as
+> > during swapon the frontswap_map_set() is called also outside of any
+> > locks.
+> > 
 > 
-> I had an number but lost it so I should set up it in my KVM machine :(
-> And I needed old kernel 3.7.0 for testing vma-based approach.
+> Ahem.  So there's a bunch of code in __frontswap_invalidate_area()
+> which hasn't ever been executed and nobody noticed it.  So perhaps that
+> code isn't actually needed?
 > 
-> DRAM:2G, CPU : 12 
+> More seriously, this patch looks like it enables code which hasn't been
+> used or tested before.  How well tested was this?
 > 
-> kernel 3.7.0
-> 
-> jemalloc: 20527 records/s
-> jemalloc vma based approach : 5360 records/s
-> 
-> vrange call made worse because every thread stuck with mmap_sem.
-> 
-> kernel 3.11.0
-> 
-> jemalloc: 21176 records/s
-> jemalloc vroot tree approach: 103637 records/s
-> 
-> It could enhance 5 times.
+> Are there any runtime-visible effects from this change?
 
-And please keep in mind that vrange's user might want to small vrange
-like PAGE_SIZE. If we go with vma-based approach, we would consume memory
-with lots of vm_area_struct.
+I tested zswap on x86 and x86-64 and there was no difference. This is
+good as there shouldn't be visible anything because swapoff is unusing
+all pages anyway:
+	try_to_unuse(type, false, 0); /* force all pages to be unused */
 
--- 
-Kind regards,
-Minchan Kim
+I haven't tested other frontswap users.
+
+
+Best regards,
+Krzysztof Kozlowski
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
