@@ -1,62 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id DAC386B0032
-	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 10:47:45 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id kx10so9027448pab.27
-        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 07:47:45 -0700 (PDT)
-Date: Tue, 08 Oct 2013 10:47:00 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1381243620-hjcyg13o-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20131008144030.GA19040@moon>
-References: <20131008090019.527108154@gmail.com>
- <20131008090236.951114091@gmail.com>
- <1381241500-bfdgpu61-mutt-n-horiguchi@ah.jp.nec.com>
- <20131008144030.GA19040@moon>
-Subject: Re: [patch 1/3] [PATCH] mm: migration -- Do not loose soft dirty bit
- if page is in migration state
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B0126B0037
+	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 11:29:22 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id jt11so8965843pbb.10
+        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 08:29:22 -0700 (PDT)
+Received: by mail-pd0-f174.google.com with SMTP id y13so8816266pdi.19
+        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 08:29:19 -0700 (PDT)
+Message-ID: <525424A8.80608@gmail.com>
+Date: Tue, 08 Oct 2013 23:28:40 +0800
+From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH part1 v6 0/6] x86, memblock: Allocate memory near kernel
+ image before SRAT parsed
+References: <524E2032.4020106@gmail.com> <20131008042302.GA14353@gmail.com>
+In-Reply-To: <20131008042302.GA14353@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Andy Lutomirski <luto@amacapital.net>, Matt Mackall <mpm@selenic.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Peter Zijlstra <peterz@infradead.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Rafael J . Wysocki" <rjw@sisk.pl>, lenb@kernel.org, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, "H. Peter Anvin" <hpa@zytor.com>, Tejun Heo <tj@kernel.org>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, prarit@redhat.com, "x86@kernel.org" <x86@kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, imtangchen@gmail.com, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>
 
-On Tue, Oct 08, 2013 at 06:40:30PM +0400, Cyrill Gorcunov wrote:
-> On Tue, Oct 08, 2013 at 10:11:40AM -0400, Naoya Horiguchi wrote:
-> > > Index: linux-2.6.git/mm/memory.c
-> > > ===================================================================
-> > > --- linux-2.6.git.orig/mm/memory.c
-> > > +++ linux-2.6.git/mm/memory.c
-> > > @@ -837,6 +837,8 @@ copy_one_pte(struct mm_struct *dst_mm, s
-> > >  					 */
-> > >  					make_migration_entry_read(&entry);
-> > >  					pte = swp_entry_to_pte(entry);
-> > > +					if (pte_swp_soft_dirty(*src_pte))
-> > > +						pte = pte_swp_mksoft_dirty(pte);
-> > >  					set_pte_at(src_mm, addr, src_pte, pte);
-> > >  				}
-> > >  			}
-> > 
-> > When we convert pte to swap_entry, we convert soft-dirty bit in
-> > pte_to_swp_entry(). So I think that it's better to convert it back
-> > in swp_entry_to_pte() when we do swap_entry-to-pte conversion.
+Hello Ingo,
+
+On 10/08/2013 12:23 PM, Ingo Molnar wrote:
 > 
-> No, soft dirty bit lays _only_ inside pte entry in memory, iow
-> swp_entry_t never has this bit, thus to be able to find soft dirty
-> status in swp_entry_to_pte you need to extend this function and
-> pass pte entry itself as an argument, which eventually will bring
-> more massive patch and will be a way more confusing I think.
+> * Zhang Yanfei <zhangyanfei.yes@gmail.com> wrote:
+> 
+>> Hello, here is the v6 version. Any comments are welcome!
+> 
+> Ok, I think this is as good as this feature can get without hardware 
+> support.
+> 
 
-OK, you're right. Thanks for explanation.
+Without hardware/firmware support, we cannot know which memory is
+hotpluggable.
 
-> Or I misunderstood you?
-
-No, I misread the code, sorry.
-
-Naoya
+-- 
+Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
