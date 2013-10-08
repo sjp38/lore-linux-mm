@@ -1,94 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 58E956B0039
-	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 05:02:42 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rp2so8375047pbb.0
-        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 02:02:41 -0700 (PDT)
-Received: by mail-la0-f49.google.com with SMTP id ev20so6435109lab.8
-        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 02:02:38 -0700 (PDT)
-Message-Id: <20131008090236.951114091@gmail.com>
-Date: Tue, 08 Oct 2013 13:00:20 +0400
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id AF5BC6B0039
+	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 05:02:43 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id md4so8326786pbc.2
+        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 02:02:43 -0700 (PDT)
+Received: by mail-lb0-f174.google.com with SMTP id w6so6466017lbh.5
+        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 02:02:39 -0700 (PDT)
+Message-Id: <20131008090237.164975508@gmail.com>
+Date: Tue, 08 Oct 2013 13:00:22 +0400
 From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: [patch 1/3] [PATCH] mm: migration -- Do not loose soft dirty bit if page is in migration state
+Subject: [patch 3/3] [PATCH -mm] mm: Unify pte_to_pgoff and pgoff_to_pte helpers
 References: <20131008090019.527108154@gmail.com>
-Content-Disposition: inline; filename=pte-sft-dirty-migration-fix
+Content-Disposition: inline; filename=pte-sft-dirty-file-cleanup-2
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@parallels.com>, Andy Lutomirski <luto@amacapital.net>, Matt Mackall <mpm@selenic.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Peter Zijlstra <peterz@infradead.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@parallels.com>, Andy Lutomirski <luto@amacapital.net>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
 
-If page migration is turne on in the config and the page is migrating,
-we may loose soft dirty bit. If fork and mprotect if called on migrating
-pages (once migration is complete) pages do not obtain soft dirty bit
-in correspond pte entries. Fix it adding appropriate test on swap
-entries.
+Use unified pte_bitop helper to manipulate bits in pte/pgoff bitfield,
+and convert pte_to_pgoff/pgoff_to_pte to inlines.
 
 Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Pavel Emelyanov <xemul@parallels.com>
 Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matt Mackall <mpm@selenic.com>
-Cc: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-Cc: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@elte.hu>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
 ---
- mm/memory.c   |    2 ++
- mm/migrate.c  |    2 ++
- mm/mprotect.c |    7 +++++--
- 3 files changed, 9 insertions(+), 2 deletions(-)
+ arch/x86/include/asm/pgtable-2level.h |  100 ++++++++++++++++++++--------------
+ 1 file changed, 59 insertions(+), 41 deletions(-)
 
-Index: linux-2.6.git/mm/memory.c
+Index: linux-2.6.git/arch/x86/include/asm/pgtable-2level.h
 ===================================================================
---- linux-2.6.git.orig/mm/memory.c
-+++ linux-2.6.git/mm/memory.c
-@@ -837,6 +837,8 @@ copy_one_pte(struct mm_struct *dst_mm, s
- 					 */
- 					make_migration_entry_read(&entry);
- 					pte = swp_entry_to_pte(entry);
-+					if (pte_swp_soft_dirty(*src_pte))
-+						pte = pte_swp_mksoft_dirty(pte);
- 					set_pte_at(src_mm, addr, src_pte, pte);
- 				}
- 			}
-Index: linux-2.6.git/mm/migrate.c
-===================================================================
---- linux-2.6.git.orig/mm/migrate.c
-+++ linux-2.6.git/mm/migrate.c
-@@ -161,6 +161,8 @@ static int remove_migration_pte(struct p
+--- linux-2.6.git.orig/arch/x86/include/asm/pgtable-2level.h
++++ linux-2.6.git/arch/x86/include/asm/pgtable-2level.h
+@@ -55,6 +55,13 @@ static inline pmd_t native_pmdp_get_and_
+ #define native_pmdp_get_and_clear(xp) native_local_pmdp_get_and_clear(xp)
+ #endif
  
- 	get_page(new);
- 	pte = pte_mkold(mk_pte(new, vma->vm_page_prot));
-+	if (pte_swp_soft_dirty(*ptep))
-+		pte = pte_mksoft_dirty(pte);
- 	if (is_write_migration_entry(entry))
- 		pte = pte_mkwrite(pte);
- #ifdef CONFIG_HUGETLB_PAGE
-Index: linux-2.6.git/mm/mprotect.c
-===================================================================
---- linux-2.6.git.orig/mm/mprotect.c
-+++ linux-2.6.git/mm/mprotect.c
-@@ -94,13 +94,16 @@ static unsigned long change_pte_range(st
- 			swp_entry_t entry = pte_to_swp_entry(oldpte);
++/* Bit manipulation helper on pte/pgoff entry */
++static inline unsigned long pte_bitop(unsigned long value, unsigned int rightshift,
++				      unsigned long mask, unsigned int leftshift)
++{
++	return ((value >> rightshift) & mask) << leftshift;
++}
++
+ #ifdef CONFIG_MEM_SOFT_DIRTY
  
- 			if (is_write_migration_entry(entry)) {
-+				pte_t newpte;
- 				/*
- 				 * A protection check is difficult so
- 				 * just be safe and disable write
- 				 */
- 				make_migration_entry_read(&entry);
--				set_pte_at(mm, addr, pte,
--					swp_entry_to_pte(entry));
-+				newpte = swp_entry_to_pte(entry);
-+				if (pte_swp_soft_dirty(oldpte))
-+					newpte = pte_swp_mksoft_dirty(newpte);
-+				set_pte_at(mm, addr, pte, newpte);
- 			}
- 			pages++;
- 		}
+ /*
+@@ -71,31 +78,34 @@ static inline pmd_t native_pmdp_get_and_
+ #define PTE_FILE_BITS2		(PTE_FILE_SHIFT3 - PTE_FILE_SHIFT2 - 1)
+ #define PTE_FILE_BITS3		(PTE_FILE_SHIFT4 - PTE_FILE_SHIFT3 - 1)
+ 
+-#define pte_to_pgoff(pte)						\
+-	((((pte).pte_low >> (PTE_FILE_SHIFT1))				\
+-	  & ((1U << PTE_FILE_BITS1) - 1)))				\
+-	+ ((((pte).pte_low >> (PTE_FILE_SHIFT2))			\
+-	    & ((1U << PTE_FILE_BITS2) - 1))				\
+-	   << (PTE_FILE_BITS1))						\
+-	+ ((((pte).pte_low >> (PTE_FILE_SHIFT3))			\
+-	    & ((1U << PTE_FILE_BITS3) - 1))				\
+-	   << (PTE_FILE_BITS1 + PTE_FILE_BITS2))			\
+-	+ ((((pte).pte_low >> (PTE_FILE_SHIFT4)))			\
+-	    << (PTE_FILE_BITS1 + PTE_FILE_BITS2 + PTE_FILE_BITS3))
+-
+-#define pgoff_to_pte(off)						\
+-	((pte_t) { .pte_low =						\
+-	 ((((off)) & ((1U << PTE_FILE_BITS1) - 1)) << PTE_FILE_SHIFT1)	\
+-	 + ((((off) >> PTE_FILE_BITS1)					\
+-	     & ((1U << PTE_FILE_BITS2) - 1))				\
+-	    << PTE_FILE_SHIFT2)						\
+-	 + ((((off) >> (PTE_FILE_BITS1 + PTE_FILE_BITS2))		\
+-	     & ((1U << PTE_FILE_BITS3) - 1))				\
+-	    << PTE_FILE_SHIFT3)						\
+-	 + ((((off) >>							\
+-	      (PTE_FILE_BITS1 + PTE_FILE_BITS2 + PTE_FILE_BITS3)))	\
+-	    << PTE_FILE_SHIFT4)						\
+-	 + _PAGE_FILE })
++#define PTE_FILE_MASK1		((1U << PTE_FILE_BITS1) - 1)
++#define PTE_FILE_MASK2		((1U << PTE_FILE_BITS2) - 1)
++#define PTE_FILE_MASK3		((1U << PTE_FILE_BITS3) - 1)
++
++#define PTE_FILE_LSHIFT2	(PTE_FILE_BITS1)
++#define PTE_FILE_LSHIFT3	(PTE_FILE_BITS1 + PTE_FILE_BITS2)
++#define PTE_FILE_LSHIFT4	(PTE_FILE_BITS1 + PTE_FILE_BITS2 + PTE_FILE_BITS3)
++
++static __always_inline pgoff_t pte_to_pgoff(pte_t pte)
++{
++	return (pgoff_t)
++		(pte_bitop(pte.pte_low, PTE_FILE_SHIFT1, PTE_FILE_MASK1,  0)		    +
++		 pte_bitop(pte.pte_low, PTE_FILE_SHIFT2, PTE_FILE_MASK2,  PTE_FILE_LSHIFT2) +
++		 pte_bitop(pte.pte_low, PTE_FILE_SHIFT3, PTE_FILE_MASK3,  PTE_FILE_LSHIFT3) +
++		 pte_bitop(pte.pte_low, PTE_FILE_SHIFT4,           -1UL,  PTE_FILE_LSHIFT4));
++}
++
++static __always_inline pte_t pgoff_to_pte(pgoff_t off)
++{
++	return (pte_t){
++		.pte_low =
++			pte_bitop(off,                0, PTE_FILE_MASK1,  PTE_FILE_SHIFT1) +
++			pte_bitop(off, PTE_FILE_LSHIFT2, PTE_FILE_MASK2,  PTE_FILE_SHIFT2) +
++			pte_bitop(off, PTE_FILE_LSHIFT3, PTE_FILE_MASK3,  PTE_FILE_SHIFT3) +
++			pte_bitop(off, PTE_FILE_LSHIFT4,           -1UL,  PTE_FILE_SHIFT4) +
++			_PAGE_FILE,
++	};
++}
+ 
+ #else /* CONFIG_MEM_SOFT_DIRTY */
+ 
+@@ -115,22 +125,30 @@ static inline pmd_t native_pmdp_get_and_
+ #define PTE_FILE_BITS1		(PTE_FILE_SHIFT2 - PTE_FILE_SHIFT1 - 1)
+ #define PTE_FILE_BITS2		(PTE_FILE_SHIFT3 - PTE_FILE_SHIFT2 - 1)
+ 
+-#define pte_to_pgoff(pte)						\
+-	((((pte).pte_low >> PTE_FILE_SHIFT1)				\
+-	  & ((1U << PTE_FILE_BITS1) - 1))				\
+-	 + ((((pte).pte_low >> PTE_FILE_SHIFT2)				\
+-	     & ((1U << PTE_FILE_BITS2) - 1)) << PTE_FILE_BITS1)		\
+-	 + (((pte).pte_low >> PTE_FILE_SHIFT3)				\
+-	    << (PTE_FILE_BITS1 + PTE_FILE_BITS2)))
+-
+-#define pgoff_to_pte(off)						\
+-	((pte_t) { .pte_low =						\
+-	 (((off) & ((1U << PTE_FILE_BITS1) - 1)) << PTE_FILE_SHIFT1)	\
+-	 + ((((off) >> PTE_FILE_BITS1) & ((1U << PTE_FILE_BITS2) - 1))	\
+-	    << PTE_FILE_SHIFT2)						\
+-	 + (((off) >> (PTE_FILE_BITS1 + PTE_FILE_BITS2))		\
+-	    << PTE_FILE_SHIFT3)						\
+-	 + _PAGE_FILE })
++#define PTE_FILE_MASK1		((1U << PTE_FILE_BITS1) - 1)
++#define PTE_FILE_MASK2		((1U << PTE_FILE_BITS2) - 1)
++
++#define PTE_FILE_LSHIFT2	(PTE_FILE_BITS1)
++#define PTE_FILE_LSHIFT3	(PTE_FILE_BITS1 + PTE_FILE_BITS2)
++
++static __always_inline pgoff_t pte_to_pgoff(pte_t pte)
++{
++	return (pgoff_t)
++		(pte_bitop(pte.pte_low, PTE_FILE_SHIFT1, PTE_FILE_MASK1,  0)		    +
++		 pte_bitop(pte.pte_low, PTE_FILE_SHIFT2, PTE_FILE_MASK2,  PTE_FILE_LSHIFT2) +
++		 pte_bitop(pte.pte_low, PTE_FILE_SHIFT3,           -1UL,  PTE_FILE_LSHIFT3));
++}
++
++static __always_inline pte_t pgoff_to_pte(pgoff_t off)
++{
++	return (pte_t){
++		.pte_low =
++			pte_bitop(off,                0, PTE_FILE_MASK1,  PTE_FILE_SHIFT1) +
++			pte_bitop(off, PTE_FILE_LSHIFT2, PTE_FILE_MASK2,  PTE_FILE_SHIFT2) +
++			pte_bitop(off, PTE_FILE_LSHIFT3,           -1UL,  PTE_FILE_SHIFT3) +
++			_PAGE_FILE,
++	};
++}
+ 
+ #endif /* CONFIG_MEM_SOFT_DIRTY */
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
