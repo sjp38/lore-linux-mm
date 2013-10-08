@@ -1,47 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id BEB3F6B0039
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 23:28:40 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id v10so8027368pde.24
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 20:28:40 -0700 (PDT)
-Received: by mail-ie0-f180.google.com with SMTP id u16so17812417iet.39
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 20:28:37 -0700 (PDT)
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id D26456B0038
+	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 00:23:10 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id kl14so8165920pab.25
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 21:23:10 -0700 (PDT)
+Received: by mail-ea0-f172.google.com with SMTP id r16so3702559ead.3
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 21:23:06 -0700 (PDT)
+Date: Tue, 8 Oct 2013 06:23:02 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH part1 v6 0/6] x86, memblock: Allocate memory near kernel
+ image before SRAT parsed
+Message-ID: <20131008042302.GA14353@gmail.com>
+References: <524E2032.4020106@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1380761503-14509-8-git-send-email-john.stultz@linaro.org>
-References: <1380761503-14509-1-git-send-email-john.stultz@linaro.org> <1380761503-14509-8-git-send-email-john.stultz@linaro.org>
-From: Zhan Jianyu <nasa4836@gmail.com>
-Date: Tue, 8 Oct 2013 11:27:57 +0800
-Message-ID: <CAHz2CGWS+jWQU=v=5AnAgab1DrPr+snWvc62mf43Tx0aQUA8nA@mail.gmail.com>
-Subject: Re: [PATCH 07/14] vrange: Purge volatile pages when memory is tight
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <524E2032.4020106@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dhaval.giani@gmail.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Rob Clark <robdclark@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-
-On Thu, Oct 3, 2013 at 8:51 AM, John Stultz <john.stultz@linaro.org> wrote:
->  static inline int page_referenced(struct page *page, int is_locked,
->                                   struct mem_cgroup *memcg,
-> -                                 unsigned long *vm_flags)
-> +                                 unsigned long *vm_flags,
-> +                                 int *is_vrange)
->  {
->         *vm_flags = 0;
-> +       *is_vrange = 0;
->         return 0;
->  }
-
-I don't know if it is appropriate to add a parameter in such a  core
-function for an optional functionality. Maybe the is_vrange flag
-should be squashed into the vm_flags ? I am not sure .
+To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Rafael J . Wysocki" <rjw@sisk.pl>, lenb@kernel.org, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, "H. Peter Anvin" <hpa@zytor.com>, Tejun Heo <tj@kernel.org>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, prarit@redhat.com, "x86@kernel.org" <x86@kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, imtangchen@gmail.com, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>
 
 
+* Zhang Yanfei <zhangyanfei.yes@gmail.com> wrote:
 
+> Hello, here is the v6 version. Any comments are welcome!
 
---
+Ok, I think this is as good as this feature can get without hardware 
+support.
 
-Regards,
-Zhan Jianyu
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
