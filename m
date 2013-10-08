@@ -1,110 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 79D786B0039
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 22:55:00 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id z10so7992245pdj.17
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 19:55:00 -0700 (PDT)
-Date: Mon, 07 Oct 2013 22:54:54 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1381200894-g4p1jfd3-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20131007175125.7bb300853d37b6a64eba248d@linux-foundation.org>
-References: <1380913335-17466-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <5252B56C.8030903@parallels.com>
- <1381155304-2ro6e10t-mutt-n-horiguchi@ah.jp.nec.com>
- <20131007175125.7bb300853d37b6a64eba248d@linux-foundation.org>
-Subject: Re: [PATCH 1/2 v2] smaps: show VM_SOFTDIRTY flag in VmFlags line
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 935D66B0039
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 23:06:21 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id x10so8183531pdj.1
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 20:06:21 -0700 (PDT)
+Date: Tue, 8 Oct 2013 12:07:36 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 05/14] vrange: Add new vrange(2) system call
+Message-ID: <20131008030736.GA29509@bbox>
+References: <5253404D.2030503@linaro.org>
+ <52534331.2060402@zytor.com>
+ <52534692.7010400@linaro.org>
+ <525347BE.7040606@zytor.com>
+ <525349AE.1070904@linaro.org>
+ <52534AEC.5040403@zytor.com>
+ <20131008001306.GD25780@bbox>
+ <52535EE1.3060700@zytor.com>
+ <20131008020847.GH25780@bbox>
+ <52537326.7000505@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <52537326.7000505@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pavel Emelyanov <xemul@parallels.com>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, John Stultz <john.stultz@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dhaval.giani@gmail.com>, Jan Kara <jack@suse.cz>, Michel Lespinasse <walken@google.com>, Rob Clark <robdclark@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Oct 07, 2013 at 05:51:25PM -0700, Andrew Morton wrote:
-> On Mon, 07 Oct 2013 10:15:04 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+Hi KOSAKI,
+
+On Mon, Oct 07, 2013 at 10:51:18PM -0400, KOSAKI Motohiro wrote:
+> >Maybe, int madvise5(addr, length, MADV_DONTNEED|MADV_LAZY|MADV_SIGBUS,
+> >         &purged, &ret);
+> >
+> >Another reason to make it hard is that madvise(2) is tight coupled with
+> >with vmas split/merge. It needs mmap_sem's write-side lock and it hurt
+> >anon-vrange test performance much heavily and userland might want to
+> >make volatile range with small unit like "page size" so it's undesireable
+> >to make it with vma. Then, we should filter out to avoid vma split/merge
+> >in implementation if only MADV_LAZY case? Doable but it could make code
+> >complicated and lost consistency with other variant of madvise.
 > 
-> > From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > Date: Fri, 4 Oct 2013 13:42:13 -0400
-> > Subject: [PATCH] smaps: show VM_SOFTDIRTY flag in VmFlags line
-> > 
-> > This flag shows that the VMA is "newly created" and thus represents
-> > "dirty" in the task's VM.
-> > You can clear it by "echo 4 > /proc/pid/clear_refs."
-> > 
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > ---
-> >  fs/proc/task_mmu.c | 3 +++
-> >  1 file changed, 3 insertions(+)
-> > 
-> > diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> > index 7366e9d..c591928 100644
-> > --- a/fs/proc/task_mmu.c
-> > +++ b/fs/proc/task_mmu.c
-> > @@ -561,6 +561,9 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
-> >  		[ilog2(VM_NONLINEAR)]	= "nl",
-> >  		[ilog2(VM_ARCH_1)]	= "ar",
-> >  		[ilog2(VM_DONTDUMP)]	= "dd",
-> > +#ifdef CONFIG_MEM_SOFT_DIRTY
-> > +		[ilog2(VM_SOFTDIRTY)]	= "sd",
-> > +#endif
-> >  		[ilog2(VM_MIXEDMAP)]	= "mm",
-> >  		[ilog2(VM_HUGEPAGE)]	= "hg",
-> >  		[ilog2(VM_NOHUGEPAGE)]	= "nh",
-> 
-> Documentation/filesystems/proc.txt needs updating, please.
+> I haven't seen your performance test result. Could please point out URLs?
 
-OK. Here's the revised one.
----
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Date: Mon, 7 Oct 2013 22:52:00 -0400
-Subject: [PATCH] smaps: show VM_SOFTDIRTY flag in VmFlags line
+https://lkml.org/lkml/2013/3/12/105
 
-This flag shows that the VMA is "newly created" and thus represents
-"dirty" in the task's VM.
-You can clear it by "echo 4 > /proc/pid/clear_refs."
-
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Acked-by: Cyrill Gorcunov <gorcunov@openvz.org>
----
- Documentation/filesystems/proc.txt | 1 +
- fs/proc/task_mmu.c                 | 3 +++
- 2 files changed, 4 insertions(+)
-
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index 823c95f..22d89aa3 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -460,6 +460,7 @@ flags associated with the particular virtual memory area in two letter encoded
-     nl  - non-linear mapping
-     ar  - architecture specific flag
-     dd  - do not include area into core dump
-+    sd  - soft-dirty flag
-     mm  - mixed map area
-     hg  - huge page advise flag
-     nh  - no-huge page advise flag
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 7366e9d..c591928 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -561,6 +561,9 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
- 		[ilog2(VM_NONLINEAR)]	= "nl",
- 		[ilog2(VM_ARCH_1)]	= "ar",
- 		[ilog2(VM_DONTDUMP)]	= "dd",
-+#ifdef CONFIG_MEM_SOFT_DIRTY
-+		[ilog2(VM_SOFTDIRTY)]	= "sd",
-+#endif
- 		[ilog2(VM_MIXEDMAP)]	= "mm",
- 		[ilog2(VM_HUGEPAGE)]	= "hg",
- 		[ilog2(VM_NOHUGEPAGE)]	= "nh",
 -- 
-1.8.3.1
-
-
-
-
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
