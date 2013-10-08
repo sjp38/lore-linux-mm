@@ -1,46 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 89C156B0031
-	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 12:14:48 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id ld10so9049414pab.36
-        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 09:14:48 -0700 (PDT)
-Message-ID: <52542F53.4020807@sr71.net>
-Date: Tue, 08 Oct 2013 09:14:11 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id DEDB86B0031
+	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 12:23:19 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id r10so8988184pdi.28
+        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 09:23:19 -0700 (PDT)
+Received: by mail-pb0-f54.google.com with SMTP id ro12so8931936pbb.27
+        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 09:23:17 -0700 (PDT)
+Message-ID: <5254315C.70401@linaro.org>
+Date: Tue, 08 Oct 2013 09:22:52 -0700
+From: John Stultz <john.stultz@linaro.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] vmsplice: unmap gifted pages for recipient
-References: <1381177293-27125-1-git-send-email-rcj@linux.vnet.ibm.com> <1381177293-27125-2-git-send-email-rcj@linux.vnet.ibm.com>
-In-Reply-To: <1381177293-27125-2-git-send-email-rcj@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 07/14] vrange: Purge volatile pages when memory is tight
+References: <1380761503-14509-1-git-send-email-john.stultz@linaro.org> <1380761503-14509-8-git-send-email-john.stultz@linaro.org> <CAHz2CGWS+jWQU=v=5AnAgab1DrPr+snWvc62mf43Tx0aQUA8nA@mail.gmail.com>
+In-Reply-To: <CAHz2CGWS+jWQU=v=5AnAgab1DrPr+snWvc62mf43Tx0aQUA8nA@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robert C Jennings <rcj@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Matt Helsley <matt.helsley@gmail.com>, Anthony Liguori <anthony@codemonkey.ws>, Michael Roth <mdroth@linux.vnet.ibm.com>, Lei Li <lilei@linux.vnet.ibm.com>, Leonardo Garcia <lagarcia@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Zhan Jianyu <nasa4836@gmail.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dhaval.giani@gmail.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Rob Clark <robdclark@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 10/07/2013 01:21 PM, Robert C Jennings wrote:
-> +					} else {
-> +						if (vma)
-> +							zap_page_range(vma,
-> +								user_start,
-> +								(user_end -
-> +								 user_start),
-> +								NULL);
-> +						vma = find_vma_intersection(
-> +								current->mm,
-> +								useraddr,
-> +								(useraddr +
-> +								 PAGE_SIZE));
-> +						if (!IS_ERR_OR_NULL(vma)) {
-> +							user_start = useraddr;
-> +							user_end = (useraddr +
-> +								    PAGE_SIZE);
-> +						} else
-> +							vma = NULL;
-> +					}
+On 10/07/2013 08:27 PM, Zhan Jianyu wrote:
+> On Thu, Oct 3, 2013 at 8:51 AM, John Stultz <john.stultz@linaro.org> wrote:
+>>  static inline int page_referenced(struct page *page, int is_locked,
+>>                                   struct mem_cgroup *memcg,
+>> -                                 unsigned long *vm_flags)
+>> +                                 unsigned long *vm_flags,
+>> +                                 int *is_vrange)
+>>  {
+>>         *vm_flags = 0;
+>> +       *is_vrange = 0;
+>>         return 0;
+>>  }
+> I don't know if it is appropriate to add a parameter in such a  core
+> function for an optional functionality. Maybe the is_vrange flag
+> should be squashed into the vm_flags ? I am not sure .
+Yea, this wasn't either Minchan or I were particularly fond of, but with
+the vm_flags exausted, there wasn't a clear way to do so without doing
+the rmap traversal again.
 
-This is pretty unspeakably hideous.  Was there truly no better way to do
-this?
+Other suggestions?  Extending the vm_flags to 64bits is something many
+better mm devs have tried to merge unsuccessfully, so I'm hesitant to
+try pushing it myself.
+
+thanks
+-john
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
