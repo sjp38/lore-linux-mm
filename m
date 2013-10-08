@@ -1,72 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A31F6B0037
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 20:18:48 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id g10so7837038pdj.40
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 17:18:48 -0700 (PDT)
-Received: by mail-pb0-f50.google.com with SMTP id uo5so7812938pbc.37
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 17:18:45 -0700 (PDT)
-Message-ID: <52534F60.9030500@linaro.org>
-Date: Mon, 07 Oct 2013 17:18:40 -0700
-From: John Stultz <john.stultz@linaro.org>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 12EF26B0037
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 20:27:20 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so8020006pab.4
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 17:27:20 -0700 (PDT)
+Message-ID: <52535164.30201@gmail.com>
+Date: Mon, 07 Oct 2013 20:27:16 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 05/14] vrange: Add new vrange(2) system call
-References: <1380761503-14509-1-git-send-email-john.stultz@linaro.org> <1380761503-14509-6-git-send-email-john.stultz@linaro.org> <52533C12.9090007@zytor.com> <5253404D.2030503@linaro.org> <52534331.2060402@zytor.com> <52534692.7010400@linaro.org> <525347BE.7040606@zytor.com> <525349AE.1070904@linaro.org> <52534AEC.5040403@zytor.com> <20131008001306.GD25780@bbox>
-In-Reply-To: <20131008001306.GD25780@bbox>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 0/26] get_user_pages() cleanup
+References: <1380724087-13927-1-git-send-email-jack@suse.cz> <20131002162009.GA5778@infradead.org> <20131002202941.GF16998@quack.suse.cz> <524F2592.1040305@gmail.com> <524F282B.2080809@gmail.com> <20131007211822.GF30441@quack.suse.cz>
+In-Reply-To: <20131007211822.GF30441@quack.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dhaval.giani@gmail.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Rob Clark <robdclark@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Jan Kara <jack@suse.cz>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Christoph Hellwig <hch@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <andreas.dilger@intel.com>, Andy Walls <awalls@md.metrocast.net>, Arnd Bergmann <arnd@arndb.de>, Benjamin LaHaise <bcrl@kvack.org>, ceph-devel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, David Airlie <airlied@linux.ie>, dri-devel@lists.freedesktop.org, Gleb Natapov <gleb@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, hpdd-discuss@ml01.01.org, Jarod Wilson <jarod@wilsonet.com>, Jayant Mangalampalli <jayant.mangalampalli@intel.com>, Jean-Christophe Plagniol-Villard <plagnioj@jcrosoft.com>, Jesper Nilsson <jesper.nilsson@axis.com>, Kai Makisara <Kai.Makisara@kolumbus.fi>, kvm@vger.kernel.org, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, linux-aio@kvack.org, linux-cris-kernel@axis.com, linux-fbdev@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-media@vger.kernel.org, linux-nfs@vger.kernel.org, linux-rdma@vger.kernel.org, linux-scsi@vger.kernel.org, Manu Abraham <abraham.manu@gmail.com>, Mark Allyn <mark.a.allyn@intel.com>, Mikael Starvik <starvik@axis.com>, Mike Marciniszyn <infinipath@intel.com>, Naren Sankar <nsankar@broadcom.com>, Paolo Bonzini <pbonzini@redhat.com>, Peng Tao <tao.peng@emc.com>, Roland Dreier <roland@kernel.org>, Sage Weil <sage@inktank.com>, Scott Davilla <davilla@4pi.com>, Timur Tabi <timur@freescale.com>, Tomi Valkeinen <tomi.valkeinen@ti.com>, Tony Luck <tony.luck@intel.com>, Trond Myklebust <Trond.Myklebust@netapp.com>
 
-On 10/07/2013 05:13 PM, Minchan Kim wrote:
-> Hello Peter,
->
-> On Mon, Oct 07, 2013 at 04:59:40PM -0700, H. Peter Anvin wrote:
->> On 10/07/2013 04:54 PM, John Stultz wrote:
->>>> And wouldn't this apply to MADV_DONTNEED just as well?  Perhaps what we
->>>> should do is an enhanced madvise() call?
->>> Well, I think MADV_DONTNEED doesn't *have* do to anything at all. Its
->>> advisory after all. So it may immediately wipe out any data, but it may not.
+(10/7/13 5:18 PM), Jan Kara wrote:
+> On Fri 04-10-13 16:42:19, KOSAKI Motohiro wrote:
+>> (10/4/13 4:31 PM), KOSAKI Motohiro wrote:
+>>> (10/2/13 4:29 PM), Jan Kara wrote:
+>>>> On Wed 02-10-13 09:20:09, Christoph Hellwig wrote:
+>>>>> On Wed, Oct 02, 2013 at 04:27:41PM +0200, Jan Kara wrote:
+>>>>>>     Hello,
+>>>>>>
+>>>>>>     In my quest for changing locking around page faults to make things easier for
+>>>>>> filesystems I found out get_user_pages() users could use a cleanup.  The
+>>>>>> knowledge about necessary locking for get_user_pages() is in tons of places in
+>>>>>> drivers and quite a few of them actually get it wrong (don't have mmap_sem when
+>>>>>> calling get_user_pages() or hold mmap_sem when calling copy_from_user() in the
+>>>>>> surrounding code). Rather often this actually doesn't seem necessary. This
+>>>>>> patch series converts lots of places to use either get_user_pages_fast()
+>>>>>> or a new simple wrapper get_user_pages_unlocked() to remove the knowledge
+>>>>>> of mmap_sem from the drivers. I'm still looking into converting a few remaining
+>>>>>> drivers (most notably v4l2) which are more complex.
+>>>>>
+>>>>> Even looking over the kerneldoc comment next to it I still fail to
+>>>>> understand when you'd want to use get_user_pages_fast and when not.
+>>>>     AFAIU get_user_pages_fast() should be used
+>>>> 1) if you don't need any special get_user_pages() arguments (like calling
+>>>>      it for mm of a different process, forcing COW, or similar).
+>>>> 2) you don't expect pages to be unmapped (then get_user_pages_fast() is
+>>>> actually somewhat slower because it walks page tables twice).
 >>>
->>> Those advisory semantics work fine w/ VRANGE_VOLATILE. However,
->>> VRANGE_NONVOLATILE is not quite advisory, its telling the system that it
->>> requires the memory at the specified range to not be volatile, and we
->>> need to correctly inform userland how much was changed and if any of the
->>> memory we did change to non-volatile was purged since being set volatile.
+>>> If target page point to anon or private mapping pages, get_user_pages_fast()
+>>> is fork unsafe. O_DIRECT man pages describe a bit about this.
 >>>
->>> In that way it is sort of different from madvise. Some sort of an
->>> madvise2 could be done, but then the extra purge state argument would be
->>> oddly defined for any other mode.
 >>>
->>> Is your main concern here just wanting to have a zero-fill mode with
->>> volatile ranges? Or do you really want to squeeze this in to the madvise
->>> call interface?
->> The point is that MADV_DONTNEED is very similar in that sense,
->> especially if allowed to be lazy.  It makes a lot of sense to permit
->> both scrubbing modes orthogonally.
+>>> see http://man7.org/linux/man-pages/man2/open.2.html
+>>>
+>>>>        O_DIRECT I/Os should never be run concurrently with the fork(2)
+>>>>        system call, if the memory buffer is a private mapping (i.e., any
+>>>>        mapping created with the mmap(2) MAP_PRIVATE flag; this includes
+>>>>        memory allocated on the heap and statically allocated buffers).  Any
+>>>>        such I/Os, whether submitted via an asynchronous I/O interface or
+>>>>        from another thread in the process, should be completed before
+>>>>        fork(2) is called.  Failure to do so can result in data corruption
+>>>>        and undefined behavior in parent and child processes.  This
+>>>>        restriction does not apply when the memory buffer for the O_DIRECT
+>>>>        I/Os was created using shmat(2) or mmap(2) with the MAP_SHARED flag.
+>>>>        Nor does this restriction apply when the memory buffer has been
+>>>>        advised as MADV_DONTFORK with madvise(2), ensuring that it will not
+>>>>        be available to the child after fork(2).
 >>
->> The point you're making has to do with withdrawal of permission to flush
->> on demand, which is a result of having the lazy mode (ongoing
->> permission) and having to be able to withdraw such permission.
-> I'm sorry I could not understand what you wanted to say.
-> Could you elaborate a bit?
-My understanding of his point is that VRANGE_VOLATILE is like a lazy
-MADV_DONTNEED (with sigbus, rather then zero fill on fault), suggests
-that we should find a way to have VRANGE_VOLATILE be something like
-MADV_DONTNEED|MADV_LAZY|MADV_SIGBUS_FAULT, instead of adding a new
-syscall.  This would provide more options, since one could instead just
-do MADV_DONTNEED|MADV_LAZY if they wanted zero-fill faults.
+>> IMHO, get_user_pages_fast() should be renamed to get_user_pages_quirk(). Its
+>> semantics is not equal to get_user_pages(). When someone simply substitute
+>> get_user_pages() to get_user_pages_fast(), they might see huge trouble.
+>    I forgot about this speciality (and actually comments didn't remind me
+> :(). But thinking about this some more get_user_pages_fast() seems as save
+> as get_user_pages() in presence of threads sharing mm, doesn't it?
 
-And indeed, for the VRANGE_VOLATILE case, we could do something like
-that, but the unresolved problem I see is that that we still need to
-handle the VRANGE_NONVOLATILE case, and the madvise() interface doesn't
-seem to accomodate the needed semantics well.
+It depends.
 
-thanks
--john
+If there is any guarantee that other threads don't touch the same page which
+retrieved get_user_pages(), get_user_pages_fast() give us brilliant fast way.
+Example, as far as I heard form IB guys, the userland library of the infiniband
+stack uses madvise(MADV_DONTFORK), and then they don't need to care COW issue
+and can choose fastest way. An another example is a futex. futex doesn't use
+the contents of the pages, it uses vaddr only for looking up key. Then, it
+also doesn't have COW issue.
 
+I don't know other cases. But as far as I know, everything is case-by-case.
+
+> Because
+> while get_user_pages() are working, other thread can happilly trigger COW
+> on some of the pages and thus get_user_pages() can return pages some of
+> which are invisible in our mm by the time get_user_pages() returns.
+
+If you are talking about get_user_pages() instead of get_user_pages_fast(), this
+can't be happen because page-fault takes mmap_sem too.
+
+I would say, mmap_sem has too fat responsibility really.
+
+> So
+> although in practice I agree problems of get_user_pages_fast() with fork(2)
+> are more visible, in essence they are still present with clone(2) and
+> get_user_pages().
+>
+> 								Honza
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
