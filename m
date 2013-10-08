@@ -1,132 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id E85736B0037
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 20:10:42 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so8013251pad.2
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 17:10:42 -0700 (PDT)
-Received: by mail-gg0-f171.google.com with SMTP id u2so1265764ggn.16
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 17:10:34 -0700 (PDT)
-Message-ID: <52534D7B.9060003@gmail.com>
-Date: Mon, 07 Oct 2013 20:10:35 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 2066C6B0038
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 20:11:52 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id bj1so8062142pad.14
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 17:11:51 -0700 (PDT)
+Date: Tue, 8 Oct 2013 09:13:06 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 05/14] vrange: Add new vrange(2) system call
+Message-ID: <20131008001306.GD25780@bbox>
+References: <1380761503-14509-1-git-send-email-john.stultz@linaro.org>
+ <1380761503-14509-6-git-send-email-john.stultz@linaro.org>
+ <52533C12.9090007@zytor.com>
+ <5253404D.2030503@linaro.org>
+ <52534331.2060402@zytor.com>
+ <52534692.7010400@linaro.org>
+ <525347BE.7040606@zytor.com>
+ <525349AE.1070904@linaro.org>
+ <52534AEC.5040403@zytor.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 18/26] mm: Convert process_vm_rw_pages() to use get_user_pages_unlocked()
-References: <1380724087-13927-1-git-send-email-jack@suse.cz> <1380724087-13927-19-git-send-email-jack@suse.cz> <524C4AA1.7000409@gmail.com> <20131002193631.GB16998@quack.suse.cz> <524DF246.9050309@gmail.com> <20131007205508.GE30441@quack.suse.cz>
-In-Reply-To: <20131007205508.GE30441@quack.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52534AEC.5040403@zytor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: John Stultz <john.stultz@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dhaval.giani@gmail.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Rob Clark <robdclark@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-(10/7/13 4:55 PM), Jan Kara wrote:
-> On Thu 03-10-13 18:40:06, KOSAKI Motohiro wrote:
->> (10/2/13 3:36 PM), Jan Kara wrote:
->>> On Wed 02-10-13 12:32:33, KOSAKI Motohiro wrote:
->>>> (10/2/13 10:27 AM), Jan Kara wrote:
->>>>> Signed-off-by: Jan Kara <jack@suse.cz>
->>>>> ---
->>>>>    mm/process_vm_access.c | 8 ++------
->>>>>    1 file changed, 2 insertions(+), 6 deletions(-)
->>>>>
->>>>> diff --git a/mm/process_vm_access.c b/mm/process_vm_access.c
->>>>> index fd26d0433509..c1bc47d8ed90 100644
->>>>> --- a/mm/process_vm_access.c
->>>>> +++ b/mm/process_vm_access.c
->>>>> @@ -64,12 +64,8 @@ static int process_vm_rw_pages(struct task_struct *task,
->>>>>    	*bytes_copied = 0;
->>>>>
->>>>>    	/* Get the pages we're interested in */
->>>>> -	down_read(&mm->mmap_sem);
->>>>> -	pages_pinned = get_user_pages(task, mm, pa,
->>>>> -				      nr_pages_to_copy,
->>>>> -				      vm_write, 0, process_pages, NULL);
->>>>> -	up_read(&mm->mmap_sem);
->>>>> -
->>>>> +	pages_pinned = get_user_pages_unlocked(task, mm, pa, nr_pages_to_copy,
->>>>> +					       vm_write, 0, process_pages);
->>>>>    	if (pages_pinned != nr_pages_to_copy) {
->>>>>    		rc = -EFAULT;
->>>>>    		goto end;
->>>>
->>>> This is wrong because original code is wrong. In this function, page may
->>>> be pointed to anon pages. Then, you should keep to take mmap_sem until
->>>> finish to copying. Otherwise concurrent fork() makes nasty COW issue.
->>>    Hum, can you be more specific? I suppose you are speaking about situation
->>> when the remote task we are copying data from/to does fork while
->>> process_vm_rw_pages() runs. If we are copying data from remote task, I
->>> don't see how COW could cause any problem. If we are copying to remote task
->>> and fork happens after get_user_pages() but before copy_to_user() then I
->>> can see we might be having some trouble. copy_to_user() would then copy
->>> data into both original remote process and its child thus essentially
->>> bypassing COW. If the child process manages to COW some of the pages before
->>> copy_to_user() happens, it can even see only some of the pages. Is that what
->>> you mean?
->>
->> scenario 1: vm_write==0
->>
->> Process P1 call get_user_pages(pa, process_pages) in process_vm_rw_pages
->> P1 unlock mmap_sem.
->> Process P2 call fork(). and make P3.
->> P2 write memory pa. now the "process_pages" is owned by P3 (the child process)
->> P3 write memory pa. and then the content of "process_pages" is changed.
->> P1 read process_pages as P2's page. but actually, it is P3's data. Then,
->>    P1 observe garbage, at least unintended, data was read.
->    Yeah, this really looks buggy because P1 can see data in (supposedly)
-> P2's address space which P2 never wrote there.
->
->> scenario 2: vm_write==1
->>
->> Process P1 call get_user_pages(pa, process_pages) in process_vm_rw_pages.
->> It makes COW break and any anon page sharing broke.
->> P1 unlock mmap_sem.
->> P2 call fork(). and make P3. And, now COW page sharing is restored.
->> P2 write memory pa. now the "process_pages" is owned by P3.
->> P3 write memory pa. it mean P3 changes "process_pages".
->> P1 write process_pages as P2's page. but actually, it is P3's. It
->> override above P3's write and then P3 observe data corruption.
->    Yep, this is a similar problem as above. Thanks for pointing this out.
->
->> The solution is to keep holding mmap_sem until finishing process_pages
->> access because mmap_sem prevent fork. and then race never be happen. I
->> mean you cann't use get_user_pages_unlock() if target address point to
->> anon pages.
->    Yeah, if you are accessing third party mm,
+Hello Peter,
 
-one correction. the condition is,
+On Mon, Oct 07, 2013 at 04:59:40PM -0700, H. Peter Anvin wrote:
+> On 10/07/2013 04:54 PM, John Stultz wrote:
+> >>>
+> >> And wouldn't this apply to MADV_DONTNEED just as well?  Perhaps what we
+> >> should do is an enhanced madvise() call?
+> > Well, I think MADV_DONTNEED doesn't *have* do to anything at all. Its
+> > advisory after all. So it may immediately wipe out any data, but it may not.
+> > 
+> > Those advisory semantics work fine w/ VRANGE_VOLATILE. However,
+> > VRANGE_NONVOLATILE is not quite advisory, its telling the system that it
+> > requires the memory at the specified range to not be volatile, and we
+> > need to correctly inform userland how much was changed and if any of the
+> > memory we did change to non-volatile was purged since being set volatile.
+> > 
+> > In that way it is sort of different from madvise. Some sort of an
+> > madvise2 could be done, but then the extra purge state argument would be
+> > oddly defined for any other mode.
+> > 
+> > Is your main concern here just wanting to have a zero-fill mode with
+> > volatile ranges? Or do you really want to squeeze this in to the madvise
+> > call interface?
+> 
+> The point is that MADV_DONTNEED is very similar in that sense,
+> especially if allowed to be lazy.  It makes a lot of sense to permit
+> both scrubbing modes orthogonally.
+> 
+> The point you're making has to do with withdrawal of permission to flush
+> on demand, which is a result of having the lazy mode (ongoing
+> permission) and having to be able to withdraw such permission.
 
-  - third party mm, or
-  - current process have multiple threads and other threads makes fork() and COW break
+I'm sorry I could not understand what you wanted to say.
+Could you elaborate a bit?
 
->you've convinced me you
-> currently need mmap_sem to avoid problems with COW on anon pages. I'm just
-> thinking that this "hold mmap_sem to prevent fork" is somewhat subtle
-> (definitely would deserve a comment) and if it would be needed in more
-> places we might be better off if we have a more explicit mechanism for that
-> (like a special lock, fork sequence count, or something like that).
+Thanks.
 
-Hmm..
+> 
+> 	-0hpa
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Actually, I tried this several years ago. But MM people disliked it because
-they prefer faster kernel than simple code. Any additional lock potentially
-makes slower the kernel.
-
-However, I fully agree the current mechanism is too complex and misleading,
-or at least, very hard to understanding. So, any improvement idea is welcome.
-
-> Anyway
-> I'll have this in mind and if I see other places that need this, I'll try
-> to come up with some solution. Thanks again for explanation.
-
-NP.
-
-I tried to explain this at MM summit. but my English is too poor and I couldn't
-explain enough to you. Sorry about that.
-
-
-Anyway, I'd like to fix process_vm_rw_pages() before my memory will be flushed again.
-Thank you for helping remember this bug.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
