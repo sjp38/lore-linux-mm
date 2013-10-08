@@ -1,65 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id B90BD6B0031
-	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 17:23:21 -0400 (EDT)
-Received: by mail-pb0-f44.google.com with SMTP id xa7so9249523pbc.31
-        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 14:23:21 -0700 (PDT)
-Message-ID: <525477A4.5060504@sr71.net>
-Date: Tue, 08 Oct 2013 14:22:44 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 69AE66B0031
+	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 17:32:05 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so49248pad.2
+        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 14:32:05 -0700 (PDT)
+Date: Tue, 8 Oct 2013 18:31:27 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH v8 5/9] MCS Lock: Restructure the MCS lock defines and
+ locking code into its own file
+Message-ID: <20131008213126.GB21046@localhost.localdomain>
+References: <cover.1380748401.git.tim.c.chen@linux.intel.com>
+ <1380753512.11046.87.camel@schen9-DESK>
+ <20131008195100.GA21046@localhost.localdomain>
+ <1381264495.11046.110.camel@schen9-DESK>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] vmsplice: unmap gifted pages for recipient
-References: <1381177293-27125-1-git-send-email-rcj@linux.vnet.ibm.com> <1381177293-27125-2-git-send-email-rcj@linux.vnet.ibm.com> <52542F53.4020807@sr71.net> <20131008194819.GB6129@linux.vnet.ibm.com>
-In-Reply-To: <20131008194819.GB6129@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1381264495.11046.110.camel@schen9-DESK>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Matt Helsley <matt.helsley@gmail.com>, Anthony Liguori <anthony@codemonkey.ws>, Michael Roth <mdroth@linux.vnet.ibm.com>, Lei Li <lilei@linux.vnet.ibm.com>, Leonardo Garcia <lagarcia@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Jason Low <jason.low2@hp.com>, Waiman Long <Waiman.Long@hp.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On 10/08/2013 12:48 PM, Robert Jennings wrote:
-> * Dave Hansen (dave@sr71.net) wrote:
->> On 10/07/2013 01:21 PM, Robert C Jennings wrote:
->>> +					} else {
->>> +						if (vma)
->>> +							zap_page_range(vma,
->>> +								user_start,
->>> +								(user_end -
->>> +								 user_start),
->>> +								NULL);
->>> +						vma = find_vma_intersection(
->>> +								current->mm,
->>> +								useraddr,
->>> +								(useraddr +
->>> +								 PAGE_SIZE));
->>> +						if (!IS_ERR_OR_NULL(vma)) {
->>> +							user_start = useraddr;
->>> +							user_end = (useraddr +
->>> +								    PAGE_SIZE);
->>> +						} else
->>> +							vma = NULL;
->>> +					}
->>
->> This is pretty unspeakably hideous.  Was there truly no better way to do
->> this?
+On Tue, Oct 08, 2013 at 01:34:55PM -0700, Tim Chen wrote:
+> On Tue, 2013-10-08 at 16:51 -0300, Rafael Aquini wrote:
+> > On Wed, Oct 02, 2013 at 03:38:32PM -0700, Tim Chen wrote:
+> > > We will need the MCS lock code for doing optimistic spinning for rwsem.
+> > > Extracting the MCS code from mutex.c and put into its own file allow us
+> > > to reuse this code easily for rwsem.
+> > > 
+> > > Reviewed-by: Ingo Molnar <mingo@elte.hu>
+> > > Reviewed-by: Peter Zijlstra <peterz@infradead.org>
+> > > Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+> > > Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+> > > ---
+> > >  include/linux/mcs_spinlock.h |   64 ++++++++++++++++++++++++++++++++++++++++++
+> > >  include/linux/mutex.h        |    5 ++-
+> > >  kernel/mutex.c               |   60 ++++----------------------------------
+> > >  3 files changed, 74 insertions(+), 55 deletions(-)
+> > >  create mode 100644 include/linux/mcs_spinlock.h
+> > > 
+> > > diff --git a/include/linux/mcs_spinlock.h b/include/linux/mcs_spinlock.h
+> > > new file mode 100644
+> > > index 0000000..b5de3b0
+> > > --- /dev/null
+> > > +++ b/include/linux/mcs_spinlock.h
+> > > @@ -0,0 +1,64 @@
+> > > +/*
+> > > + * MCS lock defines
+> > > + *
+> > > + * This file contains the main data structure and API definitions of MCS lock.
+> > > + *
+> > > + * The MCS lock (proposed by Mellor-Crummey and Scott) is a simple spin-lock
+> > > + * with the desirable properties of being fair, and with each cpu trying
+> > > + * to acquire the lock spinning on a local variable.
+> > > + * It avoids expensive cache bouncings that common test-and-set spin-lock
+> > > + * implementations incur.
+> > > + */
+> > 
+> > nitpick:
+> > 
+> > I believe you need 
+> > 
+> > +#include <asm/processor.h>
+> > 
+> > here, to avoid breaking the build when arch_mutex_cpu_relax() is not defined
+> > (arch/s390 is one case)
 > 
-> I was hoping to find a better way to coalesce pipe buffers and zap
-> entire VMAs (and it needs better documentation but your argument is with
-> structure and I agree). I would love suggestions for improving this but
-> that is not to say that I've abandoned it; I'm still looking for ways
-> to make this cleaner.
 
-Doing the VMA search each and every time seems a bit silly.  Do one
-find_vma(), the look at the _end_ virtual address of the VMA.  You can
-continue to collect your set of zap_page_range() addresses as long as
-you do not hit the end of that address range.
+Humm... sorry by my noise as I was looking into an old tree, before this commit:
+commit 083986e8248d978b6c961d3da6beb0c921c68220
+Author: Heiko Carstens <heiko.carstens@de.ibm.com>
+Date:   Sat Sep 28 11:23:59 2013 +0200
 
-If and only if you hit the end of the vma, do the zap_page_range(), and
-then look up the VMA again.
+    mutex: replace CONFIG_HAVE_ARCH_MUTEX_CPU_RELAX with simple ifdef
 
-Storing the .useraddr still seems odd to me, and you haven't fully
-explained why you're doing it or how it is safe, or why you store both
-virtual addresses and file locations in it.
+
+> Probably 
+> 
+> +#include <linux/mutex.h> 
+>
+
+Yeah, but I guess right now you're ok without it, as the only place this 
+header is included is in kernel/mutex.c and it linux/mutex.h get in before us.
+
+If the plan is to extend usage for other places where mutex.h doesn't go, then
+perhaps the better thing would be just copycat the same #ifdef here.
+
+Cheers! (and sorry again for the noise)
+
+> should be added instead?
+> It defines arch_mutex_cpu_relax when there's no 
+> architecture specific version.
+> 
+> Thanks.
+> Tim
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
