@@ -1,39 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 37FA26B0039
-	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 20:50:20 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id bj1so8110459pad.28
-        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 17:50:19 -0700 (PDT)
-Date: Mon, 7 Oct 2013 17:50:16 -0700
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 963436B003A
+	for <linux-mm@kvack.org>; Mon,  7 Oct 2013 20:51:29 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so8165678pab.29
+        for <linux-mm@kvack.org>; Mon, 07 Oct 2013 17:51:29 -0700 (PDT)
+Date: Mon, 7 Oct 2013 17:51:25 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] page-types.c: support KPF_SOFTDIRTY bit
-Message-Id: <20131007175016.a513865c5ecae4bd5759c2b0@linux-foundation.org>
-In-Reply-To: <1380913335-17466-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 1/2 v2] smaps: show VM_SOFTDIRTY flag in VmFlags line
+Message-Id: <20131007175125.7bb300853d37b6a64eba248d@linux-foundation.org>
+In-Reply-To: <1381155304-2ro6e10t-mutt-n-horiguchi@ah.jp.nec.com>
 References: <1380913335-17466-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<1380913335-17466-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<5252B56C.8030903@parallels.com>
+	<1381155304-2ro6e10t-mutt-n-horiguchi@ah.jp.nec.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Pavel Emelyanov <xemul@parallels.com>, linux-kernel@vger.kernel.org
+Cc: Pavel Emelyanov <xemul@parallels.com>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org
 
-On Fri,  4 Oct 2013 15:02:15 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+On Mon, 07 Oct 2013 10:15:04 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-> Soft dirty bit allows us to track which pages are written since the
-> last clear_ref (by "echo 4 > /proc/pid/clear_refs".) This is useful
-> for userspace applications to know their memory footprints.
+> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Date: Fri, 4 Oct 2013 13:42:13 -0400
+> Subject: [PATCH] smaps: show VM_SOFTDIRTY flag in VmFlags line
 > 
-> Note that the kernel exposes this flag via bit[55] of /proc/pid/pagemap,
-> and the semantics is not a default one (scheduled to be the default in
-> the near future.) However, it shifts to the new semantics at the first
-> clear_ref, and the users of soft dirty bit always do it before utilizing
-> the bit, so that's not a big deal. Users must avoid relying on the bit
-> in page-types before the first clear_ref.
+> This flag shows that the VMA is "newly created" and thus represents
+> "dirty" in the task's VM.
+> You can clear it by "echo 4 > /proc/pid/clear_refs."
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+>  fs/proc/task_mmu.c | 3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 7366e9d..c591928 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -561,6 +561,9 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
+>  		[ilog2(VM_NONLINEAR)]	= "nl",
+>  		[ilog2(VM_ARCH_1)]	= "ar",
+>  		[ilog2(VM_DONTDUMP)]	= "dd",
+> +#ifdef CONFIG_MEM_SOFT_DIRTY
+> +		[ilog2(VM_SOFTDIRTY)]	= "sd",
+> +#endif
+>  		[ilog2(VM_MIXEDMAP)]	= "mm",
+>  		[ilog2(VM_HUGEPAGE)]	= "hg",
+>  		[ilog2(VM_NOHUGEPAGE)]	= "nh",
 
-Is Documentation/filesystems/proc.txt (around line 450) fully up to
-date here?
+Documentation/filesystems/proc.txt needs updating, please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
