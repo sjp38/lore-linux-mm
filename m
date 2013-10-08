@@ -1,79 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f205.google.com (mail-ob0-f205.google.com [209.85.214.205])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F9D06B003C
-	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 12:46:53 -0400 (EDT)
-Received: by mail-ob0-f205.google.com with SMTP id uy5so16995obc.0
-        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 09:46:52 -0700 (PDT)
-Date: Fri, 27 Sep 2013 20:13:14 -0400
+Received: from mail-ob0-f207.google.com (mail-ob0-f207.google.com [209.85.214.207])
+	by kanga.kvack.org (Postfix) with ESMTP id 515BD6B004D
+	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 12:48:42 -0400 (EDT)
+Received: by mail-ob0-f207.google.com with SMTP id wo20so16958obc.2
+        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 09:48:42 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCHv4 02/10] mm: convert mm->nr_ptes to atomic_t
-Message-ID: <20130928001314.GQ856@cmpxchg.org>
-References: <1380287787-30252-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1380287787-30252-3-git-send-email-kirill.shutemov@linux.intel.com>
- <5245EEAD.7010901@linux.vnet.ibm.com>
- <20130927222451.3406EE0090@blue.fi.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130927222451.3406EE0090@blue.fi.intel.com>
+Subject: [patch 2/2] fs: buffer: move allocation failure loop into the allocator
+Date: Tue,  8 Oct 2013 16:58:10 -0400
+Message-Id: <1381265890-11333-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1381265890-11333-1-git-send-email-hannes@cmpxchg.org>
+References: <1381265890-11333-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Cody P Schafer <cody@linux.vnet.ibm.com>, Alex Thorlton <athorlton@sgi.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W . Biederman" <ebiederm@xmission.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dave Jones <davej@redhat.com>, David Howells <dhowells@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Robin Holt <robinmholt@gmail.com>, Sedat Dilek <sedat.dilek@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, azurIt <azurit@pobox.sk>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Sat, Sep 28, 2013 at 01:24:51AM +0300, Kirill A. Shutemov wrote:
-> Cody P Schafer wrote:
-> > On 09/27/2013 06:16 AM, Kirill A. Shutemov wrote:
-> > > With split page table lock for PMD level we can't hold
-> > > mm->page_table_lock while updating nr_ptes.
-> > >
-> > > Let's convert it to atomic_t to avoid races.
-> > >
-> > 
-> > > ---
-> > 
-> > > diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> > > index 84e0c56e1e..99f19e850d 100644
-> > > --- a/include/linux/mm_types.h
-> > > +++ b/include/linux/mm_types.h
-> > > @@ -339,6 +339,7 @@ struct mm_struct {
-> > >   	pgd_t * pgd;
-> > >   	atomic_t mm_users;			/* How many users with user space? */
-> > >   	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
-> > > +	atomic_t nr_ptes;			/* Page table pages */
-> > >   	int map_count;				/* number of VMAs */
-> > >
-> > >   	spinlock_t page_table_lock;		/* Protects page tables and some counters */
-> > > @@ -360,7 +361,6 @@ struct mm_struct {
-> > >   	unsigned long exec_vm;		/* VM_EXEC & ~VM_WRITE */
-> > >   	unsigned long stack_vm;		/* VM_GROWSUP/DOWN */
-> > >   	unsigned long def_flags;
-> > > -	unsigned long nr_ptes;		/* Page table pages */
-> > >   	unsigned long start_code, end_code, start_data, end_data;
-> > >   	unsigned long start_brk, brk, start_stack;
-> > >   	unsigned long arg_start, arg_end, env_start, env_end;
-> > 
-> > Will 32bits always be enough here? Should atomic_long_t be used instead?
-> 
-> Good question!
-> 
-> On x86_64 we need one table to cover 2M (512 entries by 4k, 21 bits) of
-> virtual address space. Total size of virtual memory which can be covered
-> by 31-bit (32 - sign) nr_ptes is 52 bits (31 + 21).
-> 
-> Currently, on x86_64 with 4-level page tables we can use at most 48 bit of
-> virtual address space (only half of it available for userspace), so we
-> pretty safe here.
-> 
-> Although, it can be a potential problem, if (when) x86_64 will implement
-> 5-level page tables -- 57-bits of virtual address space.
-> 
-> Any thoughts?
+Buffer allocation has a very crude indefinite loop around waking the
+flusher threads and performing global NOFS direct reclaim because it
+can not handle allocation failures.
 
-I'd just go with atomic_long_t to avoid having to worry about this in
-the first place.  It's been ulong forever and I'm not aware of struct
-mm_struct size being an urgent issue.  Cutting this type in half and
-adding overflow checks adds more problems than it solves.
+The most immediate problem with this is that the allocation may fail
+due to a memory cgroup limit, where flushers + direct reclaim might
+not make any progress towards resolving the situation at all.  Because
+unlike the global case, a memory cgroup may not have any cache at all,
+only anonymous pages but no swap.  This situation will lead to a
+reclaim livelock with insane IO from waking the flushers and thrashing
+unrelated filesystem cache in a tight loop.
+
+Use __GFP_NOFAIL allocations for buffers for now.  This makes sure
+that any looping happens in the page allocator, which knows how to
+orchestrate kswapd, direct reclaim, and the flushers sensibly.  It
+also allows memory cgroups to detect allocations that can't handle
+failure and will allow them to ultimately bypass the limit if reclaim
+can not make progress.
+
+Reported-by: azurIt <azurit@pobox.sk>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Cc: stable@kernel.org
+---
+ fs/buffer.c     | 14 ++++++++++++--
+ mm/memcontrol.c |  2 ++
+ 2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 4d74335..6024877 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -1005,9 +1005,19 @@ grow_dev_page(struct block_device *bdev, sector_t block,
+ 	struct buffer_head *bh;
+ 	sector_t end_block;
+ 	int ret = 0;		/* Will call free_more_memory() */
++	gfp_t gfp_mask;
+ 
+-	page = find_or_create_page(inode->i_mapping, index,
+-		(mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS)|__GFP_MOVABLE);
++	gfp_mask = mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS;
++	gfp_mask |= __GFP_MOVABLE;
++	/*
++	 * XXX: __getblk_slow() can not really deal with failure and
++	 * will endlessly loop on improvised global reclaim.  Prefer
++	 * looping in the allocator rather than here, at least that
++	 * code knows what it's doing.
++	 */
++	gfp_mask |= __GFP_NOFAIL;
++
++	page = find_or_create_page(inode->i_mapping, index, gfp_mask);
+ 	if (!page)
+ 		return ret;
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index b39dfac..e233aa1 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2764,6 +2764,8 @@ done:
+ 	return 0;
+ nomem:
+ 	*ptr = NULL;
++	if (gfp_mask & __GFP_NOFAIL)
++		return 0;
+ 	return -ENOMEM;
+ bypass:
+ 	*ptr = root_mem_cgroup;
+-- 
+1.8.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
