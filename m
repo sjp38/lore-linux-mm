@@ -1,87 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id A05CD6B0032
-	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 13:37:03 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so9140824pad.16
-        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 10:37:03 -0700 (PDT)
-Received: by mail-pb0-f47.google.com with SMTP id rr4so8976720pbb.34
-        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 10:37:01 -0700 (PDT)
-Message-ID: <525442A4.9060709@gmail.com>
-Date: Wed, 09 Oct 2013 01:36:36 +0800
-From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id C79B76B0031
+	for <linux-mm@kvack.org>; Tue,  8 Oct 2013 15:06:10 -0400 (EDT)
+Received: by mail-pb0-f53.google.com with SMTP id up15so8988284pbc.40
+        for <linux-mm@kvack.org>; Tue, 08 Oct 2013 12:06:10 -0700 (PDT)
+Date: Tue, 8 Oct 2013 21:06:04 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 23/26] ib: Convert qib_get_user_pages() to
+ get_user_pages_unlocked()
+Message-ID: <20131008190604.GB14223@quack.suse.cz>
+References: <1380724087-13927-1-git-send-email-jack@suse.cz>
+ <1380724087-13927-24-git-send-email-jack@suse.cz>
+ <32E1700B9017364D9B60AED9960492BC211B0176@FMSMSX107.amr.corp.intel.com>
+ <20131004183315.GA19557@quack.suse.cz>
+ <32E1700B9017364D9B60AED9960492BC211B07B7@FMSMSX107.amr.corp.intel.com>
+ <20131007172604.GD30441@quack.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH part1 v6 4/6] x86/mem-hotplug: Support initialize page
- tables in bottom-up
-References: <524E2032.4020106@gmail.com> <524E2127.4090904@gmail.com> <5251F9AB.6000203@zytor.com>
-In-Reply-To: <5251F9AB.6000203@zytor.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed; boundary="BXVAT5kNtrzKuDFl"
+Content-Disposition: inline
+In-Reply-To: <20131007172604.GD30441@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>, Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Rafael J . Wysocki" <rjw@sisk.pl>, lenb@kernel.org, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, prarit@redhat.com, "x86@kernel.org" <x86@kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, imtangchen@gmail.com, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>
+To: "Marciniszyn, Mike" <mike.marciniszyn@intel.com>
+Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, infinipath <infinipath@intel.com>, Roland Dreier <roland@kernel.org>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>
 
-Hello tejun
-CC: Peter
 
-On 10/07/2013 08:00 AM, H. Peter Anvin wrote:
-> On 10/03/2013 07:00 PM, Zhang Yanfei wrote:
->> From: Tang Chen <tangchen@cn.fujitsu.com>
->>
->> The Linux kernel cannot migrate pages used by the kernel. As a
->> result, kernel pages cannot be hot-removed. So we cannot allocate
->> hotpluggable memory for the kernel.
->>
->> In a memory hotplug system, any numa node the kernel resides in
->> should be unhotpluggable. And for a modern server, each node could
->> have at least 16GB memory. So memory around the kernel image is
->> highly likely unhotpluggable.
->>
->> ACPI SRAT (System Resource Affinity Table) contains the memory
->> hotplug info. But before SRAT is parsed, memblock has already
->> started to allocate memory for the kernel. So we need to prevent
->> memblock from doing this.
->>
->> So direct memory mapping page tables setup is the case. init_mem_mapping()
->> is called before SRAT is parsed. To prevent page tables being allocated
->> within hotpluggable memory, we will use bottom-up direction to allocate
->> page tables from the end of kernel image to the higher memory.
->>
->> Acked-by: Tejun Heo <tj@kernel.org>
->> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
->> Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+--BXVAT5kNtrzKuDFl
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+On Mon 07-10-13 19:26:04, Jan Kara wrote:
+> On Mon 07-10-13 15:38:24, Marciniszyn, Mike wrote:
+> > > > This patch and the sibling ipath patch will nominally take the mmap_sem
+> > > > twice where the old routine only took it once.   This is a performance
+> > > > issue.
+> > >   It will take mmap_sem only once during normal operation. Only if
+> > > get_user_pages_unlocked() fail, we have to take mmap_sem again to undo
+> > > the change of mm->pinned_vm.
+> > > 
+> > > > Is the intent here to deprecate get_user_pages()?
+> > 
+> > The old code looked like:
+> > __qib_get_user_pages()
+> > 	(broken) ulimit test
+> >              for (...)
+> > 		get_user_pages()
+> > 
+> > qib_get_user_pages()
+> > 	mmap_sem lock
+> > 	__qib_get_user_pages()
+> >              mmap_sem() unlock
+> > 
+> > The new code is:
+> > 
+> > get_user_pages_unlocked()
+> > 	mmap_sem  lock
+> > 	get_user_pages()
+> > 	mmap_sem unlock
+> > 
+> > qib_get_user_pages()
+> > 	mmap_sem lock
+> >              ulimit test and locked pages maintenance
+> >              mmap_sem unlock
+> > 	for (...)
+> > 		get_user_pages_unlocked()
+> > 
+> > I count an additional pair of mmap_sem transactions in the normal case.
+>   Ah, sorry, you are right.
 > 
-> I'm still seriously concerned about this.  This unconditionally
-> introduces new behavior which may very well break some classes of
-> systems -- the whole point of creating the page tables top down is
-> because the kernel tends to be allocated in lower memory, which is also
-> the memory that some devices need for DMA.
-> 
+> > > > Could the lock limit test be pushed into another version of the
+> > > > wrapper so that there is only one set of mmap_sem transactions?
+> > >   I'm sorry, I don't understand what you mean here...
+> > > 
+> > 
+> > This is what I had in mind:
+> > 
+> > get_user_pages_ulimit_unlocked()
+> > 	mmap_sem  lock
+> > 	ulimit test and locked pages maintenance (from qib/ipath)
+> >              for (...)
+> > 	       get_user_pages_unlocked()	
+> > 	mmap_sem unlock
+> > 	
+> > qib_get_user_pages()
+> > 	get_user_pages_ulimit_unlocked()
+> > 
+> > This really pushes the code into a new wrapper common to ipath/qib and
+> > any others that might want to combine locking with ulimit enforcement.
+>   We could do that but frankly, I'd rather change ulimit enforcement to not
+> require mmap_sem and use atomic counter instead. I'll see what I can do.
+  OK, so something like the attached patch (compile tested only). What do
+you think? I'm just not 100% sure removing mmap_sem surrounding stuff like
+__ipath_release_user_pages() is safe. I don't see a reason why it shouldn't
+be - we have references to the pages and we only mark them dirty and put the
+reference - but maybe I miss something subtle...
 
-After thinking for a while, this issue pointed by Peter seems to be really
-existing. And looking back to what you suggested the allocation close to the
-kernel, 
-
-> so if we allocate memory close to the kernel image,
->   it's likely that we don't contaminate hotpluggable node.  We're
->   talking about few megs at most right after the kernel image.  I
->   can't see how that would make any noticeable difference.
-
-You meant that the memory size is about few megs. But here, page tables
-seems to be large enough in big memory machines, so that page tables will
-consume the precious lower memory. So I think we may really reorder
-the page table setup after we get the hotplug info in some way. Just like
-we have done in patch 5, we reorder reserve_crashkernel() to be called
-after initmem_init().
-
-So do you still have any objection to the pagetable setup reorder?
-
+									Honza
 -- 
-Thanks.
-Zhang Yanfei
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--BXVAT5kNtrzKuDFl
+Content-Type: text/x-patch; charset=us-ascii
+Content-Disposition: attachment; filename="0001-mm-Switch-mm-pinned_vm-to-atomic_long_t.patch"
+
+
+--BXVAT5kNtrzKuDFl--
