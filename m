@@ -1,133 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 67C1F6B0031
-	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 14:44:00 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id kl14so1456947pab.39
-        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 11:44:00 -0700 (PDT)
-Message-ID: <5255A3E6.6020100@nod.at>
-Date: Wed, 09 Oct 2013 20:43:50 +0200
-From: Richard Weinberger <richard@nod.at>
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 354216B0036
+	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 14:44:56 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id q10so1342125pdj.6
+        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 11:44:55 -0700 (PDT)
+Subject: =?utf-8?q?Re=3A_=5Bpatch_0=2F7=5D_improve_memcg_oom_killer_robustness_v2?=
+Date: Wed, 09 Oct 2013 20:44:50 +0200
+From: "azurIt" <azurit@pobox.sk>
+References: <20130917000244.GD3278@cmpxchg.org>, <20130917131535.94E0A843@pobox.sk>, <20130917141013.GA30838@dhcp22.suse.cz>, <20130918160304.6EDF2729@pobox.sk>, <20130918180455.GD856@cmpxchg.org>, <20130918181946.GE856@cmpxchg.org>, <20130918195504.GF856@cmpxchg.org>, <20130926185459.E5D2987F@pobox.sk>, <20130926192743.GP856@cmpxchg.org>, <20131007130149.5F5482D8@pobox.sk> <20131007192336.GU856@cmpxchg.org>
+In-Reply-To: <20131007192336.GU856@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [uml-devel] BUG: soft lockup for a user mode linux image
-References: <524C6643.2040209@gmx.de>	<CAFLxGvwiH7L4oAW8tw6FyeGczg+rKjUDCdkLKdegy9yX==2cMA@mail.gmail.com>	<524DBD5D.1040203@gmx.de>	<524DBFBB.1050002@nod.at>	<524DC278.3020106@gmx.de>	<524DC394.6030406@nod.at>	<524DC675.4020201@gmx.de>	<524E57BA.805@nod.at>	<52517109.90605@gmx.de>	<CAMuHMdXrU0e_6AxvdboMkDs+N+tSWD+b8ou92j28c0vsq2eQQA@mail.gmail.com>	<5251C334.3010604@gmx.de>	<CAMuHMdUo8dSd4s3089ZDEc485wL1sFxBKLeaExJuqNiQY+S-Lw@mail.gmail.com>	<5251CF94.5040101@gmx.de> <CAMuHMdWs6Y7y12STJ+YXKJjxRF0k5yU9C9+0fiPPmq-GgeW-6Q@mail.gmail.com> <525591AD.4060401@gmx.de>
-In-Reply-To: <525591AD.4060401@gmx.de>
+Message-Id: <20131009204450.6AB97915@pobox.sk>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?VG9yYWxmIEbDtnJzdGVy?= <toralf.foerster@gmx.de>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>, UML devel <user-mode-linux-devel@lists.sourceforge.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, hannes@cmpxchg.org, darrick.wong@oracle.com, Michal Hocko <mhocko@suse.cz>
+To: =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
+Cc: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>, =?utf-8?q?Andrew_Morton?= <akpm@linux-foundation.org>, =?utf-8?q?David_Rientjes?= <rientjes@google.com>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?KOSAKI_Motohiro?= <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-CC'ing mm folks.
-Please see below.
+>Hi azur,
+>
+>On Mon, Oct 07, 2013 at 01:01:49PM +0200, azurIt wrote:
+>> >On Thu, Sep 26, 2013 at 06:54:59PM +0200, azurIt wrote:
+>> >> On Wed, Sep 18, 2013 at 02:19:46PM -0400, Johannes Weiner wrote:
+>> >> >Here is an update.  Full replacement on top of 3.2 since we tried a
+>> >> >dead end and it would be more painful to revert individual changes.
+>> >> >
+>> >> >The first bug you had was the same task entering OOM repeatedly and
+>> >> >leaking the memcg reference, thus creating undeletable memcgs.  My
+>> >> >fixup added a condition that if the task already set up an OOM context
+>> >> >in that fault, another charge attempt would immediately return -ENOMEM
+>> >> >without even trying reclaim anymore.  This dropped __getblk() into an
+>> >> >endless loop of waking the flushers and performing global reclaim and
+>> >> >memcg returning -ENOMEM regardless of free memory.
+>> >> >
+>> >> >The update now basically only changes this -ENOMEM to bypass, so that
+>> >> >the memory is not accounted and the limit ignored.  OOM killed tasks
+>> >> >are granted the same right, so that they can exit quickly and release
+>> >> >memory.  Likewise, we want a task that hit the OOM condition also to
+>> >> >finish the fault quickly so that it can invoke the OOM killer.
+>> >> >
+>> >> >Does the following work for you, azur?
+>> >> 
+>> >> 
+>> >> Johannes,
+>> >> 
+>> >> bad news everyone! :(
+>> >> 
+>> >> Unfortunaely, two different problems appears today:
+>> >> 
+>> >> 1.) This looks like my very original problem - stucked processes inside one cgroup. I took stacks from all of them over time but server was very slow so i had to kill them soon:
+>> >> http://watchdog.sk/lkmlmemcg-bug-9.tar.gz
+>> >> 
+>> >> 2.) This was just like my last problem where few processes were doing huge i/o. As sever was almost unoperable i barely killed them so no more info here, sorry.
+>> >
+>> >From one of the tasks:
+>> >
+>> >1380213238/11210/stack:[<ffffffff810528f1>] sys_sched_yield+0x41/0x70
+>> >1380213238/11210/stack:[<ffffffff81148ef1>] free_more_memory+0x21/0x60
+>> >1380213238/11210/stack:[<ffffffff8114957d>] __getblk+0x14d/0x2c0
+>> >1380213238/11210/stack:[<ffffffff81198a2b>] ext3_getblk+0xeb/0x240
+>> >1380213238/11210/stack:[<ffffffff8119d2df>] ext3_find_entry+0x13f/0x480
+>> >1380213238/11210/stack:[<ffffffff8119dd6d>] ext3_lookup+0x4d/0x120
+>> >1380213238/11210/stack:[<ffffffff81122a55>] d_alloc_and_lookup+0x45/0x90
+>> >1380213238/11210/stack:[<ffffffff81122ff8>] do_lookup+0x278/0x390
+>> >1380213238/11210/stack:[<ffffffff81124c40>] path_lookupat+0x120/0x800
+>> >1380213238/11210/stack:[<ffffffff81125355>] do_path_lookup+0x35/0xd0
+>> >1380213238/11210/stack:[<ffffffff811254d9>] user_path_at_empty+0x59/0xb0
+>> >1380213238/11210/stack:[<ffffffff81125541>] user_path_at+0x11/0x20
+>> >1380213238/11210/stack:[<ffffffff81115b70>] sys_faccessat+0xd0/0x200
+>> >1380213238/11210/stack:[<ffffffff81115cb8>] sys_access+0x18/0x20
+>> >1380213238/11210/stack:[<ffffffff815ccc26>] system_call_fastpath+0x18/0x1d
+>> >
+>> >Should have seen this coming... it's still in that braindead
+>> >__getblk() loop, only from a syscall this time (no OOM path).  The
+>> >group's memory.stat looks like this:
+>> >
+>> >cache 0
+>> >rss 0
+>> >mapped_file 0
+>> >pgpgin 0
+>> >pgpgout 0
+>> >swap 0
+>> >pgfault 0
+>> >pgmajfault 0
+>> >inactive_anon 0
+>> >active_anon 0
+>> >inactive_file 0
+>> >active_file 0
+>> >unevictable 0
+>> >hierarchical_memory_limit 209715200
+>> >hierarchical_memsw_limit 209715200
+>> >total_cache 0
+>> >total_rss 209715200
+>> >total_mapped_file 0
+>> >total_pgpgin 1028153297
+>> >total_pgpgout 1028102097
+>> >total_swap 0
+>> >total_pgfault 1352903120
+>> >total_pgmajfault 45342
+>> >total_inactive_anon 0
+>> >total_active_anon 209715200
+>> >total_inactive_file 0
+>> >total_active_file 0
+>> >total_unevictable 0
+>> >
+>> >with anonymous pages to the limit and you probably don't have any swap
+>> >space enabled to anything in the group.
+>> >
+>> >I guess there is no way around annotating that __getblk() loop.  The
+>> >best solution right now is probably to use __GFP_NOFAIL.  For one, we
+>> >can let the allocation bypass the memcg limit if reclaim can't make
+>> >progress.  But also, the loop is then actually happening inside the
+>> >page allocator, where it should happen, and not around ad-hoc direct
+>> >reclaim in buffer.c.
+>> >
+>> >Can you try this on top of our ever-growing stack of patches?
+>> 
+>> 
+>> 
+>> 
+>> Joahnnes,
+>> 
+>> looks like the problem is completely resolved :) Thank you, Michal
+>> Hocko and everyone involved for help and time.
+>
+>Thanks a lot for your patience.  I will send out the fixes for 3.12.
+>
+>> One more thing: I see that your patches are going into 3.12. Is
+>> there a chance to get them also into 3.2? Is Ben Hutchings (current
+>> maintainer of 3.2 branch) competent to decide this? Should i contact
+>> him directly? I can't upgrade to 3.12 because stable grsecurity is
+>> for 3.2 and i don't think this will change in near future.
+>
+>Yes, I'll send them to stable.  The original OOM killer rework was not
+>tagged for stable, but since we have a known deadlock problem, I think
+>it makes sense to include them after all.
 
-Am 09.10.2013 19:26, schrieb Toralf FA?rster:
-> On 10/08/2013 10:07 PM, Geert Uytterhoeven wrote:
->> On Sun, Oct 6, 2013 at 11:01 PM, Toralf FA?rster <toralf.foerster@gmx.de> wrote:
->>>> Hmm, now pages_dirtied is zero, according to the backtrace, but the BUG_ON()
->>>> asserts its strict positive?!?
->>>>
->>>> Can you please try the following instead of the BUG_ON():
->>>>
->>>> if (pause < 0) {
->>>>         printk("pages_dirtied = %lu\n", pages_dirtied);
->>>>         printk("task_ratelimit = %lu\n", task_ratelimit);
->>>>         printk("pause = %ld\n", pause);
->>>> }
->>>>
->>>> Gr{oetje,eeting}s,
->>>>
->>>>                         Geert
->>> I tried it in different ways already - I'm completely unsuccessful in getting any printk output.
->>> As soon as the issue happens I do have a
->>>
->>> BUG: soft lockup - CPU#0 stuck for 22s! [trinity-child0:1521]
->>>
->>> at stderr of the UML and then no further input is accepted. With uml_mconsole I'm however able
->>> to run very basic commands like a crash dump, sysrq ond so on.
->>
->> You may get an idea of the magnitude of pages_dirtied by using a chain of
->> BUG_ON()s, like:
->>
->> BUG_ON(pages_dirtied > 2000000000);
->> BUG_ON(pages_dirtied > 1000000000);
->> BUG_ON(pages_dirtied > 100000000);
->> BUG_ON(pages_dirtied > 10000000);
->> BUG_ON(pages_dirtied > 1000000);
->>
->> Probably 1 million is already too much for normal operation?
->>
-> period = HZ * pages_dirtied / task_ratelimit;
-> 		BUG_ON(pages_dirtied > 2000000000);
-> 		BUG_ON(pages_dirtied > 1000000000);      <-------------- this is line 1467
 
-Summary for mm people:
 
-Toralf runs trinty on UML/i386.
-After some time pages_dirtied becomes very large.
-More than 1000000000 pages in this case.
+Joahnnes,
 
-Thus, period = HZ * pages_dirtied / task_ratelimit overflows
-and period/pause becomes extremely large.
+i'm very sorry to say it but today something strange happened.. :) i was just right at the computer so i noticed it almost immediately but i don't have much info. Server stoped to respond from the net but i was already logged on ssh which was working quite fine (only a little slow). I was able to run commands on shell but i didn't do much because i was afraid that it will goes down for good soon. I noticed few things:
+ - htop was strange because all CPUs were doing nothing (totally nothing)
+ - there were enough of free memory
+ - server load was about 90 and was raising slowly
+ - i didn't see ANY process in 'run' state
+ - i also didn't see any process with strange behavior (taking much CPU, memory or so) so it wasn't obvious what to do to fix it
+ - i started to kill Apache processes, everytime i killed some, CPUs did some work, but it wasn't fixing the problem
+ - finally i did 'skill -kill apache2' in shell and everything started to work
+ - server monitoring wasn't sending any data so i have no graphs
+ - nothing interesting in logs
 
-It looks like io_schedule_timeout() get's called with a very large timeout.
-I don't know why "if (unlikely(pause > max_pause)) {" does not help.
+I will send more info when i get some.
 
-Any ideas?
-
-Thanks,
-//richard
-
-> the back trace is :
-> 
-> tfoerste@n22 ~/devel/linux $ gdb --core=/mnt/ramdisk/core /home/tfoerste/devel/linux/linux -batch -ex bt
-> [New LWP 6911]
-> Core was generated by `/home/tfoerste/devel/linux/linux earlyprintk ubda=/home/tfoerste/virtual/uml/tr'.
-> Program terminated with signal 6, Aborted.
-> #0  0xb77a7424 in __kernel_vsyscall ()
-> #0  0xb77a7424 in __kernel_vsyscall ()
-> #1  0x083bdf35 in kill ()
-> #2  0x0807296d in uml_abort () at arch/um/os-Linux/util.c:93
-> #3  0x08072ca5 in os_dump_core () at arch/um/os-Linux/util.c:148
-> #4  0x080623c4 in panic_exit (self=0x85c1558 <panic_exit_notifier>, unused1=0, unused2=0x85f76e0 <buf.16221>) at arch/um/kernel/um_arch.c:240
-> #5  0x0809ba86 in notifier_call_chain (nl=0x0, val=0, v=0x85f76e0 <buf.16221>, nr_to_call=-2, nr_calls=0x0) at kernel/notifier.c:93
-> #6  0x0809bba1 in __atomic_notifier_call_chain (nh=0x85f76c4 <panic_notifier_list>, val=0, v=0x85f76e0 <buf.16221>, nr_to_call=0, nr_calls=0x0) at kernel/notifier.c:182
-> #7  0x0809bbdf in atomic_notifier_call_chain (nh=0x0, val=0, v=0x0) at kernel/notifier.c:191
-> #8  0x0841b5bc in panic (fmt=0x0) at kernel/panic.c:130
-> #9  0x0841c470 in balance_dirty_pages (pages_dirtied=23, mapping=<optimized out>) at mm/page-writeback.c:1467
-> #10 0x080d3595 in balance_dirty_pages_ratelimited (mapping=0x6) at mm/page-writeback.c:1661
-> #11 0x080e4a3f in __do_fault (mm=0x45ba3600, vma=0x48777b90, address=1084678144, pmd=0x0, pgoff=0, flags=0, orig_pte=<incomplete type>) at mm/memory.c:3452
-> #12 0x080e6e0f in do_linear_fault (orig_pte=..., flags=<optimized out>, pmd=<optimized out>, address=<optimized out>, vma=<optimized out>, mm=<optimized out>, page_table=<optimized out>) at mm/memory.c:3486
-> #13 handle_pte_fault (flags=<optimized out>, pmd=<optimized out>, pte=<optimized out>, address=<optimized out>, vma=<optimized out>, mm=<optimized out>) at mm/memory.c:3710
-> #14 __handle_mm_fault (flags=<optimized out>, address=<optimized out>, vma=<optimized out>, mm=<optimized out>) at mm/memory.c:3845
-> #15 handle_mm_fault (mm=0x45ba3600, vma=0x487034c8, address=1084678144, flags=1) at mm/memory.c:3868
-> #16 0x080e7817 in __get_user_pages (tsk=0x48705800, mm=0x45ba3600, start=1084678144, nr_pages=1025, gup_flags=519, pages=0x48558000, vmas=0x0, nonblocking=0x0) at mm/memory.c:1822
-> #17 0x080e7ae3 in get_user_pages (tsk=0x0, mm=0x0, start=0, nr_pages=0, write=1, force=0, pages=0x48777b90, vmas=0x6) at mm/memory.c:2019
-> #18 0x08143dc6 in aio_setup_ring (ctx=<optimized out>) at fs/aio.c:340
-> #19 ioctx_alloc (nr_events=<optimized out>) at fs/aio.c:605
-> #20 SYSC_io_setup (ctxp=<optimized out>, nr_events=<optimized out>) at fs/aio.c:1122
-> #21 SyS_io_setup (nr_events=65535, ctxp=135081984) at fs/aio.c:1105
-> #22 0x08062984 in handle_syscall (r=0x487059d4) at arch/um/kernel/skas/syscall.c:35
-> #23 0x08074fb5 in handle_trap (local_using_sysemu=<optimized out>, regs=<optimized out>, pid=<optimized out>) at arch/um/os-Linux/skas/process.c:198
-> #24 userspace (regs=0x487059d4) at arch/um/os-Linux/skas/process.c:431
-> #25 0x0805f750 in fork_handler () at arch/um/kernel/process.c:160
-> #26 0x00000000 in ?? ()
-> 
-> 
-> 
->> Gr{oetje,eeting}s,
->>
->>                         Geert
->>
->> --
->> Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
->>
->> In personal conversations with technical people, I call myself a hacker. But
->> when I'm talking to journalists I just say "programmer" or something like that.
->>                                 -- Linus Torvalds
->>
-> 
-> 
+azur
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
