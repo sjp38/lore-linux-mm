@@ -1,79 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C5976B0032
-	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 05:08:13 -0400 (EDT)
-Received: by mail-pb0-f45.google.com with SMTP id mc17so617221pbc.32
-        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 02:08:12 -0700 (PDT)
-Received: from /spool/local
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
-	Wed, 9 Oct 2013 10:08:06 +0100
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 413B217D8068
-	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 10:08:24 +0100 (BST)
-Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9996ZZv57606184
-	for <linux-mm@kvack.org>; Wed, 9 Oct 2013 09:06:35 GMT
-Received: from d06av01.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av01.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9996jpl013276
-	for <linux-mm@kvack.org>; Wed, 9 Oct 2013 03:06:47 -0600
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: [PATCH 2/2] s390/mmap: randomize mmap base for bottom up direction
-Date: Wed,  9 Oct 2013 11:06:43 +0200
-Message-Id: <1381309603-19570-2-git-send-email-heiko.carstens@de.ibm.com>
-In-Reply-To: <1381309603-19570-1-git-send-email-heiko.carstens@de.ibm.com>
-References: <1381309603-19570-1-git-send-email-heiko.carstens@de.ibm.com>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 28DBF6B0031
+	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 07:04:01 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id fb1so872299pad.37
+        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 04:04:00 -0700 (PDT)
+Received: by mail-ee0-f54.google.com with SMTP id e53so310205eek.41
+        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 04:03:56 -0700 (PDT)
+Date: Wed, 9 Oct 2013 13:03:54 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 0/63] Basic scheduler support for automatic NUMA
+ balancing V9
+Message-ID: <20131009110353.GA19370@gmail.com>
+References: <1381141781-10992-1-git-send-email-mgorman@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1381141781-10992-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Radu Caragea <sinaelgl@gmail.com>, Michel Lespinasse <walken@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Implement mmap base randomization for the bottom up direction, so ASLR works
-for both mmap layouts on s390.
-See also df54d6fa54 "x86 get_unmapped_area(): use proper mmap base for
-bottom-up direction".
 
-Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
----
- arch/s390/mm/mmap.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+* Mel Gorman <mgorman@suse.de> wrote:
 
-diff --git a/arch/s390/mm/mmap.c b/arch/s390/mm/mmap.c
-index 4002329..7110c0f 100644
---- a/arch/s390/mm/mmap.c
-+++ b/arch/s390/mm/mmap.c
-@@ -64,6 +64,11 @@ static unsigned long mmap_rnd(void)
- 	return (get_random_int() & 0x7ffUL) << PAGE_SHIFT;
- }
- 
-+static unsigned long mmap_base_legacy(void)
-+{
-+	return TASK_UNMAPPED_BASE + mmap_rnd();
-+}
-+
- static inline unsigned long mmap_base(void)
- {
- 	unsigned long gap = rlimit(RLIMIT_STACK);
-@@ -89,7 +94,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
- 	 * bit is set, or if the expected stack growth is unlimited:
- 	 */
- 	if (mmap_is_legacy()) {
--		mm->mmap_base = TASK_UNMAPPED_BASE;
-+		mm->mmap_base = mmap_base_legacy();
- 		mm->get_unmapped_area = arch_get_unmapped_area;
- 	} else {
- 		mm->mmap_base = mmap_base();
-@@ -172,7 +177,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
- 	 * bit is set, or if the expected stack growth is unlimited:
- 	 */
- 	if (mmap_is_legacy()) {
--		mm->mmap_base = TASK_UNMAPPED_BASE;
-+		mm->mmap_base = mmap_base_legacy();
- 		mm->get_unmapped_area = s390_get_unmapped_area;
- 	} else {
- 		mm->mmap_base = mmap_base();
--- 
-1.8.3.4
+> This series has roughly the same goals as previous versions despite the
+> size. It reduces overhead of automatic balancing through scan rate reduction
+> and the avoidance of TLB flushes. It selects a preferred node and moves tasks
+> towards their memory as well as moving memory toward their task. It handles
+> shared pages and groups related tasks together. Some problems such as shared
+> page interleaving and properly dealing with processes that are larger than
+> a node are being deferred. This version should be ready for wider testing
+> in -tip.
+
+Thanks Mel - the series looks really nice. I've applied the patches to 
+tip:sched/core and will push them out later today if they pass testing 
+here.
+
+> Note that with kernel 3.12-rc3 that numa balancing will fail to boot if 
+> CONFIG_JUMP_LABEL is configured. This is a separate bug that is 
+> currently being dealt with.
+
+Okay, this is about:
+
+  https://lkml.org/lkml/2013/9/30/308
+
+Note that Peter and me saw no crashes so far, and we boot with 
+CONFIG_JUMP_LABEL=y and CONFIG_NUMA_BALANCING=y. It seems like an 
+unrelated bug in any case, perhaps related to specific details in your 
+kernel image?
+
+2)
+
+I also noticed a small Kconfig annoyance:
+
+config NUMA_BALANCING_DEFAULT_ENABLED
+        bool "Automatically enable NUMA aware memory/task placement"
+        default y
+        depends on NUMA_BALANCING
+        help
+          If set, autonumic NUMA balancing will be enabled if running on a NUMA
+          machine.
+
+config NUMA_BALANCING
+        bool "Memory placement aware NUMA scheduler"
+        depends on ARCH_SUPPORTS_NUMA_BALANCING
+        depends on !ARCH_WANT_NUMA_VARIABLE_LOCALITY
+        depends on SMP && NUMA && MIGRATION
+        help
+          This option adds support for automatic NUM
+
+the NUMA_BALANCING_DEFAULT_ENABLED option should come after the 
+NUMA_BALANCING entries - things like 'make oldconfig' produce weird output 
+otherwise.
+
+3)
+
+Plus in addition to PeterZ's build fix I noticed this new build warning on 
+i386 UP kernels:
+
+ kernel/sched/fair.c:819:22: warning: 'task_h_load' declared 'static' but never defined [-Wunused-function]
+
+Introduced here I think:
+
+    sched/numa: Use a system-wide search to find swap/migration candidates
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
