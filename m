@@ -1,51 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 144EE6B0031
-	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 07:52:59 -0400 (EDT)
-Received: by mail-pb0-f53.google.com with SMTP id up15so790733pbc.12
-        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 04:52:57 -0700 (PDT)
-Date: Wed, 9 Oct 2013 07:52:43 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: [RFC 0/4] cleancache: SSD backed cleancache backend
-Message-ID: <20131009115243.GA1198@thunk.org>
-References: <20130926141428.392345308@kernel.org>
- <20130926161401.GA3288@medulla.variantweb.net>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id AB7956B0031
+	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 08:06:03 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so965412pab.4
+        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 05:06:03 -0700 (PDT)
+Date: Wed, 9 Oct 2013 14:05:44 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 0/63] Basic scheduler support for automatic NUMA
+ balancing V9
+Message-ID: <20131009120544.GE3081@twins.programming.kicks-ass.net>
+References: <1381141781-10992-1-git-send-email-mgorman@suse.de>
+ <20131009110353.GA19370@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130926161401.GA3288@medulla.variantweb.net>
+In-Reply-To: <20131009110353.GA19370@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Shaohua Li <shli@kernel.org>, linux-mm@kvack.org, bob.liu@oracle.com, dan.magenheimer@oracle.com
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Sep 26, 2013 at 11:14:01AM -0500, Seth Jennings wrote:
-> 
-> I can see this burning out your SSD as well.  If someone enabled this on
-> a machine that did large (relative to the size of the SDD) streaming
-> reads, you'd be writing to the SSD continuously and never have a cache
-> hit.
+On Wed, Oct 09, 2013 at 01:03:54PM +0200, Ingo Molnar wrote:
+>  kernel/sched/fair.c:819:22: warning: 'task_h_load' declared 'static' but never defined [-Wunused-function]
 
-If we are to do page-level caching, we really need to change the VM to
-use something like IBM's Adaptive Replacement Cache[1], which allows
-us to track which pages have been more frequently used, so that we
-only cache those pages, as opposed to those that land in the cache
-once and then aren't used again.  (Consider what might happen if you
-are using clean cache and then the user does a full backup of the
-system.)
+Not too pretty, but it avoids the warning:
 
-[1] http://en.wikipedia.org/wiki/Adaptive_replacement_cache
-
-This is how ZFS does SSD caching; the basic idea is to only consider
-for cacheing those pages which have been promoted into its Frequenly
-Refrenced list, and then have been subsequently aged out.  At that
-point, the benefit we would have over a dm-cache solution is that we
-would be taking advantage of the usage information tracked by the VM
-to better decide what is cached on the SSD.
-
-So something to think about,
-
-						- Ted
+---
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -681,6 +681,8 @@ static u64 sched_vslice(struct cfs_rq *c
+ }
+ 
+ #ifdef CONFIG_SMP
++static unsigned long task_h_load(struct task_struct *p);
++
+ static inline void __update_task_entity_contrib(struct sched_entity *se);
+ 
+ /* Give new task start runnable values to heavy its load in infant time */
+@@ -816,8 +818,6 @@ update_stats_curr_start(struct cfs_rq *c
+  * Scheduling class queueing methods:
+  */
+ 
+-static unsigned long task_h_load(struct task_struct *p);
+-
+ #ifdef CONFIG_NUMA_BALANCING
+ /*
+  * Approximate time to scan a full NUMA task in ms. The task scan period is
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
