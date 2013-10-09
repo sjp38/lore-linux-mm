@@ -1,61 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 46FA36B0031
-	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 05:08:11 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so747976pad.16
-        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 02:08:10 -0700 (PDT)
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C5976B0032
+	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 05:08:13 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id mc17so617221pbc.32
+        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 02:08:12 -0700 (PDT)
 Received: from /spool/local
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
 	Wed, 9 Oct 2013 10:08:06 +0100
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id E6D6C2190069
-	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 10:08:03 +0100 (BST)
-Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9996aE314090462
-	for <linux-mm@kvack.org>; Wed, 9 Oct 2013 09:06:36 GMT
-Received: from d06av02.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av02.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9996jmP026107
-	for <linux-mm@kvack.org>; Wed, 9 Oct 2013 03:06:48 -0600
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 413B217D8068
+	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 10:08:24 +0100 (BST)
+Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9996ZZv57606184
+	for <linux-mm@kvack.org>; Wed, 9 Oct 2013 09:06:35 GMT
+Received: from d06av01.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av01.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9996jpl013276
+	for <linux-mm@kvack.org>; Wed, 9 Oct 2013 03:06:47 -0600
 From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: [PATCH 1/2] mmap: arch_get_unmapped_area(): use proper mmap base for bottom up direction
-Date: Wed,  9 Oct 2013 11:06:42 +0200
-Message-Id: <1381309603-19570-1-git-send-email-heiko.carstens@de.ibm.com>
+Subject: [PATCH 2/2] s390/mmap: randomize mmap base for bottom up direction
+Date: Wed,  9 Oct 2013 11:06:43 +0200
+Message-Id: <1381309603-19570-2-git-send-email-heiko.carstens@de.ibm.com>
+In-Reply-To: <1381309603-19570-1-git-send-email-heiko.carstens@de.ibm.com>
+References: <1381309603-19570-1-git-send-email-heiko.carstens@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Radu Caragea <sinaelgl@gmail.com>, Michel Lespinasse <walken@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Heiko Carstens <heiko.carstens@de.ibm.com>
 
-This is more or less the generic variant of 41aacc1eea "x86 get_unmapped_area:
-Access mmap_legacy_base through mm_struct member".
-
-So effectively architectures which use an own arch_pick_mmap_layout()
-implementation but call the generic arch_get_unmapped_area() now can also
-randomize their mmap_base.
-
-All architectures which have an own arch_pick_mmap_layout() and call
-the generic arch_get_unmapped_area() (arm64, s390, tile) currently set
-mmap_base to TASK_UNMAPPED_BASE. This is also true for the generic
-arch_pick_mmap_layout() function. So this change is a no-op currently.
+Implement mmap base randomization for the bottom up direction, so ASLR works
+for both mmap layouts on s390.
+See also df54d6fa54 "x86 get_unmapped_area(): use proper mmap base for
+bottom-up direction".
 
 Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
 ---
- mm/mmap.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/s390/mm/mmap.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 9d54851..fa206ab 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1872,7 +1872,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
+diff --git a/arch/s390/mm/mmap.c b/arch/s390/mm/mmap.c
+index 4002329..7110c0f 100644
+--- a/arch/s390/mm/mmap.c
++++ b/arch/s390/mm/mmap.c
+@@ -64,6 +64,11 @@ static unsigned long mmap_rnd(void)
+ 	return (get_random_int() & 0x7ffUL) << PAGE_SHIFT;
+ }
  
- 	info.flags = 0;
- 	info.length = len;
--	info.low_limit = TASK_UNMAPPED_BASE;
-+	info.low_limit = mm->mmap_base;
- 	info.high_limit = TASK_SIZE;
- 	info.align_mask = 0;
- 	return vm_unmapped_area(&info);
++static unsigned long mmap_base_legacy(void)
++{
++	return TASK_UNMAPPED_BASE + mmap_rnd();
++}
++
+ static inline unsigned long mmap_base(void)
+ {
+ 	unsigned long gap = rlimit(RLIMIT_STACK);
+@@ -89,7 +94,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
+ 	 * bit is set, or if the expected stack growth is unlimited:
+ 	 */
+ 	if (mmap_is_legacy()) {
+-		mm->mmap_base = TASK_UNMAPPED_BASE;
++		mm->mmap_base = mmap_base_legacy();
+ 		mm->get_unmapped_area = arch_get_unmapped_area;
+ 	} else {
+ 		mm->mmap_base = mmap_base();
+@@ -172,7 +177,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
+ 	 * bit is set, or if the expected stack growth is unlimited:
+ 	 */
+ 	if (mmap_is_legacy()) {
+-		mm->mmap_base = TASK_UNMAPPED_BASE;
++		mm->mmap_base = mmap_base_legacy();
+ 		mm->get_unmapped_area = s390_get_unmapped_area;
+ 	} else {
+ 		mm->mmap_base = mmap_base();
 -- 
 1.8.3.4
 
