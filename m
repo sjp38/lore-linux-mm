@@ -1,48 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FA0F6B0036
-	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 07:13:34 -0400 (EDT)
-Received: by mail-pb0-f54.google.com with SMTP id ro12so751686pbb.27
-        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 04:13:34 -0700 (PDT)
-Received: by mail-ea0-f174.google.com with SMTP id z15so322457ead.5
-        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 04:13:30 -0700 (PDT)
-Date: Wed, 9 Oct 2013 13:13:28 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 0/63] Basic scheduler support for automatic NUMA
- balancing V9
-Message-ID: <20131009111328.GB19610@gmail.com>
-References: <1381141781-10992-1-git-send-email-mgorman@suse.de>
- <20131009110353.GA19370@gmail.com>
- <20131009111146.GA19610@gmail.com>
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 144EE6B0031
+	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 07:52:59 -0400 (EDT)
+Received: by mail-pb0-f53.google.com with SMTP id up15so790733pbc.12
+        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 04:52:57 -0700 (PDT)
+Date: Wed, 9 Oct 2013 07:52:43 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [RFC 0/4] cleancache: SSD backed cleancache backend
+Message-ID: <20131009115243.GA1198@thunk.org>
+References: <20130926141428.392345308@kernel.org>
+ <20130926161401.GA3288@medulla.variantweb.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131009111146.GA19610@gmail.com>
+In-Reply-To: <20130926161401.GA3288@medulla.variantweb.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Shaohua Li <shli@kernel.org>, linux-mm@kvack.org, bob.liu@oracle.com, dan.magenheimer@oracle.com
 
-
-* Ingo Molnar <mingo@kernel.org> wrote:
-
->  mmzone.c:
+On Thu, Sep 26, 2013 at 11:14:01AM -0500, Seth Jennings wrote:
 > 
->   #if defined(CONFIG_NUMA_BALANCING) && !defined(LAST_CPUPID_IN_PAGE_FLAGS)
-> 
-> Note the missing 'NOT_' in the latter line. I've changed it to:
-> 
->   #if defined(CONFIG_NUMA_BALANCING) && defined(LAST_CPUPID_NOT_IN_PAGE_FLAGS)
+> I can see this burning out your SSD as well.  If someone enabled this on
+> a machine that did large (relative to the size of the SDD) streaming
+> reads, you'd be writing to the SSD continuously and never have a cache
+> hit.
 
-Actually, I think it should be:
+If we are to do page-level caching, we really need to change the VM to
+use something like IBM's Adaptive Replacement Cache[1], which allows
+us to track which pages have been more frequently used, so that we
+only cache those pages, as opposed to those that land in the cache
+once and then aren't used again.  (Consider what might happen if you
+are using clean cache and then the user does a full backup of the
+system.)
 
-   #if defined(CONFIG_NUMA_BALANCING) && !defined(LAST_CPUPID_NOT_IN_PAGE_FLAGS)
+[1] http://en.wikipedia.org/wiki/Adaptive_replacement_cache
 
-I'll fold back this fix to keep it bisectable on 32-bit platforms.
+This is how ZFS does SSD caching; the basic idea is to only consider
+for cacheing those pages which have been promoted into its Frequenly
+Refrenced list, and then have been subsequently aged out.  At that
+point, the benefit we would have over a dm-cache solution is that we
+would be taking advantage of the usage information tracked by the VM
+to better decide what is cached on the SSD.
 
-Thanks,
+So something to think about,
 
-	Ingo
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
