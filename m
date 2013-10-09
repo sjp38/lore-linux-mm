@@ -1,99 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DAF76B0037
-	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 10:20:42 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id rr4so965882pbb.20
-        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 07:20:42 -0700 (PDT)
-Received: by mail-wi0-f173.google.com with SMTP id hq15so8504287wib.0
-        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 07:20:38 -0700 (PDT)
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A46FF6B0039
+	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 10:40:55 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id jt11so1010977pbb.10
+        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 07:40:55 -0700 (PDT)
+Received: by mail-ob0-f180.google.com with SMTP id wn1so688632obc.11
+        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 07:40:52 -0700 (PDT)
+Date: Wed, 9 Oct 2013 09:40:45 -0500
+From: Seth Jennings <spartacus06@gmail.com>
+Subject: Re: [PATCH] frontswap: enable call to invalidate area on swapoff
+Message-ID: <20131009144045.GA5406@variantweb.net>
+References: <1381159541-13981-1-git-send-email-k.kozlowski@samsung.com>
+ <20131007150338.1fdee18b536bb1d9fe41a07b@linux-foundation.org>
+ <1381220000.16135.10.camel@AMDC1943>
+ <20131008130853.96139b79a0a4d3aaacc79ed2@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20130919101357.GA20140@quack.suse.cz>
-References: <CAJd=RBBbJMWox5yJaNzW_jUdDfKfWe-Y7d1riYdN6huQStxzcA@mail.gmail.com>
- <CAOMqctQyS2SFraqJpzE0sRFcihFpMHRhT+3QuZhxft=SUXYVDw@mail.gmail.com>
- <CAOMqctQ+XchmXk_Xno6ViAoZF-tHFPpDWoy7LVW1nooa+ywbmg@mail.gmail.com>
- <CAOMqctT2u7E0kwpm052B9pkNo4D=sYHO+Vk=P_TziUb5KvTMKA@mail.gmail.com>
- <20130917211317.GB6537@quack.suse.cz> <CAOMqctT5Wi_Y9ODAnoG-RQiO1oJ+yKR=LnF21swuupyLShL=+w@mail.gmail.com>
- <20130919101357.GA20140@quack.suse.cz>
-From: Michal Suchanek <hramrach@gmail.com>
-Date: Wed, 9 Oct 2013 16:19:57 +0200
-Message-ID: <CAOMqctQV0Ce5Z4WF1osuvorZd_JQnoQSOkw1DOPSdPBh+qc=Kw@mail.gmail.com>
-Subject: Re: doing lots of disk writes causes oom killer to kill processes
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131008130853.96139b79a0a4d3aaacc79ed2@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Hillf Danton <dhillf@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Krzysztof Kozlowski <k.kozlowski@samsung.com>, linux-mm@kvack.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, Shaohua Li <shli@fusionio.com>, Minchan Kim <minchan@kernel.org>
 
-Hello,
+On Tue, Oct 08, 2013 at 01:08:53PM -0700, Andrew Morton wrote:
+> On Tue, 08 Oct 2013 10:13:20 +0200 Krzysztof Kozlowski <k.kozlowski@samsung.com> wrote:
+> 
+> > On pon, 2013-10-07 at 15:03 -0700, Andrew Morton wrote:
+> > > On Mon, 07 Oct 2013 17:25:41 +0200 Krzysztof Kozlowski <k.kozlowski@samsung.com> wrote:
+> > > 
+> > > > During swapoff the frontswap_map was NULL-ified before calling
+> > > > frontswap_invalidate_area(). However the frontswap_invalidate_area()
+> > > > exits early if frontswap_map is NULL. Invalidate was never called during
+> > > > swapoff.
+> > > > 
+> > > > This patch moves frontswap_map_set() in swapoff just after calling
+> > > > frontswap_invalidate_area() so outside of locks
+> > > > (swap_lock and swap_info_struct->lock). This shouldn't be a problem as
+> > > > during swapon the frontswap_map_set() is called also outside of any
+> > > > locks.
+> > > > 
+> > > 
+> > > Ahem.  So there's a bunch of code in __frontswap_invalidate_area()
+> > > which hasn't ever been executed and nobody noticed it.  So perhaps that
+> > > code isn't actually needed?
+> > > 
+> > > More seriously, this patch looks like it enables code which hasn't been
+> > > used or tested before.  How well tested was this?
+> > > 
+> > > Are there any runtime-visible effects from this change?
+> > 
+> > I tested zswap on x86 and x86-64 and there was no difference. This is
+> > good as there shouldn't be visible anything because swapoff is unusing
+> > all pages anyway:
+> > 	try_to_unuse(type, false, 0); /* force all pages to be unused */
+> > 
+> > I haven't tested other frontswap users.
+> 
+> So is that code in __frontswap_invalidate_area() unneeded?
 
-On 19 September 2013 12:13, Jan Kara <jack@suse.cz> wrote:
-> On Wed 18-09-13 16:56:08, Michal Suchanek wrote:
->> On 17 September 2013 23:13, Jan Kara <jack@suse.cz> wrote:
->> >   Hello,
->>
->> The default for dirty_ratio/dirty_background_ratio is 60/40. Setting
->   Ah, that's not upstream default. Upstream has 20/10. In SLES we use 40/10
-> to better accomodate some workloads but 60/40 on 8 GB machines with
-> SATA drive really seems too much. That is going to give memory management a
-> headache.
->
-> The problem is that a good SATA drive can do ~100 MB/s if we are
-> lucky and IO is sequential. Thus if you have 5 GB of dirty data to write,
-> it takes 50s at best to write it, with more random IO to image file it can
-> well take several minutes to write. That may cause some increased latency
-> when memory reclaim waits for writeback to clean some pages.
->
->> these to 5/2 gives about the same result as running the script that
->> syncs every 5s. Setting to 30/10 gives larger data chunks and
->> intermittent lockup before every chunk is written.
->>
->> It is quite possible to set kernel parameters that kill the kernel but
->>
->> 1) this is the default
->   Not upstream one so you should raise this with Debian I guess. 60/40
-> looks way out of reasonable range for todays machines.
->
->> 2) the parameter is set in units that do not prevent the issue in
->> general (% RAM vs #blocks)
->   You can set the number of bytes instead of percentage -
-> /proc/sys/vm/dirty_bytes / dirty_background_bytes. It's just that proper
-> sizing depends on amount of memory, storage HW, workload. So it's more an
-> administrative task to set this tunable properly.
->
->> 3) WTH is the system doing? It's 4core 3GHz cpu so it can handle
->> traversing a structure holding 800M data in the background. Something
->> is seriously rotten somewhere.
->   Likely processes are waiting in direct reclaim for IO to finish. But that
-> is just guessing. Try running attached script (forgot to attach it to
-> previous email). You will need systemtap and kernel debuginfo installed.
-> The script doesn't work with all versions of systemtap (as it is sadly a
-> moving target) so if it fails, tell me your version of systemtap and I'll
-> update the script accordingly.
+Yes, to expand on what Bob said, __frontswap_invalidate_area() is still
+needed to let any frontswap backend free per-swaptype resources.
 
-This was fixed for me by the patch posted earlier by Hillf Danton so I
-guess this answers what the system was (not) doing:
+__frontswap_invalidate_area() is _not_ for freeing structures associated
+with individual swapped out pages since all of the pages should be
+brought back into memory by try_to_unuse() before
+__frontswap_invalidate_area() is called.
 
---- a/mm/vmscan.c Wed Sep 18 08:44:08 2013
-+++ b/mm/vmscan.c Wed Sep 18 09:31:34 2013
-@@ -1543,8 +1543,11 @@ shrink_inactive_list(unsigned long nr_to
-  * implies that pages are cycling through the LRU faster than
-  * they are written so also forcibly stall.
-  */
-- if (nr_unqueued_dirty == nr_taken || nr_immediate)
-+ if (nr_unqueued_dirty == nr_taken || nr_immediate) {
-+ if (current_is_kswapd())
-+ wakeup_flusher_threads(0, WB_REASON_TRY_TO_FREE_PAGES);
-  congestion_wait(BLK_RW_ASYNC, HZ/10);
-+ }
-  }
+The reason we never noticed this for zswap is that zswap has no
+dynamically allocated per-type resources.  In the expected case,
+where all of the pages have been drained from zswap,
+zswap_frontswap_invalidate_area() is a no-op.
 
-  /*
-
-Also 75485363 is hopefully addressing this issue in mainline.
-
-Thanks
-
-Michal
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
