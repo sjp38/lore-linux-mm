@@ -1,42 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 4418F6B0039
-	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 13:18:48 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id z10so1246993pdj.17
-        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 10:18:47 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <20131009164951.GA29751@localhost>
-References: <20131009164951.GA29751@localhost>
-Subject: RE: [page->ptl] BUG: unable to handle kernel NULL pointer dereference
- at 00000010
-Content-Transfer-Encoding: 7bit
-Message-Id: <20131009171828.693D0E0090@blue.fi.intel.com>
-Date: Wed,  9 Oct 2013 20:18:28 +0300 (EEST)
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 303E76B0039
+	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 13:18:56 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id g10so1243610pdj.40
+        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 10:18:55 -0700 (PDT)
+Date: Wed, 9 Oct 2013 19:18:49 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 0/63] Basic scheduler support for automatic NUMA
+ balancing V9
+Message-ID: <20131009171849.GH13848@laptop.programming.kicks-ass.net>
+References: <1381141781-10992-1-git-send-email-mgorman@suse.de>
+ <20131009162801.GA10452@gmail.com>
+ <20131009170837.GF13848@laptop.programming.kicks-ass.net>
+ <20131009171537.GA12575@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131009171537.GA12575@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Fengguang Wu wrote:
-> Greetings,
+On Wed, Oct 09, 2013 at 07:15:37PM +0200, Ingo Molnar wrote:
+> > It looks like -march=geode generates similar borkage to the
+> > -march=winchip2 like we found earlier today.
+> > 
+> > Must be randconfig luck to only hit it now.
 > 
-> I got the below dmesg and the first bad commit is
+> Yes, very weird but such is life :-)
 > 
-> commit c7727a852968b09a9a5756dc7c85c30287c6ada3
-> Author: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Date:   Wed Oct 9 16:45:45 2013 +0300
-> 
->     mm: dynamic allocate page->ptl if it cannot be embedded to struct page
->     
->     Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Also note that this reproduces with GCC 4.7 ...
 
-Thanks, I'll fix it tomorrow.
-
-Just to clarify: the commit is from my devel branch. It doesn't affect any
-upstream tree.
-
--- 
- Kirill A. Shutemov
+Yes, it does so too for me, I tried both 4.7 and 4.8; they generate
+different but similarly broken code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
