@@ -1,89 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 28DBF6B0031
-	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 07:04:01 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fb1so872299pad.37
-        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 04:04:00 -0700 (PDT)
-Received: by mail-ee0-f54.google.com with SMTP id e53so310205eek.41
-        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 04:03:56 -0700 (PDT)
-Date: Wed, 9 Oct 2013 13:03:54 +0200
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B81E6B0036
+	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 07:11:52 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id jt11so744197pbb.38
+        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 04:11:52 -0700 (PDT)
+Received: by mail-ea0-f171.google.com with SMTP id n15so319932ead.16
+        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 04:11:49 -0700 (PDT)
+Date: Wed, 9 Oct 2013 13:11:47 +0200
 From: Ingo Molnar <mingo@kernel.org>
 Subject: Re: [PATCH 0/63] Basic scheduler support for automatic NUMA
  balancing V9
-Message-ID: <20131009110353.GA19370@gmail.com>
+Message-ID: <20131009111146.GA19610@gmail.com>
 References: <1381141781-10992-1-git-send-email-mgorman@suse.de>
+ <20131009110353.GA19370@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <1381141781-10992-1-git-send-email-mgorman@suse.de>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20131009110353.GA19370@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
 
-* Mel Gorman <mgorman@suse.de> wrote:
+* Ingo Molnar <mingo@kernel.org> wrote:
 
-> This series has roughly the same goals as previous versions despite the
-> size. It reduces overhead of automatic balancing through scan rate reduction
-> and the avoidance of TLB flushes. It selects a preferred node and moves tasks
-> towards their memory as well as moving memory toward their task. It handles
-> shared pages and groups related tasks together. Some problems such as shared
-> page interleaving and properly dealing with processes that are larger than
-> a node are being deferred. This version should be ready for wider testing
-> in -tip.
+> 3)
+> 
+> Plus in addition to PeterZ's build fix I noticed this new build warning on 
+> i386 UP kernels:
+> 
+>  kernel/sched/fair.c:819:22: warning: 'task_h_load' declared 'static' but never defined [-Wunused-function]
+> 
+> Introduced here I think:
+> 
+>     sched/numa: Use a system-wide search to find swap/migration candidates
 
-Thanks Mel - the series looks really nice. I've applied the patches to 
-tip:sched/core and will push them out later today if they pass testing 
-here.
+4)
 
-> Note that with kernel 3.12-rc3 that numa balancing will fail to boot if 
-> CONFIG_JUMP_LABEL is configured. This is a separate bug that is 
-> currently being dealt with.
+allyes builds fail on x86 32-bit:
 
-Okay, this is about:
+   mm/mmzone.c:101:5: error: redefinition of a??page_cpupid_xchg_lasta??
 
-  https://lkml.org/lkml/2013/9/30/308
+The reason is the mismatch in definitions:
 
-Note that Peter and me saw no crashes so far, and we boot with 
-CONFIG_JUMP_LABEL=y and CONFIG_NUMA_BALANCING=y. It seems like an 
-unrelated bug in any case, perhaps related to specific details in your 
-kernel image?
+ mm.h:
 
-2)
+  #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
 
-I also noticed a small Kconfig annoyance:
+ mmzone.c:
 
-config NUMA_BALANCING_DEFAULT_ENABLED
-        bool "Automatically enable NUMA aware memory/task placement"
-        default y
-        depends on NUMA_BALANCING
-        help
-          If set, autonumic NUMA balancing will be enabled if running on a NUMA
-          machine.
+  #if defined(CONFIG_NUMA_BALANCING) && !defined(LAST_CPUPID_IN_PAGE_FLAGS)
 
-config NUMA_BALANCING
-        bool "Memory placement aware NUMA scheduler"
-        depends on ARCH_SUPPORTS_NUMA_BALANCING
-        depends on !ARCH_WANT_NUMA_VARIABLE_LOCALITY
-        depends on SMP && NUMA && MIGRATION
-        help
-          This option adds support for automatic NUM
+Note the missing 'NOT_' in the latter line. I've changed it to:
 
-the NUMA_BALANCING_DEFAULT_ENABLED option should come after the 
-NUMA_BALANCING entries - things like 'make oldconfig' produce weird output 
-otherwise.
-
-3)
-
-Plus in addition to PeterZ's build fix I noticed this new build warning on 
-i386 UP kernels:
-
- kernel/sched/fair.c:819:22: warning: 'task_h_load' declared 'static' but never defined [-Wunused-function]
-
-Introduced here I think:
-
-    sched/numa: Use a system-wide search to find swap/migration candidates
+  #if defined(CONFIG_NUMA_BALANCING) && defined(LAST_CPUPID_NOT_IN_PAGE_FLAGS)
 
 Thanks,
 
