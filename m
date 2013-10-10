@@ -1,187 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B4B66B0039
-	for <linux-mm@kvack.org>; Thu, 10 Oct 2013 16:22:08 -0400 (EDT)
-Received: by mail-pb0-f48.google.com with SMTP id ma3so3073177pbc.35
-        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 13:22:08 -0700 (PDT)
-Received: by mail-pd0-f179.google.com with SMTP id v10so3170475pde.10
-        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 13:22:05 -0700 (PDT)
-Message-ID: <52570C50.5050302@gmail.com>
-Date: Fri, 11 Oct 2013 04:21:36 +0800
-From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A33B6B0037
+	for <linux-mm@kvack.org>; Thu, 10 Oct 2013 16:48:17 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id kp14so3303646pab.6
+        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 13:48:16 -0700 (PDT)
+Received: by mail-vc0-f172.google.com with SMTP id hu8so2152563vcb.3
+        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 13:48:14 -0700 (PDT)
 MIME-Version: 1.0
-Subject: [PATCH part1 v7 6/6] mem-hotplug: Introduce movable_node boot option
-References: <52570A6E.2010806@gmail.com>
-In-Reply-To: <52570A6E.2010806@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20131010002412.GC856@cmpxchg.org>
+References: <CAJ75kXYqNfWejMhykEqmby4Yvs1w+Tv+QxKHZF67j77HJnco5A@mail.gmail.com>
+ <20131010002412.GC856@cmpxchg.org>
+From: William Dauchy <wdauchy@gmail.com>
+Date: Thu, 10 Oct 2013 22:47:54 +0200
+Message-ID: <CAJ75kXa89w28hRS4LWbXUmzJe12N39Wowym_PTmRN7y5vu-1DA@mail.gmail.com>
+Subject: Re: strange oom behaviour on 3.10
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "Rafael J . Wysocki" <rjw@sisk.pl>, lenb@kernel.org, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, "H. Peter Anvin" <hpa@zytor.com>, Tejun Heo <tj@kernel.org>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, mina86@mina86.com, Minchan Kim <minchan@kernel.org>, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, prarit@redhat.com
-Cc: "x86@kernel.org" <x86@kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, imtangchen@gmail.com, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org
 
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Hi Johannes,
 
-The hot-Pluggable field in SRAT specifies which memory is hotpluggable.
-As we mentioned before, if hotpluggable memory is used by the kernel,
-it cannot be hot-removed. So memory hotplug users may want to set all
-hotpluggable memory in ZONE_MOVABLE so that the kernel won't use it.
+On Thu, Oct 10, 2013 at 2:24 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> Can you try this patch on top of what you have right now?
+>
+> ---
+>  mm/memcontrol.c | 11 +++++++----
+>  1 file changed, 7 insertions(+), 4 deletions(-)
+>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index ba3051a..d60f560 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2706,6 +2706,9 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
+>         if (unlikely(task_in_memcg_oom(current)))
+>                 goto bypass;
+>
+> +       if (gfp_mask & __GFP_NOFAIL)
+> +               oom = false;
+> +
+>         /*
+>          * We always charge the cgroup the mm_struct belongs to.
+>          * The mm_struct's mem_cgroup changes on task migration if the
+> @@ -2803,10 +2806,10 @@ done:
+>         *ptr = memcg;
+>         return 0;
+>  nomem:
+> -       *ptr = NULL;
+> -       if (gfp_mask & __GFP_NOFAIL)
+> -               return 0;
+> -       return -ENOMEM;
+> +       if (!(gfp_mask & __GFP_NOFAIL)) {
+> +               *ptr = NULL;
+> +               return -ENOMEM;
+> +       }
+>  bypass:
+>         *ptr = root_mem_cgroup;
+>         return -EINTR;
 
-Memory hotplug users may also set a node as movable node, which has
-ZONE_MOVABLE only, so that the whole node can be hot-removed.
+Unfortunately, I'm getting the same result with your additional patch:
 
-But the kernel cannot use memory in ZONE_MOVABLE. By doing this, the
-kernel cannot use memory in movable nodes. This will cause NUMA
-performance down. And other users may be unhappy.
+mysqld invoked oom-killer: gfp_mask=0xd0, order=0, oom_score_adj=-1000
+mysqld cpuset=VM_A mems_allowed=0-1
+CPU: 15 PID: 4414 Comm: mysqld Not tainted 3.10 #1
+Hardware name: Dell Inc. PowerEdge C8220/0TDN55, BIOS 1.1.19 02/25/2013
+ffffffff81515f50 0000000000000000 ffffffff815135a5 0101881000000000
+ffff88201ddd3800 ffffc9001d2ac040 0000000000000000 0000000000000000
+ffffffff81d236f8 ffff88201ddd3800 ffffffff810b7698 0000000000000001
+Call Trace:
+[<ffffffff81515f50>] ? dump_stack+0xd/0x17
+[<ffffffff815135a5>] ? dump_header+0x78/0x21a
+[<ffffffff810b7698>] ? find_lock_task_mm+0x28/0x80
+[<ffffffff81103bbb>] ? mem_cgroup_same_or_subtree+0x2b/0x50
+[<ffffffff810b7b50>] ? oom_kill_process+0x270/0x400
+[<ffffffff8104a6fc>] ? has_ns_capability_noaudit+0x4c/0x70
+[<ffffffff81105d2e>] ? mem_cgroup_oom_synchronize+0x53e/0x560
+[<ffffffff81105150>] ? mem_cgroup_charge_common+0xa0/0xa0
+[<ffffffff810b837b>] ? pagefault_out_of_memory+0xb/0x80
+[<ffffffff81028e27>] ? __do_page_fault+0x497/0x580
+[<ffffffff81158d3e>] ? read_events+0x27e/0x2e0
+[<ffffffff81062f20>] ? abort_exclusive_wait+0xb0/0xb0
+[<ffffffff81065830>] ? update_rmtp+0x190/0x190
+[<ffffffff8151aaa8>] ? page_fault+0x38/0x40
+Task in / killed as a result of limit of /lxc/VM_A
+memory: usage 53192kB, limit 262144kB, failcnt 99902
+memory+swap: usage 53192kB, limit 524288kB, failcnt 0
+kmem: usage 0kB, limit 9007199254740991kB, failcnt 0
+Memory cgroup stats for /lxc/VM_A: cache:18092KB rss:34988KB
+rss_huge:14336KB mapped_file:100KB swap:0KB inactive_anon:4344KB
+active_anon:48720KB inactive_file:4KB active_file:0KB unevictable:0KB
+[ pid ]   uid  tgid total_vm      rss nr_ptes swapents oom_score_adj name
+[ 4359]     0  4359     4446      233      14        0             0 start
+[ 4410]  5101  4410    63969     6404      56        0         -1000 mysqld
+[ 4515]  5000  4515    89140     1490     123        0             0 php5-fpm
+[ 4520]  5001  4520    24212      959      51        0             0 apache2
+[24794]     0 24794     1023       80       8        0             0 sleep
+[24795]  5001 24795   176565     2785     121        0             0 apache2
+[31892]  5000 31892    89135     1474     118        0             0 php5-fpm
+Memory cgroup out of memory: Kill process 31826 (php5-fpm) score 895
+or sacrifice child
 
-So we need a way to allow users to enable and disable this functionality.
-In this patch, we introduce movable_node boot option to allow users to
-choose to not to consume hotpluggable memory at early boot time and
-later we can set it as ZONE_MOVABLE.
+Do you have some more ideas?
 
-To achieve this, the movable_node boot option will control the memblock
-allocation direction. That said, after memblock is ready, before SRAT is
-parsed, we should allocate memory near the kernel image as we explained
-in the previous patches. So if movable_node boot option is set, the kernel
-does the following:
-
-1. After memblock is ready, make memblock allocate memory bottom up.
-2. After SRAT is parsed, make memblock behave as default, allocate memory
-   top down.
-
-Users can specify "movable_node" in kernel commandline to enable this
-functionality. For those who don't use memory hotplug or who don't want
-to lose their NUMA performance, just don't specify anything. The kernel
-will work as before.
-
-Suggested-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Suggested-by: Ingo Molnar <mingo@kernel.org>
-Acked-by: Tejun Heo <tj@kernel.org>
-Acked-by: Toshi Kani <toshi.kani@hp.com>
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
----
- Documentation/kernel-parameters.txt |    3 +++
- arch/x86/mm/numa.c                  |   11 +++++++++++
- mm/Kconfig                          |   17 ++++++++++++-----
- mm/memory_hotplug.c                 |   31 +++++++++++++++++++++++++++++++
- 4 files changed, 57 insertions(+), 5 deletions(-)
-
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index fcbb736..a75a70a 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -1773,6 +1773,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			that the amount of memory usable for all allocations
- 			is not too small.
- 
-+	movable_node	[KNL,X86] Boot-time switch to enable the effects
-+			of CONFIG_MOVABLE_NODE=y. See mm/Kconfig for details.
-+
- 	MTD_Partition=	[MTD]
- 			Format: <name>,<region-number>,<size>,<offset>
- 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 8bf93ba..24aec58 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -567,6 +567,17 @@ static int __init numa_init(int (*init_func)(void))
- 	ret = init_func();
- 	if (ret < 0)
- 		return ret;
-+
-+	/*
-+	 * We reset memblock back to the top-down direction
-+	 * here because if we configured ACPI_NUMA, we have
-+	 * parsed SRAT in init_func(). It is ok to have the
-+	 * reset here even if we did't configure ACPI_NUMA
-+	 * or acpi numa init fails and fallbacks to dummy
-+	 * numa init.
-+	 */
-+	memblock_set_bottom_up(false);
-+
- 	ret = numa_cleanup_meminfo(&numa_meminfo);
- 	if (ret < 0)
- 		return ret;
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 394838f..3f4ffda 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -153,11 +153,18 @@ config MOVABLE_NODE
- 	help
- 	  Allow a node to have only movable memory.  Pages used by the kernel,
- 	  such as direct mapping pages cannot be migrated.  So the corresponding
--	  memory device cannot be hotplugged.  This option allows users to
--	  online all the memory of a node as movable memory so that the whole
--	  node can be hotplugged.  Users who don't use the memory hotplug
--	  feature are fine with this option on since they don't online memory
--	  as movable.
-+	  memory device cannot be hotplugged.  This option allows the following
-+	  two things:
-+	  - When the system is booting, node full of hotpluggable memory can
-+	  be arranged to have only movable memory so that the whole node can
-+	  be hot-removed. (need movable_node boot option specified).
-+	  - After the system is up, the option allows users to online all the
-+	  memory of a node as movable memory so that the whole node can be
-+	  hot-removed.
-+
-+	  Users who don't use the memory hotplug feature are fine with this
-+	  option on since they don't specify movable_node boot option or they
-+	  don't online memory as movable.
- 
- 	  Say Y here if you want to hotplug a whole node.
- 	  Say N here if you want kernel to use memory on all nodes evenly.
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index ed85fe3..8c91d0a 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -31,6 +31,7 @@
- #include <linux/firmware-map.h>
- #include <linux/stop_machine.h>
- #include <linux/hugetlb.h>
-+#include <linux/memblock.h>
- 
- #include <asm/tlbflush.h>
- 
-@@ -1412,6 +1413,36 @@ static bool can_offline_normal(struct zone *zone, unsigned long nr_pages)
- }
- #endif /* CONFIG_MOVABLE_NODE */
- 
-+static int __init cmdline_parse_movable_node(char *p)
-+{
-+#ifdef CONFIG_MOVABLE_NODE
-+	/*
-+	 * Memory used by the kernel cannot be hot-removed because Linux
-+	 * cannot migrate the kernel pages. When memory hotplug is
-+	 * enabled, we should prevent memblock from allocating memory
-+	 * for the kernel.
-+	 *
-+	 * ACPI SRAT records all hotpluggable memory ranges. But before
-+	 * SRAT is parsed, we don't know about it.
-+	 *
-+	 * The kernel image is loaded into memory at very early time. We
-+	 * cannot prevent this anyway. So on NUMA system, we set any
-+	 * node the kernel resides in as un-hotpluggable.
-+	 *
-+	 * Since on modern servers, one node could have double-digit
-+	 * gigabytes memory, we can assume the memory around the kernel
-+	 * image is also un-hotpluggable. So before SRAT is parsed, just
-+	 * allocate memory near the kernel image to try the best to keep
-+	 * the kernel away from hotpluggable memory.
-+	 */
-+	memblock_set_bottom_up(true);
-+#else
-+	pr_warn("movable_node option not supported\n");
-+#endif
-+	return 0;
-+}
-+early_param("movable_node", cmdline_parse_movable_node);
-+
- /* check which state of node_states will be changed when offline memory */
- static void node_states_check_changes_offline(unsigned long nr_pages,
- 		struct zone *zone, struct memory_notify *arg)
+Regards,
 -- 
-1.7.1
+William
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
