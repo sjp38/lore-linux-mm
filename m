@@ -1,39 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 24D3C6B004D
-	for <linux-mm@kvack.org>; Thu, 10 Oct 2013 15:55:10 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id kp14so3271349pab.10
-        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 12:55:09 -0700 (PDT)
-Date: Thu, 10 Oct 2013 12:55:06 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 3/3] mm/zswap: avoid unnecessary page scanning
-Message-Id: <20131010125506.158c871becad30328abf6838@linux-foundation.org>
-In-Reply-To: <000101ceb836$1a4c0ee0$4ee42ca0$%yang@samsung.com>
-References: <000101ceb836$1a4c0ee0$4ee42ca0$%yang@samsung.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id B5CC36B0044
+	for <linux-mm@kvack.org>; Thu, 10 Oct 2013 16:00:20 -0400 (EDT)
+Received: by mail-pb0-f46.google.com with SMTP id rq2so3081857pbb.19
+        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 13:00:20 -0700 (PDT)
+Date: Thu, 10 Oct 2013 20:00:14 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 34/34] mm: dynamically allocate page->ptl if it cannot
+ be embedded to struct page
+In-Reply-To: <1381428359-14843-35-git-send-email-kirill.shutemov@linux.intel.com>
+Message-ID: <00000141a3f48ada-37ee9c14-2f2b-40a2-93f4-70258363351b-000000@email.amazonses.com>
+References: <1381428359-14843-1-git-send-email-kirill.shutemov@linux.intel.com> <1381428359-14843-35-git-send-email-kirill.shutemov@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang@samsung.com>
-Cc: sjenning@linux.vnet.ibm.com, bob.liu@oracle.com, minchan@kernel.org, weijie.yang.kh@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, d.j.shin@samsung.com, heesub.shin@samsung.com, kyungmin.park@samsung.com, hau.chen@samsung.com, bifeng.tong@samsung.com, rui.xie@samsung.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-On Mon, 23 Sep 2013 16:21:49 +0800 Weijie Yang <weijie.yang@samsung.com> wrote:
+On Thu, 10 Oct 2013, Kirill A. Shutemov wrote:
 
-> add SetPageReclaim before __swap_writepage so that page can be moved to the
-> tail of the inactive list, which can avoid unnecessary page scanning as this
-> page was reclaimed by swap subsystem before.
-> 
-> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
-> Reviewed-by: Bob Liu <bob.liu@oracle.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: stable@vger.kernel.org
-> Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> +static inline bool ptlock_alloc(struct page *page)
+> +{
+> +	if (sizeof(spinlock_t) > sizeof(page->ptl))
+> +		return __ptlock_alloc(page);
+> +	return true;
+> +}
 
-As a minor(?) performance tweak, I don't believe this is suitable for
--stable backporting, so I took that out.  If you believe this was a
-mistake, please explain why.
+Could you make the check a CONFIG option? CONFIG_PTLOCK_DOES_NOT_FIT_IN_PAGE_STRUCT or
+so?
 
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -147,7 +147,10 @@ struct page {
+>  						 * system if PG_buddy is set.
+>  						 */
+>  #if USE_SPLIT_PTE_PTLOCKS
+> -		spinlock_t ptl;
+> +		unsigned long ptl; /* It's spinlock_t if it fits to long,
+> +				    * otherwise it's pointer to dynamicaly
+> +				    * allocated spinlock_t.
+> +				    */
+
+If you had such a CONFIG option then you could use the proper type here.
+
+#ifdef CONFIG_PTLOCK_NOT_FITTING
+	spinlock_t *ptl;
+#else
+	spinlock_t ptl;
+#endif
+
+Or some such thing?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
