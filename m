@@ -1,30 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D7346B0036
-	for <linux-mm@kvack.org>; Thu, 10 Oct 2013 14:34:03 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id bj1so3139453pad.0
-        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 11:34:03 -0700 (PDT)
-Date: Thu, 10 Oct 2013 14:33:57 -0400 (EDT)
-Message-Id: <20131010.143357.1529669202244130105.davem@davemloft.net>
-Subject: Re: [PATCH 27/34] sparc: handle pgtable_page_ctor() fail
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <1381428359-14843-28-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E0216B0044
+	for <linux-mm@kvack.org>; Thu, 10 Oct 2013 15:15:23 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id x10so3087381pdj.29
+        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 12:15:23 -0700 (PDT)
+Date: Thu, 10 Oct 2013 21:14:58 +0200
+From: Hans-Christian Egtvedt <egtvedt@samfundet.no>
+Subject: Re: [PATCH 13/34] avr32: handle pgtable_page_ctor() fail
+Message-ID: <20131010191458.GA10670@samfundet.no>
 References: <1381428359-14843-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1381428359-14843-28-git-send-email-kirill.shutemov@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+ <1381428359-14843-14-git-send-email-kirill.shutemov@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1381428359-14843-14-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kirill.shutemov@linux.intel.com
-Cc: akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Haavard Skinnemoen <hskinnemoen@gmail.com>
 
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Date: Thu, 10 Oct 2013 21:05:52 +0300
-
+Around Thu 10 Oct 2013 21:05:38 +0300 or thereabout, Kirill A. Shutemov wrote:
 > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-Acked-by: David S. Miller <davem@davemloft.net>
+Acked-by: Hans-Christian Egtvedt <egtvedt@samfundet.no>
+
+Given [1].
+
+> Cc: Haavard Skinnemoen <hskinnemoen@gmail.com>
+> Cc: Hans-Christian Egtvedt <egtvedt@samfundet.no>
+> ---
+>  arch/avr32/include/asm/pgalloc.h | 5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
+> 
+> diff --git a/arch/avr32/include/asm/pgalloc.h b/arch/avr32/include/asm/pgalloc.h
+> index bc7e8ae479..1aba19d68c 100644
+> --- a/arch/avr32/include/asm/pgalloc.h
+> +++ b/arch/avr32/include/asm/pgalloc.h
+> @@ -68,7 +68,10 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
+>  		return NULL;
+>  
+>  	page = virt_to_page(pg);
+> -	pgtable_page_ctor(page);
+> +	if (!pgtable_page_ctor(page)) {
+> +		quicklist_free(QUICK_PT, NULL, pg);
+> +		return NULL;
+> +	}
+>  
+>  	return page;
+>  }
+
+1: I'm assuming that pgtable_page_ctor() now returns success/error, but there
+is a patch series that I have not seen.
+
+-- 
+mvh
+Hans-Christian Egtvedt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
