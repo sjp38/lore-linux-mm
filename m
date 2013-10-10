@@ -1,87 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id ADE416B0031
-	for <linux-mm@kvack.org>; Thu, 10 Oct 2013 12:12:49 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id z10so2837761pdj.3
-        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 09:12:49 -0700 (PDT)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH] mm: hugetlb: initialize PG_reserved for tail pages of gigantig compound pages
-Date: Thu, 10 Oct 2013 18:12:41 +0200
-Message-Id: <1381421561-10203-2-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1381421561-10203-1-git-send-email-aarcange@redhat.com>
-References: <1381421561-10203-1-git-send-email-aarcange@redhat.com>
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id B82336B0031
+	for <linux-mm@kvack.org>; Thu, 10 Oct 2013 12:27:51 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id kq14so2950466pab.40
+        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 09:27:51 -0700 (PDT)
+Message-ID: <1381422249.24268.68.camel@misato.fc.hp.com>
+Subject: Re: [PATCH part1 v6 4/6] x86/mem-hotplug: Support initialize page
+ tables in bottom-up
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Thu, 10 Oct 2013 10:24:09 -0600
+In-Reply-To: <20131010153518.GB13276@htj.dyndns.org>
+References: <5251F9AB.6000203@zytor.com> <525442A4.9060709@gmail.com>
+	 <20131009164449.GG22495@htj.dyndns.org> <52558EEF.4050009@gmail.com>
+	 <20131009192040.GA5592@mtj.dyndns.org>
+	 <1381352311.5429.115.camel@misato.fc.hp.com>
+	 <20131009211136.GH5592@mtj.dyndns.org>
+	 <1381363135.5429.138.camel@misato.fc.hp.com>
+	 <20131010010029.GA10900@mtj.dyndns.org>
+	 <1381415809.24268.40.camel@misato.fc.hp.com>
+	 <20131010153518.GB13276@htj.dyndns.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Gleb Natapov <gleb@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Zhang Yanfei <zhangyanfei.yes@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J .
+ Wysocki" <rjw@sisk.pl>, "lenb@kernel.org" <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "mingo@elte.hu" <mingo@elte.hu>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "izumi.taku@jp.fujitsu.com" <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "vasilis.liaskovitis@profitbricks.com" <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "prarit@redhat.com" <prarit@redhat.com>, "x86@kernel.org" <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "imtangchen@gmail.com" <imtangchen@gmail.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>
 
-11feeb498086a3a5907b8148bdf1786a9b18fc55 introduced a memory leak when
-KVM is run on gigantic compound pages.
+Hello Tejun,
 
-11feeb498086a3a5907b8148bdf1786a9b18fc55 depends on the assumption
-that PG_reserved is identical for all head and tail pages of a
-compound page. So that if get_user_pages returns a tail page, we don't
-need to check the head page in order to know if we deal with a
-reserved page that requires different refcounting.
+On Thu, 2013-10-10 at 11:35 -0400, Tejun Heo wrote:
+ :
+> > > Are firmware writers gonna be
+> > > required to split SRAT entries into multiple sub-nodes to support it?
+> > 
+> > Yes, and that's part of the ACPI spec.  That's not something the OS
+> > requests to do.  If a memory range has different attribute, firmware has
+> > to put it in a separate entry.
+> 
+> I was referring to having to segment a contiguous hotplug memory area
+> further to support finer granularity.  This is represented by separate
+> mem devices rather than segmented SRAT entries, right?  Hmmm... so we
+> should parse device nodes before setting up page tables?
 
-The assumption that PG_reserved is the same for head and tail pages is
-certainly correct for THP and regular hugepages, but gigantic
-hugepages allocated through bootmem don't clear the PG_reserved on the
-tail pages (the clearing of PG_reserved is done later only if the
-gigantic hugepage is freed).
+Yes, a memory device object is the finest granularity of performing
+memory hotplug on ACPI based platforms.  SRAT must be consistent with
+the memory device object info, but its entry does not have to be
+segmented by the device granularity.  It only needs to be segmented when
+memory attribute is different.  For instance, SRAT may have a single
+entry for Case A), but Case B) must have two separate entries.  In both
+cases, MEMA & MEMB represent a contiguous memory range.
 
-This patch corrects the gigantic compound page initialization so that
-we can retain the optimization in
-11feeb498086a3a5907b8148bdf1786a9b18fc55. The cacheline was already
-modified in order to set PG_tail so this won't affect the boot time of
-large memory systems.
+Case A) Both MEMA and MEMB devices are hotpluggable
 
-Reported-by: andy123 <ajs124.ajs124@gmail.com>
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- mm/hugetlb.c | 18 +++++++++++++++++-
- 1 file changed, 17 insertions(+), 1 deletion(-)
+ MEMA:  _CRS: 0x0000-0x0fff  _EJ0: hotpluggable
+ MEMB:  _CRS: 0x1000-0x1fff  _EJ0: hotpluggable
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index b49579c..315450e 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -695,8 +695,24 @@ static void prep_compound_gigantic_page(struct page *page, unsigned long order)
- 	/* we rely on prep_new_huge_page to set the destructor */
- 	set_compound_order(page, order);
- 	__SetPageHead(page);
-+	__ClearPageReserved(page);
- 	for (i = 1; i < nr_pages; i++, p = mem_map_next(p, page, i)) {
- 		__SetPageTail(p);
-+		/*
-+		 * For gigantic hugepages allocated through bootmem at
-+		 * boot, it's safer to be consistent with the
-+		 * not-gigantic hugepages and to clear the PG_reserved
-+		 * bit from all tail pages too. Otherwse drivers using
-+		 * get_user_pages() to access tail pages, may get the
-+		 * reference counting wrong if they see the
-+		 * PG_reserved bitflag set on a tail page (despite the
-+		 * head page didn't have PG_reserved set). Enforcing
-+		 * this consistency between head and tail pages,
-+		 * allows drivers to optimize away a check on the head
-+		 * page when they need know if put_page is needed after
-+		 * get_user_pages() or not.
-+		 */
-+		__ClearPageReserved(p);
- 		set_page_count(p, 0);
- 		p->first_page = page;
- 	}
-@@ -1329,9 +1345,9 @@ static void __init gather_bootmem_prealloc(void)
- #else
- 		page = virt_to_page(m);
- #endif
--		__ClearPageReserved(page);
- 		WARN_ON(page_count(page) != 1);
- 		prep_compound_huge_page(page, h->order);
-+		WARN_ON(PageReserved(page));
- 		prep_new_huge_page(h, page, page_to_nid(page));
- 		/*
- 		 * If we had gigantic hugepages allocated at boot time, we need
+ SRAT: 0x0000-0x1ffff hotpluggable
+
+Case B) Only MEMB is hotpluggable
+
+ MEMA:  _CRS: 0x0000-0x0fff
+ MEMB:  _CRS: 0x1000-0x1fff  _EJ0: hotpluggable
+
+ SRAT: 0x0000-0x0fff
+       0x1000-0x1fff  hotpluggable
+
+> > SRAT and _EJ0 method are the only interfaces that define ejectability in
+> > the standard spec.  Are you suggesting us to change the e820 spec or not
+> > to comply with the spec?  I do not think such approaches work.    
+> 
+> It's slower but standards get revised and updated over time.  Have no
+> idea whether there'd be a sane way to do that for e820 tho.
+
+I am familiar with the process.  Yes, it is slow, but most importantly,
+it needs some standard group or company to actively maintain the spec in
+order to update it.  I do not think e820 is in such state.
+
+> > I think memory hotplug was originally implemented on ia64 with the node
+> > granularity.  I share your concerns, but that's been done a long time
+> > ago.  It's too late to complain the past.  This SRAT work is not
+> > introducing such restriction.
+> 
+> We're going round and round.  You're saying that using SRAT isn't
+> worse than what came before while failing to illustrate how committing
+> to invasive changes would eventually lead to something better.  "it
+> isn't worse" isn't much of an argument.
+
+We did avoid moving up the ACPI table init function per your suggestion.
+I guess I do not understand why you still concerned about using SRAT...
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
