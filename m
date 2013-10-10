@@ -1,92 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id C12E56B0037
-	for <linux-mm@kvack.org>; Thu, 10 Oct 2013 03:01:30 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id bj1so2274859pad.35
-        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 00:01:30 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout1.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MUF00C4LY6ETT10@mailout1.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 10 Oct 2013 08:01:26 +0100 (BST)
-Message-id: <1381388484.21461.16.camel@AMDC1943>
-Subject: Re: [PATCH v3 5/6] zswap: replace tree in zswap with radix tree in zbud
-From: Krzysztof Kozlowski <k.kozlowski@samsung.com>
-Date: Thu, 10 Oct 2013 09:01:24 +0200
-In-reply-to: <20131009171617.GA21057@variantweb.net>
-References: <1381238980-2491-1-git-send-email-k.kozlowski@samsung.com>
- <1381238980-2491-6-git-send-email-k.kozlowski@samsung.com>
- <20131009153022.GB5406@variantweb.net> <20131009171617.GA21057@variantweb.net>
-Content-type: text/plain; charset=UTF-8
-Content-transfer-encoding: 7bit
-MIME-version: 1.0
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AE9A6B0037
+	for <linux-mm@kvack.org>; Thu, 10 Oct 2013 03:03:33 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id wz12so2094518pbc.25
+        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 00:03:32 -0700 (PDT)
+Date: Thu, 10 Oct 2013 15:03:24 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [uml-devel] BUG: soft lockup for a user mode linux image
+Message-ID: <20131010070324.GA24244@localhost>
+References: <CAMuHMdXrU0e_6AxvdboMkDs+N+tSWD+b8ou92j28c0vsq2eQQA@mail.gmail.com>
+ <5251C334.3010604@gmx.de>
+ <CAMuHMdUo8dSd4s3089ZDEc485wL1sFxBKLeaExJuqNiQY+S-Lw@mail.gmail.com>
+ <5251CF94.5040101@gmx.de>
+ <CAMuHMdWs6Y7y12STJ+YXKJjxRF0k5yU9C9+0fiPPmq-GgeW-6Q@mail.gmail.com>
+ <525591AD.4060401@gmx.de>
+ <5255A3E6.6020100@nod.at>
+ <20131009214733.GB25608@quack.suse.cz>
+ <20131010024613.GA10719@localhost>
+ <CAMuHMdWSQrgMtW84QLs1Q96Jg-sYntS9Ohz-sXd3dWhuR2O7mw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAMuHMdWSQrgMtW84QLs1Q96Jg-sYntS9Ohz-sXd3dWhuR2O7mw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <spartacus06@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Tomasz Stanislawski <t.stanislaws@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Dave Hansen <dave.hansen@intel.com>, Minchan Kim <minchan@kernel.org>
+To: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Jan Kara <jack@suse.cz>, Richard Weinberger <richard@nod.at>, Toralf =?utf-8?Q?F=C3=B6rster?= <toralf.foerster@gmx.de>, UML devel <user-mode-linux-devel@lists.sourceforge.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, hannes@cmpxchg.org, darrick.wong@oracle.com, Michal Hocko <mhocko@suse.cz>, Gu Zheng <guz.fnst@cn.fujitsu.com>, Benjamin LaHaise <bcrl@kvack.org>
 
-On Wed, 2013-10-09 at 12:16 -0500, Seth Jennings wrote:
-> On Wed, Oct 09, 2013 at 10:30:22AM -0500, Seth Jennings wrote:
-> > In my approach, I was also looking at allowing the zbud pools to use
-> > HIGHMEM pages, since the handle is no longer an address.  This requires
-> > the pages that are being mapped to be kmapped (atomic) which will
-> > disable preemption.  This isn't an additional overhead since the
-> > map/unmap corresponds with a compress/decompress operation at the zswap
-> > level which uses per-cpu variables that disable preemption already.
+On Thu, Oct 10, 2013 at 08:52:33AM +0200, Geert Uytterhoeven wrote:
+> On Thu, Oct 10, 2013 at 4:46 AM, Fengguang Wu <fengguang.wu@intel.com> wrote:
+> > On Wed, Oct 09, 2013 at 11:47:33PM +0200, Jan Kara wrote:
+> >> On Wed 09-10-13 20:43:50, Richard Weinberger wrote:
+> >> > Am 09.10.2013 19:26, schrieb Toralf FA?rster:
+> >> > > On 10/08/2013 10:07 PM, Geert Uytterhoeven wrote:
+> >> > >> On Sun, Oct 6, 2013 at 11:01 PM, Toralf FA?rster <toralf.foerster@gmx.de> wrote:
+> >> > >>>> Hmm, now pages_dirtied is zero, according to the backtrace, but the BUG_ON()
+> >> > >>>> asserts its strict positive?!?
+> >> > >>>>
+> >> > >>>> Can you please try the following instead of the BUG_ON():
+> >> > >>>>
+> >> > >>>> if (pause < 0) {
+> >> > >>>>         printk("pages_dirtied = %lu\n", pages_dirtied);
+> >> > >>>>         printk("task_ratelimit = %lu\n", task_ratelimit);
+> >> > >>>>         printk("pause = %ld\n", pause);
 > 
-> On second though, lets not mess with the HIGHMEM page support for now.
-> Turns out it is tricker than I thought since the unbuddied lists are
-> linked through the zbud header stored in the page.  But we can still
-> disable preemption to allow per-cpu tracking of the current mapping and
-> avoid a lookup (and races) in zbud_unmap().
+> >> > >>> I tried it in different ways already - I'm completely unsuccessful in getting any printk output.
+> >> > >>> As soon as the issue happens I do have a
+> >> > >>>
+> >> > >>> BUG: soft lockup - CPU#0 stuck for 22s! [trinity-child0:1521]
+> >> > >>>
+> >> > >>> at stderr of the UML and then no further input is accepted. With uml_mconsole I'm however able
+> >> > >>> to run very basic commands like a crash dump, sysrq ond so on.
+> >> > >>
+> >> > >> You may get an idea of the magnitude of pages_dirtied by using a chain of
+> >> > >> BUG_ON()s, like:
+> >> > >>
+> >> > >> BUG_ON(pages_dirtied > 2000000000);
+> >> > >> BUG_ON(pages_dirtied > 1000000000);
+> >> > >> BUG_ON(pages_dirtied > 100000000);
+> >> > >> BUG_ON(pages_dirtied > 10000000);
+> >> > >> BUG_ON(pages_dirtied > 1000000);
+> >> > >>
+> >> > >> Probably 1 million is already too much for normal operation?
+> >> > >>
+> >> > > period = HZ * pages_dirtied / task_ratelimit;
+> >> > >           BUG_ON(pages_dirtied > 2000000000);
+> >> > >           BUG_ON(pages_dirtied > 1000000000);      <-------------- this is line 1467
+> >> >
+> >> > Summary for mm people:
+> >> >
+> >> > Toralf runs trinty on UML/i386.
+> >> > After some time pages_dirtied becomes very large.
+> >> > More than 1000000000 pages in this case.
+> >>   Huh, this is really strange. pages_dirtied is passed into
+> >> balance_dirty_pages() from current->nr_dirtied. So I wonder how a value
+> >> over 10^9 can get there.
+> >
+> > I noticed aio_setup_ring() in the call trace and find it recently
+> > added a SetPageDirty() call in a loop by commit 36bc08cc01 ("fs/aio:
+> > Add support to aio ring pages migration"). So added CC to its authors.
+> >
+> >> After all that is over 4TB so I somewhat doubt the
+> >> task was ever able to dirty that much during its lifetime (but correct me
+> >> if I'm wrong here, with UML and memory backed disks it is not totally
+> >> impossible)... I went through the logic of handling ->nr_dirtied but
+> >> I didn't find any obvious problem there. Hum, maybe one thing - what
+> >> 'task_ratelimit' values do you see in balance_dirty_pages? If that one was
+> >> huge, we could possibly accumulate huge current->nr_dirtied.
+> >>
+> >> > Thus, period = HZ * pages_dirtied / task_ratelimit overflows
+> >> > and period/pause becomes extremely large.
+> 
+> period/pause are signed long, so they become negative instead of
+> extremely large when overflowing.
 
-This tracking of current mapping could solve another problem I
-encountered with new one-radix-tree approach with storage of duplicated
-entries.
+Yeah. For that we have underflow detect as well: 
 
-The problem is in zbud_unmap() API using offset to unmap (if duplicated
-entries are overwritten):
- - thread 1: zswap_fronstwap_load() of some offset
-   - zbud_map() maps this offset -> zhdr1
- - thread 2: zswap_frontswap_store() stores new data for this offset 
-   - zbud_alloc() allocated new zhdr2 and replaces zhdr1 in radix tree 
-     under this offset
-   - new compressed data is stored by zswap
- - thread 1: tries to zbud_unmap() of this offset, but now the old
-   zhdr1 is not present in radix tree so unmap will either fail or use
-   zhdr2 which is wrong
+                if (pause < min_pause) {
+                        ...
+                        break;
+                }
 
-To solve this issue I experimented with unmapping by zbud_mapped_entry
-instead of offset (so zbud_unmap() won't search zbud_header in radix
-tree at all):
-##########################
-int zbud_unmap(struct zbud_pool *pool, pgoff_t offset,
-		struct zbud_mapped_entry *entry)
-{
-	struct zbud_header *zhdr = handle_to_zbud_header((unsigned
-long)entry->addr);
+So we'll break out of the loop -- but yeah, whether the break is the
+right behavior on underflow is still questionable.
 
-	VM_BUG_ON((offset != zhdr->first_offset) && (offset !=
-zhdr->last_offset));
-	spin_lock(&pool->lock);
-	if (put_map_count(zhdr, offset)) {
-		/* Racing zbud_free() could not free the offset because
-		 * it was still mapped so it is our job to free. */
-		zbud_header_free(pool, zhdr, offset);
-		spin_unlock(&pool->lock);
-		return -EFAULT;
-	}
-	put_zbud_page(zhdr);
-	spin_unlock(&pool->lock);
-	return 0;
-}
-##########################
+> >> > It looks like io_schedule_timeout() get's called with a very large timeout.
+> >> > I don't know why "if (unlikely(pause > max_pause)) {" does not help.
+> 
+> Because pause is now negative.
 
-However getting rid of first/last_map_count seems much more simpler! 
+So here io_schedule_timeout() won't be called with negative pause.
 
-Best regards,
-Krzysztof
+And if ever io_schedule_timeout() calls schedule_timeout() with
+negative timeout, the latter will emit a warning and break out, too:
 
+                if (timeout < 0) {
+                        printk(KERN_ERR "schedule_timeout: wrong timeout "
+                                "value %lx\n", timeout);
+                        dump_stack();
+                        current->state = TASK_RUNNING;
+                        goto out;
+                }
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
