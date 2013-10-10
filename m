@@ -1,65 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 235D66B0031
-	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 21:21:54 -0400 (EDT)
-Received: by mail-pb0-f44.google.com with SMTP id xa7so1767141pbc.3
-        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 18:21:53 -0700 (PDT)
-Message-ID: <525600E0.8020001@cn.fujitsu.com>
-Date: Thu, 10 Oct 2013 09:20:32 +0800
-From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id BFCFD6B0031
+	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 21:29:21 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id p10so1833512pdj.18
+        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 18:29:21 -0700 (PDT)
+Message-ID: <525602E3.3080501@oracle.com>
+Date: Thu, 10 Oct 2013 09:29:07 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH part1 v6 4/6] x86/mem-hotplug: Support initialize page
- tables in bottom-up
-References: <524E2032.4020106@gmail.com> <524E2127.4090904@gmail.com> <5251F9AB.6000203@zytor.com> <525442A4.9060709@gmail.com> <20131009164449.GG22495@htj.dyndns.org> <52558EEF.4050009@gmail.com> <20131009192040.GA5592@mtj.dyndns.org> <1381352311.5429.115.camel@misato.fc.hp.com> <20131009211136.GH5592@mtj.dyndns.org> <5255C730.90602@zytor.com> <5255CE7D.8030007@gmail.com> <5255E253.3080905@zytor.com> <5255E60F.5010102@gmail.com>
-In-Reply-To: <5255E60F.5010102@gmail.com>
+Subject: Re: [PATCH] frontswap: enable call to invalidate area on swapoff
+References: <1381159541-13981-1-git-send-email-k.kozlowski@samsung.com> <20131007150338.1fdee18b536bb1d9fe41a07b@linux-foundation.org> <1381220000.16135.10.camel@AMDC1943> <20131008130853.96139b79a0a4d3aaacc79ed2@linux-foundation.org> <20131009144045.GA5406@variantweb.net>
+In-Reply-To: <20131009144045.GA5406@variantweb.net>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>, Tejun Heo <tj@kernel.org>
-Cc: Zhang Yanfei <zhangyanfei.yes@gmail.com>, Toshi Kani <toshi.kani@hp.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J . Wysocki" <rjw@sisk.pl>, lenb@kernel.org, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, prarit@redhat.com, "x86@kernel.org" <x86@kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, imtangchen@gmail.com, Tang Chen <tangchen@cn.fujitsu.com>
+To: Seth Jennings <spartacus06@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Krzysztof Kozlowski <k.kozlowski@samsung.com>, linux-mm@kvack.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, Shaohua Li <shli@fusionio.com>, Minchan Kim <minchan@kernel.org>
 
-Hello guys,
 
-On 10/10/2013 07:26 AM, Zhang Yanfei wrote:
-> Hello Peter,
-> 
-> On 10/10/2013 07:10 AM, H. Peter Anvin wrote:
->> On 10/09/2013 02:45 PM, Zhang Yanfei wrote:
->>>>
->>>> I would also argue that in the VM scenario -- and arguable even in the
->>>> hardware scenario -- the right thing is to not expose the flexible
->>>> memory in the e820/EFI tables, and instead have it hotadded (possibly
->>>> *immediately* so) on boot.  This avoids both the boot time funnies as
->>>> well as the scaling issues with metadata.
->>>>
->>>
->>> So in this kind of scenario, hotpluggable memory will not be detected
->>> at boot time, and admin should not use this movable_node boot option
->>> and the kernel will act as before, using top-down allocation always.
->>>
+On 10/09/2013 10:40 PM, Seth Jennings wrote:
+> On Tue, Oct 08, 2013 at 01:08:53PM -0700, Andrew Morton wrote:
+>> On Tue, 08 Oct 2013 10:13:20 +0200 Krzysztof Kozlowski <k.kozlowski@samsung.com> wrote:
 >>
->> Yes.  The idea is that the kernel will boot up without the hotplug
->> memory, but if desired, will immediately see a hotplug-add event for the
->> movable memory.
+>>> On pon, 2013-10-07 at 15:03 -0700, Andrew Morton wrote:
+>>>> On Mon, 07 Oct 2013 17:25:41 +0200 Krzysztof Kozlowski <k.kozlowski@samsung.com> wrote:
+>>>>
+>>>>> During swapoff the frontswap_map was NULL-ified before calling
+>>>>> frontswap_invalidate_area(). However the frontswap_invalidate_area()
+>>>>> exits early if frontswap_map is NULL. Invalidate was never called during
+>>>>> swapoff.
+>>>>>
+>>>>> This patch moves frontswap_map_set() in swapoff just after calling
+>>>>> frontswap_invalidate_area() so outside of locks
+>>>>> (swap_lock and swap_info_struct->lock). This shouldn't be a problem as
+>>>>> during swapon the frontswap_map_set() is called also outside of any
+>>>>> locks.
+>>>>>
+>>>>
+>>>> Ahem.  So there's a bunch of code in __frontswap_invalidate_area()
+>>>> which hasn't ever been executed and nobody noticed it.  So perhaps that
+>>>> code isn't actually needed?
+>>>>
+>>>> More seriously, this patch looks like it enables code which hasn't been
+>>>> used or tested before.  How well tested was this?
+>>>>
+>>>> Are there any runtime-visible effects from this change?
+>>>
+>>> I tested zswap on x86 and x86-64 and there was no difference. This is
+>>> good as there shouldn't be visible anything because swapoff is unusing
+>>> all pages anyway:
+>>> 	try_to_unuse(type, false, 0); /* force all pages to be unused */
+>>>
+>>> I haven't tested other frontswap users.
+>>
+>> So is that code in __frontswap_invalidate_area() unneeded?
 > 
-> Yeah, this is good.
+> Yes, to expand on what Bob said, __frontswap_invalidate_area() is still
+> needed to let any frontswap backend free per-swaptype resources.
 > 
-> But in the scenario that boot with hotplug memory, we need the movable_node
-> option. So as tejun has explained a lot about this patchset, do you still
-> have objection to it or could I ask andrew to merge it into -mm tree for
-> more tests?
+> __frontswap_invalidate_area() is _not_ for freeing structures associated
+> with individual swapped out pages since all of the pages should be
+> brought back into memory by try_to_unuse() before
+> __frontswap_invalidate_area() is called.
+> 
+> The reason we never noticed this for zswap is that zswap has no
+> dynamically allocated per-type resources.  In the expected case,
+> where all of the pages have been drained from zswap,
+> zswap_frontswap_invalidate_area() is a no-op.
 > 
 
-Since tejun has explained a lot about this approach, could we come to
-an agreement on this one?
+Not exactly, see the bug fix "mm/zswap: bugfix: memory leak when
+re-swapon" from Weijie.
+Zswap needs invalidate_area() also.
 
-Peter? If you have no objection, I'll post a new v7 version which will fix
-the __pa_symbol problem pointed by you.
-
--- 
-Thanks.
-Zhang Yanfei
+Thanks,
+-Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
