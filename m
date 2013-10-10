@@ -1,65 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A1056B0031
-	for <linux-mm@kvack.org>; Thu, 10 Oct 2013 18:50:14 -0400 (EDT)
-Received: by mail-pb0-f45.google.com with SMTP id mc17so3274653pbc.18
-        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 15:50:14 -0700 (PDT)
-Message-ID: <52572F1C.8080905@zytor.com>
-Date: Thu, 10 Oct 2013 15:50:04 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BA746B0031
+	for <linux-mm@kvack.org>; Thu, 10 Oct 2013 18:59:50 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rp2so3285954pbb.14
+        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 15:59:50 -0700 (PDT)
+Subject: =?utf-8?q?Re=3A_=5Bpatch_0=2F7=5D_improve_memcg_oom_killer_robustness_v2?=
+Date: Fri, 11 Oct 2013 00:59:45 +0200
+From: "azurIt" <azurit@pobox.sk>
+References: <20130917141013.GA30838@dhcp22.suse.cz>, <20130918160304.6EDF2729@pobox.sk>, <20130918180455.GD856@cmpxchg.org>, <20130918181946.GE856@cmpxchg.org>, <20130918195504.GF856@cmpxchg.org>, <20130926185459.E5D2987F@pobox.sk>, <20130926192743.GP856@cmpxchg.org>, <20131007130149.5F5482D8@pobox.sk>, <20131007192336.GU856@cmpxchg.org>, <20131009204450.6AB97915@pobox.sk> <20131010001422.GB856@cmpxchg.org>
+In-Reply-To: <20131010001422.GB856@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] RAID5: Change kmem_cache name string of RAID 4/5/6 stripe
- cache
-References: <1379646960-12553-1-git-send-email-jbrassow@redhat.com> <1379646960-12553-2-git-send-email-jbrassow@redhat.com>
-In-Reply-To: <1379646960-12553-2-git-send-email-jbrassow@redhat.com>
+Message-Id: <20131011005945.33D49C21@pobox.sk>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Brassow <jbrassow@redhat.com>
-Cc: linux-raid@vger.kernel.org, linux-mm@kvack.org, cl@linux.com
+To: =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
+Cc: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>, =?utf-8?q?Andrew_Morton?= <akpm@linux-foundation.org>, =?utf-8?q?David_Rientjes?= <rientjes@google.com>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?KOSAKI_Motohiro?= <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 09/19/2013 08:16 PM, Jonathan Brassow wrote:
-> The unique portion of the kmem_cache name used when dm-raid is creating
-> a RAID 4/5/6 array is the memory address of it's associated 'mddev'
-> structure.  This is not always unique.  The memory associated
-> with the 'mddev' structure can be freed and a future 'mddev' structure
-> can be allocated from the exact same spot.  This causes an identical
-> name to the old cache to be created when kmem_cache_create is called.
-> If an old name is still present amoung slab_caches due to cache merging,
-> the call will fail.  This is not theoretical, I see this regularly when
-> performing device-mapper RAID 4/5/6 tests (although, strangely only on
-> Fedora-19).
-> 
-> Making the unique portion of the kmem_cache name based on jiffies fixes
-> this problem.
-> 
-> Signed-off-by: Jonathan Brassow <jbrassow@redhat.com>
-> ---
->  drivers/md/raid5.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/drivers/md/raid5.c b/drivers/md/raid5.c
-> index 7ff4f25..f731ce9 100644
-> --- a/drivers/md/raid5.c
-> +++ b/drivers/md/raid5.c
-> @@ -1618,7 +1618,7 @@ static int grow_stripes(struct r5conf *conf, int num)
->  			"raid%d-%s", conf->level, mdname(conf->mddev));
->  	else
->  		sprintf(conf->cache_name[0],
-> -			"raid%d-%p", conf->level, conf->mddev);
-> +			"raid%d-%llu", conf->level, get_jiffies_64());
->  	sprintf(conf->cache_name[1], "%s-alt", conf->cache_name[0]);
->  
->  	conf->active_name = 0;
-> 
+>On Wed, Oct 09, 2013 at 08:44:50PM +0200, azurIt wrote:
+>> Joahnnes,
+>> 
+>> i'm very sorry to say it but today something strange happened.. :) i was just right at the computer so i noticed it almost immediately but i don't have much info. Server stoped to respond from the net but i was already logged on ssh which was working quite fine (only a little slow). I was able to run commands on shell but i didn't do much because i was afraid that it will goes down for good soon. I noticed few things:
+>>  - htop was strange because all CPUs were doing nothing (totally nothing)
+>>  - there were enough of free memory
+>>  - server load was about 90 and was raising slowly
+>>  - i didn't see ANY process in 'run' state
+>>  - i also didn't see any process with strange behavior (taking much CPU, memory or so) so it wasn't obvious what to do to fix it
+>>  - i started to kill Apache processes, everytime i killed some, CPUs did some work, but it wasn't fixing the problem
+>>  - finally i did 'skill -kill apache2' in shell and everything started to work
+>>  - server monitoring wasn't sending any data so i have no graphs
+>>  - nothing interesting in logs
+>> 
+>> I will send more info when i get some.
+>
+>Somebody else reported a problem on the upstream patches as well.  Any
+>chance you can confirm the stacks of the active but not running tasks?
 
-And it is not possible to create two inside the same jiffy?  Seems
-unlikely at best.
 
-Why not just use a simple counter?
 
-	-hpa
+Unfortunately i don't have any stacks but i will try to take some next time.
+
+
+
+>It sounds like they are stuck on a waitqueue, the question is which
+>one.  I forgot to disable OOM for __GFP_NOFAIL allocations, so they
+>could succeed and leak an OOM context.  task structs are not
+>reinitialized between alloc & free so a different task could later try
+>to oom trylock a memcg that has been freed, fail, and wait
+>indefinitely on the OOM waitqueue.  There might be a simpler
+>explanation but I can't think of anything right now.
+>
+>But the OOM context is definitely being leaked, so please apply the
+>following for your next reboot:
+
+
+It's installed, thank you!
+
+azur
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
