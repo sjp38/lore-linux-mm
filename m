@@ -1,86 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id F186E6B0031
-	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 21:00:36 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fb1so1901134pad.9
-        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 18:00:36 -0700 (PDT)
-Received: by mail-qa0-f47.google.com with SMTP id k4so5569154qaq.13
-        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 18:00:34 -0700 (PDT)
-Date: Wed, 9 Oct 2013 21:00:29 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH part1 v6 4/6] x86/mem-hotplug: Support initialize page
- tables in bottom-up
-Message-ID: <20131010010029.GA10900@mtj.dyndns.org>
-References: <524E2032.4020106@gmail.com>
- <524E2127.4090904@gmail.com>
- <5251F9AB.6000203@zytor.com>
- <525442A4.9060709@gmail.com>
- <20131009164449.GG22495@htj.dyndns.org>
- <52558EEF.4050009@gmail.com>
- <20131009192040.GA5592@mtj.dyndns.org>
- <1381352311.5429.115.camel@misato.fc.hp.com>
- <20131009211136.GH5592@mtj.dyndns.org>
- <1381363135.5429.138.camel@misato.fc.hp.com>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D6746B0031
+	for <linux-mm@kvack.org>; Wed,  9 Oct 2013 21:04:20 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id bj1so1892348pad.0
+        for <linux-mm@kvack.org>; Wed, 09 Oct 2013 18:04:19 -0700 (PDT)
+From: Lisa Du <cldu@marvell.com>
+Date: Wed, 9 Oct 2013 18:04:09 -0700
+Subject: RE: 6e543d5780e fixed a boot hang
+Message-ID: <89813612683626448B837EE5A0B6A7CB3E57459EC9@SC-VEXCH4.marvell.com>
+References: <20131009141217.GA24846@localhost>
+In-Reply-To: <20131009141217.GA24846@localhost>
+Content-Language: en-US
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1381363135.5429.138.camel@misato.fc.hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: Zhang Yanfei <zhangyanfei.yes@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J . Wysocki" <rjw@sisk.pl>, lenb@kernel.org, Thomas Gleixner <tglx@linutronix.de>, mingo@elte.hu, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, mina86@mina86.com, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, prarit@redhat.com, "x86@kernel.org" <x86@kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, imtangchen@gmail.com, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Hello, Toshi.
-
-On Wed, Oct 09, 2013 at 05:58:55PM -0600, Toshi Kani wrote:
-> Well, there was a plan before, which considered to enhance it to a
-> memory device granularity at step 3.  But we had a major replan at step
-> 1 per your suggestion.
-> 
-> https://lkml.org/lkml/2013/6/19/73
-
-Where?
-
- "3. Improve memory hotplug to support local device pagetable."
-
-How can the above possibly be considered as a plan for finer
-granularity?  Forget about the "how" part.  The stated goal doesn't
-even mention finer granularity.  Are firmware writers gonna be
-required to split SRAT entries into multiple sub-nodes to support it?
-Is segregating zones further for this even a good idea?  Adding more
-NUMA nodes has its own overhead and the mm code isn't written
-expecting it to be repurposed for segmenting the same NUMA node for
-hotplug underneath it.
-
-Maybe zoning is a viable approach.  Maybe it is not.  I don't know,
-but you guys don't seem to be too interested in actual long term
-planning while pushing for something invasive which may or may not be
-viable in the longer term, which can often lead to silly situations.
-It isn't even clear whether SRAT is the right interface for this.  If
-it's gonna require firwmare writer's cooperation anyway, why not
-provide the information as extended part of e820?  It doesn't seem to
-have much to do with NUMA or zones.  The only information the kernel
-needs to know is whether certain memory areas should only be used for
-page cache.
-
-At this point, at least to me, it doesn't seem reasonably clear how
-this is gonna develop and the whole thing feels like a kludge, which
-can be fine too, but seriously if you guys wanna push for an invasive
-approach, it should really be backed by longer term plan, vision,
-justification and the ability to make the necessary changes in the
-various involved layers.  Maybe I'm being too pessimistic but I feel
-that there are a lot missing in most of those areas, which makes it
-quite risky to commit to invasive changes.
-
-If the zone based kludgy appraoch is something meaningfully useful,
-I'd suggest to sticking to it at least for now.  Some of it would be
-useful anyway and if it doesn't fan out the added maintenance overhead
-is fairly low.
-
-Thanks.
-
--- 
-tejun
+Pi0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQo+RnJvbTogRmVuZ2d1YW5nIFd1IFttYWlsdG86
+ZmVuZ2d1YW5nLnd1QGludGVsLmNvbV0NCj5TZW50OiAyMDEzxOoxMNTCOcjVIDIyOjEyDQo+VG86
+IExpc2EgRHUNCj5DYzogS09TQUtJIE1vdG9oaXJvOyBsaW51eC1tbUBrdmFjay5vcmc7IGxpbnV4
+LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmcNCj5TdWJqZWN0OiA2ZTU0M2Q1NzgwZSBmaXhlZCBhIGJv
+b3QgaGFuZw0KPg0KPkdyZWV0aW5ncywNCj4NCj5GWUksIHRoaXMgY29tbWl0IHNlZW0gdG8gZml4
+IGEgYm9vdCBoYW5nIHByb2JsZW0gaGVyZS4NCj4NCj5jb21taXQgNmU1NDNkNTc4MGUzNmZmNWVl
+NTZjNDRkN2UyZTMwZGIzNDU3YTdlZA0KPkF1dGhvcjogTGlzYSBEdSA8Y2xkdUBtYXJ2ZWxsLmNv
+bT4NCj5EYXRlOiAgIFdlZCBTZXAgMTEgMTQ6MjI6MzYgMjAxMyAtMDcwMA0KPg0KPiAgICBtbTog
+dm1zY2FuOiBmaXggZG9fdHJ5X3RvX2ZyZWVfcGFnZXMoKSBsaXZlbG9jaw0KPg0KPg0KPiAgICAg
+ICAgWyAgICAxLjM5NDg3MV0gcGNpIDAwMDA6MDA6MDIuMDogQm9vdCB2aWRlbyBkZXZpY2UNCj4g
+ICAgICAgIFsgICAgMS4zOTU4ODNdIFBDSTogQ0xTIDAgYnl0ZXMsIGRlZmF1bHQgNjQNCj4NCj5J
+biBwYXJlbnQgY29tbWl0LCBpdCB3aWxsIGhhbmcgcmlnaHQgaGVyZS4NCj4NCj5XaXRoIHRoaXMg
+Y29tbWl0LCBpdCB3aWxsIGNvbnRpbnVlIHRvIGVtaXQgdGhlIGJlbG93IE9PTSBtZXNzYWdlcyAo
+d2hpY2ggaXMgbm90IGEgc3VycHJpc2UgdG8gbWUgYmVjYXVzZSB0aGUgYm9vdCB0ZXN0IHJ1bnMg
+aW4gYSBzbWFsbA0KPm1lbW9yeSBLVk0gYW5kIHRoZSBrY29uZmlnIGJ1aWxkcyBpbiBsb3RzIG9m
+IGRyaXZlcnMpLg0KSSB0aGluayB5b3UgbWF5IG1lZXQgdGhlIHNhbWUgaXNzdWUgYXMgbWluZS4N
+CkRpcmVjdCByZWNsYWltIGxvb3AgZm9yZXZlciB3aXRoIHpvbmUtPmFsbF91bnJlY2xhaW1hYmxl
+ID0gMChhcyBrc3dhcGQgc2xlZXBzIGZvcmV2ZXIpLg0KQW5kIGF0IHRoZSBib290IHN0YWdlLCBu
+byBvbmUgZGV0ZWN0IGFuZCB0ZXJtaW5hdGUgaXQsIHNvIHlvdSBzZWUgdGhlIGJvb3QgaGFuZy4g
+DQpBZnRlciBhcHBseSB0aGlzIHBhdGNoLCB5b3Ugc2VlIHRoZXJlJ3Mgb29tLWtpbGxlciBpbnZv
+a2VkIGFzIGRpcmVjdCByZWNsYWltIHdvdWxkIGJyZWFrIHdoZW4gem9uZSB3YXMgdW5yZWNsYWlt
+YWJsZS4NCj4NCj4gICAgICAgIFsgICAgMS42MzE4OTJdIHN3YXBwZXIvMCBpbnZva2VkIG9vbS1r
+aWxsZXI6IGdmcF9tYXNrPTB4MjAwMGQwLCBvcmRlcj0xLCBvb21fc2NvcmVfYWRqPTANCj4gICAg
+ICAgIFsgICAgMS42MzM1NDldIHN3YXBwZXIvMCBjcHVzZXQ9LyBtZW1zX2FsbG93ZWQ9MA0KPiAg
+ICAgICAgWyAgICAxLjYzNDQ0M10gQ1BVOiAxIFBJRDogMSBDb21tOiBzd2FwcGVyLzAgTm90IHRh
+aW50ZWQgMy4xMi4wLXJjNC0wMDAxOS1nOGI1ZWRlNiAjMTI2DQo+ICAgICAgICBbICAgIDEuNjM1
+OTgyXSBIYXJkd2FyZSBuYW1lOiBCb2NocyBCb2NocywgQklPUyBCb2NocyAwMS8wMS8yMDExDQo+
+ICAgICAgICBbICAgIDEuNjM3MDg4XSAgMDAwMDAwMDAwMDAwMDAwMiBmZmZmODgwMDFkZDQxYjI4
+IGZmZmZmZmZmODJjOGQ3OGYgZmZmZjg4MDAxZWY3YzA0MA0KPiAgICAgICAgWyAgICAxLjYzODk1
+NV0gIGZmZmY4ODAwMWRkNDFiYTggZmZmZmZmZmY4MmM4Mzk1ZiBmZmZmZmZmZjgzYzU0NjgwIGZm
+ZmY4ODAwMWRkNDFiNjANCj4gICAgICAgIFsgICAgMS42NDA4MzBdICBmZmZmZmZmZjgxMGYzZjA2
+IDAwMDAwMDAwMDAwMDFlYjQgMDAwMDAwMDAwMDAwMDI0NiBmZmZmODgwMDFkZDQxYjk4DQo+ICAg
+ICAgICBbICAgIDEuNjQyNjg3XSBDYWxsIFRyYWNlOg0KPiAgICAgICAgWyAgICAxLjY0MzMxM10g
+IFs8ZmZmZmZmZmY4MmM4ZDc4Zj5dIGR1bXBfc3RhY2srMHg1NC8weDc0DQo+ICAgICAgICBbICAg
+IDEuNjQ0MzMxXSAgWzxmZmZmZmZmZjgyYzgzOTVmPl0gZHVtcF9oZWFkZXIuaXNyYS4xMCsweDdh
+LzB4MWJhDQo+ICAgICAgICBbICAgIDEuNjQ1NDQzXSAgWzxmZmZmZmZmZjgxMGYzZjA2Pl0gPyBs
+b2NrX3JlbGVhc2VfaG9sZHRpbWUucGFydC4yNysweDRjLzB4NTANCj4gICAgICAgIFsgICAgMS42
+NDY2ODVdICBbPGZmZmZmZmZmODEwZjc5NWE+XSA/IGxvY2tfcmVsZWFzZSsweDE4OS8weDFkMQ0K
+PiAgICAgICAgWyAgICAxLjY0Nzc0NF0gIFs8ZmZmZmZmZmY4MTE1MzBhOD5dIG91dF9vZl9tZW1v
+cnkrMHgzOWUvMHgzZWUNCj4gICAgICAgIFsgICAgMS42NDg4ODJdICBbPGZmZmZmZmZmODExNTc5
+ZjU+XSBfX2FsbG9jX3BhZ2VzX25vZGVtYXNrKzB4NjY4LzB4N2RlDQo+ICAgICAgICBbICAgIDEu
+NjUwMzg1XSAgWzxmZmZmZmZmZjgxMThlYjUzPl0ga21lbV9nZXRwYWdlcysweDc1LzB4MTZjDQo+
+ICAgICAgICBbICAgIDEuNjUxNDI5XSAgWzxmZmZmZmZmZjgxMTkwZDIwPl0gZmFsbGJhY2tfYWxs
+b2MrMHgxMmMvMHgxZWENCj4gICAgICAgIFsgICAgMS42NTI1MjhdICBbPGZmZmZmZmZmODEwZjM4
+ZTg+XSA/IHRyYWNlX2hhcmRpcnFzX29mZisweGQvMHhmDQo+ICAgICAgICBbICAgIDEuNjUzNjI3
+XSAgWzxmZmZmZmZmZjgxMTkwYmU1Pl0gX19fX2NhY2hlX2FsbG9jX25vZGUrMHgxNGEvMHgxNTkN
+Cj4gICAgICAgIFsgICAgMS42NTQ3ODNdICBbPGZmZmZmZmZmODE3MDU5ZmI+XSA/IGRtYV9kZWJ1
+Z19pbml0KzB4MWVmLzB4MjlhDQo+ICAgICAgICBbICAgIDEuNjU1OTI4XSAgWzxmZmZmZmZmZjgx
+MTkxNjJjPl0ga21lbV9jYWNoZV9hbGxvY190cmFjZSsweDgzLzB4MTFhDQo+ICAgICAgICBbICAg
+IDEuNjU3MTA4XSAgWzxmZmZmZmZmZjgxNzA1OWZiPl0gZG1hX2RlYnVnX2luaXQrMHgxZWYvMHgy
+OWENCj4gICAgICAgIFsgICAgMS42NTgxODJdICBbPGZmZmZmZmZmODQxYWMzOGI+XSBwY2lfaW9t
+bXVfaW5pdCsweDE2LzB4NTINCj4gICAgICAgIFsgICAgMS42NTkyNjNdICBbPGZmZmZmZmZmODQx
+YWMzNzU+XSA/IGlvbW11X3NldHVwKzB4MjdkLzB4MjdkDQo+ICAgICAgICBbICAgIDEuNjYwMzQy
+XSAgWzxmZmZmZmZmZjgxMDAyMGQyPl0gZG9fb25lX2luaXRjYWxsKzB4OTMvMHgxMzcNCj4gICAg
+ICAgIFsgICAgMS42NjE0MTVdICBbPGZmZmZmZmZmODEwYmQzMDA+XSA/IHBhcmFtX3NldF9jaGFy
+cCsweDkyLzB4ZDgNCj4gICAgICAgIFsgICAgMS42NjI1MDNdICBbPGZmZmZmZmZmODEwYmQ1MmU+
+XSA/IHBhcnNlX2FyZ3MrMHgxODkvMHgyNDcNCj4gICAgICAgIFsgICAgMS42NjM1NTVdICBbPGZm
+ZmZmZmZmODQxOWZlZDE+XSBrZXJuZWxfaW5pdF9mcmVlYWJsZSsweDE1ZS8weDFkZg0KPiAgICAg
+ICAgWyAgICAxLjY2NDcyNF0gIFs8ZmZmZmZmZmY4NDE5ZjcyOT5dID8gZG9fZWFybHlfcGFyYW0r
+MHg4OC8weDg4DQo+ICAgICAgICBbICAgIDEuNjY1ODE0XSAgWzxmZmZmZmZmZjgyYzc3ODY3Pl0g
+PyByZXN0X2luaXQrMHhkYi8weGRiDQo+ICAgICAgICBbICAgIDEuNjY2ODI0XSAgWzxmZmZmZmZm
+ZjgyYzc3ODc1Pl0ga2VybmVsX2luaXQrMHhlLzB4ZGINCj4gICAgICAgIFsgICAgMS42Njc4MjRd
+ICBbPGZmZmZmZmZmODJjYmM1N2M+XSByZXRfZnJvbV9mb3JrKzB4N2MvMHhiMA0KPiAgICAgICAg
+WyAgICAxLjY2ODkxMV0gIFs8ZmZmZmZmZmY4MmM3Nzg2Nz5dID8gcmVzdF9pbml0KzB4ZGIvMHhk
+Yg0KPiAgICAgICAgWyAgICAxLjY2OTkyNV0gTWVtLUluZm86DQo+ICAgICAgICBbICAgIDEuNjcw
+NTA4XSBOb2RlIDAgRE1BIHBlci1jcHU6DQo+DQo+VGhhbmtzLA0KPkZlbmdndWFuZw0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
