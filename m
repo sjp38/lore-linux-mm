@@ -1,47 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 50E639C0004
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 965A39C0005
 	for <linux-mm@kvack.org>; Thu, 10 Oct 2013 14:06:18 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id bj1so3106504pad.21
-        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 11:06:17 -0700 (PDT)
+Received: by mail-pa0-f47.google.com with SMTP id kp14so3074581pab.20
+        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 11:06:18 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 25/34] score: handle pgtable_page_ctor() fail
-Date: Thu, 10 Oct 2013 21:05:50 +0300
-Message-Id: <1381428359-14843-26-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 28/34] tile: handle pgtable_page_ctor() fail
+Date: Thu, 10 Oct 2013 21:05:53 +0300
+Message-Id: <1381428359-14843-29-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1381428359-14843-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1381428359-14843-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Chen Liqin <liqin.chen@sunplusct.com>, Lennox Wu <lennox.wu@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Chris Metcalf <cmetcalf@tilera.com>
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Chen Liqin <liqin.chen@sunplusct.com>
-Cc: Lennox Wu <lennox.wu@gmail.com>
+Cc: Chris Metcalf <cmetcalf@tilera.com>
 ---
- arch/score/include/asm/pgalloc.h | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ arch/tile/mm/pgtable.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
 
-diff --git a/arch/score/include/asm/pgalloc.h b/arch/score/include/asm/pgalloc.h
-index 059a61b707..2a861ffbd5 100644
---- a/arch/score/include/asm/pgalloc.h
-+++ b/arch/score/include/asm/pgalloc.h
-@@ -54,9 +54,12 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
- 	struct page *pte;
+diff --git a/arch/tile/mm/pgtable.c b/arch/tile/mm/pgtable.c
+index 4fd9ec0b58..5e86eac4bf 100644
+--- a/arch/tile/mm/pgtable.c
++++ b/arch/tile/mm/pgtable.c
+@@ -241,6 +241,11 @@ struct page *pgtable_alloc_one(struct mm_struct *mm, unsigned long address,
+ 	if (p == NULL)
+ 		return NULL;
  
- 	pte = alloc_pages(GFP_KERNEL | __GFP_REPEAT, PTE_ORDER);
--	if (pte) {
--		clear_highpage(pte);
--		pgtable_page_ctor(pte);
-+	if (!pte)
++	if (!pgtable_page_ctor(p)) {
++		__free_pages(p, L2_USER_PGTABLE_ORDER);
 +		return NULL;
-+	clear_highpage(pte);
-+	if (!pgtable_page_ctor(pte)) {
-+		__free_page(pte);
-+		return NULL;
++	}
++
+ 	/*
+ 	 * Make every page have a page_count() of one, not just the first.
+ 	 * We don't use __GFP_COMP since it doesn't look like it works
+@@ -251,7 +256,6 @@ struct page *pgtable_alloc_one(struct mm_struct *mm, unsigned long address,
+ 		inc_zone_page_state(p+i, NR_PAGETABLE);
  	}
- 	return pte;
+ 
+-	pgtable_page_ctor(p);
+ 	return p;
  }
+ 
 -- 
 1.8.4.rc3
 
