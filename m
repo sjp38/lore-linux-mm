@@ -1,87 +1,208 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id EB30E6B0031
-	for <linux-mm@kvack.org>; Thu, 10 Oct 2013 19:04:14 -0400 (EDT)
-Received: by mail-pb0-f50.google.com with SMTP id uo5so3302593pbc.9
-        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 16:04:14 -0700 (PDT)
-Message-ID: <1381446031.26234.31.camel@misato.fc.hp.com>
-Subject: Re: [PATCH part1 v6 4/6] x86/mem-hotplug: Support initialize page
- tables in bottom-up
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Thu, 10 Oct 2013 17:00:31 -0600
-In-Reply-To: <20131010221947.GA14030@mtj.dyndns.org>
-References: <20131010010029.GA10900@mtj.dyndns.org>
-	 <1381415809.24268.40.camel@misato.fc.hp.com>
-	 <20131010153518.GB13276@htj.dyndns.org>
-	 <1381422249.24268.68.camel@misato.fc.hp.com>
-	 <20131010164623.GD13276@htj.dyndns.org>
-	 <1381423840.24268.70.camel@misato.fc.hp.com>
-	 <20131010165522.GE13276@htj.dyndns.org>
-	 <1381424390.26234.1.camel@misato.fc.hp.com> <5256E01B.9050802@zytor.com>
-	 <1381432630.26234.6.camel@misato.fc.hp.com>
-	 <20131010221947.GA14030@mtj.dyndns.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id B591B6B0031
+	for <linux-mm@kvack.org>; Thu, 10 Oct 2013 20:01:22 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id x10so3399198pdj.15
+        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 17:01:22 -0700 (PDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so3528906pab.32
+        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 17:01:19 -0700 (PDT)
+Message-ID: <52573FB5.5020100@gmail.com>
+Date: Fri, 11 Oct 2013 08:00:53 +0800
+From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH part1 v7 0/6] x86, memblock: Allocate memory near kernel
+ image before SRAT parsed
+References: <52570A6E.2010806@gmail.com>
+In-Reply-To: <52570A6E.2010806@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J . Wysocki" <rjw@sisk.pl>, "lenb@kernel.org" <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "mingo@elte.hu" <mingo@elte.hu>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "izumi.taku@jp.fujitsu.com" <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "vasilis.liaskovitis@profitbricks.com" <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "prarit@redhat.com" <prarit@redhat.com>, "x86@kernel.org" <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "imtangchen@gmail.com" <imtangchen@gmail.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>, mingo@elte.hu, "H. Peter Anvin" <hpa@zytor.com>, Tejun Heo <tj@kernel.org>
+Cc: "Rafael J . Wysocki" <rjw@sisk.pl>, lenb@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, mina86@mina86.com, Minchan Kim <minchan@kernel.org>, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, prarit@redhat.com, "x86@kernel.org" <x86@kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, imtangchen@gmail.com, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>
 
-On Thu, 2013-10-10 at 18:19 -0400, Tejun Heo wrote:
-> On Thu, Oct 10, 2013 at 01:17:10PM -0600, Toshi Kani wrote:
-> > In earlier discussions, Tejun pointed out that huge mappings dismiss the
-> > benefit of local page tables.
-> > 
-> > https://lkml.org/lkml/2013/8/23/245
-> 
-> This is going nowhere.  If we're assuming use of large mappings, none
-> of this matters.  The pagetable is gonna be small no matter what and
-> locating it near kernel image doesn't really impact anything whether
-> hotplug is gonna be per-node or per-device.  Short of the ability to
-> relocate kernel image itself, parsing or not parsing SRAT early
-> doesn't lead to anything of consequence.  What are we even arguing
-> about?  That's what bothers me about this effort.  Nobody seems to
-> have actually thought it through.
+Hello Andrew,
 
-Calm down, please.  I simply referred the thread where we had discussed
-on this matter and agreed up on, so that we do not have to repeat the
-same discussion again.
+Could you take this version now? Since the approach of
+this patchset is suggested by tejun, and thanks him for
+helping us explaining a lot to guys that have the concern
+about the page table location. I've added some note in
+the patch4 description to explain why we could be not worrisome
+about the approach.
 
-> To summarize,
-> 
-> * To do local page table, full ACPI device hierarchy should be parsed.
-> 
-> * Local page table is pointless if you assume huge mappings and the
->   plan is to assume huge mappings so that only SRAT is necessary
->   before allocating page tables.
-> 
-> * But if you assume huge mappings, it doesn't make material difference
->   whether the page table is after the kernel image or near the top of
->   non-hotpluggable memory.  It's tiny anyway.
-> 
-> * So, what's the point of pulling SRAT parsing into early boot?  If we
->   assume huge mappings, it doesn't make any material difference for
->   either per-node or per-device unplug - it's tiny.  If we don't
->   assume huge mappings, we're talking about parsing full ACPI device
->   tree before building pagetable.  Let's say that's something we can
->   accept.  Is the benefit worthwhile?  Doing all that just for debug
->   configs?  Is that something people are actually arguing for?  Sure,
->   if it works without too much effort, it's great, but do we really
->   wanna do all that and update page table allocation so that
->   everything is per-device just to support debug configs, for real?
->
-> I'm not asking for super concrete plan but right now people working on
-> this don't seem to have much idea of what the goals are or why they
-> want certain things and the discussions naturally repeat themselves.
-> FWIW, I'm getting to a point where I think nacking the whole series is
-> the right thing to do here.
+Thanks.
 
-The patchset out for reviewing does not pull SRAT parsing into early
-boot.
+On 10/11/2013 04:13 AM, Zhang Yanfei wrote:
+> Hello, here is the v7 version. Any comments are welcome!
+> 
+> The v7 version is based on linus's tree (3.12-rc4)
+> HEAD is:
+> commit d0e639c9e06d44e713170031fe05fb60ebe680af
+> Author: Linus Torvalds <torvalds@linux-foundation.org>
+> Date:   Sun Oct 6 14:00:20 2013 -0700
+> 
+>     Linux 3.12-rc4
+> 
+> 
+> [Problem]
+> 
+> The current Linux cannot migrate pages used by the kerenl because
+> of the kernel direct mapping. In Linux kernel space, va = pa + PAGE_OFFSET.
+> When the pa is changed, we cannot simply update the pagetable and
+> keep the va unmodified. So the kernel pages are not migratable.
+> 
+> There are also some other issues will cause the kernel pages not migratable.
+> For example, the physical address may be cached somewhere and will be used.
+> It is not to update all the caches.
+> 
+> When doing memory hotplug in Linux, we first migrate all the pages in one
+> memory device somewhere else, and then remove the device. But if pages are
+> used by the kernel, they are not migratable. As a result, memory used by
+> the kernel cannot be hot-removed.
+> 
+> Modifying the kernel direct mapping mechanism is too difficult to do. And
+> it may cause the kernel performance down and unstable. So we use the following
+> way to do memory hotplug.
+> 
+> 
+> [What we are doing]
+> 
+> In Linux, memory in one numa node is divided into several zones. One of the
+> zones is ZONE_MOVABLE, which the kernel won't use.
+> 
+> In order to implement memory hotplug in Linux, we are going to arrange all
+> hotpluggable memory in ZONE_MOVABLE so that the kernel won't use these memory.
+> To do this, we need ACPI's help.
+> 
+> In ACPI, SRAT(System Resource Affinity Table) contains NUMA info. The memory
+> affinities in SRAT record every memory range in the system, and also, flags
+> specifying if the memory range is hotpluggable.
+> (Please refer to ACPI spec 5.0 5.2.16)
+> 
+> With the help of SRAT, we have to do the following two things to achieve our
+> goal:
+> 
+> 1. When doing memory hot-add, allow the users arranging hotpluggable as
+>    ZONE_MOVABLE.
+>    (This has been done by the MOVABLE_NODE functionality in Linux.)
+> 
+> 2. when the system is booting, prevent bootmem allocator from allocating
+>    hotpluggable memory for the kernel before the memory initialization
+>    finishes.
+> 
+> The problem 2 is the key problem we are going to solve. But before solving it,
+> we need some preparation. Please see below.
+> 
+> 
+> [Preparation]
+> 
+> Bootloader has to load the kernel image into memory. And this memory must be 
+> unhotpluggable. We cannot prevent this anyway. So in a memory hotplug system, 
+> we can assume any node the kernel resides in is not hotpluggable.
+> 
+> Before SRAT is parsed, we don't know which memory ranges are hotpluggable. But
+> memblock has already started to work. In the current kernel, memblock allocates 
+> the following memory before SRAT is parsed:
+> 
+> setup_arch()
+>  |->memblock_x86_fill()            /* memblock is ready */
+>  |......
+>  |->early_reserve_e820_mpc_new()   /* allocate memory under 1MB */
+>  |->reserve_real_mode()            /* allocate memory under 1MB */
+>  |->init_mem_mapping()             /* allocate page tables, about 2MB to map 1GB memory */
+>  |->dma_contiguous_reserve()       /* specified by user, should be low */
+>  |->setup_log_buf()                /* specified by user, several mega bytes */
+>  |->relocate_initrd()              /* could be large, but will be freed after boot, should reorder */
+>  |->acpi_initrd_override()         /* several mega bytes */
+>  |->reserve_crashkernel()          /* could be large, should reorder */
+>  |......
+>  |->initmem_init()                 /* Parse SRAT */
+> 
+> According to Tejun's advice, before SRAT is parsed, we should try our best to
+> allocate memory near the kernel image. Since the whole node the kernel resides 
+> in won't be hotpluggable, and for a modern server, a node may have at least 16GB
+> memory, allocating several mega bytes memory around the kernel image won't cross
+> to hotpluggable memory.
+> 
+> 
+> [About this patch-set]
+> 
+> So this patch-set is the preparation for the problem 2 that we want to solve. It
+> does the following:
+> 
+> 1. Make memblock be able to allocate memory bottom up.
+>    1) Keep all the memblock APIs' prototype unmodified.
+>    2) When the direction is bottom up, keep the start address greater than the 
+>       end of kernel image.
+> 
+> 2. Improve init_mem_mapping() to support allocate page tables in bottom up direction.
+> 
+> 3. Introduce "movable_node" boot option to enable and disable this functionality.
+> 
+> Change log v6 -> v7:
+> 1. Add toshi's ack in several patches.
+> 2. Make __pa_symbol() available everywhere by putting a pesudo __pa_symbol define
+>    in include/linux/mm.h. Thanks HPA.
+> 3. Add notes about the page table allocation in bottom-up.
+> 
+> Change log v5 -> v6:
+> 1. Add tejun and toshi's ack in several patches.
+> 2. Change movablenode to movable_node boot option and update the description
+>    for movable_node and CONFIG_MOVABLE_NODE. Thanks Ingo!
+> 3. Fix the __pa_symbol() issue pointed by Andrew Morton.
+> 4. Update some functions' comments and names.
+> 
+> Change log v4 -> v5:
+> 1. Change memblock.current_direction to a boolean memblock.bottom_up. And remove 
+>    the direction enum.
+> 2. Update and add some comments to explain things clearer.
+> 3. Misc fixes, such as removing unnecessary #ifdef
+> 
+> Change log v3 -> v4:
+> 1. Use bottom-up/top-down to unify things. Thanks tj.
+> 2. Factor out of current top-down implementation and then introduce bottom-up mode,
+>    not mixing them in one patch. Thanks tj.
+> 3. Changes function naming: memblock_direction_bottom_up -> memblock_bottom_up
+> 4. Use memblock_set_bottom_up to replace memblock_set_current_direction, which makes
+>    the code simpler. Thanks tj.
+> 5. Define two implementions of function memblock_bottom_up and memblock_set_bottom_up
+>    in order not to use #ifdef in the boot code. Thanks tj.
+> 6. Add comments to explain why retry top-down allocation when bottom_up allocation
+>    failed. Thanks tj and toshi!
+> 
+> Change log v2 -> v3:
+> 1. According to Toshi's suggestion, move the direction checking logic into memblock.
+>    And simply the code more.
+> 
+> Change log v1 -> v2:
+> 1. According to tj's suggestion, implemented a new function memblock_alloc_bottom_up() 
+>    to allocate memory from bottom upwards, whihc can simplify the code.
+> 
+> Tang Chen (6):
+>   memblock: Factor out of top-down allocation
+>   memblock: Introduce bottom-up allocation mode
+>   x86/mm: Factor out of top-down direct mapping setup
+>   x86/mem-hotplug: Support initialize page tables in bottom-up
+>   x86, acpi, crash, kdump: Do reserve_crashkernel() after SRAT is
+>     parsed.
+>   mem-hotplug: Introduce movable_node boot option
+> 
+>  Documentation/kernel-parameters.txt |    3 +
+>  arch/x86/kernel/setup.c             |    9 ++-
+>  arch/x86/mm/init.c                  |  122 ++++++++++++++++++++++++++++------
+>  arch/x86/mm/numa.c                  |   11 +++
+>  include/linux/memblock.h            |   24 +++++++
+>  include/linux/mm.h                  |    4 +
+>  mm/Kconfig                          |   17 +++--
+>  mm/memblock.c                       |  126 +++++++++++++++++++++++++++++++----
+>  mm/memory_hotplug.c                 |   31 +++++++++
+>  9 files changed, 306 insertions(+), 41 deletions(-)
+> 
 
-Thanks,
--Toshi
+
+-- 
+Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
