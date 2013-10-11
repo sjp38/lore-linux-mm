@@ -1,63 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C9CD6B0039
-	for <linux-mm@kvack.org>; Fri, 11 Oct 2013 05:54:42 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y13so3975296pdi.33
-        for <linux-mm@kvack.org>; Fri, 11 Oct 2013 02:54:42 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MUI005WY0UJ5P20@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 11 Oct 2013 10:54:38 +0100 (BST)
-From: Krzysztof Kozlowski <k.kozlowski@samsung.com>
-Subject: [PATCH] swap: fix set_blocksize race during swapon/swapoff
-Date: Fri, 11 Oct 2013 11:54:22 +0200
-Message-id: <1381485262-16792-1-git-send-email-k.kozlowski@samsung.com>
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 742696B0039
+	for <linux-mm@kvack.org>; Fri, 11 Oct 2013 05:58:03 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id p10so3984626pdj.4
+        for <linux-mm@kvack.org>; Fri, 11 Oct 2013 02:58:03 -0700 (PDT)
+Date: Fri, 11 Oct 2013 11:57:52 +0200
+From: Jesper Nilsson <jesper.nilsson@axis.com>
+Subject: Re: [PATCH 14/34] cris: handle pgtable_page_ctor() fail
+Message-ID: <20131011095752.GG11028@axis.com>
+References: <1381428359-14843-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1381428359-14843-15-git-send-email-kirill.shutemov@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1381428359-14843-15-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Weijie Yang <weijie.yang.kh@gmail.com>, Bob Liu <bob.liu@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Shaohua Li <shli@fusionio.com>, Minchan Kim <minchan@kernel.org>, Krzysztof Kozlowski <k.kozlowski@samsung.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jespern@axis.com>
 
-Swapoff used old_block_size from swap_info which could be overwritten by
-concurrent swapon.
+On Thu, Oct 10, 2013 at 08:05:39PM +0200, Kirill A. Shutemov wrote:
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Mikael Starvik <starvik@axis.com>
 
-Reported-by: Weijie Yang <weijie.yang.kh@gmail.com>
-Signed-off-by: Krzysztof Kozlowski <k.kozlowski@samsung.com>
----
- mm/swapfile.c |    4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+Acked-by: Jesper Nilsson <jesper.nilsson@axis.com>
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 3963fc2..de7c904 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1824,6 +1824,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	struct filename *pathname;
- 	int i, type, prev;
- 	int err;
-+	unsigned int old_block_size;
- 
- 	if (!capable(CAP_SYS_ADMIN))
- 		return -EPERM;
-@@ -1914,6 +1915,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	}
- 
- 	swap_file = p->swap_file;
-+	old_block_size = p->old_block_size;
- 	p->swap_file = NULL;
- 	p->max = 0;
- 	swap_map = p->swap_map;
-@@ -1938,7 +1940,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	inode = mapping->host;
- 	if (S_ISBLK(inode->i_mode)) {
- 		struct block_device *bdev = I_BDEV(inode);
--		set_blocksize(bdev, p->old_block_size);
-+		set_blocksize(bdev, old_block_size);
- 		blkdev_put(bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
- 	} else {
- 		mutex_lock(&inode->i_mutex);
+> ---
+>  arch/cris/include/asm/pgalloc.h | 5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
+> 
+> diff --git a/arch/cris/include/asm/pgalloc.h b/arch/cris/include/asm/pgalloc.h
+> index d9504d38c2..235ece437d 100644
+> --- a/arch/cris/include/asm/pgalloc.h
+> +++ b/arch/cris/include/asm/pgalloc.h
+> @@ -34,7 +34,10 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long addres
+>  	pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
+>  	if (!pte)
+>  		return NULL;
+> -	pgtable_page_ctor(pte);
+> +	if (!pgtable_page_ctor(pte)) {
+> +		__free_page(pte);
+> +		return NULL;
+> +	}
+>  	return pte;
+>  }
+>  
+> -- 
+> 1.8.4.rc3
+
+/^JN - Jesper Nilsson
 -- 
-1.7.9.5
+               Jesper Nilsson -- jesper.nilsson@axis.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
