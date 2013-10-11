@@ -1,208 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id B591B6B0031
-	for <linux-mm@kvack.org>; Thu, 10 Oct 2013 20:01:22 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id x10so3399198pdj.15
-        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 17:01:22 -0700 (PDT)
-Received: by mail-pa0-f45.google.com with SMTP id rd3so3528906pab.32
-        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 17:01:19 -0700 (PDT)
-Message-ID: <52573FB5.5020100@gmail.com>
-Date: Fri, 11 Oct 2013 08:00:53 +0800
-From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 289DA6B0031
+	for <linux-mm@kvack.org>; Thu, 10 Oct 2013 20:39:41 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so3551415pad.2
+        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 17:39:40 -0700 (PDT)
+Date: Fri, 11 Oct 2013 11:39:30 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [patch 0/8] mm: thrash detection-based file cache sizing v5
+Message-ID: <20131011003930.GC4446@dastard>
+References: <1381441622-26215-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH part1 v7 0/6] x86, memblock: Allocate memory near kernel
- image before SRAT parsed
-References: <52570A6E.2010806@gmail.com>
-In-Reply-To: <52570A6E.2010806@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1381441622-26215-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, mingo@elte.hu, "H. Peter Anvin" <hpa@zytor.com>, Tejun Heo <tj@kernel.org>
-Cc: "Rafael J . Wysocki" <rjw@sisk.pl>, lenb@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, mina86@mina86.com, Minchan Kim <minchan@kernel.org>, gong.chen@linux.intel.com, vasilis.liaskovitis@profitbricks.com, lwoodman@redhat.com, Rik van Riel <riel@redhat.com>, jweiner@redhat.com, prarit@redhat.com, "x86@kernel.org" <x86@kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, imtangchen@gmail.com, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, Vlastimil Babka <vbabka@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hello Andrew,
+On Thu, Oct 10, 2013 at 05:46:54PM -0400, Johannes Weiner wrote:
+> 	Costs
+> 
+> These patches increase struct inode by three words to manage shadow
+> entries in the page cache radix tree.
 
-Could you take this version now? Since the approach of
-this patchset is suggested by tejun, and thanks him for
-helping us explaining a lot to guys that have the concern
-about the page table location. I've added some note in
-the patch4 description to explain why we could be not worrisome
-about the approach.
+An additional 24 bytes on a 64 bit system. Filesystem developers
+will kill to save 4 bytes in the struct inode, so adding 24 bytes is
+a *major* concern.
 
-Thanks.
+> However, given that a typical
+> inode (like the ext4 inode) is already 1k in size, this is not much.
+> It's a 2% size increase for a reclaimable object. 
 
-On 10/11/2013 04:13 AM, Zhang Yanfei wrote:
-> Hello, here is the v7 version. Any comments are welcome!
-> 
-> The v7 version is based on linus's tree (3.12-rc4)
-> HEAD is:
-> commit d0e639c9e06d44e713170031fe05fb60ebe680af
-> Author: Linus Torvalds <torvalds@linux-foundation.org>
-> Date:   Sun Oct 6 14:00:20 2013 -0700
-> 
->     Linux 3.12-rc4
-> 
-> 
-> [Problem]
-> 
-> The current Linux cannot migrate pages used by the kerenl because
-> of the kernel direct mapping. In Linux kernel space, va = pa + PAGE_OFFSET.
-> When the pa is changed, we cannot simply update the pagetable and
-> keep the va unmodified. So the kernel pages are not migratable.
-> 
-> There are also some other issues will cause the kernel pages not migratable.
-> For example, the physical address may be cached somewhere and will be used.
-> It is not to update all the caches.
-> 
-> When doing memory hotplug in Linux, we first migrate all the pages in one
-> memory device somewhere else, and then remove the device. But if pages are
-> used by the kernel, they are not migratable. As a result, memory used by
-> the kernel cannot be hot-removed.
-> 
-> Modifying the kernel direct mapping mechanism is too difficult to do. And
-> it may cause the kernel performance down and unstable. So we use the following
-> way to do memory hotplug.
-> 
-> 
-> [What we are doing]
-> 
-> In Linux, memory in one numa node is divided into several zones. One of the
-> zones is ZONE_MOVABLE, which the kernel won't use.
-> 
-> In order to implement memory hotplug in Linux, we are going to arrange all
-> hotpluggable memory in ZONE_MOVABLE so that the kernel won't use these memory.
-> To do this, we need ACPI's help.
-> 
-> In ACPI, SRAT(System Resource Affinity Table) contains NUMA info. The memory
-> affinities in SRAT record every memory range in the system, and also, flags
-> specifying if the memory range is hotpluggable.
-> (Please refer to ACPI spec 5.0 5.2.16)
-> 
-> With the help of SRAT, we have to do the following two things to achieve our
-> goal:
-> 
-> 1. When doing memory hot-add, allow the users arranging hotpluggable as
->    ZONE_MOVABLE.
->    (This has been done by the MOVABLE_NODE functionality in Linux.)
-> 
-> 2. when the system is booting, prevent bootmem allocator from allocating
->    hotpluggable memory for the kernel before the memory initialization
->    finishes.
-> 
-> The problem 2 is the key problem we are going to solve. But before solving it,
-> we need some preparation. Please see below.
-> 
-> 
-> [Preparation]
-> 
-> Bootloader has to load the kernel image into memory. And this memory must be 
-> unhotpluggable. We cannot prevent this anyway. So in a memory hotplug system, 
-> we can assume any node the kernel resides in is not hotpluggable.
-> 
-> Before SRAT is parsed, we don't know which memory ranges are hotpluggable. But
-> memblock has already started to work. In the current kernel, memblock allocates 
-> the following memory before SRAT is parsed:
-> 
-> setup_arch()
->  |->memblock_x86_fill()            /* memblock is ready */
->  |......
->  |->early_reserve_e820_mpc_new()   /* allocate memory under 1MB */
->  |->reserve_real_mode()            /* allocate memory under 1MB */
->  |->init_mem_mapping()             /* allocate page tables, about 2MB to map 1GB memory */
->  |->dma_contiguous_reserve()       /* specified by user, should be low */
->  |->setup_log_buf()                /* specified by user, several mega bytes */
->  |->relocate_initrd()              /* could be large, but will be freed after boot, should reorder */
->  |->acpi_initrd_override()         /* several mega bytes */
->  |->reserve_crashkernel()          /* could be large, should reorder */
->  |......
->  |->initmem_init()                 /* Parse SRAT */
-> 
-> According to Tejun's advice, before SRAT is parsed, we should try our best to
-> allocate memory near the kernel image. Since the whole node the kernel resides 
-> in won't be hotpluggable, and for a modern server, a node may have at least 16GB
-> memory, allocating several mega bytes memory around the kernel image won't cross
-> to hotpluggable memory.
-> 
-> 
-> [About this patch-set]
-> 
-> So this patch-set is the preparation for the problem 2 that we want to solve. It
-> does the following:
-> 
-> 1. Make memblock be able to allocate memory bottom up.
->    1) Keep all the memblock APIs' prototype unmodified.
->    2) When the direction is bottom up, keep the start address greater than the 
->       end of kernel image.
-> 
-> 2. Improve init_mem_mapping() to support allocate page tables in bottom up direction.
-> 
-> 3. Introduce "movable_node" boot option to enable and disable this functionality.
-> 
-> Change log v6 -> v7:
-> 1. Add toshi's ack in several patches.
-> 2. Make __pa_symbol() available everywhere by putting a pesudo __pa_symbol define
->    in include/linux/mm.h. Thanks HPA.
-> 3. Add notes about the page table allocation in bottom-up.
-> 
-> Change log v5 -> v6:
-> 1. Add tejun and toshi's ack in several patches.
-> 2. Change movablenode to movable_node boot option and update the description
->    for movable_node and CONFIG_MOVABLE_NODE. Thanks Ingo!
-> 3. Fix the __pa_symbol() issue pointed by Andrew Morton.
-> 4. Update some functions' comments and names.
-> 
-> Change log v4 -> v5:
-> 1. Change memblock.current_direction to a boolean memblock.bottom_up. And remove 
->    the direction enum.
-> 2. Update and add some comments to explain things clearer.
-> 3. Misc fixes, such as removing unnecessary #ifdef
-> 
-> Change log v3 -> v4:
-> 1. Use bottom-up/top-down to unify things. Thanks tj.
-> 2. Factor out of current top-down implementation and then introduce bottom-up mode,
->    not mixing them in one patch. Thanks tj.
-> 3. Changes function naming: memblock_direction_bottom_up -> memblock_bottom_up
-> 4. Use memblock_set_bottom_up to replace memblock_set_current_direction, which makes
->    the code simpler. Thanks tj.
-> 5. Define two implementions of function memblock_bottom_up and memblock_set_bottom_up
->    in order not to use #ifdef in the boot code. Thanks tj.
-> 6. Add comments to explain why retry top-down allocation when bottom_up allocation
->    failed. Thanks tj and toshi!
-> 
-> Change log v2 -> v3:
-> 1. According to Toshi's suggestion, move the direction checking logic into memblock.
->    And simply the code more.
-> 
-> Change log v1 -> v2:
-> 1. According to tj's suggestion, implemented a new function memblock_alloc_bottom_up() 
->    to allocate memory from bottom upwards, whihc can simplify the code.
-> 
-> Tang Chen (6):
->   memblock: Factor out of top-down allocation
->   memblock: Introduce bottom-up allocation mode
->   x86/mm: Factor out of top-down direct mapping setup
->   x86/mem-hotplug: Support initialize page tables in bottom-up
->   x86, acpi, crash, kdump: Do reserve_crashkernel() after SRAT is
->     parsed.
->   mem-hotplug: Introduce movable_node boot option
-> 
->  Documentation/kernel-parameters.txt |    3 +
->  arch/x86/kernel/setup.c             |    9 ++-
->  arch/x86/mm/init.c                  |  122 ++++++++++++++++++++++++++++------
->  arch/x86/mm/numa.c                  |   11 +++
->  include/linux/memblock.h            |   24 +++++++
->  include/linux/mm.h                  |    4 +
->  mm/Kconfig                          |   17 +++--
->  mm/memblock.c                       |  126 +++++++++++++++++++++++++++++++----
->  mm/memory_hotplug.c                 |   31 +++++++++
->  9 files changed, 306 insertions(+), 41 deletions(-)
-> 
+The struct ext4_inode is one of the larger inodes in the system at
+960 bytes (same as the xfs_inode) - most of the filesystem inode
+structures are down around the 600-700 byte range.
 
+Really, the struct inode is what you should be comparing the
+increase against (i.e. the VFS inode footprint), not the filesystem
+specific inode footprint. In that case, it's actually an increase of
+closer to a 4% increase in size because we are talking about a 560
+byte structure....
 
+> fs_mark metadata
+> tests with millions of inodes did not show a measurable difference.
+> And as soon as there is any file data involved, the page cache pages
+> dominate the memory cost anyway.
+
+We don't need to measure it at runtime to know the difference - a
+million inodes will consume an extra 24MB of RAM at minimum. If the
+size increase pushes the inode over a slab boundary, it might be
+significantly more than that...
+
+The main cost here is a new list head for a new shrinker. There's
+interesting new inode lifecycle issues introduced by this shadow
+tree - adding serialisation in evict() because the VM can now modify
+to the address space without having a reference to the inode
+is kinda nasty.
+
+Also, I really don't like the idea of a new inode cache shrinker
+that is completely uncoordinated with the existing inode cache
+shrinkers. It uses a global lock and list and is not node aware so
+all it will do under many workloads is re-introduce a scalability
+choke point we just got rid of in 3.12.
+
+I think that you could simply piggy-back on inode_lru_isolate() to
+remove shadow mappings in exactly the same manner it removes inode
+buffers and page cache pages on inodes that are about to be
+reclaimed.  Keeping the size of the inode cache down will have the
+side effect of keeping the shadow mappings under control, and so I
+don't see a need for a separate shrinker at all here.
+
+And removing the special shrinker will bring the struct inode size
+increase back to only 8 bytes, and I think we can live with that
+increase given the workload improvements that the rest of the
+functionality brings.
+
+Cheers,
+
+Dave.
 -- 
-Thanks.
-Zhang Yanfei
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
