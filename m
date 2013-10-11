@@ -1,50 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id D96246B0031
-	for <linux-mm@kvack.org>; Fri, 11 Oct 2013 02:33:07 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id q10so3702062pdj.6
-        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 23:33:07 -0700 (PDT)
-Received: by mail-ee0-f47.google.com with SMTP id d49so1637579eek.34
-        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 23:33:03 -0700 (PDT)
-Date: Fri, 11 Oct 2013 08:33:00 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH part1 v6 4/6] x86/mem-hotplug: Support initialize page
- tables in bottom-up
-Message-ID: <20131011063300.GA9429@gmail.com>
-References: <524E2032.4020106@gmail.com>
- <524E2127.4090904@gmail.com>
- <5251F9AB.6000203@zytor.com>
- <525442A4.9060709@gmail.com>
- <20131009164449.GG22495@htj.dyndns.org>
- <CAE9FiQXhW2BacXUjQLK8TpcvhHAediuCntVR13sKGUuq_+=ymw@mail.gmail.com>
- <20131009192356.GB5592@mtj.dyndns.org>
- <CAE9FiQWpwp4bTEWEYw3-CW9xF5s_zJAayJrBC_buBC7-nd=7KA@mail.gmail.com>
- <525790E4.3060806@cn.fujitsu.com>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 34D4F6B0031
+	for <linux-mm@kvack.org>; Fri, 11 Oct 2013 02:37:08 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id kx10so3941667pab.27
+        for <linux-mm@kvack.org>; Thu, 10 Oct 2013 23:37:07 -0700 (PDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 3A8CA3EE0C0
+	for <linux-mm@kvack.org>; Fri, 11 Oct 2013 15:37:04 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2782A45DE63
+	for <linux-mm@kvack.org>; Fri, 11 Oct 2013 15:37:04 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E68945DE55
+	for <linux-mm@kvack.org>; Fri, 11 Oct 2013 15:37:04 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id F3B731DB803C
+	for <linux-mm@kvack.org>; Fri, 11 Oct 2013 15:37:03 +0900 (JST)
+Received: from g01jpfmpwkw01.exch.g01.fujitsu.local (g01jpfmpwkw01.exch.g01.fujitsu.local [10.0.193.38])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AE9311DB804F
+	for <linux-mm@kvack.org>; Fri, 11 Oct 2013 15:37:03 +0900 (JST)
+Message-ID: <52579C69.1080304@jp.fujitsu.com>
+Date: Fri, 11 Oct 2013 15:36:25 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <525790E4.3060806@cn.fujitsu.com>
+Subject: [PATCH] Release device_hotplug_lock when store_mem_state returns
+ EINVAL
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Cc: Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@elte.hu>, Zhang Yanfei <zhangyanfei.yes@gmail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, "x86@kernel.org" <x86@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Chen Tang <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: toshi.kani@hp.com, sjenning@linux.vnet.ibm.com, gregkh@linuxfoundation.org
 
+When inserting a wrong value to /sys/devices/system/memory/memoryX/state file,
+following messages are shown. And device_hotplug_lock is never released.
 
-* Zhang Yanfei <zhangyanfei@cn.fujitsu.com> wrote:
+================================================
+[ BUG: lock held when returning to user space! ]
+3.12.0-rc4-debug+ #3 Tainted: G        W
+------------------------------------------------
+bash/6442 is leaving the kernel with locks still held!
+1 lock held by bash/6442:
+ #0:  (device_hotplug_lock){+.+.+.}, at: [<ffffffff8146cbb5>] lock_device_hotplug_sysfs+0x15/0x50
 
-> Hello yinghai,
-> 
-> I know your opinion but take code modification as an example seems like 
-> it doesn't stand. More code doesn't mean more complexity......
+This issue was introdued by commit fa2be40 (drivers: base: use standard
+device online/offline for state change).
 
-I think you forgot to reply to this point:
+This patch releases device_hotplug_lcok when store_mem_state returns EINVAL.
 
-> > For long term to keep the code more maintainable, We really should go 
-> > though parse srat table early.
+Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+CC: Toshi Kani <toshi.kani@hp.com>
+CC: Seth Jennings <sjenning@linux.vnet.ibm.com>
+CC: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+---
+ drivers/base/memory.c |    7 +++++--
+ 1 files changed, 5 insertions(+), 2 deletions(-)
 
-Thanks,
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index 9e59f65..bece691 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -333,8 +333,10 @@ store_mem_state(struct device *dev,
+ 		online_type = ONLINE_KEEP;
+ 	else if (!strncmp(buf, "offline", min_t(int, count, 7)))
+ 		online_type = -1;
+-	else
+-		return -EINVAL;
++	else {
++		ret = -EINVAL;
++		goto err;
++	}
 
-	Ingo
+ 	switch (online_type) {
+ 	case ONLINE_KERNEL:
+@@ -357,6 +359,7 @@ store_mem_state(struct device *dev,
+ 		ret = -EINVAL; /* should never happen */
+ 	}
+
++err:
+ 	unlock_device_hotplug();
+
+ 	if (ret)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
