@@ -1,56 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FC206B0031
-	for <linux-mm@kvack.org>; Fri, 11 Oct 2013 06:27:07 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id ld10so4124478pab.8
-        for <linux-mm@kvack.org>; Fri, 11 Oct 2013 03:27:07 -0700 (PDT)
-Date: Fri, 11 Oct 2013 11:26:29 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH 33/34] iommu/arm-smmu: handle pgtable_page_ctor() fail
-Message-ID: <20131011102629.GB14732@mudshark.cambridge.arm.com>
-References: <1381428359-14843-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1381428359-14843-34-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id C36406B0031
+	for <linux-mm@kvack.org>; Fri, 11 Oct 2013 10:01:46 -0400 (EDT)
+Received: by mail-pb0-f47.google.com with SMTP id rr4so4223869pbb.6
+        for <linux-mm@kvack.org>; Fri, 11 Oct 2013 07:01:46 -0700 (PDT)
+Date: Fri, 11 Oct 2013 14:01:43 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 34/34] mm: dynamically allocate page->ptl if it cannot
+ be embedded to struct page
+In-Reply-To: <20131010200921.91D84E0090@blue.fi.intel.com>
+Message-ID: <00000141a7d2aa7b-e59f292a-746c-4f55-aa51-9fa060a7fbeb-000000@email.amazonses.com>
+References: <1381428359-14843-1-git-send-email-kirill.shutemov@linux.intel.com> <1381428359-14843-35-git-send-email-kirill.shutemov@linux.intel.com> <00000141a3f48ada-37ee9c14-2f2b-40a2-93f4-70258363351b-000000@email.amazonses.com>
+ <20131010200921.91D84E0090@blue.fi.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1381428359-14843-34-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "grant.likely@linaro.org" <grant.likely@linaro.org>, "rob.herring@calxeda.com" <rob.herring@calxeda.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-On Thu, Oct 10, 2013 at 07:05:58PM +0100, Kirill A. Shutemov wrote:
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Will Deacon <will.deacon@arm.com>
-> Cc: Grant Likely <grant.likely@linaro.org>
-> Cc: Rob Herring <rob.herring@calxeda.com>
-> ---
->  drivers/iommu/arm-smmu.c | 5 ++++-
->  1 file changed, 4 insertions(+), 1 deletion(-)
-> 
-> diff --git a/drivers/iommu/arm-smmu.c b/drivers/iommu/arm-smmu.c
-> index f417e89e1e..2b256a5075 100644
-> --- a/drivers/iommu/arm-smmu.c
-> +++ b/drivers/iommu/arm-smmu.c
-> @@ -1211,7 +1211,10 @@ static int arm_smmu_alloc_init_pte(struct arm_smmu_device *smmu, pmd_t *pmd,
->  
->  		arm_smmu_flush_pgtable(smmu, page_address(table),
->  				       ARM_SMMU_PTE_HWTABLE_SIZE);
-> -		pgtable_page_ctor(table);
-> +		if (!pgtable_page_ctor(table)) {
-> +			__free_page(table);
-> +			return -ENOMEM;
-> +		}
->  		pmd_populate(NULL, pmd, table);
->  		arm_smmu_flush_pgtable(smmu, pmd, sizeof(*pmd));
->  	}
+On Thu, 10 Oct 2013, Kirill A. Shutemov wrote:
 
-  Acked-by: Will Deacon <will.deacon@arm.com>
+> Christoph Lameter wrote:
+> > On Thu, 10 Oct 2013, Kirill A. Shutemov wrote:
+> >
+> > > +static inline bool ptlock_alloc(struct page *page)
+> > > +{
+> > > +	if (sizeof(spinlock_t) > sizeof(page->ptl))
+> > > +		return __ptlock_alloc(page);
+> > > +	return true;
+> > > +}
+> >
+> > Could you make the check a CONFIG option? CONFIG_PTLOCK_DOES_NOT_FIT_IN_PAGE_STRUCT or
+> > so?
+>
+> No. We will have to track what affects sizeof(spinlock_t) manually.
+> Not a fun and error prune.
 
-I have quite a few changes queued for this driver, but it doesn't look like
-you'll get a conflict with the iommu tree.
-
-Will
+You can generate a config option depending on the size of the object via
+Kbuild. Kbuild will determine the setting before building the kernel as a
+whole by runing some small C program.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
