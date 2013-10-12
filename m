@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D1756B005C
-	for <linux-mm@kvack.org>; Sat, 12 Oct 2013 17:59:43 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fb1so5872467pad.23
-        for <linux-mm@kvack.org>; Sat, 12 Oct 2013 14:59:43 -0700 (PDT)
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id C2BD06B006C
+	for <linux-mm@kvack.org>; Sat, 12 Oct 2013 17:59:44 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id kx10so5957802pab.13
+        for <linux-mm@kvack.org>; Sat, 12 Oct 2013 14:59:44 -0700 (PDT)
 From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [RFC 16/23] mm/hugetlb: Use memblock apis for early memory allocations
-Date: Sat, 12 Oct 2013 17:58:59 -0400
-Message-ID: <1381615146-20342-17-git-send-email-santosh.shilimkar@ti.com>
+Subject: [RFC 17/23] mm/page_cgroup: Use memblock apis for early memory allocations
+Date: Sat, 12 Oct 2013 17:59:00 -0400
+Message-ID: <1381615146-20342-18-git-send-email-santosh.shilimkar@ti.com>
 In-Reply-To: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com>
 References: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
@@ -28,37 +28,25 @@ Cc: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
 Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 ---
- mm/hugetlb.c |   10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ mm/page_cgroup.c |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index b49579c..fe0cab4 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1282,9 +1282,9 @@ int __weak alloc_bootmem_huge_page(struct hstate *h)
- 	for_each_node_mask_to_alloc(h, nr_nodes, node, &node_states[N_MEMORY]) {
- 		void *addr;
+diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+index 6d757e3..7428f4c 100644
+--- a/mm/page_cgroup.c
++++ b/mm/page_cgroup.c
+@@ -54,8 +54,9 @@ static int __init alloc_node_page_cgroup(int nid)
  
--		addr = __alloc_bootmem_node_nopanic(NODE_DATA(node),
--				huge_page_size(h), huge_page_size(h), 0);
--
-+		addr = memblock_early_alloc_try_nid_nopanic(node,
-+				huge_page_size(h), huge_page_size(h),
-+				0, BOOTMEM_ALLOC_ACCESSIBLE);
- 		if (addr) {
- 			/*
- 			 * Use the beginning of the huge page to store the
-@@ -1324,8 +1324,8 @@ static void __init gather_bootmem_prealloc(void)
+ 	table_size = sizeof(struct page_cgroup) * nr_pages;
  
- #ifdef CONFIG_HIGHMEM
- 		page = pfn_to_page(m->phys >> PAGE_SHIFT);
--		free_bootmem_late((unsigned long)m,
--				  sizeof(struct huge_bootmem_page));
-+		memblock_free_late(__pa(m),
-+				   sizeof(struct huge_bootmem_page));
- #else
- 		page = virt_to_page(m);
- #endif
+-	base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
+-			table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
++	base = memblock_early_alloc_try_nid_nopanic(nid,
++			table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
++			BOOTMEM_ALLOC_ACCESSIBLE);
+ 	if (!base)
+ 		return -ENOMEM;
+ 	NODE_DATA(nid)->node_page_cgroup = base;
 -- 
 1.7.9.5
 
