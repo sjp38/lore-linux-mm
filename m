@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id C2BD06B006C
-	for <linux-mm@kvack.org>; Sat, 12 Oct 2013 17:59:44 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id kx10so5957802pab.13
-        for <linux-mm@kvack.org>; Sat, 12 Oct 2013 14:59:44 -0700 (PDT)
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id BA7BC6B006E
+	for <linux-mm@kvack.org>; Sat, 12 Oct 2013 17:59:46 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id un15so5777144pbc.29
+        for <linux-mm@kvack.org>; Sat, 12 Oct 2013 14:59:46 -0700 (PDT)
 From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [RFC 17/23] mm/page_cgroup: Use memblock apis for early memory allocations
-Date: Sat, 12 Oct 2013 17:59:00 -0400
-Message-ID: <1381615146-20342-18-git-send-email-santosh.shilimkar@ti.com>
+Subject: [RFC 18/23] mm/percpu: Use memblock apis for early memory allocations
+Date: Sat, 12 Oct 2013 17:59:01 -0400
+Message-ID: <1381615146-20342-19-git-send-email-santosh.shilimkar@ti.com>
 In-Reply-To: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com>
 References: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
@@ -15,9 +15,7 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: tj@kernel.org, yinghai@kernel.org
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, grygorii.strashko@ti.com, Andrew Morton <akpm@linux-foundation.org>, Santosh Shilimkar <santosh.shilimkar@ti.com>
-
-From: Grygorii Strashko <grygorii.strashko@ti.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, grygorii.strashko@ti.com, Santosh Shilimkar <santosh.shilimkar@ti.com>, Andrew Morton <akpm@linux-foundation.org>
 
 Switch to memblock interfaces for early memory allocator
 
@@ -25,28 +23,142 @@ Cc: Yinghai Lu <yinghai@kernel.org>
 Cc: Tejun Heo <tj@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 
-Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
 Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 ---
- mm/page_cgroup.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ mm/percpu.c |   39 +++++++++++++++++++++++----------------
+ 1 file changed, 23 insertions(+), 16 deletions(-)
 
-diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-index 6d757e3..7428f4c 100644
---- a/mm/page_cgroup.c
-+++ b/mm/page_cgroup.c
-@@ -54,8 +54,9 @@ static int __init alloc_node_page_cgroup(int nid)
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 8c8e08f..0b2117f 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -1063,7 +1063,7 @@ struct pcpu_alloc_info * __init pcpu_alloc_alloc_info(int nr_groups,
+ 			  __alignof__(ai->groups[0].cpu_map[0]));
+ 	ai_size = base_size + nr_units * sizeof(ai->groups[0].cpu_map[0]);
  
- 	table_size = sizeof(struct page_cgroup) * nr_pages;
+-	ptr = alloc_bootmem_nopanic(PFN_ALIGN(ai_size));
++	ptr = memblock_early_alloc_pages_nopanic(PFN_ALIGN(ai_size));
+ 	if (!ptr)
+ 		return NULL;
+ 	ai = ptr;
+@@ -1088,7 +1088,7 @@ struct pcpu_alloc_info * __init pcpu_alloc_alloc_info(int nr_groups,
+  */
+ void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai)
+ {
+-	free_bootmem(__pa(ai), ai->__ai_size);
++	memblock_free_early(__pa(ai), ai->__ai_size);
+ }
  
--	base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
--			table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
-+	base = memblock_early_alloc_try_nid_nopanic(nid,
-+			table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
-+			BOOTMEM_ALLOC_ACCESSIBLE);
- 	if (!base)
- 		return -ENOMEM;
- 	NODE_DATA(nid)->node_page_cgroup = base;
+ /**
+@@ -1246,10 +1246,12 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 	PCPU_SETUP_BUG_ON(pcpu_verify_alloc_info(ai) < 0);
+ 
+ 	/* process group information and build config tables accordingly */
+-	group_offsets = alloc_bootmem(ai->nr_groups * sizeof(group_offsets[0]));
+-	group_sizes = alloc_bootmem(ai->nr_groups * sizeof(group_sizes[0]));
+-	unit_map = alloc_bootmem(nr_cpu_ids * sizeof(unit_map[0]));
+-	unit_off = alloc_bootmem(nr_cpu_ids * sizeof(unit_off[0]));
++	group_offsets = memblock_early_alloc(ai->nr_groups *
++					     sizeof(group_offsets[0]));
++	group_sizes = memblock_early_alloc(ai->nr_groups *
++					   sizeof(group_sizes[0]));
++	unit_map = memblock_early_alloc(nr_cpu_ids * sizeof(unit_map[0]));
++	unit_off = memblock_early_alloc(nr_cpu_ids * sizeof(unit_off[0]));
+ 
+ 	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
+ 		unit_map[cpu] = UINT_MAX;
+@@ -1311,7 +1313,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 	 * empty chunks.
+ 	 */
+ 	pcpu_nr_slots = __pcpu_size_to_slot(pcpu_unit_size) + 2;
+-	pcpu_slot = alloc_bootmem(pcpu_nr_slots * sizeof(pcpu_slot[0]));
++	pcpu_slot = memblock_early_alloc(pcpu_nr_slots * sizeof(pcpu_slot[0]));
+ 	for (i = 0; i < pcpu_nr_slots; i++)
+ 		INIT_LIST_HEAD(&pcpu_slot[i]);
+ 
+@@ -1322,7 +1324,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 	 * covers static area + reserved area (mostly used for module
+ 	 * static percpu allocation).
+ 	 */
+-	schunk = alloc_bootmem(pcpu_chunk_struct_size);
++	schunk = memblock_early_alloc(pcpu_chunk_struct_size);
+ 	INIT_LIST_HEAD(&schunk->list);
+ 	schunk->base_addr = base_addr;
+ 	schunk->map = smap;
+@@ -1346,7 +1348,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 
+ 	/* init dynamic chunk if necessary */
+ 	if (dyn_size) {
+-		dchunk = alloc_bootmem(pcpu_chunk_struct_size);
++		dchunk = memblock_early_alloc(pcpu_chunk_struct_size);
+ 		INIT_LIST_HEAD(&dchunk->list);
+ 		dchunk->base_addr = base_addr;
+ 		dchunk->map = dmap;
+@@ -1626,7 +1628,7 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+ 	size_sum = ai->static_size + ai->reserved_size + ai->dyn_size;
+ 	areas_size = PFN_ALIGN(ai->nr_groups * sizeof(void *));
+ 
+-	areas = alloc_bootmem_nopanic(areas_size);
++	areas = memblock_early_alloc_pages_nopanic(areas_size);
+ 	if (!areas) {
+ 		rc = -ENOMEM;
+ 		goto out_free;
+@@ -1711,7 +1713,7 @@ out_free_areas:
+ out_free:
+ 	pcpu_free_alloc_info(ai);
+ 	if (areas)
+-		free_bootmem(__pa(areas), areas_size);
++		memblock_free_early(__pa(areas), areas_size);
+ 	return rc;
+ }
+ #endif /* BUILD_EMBED_FIRST_CHUNK */
+@@ -1759,7 +1761,7 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
+ 	/* unaligned allocations can't be freed, round up to page size */
+ 	pages_size = PFN_ALIGN(unit_pages * num_possible_cpus() *
+ 			       sizeof(pages[0]));
+-	pages = alloc_bootmem(pages_size);
++	pages = memblock_early_alloc_pages(pages_size);
+ 
+ 	/* allocate pages */
+ 	j = 0;
+@@ -1822,7 +1824,7 @@ enomem:
+ 		free_fn(page_address(pages[j]), PAGE_SIZE);
+ 	rc = -ENOMEM;
+ out_free_ar:
+-	free_bootmem(__pa(pages), pages_size);
++	memblock_free_early(__pa(pages), pages_size);
+ 	pcpu_free_alloc_info(ai);
+ 	return rc;
+ }
+@@ -1847,12 +1849,14 @@ EXPORT_SYMBOL(__per_cpu_offset);
+ static void * __init pcpu_dfl_fc_alloc(unsigned int cpu, size_t size,
+ 				       size_t align)
+ {
+-	return __alloc_bootmem_nopanic(size, align, __pa(MAX_DMA_ADDRESS));
++	return  memblock_early_alloc_try_nid_nopanic(MAX_NUMNODES, size, align,
++						      __pa(MAX_DMA_ADDRESS),
++						      BOOTMEM_ALLOC_ACCESSIBLE);
+ }
+ 
+ static void __init pcpu_dfl_fc_free(void *ptr, size_t size)
+ {
+-	free_bootmem(__pa(ptr), size);
++	memblock_free_early(__pa(ptr), size);
+ }
+ 
+ void __init setup_per_cpu_areas(void)
+@@ -1895,7 +1899,10 @@ void __init setup_per_cpu_areas(void)
+ 	void *fc;
+ 
+ 	ai = pcpu_alloc_alloc_info(1, 1);
+-	fc = __alloc_bootmem(unit_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
++	fc = memblock_early_alloc_try_nid_nopanic(MAX_NUMNODES, unit_size,
++						  PAGE_SIZE,
++						  __pa(MAX_DMA_ADDRESS),
++						  BOOTMEM_ALLOC_ACCESSIBLE);
+ 	if (!ai || !fc)
+ 		panic("Failed to allocate memory for percpu areas.");
+ 	/* kmemleak tracks the percpu allocations separately */
 -- 
 1.7.9.5
 
