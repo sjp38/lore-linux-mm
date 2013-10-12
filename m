@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id B53D76B003C
-	for <linux-mm@kvack.org>; Sat, 12 Oct 2013 17:59:34 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id fa1so5948960pad.33
-        for <linux-mm@kvack.org>; Sat, 12 Oct 2013 14:59:34 -0700 (PDT)
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 59A686B004D
+	for <linux-mm@kvack.org>; Sat, 12 Oct 2013 17:59:35 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id kp14so5913694pab.24
+        for <linux-mm@kvack.org>; Sat, 12 Oct 2013 14:59:35 -0700 (PDT)
 From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [RFC 08/23] mm/memblock: debug: don't free reserved array if !ARCH_DISCARD_MEMBLOCK
-Date: Sat, 12 Oct 2013 17:58:51 -0400
-Message-ID: <1381615146-20342-9-git-send-email-santosh.shilimkar@ti.com>
+Subject: [RFC 09/23] mm/init: Use memblock apis for early memory allocations
+Date: Sat, 12 Oct 2013 17:58:52 -0400
+Message-ID: <1381615146-20342-10-git-send-email-santosh.shilimkar@ti.com>
 In-Reply-To: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com>
 References: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
@@ -15,56 +15,34 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: tj@kernel.org, yinghai@kernel.org
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, grygorii.strashko@ti.com, Andrew Morton <akpm@linux-foundation.org>, Santosh Shilimkar <santosh.shilimkar@ti.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, grygorii.strashko@ti.com, Santosh Shilimkar <santosh.shilimkar@ti.com>, Andrew Morton <akpm@linux-foundation.org>
 
-From: Grygorii Strashko <grygorii.strashko@ti.com>
-
-Now the Nobootmem allocator will always try to free memory allocated for
-reserved memory regions (free_low_memory_core_early()) without taking
-into to account current memblock debugging configuration
-(CONFIG_ARCH_DISCARD_MEMBLOCK and CONFIG_DEBUG_FS state).
-As result if:
- - CONFIG_DEBUG_FS defined
- - CONFIG_ARCH_DISCARD_MEMBLOCK not defined;
--  reserved memory regions array have been resized during boot
-
-then:
-- memory allocated for reserved memory regions array will be freed to
-buddy allocator;
-- debug_fs entry "sys/kernel/debug/memblock/reserved" will show garbage
-instead of state of memory reservations. like:
-   0: 0x98393bc0..0x9a393bbf
-   1: 0xff120000..0xff11ffff
-   2: 0x00000000..0xffffffff
-
-Hence, do not free memory allocated for reserved memory regions if
-defined(CONFIG_DEBUG_FS) && !defined(CONFIG_ARCH_DISCARD_MEMBLOCK).
+Switch to memblock interfaces for early memory allocator
 
 Cc: Yinghai Lu <yinghai@kernel.org>
 Cc: Tejun Heo <tj@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 
-Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
 Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 ---
- mm/memblock.c |    4 ++++
- 1 file changed, 4 insertions(+)
+ init/main.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index d903138..1bb2cc0 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -169,6 +169,10 @@ phys_addr_t __init_memblock get_allocated_memblock_reserved_regions_info(
- 	if (memblock.reserved.regions == memblock_reserved_init_regions)
- 		return 0;
- 
-+	if (IS_ENABLED(CONFIG_DEBUG_FS) &&
-+	    !IS_ENABLED(CONFIG_ARCH_DISCARD_MEMBLOCK))
-+		return 0;
-+
- 	*addr = __pa(memblock.reserved.regions);
- 
- 	return PAGE_ALIGN(sizeof(struct memblock_region) *
+diff --git a/init/main.c b/init/main.c
+index af310af..e8d382a 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -346,8 +346,8 @@ static inline void smp_prepare_cpus(unsigned int maxcpus) { }
+  */
+ static void __init setup_command_line(char *command_line)
+ {
+-	saved_command_line = alloc_bootmem(strlen (boot_command_line)+1);
+-	static_command_line = alloc_bootmem(strlen (command_line)+1);
++	saved_command_line = memblock_early_alloc(strlen(boot_command_line)+1);
++	static_command_line = memblock_early_alloc(strlen(command_line)+1);
+ 	strcpy (saved_command_line, boot_command_line);
+ 	strcpy (static_command_line, command_line);
+ }
 -- 
 1.7.9.5
 
