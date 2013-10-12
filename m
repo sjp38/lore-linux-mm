@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 59A686B004D
-	for <linux-mm@kvack.org>; Sat, 12 Oct 2013 17:59:35 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id kp14so5913694pab.24
-        for <linux-mm@kvack.org>; Sat, 12 Oct 2013 14:59:35 -0700 (PDT)
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 762856B004D
+	for <linux-mm@kvack.org>; Sat, 12 Oct 2013 17:59:36 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so5921908pad.16
+        for <linux-mm@kvack.org>; Sat, 12 Oct 2013 14:59:36 -0700 (PDT)
 From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [RFC 09/23] mm/init: Use memblock apis for early memory allocations
-Date: Sat, 12 Oct 2013 17:58:52 -0400
-Message-ID: <1381615146-20342-10-git-send-email-santosh.shilimkar@ti.com>
+Subject: [RFC 10/23] mm/printk: Use memblock apis for early memory allocations
+Date: Sat, 12 Oct 2013 17:58:53 -0400
+Message-ID: <1381615146-20342-11-git-send-email-santosh.shilimkar@ti.com>
 In-Reply-To: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com>
 References: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
@@ -23,26 +23,34 @@ Cc: Yinghai Lu <yinghai@kernel.org>
 Cc: Tejun Heo <tj@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 
+Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
 Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 ---
- init/main.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ kernel/printk/printk.c |   10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)
 
-diff --git a/init/main.c b/init/main.c
-index af310af..e8d382a 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -346,8 +346,8 @@ static inline void smp_prepare_cpus(unsigned int maxcpus) { }
-  */
- static void __init setup_command_line(char *command_line)
- {
--	saved_command_line = alloc_bootmem(strlen (boot_command_line)+1);
--	static_command_line = alloc_bootmem(strlen (command_line)+1);
-+	saved_command_line = memblock_early_alloc(strlen(boot_command_line)+1);
-+	static_command_line = memblock_early_alloc(strlen(command_line)+1);
- 	strcpy (saved_command_line, boot_command_line);
- 	strcpy (static_command_line, command_line);
- }
+diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
+index b4e8500..8624466 100644
+--- a/kernel/printk/printk.c
++++ b/kernel/printk/printk.c
+@@ -757,14 +757,10 @@ void __init setup_log_buf(int early)
+ 		return;
+ 
+ 	if (early) {
+-		unsigned long mem;
+-
+-		mem = memblock_alloc(new_log_buf_len, PAGE_SIZE);
+-		if (!mem)
+-			return;
+-		new_log_buf = __va(mem);
++		new_log_buf =
++			memblock_early_alloc_pages_nopanic(new_log_buf_len);
+ 	} else {
+-		new_log_buf = alloc_bootmem_nopanic(new_log_buf_len);
++		new_log_buf = memblock_early_alloc_nopanic(new_log_buf_len);
+ 	}
+ 
+ 	if (unlikely(!new_log_buf)) {
 -- 
 1.7.9.5
 
