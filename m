@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 69E326B0035
-	for <linux-mm@kvack.org>; Sat, 12 Oct 2013 02:09:45 -0400 (EDT)
-Received: by mail-pb0-f53.google.com with SMTP id up15so5163171pbc.12
-        for <linux-mm@kvack.org>; Fri, 11 Oct 2013 23:09:45 -0700 (PDT)
-Message-ID: <5258E754.2060701@cn.fujitsu.com>
-Date: Sat, 12 Oct 2013 14:08:20 +0800
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A3DE6B0031
+	for <linux-mm@kvack.org>; Sat, 12 Oct 2013 02:10:16 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id kp14so5332903pab.38
+        for <linux-mm@kvack.org>; Fri, 11 Oct 2013 23:10:16 -0700 (PDT)
+Message-ID: <5258E77E.4020608@cn.fujitsu.com>
+Date: Sat, 12 Oct 2013 14:09:02 +0800
 From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH part2 v2 6/8] acpi, numa, mem_hotplug: Mark all nodes the
- kernel resides un-hotpluggable
+Subject: [PATCH part2 v2 7/8] memblock, mem_hotplug: Make memblock skip hotpluggable
+ regions if needed
 References: <5258E560.5050506@cn.fujitsu.com>
 In-Reply-To: <5258E560.5050506@cn.fujitsu.com>
 Content-Transfer-Encoding: 7bit
@@ -21,92 +21,113 @@ Cc: "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-ker
 
 From: Tang Chen <tangchen@cn.fujitsu.com>
 
-At very early time, the kernel have to use some memory such as
-loading the kernel image. We cannot prevent this anyway. So any
-node the kernel resides in should be un-hotpluggable.
+Linux kernel cannot migrate pages used by the kernel. As a result, hotpluggable
+memory used by the kernel won't be able to be hot-removed. To solve this
+problem, the basic idea is to prevent memblock from allocating hotpluggable
+memory for the kernel at early time, and arrange all hotpluggable memory in
+ACPI SRAT(System Resource Affinity Table) as ZONE_MOVABLE when initializing
+zones.
 
+In the previous patches, we have marked hotpluggable memory regions with
+MEMBLOCK_HOTPLUG flag in memblock.memory.
+
+In this patch, we make memblock skip these hotpluggable memory regions in
+the default top-down allocation function if movable_node boot option is
+specified.
+
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- arch/x86/mm/numa.c |   44 ++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 44 insertions(+), 0 deletions(-)
+ include/linux/memblock.h |   18 ++++++++++++++++++
+ mm/memblock.c            |   12 ++++++++++++
+ mm/memory_hotplug.c      |    1 +
+ 3 files changed, 31 insertions(+), 0 deletions(-)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 408c02d..f26b16f 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -494,6 +494,14 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
- 		struct numa_memblk *mb = &mi->blk[i];
- 		memblock_set_node(mb->start, mb->end - mb->start,
- 				  &memblock.memory, mb->nid);
-+
-+		/*
-+		 * At this time, all memory regions reserved by memblock are
-+		 * used by the kernel. Set the nid in memblock.reserved will
-+		 * mark out all the nodes the kernel resides in.
-+		 */
-+		memblock_set_node(mb->start, mb->end - mb->start,
-+				  &memblock.reserved, mb->nid);
- 	}
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 97480d3..bfc1dba 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -47,6 +47,10 @@ struct memblock {
  
- 	/*
-@@ -555,6 +563,30 @@ static void __init numa_init_array(void)
- 	}
- }
+ extern struct memblock memblock;
+ extern int memblock_debug;
++#ifdef CONFIG_MOVABLE_NODE
++/* If movable_node boot option specified */
++extern bool movable_node_enabled;
++#endif /* CONFIG_MOVABLE_NODE */
  
-+static void __init numa_clear_kernel_node_hotplug(void)
+ #define memblock_dbg(fmt, ...) \
+ 	if (memblock_debug) printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
+@@ -65,6 +69,20 @@ int memblock_reserve(phys_addr_t base, phys_addr_t size);
+ void memblock_trim_memory(phys_addr_t align);
+ int memblock_mark_hotplug(phys_addr_t base, phys_addr_t size);
+ int memblock_clear_hotplug(phys_addr_t base, phys_addr_t size);
++#ifdef CONFIG_MOVABLE_NODE
++static inline bool memblock_is_hotpluggable(struct memblock_region *m)
 +{
-+	int i, nid;
-+	nodemask_t numa_kernel_nodes;
-+	unsigned long start, end;
-+	struct memblock_type *type = &memblock.reserved;
-+
-+	/* Mark all kernel nodes. */
-+	for (i = 0; i < type->cnt; i++)
-+		node_set(type->regions[i].nid, numa_kernel_nodes);
-+
-+	/* Clear MEMBLOCK_HOTPLUG flag for memory in kernel nodes. */
-+	for (i = 0; i < numa_meminfo.nr_blks; i++) {
-+		nid = numa_meminfo.blk[i].nid;
-+		if (!node_isset(nid, numa_kernel_nodes))
-+			continue;
-+
-+		start = numa_meminfo.blk[i].start;
-+		end = numa_meminfo.blk[i].end;
-+
-+		memblock_clear_hotplug(start, end - start);
-+	}
++	return m->flags & MEMBLOCK_HOTPLUG;
 +}
 +
- static int __init numa_init(int (*init_func)(void))
- {
- 	int i;
-@@ -569,6 +601,8 @@ static int __init numa_init(int (*init_func)(void))
- 	memset(&numa_meminfo, 0, sizeof(numa_meminfo));
- 	WARN_ON(memblock_set_node(0, ULLONG_MAX, &memblock.memory,
- 				  MAX_NUMNODES));
-+	WARN_ON(memblock_set_node(0, ULLONG_MAX, &memblock.reserved,
-+				  MAX_NUMNODES));
- 	/* In case that parsing SRAT failed. */
- 	WARN_ON(memblock_clear_hotplug(0, ULLONG_MAX));
- 	numa_reset_distance();
-@@ -606,6 +640,16 @@ static int __init numa_init(int (*init_func)(void))
- 			numa_clear_node(i);
- 	}
- 	numa_init_array();
-+
-+	/*
-+	 * At very early time, the kernel have to use some memory such as
-+	 * loading the kernel image. We cannot prevent this anyway. So any
-+	 * node the kernel resides in should be un-hotpluggable.
-+	 *
-+	 * And when we come here, numa_init() won't fail.
-+	 */
-+	numa_clear_kernel_node_hotplug();
-+
- 	return 0;
- }
++static inline bool movable_node_is_enabled(void)
++{
++	return movable_node_enabled;
++}
++#else
++static inline bool memblock_is_hotpluggable(struct memblock_region *m){ return false; }
++static inline bool movable_node_is_enabled(void) { return false; }
++#endif
  
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ int memblock_search_pfn_nid(unsigned long pfn, unsigned long *start_pfn,
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 7de9c76..7f69012 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -39,6 +39,9 @@ struct memblock memblock __initdata_memblock = {
+ };
+ 
+ int memblock_debug __initdata_memblock;
++#ifdef CONFIG_MOVABLE_NODE
++bool movable_node_enabled __initdata_memblock = false;
++#endif
+ static int memblock_can_resize __initdata_memblock;
+ static int memblock_memory_in_slab __initdata_memblock = 0;
+ static int memblock_reserved_in_slab __initdata_memblock = 0;
+@@ -819,6 +822,11 @@ void __init_memblock __next_free_mem_range(u64 *idx, int nid,
+  * @out_nid: ptr to int for nid of the range, can be %NULL
+  *
+  * Reverse of __next_free_mem_range().
++ *
++ * Linux kernel cannot migrate pages used by itself. Memory hotplug users won't
++ * be able to hot-remove hotpluggable memory used by the kernel. So this
++ * function skip hotpluggable regions if needed when allocating memory for the
++ * kernel.
+  */
+ void __init_memblock __next_free_mem_range_rev(u64 *idx, int nid,
+ 					   phys_addr_t *out_start,
+@@ -843,6 +851,10 @@ void __init_memblock __next_free_mem_range_rev(u64 *idx, int nid,
+ 		if (nid != MAX_NUMNODES && nid != memblock_get_region_node(m))
+ 			continue;
+ 
++		/* skip hotpluggable memory regions if needed */
++		if (movable_node_is_enabled() && memblock_is_hotpluggable(m))
++			continue;
++
+ 		/* scan areas before each reservation for intersection */
+ 		for ( ; ri >= 0; ri--) {
+ 			struct memblock_region *r = &rsv->regions[ri];
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 8c91d0a..729a2d8 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1436,6 +1436,7 @@ static int __init cmdline_parse_movable_node(char *p)
+ 	 * the kernel away from hotpluggable memory.
+ 	 */
+ 	memblock_set_bottom_up(true);
++	movable_node_enabled = true;
+ #else
+ 	pr_warn("movable_node option not supported\n");
+ #endif
 -- 
 1.7.1
 
