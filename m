@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-	by kanga.kvack.org (Postfix) with ESMTP id BAF256B0035
-	for <linux-mm@kvack.org>; Sat, 12 Oct 2013 17:59:15 -0400 (EDT)
-Received: by mail-pb0-f43.google.com with SMTP id md4so5724917pbc.2
-        for <linux-mm@kvack.org>; Sat, 12 Oct 2013 14:59:15 -0700 (PDT)
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 024026B0036
+	for <linux-mm@kvack.org>; Sat, 12 Oct 2013 17:59:16 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id kp14so5981478pab.10
+        for <linux-mm@kvack.org>; Sat, 12 Oct 2013 14:59:16 -0700 (PDT)
 From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [RFC 01/23] mm/bootmem: remove duplicated declaration of __free_pages_bootmem()
-Date: Sat, 12 Oct 2013 17:58:44 -0400
-Message-ID: <1381615146-20342-2-git-send-email-santosh.shilimkar@ti.com>
+Subject: [RFC 02/23] mm/block: remove unnecessary inclusion of bootmem.h
+Date: Sat, 12 Oct 2013 17:58:45 -0400
+Message-ID: <1381615146-20342-3-git-send-email-santosh.shilimkar@ti.com>
 In-Reply-To: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com>
 References: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
@@ -19,8 +19,7 @@ Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.
 
 From: Grygorii Strashko <grygorii.strashko@ti.com>
 
-The __free_pages_bootmem is used internally by MM core and
-already defined in internal.h. So, remove duplicated declaration.
+Clean-up to remove depedency with bootmem headers.
 
 Cc: Yinghai Lu <yinghai@kernel.org>
 Cc: Tejun Heo <tj@kernel.org>
@@ -29,21 +28,21 @@ Cc: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
 Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 ---
- include/linux/bootmem.h |    1 -
+ block/blk-ioc.c |    1 -
  1 file changed, 1 deletion(-)
 
-diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
-index f1f07d3..55d52fb 100644
---- a/include/linux/bootmem.h
-+++ b/include/linux/bootmem.h
-@@ -52,7 +52,6 @@ extern void free_bootmem_node(pg_data_t *pgdat,
- 			      unsigned long size);
- extern void free_bootmem(unsigned long physaddr, unsigned long size);
- extern void free_bootmem_late(unsigned long physaddr, unsigned long size);
--extern void __free_pages_bootmem(struct page *page, unsigned int order);
+diff --git a/block/blk-ioc.c b/block/blk-ioc.c
+index 46cd7bd..242df01 100644
+--- a/block/blk-ioc.c
++++ b/block/blk-ioc.c
+@@ -6,7 +6,6 @@
+ #include <linux/init.h>
+ #include <linux/bio.h>
+ #include <linux/blkdev.h>
+-#include <linux/bootmem.h>	/* for max_pfn/max_low_pfn */
+ #include <linux/slab.h>
  
- /*
-  * Flags for reserve_bootmem (also if CONFIG_HAVE_ARCH_BOOTMEM_NODE,
+ #include "blk.h"
 -- 
 1.7.9.5
 
