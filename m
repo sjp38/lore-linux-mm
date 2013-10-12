@@ -1,74 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FA686B0031
-	for <linux-mm@kvack.org>; Fri, 11 Oct 2013 16:52:02 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id r10so4804560pdi.14
-        for <linux-mm@kvack.org>; Fri, 11 Oct 2013 13:52:01 -0700 (PDT)
-Date: Fri, 11 Oct 2013 13:51:57 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 2/2] fs: buffer: move allocation failure loop into the
- allocator
-Message-Id: <20131011135157.cad19680e02cc4140ecdff0b@linux-foundation.org>
-In-Reply-To: <1381265890-11333-2-git-send-email-hannes@cmpxchg.org>
-References: <1381265890-11333-1-git-send-email-hannes@cmpxchg.org>
-	<1381265890-11333-2-git-send-email-hannes@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FFF66B0031
+	for <linux-mm@kvack.org>; Fri, 11 Oct 2013 20:44:19 -0400 (EDT)
+Received: by mail-pb0-f54.google.com with SMTP id ro12so4958594pbb.27
+        for <linux-mm@kvack.org>; Fri, 11 Oct 2013 17:44:19 -0700 (PDT)
+Date: Sat, 12 Oct 2013 08:43:55 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [PATCH] writeback: fix negative bdi max pause
+Message-ID: <20131012004355.GB7520@localhost>
+References: <CAMuHMdWs6Y7y12STJ+YXKJjxRF0k5yU9C9+0fiPPmq-GgeW-6Q@mail.gmail.com>
+ <525591AD.4060401@gmx.de>
+ <5255A3E6.6020100@nod.at>
+ <20131009214733.GB25608@quack.suse.cz>
+ <5255D9A6.3010208@nod.at>
+ <5256DA9A.5060904@gmx.de>
+ <20131011011649.GA11191@localhost>
+ <5257B9EB.7080503@gmx.de>
+ <20131011085701.GA27382@localhost>
+ <52580767.6090604@gmx.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <52580767.6090604@gmx.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, azurIt <azurit@pobox.sk>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Toralf =?utf-8?Q?F=C3=B6rster?= <toralf.foerster@gmx.de>, Richard Weinberger <richard@nod.at>, Jan Kara <jack@suse.cz>, Geert Uytterhoeven <geert@linux-m68k.org>, UML devel <user-mode-linux-devel@lists.sourceforge.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, hannes@cmpxchg.org, darrick.wong@oracle.com, Michal Hocko <mhocko@suse.cz>
 
-On Tue,  8 Oct 2013 16:58:10 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+Toralf runs trinity on UML/i386.
+After some time it hangs and the last message line is
 
-> Buffer allocation has a very crude indefinite loop around waking the
-> flusher threads and performing global NOFS direct reclaim because it
-> can not handle allocation failures.
-> 
-> The most immediate problem with this is that the allocation may fail
-> due to a memory cgroup limit, where flushers + direct reclaim might
-> not make any progress towards resolving the situation at all.  Because
-> unlike the global case, a memory cgroup may not have any cache at all,
-> only anonymous pages but no swap.  This situation will lead to a
-> reclaim livelock with insane IO from waking the flushers and thrashing
-> unrelated filesystem cache in a tight loop.
-> 
-> Use __GFP_NOFAIL allocations for buffers for now.  This makes sure
-> that any looping happens in the page allocator, which knows how to
-> orchestrate kswapd, direct reclaim, and the flushers sensibly.  It
-> also allows memory cgroups to detect allocations that can't handle
-> failure and will allow them to ultimately bypass the limit if reclaim
-> can not make progress.
-> 
-> --- a/fs/buffer.c
-> +++ b/fs/buffer.c
-> @@ -1005,9 +1005,19 @@ grow_dev_page(struct block_device *bdev, sector_t block,
->  	struct buffer_head *bh;
->  	sector_t end_block;
->  	int ret = 0;		/* Will call free_more_memory() */
-> +	gfp_t gfp_mask;
->  
-> -	page = find_or_create_page(inode->i_mapping, index,
-> -		(mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS)|__GFP_MOVABLE);
-> +	gfp_mask = mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS;
-> +	gfp_mask |= __GFP_MOVABLE;
-> +	/*
-> +	 * XXX: __getblk_slow() can not really deal with failure and
-> +	 * will endlessly loop on improvised global reclaim.  Prefer
-> +	 * looping in the allocator rather than here, at least that
-> +	 * code knows what it's doing.
-> +	 */
-> +	gfp_mask |= __GFP_NOFAIL;
+	BUG: soft lockup - CPU#0 stuck for 22s! [trinity-child0:1521]
 
-Yup.  When I added GFP_NOFAIL all those years ago there were numerous
-open-coded try-forever loops, and GFP_NOFAIL was more a cleanup than
-anything else - move the loop into the page allocator, leaving behind a
-sentinel which says "this code sucks and should be fixed".  Of course,
-nothing has since been fixed :(
+It's found that pages_dirtied becomes very large.
+More than 1000000000 pages in this case:
 
-So apart from fixing a bug, this patch continues this conversion.  I
-can't think why I didn't do it a decade ago!
+	period = HZ * pages_dirtied / task_ratelimit;
+	BUG_ON(pages_dirtied > 2000000000);
+	BUG_ON(pages_dirtied > 1000000000);      <---------
+
+UML debug printf shows that we got negative pause here:
+
+	ick: pause : -984
+	ick: pages_dirtied : 0
+	ick: task_ratelimit: 0
+
+	 pause:
+	+       if (pause < 0)  {
+	+               extern int printf(char *, ...);
+	+               printf("ick : pause : %li\n", pause);
+	+               printf("ick: pages_dirtied : %lu\n", pages_dirtied);
+	+               printf("ick: task_ratelimit: %lu\n", task_ratelimit);
+	+               BUG_ON(1);
+	+       }
+	        trace_balance_dirty_pages(bdi,
+
+Since pause is bounded by [min_pause, max_pause] where min_pause is also
+bounded by max_pause. It's suspected and demonstrated that the max_pause
+calculation goes wrong:
+
+	ick: pause : -717
+	ick: min_pause : -177
+	ick: max_pause : -717
+	ick: pages_dirtied : 14
+	ick: task_ratelimit: 0
+
+The problem lies in the two "long = unsigned long" assignments in
+bdi_max_pause() which might go negative if the highest bit is 1, and
+the min_t(long, ...) check failed to protect it falling under 0. Fix
+all of them by using "unsigned long" throughout the function.
+
+Reported-by: Toralf FA?rster <toralf.foerster@gmx.de>
+Tested-by: Toralf FA?rster <toralf.foerster@gmx.de>
+Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+---
+ mm/page-writeback.c |   10 +++++-----
+ mm/readahead.c      |    2 +-
+ 2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 3f0c895..241a746 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -1104,11 +1104,11 @@ static unsigned long dirty_poll_interval(unsigned long dirty,
+ 	return 1;
+ }
+ 
+-static long bdi_max_pause(struct backing_dev_info *bdi,
+-			  unsigned long bdi_dirty)
++static unsigned long bdi_max_pause(struct backing_dev_info *bdi,
++				   unsigned long bdi_dirty)
+ {
+-	long bw = bdi->avg_write_bandwidth;
+-	long t;
++	unsigned long bw = bdi->avg_write_bandwidth;
++	unsigned long t;
+ 
+ 	/*
+ 	 * Limit pause time for small memory systems. If sleeping for too long
+@@ -1120,7 +1120,7 @@ static long bdi_max_pause(struct backing_dev_info *bdi,
+ 	t = bdi_dirty / (1 + bw / roundup_pow_of_two(1 + HZ / 8));
+ 	t++;
+ 
+-	return min_t(long, t, MAX_PAUSE);
++	return min_t(unsigned long, t, MAX_PAUSE);
+ }
+ 
+ static long bdi_min_pause(struct backing_dev_info *bdi,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
