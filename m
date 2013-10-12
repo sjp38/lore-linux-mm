@@ -1,119 +1,270 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 882816B0031
-	for <linux-mm@kvack.org>; Sat, 12 Oct 2013 00:45:27 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id fa1so5283788pad.33
-        for <linux-mm@kvack.org>; Fri, 11 Oct 2013 21:45:27 -0700 (PDT)
-Date: Sat, 12 Oct 2013 12:45:17 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [PATCH v2] writeback: fix negative bdi max pause
-Message-ID: <20131012044517.GA32048@localhost>
-References: <CAMuHMdWs6Y7y12STJ+YXKJjxRF0k5yU9C9+0fiPPmq-GgeW-6Q@mail.gmail.com>
- <525591AD.4060401@gmx.de>
- <5255A3E6.6020100@nod.at>
- <20131009214733.GB25608@quack.suse.cz>
- <5255D9A6.3010208@nod.at>
- <5256DA9A.5060904@gmx.de>
- <20131011011649.GA11191@localhost>
- <5257B9EB.7080503@gmx.de>
- <20131011085701.GA27382@localhost>
- <52580767.6090604@gmx.de>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 647756B0031
+	for <linux-mm@kvack.org>; Sat, 12 Oct 2013 02:05:57 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id bj1so5325141pad.0
+        for <linux-mm@kvack.org>; Fri, 11 Oct 2013 23:05:57 -0700 (PDT)
+Message-ID: <5258E668.3080305@cn.fujitsu.com>
+Date: Sat, 12 Oct 2013 14:04:24 +0800
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <52580767.6090604@gmx.de>
+Subject: [PATCH part2 v2 2/8] memblock, numa: Introduce flag into memblock
+References: <5258E560.5050506@cn.fujitsu.com>
+In-Reply-To: <5258E560.5050506@cn.fujitsu.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Toralf =?utf-8?Q?F=C3=B6rster?= <toralf.foerster@gmx.de>, Richard Weinberger <richard@nod.at>, Jan Kara <jack@suse.cz>, Geert Uytterhoeven <geert@linux-m68k.org>, UML devel <user-mode-linux-devel@lists.sourceforge.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, hannes@cmpxchg.org, darrick.wong@oracle.com, Michal Hocko <mhocko@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>, "Rafael J . Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Tejun Heo <tj@kernel.org>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>
+Cc: "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Chen Tang <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>
 
-Toralf runs trinity on UML/i386.
-After some time it hangs and the last message line is
+From: Tang Chen <tangchen@cn.fujitsu.com>
 
-	BUG: soft lockup - CPU#0 stuck for 22s! [trinity-child0:1521]
+There is no flag in memblock to describe what type the memory is.
+Sometimes, we may use memblock to reserve some memory for special usage.
+And we want to know what kind of memory it is. So we need a way to
+differentiate memory for different usage.
 
-It's found that pages_dirtied becomes very large.
-More than 1000000000 pages in this case:
+In hotplug environment, we want to reserve hotpluggable memory so the
+kernel won't be able to use it. And when the system is up, we have to
+free these hotpluggable memory to buddy. So we need to mark these memory
+first.
 
-	period = HZ * pages_dirtied / task_ratelimit;
-	BUG_ON(pages_dirtied > 2000000000);
-	BUG_ON(pages_dirtied > 1000000000);      <---------
+In order to do so, we need to mark out these special memory in memblock.
+In this patch, we introduce a new "flags" member into memblock_region:
+   struct memblock_region {
+           phys_addr_t base;
+           phys_addr_t size;
+           unsigned long flags;		/* This is new. */
+   #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+           int nid;
+   #endif
+   };
 
-UML debug printf shows that we got negative pause here:
+This patch does the following things:
+1) Add "flags" member to memblock_region.
+2) Modify the following APIs' prototype:
+	memblock_add_region()
+	memblock_insert_region()
+3) Add memblock_reserve_region() to support reserve memory with flags, and keep
+   memblock_reserve()'s prototype unmodified.
+4) Modify other APIs to support flags, but keep their prototype unmodified.
 
-	ick: pause : -984
-	ick: pages_dirtied : 0
-	ick: task_ratelimit: 0
+The idea is from Wen Congyang <wency@cn.fujitsu.com> and Liu Jiang <jiang.liu@huawei.com>.
 
-	 pause:
-	+       if (pause < 0)  {
-	+               extern int printf(char *, ...);
-	+               printf("ick : pause : %li\n", pause);
-	+               printf("ick: pages_dirtied : %lu\n", pages_dirtied);
-	+               printf("ick: task_ratelimit: %lu\n", task_ratelimit);
-	+               BUG_ON(1);
-	+       }
-	        trace_balance_dirty_pages(bdi,
+v1 -> v2:
+As tj suggested, a zero flag MEMBLK_DEFAULT will make users confused. If
+we want to specify any other flag, such MEMBLK_HOTPLUG, users don't know
+to use MEMBLK_DEFAULT | MEMBLK_HOTPLUG or just MEMBLK_HOTPLUG. So remove
+MEMBLK_DEFAULT (which is 0), and just use 0 by default to avoid confusions
+to users.
 
-Since pause is bounded by [min_pause, max_pause] where min_pause is also
-bounded by max_pause. It's suspected and demonstrated that the max_pause
-calculation goes wrong:
-
-	ick: pause : -717
-	ick: min_pause : -177
-	ick: max_pause : -717
-	ick: pages_dirtied : 14
-	ick: task_ratelimit: 0
-
-The problem lies in the two "long = unsigned long" assignments in
-bdi_max_pause() which might go negative if the highest bit is 1, and
-the min_t(long, ...) check failed to protect it falling under 0. Fix
-all of them by using "unsigned long" throughout the function.
-
-Reported-by: Toralf FA?rster <toralf.foerster@gmx.de>
-Tested-by: Toralf FA?rster <toralf.foerster@gmx.de>
-Cc: <stable@vger.kernel.org>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Richard Weinberger <richard@nod.at>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+Suggested-by: Wen Congyang <wency@cn.fujitsu.com>
+Suggested-by: Liu Jiang <jiang.liu@huawei.com>
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- mm/page-writeback.c |   10 +++++-----
- mm/readahead.c      |    2 +-
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ include/linux/memblock.h |    1 +
+ mm/memblock.c            |   53 +++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 39 insertions(+), 15 deletions(-)
 
- Changes since v1: Add CC list.
-
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 3f0c895..241a746 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1104,11 +1104,11 @@ static unsigned long dirty_poll_interval(unsigned long dirty,
- 	return 1;
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 77c60e5..9a805ec 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -22,6 +22,7 @@
+ struct memblock_region {
+ 	phys_addr_t base;
+ 	phys_addr_t size;
++	unsigned long flags;
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ 	int nid;
+ #endif
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 53e477b..877973e 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -255,6 +255,7 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
+ 		type->cnt = 1;
+ 		type->regions[0].base = 0;
+ 		type->regions[0].size = 0;
++		type->regions[0].flags = 0;
+ 		memblock_set_region_node(&type->regions[0], MAX_NUMNODES);
+ 	}
  }
+@@ -405,7 +406,8 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type)
  
--static long bdi_max_pause(struct backing_dev_info *bdi,
--			  unsigned long bdi_dirty)
-+static unsigned long bdi_max_pause(struct backing_dev_info *bdi,
-+				   unsigned long bdi_dirty)
+ 		if (this->base + this->size != next->base ||
+ 		    memblock_get_region_node(this) !=
+-		    memblock_get_region_node(next)) {
++		    memblock_get_region_node(next) ||
++		    this->flags != next->flags) {
+ 			BUG_ON(this->base + this->size > next->base);
+ 			i++;
+ 			continue;
+@@ -425,13 +427,15 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type)
+  * @base:	base address of the new region
+  * @size:	size of the new region
+  * @nid:	node id of the new region
++ * @flags:	flags of the new region
+  *
+  * Insert new memblock region [@base,@base+@size) into @type at @idx.
+  * @type must already have extra room to accomodate the new region.
+  */
+ static void __init_memblock memblock_insert_region(struct memblock_type *type,
+ 						   int idx, phys_addr_t base,
+-						   phys_addr_t size, int nid)
++						   phys_addr_t size,
++						   int nid, unsigned long flags)
  {
--	long bw = bdi->avg_write_bandwidth;
--	long t;
-+	unsigned long bw = bdi->avg_write_bandwidth;
-+	unsigned long t;
+ 	struct memblock_region *rgn = &type->regions[idx];
+ 
+@@ -439,6 +443,7 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
+ 	memmove(rgn + 1, rgn, (type->cnt - idx) * sizeof(*rgn));
+ 	rgn->base = base;
+ 	rgn->size = size;
++	rgn->flags = flags;
+ 	memblock_set_region_node(rgn, nid);
+ 	type->cnt++;
+ 	type->total_size += size;
+@@ -450,6 +455,7 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
+  * @base: base address of the new region
+  * @size: size of the new region
+  * @nid: nid of the new region
++ * @flags: flags of the new region
+  *
+  * Add new memblock region [@base,@base+@size) into @type.  The new region
+  * is allowed to overlap with existing ones - overlaps don't affect already
+@@ -460,7 +466,8 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
+  * 0 on success, -errno on failure.
+  */
+ static int __init_memblock memblock_add_region(struct memblock_type *type,
+-				phys_addr_t base, phys_addr_t size, int nid)
++				phys_addr_t base, phys_addr_t size,
++				int nid, unsigned long flags)
+ {
+ 	bool insert = false;
+ 	phys_addr_t obase = base;
+@@ -475,6 +482,7 @@ static int __init_memblock memblock_add_region(struct memblock_type *type,
+ 		WARN_ON(type->cnt != 1 || type->total_size);
+ 		type->regions[0].base = base;
+ 		type->regions[0].size = size;
++		type->regions[0].flags = flags;
+ 		memblock_set_region_node(&type->regions[0], nid);
+ 		type->total_size = size;
+ 		return 0;
+@@ -505,7 +513,8 @@ repeat:
+ 			nr_new++;
+ 			if (insert)
+ 				memblock_insert_region(type, i++, base,
+-						       rbase - base, nid);
++						       rbase - base, nid,
++						       flags);
+ 		}
+ 		/* area below @rend is dealt with, forget about it */
+ 		base = min(rend, end);
+@@ -515,7 +524,8 @@ repeat:
+ 	if (base < end) {
+ 		nr_new++;
+ 		if (insert)
+-			memblock_insert_region(type, i, base, end - base, nid);
++			memblock_insert_region(type, i, base, end - base,
++					       nid, flags);
+ 	}
  
  	/*
- 	 * Limit pause time for small memory systems. If sleeping for too long
-@@ -1120,7 +1120,7 @@ static long bdi_max_pause(struct backing_dev_info *bdi,
- 	t = bdi_dirty / (1 + bw / roundup_pow_of_two(1 + HZ / 8));
- 	t++;
- 
--	return min_t(long, t, MAX_PAUSE);
-+	return min_t(unsigned long, t, MAX_PAUSE);
+@@ -537,12 +547,13 @@ repeat:
+ int __init_memblock memblock_add_node(phys_addr_t base, phys_addr_t size,
+ 				       int nid)
+ {
+-	return memblock_add_region(&memblock.memory, base, size, nid);
++	return memblock_add_region(&memblock.memory, base, size, nid, 0);
  }
  
- static long bdi_min_pause(struct backing_dev_info *bdi,
+ int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
+ {
+-	return memblock_add_region(&memblock.memory, base, size, MAX_NUMNODES);
++	return memblock_add_region(&memblock.memory, base, size,
++				   MAX_NUMNODES, 0);
+ }
+ 
+ /**
+@@ -597,7 +608,8 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
+ 			rgn->size -= base - rbase;
+ 			type->total_size -= base - rbase;
+ 			memblock_insert_region(type, i, rbase, base - rbase,
+-					       memblock_get_region_node(rgn));
++					       memblock_get_region_node(rgn),
++					       rgn->flags);
+ 		} else if (rend > end) {
+ 			/*
+ 			 * @rgn intersects from above.  Split and redo the
+@@ -607,7 +619,8 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
+ 			rgn->size -= end - rbase;
+ 			type->total_size -= end - rbase;
+ 			memblock_insert_region(type, i--, rbase, end - rbase,
+-					       memblock_get_region_node(rgn));
++					       memblock_get_region_node(rgn),
++					       rgn->flags);
+ 		} else {
+ 			/* @rgn is fully contained, record it */
+ 			if (!*end_rgn)
+@@ -649,16 +662,24 @@ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
+ 	return __memblock_remove(&memblock.reserved, base, size);
+ }
+ 
+-int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
++static int __init_memblock memblock_reserve_region(phys_addr_t base,
++						   phys_addr_t size,
++						   int nid,
++						   unsigned long flags)
+ {
+ 	struct memblock_type *_rgn = &memblock.reserved;
+ 
+-	memblock_dbg("memblock_reserve: [%#016llx-%#016llx] %pF\n",
++	memblock_dbg("memblock_reserve: [%#016llx-%#016llx] flags %#02lx %pF\n",
+ 		     (unsigned long long)base,
+ 		     (unsigned long long)base + size,
+-		     (void *)_RET_IP_);
++		     flags, (void *)_RET_IP_);
++
++	return memblock_add_region(_rgn, base, size, nid, flags);
++}
+ 
+-	return memblock_add_region(_rgn, base, size, MAX_NUMNODES);
++int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
++{
++	return memblock_reserve_region(base, size, MAX_NUMNODES, 0);
+ }
+ 
+ /**
+@@ -1101,6 +1122,7 @@ void __init_memblock memblock_set_current_limit(phys_addr_t limit)
+ static void __init_memblock memblock_dump(struct memblock_type *type, char *name)
+ {
+ 	unsigned long long base, size;
++	unsigned long flags;
+ 	int i;
+ 
+ 	pr_info(" %s.cnt  = 0x%lx\n", name, type->cnt);
+@@ -1111,13 +1133,14 @@ static void __init_memblock memblock_dump(struct memblock_type *type, char *name
+ 
+ 		base = rgn->base;
+ 		size = rgn->size;
++		flags = rgn->flags;
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ 		if (memblock_get_region_node(rgn) != MAX_NUMNODES)
+ 			snprintf(nid_buf, sizeof(nid_buf), " on node %d",
+ 				 memblock_get_region_node(rgn));
+ #endif
+-		pr_info(" %s[%#x]\t[%#016llx-%#016llx], %#llx bytes%s\n",
+-			name, i, base, base + size - 1, size, nid_buf);
++		pr_info(" %s[%#x]\t[%#016llx-%#016llx], %#llx bytes%s flags: %#lx\n",
++			name, i, base, base + size - 1, size, nid_buf, flags);
+ 	}
+ }
+ 
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
