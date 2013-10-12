@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A2F86B0074
-	for <linux-mm@kvack.org>; Sat, 12 Oct 2013 17:59:50 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id q10so5751684pdj.21
-        for <linux-mm@kvack.org>; Sat, 12 Oct 2013 14:59:50 -0700 (PDT)
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 86CF86B0074
+	for <linux-mm@kvack.org>; Sat, 12 Oct 2013 17:59:52 -0400 (EDT)
+Received: by mail-pb0-f48.google.com with SMTP id ma3so5721779pbc.35
+        for <linux-mm@kvack.org>; Sat, 12 Oct 2013 14:59:52 -0700 (PDT)
 From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [RFC 22/23] mm/ARM: mm: Use memblock apis for early memory allocations
-Date: Sat, 12 Oct 2013 17:59:05 -0400
-Message-ID: <1381615146-20342-23-git-send-email-santosh.shilimkar@ti.com>
+Subject: [RFC 23/23] mm/ARM: OMAP: Use memblock apis for early memory allocations
+Date: Sat, 12 Oct 2013 17:59:06 -0400
+Message-ID: <1381615146-20342-24-git-send-email-santosh.shilimkar@ti.com>
 In-Reply-To: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com>
 References: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
@@ -25,22 +25,35 @@ Cc: Andrew Morton <akpm@linux-foundation.org>
 
 Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 ---
- arch/arm/mm/init.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/arm/mach-omap2/omap_hwmod.c |    8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
 
-diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-index cef338d..091e2c9 100644
---- a/arch/arm/mm/init.c
-+++ b/arch/arm/mm/init.c
-@@ -414,7 +414,7 @@ free_memmap(unsigned long start_pfn, unsigned long end_pfn)
- 	 * free the section of the memmap array.
- 	 */
- 	if (pg < pgend)
--		free_bootmem(pg, pgend - pg);
-+		memblock_free_early(pg, pgend - pg);
- }
+diff --git a/arch/arm/mach-omap2/omap_hwmod.c b/arch/arm/mach-omap2/omap_hwmod.c
+index d9ee0ff..adfd6a2 100644
+--- a/arch/arm/mach-omap2/omap_hwmod.c
++++ b/arch/arm/mach-omap2/omap_hwmod.c
+@@ -2676,9 +2676,7 @@ static int __init _alloc_links(struct omap_hwmod_link **ml,
+ 	sz = sizeof(struct omap_hwmod_link) * LINKS_PER_OCP_IF;
  
- /*
+ 	*sl = NULL;
+-	*ml = alloc_bootmem(sz);
+-
+-	memset(*ml, 0, sz);
++	*ml = memblock_early_alloc(sz);
+ 
+ 	*sl = (void *)(*ml) + sizeof(struct omap_hwmod_link);
+ 
+@@ -2797,9 +2795,7 @@ static int __init _alloc_linkspace(struct omap_hwmod_ocp_if **ois)
+ 	pr_debug("omap_hwmod: %s: allocating %d byte linkspace (%d links)\n",
+ 		 __func__, sz, max_ls);
+ 
+-	linkspace = alloc_bootmem(sz);
+-
+-	memset(linkspace, 0, sz);
++	linkspace = memblock_early_alloc(sz);
+ 
+ 	return 0;
+ }
 -- 
 1.7.9.5
 
