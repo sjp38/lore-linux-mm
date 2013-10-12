@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 1042C6B0038
-	for <linux-mm@kvack.org>; Sat, 12 Oct 2013 17:59:18 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id bj1so5965280pad.14
-        for <linux-mm@kvack.org>; Sat, 12 Oct 2013 14:59:18 -0700 (PDT)
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C4C46B0039
+	for <linux-mm@kvack.org>; Sat, 12 Oct 2013 17:59:19 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id jt11so5797766pbb.10
+        for <linux-mm@kvack.org>; Sat, 12 Oct 2013 14:59:19 -0700 (PDT)
 From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [RFC 04/23] mm/staging: remove unnecessary inclusion of bootmem.h
-Date: Sat, 12 Oct 2013 17:58:47 -0400
-Message-ID: <1381615146-20342-5-git-send-email-santosh.shilimkar@ti.com>
+Subject: [RFC 05/23] mm/char: remove unnecessary inclusion of bootmem.h
+Date: Sat, 12 Oct 2013 17:58:48 -0400
+Message-ID: <1381615146-20342-6-git-send-email-santosh.shilimkar@ti.com>
 In-Reply-To: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com>
 References: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
@@ -28,22 +28,21 @@ Cc: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
 Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 ---
- drivers/staging/speakup/main.c |    2 --
- 1 file changed, 2 deletions(-)
+ drivers/char/mem.c |    1 -
+ 1 file changed, 1 deletion(-)
 
-diff --git a/drivers/staging/speakup/main.c b/drivers/staging/speakup/main.c
-index 14079c4..041f01e 100644
---- a/drivers/staging/speakup/main.c
-+++ b/drivers/staging/speakup/main.c
-@@ -37,8 +37,6 @@
- #include <linux/input.h>
- #include <linux/kmod.h>
- 
--#include <linux/bootmem.h>	/* for alloc_bootmem */
--
- /* speakup_*_selection */
- #include <linux/module.h>
- #include <linux/sched.h>
+diff --git a/drivers/char/mem.c b/drivers/char/mem.c
+index f895a8c..92c5937 100644
+--- a/drivers/char/mem.c
++++ b/drivers/char/mem.c
+@@ -22,7 +22,6 @@
+ #include <linux/device.h>
+ #include <linux/highmem.h>
+ #include <linux/backing-dev.h>
+-#include <linux/bootmem.h>
+ #include <linux/splice.h>
+ #include <linux/pfn.h>
+ #include <linux/export.h>
 -- 
 1.7.9.5
 
