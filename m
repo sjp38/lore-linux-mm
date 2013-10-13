@@ -1,87 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id D3D7F6B0035
-	for <linux-mm@kvack.org>; Sun, 13 Oct 2013 06:07:56 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id g10so6211226pdj.12
-        for <linux-mm@kvack.org>; Sun, 13 Oct 2013 03:07:56 -0700 (PDT)
-Received: by mail-pb0-f51.google.com with SMTP id jt11so6172859pbb.10
-        for <linux-mm@kvack.org>; Sun, 13 Oct 2013 03:07:54 -0700 (PDT)
-Message-ID: <525A70EF.8000503@gmail.com>
-Date: Sun, 13 Oct 2013 18:07:43 +0800
-From: Lennox Wu <lennox.wu@gmail.com>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id C8D286B0031
+	for <linux-mm@kvack.org>; Sun, 13 Oct 2013 13:56:57 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so6629742pab.29
+        for <linux-mm@kvack.org>; Sun, 13 Oct 2013 10:56:57 -0700 (PDT)
+Received: by mail-qa0-f53.google.com with SMTP id k15so1702566qaq.12
+        for <linux-mm@kvack.org>; Sun, 13 Oct 2013 10:56:54 -0700 (PDT)
+Date: Sun, 13 Oct 2013 13:56:48 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC 06/23] mm/memblock: Add memblock early memory allocation
+ apis
+Message-ID: <20131013175648.GC5253@mtj.dyndns.org>
+References: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com>
+ <1381615146-20342-7-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 25/34] score: handle pgtable_page_ctor() fail
-References: <1381428359-14843-1-git-send-email-kirill.shutemov@linux.intel.com> <1381428359-14843-26-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1381428359-14843-26-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: multipart/signed; micalg=pgp-sha1;
- protocol="application/pgp-signature";
- boundary="er0PeqXieLTmsBfs7UNSVDVx4wcWwM5RK"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1381615146-20342-7-git-send-email-santosh.shilimkar@ti.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Chen Liqin <liqin.chen@sunplusct.com>
+To: Santosh Shilimkar <santosh.shilimkar@ti.com>
+Cc: yinghai@kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, grygorii.strashko@ti.com, Andrew Morton <akpm@linux-foundation.org>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---er0PeqXieLTmsBfs7UNSVDVx4wcWwM5RK
-Content-Type: text/plain; charset=Big5
-Content-Transfer-Encoding: quoted-printable
+Hello,
+
+On Sat, Oct 12, 2013 at 05:58:49PM -0400, Santosh Shilimkar wrote:
+> Introduce memblock early memory allocation APIs which allow to support
+> LPAE extension on 32 bits archs. More over, this is the next step
+
+LPAE isn't something people outside arm circle would understand.
+Let's stick to highmem.
+
+> to get rid of NO_BOOTMEM memblock wrapper(nobootmem.c) and directly use
+> memblock APIs.
+> 
+> The proposed interface will became active if both CONFIG_HAVE_MEMBLOCK
+> and CONFIG_NO_BOOTMEM are specified by arch. In case !CONFIG_NO_BOOTMEM,
+> the memblock() wrappers will fallback to the existing bootmem apis so
+> that arch's noy converted to NO_BOOTMEM continue to work as is.
+              ^^^
+             typo
+
+> +/* FIXME: Move to memblock.h at a point where we remove nobootmem.c */
+> +void *memblock_early_alloc_try_nid_nopanic(int nid, phys_addr_t size,
+> +		phys_addr_t align, phys_addr_t from, phys_addr_t max_addr);
+> +void *memblock_early_alloc_try_nid(int nid, phys_addr_t size,
+> +		phys_addr_t align, phys_addr_t from, phys_addr_t max_addr);
+
+Wouldn't it make more sense to put @nid at the end.  @size is the main
+parameter here and it gets confusing with _alloc_node() interface as
+the positions of paramters change.  Plus, kmalloc_node() puts @node at
+the end too.
+
+> +void __memblock_free_early(phys_addr_t base, phys_addr_t size);
+> +void __memblock_free_late(phys_addr_t base, phys_addr_t size);
+
+Would it be possible to drop "early"?  It's redundant and makes the
+function names unnecessarily long.  When memblock is enabled, these
+are basically doing about the same thing as memblock_alloc() and
+friends, right?  Wouldn't it make more sense to define these as
+memblock_alloc_XXX()?
+
+> +#define memblock_early_alloc(x) \
+> +	memblock_early_alloc_try_nid(MAX_NUMNODES, x, SMP_CACHE_BYTES, \
+> +			BOOTMEM_LOW_LIMIT, BOOTMEM_ALLOC_ACCESSIBLE)
+> +#define memblock_early_alloc_align(x, align) \
+> +	memblock_early_alloc_try_nid(MAX_NUMNODES, x, align, \
+> +			BOOTMEM_LOW_LIMIT, BOOTMEM_ALLOC_ACCESSIBLE)
+> +#define memblock_early_alloc_nopanic(x) \
+> +	memblock_early_alloc_try_nid_nopanic(MAX_NUMNODES, x, SMP_CACHE_BYTES, \
+> +			BOOTMEM_LOW_LIMIT, BOOTMEM_ALLOC_ACCESSIBLE)
+> +#define memblock_early_alloc_pages(x) \
+> +	memblock_early_alloc_try_nid(MAX_NUMNODES, x, PAGE_SIZE, \
+> +			BOOTMEM_LOW_LIMIT, BOOTMEM_ALLOC_ACCESSIBLE)
+> +#define memblock_early_alloc_pages_nopanic(x) \
+> +	memblock_early_alloc_try_nid_nopanic(MAX_NUMNODES, x, PAGE_SIZE, \
+> +			BOOTMEM_LOW_LIMIT, BOOTMEM_ALLOC_ACCESSIBLE)
+
+I always felt a bit weird about _pages() interface.  It says pages but
+takes bytes in size.  Maybe we're better off just converting the
+current _pages users to _alloc_align()?
+
+> +#define memblock_early_alloc_node(nid, x) \
+> +	memblock_early_alloc_try_nid(nid, x, SMP_CACHE_BYTES, \
+> +			BOOTMEM_LOW_LIMIT, BOOTMEM_ALLOC_ACCESSIBLE)
+> +#define memblock_early_alloc_node_nopanic(nid, x) \
+> +	memblock_early_alloc_try_nid_nopanic(nid, x, SMP_CACHE_BYTES, \
+> +			BOOTMEM_LOW_LIMIT, BOOTMEM_ALLOC_ACCESSIBLE)
+
+Ditto as above.  Maybe @nid can be moved to the end?
+
+> +static void * __init _memblock_early_alloc_try_nid_nopanic(int nid,
+> +				phys_addr_t size, phys_addr_t align,
+> +				phys_addr_t from, phys_addr_t max_addr)
+> +{
+> +	phys_addr_t alloc;
+> +	void *ptr;
+> +
+> +	if (WARN_ON_ONCE(slab_is_available())) {
+> +		if (nid == MAX_NUMNODES)
+
+Shouldn't we be using NUMA_NO_NODE?
+
+> +			return kzalloc(size, GFP_NOWAIT);
+> +		else
+> +			return kzalloc_node(size, GFP_NOWAIT, nid);
+
+And kzalloc_node() understands NUMA_NO_NODE.
+
+> +	}
+> +
+> +	if (WARN_ON(!align))
+> +		align = __alignof__(long long);
+
+Wouldn't SMP_CACHE_BYTES make more sense?  Also, I'm not sure we
+actually want WARN on it.  Interpreting 0 as "default align" isn't
+that weird.
+
+> +	/* align @size to avoid excessive fragmentation on reserved array */
+> +	size = round_up(size, align);
+> +
+> +again:
+> +	alloc = memblock_find_in_range_node(from, max_addr, size, align, nid);
+> +	if (alloc)
+> +		goto done;
+> +
+> +	if (nid != MAX_NUMNODES) {
+> +		alloc =
+> +			memblock_find_in_range_node(from, max_addr, size,
+> +						    align, MAX_NUMNODES);
+> +		if (alloc)
+> +			goto done;
+> +	}
+> +
+> +	if (from) {
+> +		from = 0;
+> +		goto again;
+> +	} else {
+> +		goto error;
+> +	}
+> +
+> +done:
+> +	memblock_reserve(alloc, size);
+> +	ptr = phys_to_virt(alloc);
+> +	memset(ptr, 0, size);
+
+What if the address is high?  Don't we need kmapping here?
+
+> +
+> +	/*
+> +	 * The min_count is set to 0 so that bootmem allocated blocks
+> +	 * are never reported as leaks.
+> +	 */
+> +	kmemleak_alloc(ptr, size, 0, 0);
+> +
+> +	return ptr;
+> +
+> +error:
+> +	return NULL;
+> +}
+> +
+> +void * __init memblock_early_alloc_try_nid_nopanic(int nid,
+> +				phys_addr_t size, phys_addr_t align,
+> +				phys_addr_t from, phys_addr_t max_addr)
+> +{
+> +	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
+> +			__func__, (u64)size, (u64)align, nid, (u64)from,
+> +			(u64)max_addr, (void *)_RET_IP_);
+> +	return _memblock_early_alloc_try_nid_nopanic(nid, size,
+> +						align, from, max_addr);
+
+Do we need the extra level of wrapping?  Just implement
+alloc_try_nid_nopanic() here and make the panicky version call it?
 
 Thanks.
 
-Acked-by: Lennox Wu <lennox.wu@gmail.com>
-
-=A9=F3 2013/10/11 =A4W=A4=C8 02:05, Kirill A. Shutemov =B4=A3=A8=EC:
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Chen Liqin <liqin.chen@sunplusct.com>
-> Cc: Lennox Wu <lennox.wu@gmail.com>
-> ---
->  arch/score/include/asm/pgalloc.h | 9 ++++++---
->  1 file changed, 6 insertions(+), 3 deletions(-)
->
-> diff --git a/arch/score/include/asm/pgalloc.h b/arch/score/include/asm/=
-pgalloc.h
-> index 059a61b707..2a861ffbd5 100644
-> --- a/arch/score/include/asm/pgalloc.h
-> +++ b/arch/score/include/asm/pgalloc.h
-> @@ -54,9 +54,12 @@ static inline struct page *pte_alloc_one(struct mm_s=
-truct *mm,
->  	struct page *pte;
-> =20
->  	pte =3D alloc_pages(GFP_KERNEL | __GFP_REPEAT, PTE_ORDER);
-> -	if (pte) {
-> -		clear_highpage(pte);
-> -		pgtable_page_ctor(pte);
-> +	if (!pte)
-> +		return NULL;
-> +	clear_highpage(pte);
-> +	if (!pgtable_page_ctor(pte)) {
-> +		__free_page(pte);
-> +		return NULL;
->  	}
->  	return pte;
->  }
-
-
-
---er0PeqXieLTmsBfs7UNSVDVx4wcWwM5RK
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.7 (MingW32)
-Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
-
-iQEVAwUBUlpw8hIBnItolwGVAQL/sQf/QneZCl4KA0apRznG3MOEsettXq6ekB7+
-y0qtw81SJ/fUEVu9kPCzQByOYwRdgAoiSObTUKoFzzUQkCuHSm7AmZF1YUE2v7ne
-E2pMXv/haP0sNj8ZBMCYTZa/6TcC5sVsY1Rxwo0yB+BqxXcRh1pg37SIm/6Clf5i
-7iHWkGNo5o+egq6bc7MJ9XtxejIahi202BnPZdGWeVUH8amxplDcmvd0WNpkArRd
-ds/39+NASiAJzP6WvNM5vBdKJccoEnkm7PJw13x5CbRs8COXexxZTQDoOPuBhZem
-P1Bloy85A0/k2S2nQc4Ql2jRnTZLaQIKUUEed2Wy5FuW3VOz2cBivg==
-=w5X6
------END PGP SIGNATURE-----
-
---er0PeqXieLTmsBfs7UNSVDVx4wcWwM5RK--
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
