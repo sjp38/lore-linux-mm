@@ -1,52 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id AEA536B0031
-	for <linux-mm@kvack.org>; Sun, 13 Oct 2013 14:42:18 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id bj1so6615068pad.0
-        for <linux-mm@kvack.org>; Sun, 13 Oct 2013 11:42:18 -0700 (PDT)
-Received: by mail-qc0-f180.google.com with SMTP id p19so4423589qcv.11
-        for <linux-mm@kvack.org>; Sun, 13 Oct 2013 11:42:15 -0700 (PDT)
-Date: Sun, 13 Oct 2013 14:42:12 -0400
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 07FD96B0037
+	for <linux-mm@kvack.org>; Sun, 13 Oct 2013 15:51:16 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id g10so6467811pdj.26
+        for <linux-mm@kvack.org>; Sun, 13 Oct 2013 12:51:16 -0700 (PDT)
+Received: by mail-qa0-f52.google.com with SMTP id w8so1740849qac.11
+        for <linux-mm@kvack.org>; Sun, 13 Oct 2013 12:51:14 -0700 (PDT)
+Date: Sun, 13 Oct 2013 15:51:11 -0400
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC 06/23] mm/memblock: Add memblock early memory allocation
- apis
-Message-ID: <20131013184212.GA18075@htj.dyndns.org>
+Subject: Re: [RFC 08/23] mm/memblock: debug: don't free reserved array if
+ !ARCH_DISCARD_MEMBLOCK
+Message-ID: <20131013195111.GB18075@htj.dyndns.org>
 References: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com>
- <1381615146-20342-7-git-send-email-santosh.shilimkar@ti.com>
- <20131013175648.GC5253@mtj.dyndns.org>
- <20131013180058.GG25034@n2100.arm.linux.org.uk>
+ <1381615146-20342-9-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131013180058.GG25034@n2100.arm.linux.org.uk>
+In-Reply-To: <1381615146-20342-9-git-send-email-santosh.shilimkar@ti.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Santosh Shilimkar <santosh.shilimkar@ti.com>, grygorii.strashko@ti.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, yinghai@kernel.org, linux-arm-kernel@lists.infradead.org
+To: Santosh Shilimkar <santosh.shilimkar@ti.com>
+Cc: yinghai@kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, grygorii.strashko@ti.com, Andrew Morton <akpm@linux-foundation.org>
 
-On Sun, Oct 13, 2013 at 07:00:59PM +0100, Russell King - ARM Linux wrote:
-> On Sun, Oct 13, 2013 at 01:56:48PM -0400, Tejun Heo wrote:
-> > Hello,
-> > 
-> > On Sat, Oct 12, 2013 at 05:58:49PM -0400, Santosh Shilimkar wrote:
-> > > Introduce memblock early memory allocation APIs which allow to support
-> > > LPAE extension on 32 bits archs. More over, this is the next step
-> > 
-> > LPAE isn't something people outside arm circle would understand.
-> > Let's stick to highmem.
+On Sat, Oct 12, 2013 at 05:58:51PM -0400, Santosh Shilimkar wrote:
+> From: Grygorii Strashko <grygorii.strashko@ti.com>
 > 
-> LPAE != highmem.  Two totally different things, unless you believe
-> system memory always starts at physical address zero, which is very
-> far from the case on the majority of ARM platforms.
+> Now the Nobootmem allocator will always try to free memory allocated for
+> reserved memory regions (free_low_memory_core_early()) without taking
+> into to account current memblock debugging configuration
+> (CONFIG_ARCH_DISCARD_MEMBLOCK and CONFIG_DEBUG_FS state).
+> As result if:
+>  - CONFIG_DEBUG_FS defined
+>  - CONFIG_ARCH_DISCARD_MEMBLOCK not defined;
+> -  reserved memory regions array have been resized during boot
 > 
-> So replacing LPAE with "highmem" is pure misrepresentation and is
-> inaccurate.  PAE might be a better term, and is also the x86 term
-> for this.
+> then:
+> - memory allocated for reserved memory regions array will be freed to
+> buddy allocator;
+> - debug_fs entry "sys/kernel/debug/memblock/reserved" will show garbage
+> instead of state of memory reservations. like:
+>    0: 0x98393bc0..0x9a393bbf
+>    1: 0xff120000..0xff11ffff
+>    2: 0x00000000..0xffffffff
+> 
+> Hence, do not free memory allocated for reserved memory regions if
+> defined(CONFIG_DEBUG_FS) && !defined(CONFIG_ARCH_DISCARD_MEMBLOCK).
+> 
+> Cc: Yinghai Lu <yinghai@kernel.org>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> 
+> Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
+> Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
+> ---
+>  mm/memblock.c |    4 ++++
+>  1 file changed, 4 insertions(+)
+> 
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index d903138..1bb2cc0 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -169,6 +169,10 @@ phys_addr_t __init_memblock get_allocated_memblock_reserved_regions_info(
+>  	if (memblock.reserved.regions == memblock_reserved_init_regions)
+>  		return 0;
+>  
 
-Ah, right, forgot about the base address.  Let's please spell out the
-requirements then.  Briefly explaining both aspects (non-zero base
-addr & highmem) and why the existing bootmem based interfaced can't
-serve them would be helpful to later readers.
+Please add comment explaining why the following test exists.  It's
+pretty difficult to deduce the reason only from the code.
+
+> +	if (IS_ENABLED(CONFIG_DEBUG_FS) &&
+> +	    !IS_ENABLED(CONFIG_ARCH_DISCARD_MEMBLOCK))
+> +		return 0;
+> +
+
+Also, as this is another fix patch, can you please move this to the
+head of the series?
 
 Thanks.
 
