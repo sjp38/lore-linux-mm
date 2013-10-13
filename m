@@ -1,47 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 84E6B6B0036
-	for <linux-mm@kvack.org>; Sun, 13 Oct 2013 14:02:34 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id bj1so6639231pad.28
-        for <linux-mm@kvack.org>; Sun, 13 Oct 2013 11:02:34 -0700 (PDT)
-Received: by mail-qa0-f46.google.com with SMTP id j15so1962367qaq.5
-        for <linux-mm@kvack.org>; Sun, 13 Oct 2013 11:02:31 -0700 (PDT)
-Date: Sun, 13 Oct 2013 14:02:27 -0400
+	by kanga.kvack.org (Postfix) with ESMTP id AEA536B0031
+	for <linux-mm@kvack.org>; Sun, 13 Oct 2013 14:42:18 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id bj1so6615068pad.0
+        for <linux-mm@kvack.org>; Sun, 13 Oct 2013 11:42:18 -0700 (PDT)
+Received: by mail-qc0-f180.google.com with SMTP id p19so4423589qcv.11
+        for <linux-mm@kvack.org>; Sun, 13 Oct 2013 11:42:15 -0700 (PDT)
+Date: Sun, 13 Oct 2013 14:42:12 -0400
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC 07/23] mm/memblock: debug: correct displaying of upper
- memory boundary
-Message-ID: <20131013180227.GD5253@mtj.dyndns.org>
+Subject: Re: [RFC 06/23] mm/memblock: Add memblock early memory allocation
+ apis
+Message-ID: <20131013184212.GA18075@htj.dyndns.org>
 References: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com>
- <1381615146-20342-8-git-send-email-santosh.shilimkar@ti.com>
+ <1381615146-20342-7-git-send-email-santosh.shilimkar@ti.com>
+ <20131013175648.GC5253@mtj.dyndns.org>
+ <20131013180058.GG25034@n2100.arm.linux.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1381615146-20342-8-git-send-email-santosh.shilimkar@ti.com>
+In-Reply-To: <20131013180058.GG25034@n2100.arm.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Cc: yinghai@kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, grygorii.strashko@ti.com, Andrew Morton <akpm@linux-foundation.org>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Santosh Shilimkar <santosh.shilimkar@ti.com>, grygorii.strashko@ti.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, yinghai@kernel.org, linux-arm-kernel@lists.infradead.org
 
-On Sat, Oct 12, 2013 at 05:58:50PM -0400, Santosh Shilimkar wrote:
-> From: Grygorii Strashko <grygorii.strashko@ti.com>
+On Sun, Oct 13, 2013 at 07:00:59PM +0100, Russell King - ARM Linux wrote:
+> On Sun, Oct 13, 2013 at 01:56:48PM -0400, Tejun Heo wrote:
+> > Hello,
+> > 
+> > On Sat, Oct 12, 2013 at 05:58:49PM -0400, Santosh Shilimkar wrote:
+> > > Introduce memblock early memory allocation APIs which allow to support
+> > > LPAE extension on 32 bits archs. More over, this is the next step
+> > 
+> > LPAE isn't something people outside arm circle would understand.
+> > Let's stick to highmem.
 > 
-> When debugging is enabled (cmdline has "memblock=debug") the memblock
-> will display upper memory boundary per each allocated/freed memory range
-> wrongly. For example:
->  memblock_reserve: [0x0000009e7e8000-0x0000009e7ed000] _memblock_early_alloc_try_nid_nopanic+0xfc/0x12c
+> LPAE != highmem.  Two totally different things, unless you believe
+> system memory always starts at physical address zero, which is very
+> far from the case on the majority of ARM platforms.
 > 
-> The 0x0000009e7ed000 is displayed instead of 0x0000009e7ecfff
-> 
-> Hence, correct this by changing formula used to calculate upper memory
-> boundary to (u64)base + size - 1 instead of  (u64)base + size everywhere
-> in the debug messages.
+> So replacing LPAE with "highmem" is pure misrepresentation and is
+> inaccurate.  PAE might be a better term, and is also the x86 term
+> for this.
 
-I kinda prefer base + size because it's easier to actually know the
-size but yeah, it should have been [base, base + size) and other
-places use base + size - 1 notation so it probably is better to stick
-to that.  Maybe move this one to the beginning of the series?
-
-Acked-by: Tejun Heo <tj@kernel.org>
+Ah, right, forgot about the base address.  Let's please spell out the
+requirements then.  Briefly explaining both aspects (non-zero base
+addr & highmem) and why the existing bootmem based interfaced can't
+serve them would be helpful to later readers.
 
 Thanks.
 
