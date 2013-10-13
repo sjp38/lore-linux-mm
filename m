@@ -1,41 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B01C16B0031
-	for <linux-mm@kvack.org>; Sun, 13 Oct 2013 14:01:26 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id kl14so6558784pab.39
-        for <linux-mm@kvack.org>; Sun, 13 Oct 2013 11:01:26 -0700 (PDT)
-Date: Sun, 13 Oct 2013 19:00:59 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [RFC 06/23] mm/memblock: Add memblock early memory allocation
-	apis
-Message-ID: <20131013180058.GG25034@n2100.arm.linux.org.uk>
-References: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com> <1381615146-20342-7-git-send-email-santosh.shilimkar@ti.com> <20131013175648.GC5253@mtj.dyndns.org>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 84E6B6B0036
+	for <linux-mm@kvack.org>; Sun, 13 Oct 2013 14:02:34 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id bj1so6639231pad.28
+        for <linux-mm@kvack.org>; Sun, 13 Oct 2013 11:02:34 -0700 (PDT)
+Received: by mail-qa0-f46.google.com with SMTP id j15so1962367qaq.5
+        for <linux-mm@kvack.org>; Sun, 13 Oct 2013 11:02:31 -0700 (PDT)
+Date: Sun, 13 Oct 2013 14:02:27 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC 07/23] mm/memblock: debug: correct displaying of upper
+ memory boundary
+Message-ID: <20131013180227.GD5253@mtj.dyndns.org>
+References: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com>
+ <1381615146-20342-8-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131013175648.GC5253@mtj.dyndns.org>
+In-Reply-To: <1381615146-20342-8-git-send-email-santosh.shilimkar@ti.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Santosh Shilimkar <santosh.shilimkar@ti.com>, grygorii.strashko@ti.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, yinghai@kernel.org, linux-arm-kernel@lists.infradead.org
+To: Santosh Shilimkar <santosh.shilimkar@ti.com>
+Cc: yinghai@kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, grygorii.strashko@ti.com, Andrew Morton <akpm@linux-foundation.org>
 
-On Sun, Oct 13, 2013 at 01:56:48PM -0400, Tejun Heo wrote:
-> Hello,
+On Sat, Oct 12, 2013 at 05:58:50PM -0400, Santosh Shilimkar wrote:
+> From: Grygorii Strashko <grygorii.strashko@ti.com>
 > 
-> On Sat, Oct 12, 2013 at 05:58:49PM -0400, Santosh Shilimkar wrote:
-> > Introduce memblock early memory allocation APIs which allow to support
-> > LPAE extension on 32 bits archs. More over, this is the next step
+> When debugging is enabled (cmdline has "memblock=debug") the memblock
+> will display upper memory boundary per each allocated/freed memory range
+> wrongly. For example:
+>  memblock_reserve: [0x0000009e7e8000-0x0000009e7ed000] _memblock_early_alloc_try_nid_nopanic+0xfc/0x12c
 > 
-> LPAE isn't something people outside arm circle would understand.
-> Let's stick to highmem.
+> The 0x0000009e7ed000 is displayed instead of 0x0000009e7ecfff
+> 
+> Hence, correct this by changing formula used to calculate upper memory
+> boundary to (u64)base + size - 1 instead of  (u64)base + size everywhere
+> in the debug messages.
 
-LPAE != highmem.  Two totally different things, unless you believe
-system memory always starts at physical address zero, which is very
-far from the case on the majority of ARM platforms.
+I kinda prefer base + size because it's easier to actually know the
+size but yeah, it should have been [base, base + size) and other
+places use base + size - 1 notation so it probably is better to stick
+to that.  Maybe move this one to the beginning of the series?
 
-So replacing LPAE with "highmem" is pure misrepresentation and is
-inaccurate.  PAE might be a better term, and is also the x86 term
-for this.
+Acked-by: Tejun Heo <tj@kernel.org>
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
