@@ -1,38 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 673B66B0031
-	for <linux-mm@kvack.org>; Mon, 14 Oct 2013 10:27:41 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id jt11so7429570pbb.10
-        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 07:27:41 -0700 (PDT)
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id E1F4E6B0031
+	for <linux-mm@kvack.org>; Mon, 14 Oct 2013 10:32:43 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id kx10so7606290pab.13
+        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 07:32:43 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <20131001083828.GA8093@suse.de>
-References: <1379937950-8411-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20130924163740.4bc7db61e3e520798220dc4c@linux-foundation.org>
- <20130930100249.GB2425@suse.de>
- <20130930101029.GC2425@suse.de>
- <20130930185106.GD2125@tassilo.jf.intel.com>
- <20131001083828.GA8093@suse.de>
-Subject: Re: [PATCHv6 00/22] Transparent huge page cache: phase 1, everything
- but mmap()
-Content-Transfer-Encoding: 7bit
-Message-Id: <20131014142732.0E067E0090@blue.fi.intel.com>
-Date: Mon, 14 Oct 2013 17:27:32 +0300 (EEST)
+Subject: [PATCHv2 1/2] mm: try to detect that page->ptl is in use
+Date: Mon, 14 Oct 2013 17:32:34 +0300
+Message-Id: <1381761155-19166-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Ning Qu <quning@google.com>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
+Cc: Max Filippov <jcmvbkbc@gmail.com>, Chris Zankel <chris@zankel.net>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-xtensa@linux-xtensa.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Mel Gorman wrote:
-> I could be completely wrong here but these were the concerns I had when
-> I first glanced through the patches. The changelogs had no information
-> to convince me otherwise so I never dedicated the time to reviewing the
-> patches in detail. I raised my concerns and then dropped it.
+prep_new_page() initialize page->private (and therefore page->ptl) with
+0. Make sure nobody took it in use in between allocation of the page and
+page table constructor.
 
-Okay. I got your point: more data from real-world workloads. I'll try to
-bring some in next iteration.
+It can happen if arch try to use slab for page table allocation: slab
+code uses page->slab_cache and page->first_page (for tail pages), which
+share storage with page->ptl.
 
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+v2:
+ - fix typo;
+
+ Documentation/vm/split_page_table_lock | 4 ++++
+ include/linux/mm.h                     | 9 +++++++++
+ 2 files changed, 13 insertions(+)
+
+diff --git a/Documentation/vm/split_page_table_lock b/Documentation/vm/split_page_table_lock
+index e2f617b732..7521d367f2 100644
+--- a/Documentation/vm/split_page_table_lock
++++ b/Documentation/vm/split_page_table_lock
+@@ -53,6 +53,10 @@ There's no need in special enabling of PTE split page table lock:
+ everything required is done by pgtable_page_ctor() and pgtable_page_dtor(),
+ which must be called on PTE table allocation / freeing.
+ 
++Make sure the architecture doesn't use slab allocator for page table
++allocation: slab uses page->slab_cache and page->first_page for its pages.
++These fields share storage with page->ptl.
++
+ PMD split lock only makes sense if you have more than two page table
+ levels.
+ 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 658e8b317f..9a4a873b2f 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1262,6 +1262,15 @@ static inline spinlock_t *pte_lockptr(struct mm_struct *mm, pmd_t *pmd)
+ 
+ static inline bool ptlock_init(struct page *page)
+ {
++	/*
++	 * prep_new_page() initialize page->private (and therefore page->ptl)
++	 * with 0. Make sure nobody took it in use in between.
++	 *
++	 * It can happen if arch try to use slab for page table allocation:
++	 * slab code uses page->slab_cache and page->first_page (for tail
++	 * pages), which share storage with page->ptl.
++	 */
++	VM_BUG_ON(page->ptl);
+ 	if (!ptlock_alloc(page))
+ 		return false;
+ 	spin_lock_init(ptlock_ptr(page));
 -- 
- Kirill A. Shutemov
+1.8.4.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
