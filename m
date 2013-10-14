@@ -1,67 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 30A036B0031
-	for <linux-mm@kvack.org>; Mon, 14 Oct 2013 08:45:36 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so7453284pad.16
-        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 05:45:35 -0700 (PDT)
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CB9D6B0036
+	for <linux-mm@kvack.org>; Mon, 14 Oct 2013 08:46:01 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id kq14so7428690pab.26
+        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 05:46:01 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 1/2] mm: try to detect that page->ptl is in use
-Date: Mon, 14 Oct 2013 15:45:22 +0300
-Message-Id: <1381754723-21783-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 2/2] xtensa: use buddy allocator for PTE table
+Date: Mon, 14 Oct 2013 15:45:23 +0300
+Message-Id: <1381754723-21783-2-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1381754723-21783-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1381754723-21783-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
 Cc: Max Filippov <jcmvbkbc@gmail.com>, Chris Zankel <chris@zankel.net>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-xtensa@linux-xtensa.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-prep_new_page() initialize page->private (and therefore page->ptl) with
-0. Make sure nobody took it in use in between allocation of the page and
-page table constructor.
-
-It can happen if arch try to use slab for page table allocation: slab
-code uses page->slab_cache and page->first_page (for tail pages), which
-share storage with page->ptl.
+At the moment xtensa uses slab allocator for PTE table. It doesn't work
+with enabled split page table lock: slab uses page->slab_cache and
+page->first_page for its pages. These fields share stroage with
+page->ptl.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Chris Zankel <chris@zankel.net>
+Cc: Max Filippov <jcmvbkbc@gmail.com>
 ---
- Documentation/vm/split_page_table_lock | 4 ++++
- include/linux/mm.h                     | 9 +++++++++
- 2 files changed, 13 insertions(+)
+ arch/xtensa/include/asm/pgalloc.h | 19 +++++++++++--------
+ arch/xtensa/include/asm/pgtable.h |  3 +--
+ arch/xtensa/mm/mmu.c              | 20 --------------------
+ 3 files changed, 12 insertions(+), 30 deletions(-)
 
-diff --git a/Documentation/vm/split_page_table_lock b/Documentation/vm/split_page_table_lock
-index e2f617b732..3c54f7dca2 100644
---- a/Documentation/vm/split_page_table_lock
-+++ b/Documentation/vm/split_page_table_lock
-@@ -53,6 +53,10 @@ There's no need in special enabling of PTE split page table lock:
- everything required is done by pgtable_page_ctor() and pgtable_page_dtor(),
- which must be called on PTE table allocation / freeing.
+diff --git a/arch/xtensa/include/asm/pgalloc.h b/arch/xtensa/include/asm/pgalloc.h
+index b8774f1e21..4a361cbc31 100644
+--- a/arch/xtensa/include/asm/pgalloc.h
++++ b/arch/xtensa/include/asm/pgalloc.h
+@@ -38,14 +38,17 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+ 	free_page((unsigned long)pgd);
+ }
  
-+Make sure the architecture doesn't use slab allocator for page table
-+allacation: slab uses page->slab_cache and page->first_page for its pages.
-+These fields share storage with page->ptl.
-+
- PMD split lock only makes sense if you have more than two page table
- levels.
- 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 658e8b317f..9a4a873b2f 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1262,6 +1262,15 @@ static inline spinlock_t *pte_lockptr(struct mm_struct *mm, pmd_t *pmd)
- 
- static inline bool ptlock_init(struct page *page)
+-/* Use a slab cache for the pte pages (see also sparc64 implementation) */
+-
+-extern struct kmem_cache *pgtable_cache;
+-
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ 					 unsigned long address)
  {
-+	/*
-+	 * prep_new_page() initialize page->private (and therefore page->ptl)
-+	 * with 0. Make sure nobody took it in use in between.
-+	 *
-+	 * It can happen if arch try to use slab for page table allocation:
-+	 * slab code uses page->slab_cache and page->first_page (for tail
-+	 * pages), which share storage with page->ptl.
-+	 */
-+	VM_BUG_ON(page->ptl);
- 	if (!ptlock_alloc(page))
- 		return false;
- 	spin_lock_init(ptlock_ptr(page));
+-	return kmem_cache_alloc(pgtable_cache, GFP_KERNEL|__GFP_REPEAT);
++	pte_t *ptep;
++	int i;
++
++	ptep = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
++	if (!ptep)
++		return NULL;
++	for (i = 0; i < 1024; i++, ptep++)
++		pte_clear(NULL, 0, ptep);
+ }
+ 
+ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
+@@ -59,7 +62,7 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
+ 		return NULL;
+ 	page = virt_to_page(pte);
+ 	if (!pgtable_page_ctor(page)) {
+-		kmem_cache_free(pgtable_cache, pte);
++		__free_page(page);
+ 		return NULL;
+ 	}
+ 	return page;
+@@ -67,13 +70,13 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
+ 
+ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
+ {
+-	kmem_cache_free(pgtable_cache, pte);
++	free_page((unsigned long)pte);
+ }
+ 
+ static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
+ {
+ 	pgtable_page_dtor(pte);
+-	kmem_cache_free(pgtable_cache, page_address(pte));
++	__free_page(pte);
+ }
+ #define pmd_pgtable(pmd) pmd_page(pmd)
+ 
+diff --git a/arch/xtensa/include/asm/pgtable.h b/arch/xtensa/include/asm/pgtable.h
+index 0fdf5d043f..216446295a 100644
+--- a/arch/xtensa/include/asm/pgtable.h
++++ b/arch/xtensa/include/asm/pgtable.h
+@@ -220,12 +220,11 @@ extern unsigned long empty_zero_page[1024];
+ #ifdef CONFIG_MMU
+ extern pgd_t swapper_pg_dir[PAGE_SIZE/sizeof(pgd_t)];
+ extern void paging_init(void);
+-extern void pgtable_cache_init(void);
+ #else
+ # define swapper_pg_dir NULL
+ static inline void paging_init(void) { }
+-static inline void pgtable_cache_init(void) { }
+ #endif
++static inline void pgtable_cache_init(void) { }
+ 
+ /*
+  * The pmd contains the kernel virtual address of the pte page.
+diff --git a/arch/xtensa/mm/mmu.c b/arch/xtensa/mm/mmu.c
+index a1077570e3..c43771c974 100644
+--- a/arch/xtensa/mm/mmu.c
++++ b/arch/xtensa/mm/mmu.c
+@@ -50,23 +50,3 @@ void __init init_mmu(void)
+ 	 */
+ 	set_ptevaddr_register(PGTABLE_START);
+ }
+-
+-struct kmem_cache *pgtable_cache __read_mostly;
+-
+-static void pgd_ctor(void *addr)
+-{
+-	pte_t *ptep = (pte_t *)addr;
+-	int i;
+-
+-	for (i = 0; i < 1024; i++, ptep++)
+-		pte_clear(NULL, 0, ptep);
+-
+-}
+-
+-void __init pgtable_cache_init(void)
+-{
+-	pgtable_cache = kmem_cache_create("pgd",
+-			PAGE_SIZE, PAGE_SIZE,
+-			SLAB_HWCACHE_ALIGN,
+-			pgd_ctor);
+-}
 -- 
 1.8.4.rc3
 
