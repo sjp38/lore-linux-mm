@@ -1,138 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D09A6B0036
-	for <linux-mm@kvack.org>; Mon, 14 Oct 2013 10:32:45 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id rr4so7396304pbb.34
-        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 07:32:45 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 2/2] xtensa: use buddy allocator for PTE table
-Date: Mon, 14 Oct 2013 17:32:35 +0300
-Message-Id: <1381761155-19166-2-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1381761155-19166-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1381761155-19166-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id B17876B0031
+	for <linux-mm@kvack.org>; Mon, 14 Oct 2013 10:40:00 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id xa7so7382848pbc.31
+        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 07:40:00 -0700 (PDT)
+Message-ID: <525C023A.8070608@ti.com>
+Date: Mon, 14 Oct 2013 10:39:54 -0400
+From: Santosh Shilimkar <santosh.shilimkar@ti.com>
+MIME-Version: 1.0
+Subject: Re: [RFC 06/23] mm/memblock: Add memblock early memory allocation
+ apis
+References: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com> <1381615146-20342-7-git-send-email-santosh.shilimkar@ti.com> <20131013175648.GC5253@mtj.dyndns.org>
+In-Reply-To: <20131013175648.GC5253@mtj.dyndns.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
-Cc: Max Filippov <jcmvbkbc@gmail.com>, Chris Zankel <chris@zankel.net>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-xtensa@linux-xtensa.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: "yinghai@kernel.org" <yinghai@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Strashko, Grygorii" <grygorii.strashko@ti.com>, Andrew Morton <akpm@linux-foundation.org>
 
-At the moment xtensa uses slab allocator for PTE table. It doesn't work
-with enabled split page table lock: slab uses page->slab_cache and
-page->first_page for its pages. These fields share stroage with
-page->ptl.
+On Sunday 13 October 2013 01:56 PM, Tejun Heo wrote:
+> Hello,
+> 
+> On Sat, Oct 12, 2013 at 05:58:49PM -0400, Santosh Shilimkar wrote:
+>> Introduce memblock early memory allocation APIs which allow to support
+>> LPAE extension on 32 bits archs. More over, this is the next step
+> 
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Chris Zankel <chris@zankel.net>
-Cc: Max Filippov <jcmvbkbc@gmail.com>
----
-v2:
- - add missed return in pte_alloc_one_kernel;
+[..]
 
- arch/xtensa/include/asm/pgalloc.h | 20 ++++++++++++--------
- arch/xtensa/include/asm/pgtable.h |  3 +--
- arch/xtensa/mm/mmu.c              | 20 --------------------
- 3 files changed, 13 insertions(+), 30 deletions(-)
+>> +/* FIXME: Move to memblock.h at a point where we remove nobootmem.c */
+>> +void *memblock_early_alloc_try_nid_nopanic(int nid, phys_addr_t size,
+>> +		phys_addr_t align, phys_addr_t from, phys_addr_t max_addr);
+>> +void *memblock_early_alloc_try_nid(int nid, phys_addr_t size,
+>> +		phys_addr_t align, phys_addr_t from, phys_addr_t max_addr);
+> 
+> Wouldn't it make more sense to put @nid at the end.  @size is the main
+> parameter here and it gets confusing with _alloc_node() interface as
+> the positions of paramters change.  Plus, kmalloc_node() puts @node at
+> the end too.
+> 
+Ok. Will make @nid as a last parameter.
 
-diff --git a/arch/xtensa/include/asm/pgalloc.h b/arch/xtensa/include/asm/pgalloc.h
-index b8774f1e21..8507b32d6e 100644
---- a/arch/xtensa/include/asm/pgalloc.h
-+++ b/arch/xtensa/include/asm/pgalloc.h
-@@ -38,14 +38,18 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
- 	free_page((unsigned long)pgd);
- }
+>> +void __memblock_free_early(phys_addr_t base, phys_addr_t size);
+>> +void __memblock_free_late(phys_addr_t base, phys_addr_t size);
+> 
+> Would it be possible to drop "early"?  It's redundant and makes the
+> function names unnecessarily long.  When memblock is enabled, these
+> are basically doing about the same thing as memblock_alloc() and
+> friends, right?  Wouldn't it make more sense to define these as
+> memblock_alloc_XXX()?
+> 
+A small a difference w.r.t existing memblock_alloc() vs these new
+exports returns virtual mapped memory pointers. Actually I started
+with memblock_alloc_xxx() but then memblock already exports memblock_alloc_xx()
+returning physical memory pointer. So just wanted to make these interfaces
+distinct and added "early". But I agree with you that the 'early' can
+be dropped. Will fix it.
+
+>> +#define memblock_early_alloc(x) \
+>> +	memblock_early_alloc_try_nid(MAX_NUMNODES, x, SMP_CACHE_BYTES, \
+>> +			BOOTMEM_LOW_LIMIT, BOOTMEM_ALLOC_ACCESSIBLE)
+>> +#define memblock_early_alloc_align(x, align) \
+>> +	memblock_early_alloc_try_nid(MAX_NUMNODES, x, align, \
+>> +			BOOTMEM_LOW_LIMIT, BOOTMEM_ALLOC_ACCESSIBLE)
+>> +#define memblock_early_alloc_nopanic(x) \
+>> +	memblock_early_alloc_try_nid_nopanic(MAX_NUMNODES, x, SMP_CACHE_BYTES, \
+>> +			BOOTMEM_LOW_LIMIT, BOOTMEM_ALLOC_ACCESSIBLE)
+>> +#define memblock_early_alloc_pages(x) \
+>> +	memblock_early_alloc_try_nid(MAX_NUMNODES, x, PAGE_SIZE, \
+>> +			BOOTMEM_LOW_LIMIT, BOOTMEM_ALLOC_ACCESSIBLE)
+>> +#define memblock_early_alloc_pages_nopanic(x) \
+>> +	memblock_early_alloc_try_nid_nopanic(MAX_NUMNODES, x, PAGE_SIZE, \
+>> +			BOOTMEM_LOW_LIMIT, BOOTMEM_ALLOC_ACCESSIBLE)
+> 
+> I always felt a bit weird about _pages() interface.  It says pages but
+> takes bytes in size.  Maybe we're better off just converting the
+> current _pages users to _alloc_align()?
+> 
+I thought the pages interfaces are more for asking the memory
+allocations which are page aligned. So yes, we could convert
+these users to make use of align interfaces.
+
+
+>> +#define memblock_early_alloc_node(nid, x) \
+>> +	memblock_early_alloc_try_nid(nid, x, SMP_CACHE_BYTES, \
+>> +			BOOTMEM_LOW_LIMIT, BOOTMEM_ALLOC_ACCESSIBLE)
+>> +#define memblock_early_alloc_node_nopanic(nid, x) \
+>> +	memblock_early_alloc_try_nid_nopanic(nid, x, SMP_CACHE_BYTES, \
+>> +			BOOTMEM_LOW_LIMIT, BOOTMEM_ALLOC_ACCESSIBLE)
+> 
+> Ditto as above.  Maybe @nid can be moved to the end?
+>
+ok
  
--/* Use a slab cache for the pte pages (see also sparc64 implementation) */
--
--extern struct kmem_cache *pgtable_cache;
--
- static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
- 					 unsigned long address)
- {
--	return kmem_cache_alloc(pgtable_cache, GFP_KERNEL|__GFP_REPEAT);
-+	pte_t *ptep;
-+	int i;
-+
-+	ptep = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
-+	if (!ptep)
-+		return NULL;
-+	for (i = 0; i < 1024; i++, ptep++)
-+		pte_clear(NULL, 0, ptep);
-+	return ptep;
- }
+>> +static void * __init _memblock_early_alloc_try_nid_nopanic(int nid,
+>> +				phys_addr_t size, phys_addr_t align,
+>> +				phys_addr_t from, phys_addr_t max_addr)
+>> +{
+>> +	phys_addr_t alloc;
+>> +	void *ptr;
+>> +
+>> +	if (WARN_ON_ONCE(slab_is_available())) {
+>> +		if (nid == MAX_NUMNODES)
+> 
+> Shouldn't we be using NUMA_NO_NODE?
+> 
+>> +			return kzalloc(size, GFP_NOWAIT);
+>> +		else
+>> +			return kzalloc_node(size, GFP_NOWAIT, nid);
+> 
+> And kzalloc_node() understands NUMA_NO_NODE.
+> 
+Will try this out.
+
+>> +	}
+>> +
+>> +	if (WARN_ON(!align))
+>> +		align = __alignof__(long long);
+> 
+> Wouldn't SMP_CACHE_BYTES make more sense?  Also, I'm not sure we
+> actually want WARN on it.  Interpreting 0 as "default align" isn't
+> that weird.
+> 
+Will drop that WARN and use SMP_CACHE_BYTES as a default.
+
+
+>> +	/* align @size to avoid excessive fragmentation on reserved array */
+>> +	size = round_up(size, align);
+>> +
+>> +again:
+>> +	alloc = memblock_find_in_range_node(from, max_addr, size, align, nid);
+>> +	if (alloc)
+>> +		goto done;
+>> +
+>> +	if (nid != MAX_NUMNODES) {
+>> +		alloc =
+>> +			memblock_find_in_range_node(from, max_addr, size,
+>> +						    align, MAX_NUMNODES);
+>> +		if (alloc)
+>> +			goto done;
+>> +	}
+>> +
+>> +	if (from) {
+>> +		from = 0;
+>> +		goto again;
+>> +	} else {
+>> +		goto error;
+>> +	}
+>> +
+>> +done:
+>> +	memblock_reserve(alloc, size);
+>> +	ptr = phys_to_virt(alloc);
+>> +	memset(ptr, 0, size);
+> 
+> What if the address is high?  Don't we need kmapping here?
+>
+The current nobootmem code actually don't handle the high
+addresses since the max memory is limited by memblock.current_limit
+which is max_low_pfn. So I am assuming we don't need to support
+it. __alloc_bootmem_node_high() interface underneath uses
+__alloc_memory_core_early() and we tried to keep the same
+functionality in new code.
  
- static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
-@@ -59,7 +63,7 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
- 		return NULL;
- 	page = virt_to_page(pte);
- 	if (!pgtable_page_ctor(page)) {
--		kmem_cache_free(pgtable_cache, pte);
-+		__free_page(page);
- 		return NULL;
- 	}
- 	return page;
-@@ -67,13 +71,13 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
- 
- static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
- {
--	kmem_cache_free(pgtable_cache, pte);
-+	free_page((unsigned long)pte);
- }
- 
- static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
- {
- 	pgtable_page_dtor(pte);
--	kmem_cache_free(pgtable_cache, page_address(pte));
-+	__free_page(pte);
- }
- #define pmd_pgtable(pmd) pmd_page(pmd)
- 
-diff --git a/arch/xtensa/include/asm/pgtable.h b/arch/xtensa/include/asm/pgtable.h
-index 0fdf5d043f..216446295a 100644
---- a/arch/xtensa/include/asm/pgtable.h
-+++ b/arch/xtensa/include/asm/pgtable.h
-@@ -220,12 +220,11 @@ extern unsigned long empty_zero_page[1024];
- #ifdef CONFIG_MMU
- extern pgd_t swapper_pg_dir[PAGE_SIZE/sizeof(pgd_t)];
- extern void paging_init(void);
--extern void pgtable_cache_init(void);
- #else
- # define swapper_pg_dir NULL
- static inline void paging_init(void) { }
--static inline void pgtable_cache_init(void) { }
- #endif
-+static inline void pgtable_cache_init(void) { }
- 
- /*
-  * The pmd contains the kernel virtual address of the pte page.
-diff --git a/arch/xtensa/mm/mmu.c b/arch/xtensa/mm/mmu.c
-index a1077570e3..c43771c974 100644
---- a/arch/xtensa/mm/mmu.c
-+++ b/arch/xtensa/mm/mmu.c
-@@ -50,23 +50,3 @@ void __init init_mmu(void)
- 	 */
- 	set_ptevaddr_register(PGTABLE_START);
- }
--
--struct kmem_cache *pgtable_cache __read_mostly;
--
--static void pgd_ctor(void *addr)
--{
--	pte_t *ptep = (pte_t *)addr;
--	int i;
--
--	for (i = 0; i < 1024; i++, ptep++)
--		pte_clear(NULL, 0, ptep);
--
--}
--
--void __init pgtable_cache_init(void)
--{
--	pgtable_cache = kmem_cache_create("pgd",
--			PAGE_SIZE, PAGE_SIZE,
--			SLAB_HWCACHE_ALIGN,
--			pgd_ctor);
--}
--- 
-1.8.4.rc3
+>> +
+>> +	/*
+>> +	 * The min_count is set to 0 so that bootmem allocated blocks
+>> +	 * are never reported as leaks.
+>> +	 */
+>> +	kmemleak_alloc(ptr, size, 0, 0);
+>> +
+>> +	return ptr;
+>> +
+>> +error:
+>> +	return NULL;
+>> +}
+>> +
+>> +void * __init memblock_early_alloc_try_nid_nopanic(int nid,
+>> +				phys_addr_t size, phys_addr_t align,
+>> +				phys_addr_t from, phys_addr_t max_addr)
+>> +{
+>> +	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
+>> +			__func__, (u64)size, (u64)align, nid, (u64)from,
+>> +			(u64)max_addr, (void *)_RET_IP_);
+>> +	return _memblock_early_alloc_try_nid_nopanic(nid, size,
+>> +						align, from, max_addr);
+> 
+> Do we need the extra level of wrapping?  Just implement
+> alloc_try_nid_nopanic() here and make the panicky version call it?
+> 
+It was useful to have caller information (_RET_IP_) for debug. But
+it can be dropped if you insist.
+
+Regards,
+Santosh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
