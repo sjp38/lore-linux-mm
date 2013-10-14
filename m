@@ -1,45 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id A06216B0036
-	for <linux-mm@kvack.org>; Mon, 14 Oct 2013 18:26:59 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so8010693pdj.22
-        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 15:26:59 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <00000141b90841a8-3fb61f1e-89aa-4a35-94d4-a264ac91462b-000000@email.amazonses.com>
-References: <1381428359-14843-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1381428359-14843-35-git-send-email-kirill.shutemov@linux.intel.com>
- <00000141a3f48ada-37ee9c14-2f2b-40a2-93f4-70258363351b-000000@email.amazonses.com>
- <20131010200921.91D84E0090@blue.fi.intel.com>
- <00000141a7d2aa7b-e59f292a-746c-4f55-aa51-9fa060a7fbeb-000000@email.amazonses.com>
- <20131014090437.F22CBE0090@blue.fi.intel.com>
- <00000141b85a90a0-7cf6bab0-4c17-4fc0-8224-74bbb1fc85ee-000000@email.amazonses.com>
- <20131014212514.C7C19E0090@blue.fi.intel.com>
- <00000141b90841a8-3fb61f1e-89aa-4a35-94d4-a264ac91462b-000000@email.amazonses.com>
-Subject: Re: [PATCH 34/34] mm: dynamically allocate page->ptl if it cannot be
- embedded to struct page
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id E3B6E6B0031
+	for <linux-mm@kvack.org>; Mon, 14 Oct 2013 19:10:50 -0400 (EDT)
+Received: by mail-pb0-f50.google.com with SMTP id uo5so7876918pbc.23
+        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 16:10:50 -0700 (PDT)
+Date: Mon, 14 Oct 2013 16:10:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Set N_CPU to node_states during boot
+Message-Id: <20131014161047.4a6a54e985d68a9f1ce7234b@linux-foundation.org>
+In-Reply-To: <1381781096-13168-1-git-send-email-toshi.kani@hp.com>
+References: <1381781096-13168-1-git-send-email-toshi.kani@hp.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-Id: <20131014222653.86EE1E0090@blue.fi.intel.com>
-Date: Tue, 15 Oct 2013 01:26:53 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-Christoph Lameter wrote:
-> On Tue, 15 Oct 2013, Kirill A. Shutemov wrote:
+On Mon, 14 Oct 2013 14:04:56 -0600 Toshi Kani <toshi.kani@hp.com> wrote:
+
+> After a system booted, N_CPU is not set to any node as has_cpu
+> shows an empty line.
 > 
-> > Feel free to propose a patch. I don't see much point.
+>   # cat /sys/devices/system/node/has_cpu
+>   (show-empty-line)
 > 
-> Right now you are using a long to stand in for a spinlock_t or a pointer
-> to a spinlock_t. An #ifdef would allow to define the proper type and
-> therefore the compiler to check that the ptl is correctly used.
+> setup_vmstat() registers its CPU notifier callback,
+> vmstat_cpuup_callback(), which marks N_CPU to a node when
+> a CPU is put into online.  However, setup_vmstat() is called
+> after all CPUs are launched in the boot sequence.
+> 
+> Change setup_vmstat() to mark N_CPU to the nodes with online
+> CPUs at boot.
+> 
+> ...
+>
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -1276,8 +1276,10 @@ static int __init setup_vmstat(void)
+>  
+>  	register_cpu_notifier(&vmstat_notifier);
+>  
+> -	for_each_online_cpu(cpu)
+> +	for_each_online_cpu(cpu) {
+>  		start_cpu_timer(cpu);
+> +		node_set_state(cpu_to_node(cpu), N_CPU);
+> +	}
+>  #endif
+>  #ifdef CONFIG_PROC_FS
+>  	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
 
-You should not use it directly anyway: page->ptl is not there at all if
-USE_SPLIT_PTE_PTLOCKS is 0. Compiler checks limited to few helpers and use
-a kbuild hack is overkill to me.
+This seems a bit hacky.  Would it not be better to register
+vmstat_notifier() before bringing up CPUs?
 
--- 
- Kirill A. Shutemov
+
+And this patch might be racy as well - what happens if a CPU comes up
+and goes down again before setup_vmstat() is called?
+
+(Where does N_CPU get cleared?  It doesn't, afaict.  Should we clear it
+if a node's final CPU goes offline?)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
