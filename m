@@ -1,85 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id A5CE36B0031
-	for <linux-mm@kvack.org>; Mon, 14 Oct 2013 08:58:36 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so7247605pdj.8
-        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 05:58:36 -0700 (PDT)
-Received: by mail-oa0-f51.google.com with SMTP id h16so4475231oag.10
-        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 05:58:33 -0700 (PDT)
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id DC8B66B0031
+	for <linux-mm@kvack.org>; Mon, 14 Oct 2013 09:49:06 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id q10so7347875pdj.20
+        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 06:49:06 -0700 (PDT)
+Message-ID: <525BF641.3000300@ti.com>
+Date: Mon, 14 Oct 2013 09:48:49 -0400
+From: Santosh Shilimkar <santosh.shilimkar@ti.com>
 MIME-Version: 1.0
-In-Reply-To: <1381754723-21783-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1381754723-21783-1-git-send-email-kirill.shutemov@linux.intel.com>
-Date: Mon, 14 Oct 2013 16:58:33 +0400
-Message-ID: <CAMo8BfJV9qHQtCgM9QxMo082yxJNDHRY-kh0VuVUDhNhexXMng@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm: try to detect that page->ptl is in use
-From: Max Filippov <jcmvbkbc@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [RFC 06/23] mm/memblock: Add memblock early memory allocation
+ apis
+References: <1381615146-20342-1-git-send-email-santosh.shilimkar@ti.com> <1381615146-20342-7-git-send-email-santosh.shilimkar@ti.com> <20131013175648.GC5253@mtj.dyndns.org> <20131013180058.GG25034@n2100.arm.linux.org.uk> <20131013184212.GA18075@htj.dyndns.org>
+In-Reply-To: <20131013184212.GA18075@htj.dyndns.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Chris Zankel <chris@zankel.net>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, "linux-xtensa@linux-xtensa.org" <linux-xtensa@linux-xtensa.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, grygorii.strashko@ti.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, yinghai@kernel.org, linux-arm-kernel@lists.infradead.org
 
-On Mon, Oct 14, 2013 at 4:45 PM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> prep_new_page() initialize page->private (and therefore page->ptl) with
-> 0. Make sure nobody took it in use in between allocation of the page and
-> page table constructor.
->
-> It can happen if arch try to use slab for page table allocation: slab
-> code uses page->slab_cache and page->first_page (for tail pages), which
-> share storage with page->ptl.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  Documentation/vm/split_page_table_lock | 4 ++++
->  include/linux/mm.h                     | 9 +++++++++
->  2 files changed, 13 insertions(+)
->
-> diff --git a/Documentation/vm/split_page_table_lock b/Documentation/vm/split_page_table_lock
-> index e2f617b732..3c54f7dca2 100644
-> --- a/Documentation/vm/split_page_table_lock
-> +++ b/Documentation/vm/split_page_table_lock
-> @@ -53,6 +53,10 @@ There's no need in special enabling of PTE split page table lock:
->  everything required is done by pgtable_page_ctor() and pgtable_page_dtor(),
->  which must be called on PTE table allocation / freeing.
->
-> +Make sure the architecture doesn't use slab allocator for page table
-> +allacation: slab uses page->slab_cache and page->first_page for its pages.
+On Sunday 13 October 2013 02:42 PM, Tejun Heo wrote:
+> On Sun, Oct 13, 2013 at 07:00:59PM +0100, Russell King - ARM Linux wrote:
+>> On Sun, Oct 13, 2013 at 01:56:48PM -0400, Tejun Heo wrote:
+>>> Hello,
+>>>
+>>> On Sat, Oct 12, 2013 at 05:58:49PM -0400, Santosh Shilimkar wrote:
+>>>> Introduce memblock early memory allocation APIs which allow to support
+>>>> LPAE extension on 32 bits archs. More over, this is the next step
+>>>
+>>> LPAE isn't something people outside arm circle would understand.
+>>> Let's stick to highmem.
+>>
+>> LPAE != highmem.  Two totally different things, unless you believe
+>> system memory always starts at physical address zero, which is very
+>> far from the case on the majority of ARM platforms.
+>>
+thanks Russell for clarification.
 
-Typo: allocation.
+>> So replacing LPAE with "highmem" is pure misrepresentation and is
+>> inaccurate.  PAE might be a better term, and is also the x86 term
+>> for this.
+> 
+> Ah, right, forgot about the base address.  Let's please spell out the
+> requirements then.  Briefly explaining both aspects (non-zero base
+> addr & highmem) and why the existing bootmem based interfaced can't
+> serve them would be helpful to later readers.
+> 
+OK. Will try to describe bit more in the next version.Cover letter had
+some of the information on the requirement which I will also
+mention in the patch commit in next version.
 
-> +These fields share storage with page->ptl.
-> +
->  PMD split lock only makes sense if you have more than two page table
->  levels.
->
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 658e8b317f..9a4a873b2f 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1262,6 +1262,15 @@ static inline spinlock_t *pte_lockptr(struct mm_struct *mm, pmd_t *pmd)
->
->  static inline bool ptlock_init(struct page *page)
->  {
-> +       /*
-> +        * prep_new_page() initialize page->private (and therefore page->ptl)
-> +        * with 0. Make sure nobody took it in use in between.
-> +        *
-> +        * It can happen if arch try to use slab for page table allocation:
-> +        * slab code uses page->slab_cache and page->first_page (for tail
-> +        * pages), which share storage with page->ptl.
-> +        */
-> +       VM_BUG_ON(page->ptl);
->         if (!ptlock_alloc(page))
->                 return false;
->         spin_lock_init(ptlock_ptr(page));
-> --
-> 1.8.4.rc3
->
-
--- 
-Thanks.
--- Max
+Regards,
+Santosh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
