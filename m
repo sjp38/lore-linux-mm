@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 35D286B0031
-	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 14:49:04 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so9471364pad.2
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 11:49:03 -0700 (PDT)
-Received: by mail-vb0-f44.google.com with SMTP id p14so413537vbm.17
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 11:49:00 -0700 (PDT)
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CE136B0035
+	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 14:49:40 -0400 (EDT)
+Received: by mail-pb0-f46.google.com with SMTP id rq2so9176309pbb.19
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 11:49:40 -0700 (PDT)
+Received: by mail-vb0-f51.google.com with SMTP id x16so5496166vbf.10
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 11:49:37 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20131015110146.7E8BEE0090@blue.fi.intel.com>
-References: <20131015001304.GH3432@hippobay.mtv.corp.google.com> <20131015110146.7E8BEE0090@blue.fi.intel.com>
+In-Reply-To: <20131015103744.A0BD3E0090@blue.fi.intel.com>
+References: <20131015001242.GF3432@hippobay.mtv.corp.google.com> <20131015103744.A0BD3E0090@blue.fi.intel.com>
 From: Ning Qu <quning@google.com>
-Date: Tue, 15 Oct 2013 11:48:40 -0700
-Message-ID: <CACz4_2fiF+vaAbFixgGF+Uxn0av4H8y-aMQdyi3yYs5pdS2WBA@mail.gmail.com>
-Subject: Re: [PATCH 07/12] mm, thp, tmpfs: handle huge page in
- shmem_undo_range for truncate
+Date: Tue, 15 Oct 2013 11:49:17 -0700
+Message-ID: <CACz4_2c6+EgTLrybF=bFsK_ra-nNgb46PFuXZA4CT1AfKFf=ug@mail.gmail.com>
+Subject: Re: [PATCH 05/12] mm, thp, tmpfs: request huge page in shm_fault when needed
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
@@ -21,86 +20,54 @@ List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
+Will fix this.
 Best wishes,
 --=20
 Ning Qu (=E6=9B=B2=E5=AE=81) | Software Engineer | quning@google.com | +1-4=
 08-418-6066
 
 
-On Tue, Oct 15, 2013 at 4:01 AM, Kirill A. Shutemov
+On Tue, Oct 15, 2013 at 3:37 AM, Kirill A. Shutemov
 <kirill.shutemov@linux.intel.com> wrote:
 > Ning Qu wrote:
->> When comes to truncate file, add support to handle huge page in the
->> truncate range.
+>> Add the function to request huge page in shm_fault when needed.
+>> And it will fall back to regular page if huge page can't be
+>> satisfied or allocated.
+>>
+>> If small page requested but huge page is found, the huge page will
+>> be splitted.
 >>
 >> Signed-off-by: Ning Qu <quning@gmail.com>
 >> ---
->>  mm/shmem.c | 97 +++++++++++++++++++++++++++++++++++++++++++++++++++++++=
--------
->>  1 file changed, 86 insertions(+), 11 deletions(-)
+>>  mm/shmem.c | 32 +++++++++++++++++++++++++++++---
+>>  1 file changed, 29 insertions(+), 3 deletions(-)
 >>
 >> diff --git a/mm/shmem.c b/mm/shmem.c
->> index 0a423a9..90f2e0e 100644
+>> index 68a0e1d..2fc450d 100644
 >> --- a/mm/shmem.c
 >> +++ b/mm/shmem.c
->> @@ -559,6 +559,7 @@ static void shmem_undo_range(struct inode *inode, lo=
-ff_t lstart, loff_t lend,
->>       struct shmem_inode_info *info =3D SHMEM_I(inode);
->>       pgoff_t start =3D (lstart + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHI=
-FT;
->>       pgoff_t end =3D (lend + 1) >> PAGE_CACHE_SHIFT;
->> +     /* Whether we have to do partial truncate */
->>       unsigned int partial_start =3D lstart & (PAGE_CACHE_SIZE - 1);
->>       unsigned int partial_end =3D (lend + 1) & (PAGE_CACHE_SIZE - 1);
->>       struct pagevec pvec;
->> @@ -570,12 +571,16 @@ static void shmem_undo_range(struct inode *inode, =
-loff_t lstart, loff_t lend,
->>       if (lend =3D=3D -1)
->>               end =3D -1;       /* unsigned, so actually very big */
->>
->> +     i_split_down_read(inode);
->>       pagevec_init(&pvec, 0);
->>       index =3D start;
->>       while (index < end) {
->> +             bool thp =3D false;
->> +
->>               pvec.nr =3D shmem_find_get_pages_and_swap(mapping, index,
->>                               min(end - index, (pgoff_t)PAGEVEC_SIZE),
->>                                                       pvec.pages, indice=
-s);
->> +
->>               if (!pvec.nr)
->>                       break;
->>               mem_cgroup_uncharge_start();
->> @@ -586,6 +591,25 @@ static void shmem_undo_range(struct inode *inode, l=
-off_t lstart, loff_t lend,
->>                       if (index >=3D end)
->>                               break;
->>
->> +                     thp =3D PageTransHugeCache(page);
+>> @@ -1472,19 +1472,45 @@ unlock:
+>>  static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf=
+)
+>>  {
+>>       struct inode *inode =3D file_inode(vma->vm_file);
+>> +     struct page *page =3D NULL;
+>>       int error;
+>>       int ret =3D VM_FAULT_LOCKED;
+>>       gfp_t gfp =3D mapping_gfp_mask(inode->i_mapping);
+>> -
+>> -     error =3D shmem_getpage(inode, vmf->pgoff, &vmf->page, SGP_CACHE, =
+gfp,
+>> -                             0, &ret);
+>> +     bool must_use_thp =3D vmf->flags & FAULT_FLAG_TRANSHUGE;
+>> +     int flags =3D 0;
 >> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
+>> +     flags |=3D AOP_FLAG_TRANSHUGE;
+>> +#endif
 >
-> Again. Here and below ifdef is redundant: PageTransHugeCache() is zero
-> compile-time and  thp case will be optimize out.
-
-The problem is actually from HPAGE_CACHE_INDEX_MASK, it is marked as
-build bug when CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE is false. So we
-either wrap some logic inside a inline function, or we have to be like
-this .. Or we don't treat the HPAGE_CACHE_INDEX_MASK as a build bug?
-
+> ifdef is not needed: shmem_getpage will ignore AOP_FLAG_TRANSHUGE if
+> CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE is not defined.
 >
-> And do we really need a copy of truncate logic here? Is there a way to
-> share code?
->
-The truncate between tmpfs and general one is similar but not exactly
-the same (no readahead), so share the whole function might not be a
-good choice from the perspective of tmpfs? Anyway, there are other
-similar functions in tmpfs, e.g. the one you mentioned for
-shmem_add_to_page_cache. It is possible to share the code, I am just
-worried it will make the logic more complicated?
-
-Maybe Hugh is in better position to judge on this? Thanks!
-
 > --
 >  Kirill A. Shutemov
 
