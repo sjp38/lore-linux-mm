@@ -1,37 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 288666B0035
-	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 13:29:20 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id kp14so9311437pab.6
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 10:29:19 -0700 (PDT)
-Message-ID: <1381857934.26234.99.camel@misato.fc.hp.com>
-Subject: Re: [PATCH 1/2] mm: Set N_CPU to node_states during boot
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Tue, 15 Oct 2013 11:25:34 -0600
-In-Reply-To: <00000141bd24292a-c0ebad11-c3bb-441e-a58e-e17b3bc2e21c-000000@email.amazonses.com>
-References: <1381857176-22999-1-git-send-email-toshi.kani@hp.com>
-	 <1381857176-22999-2-git-send-email-toshi.kani@hp.com>
-	 <00000141bd24292a-c0ebad11-c3bb-441e-a58e-e17b3bc2e21c-000000@email.amazonses.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+	by kanga.kvack.org (Postfix) with ESMTP id 73C456B0031
+	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 13:53:17 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id kp14so9334235pab.20
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 10:53:17 -0700 (PDT)
+Received: by mail-pa0-f51.google.com with SMTP id kp14so9390109pab.38
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 10:53:14 -0700 (PDT)
+Message-ID: <525D8106.9020304@zankel.net>
+Date: Tue, 15 Oct 2013 10:53:10 -0700
+From: Chris Zankel <chris@zankel.net>
+MIME-Version: 1.0
+Subject: Re: CONFIG_SLUB/USE_SPLIT_PTLOCKS compatibility
+References: <CAMo8BfKqWPbDCMwCoH6BO6uXyYwr0Z1=AaMJDRLQt66FLb7LAg@mail.gmail.com> <20131014071205.GA23735@shutemov.name> <CAMo8Bf+9+_S0HeOUWjd3AXgsuM-XWYZx8b6aL=2+AFt0EK9DKg@mail.gmail.com>
+In-Reply-To: <CAMo8Bf+9+_S0HeOUWjd3AXgsuM-XWYZx8b6aL=2+AFt0EK9DKg@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com
+To: Max Filippov <jcmvbkbc@gmail.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "David S. Miller" <davem@davemloft.net>, "linux-xtensa@linux-xtensa.org" <linux-xtensa@linux-xtensa.org>
 
-On Tue, 2013-10-15 at 17:22 +0000, Christoph Lameter wrote:
-> On Tue, 15 Oct 2013, Toshi Kani wrote:
-> 
-> > Changed setup_vmstat() to mark N_CPU to the nodes with
-> > online CPUs at boot, which is consistent with other
-> > operations in vmstat_cpuup_callback(), i.e. start_cpu_timer()
-> > and refresh_zone_stat_thresholds().
-> 
-> Acked-by: Christoph Lameter <cl@linux.com>
+On 10/14/2013 04:49 AM, Max Filippov wrote:
+> Buddy allocator was used here prior to commit 6656920 [XTENSA] Add
+> support for cache-aliasing I can only guess that the change was made
+> to make allocated page tables have the same colour, but am not sure
+> why this is needed. Chris? 
+Max, I think you are right that in an earlier attempt to support cache
+aliasing, we tried to allocate pages with the correct 'color', and
+cached pages locally (if I remember correctly). The approach we use now
+doesn't require that so the suggested patches are fine. (Note that cache
+aliasing support hasn't been committed to mainline yet)
 
-Thanks Christoph for the quick review to the patchset!
--Toshi
+Thanks,
+-Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
