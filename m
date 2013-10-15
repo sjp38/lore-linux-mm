@@ -1,130 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 48EAD6B0031
-	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 03:37:11 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id kl14so8573227pab.25
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 00:37:10 -0700 (PDT)
-Message-ID: <525CF09A.1080808@ti.com>
-Date: Tue, 15 Oct 2013 10:36:58 +0300
-From: Tomi Valkeinen <tomi.valkeinen@ti.com>
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C4496B0031
+	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 04:07:43 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id q10so8523190pdj.34
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 01:07:42 -0700 (PDT)
+Message-ID: <525CF787.6050107@asianux.com>
+Date: Tue, 15 Oct 2013 16:06:31 +0800
+From: Chen Gang <gang.chen@asianux.com>
 MIME-Version: 1.0
-Subject: Re: OMAPFB: CMA allocation failures
-References: <991366690.30380.1381819791799.JavaMail.apache@mail83.abv.bg>
-In-Reply-To: <991366690.30380.1381819791799.JavaMail.apache@mail83.abv.bg>
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature";
-	boundary="2NnVkUO1Sil0BTIjhbJwuawxSTiMJGaw6"
+Subject: [PATCH] mm/readahead.c: need always return 0 when system call readahead()
+ succeeds
+References: <5212E328.40804@asianux.com> <20130820161639.69ffa65b40c5cf761bbb727c@linux-foundation.org> <521428D0.2020708@asianux.com> <20130917155644.cc988e7e929fee10e9c86d86@linux-foundation.org> <52390907.7050101@asianux.com>
+In-Reply-To: <52390907.7050101@asianux.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?0JjQstCw0LnQu9C+INCU0LjQvNC40YLRgNC+0LI=?= <freemangordon@abv.bg>
-Cc: pali.rohar@gmail.com, pc+n900@asdf.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, rientjes@google.com, sasha.levin@oracle.com, linux@rasmusvillemoes.dk, kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, lczerner@redhat.com, linux-mm@kvack.org
 
---2NnVkUO1Sil0BTIjhbJwuawxSTiMJGaw6
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+For system call readahead(), need always return 0 instead of bytes read
+when succeed. The related commit "fee53ce mm/readahead.c: return the
+value which force_page_cache_readahead() returns" causes this issue.
 
-On 15/10/13 09:49, =D0=98=D0=B2=D0=B0=D0=B9=D0=BB=D0=BE =D0=94=D0=B8=D0=BC=
-=D0=B8=D1=82=D1=80=D0=BE=D0=B2 wrote:
+This bug is found by LTP readahead02 test, the related output:
 
-> I am using my n900 as a daily/only device since the beginning of 2010, =
-never seen such an=20
-> issue with video playback. And as a maintainer of one of the community =
-supported kernels for
-> n900 (kernel-power) I've never had such an issue reported. On stock ker=
-nel and derivatives of
-> course. It seems VRAM allocator is virtually impossible to fail, while =
-with CMA OMAPFB fails on
-> the first video after boot-up.
+  [root@gchenlinux readahead]# ./readahead02
+  readahead02    0  TINFO  :  creating test file of size: 67108864
+  readahead02    0  TINFO  :  read_testfile(0)
+  readahead02    0  TINFO  :  read_testfile(1)
+  readahead02    1  TFAIL  :  unexpected failure - returned value = 16384, expected: 0
+  readahead02    2  TPASS  :  offset is still at 0 as expected
+  readahead02    0  TINFO  :  read_testfile(0) took: 2292819 usec
+  readahead02    0  TINFO  :  read_testfile(1) took: 3524116 usec
+  readahead02    0  TINFO  :  read_testfile(0) read: 67108864 bytes
+  readahead02    0  TINFO  :  read_testfile(1) read: 0 bytes
+  readahead02    3  TPASS  :  readahead saved some I/O
+  readahead02    0  TINFO  :  cache can hold at least: 624316 kB
+  readahead02    0  TINFO  :  read_testfile(0) used cache: 65476 kB
+  readahead02    0  TINFO  :  read_testfile(1) used cache: 65632 kB
+  readahead02    4  TPASS  :  using cache as expected
 
-Yes, I think with normal fb use it's quite difficult to fragment VRAM
-allocator too much.
+After this fix, it can pass LTP common test by readahead01 and readahead02.
 
-> When saying you've not seen such an issue - did you actually test video=
- playback, on what
-> device and using which distro? Did you use DSP accelerated decoding?
-
-No, I don't have a rootfs with DSP, and quite rarely test video
-playback. But the VRAM allocator was removed a year ago, and this is the
-first time I've seen anyone have issues with the CMA.
-
-> I was able to track down the failures to:
-> http://lxr.free-electrons.com/source/mm/migrate.c#L320
->=20
-> So it seems the problem is not that CMA gets fragmented, rather some pa=
-ges cannot be migrated.
-> Unfortunately, my knowledge stops here. Someone from the mm guys should=
- be involved in the
-> issue as well? I am starting to think there is some serious issue with =
-CMA and/or mm I am
-> hitting on n900. As it is not the lack of free RAM that is the problem =
--=20
-> "echo 3>/proc/sys/vm/drop_caches" results in more that 45MB of free RAM=
- according to free.
-
-I think we should somehow find out what the pages are that cannot be
-migrated, and where they come from.
-
-So there are "anonymous pages without mapping" with page_count(page) !=3D=
-
-1. I have to say I don't know what that means =3D). I need to find some
-time to study the mm.
-
-> dma_declare_contiguous() won't help IMO, it just reserves CMA area that=
- is private to the
-> driver, so it is used instead of the global CMA area, but I don't see h=
-ow that would help in my
-> case.
-
-If the issue is not about fragmentation, then I think you're right,
-dma_declare_contiguous won't help.
-
-> Anyway, what about reverting VRAM allocator removal and migrating it to=
- DMA API, the same way
-> DMA coherent pool is allocated and managed? Or simply revering VRAM all=
-ocator removal :) ?
-
-Well, as I said, you're the first one to report any errors, after the
-change being in use for a year. Maybe people just haven't used recent
-enough kernels, and the issue is only now starting to emerge, but I
-wouldn't draw any conclusions yet.
-
-If the CMA would have big generic issues, I think we would've seen
-issues earlier. So I'm guessing it's some driver or app in your setup
-that's causing the issues. Maybe the driver/app is broken, or maybe that
-specific behavior is not handled well by CMA. In both case I think we
-need to identify what that driver/app is.
-
-I wonder how I could try to reproduce this with a generic omap3 board...
-
- Tomi
+  [root@gchenlinux readahead]# ./readahead01 
+  readahead01    0  TINFO  :  test_bad_fd -1
+  readahead01    1  TPASS  :  expected ret success - returned value = -1
+  readahead01    2  TPASS  :  expected failure: TEST_ERRNO=EBADF(9): Bad file descriptor
+  readahead01    0  TINFO  :  test_bad_fd O_WRONLY
+  readahead01    3  TPASS  :  expected ret success - returned value = -1
+  readahead01    4  TPASS  :  expected failure: TEST_ERRNO=EBADF(9): Bad file descriptor
+  readahead01    0  TINFO  :  test_invalid_fd pipe
+  readahead01    5  TPASS  :  expected ret success - returned value = -1
+  readahead01    6  TPASS  :  expected failure: TEST_ERRNO=EINVAL(22): Invalid argument
+  readahead01    0  TINFO  :  test_invalid_fd socket
+  readahead01    7  TPASS  :  expected ret success - returned value = -1
+  readahead01    8  TPASS  :  expected failure: TEST_ERRNO=EINVAL(22): Invalid argument
+  [root@gchenlinux readahead]# ./readahead02
+  readahead02    0  TINFO  :  creating test file of size: 67108864
+  readahead02    0  TINFO  :  read_testfile(0)
+  readahead02    0  TINFO  :  read_testfile(1)
+  readahead02    1  TPASS  :  expected ret success - returned value = 0
+  readahead02    2  TPASS  :  offset is still at 0 as expected
+  readahead02    0  TINFO  :  read_testfile(0) took: 3327468 usec
+  readahead02    0  TINFO  :  read_testfile(1) took: 2802184 usec
+  readahead02    0  TINFO  :  read_testfile(0) read: 67108864 bytes
+  readahead02    0  TINFO  :  read_testfile(1) read: 0 bytes
+  readahead02    3  TPASS  :  readahead saved some I/O
+  readahead02    0  TINFO  :  cache can hold at least: 794800 kB
+  readahead02    0  TINFO  :  read_testfile(0) used cache: 66704 kB
+  readahead02    0  TINFO  :  read_testfile(1) used cache: 65528 kB
+  readahead02    4  TPASS  :  using cache as expected
 
 
+Signed-off-by: Chen Gang <gang.chen@asianux.com>
+---
+ mm/readahead.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
---2NnVkUO1Sil0BTIjhbJwuawxSTiMJGaw6
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
-
-iQIcBAEBAgAGBQJSXPCaAAoJEPo9qoy8lh71k9QQAJMn2tGIaZ7bXMn//i+ZQDNK
-keJCykU+3mTt6QD4oqFPs1tda0sLTnXx6de2Tn1fGV7XbIqARfpkdC4W1/Y07IdE
-HVDDQ+RhGc0tSyBsWI0qlx8DwCb4N+qeHZxuvjUlpDOZyDl9ppfzkfTfyQVraDmi
-+7fhJQeJD0bbaji2vAtu5yxzrqDRE1UDyDh6wWocrKN1nGXspjNs+zmk/MFwQhYL
-GEILOqgVJYKerQDUTeqQRN6blOZCjrs4yhTFMZD0W9WCcVE5qJ/ipQ3Nd3pCQStq
-hOUQnqWQGoNfjIG9enpnsVXI9au7bu2nB9fWOzbpkGx1yzM7xVz6caKoLAMtlhkU
-soFgAXxG5+jffz6H6iGLv7dMl/BDqkT9Ag5JDxlKC59MD5SM6+gcl+ONOQokljI9
-LSJbtJWd+KVtIvU10LYtABUtsjUlZWbsBYtj+BvILFvRQ3b2Q+vGmVy1m3WvROHm
-Xh7mFMPqtHthA6lpbIB7/lFS9zmOP6ajNU4j08dv0C7rCmi739cAzj8vDXF+ljW4
-GH7orEmsN1SitF0HpCCjg/WisKbIl3cDqlptA+2qNvRoTQ4IXakvstE2B58nU0lJ
-gmSA9rH4tz5tS/ONFewcPvfbNedGZ1uwt4Y1h9U1kr6Aqfvz+EsKqyqwbqI+CRrh
-7ZNdYC5WDC/jJRKmI5yK
-=4Lq8
------END PGP SIGNATURE-----
-
---2NnVkUO1Sil0BTIjhbJwuawxSTiMJGaw6--
+diff --git a/mm/readahead.c b/mm/readahead.c
+index 1eee42b..83a202e 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -592,5 +592,5 @@ SYSCALL_DEFINE3(readahead, int, fd, loff_t, offset, size_t, count)
+ 		}
+ 		fdput(f);
+ 	}
+-	return ret;
++	return ret < 0 ? ret : 0;
+ }
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
