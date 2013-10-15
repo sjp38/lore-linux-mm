@@ -1,55 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A2BB66B0035
-	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 16:44:06 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id jt11so9264047pbb.38
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 13:44:06 -0700 (PDT)
-Received: by mail-oa0-f52.google.com with SMTP id n2so6126324oag.25
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 13:44:03 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20131014154403.562B2E0090@blue.fi.intel.com>
-References: <1381761155-19166-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1381761155-19166-2-git-send-email-kirill.shutemov@linux.intel.com>
-	<CAMo8Bf+oo4WCE366+bPoD5Y=Q3pCF0NVnfjXVqz8=nZ45_XY7Q@mail.gmail.com>
-	<20131014154403.562B2E0090@blue.fi.intel.com>
-Date: Wed, 16 Oct 2013 00:44:03 +0400
-Message-ID: <CAMo8Bf+vAe3q+jJ6qv_ZqGZO=-3h40AHhZ==AbKfYV76wbn79Q@mail.gmail.com>
-Subject: Re: [PATCHv2 2/2] xtensa: use buddy allocator for PTE table
-From: Max Filippov <jcmvbkbc@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+	by kanga.kvack.org (Postfix) with ESMTP id CED8D6B0031
+	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 17:03:37 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id jt11so9284409pbb.38
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 14:03:37 -0700 (PDT)
+Date: Tue, 15 Oct 2013 17:03:20 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1381871000-7fqziuur-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20131015134317.02d819f6905f790007ba1842@linux-foundation.org>
+References: <1381772230-26878-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20131015134317.02d819f6905f790007ba1842@linux-foundation.org>
+Subject: Re: [PATCH 0/11] update page table walker
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Chris Zankel <chris@zankel.net>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, "linux-xtensa@linux-xtensa.org" <linux-xtensa@linux-xtensa.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Cliff Wickman <cpw@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@parallels.com>, linux-kernel@vger.kernel.org, Thierry Reding <thierry.reding@gmail.com>, Mark Brown <broonie@kernel.org>
 
-On Mon, Oct 14, 2013 at 7:44 PM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> Corrected patch below.
->
-> From 0ba2ac687321f5ad7bac5f5c141da5b65b957fdc Mon Sep 17 00:00:00 2001
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Date: Mon, 14 Oct 2013 13:38:21 +0300
-> Subject: [PATCHv3] xtensa: use buddy allocator for PTE table
->
-> At the moment xtensa uses slab allocator for PTE table. It doesn't work
-> with enabled split page table lock: slab uses page->slab_cache and
-> page->first_page for its pages. These fields share stroage with
-> page->ptl.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Chris Zankel <chris@zankel.net>
-> Cc: Max Filippov <jcmvbkbc@gmail.com>
-> ---
-> v3:
->  - return correct value from pte_alloc_one_kernel();
-> v2:
->  - add missed return in pte_alloc_one_kernel();
+On Tue, Oct 15, 2013 at 01:43:17PM -0700, Andrew Morton wrote:
+> On Mon, 14 Oct 2013 13:36:59 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+> 
+> > Page table walker is widely used when you want to traverse page table
+> > tree and do some work for the entries (and pages pointed to by them.)
+> > This is a common operation, and keep the code clean and maintainable
+> > is important. Moreover this patchset introduces caller-specific walk
+> > control function which is helpful for us to newly introduce page table
+> > walker to some other users. Core change comes from patch 1, so please
+> > see it for how it's supposed to work.
+> > 
+> > This patchset changes core code in mm/pagewalk.c at first in patch 1 and 2,
+> > and then updates all of current users to make the code cleaner in patch
+> > 3-9. Patch 10 changes the interface of hugetlb_entry(), I put it here to
+> > keep bisectability of the whole patchset. Patch 11 applies page table walker
+> > to a new user queue_pages_range().
+> 
+> Unfortunately this is very incompatible with pending changes in
+> fs/proc/task_mmu.c.  Especially Kirill's "mm, thp: change
+> pmd_trans_huge_lock() to return taken lock".
 
-Acked-by: Max Filippov <jcmvbkbc@gmail.com>
+OK, I'll rebase onto mmots in the next post, maybe after waiting for
+a few days on the chance that somebody make comments and feedbacks.
 
--- 
-Thanks.
--- Max
+> 
+> Stephen will be away for a couple more weeks so I'll get an mmotm
+> released and hopefully Thierry and Mark will scoop it up(?). 
+> Alternatively, http://git.cmpxchg.org/?p=linux-mmots.git;a=summary is
+> up to date.
+> 
+> Please take a look, decide what you think we should do?
+
+This patchset is ver.1, so I think that we need reviews before thinking
+about merging. Please wait for my next post on top of this tree.
+
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
