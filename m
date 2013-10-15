@@ -1,43 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 582A66B0031
-	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 07:33:00 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y13so8725404pdi.19
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 04:33:00 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <alpine.LNX.2.00.1310150358170.11905@eggly.anvils>
-References: <alpine.LNX.2.00.1310150358170.11905@eggly.anvils>
-Subject: RE: mm: fix BUG in __split_huge_page_pmd
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 94ABD6B0031
+	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 07:47:40 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id r10so8729651pdi.41
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 04:47:40 -0700 (PDT)
+Message-ID: <525D2B15.8060503@asianux.com>
+Date: Tue, 15 Oct 2013 19:46:29 +0800
+From: Chen Gang <gang.chen@asianux.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: revert mremap pud_free anti-fix
+References: <alpine.LNX.2.00.1310150330350.9078@eggly.anvils>
+In-Reply-To: <alpine.LNX.2.00.1310150330350.9078@eggly.anvils>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
-Message-Id: <20131015113254.14E88E0090@blue.fi.intel.com>
-Date: Tue, 15 Oct 2013 14:32:54 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hugh Dickins wrote:
-> Occasionally we hit the BUG_ON(pmd_trans_huge(*pmd)) at the end of
-> __split_huge_page_pmd(): seen when doing madvise(,,MADV_DONTNEED).
+On 10/15/2013 06:34 PM, Hugh Dickins wrote:
+> Revert 1ecfd533f4c5 ("mm/mremap.c: call pud_free() after fail calling
+> pmd_alloc()").  The original code was correct: pud_alloc(), pmd_alloc(),
+> pte_alloc_map() ensure that the pud, pmd, pt is already allocated, and
+> seldom do they need to allocate; on failure, upper levels are freed if
+> appropriate by the subsequent do_munmap().  Whereas 1ecfd533f4c5 did an
+> unconditional pud_free() of a most-likely still-in-use pud: saved only
+> by the near-impossiblity of pmd_alloc() failing.
 > 
-> It's invalid: we don't always have down_write of mmap_sem there:
-> a racing do_huge_pmd_wp_page() might have copied-on-write to another
-> huge page before our split_huge_page() got the anon_vma lock.
-> 
-> Forget the BUG_ON, just go back and try again if this happens.
->     
+
+What you said above sounds reasonable to me,  but better to provide the
+information below:
+
+ - pud_free() for pgd_alloc() in "arch/arm/mm/pgd.c".
+
+ - pud_free() for init_stub_pte() in "arch/um/kernel/skas/mmu.c".
+
+ - more details about do_munmap(), (e.g. do it need mm->page_table_lock)
+   or more details about the demo "most-likely still-in-use pud ...".
+
+
+Hmm... I am not quite sure about the 3 things, and I will/should
+continue analysing/learning about them, but better to get your reply. :-)
+
+Thanks.
+
 > Signed-off-by: Hugh Dickins <hughd@google.com>
-> Cc: stable@vger.kernel.org
+> ---
+> 
+>  mm/mremap.c |    5 +----
+>  1 file changed, 1 insertion(+), 4 deletions(-)
+> 
+> --- 3.12-rc5/mm/mremap.c	2013-09-16 17:37:56.841072270 -0700
+> +++ linux/mm/mremap.c	2013-10-15 03:07:09.140091599 -0700
+> @@ -25,7 +25,6 @@
+>  #include <asm/uaccess.h>
+>  #include <asm/cacheflush.h>
+>  #include <asm/tlbflush.h>
+> -#include <asm/pgalloc.h>
+>  
+>  #include "internal.h"
+>  
+> @@ -63,10 +62,8 @@ static pmd_t *alloc_new_pmd(struct mm_st
+>  		return NULL;
+>  
+>  	pmd = pmd_alloc(mm, pud, addr);
+> -	if (!pmd) {
+> -		pud_free(mm, pud);
+> +	if (!pmd)
+>  		return NULL;
+> -	}
+>  
+>  	VM_BUG_ON(pmd_trans_huge(*pmd));
+>  
+> 
+> 
 
-Looks reasonable to me.
-
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-
-madvise(MADV_DONTNEED) was aproblematic with THP before. Is a big win having
-mmap_sem taken on read rather than on write for it?
 
 -- 
- Kirill A. Shutemov
+Chen Gang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
