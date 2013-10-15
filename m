@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C4496B0031
-	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 04:07:43 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id q10so8523190pdj.34
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 01:07:42 -0700 (PDT)
-Message-ID: <525CF787.6050107@asianux.com>
-Date: Tue, 15 Oct 2013 16:06:31 +0800
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A0176B0038
+	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 04:21:49 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id lf10so8692787pab.3
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 01:21:49 -0700 (PDT)
+Message-ID: <525CFAD7.9070701@asianux.com>
+Date: Tue, 15 Oct 2013 16:20:39 +0800
 From: Chen Gang <gang.chen@asianux.com>
 MIME-Version: 1.0
-Subject: [PATCH] mm/readahead.c: need always return 0 when system call readahead()
- succeeds
-References: <5212E328.40804@asianux.com> <20130820161639.69ffa65b40c5cf761bbb727c@linux-foundation.org> <521428D0.2020708@asianux.com> <20130917155644.cc988e7e929fee10e9c86d86@linux-foundation.org> <52390907.7050101@asianux.com>
-In-Reply-To: <52390907.7050101@asianux.com>
+Subject: Re: [PATCH v2] m: readahead: return the value which force_page_cache_readahead()
+ returns
+References: <5212E328.40804@asianux.com> <20130820161639.69ffa65b40c5cf761bbb727c@linux-foundation.org> <521428D0.2020708@asianux.com>
+In-Reply-To: <521428D0.2020708@asianux.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,78 +19,65 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, rientjes@google.com, sasha.levin@oracle.com, linux@rasmusvillemoes.dk, kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, lczerner@redhat.com, linux-mm@kvack.org
 
-For system call readahead(), need always return 0 instead of bytes read
-when succeed. The related commit "fee53ce mm/readahead.c: return the
-value which force_page_cache_readahead() returns" causes this issue.
 
-This bug is found by LTP readahead02 test, the related output:
+This patch fix one issue, but cause 2 issues: *readahead() will return
+read bytes when succeed (just like common read functions).
 
-  [root@gchenlinux readahead]# ./readahead02
-  readahead02    0  TINFO  :  creating test file of size: 67108864
-  readahead02    0  TINFO  :  read_testfile(0)
-  readahead02    0  TINFO  :  read_testfile(1)
-  readahead02    1  TFAIL  :  unexpected failure - returned value = 16384, expected: 0
-  readahead02    2  TPASS  :  offset is still at 0 as expected
-  readahead02    0  TINFO  :  read_testfile(0) took: 2292819 usec
-  readahead02    0  TINFO  :  read_testfile(1) took: 3524116 usec
-  readahead02    0  TINFO  :  read_testfile(0) read: 67108864 bytes
-  readahead02    0  TINFO  :  read_testfile(1) read: 0 bytes
-  readahead02    3  TPASS  :  readahead saved some I/O
-  readahead02    0  TINFO  :  cache can hold at least: 624316 kB
-  readahead02    0  TINFO  :  read_testfile(0) used cache: 65476 kB
-  readahead02    0  TINFO  :  read_testfile(1) used cache: 65632 kB
-  readahead02    4  TPASS  :  using cache as expected
+One for readahead(), which I already sent related patch for it.
 
-After this fix, it can pass LTP common test by readahead01 and readahead02.
-
-  [root@gchenlinux readahead]# ./readahead01 
-  readahead01    0  TINFO  :  test_bad_fd -1
-  readahead01    1  TPASS  :  expected ret success - returned value = -1
-  readahead01    2  TPASS  :  expected failure: TEST_ERRNO=EBADF(9): Bad file descriptor
-  readahead01    0  TINFO  :  test_bad_fd O_WRONLY
-  readahead01    3  TPASS  :  expected ret success - returned value = -1
-  readahead01    4  TPASS  :  expected failure: TEST_ERRNO=EBADF(9): Bad file descriptor
-  readahead01    0  TINFO  :  test_invalid_fd pipe
-  readahead01    5  TPASS  :  expected ret success - returned value = -1
-  readahead01    6  TPASS  :  expected failure: TEST_ERRNO=EINVAL(22): Invalid argument
-  readahead01    0  TINFO  :  test_invalid_fd socket
-  readahead01    7  TPASS  :  expected ret success - returned value = -1
-  readahead01    8  TPASS  :  expected failure: TEST_ERRNO=EINVAL(22): Invalid argument
-  [root@gchenlinux readahead]# ./readahead02
-  readahead02    0  TINFO  :  creating test file of size: 67108864
-  readahead02    0  TINFO  :  read_testfile(0)
-  readahead02    0  TINFO  :  read_testfile(1)
-  readahead02    1  TPASS  :  expected ret success - returned value = 0
-  readahead02    2  TPASS  :  offset is still at 0 as expected
-  readahead02    0  TINFO  :  read_testfile(0) took: 3327468 usec
-  readahead02    0  TINFO  :  read_testfile(1) took: 2802184 usec
-  readahead02    0  TINFO  :  read_testfile(0) read: 67108864 bytes
-  readahead02    0  TINFO  :  read_testfile(1) read: 0 bytes
-  readahead02    3  TPASS  :  readahead saved some I/O
-  readahead02    0  TINFO  :  cache can hold at least: 794800 kB
-  readahead02    0  TINFO  :  read_testfile(0) used cache: 66704 kB
-  readahead02    0  TINFO  :  read_testfile(1) used cache: 65528 kB
-  readahead02    4  TPASS  :  using cache as expected
+The other for madvise(), I fix it, just use LTP test it (after finish
+test, I will send fix patch for it).
 
 
-Signed-off-by: Chen Gang <gang.chen@asianux.com>
----
- mm/readahead.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+Thanks.
 
-diff --git a/mm/readahead.c b/mm/readahead.c
-index 1eee42b..83a202e 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -592,5 +592,5 @@ SYSCALL_DEFINE3(readahead, int, fd, loff_t, offset, size_t, count)
- 		}
- 		fdput(f);
- 	}
--	return ret;
-+	return ret < 0 ? ret : 0;
- }
+On 08/21/2013 10:41 AM, Chen Gang wrote:
+> force_page_cache_readahead() may fail, so need let the related upper
+> system calls know about it by its return value.
+> 
+> For system call fadvise64_64(), ignore return value because fadvise()
+> shall return success even if filesystem can't retrieve a hint.
+> 
+> Signed-off-by: Chen Gang <gang.chen@asianux.com>
+> ---
+>  mm/madvise.c   |    4 ++--
+>  mm/readahead.c |    3 +--
+>  2 files changed, 3 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index 936799f..3d0d484 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -247,8 +247,8 @@ static long madvise_willneed(struct vm_area_struct *vma,
+>  		end = vma->vm_end;
+>  	end = ((end - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+>  
+> -	force_page_cache_readahead(file->f_mapping, file, start, end - start);
+> -	return 0;
+> +	return force_page_cache_readahead(file->f_mapping, file,
+> +					start, end - start);
+>  }
+>  
+>  /*
+> diff --git a/mm/readahead.c b/mm/readahead.c
+> index e4ed041..1b21b5c 100644
+> --- a/mm/readahead.c
+> +++ b/mm/readahead.c
+> @@ -572,8 +572,7 @@ do_readahead(struct address_space *mapping, struct file *filp,
+>  	if (!mapping || !mapping->a_ops || !mapping->a_ops->readpage)
+>  		return -EINVAL;
+>  
+> -	force_page_cache_readahead(mapping, filp, index, nr);
+> -	return 0;
+> +	return force_page_cache_readahead(mapping, filp, index, nr);
+>  }
+>  
+>  SYSCALL_DEFINE3(readahead, int, fd, loff_t, offset, size_t, count)
+> 
+
+
 -- 
-1.7.7.6
+Chen Gang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
