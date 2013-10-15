@@ -1,105 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 963A36B0031
-	for <linux-mm@kvack.org>; Mon, 14 Oct 2013 20:04:39 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so7970661pdj.8
-        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 17:04:39 -0700 (PDT)
-Message-ID: <1381795255.26234.97.camel@misato.fc.hp.com>
-Subject: Re: [PATCH] mm: Set N_CPU to node_states during boot
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 14 Oct 2013 18:00:55 -0600
-In-Reply-To: <20131014161047.4a6a54e985d68a9f1ce7234b@linux-foundation.org>
-References: <1381781096-13168-1-git-send-email-toshi.kani@hp.com>
-	 <20131014161047.4a6a54e985d68a9f1ce7234b@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B77C6B0031
+	for <linux-mm@kvack.org>; Mon, 14 Oct 2013 20:11:19 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id lf10so8229851pab.3
+        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 17:11:19 -0700 (PDT)
+Received: by mail-pb0-f42.google.com with SMTP id un15so8024600pbc.15
+        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 17:11:16 -0700 (PDT)
+Date: Mon, 14 Oct 2013 17:11:12 -0700
+From: Ning Qu <quning@gmail.com>
+Subject: [PATCH 00/12] Transparent huge page cache support on tmpfs
+Message-ID: <20131015001112.GA3432@hippobay.mtv.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Ning Qu <quning@google.com>
 
-On Mon, 2013-10-14 at 16:10 -0700, Andrew Morton wrote:
-> On Mon, 14 Oct 2013 14:04:56 -0600 Toshi Kani <toshi.kani@hp.com> wrote:
-> 
-> > After a system booted, N_CPU is not set to any node as has_cpu
-> > shows an empty line.
-> > 
-> >   # cat /sys/devices/system/node/has_cpu
-> >   (show-empty-line)
-> > 
-> > setup_vmstat() registers its CPU notifier callback,
-> > vmstat_cpuup_callback(), which marks N_CPU to a node when
-> > a CPU is put into online.  However, setup_vmstat() is called
-> > after all CPUs are launched in the boot sequence.
-> > 
-> > Change setup_vmstat() to mark N_CPU to the nodes with online
-> > CPUs at boot.
-> > 
-> > ...
-> >
-> > --- a/mm/vmstat.c
-> > +++ b/mm/vmstat.c
-> > @@ -1276,8 +1276,10 @@ static int __init setup_vmstat(void)
-> >  
-> >  	register_cpu_notifier(&vmstat_notifier);
-> >  
-> > -	for_each_online_cpu(cpu)
-> > +	for_each_online_cpu(cpu) {
-> >  		start_cpu_timer(cpu);
-> > +		node_set_state(cpu_to_node(cpu), N_CPU);
-> > +	}
-> >  #endif
-> >  #ifdef CONFIG_PROC_FS
-> >  	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
-> 
-> This seems a bit hacky.  Would it not be better to register
-> vmstat_notifier() before bringing up CPUs?
+Transparent huge page support on tmpfs.
 
-Good question.  I evaluated two approaches and chose this way with the
-reasons below.
+Please review.
 
-First, this way is consistent with other operations.
-vmstat_cpuup_callback() calls the following three functions at
-CPU_ONLINE.
+Intro
+-----
+The goal of the project is to enable transparent huge page support on
+tmpfs. 
 
-  - refresh_zone_stat_thresholds()
-  - start_cpu_timer(cpu)
-  - node_set_state(cpu_to_node(cpu), N_CPU)
+The whole patchset is based on Kirill's latest patchset about Transparent
+huge page cache v6. As the link below:
 
-init_per_zone_wmark_min() calls refresh_zone_stat_thresholds() from its
-module_init entry point.  setup_vmstat() already calls start_cpu_timer()
-for all online CPUs.  So, the existing code already assumes that
-vmstat_cpuup_callback() does not get called during boot.
+https://lkml.org/lkml/2013/9/23/230
 
-Second, it is not optimal to call refresh_zone_stat_thresholds() for all
-CPUs since this is a system-wide operation.  There can be many CPUs on
-large systems.
+To further proof that the proposed changes are functional we try enable
+this feature for a more complex file system tmpfs besides ramfs. tmpfs
+comes with swap support which make is more usable.
 
-Lastly, the kernel panic'd at boot when I tested to move it up.  I did
-not root cause it (since that was a quick experiment), but I can look
-into the issue if necessary.
+Design overview
+---------------
 
-> And this patch might be racy as well - what happens if a CPU comes up
-> and goes down again before setup_vmstat() is called?
+We share the exact same design from Kirill's work. However, due to the 
+complexity of tmpfs, we do a lot of refactoring on the implementation.
 
-I am not sure if a CPU comes and goes during module_init(), but I will
-protect the for-loop with get_online_cpus() for safe.
 
-  + get_online_cpus();
-    for_each_online_cpu(cpu) {
- 	:
-    }
-  + put_online_cpus();
+Known problem
+---------------
 
-> (Where does N_CPU get cleared?  It doesn't, afaict.  Should we clear it
-> if a node's final CPU goes offline?)
+We do try to make it work with swapping, but currently there are still
+some problem with it. I am debbugging it.
 
-Right, I noticed it as well.  Let me try to fix it with a separate
-patch.
+However, it would be great to have more opinions about the design in
+the current patchset and where we should be heading to.
 
-Thanks,
--Toshi
+
+Ning Qu (12):
+  mm, thp, tmpfs: add function to alloc huge page for tmpfs
+  mm, thp, tmpfs: support to add huge page into page cache for tmpfs
+  mm, thp, tmpfs: handle huge page cases in shmem_getpage_gfp
+  mm, thp, tmpfs: split huge page when moving from page cache to swap
+  mm, thp, tmpfs: request huge page in shm_fault when needed
+  mm, thp, tmpfs: initial support for huge page in write_begin/write_end
+    in tmpfs
+  mm, thp, tmpfs: handle huge page in shmem_undo_range for truncate
+  mm, thp, tmpfs: huge page support in do_shmem_file_read
+  mm, thp, tmpfs: huge page support in shmem_fallocate
+  mm, thp, tmpfs: only alloc small pages in shmem_file_splice_read
+  mm, thp, tmpfs: enable thp page cache in tmpfs
+  mm, thp, tmpfs: misc fixes for thp tmpfs
+
+ mm/Kconfig       |   4 +-
+ mm/huge_memory.c |  27 +++
+ mm/shmem.c       | 511 +++++++++++++++++++++++++++++++++++++++++++++++--------
+ 3 files changed, 467 insertions(+), 75 deletions(-)
+
+-- 
+1.8.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
