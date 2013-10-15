@@ -1,16 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id A89D66B0036
-	for <linux-mm@kvack.org>; Mon, 14 Oct 2013 20:13:49 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id z10so118749pdj.30
-        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 17:13:49 -0700 (PDT)
-Received: by mail-pa0-f48.google.com with SMTP id bj1so8109963pad.7
-        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 17:13:46 -0700 (PDT)
-Date: Mon, 14 Oct 2013 17:13:42 -0700
-From: Ning Qu <quning@google.com>
-Subject: [PATCH 10/12] mm, thp, tmpfs: only alloc small pages in
- shmem_file_splice_read
-Message-ID: <20131015001342.GK3432@hippobay.mtv.corp.google.com>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id B28576B0037
+	for <linux-mm@kvack.org>; Mon, 14 Oct 2013 20:18:33 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so8241271pab.4
+        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 17:18:33 -0700 (PDT)
+Received: by mail-pb0-f45.google.com with SMTP id mc17so8012857pbc.32
+        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 17:18:30 -0700 (PDT)
+Date: Mon, 14 Oct 2013 17:18:26 -0700
+From: Ning Qu <quning@gmail.com>
+Subject: [PATCH 11/12] mm, thp, tmpfs: enable thp page cache in tmpfs
+Message-ID: <20131015001826.GL3432@hippobay.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -19,34 +18,43 @@ List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>
 Cc: Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Ning Qu <quning@google.com>
 
-We just hope this is not a common case path. The huge page can't be
-added without completely refactoring the code.
-
 Signed-off-by: Ning Qu <quning@gmail.com>
 ---
- mm/shmem.c | 2 ++
- 1 file changed, 2 insertions(+)
+ mm/Kconfig | 4 ++--
+ mm/shmem.c | 5 +++++
+ 2 files changed, 7 insertions(+), 2 deletions(-)
 
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 562f12f..4d2f90f 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -428,8 +428,8 @@ config TRANSPARENT_HUGEPAGE_PAGECACHE
+ 	help
+ 	  Enabling the option adds support hugepages for file-backed
+ 	  mappings. It requires transparent hugepage support from
+-	  filesystem side. For now, the only filesystem which supports
+-	  hugepages is ramfs.
++	  filesystem side. For now, the filesystems which support
++	  hugepages are: ramfs and tmpfs.
+ 
+ config CROSS_MEMORY_ATTACH
+ 	bool "Cross Memory Support"
 diff --git a/mm/shmem.c b/mm/shmem.c
-index cbf01ce..75c0ac6 100644
+index 75c0ac6..50a3335 100644
 --- a/mm/shmem.c
 +++ b/mm/shmem.c
-@@ -1973,6 +1973,7 @@ static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
- 	index += spd.nr_pages;
- 	error = 0;
- 
-+	i_split_down_read(inode);
- 	while (spd.nr_pages < nr_pages) {
- 		error = shmem_getpage(inode, index, &page, SGP_CACHE, gfp,
- 					0, NULL);
-@@ -2042,6 +2043,7 @@ static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
- 		*ppos += error;
- 		file_accessed(in);
- 	}
-+	i_split_up_read(inode);
- 	return error;
- }
- 
+@@ -1672,6 +1672,11 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
+ 			break;
+ 		case S_IFREG:
+ 			inode->i_mapping->a_ops = &shmem_aops;
++			/*
++			 * TODO: make tmpfs pages movable
++			 */
++			mapping_set_gfp_mask(inode->i_mapping,
++					     GFP_TRANSHUGE & ~__GFP_MOVABLE);
+ 			inode->i_op = &shmem_inode_operations;
+ 			inode->i_fop = &shmem_file_operations;
+ 			mpol_shared_policy_init(&info->policy,
 -- 
 1.8.4
 
