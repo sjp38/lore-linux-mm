@@ -1,87 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id CF7406B0031
-	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 06:29:20 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id un15so8612990pbc.1
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 03:29:20 -0700 (PDT)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id BB3F66B0031
+	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 06:33:43 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id bj1so8701811pad.7
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 03:33:43 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <20131015001214.GD3432@hippobay.mtv.corp.google.com>
-References: <20131015001214.GD3432@hippobay.mtv.corp.google.com>
-Subject: RE: [PATCH 03/12] mm, thp, tmpfs: handle huge page cases in
- shmem_getpage_gfp
+In-Reply-To: <20131015001228.GE3432@hippobay.mtv.corp.google.com>
+References: <20131015001228.GE3432@hippobay.mtv.corp.google.com>
+Subject: RE: [PATCH 04/12] mm, thp, tmpfs: split huge page when moving from
+ page cache to swap
 Content-Transfer-Encoding: 7bit
-Message-Id: <20131015102912.2BC99E0090@blue.fi.intel.com>
-Date: Tue, 15 Oct 2013 13:29:12 +0300 (EEST)
+Message-Id: <20131015103334.E3877E0090@blue.fi.intel.com>
+Date: Tue, 15 Oct 2013 13:33:34 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ning Qu <quning@google.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
 Ning Qu wrote:
-> We don't support huge page when page is moved from page cache to swap.
-> So in this function, we enable huge page handling in two case:
-> 
-> 1) when a huge page is found in the page cache,
-> 2) or we need to alloc a huge page for page cache
-> 
-> We have to refactor all the calls to shmem_getpages to simplify the job
-> of caller. Right now shmem_getpage does:
-> 
-> 1) simply request a page, default as a small page
-> 2) or caller specify a flag to request either a huge page or a small page,
-> then leave the caller to decide how to use it
+> in shmem_writepage, we have to split the huge page when moving pages
+> from page cache to swap because we don't support huge page in swap
+> yet.
 > 
 > Signed-off-by: Ning Qu <quning@gmail.com>
 > ---
->  mm/shmem.c | 139 +++++++++++++++++++++++++++++++++++++++++++++++--------------
->  1 file changed, 108 insertions(+), 31 deletions(-)
+>  mm/shmem.c | 9 ++++++++-
+>  1 file changed, 8 insertions(+), 1 deletion(-)
 > 
 > diff --git a/mm/shmem.c b/mm/shmem.c
-> index 447bd14..8fe17dd 100644
+> index 8fe17dd..68a0e1d 100644
 > --- a/mm/shmem.c
 > +++ b/mm/shmem.c
-> @@ -115,15 +115,43 @@ static unsigned long shmem_default_max_inodes(void)
->  static bool shmem_should_replace_page(struct page *page, gfp_t gfp);
->  static int shmem_replace_page(struct page **pagep, gfp_t gfp,
->  				struct shmem_inode_info *info, pgoff_t index);
-> +
->  static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
-> -	struct page **pagep, enum sgp_type sgp, gfp_t gfp, int *fault_type);
-> +	struct page **pagep, enum sgp_type sgp, gfp_t gfp, int flags,
-> +	int *fault_type);
-> +
-> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
-> +static inline int shmem_getpage(struct inode *inode, pgoff_t index,
-> +	struct page **pagep, enum sgp_type sgp, gfp_t gfp, int flags,
-> +	int *fault_type)
-> +{
-> +	int ret = 0;
-> +	struct page *page = NULL;
+> @@ -898,6 +898,13 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
+>  	swp_entry_t swap;
+>  	pgoff_t index;
 >  
-> +	if ((flags & AOP_FLAG_TRANSHUGE) &&
-> +	    mapping_can_have_hugepages(inode->i_mapping)) {
+> +	/* TODO: we have to break the huge page at this point,
+> +	 * since we have no idea how to recover a huge page from
+> +	 * swap.
+> +	 */
+> +	if (PageTransCompound(page))
+> +		split_huge_page(compound_trans_head(page));
+> +
 
-I don't think we need ifdef here. mapping_can_have_hugepages() will be 0
-compile-time, if CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE is not defined and
-compiler should optimize out thp case.
-
-> @@ -1298,27 +1348,37 @@ repeat:
->  				error = -ENOSPC;
->  				goto unacct;
->  			}
-> -			percpu_counter_inc(&sbinfo->used_blocks);
->  		}
->  
-> -		page = shmem_alloc_page(gfp, info, index);
-> +		if (must_use_thp) {
-> +			page = shmem_alloc_hugepage(gfp, info, index);
-> +			if (page) {
-> +				count_vm_event(THP_WRITE_ALLOC);
-> +				nr = hpagecache_nr_pages(page);
-
-nr = hpagecache_nr_pages(page) can be moved below if (must_use_thp).
-hpagecache_nr_pages(page) evaluates to 0 for small pages.
-
+After the split you handle here only first small page of the huge page.
+Is it what we want to do? Should we swap out all small pages of the huge
+page?
 
 -- 
  Kirill A. Shutemov
