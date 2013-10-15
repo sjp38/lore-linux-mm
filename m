@@ -1,83 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 94ABD6B0031
-	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 07:47:40 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id r10so8729651pdi.41
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 04:47:40 -0700 (PDT)
-Message-ID: <525D2B15.8060503@asianux.com>
-Date: Tue, 15 Oct 2013 19:46:29 +0800
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 7221F6B0031
+	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 08:14:23 -0400 (EDT)
+Received: by mail-pb0-f54.google.com with SMTP id ro12so8714542pbb.27
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 05:14:23 -0700 (PDT)
+Message-ID: <525D3148.8030707@asianux.com>
+Date: Tue, 15 Oct 2013 20:12:56 +0800
 From: Chen Gang <gang.chen@asianux.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: revert mremap pud_free anti-fix
-References: <alpine.LNX.2.00.1310150330350.9078@eggly.anvils>
-In-Reply-To: <alpine.LNX.2.00.1310150330350.9078@eggly.anvils>
+Subject: [PATCH] mm/madvise.c: return 0 instead of read bytes after force_page_cache_readahead()
+ succeeds.
+References: <5212E328.40804@asianux.com> <20130820161639.69ffa65b40c5cf761bbb727c@linux-foundation.org> <521428D0.2020708@asianux.com> <20130917155644.cc988e7e929fee10e9c86d86@linux-foundation.org> <52390907.7050101@asianux.com> <525CF787.6050107@asianux.com>
+In-Reply-To: <525CF787.6050107@asianux.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, rientjes@google.com, sasha.levin@oracle.com, linux@rasmusvillemoes.dk, kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, lczerner@redhat.com, linux-mm@kvack.org
 
-On 10/15/2013 06:34 PM, Hugh Dickins wrote:
-> Revert 1ecfd533f4c5 ("mm/mremap.c: call pud_free() after fail calling
-> pmd_alloc()").  The original code was correct: pud_alloc(), pmd_alloc(),
-> pte_alloc_map() ensure that the pud, pmd, pt is already allocated, and
-> seldom do they need to allocate; on failure, upper levels are freed if
-> appropriate by the subsequent do_munmap().  Whereas 1ecfd533f4c5 did an
-> unconditional pud_free() of a most-likely still-in-use pud: saved only
-> by the near-impossiblity of pmd_alloc() failing.
-> 
+madvise_willneed() will return 0 when succeed, so need return 0 instead
+of read bytes after force_page_cache_readahead() succeeds.
 
-What you said above sounds reasonable to me,  but better to provide the
-information below:
+The related commit: "fee53ce mm/readahead.c: return the value which
+force_page_cache_readahead() returns" causes this issue.
 
- - pud_free() for pgd_alloc() in "arch/arm/mm/pgd.c".
-
- - pud_free() for init_stub_pte() in "arch/um/kernel/skas/mmu.c".
-
- - more details about do_munmap(), (e.g. do it need mm->page_table_lock)
-   or more details about the demo "most-likely still-in-use pud ...".
+After modification, it can pass LTP common test (disable CONFIG_SWAP).
+Although the original one also can pass LTP common test, still better
+to fix it.
 
 
-Hmm... I am not quite sure about the 3 things, and I will/should
-continue analysing/learning about them, but better to get your reply. :-)
+Signed-off-by: Chen Gang <gang.chen@asianux.com>
+---
+ mm/madvise.c |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
 
-Thanks.
-
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
-> 
->  mm/mremap.c |    5 +----
->  1 file changed, 1 insertion(+), 4 deletions(-)
-> 
-> --- 3.12-rc5/mm/mremap.c	2013-09-16 17:37:56.841072270 -0700
-> +++ linux/mm/mremap.c	2013-10-15 03:07:09.140091599 -0700
-> @@ -25,7 +25,6 @@
->  #include <asm/uaccess.h>
->  #include <asm/cacheflush.h>
->  #include <asm/tlbflush.h>
-> -#include <asm/pgalloc.h>
->  
->  #include "internal.h"
->  
-> @@ -63,10 +62,8 @@ static pmd_t *alloc_new_pmd(struct mm_st
->  		return NULL;
->  
->  	pmd = pmd_alloc(mm, pud, addr);
-> -	if (!pmd) {
-> -		pud_free(mm, pud);
-> +	if (!pmd)
->  		return NULL;
-> -	}
->  
->  	VM_BUG_ON(pmd_trans_huge(*pmd));
->  
-> 
-> 
-
-
+diff --git a/mm/madvise.c b/mm/madvise.c
+index dee8d46..3a739cd 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -220,6 +220,7 @@ static long madvise_willneed(struct vm_area_struct *vma,
+ 			     unsigned long start, unsigned long end)
+ {
+ 	struct file *file = vma->vm_file;
++	int ret = 0;
+ 
+ #ifdef CONFIG_SWAP
+ 	if (!file || mapping_cap_swap_backed(file->f_mapping)) {
+@@ -247,8 +248,9 @@ static long madvise_willneed(struct vm_area_struct *vma,
+ 		end = vma->vm_end;
+ 	end = ((end - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+ 
+-	return force_page_cache_readahead(file->f_mapping, file,
++	ret = force_page_cache_readahead(file->f_mapping, file,
+ 					start, end - start);
++	return ret < 0 ? ret : 0;
+ }
+ 
+ /*
 -- 
-Chen Gang
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
