@@ -1,88 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 42B616B0035
-	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 13:53:30 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id z10so9221412pdj.31
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 10:53:29 -0700 (PDT)
-Received: by mail-pb0-f44.google.com with SMTP id xa7so9104531pbc.17
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 10:53:27 -0700 (PDT)
-Date: Tue, 15 Oct 2013 10:53:10 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: mm: fix BUG in __split_huge_page_pmd
-In-Reply-To: <20131015144827.C45DDE0090@blue.fi.intel.com>
-Message-ID: <alpine.LNX.2.00.1310151029040.12481@eggly.anvils>
-References: <alpine.LNX.2.00.1310150358170.11905@eggly.anvils> <20131015143407.GE3479@redhat.com> <20131015144827.C45DDE0090@blue.fi.intel.com>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 1151E6B0031
+	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 14:43:02 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id kp14so9477637pab.34
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 11:43:02 -0700 (PDT)
+Received: by mail-ve0-f181.google.com with SMTP id pa12so882054veb.40
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 11:43:00 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20131015110905.085B1E0090@blue.fi.intel.com>
+References: <20131015001826.GL3432@hippobay.mtv.corp.google.com> <20131015110905.085B1E0090@blue.fi.intel.com>
+From: Ning Qu <quning@google.com>
+Date: Tue, 15 Oct 2013 11:42:39 -0700
+Message-ID: <CACz4_2cVZBxg88hqzOHpASN4e=hVYMTTQkXHssDjfXpcqACONw@mail.gmail.com>
+Subject: Re: [PATCH 11/12] mm, thp, tmpfs: enable thp page cache in tmpfs
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, 15 Oct 2013, Kirill A. Shutemov wrote:
-> Andrea Arcangeli wrote:
-> > Hi Hugh,
-> > 
-> > On Tue, Oct 15, 2013 at 04:08:28AM -0700, Hugh Dickins wrote:
-> > > Occasionally we hit the BUG_ON(pmd_trans_huge(*pmd)) at the end of
-> > > __split_huge_page_pmd(): seen when doing madvise(,,MADV_DONTNEED).
-> > > 
-> > > It's invalid: we don't always have down_write of mmap_sem there:
-> > > a racing do_huge_pmd_wp_page() might have copied-on-write to another
-> > > huge page before our split_huge_page() got the anon_vma lock.
-> > > 
-> > 
-> > I don't get exactly the scenario with do_huge_pmd_wp_page(), could you
-> > elaborate?
-> 
-> I think the scenario is follow:
-> 
-> 	CPU0:					CPU1
-> 
-> __split_huge_page_pmd()
-> 	page = pmd_page(*pmd);
-> 					do_huge_pmd_wp_page() copy the
-> 					page and changes pmd (the same as on CPU0)
-> 					to point to newly copied page.
-> 	split_huge_page(page)
-> 	where page is original page,
-> 	not allocated on COW.
-> 	pmd still points on huge page.
-> 
-> 
-> Hugh, have I got it correctly?
+I agree with this. It has been like this just for a quick proof, but I
+need to address this problem as soon as possible.
 
-Yes, that's correct, that's what I've been assuming the race is.
-With CPU0 split_huge_page_pmd() being called from zap_pmd_range()
-in the service of madvise(,,MADV_DONTNEED).
+Thanks!
+Best wishes,
+--=20
+Ning Qu (=E6=9B=B2=E5=AE=81) | Software Engineer | quning@google.com | +1-4=
+08-418-6066
 
-I don't have the stacktrace to hand: could perfectly well dig it out
-in an hour or two, but honestly, it adds nothing more to the picture.
-I have no trace of the CPU1 side of things, and have merely surmised
-that it was doing a COW.
 
-As to whether the MADV_DONTNEED down_read optimization is important:
-I don't recall, might be able to discover justification in old mail,
-0a27a14a6292 doesn't actually say; but in general we're much better
-off using down_read than down_write where it's safe to do so.
-
-But more importantly, MADV_DONTNEED down_read across zap_page_range
-is building on the fact that file invalidation/truncation can already
-call zap_page_range without touching mmap_sem at all: not a problem
-for traditional anon-only THP, but something you'll have had to worry
-about for THPageCache.
-
-I'm afraid Andrea's mail about concurrent madvises gives me far more
-to think about than I have time for: seems to get into problems he
-knows a lot about but I'm unfamiliar with.  If this patch looks good
-for now on its own, let's put it in; but no problem if you guys prefer
-to wait for a fuller solution of more problems, we can ride with this
-one internally for the moment.
-
-And I should admit that the crash has occurred too rarely for us yet
-to be able to judge whether this patch actually fixes it in practice.
-
-Hugh
+On Tue, Oct 15, 2013 at 4:09 AM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> Ning Qu wrote:
+>> Signed-off-by: Ning Qu <quning@gmail.com>
+>> ---
+>>  mm/Kconfig | 4 ++--
+>>  mm/shmem.c | 5 +++++
+>>  2 files changed, 7 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/mm/Kconfig b/mm/Kconfig
+>> index 562f12f..4d2f90f 100644
+>> --- a/mm/Kconfig
+>> +++ b/mm/Kconfig
+>> @@ -428,8 +428,8 @@ config TRANSPARENT_HUGEPAGE_PAGECACHE
+>>       help
+>>         Enabling the option adds support hugepages for file-backed
+>>         mappings. It requires transparent hugepage support from
+>> -       filesystem side. For now, the only filesystem which supports
+>> -       hugepages is ramfs.
+>> +       filesystem side. For now, the filesystems which support
+>> +       hugepages are: ramfs and tmpfs.
+>>
+>>  config CROSS_MEMORY_ATTACH
+>>       bool "Cross Memory Support"
+>> diff --git a/mm/shmem.c b/mm/shmem.c
+>> index 75c0ac6..50a3335 100644
+>> --- a/mm/shmem.c
+>> +++ b/mm/shmem.c
+>> @@ -1672,6 +1672,11 @@ static struct inode *shmem_get_inode(struct super=
+_block *sb, const struct inode
+>>                       break;
+>>               case S_IFREG:
+>>                       inode->i_mapping->a_ops =3D &shmem_aops;
+>> +                     /*
+>> +                      * TODO: make tmpfs pages movable
+>> +                      */
+>> +                     mapping_set_gfp_mask(inode->i_mapping,
+>> +                                          GFP_TRANSHUGE & ~__GFP_MOVABL=
+E);
+>
+> Unlike ramfs, tmpfs pages are movable before transparent page cache
+> patchset.
+> Making tmpfs pages non-movable looks like a big regression to me. It need
+> to be fixed before proposing it upstream.
+>
+> --
+>  Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
