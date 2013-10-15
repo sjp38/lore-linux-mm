@@ -1,63 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CED8D6B0031
-	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 17:03:37 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id jt11so9284409pbb.38
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 14:03:37 -0700 (PDT)
-Date: Tue, 15 Oct 2013 17:03:20 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1381871000-7fqziuur-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20131015134317.02d819f6905f790007ba1842@linux-foundation.org>
-References: <1381772230-26878-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20131015134317.02d819f6905f790007ba1842@linux-foundation.org>
-Subject: Re: [PATCH 0/11] update page table walker
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 455AA6B0031
+	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 17:11:47 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id xb12so1401201pbc.8
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 14:11:46 -0700 (PDT)
+From: Toshi Kani <toshi.kani@hp.com>
+Subject: [PATCH] x86/numa: Allow node distance table to have I/O nodes
+Date: Tue, 15 Oct 2013 15:07:44 -0600
+Message-Id: <1381871264-14070-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Cliff Wickman <cpw@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@parallels.com>, linux-kernel@vger.kernel.org, Thierry Reding <thierry.reding@gmail.com>, Mark Brown <broonie@kernel.org>
+To: mingo@kernel.org, hpa@zytor.com, tglx@linutronix.de
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, linux-pci@vger.kernel.org, yinghai@kernel.org, tj@kernel.org, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, Toshi Kani <toshi.kani@hp.com>
 
-On Tue, Oct 15, 2013 at 01:43:17PM -0700, Andrew Morton wrote:
-> On Mon, 14 Oct 2013 13:36:59 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-> 
-> > Page table walker is widely used when you want to traverse page table
-> > tree and do some work for the entries (and pages pointed to by them.)
-> > This is a common operation, and keep the code clean and maintainable
-> > is important. Moreover this patchset introduces caller-specific walk
-> > control function which is helpful for us to newly introduce page table
-> > walker to some other users. Core change comes from patch 1, so please
-> > see it for how it's supposed to work.
-> > 
-> > This patchset changes core code in mm/pagewalk.c at first in patch 1 and 2,
-> > and then updates all of current users to make the code cleaner in patch
-> > 3-9. Patch 10 changes the interface of hugetlb_entry(), I put it here to
-> > keep bisectability of the whole patchset. Patch 11 applies page table walker
-> > to a new user queue_pages_range().
-> 
-> Unfortunately this is very incompatible with pending changes in
-> fs/proc/task_mmu.c.  Especially Kirill's "mm, thp: change
-> pmd_trans_huge_lock() to return taken lock".
+When a system has I/O devices (ex. PCI bridges) with their own
+locality, the following error message shows up.
 
-OK, I'll rebase onto mmots in the next post, maybe after waiting for
-a few days on the chance that somebody make comments and feedbacks.
+ NUMA: Warning: node ids are out of bound, from=-1 to=-1 distance=10
 
-> 
-> Stephen will be away for a couple more weeks so I'll get an mmotm
-> released and hopefully Thierry and Mark will scoop it up(?). 
-> Alternatively, http://git.cmpxchg.org/?p=linux-mmots.git;a=summary is
-> up to date.
-> 
-> Please take a look, decide what you think we should do?
+acpi_numa_slit_init() calls numa_set_distance(), which assumes
+that all nodes on the system have been parsed with SRAT already.
+However, SRAT does not list I/O devices.  SLIT has the distance
+table for all localities including I/Os.  Hence, the above message
+shows up when a system has a unique I/O device locality.
 
-This patchset is ver.1, so I think that we need reviews before thinking
-about merging. Please wait for my next post on top of this tree.
+This patch changes acpi_numa_slit_init() to make sure all the
+nodes are parsed, so that it can initialize the distance table
+with all the localities.
 
-Thanks,
-Naoya Horiguchi
+The following map tables may contain I/O nodes as a result.
+ - numa_distance[], i.e. node distance table
+ - node_states[N_POSSIBLE], aka. node_possible_map
+ - mp_bus_to_node[], i.e. pci bus# to node# map
+
+There is no functional change since there is no code that makes
+use of the I/O nodes.
+ - I/O nodes are set to off-line.
+ - pci_acpi_scan_root() continues to set -1 to pci_sysdata.node
+   of a PCI bridge with a unique locality (per commit b755de8d).
+
+Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+---
+ arch/x86/mm/srat.c |   15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
+index 26f4e12..fb5bd73 100644
+--- a/arch/x86/mm/srat.c
++++ b/arch/x86/mm/srat.c
+@@ -45,7 +45,20 @@ static __init inline int srat_disabled(void)
+ /* Callback for SLIT parsing */
+ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
+ {
+-	int i, j;
++	int node, i, j;
++
++	/* SLIT may have I/O nodes, which are not listed in SRAT */
++	for (i = 0; i < slit->locality_count; i++) {
++		if (pxm_to_node(i) != NUMA_NO_NODE)
++			continue;
++
++		node = setup_node(i);
++		if (WARN_ONCE(node < 0, "SLIT: Too many proximity domains.\n"))
++			continue;
++
++		node_set(node, numa_nodes_parsed);
++		pr_info("SLIT: Node %u PXM %u I/O only\n", node, i);
++	}
+ 
+ 	for (i = 0; i < slit->locality_count; i++)
+ 		for (j = 0; j < slit->locality_count; j++)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
