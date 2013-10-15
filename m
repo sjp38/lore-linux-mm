@@ -1,114 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f205.google.com (mail-ie0-f205.google.com [209.85.223.205])
-	by kanga.kvack.org (Postfix) with ESMTP id C9B286B0035
-	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 10:02:22 -0400 (EDT)
-Received: by mail-ie0-f205.google.com with SMTP id tp5so10265ieb.0
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 07:02:21 -0700 (PDT)
-Date: Mon, 14 Oct 2013 17:42:50 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 0/8] mm: thrash detection-based file cache sizing v5
-Message-ID: <20131014214250.GG856@cmpxchg.org>
-References: <1381441622-26215-1-git-send-email-hannes@cmpxchg.org>
- <20131011003930.GC4446@dastard>
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D8DB6B0039
+	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 10:16:30 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id r10so8985212pdi.28
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 07:16:29 -0700 (PDT)
+Received: by mail-wi0-f172.google.com with SMTP id ez12so1648923wid.11
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 07:16:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131011003930.GC4446@dastard>
+In-Reply-To: <CAOMqctQV0Ce5Z4WF1osuvorZd_JQnoQSOkw1DOPSdPBh+qc=Kw@mail.gmail.com>
+References: <CAJd=RBBbJMWox5yJaNzW_jUdDfKfWe-Y7d1riYdN6huQStxzcA@mail.gmail.com>
+ <CAOMqctQyS2SFraqJpzE0sRFcihFpMHRhT+3QuZhxft=SUXYVDw@mail.gmail.com>
+ <CAOMqctQ+XchmXk_Xno6ViAoZF-tHFPpDWoy7LVW1nooa+ywbmg@mail.gmail.com>
+ <CAOMqctT2u7E0kwpm052B9pkNo4D=sYHO+Vk=P_TziUb5KvTMKA@mail.gmail.com>
+ <20130917211317.GB6537@quack.suse.cz> <CAOMqctT5Wi_Y9ODAnoG-RQiO1oJ+yKR=LnF21swuupyLShL=+w@mail.gmail.com>
+ <20130919101357.GA20140@quack.suse.cz> <CAOMqctQV0Ce5Z4WF1osuvorZd_JQnoQSOkw1DOPSdPBh+qc=Kw@mail.gmail.com>
+From: Michal Suchanek <hramrach@gmail.com>
+Date: Tue, 15 Oct 2013 16:15:46 +0200
+Message-ID: <CAOMqctQK78hiydNQHnv+yhdT6Sx3xvb5LHr8R+8ob0y_af+DyA@mail.gmail.com>
+Subject: Re: doing lots of disk writes causes oom killer to kill processes
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, Vlastimil Babka <vbabka@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Hillf Danton <dhillf@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-Hi Dave,
+On 9 October 2013 16:19, Michal Suchanek <hramrach@gmail.com> wrote:
+> Hello,
+>
+> On 19 September 2013 12:13, Jan Kara <jack@suse.cz> wrote:
+>> On Wed 18-09-13 16:56:08, Michal Suchanek wrote:
+>>> On 17 September 2013 23:13, Jan Kara <jack@suse.cz> wrote:
+>>> >   Hello,
+>>>
+>>> The default for dirty_ratio/dirty_background_ratio is 60/40. Setting
+>>   Ah, that's not upstream default. Upstream has 20/10. In SLES we use 40/10
+>> to better accomodate some workloads but 60/40 on 8 GB machines with
+>> SATA drive really seems too much. That is going to give memory management a
+>> headache.
+>>
+>> The problem is that a good SATA drive can do ~100 MB/s if we are
+>> lucky and IO is sequential. Thus if you have 5 GB of dirty data to write,
+>> it takes 50s at best to write it, with more random IO to image file it can
+>> well take several minutes to write. That may cause some increased latency
+>> when memory reclaim waits for writeback to clean some pages.
+>>
+>>> these to 5/2 gives about the same result as running the script that
+>>> syncs every 5s. Setting to 30/10 gives larger data chunks and
+>>> intermittent lockup before every chunk is written.
+>>>
+>>> It is quite possible to set kernel parameters that kill the kernel but
+>>>
+>>> 1) this is the default
+>>   Not upstream one so you should raise this with Debian I guess. 60/40
+>> looks way out of reasonable range for todays machines.
+>>
+>>> 2) the parameter is set in units that do not prevent the issue in
+>>> general (% RAM vs #blocks)
+>>   You can set the number of bytes instead of percentage -
+>> /proc/sys/vm/dirty_bytes / dirty_background_bytes. It's just that proper
+>> sizing depends on amount of memory, storage HW, workload. So it's more an
+>> administrative task to set this tunable properly.
+>>
+>>> 3) WTH is the system doing? It's 4core 3GHz cpu so it can handle
+>>> traversing a structure holding 800M data in the background. Something
+>>> is seriously rotten somewhere.
+>>   Likely processes are waiting in direct reclaim for IO to finish. But that
+>> is just guessing. Try running attached script (forgot to attach it to
+>> previous email). You will need systemtap and kernel debuginfo installed.
+>> The script doesn't work with all versions of systemtap (as it is sadly a
+>> moving target) so if it fails, tell me your version of systemtap and I'll
+>> update the script accordingly.
+>
+> This was fixed for me by the patch posted earlier by Hillf Danton so I
+> guess this answers what the system was (not) doing:
+>
+> --- a/mm/vmscan.c Wed Sep 18 08:44:08 2013
+> +++ b/mm/vmscan.c Wed Sep 18 09:31:34 2013
+> @@ -1543,8 +1543,11 @@ shrink_inactive_list(unsigned long nr_to
+>   * implies that pages are cycling through the LRU faster than
+>   * they are written so also forcibly stall.
+>   */
+> - if (nr_unqueued_dirty == nr_taken || nr_immediate)
+> + if (nr_unqueued_dirty == nr_taken || nr_immediate) {
+> + if (current_is_kswapd())
+> + wakeup_flusher_threads(0, WB_REASON_TRY_TO_FREE_PAGES);
+>   congestion_wait(BLK_RW_ASYNC, HZ/10);
+> + }
+>   }
+>
+>   /*
+>
+> Also 75485363 is hopefully addressing this issue in mainline.
+>
 
-On Fri, Oct 11, 2013 at 11:39:30AM +1100, Dave Chinner wrote:
-> On Thu, Oct 10, 2013 at 05:46:54PM -0400, Johannes Weiner wrote:
-> > 	Costs
-> > 
-> > These patches increase struct inode by three words to manage shadow
-> > entries in the page cache radix tree.
-> 
-> An additional 24 bytes on a 64 bit system. Filesystem developers
-> will kill to save 4 bytes in the struct inode, so adding 24 bytes is
-> a *major* concern.
-> 
-> > However, given that a typical
-> > inode (like the ext4 inode) is already 1k in size, this is not much.
-> > It's a 2% size increase for a reclaimable object. 
-> 
-> The struct ext4_inode is one of the larger inodes in the system at
-> 960 bytes (same as the xfs_inode) - most of the filesystem inode
-> structures are down around the 600-700 byte range.
-> 
-> Really, the struct inode is what you should be comparing the
-> increase against (i.e. the VFS inode footprint), not the filesystem
-> specific inode footprint. In that case, it's actually an increase of
-> closer to a 4% increase in size because we are talking about a 560
-> byte structure....
-> 
-> > fs_mark metadata
-> > tests with millions of inodes did not show a measurable difference.
-> > And as soon as there is any file data involved, the page cache pages
-> > dominate the memory cost anyway.
-> 
-> We don't need to measure it at runtime to know the difference - a
-> million inodes will consume an extra 24MB of RAM at minimum. If the
-> size increase pushes the inode over a slab boundary, it might be
-> significantly more than that...
-> 
-> The main cost here is a new list head for a new shrinker. There's
-> interesting new inode lifecycle issues introduced by this shadow
-> tree - adding serialisation in evict() because the VM can now modify
-> to the address space without having a reference to the inode
-> is kinda nasty.
+Actually, this was in 3.11 already and it did make the behaviour a bit
+better but was not enough.
 
-This is unlikely to change, though.  Direct reclaim may hold all kinds
-of fs locks so we can't reasonably do iput() from reclaim context.
+So is something like the vmscan.c patch going to make it into the
+mainline kernel?
 
-We already serialize inode eviction and reclaim through the page lock
-of cached pages.  I just added the equivalent for shadow entries,
-which don't have their own per-item serialization.
+Thanks
 
-> Also, I really don't like the idea of a new inode cache shrinker
-> that is completely uncoordinated with the existing inode cache
-> shrinkers. It uses a global lock and list and is not node aware so
-> all it will do under many workloads is re-introduce a scalability
-> choke point we just got rid of in 3.12.
-
-Shadow entries are mostly self-regulating and, unlike the inode case,
-the shrinker is not the primary means of resource control here.  I
-don't think this has the same scalability requirements as inode
-shrinking.
-
-> I think that you could simply piggy-back on inode_lru_isolate() to
-> remove shadow mappings in exactly the same manner it removes inode
-> buffers and page cache pages on inodes that are about to be
-> reclaimed.  Keeping the size of the inode cache down will have the
-> side effect of keeping the shadow mappings under control, and so I
-> don't see a need for a separate shrinker at all here.
-
-Pinned inodes are not on the LRU, so you could send a machine OOM by
-simply catting a single large (sparse) file to /dev/null.
-
-Buffers and page cache are kept in check by page reclaim, the inode
-shrinker only drops cache as part of inode lifetime management.  Just
-like with buffers and page cache, there is no relationship between the
-amount of memory occupied and the number of inodes; or between the
-node of said memory and the node that holds the inode object.  The
-inode shrinker does not really seem appropriate for managing excessive
-shadow entry memory.
-
-> And removing the special shrinker will bring the struct inode size
-> increase back to only 8 bytes, and I think we can live with that
-> increase given the workload improvements that the rest of the
-> functionality brings.
-
-That would be very desirable indeed.
-
-What we would really want is a means of per-zone tracking of
-radix_tree_nodes occupied by shadow entries but I can't see a way to
-do this without blowing up the radix tree structure at a much bigger
-cost than an extra list_head in struct address_space.
+Michal
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
