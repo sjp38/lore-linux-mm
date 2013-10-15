@@ -1,68 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 7440F6B0031
-	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 15:00:27 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so9449587pad.30
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 12:00:27 -0700 (PDT)
-Received: by mail-ve0-f177.google.com with SMTP id jw12so655193veb.8
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 12:00:23 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20131015103334.E3877E0090@blue.fi.intel.com>
-References: <20131015001228.GE3432@hippobay.mtv.corp.google.com> <20131015103334.E3877E0090@blue.fi.intel.com>
-From: Ning Qu <quning@google.com>
-Date: Tue, 15 Oct 2013 12:00:03 -0700
-Message-ID: <CACz4_2eoRoyUU1G3veS=veWTi1HtPrgLQK0tyXONXcQj1Xi4EQ@mail.gmail.com>
-Subject: Re: [PATCH 04/12] mm, thp, tmpfs: split huge page when moving from
- page cache to swap
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id C02696B0031
+	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 15:28:56 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so9542107pab.18
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 12:28:56 -0700 (PDT)
+Date: Tue, 15 Oct 2013 15:28:50 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1381865330-8nb86ucy-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20131015185510.GH3479@redhat.com>
+References: <alpine.LNX.2.00.1310150358170.11905@eggly.anvils>
+ <20131015143407.GE3479@redhat.com>
+ <20131015144827.C45DDE0090@blue.fi.intel.com>
+ <alpine.LNX.2.00.1310151029040.12481@eggly.anvils>
+ <20131015185510.GH3479@redhat.com>
+Subject: Re: mm: fix BUG in __split_huge_page_pmd
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Let me take another look at that logic. Thanks!
-Best wishes,
---=20
-Ning Qu (=E6=9B=B2=E5=AE=81) | Software Engineer | quning@google.com | +1-4=
-08-418-6066
+On Tue, Oct 15, 2013 at 08:55:10PM +0200, Andrea Arcangeli wrote:
+> On Tue, Oct 15, 2013 at 10:53:10AM -0700, Hugh Dickins wrote:
+> > I'm afraid Andrea's mail about concurrent madvises gives me far more
+> > to think about than I have time for: seems to get into problems he
+> > knows a lot about but I'm unfamiliar with.  If this patch looks good
+> > for now on its own, let's put it in; but no problem if you guys prefer
+> > to wait for a fuller solution of more problems, we can ride with this
+> > one internally for the moment.
+> 
+> I'm very happy with the patch and I think it's a correct fix for the
+> COW scenario which is deterministic so the looping makes a meaningful
+> difference for it. If we wouldn't loop, part of the copied page
+> wouldn't be zapped after the COW.
 
+I like this patch, too.
 
-On Tue, Oct 15, 2013 at 3:33 AM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> Ning Qu wrote:
->> in shmem_writepage, we have to split the huge page when moving pages
->> from page cache to swap because we don't support huge page in swap
->> yet.
->>
->> Signed-off-by: Ning Qu <quning@gmail.com>
->> ---
->>  mm/shmem.c | 9 ++++++++-
->>  1 file changed, 8 insertions(+), 1 deletion(-)
->>
->> diff --git a/mm/shmem.c b/mm/shmem.c
->> index 8fe17dd..68a0e1d 100644
->> --- a/mm/shmem.c
->> +++ b/mm/shmem.c
->> @@ -898,6 +898,13 @@ static int shmem_writepage(struct page *page, struc=
-t writeback_control *wbc)
->>       swp_entry_t swap;
->>       pgoff_t index;
->>
->> +     /* TODO: we have to break the huge page at this point,
->> +      * since we have no idea how to recover a huge page from
->> +      * swap.
->> +      */
->> +     if (PageTransCompound(page))
->> +             split_huge_page(compound_trans_head(page));
->> +
->
-> After the split you handle here only first small page of the huge page.
-> Is it what we want to do? Should we swap out all small pages of the huge
-> page?
->
-> --
->  Kirill A. Shutemov
+If we have the loop in __split_huge_page_pmd as suggested in this patch,
+can we assume that the pmd is stable after __split_huge_page_pmd returns?
+If it's true, we can remove pmd_none_or_trans_huge_or_clear_bad check
+in the callers side (zap_pmd_range and some other page table walking code.)
+
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
