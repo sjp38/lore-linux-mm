@@ -1,75 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 980A96B0031
-	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 07:02:03 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rp2so8679788pbb.28
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 04:02:03 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <20131015001304.GH3432@hippobay.mtv.corp.google.com>
-References: <20131015001304.GH3432@hippobay.mtv.corp.google.com>
-Subject: RE: [PATCH 07/12] mm, thp, tmpfs: handle huge page in
- shmem_undo_range for truncate
-Content-Transfer-Encoding: 7bit
-Message-Id: <20131015110146.7E8BEE0090@blue.fi.intel.com>
-Date: Tue, 15 Oct 2013 14:01:46 +0300 (EEST)
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id B37236B0031
+	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 07:08:49 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id kq14so8810581pab.26
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 04:08:49 -0700 (PDT)
+Received: by mail-pb0-f46.google.com with SMTP id rq2so8653846pbb.33
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 04:08:46 -0700 (PDT)
+Date: Tue, 15 Oct 2013 04:08:28 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: mm: fix BUG in __split_huge_page_pmd
+Message-ID: <alpine.LNX.2.00.1310150358170.11905@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ning Qu <quning@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Ning Qu wrote:
-> When comes to truncate file, add support to handle huge page in the
-> truncate range.
-> 
-> Signed-off-by: Ning Qu <quning@gmail.com>
-> ---
->  mm/shmem.c | 97 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-------
->  1 file changed, 86 insertions(+), 11 deletions(-)
-> 
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 0a423a9..90f2e0e 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -559,6 +559,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
->  	struct shmem_inode_info *info = SHMEM_I(inode);
->  	pgoff_t start = (lstart + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
->  	pgoff_t end = (lend + 1) >> PAGE_CACHE_SHIFT;
-> +	/* Whether we have to do partial truncate */
->  	unsigned int partial_start = lstart & (PAGE_CACHE_SIZE - 1);
->  	unsigned int partial_end = (lend + 1) & (PAGE_CACHE_SIZE - 1);
->  	struct pagevec pvec;
-> @@ -570,12 +571,16 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
->  	if (lend == -1)
->  		end = -1;	/* unsigned, so actually very big */
->  
-> +	i_split_down_read(inode);
->  	pagevec_init(&pvec, 0);
->  	index = start;
->  	while (index < end) {
-> +		bool thp = false;
-> +
->  		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
->  				min(end - index, (pgoff_t)PAGEVEC_SIZE),
->  							pvec.pages, indices);
-> +
->  		if (!pvec.nr)
->  			break;
->  		mem_cgroup_uncharge_start();
-> @@ -586,6 +591,25 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
->  			if (index >= end)
->  				break;
->  
-> +			thp = PageTransHugeCache(page);
-> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
+Occasionally we hit the BUG_ON(pmd_trans_huge(*pmd)) at the end of
+__split_huge_page_pmd(): seen when doing madvise(,,MADV_DONTNEED).
 
-Again. Here and below ifdef is redundant: PageTransHugeCache() is zero
-compile-time and  thp case will be optimize out.
+It's invalid: we don't always have down_write of mmap_sem there:
+a racing do_huge_pmd_wp_page() might have copied-on-write to another
+huge page before our split_huge_page() got the anon_vma lock.
 
-And do we really need a copy of truncate logic here? Is there a way to
-share code?
+Forget the BUG_ON, just go back and try again if this happens.
+    
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Cc: stable@vger.kernel.org
+---
 
--- 
- Kirill A. Shutemov
+ mm/huge_memory.c |   10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+--- 3.12-rc5/mm/huge_memory.c	2013-09-16 17:37:56.811072270 -0700
++++ linux/mm/huge_memory.c	2013-10-15 03:40:02.044138488 -0700
+@@ -2697,6 +2697,7 @@ void __split_huge_page_pmd(struct vm_are
+ 
+ 	mmun_start = haddr;
+ 	mmun_end   = haddr + HPAGE_PMD_SIZE;
++again:
+ 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
+ 	spin_lock(&mm->page_table_lock);
+ 	if (unlikely(!pmd_trans_huge(*pmd))) {
+@@ -2719,7 +2720,14 @@ void __split_huge_page_pmd(struct vm_are
+ 	split_huge_page(page);
+ 
+ 	put_page(page);
+-	BUG_ON(pmd_trans_huge(*pmd));
++
++	/*
++	 * We don't always have down_write of mmap_sem here: a racing
++	 * do_huge_pmd_wp_page() might have copied-on-write to another
++	 * huge page before our split_huge_page() got the anon_vma lock.
++	 */
++	if (unlikely(pmd_trans_huge(*pmd)))
++		goto again;
+ }
+ 
+ void split_huge_page_pmd_mm(struct mm_struct *mm, unsigned long address,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
