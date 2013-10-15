@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id B28576B0037
-	for <linux-mm@kvack.org>; Mon, 14 Oct 2013 20:18:33 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id rd3so8241271pab.4
-        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 17:18:33 -0700 (PDT)
-Received: by mail-pb0-f45.google.com with SMTP id mc17so8012857pbc.32
-        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 17:18:30 -0700 (PDT)
-Date: Mon, 14 Oct 2013 17:18:26 -0700
-From: Ning Qu <quning@gmail.com>
-Subject: [PATCH 11/12] mm, thp, tmpfs: enable thp page cache in tmpfs
-Message-ID: <20131015001826.GL3432@hippobay.mtv.corp.google.com>
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id B65F76B003B
+	for <linux-mm@kvack.org>; Mon, 14 Oct 2013 20:18:52 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id mc17so8011237pbc.18
+        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 17:18:52 -0700 (PDT)
+Received: by mail-pd0-f181.google.com with SMTP id y13so122872pdi.12
+        for <linux-mm@kvack.org>; Mon, 14 Oct 2013 17:18:49 -0700 (PDT)
+Date: Mon, 14 Oct 2013 17:18:45 -0700
+From: Ning Qu <quning@google.com>
+Subject: [PATCH 12/12] mm, thp, tmpfs: misc fixes for thp tmpfs
+Message-ID: <20131015001845.GM3432@hippobay.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -18,46 +18,89 @@ List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>
 Cc: Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Ning Qu <quning@google.com>
 
+1) get rid of the actor function pointer in shm as what Kirill did in generic
+file operations.
+
+2) add kernel command line option to turn on/off the thp page cache support.
+
 Signed-off-by: Ning Qu <quning@gmail.com>
 ---
- mm/Kconfig | 4 ++--
- mm/shmem.c | 5 +++++
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ mm/huge_memory.c | 27 +++++++++++++++++++++++++++
+ mm/shmem.c       |  7 ++++---
+ 2 files changed, 31 insertions(+), 3 deletions(-)
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 562f12f..4d2f90f 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -428,8 +428,8 @@ config TRANSPARENT_HUGEPAGE_PAGECACHE
- 	help
- 	  Enabling the option adds support hugepages for file-backed
- 	  mappings. It requires transparent hugepage support from
--	  filesystem side. For now, the only filesystem which supports
--	  hugepages is ramfs.
-+	  filesystem side. For now, the filesystems which support
-+	  hugepages are: ramfs and tmpfs.
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index d36bdac..ea79a70 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -711,6 +711,33 @@ out:
+ }
+ __setup("transparent_hugepage=", setup_transparent_hugepage);
  
- config CROSS_MEMORY_ATTACH
- 	bool "Cross Memory Support"
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
++static int __init setup_transparent_hugepage_pagecache(char *str)
++{
++	int ret = 0;
++	if (!str)
++		goto out;
++	if (!strcmp(str, "on")) {
++		set_bit(TRANSPARENT_HUGEPAGE_PAGECACHE,
++			&transparent_hugepage_flags);
++		ret = 1;
++	} else if (!strcmp(str, "off")) {
++		clear_bit(TRANSPARENT_HUGEPAGE_PAGECACHE,
++			  &transparent_hugepage_flags);
++		ret = 1;
++	}
++out:
++	if (!ret)
++		printk(KERN_WARNING
++			"transparent_hugepage_pagecache= cannot parse, "
++			"ignored\n");
++	return ret;
++}
++
++__setup("transparent_hugepage_pagecache=",
++	setup_transparent_hugepage_pagecache);
++#endif
++
+ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
+ {
+ 	if (likely(vma->vm_flags & VM_WRITE))
 diff --git a/mm/shmem.c b/mm/shmem.c
-index 75c0ac6..50a3335 100644
+index 50a3335..18f1d28 100644
 --- a/mm/shmem.c
 +++ b/mm/shmem.c
-@@ -1672,6 +1672,11 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
- 			break;
- 		case S_IFREG:
- 			inode->i_mapping->a_ops = &shmem_aops;
-+			/*
-+			 * TODO: make tmpfs pages movable
-+			 */
-+			mapping_set_gfp_mask(inode->i_mapping,
-+					     GFP_TRANSHUGE & ~__GFP_MOVABLE);
- 			inode->i_op = &shmem_inode_operations;
- 			inode->i_fop = &shmem_file_operations;
- 			mpol_shared_policy_init(&info->policy,
+@@ -1783,7 +1783,8 @@ static unsigned long pos_to_off(struct page *page, loff_t pos)
+ 	return pos & ~page_cache_to_mask(page);
+ }
+ 
+-static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_t *desc, read_actor_t actor)
++static void do_shmem_file_read(struct file *filp, loff_t *ppos,
++				read_descriptor_t *desc)
+ {
+ 	struct inode *inode = file_inode(filp);
+ 	gfp_t gfp = mapping_gfp_mask(inode->i_mapping);
+@@ -1885,7 +1886,7 @@ static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_
+ 		 * "pos" here (the actor routine has to update the user buffer
+ 		 * pointers and the remaining count).
+ 		 */
+-		ret = actor(desc, page, pos_to_off(page, *ppos), nr);
++		ret = file_read_actor(desc, page, pos_to_off(page, *ppos), nr);
+ 		*ppos += ret;
+ 		index = *ppos >> PAGE_CACHE_SHIFT;
+ 
+@@ -1922,7 +1923,7 @@ static ssize_t shmem_file_aio_read(struct kiocb *iocb,
+ 		if (desc.count == 0)
+ 			continue;
+ 		desc.error = 0;
+-		do_shmem_file_read(filp, ppos, &desc, file_read_actor);
++		do_shmem_file_read(filp, ppos, &desc);
+ 		retval += desc.written;
+ 		if (desc.error) {
+ 			retval = retval ?: desc.error;
 -- 
 1.8.4
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
