@@ -1,117 +1,224 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A94B6B0031
-	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 17:47:23 -0400 (EDT)
-Received: by mail-pb0-f48.google.com with SMTP id ma3so9352262pbc.21
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 14:47:23 -0700 (PDT)
-Received: by mail-oa0-f46.google.com with SMTP id g12so1827791oah.5
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 14:47:19 -0700 (PDT)
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id A1C636B0031
+	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 19:41:58 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rp16so155011pbb.14
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 16:41:58 -0700 (PDT)
+Date: Wed, 16 Oct 2013 10:41:48 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [patch 0/8] mm: thrash detection-based file cache sizing v5
+Message-ID: <20131015234147.GA4446@dastard>
+References: <1381441622-26215-1-git-send-email-hannes@cmpxchg.org>
+ <20131011003930.GC4446@dastard>
+ <20131014214250.GG856@cmpxchg.org>
+ <20131015014123.GQ4446@dastard>
+ <20131015174128.GH856@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <1381800678-16515-2-git-send-email-ccross@android.com>
-References: <1381800678-16515-1-git-send-email-ccross@android.com>
-	<1381800678-16515-2-git-send-email-ccross@android.com>
-Date: Tue, 15 Oct 2013 14:47:19 -0700
-Message-ID: <CAMbhsRTvxgoXBDkXQhxHnmZpXE3Atz3d9xAs8a7k1wj-+br5+g@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm: add a field to store names for private anonymous memory
-From: Colin Cross <ccross@android.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131015174128.GH856@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Jan Glauber <jan.glauber@gmail.com>, John Stultz <john.stultz@linaro.org>
-Cc: Colin Cross <ccross@android.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Kees Cook <keescook@chromium.org>, "Serge E. Hallyn" <serge.hallyn@ubuntu.com>, David Rientjes <rientjes@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Tang Chen <tangchen@cn.fujitsu.com>, Robin Holt <holt@sgi.com>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, Vlastimil Babka <vbabka@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Oct 14, 2013 at 6:31 PM, Colin Cross <ccross@android.com> wrote:
-> In many userspace applications, and especially in VM based
-> applications like Android uses heavily, there are multiple different
-> allocators in use.  At a minimum there is libc malloc and the stack,
-> and in many cases there are libc malloc, the stack, direct syscalls to
-> mmap anonymous memory, and multiple VM heaps (one for small objects,
-> one for big objects, etc.).  Each of these layers usually has its own
-> tools to inspect its usage; malloc by compiling a debug version, the
-> VM through heap inspection tools, and for direct syscalls there is
-> usually no way to track them.
->
-> On Android we heavily use a set of tools that use an extended version
-> of the logic covered in Documentation/vm/pagemap.txt to walk all pages
-> mapped in userspace and slice their usage by process, shared (COW) vs.
-> unique mappings, backing, etc.  This can account for real physical
-> memory usage even in cases like fork without exec (which Android uses
-> heavily to share as many private COW pages as possible between
-> processes), Kernel SamePage Merging, and clean zero pages.  It
-> produces a measurement of the pages that only exist in that process
-> (USS, for unique), and a measurement of the physical memory usage of
-> that process with the cost of shared pages being evenly split between
-> processes that share them (PSS).
->
-> If all anonymous memory is indistinguishable then figuring out the
-> real physical memory usage (PSS) of each heap requires either a pagemap
-> walking tool that can understand the heap debugging of every layer, or
-> for every layer's heap debugging tools to implement the pagemap
-> walking logic, in which case it is hard to get a consistent view of
-> memory across the whole system.
->
-> This patch adds a field to /proc/pid/maps and /proc/pid/smaps to
-> show a userspace-provided name for anonymous vmas.  The names of
-> named anonymous vmas are shown in /proc/pid/maps and /proc/pid/smaps
-> as [anon:<name>].
->
-> Userspace can set the name for a region of memory by calling
-> prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, start, len, (unsigned long)name);
-> Setting the name to NULL clears it.
->
-> The name is stored in a user pointer in the shared union in
-> vm_area_struct that points to a null terminated string inside
-> the user process.  vmas that point to the same address and are
-> otherwise mergeable will be merged, but vmas that point to
-> equivalent strings at different addresses will not be merged.
->
-> The idea to store a userspace pointer to reduce the complexity
-> within mm (at the expense of the complexity of reading
-> /proc/pid/mem) came from Dave Hansen.  This results in no
-> runtime overhead in the mm subsystem other than comparing
-> the anon_name pointers when considering vma merging.  The pointer
-> is stored in a union with fields that are only used on file-backed
-> mappings, so it does not increase memory usage.
->
-> Signed-off-by: Colin Cross <ccross@android.com>
-> ---
->
-> v2: updates the commit message to explain in more detail why the
->     patch is useful.
-> v3: renames vma_get_anon_name to vma_anon_name
->     replaces logic in seq_print_vma_name with access_process_vm
->     removes Name: entry from smaps, it's already on the header line
->     changes the prctl option number to match what is currently in
->        use on Android
->
->  Documentation/filesystems/proc.txt |  2 ++
->  fs/proc/task_mmu.c                 | 22 +++++++++++++++
->  include/linux/mm.h                 |  5 +++-
->  include/linux/mm_types.h           | 15 +++++++++++
->  include/uapi/linux/prctl.h         |  3 +++
->  kernel/sys.c                       | 24 +++++++++++++++++
->  mm/madvise.c                       | 55 +++++++++++++++++++++++++++++++++++---
->  mm/mempolicy.c                     |  2 +-
->  mm/mlock.c                         |  3 ++-
->  mm/mmap.c                          | 44 +++++++++++++++++-------------
->  mm/mprotect.c                      |  3 ++-
->  11 files changed, 152 insertions(+), 26 deletions(-)
->
+On Tue, Oct 15, 2013 at 01:41:28PM -0400, Johannes Weiner wrote:
+> On Tue, Oct 15, 2013 at 12:41:23PM +1100, Dave Chinner wrote:
+> > On Mon, Oct 14, 2013 at 05:42:50PM -0400, Johannes Weiner wrote:
+> > > Hi Dave,
+> > > 
+> > > On Fri, Oct 11, 2013 at 11:39:30AM +1100, Dave Chinner wrote:
+> > > > On Thu, Oct 10, 2013 at 05:46:54PM -0400, Johannes Weiner wrote:
+> > > > Also, I really don't like the idea of a new inode cache shrinker
+> > > > that is completely uncoordinated with the existing inode cache
+> > > > shrinkers. It uses a global lock and list and is not node aware so
+> > > > all it will do under many workloads is re-introduce a scalability
+> > > > choke point we just got rid of in 3.12.
+> > > 
+> > > Shadow entries are mostly self-regulating and, unlike the inode case,
+> > > the shrinker is not the primary means of resource control here.  I
+> > > don't think this has the same scalability requirements as inode
+> > > shrinking.
+> > 
+> > Anything that introduces a global lock that needs to be taken in the
+> > inode evict() path is a scalability limitation. I've been working to
+> > remove all global locks and lists from the evict() path precisely
+> > because they severely limit VFS scalability. Hence new code that
+> > that introduces a global lock and list into hot VFS paths is simply
+> > not acceptible any more.
+> 
+> Fair enough as well.  But do keep in mind that the lock and list is
+> only involved when the address space actually had pages evicted from
+> it in the past.  As you said, most inodes don't even have pages...
 
-<snip>
+.... because page reclaim typically removes them long before the
+inode is evicted from the inode cache.
 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 7431001..7cca5e6 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -728,7 +728,7 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
->                         ((vmstart - vma->vm_start) >> PAGE_SHIFT);
->                 prev = vma_merge(mm, prev, vmstart, vmend, vma->vm_flags,
->                                   vma->anon_vma, vma->vm_file, pgoff,
-> -                                 new_pol);
-> +                                 new_pol, vma_anon_name(name));
+> > > > I think that you could simply piggy-back on inode_lru_isolate() to
+> > > > remove shadow mappings in exactly the same manner it removes inode
+> > > > buffers and page cache pages on inodes that are about to be
+> > > > reclaimed.  Keeping the size of the inode cache down will have the
+> > > > side effect of keeping the shadow mappings under control, and so I
+> > > > don't see a need for a separate shrinker at all here.
+> > > 
+> > > Pinned inodes are not on the LRU, so you could send a machine OOM by
+> > > simply catting a single large (sparse) file to /dev/null.
+> > 
+> > Then you have a serious design flaw if you are relying on a shrinker
+> > to control memory consumed by page cache radix trees as a result of
+> > page cache reclaim inserting exceptional entries into the radix
+> > tree and then forgetting about them.
+> 
+> I'm not forgetting about them, I just track them very coarsely by
+> linking up address spaces and then lazily enforce their upper limit
+> when memory is tight by using the shrinker callback.  The assumption
+> was that actually scanning them is such a rare event that we trade the
+> rare computational costs for smaller memory consumption most of the
+> time.
 
-Dumb typo here that snuck back in, this should be vma_anon_name(vma).
+Sure, I understand the tradeoff that you made. But there's nothing
+worse than a system that slows down unpredictably because of some
+magic threshold in some subsystem has been crossed and
+computationally expensive operations kick in.
+
+Keep in mind that shrinkers are called in parallel, too, so once the
+thresholdis crossed you have the possibility of every single CPU in
+the system running that shrinker at the same time....
+
+> > To work around this, you keep a global count of exceptional entries
+> > and a global list of inodes with such exceptional radix tree
+> > entries. The count doesn't really tell you how much memory is used
+> > by the radix trees - the same count can mean an order of
+> > magnitude difference in actual memory consumption (one shadow entry
+> > per radix tree node vs 64) so it's not a very good measure to base
+> > memory reclaim behaviour on but it is an inferred (rather than
+> > actual) object count.
+> 
+> Capping shadow entries instead of memory consumption was intentional.
+> They should be trimmed based on whether old shadow entries are still
+> meaningful and have an effect if refaulted, not based on memory
+> pressure.  These entries have an influence on future memory pressure
+> so we shouldn't kick them out based on how tight resources are but
+> based on whether there are too many expired entries.
+
+Then I suspect that a shrinker is the wrong interface to us, as they
+are designed to trim caches when resources are tight. What your
+current design will lead to is windup, where it does nothing for
+many calls and then when it passes the threshold the delta is so
+large that it will ask the shrinker to scan the entire cache.
+
+So, while your intention is that it reacts to expired entry count,
+the reality is that it will result in a shadow entry count that
+looks like a sawtooth over time instead of a smooth, slowly varying
+line that changes value only as workloads change....
+
+The architecture of shrinkers is that they act little by little to
+memory pressure to keep all the caches in the system balanced
+dynmaically, so when memory pressure occurs we don't have the
+balance of the system change. Doing nothing until a magic threshold
+is reached and then doing lots of work at that point results in
+non-deterministic behaviour because the balance and behaviour of the
+system will change drastically at that threshold point.  IOWs,
+creating a shrinker that only does really expensive operations when
+it passes a high threshold is not a good idea from a behavioural
+POV.
+
+> Previous implementations of non-resident history from Peter & Rik
+> maintained a big system-wide hash table with a constant cost instead
+> of using radix tree memory like this.  My idea was that this is cache
+> friendlier and memory consumption should be lower in most cases and
+> the shrinker is only there to cap the extreme / malicious cases.
+
+Yes, it's an improvement on the hash table in some ways, but in
+other ways it is much worse.
+
+> > You walk the inode list by a shrinker and scan radix trees for
+> > shadow entries that can be removed. It's expensive to scan radix
+> > trees, especially for inodes with large amounts of cached data, so
+> > this could do a lot of work to find very little in way of entries to
+> > free.
+> > 
+> > The shrinker doesn't rotate inodes on the list, so it will always
+> > scan the same inodes on the list in the same order and so if memory
+> > reclaim removes a few pages from an inode with a large amount of
+> > cached pages between each shrinker call, then those radix trees will
+> > be repeatedly scanned in it's entirety on each call to the shrinker.
+> >
+> > Also, the shrinker only decrements nr_to_scan when it finds an entry
+> > to reclaim. nr_to_scan is the number of objects to scan for reclaim,
+> > not the number of objects to reclaim. hence the shrinker will be
+> > doing a lot of scanning if there's inodes at the head of the list
+> > with large radix trees....
+> 
+> I realize all of this.  The scanner is absolutely expensive, I just
+> didn't care because it's not supposed to run in the first place but
+> rather act like an emergency brake.
+> 
+> Again, the shrinker isn't even called until shadow entries are in
+> excess, regardless of how bad memory pressure is.  On the other hand,
+> the fact that this code is unneeded most of the time makes the struct
+> inode size increase even worse.
+
+Yup, and that's one of the big problems I have with the design.
+
+> > > > And removing the special shrinker will bring the struct inode size
+> > > > increase back to only 8 bytes, and I think we can live with that
+> > > > increase given the workload improvements that the rest of the
+> > > > functionality brings.
+> > > 
+> > > That would be very desirable indeed.
+> > > 
+> > > What we would really want is a means of per-zone tracking of
+> > > radix_tree_nodes occupied by shadow entries but I can't see a way to
+> > > do this without blowing up the radix tree structure at a much bigger
+> > > cost than an extra list_head in struct address_space.
+> > 
+> > Putting a list_head in the radix tree node is likely to have a lower
+> > cost than putting one in every inode. Most cached inodes don't have
+> > any page cache associated with them. Indeed, my workstation right
+> > now shows:
+> > 
+> > $ sudo grep "radix\|xfs_inode" /proc/slabinfo 
+> > xfs_inode         277773 278432   1024    4    1 : tunables   54   27    8 : slabdata  69608  69608      0
+> > radix_tree_node    74137  74956    560    7    1 : tunables   54   27    8 : slabdata  10708  10708      0
+> 
+> Is that a slab configuration?  On my slub config, this actually shows
+> 568 even though the structure definition really adds up to 560 bytes.
+
+I'm assuming that it is SLAB - it's the 3.11 kernel that debian
+shipped out of experimental. yup:
+
+$ grep SLAB /boot/config-3.11-trunk-amd64 
+CONFIG_SLAB=y
+CONFIG_SLABINFO=y
+# CONFIG_DEBUG_SLAB is not set
+$
+
+
+> Yes, I really don't like the extra inode cost and the computational
+> overhead in corner cases.
+
+I think we are agreed on that :)
+
+> What I do like is that the shadow entries are in-line and not in an
+> auxiliary array and that memory consumption of shadow entries is
+> mostly low, so I'm not eager to change the data structure.
+
+And i'm not disagreeing with you there, either.
+
+> But it
+> looks like tracking radix tree nodes with a list and backpointers to
+> the mapping object for the lock etc. will be a major pain in the ass.
+
+Perhaps so - it may not work out when we get down to the fine
+details...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
