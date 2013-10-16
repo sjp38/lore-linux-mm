@@ -1,39 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id BD5E56B0031
-	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 11:27:58 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id y10so1085548pdj.11
-        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 08:27:58 -0700 (PDT)
-Date: Wed, 16 Oct 2013 15:27:54 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2 01/15] slab: correct pfmemalloc check
-In-Reply-To: <1381913052-23875-2-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <00000141c1e16001-26ccfd98-51ee-4ca6-8ddf-61abd491dea8-000000@email.amazonses.com>
-References: <1381913052-23875-1-git-send-email-iamjoonsoo.kim@lge.com> <1381913052-23875-2-git-send-email-iamjoonsoo.kim@lge.com>
+	by kanga.kvack.org (Postfix) with ESMTP id CAFFE6B0031
+	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 11:54:11 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id y10so1113833pdj.25
+        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 08:54:11 -0700 (PDT)
+Date: Wed, 16 Oct 2013 10:54:29 -0500
+From: Alex Thorlton <athorlton@sgi.com>
+Subject: BUG: mm, numa: test segfaults, only when NUMA balancing is on
+Message-ID: <20131016155429.GP25735@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 
-On Wed, 16 Oct 2013, Joonsoo Kim wrote:
+Hi guys,
 
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -930,7 +930,8 @@ static void *__ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
->  {
->  	if (unlikely(pfmemalloc_active)) {
->  		/* Some pfmemalloc slabs exist, check if this is one */
-> -		struct page *page = virt_to_head_page(objp);
-> +		struct slab *slabp = virt_to_slab(objp);
-> +		struct page *page = virt_to_head_page(slabp->s_mem);
->  		if (PageSlabPfmemalloc(page))
+I ran into a bug a week or so ago, that I believe has something to do
+with NUMA balancing, but I'm having a tough time tracking down exactly
+what is causing it.  When running with the following configuration
+options set:
 
-I hope the compiler optimizes this code correctly because virt_to_slab
-already does one virt_to_head_page()?
+CONFIG_ARCH_SUPPORTS_NUMA_BALANCING=y
+CONFIG_NUMA_BALANCING_DEFAULT_ENABLED=y
+CONFIG_NUMA_BALANCING=y
+# CONFIG_HUGETLBFS is not set
+# CONFIG_HUGETLB_PAGE is not set
 
-Otherwise this looks fine.
+I get intermittent segfaults when running the memscale test that we've
+been using to test some of the THP changes.  Here's a link to the test:
+
+ftp://shell.sgi.com/collect/memscale/
+
+I typically run the test with a line similar to this:
+
+./thp_memscale -C 0 -m 0 -c <cores> -b <memory>
+
+Where <cores> is the number of cores to spawn threads on, and <memory>
+is the amount of memory to reserve from each core.  The <memory> field
+can accept values like 512m or 1g, etc.  I typically run 256 cores and
+512m, though I think the problem should be reproducable on anything with
+128+ cores.
+
+The test never seems to have any problems when running with hugetlbfs
+on and NUMA balancing off, but it segfaults every once in a while with
+the config options above.  It seems to occur more frequently, the more
+cores you run on.  It segfaults on about 50% of the runs at 256 cores,
+and on almost every run at 512 cores.  The fewest number of cores I've
+seen a segfault on has been 128, though it seems to be rare on this many
+cores.
+
+At this point, I'm not familiar enough with NUMA balancing code to know
+what could be causing this, and we don't typically run with NUMA
+balancing on, so I don't see this in my everyday testing, but I felt
+that it was definitely worth bringing up.
+
+If anybody has any ideas of where I could poke around to find a
+solution, please let me know.
+
+- Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
