@@ -1,190 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 7276E6B0031
-	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 09:28:46 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id kx10so1069988pab.29
-        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 06:28:46 -0700 (PDT)
-Date: Wed, 16 Oct 2013 21:28:41 +0800
-From: fengguang.wu@intel.com
-Subject: +8.6% netperf.Throughput_Mbps increase by "page_alloc: fair zone
- allocator policy"
-Message-ID: <20131016132841.GC22518@localhost>
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id BD5E56B0031
+	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 11:27:58 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id y10so1085548pdj.11
+        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 08:27:58 -0700 (PDT)
+Date: Wed, 16 Oct 2013 15:27:54 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v2 01/15] slab: correct pfmemalloc check
+In-Reply-To: <1381913052-23875-2-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <00000141c1e16001-26ccfd98-51ee-4ca6-8ddf-61abd491dea8-000000@email.amazonses.com>
+References: <1381913052-23875-1-git-send-email-iamjoonsoo.kim@lge.com> <1381913052-23875-2-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, lkp@01.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>
 
-Hi Johannes,
+On Wed, 16 Oct 2013, Joonsoo Kim wrote:
 
-We are pleased to notice that your commit 81c0a2bb51 ("mm: page_alloc:
-fair zone allocator policy") improves performance in the netperf
-TCP_STREAM case:
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -930,7 +930,8 @@ static void *__ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
+>  {
+>  	if (unlikely(pfmemalloc_active)) {
+>  		/* Some pfmemalloc slabs exist, check if this is one */
+> -		struct page *page = virt_to_head_page(objp);
+> +		struct slab *slabp = virt_to_slab(objp);
+> +		struct page *page = virt_to_head_page(slabp->s_mem);
+>  		if (PageSlabPfmemalloc(page))
 
-    e085dbc52fad8d79fa22      81c0a2bb515fd4daae8c  
-------------------------  ------------------------  
-                  649.00        +8.6%       704.80  lkp-nex04/micro/netperf/120s-200%-TCP_STREAM
-                  649.00        +8.6%       704.80  TOTAL netperf.Throughput_Mbps
+I hope the compiler optimizes this code correctly because virt_to_slab
+already does one virt_to_head_page()?
 
-
-Thanks,
-Fengguang
-
-PS. The changed items compared between the bisect GOOD/BAD commits.
-
-
-                              netperf.Throughput_Mbps
-
-   760 ++-------------------------------------------------------------------+
-       |                                                                    |
-   740 O+   O O OO O   OO                                                   |
-       | OO          O                                                      |
-   720 ++                        O                                          |
-       |                  O    O      O O    O      O  O   OO O    O   O OO |
-   700 ++                   OO     OO     O    OO O   O         O O  O      O
-       |                                                                    |
-   680 *+**.*.*.**.*.*.*                                                    |
-       |               :       *                                            |
-   660 ++               :     : :          O     .*                         |
-       |                :.*.* : : .* .*    *.*. *  +     O                  |
-   640 ++               *    *   *  *  + .*    *    *                       |
-       |                                *                                   |
-   620 ++-------------------------------------------------------------------+
-
-
-                                   vmstat.system.cs
-
-   550000 ++----------------------------------------------------------------+
-   500000 O+O  O OO O OO O OO  O O OO O  O O  O O O  O  O   OO O  O OO O OO |
-          |  O                O         O              O                    |
-   450000 ++                                       O            O           O
-   400000 ++                                                                |
-   350000 ++                                 O            O                 |
-   300000 ++                                                                |
-          |                                                                 |
-   250000 ++                                                                |
-   200000 ++                                                                |
-   150000 ++                                                                |
-   100000 ++                                                                |
-          |                                                                 |
-    50000 *+**.*.**.*.**.*.**.**.*.**.*.**.*.**.*.**.*                      |
-        0 ++----------------------------------------------------------------+
-
-
-                      lock_stat.&(&zone->lock)->rlock.contentions
-
-   2.4e+07 ++---------------------------------------------------------------+
-           |                                 O            O                 |
-   2.2e+07 O+OO O OO OO O OO                                                O
-           |                                        O            O          |
-     2e+07 ++                                                               |
-           |                    O OO    O O              O  OO O       O  O |
-   1.8e+07 ++                O O     O O    O  O  O  O O          O O O  O  |
-           |                                    O                           |
-   1.6e+07 ++                                                               |
-           |                                                                |
-   1.4e+07 ++                 .*  *                                         |
-           *.**.*.**.**.*.**.*  :+ *.*.*                                    |
-   1.2e+07 ++                   *       *.*.**.**.*.**                      |
-           |                                                                |
-     1e+07 ++---------------------------------------------------------------+
-
-
-          lock_stat.&(&zone->lock)->rlock.contentions.get_page_from_freelist
-
-   2.6e+07 ++---------------------------------------------------------------+
-           |    O OO       O                 O            O                 |
-   2.4e+07 O+OO      OO O O                                                 O
-   2.2e+07 ++                                       O            O          |
-           |                    O OO    O O              O  OO O    O  O  O |
-     2e+07 ++                O O     O O    O  OO O  O O          O   O  O  |
-   1.8e+07 ++                                                               |
-           |                                                                |
-   1.6e+07 ++                                                               |
-   1.4e+07 ++                                                               |
-           |                                                                |
-   1.2e+07 ++                     *                                         |
-     1e+07 *+**.*.**.**.*.**.*.* + *.*.*                                    |
-           |                    *       *.*.**.**.*.**                      |
-     8e+06 ++---------------------------------------------------------------+
-
-
-              lock_stat.&(&zone->lock)->rlock.contentions.__free_pages_ok
-
-   2.2e+07 ++---------------------------------------------O-----------------+
-           |                                 O                              |
-   2.1e+07 ++                                                               |
-     2e+07 ++     O                                                         O
-           O O  O  O OO O OO                                                |
-   1.9e+07 ++ O                                     O            O          |
-           |                                                                |
-   1.8e+07 ++                                                               |
-           |                      OO      O                                 |
-   1.7e+07 ++                 .*O *     O      O         O  OO O       O OO |
-   1.6e+07 ++**.    .*     *.* O  :  O O    O     O  O O          O O O     |
-           *    *.**  *.*.*     :: :.*.*        O                           |
-   1.5e+07 ++                   :: *    *. .* .* .*.*                       |
-           |                    *         *  *  *    *                      |
-   1.4e+07 ++---------------------------------------------------------------+
-
-
-                           lock_stat.rcu_node_1.contentions
-
-   100000 ++----------------------------------------------------------------+
-    95000 ++                                      *                         |
-          |                                   *. +:                         |
-    90000 ++                   *    *.*.   *  : *  :.*                      |
-    85000 ++                   :+   :   * + +:     *                        |
-          |      *     *    *.:  *  :    *   *                              |
-    80000 *+**. + *.*.* + .*  *   +:  O                                     |
-    75000 ++   *         *  O      *O                                       |
-    70000 ++ O      O         OO        O     O        OO                   |
-          O O    OO   O  O O     O O     O   O  O O       O                 O
-    65000 ++   O       O                   O       O        O   O O OO O    |
-    60000 ++                                         O       O            O |
-          |                                                    O            |
-    55000 ++                                                             O  |
-    50000 ++----------------------------------------------------------------+
-
-
-                lock_stat.rcu_node_1.contentions.rcu_process_callbacks
-
-   180000 ++----------------------------------------------------------------+
-          |                                       *                         |
-   170000 ++                                  *  ::                         |
-   160000 ++                                  :+ : :                        |
-          |                    *    *.*.   *  : *  *.*                      |
-   150000 ++     *     *       :+   :   * + +:                              |
-   140000 *+ *  : *.*. :+ .**.:  *.:  O  *   *                              |
-          | * + :   O *  *  O *    *O         O                             |
-   130000 ++OO *  O   O  O    OO   O    O       O      OO O                 |
-   120000 O+   O O     O   O     O       O O O    OO                O       O
-          |                                                 O   O O  O O    |
-   110000 ++                                         O       O O          O |
-   100000 ++                                                             O  |
-          |                                                                 |
-    90000 ++----------------------------------------------------------------+
-
-
-                                  iostat.cpu.user
-
-   1.8 ++-------------------------------------------------------------------+
-   1.7 ++                 O OO O O OO O O                                   |
-       |                                  O     O          O                |
-   1.6 ++O    O                              O O    O OO    O O   OO O O O  |
-   1.5 O+ O O    O O O OO                                                 O |
-   1.4 ++       O                                 O                         |
-   1.3 ++                                                       O           O
-       |                                                                    |
-   1.2 ++                                  O             O                  |
-   1.1 ++                                 *                                 |
-     1 ++                                + :.*.*                            |
-   0.9 *+ *.*.*.* .*.*.*            *.*.*  *    *.*.*                       |
-       | *       *      :.*.  .*.*.*                                        |
-   0.8 ++               *   **                                              |
-   0.7 ++-------------------------------------------------------------------+
+Otherwise this looks fine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
