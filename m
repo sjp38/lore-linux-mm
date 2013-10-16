@@ -1,106 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id A503B6B0031
-	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 22:26:37 -0400 (EDT)
-Received: by mail-pb0-f50.google.com with SMTP id uo5so138618pbc.37
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 19:26:37 -0700 (PDT)
-Date: Wed, 16 Oct 2013 13:26:06 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [patch 0/8] mm: thrash detection-based file cache sizing v5
-Message-ID: <20131016022606.GD4446@dastard>
-References: <1381441622-26215-1-git-send-email-hannes@cmpxchg.org>
- <20131011003930.GC4446@dastard>
- <20131014214250.GG856@cmpxchg.org>
- <20131015014123.GQ4446@dastard>
- <20131015174128.GH856@cmpxchg.org>
- <20131015234147.GA4446@dastard>
- <525DF466.6030308@redhat.com>
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 096A06B0031
+	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 02:33:54 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id x10so422206pdj.29
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 23:33:54 -0700 (PDT)
+Date: Wed, 16 Oct 2013 09:33:51 +0300 (EEST)
+From: =?UTF-8?B?0JjQstCw0LnQu9C+INCU0LjQvNC40YLRgNC+0LI=?= <freemangordon@abv.bg>
+Message-ID: <1046037275.21008.1381905231138.JavaMail.apache@mail83.abv.bg>
+Subject: Re: OMAPFB: CMA allocation failures
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <525DF466.6030308@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, Vlastimil Babka <vbabka@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Tomi Valkeinen <tomi.valkeinen@ti.com>
+Cc: pali.rohar@gmail.com, pc+n900@asdf.org, pavel@ucw.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Oct 15, 2013 at 10:05:26PM -0400, Rik van Riel wrote:
-> On 10/15/2013 07:41 PM, Dave Chinner wrote:
-> > On Tue, Oct 15, 2013 at 01:41:28PM -0400, Johannes Weiner wrote:
-> 
-> >> I'm not forgetting about them, I just track them very coarsely by
-> >> linking up address spaces and then lazily enforce their upper limit
-> >> when memory is tight by using the shrinker callback.  The assumption
-> >> was that actually scanning them is such a rare event that we trade the
-> >> rare computational costs for smaller memory consumption most of the
-> >> time.
-> > 
-> > Sure, I understand the tradeoff that you made. But there's nothing
-> > worse than a system that slows down unpredictably because of some
-> > magic threshold in some subsystem has been crossed and
-> > computationally expensive operations kick in.
-> 
-> The shadow shrinker should remove the radix nodes with
-> the oldest shadow entries first, so true LRU should actually
-> work for the radix tree nodes.
-> 
-> Actually, since we only care about the age of the youngest
-> shadow entry in each radix tree node, FIFO will be the same
-> as LRU for that list.
-> 
-> That means the shrinker can always just take the radix tree
-> nodes off the end.
+ Hi Tomi,
 
-Right, but it can't necessarily free the node as it may still have
-pointers to pages in it. In that case, it would have to simply
-rotate the page to the end of the LRU again.
+ >I think we should somehow find out what the pages are that cannot be
+ >migrated, and where they come from.
+ >
+ >So there are &quot;anonymous pages without mapping&quot; with page_count(page) !=
+ >1. I have to say I don't know what that means =). I need to find some
+ >time to study the mm.
 
-Unless, of course, we kept track of the number of exceptional
-entries in a node and didn't add it to the reclaim list until there
-were no non-expceptional entries in the node....
+I put some more traces in the point of failure, the result:
 
-> >> But it
-> >> looks like tracking radix tree nodes with a list and backpointers to
-> >> the mapping object for the lock etc. will be a major pain in the ass.
-> > 
-> > Perhaps so - it may not work out when we get down to the fine
-> > details...
-> 
-> I suspect that a combination of lifetime rules (inode cannot
-> disappear until all the radix tree nodes) and using RCU free
-> for the radix tree nodes, and the inodes might do the trick.
-> 
-> That would mean that, while holding the rcu read lock, the
-> back pointer from a radix tree node to the inode will always
-> point to valid memory.
+page_count(page) == 2, page->flags == 0x0008025D, which is:
 
-Yes, that is what I was thinking...
+PG_locked, PG_referenced, PG_uptodate, PG_dirty, PG_active, PG_arch_1, PG_unevictable
 
-> That allows the shrinker to lock the inode, and verify that
-> the inode is still valid, before it attempts to rcu free the
-> radix tree node with shadow entries.
+Whatever those mean :). I have no idea how to identify where those pages come from.
 
-Lock the mapping, not the inode. The radix tree is protected by the
-mapping_lock, not an inode lock. i.e. I'd hope that this can all b
-contained within the struct address_space and not require any
-knowledge of inodes or inode lifecycles at all.
+ >Well, as I said, you're the first one to report any errors, after the
+ >change being in use for a year. Maybe people just haven't used recent
+ >enough kernels, and the issue is only now starting to emerge, but I
+ >wouldn't draw any conclusions yet.
 
-> It also means that locking only needs to be in the inode,
-> and on the LRU list for shadow radix tree nodes.
-> 
-> Does that sound sane?
-> 
-> Am I overlooking something?
+I am (almost) sure I am the first one to test video playback on OMAP3 with DSP video
+acceleration, using recent kernel and Maemo5 on n900 :). So there is high probability the issue was not reported earlier because noone have tested it thoroughly after the change.
 
-It's pretty much along the same lines of what I was thinking, but
-lets see what Johannes thinks.
+ >If the CMA would have big generic issues, I think we would've seen
+ >issues earlier. So I'm guessing it's some driver or app in your setup
+ >that's causing the issues. Maybe the driver/app is broken, or maybe that
+ >specific behavior is not handled well by CMA. In both case I think we
+ >need to identify what that driver/app is.
 
-Cheers,
+What I know is going on, is that there is heavy fs I/O at the same time - there is
+a thumbnailer process running in background which tries to extract thumbnails of all video
+files in the system. Also, there are other processes doing various jobs (e-mail fetching, IM
+accounts login, whatnot). And in addition Xorg mlocks parts of its address space. Of course all
+this happens with lots of memory being swapped in and out. I guess all this is related.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+However, even after the system has settled, the CMA failures continue to happen. It looks like
+some pages are allocated from CMA which should not be.
+
+ >I wonder how I could try to reproduce this with a generic omap3 board...
+
+I can always reproduce it here (well, not on generic board, but I guess it is even better to test in real-life conditions), so if you need some specific tests or traces or whatever, I
+can do them for you.
+
+Regards,
+Ivo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
