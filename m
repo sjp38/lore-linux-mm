@@ -1,62 +1,241 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 703436B0035
-	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 13:50:40 -0400 (EDT)
-Received: by mail-pb0-f44.google.com with SMTP id xa7so1130115pbc.31
-        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 10:50:40 -0700 (PDT)
-Received: by mail-vb0-f51.google.com with SMTP id x16so526764vbf.24
-        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 10:50:37 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20131016121145.EFC7AE0090@blue.fi.intel.com>
-References: <20131015001214.GD3432@hippobay.mtv.corp.google.com>
- <20131015102912.2BC99E0090@blue.fi.intel.com> <CACz4_2eh3F2An9F0GxSvw8kSmn2VZbqbdRVGXA2B=gvPFCChUw@mail.gmail.com>
- <20131016121145.EFC7AE0090@blue.fi.intel.com>
-From: Ning Qu <quning@google.com>
-Date: Wed, 16 Oct 2013 10:50:17 -0700
-Message-ID: <CACz4_2fcnV6UQQU9pKu0cF0MTzC7wu+X_swvyOwmgw0sTxZWWA@mail.gmail.com>
-Subject: Re: [PATCH 03/12] mm, thp, tmpfs: handle huge page cases in shmem_getpage_gfp
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id B6B346B0031
+	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 14:28:41 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id kq14so1463103pab.12
+        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 11:28:41 -0700 (PDT)
+Subject: Re: [PATCH v8 0/9] rwsem performance optimizations
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <20131016065526.GB22509@gmail.com>
+References: <cover.1380748401.git.tim.c.chen@linux.intel.com>
+	 <1380753493.11046.82.camel@schen9-DESK> <20131003073212.GC5775@gmail.com>
+	 <1381186674.11046.105.camel@schen9-DESK> <20131009061551.GD7664@gmail.com>
+	 <1381336441.11046.128.camel@schen9-DESK> <20131010075444.GD17990@gmail.com>
+	 <1381882156.11046.178.camel@schen9-DESK> <20131016065526.GB22509@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 16 Oct 2013 11:28:34 -0700
+Message-ID: <1381948114.11046.194.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Jason Low <jason.low2@hp.com>, Waiman Long <Waiman.Long@hp.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-Great! Thanks!
-Best wishes,
---=20
-Ning Qu (=E6=9B=B2=E5=AE=81) | Software Engineer | quning@google.com | +1-4=
-08-418-6066
+On Wed, 2013-10-16 at 08:55 +0200, Ingo Molnar wrote:
+> * Tim Chen <tim.c.chen@linux.intel.com> wrote:
+> 
+> > On Thu, 2013-10-10 at 09:54 +0200, Ingo Molnar wrote:
+> > > * Tim Chen <tim.c.chen@linux.intel.com> wrote:
+> > > 
+> > > > The throughput of pure mmap with mutex is below vs pure mmap is below:
+> > > > 
+> > > > % change in performance of the mmap with pthread-mutex vs pure mmap
+> > > > #threads        vanilla 	all rwsem    	without optspin
+> > > > 				patches
+> > > > 1               3.0%    	-1.0%   	-1.7%
+> > > > 5               7.2%    	-26.8%  	5.5%
+> > > > 10              5.2%    	-10.6%  	22.1%
+> > > > 20              6.8%    	16.4%   	12.5%
+> > > > 40              -0.2%   	32.7%   	0.0%
+> > > > 
+> > > > So with mutex, the vanilla kernel and the one without optspin both run 
+> > > > faster.  This is consistent with what Peter reported.  With optspin, the 
+> > > > picture is more mixed, with lower throughput at low to moderate number 
+> > > > of threads and higher throughput with high number of threads.
+> > > 
+> > > So, going back to your orignal table:
+> > > 
+> > > > % change in performance of the mmap with pthread-mutex vs pure mmap
+> > > > #threads        vanilla all     without optspin
+> > > > 1               3.0%    -1.0%   -1.7%
+> > > > 5               7.2%    -26.8%  5.5%
+> > > > 10              5.2%    -10.6%  22.1%
+> > > > 20              6.8%    16.4%   12.5%
+> > > > 40              -0.2%   32.7%   0.0%
+> > > >
+> > > > In general, vanilla and no-optspin case perform better with 
+> > > > pthread-mutex.  For the case with optspin, mmap with pthread-mutex is 
+> > > > worse at low to moderate contention and better at high contention.
+> > > 
+> > > it appears that 'without optspin' appears to be a pretty good choice - if 
+> > > it wasn't for that '1 thread' number, which, if I correctly assume is the 
+> > > uncontended case, is one of the most common usecases ...
+> > > 
+> > > How can the single-threaded case get slower? None of the patches should 
+> > > really cause noticeable overhead in the non-contended case. That looks 
+> > > weird.
+> > > 
+> > > It would also be nice to see the 2, 3, 4 thread numbers - those are the 
+> > > most common contention scenarios in practice - where do we see the first 
+> > > improvement in performance?
+> > > 
+> > > Also, it would be nice to include a noise/sttdev figure, it's really hard 
+> > > to tell whether -1.7% is statistically significant.
+> > 
+> > Ingo,
+> > 
+> > I think that the optimistic spin changes to rwsem should enhance 
+> > performance to real workloads after all.
+> > 
+> > In my previous tests, I was doing mmap followed immediately by 
+> > munmap without doing anything to the memory.  No real workload
+> > will behave that way and it is not the scenario that we 
+> > should optimize for.  A much better approximation of
+> > real usages will be doing mmap, then touching 
+> > the memories being mmaped, followed by munmap.  
+> 
+> That's why I asked for a working testcase to be posted ;-) Not just 
+> pseudocode - send the real .c thing please.
+
+I was using a modified version of Anton's will-it-scale test.  I'll try
+to port the tests to perf bench to make it easier for other people to
+run the tests.
+
+> 
+> > This changes the dynamics of the rwsem as we are now dominated by read 
+> > acquisitions of mmap sem due to the page faults, instead of having only 
+> > write acquisitions from mmap. [...]
+> 
+> Absolutely, the page fault read case is the #1 optimization target of 
+> rwsems.
+> 
+> > [...] In this case, any delay in write acquisitions will be costly as we 
+> > will be blocking a lot of readers.  This is where optimistic spinning on 
+> > write acquisitions of mmap sem can provide a very significant boost to 
+> > the throughput.
+> > 
+> > I change the test case to the following with writes to
+> > the mmaped memory:
+> > 
+> > #define MEMSIZE (1 * 1024 * 1024)
+> > 
+> > char *testcase_description = "Anonymous memory mmap/munmap of 1MB";
+> > 
+> > void testcase(unsigned long long *iterations)
+> > {
+> >         int i;
+> > 
+> >         while (1) {
+> >                 char *c = mmap(NULL, MEMSIZE, PROT_READ|PROT_WRITE,
+> >                                MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+> >                 assert(c != MAP_FAILED);
+> >                 for (i=0; i<MEMSIZE; i+=8) {
+> >                         c[i] = 0xa;
+> >                 }
+> >                 munmap(c, MEMSIZE);
+> > 
+> >                 (*iterations)++;
+> >         }
+> > }
+> 
+> It would be _really_ nice to stick this into tools/perf/bench/ as:
+> 
+> 	perf bench mem pagefaults
+> 
+> or so, with a number of parallelism and workload patterns. See 
+> tools/perf/bench/numa.c for a couple of workload generators - although 
+> those are not page fault intense.
+> 
+> So that future generations can run all these tests too and such.
+
+Okay, will do.
+
+> 
+> > I compare the throughput where I have the complete rwsem patchset 
+> > against vanilla and the case where I take out the optimistic spin patch.  
+> > I have increased the run time by 10x from my pervious experiments and do 
+> > 10 runs for each case.  The standard deviation is ~1.5% so any changes 
+> > under 1.5% is statistically significant.
+> > 
+> > % change in throughput vs the vanilla kernel.
+> > Threads	all	No-optspin
+> > 1		+0.4%	-0.1%
+> > 2		+2.0%	+0.2%
+> > 3		+1.1%	+1.5%
+> > 4		-0.5%	-1.4%
+> > 5		-0.1%	-0.1%
+> > 10		+2.2%	-1.2%
+> > 20		+237.3%	-2.3%
+> > 40		+548.1%	+0.3%
+> 
+> The tail is impressive. The early parts are important as well, but it's 
+> really hard to tell the significance of the early portion without having 
+> an sttdev column.
+
+Here's the data with sdv column:
+
+n	all	sdv	No-optspin	sdv
+1	+0.4%	0.9%	-0.1%		0.8%
+2	+2.0%	0.8%	+0.2%		1.2%
+3	+1.1%	0.8%	+1.5%		0.6%
+4	-0.5%	0.9%	-1.4%		1.1%
+5	-0.1%	1.1%	-0.1%		1.1%
+10	+2.2%	0.8%	-1.2%		1.0%
+20	+237.3%	0.7%	-2.3%		1.3%
+40	+548.1%	0.8%	+0.3%		1.2%
 
 
-On Wed, Oct 16, 2013 at 5:11 AM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> Ning Qu wrote:
->> you mean something like this? If so, then fixed.
->>
->>                if (must_use_thp) {
->>                         page =3D shmem_alloc_hugepage(gfp, info, index);
->>                         if (page) {
->>                                 count_vm_event(THP_WRITE_ALLOC);
->>                         } else
->>                                 count_vm_event(THP_WRITE_ALLOC_FAILED);
->>                 } else {
->>                         page =3D shmem_alloc_page(gfp, info, index);
->>                 }
->>
->>                 if (!page) {
->>                         error =3D -ENOMEM;
->>                         goto unacct;
->>                 }
->>                 nr =3D hpagecache_nr_pages(page);
->
-> Yeah.
->
-> count_vm_event() part still looks ugly, but I have similar in my code.
-> I'll think more how to rework in to make it better.
->
-> --
->  Kirill A. Shutemov
+> ( "perf stat --repeat N" will give you sttdev output, in handy percentage 
+>   form. )
+> 
+> > Now when I test the case where we acquire mutex in the
+> > user space before mmap, I got the following data versus
+> > vanilla kernel.  There's little contention on mmap sem 
+> > acquisition in this case.
+> > 
+> > n	all	No-optspin
+> > 1	+0.8%	-1.2%
+> > 2	+1.0%	-0.5%
+> > 3	+1.8%	+0.2%
+> > 4	+1.5%	-0.4%
+> > 5	+1.1%	+0.4%
+> > 10	+1.5%	-0.3%
+> > 20	+1.4%	-0.2%
+> > 40	+1.3%	+0.4%
+
+Adding std-dev to above data:
+
+n	all	sdv	No-optspin	sdv
+1	+0.8%	1.0%	-1.2%		1.2%
+2	+1.0%	1.0%	-0.5%		1.0%
+3	+1.8%	0.7%	+0.2%		0.8%
+4	+1.5%	0.8%	-0.4%		0.7%
+5	+1.1%	1.1%	+0.4%		0.3%
+10	+1.5%	0.7%	-0.3%		0.7%
+20	+1.4%	0.8%	-0.2%		1.0%
+40	+1.3%	0.7%	+0.4%		0.5%
+
+> > 
+> > Thanks.
+> 
+> A bit hard to see as there's no comparison _between_ the pthread_mutex and 
+> plain-parallel versions. No contention isn't a great result if performance 
+> suffers because it's all serialized.
+
+Now the data for pthread-mutex vs plain-parallel vanilla testcase 
+with std-dev
+						
+n	vanilla	sdv	Rwsem-all	sdv	No-optspin	sdv
+1	+0.5%	0.9%	+1.4%		0.9%	-0.7%		1.0%
+2	-39.3%	1.0%	-38.7%		1.1%	-39.6%		1.1%
+3	-52.6%	1.2%	-51.8%		0.7%	-52.5%		0.7%
+4	-59.8%	0.8%	-59.2%		1.0%	-59.9%		0.9%
+5	-63.5%	1.4%	-63.1%		1.4%	-63.4%		1.0%
+10	-66.1%	1.3%	-65.6%		1.3%	-66.2%		1.3%
+20	+178.3%	0.9%	+182.3%		1.0%	+177.7%		1.1%
+40	+604.8%	1.1%	+614.0%		1.0%	+607.9%		0.9%
+
+The version with full rwsem patchset perform best across the threads.  
+Serialization actually hurts for smaller number of threads even for
+current vanilla kernel.
+
+I'll rerun the tests once I ported them to the perf bench.  It may take
+me a couple of days.
+
+Thanks.
+
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
