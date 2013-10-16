@@ -1,47 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id E3B4B6B0031
-	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 08:11:53 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id kx10so975638pab.15
-        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 05:11:53 -0700 (PDT)
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 177016B0036
+	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 08:26:19 -0400 (EDT)
+Received: by mail-pb0-f50.google.com with SMTP id uo5so751111pbc.23
+        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 05:26:18 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <CACz4_2eh3F2An9F0GxSvw8kSmn2VZbqbdRVGXA2B=gvPFCChUw@mail.gmail.com>
-References: <20131015001214.GD3432@hippobay.mtv.corp.google.com>
- <20131015102912.2BC99E0090@blue.fi.intel.com>
- <CACz4_2eh3F2An9F0GxSvw8kSmn2VZbqbdRVGXA2B=gvPFCChUw@mail.gmail.com>
-Subject: Re: [PATCH 03/12] mm, thp, tmpfs: handle huge page cases in
- shmem_getpage_gfp
+In-Reply-To: <CACz4_2er-_Xa8oRo_JJTC+HZtDTAcjJ+cNTjrXLhN0Dm7BtXFQ@mail.gmail.com>
+References: <20131015001201.GC3432@hippobay.mtv.corp.google.com>
+ <20131015100213.A0189E0090@blue.fi.intel.com>
+ <CACz4_2er-_Xa8oRo_JJTC+HZtDTAcjJ+cNTjrXLhN0Dm7BtXFQ@mail.gmail.com>
+Subject: Re: [PATCH 02/12] mm, thp, tmpfs: support to add huge page into page
+ cache for tmpfs
 Content-Transfer-Encoding: 7bit
-Message-Id: <20131016121145.EFC7AE0090@blue.fi.intel.com>
-Date: Wed, 16 Oct 2013 15:11:45 +0300 (EEST)
+Message-Id: <20131016122611.69CA0E0090@blue.fi.intel.com>
+Date: Wed, 16 Oct 2013 15:26:11 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ning Qu <quning@google.com>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
 Ning Qu wrote:
-> you mean something like this? If so, then fixed.
+> Yes, I can try. The code is pretty much similar with some minor difference.
 > 
->                if (must_use_thp) {
->                         page = shmem_alloc_hugepage(gfp, info, index);
->                         if (page) {
->                                 count_vm_event(THP_WRITE_ALLOC);
->                         } else
->                                 count_vm_event(THP_WRITE_ALLOC_FAILED);
->                 } else {
->                         page = shmem_alloc_page(gfp, info, index);
->                 }
+> One thing I can do is to move the spin lock part (together with the
+> corresponding err handling into a common function.
 > 
->                 if (!page) {
->                         error = -ENOMEM;
->                         goto unacct;
->                 }
->                 nr = hpagecache_nr_pages(page);
+> The only problem I can see right now is we need the following
+> additional line for shm:
+> 
+> __mod_zone_page_state(page_zone(page), NR_SHMEM, nr);
+> 
+> Which means we need to tell if it's coming from shm or not, is that OK
+> to add additional parameter just for that? Or is there any other
+> better way we can infer that information? Thanks!
 
-Yeah.
-
-count_vm_event() part still looks ugly, but I have similar in my code.
-I'll think more how to rework in to make it better.
+I think you can account NR_SHMEM after common code succeed, don't you?
 
 -- 
  Kirill A. Shutemov
