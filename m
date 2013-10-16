@@ -1,170 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id B18B56B0031
-	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 20:09:40 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id x10so10228pdj.15
-        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 17:09:40 -0700 (PDT)
-Subject: Re: [PATCH v8 0/9] rwsem performance optimizations
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <20131010075444.GD17990@gmail.com>
-References: <cover.1380748401.git.tim.c.chen@linux.intel.com>
-	 <1380753493.11046.82.camel@schen9-DESK> <20131003073212.GC5775@gmail.com>
-	 <1381186674.11046.105.camel@schen9-DESK> <20131009061551.GD7664@gmail.com>
-	 <1381336441.11046.128.camel@schen9-DESK> <20131010075444.GD17990@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 15 Oct 2013 17:09:16 -0700
-Message-ID: <1381882156.11046.178.camel@schen9-DESK>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 08BE96B0031
+	for <linux-mm@kvack.org>; Tue, 15 Oct 2013 20:33:46 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id mc17so27646pbc.32
+        for <linux-mm@kvack.org>; Tue, 15 Oct 2013 17:33:46 -0700 (PDT)
+Date: Wed, 16 Oct 2013 09:33:47 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 2/2] mm: add a field to store names for private anonymous
+ memory
+Message-ID: <20131016003347.GC13007@bbox>
+References: <1381800678-16515-1-git-send-email-ccross@android.com>
+ <1381800678-16515-2-git-send-email-ccross@android.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1381800678-16515-2-git-send-email-ccross@android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Jason Low <jason.low2@hp.com>, Waiman Long <Waiman.Long@hp.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Colin Cross <ccross@android.com>
+Cc: linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Jan Glauber <jan.glauber@gmail.com>, John Stultz <john.stultz@linaro.org>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Kees Cook <keescook@chromium.org>, "Serge E. Hallyn" <serge.hallyn@ubuntu.com>, David Rientjes <rientjes@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Tang Chen <tangchen@cn.fujitsu.com>, Robin Holt <holt@sgi.com>, Shaohua Li <shli@fusionio.com>, Sasha Levin <sasha.levin@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-On Thu, 2013-10-10 at 09:54 +0200, Ingo Molnar wrote:
-> * Tim Chen <tim.c.chen@linux.intel.com> wrote:
+Hello,
+
+On Mon, Oct 14, 2013 at 06:31:17PM -0700, Colin Cross wrote:
+> In many userspace applications, and especially in VM based
+> applications like Android uses heavily, there are multiple different
+> allocators in use.  At a minimum there is libc malloc and the stack,
+> and in many cases there are libc malloc, the stack, direct syscalls to
+> mmap anonymous memory, and multiple VM heaps (one for small objects,
+> one for big objects, etc.).  Each of these layers usually has its own
+> tools to inspect its usage; malloc by compiling a debug version, the
+> VM through heap inspection tools, and for direct syscalls there is
+> usually no way to track them.
 > 
-> > The throughput of pure mmap with mutex is below vs pure mmap is below:
-> > 
-> > % change in performance of the mmap with pthread-mutex vs pure mmap
-> > #threads        vanilla 	all rwsem    	without optspin
-> > 				patches
-> > 1               3.0%    	-1.0%   	-1.7%
-> > 5               7.2%    	-26.8%  	5.5%
-> > 10              5.2%    	-10.6%  	22.1%
-> > 20              6.8%    	16.4%   	12.5%
-> > 40              -0.2%   	32.7%   	0.0%
-> > 
-> > So with mutex, the vanilla kernel and the one without optspin both run 
-> > faster.  This is consistent with what Peter reported.  With optspin, the 
-> > picture is more mixed, with lower throughput at low to moderate number 
-> > of threads and higher throughput with high number of threads.
+> On Android we heavily use a set of tools that use an extended version
+> of the logic covered in Documentation/vm/pagemap.txt to walk all pages
+> mapped in userspace and slice their usage by process, shared (COW) vs.
+> unique mappings, backing, etc.  This can account for real physical
+> memory usage even in cases like fork without exec (which Android uses
+> heavily to share as many private COW pages as possible between
+> processes), Kernel SamePage Merging, and clean zero pages.  It
+> produces a measurement of the pages that only exist in that process
+> (USS, for unique), and a measurement of the physical memory usage of
+> that process with the cost of shared pages being evenly split between
+> processes that share them (PSS).
 > 
-> So, going back to your orignal table:
+> If all anonymous memory is indistinguishable then figuring out the
+> real physical memory usage (PSS) of each heap requires either a pagemap
+> walking tool that can understand the heap debugging of every layer, or
+> for every layer's heap debugging tools to implement the pagemap
+> walking logic, in which case it is hard to get a consistent view of
+> memory across the whole system.
 > 
-> > % change in performance of the mmap with pthread-mutex vs pure mmap
-> > #threads        vanilla all     without optspin
-> > 1               3.0%    -1.0%   -1.7%
-> > 5               7.2%    -26.8%  5.5%
-> > 10              5.2%    -10.6%  22.1%
-> > 20              6.8%    16.4%   12.5%
-> > 40              -0.2%   32.7%   0.0%
-> >
-> > In general, vanilla and no-optspin case perform better with 
-> > pthread-mutex.  For the case with optspin, mmap with pthread-mutex is 
-> > worse at low to moderate contention and better at high contention.
+> This patch adds a field to /proc/pid/maps and /proc/pid/smaps to
+> show a userspace-provided name for anonymous vmas.  The names of
+> named anonymous vmas are shown in /proc/pid/maps and /proc/pid/smaps
+> as [anon:<name>].
 > 
-> it appears that 'without optspin' appears to be a pretty good choice - if 
-> it wasn't for that '1 thread' number, which, if I correctly assume is the 
-> uncontended case, is one of the most common usecases ...
+> Userspace can set the name for a region of memory by calling
+> prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, start, len, (unsigned long)name);
+> Setting the name to NULL clears it.
 > 
-> How can the single-threaded case get slower? None of the patches should 
-> really cause noticeable overhead in the non-contended case. That looks 
-> weird.
+> The name is stored in a user pointer in the shared union in
+> vm_area_struct that points to a null terminated string inside
+> the user process.  vmas that point to the same address and are
+> otherwise mergeable will be merged, but vmas that point to
+> equivalent strings at different addresses will not be merged.
 > 
-> It would also be nice to see the 2, 3, 4 thread numbers - those are the 
-> most common contention scenarios in practice - where do we see the first 
-> improvement in performance?
-> 
-> Also, it would be nice to include a noise/sttdev figure, it's really hard 
-> to tell whether -1.7% is statistically significant.
+> The idea to store a userspace pointer to reduce the complexity
+> within mm (at the expense of the complexity of reading
+> /proc/pid/mem) came from Dave Hansen.  This results in no
+> runtime overhead in the mm subsystem other than comparing
+> the anon_name pointers when considering vma merging.  The pointer
+> is stored in a union with fields that are only used on file-backed
+> mappings, so it does not increase memory usage.
 
-Ingo,
+I'm not against this idea although I don't have review it in detail
+but we need description to convince why it's hard to be done in
+userspace.
 
-I think that the optimistic spin changes to rwsem should enhance
-performance to real workloads after all.
-
-In my previous tests, I was doing mmap followed immediately by 
-munmap without doing anything to the memory.  No real workload
-will behave that way and it is not the scenario that we 
-should optimize for.  A much better approximation of
-real usages will be doing mmap, then touching 
-the memories being mmaped, followed by munmap.  
-
-This changes the dynamics of the rwsem as we are now dominated
-by read acquisitions of mmap sem due to the page faults, instead
-of having only write acquisitions from mmap. In this case, any delay 
-in write acquisitions will be costly as we will be
-blocking a lot of readers.  This is where optimistic spinning on
-write acquisitions of mmap sem can provide a very significant boost
-to the throughput.
-
-I change the test case to the following with writes to
-the mmaped memory:
-
-#define MEMSIZE (1 * 1024 * 1024)
-
-char *testcase_description = "Anonymous memory mmap/munmap of 1MB";
-
-void testcase(unsigned long long *iterations)
-{
-        int i;
-
-        while (1) {
-                char *c = mmap(NULL, MEMSIZE, PROT_READ|PROT_WRITE,
-                               MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-                assert(c != MAP_FAILED);
-                for (i=0; i<MEMSIZE; i+=8) {
-                        c[i] = 0xa;
-                }
-                munmap(c, MEMSIZE);
-
-                (*iterations)++;
-        }
-}
-
-I compare the throughput where I have the complete rwsem 
-patchset against vanilla and the case where I take out the 
-optimistic spin patch.  I have increased the run time
-by 10x from my pervious experiments and do 10 runs for
-each case.  The standard deviation is ~1.5% so any changes
-under 1.5% is statistically significant.
-
-% change in throughput vs the vanilla kernel.
-Threads	all	No-optspin
-1	+0.4%	-0.1%
-2	+2.0%	+0.2%
-3	+1.1%	+1.5%
-4	-0.5%	-1.4%
-5	-0.1%	-0.1%
-10	+2.2%	-1.2%
-20	+237.3%	-2.3%
-40	+548.1%	+0.3%
-
-For threads 1 to 5, we essentially
-have about the same performance as the vanilla case.
-We are getting a boost in throughput by 237% for 20 threads
-and 548% for 40 threads.  Now when we take out
-the optimistic spin, we have mostly similar throughput as
-the vanilla kernel for this test.
-
-When I look at the profile of the vanilla
-kernel for the 40 threads case, I saw 80% of
-cpu time is spent contending for the spin lock of the rwsem
-wait queue, when rwsem_down_read_failed in page fault.
-When I apply the rwsem patchset with optimistic spin,
-this lock contention went down to only 2% of cpu time.
-
-Now when I test the case where we acquire mutex in the
-user space before mmap, I got the following data versus
-vanilla kernel.  There's little contention on mmap sem 
-acquisition in this case.
-
-n	all	No-optspin
-1	+0.8%	-1.2%
-2	+1.0%	-0.5%
-3	+1.8%	+0.2%
-4	+1.5%	-0.4%
-5	+1.1%	+0.4%
-10	+1.5%	-0.3%
-20	+1.4%	-0.2%
-40	+1.3%	+0.4%
-
-Thanks.
-
-Tim
+I guess this feature would be used with allocators tightly
+so my concern of kernel approach like this that it needs mmap_sem
+write-side lock to split/merge vmas which is really thing
+allocators(ex, tcmalloc, jemalloc) want to avoid for performance win
+that allocators have lots of complicated logic to avoid munmap which
+needs mmap_sem write-side lock but this feature would make it invalid.
 
 
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
