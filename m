@@ -1,81 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DD796B0035
-	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 19:20:46 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id q10so849854pdj.0
-        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 16:20:46 -0700 (PDT)
-Received: by mail-vb0-f51.google.com with SMTP id x16so707604vbf.38
-        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 16:20:44 -0700 (PDT)
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id D9AF46B0035
+	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 20:43:59 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id p10so41669pdj.11
+        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 17:43:59 -0700 (PDT)
+Received: by mail-pa0-f41.google.com with SMTP id bj1so1898178pad.28
+        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 17:43:56 -0700 (PDT)
+Date: Wed, 16 Oct 2013 17:43:55 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, vmpressure: add high level
+Message-ID: <alpine.DEB.2.02.1310161738410.10147@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <CACz4_2edu+99ZQPOML=C9HOLtde699K450xOeCgK524MhsqODA@mail.gmail.com>
-References: <20131015001201.GC3432@hippobay.mtv.corp.google.com>
- <20131015100213.A0189E0090@blue.fi.intel.com> <CACz4_2er-_Xa8oRo_JJTC+HZtDTAcjJ+cNTjrXLhN0Dm7BtXFQ@mail.gmail.com>
- <20131016122611.69CA0E0090@blue.fi.intel.com> <CACz4_2edu+99ZQPOML=C9HOLtde699K450xOeCgK524MhsqODA@mail.gmail.com>
-From: Ning Qu <quning@google.com>
-Date: Wed, 16 Oct 2013 16:20:23 -0700
-Message-ID: <CACz4_2faZ7fvUJMRWVCA72-oj0VsVNMRniwwD=-fWi6B51UvBg@mail.gmail.com>
-Subject: Re: [PATCH 02/12] mm, thp, tmpfs: support to add huge page into page
- cache for tmpfs
-Content-Type: text/plain; charset=GB2312
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Consider this fixed. I have extracted the common function and the new
-shmem_insert_page_page_cache function looks like this:
+Vmpressure has two important levels: medium and critical.  Medium is 
+defined at 60% and critical is defined at 95%.
 
-       spin_lock_irq(&mapping->tree_lock);
-       error =3D __add_to_page_cache_locked(page, mapping, index);
+We have a customer who needs a notification at a higher level than medium, 
+which is slight to moderate reclaim activity, and before critical to start 
+throttling incoming requests to save memory and avoid oom.
 
-       if (!error)
-            __mod_zone_page_state(page_zone(page), NR_SHMEM, nr);
+This patch adds the missing link: a high level defined at 80%.
 
-        radix_tree_preload_end();
-        spin_unlock_irq(&mapping->tree_lock);
+In the future, it would probably be better to allow the user to specify an 
+integer ratio for the notification rather than relying on arbitrarily 
+specified levels.
 
-        if (error)
-                page_cache_release(page);
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/vmpressure.c | 5 +++++
+ 1 file changed, 5 insertions(+)
 
-        return error;
-Best wishes,
---=20
-Ning Qu (=C7=FA=C4=FE) | Software Engineer | quning@google.com | +1-408-418=
--6066
-
-
-On Wed, Oct 16, 2013 at 10:49 AM, Ning Qu <quning@google.com> wrote:
-> Yes, I guess I can if I just put whatever inside the spin lock into a
-> common function. Thanks!
-> Best wishes,
-> --
-> Ning Qu (=C7=FA=C4=FE) | Software Engineer | quning@google.com | +1-408-4=
-18-6066
->
->
-> On Wed, Oct 16, 2013 at 5:26 AM, Kirill A. Shutemov
-> <kirill.shutemov@linux.intel.com> wrote:
->> Ning Qu wrote:
->>> Yes, I can try. The code is pretty much similar with some minor differe=
-nce.
->>>
->>> One thing I can do is to move the spin lock part (together with the
->>> corresponding err handling into a common function.
->>>
->>> The only problem I can see right now is we need the following
->>> additional line for shm:
->>>
->>> __mod_zone_page_state(page_zone(page), NR_SHMEM, nr);
->>>
->>> Which means we need to tell if it's coming from shm or not, is that OK
->>> to add additional parameter just for that? Or is there any other
->>> better way we can infer that information? Thanks!
->>
->> I think you can account NR_SHMEM after common code succeed, don't you?
->>
->> --
->>  Kirill A. Shutemov
+diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+--- a/mm/vmpressure.c
++++ b/mm/vmpressure.c
+@@ -46,6 +46,7 @@ static const unsigned long vmpressure_win = SWAP_CLUSTER_MAX * 16;
+  * unsuccessful reclaims there were.
+  */
+ static const unsigned int vmpressure_level_med = 60;
++static const unsigned int vmpressure_level_high = 80;
+ static const unsigned int vmpressure_level_critical = 95;
+ 
+ /*
+@@ -88,6 +89,7 @@ static struct vmpressure *vmpressure_parent(struct vmpressure *vmpr)
+ enum vmpressure_levels {
+ 	VMPRESSURE_LOW = 0,
+ 	VMPRESSURE_MEDIUM,
++	VMPRESSURE_HIGH,
+ 	VMPRESSURE_CRITICAL,
+ 	VMPRESSURE_NUM_LEVELS,
+ };
+@@ -95,6 +97,7 @@ enum vmpressure_levels {
+ static const char * const vmpressure_str_levels[] = {
+ 	[VMPRESSURE_LOW] = "low",
+ 	[VMPRESSURE_MEDIUM] = "medium",
++	[VMPRESSURE_HIGH] = "high",
+ 	[VMPRESSURE_CRITICAL] = "critical",
+ };
+ 
+@@ -102,6 +105,8 @@ static enum vmpressure_levels vmpressure_level(unsigned long pressure)
+ {
+ 	if (pressure >= vmpressure_level_critical)
+ 		return VMPRESSURE_CRITICAL;
++	else if (pressure >= vmpressure_level_high)
++		return VMPRESSURE_HIGH;
+ 	else if (pressure >= vmpressure_level_med)
+ 		return VMPRESSURE_MEDIUM;
+ 	return VMPRESSURE_LOW;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
