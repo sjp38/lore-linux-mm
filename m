@@ -1,89 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 12AA26B00A2
-	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 13:52:30 -0400 (EDT)
-Received: by mail-pb0-f54.google.com with SMTP id ro12so2619807pbb.41
-        for <linux-mm@kvack.org>; Thu, 17 Oct 2013 10:52:29 -0700 (PDT)
-From: Damien Ramonda <damien.ramonda@intel.com>
-Subject: [PATCH] readahead: fix sequential read cache miss detection
-Date: Thu, 17 Oct 2013 20:09:12 +0200
-Message-Id: <1382033352-21225-1-git-send-email-damien.ramonda@intel.com>
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 097616B00A4
+	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 14:03:00 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id x10so3163769pdj.15
+        for <linux-mm@kvack.org>; Thu, 17 Oct 2013 11:03:00 -0700 (PDT)
+Date: Thu, 17 Oct 2013 18:02:57 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v2 00/15] slab: overload struct slab over struct page to
+ reduce memory usage
+In-Reply-To: <525F8FA4.3000702@iki.fi>
+Message-ID: <00000141c795afcd-7cd3594e-91c4-404a-9f99-48c3b7d19d6f-000000@email.amazonses.com>
+References: <1381913052-23875-1-git-send-email-iamjoonsoo.kim@lge.com> <20131016133457.60fa71f893cd2962d8ec6ff3@linux-foundation.org> <525F8FA4.3000702@iki.fi>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, damien.ramonda@intel.com, pierre.tardy@intel.com, fengguang.wu@intel.com, david.a.cohen@intel.com
+To: Pekka Enberg <penberg@iki.fi>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-The kernel's readahead algorithm sometimes interprets random read
-accesses as sequential and triggers unnecessary data prefecthing
-from storage device (impacting random read average latency).
+On Thu, 17 Oct 2013, Pekka Enberg wrote:
 
-In order to identify sequential cache read misses, the readahead
-algorithm intends to check whether offset - previous offset == 1
-(trivial sequential reads) or offset - previous offset == 0
-(sequential reads not aligned on page boundary):
+> On 10/16/13 10:34 PM, Andrew Morton wrote:
+> > On Wed, 16 Oct 2013 17:43:57 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > wrote:
+> >
+> > > There is two main topics in this patchset. One is to reduce memory usage
+> > > and the other is to change a management method of free objects of a slab.
+> > >
+> > > The SLAB allocate a struct slab for each slab. The size of this structure
+> > > except bufctl array is 40 bytes on 64 bits machine. We can reduce memory
+> > > waste and cache footprint if we overload struct slab over struct page.
+> > Seems a good idea from a quick look.
+>
+> Indeed.
+>
+> Christoph, I'd like to pick this up and queue for linux-next. Any
+> objections or comments to the patches?
 
-if (offset - (ra->prev_pos >> PAGE_CACHE_SHIFT) <= 1UL)
+I think this is fine. I have looked through the whole set repeatedly and
+like the overall approach but I have I have only commented in detail on a
+the beginning part of it. There was always something coming up. Sigh.
 
-The current offset is stored in the "offset" variable of type
-"pgoff_t" (unsigned long), while previous offset is stored in
-"ra->prev_pos" of type "loff_t" (long long). Therefore,
-operands of the if statement are implicitly converted to type
-long long. Consequently, when previous offset > current offset
-(which happens on random pattern), the if condition is true
-and access is wrongly interpeted as sequential. An unnecessary
-data prefetching is triggered, impacting the average
-random read latency.
-
-Storing the previous offset value in a "pgoff_t" variable
-(unsigned long) fixes the sequential read detection logic.
-
-Signed-off-by: Damien Ramonda <damien.ramonda@intel.com>
-Reviewed-by: Fengguang Wu <fengguang.wu@intel.com>
-Acked-by: Pierre Tardy <pierre.tardy@intel.com>
-Acked-by: David Cohen <david.a.cohen@linux.intel.com>
----
- mm/readahead.c |    6 +++++-
- 1 files changed, 5 insertions(+), 1 deletions(-)
-
-diff --git a/mm/readahead.c b/mm/readahead.c
-index e4ed041..5b637b5 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -401,6 +401,7 @@ ondemand_readahead(struct address_space *mapping,
- 		   unsigned long req_size)
- {
- 	unsigned long max = max_sane_readahead(ra->ra_pages);
-+	pgoff_t prev_offset;
- 
- 	/*
- 	 * start of file
-@@ -452,8 +453,11 @@ ondemand_readahead(struct address_space *mapping,
- 
- 	/*
- 	 * sequential cache miss
-+	 * trivial case: (offset - prev_offset) == 1
-+	 * unaligned reads: (offset - prev_offset) == 0
- 	 */
--	if (offset - (ra->prev_pos >> PAGE_CACHE_SHIFT) <= 1UL)
-+	prev_offset = (unsigned long long)ra->prev_pos >> PAGE_CACHE_SHIFT;
-+	if (offset - prev_offset <= 1UL)
- 		goto initial_readahead;
- 
- 	/*
--- 
-1.7.0.4
-
----------------------------------------------------------------------
-Intel Corporation SAS (French simplified joint stock company)
-Registered headquarters: "Les Montalets"- 2, rue de Paris, 
-92196 Meudon Cedex, France
-Registration Number:  302 456 199 R.C.S. NANTERRE
-Capital: 4,572,000 Euros
-
-This e-mail and any attachments may contain confidential material for
-the sole use of the intended recipient(s). Any review or distribution
-by others is strictly prohibited. If you are not the intended
-recipient, please contact the sender and delete all copies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
