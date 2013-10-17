@@ -1,46 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 097616B00A4
-	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 14:03:00 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id x10so3163769pdj.15
-        for <linux-mm@kvack.org>; Thu, 17 Oct 2013 11:03:00 -0700 (PDT)
-Date: Thu, 17 Oct 2013 18:02:57 +0000
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 61FFA6B00AE
+	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 15:01:41 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id kx10so3244360pab.27
+        for <linux-mm@kvack.org>; Thu, 17 Oct 2013 12:01:41 -0700 (PDT)
+Date: Thu, 17 Oct 2013 19:01:38 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2 00/15] slab: overload struct slab over struct page to
- reduce memory usage
-In-Reply-To: <525F8FA4.3000702@iki.fi>
-Message-ID: <00000141c795afcd-7cd3594e-91c4-404a-9f99-48c3b7d19d6f-000000@email.amazonses.com>
-References: <1381913052-23875-1-git-send-email-iamjoonsoo.kim@lge.com> <20131016133457.60fa71f893cd2962d8ec6ff3@linux-foundation.org> <525F8FA4.3000702@iki.fi>
+Subject: Re: [PATCH v2 3/5] slab: restrict the number of objects in a slab
+In-Reply-To: <1381989797-29269-4-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <00000141c7cb668b-1e2528ea-ce87-4380-a0dd-e5be9384cd84-000000@email.amazonses.com>
+References: <1381989797-29269-1-git-send-email-iamjoonsoo.kim@lge.com> <1381989797-29269-4-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@iki.fi>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Thu, 17 Oct 2013, Pekka Enberg wrote:
+n Thu, 17 Oct 2013, Joonsoo Kim wrote:
 
-> On 10/16/13 10:34 PM, Andrew Morton wrote:
-> > On Wed, 16 Oct 2013 17:43:57 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > wrote:
-> >
-> > > There is two main topics in this patchset. One is to reduce memory usage
-> > > and the other is to change a management method of free objects of a slab.
-> > >
-> > > The SLAB allocate a struct slab for each slab. The size of this structure
-> > > except bufctl array is 40 bytes on 64 bits machine. We can reduce memory
-> > > waste and cache footprint if we overload struct slab over struct page.
-> > Seems a good idea from a quick look.
->
-> Indeed.
->
-> Christoph, I'd like to pick this up and queue for linux-next. Any
-> objections or comments to the patches?
+> To prepare to implement byte sized index for managing the freelist
+> of a slab, we should restrict the number of objects in a slab to be less
+> or equal to 256, since byte only represent 256 different values.
+> Setting the size of object to value equal or more than newly introduced
+> SLAB_MIN_SIZE ensures that the number of objects in a slab is less or
+> equal to 256 for a slab with 1 page.
 
-I think this is fine. I have looked through the whole set repeatedly and
-like the overall approach but I have I have only commented in detail on a
-the beginning part of it. There was always something coming up. Sigh.
+Ok so that results in a mininum size object size of 2^(12 - 8) = 2^4 ==
+16 bytes on x86. This is not true for order 1 pages (which SLAB also
+supports) where we need 32 bytes.
 
+Problems may arise on PPC or IA64 where the page size may be larger than
+64K. With 64K we have a mininum size of 2^(16 - 8) = 256 bytes. For those
+arches we may need 16 bit sized indexes. Maybe make that compile time
+determined base on page size? > 64KByte results in 16 bit sized indexes?
+
+Otherwise I like this approach. Simplifies a lot and its very cache
+friendly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
