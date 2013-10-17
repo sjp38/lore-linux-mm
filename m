@@ -1,55 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 174F76B0035
-	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 23:44:18 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fa1so2032770pad.23
-        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 20:44:17 -0700 (PDT)
-Received: by mail-pd0-f171.google.com with SMTP id z10so2011633pdj.16
-        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 20:44:14 -0700 (PDT)
-Date: Wed, 16 Oct 2013 20:44:12 -0700 (PDT)
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id DF10B6B0035
+	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 23:51:23 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id z10so2021658pdj.2
+        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 20:51:23 -0700 (PDT)
+Received: by mail-pd0-f179.google.com with SMTP id v10so2033369pde.10
+        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 20:51:20 -0700 (PDT)
+Date: Wed, 16 Oct 2013 20:51:18 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, vmpressure: add high level
-In-Reply-To: <20131017030512.GA21327@teo>
-Message-ID: <alpine.DEB.2.02.1310162042050.30329@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1310161738410.10147@chino.kir.corp.google.com> <20131017030512.GA21327@teo>
+Subject: [bug] get_maintainer.pl incomplete output
+In-Reply-To: <alpine.DEB.2.02.1310161738410.10147@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.02.1310162046090.30995@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1310161738410.10147@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton@enomsg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Joe Perches <joe@perches.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 16 Oct 2013, Anton Vorontsov wrote:
+Hi Joe,
 
-> > Vmpressure has two important levels: medium and critical.  Medium is 
-> > defined at 60% and critical is defined at 95%.
-> > 
-> > We have a customer who needs a notification at a higher level than medium, 
-> > which is slight to moderate reclaim activity, and before critical to start 
-> > throttling incoming requests to save memory and avoid oom.
-> > 
-> > This patch adds the missing link: a high level defined at 80%.
-> > 
-> > In the future, it would probably be better to allow the user to specify an 
-> > integer ratio for the notification rather than relying on arbitrarily 
-> > specified levels.
-> 
-> Does the customer need to differentiate the two levels (medium and high),
-> or the customer only interested in this (80%) specific level?
-> 
+I haven't looked closely at scripts/get_maintainer.pl, but I recently 
+wrote a patch touching mm/vmpressure.c and it doesn't list the file's 
+author, Anton Vorontsov <anton.vorontsov@linaro.org>.
 
-Only high.
+Even when I do scripts/get_maintainer.pl -f mm/vmpressure.c, his entry is 
+missing and git blame attributs >90% of the lines to his authorship.
 
-> In the latter case, instead of adding a new level I would vote for adding
-> a [sysfs] knob for modifying medium level's threshold.
-> 
+$ ./scripts/get_maintainer.pl -f mm/vmpressure.c 
+Tejun Heo <tj@kernel.org> (commit_signer:6/7=86%)
+Michal Hocko <mhocko@suse.cz> (commit_signer:5/7=71%)
+Andrew Morton <akpm@linux-foundation.org> (commit_signer:4/7=57%)
+Li Zefan <lizefan@huawei.com> (commit_signer:3/7=43%)
+"Kirill A. Shutemov" <kirill@shutemov.name> (commit_signer:1/7=14%)
+linux-mm@kvack.org (open list:MEMORY MANAGEMENT)
+linux-kernel@vger.kernel.org (open list)
 
-Hmm, doesn't seem like such a good idea.  If one process depends on this 
-being 60% and another depends on it being 80%, we're stuck.  I think it's 
-legitimate to have things like low, medium, high, and critical as rough 
-approximations (and to keep backwards compatibility), but as mentioned in 
-the changelog I want to extend the interface to allow integer writes to 
-specify their own ratio.
+Any ideas?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
