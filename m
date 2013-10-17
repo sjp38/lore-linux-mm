@@ -1,54 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 302BD6B0035
-	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 01:27:12 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id g10so1706436pdj.34
-        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 22:27:11 -0700 (PDT)
-Date: Thu, 17 Oct 2013 14:27:31 +0900
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id A358C6B0035
+	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 02:01:34 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so1765544pad.30
+        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 23:01:34 -0700 (PDT)
+Date: Thu, 17 Oct 2013 15:01:53 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 01/15] slab: correct pfmemalloc check
-Message-ID: <20131017052730.GA26617@lge.com>
+Subject: Re: [PATCH v2 00/15] slab: overload struct slab over struct page to
+ reduce memory usage
+Message-ID: <20131017060153.GB26617@lge.com>
 References: <1381913052-23875-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1381913052-23875-2-git-send-email-iamjoonsoo.kim@lge.com>
- <00000141c1e16001-26ccfd98-51ee-4ca6-8ddf-61abd491dea8-000000@email.amazonses.com>
+ <20131016133457.60fa71f893cd2962d8ec6ff3@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <00000141c1e16001-26ccfd98-51ee-4ca6-8ddf-61abd491dea8-000000@email.amazonses.com>
+In-Reply-To: <20131016133457.60fa71f893cd2962d8ec6ff3@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Wed, Oct 16, 2013 at 03:27:54PM +0000, Christoph Lameter wrote:
-> On Wed, 16 Oct 2013, Joonsoo Kim wrote:
+On Wed, Oct 16, 2013 at 01:34:57PM -0700, Andrew Morton wrote:
+> On Wed, 16 Oct 2013 17:43:57 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 > 
-> > --- a/mm/slab.c
-> > +++ b/mm/slab.c
-> > @@ -930,7 +930,8 @@ static void *__ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
-> >  {
-> >  	if (unlikely(pfmemalloc_active)) {
-> >  		/* Some pfmemalloc slabs exist, check if this is one */
-> > -		struct page *page = virt_to_head_page(objp);
-> > +		struct slab *slabp = virt_to_slab(objp);
-> > +		struct page *page = virt_to_head_page(slabp->s_mem);
-> >  		if (PageSlabPfmemalloc(page))
+> > There is two main topics in this patchset. One is to reduce memory usage
+> > and the other is to change a management method of free objects of a slab.
+> > 
+> > The SLAB allocate a struct slab for each slab. The size of this structure
+> > except bufctl array is 40 bytes on 64 bits machine. We can reduce memory
+> > waste and cache footprint if we overload struct slab over struct page.
 > 
-> I hope the compiler optimizes this code correctly because virt_to_slab
-> already does one virt_to_head_page()?
+> Seems a good idea from a quick look.
 
-It should not.
-objp could be in a different page with slabp->s_mem's,
-so virt_to_head_page() should be called twice.
+Thanks :)
 
-Anyway, after implementing struct slab overloading, one call site is
-removed by [14/15] in this patchset, so there is no issue.
+> 
+> A thought: when we do things like this - adding additional
+> interpretations to `struct page', we need to bear in mind that other
+> unrelated code can inspect that pageframe.  It is not correct to assume
+> that because slab "owns" this page, no other code will be looking at it
+> and interpreting its contents.
+> 
+> One example is mm/memory-failure.c:memory_failure().  It starts with a
+> raw pfn, uses that to get at the `struct page', then starts playing
+> around with it.  Will that code still work correctly when some of the
+> page's fields have been overlayed with slab-specific contents?
+
+Yes, it would work correctly since the SLUB already overload many fields
+of struct page with slab-specific contents. One exception is mapping field
+which isn't overloaded by the SLUB. But I guess there is no problem,
+because the code inspecting random struct page may be already check
+PageSlab() or PageLRU() and then skip it if so.
+
+> 
+> And memory_failure() is just one example - another is compact_zone()
+> and there may well be others.
+> 
+> This issue hasn't been well thought through.  Given a random struct
+> page, there isn't any protocol to determine what it actually *is*. 
+> It's a plain old variant record, but it lacks the agreed-upon tag field
+> which tells users which variant is currently in use.
+
+With PageSlab(), we can determine that this page is the slab page.
+Do we need more? Is there another user who overload struct page?
 
 Thanks.
 
-> 
-> Otherwise this looks fine.
-> 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
