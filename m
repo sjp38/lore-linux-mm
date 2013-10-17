@@ -1,33 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 85D516B0069
-	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 09:44:36 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so2205361pad.30
-        for <linux-mm@kvack.org>; Thu, 17 Oct 2013 06:44:36 -0700 (PDT)
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FAB76B006E
+	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 09:50:04 -0400 (EDT)
+Received: by mail-pb0-f48.google.com with SMTP id ma3so2303603pbc.7
+        for <linux-mm@kvack.org>; Thu, 17 Oct 2013 06:50:04 -0700 (PDT)
 Received: from /spool/local
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rcj@linux.vnet.ibm.com>;
-	Thu, 17 Oct 2013 23:44:31 +1000
+	Thu, 17 Oct 2013 23:49:59 +1000
 Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 18CAC2CE8052
-	for <linux-mm@kvack.org>; Fri, 18 Oct 2013 00:44:24 +1100 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9HDi8Pf10486112
-	for <linux-mm@kvack.org>; Fri, 18 Oct 2013 00:44:12 +1100
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9HDiJYt011252
-	for <linux-mm@kvack.org>; Fri, 18 Oct 2013 00:44:19 +1100
-Date: Thu, 17 Oct 2013 08:44:18 -0500
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 0A8363578040
+	for <linux-mm@kvack.org>; Fri, 18 Oct 2013 00:49:57 +1100 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9HDnjZT5308766
+	for <linux-mm@kvack.org>; Fri, 18 Oct 2013 00:49:45 +1100
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9HDmRag006212
+	for <linux-mm@kvack.org>; Fri, 18 Oct 2013 00:48:27 +1100
+Date: Thu, 17 Oct 2013 08:48:27 -0500
 From: Robert Jennings <rcj@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/2] vmsplice: Add limited zero copy to vmsplice
-Message-ID: <20131017134418.GA19741@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/2] vmsplice: unmap gifted pages for recipient
+Message-ID: <20131017134827.GB19741@linux.vnet.ibm.com>
 References: <1381177293-27125-1-git-send-email-rcj@linux.vnet.ibm.com>
- <1381177293-27125-3-git-send-email-rcj@linux.vnet.ibm.com>
- <525FC89E.6040208@suse.cz>
+ <1381177293-27125-2-git-send-email-rcj@linux.vnet.ibm.com>
+ <525FB9EE.3070609@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <525FC89E.6040208@suse.cz>
+In-Reply-To: <525FB9EE.3070609@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
@@ -35,119 +35,155 @@ Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.
 
 * Vlastimil Babka (vbabka@suse.cz) wrote:
 > On 10/07/2013 10:21 PM, Robert C Jennings wrote:
-> > From: Matt Helsley <matt.helsley@gmail.com>
+> > Introduce use of the unused SPLICE_F_MOVE flag for vmsplice to zap
+> > pages.
 > > 
-> > It is sometimes useful to move anonymous pages over a pipe rather than
-> > save/swap them. Check the SPLICE_F_GIFT and SPLICE_F_MOVE flags to see
-> > if userspace would like to move such pages. This differs from plain
-> > SPLICE_F_GIFT in that the memory written to the pipe will no longer
-> > have the same contents as the original -- it effectively faults in new,
-> > empty anonymous pages.
+> > When vmsplice is called with flags (SPLICE_F_GIFT | SPLICE_F_MOVE) the
+> > writer's gift'ed pages would be zapped.  This patch supports further work
+> > to move vmsplice'd pages rather than copying them.  That patch has the
+> > restriction that the page must not be mapped by the source for the move,
+> > otherwise it will fall back to copying the page.
 > > 
-> > On the read side the page written to the pipe will be copied unless
-> > SPLICE_F_MOVE is used. Otherwise copying will be performed and the page
-> > will be reclaimed. Note that so long as there is a mapping to the page
-> > copies will be done instead because rmap will have upped the map count for
-> > each anonymous mapping; this can happen do to fork(), for example. This
-> > is necessary because moving the page will usually change the anonymous
-> > page's nonlinear index and that can only be done if it's unmapped.
+> > Signed-off-by: Matt Helsley <matt.helsley@gmail.com>
+> > Signed-off-by: Robert C Jennings <rcj@linux.vnet.ibm.com>
+> > ---
+> > Since the RFC went out I have coalesced the zap_page_range() call to
+> > operate on VMAs rather than calling this for each page.  For a 256MB
+> > vmsplice this reduced the write side 50% from the RFC.
+> > ---
+> >  fs/splice.c            | 51 +++++++++++++++++++++++++++++++++++++++++++++++++-
+> >  include/linux/splice.h |  1 +
+> >  2 files changed, 51 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/fs/splice.c b/fs/splice.c
+> > index 3b7ee65..a62d61e 100644
+> > --- a/fs/splice.c
+> > +++ b/fs/splice.c
+> > @@ -188,12 +188,17 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
+> >  {
+> >  	unsigned int spd_pages = spd->nr_pages;
+> >  	int ret, do_wakeup, page_nr;
+> > +	struct vm_area_struct *vma;
+> > +	unsigned long user_start, user_end;
+> >  
+> >  	ret = 0;
+> >  	do_wakeup = 0;
+> >  	page_nr = 0;
+> > +	vma = NULL;
+> > +	user_start = user_end = 0;
+> >  
+> >  	pipe_lock(pipe);
+> > +	down_read(&current->mm->mmap_sem);
 > 
-> You might want to update comments of vmsplice_to_user() and
-> SYSCALL_DEFINE4(vmsplice) as they both explain how it's done only via
-> copying.
+> Seems like you could take the mmap_sem only when GIFT and MOVE is set.
+> Maybe it won't help that much for performance but at least serve as
+> documenting the reason it's needed?
 > 
 > Vlastimil
 > 
 
-I will update those as well.  Thanks.
+I had been doing that previously but moving this outside the loop and
+acquiring it once did improve performance.  I'll add a comment on
+down_read() as to the reason for taking this though.
 
-> > Signed-off-by: Matt Helsley <matt.helsley@gmail.com>
-> > Signed-off-by: Robert C Jennings <rcj@linux.vnet.ibm.com>
-> > ---
-> >  fs/splice.c | 63 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-> >  1 file changed, 63 insertions(+)
-> > 
-> > diff --git a/fs/splice.c b/fs/splice.c
-> > index a62d61e..9d2ed128 100644
-> > --- a/fs/splice.c
-> > +++ b/fs/splice.c
-> > @@ -32,6 +32,10 @@
-> >  #include <linux/gfp.h>
-> >  #include <linux/socket.h>
-> >  #include <linux/compat.h>
-> > +#include <linux/page-flags.h>
-> > +#include <linux/hugetlb.h>
-> > +#include <linux/ksm.h>
-> > +#include <linux/swapops.h>
-> >  #include "internal.h"
+-Rob
+
+> >  	for (;;) {
+> >  		if (!pipe->readers) {
+> > @@ -212,8 +217,44 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
+> >  			buf->len = spd->partial[page_nr].len;
+> >  			buf->private = spd->partial[page_nr].private;
+> >  			buf->ops = spd->ops;
+> > -			if (spd->flags & SPLICE_F_GIFT)
+> > +			if (spd->flags & SPLICE_F_GIFT) {
+> > +				unsigned long useraddr =
+> > +						spd->partial[page_nr].useraddr;
+> > +
+> > +				if ((spd->flags & SPLICE_F_MOVE) &&
+> > +						!buf->offset &&
+> > +						(buf->len == PAGE_SIZE)) {
+> > +					/* Can move page aligned buf, gather
+> > +					 * requests to make a single
+> > +					 * zap_page_range() call per VMA
+> > +					 */
+> > +					if (vma && (useraddr == user_end) &&
+> > +						   ((useraddr + PAGE_SIZE) <=
+> > +						    vma->vm_end)) {
+> > +						/* same vma, no holes */
+> > +						user_end += PAGE_SIZE;
+> > +					} else {
+> > +						if (vma)
+> > +							zap_page_range(vma,
+> > +								user_start,
+> > +								(user_end -
+> > +								 user_start),
+> > +								NULL);
+> > +						vma = find_vma_intersection(
+> > +								current->mm,
+> > +								useraddr,
+> > +								(useraddr +
+> > +								 PAGE_SIZE));
+> > +						if (!IS_ERR_OR_NULL(vma)) {
+> > +							user_start = useraddr;
+> > +							user_end = (useraddr +
+> > +								    PAGE_SIZE);
+> > +						} else
+> > +							vma = NULL;
+> > +					}
+> > +				}
+> >  				buf->flags |= PIPE_BUF_FLAG_GIFT;
+> > +			}
+> >  
+> >  			pipe->nrbufs++;
+> >  			page_nr++;
+> > @@ -255,6 +296,10 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
+> >  		pipe->waiting_writers--;
+> >  	}
+> >  
+> > +	if (vma)
+> > +		zap_page_range(vma, user_start, (user_end - user_start), NULL);
+> > +
+> > +	up_read(&current->mm->mmap_sem);
+> >  	pipe_unlock(pipe);
+> >  
+> >  	if (do_wakeup)
+> > @@ -485,6 +530,7 @@ fill_it:
+> >  
+> >  		spd.partial[page_nr].offset = loff;
+> >  		spd.partial[page_nr].len = this_len;
+> > +		spd.partial[page_nr].useraddr = index << PAGE_CACHE_SHIFT;
+> >  		len -= this_len;
+> >  		loff = 0;
+> >  		spd.nr_pages++;
+> > @@ -656,6 +702,7 @@ ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
+> >  		this_len = min_t(size_t, vec[i].iov_len, res);
+> >  		spd.partial[i].offset = 0;
+> >  		spd.partial[i].len = this_len;
+> > +		spd.partial[i].useraddr = (unsigned long)vec[i].iov_base;
+> >  		if (!this_len) {
+> >  			__free_page(spd.pages[i]);
+> >  			spd.pages[i] = NULL;
+> > @@ -1475,6 +1522,8 @@ static int get_iovec_page_array(const struct iovec __user *iov,
+> >  
+> >  			partial[buffers].offset = off;
+> >  			partial[buffers].len = plen;
+> > +			partial[buffers].useraddr = (unsigned long)base;
+> > +			base = (void*)((unsigned long)base + PAGE_SIZE);
+> >  
+> >  			off = 0;
+> >  			len -= plen;
+> > diff --git a/include/linux/splice.h b/include/linux/splice.h
+> > index 74575cb..56661e3 100644
+> > --- a/include/linux/splice.h
+> > +++ b/include/linux/splice.h
+> > @@ -44,6 +44,7 @@ struct partial_page {
+> >  	unsigned int offset;
+> >  	unsigned int len;
+> >  	unsigned long private;
+> > +	unsigned long useraddr;
+> >  };
 > >  
 > >  /*
-> > @@ -1562,6 +1566,65 @@ static int pipe_to_user(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
-> >  	char *src;
-> >  	int ret;
-> >  
-> > +	if (!buf->offset && (buf->len == PAGE_SIZE) &&
-> > +	    (buf->flags & PIPE_BUF_FLAG_GIFT) && (sd->flags & SPLICE_F_MOVE)) {
-> > +		struct page *page = buf->page;
-> > +		struct mm_struct *mm;
-> > +		struct vm_area_struct *vma;
-> > +		spinlock_t *ptl;
-> > +		pte_t *ptep, pte;
-> > +		unsigned long useraddr;
-> > +
-> > +		if (!PageAnon(page))
-> > +			goto copy;
-> > +		if (PageCompound(page))
-> > +			goto copy;
-> > +		if (PageHuge(page) || PageTransHuge(page))
-> > +			goto copy;
-> > +		if (page_mapped(page))
-> > +			goto copy;
-> > +		useraddr = (unsigned long)sd->u.userptr;
-> > +		mm = current->mm;
-> > +
-> > +		ret = -EAGAIN;
-> > +		down_read(&mm->mmap_sem);
-> > +		vma = find_vma_intersection(mm, useraddr, useraddr + PAGE_SIZE);
-> > +		if (IS_ERR_OR_NULL(vma))
-> > +			goto up_copy;
-> > +		if (!vma->anon_vma) {
-> > +			ret = anon_vma_prepare(vma);
-> > +			if (ret)
-> > +				goto up_copy;
-> > +		}
-> > +		zap_page_range(vma, useraddr, PAGE_SIZE, NULL);
-> > +		ret = lock_page_killable(page);
-> > +		if (ret)
-> > +			goto up_copy;
-> > +		ptep = get_locked_pte(mm, useraddr, &ptl);
-> > +		if (!ptep)
-> > +			goto unlock_up_copy;
-> > +		pte = *ptep;
-> > +		if (pte_present(pte))
-> > +			goto unlock_up_copy;
-> > +		get_page(page);
-> > +		page_add_anon_rmap(page, vma, useraddr);
-> > +		pte = mk_pte(page, vma->vm_page_prot);
-> > +		set_pte_at(mm, useraddr, ptep, pte);
-> > +		update_mmu_cache(vma, useraddr, ptep);
-> > +		pte_unmap_unlock(ptep, ptl);
-> > +		ret = 0;
-> > +unlock_up_copy:
-> > +		unlock_page(page);
-> > +up_copy:
-> > +		up_read(&mm->mmap_sem);
-> > +		if (!ret) {
-> > +			ret = sd->len;
-> > +			goto out;
-> > +		}
-> > +		/* else ret < 0 and we should fallback to copying */
-> > +		VM_BUG_ON(ret > 0);
-> > +	}
-> > +copy:
-> >  	/*
-> >  	 * See if we can use the atomic maps, by prefaulting in the
-> >  	 * pages and doing an atomic copy
 > > 
 > 
 
