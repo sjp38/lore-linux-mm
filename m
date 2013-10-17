@@ -1,15 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id EC1DC6B00B4
-	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 15:05:57 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rp16so2730228pbb.28
-        for <linux-mm@kvack.org>; Thu, 17 Oct 2013 12:05:57 -0700 (PDT)
-Date: Thu, 17 Oct 2013 19:05:54 +0000
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 70C576B00B6
+	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 15:08:53 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id wz12so2718671pbc.11
+        for <linux-mm@kvack.org>; Thu, 17 Oct 2013 12:08:53 -0700 (PDT)
+Date: Thu, 17 Oct 2013 19:08:49 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2 04/15] slab: remove nodeid in struct slab
-In-Reply-To: <1381913052-23875-5-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <00000141c7cf516e-9c81134b-35e0-4e75-90f2-e7706c28a9d4-000000@email.amazonses.com>
-References: <1381913052-23875-1-git-send-email-iamjoonsoo.kim@lge.com> <1381913052-23875-5-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 08/15] slab: use __GFP_COMP flag for allocating slab
+ pages
+In-Reply-To: <1381913052-23875-9-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <00000141c7d1fae0-ff132cb2-5485-4b8f-9b22-d4da27068681-000000@email.amazonses.com>
+References: <1381913052-23875-1-git-send-email-iamjoonsoo.kim@lge.com> <1381913052-23875-9-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -19,8 +20,12 @@ Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
 On Wed, 16 Oct 2013, Joonsoo Kim wrote:
 
-> We can get nodeid using address translation, so this field is not useful.
-> Therefore, remove it.
+> If we use 'struct page' of first page as 'struct slab', there is no
+> advantage not to use __GFP_COMP. So use __GFP_COMP flag for all the cases.
+
+Yes this is going to make the allocators behave in the same way. We could
+actually put some of the page allocator related functionality in
+slab_common.c
 
 Acked-by: Christoph Lameter <cl@linux.com>
 
