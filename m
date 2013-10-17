@@ -1,78 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E07B06B0035
-	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 22:25:52 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id jt11so1668051pbb.10
-        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 19:25:52 -0700 (PDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 03B763EE0CF
-	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 11:25:49 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E3E6145DE53
-	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 11:25:48 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CB52545DE57
-	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 11:25:48 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B87161DB8045
-	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 11:25:48 +0900 (JST)
-Received: from g01jpfmpwyt01.exch.g01.fujitsu.local (g01jpfmpwyt01.exch.g01.fujitsu.local [10.128.193.38])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 622FF1DB8044
-	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 11:25:48 +0900 (JST)
-Message-ID: <525F4A77.1050400@jp.fujitsu.com>
-Date: Thu, 17 Oct 2013 11:24:55 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 61A736B0035
+	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 22:38:08 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id fa1so1997237pad.5
+        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 19:38:08 -0700 (PDT)
+Message-ID: <525F4D4C.2090002@asianux.com>
+Date: Thu, 17 Oct 2013 10:37:00 +0800
+From: Chen Gang <gang.chen@asianux.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Release device_hotplug_lock when store_mem_state returns
- EINVAL
-References: <52579C69.1080304@jp.fujitsu.com> <1381509080.26234.32.camel@misato.fc.hp.com>
-In-Reply-To: <1381509080.26234.32.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
+Subject: Re: [PATCH] mm/readahead.c: need always return 0 when system call
+ readahead() succeeds
+References: <5212E328.40804@asianux.com> <20130820161639.69ffa65b40c5cf761bbb727c@linux-foundation.org> <521428D0.2020708@asianux.com> <20130917155644.cc988e7e929fee10e9c86d86@linux-foundation.org> <52390907.7050101@asianux.com> <525CF787.6050107@asianux.com> <alpine.DEB.2.02.1310161603280.2417@chino.kir.corp.google.com> <525F35F7.4070202@asianux.com> <alpine.DEB.2.02.1310161812480.12062@chino.kir.corp.google.com> <525F3E39.3060603@asianux.com> <alpine.DEB.2.02.1310161918260.21167@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1310161918260.21167@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, sjenning@linux.vnet.ibm.com, gregkh@linuxfoundation.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, sasha.levin@oracle.com, linux@rasmusvillemoes.dk, kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, lczerner@redhat.com, linux-mm@kvack.org
 
-(2013/10/12 1:31), Toshi Kani wrote:
-> On Fri, 2013-10-11 at 15:36 +0900, Yasuaki Ishimatsu wrote:
->> When inserting a wrong value to /sys/devices/system/memory/memoryX/state file,
->> following messages are shown. And device_hotplug_lock is never released.
+On 10/17/2013 10:21 AM, David Rientjes wrote:
+> On Thu, 17 Oct 2013, Chen Gang wrote:
+> 
+>>> I think your patches should be acked before being merged into linux-next, 
+>>> Hugh just had to revert another one that did affect Linus's tree in 
+>>> 1ecfd533f4c5 ("mm/mremap.c: call pud_free() after fail calling
+>>> pmd_alloc()").  I had to revert your entire series of mpol_to_str() 
+>>> changes in -mm.  It's getting ridiculous and a waste of other people's 
+>>> time.
+>>>
 >>
->> ================================================
->> [ BUG: lock held when returning to user space! ]
->> 3.12.0-rc4-debug+ #3 Tainted: G        W
->> ------------------------------------------------
->> bash/6442 is leaving the kernel with locks still held!
->> 1 lock held by bash/6442:
->>   #0:  (device_hotplug_lock){+.+.+.}, at: [<ffffffff8146cbb5>] lock_device_hotplug_sysfs+0x15/0x50
+>> If always get no reply, what to do, next?
 >>
->> This issue was introdued by commit fa2be40 (drivers: base: use standard
->> device online/offline for state change).
+> 
+> If nobody ever acks your patches, they probably aren't that important.  At 
+> the very least, something that nobody has looked at shouldn't be included 
+> if it's going to introduce a regression.
+> 
+
+At least, that is not quite polite.
+
+And when get conclusion, please based on the proofs: "is it necessary to
+list them to check whether they are 'important' or not"?
+
+
+>> But all together, I welcome you to help ack/nack my patches for mm
+>> sub-system (although I don't know your ack/nack whether have effect or not).
 >>
->> This patch releases device_hotplug_lcok when store_mem_state returns EINVAL.
->>
->> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->> CC: Toshi Kani <toshi.kani@hp.com>
->> CC: Seth Jennings <sjenning@linux.vnet.ibm.com>
->> CC: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
->
-> Good catch!
->
-> Reviewed-by: Toshi Kani <toshi.kani@hp.com>
+> 
+> If it touches mm, then there is someone on this list who can ack it and 
+> you can cc them by looking at the output of scripts/get_maintainer.pl.  If 
+> nobody is interested in it, or if it doesn't do anything important, nobody 
+> is going to spend their time reviewing it.
+> 
 
-Thank you for your review.
+Of cause, every time, I send patch according to "scripts/get_maintainer.pl".
 
-Thanks,
-Yasuaki Ishimatsu
+So again: "is it necessary to list them to check whether they are
+'important' or not?"
 
 
+> I'm not going to continue this thread, the patch in question has been 
+> removed from -mm so I have no further interest in discussing it.
+> 
+> 
 
->
-> Thanks,
-> -Toshi
->
+OK, end discussing if you no reply.
 
+Thanks.
+-- 
+Chen Gang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
