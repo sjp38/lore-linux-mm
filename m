@@ -1,101 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 950ED6B0035
-	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 21:32:08 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id x10so1852098pdj.15
-        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 18:32:08 -0700 (PDT)
-Received: by mail-pb0-f43.google.com with SMTP id md4so1599247pbc.16
-        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 18:32:05 -0700 (PDT)
-Date: Wed, 16 Oct 2013 18:32:03 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC][PATCH 1/8] mm: pcp: rename percpu pageset functions
-In-Reply-To: <20131015203538.35606A47@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.02.1310161831090.15575@chino.kir.corp.google.com>
-References: <20131015203536.1475C2BE@viggo.jf.intel.com> <20131015203538.35606A47@viggo.jf.intel.com>
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DED76B0036
+	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 21:33:49 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id xb12so1602196pbc.36
+        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 18:33:48 -0700 (PDT)
+Message-ID: <525F3E39.3060603@asianux.com>
+Date: Thu, 17 Oct 2013 09:32:41 +0800
+From: Chen Gang <gang.chen@asianux.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] mm/readahead.c: need always return 0 when system call
+ readahead() succeeds
+References: <5212E328.40804@asianux.com> <20130820161639.69ffa65b40c5cf761bbb727c@linux-foundation.org> <521428D0.2020708@asianux.com> <20130917155644.cc988e7e929fee10e9c86d86@linux-foundation.org> <52390907.7050101@asianux.com> <525CF787.6050107@asianux.com> <alpine.DEB.2.02.1310161603280.2417@chino.kir.corp.google.com> <525F35F7.4070202@asianux.com> <alpine.DEB.2.02.1310161812480.12062@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1310161812480.12062@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cody P Schafer <cody@linux.vnet.ibm.com>, Andi Kleen <ak@linux.intel.com>, cl@gentwo.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, sasha.levin@oracle.com, linux@rasmusvillemoes.dk, kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, lczerner@redhat.com, linux-mm@kvack.org
 
-On Tue, 15 Oct 2013, Dave Hansen wrote:
+On 10/17/2013 09:17 AM, David Rientjes wrote:
+> On Thu, 17 Oct 2013, Chen Gang wrote:
+> 
+>> If possible, you can help me check all my patches again (at least, it is
+>> not a bad idea to me).  ;-)
+>>
+> 
+> I think your patches should be acked before being merged into linux-next, 
+> Hugh just had to revert another one that did affect Linus's tree in 
+> 1ecfd533f4c5 ("mm/mremap.c: call pud_free() after fail calling
+> pmd_alloc()").  I had to revert your entire series of mpol_to_str() 
+> changes in -mm.  It's getting ridiculous and a waste of other people's 
+> time.
+> 
 
-> diff -puN mm/page_alloc.c~rename-pageset-functions mm/page_alloc.c
-> --- linux.git/mm/page_alloc.c~rename-pageset-functions	2013-10-15 09:57:05.870612107 -0700
-> +++ linux.git-davehans/mm/page_alloc.c	2013-10-15 09:57:05.875612329 -0700
-> @@ -4136,10 +4136,18 @@ static void pageset_update(struct per_cp
->  	pcp->batch = batch;
->  }
->  
-> -/* a companion to pageset_set_high() */
-> -static void pageset_set_batch(struct per_cpu_pageset *p, unsigned long batch)
-> +/*
-> + * Set the batch size for hot per_cpu_pagelist, and derive
-> + * the high water mark from the batch size.
-> + */
-> +static void pageset_setup_from_batch_size(struct per_cpu_pageset *p,
-> +					unsigned long batch)
->  {
-> -	pageset_update(&p->pcp, 6 * batch, max(1UL, 1 * batch));
-> +	unsigned long high;
-> +	high = 6 * batch;
-> +	if (!batch)
-> +		batch = 1;
+If always get no reply, what to do, next?
 
-high = 6 * batch should be here?
+In fact, in the whole kernel wide, at least, I have almost 10 patches
+pending at least 2-3 weeks which got no reply (neither say ack, nor
+nack), is it necessary to list them in this mail thread. ;-)
 
-> +	pageset_update(&p->pcp, high, batch);
->  }
->  
->  static void pageset_init(struct per_cpu_pageset *p)
-> @@ -4158,15 +4166,15 @@ static void pageset_init(struct per_cpu_
->  static void setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
->  {
->  	pageset_init(p);
-> -	pageset_set_batch(p, batch);
-> +	pageset_setup_from_batch_size(p, batch);
->  }
->  
->  /*
-> - * pageset_set_high() sets the high water mark for hot per_cpu_pagelist
-> - * to the value high for the pageset p.
-> + * Set the high water mark for the per_cpu_pagelist, and derive
-> + * the batch size from this high mark.
->   */
-> -static void pageset_set_high(struct per_cpu_pageset *p,
-> -				unsigned long high)
-> +static void pageset_setup_from_high_mark(struct per_cpu_pageset *p,
-> +					unsigned long high)
->  {
->  	unsigned long batch = max(1UL, high / 4);
->  	if ((high / 4) > (PAGE_SHIFT * 8))
-> @@ -4179,11 +4187,11 @@ static void __meminit pageset_set_high_a
->  		struct per_cpu_pageset *pcp)
->  {
->  	if (percpu_pagelist_fraction)
-> -		pageset_set_high(pcp,
-> +		pageset_setup_from_high_mark(pcp,
->  			(zone->managed_pages /
->  				percpu_pagelist_fraction));
->  	else
-> -		pageset_set_batch(pcp, zone_batchsize(zone));
-> +		pageset_setup_from_batch_size(pcp, zone_batchsize(zone));
->  }
->  
->  static void __meminit zone_pageset_init(struct zone *zone, int cpu)
-> @@ -5781,8 +5789,9 @@ int percpu_pagelist_fraction_sysctl_hand
->  		unsigned long  high;
->  		high = zone->managed_pages / percpu_pagelist_fraction;
->  		for_each_possible_cpu(cpu)
-> -			pageset_set_high(per_cpu_ptr(zone->pageset, cpu),
-> -					 high);
-> +			pageset_setup_from_high_mark(
-> +					per_cpu_ptr(zone->pageset, cpu),
-> +					high);
->  	}
->  	mutex_unlock(&pcp_batch_high_lock);
->  	return 0;
+But all together, I welcome you to help ack/nack my patches for mm
+sub-system (although I don't know your ack/nack whether have effect or not).
+
+:-)
+
+>>> Nack to this and nack to the problem patch, which is absolutely pointless 
+>>> and did nothing but introduce this error.  readahead() is supposed to 
+>>> return 0, -EINVAL, or -EBADF and your original patch broke it.  That's 
+>>> because your original patch was completely pointless to begin with.
+>>>
+>>
+>> Do you mean: in do_readahead(), we need not check the return value of
+>> force_page_cache_readahead()?
+>>
+> 
+> I'm saying we should revert 
+> mm-readaheadc-return-the-value-which-force_page_cache_readahead-returns.patch 
+> which violates the API of a syscall.  I see that patch has since been 
+> removed from -mm, so I'm happy with the result.
+> 
+> 
+
+Excuse me, I am not quite familiar with the upstream kernel version
+trees merging.
+
+Hmm... I think the final result need be: "still need check the return
+value of force_patch_cache_readahead(), but need return 0 in readahead()
+and madvise_willneed()".
+
+Do you also think so, or do you happy with this result?
+
+
+Thanks.
+-- 
+Chen Gang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
