@@ -1,49 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id F16066B003A
-	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 02:03:03 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id g10so1733153pdj.6
-        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 23:03:03 -0700 (PDT)
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v2 5/5] slab: make more slab management structure off the slab
-Date: Thu, 17 Oct 2013 15:03:17 +0900
-Message-Id: <1381989797-29269-6-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1381989797-29269-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1381989797-29269-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id D3FC06B0035
+	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 03:20:13 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so2312740pab.32
+        for <linux-mm@kvack.org>; Thu, 17 Oct 2013 00:20:13 -0700 (PDT)
+Message-ID: <525F8FA4.3000702@iki.fi>
+Date: Thu, 17 Oct 2013 09:20:04 +0200
+From: Pekka Enberg <penberg@iki.fi>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 00/15] slab: overload struct slab over struct page
+ to reduce memory usage
+References: <1381913052-23875-1-git-send-email-iamjoonsoo.kim@lge.com> <20131016133457.60fa71f893cd2962d8ec6ff3@linux-foundation.org>
+In-Reply-To: <20131016133457.60fa71f893cd2962d8ec6ff3@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Now, the size of the freelist for the slab management diminish,
-so that the on-slab management structure can waste large space
-if the object of the slab is large.
+On 10/16/13 10:34 PM, Andrew Morton wrote:
+> On Wed, 16 Oct 2013 17:43:57 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+>
+>> There is two main topics in this patchset. One is to reduce memory usage
+>> and the other is to change a management method of free objects of a slab.
+>>
+>> The SLAB allocate a struct slab for each slab. The size of this structure
+>> except bufctl array is 40 bytes on 64 bits machine. We can reduce memory
+>> waste and cache footprint if we overload struct slab over struct page.
+> Seems a good idea from a quick look.
 
-Consider a 128 byte sized slab. If on-slab is used, 31 objects can be
-in the slab. The size of the freelist for this case would be 31 bytes
-so that 97 bytes, that is, more than 75% of object size, are wasted.
+Indeed.
 
-In a 64 byte sized slab case, no space is wasted if we use on-slab.
-So set off-slab determining constraint to 128 bytes.
+Christoph, I'd like to pick this up and queue for linux-next. Any
+objections or comments to the patches?
 
-Acked-by: Christoph Lameter <cl@linux.com>
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
-diff --git a/mm/slab.c b/mm/slab.c
-index 2f379ba..19ae154 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2257,7 +2257,7 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
- 	 * it too early on. Always use on-slab management when
- 	 * SLAB_NOLEAKTRACE to avoid recursive calls into kmemleak)
- 	 */
--	if ((size >= (PAGE_SIZE >> 3)) && !slab_early_init &&
-+	if ((size >= (PAGE_SIZE >> 5)) && !slab_early_init &&
- 	    !(flags & SLAB_NOLEAKTRACE))
- 		/*
- 		 * Size is large, assume best to place the slab management obj
--- 
-1.7.9.5
+                     Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
