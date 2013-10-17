@@ -1,75 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id D1C046B0035
-	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 20:58:35 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id x10so1810799pdj.15
-        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 17:58:35 -0700 (PDT)
-Message-ID: <525F35F7.4070202@asianux.com>
-Date: Thu, 17 Oct 2013 08:57:27 +0800
-From: Chen Gang <gang.chen@asianux.com>
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 11F236B0035
+	for <linux-mm@kvack.org>; Wed, 16 Oct 2013 21:12:00 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id z10so1832674pdj.3
+        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 18:12:00 -0700 (PDT)
+Received: by mail-pa0-f47.google.com with SMTP id kp14so1897622pab.20
+        for <linux-mm@kvack.org>; Wed, 16 Oct 2013 18:11:58 -0700 (PDT)
+Date: Wed, 16 Oct 2013 18:11:56 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: Do not walk all of system memory during show_mem
+In-Reply-To: <20131016104228.GM11028@suse.de>
+Message-ID: <alpine.DEB.2.02.1310161809470.12062@chino.kir.corp.google.com>
+References: <20131016104228.GM11028@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/readahead.c: need always return 0 when system call
- readahead() succeeds
-References: <5212E328.40804@asianux.com> <20130820161639.69ffa65b40c5cf761bbb727c@linux-foundation.org> <521428D0.2020708@asianux.com> <20130917155644.cc988e7e929fee10e9c86d86@linux-foundation.org> <52390907.7050101@asianux.com> <525CF787.6050107@asianux.com> <alpine.DEB.2.02.1310161603280.2417@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1310161603280.2417@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, sasha.levin@oracle.com, linux@rasmusvillemoes.dk, kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, lczerner@redhat.com, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 10/17/2013 07:06 AM, David Rientjes wrote:
-> On Tue, 15 Oct 2013, Chen Gang wrote:
+On Wed, 16 Oct 2013, Mel Gorman wrote:
+
+> It has been reported on very large machines that show_mem is taking almost
+> 5 minutes to display information. This is a serious problem if there is
+> an OOM storm. The bulk of the cost is in show_mem doing a very expensive
+> PFN walk to give us the following information
 > 
->> diff --git a/mm/readahead.c b/mm/readahead.c
->> index 1eee42b..83a202e 100644
->> --- a/mm/readahead.c
->> +++ b/mm/readahead.c
->> @@ -592,5 +592,5 @@ SYSCALL_DEFINE3(readahead, int, fd, loff_t, offset, size_t, count)
->>  		}
->>  		fdput(f);
->>  	}
->> -	return ret;
->> +	return ret < 0 ? ret : 0;
->>  }
+> Total RAM:	Also available as totalram_pages
+> Highmem pages:	Also available as totalhigh_pages
+> Reserved pages:	Can be inferred from the zone structure
+> Shared pages:	PFN walk required
+> Unshared pages:	PFN walk required
+> Quick pages:	Per-cpu walk required
 > 
-> This was broken by your own "mm/readahead.c: return the value which 
-> force_page_cache_readahead() returns" patch in -mm, luckily Linus's tree 
-> isn't affected.
+> Only the shared/unshared pages requires a full PFN walk but that information
+> is useless. It is also inaccurate as page pins of unshared pages would
+> be accounted for as shared.  Even if the information was accurate, I'm
+> struggling to think how the shared/unshared information could be useful
+> for debugging OOM conditions. Maybe it was useful before rmap existed when
+> reclaiming shared pages was costly but it is less relevant today.
 > 
-
-Of cause it is.
-
-And every member knows about it: in my comments, already mentioned about
-it in a standard way.
-
-Hmm... isn't it enough? (it seems you don't think so)
-
-If possible, you can help me check all my patches again (at least, it is
-not a bad idea to me).  ;-)
-
-
-> Nack to this and nack to the problem patch, which is absolutely pointless 
-> and did nothing but introduce this error.  readahead() is supposed to 
-> return 0, -EINVAL, or -EBADF and your original patch broke it.  That's 
-> because your original patch was completely pointless to begin with.
-> 
+> The PFN walk could be optimised a bit but why bother as the information is
+> useless. This patch deletes the PFN walker and infers the total RAM, highmem
+> and reserved pages count from struct zone. It omits the shared/unshared page
+> usage on the grounds that it is useless.  It also corrects the reporting
+> of HighMem as HighMem/MovableOnly as ZONE_MOVABLE has similar problems to
+> HighMem with respect to lowmem/highmem exhaustion.
 > 
 
-Do you mean: in do_readahead(), we need not check the return value of
-force_page_cache_readahead()?
+We haven't been hit by this for the oom killer, but we did get hit with 
+this for page allocation failure warnings as a result of having irqs 
+disabled and passing GFP_ATOMIC to the page allocator without GFP_NOWARN.  
+That was the intention of passing SHOW_MEM_FILTER_PAGE_COUNT into 
+show_mem() in 4b59e6c47309 ("mm, show_mem: suppress page counts in 
+non-blockable contexts").
 
-In my opinion, the system call of readahead() wants to notice whether
-force_page_cache_readahead() fails or not (may return -EINVAL), which is
-the mainly callee of readahead().
-
-Don't you think so??
-
-
-Thanks.
--- 
-Chen Gang
+With this, I assume we can just remove SHOW_MEM_FILTER_PAGE_COUNT 
+entirely?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
