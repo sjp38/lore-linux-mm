@@ -1,71 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id A08726B00C2
-	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 15:24:04 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id un15so2734489pbc.29
-        for <linux-mm@kvack.org>; Thu, 17 Oct 2013 12:24:04 -0700 (PDT)
-Message-ID: <1382037835.22110.137.camel@joe-AO722>
-Subject: Re: [bug] get_maintainer.pl incomplete output
-From: Joe Perches <joe@perches.com>
-Date: Thu, 17 Oct 2013 12:23:55 -0700
-In-Reply-To: <20131017121215.826ab6cced73118f3dba8d4f@linux-foundation.org>
-References: <alpine.DEB.2.02.1310161738410.10147@chino.kir.corp.google.com>
-	 <alpine.DEB.2.02.1310162046090.30995@chino.kir.corp.google.com>
-	 <20131017121215.826ab6cced73118f3dba8d4f@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DD266B00C4
+	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 16:23:53 -0400 (EDT)
+Received: by mail-pb0-f47.google.com with SMTP id rr4so2778533pbb.20
+        for <linux-mm@kvack.org>; Thu, 17 Oct 2013 13:23:52 -0700 (PDT)
+Date: Thu, 17 Oct 2013 13:23:48 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] readahead: fix sequential read cache miss detection
+Message-Id: <20131017132348.a89c6cb5222eda83fb0ce079@linux-foundation.org>
+In-Reply-To: <1382033352-21225-1-git-send-email-damien.ramonda@intel.com>
+References: <1382033352-21225-1-git-send-email-damien.ramonda@intel.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, Michal Hocko <mhocko@suse.cz>, "Kirill A.
- Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Damien Ramonda <damien.ramonda@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, pierre.tardy@intel.com, fengguang.wu@intel.com, david.a.cohen@intel.com
 
-On Thu, 2013-10-17 at 12:12 -0700, Andrew Morton wrote:
-> On Wed, 16 Oct 2013 20:51:18 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+On Thu, 17 Oct 2013 20:09:12 +0200 Damien Ramonda <damien.ramonda@intel.com> wrote:
+
+> The kernel's readahead algorithm sometimes interprets random read
+> accesses as sequential and triggers unnecessary data prefecthing
+> from storage device (impacting random read average latency).
 > 
-> > I haven't looked closely at scripts/get_maintainer.pl, but I recently 
-> > wrote a patch touching mm/vmpressure.c and it doesn't list the file's 
-> > author, Anton Vorontsov <anton.vorontsov@linaro.org>.
-> > 
-> > Even when I do scripts/get_maintainer.pl -f mm/vmpressure.c, his entry is 
-> > missing and git blame attributs >90% of the lines to his authorship.
-> > 
-> > $ ./scripts/get_maintainer.pl -f mm/vmpressure.c 
-> > Tejun Heo <tj@kernel.org> (commit_signer:6/7=86%)
-> > Michal Hocko <mhocko@suse.cz> (commit_signer:5/7=71%)
-> > Andrew Morton <akpm@linux-foundation.org> (commit_signer:4/7=57%)
-> > Li Zefan <lizefan@huawei.com> (commit_signer:3/7=43%)
-> > "Kirill A. Shutemov" <kirill@shutemov.name> (commit_signer:1/7=14%)
-> > linux-mm@kvack.org (open list:MEMORY MANAGEMENT)
-> > linux-kernel@vger.kernel.org (open list)
+> In order to identify sequential cache read misses, the readahead
+> algorithm intends to check whether offset - previous offset == 1
+> (trivial sequential reads) or offset - previous offset == 0
+> (sequential reads not aligned on page boundary):
 > 
-> get_maintainer should, by default, answer the question "who should I
-> email about this file".  It clearly isn't doing this, and that's a
-> pretty big fail.
-
-I disagree.
-
-It's decidedly good at doing precisely that when a
-MAINTAINERS entry exists.
-
-When no one is a listed maintainer, the results
-can certainly be tweaked to be better.
-
-> I've learned not to trust it, so when I use it I always have to check
-> its homework with "git log | grep Author" :(
+> if (offset - (ra->prev_pos >> PAGE_CACHE_SHIFT) <= 1UL)
 > 
-> Joe, pretty please?
+> The current offset is stored in the "offset" variable of type
+> "pgoff_t" (unsigned long), while previous offset is stored in
+> "ra->prev_pos" of type "loff_t" (long long). Therefore,
+> operands of the if statement are implicitly converted to type
+> long long. Consequently, when previous offset > current offset
+> (which happens on random pattern), the if condition is true
+> and access is wrongly interpeted as sequential. An unnecessary
+> data prefetching is triggered, impacting the average
+> random read latency.
+> 
+> Storing the previous offset value in a "pgoff_t" variable
+> (unsigned long) fixes the sequential read detection logic.
 
-It's really a question of "how long ago is too long ago" as
-older commits way too often also show old/invalid email
-addresses.
+Do you have any performance testing results which would permit
+people to understand the significance of this change?
 
-I also don't want to wait over 30 seconds or so to find out
-who is listed as a git signer/author by default.
-
-Adding the commit listed "Author:" as a signer doesn't seem
-too hard though.  I'll play with that.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
