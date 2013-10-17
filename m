@@ -1,174 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 41BC06B0095
-	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 11:59:21 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id q10so1870829pdj.27
-        for <linux-mm@kvack.org>; Thu, 17 Oct 2013 08:59:20 -0700 (PDT)
-Received: by mail-ie0-f176.google.com with SMTP id u16so4363953iet.35
-        for <linux-mm@kvack.org>; Thu, 17 Oct 2013 08:59:18 -0700 (PDT)
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 5422A6B0098
+	for <linux-mm@kvack.org>; Thu, 17 Oct 2013 12:12:36 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id w10so2988144pde.23
+        for <linux-mm@kvack.org>; Thu, 17 Oct 2013 09:12:36 -0700 (PDT)
+Message-ID: <52600C49.7070306@sr71.net>
+Date: Thu, 17 Oct 2013 09:11:53 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-In-Reply-To: <CAL1ERfN8M0BP5kAtX+tvirY6hKXWrn_FeVE_tCr23z+2GtTjnA@mail.gmail.com>
-References: <1381759136-8616-1-git-send-email-k.kozlowski@samsung.com>
-	<alpine.LNX.2.00.1310150257030.6194@eggly.anvils>
-	<1381836170.18389.13.camel@AMDC1943>
-	<alpine.LNX.2.00.1310150950100.12358@eggly.anvils>
-	<CAL1ERfN8M0BP5kAtX+tvirY6hKXWrn_FeVE_tCr23z+2GtTjnA@mail.gmail.com>
-Date: Thu, 17 Oct 2013 23:59:18 +0800
-Message-ID: <CAL1ERfMXsmyL5q4SueyVPHycD8MG-hpOpNcTi1jFKEqupbtq7Q@mail.gmail.com>
-Subject: Re: [PATCH] swap: fix setting PAGE_SIZE blocksize during
- swapoff/swapon race
-From: Weijie Yang <weijie.yang.kh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [RFC][PATCH 1/8] mm: pcp: rename percpu pageset functions
+References: <20131015203536.1475C2BE@viggo.jf.intel.com> <20131015203538.35606A47@viggo.jf.intel.com> <alpine.DEB.2.02.1310161831090.15575@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1310161831090.15575@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Krzysztof Kozlowski <k.kozlowski@samsung.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>, Shaohua Li <shli@fusionio.com>, Minchan Kim <minchan@kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cody P Schafer <cody@linux.vnet.ibm.com>, Andi Kleen <ak@linux.intel.com>, cl@gentwo.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
 
-On Thu, Oct 17, 2013 at 11:48 PM, Weijie Yang <weijie.yang.kh@gmail.com> wr=
-ote:
-> On Wed, Oct 16, 2013 at 1:19 AM, Hugh Dickins <hughd@google.com> wrote:
->> On Tue, 15 Oct 2013, Krzysztof Kozlowski wrote:
->>> On Tue, 2013-10-15 at 02:59 -0700, Hugh Dickins wrote:
->>> > On Mon, 14 Oct 2013, Krzysztof Kozlowski wrote:
->>> >
->>> > > Fix race between swapoff and swapon resulting in setting blocksize =
-of
->>> > > PAGE_SIZE for block devices during swapoff.
->>> > >
->>> > > The swapon modifies swap_info->old_block_size before acquiring
->>> > > swapon_mutex. It reads block_size of bdev, stores it under
->>> > > swap_info->old_block_size and sets new block_size to PAGE_SIZE.
->>> > >
->>> > > On the other hand the swapoff sets the device's block_size to
->>> > > old_block_size after releasing swapon_mutex.
->>> > >
->>> > > This patch locks the swapon_mutex much earlier during swapon. It al=
-so
->>> > > releases the swapon_mutex later during swapoff.
->>> > >
->>> > > The effect of race can be triggered by following scenario:
->>> > >  - One block swap device with block size of 512
->>> > >  - thread 1: Swapon is called, swap is activated,
->>> > >    p->old_block_size =3D block_size(p->bdev); /512/
->>> > >    block_size(p->bdev) =3D PAGE_SIZE;
->>> > >    Thread ends.
->>> > >
->>> > >  - thread 2: Swapoff is called and it goes just after releasing the
->>> > >    swapon_mutex. The swap is now fully disabled except of setting t=
-he
->>> > >    block size to old value. The p->bdev->block_size is still equal =
-to
->>> > >    PAGE_SIZE.
->>> > >
->>> > >  - thread 3: New swapon is called. This swap is disabled so without
->>> > >    acquiring the swapon_mutex:
->>> > >    - p->old_block_size =3D block_size(p->bdev); /PAGE_SIZE (!!!)/
->>> > >    - block_size(p->bdev) =3D PAGE_SIZE;
->>> > >    Swap is activated and thread ends.
->>> > >
->>> > >  - thread 2: resumes work and sets blocksize to old value:
->>> > >    - set_blocksize(bdev, p->old_block_size)
->>> > >    But now the p->old_block_size is equal to PAGE_SIZE.
->>> > >
->>> > > The patch swap-fix-set_blocksize-race-during-swapon-swapoff does no=
-t fix
->>> > > this particular issue. It reduces the possibility of races as the s=
-wapon
->>> > > must overwrite p->old_block_size before acquiring swapon_mutex in
->>> > > swapoff.
->>> > >
->>> > > Signed-off-by: Krzysztof Kozlowski <k.kozlowski@samsung.com>
->>> >
->>> > Sorry you're being blown back and forth on this, but I say Nack to
->>> > this version.  I've not spent the time to check whether it ends up
->>> > correct or not; but your original patch was appropriate to the bug,
->>> > and this one is just unnecessary churn in my view.
->>>
->>> Hi,
->>>
->>> I still think my previous patch does not solve the issue entirely.
->>> The call set_blocksize() in swapoff quite often sets PAGE_SIZE instead
->>> of valid block size (e.g. 512). I trigger this with:
->>
->> PAGE_SIZE and 512 are equally valid block sizes,
->> it's just hard to support both consistently at the same instant.
->>
->>> ------
->>> for i in `seq 1000`
->>> do
->>>       swapoff /dev/sdc1 &
->>>       swapon /dev/sdc1 &
->>>       swapon /dev/sdc1 &
->>> done
->>> ------
->>> 10 seconds run of this script resulted in 50% of set_blocksize(PAGE_SIZ=
-E).
->>> Although effect can only be observed after adding printks (block device=
- is
->>> released).
->>
->> But despite PAGE_SIZE being a valid block size,
->> I agree that it's odd if you see variation there.
->>
->> Here's my guess: it looks as if the p->bdev test is inadequate, in the
->> decision whether bad_swap should set_blocksize() or not: p->bdev is not
->> usually reset when a swap_info_struct is released for reuse.
->>
->> Please try correcting that, either by resetting p->bdev where necessary,
->> or by putting a better test in bad_swap: see if that fixes this oddity.
->>
->> I still much prefer your original little patch,
->> to this extension of the use of swapon_mutex.
->>
->> However, a bigger question would be, why does swapoff have to set block
->> size back to old_block_size anyway?  That was introduced in 2.5.13 by
->>
->> <viro@math.psu.edu> (02/05/01 1.447.69.1)
->>         [PATCH] (1/6) blksize_size[] removal
->>
->>          - preliminary cleanups: make sure that swapoff restores origina=
-l block
->>            size, kill set_blocksize() (and use of __bread()) in multipat=
-h.c,
->>            reorder opening device and finding its block size in mtdblock=
-.c.
->>
->> Al, not an urgent question, but is this swapoff old_block_size stuff
->> still necessary?  And can't swapon just use whatever bd_block_size is
->> already in force?  IIUC, it plays no part beyond the initial readpage
->> of swap header.
->>
->> Thanks,
->> Hugh
->
-> Let me try to explain(and guess):
-> we have to set_block in swapon. the swap_header is PAGE_SIZE, if device's
-> blocksize is more than PAGE_SIZE, then the swap entry address on swapfile
-> would be not PAGE_SIZE aligned. or one swap page can not fill a block.
-> There maybe a problem for some device.
-> The set_blocksize() do the judgement work for swapon.
-> And may be some userland tools assume swap device blocksize is PAGE_SIZE=
-=EF=BC=9F
->
-> issues here are more than this one:
-> After swap_info_struct is released for reuse in swapoff.
-> Its corresponding resources are released later, such as:
-> - swap_cgroup_swapoff(type);
-> - blkdev_put
-> - inode->i_flags &=3D ~S_SWAPFILE;
->
+On 10/16/2013 06:32 PM, David Rientjes wrote:
+>> > +static void pageset_setup_from_batch_size(struct per_cpu_pageset *p,
+>> > +					unsigned long batch)
+>> >  {
+>> > -	pageset_update(&p->pcp, 6 * batch, max(1UL, 1 * batch));
+>> > +	unsigned long high;
+>> > +	high = 6 * batch;
+>> > +	if (!batch)
+>> > +		batch = 1;
+> high = 6 * batch should be here?
 
-my code is 3.11 version. And in 3.12-rc5,
-free_percpu(p->percpu_cluster);
-is another issue that released later.
+Ahh, nice catch, thanks.  I'll fix that up and resend.
 
-> we need release(or clean) these resources before release swap_info_struct=
-.
->
-> to Krzysztof: I think it is better to add this handle to your patch
->
-> regards
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
