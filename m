@@ -1,129 +1,365 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-gg0-f205.google.com (mail-gg0-f205.google.com [209.85.161.205])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C5516B0174
-	for <linux-mm@kvack.org>; Fri, 18 Oct 2013 13:27:59 -0400 (EDT)
-Received: by mail-gg0-f205.google.com with SMTP id p1so37417ggn.8
-        for <linux-mm@kvack.org>; Fri, 18 Oct 2013 10:27:58 -0700 (PDT)
-Date: Wed, 16 Oct 2013 18:31:04 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 0/8] mm: thrash detection-based file cache sizing v5
-Message-ID: <20131016223104.GA738@cmpxchg.org>
-References: <1381441622-26215-1-git-send-email-hannes@cmpxchg.org>
- <20131011003930.GC4446@dastard>
- <20131014214250.GG856@cmpxchg.org>
- <20131015014123.GQ4446@dastard>
- <20131015174128.GH856@cmpxchg.org>
- <20131015234147.GA4446@dastard>
- <525DF466.6030308@redhat.com>
- <20131016022606.GD4446@dastard>
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 8ECCF6B0178
+	for <linux-mm@kvack.org>; Fri, 18 Oct 2013 14:16:27 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id g10so4043168pdj.6
+        for <linux-mm@kvack.org>; Fri, 18 Oct 2013 11:16:27 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.149])
+        by mx.google.com with SMTP id ds3si1478064pbb.259.2013.10.18.11.16.25
+        for <linux-mm@kvack.org>;
+        Fri, 18 Oct 2013 11:16:26 -0700 (PDT)
+Received: by mail-pa0-f46.google.com with SMTP id fa1so4902457pad.5
+        for <linux-mm@kvack.org>; Fri, 18 Oct 2013 11:16:24 -0700 (PDT)
+Date: Fri, 18 Oct 2013 11:16:20 -0700
+From: Ning Qu <quning@google.com>
+Subject: Re: [PATCH 04/12] mm, thp, tmpfs: split huge page when moving from
+ page cache to swap
+Message-ID: <20131018181620.GA6970@hippobay.mtv.corp.google.com>
+References: <20131015001228.GE3432@hippobay.mtv.corp.google.com>
+ <20131015103334.E3877E0090@blue.fi.intel.com>
+ <CACz4_2eoRoyUU1G3veS=veWTi1HtPrgLQK0tyXONXcQj1Xi4EQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="gBBFr7Ir9EOA20Yy"
 Content-Disposition: inline
-In-Reply-To: <20131016022606.GD4446@dastard>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CACz4_2eoRoyUU1G3veS=veWTi1HtPrgLQK0tyXONXcQj1Xi4EQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, Vlastimil Babka <vbabka@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Oct 16, 2013 at 01:26:06PM +1100, Dave Chinner wrote:
-> On Tue, Oct 15, 2013 at 10:05:26PM -0400, Rik van Riel wrote:
-> > On 10/15/2013 07:41 PM, Dave Chinner wrote:
-> > > On Tue, Oct 15, 2013 at 01:41:28PM -0400, Johannes Weiner wrote:
-> > 
-> > >> I'm not forgetting about them, I just track them very coarsely by
-> > >> linking up address spaces and then lazily enforce their upper limit
-> > >> when memory is tight by using the shrinker callback.  The assumption
-> > >> was that actually scanning them is such a rare event that we trade the
-> > >> rare computational costs for smaller memory consumption most of the
-> > >> time.
-> > > 
-> > > Sure, I understand the tradeoff that you made. But there's nothing
-> > > worse than a system that slows down unpredictably because of some
-> > > magic threshold in some subsystem has been crossed and
-> > > computationally expensive operations kick in.
-> > 
-> > The shadow shrinker should remove the radix nodes with
-> > the oldest shadow entries first, so true LRU should actually
-> > work for the radix tree nodes.
-> > 
-> > Actually, since we only care about the age of the youngest
-> > shadow entry in each radix tree node, FIFO will be the same
-> > as LRU for that list.
-> > 
-> > That means the shrinker can always just take the radix tree
-> > nodes off the end.
-> 
-> Right, but it can't necessarily free the node as it may still have
-> pointers to pages in it. In that case, it would have to simply
-> rotate the page to the end of the LRU again.
-> 
-> Unless, of course, we kept track of the number of exceptional
-> entries in a node and didn't add it to the reclaim list until there
-> were no non-expceptional entries in the node....
 
-I think that's doable.  As long as there is an actual page in the
-node, no memory is going to be freed anyway.  And we have a full int
-per node with only 64 slots, we can easily split the counter.
+--gBBFr7Ir9EOA20Yy
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
 
-> > >> But it
-> > >> looks like tracking radix tree nodes with a list and backpointers to
-> > >> the mapping object for the lock etc. will be a major pain in the ass.
-> > > 
-> > > Perhaps so - it may not work out when we get down to the fine
-> > > details...
-> > 
-> > I suspect that a combination of lifetime rules (inode cannot
-> > disappear until all the radix tree nodes) and using RCU free
-> > for the radix tree nodes, and the inodes might do the trick.
-> > 
-> > That would mean that, while holding the rcu read lock, the
-> > back pointer from a radix tree node to the inode will always
-> > point to valid memory.
-> 
-> Yes, that is what I was thinking...
-> 
-> > That allows the shrinker to lock the inode, and verify that
-> > the inode is still valid, before it attempts to rcu free the
-> > radix tree node with shadow entries.
-> 
-> Lock the mapping, not the inode. The radix tree is protected by the
-> mapping_lock, not an inode lock. i.e. I'd hope that this can all b
-> contained within the struct address_space and not require any
-> knowledge of inodes or inode lifecycles at all.
+New patch below with handle all the pages after splitted.
 
-Agreed, we can point to struct address_space and invalidate it by
-setting mapping->host to NULL or so during the RCU grace period.
+---
+ include/linux/huge_mm.h |  2 ++
+ mm/shmem.c              | 79 ++++++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 61 insertions(+), 20 deletions(-)
 
-Also, the parent pointer is in a union with the two-word rcu_head, so
-we get the address space backpointer for free.
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 65f90db..58b0208 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -64,6 +64,7 @@ extern pmd_t *page_check_address_pmd(struct page *page,
+ #define HPAGE_PMD_SHIFT PMD_SHIFT
+ #define HPAGE_PMD_SIZE ((1UL) << HPAGE_PMD_SHIFT)
+ #define HPAGE_PMD_MASK (~(HPAGE_PMD_SIZE - 1))
++#define HPAGE_NR_PAGES HPAGE_PMD_NR
 
-The struct list_head for the FIFO, as you said, we can get for free as
-well (at least on slab).
+ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
 
-The FIFO lists themselves can be trimmed by a shrinker, I think.  You
-were concerned about wind-up but if the nodes are not in excess and
-->count just returns 0 until we are actually prepared to shrink
-objects, then there shouldn't be any windup, right?
+@@ -207,6 +208,7 @@ extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vm
+ #define THP_READ_ALLOC_FAILED  ({ BUILD_BUG(); 0; })
 
-I don't see a natural threshold for "excess" yet, though, because
-there is no relationship between where radix_tree_node is allocated
-and which zones the contained shadow entries point to, so it's hard to
-estimate how worthwile any given radix_tree_node is to a node.  Maybe
-tying it to an event might be better, like reclaim pressure, swapping
-etc.
+ #define hpage_nr_pages(x) 1
++#define HPAGE_NR_PAGES 1
 
-> > It also means that locking only needs to be in the inode,
-> > and on the LRU list for shadow radix tree nodes.
-> > 
-> > Does that sound sane?
-> > 
-> > Am I overlooking something?
-> 
-> It's pretty much along the same lines of what I was thinking, but
-> lets see what Johannes thinks.
+ #define transparent_hugepage_enabled(__vma) 0
+ #define transparent_hugepage_defrag(__vma) 0
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 5bde8d0..b80ace7 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -862,14 +862,16 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
+        struct shmem_inode_info *info;
+        struct address_space *mapping;
+        struct inode *inode;
+-       swp_entry_t swap;
++       swp_entry_t swap[HPAGE_NR_PAGES];
+        pgoff_t index;
++       int nr = 1;
++       int i;
 
-That sounds great to me.  I just have looked at this code for so long
-that I'm getting blind towards it, so I really appreciate your input.
+        BUG_ON(!PageLocked(page));
+        mapping = page->mapping;
+-       index = page->index;
+        inode = mapping->host;
+        info = SHMEM_I(inode);
++
+        if (info->flags & VM_LOCKED)
+                goto redirty;
+        if (!total_swap_pages)
+@@ -887,6 +889,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
+                goto redirty;
+        }
+
++       index = page->index;
+        /*
+         * This is somewhat ridiculous, but without plumbing a SWAP_MAP_FALLOC
+         * value into swapfile.c, the only way we can correctly account for a
+@@ -906,21 +909,35 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
+                        if (shmem_falloc &&
+                            index >= shmem_falloc->start &&
+                            index < shmem_falloc->next)
+-                               shmem_falloc->nr_unswapped++;
++                               shmem_falloc->nr_unswapped +=
++                                       hpagecache_nr_pages(page);
+                        else
+                                shmem_falloc = NULL;
+                        spin_unlock(&inode->i_lock);
+                        if (shmem_falloc)
+                                goto redirty;
+                }
+-               clear_highpage(page);
++               clear_pagecache_page(page);
+                flush_dcache_page(page);
+                SetPageUptodate(page);
+        }
+
+-       swap = get_swap_page();
+-       if (!swap.val)
+-               goto redirty;
++       /* We can only have nr correct after huge page splitted,
++        * otherwise, it will fail the redirty logic
++        */
++       nr = hpagecache_nr_pages(page);
++       /* We have to break the huge page at this point,
++        * since we have no idea how to swap a huge page.
++        */
++       if (PageTransHugeCache(page))
++               split_huge_page(compound_trans_head(page));
++
++       /* Pre-allocate all the swap pages */
++       for (i = 0; i < nr; i++) {
++               swap[i] = get_swap_page();
++               if (!swap[i].val)
++                       goto undo_alloc_swap;
++       }
+
+        /*
+         * Add inode to shmem_unuse()'s list of swapped-out inodes,
+@@ -934,25 +951,47 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
+        if (list_empty(&info->swaplist))
+                list_add_tail(&info->swaplist, &shmem_swaplist);
+
+-       if (add_to_swap_cache(page, swap, GFP_ATOMIC) == 0) {
+-               swap_shmem_alloc(swap);
+-               shmem_delete_from_page_cache(page, swp_to_radix_entry(swap));
++       for (i = 0; i < nr; i++) {
++               if (add_to_swap_cache(page + i, swap[i], GFP_ATOMIC))
++                       goto undo_add_to_swap_cache;
++       }
+
+-               spin_lock(&info->lock);
+-               info->swapped++;
+-               shmem_recalc_inode(inode);
+-               spin_unlock(&info->lock);
++       /* We make sure everything is correct before moving further */
++       for (i = 0; i < nr; i++) {
++               swap_shmem_alloc(swap[i]);
++               shmem_delete_from_page_cache(page + i,
++                       swp_to_radix_entry(swap[i]));
++       }
+
+-               mutex_unlock(&shmem_swaplist_mutex);
+-               BUG_ON(page_mapped(page));
+-               swap_writepage(page, wbc);
+-               return 0;
++       spin_lock(&info->lock);
++       info->swapped += nr;
++       shmem_recalc_inode(inode);
++       spin_unlock(&info->lock);
++
++       mutex_unlock(&shmem_swaplist_mutex);
++
++       for (i = 0; i < nr; i++) {
++               BUG_ON(page_mapped(page + i));
++               swap_writepage(page + i, wbc);
+        }
+
++       return 0;
++
++undo_add_to_swap_cache:
++       while (i) {
++               i--;
++               __delete_from_swap_cache(page + i);
++       }
+        mutex_unlock(&shmem_swaplist_mutex);
+-       swapcache_free(swap, NULL);
++       i = nr;
++undo_alloc_swap:
++       while (i) {
++               i--;
++               swapcache_free(swap[i], NULL);
++       }
+ redirty:
+-       set_page_dirty(page);
++       for (i = 0; i < nr; i++)
++               set_page_dirty(page + i);
+        if (wbc->for_reclaim)
+                return AOP_WRITEPAGE_ACTIVATE;  /* Return with page locked */
+        unlock_page(page);
+-- 
+
+Best wishes,
+-- 
+Ning Qu (ae?2a(R)?) | Software Engineer | quning@google.com | +1-408-418-6066
+
+
+On Tue, Oct 15, 2013 at 12:00 PM, Ning Qu <quning@google.com> wrote:
+
+> Let me take another look at that logic. Thanks!
+> Best wishes,
+> --
+> Ning Qu (ae?2a(R)?) | Software Engineer | quning@google.com | +1-408-418-6066
+>
+>
+> On Tue, Oct 15, 2013 at 3:33 AM, Kirill A. Shutemov
+> <kirill.shutemov@linux.intel.com> wrote:
+> > Ning Qu wrote:
+> >> in shmem_writepage, we have to split the huge page when moving pages
+> >> from page cache to swap because we don't support huge page in swap
+> >> yet.
+> >>
+> >> Signed-off-by: Ning Qu <quning@gmail.com>
+> >> ---
+> >>  mm/shmem.c | 9 ++++++++-
+> >>  1 file changed, 8 insertions(+), 1 deletion(-)
+> >>
+> >> diff --git a/mm/shmem.c b/mm/shmem.c
+> >> index 8fe17dd..68a0e1d 100644
+> >> --- a/mm/shmem.c
+> >> +++ b/mm/shmem.c
+> >> @@ -898,6 +898,13 @@ static int shmem_writepage(struct page *page, 
+> struct writeback_control *wbc)
+> >>       swp_entry_t swap;
+> >>       pgoff_t index;
+> >>
+> >> +     /* TODO: we have to break the huge page at this point,
+> >> +      * since we have no idea how to recover a huge page from
+> >> +      * swap.
+> >> +      */
+> >> +     if (PageTransCompound(page))
+> >> +             split_huge_page(compound_trans_head(page));
+> >> +
+> >
+> > After the split you handle here only first small page of the huge page.
+> > Is it what we want to do? Should we swap out all small pages of the huge
+> > page?
+> >
+> > --
+> >  Kirill A. Shutemov
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a hrefmailto:"dont@kvack.org"> email@kvack.org </a>
+>
+
+
+--gBBFr7Ir9EOA20Yy
+Content-Type: text/html; charset=UTF-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">New patch below with handle all the pages after splitted.<=
+/div><div class=3D"gmail_extra"><br clear=3D"all"><div><div>Best wishes,</d=
+iv><div><span style=3D"border-collapse:collapse;font-family:arial,sans-seri=
+f;font-size:13px">--=C2=A0<br>
+<span style=3D"border-collapse:collapse;font-family:sans-serif;line-height:=
+19px"><span style=3D"border-top-width:2px;border-right-width:0px;border-bot=
+tom-width:0px;border-left-width:0px;border-top-style:solid;border-right-sty=
+le:solid;border-bottom-style:solid;border-left-style:solid;border-top-color=
+:rgb(213,15,37);border-right-color:rgb(213,15,37);border-bottom-color:rgb(2=
+13,15,37);border-left-color:rgb(213,15,37);padding-top:2px;margin-top:2px">=
+Ning Qu (=E6=9B=B2=E5=AE=81)<font color=3D"#555555">=C2=A0|</font></span><s=
+pan style=3D"color:rgb(85,85,85);border-top-width:2px;border-right-width:0p=
+x;border-bottom-width:0px;border-left-width:0px;border-top-style:solid;bord=
+er-right-style:solid;border-bottom-style:solid;border-left-style:solid;bord=
+er-top-color:rgb(51,105,232);border-right-color:rgb(51,105,232);border-bott=
+om-color:rgb(51,105,232);border-left-color:rgb(51,105,232);padding-top:2px;=
+margin-top:2px">=C2=A0Software Engineer |</span><span style=3D"color:rgb(85=
+,85,85);border-top-width:2px;border-right-width:0px;border-bottom-width:0px=
+;border-left-width:0px;border-top-style:solid;border-right-style:solid;bord=
+er-bottom-style:solid;border-left-style:solid;border-top-color:rgb(0,153,57=
+);border-right-color:rgb(0,153,57);border-bottom-color:rgb(0,153,57);border=
+-left-color:rgb(0,153,57);padding-top:2px;margin-top:2px">=C2=A0<a href=3D"=
+mailto:quning@google.com" style=3D"color:rgb(0,0,204)" target=3D"_blank">qu=
+ning@google.com</a>=C2=A0|</span><span style=3D"color:rgb(85,85,85);border-=
+top-width:2px;border-right-width:0px;border-bottom-width:0px;border-left-wi=
+dth:0px;border-top-style:solid;border-right-style:solid;border-bottom-style=
+:solid;border-left-style:solid;border-top-color:rgb(238,178,17);border-righ=
+t-color:rgb(238,178,17);border-bottom-color:rgb(238,178,17);border-left-col=
+or:rgb(238,178,17);padding-top:2px;margin-top:2px">=C2=A0<a value=3D"+16502=
+143877" style=3D"color:rgb(0,0,204)">+1-408-418-6066</a></span></span></spa=
+n></div>
+</div>
+<br><br><div class=3D"gmail_quote">On Tue, Oct 15, 2013 at 12:00 PM, Ning Q=
+u <span dir=3D"ltr">&lt;<a href=3D"mailto:quning@google.com" target=3D"_bla=
+nk">quning@google.com</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_q=
+uote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1e=
+x">
+Let me take another look at that logic. Thanks!<br>
+Best wishes,<br>
+--<br>
+Ning Qu (=E6=9B=B2=E5=AE=81) | Software Engineer | <a href=3D"mailto:quning=
+@google.com">quning@google.com</a> | <a href=3D"tel:%2B1-408-418-6066" valu=
+e=3D"+14084186066">+1-408-418-6066</a><br>
+<div><div class=3D"h5"><br>
+<br>
+On Tue, Oct 15, 2013 at 3:33 AM, Kirill A. Shutemov<br>
+&lt;<a href=3D"mailto:kirill.shutemov@linux.intel.com">kirill.shutemov@linu=
+x.intel.com</a>&gt; wrote:<br>
+&gt; Ning Qu wrote:<br>
+&gt;&gt; in shmem_writepage, we have to split the huge page when moving pag=
+es<br>
+&gt;&gt; from page cache to swap because we don&#39;t support huge page in =
+swap<br>
+&gt;&gt; yet.<br>
+&gt;&gt;<br>
+&gt;&gt; Signed-off-by: Ning Qu &lt;<a href=3D"mailto:quning@gmail.com">qun=
+ing@gmail.com</a>&gt;<br>
+&gt;&gt; ---<br>
+&gt;&gt; =C2=A0mm/shmem.c | 9 ++++++++-<br>
+&gt;&gt; =C2=A01 file changed, 8 insertions(+), 1 deletion(-)<br>
+&gt;&gt;<br>
+&gt;&gt; diff --git a/mm/shmem.c b/mm/shmem.c<br>
+&gt;&gt; index 8fe17dd..68a0e1d 100644<br>
+&gt;&gt; --- a/mm/shmem.c<br>
+&gt;&gt; +++ b/mm/shmem.c<br>
+&gt;&gt; @@ -898,6 +898,13 @@ static int shmem_writepage(struct page *page,=
+ struct writeback_control *wbc)<br>
+&gt;&gt; =C2=A0 =C2=A0 =C2=A0 swp_entry_t swap;<br>
+&gt;&gt; =C2=A0 =C2=A0 =C2=A0 pgoff_t index;<br>
+&gt;&gt;<br>
+&gt;&gt; + =C2=A0 =C2=A0 /* TODO: we have to break the huge page at this po=
+int,<br>
+&gt;&gt; + =C2=A0 =C2=A0 =C2=A0* since we have no idea how to recover a hug=
+e page from<br>
+&gt;&gt; + =C2=A0 =C2=A0 =C2=A0* swap.<br>
+&gt;&gt; + =C2=A0 =C2=A0 =C2=A0*/<br>
+&gt;&gt; + =C2=A0 =C2=A0 if (PageTransCompound(page))<br>
+&gt;&gt; + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 split_huge_page(compou=
+nd_trans_head(page));<br>
+&gt;&gt; +<br>
+&gt;<br>
+&gt; After the split you handle here only first small page of the huge page=
+=2E<br>
+&gt; Is it what we want to do? Should we swap out all small pages of the hu=
+ge<br>
+&gt; page?<br>
+&gt;<br>
+&gt; --<br>
+&gt; =C2=A0Kirill A. Shutemov<br>
+<br>
+--<br>
+To unsubscribe, send a message with &#39;unsubscribe linux-mm&#39; in<br>
+the body to <a href=3D"mailto:majordomo@kvack.org">majordomo@kvack.org</a>.=
+ =C2=A0For more info on Linux MM,<br>
+see: <a href=3D"http://www.linux-mm.org/" target=3D"_blank">http://www.linu=
+x-mm.org/</a> .<br>
+</div></div>Don&#39;t email: &lt;a hrefmailto:&quot;<a href=3D"mailto:dont@=
+kvack.org">dont@kvack.org</a>&quot;&gt; <a href=3D"mailto:email@kvack.org">=
+email@kvack.org</a> &lt;/a&gt;<br>
+</blockquote></div><br></div>
+
+--gBBFr7Ir9EOA20Yy--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
