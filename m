@@ -1,197 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 9182D6B011C
-	for <linux-mm@kvack.org>; Fri, 18 Oct 2013 02:05:08 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y13so4098103pdi.19
-        for <linux-mm@kvack.org>; Thu, 17 Oct 2013 23:05:08 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.169])
-        by mx.google.com with SMTP id gw3si550199pac.143.2013.10.17.23.05.06
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E40146B0122
+	for <linux-mm@kvack.org>; Fri, 18 Oct 2013 02:52:12 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id jt11so3398165pbb.38
+        for <linux-mm@kvack.org>; Thu, 17 Oct 2013 23:52:12 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.167])
+        by mx.google.com with SMTP id u7si641497pau.194.2013.10.17.23.52.11
         for <linux-mm@kvack.org>;
-        Thu, 17 Oct 2013 23:05:07 -0700 (PDT)
-Received: by mail-ee0-f42.google.com with SMTP id b45so1694037eek.1
-        for <linux-mm@kvack.org>; Thu, 17 Oct 2013 23:05:04 -0700 (PDT)
-Date: Fri, 18 Oct 2013 08:05:01 +0200
+        Thu, 17 Oct 2013 23:52:12 -0700 (PDT)
+Received: by mail-ea0-f175.google.com with SMTP id m14so1655799eaj.6
+        for <linux-mm@kvack.org>; Thu, 17 Oct 2013 23:52:09 -0700 (PDT)
+Date: Fri, 18 Oct 2013 08:52:06 +0200
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 4/3] x86/vdso: Optimize setup_additional_pages()
-Message-ID: <20131018060501.GA3411@gmail.com>
-References: <1382057438-3306-1-git-send-email-davidlohr@hp.com>
- <1382057438-3306-4-git-send-email-davidlohr@hp.com>
+Subject: Re: [PATCH v8 0/9] rwsem performance optimizations
+Message-ID: <20131018065206.GA17512@gmail.com>
+References: <cover.1380748401.git.tim.c.chen@linux.intel.com>
+ <1380753493.11046.82.camel@schen9-DESK>
+ <20131003073212.GC5775@gmail.com>
+ <1381186674.11046.105.camel@schen9-DESK>
+ <20131009061551.GD7664@gmail.com>
+ <1381336441.11046.128.camel@schen9-DESK>
+ <20131010075444.GD17990@gmail.com>
+ <1381882156.11046.178.camel@schen9-DESK>
+ <20131016065526.GB22509@gmail.com>
+ <1381960530.11046.200.camel@schen9-DESK>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1382057438-3306-4-git-send-email-davidlohr@hp.com>
+In-Reply-To: <1381960530.11046.200.camel@schen9-DESK>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>, Al Viro <viro@zeniv.linux.org.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, aswin@hp.com, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Richard Kuo <rkuo@codeaurora.org>, Ralf Baechle <ralf@linux-mips.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Paul Mundt <lethal@linux-sh.org>, Chris Metcalf <cmetcalf@tilera.com>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Jason Low <jason.low2@hp.com>, Waiman Long <Waiman.Long@hp.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
 
-* Davidlohr Bueso <davidlohr@hp.com> wrote:
+* Tim Chen <tim.c.chen@linux.intel.com> wrote:
 
-> --- a/arch/x86/vdso/vma.c
-> +++ b/arch/x86/vdso/vma.c
-> @@ -154,12 +154,17 @@ static int setup_additional_pages(struct linux_binprm *bprm,
->  				  unsigned size)
->  {
->  	struct mm_struct *mm = current->mm;
-> +	struct vm_area_struct *vma;
->  	unsigned long addr;
->  	int ret;
->  
->  	if (!vdso_enabled)
->  		return 0;
->  
-> +	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
-> +	if (unlikely(!vma))
-> +		return -ENOMEM;
-> +
->  	down_write(&mm->mmap_sem);
->  	addr = vdso_addr(mm->start_stack, size);
->  	addr = get_unmapped_area(NULL, addr, size, 0, 0);
-> @@ -173,14 +178,17 @@ static int setup_additional_pages(struct linux_binprm *bprm,
->  	ret = install_special_mapping(mm, addr, size,
->  				      VM_READ|VM_EXEC|
->  				      VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-> -				      pages);
-> +				      pages, &vma);
->  	if (ret) {
->  		current->mm->context.vdso = NULL;
->  		goto up_fail;
->  	}
->  
-> +	up_write(&mm->mmap_sem);
-> +	return ret;
->  up_fail:
->  	up_write(&mm->mmap_sem);
-> +	kmem_cache_free(vm_area_cachep, vma);
->  	return ret;
->  }
->  
+> 
+> > 
+> > It would be _really_ nice to stick this into tools/perf/bench/ as:
+> > 
+> > 	perf bench mem pagefaults
+> > 
+> > or so, with a number of parallelism and workload patterns. See 
+> > tools/perf/bench/numa.c for a couple of workload generators - although 
+> > those are not page fault intense.
+> > 
+> > So that future generations can run all these tests too and such.
+> > 
+> > > I compare the throughput where I have the complete rwsem patchset 
+> > > against vanilla and the case where I take out the optimistic spin patch.  
+> > > I have increased the run time by 10x from my pervious experiments and do 
+> > > 10 runs for each case.  The standard deviation is ~1.5% so any changes 
+> > > under 1.5% is statistically significant.
+> > > 
+> > > % change in throughput vs the vanilla kernel.
+> > > Threads	all	No-optspin
+> > > 1		+0.4%	-0.1%
+> > > 2		+2.0%	+0.2%
+> > > 3		+1.1%	+1.5%
+> > > 4		-0.5%	-1.4%
+> > > 5		-0.1%	-0.1%
+> > > 10		+2.2%	-1.2%
+> > > 20		+237.3%	-2.3%
+> > > 40		+548.1%	+0.3%
+> > 
+> > The tail is impressive. The early parts are important as well, but it's 
+> > really hard to tell the significance of the early portion without having 
+> > an sttdev column.
+> > 
+> > ( "perf stat --repeat N" will give you sttdev output, in handy percentage 
+> >   form. )
+> 
+> Quick naive question as I haven't hacked perf bench before.  
 
-1)
+Btw., please use tip:master, I've got a few cleanups in there that should 
+make it easier to hack.
 
-Beyond the simplification that Linus suggested, why not introduce a new 
-function, named 'install_special_mapping_vma()' or so, and convert 
-architectures one by one, without pressure to get it all done (and all 
-correct) in a single patch?
+> Now perf stat gives the statistics of the performance counter or events.
+> How do I get it to compute the stats of 
+> the throughput reported by perf bench?
 
-2)
+What I do is that I measure the execution time, via:
 
-I don't see the justification: this code gets executed in exec() where a 
-new mm has just been allocated. There's only a single user of the mm and 
-thus the critical section width of mmap_sem is more or less irrelevant.
+  perf stat --null --repeat 10 perf bench ...
 
-mmap_sem critical section size only matters for codepaths that threaded 
-programs can hit.
+instead of relying on benchmark output.
 
-3)
+> Something like
+> 
+> perf stat -r 10 -- perf bench mm memset --iterations 10
+> 
+> doesn't quite give what I need.
 
-But, if we do all that, a couple of other (micro-)optimizations are 
-possible in setup_additional_pages() as well:
+Yeha. So, perf bench also has a 'simple' output format:
 
- - vdso_addr(), which is actually much _more_ expensive than kmalloc() 
-   because on most distros it will call into the RNG, can also be done 
-   outside the mmap_sem.
+  comet:~/tip> perf bench -f simple sched pipe
+  10.378
 
- - the error paths can all be merged and the common case can be made 
-   fall-through.
+We could extend 'perf stat' with an option to not measure time, but to 
+take any numeric data output from the executed task and use that as the 
+measurement result.
 
- - use 'mm' consistently instead of repeating 'current->mm'
-
- - set 'mm->context.vdso' only once we know it's all a success, and do it 
-   outside the lock
-
- - add a few comments about which operations are locked, which unlocked, 
-   and why. Please double check the assumptions I documented there.
-
-See the diff attached below. (Totally untested and all that.)
-
-Also note that I think, in theory, if exec() guaranteed the privacy and 
-single threadedness of the new mm, we could probably do _all_ of this 
-unlocked. Right now I don't think this is guaranteed: ptrace() users might 
-look up the new PID and might interfere on the MM via 
-PTRACE_PEEK*/PTRACE_POKE*.
-
-( Furthermore, /proc/ might also give early access to aspects of the mm - 
-  although no manipulation of the mm is possible there. )
-
-If such privacy of the new mm was guaranteed then that would also remove 
-the need to move the allocation out of install_special_mapping().
-
-But, I don't think it all matters, due to #2 - and your changes actively 
-complicate setup_pages(), which makes this security sensitive code a bit 
-more fragile. We can still do it out of sheer principle, I just don't see 
-where it's supposed to help scale better.
+If you'd be interested in such a feature I can give it a try.
 
 Thanks,
 
 	Ingo
-
- arch/x86/vdso/vma.c | 40 +++++++++++++++++++++++++++-------------
- 1 file changed, 27 insertions(+), 13 deletions(-)
-
-diff --git a/arch/x86/vdso/vma.c b/arch/x86/vdso/vma.c
-index 431e875..c590387 100644
---- a/arch/x86/vdso/vma.c
-+++ b/arch/x86/vdso/vma.c
-@@ -157,30 +157,44 @@ static int setup_additional_pages(struct linux_binprm *bprm,
- 	unsigned long addr;
- 	int ret;
- 
--	if (!vdso_enabled)
-+	if (unlikely(!vdso_enabled))
- 		return 0;
- 
--	down_write(&mm->mmap_sem);
-+	/*
-+	 * Do this outside the MM lock - we are in exec() with a new MM,
-+	 * nobody else can use these fields of the mm:
-+	 */
- 	addr = vdso_addr(mm->start_stack, size);
--	addr = get_unmapped_area(NULL, addr, size, 0, 0);
--	if (IS_ERR_VALUE(addr)) {
--		ret = addr;
--		goto up_fail;
--	}
- 
--	current->mm->context.vdso = (void *)addr;
-+	/*
-+	 * This must be done under the MM lock - there might be parallel
-+	 * accesses to this mm, such as ptrace().
-+	 *
-+	 * [ This could be further optimized if exec() reliably inhibited
-+	 *   all early access to the mm. ]
-+	 */
-+	down_write(&mm->mmap_sem);
-+	addr = get_unmapped_area(NULL, addr, size, 0, 0);
-+	if (IS_ERR_VALUE(addr))
-+		goto up_fail_addr;
- 
- 	ret = install_special_mapping(mm, addr, size,
- 				      VM_READ|VM_EXEC|
- 				      VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
- 				      pages);
--	if (ret) {
--		current->mm->context.vdso = NULL;
--		goto up_fail;
--	}
-+	up_write(&mm->mmap_sem);
-+	if (ret)
-+		goto fail;
- 
--up_fail:
-+	mm->context.vdso = (void *)addr;
-+	return ret;
-+
-+up_fail_addr:
-+	ret = addr;
- 	up_write(&mm->mmap_sem);
-+fail:
-+	mm->context.vdso = NULL;
-+
- 	return ret;
- }
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
