@@ -1,40 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 366616B0044
-	for <linux-mm@kvack.org>; Thu, 14 Nov 2013 05:15:31 -0500 (EST)
-Received: by mail-pd0-f182.google.com with SMTP id y13so1788159pdi.27
-        for <linux-mm@kvack.org>; Thu, 14 Nov 2013 02:15:30 -0800 (PST)
-Received: from psmtp.com ([74.125.245.199])
-        by mx.google.com with SMTP id yk3si27480686pac.12.2013.11.14.02.15.25
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 185E46B0044
+	for <linux-mm@kvack.org>; Thu, 14 Nov 2013 07:57:46 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id p10so1932083pdj.23
+        for <linux-mm@kvack.org>; Thu, 14 Nov 2013 04:57:45 -0800 (PST)
+Received: from psmtp.com ([74.125.245.203])
+        by mx.google.com with SMTP id fn9si20502302pab.188.2013.11.14.04.57.43
         for <linux-mm@kvack.org>;
-        Thu, 14 Nov 2013 02:15:26 -0800 (PST)
-Message-ID: <5284A2A0.4060008@elastichosts.com>
-Date: Thu, 14 Nov 2013 10:14:56 +0000
-From: Alin Dobre <alin.dobre@elastichosts.com>
-MIME-Version: 1.0
-Subject: Re: Unnecessary mass OOM kills on Linux 3.11 virtualization host
-References: <20131024224326.GA19654@alpha.arachsys.com> <20131025103946.GA30649@alpha.arachsys.com> <20131028082825.GA30504@alpha.arachsys.com> <52836002.5050901@elastichosts.com> <20131113120948.GE2834@moon> <52837216.1090100@elastichosts.com> <20131113131921.GF2834@moon> <52849CD2.4030406@elastichosts.com> <alpine.DEB.2.02.1311140211560.16862@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1311140211560.16862@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+        Thu, 14 Nov 2013 04:57:44 -0800 (PST)
+Message-Id: <E1VgwTG-0005fr-5y@yggdrasil.ua.sandberg.pp.se>
+From: Andreas Sandberg <andreas@sandberg.pp.se>
+Date: Sun, 20 Oct 2013 11:20:59 +0200
+Subject: [PATCH] mm: Call MMU notifiers when copying a hugetlb page range
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: kvm@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Steve Capper <steve.capper@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Andreas Sandberg <andreas@sandberg.pp.se>
 
-On 14/11/13 10:12, David Rientjes wrote:
-> On Thu, 14 Nov 2013, Alin Dobre wrote:
->
->> Thanks Cyrill! We'll test the kernel anyway to try and reproduce the mass oom
->> killing, so we'll see from there.
->>
->
-> If you're able to reproduce it, please ensure /proc/sys/vm/oom_dump_tasks
-> is set to 1 and provide the full kernel log.  It makes debugging things
-> like this much easier.
->
+When copy_hugetlb_page_range is called to copy a range of hugetlb
+mappings, the secondary MMUs are not notified if there is a protection
+downgrade, which breaks COW semantics in KVM.
 
-It's already enabled, thanks for the tip.
+This patch adds the necessary MMU notifier calls.
+
+Signed-off-by: Andreas Sandberg <andreas@sandberg.pp.se>
+Acked-by: Steve Capper <steve.capper@linaro.org>
+Acked-by: Marc Zyngier <marc.zyngier@arm.com>
+---
+ mm/hugetlb.c |   21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 0b7656e..f5c5002 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -2372,16 +2372,26 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 	int cow;
+ 	struct hstate *h = hstate_vma(vma);
+ 	unsigned long sz = huge_page_size(h);
++	unsigned long mmun_start;	/* For mmu_notifiers */
++	unsigned long mmun_end;		/* For mmu_notifiers */
++	int ret;
+ 
++	ret = 0;
+ 	cow = (vma->vm_flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
++	mmun_start = vma->vm_start;
++	mmun_end = vma->vm_end;
++	if (cow)
++		mmu_notifier_invalidate_range_start(src, mmun_start, mmun_end);
+ 
+ 	for (addr = vma->vm_start; addr < vma->vm_end; addr += sz) {
+ 		src_pte = huge_pte_offset(src, addr);
+ 		if (!src_pte)
+ 			continue;
+ 		dst_pte = huge_pte_alloc(dst, addr, sz);
+-		if (!dst_pte)
+-			goto nomem;
++		if (!dst_pte) {
++			ret = -ENOMEM;
++			break;
++		}
+ 
+ 		/* If the pagetables are shared don't copy or take references */
+ 		if (dst_pte == src_pte)
+@@ -2401,10 +2411,11 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 		spin_unlock(&src->page_table_lock);
+ 		spin_unlock(&dst->page_table_lock);
+ 	}
+-	return 0;
+ 
+-nomem:
+-	return -ENOMEM;
++	if (cow)
++		mmu_notifier_invalidate_range_end(src, mmun_start, mmun_end);
++
++	return ret;
+ }
+ 
+ static int is_hugetlb_entry_migration(pte_t pte)
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
