@@ -1,165 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 755F06B0318
-	for <linux-mm@kvack.org>; Mon, 21 Oct 2013 08:10:30 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rp16so6942097pbb.0
-        for <linux-mm@kvack.org>; Mon, 21 Oct 2013 05:10:30 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.205])
-        by mx.google.com with SMTP id v8si8475746pbi.167.2013.10.21.05.10.26
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 355596B034A
+	for <linux-mm@kvack.org>; Mon, 21 Oct 2013 17:46:04 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id jt11so1651912pbb.29
+        for <linux-mm@kvack.org>; Mon, 21 Oct 2013 14:46:03 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.172])
+        by mx.google.com with SMTP id gw3si10193058pac.317.2013.10.21.14.46.02
         for <linux-mm@kvack.org>;
-        Mon, 21 Oct 2013 05:10:27 -0700 (PDT)
-Date: Mon, 21 Oct 2013 23:10:16 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [patch 0/8] mm: thrash detection-based file cache sizing v5
-Message-ID: <20131021121016.GB16161@dastard>
-References: <1381441622-26215-1-git-send-email-hannes@cmpxchg.org>
- <20131011003930.GC4446@dastard>
- <20131014214250.GG856@cmpxchg.org>
- <20131015014123.GQ4446@dastard>
- <20131015174128.GH856@cmpxchg.org>
- <20131015234147.GA4446@dastard>
- <525DF466.6030308@redhat.com>
- <20131016022606.GD4446@dastard>
- <20131016223104.GA738@cmpxchg.org>
+        Mon, 21 Oct 2013 14:46:03 -0700 (PDT)
+Received: by mail-pd0-f178.google.com with SMTP id w10so9177972pde.37
+        for <linux-mm@kvack.org>; Mon, 21 Oct 2013 14:46:01 -0700 (PDT)
+Date: Mon, 21 Oct 2013 14:45:57 -0700
+From: Ning Qu <quning@gmail.com>
+Subject: [PATCHv2 00/13] Transparent huge page cache support on tmpfs
+Message-ID: <20131021214557.GA29870@hippobay.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131016223104.GA738@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, Vlastimil Babka <vbabka@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Ning Qu <quning@google.com>, Ning Qu <quning@gmail.com>
 
-On Wed, Oct 16, 2013 at 06:31:04PM -0400, Johannes Weiner wrote:
-> On Wed, Oct 16, 2013 at 01:26:06PM +1100, Dave Chinner wrote:
-> > On Tue, Oct 15, 2013 at 10:05:26PM -0400, Rik van Riel wrote:
-> > > On 10/15/2013 07:41 PM, Dave Chinner wrote:
-> > > > On Tue, Oct 15, 2013 at 01:41:28PM -0400, Johannes Weiner wrote:
-> > > >> But it
-> > > >> looks like tracking radix tree nodes with a list and backpointers to
-> > > >> the mapping object for the lock etc. will be a major pain in the ass.
-> > > > 
-> > > > Perhaps so - it may not work out when we get down to the fine
-> > > > details...
-> > > 
-> > > I suspect that a combination of lifetime rules (inode cannot
-> > > disappear until all the radix tree nodes) and using RCU free
-> > > for the radix tree nodes, and the inodes might do the trick.
-> > > 
-> > > That would mean that, while holding the rcu read lock, the
-> > > back pointer from a radix tree node to the inode will always
-> > > point to valid memory.
-> > 
-> > Yes, that is what I was thinking...
-> > 
-> > > That allows the shrinker to lock the inode, and verify that
-> > > the inode is still valid, before it attempts to rcu free the
-> > > radix tree node with shadow entries.
-> > 
-> > Lock the mapping, not the inode. The radix tree is protected by the
-> > mapping_lock, not an inode lock. i.e. I'd hope that this can all b
-> > contained within the struct address_space and not require any
-> > knowledge of inodes or inode lifecycles at all.
-> 
-> Agreed, we can point to struct address_space and invalidate it by
-> setting mapping->host to NULL or so during the RCU grace period.
-> 
-> Also, the parent pointer is in a union with the two-word rcu_head, so
-> we get the address space backpointer for free.
-> 
-> The struct list_head for the FIFO, as you said, we can get for free as
-> well (at least on slab).
-> 
-> The FIFO lists themselves can be trimmed by a shrinker, I think.  You
-> were concerned about wind-up but if the nodes are not in excess and
-> ->count just returns 0 until we are actually prepared to shrink
-> objects, then there shouldn't be any windup, right?
+Transparent huge page support on tmpfs.
 
-It's not windup that will be the problem, it's the step change from
-going from zero cache items to the global counter value when the
-magic threshold is crossed. That will generate a massive delta, and
-so generate a huge amount of work to be done from a single shrinker
-call that will be executed on the next context that can run it.
+Please review.
 
-i.e. the problem is that the cache size goes from 0 to something
-huge in an instant, and will drop from something huge to zero just
-as quickly. There is no way the shrinker can prevent overshoot and
-oscillation around that magic threshold because the nature of the
-step change overwhelms the damping algorithms in the shrinker used
-to control the amount work being done and hence reach stability.
+Intro
+-----
+The goal of the project is to enable transparent huge page support on
+tmpfs.
 
-Normally, the shrinker sees the size of the cache change gradually,
-and so the delta tends to be relatively small and so it does a
-little bit of work every time it is called. This keeps the caches
-balanced with all the other caches that are trimmed a little at a
-time. IOWs, there is a natural damping algorithm built into the
-shrinkers that biases them towards a stable, balanced condition,
-even under changing workloads.
+The whole patchset is based on Kirill's latest patchset about Transparent
+huge page cache v6. As the link below:
 
-Windup occurs when that little bit of work keeps getting delayed and
-aggregated (e.g. repeated GFP_NOFS reclaim context) which then gets
-dumped on a single scan that can make progress (e.g. kswapd). So
-windup is an iterative process that triggers "catchup work". The
-macro level behaviour might end up looking the same, but they have
-very different underlying algorithmic causes.
+https://lkml.org/lkml/2013/9/23/230
 
-> I don't see a natural threshold for "excess" yet, though, because
-> there is no relationship between where radix_tree_node is allocated
-> and which zones the contained shadow entries point to, so it's hard to
-> estimate how worthwile any given radix_tree_node is to a node.  Maybe
-> tying it to an event might be better, like reclaim pressure, swapping
-> etc.
+To further proof that the proposed changes are functional we try enable
+this feature for a more complex file system tmpfs besides ramfs. tmpfs
+comes with swap support which make is more usable.
 
-The shrinker is provided a measure of reclaim pressure already,
-which it uses to balance the cache sizes. The shadow entries are no
-different from that perspective. You can't let them overrun the
-system, but you want to keep a respectable number of them around to
-keep (some metric of) performance within respectable bounds.  IOWs,
-that's the same constraints as most other caches (e.g. inode and
-dentry caches) with a shrinker shrinker and so I don't see any
-reason why it needs some magic threshold to avoid being shrunk
-proportionally like all other caches...
+Design overview
+---------------
 
-Indeed, as memory pressure gets higher, the value of keeping lots of
-shadow entries around goes down because if there is lots of
-refaulting occurring then the number of shadow entries will be
-shrinking as a natural side effect of replacing shadow entries with
-real pages.
+We share the exact same design from Kirill's work. However, due to the
+complexity of tmpfs, we do a lot of refactoring on the implementation.
 
-If the memory pressure is not causing refaults to occur, then the
-shadow entries are using memory that could otherwise be put to
-better use, and so we should reclaim them in proportion to the
-memory pressure.
+Changes since v1
+---------------
 
-If you use lazy lists, in the first case the scanner will expend
-most of it work removing radix tree nodes from the list because they
-have pages in them again, and so the shrinker does cleanup work
-rather than reclaim work. If the second case occurs, then the
-shrinker does reclaim work to free the radix tree nodes so the
-memory can be put to better use. No magic thresholds are needed at
-all...
+* extract common code from add_to_page_cache_locked, so most of the
+function could be shared by shmem
+* remove all the ifdef for thp page cache as it's not necessary
+* completely rewrite shmem_writepage to handle huge page correctly
+* fix the problem about when to split huge page in shmem_fault 
+* leave the GFP_MOVABLE flags untouched, from the current code,
+seems the migration code should have splitted the huge page before
+migration.
 
-> > > It also means that locking only needs to be in the inode,
-> > > and on the LRU list for shadow radix tree nodes.
-> > > 
-> > > Does that sound sane?
-> > > 
-> > > Am I overlooking something?
-> > 
-> > It's pretty much along the same lines of what I was thinking, but
-> > lets see what Johannes thinks.
-> 
-> That sounds great to me.  I just have looked at this code for so long
-> that I'm getting blind towards it, so I really appreciate your input.
+Known problem
+---------------
 
-I think we all suffer from that problem from time to time :/
+We do try to make it work with swapping, but currently there are still
+some problem with it. Things are getting better with rewriting the 
+shmem_wrigepage logic. However, it is still crashing after running into
+swapping for a whileI, I am debbugging it.
 
-Cheers,
+It would be great to have more opinions about the design in the current
+patchset and where we should be heading.
 
-Dave.
+Ning Qu (13):
+  mm, thp: extract the common code from add_to_page_cache_locked
+  mm, thp, tmpfs: add function to alloc huge page for tmpfs
+  mm, thp, tmpfs: support to add huge page into page cache for tmpfs
+  mm, thp, tmpfs: handle huge page cases in shmem_getpage_gfp
+  mm, thp, tmpfs: split huge page when moving from page cache to swap
+  mm, thp, tmpfs: request huge page in shm_fault when needed
+  mm, thp, tmpfs: initial support for huge page in write_begin/write_end
+    in tmpfs
+  mm, thp, tmpfs: handle huge page in shmem_undo_range for truncate
+  mm, thp, tmpfs: huge page support in do_shmem_file_read
+  mm, thp, tmpfs: huge page support in shmem_fallocate
+  mm, thp, tmpfs: only alloc small pages in shmem_file_splice_read
+  mm, thp, tmpfs: enable thp page cache in tmpfs
+  mm, thp, tmpfs: misc fixes for thp tmpfs
+
+ include/linux/huge_mm.h |   2 +
+ include/linux/pagemap.h |   2 +
+ mm/Kconfig              |   4 +-
+ mm/filemap.c            |  91 ++++++---
+ mm/huge_memory.c        |  27 +++
+ mm/shmem.c              | 521 +++++++++++++++++++++++++++++++++++++++---------
+ 6 files changed, 522 insertions(+), 125 deletions(-)
+
 -- 
-Dave Chinner
-david@fromorbit.com
+1.8.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
