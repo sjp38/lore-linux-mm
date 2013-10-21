@@ -1,69 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id ADFC16B0302
-	for <linux-mm@kvack.org>; Mon, 21 Oct 2013 01:27:38 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id y10so4063654pdj.38
-        for <linux-mm@kvack.org>; Sun, 20 Oct 2013 22:27:38 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.112])
-        by mx.google.com with SMTP id u9si7567338pbf.23.2013.10.20.22.27.36
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 004116B030E
+	for <linux-mm@kvack.org>; Mon, 21 Oct 2013 04:58:25 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id fa1so7740800pad.33
+        for <linux-mm@kvack.org>; Mon, 21 Oct 2013 01:58:25 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.158])
+        by mx.google.com with SMTP id gl1si8622039pac.111.2013.10.21.01.58.23
         for <linux-mm@kvack.org>;
-        Sun, 20 Oct 2013 22:27:37 -0700 (PDT)
-Received: by mail-ee0-f48.google.com with SMTP id e50so1887218eek.7
-        for <linux-mm@kvack.org>; Sun, 20 Oct 2013 22:27:34 -0700 (PDT)
-Date: Mon, 21 Oct 2013 07:27:31 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 4/3] x86/vdso: Optimize setup_additional_pages()
-Message-ID: <20131021052731.GA14476@gmail.com>
-References: <1382057438-3306-1-git-send-email-davidlohr@hp.com>
- <1382057438-3306-4-git-send-email-davidlohr@hp.com>
- <20131018060501.GA3411@gmail.com>
- <1382327556.2402.23.camel@buesod1.americas.hpqcorp.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1382327556.2402.23.camel@buesod1.americas.hpqcorp.net>
+        Mon, 21 Oct 2013 01:58:25 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
+	Mon, 21 Oct 2013 14:28:20 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 09319125803F
+	for <linux-mm@kvack.org>; Mon, 21 Oct 2013 14:28:50 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9L915TI44695696
+	for <linux-mm@kvack.org>; Mon, 21 Oct 2013 14:31:06 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9L8wG63023958
+	for <linux-mm@kvack.org>; Mon, 21 Oct 2013 14:28:16 +0530
+From: Wei Yang <weiyang@linux.vnet.ibm.com>
+Subject: [PATCH 1/3] percpu: stop the loop when a cpu belongs to a new group
+Date: Mon, 21 Oct 2013 16:58:11 +0800
+Message-Id: <1382345893-6644-1-git-send-email-weiyang@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, aswin@hp.com, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Richard Kuo <rkuo@codeaurora.org>, Ralf Baechle <ralf@linux-mips.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Paul Mundt <lethal@linux-sh.org>, Chris Metcalf <cmetcalf@tilera.com>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+To: tj@kernel.org, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: weiyang@linux.vnet.ibm.com
 
+When a cpu belongs to a new group, there is no cpu has the same group id. This
+means it can be assigned a new group id without checking with every others.
 
-* Davidlohr Bueso <davidlohr@hp.com> wrote:
+This patch does this optimiztion.
 
-> > 2)
-> > 
-> > I don't see the justification: this code gets executed in exec() where 
-> > a new mm has just been allocated. There's only a single user of the mm 
-> > and thus the critical section width of mmap_sem is more or less 
-> > irrelevant.
-> > 
-> > mmap_sem critical section size only matters for codepaths that 
-> > threaded programs can hit.
-> 
-> Yes, I was surprised by the performance boost I noticed when running 
-> this patch. This weekend I re-ran the tests (including your 4/3 patch) 
-> and noticed that while we're still getting some benefits (more like in 
-> the +5% throughput range), it's not as good as I originally reported. I 
-> believe the reason is because I had ran the tests on the vanilla kernel 
-> without the max clock frequency, so the comparison was obviously not 
-> fair. That said, I still think it's worth adding this patch, as it does 
-> help at a micro-optimization level, and it's one less mmap_sem user we 
-> have to worry about.
+Signed-off-by: Wei Yang <weiyang@linux.vnet.ibm.com>
+---
+ mm/percpu.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
 
-But it's a mmap_sem user that is essentially _guaranteed_ to have only a 
-single user at that point, in the exec() path!
-
-So I don't see how this can show _any_ measurable speedup, let alone a 5% 
-speedup in a macro test. If our understanding is correct then the patch 
-does nothing but shuffle around a flag setting operation. (the mmap_sem is 
-equivalent to setting a single flag, in the single-user case.)
-
-Now, if our understanding is incorrect then we need to improve our 
-understanding.
-
-Thanks,
-
-	Ingo
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 8c8e08f..536ca4f 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -1488,7 +1488,10 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
+ 			    (cpu_distance_fn(cpu, tcpu) > LOCAL_DISTANCE ||
+ 			     cpu_distance_fn(tcpu, cpu) > LOCAL_DISTANCE)) {
+ 				group++;
+-				nr_groups = max(nr_groups, group + 1);
++				if (group == nr_groups) {
++					nr_groups++;
++					break;
++				}
+ 				goto next_group;
+ 			}
+ 		}
+-- 
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
