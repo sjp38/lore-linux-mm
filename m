@@ -1,19 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 355596B034A
-	for <linux-mm@kvack.org>; Mon, 21 Oct 2013 17:46:04 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id jt11so1651912pbb.29
-        for <linux-mm@kvack.org>; Mon, 21 Oct 2013 14:46:03 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.172])
-        by mx.google.com with SMTP id gw3si10193058pac.317.2013.10.21.14.46.02
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D83A6B034C
+	for <linux-mm@kvack.org>; Mon, 21 Oct 2013 17:46:17 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id bj1so8674235pad.21
+        for <linux-mm@kvack.org>; Mon, 21 Oct 2013 14:46:16 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.104])
+        by mx.google.com with SMTP id w1si10212782pan.199.2013.10.21.14.46.15
         for <linux-mm@kvack.org>;
-        Mon, 21 Oct 2013 14:46:03 -0700 (PDT)
-Received: by mail-pd0-f178.google.com with SMTP id w10so9177972pde.37
-        for <linux-mm@kvack.org>; Mon, 21 Oct 2013 14:46:01 -0700 (PDT)
-Date: Mon, 21 Oct 2013 14:45:57 -0700
+        Mon, 21 Oct 2013 14:46:16 -0700 (PDT)
+Received: by mail-pb0-f47.google.com with SMTP id rq13so704149pbb.6
+        for <linux-mm@kvack.org>; Mon, 21 Oct 2013 14:46:14 -0700 (PDT)
+Date: Mon, 21 Oct 2013 14:46:10 -0700
 From: Ning Qu <quning@gmail.com>
-Subject: [PATCHv2 00/13] Transparent huge page cache support on tmpfs
-Message-ID: <20131021214557.GA29870@hippobay.mtv.corp.google.com>
+Subject: [PATCHv2 01/13] mm, thp: extract the common code from
+ add_to_page_cache_locked
+Message-ID: <20131021214610.GB29870@hippobay.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -22,77 +23,161 @@ List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>
 Cc: Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Ning Qu <quning@google.com>, Ning Qu <quning@gmail.com>
 
-Transparent huge page support on tmpfs.
+Extract the common code from add_to_page_cache_locked so that
+it could be shared by shmem file system.
 
-Please review.
+Signed-off-by: Ning Qu <quning@gmail.com>
+---
+ include/linux/pagemap.h |  2 ++
+ mm/filemap.c            | 91 ++++++++++++++++++++++++++++++++-----------------
+ 2 files changed, 61 insertions(+), 32 deletions(-)
 
-Intro
------
-The goal of the project is to enable transparent huge page support on
-tmpfs.
-
-The whole patchset is based on Kirill's latest patchset about Transparent
-huge page cache v6. As the link below:
-
-https://lkml.org/lkml/2013/9/23/230
-
-To further proof that the proposed changes are functional we try enable
-this feature for a more complex file system tmpfs besides ramfs. tmpfs
-comes with swap support which make is more usable.
-
-Design overview
----------------
-
-We share the exact same design from Kirill's work. However, due to the
-complexity of tmpfs, we do a lot of refactoring on the implementation.
-
-Changes since v1
----------------
-
-* extract common code from add_to_page_cache_locked, so most of the
-function could be shared by shmem
-* remove all the ifdef for thp page cache as it's not necessary
-* completely rewrite shmem_writepage to handle huge page correctly
-* fix the problem about when to split huge page in shmem_fault 
-* leave the GFP_MOVABLE flags untouched, from the current code,
-seems the migration code should have splitted the huge page before
-migration.
-
-Known problem
----------------
-
-We do try to make it work with swapping, but currently there are still
-some problem with it. Things are getting better with rewriting the 
-shmem_wrigepage logic. However, it is still crashing after running into
-swapping for a whileI, I am debbugging it.
-
-It would be great to have more opinions about the design in the current
-patchset and where we should be heading.
-
-Ning Qu (13):
-  mm, thp: extract the common code from add_to_page_cache_locked
-  mm, thp, tmpfs: add function to alloc huge page for tmpfs
-  mm, thp, tmpfs: support to add huge page into page cache for tmpfs
-  mm, thp, tmpfs: handle huge page cases in shmem_getpage_gfp
-  mm, thp, tmpfs: split huge page when moving from page cache to swap
-  mm, thp, tmpfs: request huge page in shm_fault when needed
-  mm, thp, tmpfs: initial support for huge page in write_begin/write_end
-    in tmpfs
-  mm, thp, tmpfs: handle huge page in shmem_undo_range for truncate
-  mm, thp, tmpfs: huge page support in do_shmem_file_read
-  mm, thp, tmpfs: huge page support in shmem_fallocate
-  mm, thp, tmpfs: only alloc small pages in shmem_file_splice_read
-  mm, thp, tmpfs: enable thp page cache in tmpfs
-  mm, thp, tmpfs: misc fixes for thp tmpfs
-
- include/linux/huge_mm.h |   2 +
- include/linux/pagemap.h |   2 +
- mm/Kconfig              |   4 +-
- mm/filemap.c            |  91 ++++++---
- mm/huge_memory.c        |  27 +++
- mm/shmem.c              | 521 +++++++++++++++++++++++++++++++++++++++---------
- 6 files changed, 522 insertions(+), 125 deletions(-)
-
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 8ce130f..1887255 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -548,6 +548,8 @@ static inline int fault_in_multipages_readable(const char __user *uaddr,
+ 	return ret;
+ }
+ 
++int __add_to_page_cache_locked(struct page *page, struct address_space *mapping,
++				pgoff_t index);
+ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+ 				pgoff_t index, gfp_t gfp_mask);
+ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 313df6d..998ee40 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -459,42 +459,22 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
+ EXPORT_SYMBOL_GPL(replace_page_cache_page);
+ 
+ /**
+- * add_to_page_cache_locked - add a locked page to the pagecache
++ * __add_to_page_cache_locked - add a locked page to the pagecache
+  * @page:	page to add
+  * @mapping:	the page's address_space
+  * @offset:	page index
+- * @gfp_mask:	page allocation mode
+  *
+- * This function is used to add a page to the pagecache. It must be locked.
+- * This function does not add the page to the LRU.  The caller must do that.
++ * This function is the common code used for adding a page to the pagecache.
++ * mapping->tree_lock has to be held by caller.
+  */
+-int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+-		pgoff_t offset, gfp_t gfp_mask)
++int __add_to_page_cache_locked(struct page *page, struct address_space *mapping,
++		pgoff_t offset)
+ {
+-	int error;
++	int error = 0;
+ 	int i, nr;
+ 
+-	VM_BUG_ON(!PageLocked(page));
+-	VM_BUG_ON(PageSwapBacked(page));
+-
+-	/* memory cgroup controller handles thp pages on its side */
+-	error = mem_cgroup_cache_charge(page, current->mm,
+-					gfp_mask & GFP_RECLAIM_MASK);
+-	if (error)
+-		return error;
+-
+-	if (PageTransHugeCache(page))
+-		BUILD_BUG_ON(HPAGE_CACHE_NR > RADIX_TREE_PRELOAD_NR);
+-
+ 	nr = hpagecache_nr_pages(page);
+ 
+-	error = radix_tree_maybe_preload_contig(nr, gfp_mask & ~__GFP_HIGHMEM);
+-	if (error) {
+-		mem_cgroup_uncharge_cache_page(page);
+-		return error;
+-	}
+-
+-	spin_lock_irq(&mapping->tree_lock);
+ 	page_cache_get(page);
+ 	page->index = offset;
+ 	page->mapping = mapping;
+@@ -511,16 +491,14 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+ 			goto err_insert;
+ 		}
+ 	}
+-	radix_tree_preload_end();
+ 	mapping->nrpages += nr;
+ 	__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, nr);
+ 	if (PageTransHuge(page))
+ 		__inc_zone_page_state(page, NR_FILE_TRANSPARENT_HUGEPAGES);
+-	spin_unlock_irq(&mapping->tree_lock);
+-	trace_mm_filemap_add_to_page_cache(page);
++
+ 	return 0;
++
+ err_insert:
+-	radix_tree_preload_end();
+ 	if (i != 0)
+ 		error = -ENOSPC; /* no space for a huge page */
+ 
+@@ -529,9 +507,58 @@ err_insert:
+ 	for (; i >= 0; i--)
+ 		radix_tree_delete(&mapping->page_tree, offset + i);
+ 
++	return error;
++}
++EXPORT_SYMBOL(__add_to_page_cache_locked);
++
++/**
++ * add_to_page_cache_locked - add a locked page to the pagecache
++ * @page:	page to add
++ * @mapping:	the page's address_space
++ * @offset:	page index
++ * @gfp_mask:	page allocation mode
++ *
++ * This function is used to add a page to the pagecache. It must be locked.
++ * This function does not add the page to the LRU.  The caller must do that.
++ */
++int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
++		pgoff_t offset, gfp_t gfp_mask)
++{
++	int error;
++
++	VM_BUG_ON(!PageLocked(page));
++	VM_BUG_ON(PageSwapBacked(page));
++
++	/* memory cgroup controller handles thp pages on its side */
++	error = mem_cgroup_cache_charge(page, current->mm,
++					gfp_mask & GFP_RECLAIM_MASK);
++	if (error)
++		return error;
++
++	if (PageTransHugeCache(page))
++		BUILD_BUG_ON(HPAGE_CACHE_NR > RADIX_TREE_PRELOAD_NR);
++
++	error = radix_tree_maybe_preload_contig(hpagecache_nr_pages(page),
++						gfp_mask & ~__GFP_HIGHMEM);
++	if (error) {
++		mem_cgroup_uncharge_cache_page(page);
++		return error;
++	}
++
++	spin_lock_irq(&mapping->tree_lock);
++
++	error = __add_to_page_cache_locked(page, mapping, offset);
++
++	radix_tree_preload_end();
+ 	spin_unlock_irq(&mapping->tree_lock);
+-	mem_cgroup_uncharge_cache_page(page);
+-	page_cache_release(page);
++
++	if (!error)
++		trace_mm_filemap_add_to_page_cache(page);
++	else {
++		mem_cgroup_uncharge_cache_page(page);
++		page_cache_release(page);
++	}
++
+ 	return error;
+ }
+ EXPORT_SYMBOL(add_to_page_cache_locked);
 -- 
 1.8.4
 
