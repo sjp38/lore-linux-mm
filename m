@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id DEAD26B035B
-	for <linux-mm@kvack.org>; Mon, 21 Oct 2013 17:47:41 -0400 (EDT)
-Received: by mail-pb0-f48.google.com with SMTP id ma3so7604867pbc.35
-        for <linux-mm@kvack.org>; Mon, 21 Oct 2013 14:47:41 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.152])
-        by mx.google.com with SMTP id kk1si9623608pbc.304.2013.10.21.14.47.40
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A9186B035C
+	for <linux-mm@kvack.org>; Mon, 21 Oct 2013 17:48:10 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id z10so9206300pdj.17
+        for <linux-mm@kvack.org>; Mon, 21 Oct 2013 14:48:09 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.194])
+        by mx.google.com with SMTP id zl9si9672813pbc.24.2013.10.21.14.48.08
         for <linux-mm@kvack.org>;
-        Mon, 21 Oct 2013 14:47:41 -0700 (PDT)
-Received: by mail-pd0-f169.google.com with SMTP id q10so6802234pdj.14
-        for <linux-mm@kvack.org>; Mon, 21 Oct 2013 14:47:39 -0700 (PDT)
-Date: Mon, 21 Oct 2013 14:47:35 -0700
+        Mon, 21 Oct 2013 14:48:09 -0700 (PDT)
+Received: by mail-pa0-f52.google.com with SMTP id kl14so8708341pab.11
+        for <linux-mm@kvack.org>; Mon, 21 Oct 2013 14:48:07 -0700 (PDT)
+Date: Mon, 21 Oct 2013 14:48:03 -0700
 From: Ning Qu <quning@google.com>
-Subject: [PATCHv2 08/13] mm, thp, tmpfs: handle huge page in shmem_undo_range
- for truncate
-Message-ID: <20131021214735.GI29870@hippobay.mtv.corp.google.com>
+Subject: [PATCHv2 09/13] mm, thp, tmpfs: huge page support in
+ do_shmem_file_read
+Message-ID: <20131021214803.GJ29870@hippobay.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -23,192 +23,141 @@ List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>
 Cc: Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Ning Qu <quning@google.com>, Ning Qu <quning@gmail.com>
 
-When comes to truncate file, add support to handle huge page in the
-truncate range.
+Support huge page in do_shmem_file_read when possible.
+
+Still have room to improve, since we re-search the page in
+page cache everytime, but for huge page, we might save some
+searches and reuse the huge page for the next read across
+page boundary.
 
 Signed-off-by: Ning Qu <quning@gmail.com>
 ---
- mm/shmem.c | 85 ++++++++++++++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 74 insertions(+), 11 deletions(-)
+ mm/shmem.c | 47 +++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 33 insertions(+), 14 deletions(-)
 
 diff --git a/mm/shmem.c b/mm/shmem.c
-index af56731..f6829fd 100644
+index f6829fd..1764a29 100644
 --- a/mm/shmem.c
 +++ b/mm/shmem.c
-@@ -526,6 +526,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
- 	struct shmem_inode_info *info = SHMEM_I(inode);
- 	pgoff_t start = (lstart + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
- 	pgoff_t end = (lend + 1) >> PAGE_CACHE_SHIFT;
-+	/* Whether we have to do partial truncate */
- 	unsigned int partial_start = lstart & (PAGE_CACHE_SIZE - 1);
- 	unsigned int partial_end = (lend + 1) & (PAGE_CACHE_SIZE - 1);
- 	struct pagevec pvec;
-@@ -537,12 +538,16 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
- 	if (lend == -1)
- 		end = -1;	/* unsigned, so actually very big */
- 
-+	i_split_down_read(inode);
- 	pagevec_init(&pvec, 0);
- 	index = start;
- 	while (index < end) {
-+		bool thp = false;
-+
- 		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
- 				min(end - index, (pgoff_t)PAGEVEC_SIZE),
- 							pvec.pages, indices);
-+
- 		if (!pvec.nr)
- 			break;
- 		mem_cgroup_uncharge_start();
-@@ -553,6 +558,23 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
- 			if (index >= end)
- 				break;
- 
-+			thp = PageTransHugeCache(page);
-+			if (thp) {
-+				/* the range starts in middle of huge page */
-+			       if (index < start) {
-+					partial_start = true;
-+					start = index + HPAGE_CACHE_NR;
-+					break;
-+			       }
-+
-+			       /* the range ends on huge page */
-+			       if (index == (end & ~HPAGE_CACHE_INDEX_MASK)) {
-+					partial_end = true;
-+					end = index;
-+					break;
-+			       }
-+			}
-+
- 			if (radix_tree_exceptional_entry(page)) {
- 				if (unfalloc)
- 					continue;
-@@ -570,26 +592,47 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
- 				}
- 			}
- 			unlock_page(page);
-+			if (thp)
-+				break;
- 		}
- 		shmem_deswap_pagevec(&pvec);
- 		pagevec_release(&pvec);
- 		mem_cgroup_uncharge_end();
- 		cond_resched();
--		index++;
-+		if (thp)
-+			index += HPAGE_CACHE_NR;
-+		else
-+			index++;
- 	}
- 
- 	if (partial_start) {
- 		struct page *page = NULL;
- 		gfp_t gfp = mapping_gfp_mask(inode->i_mapping);
-+		int flags = AOP_FLAG_TRANSHUGE;
- 
--		shmem_getpage(inode, start - 1, &page, SGP_READ, gfp, 0, NULL);
-+		shmem_getpage(inode, start - 1, &page, SGP_READ, gfp,
-+				flags, NULL);
- 		if (page) {
--			unsigned int top = PAGE_CACHE_SIZE;
--			if (start > end) {
--				top = partial_end;
--				partial_end = 0;
-+			pgoff_t index_mask;
-+			loff_t page_cache_mask;
-+			unsigned pstart, pend;
-+
-+			index_mask = 0UL;
-+			page_cache_mask = PAGE_CACHE_MASK;
-+			if (PageTransHugeCache(page)) {
-+				index_mask = HPAGE_CACHE_INDEX_MASK;
-+				page_cache_mask = HPAGE_PMD_MASK;
- 			}
--			zero_user_segment(page, partial_start, top);
-+
-+			pstart = lstart & ~page_cache_mask;
-+			if ((end & ~index_mask) == page->index) {
-+				pend = (lend + 1) & ~page_cache_mask;
-+				end = page->index;
-+				partial_end = false; /* handled here */
-+			} else
-+				pend = PAGE_CACHE_SIZE << compound_order(page);
-+
-+			zero_pagecache_segment(page, pstart, pend);
- 			set_page_dirty(page);
- 			unlock_page(page);
- 			page_cache_release(page);
-@@ -598,20 +641,32 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
- 	if (partial_end) {
- 		struct page *page = NULL;
- 		gfp_t gfp = mapping_gfp_mask(inode->i_mapping);
-+		int flags = AOP_FLAG_TRANSHUGE;
- 
--		shmem_getpage(inode, end, &page, SGP_READ, gfp, 0, NULL);
-+		shmem_getpage(inode, end, &page, SGP_READ, gfp,
-+				flags, NULL);
- 		if (page) {
--			zero_user_segment(page, 0, partial_end);
-+			loff_t page_cache_mask;
-+			unsigned pend;
-+
-+			page_cache_mask = PAGE_CACHE_MASK;
-+			if (PageTransHugeCache(page))
-+				page_cache_mask = HPAGE_PMD_MASK;
-+			pend = (lend + 1) & ~page_cache_mask;
-+			end = page->index;
-+			zero_pagecache_segment(page, 0, pend);
- 			set_page_dirty(page);
- 			unlock_page(page);
- 			page_cache_release(page);
- 		}
- 	}
- 	if (start >= end)
--		return;
-+		goto out;
- 
- 	index = start;
- 	for ( ; ; ) {
-+		bool thp = false;
-+
- 		cond_resched();
- 		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
- 				min(end - index, (pgoff_t)PAGEVEC_SIZE),
-@@ -643,6 +698,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
- 				continue;
- 			}
- 
-+			thp = PageTransHugeCache(page);
- 			lock_page(page);
- 			if (!unfalloc || !PageUptodate(page)) {
- 				if (page->mapping == mapping) {
-@@ -651,17 +707,24 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
- 				}
- 			}
- 			unlock_page(page);
-+			if (thp)
-+				break;
- 		}
- 		shmem_deswap_pagevec(&pvec);
- 		pagevec_release(&pvec);
- 		mem_cgroup_uncharge_end();
--		index++;
-+		if (thp)
-+			index += HPAGE_CACHE_NR;
-+		else
-+			index++;
- 	}
- 
- 	spin_lock(&info->lock);
- 	info->swapped -= nr_swaps_freed;
- 	shmem_recalc_inode(inode);
- 	spin_unlock(&info->lock);
-+out:
-+	i_split_up_read(inode);
+@@ -1747,13 +1747,25 @@ shmem_write_end(struct file *file, struct address_space *mapping,
+ 	return copied;
  }
  
- void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
++static unsigned long page_cache_to_mask(struct page *page)
++{
++	if (page && PageTransHugeCache(page))
++		return HPAGE_PMD_MASK;
++	else
++		return PAGE_CACHE_MASK;
++}
++
++static unsigned long pos_to_off(struct page *page, loff_t pos)
++{
++	return pos & ~page_cache_to_mask(page);
++}
++
+ static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_t *desc, read_actor_t actor)
+ {
+ 	struct inode *inode = file_inode(filp);
+ 	gfp_t gfp = mapping_gfp_mask(inode->i_mapping);
+ 	struct address_space *mapping = inode->i_mapping;
+ 	pgoff_t index;
+-	unsigned long offset;
+ 	enum sgp_type sgp = SGP_READ;
+ 
+ 	/*
+@@ -1765,25 +1777,26 @@ static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_
+ 		sgp = SGP_DIRTY;
+ 
+ 	index = *ppos >> PAGE_CACHE_SHIFT;
+-	offset = *ppos & ~PAGE_CACHE_MASK;
+ 
++	i_split_down_read(inode);
+ 	for (;;) {
+ 		struct page *page = NULL;
+ 		pgoff_t end_index;
+ 		unsigned long nr, ret;
+ 		loff_t i_size = i_size_read(inode);
++		int flags = AOP_FLAG_TRANSHUGE;
+ 
+ 		end_index = i_size >> PAGE_CACHE_SHIFT;
+ 		if (index > end_index)
+ 			break;
+ 		if (index == end_index) {
+ 			nr = i_size & ~PAGE_CACHE_MASK;
+-			if (nr <= offset)
++			if (nr <= pos_to_off(page, *ppos))
+ 				break;
+ 		}
+ 
+ 		desc->error = shmem_getpage(inode, index, &page, sgp, gfp,
+-						0, NULL);
++					flags, NULL);
+ 		if (desc->error) {
+ 			if (desc->error == -EINVAL)
+ 				desc->error = 0;
+@@ -1796,18 +1809,25 @@ static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_
+ 		 * We must evaluate after, since reads (unlike writes)
+ 		 * are called without i_mutex protection against truncate
+ 		 */
+-		nr = PAGE_CACHE_SIZE;
+ 		i_size = i_size_read(inode);
+ 		end_index = i_size >> PAGE_CACHE_SHIFT;
++
++		nr = PAGE_CACHE_SIZE;
++		if (page && PageTransHugeCache(page)) {
++			index &= ~HPAGE_CACHE_INDEX_MASK;
++			end_index &= ~HPAGE_CACHE_INDEX_MASK;
++			nr = PAGE_CACHE_SIZE << compound_order(page);
++		}
++
+ 		if (index == end_index) {
+-			nr = i_size & ~PAGE_CACHE_MASK;
+-			if (nr <= offset) {
++			nr = ((i_size - 1) & ~page_cache_to_mask(page)) + 1;
++			if (nr <= pos_to_off(page, *ppos)) {
+ 				if (page)
+ 					page_cache_release(page);
+ 				break;
+ 			}
+ 		}
+-		nr -= offset;
++		nr = nr - pos_to_off(page, *ppos);
+ 
+ 		if (page) {
+ 			/*
+@@ -1820,7 +1840,7 @@ static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_
+ 			/*
+ 			 * Mark the page accessed if we read the beginning.
+ 			 */
+-			if (!offset)
++			if (!pos_to_off(page, *ppos))
+ 				mark_page_accessed(page);
+ 		} else {
+ 			page = ZERO_PAGE(0);
+@@ -1837,10 +1857,9 @@ static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_
+ 		 * "pos" here (the actor routine has to update the user buffer
+ 		 * pointers and the remaining count).
+ 		 */
+-		ret = actor(desc, page, offset, nr);
+-		offset += ret;
+-		index += offset >> PAGE_CACHE_SHIFT;
+-		offset &= ~PAGE_CACHE_MASK;
++		ret = actor(desc, page, pos_to_off(page, *ppos), nr);
++		*ppos += ret;
++		index = *ppos >> PAGE_CACHE_SHIFT;
+ 
+ 		page_cache_release(page);
+ 		if (ret != nr || !desc->count)
+@@ -1849,7 +1868,7 @@ static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_
+ 		cond_resched();
+ 	}
+ 
+-	*ppos = ((loff_t) index << PAGE_CACHE_SHIFT) + offset;
++	i_split_up_read(inode);
+ 	file_accessed(filp);
+ }
+ 
 -- 
 1.8.4
 
