@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FAAA6B03BA
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 07:41:31 -0400 (EDT)
-Received: by mail-pb0-f44.google.com with SMTP id xa7so8474490pbc.31
-        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 04:41:31 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.199])
-        by mx.google.com with SMTP id pz2si12008794pac.57.2013.10.22.04.41.29
+	by kanga.kvack.org (Postfix) with ESMTP id F12386B03BC
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 07:41:33 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id xa7so8450396pbc.17
+        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 04:41:33 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.109])
+        by mx.google.com with SMTP id iu9si11955032pac.321.2013.10.22.04.41.31
         for <linux-mm@kvack.org>;
-        Tue, 22 Oct 2013 04:41:30 -0700 (PDT)
+        Tue, 22 Oct 2013 04:41:33 -0700 (PDT)
 Received: from /spool/local
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 22 Oct 2013 17:11:23 +0530
+	Tue, 22 Oct 2013 17:11:27 +0530
 Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 81B0F8E9258
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 87A938E9259
 	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 17:00:07 +0530 (IST)
 Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9MBVOXF46334048
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9MBVPGO42533008
 	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 17:01:26 +0530
 Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9MBSYgP023095
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:34 +0530
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9MBSZDl023254
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:35 +0530
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [RFC PATCH 4/9] powerpc: mm: Only check for _PAGE_PRESENT in set_pte/pmd functions
-Date: Tue, 22 Oct 2013 16:58:15 +0530
-Message-Id: <1382441300-1513-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [RFC PATCH 8/9] powerpc: mm: Support setting _PAGE_NUMA bit on pmd entry which are pointer to PTE page
+Date: Tue, 22 Oct 2013 16:58:19 +0530
+Message-Id: <1382441300-1513-9-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1382441300-1513-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1382441300-1513-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -34,45 +34,40 @@ Cc: linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.i
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-We want to make sure we don't use these function when updating a pte
-or pmd entry that have a valid hpte entry, because these functions
-don't invalidate them. So limit the check to _PAGE_PRESENT bit.
-Numafault core changes use these functions for updating _PAGE_NUMA bits.
-That should be ok because when _PAGE_NUMA is set we can be sure that
-hpte entries are not present.
-
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- arch/powerpc/mm/pgtable.c    | 2 +-
- arch/powerpc/mm/pgtable_64.c | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ arch/powerpc/include/asm/pgtable-ppc64.h | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)
 
-diff --git a/arch/powerpc/mm/pgtable.c b/arch/powerpc/mm/pgtable.c
-index edda589..10c09b6 100644
---- a/arch/powerpc/mm/pgtable.c
-+++ b/arch/powerpc/mm/pgtable.c
-@@ -187,7 +187,7 @@ void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
- 		pte_t pte)
- {
- #ifdef CONFIG_DEBUG_VM
--	WARN_ON(pte_present(*ptep));
-+	WARN_ON(pte_val(*ptep) & _PAGE_PRESENT);
- #endif
- 	/* Note: mm->context.id might not yet have been assigned as
- 	 * this context might not have been activated yet when this
-diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
-index 536eec72..56b7586 100644
---- a/arch/powerpc/mm/pgtable_64.c
-+++ b/arch/powerpc/mm/pgtable_64.c
-@@ -686,7 +686,7 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
- 		pmd_t *pmdp, pmd_t pmd)
- {
- #ifdef CONFIG_DEBUG_VM
--	WARN_ON(!pmd_none(*pmdp));
-+	WARN_ON(pmd_val(*pmdp) & _PAGE_PRESENT);
- 	assert_spin_locked(&mm->page_table_lock);
- 	WARN_ON(!pmd_trans_huge(pmd));
- #endif
+diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
+index 46db094..f828944 100644
+--- a/arch/powerpc/include/asm/pgtable-ppc64.h
++++ b/arch/powerpc/include/asm/pgtable-ppc64.h
+@@ -150,8 +150,22 @@
+ 
+ #define pmd_set(pmdp, pmdval) 	(pmd_val(*(pmdp)) = (pmdval))
+ #define pmd_none(pmd)		(!pmd_val(pmd))
+-#define	pmd_bad(pmd)		(!is_kernel_addr(pmd_val(pmd)) \
+-				 || (pmd_val(pmd) & PMD_BAD_BITS))
++
++static inline int pmd_bad(pmd_t pmd)
++{
++#ifdef CONFIG_NUMA_BALANCING
++	/*
++	 * For numa balancing we can have this set
++	 */
++	if (pmd_val(pmd) & _PAGE_NUMA)
++		return 0;
++#endif
++	if (!is_kernel_addr(pmd_val(pmd)) ||
++	    (pmd_val(pmd) & PMD_BAD_BITS))
++		return 1;
++	return 0;
++}
++
+ #define	pmd_present(pmd)	(pmd_val(pmd) != 0)
+ #define	pmd_clear(pmdp)		(pmd_val(*(pmdp)) = 0)
+ #define pmd_page_vaddr(pmd)	(pmd_val(pmd) & ~PMD_MASKED_BITS)
 -- 
 1.8.3.2
 
