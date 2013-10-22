@@ -1,110 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 36E296B0364
-	for <linux-mm@kvack.org>; Mon, 21 Oct 2013 17:49:43 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id wz7so2927604pbc.38
-        for <linux-mm@kvack.org>; Mon, 21 Oct 2013 14:49:42 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.164])
-        by mx.google.com with SMTP id ph6si9643853pbb.187.2013.10.21.14.49.41
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AA9D6B03B8
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 07:41:18 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id fa1so9675940pad.9
+        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 04:41:18 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.161])
+        by mx.google.com with SMTP id z1si11389714pbw.249.2013.10.22.04.41.16
         for <linux-mm@kvack.org>;
-        Mon, 21 Oct 2013 14:49:42 -0700 (PDT)
-Received: by mail-pd0-f175.google.com with SMTP id g10so7280570pdj.20
-        for <linux-mm@kvack.org>; Mon, 21 Oct 2013 14:49:40 -0700 (PDT)
-Date: Mon, 21 Oct 2013 14:49:36 -0700
-From: Ning Qu <quning@google.com>
-Subject: [PATCHv2 13/13] mm, thp, tmpfs: misc fixes for thp tmpfs
-Message-ID: <20131021214936.GN29870@hippobay.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+        Tue, 22 Oct 2013 04:41:17 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 22 Oct 2013 17:11:12 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 6532795854F
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 17:00:06 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9MBSUhi44499126
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:32 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9MBSXIh023012
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:33 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [RFC PATCH 1/9] powerpc: Use HPTE constants when updating hpte bits
+Date: Tue, 22 Oct 2013 16:58:12 +0530
+Message-Id: <1382441300-1513-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1382441300-1513-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1382441300-1513-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Ning Qu <quning@google.com>, Ning Qu <quning@gmail.com>
+To: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org
+Cc: linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-1) get rid of the actor function pointer in shm as what Kirill did in generic
-file operations.
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-2) add kernel command line option to turn on/off the thp page cache support.
+Even though we have same value for linux PTE bits and hash PTE pits
+use the hash pte bits wen updating hash pte
 
-Signed-off-by: Ning Qu <quning@gmail.com>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- mm/huge_memory.c | 27 +++++++++++++++++++++++++++
- mm/shmem.c       |  7 ++++---
- 2 files changed, 31 insertions(+), 3 deletions(-)
+ arch/powerpc/platforms/cell/beat_htab.c | 4 ++--
+ arch/powerpc/platforms/pseries/lpar.c   | 3 ++-
+ 2 files changed, 4 insertions(+), 3 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index d36bdac..ea79a70 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -711,6 +711,33 @@ out:
- }
- __setup("transparent_hugepage=", setup_transparent_hugepage);
+diff --git a/arch/powerpc/platforms/cell/beat_htab.c b/arch/powerpc/platforms/cell/beat_htab.c
+index c34ee4e..d4d245c 100644
+--- a/arch/powerpc/platforms/cell/beat_htab.c
++++ b/arch/powerpc/platforms/cell/beat_htab.c
+@@ -111,7 +111,7 @@ static long beat_lpar_hpte_insert(unsigned long hpte_group,
+ 		DBG_LOW(" hpte_v=%016lx, hpte_r=%016lx\n", hpte_v, hpte_r);
  
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
-+static int __init setup_transparent_hugepage_pagecache(char *str)
-+{
-+	int ret = 0;
-+	if (!str)
-+		goto out;
-+	if (!strcmp(str, "on")) {
-+		set_bit(TRANSPARENT_HUGEPAGE_PAGECACHE,
-+			&transparent_hugepage_flags);
-+		ret = 1;
-+	} else if (!strcmp(str, "off")) {
-+		clear_bit(TRANSPARENT_HUGEPAGE_PAGECACHE,
-+			  &transparent_hugepage_flags);
-+		ret = 1;
-+	}
-+out:
-+	if (!ret)
-+		printk(KERN_WARNING
-+			"transparent_hugepage_pagecache= cannot parse, "
-+			"ignored\n");
-+	return ret;
-+}
+ 	if (rflags & _PAGE_NO_CACHE)
+-		hpte_r &= ~_PAGE_COHERENT;
++		hpte_r &= ~HPTE_R_M;
+ 
+ 	raw_spin_lock(&beat_htab_lock);
+ 	lpar_rc = beat_read_mask(hpte_group);
+@@ -337,7 +337,7 @@ static long beat_lpar_hpte_insert_v3(unsigned long hpte_group,
+ 		DBG_LOW(" hpte_v=%016lx, hpte_r=%016lx\n", hpte_v, hpte_r);
+ 
+ 	if (rflags & _PAGE_NO_CACHE)
+-		hpte_r &= ~_PAGE_COHERENT;
++		hpte_r &= ~HPTE_R_M;
+ 
+ 	/* insert into not-volted entry */
+ 	lpar_rc = beat_insert_htab_entry3(0, hpte_group, hpte_v, hpte_r,
+diff --git a/arch/powerpc/platforms/pseries/lpar.c b/arch/powerpc/platforms/pseries/lpar.c
+index 356bc75..c8fbef23 100644
+--- a/arch/powerpc/platforms/pseries/lpar.c
++++ b/arch/powerpc/platforms/pseries/lpar.c
+@@ -153,7 +153,8 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
+ 
+ 	/* Make pHyp happy */
+ 	if ((rflags & _PAGE_NO_CACHE) && !(rflags & _PAGE_WRITETHRU))
+-		hpte_r &= ~_PAGE_COHERENT;
++		hpte_r &= ~HPTE_R_M;
 +
-+__setup("transparent_hugepage_pagecache=",
-+	setup_transparent_hugepage_pagecache);
-+#endif
-+
- pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
- {
- 	if (likely(vma->vm_flags & VM_WRITE))
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 391c4eb..77dd90b 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1765,7 +1765,8 @@ static unsigned long pos_to_off(struct page *page, loff_t pos)
- 	return pos & ~page_cache_to_mask(page);
- }
+ 	if (firmware_has_feature(FW_FEATURE_XCMO) && !(hpte_r & HPTE_R_N))
+ 		flags |= H_COALESCE_CAND;
  
--static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_t *desc, read_actor_t actor)
-+static void do_shmem_file_read(struct file *filp, loff_t *ppos,
-+				read_descriptor_t *desc)
- {
- 	struct inode *inode = file_inode(filp);
- 	gfp_t gfp = mapping_gfp_mask(inode->i_mapping);
-@@ -1862,7 +1863,7 @@ static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_
- 		 * "pos" here (the actor routine has to update the user buffer
- 		 * pointers and the remaining count).
- 		 */
--		ret = actor(desc, page, pos_to_off(page, *ppos), nr);
-+		ret = file_read_actor(desc, page, pos_to_off(page, *ppos), nr);
- 		*ppos += ret;
- 		index = *ppos >> PAGE_CACHE_SHIFT;
- 
-@@ -1899,7 +1900,7 @@ static ssize_t shmem_file_aio_read(struct kiocb *iocb,
- 		if (desc.count == 0)
- 			continue;
- 		desc.error = 0;
--		do_shmem_file_read(filp, ppos, &desc, file_read_actor);
-+		do_shmem_file_read(filp, ppos, &desc);
- 		retval += desc.written;
- 		if (desc.error) {
- 			retval = retval ?: desc.error;
 -- 
-1.8.4
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
