@@ -1,81 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id DF88E6B00D2
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 13:29:53 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id kl14so10079162pab.39
-        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 10:29:53 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.122])
-        by mx.google.com with SMTP id ei3si12269676pbc.110.2013.10.22.10.29.50
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AFCF6B00D2
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 13:52:45 -0400 (EDT)
+Received: by mail-pb0-f48.google.com with SMTP id ma3so8958436pbc.35
+        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 10:52:44 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.168])
+        by mx.google.com with SMTP id gj2si12860912pac.341.2013.10.22.10.52.43
         for <linux-mm@kvack.org>;
-        Tue, 22 Oct 2013 10:29:51 -0700 (PDT)
-Message-ID: <5266B60A.1000005@nod.at>
-Date: Tue, 22 Oct 2013 19:29:46 +0200
-From: Richard Weinberger <richard@nod.at>
-MIME-Version: 1.0
-Subject: Re: [uml-devel] fuzz tested 32 bit user mode linux image hangs at
- in histfs
-References: <526696BF.6050909@gmx.de> <CAFLxGvy3NeRKu+KQCCm0j4LS60PYhH0bC8WWjfiPvpstPBjAkA@mail.gmail.com> <5266A698.10400@gmx.de>
-In-Reply-To: <5266A698.10400@gmx.de>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+        Tue, 22 Oct 2013 10:52:44 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <526697F5.7040800@intel.com>
+References: <1382449940-24357-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <526697F5.7040800@intel.com>
+Subject: Re: [PATCH] x86, mm: get ASLR work for hugetlb mappings
+Content-Transfer-Encoding: 7bit
+Message-Id: <20131022175219.BB0E3E0090@blue.fi.intel.com>
+Date: Tue, 22 Oct 2013 20:52:19 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?VG9yYWxmIEbDtnJzdGVy?= <toralf.foerster@gmx.de>
-Cc: Richard Weinberger <richard.weinberger@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, UML devel <user-mode-linux-devel@lists.sourceforge.net>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>
 
-Am 22.10.2013 18:23, schrieb Toralf FA?rster:
-> On 10/22/2013 06:12 PM, Richard Weinberger wrote:
->> On Tue, Oct 22, 2013 at 5:16 PM, Toralf FA?rster <toralf.foerster@gmx.de> wrote:
->>>
->>> When I fuzz testing a 32 bit UML at a 32 bit host (guest 3.12.-rc6-x, host 3.11.6) with trinity
->>> and use hostfs for the victom files for trinity. then trintiy often hangs while trying to finish.
->>>
->>> At the host I do have 1 process eating 100% CPU power of 1 core. A back trace of thet linux process at the hosts gives :
->>>
->>> tfoerste@n22 ~ $ sudo gdb /usr/local/bin/linux-v3.12-rc6-57-g69c88dc 16749 -n -batch -ex bt
->>> radix_tree_next_chunk (root=0x21, iter=0x47647c60, flags=12) at lib/radix-tree.c:769
->>> 769                                     while (++offset < RADIX_TREE_MAP_SIZE) {
->>> #0  radix_tree_next_chunk (root=0x21, iter=0x47647c60, flags=12) at lib/radix-tree.c:769
->>> #1  0x080cc13e in find_get_pages (mapping=0x483ed240, start=0, nr_pages=14, pages=0xc) at mm/filemap.c:844
->>> #2  0x080d5caa in pagevec_lookup (pvec=0x47647cc4, mapping=0x21, start=33, nr_pages=33) at mm/swap.c:914
->>> #3  0x080d609a in truncate_inode_pages_range (mapping=0x483ed240, lstart=0, lend=-1) at mm/truncate.c:241
->>> #4  0x080d643f in truncate_inode_pages (mapping=0x21, lstart=51539607585) at mm/truncate.c:358
->>> #5  0x08260838 in hostfs_evict_inode (inode=0x483ed188) at fs/hostfs/hostfs_kern.c:242
->>> #6  0x0811a8cf in evict (inode=0x483ed188) at fs/inode.c:549
->>> #7  0x0811b2ad in iput_final (inode=<optimized out>) at fs/inode.c:1391
->>> #8  iput (inode=0x483ed188) at fs/inode.c:1409
->>> #9  0x08117648 in dentry_iput (dentry=<optimized out>) at fs/dcache.c:331
->>> #10 d_kill (dentry=0x47d6d580, parent=0x47d95d10) at fs/dcache.c:477
->>> #11 0x08118068 in dentry_kill (dentry=<optimized out>, unlock_on_failure=<optimized out>) at fs/dcache.c:586
->>> #12 dput (dentry=0x47d6d580) at fs/dcache.c:641
->>> #13 0x08104903 in __fput (file=0x47471840) at fs/file_table.c:264
->>> #14 0x0810496b in ____fput (work=0x47471840) at fs/file_table.c:282
->>> #15 0x08094496 in task_work_run () at kernel/task_work.c:123
->>> #16 0x0807efd2 in exit_task_work (task=<optimized out>) at include/linux/task_work.h:21
->>> #17 do_exit (code=1196535808) at kernel/exit.c:787
->>> #18 0x0807f5dd in do_group_exit (exit_code=0) at kernel/exit.c:920
->>> #19 0x0807f649 in SYSC_exit_group (error_code=<optimized out>) at kernel/exit.c:931
->>> #20 SyS_exit_group (error_code=0) at kernel/exit.c:929
->>> #21 0x08062984 in handle_syscall (r=0x4763b1d4) at arch/um/kernel/skas/syscall.c:35
->>> #22 0x08074fb5 in handle_trap (local_using_sysemu=<optimized out>, regs=<optimized out>, pid=<optimized out>) at arch/um/os-Linux/skas/process.c:198
->>> #23 userspace (regs=0x4763b1d4) at arch/um/os-Linux/skas/process.c:431
->>> #24 0x0805f750 in fork_handler () at arch/um/kernel/process.c:160
->>> #25 0x00000000 in ?? ()
->>>
->>
->> That trace is identical to the one you reported yesterday.
->> But this time no nfs is in the game, right?
->>
+Dave Hansen wrote:
+> On 10/22/2013 06:52 AM, Kirill A. Shutemov wrote:
+> > Matthew noticed that hugetlb doesn't participate in ASLR on x86-64.
+> > The reason is genereic hugetlb_get_unmapped_area() which is used on
+> > x86-64. It doesn't support randomization and use bottom-up unmapped area
+> > lookup, instead of usual top-down on x86-64.
 > 
-> Right - I could narrow down it in the meanwhile to hostfs only. First I
-> argued if NFS sometimes might force the issue to happen later but in the
-> mean while I don't think so.
+> I have to wonder if this was on purpose in order to keep the large and
+> small mappings separate.  We don't *have* to keep them separate this, of
+> course, but it makes me wonder.
 
-It looks like we never find a way out of the while(1) in
-radix_tree_next_chunk().
+I haven't seen any evidence that it's on purpose, but who knows...
 
-Thanks,
-//richard
+In x86-specific hugetlb_get_unmapped_area() there's explicit check what is
+mm->get_unmapped_area top-down or bottom-up, and doing the same.
+
+> > x86 has arch-specific hugetlb_get_unmapped_area(), but it's used only on
+> > x86-32.
+> > 
+> > Let's use arch-specific hugetlb_get_unmapped_area() on x86-64 too.
+> > It fixes the issue and make hugetlb use top-down unmapped area lookup.
+> 
+> Shouldn't we fix the generic code instead of further specializing the
+> x86 stuff?
+
+For that we need to modify info.low_limit to mm->mmap_legacy_base (which
+is x86 specific, no-go) or switch to top-down and set info.high_limit to
+mm->mmap_base.
+
+I don't know how it can affect other architectures.
+
+> In any case, you probably also want to run this through: the
+> libhugetlbfs tests:
+> 
+> http://sourceforge.net/p/libhugetlbfs/code/ci/master/tree/tests/
+
+I've got the same fail list for upstream and patched kernel, so no
+regression was found.
+
+********** TEST SUMMARY  
+*                      2M            
+*                      32-bit 64-bit 
+*     Total testcases:   107    110   
+*             Skipped:     0      0   
+*                PASS:    98    108   
+*                FAIL:     2      2   
+*    Killed by signal:     7      0   
+*   Bad configuration:     0      0   
+*       Expected FAIL:     0      0   
+*     Unexpected PASS:     0      0   
+* Strange test result:     0      0   
+**********
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
