@@ -1,169 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DA526B00D9
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 09:19:47 -0400 (EDT)
-Received: by mail-pb0-f44.google.com with SMTP id xa7so8570982pbc.3
-        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 06:19:47 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.122])
-        by mx.google.com with SMTP id ds3si11651483pbb.229.2013.10.22.06.19.45
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id F31F76B03BB
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 09:52:36 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id lj1so7917717pab.36
+        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 06:52:36 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.193])
+        by mx.google.com with SMTP id gv2si11774303pbb.11.2013.10.22.06.52.35
         for <linux-mm@kvack.org>;
-        Tue, 22 Oct 2013 06:19:46 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 22 Oct 2013 18:49:39 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 2B1203942965
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:15 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9MBSW9v49152040
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:33 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9MBSYfN023167
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:35 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [RFC PATCH 5/9] powerpc: mm: book3s: Enable _PAGE_NUMA for book3s
-Date: Tue, 22 Oct 2013 16:58:16 +0530
-Message-Id: <1382441300-1513-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1382441300-1513-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1382441300-1513-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        Tue, 22 Oct 2013 06:52:36 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] x86, mm: get ASLR work for hugetlb mappings
+Date: Tue, 22 Oct 2013 16:52:20 +0300
+Message-Id: <1382449940-24357-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org
-Cc: linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Nadia Yvette Chambers <nyc@holomorphy.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>
 
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Matthew noticed that hugetlb doesn't participate in ASLR on x86-64.
+The reason is genereic hugetlb_get_unmapped_area() which is used on
+x86-64. It doesn't support randomization and use bottom-up unmapped area
+lookup, instead of usual top-down on x86-64.
 
-We steal the _PAGE_COHERENCE bit and use that for indicating NUMA ptes.
-This patch still disables the numa hinting using pmd entries. That
-require further changes to pmd entry format which is done in later
-patches.
+x86 has arch-specific hugetlb_get_unmapped_area(), but it's used only on
+x86-32.
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Let's use arch-specific hugetlb_get_unmapped_area() on x86-64 too.
+It fixes the issue and make hugetlb use top-down unmapped area lookup.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>
 ---
- arch/powerpc/include/asm/pgtable.h     | 66 +++++++++++++++++++++++++++++++++-
- arch/powerpc/include/asm/pte-hash64.h  |  6 ++++
- arch/powerpc/platforms/Kconfig.cputype |  1 +
- 3 files changed, 72 insertions(+), 1 deletion(-)
+ arch/x86/include/asm/page.h    | 1 +
+ arch/x86/include/asm/page_32.h | 4 ----
+ arch/x86/mm/hugetlbpage.c      | 9 +++------
+ 3 files changed, 4 insertions(+), 10 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/pgtable.h b/arch/powerpc/include/asm/pgtable.h
-index 7d6eacf..9d87125 100644
---- a/arch/powerpc/include/asm/pgtable.h
-+++ b/arch/powerpc/include/asm/pgtable.h
-@@ -3,6 +3,7 @@
- #ifdef __KERNEL__
+diff --git a/arch/x86/include/asm/page.h b/arch/x86/include/asm/page.h
+index c87892442e..775873d3be 100644
+--- a/arch/x86/include/asm/page.h
++++ b/arch/x86/include/asm/page.h
+@@ -71,6 +71,7 @@ extern bool __virt_addr_valid(unsigned long kaddr);
+ #include <asm-generic/getorder.h>
+ 
+ #define __HAVE_ARCH_GATE_AREA 1
++#define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
+ 
+ #endif	/* __KERNEL__ */
+ #endif /* _ASM_X86_PAGE_H */
+diff --git a/arch/x86/include/asm/page_32.h b/arch/x86/include/asm/page_32.h
+index 4d550d04b6..904f528cc8 100644
+--- a/arch/x86/include/asm/page_32.h
++++ b/arch/x86/include/asm/page_32.h
+@@ -5,10 +5,6 @@
  
  #ifndef __ASSEMBLY__
-+#include <linux/mmdebug.h>
- #include <asm/processor.h>		/* For TASK_SIZE */
- #include <asm/mmu.h>
- #include <asm/page.h>
-@@ -33,10 +34,73 @@ static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
- static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
- static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
- static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
--static inline int pte_present(pte_t pte)	{ return pte_val(pte) & _PAGE_PRESENT; }
- static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
- static inline pgprot_t pte_pgprot(pte_t pte)	{ return __pgprot(pte_val(pte) & PAGE_PROT_BITS); }
  
-+#ifdef CONFIG_NUMA_BALANCING
-+
-+static inline int pte_present(pte_t pte)
-+{
-+	return pte_val(pte) & (_PAGE_PRESENT | _PAGE_NUMA);
-+}
-+
-+#define pte_numa pte_numa
-+static inline int pte_numa(pte_t pte)
-+{
-+	return (pte_val(pte) &
-+		(_PAGE_NUMA|_PAGE_PRESENT)) == _PAGE_NUMA;
-+}
-+
-+#define pte_mknonnuma pte_mknonnuma
-+static inline pte_t pte_mknonnuma(pte_t pte)
-+{
-+	pte_val(pte) &= ~_PAGE_NUMA;
-+	pte_val(pte) |=  _PAGE_PRESENT | _PAGE_ACCESSED;
-+	return pte;
-+}
-+
-+#define pte_mknuma pte_mknuma
-+static inline pte_t pte_mknuma(pte_t pte)
-+{
-+	/*
-+	 * We should not set _PAGE_NUMA on non present ptes. Also clear the
-+	 * present bit so that hash_page will return 1 and we collect this
-+	 * as numa fault.
-+	 */
-+	if (pte_present(pte)) {
-+		pte_val(pte) |= _PAGE_NUMA;
-+		pte_val(pte) &= ~_PAGE_PRESENT;
-+	} else
-+		VM_BUG_ON(1);
-+	return pte;
-+}
-+
-+#define pmd_numa pmd_numa
-+static inline int pmd_numa(pmd_t pmd)
-+{
-+	return 0;
-+}
-+
-+#define pmd_mknonnuma pmd_mknonnuma
-+static inline pmd_t pmd_mknonnuma(pmd_t pmd)
-+{
-+	return pmd;
-+}
-+
-+#define pmd_mknuma pmd_mknuma
-+static inline pmd_t pmd_mknuma(pmd_t pmd)
-+{
-+	return pmd;
-+}
-+
-+# else
-+
-+static inline int pte_present(pte_t pte)
-+{
-+	return pte_val(pte) & _PAGE_PRESENT;
-+}
-+#endif /* CONFIG_NUMA_BALANCING */
-+
- /* Conversion functions: convert a page and protection to a page entry,
-  * and a page entry and page directory to the page they refer to.
-  *
-diff --git a/arch/powerpc/include/asm/pte-hash64.h b/arch/powerpc/include/asm/pte-hash64.h
-index 55aea0c..2505d8e 100644
---- a/arch/powerpc/include/asm/pte-hash64.h
-+++ b/arch/powerpc/include/asm/pte-hash64.h
-@@ -27,6 +27,12 @@
- #define _PAGE_RW		0x0200 /* software: user write access allowed */
- #define _PAGE_BUSY		0x0800 /* software: PTE & hash are busy */
+-#ifdef CONFIG_HUGETLB_PAGE
+-#define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
+-#endif
+-
+ #define __phys_addr_nodebug(x)	((x) - PAGE_OFFSET)
+ #ifdef CONFIG_DEBUG_VIRTUAL
+ extern unsigned long __phys_addr(unsigned long);
+diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+index 9d980d88b7..8c9f647ff9 100644
+--- a/arch/x86/mm/hugetlbpage.c
++++ b/arch/x86/mm/hugetlbpage.c
+@@ -87,9 +87,7 @@ int pmd_huge_support(void)
+ }
+ #endif
  
-+/*
-+ * Used for tracking numa faults
-+ */
-+#define _PAGE_NUMA	0x00000010 /* Gather numa placement stats */
-+
-+
- /* No separate kernel read-only */
- #define _PAGE_KERNEL_RW		(_PAGE_RW | _PAGE_DIRTY) /* user access blocked by key */
- #define _PAGE_KERNEL_RO		 _PAGE_KERNEL_RW
-diff --git a/arch/powerpc/platforms/Kconfig.cputype b/arch/powerpc/platforms/Kconfig.cputype
-index 6704e2e..c9d6223 100644
---- a/arch/powerpc/platforms/Kconfig.cputype
-+++ b/arch/powerpc/platforms/Kconfig.cputype
-@@ -72,6 +72,7 @@ config PPC_BOOK3S_64
- 	select PPC_HAVE_PMU_SUPPORT
- 	select SYS_SUPPORTS_HUGETLBFS
- 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if PPC_64K_PAGES
-+	select ARCH_SUPPORTS_NUMA_BALANCING
+-/* x86_64 also uses this file */
+-
+-#ifdef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
++#ifdef CONFIG_HUGETLB_PAGE
+ static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,
+ 		unsigned long addr, unsigned long len,
+ 		unsigned long pgoff, unsigned long flags)
+@@ -99,7 +97,7 @@ static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,
  
- config PPC_BOOK3E_64
- 	bool "Embedded processors"
+ 	info.flags = 0;
+ 	info.length = len;
+-	info.low_limit = TASK_UNMAPPED_BASE;
++	info.low_limit = current->mm->mmap_legacy_base;
+ 	info.high_limit = TASK_SIZE;
+ 	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
+ 	info.align_offset = 0;
+@@ -172,8 +170,7 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
+ 		return hugetlb_get_unmapped_area_topdown(file, addr, len,
+ 				pgoff, flags);
+ }
+-
+-#endif /*HAVE_ARCH_HUGETLB_UNMAPPED_AREA*/
++#endif /* CONFIG_HUGETLB_PAGE */
+ 
+ #ifdef CONFIG_X86_64
+ static __init int setup_hugepagesz(char *opt)
 -- 
-1.8.3.2
+1.8.4.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
