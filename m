@@ -1,81 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AFCF6B00D2
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 13:52:45 -0400 (EDT)
-Received: by mail-pb0-f48.google.com with SMTP id ma3so8958436pbc.35
-        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 10:52:44 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.168])
-        by mx.google.com with SMTP id gj2si12860912pac.341.2013.10.22.10.52.43
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id E792B6B00D2
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 13:54:22 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so8161486pad.2
+        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 10:54:22 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.183])
+        by mx.google.com with SMTP id fk10si12878163pab.261.2013.10.22.10.54.21
         for <linux-mm@kvack.org>;
-        Tue, 22 Oct 2013 10:52:44 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <526697F5.7040800@intel.com>
-References: <1382449940-24357-1-git-send-email-kirill.shutemov@linux.intel.com>
- <526697F5.7040800@intel.com>
-Subject: Re: [PATCH] x86, mm: get ASLR work for hugetlb mappings
+        Tue, 22 Oct 2013 10:54:21 -0700 (PDT)
+Received: by mail-pa0-f50.google.com with SMTP id fa1so10126372pad.37
+        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 10:54:20 -0700 (PDT)
+Message-ID: <5266BBC7.9030207@mit.edu>
+Date: Tue, 22 Oct 2013 10:54:15 -0700
+From: Andy Lutomirski <luto@amacapital.net>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/3] mm,vdso: preallocate new vmas
+References: <1382057438-3306-1-git-send-email-davidlohr@hp.com> <20131022154802.GA25490@localhost>
+In-Reply-To: <20131022154802.GA25490@localhost>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Message-Id: <20131022175219.BB0E3E0090@blue.fi.intel.com>
-Date: Tue, 22 Oct 2013 20:52:19 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>
+To: walken@google.com, Davidlohr Bueso <davidlohr@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, aswin@hp.com, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-Dave Hansen wrote:
-> On 10/22/2013 06:52 AM, Kirill A. Shutemov wrote:
-> > Matthew noticed that hugetlb doesn't participate in ASLR on x86-64.
-> > The reason is genereic hugetlb_get_unmapped_area() which is used on
-> > x86-64. It doesn't support randomization and use bottom-up unmapped area
-> > lookup, instead of usual top-down on x86-64.
+On 10/22/2013 08:48 AM, walken@google.com wrote:
+> On Thu, Oct 17, 2013 at 05:50:35PM -0700, Davidlohr Bueso wrote:
+>> Linus recently pointed out[1] some of the amount of unnecessary work 
+>> being done with the mmap_sem held. This patchset is a very initial 
+>> approach on reducing some of the contention on this lock, and moving
+>> work outside of the critical region.
+>>
+>> Patch 1 adds a simple helper function.
+>>
+>> Patch 2 moves out some trivial setup logic in mlock related calls.
+>>
+>> Patch 3 allows managing new vmas without requiring the mmap_sem for
+>> vdsos. While it's true that there are many other scenarios where
+>> this can be done, few are actually as straightforward as this in the
+>> sense that we *always* end up allocating memory anyways, so there's really
+>> no tradeoffs. For this reason I wanted to get this patch out in the open.
+>>
+>> There are a few points to consider when preallocating vmas at the start
+>> of system calls, such as how many new vmas (ie: callers of split_vma can
+>> end up calling twice, depending on the mm state at that point) or the probability
+>> that we end up merging the vma instead of having to create a new one, like the 
+>> case of brk or copy_vma. In both cases the overhead of creating and freeing
+>> memory at every syscall's invocation might outweigh what we gain in not holding
+>> the sem.
 > 
-> I have to wonder if this was on purpose in order to keep the large and
-> small mappings separate.  We don't *have* to keep them separate this, of
-> course, but it makes me wonder.
-
-I haven't seen any evidence that it's on purpose, but who knows...
-
-In x86-specific hugetlb_get_unmapped_area() there's explicit check what is
-mm->get_unmapped_area top-down or bottom-up, and doing the same.
-
-> > x86 has arch-specific hugetlb_get_unmapped_area(), but it's used only on
-> > x86-32.
-> > 
-> > Let's use arch-specific hugetlb_get_unmapped_area() on x86-64 too.
-> > It fixes the issue and make hugetlb use top-down unmapped area lookup.
+> Hi Davidlohr,
 > 
-> Shouldn't we fix the generic code instead of further specializing the
-> x86 stuff?
-
-For that we need to modify info.low_limit to mm->mmap_legacy_base (which
-is x86 specific, no-go) or switch to top-down and set info.high_limit to
-mm->mmap_base.
-
-I don't know how it can affect other architectures.
-
-> In any case, you probably also want to run this through: the
-> libhugetlbfs tests:
+> I had a quick look at the patches and I don't see anything wrong with them.
+> However, I must also say that I have 99 problems with mmap_sem and the one
+> you're solving doesn't seem to be one of them, so I would be interested to
+> see performance numbers showing how much difference these changes make.
 > 
-> http://sourceforge.net/p/libhugetlbfs/code/ci/master/tree/tests/
+> Generally the problems I see with mmap_sem are related to long latency
+> operations. Specifically, the mmap_sem write side is currently held
+> during the entire munmap operation, which iterates over user pages to
+> free them, and can take hundreds of milliseconds for large VMAs.
 
-I've got the same fail list for upstream and patched kernel, so no
-regression was found.
+This is the leading cause of my "egads, something that should have been
+fast got delayed for several ms" detector firing.  I've been wondering:
 
-********** TEST SUMMARY  
-*                      2M            
-*                      32-bit 64-bit 
-*     Total testcases:   107    110   
-*             Skipped:     0      0   
-*                PASS:    98    108   
-*                FAIL:     2      2   
-*    Killed by signal:     7      0   
-*   Bad configuration:     0      0   
-*       Expected FAIL:     0      0   
-*     Unexpected PASS:     0      0   
-* Strange test result:     0      0   
-**********
+Could we replace mmap_sem with some kind of efficient range lock?  The
+operations would be:
 
--- 
- Kirill A. Shutemov
+ - mm_lock_all_write (drop-in replacement for down_write(&...->mmap_sem))
+ - mm_lock_all_read (same for down_read)
+ - mm_lock_write_range(mm, start, end)
+ - mm_lock_read_range(mm, start_end)
+
+and corresponding unlock functions (that maybe take a cookie that the
+lock functions return or that take a pointer to some small on-stack data
+structure).
+
+I think that all the mm functions except get_unmapped_area could use an
+interface like this, possibly with considerably less code than they use
+now.  get_unmapped_area is the main exception -- it would want trylock
+operations or something so it didn't get stuck.
+
+The easiest way to implement this that I can think of is a doubly-linked
+list or even just an array, which should be fine for a handful of
+threads.  Beyond that, I don't really know.  Creating a whole trie for
+these things would be expensive, and fine-grained locking on rbtree-like
+things isn't so easy.
+
+This could be a huge win: operations on non-overlapping addresses
+wouldn't get in each others' way, except for TLB shootdown interrupts.
+(Hey, CPU vendors: give us a real remote TLB shootdown mechanism!)
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
