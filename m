@@ -1,50 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 07D636B00D2
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 11:22:11 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so7994962pad.30
-        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 08:22:11 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.143])
-        by mx.google.com with SMTP id ph6si11991471pbb.7.2013.10.22.08.22.10
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AC976B00D2
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 11:26:49 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id wy17so5801270pbc.39
+        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 08:26:49 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.138])
+        by mx.google.com with SMTP id yj4si12577403pac.50.2013.10.22.08.26.47
         for <linux-mm@kvack.org>;
-        Tue, 22 Oct 2013 08:22:11 -0700 (PDT)
-Message-ID: <526697F5.7040800@intel.com>
-Date: Tue, 22 Oct 2013 08:21:25 -0700
-From: Dave Hansen <dave.hansen@intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] x86, mm: get ASLR work for hugetlb mappings
-References: <1382449940-24357-1-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1382449940-24357-1-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+        Tue, 22 Oct 2013 08:26:48 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 22 Oct 2013 20:56:41 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 4C916DA8056
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:59:06 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9MBSTV535913728
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:30 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9MBSWKQ022977
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:32 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [RFC PATCH 0/9] powerpc: mm: Numa faults support for ppc64
+Date: Tue, 22 Oct 2013 16:58:11 +0530
+Message-Id: <1382441300-1513-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Nadia Yvette Chambers <nyc@holomorphy.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>
+To: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org
+Cc: linuxppc-dev@lists.ozlabs.org
 
-On 10/22/2013 06:52 AM, Kirill A. Shutemov wrote:
-> Matthew noticed that hugetlb doesn't participate in ASLR on x86-64.
-> The reason is genereic hugetlb_get_unmapped_area() which is used on
-> x86-64. It doesn't support randomization and use bottom-up unmapped area
-> lookup, instead of usual top-down on x86-64.
+Hi,
 
-I have to wonder if this was on purpose in order to keep the large and
-small mappings separate.  We don't *have* to keep them separate this, of
-course, but it makes me wonder.
+This patch series add support for numa faults on ppc64 architecture. We steal the
+_PAGE_COHERENCE bit and use that for indicating _PAGE_NUMA. We clear the _PAGE_PRESENT bit
+and also invalidate the hpte entry on setting _PAGE_NUMA. The next fault on that
+page will be considered a numa fault.
 
-> x86 has arch-specific hugetlb_get_unmapped_area(), but it's used only on
-> x86-32.
-> 
-> Let's use arch-specific hugetlb_get_unmapped_area() on x86-64 too.
-> It fixes the issue and make hugetlb use top-down unmapped area lookup.
 
-Shouldn't we fix the generic code instead of further specializing the
-x86 stuff?
+NOTE:
+______
+Issue:
+I am finding large lock contention on page_table_lock with this series on a 95 cpu 4 node box with autonuma benchmark
 
-In any case, you probably also want to run this through: the
-libhugetlbfs tests:
+I will out on vacation till NOV 6 without email access. Hence i will not be able to respond to review feedbacks
+till then. 
 
-http://sourceforge.net/p/libhugetlbfs/code/ci/master/tree/tests/
+
+lock_stat version 0.3
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+                      class name    con-bounces    contentions   waittime-min   waittime-max waittime-total    acq-bounces   acquisitions   holdtime-mi  hold time hold total
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+  &(&mm->page_table_lock)->rlock:     713531791      719610919           0.09     3038193.19 357867523236.3      729709189      750040162    0.0  236991.36  1159646899.68
+  ------------------------------
+  &(&mm->page_table_lock)->rlock              1          [<c000000000218880>] .anon_vma_prepare+0xb0/0x1e0
+  &(&mm->page_table_lock)->rlock             93          [<c000000000207ebc>] .do_numa_page+0x4c/0x190
+  &(&mm->page_table_lock)->rlock         301678          [<c0000000002139d4>] .change_protection+0x1d4/0x560
+  &(&mm->page_table_lock)->rlock         244524          [<c000000000213be8>] .change_protection+0x3e8/0x560
+  ------------------------------
+  &(&mm->page_table_lock)->rlock              1          [<c000000000206a38>] .__do_fault+0x198/0x6b0
+  &(&mm->page_table_lock)->rlock         704163          [<c0000000002139d4>] .change_protection+0x1d4/0x560
+  &(&mm->page_table_lock)->rlock         207227          [<c000000000213be8>] .change_protection+0x3e8/0x560
+  &(&mm->page_table_lock)->rlock             95          [<c000000000207ebc>] .do_numa_page+0x4c/0x190
+ 
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
