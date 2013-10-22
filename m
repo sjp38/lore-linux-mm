@@ -1,180 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id AEC846B00DC
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 13:09:31 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id fb1so6770764pad.3
-        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 10:09:31 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.138])
-        by mx.google.com with SMTP id rr7si12236794pbc.15.2013.10.22.10.09.29
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id DF88E6B00D2
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 13:29:53 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id kl14so10079162pab.39
+        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 10:29:53 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.122])
+        by mx.google.com with SMTP id ei3si12269676pbc.110.2013.10.22.10.29.50
         for <linux-mm@kvack.org>;
-        Tue, 22 Oct 2013 10:09:30 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 22 Oct 2013 22:39:22 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 386B7DA806C
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:59:09 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9MBVPfK38666418
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 17:01:26 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9MBSZJg023230
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:35 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [RFC PATCH 7/9] mm: numafaults: Use change_pmd_protnuma for updating _PAGE_NUMA for regular pmds
-Date: Tue, 22 Oct 2013 16:58:18 +0530
-Message-Id: <1382441300-1513-8-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1382441300-1513-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1382441300-1513-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        Tue, 22 Oct 2013 10:29:51 -0700 (PDT)
+Message-ID: <5266B60A.1000005@nod.at>
+Date: Tue, 22 Oct 2013 19:29:46 +0200
+From: Richard Weinberger <richard@nod.at>
+MIME-Version: 1.0
+Subject: Re: [uml-devel] fuzz tested 32 bit user mode linux image hangs at
+ in histfs
+References: <526696BF.6050909@gmx.de> <CAFLxGvy3NeRKu+KQCCm0j4LS60PYhH0bC8WWjfiPvpstPBjAkA@mail.gmail.com> <5266A698.10400@gmx.de>
+In-Reply-To: <5266A698.10400@gmx.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org
-Cc: linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: =?UTF-8?B?VG9yYWxmIEbDtnJzdGVy?= <toralf.foerster@gmx.de>
+Cc: Richard Weinberger <richard.weinberger@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, UML devel <user-mode-linux-devel@lists.sourceforge.net>
 
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Am 22.10.2013 18:23, schrieb Toralf FA?rster:
+> On 10/22/2013 06:12 PM, Richard Weinberger wrote:
+>> On Tue, Oct 22, 2013 at 5:16 PM, Toralf FA?rster <toralf.foerster@gmx.de> wrote:
+>>>
+>>> When I fuzz testing a 32 bit UML at a 32 bit host (guest 3.12.-rc6-x, host 3.11.6) with trinity
+>>> and use hostfs for the victom files for trinity. then trintiy often hangs while trying to finish.
+>>>
+>>> At the host I do have 1 process eating 100% CPU power of 1 core. A back trace of thet linux process at the hosts gives :
+>>>
+>>> tfoerste@n22 ~ $ sudo gdb /usr/local/bin/linux-v3.12-rc6-57-g69c88dc 16749 -n -batch -ex bt
+>>> radix_tree_next_chunk (root=0x21, iter=0x47647c60, flags=12) at lib/radix-tree.c:769
+>>> 769                                     while (++offset < RADIX_TREE_MAP_SIZE) {
+>>> #0  radix_tree_next_chunk (root=0x21, iter=0x47647c60, flags=12) at lib/radix-tree.c:769
+>>> #1  0x080cc13e in find_get_pages (mapping=0x483ed240, start=0, nr_pages=14, pages=0xc) at mm/filemap.c:844
+>>> #2  0x080d5caa in pagevec_lookup (pvec=0x47647cc4, mapping=0x21, start=33, nr_pages=33) at mm/swap.c:914
+>>> #3  0x080d609a in truncate_inode_pages_range (mapping=0x483ed240, lstart=0, lend=-1) at mm/truncate.c:241
+>>> #4  0x080d643f in truncate_inode_pages (mapping=0x21, lstart=51539607585) at mm/truncate.c:358
+>>> #5  0x08260838 in hostfs_evict_inode (inode=0x483ed188) at fs/hostfs/hostfs_kern.c:242
+>>> #6  0x0811a8cf in evict (inode=0x483ed188) at fs/inode.c:549
+>>> #7  0x0811b2ad in iput_final (inode=<optimized out>) at fs/inode.c:1391
+>>> #8  iput (inode=0x483ed188) at fs/inode.c:1409
+>>> #9  0x08117648 in dentry_iput (dentry=<optimized out>) at fs/dcache.c:331
+>>> #10 d_kill (dentry=0x47d6d580, parent=0x47d95d10) at fs/dcache.c:477
+>>> #11 0x08118068 in dentry_kill (dentry=<optimized out>, unlock_on_failure=<optimized out>) at fs/dcache.c:586
+>>> #12 dput (dentry=0x47d6d580) at fs/dcache.c:641
+>>> #13 0x08104903 in __fput (file=0x47471840) at fs/file_table.c:264
+>>> #14 0x0810496b in ____fput (work=0x47471840) at fs/file_table.c:282
+>>> #15 0x08094496 in task_work_run () at kernel/task_work.c:123
+>>> #16 0x0807efd2 in exit_task_work (task=<optimized out>) at include/linux/task_work.h:21
+>>> #17 do_exit (code=1196535808) at kernel/exit.c:787
+>>> #18 0x0807f5dd in do_group_exit (exit_code=0) at kernel/exit.c:920
+>>> #19 0x0807f649 in SYSC_exit_group (error_code=<optimized out>) at kernel/exit.c:931
+>>> #20 SyS_exit_group (error_code=0) at kernel/exit.c:929
+>>> #21 0x08062984 in handle_syscall (r=0x4763b1d4) at arch/um/kernel/skas/syscall.c:35
+>>> #22 0x08074fb5 in handle_trap (local_using_sysemu=<optimized out>, regs=<optimized out>, pid=<optimized out>) at arch/um/os-Linux/skas/process.c:198
+>>> #23 userspace (regs=0x4763b1d4) at arch/um/os-Linux/skas/process.c:431
+>>> #24 0x0805f750 in fork_handler () at arch/um/kernel/process.c:160
+>>> #25 0x00000000 in ?? ()
+>>>
+>>
+>> That trace is identical to the one you reported yesterday.
+>> But this time no nfs is in the game, right?
+>>
+> 
+> Right - I could narrow down it in the meanwhile to hostfs only. First I
+> argued if NFS sometimes might force the issue to happen later but in the
+> mean while I don't think so.
 
-Archs like ppc64 have different layout for pmd entries pointing to PTE
-page. Hence add a separate function for modifying them
+It looks like we never find a way out of the while(1) in
+radix_tree_next_chunk().
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- arch/powerpc/include/asm/pgtable.h | 17 +++++++++++++++++
- include/asm-generic/pgtable.h      | 20 ++++++++++++++++++++
- mm/memory.c                        |  2 +-
- mm/mprotect.c                      | 24 ++++++------------------
- 4 files changed, 44 insertions(+), 19 deletions(-)
-
-diff --git a/arch/powerpc/include/asm/pgtable.h b/arch/powerpc/include/asm/pgtable.h
-index 9d87125..67ea8fb 100644
---- a/arch/powerpc/include/asm/pgtable.h
-+++ b/arch/powerpc/include/asm/pgtable.h
-@@ -75,6 +75,23 @@ static inline pte_t pte_mknuma(pte_t pte)
- 	return pte;
- }
- 
-+#define change_pmd_protnuma change_pmd_protnuma
-+static inline void change_pmd_protnuma(struct mm_struct *mm, unsigned long addr,
-+				       pmd_t *pmdp, int prot_numa)
-+{
-+	/*
-+	 * We don't track the _PAGE_PRESENT bit here
-+	 */
-+	unsigned long pmd_val;
-+	pmd_val = pmd_val(*pmdp);
-+	if (prot_numa)
-+		pmd_val |= _PAGE_NUMA;
-+	else
-+		pmd_val &= ~_PAGE_NUMA;
-+	pmd_set(pmdp, pmd_val | _PAGE_NUMA);
-+}
-+
-+
- #define pmd_numa pmd_numa
- static inline int pmd_numa(pmd_t pmd)
- {
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index f330d28..568a8c4 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -697,6 +697,18 @@ static inline pmd_t pmd_mknuma(pmd_t pmd)
- 	return pmd_clear_flags(pmd, _PAGE_PRESENT);
- }
- #endif
-+
-+#ifndef change_pmd_protnuma
-+static inline void change_pmd_protnuma(struct mm_struct *mm, unsigned long addr,
-+				       pmd_t *pmd, int prot_numa)
-+{
-+	if (prot_numa)
-+		set_pmd_at(mm, addr & PMD_MASK, pmd, pmd_mknuma(*pmd));
-+	else
-+		set_pmd_at(mm, addr & PMD_MASK, pmd, pmd_mknonnuma(*pmd));
-+}
-+
-+#endif
- #else
- extern int pte_numa(pte_t pte);
- extern int pmd_numa(pmd_t pmd);
-@@ -704,6 +716,8 @@ extern pte_t pte_mknonnuma(pte_t pte);
- extern pmd_t pmd_mknonnuma(pmd_t pmd);
- extern pte_t pte_mknuma(pte_t pte);
- extern pmd_t pmd_mknuma(pmd_t pmd);
-+extern void change_pmd_protnuma(struct mm_struct *mm, unsigned long addr,
-+				pmd_t *pmd, int prot_numa);
- #endif /* CONFIG_ARCH_USES_NUMA_PROT_NONE */
- #else
- static inline int pmd_numa(pmd_t pmd)
-@@ -735,6 +749,12 @@ static inline pmd_t pmd_mknuma(pmd_t pmd)
- {
- 	return pmd;
- }
-+
-+static inline void change_pmd_protnuma(struct mm_struct *mm, unsigned long addr,
-+				       pmd_t *pmd, int prot_numa)
-+{
-+	BUG();
-+}
- #endif /* CONFIG_NUMA_BALANCING */
- 
- #endif /* CONFIG_MMU */
-diff --git a/mm/memory.c b/mm/memory.c
-index ca00039..e930e50 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3605,7 +3605,7 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	spin_lock(&mm->page_table_lock);
- 	pmd = *pmdp;
- 	if (pmd_numa(pmd)) {
--		set_pmd_at(mm, _addr, pmdp, pmd_mknonnuma(pmd));
-+		change_pmd_protnuma(mm, _addr, pmdp, 0);
- 		numa = true;
- 	}
- 	spin_unlock(&mm->page_table_lock);
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 94722a4..88de575 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -112,22 +112,6 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 	return pages;
- }
- 
--#ifdef CONFIG_NUMA_BALANCING
--static inline void change_pmd_protnuma(struct mm_struct *mm, unsigned long addr,
--				       pmd_t *pmd)
--{
--	spin_lock(&mm->page_table_lock);
--	set_pmd_at(mm, addr & PMD_MASK, pmd, pmd_mknuma(*pmd));
--	spin_unlock(&mm->page_table_lock);
--}
--#else
--static inline void change_pmd_protnuma(struct mm_struct *mm, unsigned long addr,
--				       pmd_t *pmd)
--{
--	BUG();
--}
--#endif /* CONFIG_NUMA_BALANCING */
--
- static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
- 		pud_t *pud, unsigned long addr, unsigned long end,
- 		pgprot_t newprot, int dirty_accountable, int prot_numa)
-@@ -161,8 +145,12 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
- 		 * node. This allows a regular PMD to be handled as one fault
- 		 * and effectively batches the taking of the PTL
- 		 */
--		if (prot_numa && all_same_node)
--			change_pmd_protnuma(vma->vm_mm, addr, pmd);
-+		if (prot_numa && all_same_node) {
-+			spin_lock(&vma->vm_mm->page_table_lock);
-+			change_pmd_protnuma(vma->vm_mm, addr, pmd, 1);
-+			spin_unlock(&vma->vm_mm->page_table_lock);
-+
-+		}
- 	} while (pmd++, addr = next, addr != end);
- 
- 	return pages;
--- 
-1.8.3.2
+Thanks,
+//richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
