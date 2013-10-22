@@ -1,93 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id EA6536B00ED
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 11:48:11 -0400 (EDT)
-Received: by mail-pb0-f44.google.com with SMTP id xa7so8772860pbc.3
-        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 08:48:11 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.141])
-        by mx.google.com with SMTP id yk3si12598177pac.186.2013.10.22.08.48.10
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id E83506B00E1
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 12:00:40 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so9978204pab.18
+        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 09:00:40 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.179])
+        by mx.google.com with SMTP id gn4si12078088pbc.51.2013.10.22.09.00.38
         for <linux-mm@kvack.org>;
-        Tue, 22 Oct 2013 08:48:10 -0700 (PDT)
-Received: by mail-wi0-f176.google.com with SMTP id l12so5929843wiv.3
-        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 08:48:08 -0700 (PDT)
-Date: Tue, 22 Oct 2013 08:48:02 -0700
-From: walken@google.com
-Subject: Re: [PATCH 0/3] mm,vdso: preallocate new vmas
-Message-ID: <20131022154802.GA25490@localhost>
-References: <1382057438-3306-1-git-send-email-davidlohr@hp.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1382057438-3306-1-git-send-email-davidlohr@hp.com>
+        Tue, 22 Oct 2013 09:00:39 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 22 Oct 2013 21:30:35 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 916E83942975
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:16 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9MBVQ5s30015694
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 17:01:27 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9MBSYBC023208
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:35 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [RFC PATCH 6/9] powerpc: mm: book3s: Disable hugepaged pmd format for book3s
+Date: Tue, 22 Oct 2013 16:58:17 +0530
+Message-Id: <1382441300-1513-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1382441300-1513-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1382441300-1513-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Michel Lespinasse <walken@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, aswin@hp.com, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org
+Cc: linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Thu, Oct 17, 2013 at 05:50:35PM -0700, Davidlohr Bueso wrote:
-> Linus recently pointed out[1] some of the amount of unnecessary work 
-> being done with the mmap_sem held. This patchset is a very initial 
-> approach on reducing some of the contention on this lock, and moving
-> work outside of the critical region.
-> 
-> Patch 1 adds a simple helper function.
-> 
-> Patch 2 moves out some trivial setup logic in mlock related calls.
-> 
-> Patch 3 allows managing new vmas without requiring the mmap_sem for
-> vdsos. While it's true that there are many other scenarios where
-> this can be done, few are actually as straightforward as this in the
-> sense that we *always* end up allocating memory anyways, so there's really
-> no tradeoffs. For this reason I wanted to get this patch out in the open.
-> 
-> There are a few points to consider when preallocating vmas at the start
-> of system calls, such as how many new vmas (ie: callers of split_vma can
-> end up calling twice, depending on the mm state at that point) or the probability
-> that we end up merging the vma instead of having to create a new one, like the 
-> case of brk or copy_vma. In both cases the overhead of creating and freeing
-> memory at every syscall's invocation might outweigh what we gain in not holding
-> the sem.
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Hi Davidlohr,
+After commit e2b3d202d1dba8f3546ed28224ce485bc50010be we have the
+below possible formats for pmd entry
 
-I had a quick look at the patches and I don't see anything wrong with them.
-However, I must also say that I have 99 problems with mmap_sem and the one
-you're solving doesn't seem to be one of them, so I would be interested to
-see performance numbers showing how much difference these changes make.
+(1) invalid (all zeroes)
+(2) pointer to next table, as normal; bottom 6 bits == 0
+(3) leaf pte for huge page, bottom two bits != 00
+(4) hugepd pointer, bottom two bits == 00, next 4 bits indicate size of table
 
-Generally the problems I see with mmap_sem are related to long latency
-operations. Specifically, the mmap_sem write side is currently held
-during the entire munmap operation, which iterates over user pages to
-free them, and can take hundreds of milliseconds for large VMAs. Also,
-the mmap_sem read side is held during user page fauls - well, the
-VM_FAULT_RETRY mechanism allows us to drop mmap_sem during major page
-faults, but it is still held while allocating user pages or page tables,
-and while going through FS code for asynchronous readahead, which turns
-out not to be as asynchronous as you'd think as it can still block for
-reading extends etc... So, generally the main issues I am seeing with
-mmap_sem are latency related, while your changes only help for throughput
-for workloads that don't hit the above latency issues. I think that's a
-valid thing to do but I'm not sure if common workloads hit these throughput
-issues today ?
+On book3s we don't really use the (4).  For Numa balancing we need to
+tag pmd entries that are pointer to next table with _PAGE_NUMA for
+performance reason (9532fec118d485ea37ab6e3ea372d68cd8b4cd0d). This
+patch enables that by disabling hugepd support for book3s if
+NUMA_BALANCING is enabled. We ideally want to get rid of hugepd pointer
+completely.
 
-> [1] https://lkml.org/lkml/2013/10/9/665 
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ arch/powerpc/include/asm/page.h | 11 +++++++++++
+ arch/powerpc/mm/hugetlbpage.c   |  8 +++++++-
+ 2 files changed, 18 insertions(+), 1 deletion(-)
 
-Eh, that post really makes it look easy doesn't it :)
-
-There are a few complications with mmap_sem as it turns out to protect
-more than just the VMA structures. For example, mmap_sem plays a role
-in preventing page tables from being unmapped while follow_page_mask()
-reads through them (there are other arch specific ways to do that,
-like disabling local interrupts on x86 to prevent TLB shootdown, but
-none that are currently available in generic code). This isn't an
-issue with your current proposed patches but is something you need to
-be aware of if you're going to do more work around the mmap_sem issues
-(which I would encourage you to BTW - there are a lot of issues around
-mmap_sem, so it definitely helps to have more people looking at this :)
-
+diff --git a/arch/powerpc/include/asm/page.h b/arch/powerpc/include/asm/page.h
+index b9f4262..791ab56 100644
+--- a/arch/powerpc/include/asm/page.h
++++ b/arch/powerpc/include/asm/page.h
+@@ -369,11 +369,22 @@ typedef struct { signed long pd; } hugepd_t;
+ #ifdef CONFIG_PPC_BOOK3S_64
+ static inline int hugepd_ok(hugepd_t hpd)
+ {
++#ifdef CONFIG_NUMA_BALANCING
++	/*
++	 * In order to enable batch handling of pte numa faults, Numa balancing
++	 * code use the _PAGE_NUMA bit even on pmd that is pointing to PTE PAGE.
++	 * 9532fec118d485ea37ab6e3ea372d68cd8b4cd0d. After commit
++	 * e2b3d202d1dba8f3546ed28224ce485bc50010be we really don't need to
++	 * support hugepd for ppc64.
++	 */
++	return 0;
++#else
+ 	/*
+ 	 * hugepd pointer, bottom two bits == 00 and next 4 bits
+ 	 * indicate size of table
+ 	 */
+ 	return (((hpd.pd & 0x3) == 0x0) && ((hpd.pd & HUGEPD_SHIFT_MASK) != 0));
++#endif
+ }
+ #else
+ static inline int hugepd_ok(hugepd_t hpd)
+diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
+index d67db4b..71bd214 100644
+--- a/arch/powerpc/mm/hugetlbpage.c
++++ b/arch/powerpc/mm/hugetlbpage.c
+@@ -235,8 +235,14 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz
+ 	if (!hpdp)
+ 		return NULL;
+ 
++#ifdef CONFIG_NUMA_BALANCING
++	/*
++	 * We cannot support hugepd format with numa balancing support
++	 * enabled.
++	 */
++	return NULL;
++#endif
+ 	BUG_ON(!hugepd_none(*hpdp) && !hugepd_ok(*hpdp));
+-
+ 	if (hugepd_none(*hpdp) && __hugepte_alloc(mm, hpdp, addr, pdshift, pshift))
+ 		return NULL;
+ 
 -- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
