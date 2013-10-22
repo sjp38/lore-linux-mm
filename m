@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id E83506B00E1
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 12:00:40 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id rd3so9978204pab.18
-        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 09:00:40 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.179])
-        by mx.google.com with SMTP id gn4si12078088pbc.51.2013.10.22.09.00.38
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id AA20D6B00E2
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 12:04:41 -0400 (EDT)
+Received: by mail-pb0-f54.google.com with SMTP id ro12so8798136pbb.41
+        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 09:04:41 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.117])
+        by mx.google.com with SMTP id u9si12073420pbf.113.2013.10.22.09.04.37
         for <linux-mm@kvack.org>;
-        Tue, 22 Oct 2013 09:00:39 -0700 (PDT)
+        Tue, 22 Oct 2013 09:04:40 -0700 (PDT)
 Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 22 Oct 2013 21:30:35 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 916E83942975
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:16 +0530 (IST)
+	Tue, 22 Oct 2013 21:34:31 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id C5C2C3940D17
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:13 +0530 (IST)
 Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9MBVQ5s30015694
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 17:01:27 +0530
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9MBSUom33751082
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:30 +0530
 Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9MBSYBC023208
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:35 +0530
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9MBSXDV023036
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:33 +0530
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [RFC PATCH 6/9] powerpc: mm: book3s: Disable hugepaged pmd format for book3s
-Date: Tue, 22 Oct 2013 16:58:17 +0530
-Message-Id: <1382441300-1513-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [RFC PATCH 2/9] powerpc: Free up _PAGE_COHERENCE for numa fault use later
+Date: Tue, 22 Oct 2013 16:58:13 +0530
+Message-Id: <1382441300-1513-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1382441300-1513-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1382441300-1513-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -34,74 +34,124 @@ Cc: linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.i
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-After commit e2b3d202d1dba8f3546ed28224ce485bc50010be we have the
-below possible formats for pmd entry
-
-(1) invalid (all zeroes)
-(2) pointer to next table, as normal; bottom 6 bits == 0
-(3) leaf pte for huge page, bottom two bits != 00
-(4) hugepd pointer, bottom two bits == 00, next 4 bits indicate size of table
-
-On book3s we don't really use the (4).  For Numa balancing we need to
-tag pmd entries that are pointer to next table with _PAGE_NUMA for
-performance reason (9532fec118d485ea37ab6e3ea372d68cd8b4cd0d). This
-patch enables that by disabling hugepd support for book3s if
-NUMA_BALANCING is enabled. We ideally want to get rid of hugepd pointer
-completely.
+Set  memory coherence always on hash64 config. If
+a platform cannot have memory coherence always set they
+can infer that from _PAGE_NO_CACHE and _PAGE_WRITETHRU
+like in lpar. So we dont' really need a separate bit
+for tracking _PAGE_COHERENCE.
 
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- arch/powerpc/include/asm/page.h | 11 +++++++++++
- arch/powerpc/mm/hugetlbpage.c   |  8 +++++++-
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ arch/powerpc/include/asm/pte-hash64.h |  2 +-
+ arch/powerpc/mm/hash_low_64.S         | 15 ++++++++++++---
+ arch/powerpc/mm/hash_utils_64.c       |  7 ++++---
+ arch/powerpc/mm/hugepage-hash64.c     |  6 +++++-
+ arch/powerpc/mm/hugetlbpage-hash64.c  |  4 ++++
+ 5 files changed, 26 insertions(+), 8 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/page.h b/arch/powerpc/include/asm/page.h
-index b9f4262..791ab56 100644
---- a/arch/powerpc/include/asm/page.h
-+++ b/arch/powerpc/include/asm/page.h
-@@ -369,11 +369,22 @@ typedef struct { signed long pd; } hugepd_t;
- #ifdef CONFIG_PPC_BOOK3S_64
- static inline int hugepd_ok(hugepd_t hpd)
- {
-+#ifdef CONFIG_NUMA_BALANCING
+diff --git a/arch/powerpc/include/asm/pte-hash64.h b/arch/powerpc/include/asm/pte-hash64.h
+index 0419eeb..55aea0c 100644
+--- a/arch/powerpc/include/asm/pte-hash64.h
++++ b/arch/powerpc/include/asm/pte-hash64.h
+@@ -19,7 +19,7 @@
+ #define _PAGE_FILE		0x0002 /* (!present only) software: pte holds file offset */
+ #define _PAGE_EXEC		0x0004 /* No execute on POWER4 and newer (we invert) */
+ #define _PAGE_GUARDED		0x0008
+-#define _PAGE_COHERENT		0x0010 /* M: enforce memory coherence (SMP systems) */
++/* We can derive Memory coherence from _PAGE_NO_CACHE */
+ #define _PAGE_NO_CACHE		0x0020 /* I: cache inhibit */
+ #define _PAGE_WRITETHRU		0x0040 /* W: cache write-through */
+ #define _PAGE_DIRTY		0x0080 /* C: page changed */
+diff --git a/arch/powerpc/mm/hash_low_64.S b/arch/powerpc/mm/hash_low_64.S
+index d3cbda6..1136d26 100644
+--- a/arch/powerpc/mm/hash_low_64.S
++++ b/arch/powerpc/mm/hash_low_64.S
+@@ -148,7 +148,10 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
+ 	and	r0,r0,r4		/* _PAGE_RW & _PAGE_DIRTY ->r0 bit 30*/
+ 	andc	r0,r30,r0		/* r0 = pte & ~r0 */
+ 	rlwimi	r3,r0,32-1,31,31	/* Insert result into PP lsb */
+-	ori	r3,r3,HPTE_R_C		/* Always add "C" bit for perf. */
 +	/*
-+	 * In order to enable batch handling of pte numa faults, Numa balancing
-+	 * code use the _PAGE_NUMA bit even on pmd that is pointing to PTE PAGE.
-+	 * 9532fec118d485ea37ab6e3ea372d68cd8b4cd0d. After commit
-+	 * e2b3d202d1dba8f3546ed28224ce485bc50010be we really don't need to
-+	 * support hugepd for ppc64.
++	 * Always add "C" bit for perf. Memory coherence is always enabled
 +	 */
-+	return 0;
-+#else
- 	/*
- 	 * hugepd pointer, bottom two bits == 00 and next 4 bits
- 	 * indicate size of table
- 	 */
- 	return (((hpd.pd & 0x3) == 0x0) && ((hpd.pd & HUGEPD_SHIFT_MASK) != 0));
-+#endif
- }
- #else
- static inline int hugepd_ok(hugepd_t hpd)
-diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-index d67db4b..71bd214 100644
---- a/arch/powerpc/mm/hugetlbpage.c
-+++ b/arch/powerpc/mm/hugetlbpage.c
-@@ -235,8 +235,14 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz
- 	if (!hpdp)
- 		return NULL;
++	ori	r3,r3,HPTE_R_C | HPTE_R_M
  
-+#ifdef CONFIG_NUMA_BALANCING
+ 	/* We eventually do the icache sync here (maybe inline that
+ 	 * code rather than call a C function...) 
+@@ -457,7 +460,10 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
+ 	and	r0,r0,r4		/* _PAGE_RW & _PAGE_DIRTY ->r0 bit 30*/
+ 	andc	r0,r3,r0		/* r0 = pte & ~r0 */
+ 	rlwimi	r3,r0,32-1,31,31	/* Insert result into PP lsb */
+-	ori	r3,r3,HPTE_R_C		/* Always add "C" bit for perf. */
 +	/*
-+	 * We cannot support hugepd format with numa balancing support
-+	 * enabled.
++	 * Always add "C" bit for perf. Memory coherence is always enabled
 +	 */
-+	return NULL;
-+#endif
- 	BUG_ON(!hugepd_none(*hpdp) && !hugepd_ok(*hpdp));
++	ori	r3,r3,HPTE_R_C | HPTE_R_M
+ 
+ 	/* We eventually do the icache sync here (maybe inline that
+ 	 * code rather than call a C function...)
+@@ -795,7 +801,10 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
+ 	and	r0,r0,r4		/* _PAGE_RW & _PAGE_DIRTY ->r0 bit 30*/
+ 	andc	r0,r30,r0		/* r0 = pte & ~r0 */
+ 	rlwimi	r3,r0,32-1,31,31	/* Insert result into PP lsb */
+-	ori	r3,r3,HPTE_R_C		/* Always add "C" bit for perf. */
++	/*
++	 * Always add "C" bit for perf. Memory coherence is always enabled
++	 */
++	ori	r3,r3,HPTE_R_C | HPTE_R_M
+ 
+ 	/* We eventually do the icache sync here (maybe inline that
+ 	 * code rather than call a C function...)
+diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
+index bde8b55..fb176e9 100644
+--- a/arch/powerpc/mm/hash_utils_64.c
++++ b/arch/powerpc/mm/hash_utils_64.c
+@@ -169,9 +169,10 @@ static unsigned long htab_convert_pte_flags(unsigned long pteflags)
+ 	if ((pteflags & _PAGE_USER) && !((pteflags & _PAGE_RW) &&
+ 					 (pteflags & _PAGE_DIRTY)))
+ 		rflags |= 1;
 -
- 	if (hugepd_none(*hpdp) && __hugepte_alloc(mm, hpdp, addr, pdshift, pshift))
- 		return NULL;
+-	/* Always add C */
+-	return rflags | HPTE_R_C;
++	/*
++	 * Always add "C" bit for perf. Memory coherence is always enabled
++	 */
++	return rflags | HPTE_R_C | HPTE_R_M;
+ }
  
+ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
+diff --git a/arch/powerpc/mm/hugepage-hash64.c b/arch/powerpc/mm/hugepage-hash64.c
+index 34de9e0..826893f 100644
+--- a/arch/powerpc/mm/hugepage-hash64.c
++++ b/arch/powerpc/mm/hugepage-hash64.c
+@@ -127,7 +127,11 @@ repeat:
+ 
+ 		/* Add in WIMG bits */
+ 		rflags |= (new_pmd & (_PAGE_WRITETHRU | _PAGE_NO_CACHE |
+-				      _PAGE_COHERENT | _PAGE_GUARDED));
++				      _PAGE_GUARDED));
++		/*
++		 * enable the memory coherence always
++		 */
++		rflags |= HPTE_R_M;
+ 
+ 		/* Insert into the hash table, primary slot */
+ 		slot = ppc_md.hpte_insert(hpte_group, vpn, pa, rflags, 0,
+diff --git a/arch/powerpc/mm/hugetlbpage-hash64.c b/arch/powerpc/mm/hugetlbpage-hash64.c
+index 0b7fb67..a5bcf93 100644
+--- a/arch/powerpc/mm/hugetlbpage-hash64.c
++++ b/arch/powerpc/mm/hugetlbpage-hash64.c
+@@ -99,6 +99,10 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
+ 		/* Add in WIMG bits */
+ 		rflags |= (new_pte & (_PAGE_WRITETHRU | _PAGE_NO_CACHE |
+ 				      _PAGE_COHERENT | _PAGE_GUARDED));
++		/*
++		 * enable the memory coherence always
++		 */
++		rflags |= HPTE_R_M;
+ 
+ 		slot = hpte_insert_repeating(hash, vpn, pa, rflags, 0,
+ 					     mmu_psize, ssize);
 -- 
 1.8.3.2
 
