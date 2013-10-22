@@ -1,75 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id F12386B03BC
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 07:41:33 -0400 (EDT)
-Received: by mail-pb0-f44.google.com with SMTP id xa7so8450396pbc.17
-        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 04:41:33 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.109])
-        by mx.google.com with SMTP id iu9si11955032pac.321.2013.10.22.04.41.31
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D81E6B03C0
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 07:54:07 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id kx10so9633364pab.13
+        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 04:54:07 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.151])
+        by mx.google.com with SMTP id if1si12019095pad.146.2013.10.22.04.54.05
         for <linux-mm@kvack.org>;
-        Tue, 22 Oct 2013 04:41:33 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 22 Oct 2013 17:11:27 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 87A938E9259
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 17:00:07 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9MBVPGO42533008
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 17:01:26 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9MBSZDl023254
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:35 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [RFC PATCH 8/9] powerpc: mm: Support setting _PAGE_NUMA bit on pmd entry which are pointer to PTE page
-Date: Tue, 22 Oct 2013 16:58:19 +0530
-Message-Id: <1382441300-1513-9-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1382441300-1513-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1382441300-1513-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        Tue, 22 Oct 2013 04:54:06 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mm: create a separate slab for page->ptl allocation
+Date: Tue, 22 Oct 2013 14:53:59 +0300
+Message-Id: <1382442839-7458-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org
-Cc: linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+If DEBUG_SPINLOCK and DEBUG_LOCK_ALLOC are enabled spinlock_t on x86_64
+is 72 bytes. For page->ptl they will be allocated from kmalloc-96 slab,
+so we loose 24 on each. An average system can easily allocate few tens
+thousands of page->ptl and overhead is significant.
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Let's create a separate slab for page->ptl allocation to solve this.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/powerpc/include/asm/pgtable-ppc64.h | 18 ++++++++++++++++--
- 1 file changed, 16 insertions(+), 2 deletions(-)
+ include/linux/mm.h |  8 ++++++++
+ init/main.c        |  2 +-
+ mm/memory.c        | 12 ++++++++++--
+ 3 files changed, 19 insertions(+), 3 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
-index 46db094..f828944 100644
---- a/arch/powerpc/include/asm/pgtable-ppc64.h
-+++ b/arch/powerpc/include/asm/pgtable-ppc64.h
-@@ -150,8 +150,22 @@
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 9a4a873b2f..2de5da0a41 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1233,6 +1233,7 @@ static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long a
+ #endif /* CONFIG_MMU && !__ARCH_HAS_4LEVEL_HACK */
  
- #define pmd_set(pmdp, pmdval) 	(pmd_val(*(pmdp)) = (pmdval))
- #define pmd_none(pmd)		(!pmd_val(pmd))
--#define	pmd_bad(pmd)		(!is_kernel_addr(pmd_val(pmd)) \
--				 || (pmd_val(pmd) & PMD_BAD_BITS))
-+
-+static inline int pmd_bad(pmd_t pmd)
+ #if USE_SPLIT_PTE_PTLOCKS
++void __init ptlock_cache_init(void);
+ bool __ptlock_alloc(struct page *page);
+ void __ptlock_free(struct page *page);
+ static inline bool ptlock_alloc(struct page *page)
+@@ -1285,6 +1286,7 @@ static inline void pte_lock_deinit(struct page *page)
+ }
+ 
+ #else	/* !USE_SPLIT_PTE_PTLOCKS */
++static inline void ptlock_cache_init(void) {}
+ /*
+  * We use mm->page_table_lock to guard all pagetable pages of the mm.
+  */
+@@ -1296,6 +1298,12 @@ static inline bool ptlock_init(struct page *page) { return true; }
+ static inline void pte_lock_deinit(struct page *page) {}
+ #endif /* USE_SPLIT_PTE_PTLOCKS */
+ 
++static inline void pgtable_init(void)
 +{
-+#ifdef CONFIG_NUMA_BALANCING
-+	/*
-+	 * For numa balancing we can have this set
-+	 */
-+	if (pmd_val(pmd) & _PAGE_NUMA)
-+		return 0;
-+#endif
-+	if (!is_kernel_addr(pmd_val(pmd)) ||
-+	    (pmd_val(pmd) & PMD_BAD_BITS))
-+		return 1;
-+	return 0;
++	ptlock_cache_init();
++	pgtable_cache_init();
 +}
 +
- #define	pmd_present(pmd)	(pmd_val(pmd) != 0)
- #define	pmd_clear(pmdp)		(pmd_val(*(pmdp)) = 0)
- #define pmd_page_vaddr(pmd)	(pmd_val(pmd) & ~PMD_MASKED_BITS)
+ static inline bool pgtable_page_ctor(struct page *page)
+ {
+ 	inc_zone_page_state(page, NR_PAGETABLE);
+diff --git a/init/main.c b/init/main.c
+index af310afbef..c71b505392 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -466,7 +466,7 @@ static void __init mm_init(void)
+ 	mem_init();
+ 	kmem_cache_init();
+ 	percpu_init_late();
+-	pgtable_cache_init();
++	pgtable_init();
+ 	vmalloc_init();
+ }
+ 
+diff --git a/mm/memory.c b/mm/memory.c
+index 7e11f745bc..d7e583e270 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -4332,11 +4332,19 @@ void copy_user_huge_page(struct page *dst, struct page *src,
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
+ 
+ #if USE_SPLIT_PTE_PTLOCKS
++struct kmem_cache *page_ptl_cachep;
++void __init ptlock_cache_init(void)
++{
++	if (sizeof(spinlock_t) > sizeof(long))
++		page_ptl_cachep = kmem_cache_create("page->ptl",
++				sizeof(spinlock_t), 0, SLAB_PANIC, NULL);
++}
++
+ bool __ptlock_alloc(struct page *page)
+ {
+ 	spinlock_t *ptl;
+ 
+-	ptl = kmalloc(sizeof(spinlock_t), GFP_KERNEL);
++	ptl = kmem_cache_alloc(page_ptl_cachep, GFP_KERNEL);
+ 	if (!ptl)
+ 		return false;
+ 	page->ptl = (unsigned long)ptl;
+@@ -4346,6 +4354,6 @@ bool __ptlock_alloc(struct page *page)
+ void __ptlock_free(struct page *page)
+ {
+ 	if (sizeof(spinlock_t) > sizeof(page->ptl))
+-		kfree((spinlock_t *)page->ptl);
++		kmem_cache_free(page_ptl_cachep, (spinlock_t *)page->ptl);
+ }
+ #endif
 -- 
-1.8.3.2
+1.8.4.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
