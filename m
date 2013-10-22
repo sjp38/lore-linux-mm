@@ -1,159 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id AA20D6B00E2
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 12:04:41 -0400 (EDT)
-Received: by mail-pb0-f54.google.com with SMTP id ro12so8798136pbb.41
-        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 09:04:41 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.117])
-        by mx.google.com with SMTP id u9si12073420pbf.113.2013.10.22.09.04.37
+	by kanga.kvack.org (Postfix) with ESMTP id 282686B00E4
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 12:12:54 -0400 (EDT)
+Received: by mail-pb0-f54.google.com with SMTP id ro12so8886706pbb.27
+        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 09:12:53 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.143])
+        by mx.google.com with SMTP id js8si7890983pbc.134.2013.10.22.09.12.52
         for <linux-mm@kvack.org>;
-        Tue, 22 Oct 2013 09:04:40 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 22 Oct 2013 21:34:31 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id C5C2C3940D17
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:13 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9MBSUom33751082
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:30 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9MBSXDV023036
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 16:58:33 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [RFC PATCH 2/9] powerpc: Free up _PAGE_COHERENCE for numa fault use later
-Date: Tue, 22 Oct 2013 16:58:13 +0530
-Message-Id: <1382441300-1513-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1382441300-1513-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1382441300-1513-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        Tue, 22 Oct 2013 09:12:53 -0700 (PDT)
+Received: by mail-vc0-f179.google.com with SMTP id hz11so1405345vcb.24
+        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 09:12:51 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <526696BF.6050909@gmx.de>
+References: <526696BF.6050909@gmx.de>
+Date: Tue, 22 Oct 2013 18:12:51 +0200
+Message-ID: <CAFLxGvy3NeRKu+KQCCm0j4LS60PYhH0bC8WWjfiPvpstPBjAkA@mail.gmail.com>
+Subject: Re: [uml-devel] fuzz tested 32 bit user mode linux image hangs at in histfs
+From: Richard Weinberger <richard.weinberger@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org
-Cc: linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: =?ISO-8859-1?Q?Toralf_F=F6rster?= <toralf.foerster@gmx.de>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, UML devel <user-mode-linux-devel@lists.sourceforge.net>
 
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+On Tue, Oct 22, 2013 at 5:16 PM, Toralf F=F6rster <toralf.foerster@gmx.de> =
+wrote:
+>
+> When I fuzz testing a 32 bit UML at a 32 bit host (guest 3.12.-rc6-x, hos=
+t 3.11.6) with trinity
+> and use hostfs for the victom files for trinity. then trintiy often hangs=
+ while trying to finish.
+>
+> At the host I do have 1 process eating 100% CPU power of 1 core. A back t=
+race of thet linux process at the hosts gives :
+>
+> tfoerste@n22 ~ $ sudo gdb /usr/local/bin/linux-v3.12-rc6-57-g69c88dc 1674=
+9 -n -batch -ex bt
+> radix_tree_next_chunk (root=3D0x21, iter=3D0x47647c60, flags=3D12) at lib=
+/radix-tree.c:769
+> 769                                     while (++offset < RADIX_TREE_MAP_=
+SIZE) {
+> #0  radix_tree_next_chunk (root=3D0x21, iter=3D0x47647c60, flags=3D12) at=
+ lib/radix-tree.c:769
+> #1  0x080cc13e in find_get_pages (mapping=3D0x483ed240, start=3D0, nr_pag=
+es=3D14, pages=3D0xc) at mm/filemap.c:844
+> #2  0x080d5caa in pagevec_lookup (pvec=3D0x47647cc4, mapping=3D0x21, star=
+t=3D33, nr_pages=3D33) at mm/swap.c:914
+> #3  0x080d609a in truncate_inode_pages_range (mapping=3D0x483ed240, lstar=
+t=3D0, lend=3D-1) at mm/truncate.c:241
+> #4  0x080d643f in truncate_inode_pages (mapping=3D0x21, lstart=3D51539607=
+585) at mm/truncate.c:358
+> #5  0x08260838 in hostfs_evict_inode (inode=3D0x483ed188) at fs/hostfs/ho=
+stfs_kern.c:242
+> #6  0x0811a8cf in evict (inode=3D0x483ed188) at fs/inode.c:549
+> #7  0x0811b2ad in iput_final (inode=3D<optimized out>) at fs/inode.c:1391
+> #8  iput (inode=3D0x483ed188) at fs/inode.c:1409
+> #9  0x08117648 in dentry_iput (dentry=3D<optimized out>) at fs/dcache.c:3=
+31
+> #10 d_kill (dentry=3D0x47d6d580, parent=3D0x47d95d10) at fs/dcache.c:477
+> #11 0x08118068 in dentry_kill (dentry=3D<optimized out>, unlock_on_failur=
+e=3D<optimized out>) at fs/dcache.c:586
+> #12 dput (dentry=3D0x47d6d580) at fs/dcache.c:641
+> #13 0x08104903 in __fput (file=3D0x47471840) at fs/file_table.c:264
+> #14 0x0810496b in ____fput (work=3D0x47471840) at fs/file_table.c:282
+> #15 0x08094496 in task_work_run () at kernel/task_work.c:123
+> #16 0x0807efd2 in exit_task_work (task=3D<optimized out>) at include/linu=
+x/task_work.h:21
+> #17 do_exit (code=3D1196535808) at kernel/exit.c:787
+> #18 0x0807f5dd in do_group_exit (exit_code=3D0) at kernel/exit.c:920
+> #19 0x0807f649 in SYSC_exit_group (error_code=3D<optimized out>) at kerne=
+l/exit.c:931
+> #20 SyS_exit_group (error_code=3D0) at kernel/exit.c:929
+> #21 0x08062984 in handle_syscall (r=3D0x4763b1d4) at arch/um/kernel/skas/=
+syscall.c:35
+> #22 0x08074fb5 in handle_trap (local_using_sysemu=3D<optimized out>, regs=
+=3D<optimized out>, pid=3D<optimized out>) at arch/um/os-Linux/skas/process=
+.c:198
+> #23 userspace (regs=3D0x4763b1d4) at arch/um/os-Linux/skas/process.c:431
+> #24 0x0805f750 in fork_handler () at arch/um/kernel/process.c:160
+> #25 0x00000000 in ?? ()
+>
 
-Set  memory coherence always on hash64 config. If
-a platform cannot have memory coherence always set they
-can infer that from _PAGE_NO_CACHE and _PAGE_WRITETHRU
-like in lpar. So we dont' really need a separate bit
-for tracking _PAGE_COHERENCE.
+That trace is identical to the one you reported yesterday.
+But this time no nfs is in the game, right?
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- arch/powerpc/include/asm/pte-hash64.h |  2 +-
- arch/powerpc/mm/hash_low_64.S         | 15 ++++++++++++---
- arch/powerpc/mm/hash_utils_64.c       |  7 ++++---
- arch/powerpc/mm/hugepage-hash64.c     |  6 +++++-
- arch/powerpc/mm/hugetlbpage-hash64.c  |  4 ++++
- 5 files changed, 26 insertions(+), 8 deletions(-)
+> Last message of trinity's watchdog are :
+>
+> ...
+> [watchdog] exit_reason=3D2, but 2 children still running.
+> Bailing main loop. Exit reason: Reached maximum syscall count.
+> [watchdog] Reached limit 10001. Telling children to exit.
+> [watchdog] [1516] Watchdog exiting
+>
+>
+> I'm unsure if this is only UML specific, interesting for the fs people or=
+ mm or ... ?
+>
+>
+> --
+> MfG/Sincerely
+> Toralf F=F6rster
+> pgp finger print: 7B1A 07F4 EC82 0F90 D4C2 8936 872A E508 7DB6 9DA3
+>
+> -------------------------------------------------------------------------=
+-----
+> October Webinars: Code for Performance
+> Free Intel webinars can help you accelerate application performance.
+> Explore tips for MPI, OpenMP, advanced profiling, and more. Get the most =
+from
+> the latest Intel processors and coprocessors. See abstracts and register =
+>
+> http://pubads.g.doubleclick.net/gampad/clk?id=3D60135991&iu=3D/4140/ostg.=
+clktrk
+> _______________________________________________
+> User-mode-linux-devel mailing list
+> User-mode-linux-devel@lists.sourceforge.net
+> https://lists.sourceforge.net/lists/listinfo/user-mode-linux-devel
 
-diff --git a/arch/powerpc/include/asm/pte-hash64.h b/arch/powerpc/include/asm/pte-hash64.h
-index 0419eeb..55aea0c 100644
---- a/arch/powerpc/include/asm/pte-hash64.h
-+++ b/arch/powerpc/include/asm/pte-hash64.h
-@@ -19,7 +19,7 @@
- #define _PAGE_FILE		0x0002 /* (!present only) software: pte holds file offset */
- #define _PAGE_EXEC		0x0004 /* No execute on POWER4 and newer (we invert) */
- #define _PAGE_GUARDED		0x0008
--#define _PAGE_COHERENT		0x0010 /* M: enforce memory coherence (SMP systems) */
-+/* We can derive Memory coherence from _PAGE_NO_CACHE */
- #define _PAGE_NO_CACHE		0x0020 /* I: cache inhibit */
- #define _PAGE_WRITETHRU		0x0040 /* W: cache write-through */
- #define _PAGE_DIRTY		0x0080 /* C: page changed */
-diff --git a/arch/powerpc/mm/hash_low_64.S b/arch/powerpc/mm/hash_low_64.S
-index d3cbda6..1136d26 100644
---- a/arch/powerpc/mm/hash_low_64.S
-+++ b/arch/powerpc/mm/hash_low_64.S
-@@ -148,7 +148,10 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
- 	and	r0,r0,r4		/* _PAGE_RW & _PAGE_DIRTY ->r0 bit 30*/
- 	andc	r0,r30,r0		/* r0 = pte & ~r0 */
- 	rlwimi	r3,r0,32-1,31,31	/* Insert result into PP lsb */
--	ori	r3,r3,HPTE_R_C		/* Always add "C" bit for perf. */
-+	/*
-+	 * Always add "C" bit for perf. Memory coherence is always enabled
-+	 */
-+	ori	r3,r3,HPTE_R_C | HPTE_R_M
- 
- 	/* We eventually do the icache sync here (maybe inline that
- 	 * code rather than call a C function...) 
-@@ -457,7 +460,10 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
- 	and	r0,r0,r4		/* _PAGE_RW & _PAGE_DIRTY ->r0 bit 30*/
- 	andc	r0,r3,r0		/* r0 = pte & ~r0 */
- 	rlwimi	r3,r0,32-1,31,31	/* Insert result into PP lsb */
--	ori	r3,r3,HPTE_R_C		/* Always add "C" bit for perf. */
-+	/*
-+	 * Always add "C" bit for perf. Memory coherence is always enabled
-+	 */
-+	ori	r3,r3,HPTE_R_C | HPTE_R_M
- 
- 	/* We eventually do the icache sync here (maybe inline that
- 	 * code rather than call a C function...)
-@@ -795,7 +801,10 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
- 	and	r0,r0,r4		/* _PAGE_RW & _PAGE_DIRTY ->r0 bit 30*/
- 	andc	r0,r30,r0		/* r0 = pte & ~r0 */
- 	rlwimi	r3,r0,32-1,31,31	/* Insert result into PP lsb */
--	ori	r3,r3,HPTE_R_C		/* Always add "C" bit for perf. */
-+	/*
-+	 * Always add "C" bit for perf. Memory coherence is always enabled
-+	 */
-+	ori	r3,r3,HPTE_R_C | HPTE_R_M
- 
- 	/* We eventually do the icache sync here (maybe inline that
- 	 * code rather than call a C function...)
-diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
-index bde8b55..fb176e9 100644
---- a/arch/powerpc/mm/hash_utils_64.c
-+++ b/arch/powerpc/mm/hash_utils_64.c
-@@ -169,9 +169,10 @@ static unsigned long htab_convert_pte_flags(unsigned long pteflags)
- 	if ((pteflags & _PAGE_USER) && !((pteflags & _PAGE_RW) &&
- 					 (pteflags & _PAGE_DIRTY)))
- 		rflags |= 1;
--
--	/* Always add C */
--	return rflags | HPTE_R_C;
-+	/*
-+	 * Always add "C" bit for perf. Memory coherence is always enabled
-+	 */
-+	return rflags | HPTE_R_C | HPTE_R_M;
- }
- 
- int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
-diff --git a/arch/powerpc/mm/hugepage-hash64.c b/arch/powerpc/mm/hugepage-hash64.c
-index 34de9e0..826893f 100644
---- a/arch/powerpc/mm/hugepage-hash64.c
-+++ b/arch/powerpc/mm/hugepage-hash64.c
-@@ -127,7 +127,11 @@ repeat:
- 
- 		/* Add in WIMG bits */
- 		rflags |= (new_pmd & (_PAGE_WRITETHRU | _PAGE_NO_CACHE |
--				      _PAGE_COHERENT | _PAGE_GUARDED));
-+				      _PAGE_GUARDED));
-+		/*
-+		 * enable the memory coherence always
-+		 */
-+		rflags |= HPTE_R_M;
- 
- 		/* Insert into the hash table, primary slot */
- 		slot = ppc_md.hpte_insert(hpte_group, vpn, pa, rflags, 0,
-diff --git a/arch/powerpc/mm/hugetlbpage-hash64.c b/arch/powerpc/mm/hugetlbpage-hash64.c
-index 0b7fb67..a5bcf93 100644
---- a/arch/powerpc/mm/hugetlbpage-hash64.c
-+++ b/arch/powerpc/mm/hugetlbpage-hash64.c
-@@ -99,6 +99,10 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
- 		/* Add in WIMG bits */
- 		rflags |= (new_pte & (_PAGE_WRITETHRU | _PAGE_NO_CACHE |
- 				      _PAGE_COHERENT | _PAGE_GUARDED));
-+		/*
-+		 * enable the memory coherence always
-+		 */
-+		rflags |= HPTE_R_M;
- 
- 		slot = hpte_insert_repeating(hash, vpn, pa, rflags, 0,
- 					     mmu_psize, ssize);
--- 
-1.8.3.2
+
+
+--=20
+Thanks,
+//richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
