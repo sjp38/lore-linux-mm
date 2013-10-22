@@ -1,85 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id CFFD06B00DC
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 18:30:24 -0400 (EDT)
-Received: by mail-pb0-f49.google.com with SMTP id xb12so28012pbc.36
-        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 15:30:24 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.148])
-        by mx.google.com with SMTP id u9si46092pbf.113.2013.10.22.15.30.22
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 717FB6B00DD
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 18:31:33 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id g10so8918114pdj.34
+        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 15:31:32 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.125])
+        by mx.google.com with SMTP id u9si43512pbf.143.2013.10.22.15.31.31
         for <linux-mm@kvack.org>;
-        Tue, 22 Oct 2013 15:30:23 -0700 (PDT)
+        Tue, 22 Oct 2013 15:31:32 -0700 (PDT)
 From: Joe Perches <joe@perches.com>
-Subject: [PATCH 00/24] treewide: Convert use of typedef ctl_table to struct ctl_table
-Date: Tue, 22 Oct 2013 15:29:43 -0700
-Message-Id: <cover.1382480758.git.joe@perches.com>
+Subject: [PATCH 23/24] mm: Convert use of typedef ctl_table to struct ctl_table
+Date: Tue, 22 Oct 2013 15:30:06 -0700
+Message-Id: <4dd4d6fc0ddffaaa0bbffb484d7ce39c41416cee.1382480758.git.joe@perches.com>
+In-Reply-To: <cover.1382480758.git.joe@perches.com>
+References: <cover.1382480758.git.joe@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linux-s390@vger.kernel.org, linux-rdma@vger.kernel.org, linux-raid@vger.kernel.org, linux-scsi@vger.kernel.org, codalist@coda.cs.cmu.edu, linux-fsdevel@vger.kernel.org, linux-cachefs@redhat.com, linux-nfs@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, ocfs2-devel@oss.oracle.com, keyrings@linux-nfs.org, linux-mm@kvack.org, linux-security-module@vger.kernel.org
+Cc: linux-mm@kvack.org
 
-Joe Perches (24):
-  arm: Convert use of typedef ctl_table to struct ctl_table
-  ia64: Convert use of typedef ctl_table to struct ctl_table
-  s390: Convert use of typedef ctl_table to struct ctl_table
-  tile: Convert use of typedef ctl_table to struct ctl_table
-  cdrom: Convert use of typedef ctl_table to struct ctl_table
-  random: Convert use of typedef ctl_table to struct ctl_table
-  infiniband: Convert use of typedef ctl_table to struct ctl_table
-  md: Convert use of typedef ctl_table to struct ctl_table
-  parport: Convert use of typedef ctl_table to struct ctl_table
-  scsi: Convert use of typedef ctl_table to struct ctl_table
-  coda: Convert use of typedef ctl_table to struct ctl_table
-  fscache: Convert use of typedef ctl_table to struct ctl_table
-  lockd: Convert use of typedef ctl_table to struct ctl_table
-  nfs: Convert use of typedef ctl_table to struct ctl_table
-  inotify: Convert use of typedef ctl_table to struct ctl_table
-  ntfs: Convert use of typedef ctl_table to struct ctl_table
-  ocfs2: Convert use of typedef ctl_table to struct ctl_table
-  proc: Convert use of typedef ctl_table to struct ctl_table
-  fs: Convert use of typedef ctl_table to struct ctl_table
-  key: Convert use of typedef ctl_table to struct ctl_table
-  ipc: Convert use of typedef ctl_table to struct ctl_table
-  kernel: Convert use of typedef ctl_table to struct ctl_table
-  mm: Convert use of typedef ctl_table to struct ctl_table
-  security:keys: Convert use of typedef ctl_table to struct ctl_table
+This typedef is unnecessary and should just be removed.
 
- arch/arm/kernel/isa.c              |  6 ++---
- arch/ia64/kernel/crash.c           |  4 +--
- arch/ia64/kernel/perfmon.c         |  6 ++---
- arch/s390/appldata/appldata_base.c | 10 ++++----
- arch/s390/kernel/debug.c           |  2 +-
- arch/s390/mm/cmm.c                 |  8 +++---
- arch/tile/kernel/proc.c            |  4 +--
- drivers/cdrom/cdrom.c              | 10 ++++----
- drivers/char/random.c              |  4 +--
- drivers/infiniband/core/ucma.c     |  2 +-
- drivers/md/md.c                    |  6 ++---
- drivers/parport/procfs.c           | 52 ++++++++++++++++++--------------------
- drivers/scsi/scsi_sysctl.c         |  6 ++---
- fs/coda/sysctl.c                   |  4 +--
- fs/dcache.c                        |  2 +-
- fs/drop_caches.c                   |  2 +-
- fs/eventpoll.c                     |  2 +-
- fs/file_table.c                    |  4 +--
- fs/fscache/main.c                  |  4 +--
- fs/inode.c                         |  2 +-
- fs/lockd/svc.c                     |  6 ++---
- fs/nfs/nfs4sysctl.c                |  6 ++---
- fs/nfs/sysctl.c                    |  6 ++---
- fs/notify/inotify/inotify_user.c   |  2 +-
- fs/ntfs/sysctl.c                   |  4 +--
- fs/ocfs2/stackglue.c               |  8 +++---
- fs/proc/proc_sysctl.c              |  2 +-
- include/linux/key.h                |  2 +-
- ipc/ipc_sysctl.c                   | 14 +++++-----
- ipc/mq_sysctl.c                    | 10 ++++----
- kernel/sysctl.c                    |  2 +-
- kernel/utsname_sysctl.c            |  6 ++---
- mm/page-writeback.c                |  2 +-
- mm/page_alloc.c                    | 12 ++++-----
- security/keys/sysctl.c             |  2 +-
- 35 files changed, 111 insertions(+), 113 deletions(-)
+Signed-off-by: Joe Perches <joe@perches.com>
+---
+ mm/page-writeback.c |  2 +-
+ mm/page_alloc.c     | 12 ++++++------
+ 2 files changed, 7 insertions(+), 7 deletions(-)
 
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index f5236f8..bd0a03f 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -1687,7 +1687,7 @@ void throttle_vm_writeout(gfp_t gfp_mask)
+ /*
+  * sysctl handler for /proc/sys/vm/dirty_writeback_centisecs
+  */
+-int dirty_writeback_centisecs_handler(ctl_table *table, int write,
++int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
+ 	void __user *buffer, size_t *length, loff_t *ppos)
+ {
+ 	proc_dointvec(table, write, buffer, length, ppos);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index c1cf5f8..5a9a0d5 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3314,7 +3314,7 @@ early_param("numa_zonelist_order", setup_numa_zonelist_order);
+ /*
+  * sysctl handler for numa_zonelist_order
+  */
+-int numa_zonelist_order_handler(ctl_table *table, int write,
++int numa_zonelist_order_handler(struct ctl_table *table, int write,
+ 		void __user *buffer, size_t *length,
+ 		loff_t *ppos)
+ {
+@@ -5698,7 +5698,7 @@ module_init(init_per_zone_wmark_min)
+  *	that we can call two helper functions whenever min_free_kbytes
+  *	changes.
+  */
+-int min_free_kbytes_sysctl_handler(ctl_table *table, int write,
++int min_free_kbytes_sysctl_handler(struct ctl_table *table, int write,
+ 	void __user *buffer, size_t *length, loff_t *ppos)
+ {
+ 	proc_dointvec(table, write, buffer, length, ppos);
+@@ -5710,7 +5710,7 @@ int min_free_kbytes_sysctl_handler(ctl_table *table, int write,
+ }
+ 
+ #ifdef CONFIG_NUMA
+-int sysctl_min_unmapped_ratio_sysctl_handler(ctl_table *table, int write,
++int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *table, int write,
+ 	void __user *buffer, size_t *length, loff_t *ppos)
+ {
+ 	struct zone *zone;
+@@ -5726,7 +5726,7 @@ int sysctl_min_unmapped_ratio_sysctl_handler(ctl_table *table, int write,
+ 	return 0;
+ }
+ 
+-int sysctl_min_slab_ratio_sysctl_handler(ctl_table *table, int write,
++int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *table, int write,
+ 	void __user *buffer, size_t *length, loff_t *ppos)
+ {
+ 	struct zone *zone;
+@@ -5752,7 +5752,7 @@ int sysctl_min_slab_ratio_sysctl_handler(ctl_table *table, int write,
+  * minimum watermarks. The lowmem reserve ratio can only make sense
+  * if in function of the boot time zone sizes.
+  */
+-int lowmem_reserve_ratio_sysctl_handler(ctl_table *table, int write,
++int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *table, int write,
+ 	void __user *buffer, size_t *length, loff_t *ppos)
+ {
+ 	proc_dointvec_minmax(table, write, buffer, length, ppos);
+@@ -5765,7 +5765,7 @@ int lowmem_reserve_ratio_sysctl_handler(ctl_table *table, int write,
+  * cpu.  It is the fraction of total pages in each zone that a hot per cpu
+  * pagelist can have before it gets flushed back to buddy allocator.
+  */
+-int percpu_pagelist_fraction_sysctl_handler(ctl_table *table, int write,
++int percpu_pagelist_fraction_sysctl_handler(struct ctl_table *table, int write,
+ 	void __user *buffer, size_t *length, loff_t *ppos)
+ {
+ 	struct zone *zone;
 -- 
 1.8.1.2.459.gbcd45b4.dirty
 
