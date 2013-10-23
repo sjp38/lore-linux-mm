@@ -1,168 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id AB9C36B00DC
-	for <linux-mm@kvack.org>; Wed, 23 Oct 2013 14:30:46 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id p10so1240850pdj.39
-        for <linux-mm@kvack.org>; Wed, 23 Oct 2013 11:30:46 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.199])
-        by mx.google.com with SMTP id if1si16189641pad.88.2013.10.23.11.30.42
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 7985F6B00DC
+	for <linux-mm@kvack.org>; Wed, 23 Oct 2013 17:01:47 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id bj1so1875894pad.28
+        for <linux-mm@kvack.org>; Wed, 23 Oct 2013 14:01:47 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.179])
+        by mx.google.com with SMTP id hj4si16483542pac.68.2013.10.23.14.01.45
         for <linux-mm@kvack.org>;
-        Wed, 23 Oct 2013 11:30:43 -0700 (PDT)
-Date: Wed, 23 Oct 2013 14:30:20 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1382553020-bqbnnzwq-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20131023164447.B20D.38390934@jp.panasonic.com>
-References: <20131023145303.B205.38390934@jp.panasonic.com>
- <1382511049-gd4rydjg-mutt-n-horiguchi@ah.jp.nec.com>
- <20131023164447.B20D.38390934@jp.panasonic.com>
-Subject: Re: [PATCH v2] mm: Ensure get_unmapped_area() returns higher
- addressthan mmap_min_addr
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+        Wed, 23 Oct 2013 14:01:46 -0700 (PDT)
+Received: by mail-qe0-f50.google.com with SMTP id 1so866959qee.23
+        for <linux-mm@kvack.org>; Wed, 23 Oct 2013 14:01:44 -0700 (PDT)
+From: kosaki.motohiro@gmail.com
+Subject: [PATCH] mm: get rid of unnecessary pageblock scanning in setup_zone_migrate_reserve
+Date: Wed, 23 Oct 2013 17:01:32 -0400
+Message-Id: <1382562092-15570-1-git-send-email-kosaki.motohiro@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Akira Takeuchi <takeuchi.akr@jp.panasonic.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-Cc:ed Andrew,
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Wed, Oct 23, 2013 at 04:44:47PM +0900, Akira Takeuchi wrote:
-> This patch fixes the problem that get_unmapped_area() can return illegal
-> address and result in failing mmap(2) etc.
-> 
-> In case that the address higher than PAGE_SIZE is set to
-> /proc/sys/vm/mmap_min_addr, the address lower than mmap_min_addr can be
-> returned by get_unmapped_area(), even if you do not pass any virtual address
-> hint (i.e. the second argument).
-> 
-> This is because the current get_unmapped_area() code does not take into
-> account mmap_min_addr.
-> 
-> This leads to two actual problems as follows:
-> 
-> 1. mmap(2) can fail with EPERM on the process without CAP_SYS_RAWIO,
->    although any illegal parameter is not passed.
-> 
-> 2. The bottom-up search path after the top-down search might not work in
->    arch_get_unmapped_area_topdown().
-> 
-> Note: The first and third chunk of my patch, which changes "len" check,
-> are for more precise check using mmap_min_addr, and not for solving the
-> above problem.
-> 
-> [How to reproduce]
-> 
-> 	--- test.c -------------------------------------------------
-> 	#include <stdio.h>
-> 	#include <unistd.h>
-> 	#include <sys/mman.h>
-> 	#include <sys/errno.h>
-> 
-> 	int main(int argc, char *argv[])
-> 	{
-> 		void *ret = NULL, *last_map;
-> 		size_t pagesize = sysconf(_SC_PAGESIZE);
-> 
-> 		do {
-> 			last_map = ret;
-> 			ret = mmap(0, pagesize, PROT_NONE,
-> 				MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-> 	//		printf("ret=%p\n", ret);
-> 		} while (ret != MAP_FAILED);
-> 
-> 		if (errno != ENOMEM) {
-> 			printf("ERR: unexpected errno: %d (last map=%p)\n",
-> 			errno, last_map);
-> 		}
-> 
-> 		return 0;
-> 	}
-> 	---------------------------------------------------------------
-> 
-> 	$ gcc -m32 -o test test.c
-> 	$ sudo sysctl -w vm.mmap_min_addr=65536
-> 	vm.mmap_min_addr = 65536
-> 	$ ./test  (run as non-priviledge user)
-> 	ERR: unexpected errno: 1 (last map=0x10000)
-> 
-> Signed-off-by: Akira Takeuchi <takeuchi.akr@jp.panasonic.com>
-> Signed-off-by: Kiyoshi Owada <owada.kiyoshi@jp.panasonic.com>
-> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Yasuaki Ithimatsu reported memory hot-add spent more than 5 _hours_
+on 9TB memory machine and we found out setup_zone_migrate_reserve
+spnet >90% time.
 
-BTW, this bug seems to be very old, so I think this patch is worth
-going into all of currently living stable trees.
+The problem is, setup_zone_migrate_reserve scan all pageblock
+unconditionally, but it is only necessary number of reserved block
+was reduced (i.e. memory hot remove).
+Moreover, maximum MIGRATE_RESERVE per zone are currently 2. It mean,
+number of reserved pageblock are almost always unchanged.
 
-Thanks,
-Naoya Horiguchi
+This patch adds zone->nr_migrate_reserve_block to maintain number
+of MIGRATE_RESERVE pageblock and it reduce an overhead of
+setup_zone_migrate_reserve dramatically.
 
-> ---
->  mm/mmap.c |   10 +++++-----
->  1 files changed, 5 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 9d54851..362e5f1 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -1856,7 +1856,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
->  	struct vm_area_struct *vma;
->  	struct vm_unmapped_area_info info;
->  
-> -	if (len > TASK_SIZE)
-> +	if (len > TASK_SIZE - mmap_min_addr)
->  		return -ENOMEM;
->  
->  	if (flags & MAP_FIXED)
-> @@ -1865,7 +1865,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
->  	if (addr) {
->  		addr = PAGE_ALIGN(addr);
->  		vma = find_vma(mm, addr);
-> -		if (TASK_SIZE - len >= addr &&
-> +		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
->  		    (!vma || addr + len <= vma->vm_start))
->  			return addr;
->  	}
-> @@ -1895,7 +1895,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
->  	struct vm_unmapped_area_info info;
->  
->  	/* requested length too big for entire address space */
-> -	if (len > TASK_SIZE)
-> +	if (len > TASK_SIZE - mmap_min_addr)
->  		return -ENOMEM;
->  
->  	if (flags & MAP_FIXED)
-> @@ -1905,14 +1905,14 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
->  	if (addr) {
->  		addr = PAGE_ALIGN(addr);
->  		vma = find_vma(mm, addr);
-> -		if (TASK_SIZE - len >= addr &&
-> +		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
->  				(!vma || addr + len <= vma->vm_start))
->  			return addr;
->  	}
->  
->  	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
->  	info.length = len;
-> -	info.low_limit = PAGE_SIZE;
-> +	info.low_limit = max(PAGE_SIZE, mmap_min_addr);
->  	info.high_limit = mm->mmap_base;
->  	info.align_mask = 0;
->  	addr = vm_unmapped_area(&info);
-> -- 
-> 1.7.0.4
-> 
-> 
-> -- 
-> Akira Takeuchi <takeuchi.akr@jp.panasonic.com>
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Cc: Mel Gorman <mgorman@suse.de>
+Reported-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ include/linux/mmzone.h |    6 ++++++
+ mm/page_alloc.c        |   13 +++++++++++++
+ 2 files changed, 19 insertions(+), 0 deletions(-)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index bd791e4..67ab5fe 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -490,6 +490,12 @@ struct zone {
+ 	unsigned long		managed_pages;
+ 
+ 	/*
++	 * Number of MIGRATE_RESEVE page block. To maintain for just
++	 * optimization. Protected by zone->lock.
++	 */
++	int			nr_migrate_reserve_block;
++
++	/*
+ 	 * rarely used fields:
+ 	 */
+ 	const char		*name;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 58e67ea..76ca054 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3909,6 +3909,7 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+ 	struct page *page;
+ 	unsigned long block_migratetype;
+ 	int reserve;
++	int old_reserve;
+ 
+ 	/*
+ 	 * Get the start pfn, end pfn and the number of blocks to reserve
+@@ -3930,6 +3931,12 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+ 	 * future allocation of hugepages at runtime.
+ 	 */
+ 	reserve = min(2, reserve);
++	old_reserve = zone->nr_migrate_reserve_block;
++
++	/* When memory hot-add, we almost always need to do nothing */
++	if (reserve == old_reserve)
++		return;
++	zone->nr_migrate_reserve_block = reserve;
+ 
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
+ 		if (!pfn_valid(pfn))
+@@ -3967,6 +3974,12 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+ 				reserve--;
+ 				continue;
+ 			}
++		} else if (!old_reserve) {
++			/*
++			 * When boot time, we don't need scan whole zone
++			 * for turning off MIGRATE_RESERVE.
++			 */
++			break;
+ 		}
+ 
+ 		/*
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
