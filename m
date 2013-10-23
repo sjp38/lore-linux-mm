@@ -1,121 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 064946B00DC
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 22:46:51 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fa1so393396pad.23
-        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 19:46:51 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.195])
-        by mx.google.com with SMTP id ru9si508993pbc.228.2013.10.22.19.46.50
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 179516B00DD
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2013 22:47:00 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id lf10so324682pab.20
+        for <linux-mm@kvack.org>; Tue, 22 Oct 2013 19:46:59 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.107])
+        by mx.google.com with SMTP id z1si506096pbw.249.2013.10.22.19.46.58
         for <linux-mm@kvack.org>;
-        Tue, 22 Oct 2013 19:46:51 -0700 (PDT)
-Message-ID: <1382496404.10556.27.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH 0/3] mm,vdso: preallocate new vmas
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Tue, 22 Oct 2013 19:46:44 -0700
-In-Reply-To: <20131022154802.GA25490@localhost>
-References: <1382057438-3306-1-git-send-email-davidlohr@hp.com>
-	 <20131022154802.GA25490@localhost>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        Tue, 22 Oct 2013 19:46:59 -0700 (PDT)
+Date: Wed, 23 Oct 2013 11:46:53 +0900
+From: Akira Takeuchi <takeuchi.akr@jp.panasonic.com>
+Subject: [PATCH] mm: Ensure get_unmapped_area() returns higher address than mmap_min_addr
+Message-Id: <20131023114642.B201.38390934@jp.panasonic.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: walken@google.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, aswin@hp.com, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 
-On Tue, 2013-10-22 at 08:48 -0700, walken@google.com wrote:
-> On Thu, Oct 17, 2013 at 05:50:35PM -0700, Davidlohr Bueso wrote:
-> > Linus recently pointed out[1] some of the amount of unnecessary work 
-> > being done with the mmap_sem held. This patchset is a very initial 
-> > approach on reducing some of the contention on this lock, and moving
-> > work outside of the critical region.
-> > 
-> > Patch 1 adds a simple helper function.
-> > 
-> > Patch 2 moves out some trivial setup logic in mlock related calls.
-> > 
-> > Patch 3 allows managing new vmas without requiring the mmap_sem for
-> > vdsos. While it's true that there are many other scenarios where
-> > this can be done, few are actually as straightforward as this in the
-> > sense that we *always* end up allocating memory anyways, so there's really
-> > no tradeoffs. For this reason I wanted to get this patch out in the open.
-> > 
-> > There are a few points to consider when preallocating vmas at the start
-> > of system calls, such as how many new vmas (ie: callers of split_vma can
-> > end up calling twice, depending on the mm state at that point) or the probability
-> > that we end up merging the vma instead of having to create a new one, like the 
-> > case of brk or copy_vma. In both cases the overhead of creating and freeing
-> > memory at every syscall's invocation might outweigh what we gain in not holding
-> > the sem.
-> 
-> Hi Davidlohr,
-> 
-> I had a quick look at the patches and I don't see anything wrong with them.
-> However, I must also say that I have 99 problems with mmap_sem and the one
-> you're solving doesn't seem to be one of them, so I would be interested to
-> see performance numbers showing how much difference these changes make.
-> 
+This patch fixes the problem that get_unmapped_area() can return illegal
+address and result in failing mmap(2) etc.
 
-Thanks for taking a look, could I get your ack? Unless folks have any
-problems with the patchset, I do think it's worth picking up...
+In case that the address higher than PAGE_SIZE is set to
+/proc/sys/vm/mmap_min_addr, the address lower than mmap_min_addr can be
+returned by get_unmapped_area(), even if you do not pass any virtual
+address hint (i.e. the second argument).
 
-As discussed with Ingo, the numbers aren't too exciting, mainly because
-of the nature of vdsos: with all patches combined I'm getting roughly
-+5% throughput boost on some aim7 workloads. This was a first attempt at
-dealing with the new vma allocation we do with the mmap_sem held. I've
-recently explored some of the options I mentioned above, like for
-brk(2). Unfortunately I haven't gotten good results; for instance we get
-a -15% hit in ops/sec with aim9's brk_test program. So we end up using
-already existing vmas a lot more than creating new ones, which makes a
-lot of sense anyway. So all in all I don't think that preallocating vmas
-outside the lock is a path to go, even at a micro-optimization level,
-except for vdsos.
+This is because the current get_unmapped_area() code does not take into
+account mmap_min_addr.
 
-> Generally the problems I see with mmap_sem are related to long latency
-> operations. Specifically, the mmap_sem write side is currently held
-> during the entire munmap operation, which iterates over user pages to
-> free them, and can take hundreds of milliseconds for large VMAs. Also,
-> the mmap_sem read side is held during user page fauls - well, the
-> VM_FAULT_RETRY mechanism allows us to drop mmap_sem during major page
-> faults, but it is still held while allocating user pages or page tables,
-> and while going through FS code for asynchronous readahead, which turns
-> out not to be as asynchronous as you'd think as it can still block for
-> reading extends etc... So, generally the main issues I am seeing with
-> mmap_sem are latency related, while your changes only help for throughput
-> for workloads that don't hit the above latency issues. I think that's a
-> valid thing to do but I'm not sure if common workloads hit these throughput
-> issues today ?
+This leads to two actual problems as follows:
 
-IMHO munmap is just one more example where having one big fat lock for
-serializing an entire address space is something that must be addressed
-(and, as you mention, mmap_sem doesn't even limit itself only to vmas -
-heck... we even got it protecting superpage faults). For instance, it
-would be really nice if we could somehow handle rbtrees with RCU, and
-avoid taking any locks for things like lookups (ie: find_vma), of course
-we need to guarantee that the vma won't be free'd underneath us one it's
-found :) Or event allow concurrent updates and rebalancing - nonetheless
-I don't know how realistic such things can be in the kernel.
+1. mmap(2) can fail with EPERM on the process without CAP_SYS_RAWIO,
+   although any illegal parameter is not passed.
 
-> 
-> > [1] https://lkml.org/lkml/2013/10/9/665 
-> 
-> Eh, that post really makes it look easy doesn't it :)
-> 
-> There are a few complications with mmap_sem as it turns out to protect
-> more than just the VMA structures. For example, mmap_sem plays a role
-> in preventing page tables from being unmapped while follow_page_mask()
-> reads through them (there are other arch specific ways to do that,
-> like disabling local interrupts on x86 to prevent TLB shootdown, but
-> none that are currently available in generic code). This isn't an
-> issue with your current proposed patches but is something you need to
-> be aware of if you're going to do more work around the mmap_sem issues
-> (which I would encourage you to BTW - there are a lot of issues around
-> mmap_sem, so it definitely helps to have more people looking at this :)
+2. The bottom-up search path after the top-down search might not work in
+   arch_get_unmapped_area_topdown().
 
-Thanks for shedding some light on the topic!
+[How to reproduce]
 
-Davidlohr
+	--- test.c -------------------------------------------------
+	#include <stdio.h>
+	#include <unistd.h>
+	#include <sys/mman.h>
+	#include <sys/errno.h>
 
+	int main(int argc, char *argv[])
+	{
+		void *ret = NULL, *last_map;
+		size_t pagesize = sysconf(_SC_PAGESIZE);
+
+		do {
+			last_map = ret;
+			ret = mmap(0, pagesize, PROT_NONE,
+				MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+	//		printf("ret=%p\n", ret);
+		} while (ret != MAP_FAILED);
+
+		if (errno != ENOMEM) {
+			printf("ERR: unexpected errno: %d (last map=%p)\n",
+			errno, last_map);
+		}
+
+		return 0;
+	}
+	---------------------------------------------------------------
+
+	$ gcc -m32 -o test test.c
+	$ sudo sysctl -w vm.mmap_min_addr=65536
+	vm.mmap_min_addr = 65536
+	$ ./test  (run as non-priviledge user)
+	ERR: unexpected errno: 1 (last map=0x10000)
+
+Signed-off-by: Akira Takeuchi <takeuchi.akr@jp.panasonic.com>
+Signed-off-by: Kiyoshi Owada <owada.kiyoshi@jp.panasonic.com>
+---
+ mm/mmap.c |   10 +++++-----
+ 1 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 9d54851..362e5f1 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1856,7 +1856,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
+ 	struct vm_area_struct *vma;
+ 	struct vm_unmapped_area_info info;
+ 
+-	if (len > TASK_SIZE)
++	if (len > TASK_SIZE - mmap_min_addr)
+ 		return -ENOMEM;
+ 
+ 	if (flags & MAP_FIXED)
+@@ -1865,7 +1865,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
+ 	if (addr) {
+ 		addr = PAGE_ALIGN(addr);
+ 		vma = find_vma(mm, addr);
+-		if (TASK_SIZE - len >= addr &&
++		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
+ 		    (!vma || addr + len <= vma->vm_start))
+ 			return addr;
+ 	}
+@@ -1895,7 +1895,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+ 	struct vm_unmapped_area_info info;
+ 
+ 	/* requested length too big for entire address space */
+-	if (len > TASK_SIZE)
++	if (len > TASK_SIZE - mmap_min_addr)
+ 		return -ENOMEM;
+ 
+ 	if (flags & MAP_FIXED)
+@@ -1905,14 +1905,14 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+ 	if (addr) {
+ 		addr = PAGE_ALIGN(addr);
+ 		vma = find_vma(mm, addr);
+-		if (TASK_SIZE - len >= addr &&
++		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
+ 				(!vma || addr + len <= vma->vm_start))
+ 			return addr;
+ 	}
+ 
+ 	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
+ 	info.length = len;
+-	info.low_limit = PAGE_SIZE;
++	info.low_limit = max(PAGE_SIZE, mmap_min_addr);
+ 	info.high_limit = mm->mmap_base;
+ 	info.align_mask = 0;
+ 	addr = vm_unmapped_area(&info);
+-- 
+1.7.0.4
+
+
+-- 
+Akira Takeuchi <takeuchi.akr@jp.panasonic.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
