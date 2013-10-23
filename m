@@ -1,55 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id EDCFE6B00E0
-	for <linux-mm@kvack.org>; Wed, 23 Oct 2013 07:33:27 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id bj1so1034524pad.21
-        for <linux-mm@kvack.org>; Wed, 23 Oct 2013 04:33:27 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.136])
-        by mx.google.com with SMTP id ll9si15179242pab.240.2013.10.23.04.33.26
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C0CC6B00DC
+	for <linux-mm@kvack.org>; Wed, 23 Oct 2013 07:52:27 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id kq14so1064990pab.12
+        for <linux-mm@kvack.org>; Wed, 23 Oct 2013 04:52:27 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.133])
+        by mx.google.com with SMTP id gl1si15200589pac.285.2013.10.23.04.52.25
         for <linux-mm@kvack.org>;
-        Wed, 23 Oct 2013 04:33:27 -0700 (PDT)
-From: Qiang Huang <h.huangqiang@huawei.com>
-Subject: [PATCH 1/3] memcg, kmem: Use is_root_cache instead of hard code
-Date: Wed, 23 Oct 2013 19:31:13 +0800
-Message-ID: <1382527875-10112-2-git-send-email-h.huangqiang@huawei.com>
-In-Reply-To: <1382527875-10112-1-git-send-email-h.huangqiang@huawei.com>
-References: <1382527875-10112-1-git-send-email-h.huangqiang@huawei.com>
+        Wed, 23 Oct 2013 04:52:26 -0700 (PDT)
+From: "Bobniev, Roman" <Roman.Bobniev@sonymobile.com>
+Date: Wed, 23 Oct 2013 13:52:19 +0200
+Subject: RE: [PATCH] slub: proper kmemleak tracking if CONFIG_SLUB_DEBUG
+ disabled
+Message-ID: <F901C6708ADD5241BD39AFE3DD266906013746E21BDC@seldmbx01.corpusers.net>
+References: <1381273137-14680-1-git-send-email-tim.bird@sonymobile.com>,<000001419e9e3e33-67807dca-e435-43ee-88bc-3ead54a83762-000000@email.amazonses.com>
+In-Reply-To: <000001419e9e3e33-67807dca-e435-43ee-88bc-3ead54a83762-000000@email.amazonses.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, cl@linux-foundation.org, penberg@kernel.org, glommer@parallels.com, rientjes@google.com, cgroups@vger.kernel.org, linux-mm@kvack.org, lizefan@huawei.com
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "frowand.list@gmail.com" <frowand.list@gmail.com>, =?iso-8859-1?Q?=22Andersson=2C_Bj=F6rn=22?= <Bjorn.Andersson@sonymobile.com>, "tbird20d@gmail.com" <tbird20d@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, "Bird,
+ Tim" <Tim.Bird@sonymobile.com>, "cl@linux.com" <cl@linux.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-Signed-off-by: Qiang Huang <h.huangqiang@huawei.com>
----
- mm/memcontrol.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+> On Tue, 8 Oct 2013, Tim Bird wrote:
+>=20
+> > It also fixes a bug where kmemleak was only partially enabled in some
+> > configurations.
+>=20
+> Acked-by: Christoph Lameter <cl@linux.com>
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b73988a..15ad0e3 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -57,6 +57,7 @@
- #include <net/sock.h>
- #include <net/ip.h>
- #include <net/tcp_memcontrol.h>
-+#include "slab.h"
- 
- #include <asm/uaccess.h>
- 
-@@ -3064,7 +3065,7 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
- {
- 	struct memcg_cache_params *cur_params = s->memcg_params;
- 
--	VM_BUG_ON(s->memcg_params && !s->memcg_params->is_root_cache);
-+	VM_BUG_ON(!is_root_cache(s));
- 
- 	if (num_groups > memcg_limited_groups_array_size) {
- 		int i;
--- 
-1.8.3
+Could you help me, who the maintainer is that
+puts this patch in a tree and pushes it to mainline?
+Do we wait on some additional Ack from someone?
 
+With best regards,
+Roman.=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
