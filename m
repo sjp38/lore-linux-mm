@@ -1,106 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 7985F6B00DC
-	for <linux-mm@kvack.org>; Wed, 23 Oct 2013 17:01:47 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id bj1so1875894pad.28
-        for <linux-mm@kvack.org>; Wed, 23 Oct 2013 14:01:47 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.179])
-        by mx.google.com with SMTP id hj4si16483542pac.68.2013.10.23.14.01.45
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A08E6B00DC
+	for <linux-mm@kvack.org>; Wed, 23 Oct 2013 17:43:05 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id wy17so1568771pbc.39
+        for <linux-mm@kvack.org>; Wed, 23 Oct 2013 14:43:04 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.121])
+        by mx.google.com with SMTP id sg3si3119179pbb.253.2013.10.23.14.42.58
         for <linux-mm@kvack.org>;
-        Wed, 23 Oct 2013 14:01:46 -0700 (PDT)
-Received: by mail-qe0-f50.google.com with SMTP id 1so866959qee.23
-        for <linux-mm@kvack.org>; Wed, 23 Oct 2013 14:01:44 -0700 (PDT)
-From: kosaki.motohiro@gmail.com
-Subject: [PATCH] mm: get rid of unnecessary pageblock scanning in setup_zone_migrate_reserve
-Date: Wed, 23 Oct 2013 17:01:32 -0400
-Message-Id: <1382562092-15570-1-git-send-email-kosaki.motohiro@gmail.com>
+        Wed, 23 Oct 2013 14:42:59 -0700 (PDT)
+Received: by mail-lb0-f176.google.com with SMTP id z5so1221606lbh.21
+        for <linux-mm@kvack.org>; Wed, 23 Oct 2013 14:42:55 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CANN689GGTnkG1+=aH1PDxkEyN3VdCfHLjDfA3VErpOpT84rZTg@mail.gmail.com>
+References: <1382057438-3306-1-git-send-email-davidlohr@hp.com>
+ <20131022154802.GA25490@localhost> <5266BBC7.9030207@mit.edu> <CANN689GGTnkG1+=aH1PDxkEyN3VdCfHLjDfA3VErpOpT84rZTg@mail.gmail.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Wed, 23 Oct 2013 14:42:34 -0700
+Message-ID: <CALCETrVemOctXwA8Waa1bOWew7eW5fU_gAcBUvmuyL7-qK-uRg@mail.gmail.com>
+Subject: Re: [PATCH 0/3] mm,vdso: preallocate new vmas
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+To: Michel Lespinasse <walken@google.com>
+Cc: Davidlohr Bueso <davidlohr@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, aswin@hp.com, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Wed, Oct 23, 2013 at 3:13 AM, Michel Lespinasse <walken@google.com> wrote:
+> On Tue, Oct 22, 2013 at 10:54 AM, Andy Lutomirski <luto@amacapital.net> wrote:
+>> On 10/22/2013 08:48 AM, walken@google.com wrote:
+>>> Generally the problems I see with mmap_sem are related to long latency
+>>> operations. Specifically, the mmap_sem write side is currently held
+>>> during the entire munmap operation, which iterates over user pages to
+>>> free them, and can take hundreds of milliseconds for large VMAs.
+>>
+>> This is the leading cause of my "egads, something that should have been
+>> fast got delayed for several ms" detector firing.
+>
+> Yes, I'm seeing such issues relatively frequently as well.
+>
+>>  I've been wondering:
+>>
+>> Could we replace mmap_sem with some kind of efficient range lock?  The
+>> operations would be:
+>>
+>>  - mm_lock_all_write (drop-in replacement for down_write(&...->mmap_sem))
+>>  - mm_lock_all_read (same for down_read)
+>>  - mm_lock_write_range(mm, start, end)
+>>  - mm_lock_read_range(mm, start_end)
+>>
+>> and corresponding unlock functions (that maybe take a cookie that the
+>> lock functions return or that take a pointer to some small on-stack data
+>> structure).
+>
+> That seems doable, however I believe we can get rid of the latencies
+> in the first place which seems to be a better direction. As I briefly
+> mentioned, I would like to tackle the munmap problem sometime; Jan
+> Kara also has a project to remove places where blocking FS functions
+> are called with mmap_sem held (he's doing it for lock ordering
+> purposes, so that FS can call in to MM functions that take mmap_sem,
+> but there are latency benefits as well if we can avoid blocking in FS
+> with mmap_sem held).
 
-Yasuaki Ithimatsu reported memory hot-add spent more than 5 _hours_
-on 9TB memory machine and we found out setup_zone_migrate_reserve
-spnet >90% time.
+There will still be scalability issues if there are enough threads,
+but maybe this isn't so bad.  (My workload may also have priority
+inversion problems -- there's a thread that runs on its own core and
+needs the mmap_sem read lock and a thread that runs on a highly
+contended core that needs the write lock.)
 
-The problem is, setup_zone_migrate_reserve scan all pageblock
-unconditionally, but it is only necessary number of reserved block
-was reduced (i.e. memory hot remove).
-Moreover, maximum MIGRATE_RESERVE per zone are currently 2. It mean,
-number of reserved pageblock are almost always unchanged.
+>
+>> The easiest way to implement this that I can think of is a doubly-linked
+>> list or even just an array, which should be fine for a handful of
+>> threads.  Beyond that, I don't really know.  Creating a whole trie for
+>> these things would be expensive, and fine-grained locking on rbtree-like
+>> things isn't so easy.
+>
+> Jan also had an implementation of range locks using interval trees. To
+> take a range lock, you'd add the range you want to the interval tree,
+> count the conflicting range lock requests that were there before you,
+> and (if nonzero) block until that count goes to 0. When releasing the
+> range lock, you look for any conflicting requests in the interval tree
+> and decrement their conflict count, waking them up if the count goes
+> to 0.
 
-This patch adds zone->nr_migrate_reserve_block to maintain number
-of MIGRATE_RESERVE pageblock and it reduce an overhead of
-setup_zone_migrate_reserve dramatically.
+Yuck.  Now we're taking a per-mm lock on the rbtree, doing some
+cacheline-bouncing rbtree operations, and dropping the lock to
+serialize access to something that probably only has a small handful
+of accessors at a time.  I bet that an O(num locks) array or linked
+list will end up being faster in practice.
 
-Cc: Mel Gorman <mgorman@suse.de>
-Reported-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- include/linux/mmzone.h |    6 ++++++
- mm/page_alloc.c        |   13 +++++++++++++
- 2 files changed, 19 insertions(+), 0 deletions(-)
+I think the idea solution would be to shove these things into the page
+tables somehow, but that seems impossibly complicated.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index bd791e4..67ab5fe 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -490,6 +490,12 @@ struct zone {
- 	unsigned long		managed_pages;
- 
- 	/*
-+	 * Number of MIGRATE_RESEVE page block. To maintain for just
-+	 * optimization. Protected by zone->lock.
-+	 */
-+	int			nr_migrate_reserve_block;
-+
-+	/*
- 	 * rarely used fields:
- 	 */
- 	const char		*name;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 58e67ea..76ca054 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3909,6 +3909,7 @@ static void setup_zone_migrate_reserve(struct zone *zone)
- 	struct page *page;
- 	unsigned long block_migratetype;
- 	int reserve;
-+	int old_reserve;
- 
- 	/*
- 	 * Get the start pfn, end pfn and the number of blocks to reserve
-@@ -3930,6 +3931,12 @@ static void setup_zone_migrate_reserve(struct zone *zone)
- 	 * future allocation of hugepages at runtime.
- 	 */
- 	reserve = min(2, reserve);
-+	old_reserve = zone->nr_migrate_reserve_block;
-+
-+	/* When memory hot-add, we almost always need to do nothing */
-+	if (reserve == old_reserve)
-+		return;
-+	zone->nr_migrate_reserve_block = reserve;
- 
- 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
- 		if (!pfn_valid(pfn))
-@@ -3967,6 +3974,12 @@ static void setup_zone_migrate_reserve(struct zone *zone)
- 				reserve--;
- 				continue;
- 			}
-+		} else if (!old_reserve) {
-+			/*
-+			 * When boot time, we don't need scan whole zone
-+			 * for turning off MIGRATE_RESERVE.
-+			 */
-+			break;
- 		}
- 
- 		/*
+--Andy
+
+>
+> But as I said earlier, I would prefer if we could avoid holding
+> mmap_sem during long-latency operations rather than working around
+> this issue with range locks.
+>
+> --
+> Michel "Walken" Lespinasse
+> A program is never fully debugged until the last user dies.
+
+
+
 -- 
-1.7.1
+Andy Lutomirski
+AMA Capital Management, LLC
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
