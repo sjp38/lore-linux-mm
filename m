@@ -1,105 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E1D36B00DC
-	for <linux-mm@kvack.org>; Wed, 23 Oct 2013 05:46:14 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id kx10so905562pab.27
-        for <linux-mm@kvack.org>; Wed, 23 Oct 2013 02:46:14 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.128])
-        by mx.google.com with SMTP id js8si1510845pbc.104.2013.10.23.02.46.12
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 986C56B00DC
+	for <linux-mm@kvack.org>; Wed, 23 Oct 2013 05:53:45 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id xb12so691108pbc.36
+        for <linux-mm@kvack.org>; Wed, 23 Oct 2013 02:53:45 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.148])
+        by mx.google.com with SMTP id sw1si1497572pbc.312.2013.10.23.02.53.43
         for <linux-mm@kvack.org>;
-        Wed, 23 Oct 2013 02:46:13 -0700 (PDT)
-Message-ID: <52679ADD.3080202@suse.cz>
-Date: Wed, 23 Oct 2013 11:46:05 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        Wed, 23 Oct 2013 02:53:44 -0700 (PDT)
+Received: by mail-ea0-f169.google.com with SMTP id k11so291172eaj.0
+        for <linux-mm@kvack.org>; Wed, 23 Oct 2013 02:53:41 -0700 (PDT)
+Date: Wed, 23 Oct 2013 02:53:37 -0700
+From: walken@google.com
+Subject: Re: [PATCH 3/3] vdso: preallocate new vmas
+Message-ID: <20131023095337.GC2862@localhost>
+References: <1382057438-3306-1-git-send-email-davidlohr@hp.com>
+ <1382057438-3306-4-git-send-email-davidlohr@hp.com>
+ <1382325975.2402.3.camel@buesod1.americas.hpqcorp.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] mm/mlock: prepare params outside critical region
-References: <1382057438-3306-1-git-send-email-davidlohr@hp.com> <1382057438-3306-3-git-send-email-davidlohr@hp.com>
-In-Reply-To: <1382057438-3306-3-git-send-email-davidlohr@hp.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1382325975.2402.3.camel@buesod1.americas.hpqcorp.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Michel Lespinasse <walken@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, aswin@hp.com, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Michel Lespinasse <walken@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, aswin@hp.com, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Richard Kuo <rkuo@codeaurora.org>, Ralf Baechle <ralf@linux-mips.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Paul Mundt <lethal@linux-sh.org>, Chris Metcalf <cmetcalf@tilera.com>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 
-On 10/18/2013 02:50 AM, Davidlohr Bueso wrote:
-> All mlock related syscalls prepare lock limits, lengths and
-> start parameters with the mmap_sem held. Move this logic
-> outside of the critical region. For the case of mlock, continue
-> incrementing the amount already locked by mm->locked_vm with
-> the rwsem taken.
+On Sun, Oct 20, 2013 at 08:26:15PM -0700, Davidlohr Bueso wrote:
+> From: Davidlohr Bueso <davidlohr@hp.com>
+> Subject: [PATCH v2 3/3] vdso: preallocate new vmas
+> 
+> With the exception of um and tile, architectures that use
+> the install_special_mapping() function, when setting up a
+> new vma at program startup, do so with the mmap_sem lock
+> held for writing. Unless there's an error, this process
+> ends up allocating a new vma through kmem_cache_zalloc,
+> and inserting it in the task's address space.
+> 
+> This patch moves the vma's space allocation outside of
+> install_special_mapping(), and leaves the callers to do so
+> explicitly, without depending on mmap_sem. The same goes for
+> freeing: if the new vma isn't used (and thus the process fails
+> at some point), it's caller's responsibility to free it -
+> currently this is done inside install_special_mapping.
+> 
+> Furthermore, uprobes behaves exactly the same and thus now the
+> xol_add_vma() function also preallocates the new vma.
+> 
+> While the changes to x86 vdso handling have been tested on both
+> large and small 64-bit systems, the rest of the architectures
+> are totally *untested*. Note that all changes are quite similar
+> from architecture to architecture.
 > 
 > Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
-> Cc: Michel Lespinasse <walken@google.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
+> Cc: Russell King <linux@arm.linux.org.uk>
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: Richard Kuo <rkuo@codeaurora.org>
+> Cc: Ralf Baechle <ralf@linux-mips.org>
+> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> Cc: Paul Mackerras <paulus@samba.org>
+> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+> Cc: Paul Mundt <lethal@linux-sh.org>
+> Cc: Chris Metcalf <cmetcalf@tilera.com>
+> Cc: Jeff Dike <jdike@addtoit.com>
+> Cc: Richard Weinberger <richard@nod.at>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 > ---
->  mm/mlock.c | 18 +++++++++++-------
->  1 file changed, 11 insertions(+), 7 deletions(-)
-> 
-> diff --git a/mm/mlock.c b/mm/mlock.c
-> index d480cd6..aa7de13 100644
-> --- a/mm/mlock.c
-> +++ b/mm/mlock.c
-> @@ -689,19 +689,21 @@ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
->  
->  	lru_add_drain_all();	/* flush pagevec */
->  
-> -	down_write(&current->mm->mmap_sem);
->  	len = PAGE_ALIGN(len + (start & ~PAGE_MASK));
->  	start &= PAGE_MASK;
->  
-> -	locked = len >> PAGE_SHIFT;
-> -	locked += current->mm->locked_vm;
-> -
->  	lock_limit = rlimit(RLIMIT_MEMLOCK);
->  	lock_limit >>= PAGE_SHIFT;
-> +	locked = len >> PAGE_SHIFT;
-> +
-> +	down_write(&current->mm->mmap_sem);
-> +
-> +	locked += current->mm->locked_vm;
->  
->  	/* check against resource limits */
->  	if ((locked <= lock_limit) || capable(CAP_IPC_LOCK))
->  		error = do_mlock(start, len, 1);
-> +
->  	up_write(&current->mm->mmap_sem);
->  	if (!error)
->  		error = __mm_populate(start, len, 0);
-> @@ -712,11 +714,13 @@ SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
->  {
->  	int ret;
->  
-> -	down_write(&current->mm->mmap_sem);
->  	len = PAGE_ALIGN(len + (start & ~PAGE_MASK));
->  	start &= PAGE_MASK;
-> +
-> +	down_write(&current->mm->mmap_sem);
->  	ret = do_mlock(start, len, 0);
->  	up_write(&current->mm->mmap_sem);
-> +
->  	return ret;
->  }
->  
-> @@ -761,12 +765,12 @@ SYSCALL_DEFINE1(mlockall, int, flags)
->  	if (flags & MCL_CURRENT)
->  		lru_add_drain_all();	/* flush pagevec */
->  
-> -	down_write(&current->mm->mmap_sem);
-> -
->  	lock_limit = rlimit(RLIMIT_MEMLOCK);
->  	lock_limit >>= PAGE_SHIFT;
->  
->  	ret = -ENOMEM;
-> +	down_write(&current->mm->mmap_sem);
-> +
->  	if (!(flags & MCL_CURRENT) || (current->mm->total_vm <= lock_limit) ||
->  	    capable(CAP_IPC_LOCK))
->  		ret = do_mlockall(flags);
-> 
+> v2:
+> - Simplify install_special_mapping interface (Linus Torvalds)
+> - Fix return for uml_setup_stubs when mem allocation fails (Richard Weinberger)
+
+I'm still confused as to why you're seeing any gains with this
+one. This code runs during exec when mm isn't shared with any other
+threads yet, so why does it matter how long the mmap_sem is held since
+nobody else can contend on it ? (well, except for accesses from
+/fs/proc/base.c, but I don't see why these would matter in your
+benchmarks either).
+
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
