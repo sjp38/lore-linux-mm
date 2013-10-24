@@ -1,364 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id C10716B00DF
-	for <linux-mm@kvack.org>; Thu, 24 Oct 2013 05:54:17 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id p10so2167374pdj.8
-        for <linux-mm@kvack.org>; Thu, 24 Oct 2013 02:54:17 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.103])
-        by mx.google.com with SMTP id mi5si1449521pab.251.2013.10.24.02.54.15
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 789DA6B00DC
+	for <linux-mm@kvack.org>; Thu, 24 Oct 2013 06:42:51 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id g10so2229828pdj.20
+        for <linux-mm@kvack.org>; Thu, 24 Oct 2013 03:42:51 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.102])
+        by mx.google.com with SMTP id hb3si1565627pac.239.2013.10.24.03.42.49
         for <linux-mm@kvack.org>;
-        Thu, 24 Oct 2013 02:54:16 -0700 (PDT)
-Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout2.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MV600JBX3ID39Z0@mailout2.samsung.com> for
- linux-mm@kvack.org; Thu, 24 Oct 2013 18:54:14 +0900 (KST)
-From: Weijie Yang <weijie.yang@samsung.com>
-Subject: [PATCH RESEND 2/2] mm/zswap: refoctor the get/put routines
-Date: Thu, 24 Oct 2013 17:53:32 +0800
-Message-id: <000101ced09e$fed90a10$fc8b1e30$%yang@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8
-Content-transfer-encoding: 7bit
-Content-language: zh-cn
+        Thu, 24 Oct 2013 03:42:50 -0700 (PDT)
+Received: by mail-ie0-f178.google.com with SMTP id x13so3628441ief.9
+        for <linux-mm@kvack.org>; Thu, 24 Oct 2013 03:42:48 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <526844E6.1080307@codeaurora.org>
+References: <526844E6.1080307@codeaurora.org>
+Date: Thu, 24 Oct 2013 18:42:48 +0800
+Message-ID: <CAL1ERfOSmgo=j4YHHREY8uzyh+nbRrsFdBZ86FhMXxP5GEHQkQ@mail.gmail.com>
+Subject: Re: zram/zsmalloc issues in very low memory conditions
+From: Weijie Yang <weijie.yang.kh@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: sjennings@variantweb.net, 'Minchan Kim' <minchan@kernel.org>, bob.liu@oracle.com, weijie.yang.kh@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: Olav Haugan <ohaugan@codeaurora.org>
+Cc: minchan@kernel.org, sjenning@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, semenzato@google.com, bob.liu@oracle.com
 
-The refcount routine was not fit the kernel get/put semantic exactly,
-There were too many judgement statements on refcount and it could be minus.
+On Thu, Oct 24, 2013 at 5:51 AM, Olav Haugan <ohaugan@codeaurora.org> wrote:
+> I am trying to use zram in very low memory conditions and I am having
+> some issues. zram is in the reclaim path. So if the system is very low
+> on memory the system is trying to reclaim pages by swapping out (in this
+> case to zram). However, since we are very low on memory zram fails to
+> get a page from zsmalloc and thus zram fails to store the page. We get
+> into a cycle where the system is low on memory so it tries to swap out
+> to get more memory but swap out fails because there is not enough memory
+> in the system! The major problem I am seeing is that there does not seem
+> to be a way for zram to tell the upper layers to stop swapping out
+> because the swap device is essentially "full" (since there is no more
+> memory available for zram pages). Has anyone thought about this issue
+> already and have ideas how to solve this or am I missing something and I
+> should not be seeing this issue?
 
-This patch does the following:
+I agree with Luigi and Bob.
 
-- move refcount judgement to zswap_entry_put() to hide resource free function.
+zram's size is based on how many free memory you expect to use for zram.
+In my test, the compression ratio is about 1:4, of course the working
+sets may be
+different with yours.
 
-- add a new function zswap_entry_find_get(), so that callers can use easily
-in the following pattern:
+Further more, may be you can modify vm_swap_full() to let kernel free swap_entry
+aggressively.
 
-   zswap_entry_find_get
-   .../* do something */
-   zswap_entry_put
 
-- to eliminate compile error, move some functions declaration
-
-This patch is based on Minchan Kim <minchan@kernel.org> 's idea and suggestion.
-
-Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
-Cc: Seth Jennings <sjennings@variantweb.net>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Bob Liu <bob.liu@oracle.com>
----
- mm/zswap.c |  182 +++++++++++++++++++++++++++++-------------------------------
- 1 file changed, 88 insertions(+), 94 deletions(-)
-
-diff --git a/mm/zswap.c b/mm/zswap.c
-index 6b86251..1c12e33 100755
---- a/mm/zswap.c
-+++ b/mm/zswap.c
-@@ -217,6 +217,7 @@ static struct zswap_entry *zswap_entry_cache_alloc(gfp_t gfp)
- 	if (!entry)
- 		return NULL;
- 	entry->refcount = 1;
-+	RB_CLEAR_NODE(&entry->rbnode);
- 	return entry;
- }
- 
-@@ -225,19 +226,6 @@ static void zswap_entry_cache_free(struct zswap_entry *entry)
- 	kmem_cache_free(zswap_entry_cache, entry);
- }
- 
--/* caller must hold the tree lock */
--static void zswap_entry_get(struct zswap_entry *entry)
--{
--	entry->refcount++;
--}
--
--/* caller must hold the tree lock */
--static int zswap_entry_put(struct zswap_entry *entry)
--{
--	entry->refcount--;
--	return entry->refcount;
--}
--
- /*********************************
- * rbtree functions
- **********************************/
-@@ -285,6 +273,61 @@ static int zswap_rb_insert(struct rb_root *root, struct zswap_entry *entry,
- 	return 0;
- }
- 
-+static void zswap_rb_erase(struct rb_root *root, struct zswap_entry *entry)
-+{
-+	if (!RB_EMPTY_NODE(&entry->rbnode)) {
-+		rb_erase(&entry->rbnode, root);
-+		RB_CLEAR_NODE(&entry->rbnode);
-+	}
-+}
-+
-+/*
-+ * Carries out the common pattern of freeing and entry's zsmalloc allocation,
-+ * freeing the entry itself, and decrementing the number of stored pages.
-+ */
-+static void zswap_free_entry(struct zswap_tree *tree,
-+			struct zswap_entry *entry)
-+{
-+	zbud_free(tree->pool, entry->handle);
-+	zswap_entry_cache_free(entry);
-+	atomic_dec(&zswap_stored_pages);
-+	zswap_pool_pages = zbud_get_pool_size(tree->pool);
-+}
-+
-+/* caller must hold the tree lock */
-+static void zswap_entry_get(struct zswap_entry *entry)
-+{
-+	entry->refcount++;
-+}
-+
-+/* caller must hold the tree lock
-+* remove from the tree and free it, if nobody reference the entry
-+*/
-+static void zswap_entry_put(struct zswap_tree *tree,
-+			struct zswap_entry *entry)
-+{
-+	int refcount = --entry->refcount;
-+
-+	BUG_ON(refcount < 0);
-+	if (refcount == 0) {
-+		zswap_rb_erase(&tree->rbroot, entry);
-+		zswap_free_entry(tree, entry);
-+	}
-+}
-+
-+/* caller must hold the tree lock */
-+static struct zswap_entry *zswap_entry_find_get(struct rb_root *root,
-+				pgoff_t offset)
-+{
-+	struct zswap_entry *entry = NULL;
-+
-+	entry = zswap_rb_search(root, offset);
-+	if (entry)
-+		zswap_entry_get(entry);
-+
-+	return entry;
-+}
-+
- /*********************************
- * per-cpu code
- **********************************/
-@@ -368,18 +411,6 @@ static bool zswap_is_full(void)
- 		zswap_pool_pages);
- }
- 
--/*
-- * Carries out the common pattern of freeing and entry's zsmalloc allocation,
-- * freeing the entry itself, and decrementing the number of stored pages.
-- */
--static void zswap_free_entry(struct zswap_tree *tree, struct zswap_entry *entry)
--{
--	zbud_free(tree->pool, entry->handle);
--	zswap_entry_cache_free(entry);
--	atomic_dec(&zswap_stored_pages);
--	zswap_pool_pages = zbud_get_pool_size(tree->pool);
--}
--
- /*********************************
- * writeback code
- **********************************/
-@@ -503,7 +534,7 @@ static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
- 	struct page *page;
- 	u8 *src, *dst;
- 	unsigned int dlen;
--	int ret, refcount;
-+	int ret;
- 	struct writeback_control wbc = {
- 		.sync_mode = WB_SYNC_NONE,
- 	};
-@@ -518,13 +549,12 @@ static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
- 
- 	/* find and ref zswap entry */
- 	spin_lock(&tree->lock);
--	entry = zswap_rb_search(&tree->rbroot, offset);
-+	entry = zswap_entry_find_get(&tree->rbroot, offset);
- 	if (!entry) {
- 		/* entry was invalidated */
- 		spin_unlock(&tree->lock);
- 		return 0;
- 	}
--	zswap_entry_get(entry);
- 	spin_unlock(&tree->lock);
- 	BUG_ON(offset != entry->offset);
- 
-@@ -563,42 +593,35 @@ static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
- 	zswap_written_back_pages++;
- 
- 	spin_lock(&tree->lock);
--
- 	/* drop local reference */
--	zswap_entry_put(entry);
--	/* drop the initial reference from entry creation */
--	refcount = zswap_entry_put(entry);
-+	zswap_entry_put(tree, entry);
- 
- 	/*
--	 * There are three possible values for refcount here:
--	 * (1) refcount is 1, load is in progress, unlink from rbtree,
--	 *     load will free
--	 * (2) refcount is 0, (normal case) entry is valid,
--	 *     remove from rbtree and free entry
--	 * (3) refcount is -1, invalidate happened during writeback,
--	 *     free entry
--	 */
--	if (refcount >= 0) {
--		/* no invalidate yet, remove from rbtree */
--		rb_erase(&entry->rbnode, &tree->rbroot);
--	}
-+	* There are two possible situations for entry here:
-+	* (1) refcount is 1(normal case),  entry is valid and on the tree
-+	* (2) refcount is 0, entry is freed and not on the tree
-+	*     because invalidate happened during writeback
-+	*  search the tree and free the entry if find entry
-+	*/
-+	if (entry == zswap_rb_search(&tree->rbroot, offset))
-+		zswap_entry_put(tree, entry);
- 	spin_unlock(&tree->lock);
--	if (refcount <= 0) {
--		/* free the entry */
--		zswap_free_entry(tree, entry);
--		return 0;
--	}
--	return -EAGAIN;
- 
-+	goto end;
-+
-+	/*
-+	* if we get here due to ZSWAP_SWAPCACHE_EXIST
-+	* a load may happening concurrently
-+	* it is safe and okay to not free the entry
-+	* if we free the entry in the following put
-+	* it it either okay to return !0
-+	*/
- fail:
- 	spin_lock(&tree->lock);
--	refcount = zswap_entry_put(entry);
--	if (refcount <= 0) {
--		/* invalidate happened, consider writeback as success */
--		zswap_free_entry(tree, entry);
--		ret = 0;
--	}
-+	zswap_entry_put(tree, entry);
- 	spin_unlock(&tree->lock);
-+
-+end:
- 	return ret;
- }
- 
-@@ -682,11 +705,8 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
- 		if (ret == -EEXIST) {
- 			zswap_duplicate_entry++;
- 			/* remove from rbtree */
--			rb_erase(&dupentry->rbnode, &tree->rbroot);
--			if (!zswap_entry_put(dupentry)) {
--				/* free */
--				zswap_free_entry(tree, dupentry);
--			}
-+			zswap_rb_erase(&tree->rbroot, dupentry);
-+			zswap_entry_put(tree, dupentry);
- 		}
- 	} while (ret == -EEXIST);
- 	spin_unlock(&tree->lock);
-@@ -715,17 +735,16 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
- 	struct zswap_entry *entry;
- 	u8 *src, *dst;
- 	unsigned int dlen;
--	int refcount, ret;
-+	int ret;
- 
- 	/* find */
- 	spin_lock(&tree->lock);
--	entry = zswap_rb_search(&tree->rbroot, offset);
-+	entry = zswap_entry_find_get(&tree->rbroot, offset);
- 	if (!entry) {
- 		/* entry was written back */
- 		spin_unlock(&tree->lock);
- 		return -1;
- 	}
--	zswap_entry_get(entry);
- 	spin_unlock(&tree->lock);
- 
- 	/* decompress */
-@@ -740,22 +759,9 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
- 	BUG_ON(ret);
- 
- 	spin_lock(&tree->lock);
--	refcount = zswap_entry_put(entry);
--	if (likely(refcount)) {
--		spin_unlock(&tree->lock);
--		return 0;
--	}
-+	zswap_entry_put(tree, entry);
- 	spin_unlock(&tree->lock);
- 
--	/*
--	 * We don't have to unlink from the rbtree because
--	 * zswap_writeback_entry() or zswap_frontswap_invalidate page()
--	 * has already done this for us if we are the last reference.
--	 */
--	/* free */
--
--	zswap_free_entry(tree, entry);
--
- 	return 0;
- }
- 
-@@ -764,7 +770,6 @@ static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
- {
- 	struct zswap_tree *tree = zswap_trees[type];
- 	struct zswap_entry *entry;
--	int refcount;
- 
- 	/* find */
- 	spin_lock(&tree->lock);
-@@ -776,20 +781,12 @@ static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
- 	}
- 
- 	/* remove from rbtree */
--	rb_erase(&entry->rbnode, &tree->rbroot);
-+	zswap_rb_erase(&tree->rbroot, entry);
- 
- 	/* drop the initial reference from entry creation */
--	refcount = zswap_entry_put(entry);
-+	zswap_entry_put(tree, entry);
- 
- 	spin_unlock(&tree->lock);
--
--	if (refcount) {
--		/* writeback in progress, writeback will free */
--		return;
--	}
--
--	/* free */
--	zswap_free_entry(tree, entry);
- }
- 
- /* frees all zswap entries for the given swap type */
-@@ -803,11 +800,8 @@ static void zswap_frontswap_invalidate_area(unsigned type)
- 
- 	/* walk the tree and free everything */
- 	spin_lock(&tree->lock);
--	rbtree_postorder_for_each_entry_safe(entry, n, &tree->rbroot, rbnode) {
--		zbud_free(tree->pool, entry->handle);
--		zswap_entry_cache_free(entry);
--		atomic_dec(&zswap_stored_pages);
--	}
-+	rbtree_postorder_for_each_entry_safe(entry, n, &tree->rbroot, rbnode)
-+		zswap_free_entry(tree, entry);
- 	tree->rbroot = RB_ROOT;
- 	spin_unlock(&tree->lock);
- 
--- 
-1.7.10.4
-
+> I am also seeing a couple other issues that I was wondering whether
+> folks have already thought about:
+>
+> 1) The size of a swap device is statically computed when the swap device
+> is turned on (nr_swap_pages). The size of zram swap device is dynamic
+> since we are compressing the pages and thus the swap subsystem thinks
+> that the zram swap device is full when it is not really full. Any
+> plans/thoughts about the possibility of being able to update the size
+> and/or the # of available pages in a swap device on the fly?
+>
+> 2) zsmalloc fails when the page allocated is at physical address 0 (pfn
+> = 0) since the handle returned from zsmalloc is encoded as (<PFN>,
+> <obj_idx>) and thus the resulting handle will be 0 (since obj_idx starts
+> at 0). zs_malloc returns the handle but does not distinguish between a
+> valid handle of 0 and a failure to allocate. A possible solution to this
+> would be to start the obj_idx at 1. Is this feasible?
+>
+> Thanks,
+>
+> Olav Haugan
+>
+> --
+> The Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+> hosted by The Linux Foundation
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
