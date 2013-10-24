@@ -1,24 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F6916B00DC
-	for <linux-mm@kvack.org>; Thu, 24 Oct 2013 05:53:32 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id lf10so2226683pab.6
-        for <linux-mm@kvack.org>; Thu, 24 Oct 2013 02:53:31 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.202])
-        by mx.google.com with SMTP id if1si1442177pad.291.2013.10.24.02.53.30
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id C10716B00DF
+	for <linux-mm@kvack.org>; Thu, 24 Oct 2013 05:54:17 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id p10so2167374pdj.8
+        for <linux-mm@kvack.org>; Thu, 24 Oct 2013 02:54:17 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.103])
+        by mx.google.com with SMTP id mi5si1449521pab.251.2013.10.24.02.54.15
         for <linux-mm@kvack.org>;
-        Thu, 24 Oct 2013 02:53:31 -0700 (PDT)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout1.samsung.com
+        Thu, 24 Oct 2013 02:54:16 -0700 (PDT)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout2.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MV600LGL3H4XUB0@mailout1.samsung.com> for
- linux-mm@kvack.org; Thu, 24 Oct 2013 18:53:28 +0900 (KST)
+ 17 2011)) with ESMTP id <0MV600JBX3ID39Z0@mailout2.samsung.com> for
+ linux-mm@kvack.org; Thu, 24 Oct 2013 18:54:14 +0900 (KST)
 From: Weijie Yang <weijie.yang@samsung.com>
-Subject: =?utf-8?Q?=5BPATCH_RESEND_1/2=5D_mm/zswap:_bug?=
-	=?utf-8?Q?fix:_memory_leak_when_invalidate?=
-	=?utf-8?Q?_and_reclaim_occur_concurrent=E2=80=8Bly?=
-Date: Thu, 24 Oct 2013 17:51:11 +0800
-Message-id: <000001ced09e$e3718180$aa548480$%yang@samsung.com>
+Subject: [PATCH RESEND 2/2] mm/zswap: refoctor the get/put routines
+Date: Thu, 24 Oct 2013 17:53:32 +0800
+Message-id: <000101ced09e$fed90a10$fc8b1e30$%yang@samsung.com>
 MIME-version: 1.0
 Content-type: text/plain; charset=utf-8
 Content-transfer-encoding: 7bit
@@ -28,100 +26,336 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: sjennings@variantweb.net, 'Minchan Kim' <minchan@kernel.org>, bob.liu@oracle.com, weijie.yang.kh@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-Consider the following scenario:
-thread 0: reclaim entry x (get refcount, but not call zswap_get_swap_cache_page)
-thread 1: call zswap_frontswap_invalidate_page to invalidate entry x.
-	finished, entry x and its zbud is not freed as its refcount != 0
-	now, the swap_map[x] = 0
-thread 0: now call zswap_get_swap_cache_page
-	swapcache_prepare return -ENOENT because entry x is not used any more
-	zswap_get_swap_cache_page return ZSWAP_SWAPCACHE_NOMEM
-	zswap_writeback_entry do nothing except put refcount
-Now, the memory of zswap_entry x and its zpage leak.
+The refcount routine was not fit the kernel get/put semantic exactly,
+There were too many judgement statements on refcount and it could be minus.
 
-Modify:
- - check the refcount in fail path, free memory if it is not referenced.
+This patch does the following:
 
- - use ZSWAP_SWAPCACHE_FAIL instead of ZSWAP_SWAPCACHE_NOMEM as the fail path
-   can be not only caused by nomem but also by invalidate.
+- move refcount judgement to zswap_entry_put() to hide resource free function.
+
+- add a new function zswap_entry_find_get(), so that callers can use easily
+in the following pattern:
+
+   zswap_entry_find_get
+   .../* do something */
+   zswap_entry_put
+
+- to eliminate compile error, move some functions declaration
+
+This patch is based on Minchan Kim <minchan@kernel.org> 's idea and suggestion.
 
 Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
-Reviewed-by: Bob Liu <bob.liu@oracle.com>
+Cc: Seth Jennings <sjennings@variantweb.net>
 Cc: Minchan Kim <minchan@kernel.org>
-Cc: <stable@vger.kernel.org>
-Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Cc: Bob Liu <bob.liu@oracle.com>
 ---
- mm/zswap.c |   22 ++++++++++++++--------
- 1 file changed, 14 insertions(+), 8 deletions(-)
- mode change 100644 => 100755 mm/zswap.c
+ mm/zswap.c |  182 +++++++++++++++++++++++++++++-------------------------------
+ 1 file changed, 88 insertions(+), 94 deletions(-)
 
 diff --git a/mm/zswap.c b/mm/zswap.c
-old mode 100644
-new mode 100755
-index d93510c..6b86251
+index 6b86251..1c12e33 100755
 --- a/mm/zswap.c
 +++ b/mm/zswap.c
-@@ -387,7 +387,7 @@ static void zswap_free_entry(struct zswap_tree *tree, struct zswap_entry *entry)
- enum zswap_get_swap_ret {
- 	ZSWAP_SWAPCACHE_NEW,
- 	ZSWAP_SWAPCACHE_EXIST,
--	ZSWAP_SWAPCACHE_NOMEM
-+	ZSWAP_SWAPCACHE_FAIL,
- };
- 
- /*
-@@ -401,9 +401,10 @@ enum zswap_get_swap_ret {
-  * added to the swap cache, and returned in retpage.
-  *
-  * If success, the swap cache page is returned in retpage
-- * Returns 0 if page was already in the swap cache, page is not locked
-- * Returns 1 if the new page needs to be populated, page is locked
-- * Returns <0 on error
-+ * Returns ZSWAP_SWAPCACHE_EXIST if page was already in the swap cache
-+ * Returns ZSWAP_SWAPCACHE_NEW if the new page needs to be populated,
-+ *     the new page is added to swapcache and locked
-+ * Returns ZSWAP_SWAPCACHE_FAIL on error
-  */
- static int zswap_get_swap_cache_page(swp_entry_t entry,
- 				struct page **retpage)
-@@ -475,7 +476,7 @@ static int zswap_get_swap_cache_page(swp_entry_t entry,
- 	if (new_page)
- 		page_cache_release(new_page);
- 	if (!found_page)
--		return ZSWAP_SWAPCACHE_NOMEM;
-+		return ZSWAP_SWAPCACHE_FAIL;
- 	*retpage = found_page;
- 	return ZSWAP_SWAPCACHE_EXIST;
+@@ -217,6 +217,7 @@ static struct zswap_entry *zswap_entry_cache_alloc(gfp_t gfp)
+ 	if (!entry)
+ 		return NULL;
+ 	entry->refcount = 1;
++	RB_CLEAR_NODE(&entry->rbnode);
+ 	return entry;
  }
-@@ -529,11 +530,11 @@ static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
  
- 	/* try to allocate swap cache page */
- 	switch (zswap_get_swap_cache_page(swpentry, &page)) {
--	case ZSWAP_SWAPCACHE_NOMEM: /* no memory */
-+	case ZSWAP_SWAPCACHE_FAIL: /* no memory or invalidate happened */
- 		ret = -ENOMEM;
- 		goto fail;
+@@ -225,19 +226,6 @@ static void zswap_entry_cache_free(struct zswap_entry *entry)
+ 	kmem_cache_free(zswap_entry_cache, entry);
+ }
  
--	case ZSWAP_SWAPCACHE_EXIST: /* page is unlocked */
-+	case ZSWAP_SWAPCACHE_EXIST:
- 		/* page is already in the swap cache, ignore for now */
- 		page_cache_release(page);
- 		ret = -EEXIST;
-@@ -591,7 +592,12 @@ static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
+-/* caller must hold the tree lock */
+-static void zswap_entry_get(struct zswap_entry *entry)
+-{
+-	entry->refcount++;
+-}
+-
+-/* caller must hold the tree lock */
+-static int zswap_entry_put(struct zswap_entry *entry)
+-{
+-	entry->refcount--;
+-	return entry->refcount;
+-}
+-
+ /*********************************
+ * rbtree functions
+ **********************************/
+@@ -285,6 +273,61 @@ static int zswap_rb_insert(struct rb_root *root, struct zswap_entry *entry,
+ 	return 0;
+ }
  
++static void zswap_rb_erase(struct rb_root *root, struct zswap_entry *entry)
++{
++	if (!RB_EMPTY_NODE(&entry->rbnode)) {
++		rb_erase(&entry->rbnode, root);
++		RB_CLEAR_NODE(&entry->rbnode);
++	}
++}
++
++/*
++ * Carries out the common pattern of freeing and entry's zsmalloc allocation,
++ * freeing the entry itself, and decrementing the number of stored pages.
++ */
++static void zswap_free_entry(struct zswap_tree *tree,
++			struct zswap_entry *entry)
++{
++	zbud_free(tree->pool, entry->handle);
++	zswap_entry_cache_free(entry);
++	atomic_dec(&zswap_stored_pages);
++	zswap_pool_pages = zbud_get_pool_size(tree->pool);
++}
++
++/* caller must hold the tree lock */
++static void zswap_entry_get(struct zswap_entry *entry)
++{
++	entry->refcount++;
++}
++
++/* caller must hold the tree lock
++* remove from the tree and free it, if nobody reference the entry
++*/
++static void zswap_entry_put(struct zswap_tree *tree,
++			struct zswap_entry *entry)
++{
++	int refcount = --entry->refcount;
++
++	BUG_ON(refcount < 0);
++	if (refcount == 0) {
++		zswap_rb_erase(&tree->rbroot, entry);
++		zswap_free_entry(tree, entry);
++	}
++}
++
++/* caller must hold the tree lock */
++static struct zswap_entry *zswap_entry_find_get(struct rb_root *root,
++				pgoff_t offset)
++{
++	struct zswap_entry *entry = NULL;
++
++	entry = zswap_rb_search(root, offset);
++	if (entry)
++		zswap_entry_get(entry);
++
++	return entry;
++}
++
+ /*********************************
+ * per-cpu code
+ **********************************/
+@@ -368,18 +411,6 @@ static bool zswap_is_full(void)
+ 		zswap_pool_pages);
+ }
+ 
+-/*
+- * Carries out the common pattern of freeing and entry's zsmalloc allocation,
+- * freeing the entry itself, and decrementing the number of stored pages.
+- */
+-static void zswap_free_entry(struct zswap_tree *tree, struct zswap_entry *entry)
+-{
+-	zbud_free(tree->pool, entry->handle);
+-	zswap_entry_cache_free(entry);
+-	atomic_dec(&zswap_stored_pages);
+-	zswap_pool_pages = zbud_get_pool_size(tree->pool);
+-}
+-
+ /*********************************
+ * writeback code
+ **********************************/
+@@ -503,7 +534,7 @@ static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
+ 	struct page *page;
+ 	u8 *src, *dst;
+ 	unsigned int dlen;
+-	int ret, refcount;
++	int ret;
+ 	struct writeback_control wbc = {
+ 		.sync_mode = WB_SYNC_NONE,
+ 	};
+@@ -518,13 +549,12 @@ static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
+ 
+ 	/* find and ref zswap entry */
+ 	spin_lock(&tree->lock);
+-	entry = zswap_rb_search(&tree->rbroot, offset);
++	entry = zswap_entry_find_get(&tree->rbroot, offset);
+ 	if (!entry) {
+ 		/* entry was invalidated */
+ 		spin_unlock(&tree->lock);
+ 		return 0;
+ 	}
+-	zswap_entry_get(entry);
+ 	spin_unlock(&tree->lock);
+ 	BUG_ON(offset != entry->offset);
+ 
+@@ -563,42 +593,35 @@ static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
+ 	zswap_written_back_pages++;
+ 
+ 	spin_lock(&tree->lock);
+-
+ 	/* drop local reference */
+-	zswap_entry_put(entry);
+-	/* drop the initial reference from entry creation */
+-	refcount = zswap_entry_put(entry);
++	zswap_entry_put(tree, entry);
+ 
+ 	/*
+-	 * There are three possible values for refcount here:
+-	 * (1) refcount is 1, load is in progress, unlink from rbtree,
+-	 *     load will free
+-	 * (2) refcount is 0, (normal case) entry is valid,
+-	 *     remove from rbtree and free entry
+-	 * (3) refcount is -1, invalidate happened during writeback,
+-	 *     free entry
+-	 */
+-	if (refcount >= 0) {
+-		/* no invalidate yet, remove from rbtree */
+-		rb_erase(&entry->rbnode, &tree->rbroot);
+-	}
++	* There are two possible situations for entry here:
++	* (1) refcount is 1(normal case),  entry is valid and on the tree
++	* (2) refcount is 0, entry is freed and not on the tree
++	*     because invalidate happened during writeback
++	*  search the tree and free the entry if find entry
++	*/
++	if (entry == zswap_rb_search(&tree->rbroot, offset))
++		zswap_entry_put(tree, entry);
+ 	spin_unlock(&tree->lock);
+-	if (refcount <= 0) {
+-		/* free the entry */
+-		zswap_free_entry(tree, entry);
+-		return 0;
+-	}
+-	return -EAGAIN;
+ 
++	goto end;
++
++	/*
++	* if we get here due to ZSWAP_SWAPCACHE_EXIST
++	* a load may happening concurrently
++	* it is safe and okay to not free the entry
++	* if we free the entry in the following put
++	* it it either okay to return !0
++	*/
  fail:
  	spin_lock(&tree->lock);
--	zswap_entry_put(entry);
-+	refcount = zswap_entry_put(entry);
-+	if (refcount <= 0) {
-+		/* invalidate happened, consider writeback as success */
-+		zswap_free_entry(tree, entry);
-+		ret = 0;
-+	}
+-	refcount = zswap_entry_put(entry);
+-	if (refcount <= 0) {
+-		/* invalidate happened, consider writeback as success */
+-		zswap_free_entry(tree, entry);
+-		ret = 0;
+-	}
++	zswap_entry_put(tree, entry);
  	spin_unlock(&tree->lock);
++
++end:
  	return ret;
  }
+ 
+@@ -682,11 +705,8 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+ 		if (ret == -EEXIST) {
+ 			zswap_duplicate_entry++;
+ 			/* remove from rbtree */
+-			rb_erase(&dupentry->rbnode, &tree->rbroot);
+-			if (!zswap_entry_put(dupentry)) {
+-				/* free */
+-				zswap_free_entry(tree, dupentry);
+-			}
++			zswap_rb_erase(&tree->rbroot, dupentry);
++			zswap_entry_put(tree, dupentry);
+ 		}
+ 	} while (ret == -EEXIST);
+ 	spin_unlock(&tree->lock);
+@@ -715,17 +735,16 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
+ 	struct zswap_entry *entry;
+ 	u8 *src, *dst;
+ 	unsigned int dlen;
+-	int refcount, ret;
++	int ret;
+ 
+ 	/* find */
+ 	spin_lock(&tree->lock);
+-	entry = zswap_rb_search(&tree->rbroot, offset);
++	entry = zswap_entry_find_get(&tree->rbroot, offset);
+ 	if (!entry) {
+ 		/* entry was written back */
+ 		spin_unlock(&tree->lock);
+ 		return -1;
+ 	}
+-	zswap_entry_get(entry);
+ 	spin_unlock(&tree->lock);
+ 
+ 	/* decompress */
+@@ -740,22 +759,9 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
+ 	BUG_ON(ret);
+ 
+ 	spin_lock(&tree->lock);
+-	refcount = zswap_entry_put(entry);
+-	if (likely(refcount)) {
+-		spin_unlock(&tree->lock);
+-		return 0;
+-	}
++	zswap_entry_put(tree, entry);
+ 	spin_unlock(&tree->lock);
+ 
+-	/*
+-	 * We don't have to unlink from the rbtree because
+-	 * zswap_writeback_entry() or zswap_frontswap_invalidate page()
+-	 * has already done this for us if we are the last reference.
+-	 */
+-	/* free */
+-
+-	zswap_free_entry(tree, entry);
+-
+ 	return 0;
+ }
+ 
+@@ -764,7 +770,6 @@ static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
+ {
+ 	struct zswap_tree *tree = zswap_trees[type];
+ 	struct zswap_entry *entry;
+-	int refcount;
+ 
+ 	/* find */
+ 	spin_lock(&tree->lock);
+@@ -776,20 +781,12 @@ static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
+ 	}
+ 
+ 	/* remove from rbtree */
+-	rb_erase(&entry->rbnode, &tree->rbroot);
++	zswap_rb_erase(&tree->rbroot, entry);
+ 
+ 	/* drop the initial reference from entry creation */
+-	refcount = zswap_entry_put(entry);
++	zswap_entry_put(tree, entry);
+ 
+ 	spin_unlock(&tree->lock);
+-
+-	if (refcount) {
+-		/* writeback in progress, writeback will free */
+-		return;
+-	}
+-
+-	/* free */
+-	zswap_free_entry(tree, entry);
+ }
+ 
+ /* frees all zswap entries for the given swap type */
+@@ -803,11 +800,8 @@ static void zswap_frontswap_invalidate_area(unsigned type)
+ 
+ 	/* walk the tree and free everything */
+ 	spin_lock(&tree->lock);
+-	rbtree_postorder_for_each_entry_safe(entry, n, &tree->rbroot, rbnode) {
+-		zbud_free(tree->pool, entry->handle);
+-		zswap_entry_cache_free(entry);
+-		atomic_dec(&zswap_stored_pages);
+-	}
++	rbtree_postorder_for_each_entry_safe(entry, n, &tree->rbroot, rbnode)
++		zswap_free_entry(tree, entry);
+ 	tree->rbroot = RB_ROOT;
+ 	spin_unlock(&tree->lock);
+ 
 -- 
 1.7.10.4
 
