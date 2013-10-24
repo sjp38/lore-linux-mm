@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B10196B00E8
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 104F26B00EB
 	for <linux-mm@kvack.org>; Thu, 24 Oct 2013 08:05:39 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id rr4so558265pbb.39
+Received: by mail-pd0-f171.google.com with SMTP id w10so518348pde.30
         for <linux-mm@kvack.org>; Thu, 24 Oct 2013 05:05:39 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.103])
-        by mx.google.com with SMTP id w1si1769850pan.141.2013.10.24.05.05.37
+Received: from psmtp.com ([74.125.245.117])
+        by mx.google.com with SMTP id hb3si1793090pac.7.2013.10.24.05.05.37
         for <linux-mm@kvack.org>;
         Thu, 24 Oct 2013 05:05:38 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH v11 12/15] memcg: allow kmem limit to be resized down
-Date: Thu, 24 Oct 2013 16:05:03 +0400
-Message-ID: <458dc248ec1a9b815231b8b5fbd1517db479e483.1382603434.git.vdavydov@parallels.com>
+Subject: [PATCH v11 10/15] memcg,list_lru: add function walking over all lists of a per-memcg LRU
+Date: Thu, 24 Oct 2013 16:05:01 +0400
+Message-ID: <88dcd62d80196c82fa774e0f2d2910f883efd9e2.1382603434.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1382603434.git.vdavydov@parallels.com>
 References: <cover.1382603434.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -19,108 +19,171 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: glommer@openvz.org, khorenko@parallels.com, devel@openvz.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: glommer@openvz.org, khorenko@parallels.com, devel@openvz.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-From: Glauber Costa <glommer@openvz.org>
+Sometimes it can be necessary to iterate over all memcgs' lists of the
+same memcg-aware LRU. For example shrink_dcache_sb() should prune all
+dentries no matter what memory cgroup they belong to. Current interface
+to struct memcg_list_lru, however, only allows per-memcg LRU walks.
+This patch adds the special method memcg_list_lru_walk_all() which
+provides the required functionality. Note that this function does not
+guarantee that all the elements will be processed in the true
+least-recently-used order, in fact it simply enumerates all kmem-active
+memcgs and for each of them calls list_lru_walk(), but
+shrink_dcache_sb(), which is going to be the only user of this function,
+does not need it.
 
-The userspace memory limit can be freely resized down. Upon attempt,
-reclaim will be called to flush the pages away until we either reach the
-limit we want or give up.
-
-It wasn't possible so far with the kmem limit, since we had no way to
-shrink the kmem buffers other than using the big hammer of shrink_slab,
-that effectively frees data around the whole system.
-
-The situation flips now that we have a per-memcg shrinker
-infrastructure. We will proceed analogously to our user memory
-counterpart and try to shrink our buffers until we either reach the
-limit we want or give up.
-
-Signed-off-by: Glauber Costa <glommer@openvz.org>
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Glauber Costa <glommer@openvz.org>
+Cc: Dave Chinner <dchinner@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Hugh Dickins <hughd@google.com>
 Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- mm/memcontrol.c |   43 ++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 38 insertions(+), 5 deletions(-)
+ include/linux/list_lru.h |   21 ++++++++++++++++++
+ mm/memcontrol.c          |   55 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 76 insertions(+)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 03178d0..7bf4dc7 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5574,10 +5574,39 @@ static ssize_t mem_cgroup_read(struct cgroup_subsys_state *css,
- 	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
- }
+diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+index b3b3b86..ce815cc 100644
+--- a/include/linux/list_lru.h
++++ b/include/linux/list_lru.h
+@@ -40,6 +40,16 @@ struct memcg_list_lru {
+ 	struct list_lru **memcg_lrus;	/* rcu-protected array of per-memcg
+ 					   lrus, indexed by memcg_cache_id() */
  
-+#ifdef CONFIG_MEMCG_KMEM
-+/*
-+ * This is slightly different than res or memsw reclaim.  We already have
-+ * vmscan behind us to drive the reclaim, so we can basically keep trying until
-+ * all buffers that can be flushed are flushed. We have a very clear signal
-+ * about it in the form of the return value of try_to_free_mem_cgroup_kmem.
-+ */
-+static int mem_cgroup_resize_kmem_limit(struct mem_cgroup *memcg,
-+					unsigned long long val)
-+{
-+	int ret = -EBUSY;
++	/*
++	 * When a memory cgroup is removed, all pointers to its list_lru
++	 * objects stored in memcg_lrus arrays are first marked as dead by
++	 * setting the lowest bit of the address while the actual data free
++	 * happens only after an rcu grace period. If a memcg_lrus reader,
++	 * which should be rcu-protected, faces a dead pointer, it won't
++	 * dereference it. This ensures there will be no use-after-free.
++	 */
++#define MEMCG_LIST_LRU_DEAD		1
 +
-+	for (;;) {
-+		if (signal_pending(current)) {
-+			ret = -EINTR;
-+			break;
-+		}
-+
-+		ret = res_counter_set_limit(&memcg->kmem, val);
-+		if (!ret)
-+			break;
-+
-+		/* Can't free anything, pointless to continue */
-+		if (!try_to_free_mem_cgroup_kmem(memcg, GFP_KERNEL))
-+			break;
-+	}
-+
-+	return ret;
-+}
-+
- static int memcg_update_kmem_limit(struct cgroup_subsys_state *css, u64 val)
- {
- 	int ret = -EINVAL;
--#ifdef CONFIG_MEMCG_KMEM
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+ 	struct list_head list;		/* list of all memcg-aware lrus */
+ 
  	/*
- 	 * For simplicity, we won't allow this to be disabled.  It also can't
-@@ -5612,16 +5641,15 @@ static int memcg_update_kmem_limit(struct cgroup_subsys_state *css, u64 val)
- 		 * starts accounting before all call sites are patched
- 		 */
- 		memcg_kmem_set_active(memcg);
--	} else
--		ret = res_counter_set_limit(&memcg->kmem, val);
-+	} else {
-+		ret = mem_cgroup_resize_kmem_limit(memcg, val);
-+	}
- out:
- 	mutex_unlock(&set_limit_mutex);
- 	mutex_unlock(&memcg_create_mutex);
--#endif
- 	return ret;
- }
- 
--#ifdef CONFIG_MEMCG_KMEM
- static int memcg_propagate_kmem(struct mem_cgroup *memcg)
+@@ -160,6 +170,10 @@ struct list_lru *
+ mem_cgroup_list_lru(struct memcg_list_lru *lru, struct mem_cgroup *memcg);
+ struct list_lru *
+ mem_cgroup_kmem_list_lru(struct memcg_list_lru *lru, void *ptr);
++
++unsigned long
++memcg_list_lru_walk_all(struct memcg_list_lru *lru, list_lru_walk_cb isolate,
++			void *cb_arg, unsigned long nr_to_walk);
+ #else
+ static inline int memcg_list_lru_init(struct memcg_list_lru *lru)
  {
- 	int ret = 0;
-@@ -5658,6 +5686,11 @@ static int memcg_propagate_kmem(struct mem_cgroup *memcg)
- out:
- 	return ret;
+@@ -182,6 +196,13 @@ mem_cgroup_kmem_list_lru(struct memcg_list_lru *lru, void *ptr)
+ {
+ 	return &lru->global_lru;
  }
-+#else
-+static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
++
++static inline unsigned long
++memcg_list_lru_walk_all(struct memcg_list_lru *lru, list_lru_walk_cb isolate,
++			void *cb_arg, unsigned long nr_to_walk)
 +{
-+	return -EINVAL;
++	return list_lru_walk(&lru->global_lru, isolate, cb_arg, nr_to_walk);
 +}
  #endif /* CONFIG_MEMCG_KMEM */
  
- /*
+ #endif /* _LRU_LIST_H */
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 39e4772..03178d0 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3899,16 +3899,30 @@ static int alloc_memcg_lru(struct memcg_list_lru *lru, int memcg_id)
+ 		return err;
+ 	}
+ 
++	smp_wmb();
+ 	VM_BUG_ON(lru->memcg_lrus[memcg_id]);
+ 	lru->memcg_lrus[memcg_id] = memcg_lru;
+ 	return 0;
+ }
+ 
++static void memcg_lru_mark_dead(struct memcg_list_lru *lru, int memcg_id)
++{
++	struct list_lru *memcg_lru;
++	
++	BUG_ON(!lru->memcg_lrus);
++	memcg_lru = lru->memcg_lrus[memcg_id];
++	if (memcg_lru)
++		lru->memcg_lrus[memcg_id] = (void *)((unsigned long)memcg_lru |
++						     MEMCG_LIST_LRU_DEAD);
++}
++
+ static void free_memcg_lru(struct memcg_list_lru *lru, int memcg_id)
+ {
+ 	struct list_lru *memcg_lru = NULL;
+ 
+ 	swap(lru->memcg_lrus[memcg_id], memcg_lru);
++	memcg_lru = (void *)((unsigned long)memcg_lru &
++			     ~MEMCG_LIST_LRU_DEAD);
+ 	if (memcg_lru) {
+ 		list_lru_destroy(memcg_lru);
+ 		kfree(memcg_lru);
+@@ -3942,6 +3956,17 @@ static void __memcg_destroy_all_lrus(int memcg_id)
+ {
+ 	struct memcg_list_lru *lru;
+ 
++	/*
++	 * Mark all lru lists of this memcg as dead and free them only after a
++	 * grace period. This is to prevent functions iterating over memcg_lrus
++	 * arrays (e.g. memcg_list_lru_walk_all()) from dereferencing pointers
++	 * pointing to already freed data.
++	 */
++	list_for_each_entry(lru, &memcg_lrus_list, list)
++		memcg_lru_mark_dead(lru, memcg_id);
++
++	synchronize_rcu();
++
+ 	list_for_each_entry(lru, &memcg_lrus_list, list)
+ 		free_memcg_lru(lru, memcg_id);
+ }
+@@ -4103,6 +4128,36 @@ mem_cgroup_kmem_list_lru(struct memcg_list_lru *lru, void *ptr)
+ 	}
+ 	return mem_cgroup_list_lru(lru, memcg);
+ }
++
++unsigned long
++memcg_list_lru_walk_all(struct memcg_list_lru *lru, list_lru_walk_cb isolate,
++			void *cb_arg, unsigned long nr_to_walk)
++{
++	int i;
++	unsigned long isolated;
++	struct list_lru *memcg_lru;
++	struct list_lru **memcg_lrus;
++
++	isolated = list_lru_walk(&lru->global_lru, isolate, cb_arg, nr_to_walk);
++
++	rcu_read_lock();
++	memcg_lrus = rcu_dereference(lru->memcg_lrus);
++	for (i = 0; i < memcg_limited_groups_array_size; i++) {
++		memcg_lru = memcg_lrus[i];
++		if (!memcg_lru)
++			continue;
++
++		if ((unsigned long)memcg_lru & MEMCG_LIST_LRU_DEAD)
++			continue;
++
++		smp_read_barrier_depends();
++		isolated += list_lru_walk(memcg_lru,
++					  isolate, cb_arg, nr_to_walk);
++	}
++	rcu_read_unlock();
++
++	return isolated;
++}
+ #else
+ static inline void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
+ {
 -- 
 1.7.10.4
 
