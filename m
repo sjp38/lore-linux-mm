@@ -1,190 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F09E6B00ED
-	for <linux-mm@kvack.org>; Thu, 24 Oct 2013 08:05:54 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fb1so2055473pad.9
-        for <linux-mm@kvack.org>; Thu, 24 Oct 2013 05:05:53 -0700 (PDT)
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id B91B76B00DC
+	for <linux-mm@kvack.org>; Thu, 24 Oct 2013 08:27:33 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id rd3so2054471pab.5
+        for <linux-mm@kvack.org>; Thu, 24 Oct 2013 05:27:33 -0700 (PDT)
 Received: from psmtp.com ([74.125.245.124])
-        by mx.google.com with SMTP id w1si1752199pan.257.2013.10.24.05.05.52
+        by mx.google.com with SMTP id it5si887187pbc.5.2013.10.24.05.27.31
         for <linux-mm@kvack.org>;
-        Thu, 24 Oct 2013 05:05:53 -0700 (PDT)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH v11 13/15] vmpressure: in-kernel notifications
-Date: Thu, 24 Oct 2013 16:05:04 +0400
-Message-ID: <7318b33240095a035fcd2f2e6f4b23f8c7eb3191.1382603434.git.vdavydov@parallels.com>
-In-Reply-To: <cover.1382603434.git.vdavydov@parallels.com>
-References: <cover.1382603434.git.vdavydov@parallels.com>
+        Thu, 24 Oct 2013 05:27:32 -0700 (PDT)
+Date: Thu, 24 Oct 2013 13:26:46 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Automatic NUMA balancing patches for tip-urgent/stable
+Message-ID: <20131024122646.GB2402@suse.de>
+References: <1381141781-10992-1-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1381141781-10992-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: glommer@openvz.org, khorenko@parallels.com, devel@openvz.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Tom Weber <l_linux-kernel@mail2news.4t2.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-From: Glauber Costa <glommer@openvz.org>
+On Mon, Oct 07, 2013 at 11:28:38AM +0100, Mel Gorman wrote:
+> This series has roughly the same goals as previous versions despite the
+> size. It reduces overhead of automatic balancing through scan rate reduction
+> and the avoidance of TLB flushes. It selects a preferred node and moves tasks
+> towards their memory as well as moving memory toward their task. It handles
+> shared pages and groups related tasks together. Some problems such as shared
+> page interleaving and properly dealing with processes that are larger than
+> a node are being deferred. This version should be ready for wider testing
+> in -tip.
+> 
 
-During the past weeks, it became clear to us that the shrinker interface
-we have right now works very well for some particular types of users,
-but not that well for others. The later are usually people interested in
-one-shot notifications, that were forced to adapt themselves to the
-count+scan behavior of shrinkers. To do so, they had no choice than to
-greatly abuse the shrinker interface producing little monsters all over.
+Hi Ingo,
 
-During LSF/MM, one of the proposals that popped out during our session
-was to reuse Anton Voronstsov's vmpressure for this. They are designed
-for userspace consumption, but also provide a well-stablished,
-cgroup-aware entry point for notifications.
+Off-list we talked with Peter about the fact that automatic NUMA
+balancing as merged in 3.10, 3.11 and 3.12 shortly may corrupt
+userspace memory. There is one LKML report on this that I'm aware of --
+https://lkml.org/lkml/2013/7/31/647 which I prompt forgot to follow up
+properly on . The user-visible effect is that pages get filled with zeros
+with results such as null pointer exceptions in JVMs. It is fairly difficult
+to trigger but it became much easier to trigger during the development of
+the series "Basic scheduler support for automatic NUMA balancing" which
+is how it was discovered and finally fixed.
 
-This patch extends that to also support in-kernel users. Events that
-should be generated for in-kernel consumption will be marked as such,
-and for those, we will call a registered function instead of triggering
-an eventfd notification.
+In that series I tagged patches 2-9 for -stable as these patches addressed
+the problem for me. I did not call it out as clearly as I should have
+and did not realise the cc: stable tags were stripped. Worse, as it was
+close to the release and the bug is relatively old I was ok with waiting
+until 3.12 came out and then treat it as a -stable backport. It has been
+highlighted that this is the wrong attitude and we should consider merging
+the fixes now and backporting to -stable sooner rather than later.
 
-Please note that due to my lack of understanding of each shrinker user,
-I will stay away from converting the actual users, you are all welcome
-to do so.
+The most important patches are 
 
-Signed-off-by: Glauber Costa <glommer@openvz.org>
-Acked-by: Anton Vorontsov <anton@enomsg.org>
-Acked-by: Pekka Enberg <penberg@kernel.org>
-Reviewed-by: Greg Thelen <gthelen@google.com>
-Cc: Dave Chinner <dchinner@redhat.com>
-Cc: John Stultz <john.stultz@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/vmpressure.h |    5 +++++
- mm/vmpressure.c            |   53 +++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 55 insertions(+), 3 deletions(-)
+mm: Wait for THP migrations to complete during NUMA hinting fault
+mm: Prevent parallel splits during THP migration
+mm: Close races between THP migration and PMD numa clearing
 
-diff --git a/include/linux/vmpressure.h b/include/linux/vmpressure.h
-index 3f3788d..9102e53 100644
---- a/include/linux/vmpressure.h
-+++ b/include/linux/vmpressure.h
-@@ -19,6 +19,9 @@ struct vmpressure {
- 	/* Have to grab the lock on events traversal or modifications. */
- 	struct mutex events_lock;
- 
-+	/* False if only kernel users want to be notified, true otherwise. */
-+	bool notify_userspace;
-+
- 	struct work_struct work;
- };
- 
-@@ -38,6 +41,8 @@ extern int vmpressure_register_event(struct cgroup_subsys_state *css,
- 				     struct cftype *cft,
- 				     struct eventfd_ctx *eventfd,
- 				     const char *args);
-+extern int vmpressure_register_kernel_event(struct cgroup_subsys_state *css,
-+					    void (*fn)(void));
- extern void vmpressure_unregister_event(struct cgroup_subsys_state *css,
- 					struct cftype *cft,
- 					struct eventfd_ctx *eventfd);
-diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-index e0f6283..730e7c1 100644
---- a/mm/vmpressure.c
-+++ b/mm/vmpressure.c
-@@ -130,8 +130,12 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
- }
- 
- struct vmpressure_event {
--	struct eventfd_ctx *efd;
-+	union {
-+		struct eventfd_ctx *efd;
-+		void (*fn)(void);
-+	};
- 	enum vmpressure_levels level;
-+	bool kernel_event;
- 	struct list_head node;
- };
- 
-@@ -147,12 +151,15 @@ static bool vmpressure_event(struct vmpressure *vmpr,
- 	mutex_lock(&vmpr->events_lock);
- 
- 	list_for_each_entry(ev, &vmpr->events, node) {
--		if (level >= ev->level) {
-+		if (ev->kernel_event) {
-+			ev->fn();
-+		} else if (vmpr->notify_userspace && level >= ev->level) {
- 			eventfd_signal(ev->efd, 1);
- 			signalled = true;
- 		}
- 	}
- 
-+	vmpr->notify_userspace = false;
- 	mutex_unlock(&vmpr->events_lock);
- 
- 	return signalled;
-@@ -222,7 +229,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
- 	 * we account it too.
- 	 */
- 	if (!(gfp & (__GFP_HIGHMEM | __GFP_MOVABLE | __GFP_IO | __GFP_FS)))
--		return;
-+		goto schedule;
- 
- 	/*
- 	 * If we got here with no pages scanned, then that is an indicator
-@@ -239,8 +246,15 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
- 	vmpr->scanned += scanned;
- 	vmpr->reclaimed += reclaimed;
- 	scanned = vmpr->scanned;
-+	/*
-+	 * If we didn't reach this point, only kernel events will be triggered.
-+	 * It is the job of the worker thread to clean this up once the
-+	 * notifications are all delivered.
-+	 */
-+	vmpr->notify_userspace = true;
- 	spin_unlock(&vmpr->sr_lock);
- 
-+schedule:
- 	if (scanned < vmpressure_win)
- 		return;
- 	schedule_work(&vmpr->work);
-@@ -324,6 +338,39 @@ int vmpressure_register_event(struct cgroup_subsys_state *css,
- }
- 
- /**
-+ * vmpressure_register_kernel_event() - Register kernel-side notification
-+ * @css:	css that is interested in vmpressure notifications
-+ * @fn:		function to be called when pressure happens
-+ *
-+ * This function register in-kernel users interested in receiving notifications
-+ * about pressure conditions. Pressure notifications will be triggered at the
-+ * same time as userspace notifications (with no particular ordering relative
-+ * to it).
-+ *
-+ * Pressure notifications are a alternative method to shrinkers and will serve
-+ * well users that are interested in a one-shot notification, with a
-+ * well-defined cgroup aware interface.
-+ */
-+int vmpressure_register_kernel_event(struct cgroup_subsys_state *css,
-+				      void (*fn)(void))
-+{
-+	struct vmpressure *vmpr = css_to_vmpressure(css);
-+	struct vmpressure_event *ev;
-+
-+	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
-+	if (!ev)
-+		return -ENOMEM;
-+
-+	ev->kernel_event = true;
-+	ev->fn = fn;
-+
-+	mutex_lock(&vmpr->events_lock);
-+	list_add(&ev->node, &vmpr->events);
-+	mutex_unlock(&vmpr->events_lock);
-+	return 0;
-+}
-+
-+/**
-  * vmpressure_unregister_event() - Unbind eventfd from vmpressure
-  * @css:	css handle
-  * @cft:	cgroup control files handle
+but on their own they will cause conflicts with tricky fixups and -stable
+would differ from mainline in annoying ways. Patches 2-9 have been heavily
+tested in isolation so I'm reasonably confident they fix the problem and are
+-stable material. While strictly speaking not all the patches are required
+for the fix, the -stable kernels would then be directly comparable with
+3.13 when the full NUMA balancing series is applied. If I rework them at
+this point then I'll also have to retest delaying things until next week.
+
+Please consider queueing patches 2-9 for 3.12 via -urgent if it is not
+too late and preserve the cc: stable tags so Greg will pick them up
+automatically.
+
+Thanks
+
 -- 
-1.7.10.4
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
