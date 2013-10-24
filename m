@@ -1,31 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id E85D96B00DC
-	for <linux-mm@kvack.org>; Wed, 23 Oct 2013 18:17:28 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y13so1890069pdi.33
-        for <linux-mm@kvack.org>; Wed, 23 Oct 2013 15:17:28 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.123])
-        by mx.google.com with SMTP id a10si77258pac.163.2013.10.23.15.17.27
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id E41E06B00DC
+	for <linux-mm@kvack.org>; Wed, 23 Oct 2013 20:55:30 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id wy17so1760740pbc.25
+        for <linux-mm@kvack.org>; Wed, 23 Oct 2013 17:55:30 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.130])
+        by mx.google.com with SMTP id if1si338215pad.146.2013.10.23.17.55.29
         for <linux-mm@kvack.org>;
-        Wed, 23 Oct 2013 15:17:27 -0700 (PDT)
-Received: by mail-ie0-f173.google.com with SMTP id u16so2526936iet.32
-        for <linux-mm@kvack.org>; Wed, 23 Oct 2013 15:17:26 -0700 (PDT)
+        Wed, 23 Oct 2013 17:55:30 -0700 (PDT)
+Message-ID: <52686FF4.5000303@oracle.com>
+Date: Thu, 24 Oct 2013 08:55:16 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <526844E6.1080307@codeaurora.org>
-References: <526844E6.1080307@codeaurora.org>
-Date: Wed, 23 Oct 2013 15:17:26 -0700
-Message-ID: <CAA25o9T_FPQoymmC3j1p+FCtGhaqfzvG5qGVqw033kz3HPtYfQ@mail.gmail.com>
 Subject: Re: zram/zsmalloc issues in very low memory conditions
-From: Luigi Semenzato <semenzato@google.com>
+References: <526844E6.1080307@codeaurora.org>
+In-Reply-To: <526844E6.1080307@codeaurora.org>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Olav Haugan <ohaugan@codeaurora.org>
-Cc: Minchan Kim <minchan@kernel.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: minchan@kernel.org, sjenning@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-(sorry about the HTML in the previous message)
 
-On Wed, Oct 23, 2013 at 2:51 PM, Olav Haugan <ohaugan@codeaurora.org> wrote:
+On 10/24/2013 05:51 AM, Olav Haugan wrote:
 > I am trying to use zram in very low memory conditions and I am having
 > some issues. zram is in the reclaim path. So if the system is very low
 > on memory the system is trying to reclaim pages by swapping out (in this
@@ -39,51 +37,45 @@ On Wed, Oct 23, 2013 at 2:51 PM, Olav Haugan <ohaugan@codeaurora.org> wrote:
 > memory available for zram pages). Has anyone thought about this issue
 > already and have ideas how to solve this or am I missing something and I
 > should not be seeing this issue?
+> 
 
-What do you want the system to do at this point?  OOM kill?  Also, if
-you are that low on memory, how are you preventing thrashing on the
-code pages?
+The same question as Luigi "What do you want the system to do at this
+point?"
 
-I am asking because we also use zram but haven't run into this
-problem---however we had to deal with other problems that motivate
-these questions.
+If swap fails then OOM killer will be triggered, I don't think this will
+be a issue.
 
->
+By the way, could you take a try with zswap? Which can write pages to
+real swap device if compressed pool is full.
+
 > I am also seeing a couple other issues that I was wondering whether
 > folks have already thought about:
->
+> 
 > 1) The size of a swap device is statically computed when the swap device
 > is turned on (nr_swap_pages). The size of zram swap device is dynamic
 > since we are compressing the pages and thus the swap subsystem thinks
 > that the zram swap device is full when it is not really full. Any
 > plans/thoughts about the possibility of being able to update the size
 > and/or the # of available pages in a swap device on the fly?
-
-That is a known limitation of zram.  If you can predict your
-compression ratio and your working set size, it's not a big problem:
-allocate a swap device which, based on the expected compression ratio,
-will use up RAM until what's left is just enough for the working set.
-
+> 
 > 2) zsmalloc fails when the page allocated is at physical address 0 (pfn
+
+AFAIK, this will never happen.
+
 > = 0) since the handle returned from zsmalloc is encoded as (<PFN>,
 > <obj_idx>) and thus the resulting handle will be 0 (since obj_idx starts
 > at 0). zs_malloc returns the handle but does not distinguish between a
 > valid handle of 0 and a failure to allocate. A possible solution to this
 > would be to start the obj_idx at 1. Is this feasible?
->
+> 
 > Thanks,
->
+> 
 > Olav Haugan
->
-> --
-> The Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-> hosted by The Linux Foundation
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+
+-- 
+Regards,
+-Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
