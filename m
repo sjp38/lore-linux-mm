@@ -1,81 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id E41E06B00DC
-	for <linux-mm@kvack.org>; Wed, 23 Oct 2013 20:55:30 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id wy17so1760740pbc.25
-        for <linux-mm@kvack.org>; Wed, 23 Oct 2013 17:55:30 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.130])
-        by mx.google.com with SMTP id if1si338215pad.146.2013.10.23.17.55.29
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A98D6B00DC
+	for <linux-mm@kvack.org>; Thu, 24 Oct 2013 03:01:25 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id fb1so2052718pad.17
+        for <linux-mm@kvack.org>; Thu, 24 Oct 2013 00:01:24 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.122])
+        by mx.google.com with SMTP id mi5si1032077pab.280.2013.10.24.00.01.23
         for <linux-mm@kvack.org>;
-        Wed, 23 Oct 2013 17:55:30 -0700 (PDT)
-Message-ID: <52686FF4.5000303@oracle.com>
-Date: Thu, 24 Oct 2013 08:55:16 +0800
-From: Bob Liu <bob.liu@oracle.com>
+        Thu, 24 Oct 2013 00:01:24 -0700 (PDT)
+Message-ID: <5268C5A9.5040303@ti.com>
+Date: Thu, 24 Oct 2013 10:00:57 +0300
+From: Tomi Valkeinen <tomi.valkeinen@ti.com>
 MIME-Version: 1.0
-Subject: Re: zram/zsmalloc issues in very low memory conditions
-References: <526844E6.1080307@codeaurora.org>
-In-Reply-To: <526844E6.1080307@codeaurora.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Subject: Re: OMAPFB: CMA allocation failures
+References: <1296360712.2526.1382565582863.JavaMail.apache@mail82.abv.bg>
+In-Reply-To: <1296360712.2526.1382565582863.JavaMail.apache@mail82.abv.bg>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature";
+	boundary="6eVjXObUFnsccQ7tDqomOhpqqrvb5Mmm0"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Olav Haugan <ohaugan@codeaurora.org>
-Cc: minchan@kernel.org, sjenning@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: =?UTF-8?B?0JjQstCw0LnQu9C+INCU0LjQvNC40YLRgNC+0LI=?= <freemangordon@abv.bg>
+Cc: sre@debian.org, tony@atomide.com, pali.rohar@gmail.com, pc+n900@asdf.org, pavel@ucw.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+
+--6eVjXObUFnsccQ7tDqomOhpqqrvb5Mmm0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+Hi,
+
+On 24/10/13 00:59, =D0=98=D0=B2=D0=B0=D0=B9=D0=BB=D0=BE =D0=94=D0=B8=D0=BC=
+=D0=B8=D1=82=D1=80=D0=BE=D0=B2 wrote:
+>  Hi,
+>=20
+> I wonder if there is any progress on the issue? Do you need me to send =
+more data? Or
+> should I raise the issue with the CMA maintainer?
+
+No, I haven't had time to look at this. And frankly, I don't even have
+an idea what to look for if I can't reproduce it. The issue is not about
+display, but DMA allocation, of which I know very little.
+
+So yes, I suggest you try to discuss this with CMA/DMA people.
+
+ Tomi
+
+>=20
+> Regards,
+> Ivo
+>=20
+>  >-------- =D0=9E=D1=80=D0=B8=D0=B3=D0=B8=D0=BD=D0=B0=D0=BB=D0=BD=D0=BE=
+ =D0=BF=D0=B8=D1=81=D0=BC=D0=BE --------
+>  >=D0=9E=D1=82:  =D0=98=D0=B2=D0=B0=D0=B9=D0=BB=D0=BE =D0=94=D0=B8=D0=BC=
+=D0=B8=D1=82=D1=80=D0=BE=D0=B2=20
+>  >=D0=9E=D1=82=D0=BD=D0=BE=D1=81=D0=BD=D0=BE: Re: OMAPFB: CMA allocatio=
+n failures
+>  >=D0=94=D0=BE: Tomi Valkeinen=20
+>  >=D0=98=D0=B7=D0=BF=D1=80=D0=B0=D1=82=D0=B5=D0=BD=D0=BE =D0=BD=D0=B0: =
+=D0=A1=D1=80=D1=8F=D0=B4=D0=B0, 2013, =D0=9E=D0=BA=D1=82=D0=BE=D0=BC=D0=B2=
+=D1=80=D0=B8 16 09:33:51 EEST
+>  >
+>  >
+>  > Hi Tomi,
+>  >
+>  >>I think we should somehow find out what the pages are that cannot be=
+
+>  >>migrated, and where they come from.
+>  >>
+>  >>So there are &amp;quot;anonymous pages without mapping&amp;quot; wit=
+h page_count(page) !=3D
+>  >>1. I have to say I don't know what that means =3D). I need to find s=
+ome
+>  >>time to study the mm.
+>  >
+>  >I put some more traces in the point of failure, the result:
+>  >page_count(page) =3D=3D 2, page->flags =3D=3D 0x0008025D, which is:
+>  >PG_locked, PG_referenced, PG_uptodate, PG_dirty, PG_active, PG_arch_1=
+, PG_unevictable
+>  >Whatever those mean :). I have no idea how to identify where those pa=
+ges come from.
+>  >
+>  >>Well, as I said, you're the first one to report any errors, after th=
+e
+>  >>change being in use for a year. Maybe people just haven't used recen=
+t
+>  >>enough kernels, and the issue is only now starting to emerge, but I
+>  >>wouldn't draw any conclusions yet.
+>  >
+>  >I am (almost) sure I am the first one to test video playback on OMAP3=
+ with DSP video
+>  >acceleration, using recent kernel and Maemo5 on n900 :). So there is =
+high probability the
+>  >issue was not reported earlier because noone have tested it thoroughl=
+y after the change.
+>  >
+>  >>If the CMA would have big generic issues, I think we would've seen
+>  >>issues earlier. So I'm guessing it's some driver or app in your setu=
+p
+>  >>that's causing the issues. Maybe the driver/app is broken, or maybe =
+that
+>  >>specific behavior is not handled well by CMA. In both case I think w=
+e
+>  >>need to identify what that driver/app is.
+>  >
+>  >What I know is going on, is that there is heavy fs I/O at the same ti=
+me - there is
+>  >a thumbnailer process running in background which tries to extract th=
+umbnails of all video
+>  >files in the system. Also, there are other processes doing various jo=
+bs (e-mail fetching, IM
+>  >accounts login, whatnot). And in addition Xorg mlocks parts of its ad=
+dress space. Of course
+>  >all this happens with lots of memory being swapped in and out. I gues=
+s all this is related.
+>  >
+>  >However, even after the system has settled, the CMA failures continue=
+ to happen. It looks like
+>  >some pages are allocated from CMA which should not be.
+>  >
+>  >>I wonder how I could try to reproduce this with a generic omap3 boar=
+d...
+>  >
+>  >I can always reproduce it here (well, not on generic board, but I gue=
+ss it is even better to
+>  >test in real-life conditions), so if you need some specific tests or =
+traces or whatever, I
+>  >can do them for you.
+>  >
+>  >Regards,
+>  >Ivo
+>  >
+>=20
 
 
-On 10/24/2013 05:51 AM, Olav Haugan wrote:
-> I am trying to use zram in very low memory conditions and I am having
-> some issues. zram is in the reclaim path. So if the system is very low
-> on memory the system is trying to reclaim pages by swapping out (in this
-> case to zram). However, since we are very low on memory zram fails to
-> get a page from zsmalloc and thus zram fails to store the page. We get
-> into a cycle where the system is low on memory so it tries to swap out
-> to get more memory but swap out fails because there is not enough memory
-> in the system! The major problem I am seeing is that there does not seem
-> to be a way for zram to tell the upper layers to stop swapping out
-> because the swap device is essentially "full" (since there is no more
-> memory available for zram pages). Has anyone thought about this issue
-> already and have ideas how to solve this or am I missing something and I
-> should not be seeing this issue?
-> 
 
-The same question as Luigi "What do you want the system to do at this
-point?"
+--6eVjXObUFnsccQ7tDqomOhpqqrvb5Mmm0
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
 
-If swap fails then OOM killer will be triggered, I don't think this will
-be a issue.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
 
-By the way, could you take a try with zswap? Which can write pages to
-real swap device if compressed pool is full.
+iQIcBAEBAgAGBQJSaMWuAAoJEPo9qoy8lh71y3sQAIowX40AHZYu+WbAssoo+4pQ
+G3+ac5AS1gLwQsG90QeDF4ElmbmUuz/Tl3iA389lUcXpugrxKO0b2vqTFo043R4l
+Q9u0Fiw4dmUZf6cNqAzZYkW0GNFPzWGPqVZgPgRTpxoS0sKrdwlSExbzTCp7zTlF
+S2WqsIQU8IRRoJm8Z2oY9gxvTSM/VMTL7GY+Eu26UAe4hNoEXe818OvKupjTY19f
+Hiom5sSpfN4lu0aRe7A6Py7WQ5hTofM81swa5LahGVMhQwkhWS2YhVe41fjdienK
+K7oocAvoB0bMmvya/cEFiKL5jHw3ax69jrMzA5bljbkbZPAe4c5Ua1Wou/aVr8Hs
+IBl1514lEFtgIyMgSVCW61upqsTVQOLoahF6lVdweWNYwwI+IN2kgllCNfgfnxAP
+AUZTH+heYAjprwJM3nRw0FuCujj9ZXgGXFccqzMSh+EL8mgXiKoU7DzgknS1BrjZ
+Tfw5MQYeU08VyCcfHDJqo95hUVtDEnI7UKyu6NpGrGqAJ53nJ3gPzBbYPethOHBz
+oDa4SaaxrgnAPN49RUtI3nDiihcly0uYWbiqR2qsyuFmhvuPH35Z7LNI1+Ln27xo
+52o9a2NjLz+etG7E7s9L/eS4YDIXiimRPxc6EFV4hsrNl1lWxLdKvmmUD1M+bIH+
+hjPaKcCGaBTaDiQbon6p
+=WfQ8
+-----END PGP SIGNATURE-----
 
-> I am also seeing a couple other issues that I was wondering whether
-> folks have already thought about:
-> 
-> 1) The size of a swap device is statically computed when the swap device
-> is turned on (nr_swap_pages). The size of zram swap device is dynamic
-> since we are compressing the pages and thus the swap subsystem thinks
-> that the zram swap device is full when it is not really full. Any
-> plans/thoughts about the possibility of being able to update the size
-> and/or the # of available pages in a swap device on the fly?
-> 
-> 2) zsmalloc fails when the page allocated is at physical address 0 (pfn
-
-AFAIK, this will never happen.
-
-> = 0) since the handle returned from zsmalloc is encoded as (<PFN>,
-> <obj_idx>) and thus the resulting handle will be 0 (since obj_idx starts
-> at 0). zs_malloc returns the handle but does not distinguish between a
-> valid handle of 0 and a failure to allocate. A possible solution to this
-> would be to start the obj_idx at 1. Is this feasible?
-> 
-> Thanks,
-> 
-> Olav Haugan
-> 
-
--- 
-Regards,
--Bob
+--6eVjXObUFnsccQ7tDqomOhpqqrvb5Mmm0--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
