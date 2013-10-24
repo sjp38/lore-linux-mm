@@ -1,83 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 789DA6B00DC
-	for <linux-mm@kvack.org>; Thu, 24 Oct 2013 06:42:51 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id g10so2229828pdj.20
-        for <linux-mm@kvack.org>; Thu, 24 Oct 2013 03:42:51 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.102])
-        by mx.google.com with SMTP id hb3si1565627pac.239.2013.10.24.03.42.49
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 69F166B00DC
+	for <linux-mm@kvack.org>; Thu, 24 Oct 2013 08:05:13 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id g10so2328466pdj.35
+        for <linux-mm@kvack.org>; Thu, 24 Oct 2013 05:05:13 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.175])
+        by mx.google.com with SMTP id a10si1736994pac.337.2013.10.24.05.05.11
         for <linux-mm@kvack.org>;
-        Thu, 24 Oct 2013 03:42:50 -0700 (PDT)
-Received: by mail-ie0-f178.google.com with SMTP id x13so3628441ief.9
-        for <linux-mm@kvack.org>; Thu, 24 Oct 2013 03:42:48 -0700 (PDT)
+        Thu, 24 Oct 2013 05:05:12 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH v11 00/15] kmemcg shrinkers
+Date: Thu, 24 Oct 2013 16:04:51 +0400
+Message-ID: <cover.1382603434.git.vdavydov@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <526844E6.1080307@codeaurora.org>
-References: <526844E6.1080307@codeaurora.org>
-Date: Thu, 24 Oct 2013 18:42:48 +0800
-Message-ID: <CAL1ERfOSmgo=j4YHHREY8uzyh+nbRrsFdBZ86FhMXxP5GEHQkQ@mail.gmail.com>
-Subject: Re: zram/zsmalloc issues in very low memory conditions
-From: Weijie Yang <weijie.yang.kh@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Olav Haugan <ohaugan@codeaurora.org>
-Cc: minchan@kernel.org, sjenning@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, semenzato@google.com, bob.liu@oracle.com
+To: akpm@linux-foundation.org
+Cc: glommer@openvz.org, khorenko@parallels.com, devel@openvz.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Oct 24, 2013 at 5:51 AM, Olav Haugan <ohaugan@codeaurora.org> wrote:
-> I am trying to use zram in very low memory conditions and I am having
-> some issues. zram is in the reclaim path. So if the system is very low
-> on memory the system is trying to reclaim pages by swapping out (in this
-> case to zram). However, since we are very low on memory zram fails to
-> get a page from zsmalloc and thus zram fails to store the page. We get
-> into a cycle where the system is low on memory so it tries to swap out
-> to get more memory but swap out fails because there is not enough memory
-> in the system! The major problem I am seeing is that there does not seem
-> to be a way for zram to tell the upper layers to stop swapping out
-> because the swap device is essentially "full" (since there is no more
-> memory available for zram pages). Has anyone thought about this issue
-> already and have ideas how to solve this or am I missing something and I
-> should not be seeing this issue?
+This patchset implements targeted shrinking for memcg when kmem limits are
+present. So far, we've been accounting kernel objects but failing allocations
+when short of memory. This is because our only option would be to call the
+global shrinker, depleting objects from all caches and breaking isolation.
 
-I agree with Luigi and Bob.
+The main idea is to associate per-memcg lists with each of the LRUs. The main
+LRU still provides a single entry point and when adding or removing an element
+from the LRU, we use the page information to figure out which memcg it belongs
+to and relay it to the right list.
 
-zram's size is based on how many free memory you expect to use for zram.
-In my test, the compression ratio is about 1:4, of course the working
-sets may be
-different with yours.
+The bulk of the code is written by Glauber Costa. The only change I introduced
+myself in this iteration is reworking per-memcg LRU lists. Instead of extending
+the existing list_lru structure, which seems to be neat as is, I introduced a
+new one, memcg_list_lru, which aggregates list_lru objects for each kmem-active
+memcg and keeps them uptodate as memcgs are created/destroyed. I hope this
+simplified call paths and made the code easier to read.
 
-Further more, may be you can modify vm_swap_full() to let kernel free swap_entry
-aggressively.
+The patchset is based on top of Linux 3.12-rc6.
 
+Any comments and proposals are appreciated.
 
-> I am also seeing a couple other issues that I was wondering whether
-> folks have already thought about:
->
-> 1) The size of a swap device is statically computed when the swap device
-> is turned on (nr_swap_pages). The size of zram swap device is dynamic
-> since we are compressing the pages and thus the swap subsystem thinks
-> that the zram swap device is full when it is not really full. Any
-> plans/thoughts about the possibility of being able to update the size
-> and/or the # of available pages in a swap device on the fly?
->
-> 2) zsmalloc fails when the page allocated is at physical address 0 (pfn
-> = 0) since the handle returned from zsmalloc is encoded as (<PFN>,
-> <obj_idx>) and thus the resulting handle will be 0 (since obj_idx starts
-> at 0). zs_malloc returns the handle but does not distinguish between a
-> valid handle of 0 and a failure to allocate. A possible solution to this
-> would be to start the obj_idx at 1. Is this feasible?
->
-> Thanks,
->
-> Olav Haugan
->
-> --
-> The Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-> hosted by The Linux Foundation
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+== Known issues ==
+
+ * In case kmem limit is less than sum mem limit, reaching memcg kmem limit
+   will result in an attempt to shrink all memcg slabs (see
+   try_to_free_mem_cgroup_kmem()). Although this is better than simply failing
+   allocation as it works now, it is still to be improved.
+
+ * Since FS shrinkers can't be executed on __GFP_FS allocations, such
+   allocations will fail if memcg kmem limit is less than sum mem limit and the
+   memcg kmem usage is close to its limit. Glauber proposed to schedule a
+   worker which would shrink kmem in the background on such allocations.
+   However, this approach does not eliminate failures completely, it just makes
+   them rarer. I'm thinking on implementing soft limits for memcg kmem so that
+   striking the soft limit will trigger the reclaimer, but won't fail the
+   allocation. I would appreciate any other proposals on how this can be fixed.
+
+ * Only dcache and icache are reclaimed on memcg pressure. Other FS objects are
+   left for global pressure only. However, it should not be a serious problem
+   to make them reclaimable too by passing on memcg to the FS-layer and letting
+   each FS decide if its internal objects are shrinkable on memcg pressure.
+
+== Changes from v10 ==
+
+ * Rework per-memcg list_lru infrastructure.
+
+Previous iteration (with full changelog) can be found here:
+
+http://www.spinics.net/lists/linux-fsdevel/msg66632.html
+
+Glauber Costa (12):
+  memcg: make cache index determination more robust
+  memcg: consolidate callers of memcg_cache_id
+  vmscan: also shrink slab in memcg pressure
+  memcg: move initialization to memcg creation
+  memcg: move stop and resume accounting functions
+  memcg: per-memcg kmem shrinking
+  memcg: scan cache objects hierarchically
+  vmscan: take at least one pass with shrinkers
+  memcg: allow kmem limit to be resized down
+  vmpressure: in-kernel notifications
+  memcg: reap dead memcgs upon global memory pressure
+  memcg: flush memcg items upon memcg destruction
+
+Vladimir Davydov (3):
+  memcg,list_lru: add per-memcg LRU list infrastructure
+  memcg,list_lru: add function walking over all lists of a per-memcg
+    LRU
+  super: make icache, dcache shrinkers memcg-aware
+
+ fs/dcache.c                |   25 +-
+ fs/inode.c                 |   16 +-
+ fs/internal.h              |    9 +-
+ fs/super.c                 |   47 +--
+ include/linux/fs.h         |    4 +-
+ include/linux/list_lru.h   |   77 +++++
+ include/linux/memcontrol.h |   23 ++
+ include/linux/shrinker.h   |    6 +-
+ include/linux/swap.h       |    2 +
+ include/linux/vmpressure.h |    5 +
+ mm/memcontrol.c            |  704 +++++++++++++++++++++++++++++++++++++++-----
+ mm/vmpressure.c            |   53 +++-
+ mm/vmscan.c                |  178 +++++++++--
+ 13 files changed, 1014 insertions(+), 135 deletions(-)
+
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
