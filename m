@@ -1,137 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id DA22B6B00DF
-	for <linux-mm@kvack.org>; Fri, 25 Oct 2013 11:46:47 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fb1so3836154pad.23
-        for <linux-mm@kvack.org>; Fri, 25 Oct 2013 08:46:47 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.152])
-        by mx.google.com with SMTP id yj4si5425895pac.282.2013.10.25.08.46.45
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 9468B6B00DD
+	for <linux-mm@kvack.org>; Fri, 25 Oct 2013 12:42:55 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id q10so4220208pdj.14
+        for <linux-mm@kvack.org>; Fri, 25 Oct 2013 09:42:55 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.198])
+        by mx.google.com with SMTP id hb3si5541455pac.326.2013.10.25.09.42.53
         for <linux-mm@kvack.org>;
-        Fri, 25 Oct 2013 08:46:47 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rcjenn@linux.vnet.ibm.com>;
-	Fri, 25 Oct 2013 21:16:40 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id AC0DF125805A
-	for <linux-mm@kvack.org>; Fri, 25 Oct 2013 21:17:12 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9PFkS9l41091294
-	for <linux-mm@kvack.org>; Fri, 25 Oct 2013 21:16:29 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9PFkZxW022916
-	for <linux-mm@kvack.org>; Fri, 25 Oct 2013 21:16:35 +0530
-From: Robert Jennings <rcj@linux.vnet.ibm.com>
-Subject: [PATCH v2 1/2] vmsplice: unmap gifted pages for recipient
-Date: Fri, 25 Oct 2013 10:46:23 -0500
-Message-Id: <1382715984-10558-2-git-send-email-rcj@linux.vnet.ibm.com>
-In-Reply-To: <1382715984-10558-1-git-send-email-rcj@linux.vnet.ibm.com>
-References: <1382715984-10558-1-git-send-email-rcj@linux.vnet.ibm.com>
+        Fri, 25 Oct 2013 09:42:54 -0700 (PDT)
+Received: by mail-qc0-f175.google.com with SMTP id e16so2118506qcx.20
+        for <linux-mm@kvack.org>; Fri, 25 Oct 2013 09:42:52 -0700 (PDT)
+From: kosaki.motohiro@gmail.com
+Subject: [PATCH] mm: get rid of unnecessary overhead of trace_mm_page_alloc_extfrag()
+Date: Fri, 25 Oct 2013 12:42:47 -0400
+Message-Id: <1382719367-11537-1-git-send-email-kosaki.motohiro@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave@sr71.net>, Robert Jennings <rcj@linux.vnet.ibm.com>, Matt Helsley <matt.helsley@gmail.com>, Anthony Liguori <anthony@codemonkey.ws>, Michael Roth <mdroth@linux.vnet.ibm.com>, Lei Li <lilei@linux.vnet.ibm.com>, Leonardo Garcia <lagarcia@linux.vnet.ibm.com>, Simon Jin <simonjin@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>
 
-From: Robert C Jennings <rcj@linux.vnet.ibm.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Introduce use of the unused SPLICE_F_MOVE flag for vmsplice to zap
-pages.
+In general, every tracepoint should be zero overhead if it is disabled.
+However, trace_mm_page_alloc_extfrag() is one of exception. It evaluate
+"new_type == start_migratetype" even if tracepoint is disabled.
 
-When vmsplice is called with flags (SPLICE_F_GIFT | SPLICE_F_MOVE) the
-writer's gift'ed pages would be zapped.  This patch supports further work
-to move vmsplice'd pages rather than copying them.  That patch has the
-restriction that the page must not be mapped by the source for the move,
-otherwise it will fall back to copying the page.
+However, the code can be moved into tracepoint's TP_fast_assign() and
+TP_fast_assign exist exactly such purpose. This patch does it.
 
-Signed-off-by: Matt Helsley <matt.helsley@gmail.com>
-Signed-off-by: Robert C Jennings <rcj@linux.vnet.ibm.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
-Changes since v1:
- - Cleanup zap coalescing in splice_to_pipe for readability
- - Field added to struct partial_page in v1 was unnecessary, using 
-   private field instead.
----
- fs/splice.c | 38 ++++++++++++++++++++++++++++++++++++++
- 1 file changed, 38 insertions(+)
+ include/trace/events/kmem.h |   10 ++++------
+ mm/page_alloc.c             |    5 ++---
+ 2 files changed, 6 insertions(+), 9 deletions(-)
 
-diff --git a/fs/splice.c b/fs/splice.c
-index 3b7ee65..c14be6f 100644
---- a/fs/splice.c
-+++ b/fs/splice.c
-@@ -188,12 +188,18 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
- {
- 	unsigned int spd_pages = spd->nr_pages;
- 	int ret, do_wakeup, page_nr;
-+	struct vm_area_struct *vma;
-+	unsigned long user_start, user_end, addr;
+diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
+index d0c6134..aece134 100644
+--- a/include/trace/events/kmem.h
++++ b/include/trace/events/kmem.h
+@@ -267,14 +267,12 @@ DEFINE_EVENT_PRINT(mm_page, mm_page_pcpu_drain,
+ TRACE_EVENT(mm_page_alloc_extfrag,
  
- 	ret = 0;
- 	do_wakeup = 0;
- 	page_nr = 0;
-+	vma = NULL;
-+	user_start = user_end = 0;
+ 	TP_PROTO(struct page *page,
+-			int alloc_order, int fallback_order,
+-			int alloc_migratetype, int fallback_migratetype,
+-			int change_ownership),
++		int alloc_order, int fallback_order,
++		int alloc_migratetype, int fallback_migratetype, int new_migratetype),
  
- 	pipe_lock(pipe);
-+	/* mmap_sem taken for zap_page_range with SPLICE_F_MOVE */
-+	down_read(&current->mm->mmap_sem);
+ 	TP_ARGS(page,
+ 		alloc_order, fallback_order,
+-		alloc_migratetype, fallback_migratetype,
+-		change_ownership),
++		alloc_migratetype, fallback_migratetype, new_migratetype),
  
- 	for (;;) {
- 		if (!pipe->readers) {
-@@ -215,6 +221,33 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
- 			if (spd->flags & SPLICE_F_GIFT)
- 				buf->flags |= PIPE_BUF_FLAG_GIFT;
+ 	TP_STRUCT__entry(
+ 		__field(	struct page *,	page			)
+@@ -291,7 +289,7 @@ TRACE_EVENT(mm_page_alloc_extfrag,
+ 		__entry->fallback_order		= fallback_order;
+ 		__entry->alloc_migratetype	= alloc_migratetype;
+ 		__entry->fallback_migratetype	= fallback_migratetype;
+-		__entry->change_ownership	= change_ownership;
++		__entry->change_ownership	= (new_migratetype == alloc_migratetype);
+ 	),
  
-+			/* Prepare to move page sized/aligned bufs.
-+			 * Gather pages for a single zap_page_range()
-+			 * call per VMA.
-+			 */
-+			if (spd->flags & (SPLICE_F_GIFT | SPLICE_F_MOVE) &&
-+					!buf->offset &&
-+					(buf->len == PAGE_SIZE)) {
-+				addr = buf->private;
-+
-+				if (vma && (addr == user_end) &&
-+					   (addr + PAGE_SIZE <= vma->vm_end)) {
-+					/* Same vma, no holes */
-+					user_end += PAGE_SIZE;
-+				} else {
-+					if (vma)
-+						zap_page_range(vma, user_start,
-+							(user_end - user_start),
-+							NULL);
-+					vma = find_vma(current->mm, addr);
-+					if (!IS_ERR_OR_NULL(vma)) {
-+						user_start = addr;
-+						user_end = (addr + PAGE_SIZE);
-+					} else
-+						vma = NULL;
-+				}
-+			}
-+
- 			pipe->nrbufs++;
- 			page_nr++;
- 			ret += buf->len;
-@@ -255,6 +288,10 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
- 		pipe->waiting_writers--;
- 	}
+ 	TP_printk("page=%p pfn=%lu alloc_order=%d fallback_order=%d pageblock_order=%d alloc_migratetype=%d fallback_migratetype=%d fragmenting=%d change_ownership=%d",
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 4414c9d..58e67ea 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1103,9 +1103,8 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ 			       is_migrate_cma(migratetype)
+ 			     ? migratetype : start_migratetype);
  
-+	if (vma)
-+		zap_page_range(vma, user_start, (user_end - user_start), NULL);
-+
-+	up_read(&current->mm->mmap_sem);
- 	pipe_unlock(pipe);
+-			trace_mm_page_alloc_extfrag(page, order,
+-				current_order, start_migratetype, migratetype,
+-				new_type == start_migratetype);
++			trace_mm_page_alloc_extfrag(page, order, current_order,
++				start_migratetype, migratetype, new_type);
  
- 	if (do_wakeup)
-@@ -1475,6 +1512,7 @@ static int get_iovec_page_array(const struct iovec __user *iov,
- 
- 			partial[buffers].offset = off;
- 			partial[buffers].len = plen;
-+			partial[buffers].private = (unsigned long)base;
- 
- 			off = 0;
- 			len -= plen;
+ 			return page;
+ 		}
 -- 
-1.8.1.2
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
