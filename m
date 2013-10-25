@@ -1,102 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id E5A006B00DD
-	for <linux-mm@kvack.org>; Thu, 24 Oct 2013 20:35:28 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rp16so3442431pbb.14
-        for <linux-mm@kvack.org>; Thu, 24 Oct 2013 17:35:28 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.168])
-        by mx.google.com with SMTP id ud7si3291661pac.323.2013.10.24.17.35.27
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A0EF56B00DD
+	for <linux-mm@kvack.org>; Thu, 24 Oct 2013 20:55:57 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id wz7so2792832pbc.24
+        for <linux-mm@kvack.org>; Thu, 24 Oct 2013 17:55:57 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.151])
+        by mx.google.com with SMTP id yh6si3337857pab.266.2013.10.24.17.55.56
         for <linux-mm@kvack.org>;
-        Thu, 24 Oct 2013 17:35:28 -0700 (PDT)
-Message-ID: <5269BCCC.6090509@codeaurora.org>
-Date: Thu, 24 Oct 2013 17:35:24 -0700
-From: Olav Haugan <ohaugan@codeaurora.org>
-MIME-Version: 1.0
-Subject: Re: zram/zsmalloc issues in very low memory conditions
-References: <526844E6.1080307@codeaurora.org> <52686FF4.5000303@oracle.com>
-In-Reply-To: <52686FF4.5000303@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1
+        Thu, 24 Oct 2013 17:55:56 -0700 (PDT)
+Message-ID: <1382662541.2373.20.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH 3/3] vdso: preallocate new vmas
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Thu, 24 Oct 2013 17:55:41 -0700
+In-Reply-To: <20131023095337.GC2862@localhost>
+References: <1382057438-3306-1-git-send-email-davidlohr@hp.com>
+	 <1382057438-3306-4-git-send-email-davidlohr@hp.com>
+	 <1382325975.2402.3.camel@buesod1.americas.hpqcorp.net>
+	 <20131023095337.GC2862@localhost>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <bob.liu@oracle.com>
-Cc: minchan@kernel.org, sjenning@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, semenzato@google.com
+To: walken@google.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, aswin@hp.com, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Richard Kuo <rkuo@codeaurora.org>, Ralf Baechle <ralf@linux-mips.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Paul Mundt <lethal@linux-sh.org>, Chris Metcalf <cmetcalf@tilera.com>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 
-Hi Bob, Luigi,
-
-On 10/23/2013 5:55 PM, Bob Liu wrote:
+On Wed, 2013-10-23 at 02:53 -0700, walken@google.com wrote:
+> On Sun, Oct 20, 2013 at 08:26:15PM -0700, Davidlohr Bueso wrote:
+> > From: Davidlohr Bueso <davidlohr@hp.com>
+> > Subject: [PATCH v2 3/3] vdso: preallocate new vmas
+> > 
+> > With the exception of um and tile, architectures that use
+> > the install_special_mapping() function, when setting up a
+> > new vma at program startup, do so with the mmap_sem lock
+> > held for writing. Unless there's an error, this process
+> > ends up allocating a new vma through kmem_cache_zalloc,
+> > and inserting it in the task's address space.
+> > 
+> > This patch moves the vma's space allocation outside of
+> > install_special_mapping(), and leaves the callers to do so
+> > explicitly, without depending on mmap_sem. The same goes for
+> > freeing: if the new vma isn't used (and thus the process fails
+> > at some point), it's caller's responsibility to free it -
+> > currently this is done inside install_special_mapping.
+> > 
+> > Furthermore, uprobes behaves exactly the same and thus now the
+> > xol_add_vma() function also preallocates the new vma.
+> > 
+> > While the changes to x86 vdso handling have been tested on both
+> > large and small 64-bit systems, the rest of the architectures
+> > are totally *untested*. Note that all changes are quite similar
+> > from architecture to architecture.
+> > 
+> > Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+> > Cc: Russell King <linux@arm.linux.org.uk>
+> > Cc: Catalin Marinas <catalin.marinas@arm.com>
+> > Cc: Will Deacon <will.deacon@arm.com>
+> > Cc: Richard Kuo <rkuo@codeaurora.org>
+> > Cc: Ralf Baechle <ralf@linux-mips.org>
+> > Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> > Cc: Paul Mackerras <paulus@samba.org>
+> > Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> > Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+> > Cc: Paul Mundt <lethal@linux-sh.org>
+> > Cc: Chris Metcalf <cmetcalf@tilera.com>
+> > Cc: Jeff Dike <jdike@addtoit.com>
+> > Cc: Richard Weinberger <richard@nod.at>
+> > Cc: Thomas Gleixner <tglx@linutronix.de>
+> > Cc: Ingo Molnar <mingo@redhat.com>
+> > Cc: "H. Peter Anvin" <hpa@zytor.com>
+> > Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> > ---
+> > v2:
+> > - Simplify install_special_mapping interface (Linus Torvalds)
+> > - Fix return for uml_setup_stubs when mem allocation fails (Richard Weinberger)
 > 
-> On 10/24/2013 05:51 AM, Olav Haugan wrote:
->> I am trying to use zram in very low memory conditions and I am having
->> some issues. zram is in the reclaim path. So if the system is very low
->> on memory the system is trying to reclaim pages by swapping out (in this
->> case to zram). However, since we are very low on memory zram fails to
->> get a page from zsmalloc and thus zram fails to store the page. We get
->> into a cycle where the system is low on memory so it tries to swap out
->> to get more memory but swap out fails because there is not enough memory
->> in the system! The major problem I am seeing is that there does not seem
->> to be a way for zram to tell the upper layers to stop swapping out
->> because the swap device is essentially "full" (since there is no more
->> memory available for zram pages). Has anyone thought about this issue
->> already and have ideas how to solve this or am I missing something and I
->> should not be seeing this issue?
->>
-> 
-> The same question as Luigi "What do you want the system to do at this
-> point?"
-> 
-> If swap fails then OOM killer will be triggered, I don't think this will
-> be a issue.
+> I'm still confused as to why you're seeing any gains with this
+> one. This code runs during exec when mm isn't shared with any other
+> threads yet, so why does it matter how long the mmap_sem is held since
+> nobody else can contend on it ? (well, except for accesses from
+> /fs/proc/base.c, but I don't see why these would matter in your
+> benchmarks either).
 
-I definitely don't want OOM killer to run since OOM killer can kill
-critical processes (this is on Android so we have Android LMK to handle
-the killing in a more "safe" way). However, what I am seeing is that
-when I run low on memory zram fails to swap out and returns error but
-the swap subsystem just continues to try to swap out even when this
-error occurs (it tries over and over again very rapidly causing the
-kernel to be filled with error messages [at least two error messages per
-failure btw]).
-
-What I expected to happen is for the swap subsystem to stop trying to
-swap out until memory is available to swap out. I guess this could be
-handled several ways. Either 1) the swap subsystem, upon encountering an
-error to swap out, backs off from trying to swap out for some time or 2)
-zram informs the swap subsystem that the swap device is full.
-
-Could this be handled by congestion control? However, I found the
-following comment in the code in vmscan.c:
-
-* If the page is swapcache, write it back even if that would
-* block, for some throttling. This happens by accident, because
-* swap_backing_dev_info is bust: it doesn't reflect the
-* congestion state of the swapdevs.  Easy to fix, if needed.
-
-However, how would one update the congested state of zram when it
-becomes un-congested?
-
-> By the way, could you take a try with zswap? Which can write pages to
-> real swap device if compressed pool is full.
-
-zswap might not be feasible in all cases if you only have flash as
-backing storage.
-
->> I am also seeing a couple other issues that I was wondering whether
->> folks have already thought about:
->>
->> 2) zsmalloc fails when the page allocated is at physical address 0 (pfn
-> 
-> AFAIK, this will never happen.
-
-I can easily get this to happen since I have memory starting at physical
-address 0.
+Yeah, that's why I dropped the performance numbers from the changelog in
+v2, of course any differences are within the noise range. When I did the
+initial runs I was scratching my head as to why I was seeing benefits,
+but it was most likely a matter of clock frequency differences, and I no
+longer see such boosts.
 
 Thanks,
+Davidlohr
 
-Olav Haugan
-
--- 
-The Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
