@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 9468B6B00DD
-	for <linux-mm@kvack.org>; Fri, 25 Oct 2013 12:42:55 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id q10so4220208pdj.14
-        for <linux-mm@kvack.org>; Fri, 25 Oct 2013 09:42:55 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.198])
-        by mx.google.com with SMTP id hb3si5541455pac.326.2013.10.25.09.42.53
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 21D5A6B00DD
+	for <linux-mm@kvack.org>; Fri, 25 Oct 2013 14:09:51 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id bj1so5596461pad.14
+        for <linux-mm@kvack.org>; Fri, 25 Oct 2013 11:09:50 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.155])
+        by mx.google.com with SMTP id mj9si5745921pab.103.2013.10.25.11.09.49
         for <linux-mm@kvack.org>;
-        Fri, 25 Oct 2013 09:42:54 -0700 (PDT)
-Received: by mail-qc0-f175.google.com with SMTP id e16so2118506qcx.20
-        for <linux-mm@kvack.org>; Fri, 25 Oct 2013 09:42:52 -0700 (PDT)
+        Fri, 25 Oct 2013 11:09:50 -0700 (PDT)
+Received: by mail-ee0-f45.google.com with SMTP id c50so2745498eek.18
+        for <linux-mm@kvack.org>; Fri, 25 Oct 2013 11:09:47 -0700 (PDT)
 From: kosaki.motohiro@gmail.com
-Subject: [PATCH] mm: get rid of unnecessary overhead of trace_mm_page_alloc_extfrag()
-Date: Fri, 25 Oct 2013 12:42:47 -0400
-Message-Id: <1382719367-11537-1-git-send-email-kosaki.motohiro@gmail.com>
+Subject: [PATCH] Fix page_group_by_mobility_disabled breakage
+Date: Fri, 25 Oct 2013 14:09:35 -0400
+Message-Id: <1382724575-8450-1-git-send-email-kosaki.motohiro@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -21,67 +21,37 @@ Cc: linux-mm@kvack.org, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motoh
 
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-In general, every tracepoint should be zero overhead if it is disabled.
-However, trace_mm_page_alloc_extfrag() is one of exception. It evaluate
-"new_type == start_migratetype" even if tracepoint is disabled.
+Currently, set_pageblock_migratetype screw up MIGRATE_CMA and
+MIGRATE_ISOLATE if page_group_by_mobility_disabled is true. It
+rewrite the argument to MIGRATE_UNMOVABLE and we lost these attribute.
 
-However, the code can be moved into tracepoint's TP_fast_assign() and
-TP_fast_assign exist exactly such purpose. This patch does it.
+The problem was introduced commit 49255c619f (page allocator: move
+check for disabled anti-fragmentation out of fastpath). So, 4 years
+lived issue may mean that nobody uses page_group_by_mobility_disabled.
 
-Cc: Mel Gorman <mgorman@suse.de>
+But anyway, this patch fixes the problem.
+
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Mel Gorman <mgorman@suse.de>
 ---
- include/trace/events/kmem.h |   10 ++++------
- mm/page_alloc.c             |    5 ++---
- 2 files changed, 6 insertions(+), 9 deletions(-)
+ mm/page_alloc.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
-index d0c6134..aece134 100644
---- a/include/trace/events/kmem.h
-+++ b/include/trace/events/kmem.h
-@@ -267,14 +267,12 @@ DEFINE_EVENT_PRINT(mm_page, mm_page_pcpu_drain,
- TRACE_EVENT(mm_page_alloc_extfrag,
- 
- 	TP_PROTO(struct page *page,
--			int alloc_order, int fallback_order,
--			int alloc_migratetype, int fallback_migratetype,
--			int change_ownership),
-+		int alloc_order, int fallback_order,
-+		int alloc_migratetype, int fallback_migratetype, int new_migratetype),
- 
- 	TP_ARGS(page,
- 		alloc_order, fallback_order,
--		alloc_migratetype, fallback_migratetype,
--		change_ownership),
-+		alloc_migratetype, fallback_migratetype, new_migratetype),
- 
- 	TP_STRUCT__entry(
- 		__field(	struct page *,	page			)
-@@ -291,7 +289,7 @@ TRACE_EVENT(mm_page_alloc_extfrag,
- 		__entry->fallback_order		= fallback_order;
- 		__entry->alloc_migratetype	= alloc_migratetype;
- 		__entry->fallback_migratetype	= fallback_migratetype;
--		__entry->change_ownership	= change_ownership;
-+		__entry->change_ownership	= (new_migratetype == alloc_migratetype);
- 	),
- 
- 	TP_printk("page=%p pfn=%lu alloc_order=%d fallback_order=%d pageblock_order=%d alloc_migratetype=%d fallback_migratetype=%d fragmenting=%d change_ownership=%d",
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4414c9d..58e67ea 100644
+index dd886fa..ef44d95 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1103,9 +1103,8 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
- 			       is_migrate_cma(migratetype)
- 			     ? migratetype : start_migratetype);
+@@ -234,8 +234,8 @@ int page_group_by_mobility_disabled __read_mostly;
  
--			trace_mm_page_alloc_extfrag(page, order,
--				current_order, start_migratetype, migratetype,
--				new_type == start_migratetype);
-+			trace_mm_page_alloc_extfrag(page, order, current_order,
-+				start_migratetype, migratetype, new_type);
+ void set_pageblock_migratetype(struct page *page, int migratetype)
+ {
+-
+-	if (unlikely(page_group_by_mobility_disabled))
++	if (unlikely(page_group_by_mobility_disabled &&
++		     migratetype < MIGRATE_PCPTYPES))
+ 		migratetype = MIGRATE_UNMOVABLE;
  
- 			return page;
- 		}
+ 	set_pageblock_flags_group(page, (unsigned long)migratetype,
 -- 
 1.7.1
 
