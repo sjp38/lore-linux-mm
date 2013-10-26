@@ -1,107 +1,242 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id E52A16B0031
-	for <linux-mm@kvack.org>; Mon, 28 Oct 2013 11:17:57 -0400 (EDT)
-Received: by mail-pb0-f54.google.com with SMTP id ro8so3200488pbb.41
-        for <linux-mm@kvack.org>; Mon, 28 Oct 2013 08:17:57 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.189])
-        by mx.google.com with SMTP id gl1si13241137pac.343.2013.10.28.08.17.55
+Received: from mail-pb0-f80.google.com (mail-pb0-f80.google.com [209.85.160.80])
+	by kanga.kvack.org (Postfix) with ESMTP id 85BFB6B0037
+	for <linux-mm@kvack.org>; Mon, 28 Oct 2013 11:22:21 -0400 (EDT)
+Received: by mail-pb0-f80.google.com with SMTP id md4so32892pbc.3
+        for <linux-mm@kvack.org>; Mon, 28 Oct 2013 08:22:21 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.205])
+        by mx.google.com with SMTP id je1si5902827pbb.0.2013.10.25.20.39.48
         for <linux-mm@kvack.org>;
-        Mon, 28 Oct 2013 08:17:56 -0700 (PDT)
-Received: from /spool/local
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
-	Tue, 29 Oct 2013 01:17:52 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 25A953578040
-	for <linux-mm@kvack.org>; Tue, 29 Oct 2013 02:17:50 +1100 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9SFHbMC1704242
-	for <linux-mm@kvack.org>; Tue, 29 Oct 2013 02:17:38 +1100
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9SFHmGN000668
-	for <linux-mm@kvack.org>; Tue, 29 Oct 2013 02:17:48 +1100
-Date: Mon, 28 Oct 2013 23:17:46 +0800
-From: Wei Yang <weiyang@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/3] percpu: stop the loop when a cpu belongs to a new
- group
-Message-ID: <20131028151746.GA7548@weiyang.vnet.ibm.com>
-Reply-To: Wei Yang <weiyang@linux.vnet.ibm.com>
-References: <1382345893-6644-1-git-send-email-weiyang@linux.vnet.ibm.com>
- <20131027123008.GJ14934@mtj.dyndns.org>
- <20131028030055.GC15642@weiyang.vnet.ibm.com>
- <20131028113120.GB11541@mtj.dyndns.org>
+        Fri, 25 Oct 2013 20:39:49 -0700 (PDT)
+Date: Fri, 25 Oct 2013 23:39:36 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: RIP: mem_cgroup_move_account+0xf4/0x290
+Message-ID: <20131026033936.GA14971@cmpxchg.org>
+References: <20131025161555.GA4398@plex.lan>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131028113120.GB11541@mtj.dyndns.org>
+Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20131025161555.GA4398@plex.lan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Wei Yang <weiyang@linux.vnet.ibm.com>, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Flavio Leitner <fbl@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Sha Zhengju <handai.szj@taobao.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Oct 28, 2013 at 07:31:20AM -0400, Tejun Heo wrote:
->Hello,
->
->On Mon, Oct 28, 2013 at 11:00:55AM +0800, Wei Yang wrote:
->> >Does this actually matter?  If so, it'd probably make a lot more sense
->> >to start inner loop at @cpu + 1 so that it becomes O(N).
->> 
->> One of the worst case in my mind:
->> 
->> CPU:        0    1    2    3    4    ...
->> Group:      0    1    2    3    4    ...
->> (sounds it is impossible in the real world)
->
->I was wondering whether you had an actual case where this actually
->matters or it's just something you thought of while reading the code.
+On Fri, Oct 25, 2013 at 02:15:55PM -0200, Flavio Leitner wrote:
+>=20
+> While playing with guests and net-next kernel, I've triggered
+> this with some frequency.  Even Fedora 19 kernel reproduces.
+>=20
+> It it a known issue?
+>=20
+> Thanks,
+> fbl
+>=20
+> [ 6790.349763] kvm: zapping shadow pages for mmio generation wraparound
+> [ 6792.283879] kvm: zapping shadow pages for mmio generation wraparound
+> [ 7535.654438] perf samples too long (2719 > 2500), lowering kernel.perf_=
+event_max_sample_rate to 50000
+> [ 7535.665948] INFO: NMI handler (perf_event_nmi_handler) took too long t=
+o run: 11.560 msecs
+> [ 7691.048392] virbr0: port 1(vnet0) entered disabled state
+> [ 7691.056281] device vnet0 left promiscuous mode
+> [ 7691.061674] virbr0: port 1(vnet0) entered disabled state
+> [ 7691.163363] BUG: unable to handle kernel paging request at 000060fbc00=
+02a20
+> [ 7691.171145] IP: [<ffffffff8119dcb4>] mem_cgroup_move_account+0xf4/0x290
+> [ 7691.178574] PGD 0=20
+> [ 7691.181042] Oops: 0000 [#1] SMP=20
+> [ 7691.184761] Modules linked in: vhost_net vhost macvtap macvlan tun vet=
+h openvswitch xt_CHECKSUM nf_conntrack_netbios_ns nf_conntrack_broadcast ip=
+t_MASQUERADE ip6t_REJECT xt_conntrack ebtable_nat ebtable_broute bridge stp=
+ llc ebtable_filter ebtables ip6table_nat nf_conntrack_ipv6 nf_defrag_ipv6 =
+nf_nat_ipv6 vxlan ip_tunnel gre libcrc32c ip6table_mangle ip6table_security=
+ ip6table_raw ip6table_filter ip6_tables iptable_nat nf_conntrack_ipv4 nf_d=
+efrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack iptable_mangle iptable_security =
+iptable_raw coretemp kvm_intel snd_hda_codec_realtek snd_hda_intel nfsd snd=
+_hda_codec kvm auth_rpcgss nfs_acl snd_hwdep lockd snd_seq snd_seq_device s=
+nd_pcm e1000e snd_page_alloc sunrpc snd_timer crc32c_intel i7core_edac bnx2=
+ shpchp ptp snd iTCO_wdt joydev pps_core iTCO_vendor_support pcspkr soundco=
+re microcode serio_raw lpc_ich edac_core mfd_core i2c_i801 acpi_cpufreq hid=
+_logitech_dj nouveau ata_generic pata_acpi video i2c_algo_bit drm_kms_helpe=
+r ttm drm mxm_wmi i2c_core pata_marvell wmi [last unloaded: openvswitch]
+> [ 7691.285989] CPU: 1 PID: 14 Comm: kworker/1:0 Tainted: G          I  3.=
+12.0-rc6-01188-gb45bd46 #1
+> [ 7691.295779] Hardware name:                  /DX58SO, BIOS SOX5810J.86A=
+=2E5599.2012.0529.2218 05/29/2012
+> [ 7691.306066] Workqueue: events css_killed_work_fn
+> [ 7691.311303] task: ffff880429555dc0 ti: ffff88042957a000 task.ti: ffff8=
+8042957a000
+> [ 7691.319673] RIP: 0010:[<ffffffff8119dcb4>]  [<ffffffff8119dcb4>] mem_c=
+group_move_account+0xf4/0x290
+> [ 7691.329728] RSP: 0018:ffff88042957bcc8  EFLAGS: 00010002
+> [ 7691.335747] RAX: 0000000000000246 RBX: ffff88042b17bc30 RCX: 000000000=
+0000004
+> [ 7691.343720] RDX: ffff880424cd6000 RSI: 000060fbc0002a08 RDI: ffff88042=
+4cd622c
+> [ 7691.351735] RBP: ffff88042957bd20 R08: ffff880424cd4000 R09: 000000000=
+0000001
+> [ 7691.359751] R10: 0000000000000001 R11: 0000000000000001 R12: ffffea001=
+03ef0c0
+> [ 7691.367745] R13: ffff880424cd6000 R14: 0000000000000000 R15: ffff88042=
+4cd622c
+> [ 7691.375738] FS:  0000000000000000(0000) GS:ffff88043fc20000(0000) knlG=
+S:0000000000000000
+> [ 7691.384755] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> [ 7691.391238] CR2: 000060fbc0002a20 CR3: 0000000001c0c000 CR4: 000000000=
+00027e0
+> [ 7691.399235] Stack:
+> [ 7691.401672]  ffff88042957bce8 ffff88042957bce8 ffffffff81312b6d ffff88=
+0424cd4000
+> [ 7691.409968]  ffff880400000001 ffff880424cd6000 ffffea00103ef0c0 ffff88=
+0424cd0430
+> [ 7691.418264]  ffff88042b17bc30 ffffea00103ef0e0 ffff880424cd6000 ffff88=
+042957bda8
+> [ 7691.426578] Call Trace:
+> [ 7691.429513]  [<ffffffff81312b6d>] ? list_del+0xd/0x30
+> [ 7691.435250]  [<ffffffff8119f5e7>] mem_cgroup_reparent_charges+0x247/0x=
+460
+> [ 7691.442874]  [<ffffffff8119f9af>] mem_cgroup_css_offline+0xaf/0x1b0
+> [ 7691.449942]  [<ffffffff810da877>] offline_css+0x27/0x50
+> [ 7691.455874]  [<ffffffff810dcf8d>] css_killed_work_fn+0x2d/0xa0
+> [ 7691.462466]  [<ffffffff810821f5>] process_one_work+0x175/0x430
+> [ 7691.469041]  [<ffffffff81082e1b>] worker_thread+0x11b/0x3a0
+> [ 7691.475345]  [<ffffffff81082d00>] ? rescuer_thread+0x340/0x340
+> [ 7691.481919]  [<ffffffff81089860>] kthread+0xc0/0xd0
+> [ 7691.487478]  [<ffffffff810897a0>] ? insert_kthread_work+0x40/0x40
+> [ 7691.494352]  [<ffffffff8166ea3c>] ret_from_fork+0x7c/0xb0
+> [ 7691.500464]  [<ffffffff810897a0>] ? insert_kthread_work+0x40/0x40
+> [ 7691.507335] Code: 85 f6 48 8b 55 d0 44 8b 4d c8 4c 8b 45 c0 0f 85 b3 0=
+0 00 00 41 8b 4c 24 18 85 c9 0f 88 a6 00 00 00 48 8b b2 30 02 00 00 45 89 c=
+a <4c> 39 56 18 0f 8c 36 01 00 00 44 89 c9 f7 d9 89 cf 65 48 01 7e
 
-Tejun,
+This is
 
-Thanks for your comments.
+All code
+=3D=3D=3D=3D=3D=3D=3D=3D
+   0:   85 f6                   test   %esi,%esi
+   2:   48 8b 55 d0             mov    -0x30(%rbp),%rdx
+   6:   44 8b 4d c8             mov    -0x38(%rbp),%r9d
+   a:   4c 8b 45 c0             mov    -0x40(%rbp),%r8
+   e:   0f 85 b3 00 00 00       jne    0xc7
+  14:   41 8b 4c 24 18          mov    0x18(%r12),%ecx
+  19:   85 c9                   test   %ecx,%ecx
+  1b:   0f 88 a6 00 00 00       js     0xc7
+  21:   48 8b b2 30 02 00 00    mov    0x230(%rdx),%rsi
+  28:   45 89 ca                mov    %r9d,%r10d
+  2b:*  4c 39 56 18             cmp    %r10,0x18(%rsi)          <-- trappin=
+g instruction
+  2f:   0f 8c 36 01 00 00       jl     0x16b
+  35:   44 89 c9                mov    %r9d,%ecx
+  38:   f7 d9                   neg    %ecx
+  3a:   89 cf                   mov    %ecx,%edi
+  3c:   65                      gs
+  3d:   48                      rex.W
+  3e:   01                      .byte 0x1
+  3f:   7e                      .byte 0x7e
 
-I found this just in code review. :-)
+which corresponds to
 
->
->> Every time, when we encounter a new CPU and try to assign it to a group, we
->> found it belongs to a new group. The original logic will iterate on all old
->> CPUs again, while the new logic could skip this and assign it to a new group.
->> 
->> Again, this is a tiny change, which doesn't matters a lot.
->
->I think it *could* matter because the current implementation is O(N^2)
->where N is the number of CPUs.  On machines, say, with 4k CPU, it's
->gonna loop 16M times but then again even that takes only a few
->millisecs on modern machines.
+	WARN_ON_ONCE(from->stat->count[idx] < nr_pages);
 
-I am not familiar with the real cases of the CPU numbers. Thanks for leting me
-know there could be 4K CPUs.
+Humm.  from->stat is a percpu pointer...  This patch should fix it:
 
-Yep, a few millisecs sounds not a big a mount.
+---
+=46rom 4e9fe9d7e8502eab1c8bb4761de838f61cd4a8e0 Mon Sep 17 00:00:00 2001
+=46rom: Johannes Weiner <hannes@cmpxchg.org>
+Date: Fri, 25 Oct 2013 23:23:31 -0400
+Subject: [patch] mm: memcg: fix percpu variable access crash
 
->
->> BTW, I don't get your point for "start inner loop at @cpu+1".
->> 
->> The original logic is:
->> 	loop 1:   0 - nr_cpus
->> 	loop 2:      0 - (cpu - 1)
->> 
->> If you found one better approach to improve the logic, I believe all the users
->> will appreciate your efforts :-)
->
->Ooh, right, I forgot about the break and then I thought somehow that
->would make it O(N).  Sorry about that.  I blame jetlag. :)
->
->Yeah, I don't know.  The function is quite hairy which makes me keep
->things simpler and reluctant to make changes unless it actually makes
->non-trivial difference.  The change looks okay to me but it seems
->neither necessary or substantially beneficial and if my experience is
->anything to go by, *any* change involves some risk of brekage no
->matter how innocent it may look, so given the circumstances, I'd like
->to keep things the way they are.
+3ea67d06e467 ("memcg: add per cgroup writeback pages accounting")
+added a WARN_ON_ONCE() to sanity check the page statistics counter
+when moving charges.  Unfortunately, it dereferences the percpu
+counter directly, which may result in a crash like this:
 
-Yep, I really agree with you. If no big improvement, it is really not
-necessary to change the code, which will face some risk.
+[ 7691.163363] BUG: unable to handle kernel paging request at 000060fbc0002=
+a20
+[ 7691.171145] IP: [<ffffffff8119dcb4>] mem_cgroup_move_account+0xf4/0x290
+[ 7691.178574] PGD 0
+[ 7691.181042] Oops: 0000 [#1] SMP
+[...]
+[ 7691.285989] CPU: 1 PID: 14 Comm: kworker/1:0 Tainted: G          I  3.12=
+=2E0-rc6-01188-gb45bd46 #1
+[ 7691.295779] Hardware name:                  /DX58SO, BIOS SOX5810J.86A.5=
+599.2012.0529.2218 05/29/2012
+[ 7691.306066] Workqueue: events css_killed_work_fn
+[ 7691.311303] task: ffff880429555dc0 ti: ffff88042957a000 task.ti: ffff880=
+42957a000
+[ 7691.319673] RIP: 0010:[<ffffffff8119dcb4>]  [<ffffffff8119dcb4>] mem_cgr=
+oup_move_account+0xf4/0x290
+[ 7691.329728] RSP: 0018:ffff88042957bcc8  EFLAGS: 00010002
+[ 7691.335747] RAX: 0000000000000246 RBX: ffff88042b17bc30 RCX: 00000000000=
+00004
+[ 7691.343720] RDX: ffff880424cd6000 RSI: 000060fbc0002a08 RDI: ffff880424c=
+d622c
+[ 7691.351735] RBP: ffff88042957bd20 R08: ffff880424cd4000 R09: 00000000000=
+00001
+[ 7691.359751] R10: 0000000000000001 R11: 0000000000000001 R12: ffffea00103=
+ef0c0
+[ 7691.367745] R13: ffff880424cd6000 R14: 0000000000000000 R15: ffff880424c=
+d622c
+[ 7691.375738] FS:  0000000000000000(0000) GS:ffff88043fc20000(0000) knlGS:=
+0000000000000000
+[ 7691.384755] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[ 7691.391238] CR2: 000060fbc0002a20 CR3: 0000000001c0c000 CR4: 00000000000=
+027e0
+[ 7691.399235] Stack:
+[ 7691.401672]  ffff88042957bce8 ffff88042957bce8 ffffffff81312b6d ffff8804=
+24cd4000
+[ 7691.409968]  ffff880400000001 ffff880424cd6000 ffffea00103ef0c0 ffff8804=
+24cd0430
+[ 7691.418264]  ffff88042b17bc30 ffffea00103ef0e0 ffff880424cd6000 ffff8804=
+2957bda8
+[ 7691.426578] Call Trace:
+[ 7691.429513]  [<ffffffff81312b6d>] ? list_del+0xd/0x30
+[ 7691.435250]  [<ffffffff8119f5e7>] mem_cgroup_reparent_charges+0x247/0x460
+[ 7691.442874]  [<ffffffff8119f9af>] mem_cgroup_css_offline+0xaf/0x1b0
+[ 7691.449942]  [<ffffffff810da877>] offline_css+0x27/0x50
+[ 7691.455874]  [<ffffffff810dcf8d>] css_killed_work_fn+0x2d/0xa0
+[ 7691.462466]  [<ffffffff810821f5>] process_one_work+0x175/0x430
+[ 7691.469041]  [<ffffffff81082e1b>] worker_thread+0x11b/0x3a0
+[ 7691.475345]  [<ffffffff81082d00>] ? rescuer_thread+0x340/0x340
+[ 7691.481919]  [<ffffffff81089860>] kthread+0xc0/0xd0
+[ 7691.487478]  [<ffffffff810897a0>] ? insert_kthread_work+0x40/0x40
+[ 7691.494352]  [<ffffffff8166ea3c>] ret_from_fork+0x7c/0xb0
+[ 7691.500464]  [<ffffffff810897a0>] ? insert_kthread_work+0x40/0x40
+[ 7691.507335] Code: 85 f6 48 8b 55 d0 44 8b 4d c8 4c 8b 45 c0 0f 85 b3 00 =
+00 00 41 8b 4c 24 18
+85 c9 0f 88 a6 00 00 00 48 8b b2 30 02 00 00 45 89 ca <4c> 39 56 18 0f 8c 3=
+6 01 00 00 44 89 c9
+f7 d9 89 cf 65 48 01 7e
+[ 7691.528638] RIP  [<ffffffff8119dcb4>] mem_cgroup_move_account+0xf4/0x290
 
-Here I have another one, which in my mind will improve it in one case. Looking
-forward to your comments :-) If I am not correct, please let me know. :-)
+Add the required __this_cpu_read().
+
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/memcontrol.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 4097a78..a4864b6 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3773,7 +3773,7 @@ void mem_cgroup_move_account_page_stat(struct mem_cgr=
+oup *from,
+ {
+ 	/* Update stat data for mem_cgroup */
+ 	preempt_disable();
+-	WARN_ON_ONCE(from->stat->count[idx] < nr_pages);
++	WARN_ON_ONCE(__this_cpu_read(from->stat->count[idx]) < nr_pages);
+ 	__this_cpu_add(from->stat->count[idx], -nr_pages);
+ 	__this_cpu_add(to->stat->count[idx], nr_pages);
+ 	preempt_enable();
+--=20
+1.8.4.1
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
