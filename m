@@ -1,85 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-	by kanga.kvack.org (Postfix) with ESMTP id E6A536B00DD
-	for <linux-mm@kvack.org>; Fri, 25 Oct 2013 19:32:35 -0400 (EDT)
-Received: by mail-pb0-f43.google.com with SMTP id md12so4760573pbc.2
-        for <linux-mm@kvack.org>; Fri, 25 Oct 2013 16:32:35 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.137])
-        by mx.google.com with SMTP id ei3si5398912pbc.350.2013.10.25.16.32.34
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 20D9D6B00DB
+	for <linux-mm@kvack.org>; Sat, 26 Oct 2013 05:46:03 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id rd3so4783104pab.19
+        for <linux-mm@kvack.org>; Sat, 26 Oct 2013 02:46:02 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.172])
+        by mx.google.com with SMTP id o4si6820807paa.165.2013.10.26.02.46.01
         for <linux-mm@kvack.org>;
-        Fri, 25 Oct 2013 16:32:35 -0700 (PDT)
-Date: Sat, 26 Oct 2013 00:32:25 +0100
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: Disabling in-memory write cache for x86-64 in Linux II
-Message-ID: <20131025233225.GA32051@localhost>
-References: <160824051.3072.1382685914055.JavaMail.mail@webmail07>
- <alpine.DEB.2.02.1310250425270.22538@nftneq.ynat.uz>
- <154617470.12445.1382725583671.JavaMail.mail@webmail11>
- <1999200.Zdacx0scmY@diego-arch>
+        Sat, 26 Oct 2013 02:46:02 -0700 (PDT)
+Received: by mail-ie0-f170.google.com with SMTP id at1so8198105iec.1
+        for <linux-mm@kvack.org>; Sat, 26 Oct 2013 02:46:00 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1999200.Zdacx0scmY@diego-arch>
+In-Reply-To: <20131025102032.GE6612@gmail.com>
+References: <000101ced09e$fed90a10$fc8b1e30$%yang@samsung.com>
+	<20131025102032.GE6612@gmail.com>
+Date: Sat, 26 Oct 2013 17:46:00 +0800
+Message-ID: <CAL1ERfOhhJ12zXwsGJoHWRzkd2destQnJ32nfU25SOACCnzy7Q@mail.gmail.com>
+Subject: Re: [PATCH RESEND 2/2] mm/zswap: refoctor the get/put routines
+From: Weijie Yang <weijie.yang.kh@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Diego Calleja <diegocg@gmail.com>
-Cc: "Artem S. Tashkinov" <t.artem@lycos.com>, david@lang.hm, neilb@suse.de, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, linux-fsdevel@vger.kernel.org, axboe@kernel.dk, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Weijie Yang <weijie.yang@samsung.com>, akpm@linux-foundation.org, sjennings@variantweb.net, bob.liu@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-On Fri, Oct 25, 2013 at 09:40:13PM +0200, Diego Calleja wrote:
-> El Viernes, 25 de octubre de 2013 18:26:23 Artem S. Tashkinov escribiA3:
-> > Oct 25, 2013 05:26:45 PM, david wrote:
-> > >actually, I think the problem is more the impact of the huge write later
-> > >on.
-> > Exactly. And not being able to use applications which show you IO
-> > performance like Midnight Commander. You might prefer to use "cp -a" but I
-> > cannot imagine my life without being able to see the progress of a copying
-> > operation. With the current dirty cache there's no way to understand how
-> > you storage media actually behaves.
-> 
-> 
-> This is a problem I also have been suffering for a long time. It's not so much 
-> how much and when the systems syncs dirty data, but how unreponsive the 
-> desktop becomes when it happens (usually, with rsync + large files). Most 
-> programs become completely unreponsive, specially if they have a large memory 
-> consumption (ie. the browser). I need to pause rsync and wait until the 
-> systems writes out all dirty data if I want to do simple things like scrolling 
-> or do any action that uses I/O, otherwise I need to wait minutes.
+On Fri, Oct 25, 2013 at 6:20 PM, Minchan Kim <minchan@kernel.org> wrote:
+> On Thu, Oct 24, 2013 at 05:53:32PM +0800, Weijie Yang wrote:
+>> The refcount routine was not fit the kernel get/put semantic exactly,
+>> There were too many judgement statements on refcount and it could be minus.
+>>
+>> This patch does the following:
+>>
+>> - move refcount judgement to zswap_entry_put() to hide resource free function.
+>>
+>> - add a new function zswap_entry_find_get(), so that callers can use easily
+>> in the following pattern:
+>>
+>>    zswap_entry_find_get
+>>    .../* do something */
+>>    zswap_entry_put
+>>
+>> - to eliminate compile error, move some functions declaration
+>>
+>> This patch is based on Minchan Kim <minchan@kernel.org> 's idea and suggestion.
+>>
+>> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+>> Cc: Seth Jennings <sjennings@variantweb.net>
+>> Cc: Minchan Kim <minchan@kernel.org>
+>> Cc: Bob Liu <bob.liu@oracle.com>
+>
+>
+> I remember Bob had a idea to remove a look up and I think it's doable.
+> Anyway, I don't mind you send it with fix or not.
 
-That's a problem. And it's kind of independent of the dirty threshold
--- if you are doing large file copies in the background, it will lead
-to continuous disk writes and stalls anyway -- the large dirty threshold
-merely delays the write IO time.
+Thanks for review.
 
-> I have 16 GB of RAM and excluding the browser (which usually uses about half 
-> of a GB) and KDE itself, there are no memory hogs, so it seem like it's 
-> something that shouldn't happen. I can understand that I/O operations are 
-> laggy when there is some other intensive I/O ongoing, but right now the system 
-> becomes completely unreponsive. If I am unlucky and Konsole also becomes 
-> unreponsive, I need to switch to a VT (which also takes time).
-> 
-> I haven't reported it before in part because I didn't know how to do it, "my 
-> browser stalls" is not a very useful description and I didn't know what kind 
-> of data I'm supposed to report.
+Bob's idea is:
+"Then how about  use if (!RB_EMPTY_NODE(&entry->rbnode))  to
+ replace rbtree searching?"
 
-What's the kernel you are running? And it's writing to a hard disk?
-The stalls are most likely caused by either one of
+I'm afraid not. Because entry could be freed in previous zswap_entry_put,
+we cann't reference entry or we would touch a free-and-use issue.
 
-1) write IO starves read IO
-2) direct page reclaim blocked when
-   - trying to writeout PG_dirty pages
-   - trying to lock PG_writeback pages
-
-Which may be confirmed by running
-
-        ps -eo ppid,pid,user,stat,pcpu,comm,wchan:32
-or
-        echo w > /proc/sysrq-trigger    # and check dmesg
-
-during the stalls. The latter command works more reliably.
-
-Thanks,
-Fengguang
+> Thanks for handling this, Weijie!
+>
+> Acked-by: Minchan Kim <minchan@kernel.org>
+>
+> --
+> Kind regards,
+> Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
