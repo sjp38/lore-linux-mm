@@ -1,89 +1,253 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id C2C706B00DD
-	for <linux-mm@kvack.org>; Sat, 26 Oct 2013 08:11:54 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id w10so3287995pde.31
-        for <linux-mm@kvack.org>; Sat, 26 Oct 2013 05:11:54 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.148])
-        by mx.google.com with SMTP id ud7si7835517pac.294.2013.10.26.05.11.52
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 446A96B00DD
+	for <linux-mm@kvack.org>; Sat, 26 Oct 2013 08:46:25 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so5218674pad.2
+        for <linux-mm@kvack.org>; Sat, 26 Oct 2013 05:46:24 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.112])
+        by mx.google.com with SMTP id vs7si6953559pbc.265.2013.10.26.05.46.22
         for <linux-mm@kvack.org>;
-        Sat, 26 Oct 2013 05:11:53 -0700 (PDT)
-Received: by mail-ea0-f169.google.com with SMTP id k11so1263658eaj.28
-        for <linux-mm@kvack.org>; Sat, 26 Oct 2013 05:11:51 -0700 (PDT)
-Date: Sat, 26 Oct 2013 14:11:48 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: Automatic NUMA balancing patches for tip-urgent/stable
-Message-ID: <20131026121148.GC24439@gmail.com>
-References: <1381141781-10992-1-git-send-email-mgorman@suse.de>
- <20131024122646.GB2402@suse.de>
+        Sat, 26 Oct 2013 05:46:24 -0700 (PDT)
+Message-ID: <526BB98B.4070207@alibaba-inc.com>
+Date: Sat, 26 Oct 2013 20:46:03 +0800
+From: =?UTF-8?B?5ZCr6bub?= <handai.szj@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131024122646.GB2402@suse.de>
+Subject: Re: RIP: mem_cgroup_move_account+0xf4/0x290
+References: <20131025161555.GA4398@plex.lan> <20131026033936.GA14971@cmpxchg.org>
+In-Reply-To: <20131026033936.GA14971@cmpxchg.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Tom Weber <l_linux-kernel@mail2news.4t2.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Flavio Leitner <fbl@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Sha Zhengju <handai.szj@taobao.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On 10/26/2013 11:39 AM, Johannes Weiner wrote:
+> On Fri, Oct 25, 2013 at 02:15:55PM -0200, Flavio Leitner wrote:
+>> While playing with guests and net-next kernel, I've triggered
+>> this with some frequency.  Even Fedora 19 kernel reproduces.
+>>
+>> It it a known issue?
+>>
+>> Thanks,
+>> fbl
+>>
+>> [ 6790.349763] kvm: zapping shadow pages for mmio generation wraparoun=
+d
+>> [ 6792.283879] kvm: zapping shadow pages for mmio generation wraparoun=
+d
+>> [ 7535.654438] perf samples too long (2719 > 2500), lowering kernel.pe=
+rf_event_max_sample_rate to 50000
+>> [ 7535.665948] INFO: NMI handler (perf_event_nmi_handler) took too lon=
+g to run: 11.560 msecs
+>> [ 7691.048392] virbr0: port 1(vnet0) entered disabled state
+>> [ 7691.056281] device vnet0 left promiscuous mode
+>> [ 7691.061674] virbr0: port 1(vnet0) entered disabled state
+>> [ 7691.163363] BUG: unable to handle kernel paging request at 000060fb=
+c0002a20
+>> [ 7691.171145] IP: [<ffffffff8119dcb4>] mem_cgroup_move_account+0xf4/0=
+x290
+>> [ 7691.178574] PGD 0
+>> [ 7691.181042] Oops: 0000 [#1] SMP
+>> [ 7691.184761] Modules linked in: vhost_net vhost macvtap macvlan tun =
+veth openvswitch xt_CHECKSUM nf_conntrack_netbios_ns nf_conntrack_broadca=
+st ipt_MASQUERADE ip6t_REJECT xt_conntrack ebtable_nat ebtable_broute bri=
+dge stp llc ebtable_filter ebtables ip6table_nat nf_conntrack_ipv6 nf_def=
+rag_ipv6 nf_nat_ipv6 vxlan ip_tunnel gre libcrc32c ip6table_mangle ip6tab=
+le_security ip6table_raw ip6table_filter ip6_tables iptable_nat nf_conntr=
+ack_ipv4 nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack iptable_mangle ip=
+table_security iptable_raw coretemp kvm_intel snd_hda_codec_realtek snd_h=
+da_intel nfsd snd_hda_codec kvm auth_rpcgss nfs_acl snd_hwdep lockd snd_s=
+eq snd_seq_device snd_pcm e1000e snd_page_alloc sunrpc snd_timer crc32c_i=
+ntel i7core_edac bnx2 shpchp ptp snd iTCO_wdt joydev pps_core iTCO_vendor=
+_support pcspkr soundcore microcode serio_raw lpc_ich edac_core mfd_core =
+i2c_i801 acpi_cpufreq hid_logitech_dj nouveau ata_generic pata_acpi video=
+ i2c_algo_bit drm_kms_helper ttm drm mxm_wmi i2c_core pata_marvell wmi [l=
+ast unloaded: openvswitch]
+>> [ 7691.285989] CPU: 1 PID: 14 Comm: kworker/1:0 Tainted: G          I =
+ 3.12.0-rc6-01188-gb45bd46 #1
+>> [ 7691.295779] Hardware name:                  /DX58SO, BIOS SOX5810J.=
+86A.5599.2012.0529.2218 05/29/2012
+>> [ 7691.306066] Workqueue: events css_killed_work_fn
+>> [ 7691.311303] task: ffff880429555dc0 ti: ffff88042957a000 task.ti: ff=
+ff88042957a000
+>> [ 7691.319673] RIP: 0010:[<ffffffff8119dcb4>]  [<ffffffff8119dcb4>] me=
+m_cgroup_move_account+0xf4/0x290
+>> [ 7691.329728] RSP: 0018:ffff88042957bcc8  EFLAGS: 00010002
+>> [ 7691.335747] RAX: 0000000000000246 RBX: ffff88042b17bc30 RCX: 000000=
+0000000004
+>> [ 7691.343720] RDX: ffff880424cd6000 RSI: 000060fbc0002a08 RDI: ffff88=
+0424cd622c
+>> [ 7691.351735] RBP: ffff88042957bd20 R08: ffff880424cd4000 R09: 000000=
+0000000001
+>> [ 7691.359751] R10: 0000000000000001 R11: 0000000000000001 R12: ffffea=
+00103ef0c0
+>> [ 7691.367745] R13: ffff880424cd6000 R14: 0000000000000000 R15: ffff88=
+0424cd622c
+>> [ 7691.375738] FS:  0000000000000000(0000) GS:ffff88043fc20000(0000) k=
+nlGS:0000000000000000
+>> [ 7691.384755] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+>> [ 7691.391238] CR2: 000060fbc0002a20 CR3: 0000000001c0c000 CR4: 000000=
+00000027e0
+>> [ 7691.399235] Stack:
+>> [ 7691.401672]  ffff88042957bce8 ffff88042957bce8 ffffffff81312b6d fff=
+f880424cd4000
+>> [ 7691.409968]  ffff880400000001 ffff880424cd6000 ffffea00103ef0c0 fff=
+f880424cd0430
+>> [ 7691.418264]  ffff88042b17bc30 ffffea00103ef0e0 ffff880424cd6000 fff=
+f88042957bda8
+>> [ 7691.426578] Call Trace:
+>> [ 7691.429513]  [<ffffffff81312b6d>] ? list_del+0xd/0x30
+>> [ 7691.435250]  [<ffffffff8119f5e7>] mem_cgroup_reparent_charges+0x247=
+/0x460
+>> [ 7691.442874]  [<ffffffff8119f9af>] mem_cgroup_css_offline+0xaf/0x1b0=
 
-* Mel Gorman <mgorman@suse.de> wrote:
+>> [ 7691.449942]  [<ffffffff810da877>] offline_css+0x27/0x50
+>> [ 7691.455874]  [<ffffffff810dcf8d>] css_killed_work_fn+0x2d/0xa0
+>> [ 7691.462466]  [<ffffffff810821f5>] process_one_work+0x175/0x430
+>> [ 7691.469041]  [<ffffffff81082e1b>] worker_thread+0x11b/0x3a0
+>> [ 7691.475345]  [<ffffffff81082d00>] ? rescuer_thread+0x340/0x340
+>> [ 7691.481919]  [<ffffffff81089860>] kthread+0xc0/0xd0
+>> [ 7691.487478]  [<ffffffff810897a0>] ? insert_kthread_work+0x40/0x40
+>> [ 7691.494352]  [<ffffffff8166ea3c>] ret_from_fork+0x7c/0xb0
+>> [ 7691.500464]  [<ffffffff810897a0>] ? insert_kthread_work+0x40/0x40
+>> [ 7691.507335] Code: 85 f6 48 8b 55 d0 44 8b 4d c8 4c 8b 45 c0 0f 85 b=
+3 00 00 00 41 8b 4c 24 18 85 c9 0f 88 a6 00 00 00 48 8b b2 30 02 00 00 45=
+ 89 ca <4c> 39 56 18 0f 8c 36 01 00 00 44 89 c9 f7 d9 89 cf 65 48 01 7e
+> This is
+>
+> All code
+> =3D=3D=3D=3D=3D=3D=3D=3D
+>     0:   85 f6                   test   %esi,%esi
+>     2:   48 8b 55 d0             mov    -0x30(%rbp),%rdx
+>     6:   44 8b 4d c8             mov    -0x38(%rbp),%r9d
+>     a:   4c 8b 45 c0             mov    -0x40(%rbp),%r8
+>     e:   0f 85 b3 00 00 00       jne    0xc7
+>    14:   41 8b 4c 24 18          mov    0x18(%r12),%ecx
+>    19:   85 c9                   test   %ecx,%ecx
+>    1b:   0f 88 a6 00 00 00       js     0xc7
+>    21:   48 8b b2 30 02 00 00    mov    0x230(%rdx),%rsi
+>    28:   45 89 ca                mov    %r9d,%r10d
+>    2b:*  4c 39 56 18             cmp    %r10,0x18(%rsi)          <-- tr=
+apping instruction
+>    2f:   0f 8c 36 01 00 00       jl     0x16b
+>    35:   44 89 c9                mov    %r9d,%ecx
+>    38:   f7 d9                   neg    %ecx
+>    3a:   89 cf                   mov    %ecx,%edi
+>    3c:   65                      gs
+>    3d:   48                      rex.W
+>    3e:   01                      .byte 0x1
+>    3f:   7e                      .byte 0x7e
+>
+> which corresponds to
+>
+> 	WARN_ON_ONCE(from->stat->count[idx] < nr_pages);
+>
+> Humm.  from->stat is a percpu pointer...  This patch should fix it:
+>
+> ---
+>  From 4e9fe9d7e8502eab1c8bb4761de838f61cd4a8e0 Mon Sep 17 00:00:00 2001=
 
-> On Mon, Oct 07, 2013 at 11:28:38AM +0100, Mel Gorman wrote:
-> > This series has roughly the same goals as previous versions despite the
-> > size. It reduces overhead of automatic balancing through scan rate reduction
-> > and the avoidance of TLB flushes. It selects a preferred node and moves tasks
-> > towards their memory as well as moving memory toward their task. It handles
-> > shared pages and groups related tasks together. Some problems such as shared
-> > page interleaving and properly dealing with processes that are larger than
-> > a node are being deferred. This version should be ready for wider testing
-> > in -tip.
-> > 
-> 
-> Hi Ingo,
-> 
-> Off-list we talked with Peter about the fact that automatic NUMA
-> balancing as merged in 3.10, 3.11 and 3.12 shortly may corrupt
-> userspace memory. There is one LKML report on this that I'm aware of --
-> https://lkml.org/lkml/2013/7/31/647 which I prompt forgot to follow up
-> properly on . The user-visible effect is that pages get filled with zeros
-> with results such as null pointer exceptions in JVMs. It is fairly difficult
-> to trigger but it became much easier to trigger during the development of
-> the series "Basic scheduler support for automatic NUMA balancing" which
-> is how it was discovered and finally fixed.
-> 
-> In that series I tagged patches 2-9 for -stable as these patches addressed
-> the problem for me. I did not call it out as clearly as I should have
-> and did not realise the cc: stable tags were stripped. Worse, as it was
-> close to the release and the bug is relatively old I was ok with waiting
-> until 3.12 came out and then treat it as a -stable backport. It has been
-> highlighted that this is the wrong attitude and we should consider merging
-> the fixes now and backporting to -stable sooner rather than later.
-> 
-> The most important patches are 
-> 
-> mm: Wait for THP migrations to complete during NUMA hinting fault
-> mm: Prevent parallel splits during THP migration
-> mm: Close races between THP migration and PMD numa clearing
-> 
-> but on their own they will cause conflicts with tricky fixups and -stable
-> would differ from mainline in annoying ways. Patches 2-9 have been heavily
-> tested in isolation so I'm reasonably confident they fix the problem and are
-> -stable material. While strictly speaking not all the patches are required
-> for the fix, the -stable kernels would then be directly comparable with
-> 3.13 when the full NUMA balancing series is applied. If I rework them at
-> this point then I'll also have to retest delaying things until next week.
-> 
-> Please consider queueing patches 2-9 for 3.12 via -urgent if it is 
-> not too late and preserve the cc: stable tags so Greg will pick 
-> them up automatically.
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Date: Fri, 25 Oct 2013 23:23:31 -0400
+> Subject: [patch] mm: memcg: fix percpu variable access crash
+>
+> 3ea67d06e467 ("memcg: add per cgroup writeback pages accounting")
+> added a WARN_ON_ONCE() to sanity check the page statistics counter
+> when moving charges.  Unfortunately, it dereferences the percpu
+> counter directly, which may result in a crash like this:
+>
+> [ 7691.163363] BUG: unable to handle kernel paging request at 000060fbc=
+0002a20
+> [ 7691.171145] IP: [<ffffffff8119dcb4>] mem_cgroup_move_account+0xf4/0x=
+290
+> [ 7691.178574] PGD 0
+> [ 7691.181042] Oops: 0000 [#1] SMP
+> [...]
+> [ 7691.285989] CPU: 1 PID: 14 Comm: kworker/1:0 Tainted: G          I  =
+3.12.0-rc6-01188-gb45bd46 #1
+> [ 7691.295779] Hardware name:                  /DX58SO, BIOS SOX5810J.8=
+6A.5599.2012.0529.2218 05/29/2012
+> [ 7691.306066] Workqueue: events css_killed_work_fn
+> [ 7691.311303] task: ffff880429555dc0 ti: ffff88042957a000 task.ti: fff=
+f88042957a000
+> [ 7691.319673] RIP: 0010:[<ffffffff8119dcb4>]  [<ffffffff8119dcb4>] mem=
+_cgroup_move_account+0xf4/0x290
+> [ 7691.329728] RSP: 0018:ffff88042957bcc8  EFLAGS: 00010002
+> [ 7691.335747] RAX: 0000000000000246 RBX: ffff88042b17bc30 RCX: 0000000=
+000000004
+> [ 7691.343720] RDX: ffff880424cd6000 RSI: 000060fbc0002a08 RDI: ffff880=
+424cd622c
+> [ 7691.351735] RBP: ffff88042957bd20 R08: ffff880424cd4000 R09: 0000000=
+000000001
+> [ 7691.359751] R10: 0000000000000001 R11: 0000000000000001 R12: ffffea0=
+0103ef0c0
+> [ 7691.367745] R13: ffff880424cd6000 R14: 0000000000000000 R15: ffff880=
+424cd622c
+> [ 7691.375738] FS:  0000000000000000(0000) GS:ffff88043fc20000(0000) kn=
+lGS:0000000000000000
+> [ 7691.384755] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> [ 7691.391238] CR2: 000060fbc0002a20 CR3: 0000000001c0c000 CR4: 0000000=
+0000027e0
+> [ 7691.399235] Stack:
+> [ 7691.401672]  ffff88042957bce8 ffff88042957bce8 ffffffff81312b6d ffff=
+880424cd4000
+> [ 7691.409968]  ffff880400000001 ffff880424cd6000 ffffea00103ef0c0 ffff=
+880424cd0430
+> [ 7691.418264]  ffff88042b17bc30 ffffea00103ef0e0 ffff880424cd6000 ffff=
+88042957bda8
+> [ 7691.426578] Call Trace:
+> [ 7691.429513]  [<ffffffff81312b6d>] ? list_del+0xd/0x30
+> [ 7691.435250]  [<ffffffff8119f5e7>] mem_cgroup_reparent_charges+0x247/=
+0x460
+> [ 7691.442874]  [<ffffffff8119f9af>] mem_cgroup_css_offline+0xaf/0x1b0
+> [ 7691.449942]  [<ffffffff810da877>] offline_css+0x27/0x50
+> [ 7691.455874]  [<ffffffff810dcf8d>] css_killed_work_fn+0x2d/0xa0
+> [ 7691.462466]  [<ffffffff810821f5>] process_one_work+0x175/0x430
+> [ 7691.469041]  [<ffffffff81082e1b>] worker_thread+0x11b/0x3a0
+> [ 7691.475345]  [<ffffffff81082d00>] ? rescuer_thread+0x340/0x340
+> [ 7691.481919]  [<ffffffff81089860>] kthread+0xc0/0xd0
+> [ 7691.487478]  [<ffffffff810897a0>] ? insert_kthread_work+0x40/0x40
+> [ 7691.494352]  [<ffffffff8166ea3c>] ret_from_fork+0x7c/0xb0
+> [ 7691.500464]  [<ffffffff810897a0>] ? insert_kthread_work+0x40/0x40
+> [ 7691.507335] Code: 85 f6 48 8b 55 d0 44 8b 4d c8 4c 8b 45 c0 0f 85 b3=
+ 00 00 00 41 8b 4c 24 18
+> 85 c9 0f 88 a6 00 00 00 48 8b b2 30 02 00 00 45 89 ca <4c> 39 56 18 0f =
+8c 36 01 00 00 44 89 c9
+> f7 d9 89 cf 65 48 01 7e
+> [ 7691.528638] RIP  [<ffffffff8119dcb4>] mem_cgroup_move_account+0xf4/0=
+x290
+>
+> Add the required __this_cpu_read().
 
-Would be nice if you gave me all the specific SHA1 tags of 
-sched/core that are required for the fix. We can certainly
-use a range to make it all safer to apply.
+Sorry for my mistake and thanks for the fix up, it looks good to me.
+
+Reviewed-by: Sha Zhengju <handai.szj@taobao.com>
+
 
 Thanks,
+Sha
+>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>   mm/memcontrol.c | 2 +-
+>   1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 4097a78..a4864b6 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3773,7 +3773,7 @@ void mem_cgroup_move_account_page_stat(struct mem=
+_cgroup *from,
+>   {
+>   	/* Update stat data for mem_cgroup */
+>   	preempt_disable();
+> -	WARN_ON_ONCE(from->stat->count[idx] < nr_pages);
+> +	WARN_ON_ONCE(__this_cpu_read(from->stat->count[idx]) < nr_pages);
+>   	__this_cpu_add(from->stat->count[idx], -nr_pages);
+>   	__this_cpu_add(to->stat->count[idx], nr_pages);
+>   	preempt_enable();
 
-	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
