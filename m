@@ -1,74 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 20D9D6B00DB
-	for <linux-mm@kvack.org>; Sat, 26 Oct 2013 05:46:03 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id rd3so4783104pab.19
-        for <linux-mm@kvack.org>; Sat, 26 Oct 2013 02:46:02 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.172])
-        by mx.google.com with SMTP id o4si6820807paa.165.2013.10.26.02.46.01
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id C2C706B00DD
+	for <linux-mm@kvack.org>; Sat, 26 Oct 2013 08:11:54 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id w10so3287995pde.31
+        for <linux-mm@kvack.org>; Sat, 26 Oct 2013 05:11:54 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.148])
+        by mx.google.com with SMTP id ud7si7835517pac.294.2013.10.26.05.11.52
         for <linux-mm@kvack.org>;
-        Sat, 26 Oct 2013 02:46:02 -0700 (PDT)
-Received: by mail-ie0-f170.google.com with SMTP id at1so8198105iec.1
-        for <linux-mm@kvack.org>; Sat, 26 Oct 2013 02:46:00 -0700 (PDT)
+        Sat, 26 Oct 2013 05:11:53 -0700 (PDT)
+Received: by mail-ea0-f169.google.com with SMTP id k11so1263658eaj.28
+        for <linux-mm@kvack.org>; Sat, 26 Oct 2013 05:11:51 -0700 (PDT)
+Date: Sat, 26 Oct 2013 14:11:48 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: Automatic NUMA balancing patches for tip-urgent/stable
+Message-ID: <20131026121148.GC24439@gmail.com>
+References: <1381141781-10992-1-git-send-email-mgorman@suse.de>
+ <20131024122646.GB2402@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <20131025102032.GE6612@gmail.com>
-References: <000101ced09e$fed90a10$fc8b1e30$%yang@samsung.com>
-	<20131025102032.GE6612@gmail.com>
-Date: Sat, 26 Oct 2013 17:46:00 +0800
-Message-ID: <CAL1ERfOhhJ12zXwsGJoHWRzkd2destQnJ32nfU25SOACCnzy7Q@mail.gmail.com>
-Subject: Re: [PATCH RESEND 2/2] mm/zswap: refoctor the get/put routines
-From: Weijie Yang <weijie.yang.kh@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131024122646.GB2402@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Weijie Yang <weijie.yang@samsung.com>, akpm@linux-foundation.org, sjennings@variantweb.net, bob.liu@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Tom Weber <l_linux-kernel@mail2news.4t2.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Oct 25, 2013 at 6:20 PM, Minchan Kim <minchan@kernel.org> wrote:
-> On Thu, Oct 24, 2013 at 05:53:32PM +0800, Weijie Yang wrote:
->> The refcount routine was not fit the kernel get/put semantic exactly,
->> There were too many judgement statements on refcount and it could be minus.
->>
->> This patch does the following:
->>
->> - move refcount judgement to zswap_entry_put() to hide resource free function.
->>
->> - add a new function zswap_entry_find_get(), so that callers can use easily
->> in the following pattern:
->>
->>    zswap_entry_find_get
->>    .../* do something */
->>    zswap_entry_put
->>
->> - to eliminate compile error, move some functions declaration
->>
->> This patch is based on Minchan Kim <minchan@kernel.org> 's idea and suggestion.
->>
->> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
->> Cc: Seth Jennings <sjennings@variantweb.net>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Cc: Bob Liu <bob.liu@oracle.com>
->
->
-> I remember Bob had a idea to remove a look up and I think it's doable.
-> Anyway, I don't mind you send it with fix or not.
 
-Thanks for review.
+* Mel Gorman <mgorman@suse.de> wrote:
 
-Bob's idea is:
-"Then how about  use if (!RB_EMPTY_NODE(&entry->rbnode))  to
- replace rbtree searching?"
+> On Mon, Oct 07, 2013 at 11:28:38AM +0100, Mel Gorman wrote:
+> > This series has roughly the same goals as previous versions despite the
+> > size. It reduces overhead of automatic balancing through scan rate reduction
+> > and the avoidance of TLB flushes. It selects a preferred node and moves tasks
+> > towards their memory as well as moving memory toward their task. It handles
+> > shared pages and groups related tasks together. Some problems such as shared
+> > page interleaving and properly dealing with processes that are larger than
+> > a node are being deferred. This version should be ready for wider testing
+> > in -tip.
+> > 
+> 
+> Hi Ingo,
+> 
+> Off-list we talked with Peter about the fact that automatic NUMA
+> balancing as merged in 3.10, 3.11 and 3.12 shortly may corrupt
+> userspace memory. There is one LKML report on this that I'm aware of --
+> https://lkml.org/lkml/2013/7/31/647 which I prompt forgot to follow up
+> properly on . The user-visible effect is that pages get filled with zeros
+> with results such as null pointer exceptions in JVMs. It is fairly difficult
+> to trigger but it became much easier to trigger during the development of
+> the series "Basic scheduler support for automatic NUMA balancing" which
+> is how it was discovered and finally fixed.
+> 
+> In that series I tagged patches 2-9 for -stable as these patches addressed
+> the problem for me. I did not call it out as clearly as I should have
+> and did not realise the cc: stable tags were stripped. Worse, as it was
+> close to the release and the bug is relatively old I was ok with waiting
+> until 3.12 came out and then treat it as a -stable backport. It has been
+> highlighted that this is the wrong attitude and we should consider merging
+> the fixes now and backporting to -stable sooner rather than later.
+> 
+> The most important patches are 
+> 
+> mm: Wait for THP migrations to complete during NUMA hinting fault
+> mm: Prevent parallel splits during THP migration
+> mm: Close races between THP migration and PMD numa clearing
+> 
+> but on their own they will cause conflicts with tricky fixups and -stable
+> would differ from mainline in annoying ways. Patches 2-9 have been heavily
+> tested in isolation so I'm reasonably confident they fix the problem and are
+> -stable material. While strictly speaking not all the patches are required
+> for the fix, the -stable kernels would then be directly comparable with
+> 3.13 when the full NUMA balancing series is applied. If I rework them at
+> this point then I'll also have to retest delaying things until next week.
+> 
+> Please consider queueing patches 2-9 for 3.12 via -urgent if it is 
+> not too late and preserve the cc: stable tags so Greg will pick 
+> them up automatically.
 
-I'm afraid not. Because entry could be freed in previous zswap_entry_put,
-we cann't reference entry or we would touch a free-and-use issue.
+Would be nice if you gave me all the specific SHA1 tags of 
+sched/core that are required for the fix. We can certainly
+use a range to make it all safer to apply.
 
-> Thanks for handling this, Weijie!
->
-> Acked-by: Minchan Kim <minchan@kernel.org>
->
-> --
-> Kind regards,
-> Minchan Kim
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
