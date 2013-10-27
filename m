@@ -1,59 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 683DE6B00D9
-	for <linux-mm@kvack.org>; Sun, 27 Oct 2013 09:00:44 -0400 (EDT)
-Received: by mail-pb0-f50.google.com with SMTP id uo5so3213619pbc.23
-        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 06:00:44 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.184])
-        by mx.google.com with SMTP id yk3si10369587pac.99.2013.10.27.06.00.42
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F0456B00D9
+	for <linux-mm@kvack.org>; Sun, 27 Oct 2013 09:16:56 -0400 (EDT)
+Received: by mail-pb0-f48.google.com with SMTP id mc17so453037pbc.21
+        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 06:16:55 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.125])
+        by mx.google.com with SMTP id yj4si10396031pac.166.2013.10.27.06.16.54
         for <linux-mm@kvack.org>;
-        Sun, 27 Oct 2013 06:00:43 -0700 (PDT)
-Received: by mail-qe0-f41.google.com with SMTP id x7so3460009qeu.28
-        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 06:00:41 -0700 (PDT)
-Date: Sun, 27 Oct 2013 09:00:36 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/3] percpu counter: cast this_cpu_sub() adjustment
-Message-ID: <20131027130036.GN14934@mtj.dyndns.org>
-References: <1382859876-28196-1-git-send-email-gthelen@google.com>
- <1382859876-28196-3-git-send-email-gthelen@google.com>
- <20131027112255.GB14934@mtj.dyndns.org>
- <20131027050429.7fcc2ed5.akpm@linux-foundation.org>
+        Sun, 27 Oct 2013 06:16:55 -0700 (PDT)
+Received: by mail-ve0-f182.google.com with SMTP id c14so2758513vea.13
+        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 06:16:53 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131027050429.7fcc2ed5.akpm@linux-foundation.org>
+In-Reply-To: <20131027125036.GJ17447@blackmetal.musicnaut.iki.fi>
+References: <20131024200730.GB17447@blackmetal.musicnaut.iki.fi>
+	<20131026143617.GA14034@mudshark.cambridge.arm.com>
+	<20131027195115.208f40f3@tom-ThinkPad-T410>
+	<20131027125036.GJ17447@blackmetal.musicnaut.iki.fi>
+Date: Sun, 27 Oct 2013 21:16:53 +0800
+Message-ID: <CACVXFVP2B3=82m_+DfA_oAEW86c=oxQ52G+yj5ncTU1DzP26Bw@mail.gmail.com>
+Subject: Re: ARM/kirkwood: v3.12-rc6: kernel BUG at mm/util.c:390!
+From: Ming Lei <tom.leiming@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Greg Thelen <gthelen@google.com>, Christoph Lameter <cl@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, handai.szj@taobao.com, x86@kernel.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Aaro Koskinen <aaro.koskinen@iki.fi>
+Cc: Will Deacon <will.deacon@arm.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Simon Baatz <gmbnomis@gmail.com>, Catalin Marinas <catalin.marinas@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Andrew Morton <akpm@linux-foundation.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Tejun Heo <tj@kernel.org>, "James E.J. Bottomley" <JBottomley@parallels.com>, Jens Axboe <axboe@kernel.dk>
 
-On Sun, Oct 27, 2013 at 05:04:29AM -0700, Andrew Morton wrote:
-> On Sun, 27 Oct 2013 07:22:55 -0400 Tejun Heo <tj@kernel.org> wrote:
-> 
-> > We probably want to cc stable for this and the next one.  How should
-> > these be routed?  I can take these through percpu tree or mm works
-> > too.  Either way, it'd be best to route them together.
-> 
-> Yes, all three look like -stable material to me.  I'll grab them later
-> in the week if you haven't ;)
+On Sun, Oct 27, 2013 at 8:50 PM, Aaro Koskinen <aaro.koskinen@iki.fi> wrote:
+>
+> On ARM v3.9 or older kernels do not trigger this BUG, at seems it only
+> started to appear with the following commit (bisected):
+>
+> commit 1bc39742aab09248169ef9d3727c9def3528b3f3
+> Author: Simon Baatz <gmbnomis@gmail.com>
+> Date:   Mon Jun 10 21:10:12 2013 +0100
+>
+>     ARM: 7755/1: handle user space mapped pages in flush_kernel_dcache_page
 
-Tried to apply to percpu but the third one is a fix for a patch which
-was added to -mm during v3.12-rc1, so these are yours. :)
+The above commit only starts to implement the helper on ARM,
+but according to Documentation/cachetlb.txt, looks caller of
+flush_kernel_dcache_page() should make sure the passed
+'page' is a user space page.
 
-> The names of the first two patches distress me.  They rather clearly
-> assert that the code affects percpu_counter.[ch], but that is not the case. 
-> Massaging is needed to fix that up.
-
-Yeah, something like the following would be better
-
- percpu: add test module for various percpu operations
- percpu: fix this_cpu_sub() subtrahend casting for unsigneds
- memcg: use __this_cpu_sub() to dec stats to avoid incorrect subtrahend casting
-
-Thanks.
-
+Thanks,
 -- 
-tejun
+Ming Lei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
