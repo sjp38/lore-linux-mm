@@ -1,38 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 926376B00D1
-	for <linux-mm@kvack.org>; Sun, 27 Oct 2013 08:36:54 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id fa1so4158076pad.41
-        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 05:36:54 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.200])
-        by mx.google.com with SMTP id js8si9377472pbc.104.2013.10.27.05.36.53
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 683DE6B00D9
+	for <linux-mm@kvack.org>; Sun, 27 Oct 2013 09:00:44 -0400 (EDT)
+Received: by mail-pb0-f50.google.com with SMTP id uo5so3213619pbc.23
+        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 06:00:44 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.184])
+        by mx.google.com with SMTP id yk3si10369587pac.99.2013.10.27.06.00.42
         for <linux-mm@kvack.org>;
-        Sun, 27 Oct 2013 05:36:53 -0700 (PDT)
-Received: by mail-qe0-f53.google.com with SMTP id cy11so3389410qeb.12
-        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 05:36:51 -0700 (PDT)
-Date: Sun, 27 Oct 2013 08:36:34 -0400
+        Sun, 27 Oct 2013 06:00:43 -0700 (PDT)
+Received: by mail-qe0-f41.google.com with SMTP id x7so3460009qeu.28
+        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 06:00:41 -0700 (PDT)
+Date: Sun, 27 Oct 2013 09:00:36 -0400
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 3/3] percpu: little optimization on calculating
- pcpu_unit_size
-Message-ID: <20131027123634.GL14934@mtj.dyndns.org>
-References: <1382345893-6644-1-git-send-email-weiyang@linux.vnet.ibm.com>
- <1382345893-6644-3-git-send-email-weiyang@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/3] percpu counter: cast this_cpu_sub() adjustment
+Message-ID: <20131027130036.GN14934@mtj.dyndns.org>
+References: <1382859876-28196-1-git-send-email-gthelen@google.com>
+ <1382859876-28196-3-git-send-email-gthelen@google.com>
+ <20131027112255.GB14934@mtj.dyndns.org>
+ <20131027050429.7fcc2ed5.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1382345893-6644-3-git-send-email-weiyang@linux.vnet.ibm.com>
+In-Reply-To: <20131027050429.7fcc2ed5.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <weiyang@linux.vnet.ibm.com>
-Cc: cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Greg Thelen <gthelen@google.com>, Christoph Lameter <cl@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, handai.szj@taobao.com, x86@kernel.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Oct 21, 2013 at 04:58:13PM +0800, Wei Yang wrote:
-> pcpu_unit_size exactly equals to ai->unit_size.
+On Sun, Oct 27, 2013 at 05:04:29AM -0700, Andrew Morton wrote:
+> On Sun, 27 Oct 2013 07:22:55 -0400 Tejun Heo <tj@kernel.org> wrote:
 > 
-> This patch assign this value instead of calculating from pcpu_unit_pages. Also
-> it reorder them to make it looks more friendly to audience.
+> > We probably want to cc stable for this and the next one.  How should
+> > these be routed?  I can take these through percpu tree or mm works
+> > too.  Either way, it'd be best to route them together.
+> 
+> Yes, all three look like -stable material to me.  I'll grab them later
+> in the week if you haven't ;)
 
-Ditto.  I'd rather not change unless this is clearly better.
+Tried to apply to percpu but the third one is a fix for a patch which
+was added to -mm during v3.12-rc1, so these are yours. :)
+
+> The names of the first two patches distress me.  They rather clearly
+> assert that the code affects percpu_counter.[ch], but that is not the case. 
+> Massaging is needed to fix that up.
+
+Yeah, something like the following would be better
+
+ percpu: add test module for various percpu operations
+ percpu: fix this_cpu_sub() subtrahend casting for unsigneds
+ memcg: use __this_cpu_sub() to dec stats to avoid incorrect subtrahend casting
 
 Thanks.
 
