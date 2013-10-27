@@ -1,115 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AEFC6B00DB
-	for <linux-mm@kvack.org>; Sun, 27 Oct 2013 10:19:23 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id rr4so3866440pbb.11
-        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 07:19:22 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.102])
-        by mx.google.com with SMTP id ph6si9566197pbb.7.2013.10.27.07.19.21
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 905FB6B0031
+	for <linux-mm@kvack.org>; Sun, 27 Oct 2013 12:13:31 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id jt11so5425619pbb.15
+        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 09:13:31 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.124])
+        by mx.google.com with SMTP id gj2si10680509pac.167.2013.10.27.09.13.28
         for <linux-mm@kvack.org>;
-        Sun, 27 Oct 2013 07:19:22 -0700 (PDT)
-Received: by mail-vb0-f49.google.com with SMTP id w16so3705650vbb.36
-        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 07:19:20 -0700 (PDT)
+        Sun, 27 Oct 2013 09:13:29 -0700 (PDT)
+Received: by mail-pb0-f73.google.com with SMTP id rr13so350340pbb.0
+        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 09:13:27 -0700 (PDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH 2/3] percpu counter: cast this_cpu_sub() adjustment
+References: <1382859876-28196-1-git-send-email-gthelen@google.com>
+	<1382859876-28196-3-git-send-email-gthelen@google.com>
+	<20131027112255.GB14934@mtj.dyndns.org>
+	<20131027050429.7fcc2ed5.akpm@linux-foundation.org>
+	<20131027130036.GN14934@mtj.dyndns.org>
+Date: Sun, 27 Oct 2013 09:13:25 -0700
+In-Reply-To: <20131027130036.GN14934@mtj.dyndns.org> (Tejun Heo's message of
+	"Sun, 27 Oct 2013 09:00:36 -0400")
+Message-ID: <xr93ob6a1yl6.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20131027135344.GD16735@n2100.arm.linux.org.uk>
-References: <20131024200730.GB17447@blackmetal.musicnaut.iki.fi>
-	<20131026143617.GA14034@mudshark.cambridge.arm.com>
-	<20131027195115.208f40f3@tom-ThinkPad-T410>
-	<20131027125036.GJ17447@blackmetal.musicnaut.iki.fi>
-	<CACVXFVP2B3=82m_+DfA_oAEW86c=oxQ52G+yj5ncTU1DzP26Bw@mail.gmail.com>
-	<20131027135344.GD16735@n2100.arm.linux.org.uk>
-Date: Sun, 27 Oct 2013 22:19:20 +0800
-Message-ID: <CACVXFVMO4x5cW0+62V7dsmGso8HWCrNUh0_nLH3vYN0U2nk2+A@mail.gmail.com>
-Subject: Re: ARM/kirkwood: v3.12-rc6: kernel BUG at mm/util.c:390!
-From: Ming Lei <tom.leiming@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Aaro Koskinen <aaro.koskinen@iki.fi>, Will Deacon <will.deacon@arm.com>, Simon Baatz <gmbnomis@gmail.com>, Catalin Marinas <catalin.marinas@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Andrew Morton <akpm@linux-foundation.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Tejun Heo <tj@kernel.org>, "James E.J. Bottomley" <JBottomley@parallels.com>, Jens Axboe <axboe@kernel.dk>
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, handai.szj@taobao.com, x86@kernel.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, Oct 27, 2013 at 9:53 PM, Russell King - ARM Linux
-<linux@arm.linux.org.uk> wrote:
-> On Sun, Oct 27, 2013 at 09:16:53PM +0800, Ming Lei wrote:
->> On Sun, Oct 27, 2013 at 8:50 PM, Aaro Koskinen <aaro.koskinen@iki.fi> wrote:
->> >
->> > On ARM v3.9 or older kernels do not trigger this BUG, at seems it only
->> > started to appear with the following commit (bisected):
->> >
->> > commit 1bc39742aab09248169ef9d3727c9def3528b3f3
->> > Author: Simon Baatz <gmbnomis@gmail.com>
->> > Date:   Mon Jun 10 21:10:12 2013 +0100
->> >
->> >     ARM: 7755/1: handle user space mapped pages in flush_kernel_dcache_page
->>
->> The above commit only starts to implement the helper on ARM,
->> but according to Documentation/cachetlb.txt, looks caller of
->> flush_kernel_dcache_page() should make sure the passed
->> 'page' is a user space page.
->
-> I think your terminology is off.  flush_kernel_dcache_page() is passed a
-> struct page.  These exist for every physical RAM page in the system which
-> is under the control of the kernel.  There's no such thing as a "user
-> space page" - pages are shared from kernel space into userspace.
+On Sun, Oct 27 2013, Tejun Heo wrote:
 
-It isn't my terminology, and it is from Documentation/cachetlb.txt, :-)
-But I admit it isn't good to call it as user space page.
+> On Sun, Oct 27, 2013 at 05:04:29AM -0700, Andrew Morton wrote:
+>> On Sun, 27 Oct 2013 07:22:55 -0400 Tejun Heo <tj@kernel.org> wrote:
+>> 
+>> > We probably want to cc stable for this and the next one.  How should
+>> > these be routed?  I can take these through percpu tree or mm works
+>> > too.  Either way, it'd be best to route them together.
+>> 
+>> Yes, all three look like -stable material to me.  I'll grab them later
+>> in the week if you haven't ;)
+>
+> Tried to apply to percpu but the third one is a fix for a patch which
+> was added to -mm during v3.12-rc1, so these are yours. :)
 
-Also pages which belong to slab shouldn't be mapped to user space.
+I don't object to stable for the first two non-memcg patches, but it's
+probably unnecessary.  I should have made it more clear, but an audit of
+v3.12-rc6 shows that only new memcg code is affected - the new
+mem_cgroup_move_account_page_stat() is the only place where an unsigned
+adjustment is used.  All other callers (e.g. shrink_dcache_sb) already
+use a signed adjustment, so no problems before v3.12.  Though I did not
+audit the stable kernel trees, so there could be something hiding in
+there.
 
+>> The names of the first two patches distress me.  They rather clearly
+>> assert that the code affects percpu_counter.[ch], but that is not the case. 
+>> Massaging is needed to fix that up.
 >
-> Secondly, flush_kernel_dcache_page() gets used on such pages whether or
-> not they're already mapped into userspace (normally they won't be if this
-> is the first read of the page.)  This function is only expected to deal
-> with kernel-side addresses of the page, ensuring that data in the page
-> is visible to the underlying memory.
+> Yeah, something like the following would be better
 >
-> The last thing to realise is that we already have a function which deals
-> with the presence of userspace mappings.  It's called flush_dcache_page().
-> If flush_kernel_dcache_page() had to make that decision, then there's no
-> point in flush_kernel_dcache_page() existing - we might as well just call
-> flush_dcache_page() directly.
->
-> So...
->
-> flush_kernel_dcache_page() is expected to take a struct page pointer.
-> This struct page pointer is part of the kernel's array of struct pages
-> which identifies every single physical page under the control of the
-> kernel.
->
-> Arguably, it should not crash if passed a page which has been allocated
-> to the slab cache; as this is not a page cache page,
-> flush_kernel_dcache_page() should merely ignore the call to it and
-> simply return on these.  So this makes total sense:
+>  percpu: add test module for various percpu operations
+>  percpu: fix this_cpu_sub() subtrahend casting for unsigneds
+>  memcg: use __this_cpu_sub() to dec stats to avoid incorrect subtrahend casting
 
-I think callers of flush_kernel_dcache_page() should make sure that,
-not just arm implements the helper, so I am wondering if arch code
-needs the test.
-
->
->  arch/arm/mm/flush.c |    4 ++++
->  1 files changed, 4 insertions(+), 0 deletions(-)
->
-> diff --git a/arch/arm/mm/flush.c b/arch/arm/mm/flush.c
-> index 6d5ba9afb16a..eebb275a67fb 100644
-> --- a/arch/arm/mm/flush.c
-> +++ b/arch/arm/mm/flush.c
-> @@ -316,6 +316,10 @@ EXPORT_SYMBOL(flush_dcache_page);
->   */
->  void flush_kernel_dcache_page(struct page *page)
->  {
-> +       /* Ignore slab pages */
-> +       if (PageSlab(page))
-> +               return;
-> +
->         if (cache_is_vivt() || cache_is_vipt_aliasing()) {
->                 struct address_space *mapping;
->
-
-
-Thanks,
--- 
-Ming Lei
+No objection to renaming.  Let me know if you want these reposed with
+updated titles.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
