@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C2FA6B0036
-	for <linux-mm@kvack.org>; Sun, 27 Oct 2013 13:31:03 -0400 (EDT)
-Received: by mail-pb0-f50.google.com with SMTP id uo5so3414572pbc.37
-        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 10:31:03 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.142])
-        by mx.google.com with SMTP id ll9si10812623pab.37.2013.10.27.10.31.00
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 165DD6B0037
+	for <linux-mm@kvack.org>; Sun, 27 Oct 2013 13:31:12 -0400 (EDT)
+Received: by mail-pb0-f46.google.com with SMTP id un1so6853711pbc.19
+        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 10:31:11 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.107])
+        by mx.google.com with SMTP id yk3si10789384pac.157.2013.10.27.10.31.09
         for <linux-mm@kvack.org>;
-        Sun, 27 Oct 2013 10:31:01 -0700 (PDT)
-Received: by mail-ob0-f202.google.com with SMTP id wn1so561425obc.5
-        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 10:30:59 -0700 (PDT)
+        Sun, 27 Oct 2013 10:31:10 -0700 (PDT)
+Received: by mail-ie0-f202.google.com with SMTP id qd12so1111930ieb.1
+        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 10:31:08 -0700 (PDT)
 From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH v2 1/3] percpu: add test module for various percpu operations
-Date: Sun, 27 Oct 2013 10:30:15 -0700
-Message-Id: <1382895017-19067-2-git-send-email-gthelen@google.com>
+Subject: [PATCH v2 2/3] percpu: fix this_cpu_sub() subtrahend casting for unsigneds
+Date: Sun, 27 Oct 2013 10:30:16 -0700
+Message-Id: <1382895017-19067-3-git-send-email-gthelen@google.com>
 In-Reply-To: <1382895017-19067-1-git-send-email-gthelen@google.com>
 References: <1382895017-19067-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -21,196 +21,116 @@ List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, handai.szj@taobao.com, Andrew Morton <akpm@linux-foundation.org>
 Cc: x86@kernel.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>
 
-Tests various percpu operations.
+this_cpu_sub() is implemented as negation and addition.
 
-Enable with CONFIG_PERCPU_TEST=m.
+This patch casts the adjustment to the counter type before negation to
+sign extend the adjustment.  This helps in cases where the counter
+type is wider than an unsigned adjustment.  An alternative to this
+patch is to declare such operations unsupported, but it seemed useful
+to avoid surprises.
+
+This patch specifically helps the following example:
+  unsigned int delta = 1
+  preempt_disable()
+  this_cpu_write(long_counter, 0)
+  this_cpu_sub(long_counter, delta)
+  preempt_enable()
+
+Before this change long_counter on a 64 bit machine ends with value
+0xffffffff, rather than 0xffffffffffffffff.  This is because
+this_cpu_sub(pcp, delta) boils down to this_cpu_add(pcp, -delta),
+which is basically:
+  long_counter = 0 + 0xffffffff
+
+Also apply the same cast to:
+  __this_cpu_sub()
+  __this_cpu_sub_return()
+  this_cpu_sub_return()
+
+All percpu_test.ko passes, especially the following cases which
+previously failed:
+
+  l -= ui_one;
+  __this_cpu_sub(long_counter, ui_one);
+  CHECK(l, long_counter, -1);
+
+  l -= ui_one;
+  this_cpu_sub(long_counter, ui_one);
+  CHECK(l, long_counter, -1);
+  CHECK(l, long_counter, 0xffffffffffffffff);
+
+  ul -= ui_one;
+  __this_cpu_sub(ulong_counter, ui_one);
+  CHECK(ul, ulong_counter, -1);
+  CHECK(ul, ulong_counter, 0xffffffffffffffff);
+
+  ul = this_cpu_sub_return(ulong_counter, ui_one);
+  CHECK(ul, ulong_counter, 2);
+
+  ul = __this_cpu_sub_return(ulong_counter, ui_one);
+  CHECK(ul, ulong_counter, 1);
 
 Signed-off-by: Greg Thelen <gthelen@google.com>
 Acked-by: Tejun Heo <tj@kernel.org>
 ---
- lib/Kconfig.debug |   9 ++++
- lib/Makefile      |   2 +
- lib/percpu_test.c | 138 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 149 insertions(+)
- create mode 100644 lib/percpu_test.c
+ arch/x86/include/asm/percpu.h | 3 ++-
+ include/linux/percpu.h        | 8 ++++----
+ 2 files changed, 6 insertions(+), 5 deletions(-)
 
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 06344d9..9fdb452 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -1472,6 +1472,15 @@ config INTERVAL_TREE_TEST
- 	help
- 	  A benchmark measuring the performance of the interval tree library
+diff --git a/arch/x86/include/asm/percpu.h b/arch/x86/include/asm/percpu.h
+index 0da5200..b3e18f8 100644
+--- a/arch/x86/include/asm/percpu.h
++++ b/arch/x86/include/asm/percpu.h
+@@ -128,7 +128,8 @@ do {							\
+ do {									\
+ 	typedef typeof(var) pao_T__;					\
+ 	const int pao_ID__ = (__builtin_constant_p(val) &&		\
+-			      ((val) == 1 || (val) == -1)) ? (val) : 0;	\
++			      ((val) == 1 || (val) == -1)) ?		\
++				(int)(val) : 0;				\
+ 	if (0) {							\
+ 		pao_T__ pao_tmp__;					\
+ 		pao_tmp__ = (val);					\
+diff --git a/include/linux/percpu.h b/include/linux/percpu.h
+index cc88172..c74088a 100644
+--- a/include/linux/percpu.h
++++ b/include/linux/percpu.h
+@@ -332,7 +332,7 @@ do {									\
+ #endif
  
-+config PERCPU_TEST
-+	tristate "Per cpu operations test"
-+	depends on m && DEBUG_KERNEL
-+	help
-+	  Enable this option to build test module which validates per-cpu
-+	  operations.
-+
-+	  If unsure, say N.
-+
- config ATOMIC64_SELFTEST
- 	bool "Perform an atomic64_t self-test at boot"
- 	help
-diff --git a/lib/Makefile b/lib/Makefile
-index f3bb2cb..bb016e1 100644
---- a/lib/Makefile
-+++ b/lib/Makefile
-@@ -157,6 +157,8 @@ obj-$(CONFIG_INTERVAL_TREE_TEST) += interval_tree_test.o
+ #ifndef this_cpu_sub
+-# define this_cpu_sub(pcp, val)		this_cpu_add((pcp), -(val))
++# define this_cpu_sub(pcp, val)		this_cpu_add((pcp), -(typeof(pcp))(val))
+ #endif
  
- interval_tree_test-objs := interval_tree_test_main.o interval_tree.o
+ #ifndef this_cpu_inc
+@@ -418,7 +418,7 @@ do {									\
+ # define this_cpu_add_return(pcp, val)	__pcpu_size_call_return2(this_cpu_add_return_, pcp, val)
+ #endif
  
-+obj-$(CONFIG_PERCPU_TEST) += percpu_test.o
-+
- obj-$(CONFIG_ASN1) += asn1_decoder.o
+-#define this_cpu_sub_return(pcp, val)	this_cpu_add_return(pcp, -(val))
++#define this_cpu_sub_return(pcp, val)	this_cpu_add_return(pcp, -(typeof(pcp))(val))
+ #define this_cpu_inc_return(pcp)	this_cpu_add_return(pcp, 1)
+ #define this_cpu_dec_return(pcp)	this_cpu_add_return(pcp, -1)
  
- obj-$(CONFIG_FONT_SUPPORT) += fonts/
-diff --git a/lib/percpu_test.c b/lib/percpu_test.c
-new file mode 100644
-index 0000000..fcca49e
---- /dev/null
-+++ b/lib/percpu_test.c
-@@ -0,0 +1,138 @@
-+#include <linux/module.h>
-+
-+/* validate @native and @pcp counter values match @expected */
-+#define CHECK(native, pcp, expected)                                    \
-+	do {                                                            \
-+		WARN((native) != (expected),                            \
-+		     "raw %ld (0x%lx) != expected %ld (0x%lx)",         \
-+		     (long)(native), (long)(native),                    \
-+		     (long)(expected), (long)(expected));               \
-+		WARN(__this_cpu_read(pcp) != (expected),                \
-+		     "pcp %ld (0x%lx) != expected %ld (0x%lx)",         \
-+		     (long)__this_cpu_read(pcp), (long)__this_cpu_read(pcp), \
-+		     (long)(expected), (long)(expected));               \
-+	} while (0)
-+
-+static DEFINE_PER_CPU(long, long_counter);
-+static DEFINE_PER_CPU(unsigned long, ulong_counter);
-+
-+static int __init percpu_test_init(void)
-+{
-+	/*
-+	 * volatile prevents compiler from optimizing it uses, otherwise the
-+	 * +ul_one and -ul_one below would replace with inc/dec instructions.
-+	 */
-+	volatile unsigned int ui_one = 1;
-+	long l = 0;
-+	unsigned long ul = 0;
-+
-+	pr_info("percpu test start\n");
-+
-+	preempt_disable();
-+
-+	l += -1;
-+	__this_cpu_add(long_counter, -1);
-+	CHECK(l, long_counter, -1);
-+
-+	l += 1;
-+	__this_cpu_add(long_counter, 1);
-+	CHECK(l, long_counter, 0);
-+
-+	ul = 0;
-+	__this_cpu_write(ulong_counter, 0);
-+
-+	ul += 1UL;
-+	__this_cpu_add(ulong_counter, 1UL);
-+	CHECK(ul, ulong_counter, 1);
-+
-+	ul += -1UL;
-+	__this_cpu_add(ulong_counter, -1UL);
-+	CHECK(ul, ulong_counter, 0);
-+
-+	ul += -(unsigned long)1;
-+	__this_cpu_add(ulong_counter, -(unsigned long)1);
-+	CHECK(ul, ulong_counter, -1);
-+
-+	ul = 0;
-+	__this_cpu_write(ulong_counter, 0);
-+
-+	ul -= 1;
-+	__this_cpu_dec(ulong_counter);
-+	CHECK(ul, ulong_counter, 0xffffffffffffffff);
-+	CHECK(ul, ulong_counter, -1);
-+
-+	l += -ui_one;
-+	__this_cpu_add(long_counter, -ui_one);
-+	CHECK(l, long_counter, 0xffffffff);
-+
-+	l += ui_one;
-+	__this_cpu_add(long_counter, ui_one);
-+	CHECK(l, long_counter, 0x100000000);
-+
-+
-+	l = 0;
-+	__this_cpu_write(long_counter, 0);
-+
-+	l -= ui_one;
-+	__this_cpu_sub(long_counter, ui_one);
-+	CHECK(l, long_counter, -1);
-+
-+	l = 0;
-+	__this_cpu_write(long_counter, 0);
-+
-+	l += ui_one;
-+	__this_cpu_add(long_counter, ui_one);
-+	CHECK(l, long_counter, 1);
-+
-+	l += -ui_one;
-+	__this_cpu_add(long_counter, -ui_one);
-+	CHECK(l, long_counter, 0x100000000);
-+
-+	l = 0;
-+	__this_cpu_write(long_counter, 0);
-+
-+	l -= ui_one;
-+	this_cpu_sub(long_counter, ui_one);
-+	CHECK(l, long_counter, -1);
-+	CHECK(l, long_counter, 0xffffffffffffffff);
-+
-+	ul = 0;
-+	__this_cpu_write(ulong_counter, 0);
-+
-+	ul += ui_one;
-+	__this_cpu_add(ulong_counter, ui_one);
-+	CHECK(ul, ulong_counter, 1);
-+
-+	ul = 0;
-+	__this_cpu_write(ulong_counter, 0);
-+
-+	ul -= ui_one;
-+	__this_cpu_sub(ulong_counter, ui_one);
-+	CHECK(ul, ulong_counter, -1);
-+	CHECK(ul, ulong_counter, 0xffffffffffffffff);
-+
-+	ul = 3;
-+	__this_cpu_write(ulong_counter, 3);
-+
-+	ul = this_cpu_sub_return(ulong_counter, ui_one);
-+	CHECK(ul, ulong_counter, 2);
-+
-+	ul = __this_cpu_sub_return(ulong_counter, ui_one);
-+	CHECK(ul, ulong_counter, 1);
-+
-+	preempt_enable();
-+
-+	pr_info("percpu test done\n");
-+	return -EAGAIN;  /* Fail will directly unload the module */
-+}
-+
-+static void __exit percpu_test_exit(void)
-+{
-+}
-+
-+module_init(percpu_test_init)
-+module_exit(percpu_test_exit)
-+
-+MODULE_LICENSE("GPL");
-+MODULE_AUTHOR("Greg Thelen");
-+MODULE_DESCRIPTION("percpu operations test");
+@@ -586,7 +586,7 @@ do {									\
+ #endif
+ 
+ #ifndef __this_cpu_sub
+-# define __this_cpu_sub(pcp, val)	__this_cpu_add((pcp), -(val))
++# define __this_cpu_sub(pcp, val)	__this_cpu_add((pcp), -(typeof(pcp))(val))
+ #endif
+ 
+ #ifndef __this_cpu_inc
+@@ -668,7 +668,7 @@ do {									\
+ 	__pcpu_size_call_return2(__this_cpu_add_return_, pcp, val)
+ #endif
+ 
+-#define __this_cpu_sub_return(pcp, val)	__this_cpu_add_return(pcp, -(val))
++#define __this_cpu_sub_return(pcp, val)	__this_cpu_add_return(pcp, -(typeof(pcp))(val))
+ #define __this_cpu_inc_return(pcp)	__this_cpu_add_return(pcp, 1)
+ #define __this_cpu_dec_return(pcp)	__this_cpu_add_return(pcp, -1)
+ 
 -- 
 1.8.4.1
 
