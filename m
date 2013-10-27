@@ -1,158 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 266256B0035
-	for <linux-mm@kvack.org>; Sun, 27 Oct 2013 13:12:07 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id fb1so6148346pad.3
-        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 10:12:06 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.109])
-        by mx.google.com with SMTP id ei3si9819449pbc.80.2013.10.27.10.12.05
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id E630F6B0035
+	for <linux-mm@kvack.org>; Sun, 27 Oct 2013 13:30:34 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id ma3so1939094pbc.32
+        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 10:30:34 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.158])
+        by mx.google.com with SMTP id gw3si10804475pac.56.2013.10.27.10.30.33
         for <linux-mm@kvack.org>;
-        Sun, 27 Oct 2013 10:12:06 -0700 (PDT)
-Received: by mail-oa0-f74.google.com with SMTP id j10so559773oah.3
-        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 10:12:04 -0700 (PDT)
+        Sun, 27 Oct 2013 10:30:33 -0700 (PDT)
+Received: by mail-ie0-f201.google.com with SMTP id u16so1110304iet.0
+        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 10:30:32 -0700 (PDT)
 From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH 2/3] percpu counter: cast this_cpu_sub() adjustment
-References: <1382859876-28196-1-git-send-email-gthelen@google.com>
-	<1382859876-28196-3-git-send-email-gthelen@google.com>
-Date: Sun, 27 Oct 2013 10:12:02 -0700
-In-Reply-To: <1382859876-28196-3-git-send-email-gthelen@google.com> (Greg
-	Thelen's message of "Sun, 27 Oct 2013 00:44:35 -0700")
-Message-ID: <xr93iowi1vvh.fsf@gthelen.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Subject: [PATCH v2 0/3] fix unsigned pcp adjustments
+Date: Sun, 27 Oct 2013 10:30:14 -0700
+Message-Id: <1382895017-19067-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, handai.szj@taobao.com, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, handai.szj@taobao.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>
 
-On Sun, Oct 27 2013, Greg Thelen wrote:
+As of v3.11-9444-g3ea67d0 "memcg: add per cgroup writeback pages accounting"
+memcg use of __this_cpu_add(counter, -nr_pages) leads to incorrect statistic
+values because the negated nr_pages is not sign extended (counter is long,
+nr_pages is unsigned int).  The memcg fix is __this_cpu_sub(counter, nr_pages).
+But that doesn't simply work because __this_cpu_sub(counter, nr_pages) was
+implemented as __this_cpu_add(counter, -nr_pages) which suffers the same
+problem.  Example:
+  unsigned int delta = 1
+  preempt_disable()
+  this_cpu_write(long_counter, 0)
+  this_cpu_sub(long_counter, delta)
+  preempt_enable()
+    
+Before this change long_counter on a 64 bit machine ends with value 0xffffffff,
+rather than 0xffffffffffffffff.  This is because this_cpu_sub(pcp, delta) boils
+down to:
+  long_counter = 0 + 0xffffffff
 
-> this_cpu_sub() is implemented as negation and addition.
->
-> This patch casts the adjustment to the counter type before negation to
-> sign extend the adjustment.  This helps in cases where the counter
-> type is wider than an unsigned adjustment.  An alternative to this
-> patch is to declare such operations unsupported, but it seemed useful
-> to avoid surprises.
->
-> This patch specifically helps the following example:
->   unsigned int delta = 1
->   preempt_disable()
->   this_cpu_write(long_counter, 0)
->   this_cpu_sub(long_counter, delta)
->   preempt_enable()
->
-> Before this change long_counter on a 64 bit machine ends with value
-> 0xffffffff, rather than 0xffffffffffffffff.  This is because
-> this_cpu_sub(pcp, delta) boils down to this_cpu_add(pcp, -delta),
-> which is basically:
->   long_counter = 0 + 0xffffffff
->
-> Also apply the same cast to:
->   __this_cpu_sub()
->   this_cpu_sub_return()
->   and __this_cpu_sub_return()
->
-> All percpu_test.ko passes, especially the following cases which
-> previously failed:
->
->   l -= ui_one;
->   __this_cpu_sub(long_counter, ui_one);
->   CHECK(l, long_counter, -1);
->
->   l -= ui_one;
->   this_cpu_sub(long_counter, ui_one);
->   CHECK(l, long_counter, -1);
->   CHECK(l, long_counter, 0xffffffffffffffff);
->
->   ul -= ui_one;
->   __this_cpu_sub(ulong_counter, ui_one);
->   CHECK(ul, ulong_counter, -1);
->   CHECK(ul, ulong_counter, 0xffffffffffffffff);
->
->   ul = this_cpu_sub_return(ulong_counter, ui_one);
->   CHECK(ul, ulong_counter, 2);
->
->   ul = __this_cpu_sub_return(ulong_counter, ui_one);
->   CHECK(ul, ulong_counter, 1);
->
-> Signed-off-by: Greg Thelen <gthelen@google.com>
-> ---
->  arch/x86/include/asm/percpu.h | 3 ++-
->  include/linux/percpu.h        | 8 ++++----
->  lib/percpu_test.c             | 2 +-
->  3 files changed, 7 insertions(+), 6 deletions(-)
->
-> diff --git a/arch/x86/include/asm/percpu.h b/arch/x86/include/asm/percpu.h
-> index 0da5200..b3e18f8 100644
-> --- a/arch/x86/include/asm/percpu.h
-> +++ b/arch/x86/include/asm/percpu.h
-> @@ -128,7 +128,8 @@ do {							\
->  do {									\
->  	typedef typeof(var) pao_T__;					\
->  	const int pao_ID__ = (__builtin_constant_p(val) &&		\
-> -			      ((val) == 1 || (val) == -1)) ? (val) : 0;	\
-> +			      ((val) == 1 || (val) == -1)) ?		\
-> +				(int)(val) : 0;				\
->  	if (0) {							\
->  		pao_T__ pao_tmp__;					\
->  		pao_tmp__ = (val);					\
-> diff --git a/include/linux/percpu.h b/include/linux/percpu.h
-> index cc88172..c74088a 100644
-> --- a/include/linux/percpu.h
-> +++ b/include/linux/percpu.h
-> @@ -332,7 +332,7 @@ do {									\
->  #endif
->  
->  #ifndef this_cpu_sub
-> -# define this_cpu_sub(pcp, val)		this_cpu_add((pcp), -(val))
-> +# define this_cpu_sub(pcp, val)		this_cpu_add((pcp), -(typeof(pcp))(val))
->  #endif
->  
->  #ifndef this_cpu_inc
-> @@ -418,7 +418,7 @@ do {									\
->  # define this_cpu_add_return(pcp, val)	__pcpu_size_call_return2(this_cpu_add_return_, pcp, val)
->  #endif
->  
-> -#define this_cpu_sub_return(pcp, val)	this_cpu_add_return(pcp, -(val))
-> +#define this_cpu_sub_return(pcp, val)	this_cpu_add_return(pcp, -(typeof(pcp))(val))
->  #define this_cpu_inc_return(pcp)	this_cpu_add_return(pcp, 1)
->  #define this_cpu_dec_return(pcp)	this_cpu_add_return(pcp, -1)
->  
-> @@ -586,7 +586,7 @@ do {									\
->  #endif
->  
->  #ifndef __this_cpu_sub
-> -# define __this_cpu_sub(pcp, val)	__this_cpu_add((pcp), -(val))
-> +# define __this_cpu_sub(pcp, val)	__this_cpu_add((pcp), -(typeof(pcp))(val))
->  #endif
->  
->  #ifndef __this_cpu_inc
-> @@ -668,7 +668,7 @@ do {									\
->  	__pcpu_size_call_return2(__this_cpu_add_return_, pcp, val)
->  #endif
->  
-> -#define __this_cpu_sub_return(pcp, val)	__this_cpu_add_return(pcp, -(val))
-> +#define __this_cpu_sub_return(pcp, val)	__this_cpu_add_return(pcp, -(typeof(pcp))(val))
->  #define __this_cpu_inc_return(pcp)	__this_cpu_add_return(pcp, 1)
->  #define __this_cpu_dec_return(pcp)	__this_cpu_add_return(pcp, -1)
->  
-> diff --git a/lib/percpu_test.c b/lib/percpu_test.c
-> index 1ebeb44..8ab4231 100644
-> --- a/lib/percpu_test.c
-> +++ b/lib/percpu_test.c
-> @@ -118,7 +118,7 @@ static int __init percpu_test_init(void)
->  	CHECK(ul, ulong_counter, 2);
->  
->  	ul = __this_cpu_sub_return(ulong_counter, ui_one);
-> -	CHECK(ul, ulong_counter, 0);
-> +	CHECK(ul, ulong_counter, 1);
->  
->  	preempt_enable();
+v3.12-rc6 shows that only new memcg code is affected by this problem - the new
+mem_cgroup_move_account_page_stat() is the only place where an unsigned
+adjustment is used.  All other callers (e.g. shrink_dcache_sb) already use a
+signed adjustment, so no problems before v3.12.  Though I did not audit the
+stable kernel trees, so there could be something hiding in there.
 
-Oops.  This update to percpu_test.c doesn't belong in this patch.  It
-should be moved to the earlier patch 1/3.  I'll repost the series with
-this update and the suggested changes to patch titles.
+Patch 1 creates a test module for percpu operations which demonstrates the
+__this_cpu_sub() problems.  This patch is independent can be discarded if there
+is no interest.
+
+Patch 2 fixes __this_cpu_sub() to work with unsigned adjustments.
+
+Patch 3 uses __this_cpu_sub() in memcg.
+
+An alternative smaller solution is for memcg to use:
+  __this_cpu_add(counter, -(int)nr_pages)
+admitting that __this_cpu_add/sub() doesn't work with unsigned adjustments.  But
+I felt like fixing the core services to prevent this in the future.
+
+Changes from V1:
+- more accurate patch titles, patch logs, and test module description now
+  referring to per cpu operations rather than per cpu counters.
+- move small test code update from patch 2 to patch 1 (where the test is
+  introduced).
+
+Greg Thelen (3):
+  percpu: add test module for various percpu operations
+  percpu: fix this_cpu_sub() subtrahend casting for unsigneds
+  memcg: use __this_cpu_sub() to dec stats to avoid incorrect subtrahend
+    casting
+
+ arch/x86/include/asm/percpu.h |   3 +-
+ include/linux/percpu.h        |   8 +--
+ lib/Kconfig.debug             |   9 +++
+ lib/Makefile                  |   2 +
+ lib/percpu_test.c             | 138 ++++++++++++++++++++++++++++++++++++++++++
+ mm/memcontrol.c               |   2 +-
+ 6 files changed, 156 insertions(+), 6 deletions(-)
+ create mode 100644 lib/percpu_test.c
+
+-- 
+1.8.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
