@@ -1,69 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id F0B7D6B00DC
-	for <linux-mm@kvack.org>; Sun, 27 Oct 2013 03:44:46 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id p10so5734182pdj.11
-        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 00:44:46 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.164])
-        by mx.google.com with SMTP id ud7si9808973pac.323.2013.10.27.00.44.44
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E8DC6B00DF
+	for <linux-mm@kvack.org>; Sun, 27 Oct 2013 03:45:02 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id q10so5785057pdj.28
+        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 00:45:02 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.138])
+        by mx.google.com with SMTP id db4si879407pbc.262.2013.10.27.00.45.00
         for <linux-mm@kvack.org>;
-        Sun, 27 Oct 2013 00:44:45 -0700 (PDT)
-Received: by mail-oa0-f74.google.com with SMTP id j10so504796oah.3
-        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 00:44:43 -0700 (PDT)
+        Sun, 27 Oct 2013 00:45:01 -0700 (PDT)
+Received: by mail-pb0-f74.google.com with SMTP id jt11so553288pbb.1
+        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 00:44:59 -0700 (PDT)
 From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH 0/3] fix unsigned pcp adjustments
-Date: Sun, 27 Oct 2013 00:44:33 -0700
-Message-Id: <1382859876-28196-1-git-send-email-gthelen@google.com>
+Subject: [PATCH 1/3] percpu counter: test module
+Date: Sun, 27 Oct 2013 00:44:34 -0700
+Message-Id: <1382859876-28196-2-git-send-email-gthelen@google.com>
+In-Reply-To: <1382859876-28196-1-git-send-email-gthelen@google.com>
+References: <1382859876-28196-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, handai.szj@taobao.com, Andrew Morton <akpm@linux-foundation.org>
 Cc: x86@kernel.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>
 
-As of v3.11-9444-g3ea67d0 "memcg: add per cgroup writeback pages accounting"
-memcg use of __this_cpu_add(counter, -nr_pages) leads to incorrect statistic
-values because the negated nr_pages is not sign extended (counter is long,
-nr_pages is unsigned int).  The memcg fix is __this_cpu_sub(counter, nr_pages).
-But that doesn't simply work because __this_cpu_sub(counter, nr_pages) was
-implemented as __this_cpu_add(counter, -nr_pages) which suffers the same
-problem.  Example:
-  unsigned int delta = 1
-  preempt_disable()
-  this_cpu_write(long_counter, 0)
-  this_cpu_sub(long_counter, delta)
-  preempt_enable()
-    
-Before this change long_counter on a 64 bit machine ends with value 0xffffffff,
-rather than 0xffffffffffffffff.  This is because this_cpu_sub(pcp, delta) boils
-down to:
-  long_counter = 0 + 0xffffffff
+Tests various percpu operations.
 
-Patch 1 creates a test module for percpu counters operations which demonstrates
-the __this_cpu_sub() problems.  This patch is independent can be discarded if
-there is no interest.
+Enable with CONFIG_PERCPU_TEST=m.
 
-Patch 2 fixes __this_cpu_sub() to work with unsigned adjustments.
-
-Patch 3 uses __this_cpu_sub() in memcg.
-
-An alternative smaller solution is for memcg to use:
-  __this_cpu_add(counter, -(int)nr_pages)
-admitting that __this_cpu_add/sub() doesn't work with unsigned adjustments.  But
-I felt like fixing the core services to prevent this in the future.
-
-Greg Thelen (3):
-  percpu counter: test module
-  percpu counter: cast this_cpu_sub() adjustment
-  memcg: use __this_cpu_sub to decrement stats
-
- arch/x86/include/asm/percpu.h |   3 +-
- include/linux/percpu.h        |   8 +--
- lib/Kconfig.debug             |   9 +++
- lib/Makefile                  |   2 +
- lib/percpu_test.c             | 138 ++++++++++++++++++++++++++++++++++++++++++
- mm/memcontrol.c               |   2 +-
- 6 files changed, 156 insertions(+), 6 deletions(-)
+Signed-off-by: Greg Thelen <gthelen@google.com>
+---
+ lib/Kconfig.debug |   9 ++++
+ lib/Makefile      |   2 +
+ lib/percpu_test.c | 138 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 149 insertions(+)
  create mode 100644 lib/percpu_test.c
 
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index 06344d9..cee589d 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -1472,6 +1472,15 @@ config INTERVAL_TREE_TEST
+ 	help
+ 	  A benchmark measuring the performance of the interval tree library
+ 
++config PERCPU_TEST
++	tristate "Per cpu counter test"
++	depends on m && DEBUG_KERNEL
++	help
++	  Enable this option to build test modules with validates per-cpu
++	  counter operations.
++
++	  If unsure, say N.
++
+ config ATOMIC64_SELFTEST
+ 	bool "Perform an atomic64_t self-test at boot"
+ 	help
+diff --git a/lib/Makefile b/lib/Makefile
+index f3bb2cb..bb016e1 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -157,6 +157,8 @@ obj-$(CONFIG_INTERVAL_TREE_TEST) += interval_tree_test.o
+ 
+ interval_tree_test-objs := interval_tree_test_main.o interval_tree.o
+ 
++obj-$(CONFIG_PERCPU_TEST) += percpu_test.o
++
+ obj-$(CONFIG_ASN1) += asn1_decoder.o
+ 
+ obj-$(CONFIG_FONT_SUPPORT) += fonts/
+diff --git a/lib/percpu_test.c b/lib/percpu_test.c
+new file mode 100644
+index 0000000..1ebeb44
+--- /dev/null
++++ b/lib/percpu_test.c
+@@ -0,0 +1,138 @@
++#include <linux/module.h>
++
++/* validate @native and @pcp counter values match @expected */
++#define CHECK(native, pcp, expected)                                    \
++	do {                                                            \
++		WARN((native) != (expected),                            \
++		     "raw %ld (0x%lx) != expected %ld (0x%lx)",         \
++		     (long)(native), (long)(native),                    \
++		     (long)(expected), (long)(expected));               \
++		WARN(__this_cpu_read(pcp) != (expected),                \
++		     "pcp %ld (0x%lx) != expected %ld (0x%lx)",         \
++		     (long)__this_cpu_read(pcp), (long)__this_cpu_read(pcp), \
++		     (long)(expected), (long)(expected));               \
++	} while (0)
++
++static DEFINE_PER_CPU(long, long_counter);
++static DEFINE_PER_CPU(unsigned long, ulong_counter);
++
++static int __init percpu_test_init(void)
++{
++	/*
++	 * volatile prevents compiler from optimizing it uses, otherwise the
++	 * +ul_one and -ul_one below would replace with inc/dec instructions.
++	 */
++	volatile unsigned int ui_one = 1;
++	long l = 0;
++	unsigned long ul = 0;
++
++	pr_info("percpu test start\n");
++
++	preempt_disable();
++
++	l += -1;
++	__this_cpu_add(long_counter, -1);
++	CHECK(l, long_counter, -1);
++
++	l += 1;
++	__this_cpu_add(long_counter, 1);
++	CHECK(l, long_counter, 0);
++
++	ul = 0;
++	__this_cpu_write(ulong_counter, 0);
++
++	ul += 1UL;
++	__this_cpu_add(ulong_counter, 1UL);
++	CHECK(ul, ulong_counter, 1);
++
++	ul += -1UL;
++	__this_cpu_add(ulong_counter, -1UL);
++	CHECK(ul, ulong_counter, 0);
++
++	ul += -(unsigned long)1;
++	__this_cpu_add(ulong_counter, -(unsigned long)1);
++	CHECK(ul, ulong_counter, -1);
++
++	ul = 0;
++	__this_cpu_write(ulong_counter, 0);
++
++	ul -= 1;
++	__this_cpu_dec(ulong_counter);
++	CHECK(ul, ulong_counter, 0xffffffffffffffff);
++	CHECK(ul, ulong_counter, -1);
++
++	l += -ui_one;
++	__this_cpu_add(long_counter, -ui_one);
++	CHECK(l, long_counter, 0xffffffff);
++
++	l += ui_one;
++	__this_cpu_add(long_counter, ui_one);
++	CHECK(l, long_counter, 0x100000000);
++
++
++	l = 0;
++	__this_cpu_write(long_counter, 0);
++
++	l -= ui_one;
++	__this_cpu_sub(long_counter, ui_one);
++	CHECK(l, long_counter, -1);
++
++	l = 0;
++	__this_cpu_write(long_counter, 0);
++
++	l += ui_one;
++	__this_cpu_add(long_counter, ui_one);
++	CHECK(l, long_counter, 1);
++
++	l += -ui_one;
++	__this_cpu_add(long_counter, -ui_one);
++	CHECK(l, long_counter, 0x100000000);
++
++	l = 0;
++	__this_cpu_write(long_counter, 0);
++
++	l -= ui_one;
++	this_cpu_sub(long_counter, ui_one);
++	CHECK(l, long_counter, -1);
++	CHECK(l, long_counter, 0xffffffffffffffff);
++
++	ul = 0;
++	__this_cpu_write(ulong_counter, 0);
++
++	ul += ui_one;
++	__this_cpu_add(ulong_counter, ui_one);
++	CHECK(ul, ulong_counter, 1);
++
++	ul = 0;
++	__this_cpu_write(ulong_counter, 0);
++
++	ul -= ui_one;
++	__this_cpu_sub(ulong_counter, ui_one);
++	CHECK(ul, ulong_counter, -1);
++	CHECK(ul, ulong_counter, 0xffffffffffffffff);
++
++	ul = 3;
++	__this_cpu_write(ulong_counter, 3);
++
++	ul = this_cpu_sub_return(ulong_counter, ui_one);
++	CHECK(ul, ulong_counter, 2);
++
++	ul = __this_cpu_sub_return(ulong_counter, ui_one);
++	CHECK(ul, ulong_counter, 0);
++
++	preempt_enable();
++
++	pr_info("percpu test done\n");
++	return -EAGAIN;  /* Fail will directly unload the module */
++}
++
++static void __exit percpu_test_exit(void)
++{
++}
++
++module_init(percpu_test_init)
++module_exit(percpu_test_exit)
++
++MODULE_LICENSE("GPL");
++MODULE_AUTHOR("Greg Thelen");
++MODULE_DESCRIPTION("percpu variables test");
 -- 
 1.8.4.1
 
