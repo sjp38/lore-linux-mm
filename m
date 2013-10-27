@@ -1,41 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 222B86B0085
-	for <linux-mm@kvack.org>; Sun, 27 Oct 2013 08:35:49 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so1268249pab.0
-        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 05:35:48 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.157])
-        by mx.google.com with SMTP id ei3si9364201pbc.170.2013.10.27.05.35.47
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 926376B00D1
+	for <linux-mm@kvack.org>; Sun, 27 Oct 2013 08:36:54 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id fa1so4158076pad.41
+        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 05:36:54 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.200])
+        by mx.google.com with SMTP id js8si9377472pbc.104.2013.10.27.05.36.53
         for <linux-mm@kvack.org>;
-        Sun, 27 Oct 2013 05:35:48 -0700 (PDT)
-Received: by mail-qe0-f48.google.com with SMTP id d4so3430213qej.35
-        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 05:35:46 -0700 (PDT)
-Date: Sun, 27 Oct 2013 08:35:42 -0400
+        Sun, 27 Oct 2013 05:36:53 -0700 (PDT)
+Received: by mail-qe0-f53.google.com with SMTP id cy11so3389410qeb.12
+        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 05:36:51 -0700 (PDT)
+Date: Sun, 27 Oct 2013 08:36:34 -0400
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/3] percpu: merge two loops when setting up group info
-Message-ID: <20131027123542.GK14934@mtj.dyndns.org>
+Subject: Re: [PATCH 3/3] percpu: little optimization on calculating
+ pcpu_unit_size
+Message-ID: <20131027123634.GL14934@mtj.dyndns.org>
 References: <1382345893-6644-1-git-send-email-weiyang@linux.vnet.ibm.com>
- <1382345893-6644-2-git-send-email-weiyang@linux.vnet.ibm.com>
+ <1382345893-6644-3-git-send-email-weiyang@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1382345893-6644-2-git-send-email-weiyang@linux.vnet.ibm.com>
+In-Reply-To: <1382345893-6644-3-git-send-email-weiyang@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wei Yang <weiyang@linux.vnet.ibm.com>
 Cc: cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Oct 21, 2013 at 04:58:12PM +0800, Wei Yang wrote:
-> There are two loops setting up the group info of pcpu_alloc_info. They share
-> the same logic, so merge them could be time efficient when there are many
-> groups.
+On Mon, Oct 21, 2013 at 04:58:13PM +0800, Wei Yang wrote:
+> pcpu_unit_size exactly equals to ai->unit_size.
 > 
-> This patch merge these two loops into one.
+> This patch assign this value instead of calculating from pcpu_unit_pages. Also
+> it reorder them to make it looks more friendly to audience.
 
-It *looks* correct to me but I'd rather not change this unless you can
-show me this actually matters, which I find extremely doubtful given
-nr_groups would be in the order of few thousands even on an extremely
-large machine.
+Ditto.  I'd rather not change unless this is clearly better.
 
 Thanks.
 
