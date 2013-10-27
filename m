@@ -1,38 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CEEE6B00DC
-	for <linux-mm@kvack.org>; Sun, 27 Oct 2013 08:30:14 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id wz7so5294310pbc.24
-        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 05:30:13 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.133])
-        by mx.google.com with SMTP id ru9si9371174pbc.78.2013.10.27.05.30.12
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 222B86B0085
+	for <linux-mm@kvack.org>; Sun, 27 Oct 2013 08:35:49 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so1268249pab.0
+        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 05:35:48 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.157])
+        by mx.google.com with SMTP id ei3si9364201pbc.170.2013.10.27.05.35.47
         for <linux-mm@kvack.org>;
-        Sun, 27 Oct 2013 05:30:13 -0700 (PDT)
-Received: by mail-qe0-f52.google.com with SMTP id w7so3349372qeb.25
-        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 05:30:11 -0700 (PDT)
-Date: Sun, 27 Oct 2013 08:30:08 -0400
+        Sun, 27 Oct 2013 05:35:48 -0700 (PDT)
+Received: by mail-qe0-f48.google.com with SMTP id d4so3430213qej.35
+        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 05:35:46 -0700 (PDT)
+Date: Sun, 27 Oct 2013 08:35:42 -0400
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 1/3] percpu: stop the loop when a cpu belongs to a new
- group
-Message-ID: <20131027123008.GJ14934@mtj.dyndns.org>
+Subject: Re: [PATCH 2/3] percpu: merge two loops when setting up group info
+Message-ID: <20131027123542.GK14934@mtj.dyndns.org>
 References: <1382345893-6644-1-git-send-email-weiyang@linux.vnet.ibm.com>
+ <1382345893-6644-2-git-send-email-weiyang@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1382345893-6644-1-git-send-email-weiyang@linux.vnet.ibm.com>
+In-Reply-To: <1382345893-6644-2-git-send-email-weiyang@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wei Yang <weiyang@linux.vnet.ibm.com>
 Cc: cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Oct 21, 2013 at 04:58:11PM +0800, Wei Yang wrote:
-> When a cpu belongs to a new group, there is no cpu has the same group id. This
-> means it can be assigned a new group id without checking with every others.
+On Mon, Oct 21, 2013 at 04:58:12PM +0800, Wei Yang wrote:
+> There are two loops setting up the group info of pcpu_alloc_info. They share
+> the same logic, so merge them could be time efficient when there are many
+> groups.
 > 
-> This patch does this optimiztion.
+> This patch merge these two loops into one.
 
-Does this actually matter?  If so, it'd probably make a lot more sense
-to start inner loop at @cpu + 1 so that it becomes O(N).
+It *looks* correct to me but I'd rather not change this unless you can
+show me this actually matters, which I find extremely doubtful given
+nr_groups would be in the order of few thousands even on an extremely
+large machine.
 
 Thanks.
 
