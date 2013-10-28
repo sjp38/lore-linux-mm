@@ -1,85 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id C766C6B0031
-	for <linux-mm@kvack.org>; Sun, 27 Oct 2013 23:01:06 -0400 (EDT)
-Received: by mail-pb0-f50.google.com with SMTP id uo5so3793340pbc.9
-        for <linux-mm@kvack.org>; Sun, 27 Oct 2013 20:01:06 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.180])
-        by mx.google.com with SMTP id db4si2634395pbc.262.2013.10.27.20.01.04
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 746536B0031
+	for <linux-mm@kvack.org>; Mon, 28 Oct 2013 03:37:56 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id x10so6503068pdj.9
+        for <linux-mm@kvack.org>; Mon, 28 Oct 2013 00:37:56 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.109])
+        by mx.google.com with SMTP id ln9si12131023pab.189.2013.10.28.00.37.53
         for <linux-mm@kvack.org>;
-        Sun, 27 Oct 2013 20:01:05 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
-	Mon, 28 Oct 2013 08:31:01 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 3B8A0394004D
-	for <linux-mm@kvack.org>; Mon, 28 Oct 2013 08:30:36 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9S30tMg19923186
-	for <linux-mm@kvack.org>; Mon, 28 Oct 2013 08:30:55 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9S30uXb019603
-	for <linux-mm@kvack.org>; Mon, 28 Oct 2013 08:30:57 +0530
-Date: Mon, 28 Oct 2013 11:00:55 +0800
-From: Wei Yang <weiyang@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/3] percpu: stop the loop when a cpu belongs to a new
- group
-Message-ID: <20131028030055.GC15642@weiyang.vnet.ibm.com>
-Reply-To: Wei Yang <weiyang@linux.vnet.ibm.com>
-References: <1382345893-6644-1-git-send-email-weiyang@linux.vnet.ibm.com>
- <20131027123008.GJ14934@mtj.dyndns.org>
+        Mon, 28 Oct 2013 00:37:55 -0700 (PDT)
+Date: Mon, 28 Oct 2013 16:37:48 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: OMAPFB: CMA allocation failures
+Message-ID: <20131028073748.GA17038@bbox>
+References: <991366690.30380.1381819791799.JavaMail.apache@mail83.abv.bg>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20131027123008.GJ14934@mtj.dyndns.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <991366690.30380.1381819791799.JavaMail.apache@mail83.abv.bg>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Wei Yang <weiyang@linux.vnet.ibm.com>, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: =?utf-8?B?0JjQstCw0LnQu9C+INCU0LjQvNC40YLRgNC+0LI=?= <freemangordon@abv.bg>
+Cc: Tomi Valkeinen <tomi.valkeinen@ti.com>, pali.rohar@gmail.com, pc+n900@asdf.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, Oct 27, 2013 at 08:30:08AM -0400, Tejun Heo wrote:
->On Mon, Oct 21, 2013 at 04:58:11PM +0800, Wei Yang wrote:
->> When a cpu belongs to a new group, there is no cpu has the same group id. This
->> means it can be assigned a new group id without checking with every others.
->> 
->> This patch does this optimiztion.
->
->Does this actually matter?  If so, it'd probably make a lot more sense
->to start inner loop at @cpu + 1 so that it becomes O(N).
+Hello,
 
-One of the worst case in my mind:
+On Tue, Oct 15, 2013 at 09:49:51AM +0300, D?D2D?D1D>>D 3/4  D?D,D 1/4 D,N?N?D 3/4 D2 wrote:
+>  Hi
+> 
+>  >-------- D?N?D,D3D,D 1/2 D?D>>D 1/2 D 3/4  D?D,N?D 1/4 D 3/4  --------
+>  >D?N?:  Tomi Valkeinen 
+>  >D?N?D 1/2 D 3/4 N?D 1/2 D 3/4 : Re: OMAPFB: CMA allocation failures
+>  >D?D 3/4 : D?D2D?D1D>>D 3/4  D?D,D 1/4 D,N?N?D 3/4 D2
+> 	
+>  >D?D.D?N?D?N?DuD 1/2 D 3/4  D 1/2 D?: D?D 3/4 D 1/2 DuD'DuD>>D 1/2 D,Do, 2013, D?DoN?D 3/4 D 1/4 D2N?D, 14 09:04:35 EEST
+>  >
+>  >
+>  >Hi,
+>  >
+>  >On 12/10/13 17:43, D?D2D?D1D>>D 3/4  D?D,D 1/4 D,N?N?D 3/4 D2 wrote:
+>  >>  Hi Tomi,
+>  >> 
+>  >> patch http://lists.infradead.org/pipermail/linux-arm-kernel/2012-November/131269.html modifies
+>  >> omapfb driver to use DMA API to allocate framebuffer memory instead of preallocating VRAM.
+>  >> 
+>  >> With this patch I see a lot of:
+>  >> 
+>  >> Jan  1 06:33:27 Nokia-N900 kernel: [ 2054.879577] cma: dma_alloc_from_contiguous(cma c05f5844, count 192, align 8)
+>  >> Jan  1 06:33:27 Nokia-N900 kernel: [ 2054.914215] cma: dma_alloc_from_contiguous(): memory range at c07df000 is busy, retrying
+>  >> Jan  1 06:33:27 Nokia-N900 kernel: [ 2054.933502] cma: dma_alloc_from_contiguous(): memory range at c07e1000 is busy, retrying
+>  >> Jan  1 06:33:27 Nokia-N900 kernel: [ 2054.940032] cma: dma_alloc_from_contiguous(): memory range at c07e3000 is busy, retrying
+>  >> Jan  1 06:33:27 Nokia-N900 kernel: [ 2054.966644] cma: dma_alloc_from_contiguous(): memory range at c07e5000 is busy, retrying
+>  >> Jan  1 06:33:27 Nokia-N900 kernel: [ 2054.976867] cma: dma_alloc_from_contiguous(): memory range at c07e7000 is busy, retrying
+>  >> Jan  1 06:33:27 Nokia-N900 kernel: [ 2055.038055] cma: dma_alloc_from_contiguous(): memory range at c07e9000 is busy, retrying
+>  >> Jan  1 06:33:27 Nokia-N900 kernel: [ 2055.038116] cma: dma_alloc_from_contiguous(): returned   (null)
+>  >> Jan  1 06:33:27 Nokia-N900 kernel: [ 2055.038146] omapfb omapfb: failed to allocate framebuffer
+>  >> 
+>  >> errors while trying to play a video on N900 with Maemo 5 (Fremantle) on top of linux-3.12rc1.
+>  >> It is deffinitely the CMA that fails to allocate the memory most of the times, but I wonder
+>  >> how reliable CMA is to be used in omapfb. I even reserved 64MB for CMA, but that made no
+>  >> difference. If CMA is disabled, the memory allocation still fails as obviously it is highly
+>  >> unlikely there will be such a big chunk of continuous free memory on RAM limited device like
+>  >> N900. 
+>  >> 
+>  >> One obvious solution is to just revert the removal of VRAM memory allocator, but that would
+>  >> mean I'll have to maintain a separate tree with all the implications that brings.
+>  >> 
+>  >> What would you advise on how to deal with the issue?
+>  >
+>  >I've not seen such errors, and I'm no expert on CMA. But I guess the
+>  >contiguous memory area can get fragmented enough no matter how hard one
+>  >tries to avoid it. The old VRAM system had the same issue, although it
+>  >was quite difficult to hit it.
+> 
+> I am using my n900 as a daily/only device since the beginning of 2010, never seen such an 
+> issue with video playback. And as a maintainer of one of the community supported kernels for
+> n900 (kernel-power) I've never had such an issue reported. On stock kernel and derivatives of
+> course. It seems VRAM allocator is virtually impossible to fail, while with CMA OMAPFB fails on
+> the first video after boot-up.
+> 
+> When saying you've not seen such an issue - did you actually test video playback, on what
+> device and using which distro? Did you use DSP accelerated decoding?
+> 
+>  >64MB does sound quite a lot, though. I wonder what other drivers are
+>  >using CMA, and how do they manage to allocate so much memory and
+>  >fragment it so badly... With double buffering, N900 should only need
+>  >something like 3MB for the frame buffer.
+> 
+> Sure, 64 MB is a lot, but I just wanted to see if that would make any difference. And for 720p 
+> 3MB is not enough, something like 8MB is needed.
+> 
+>  >With a quick glance I didn't find any debugfs or such files to show
+>  >information about the CMA area. It'd be helpful to find out what's going
+>  >on there. Or maybe normal allocations are fragmenting the CMA area, but
+>  >for some reason they cannot be moved? Just guessing.
+> 
+> I was able to track down the failures to:
+> http://lxr.free-electrons.com/source/mm/migrate.c#L320
 
-CPU:        0    1    2    3    4    ...
-Group:      0    1    2    3    4    ...
-(sounds it is impossible in the real world)
+That path is for anonymous page migration so the culprit I can think of
+is that you did get_user_pages on those anonymous pages for pin them.
+Right?
 
-Every time, when we encounter a new CPU and try to assign it to a group, we
-found it belongs to a new group. The original logic will iterate on all old
-CPUs again, while the new logic could skip this and assign it to a new group.
-
-Again, this is a tiny change, which doesn't matters a lot.
-
-BTW, I don't get your point for "start inner loop at @cpu+1".
-
-The original logic is:
-	loop 1:   0 - nr_cpus
-	loop 2:      0 - (cpu - 1)
-
-If you found one better approach to improve the logic, I believe all the users
-will appreciate your efforts :-)
-
-Thanks for your review and comments again ~
-
->
->Thanks.
->
->-- 
->tejun
+If so, it's no surpse that fails the migration and CMA doesn't work.
 
 -- 
-Richard Yang
-Help you, Help me
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
