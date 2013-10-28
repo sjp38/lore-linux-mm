@@ -1,59 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DA3A6B0037
-	for <linux-mm@kvack.org>; Mon, 28 Oct 2013 11:45:10 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so7309127pad.30
-        for <linux-mm@kvack.org>; Mon, 28 Oct 2013 08:45:09 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.156])
-        by mx.google.com with SMTP id yj4si13368472pac.50.2013.10.28.08.45.07
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id EF2766B0031
+	for <linux-mm@kvack.org>; Mon, 28 Oct 2013 12:04:13 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id x10so7058273pdj.37
+        for <linux-mm@kvack.org>; Mon, 28 Oct 2013 09:04:13 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.125])
+        by mx.google.com with SMTP id cj2si12446174pbc.87.2013.10.28.09.04.12
         for <linux-mm@kvack.org>;
-        Mon, 28 Oct 2013 08:45:09 -0700 (PDT)
-Received: by mail-ve0-f177.google.com with SMTP id oz11so4982375veb.8
-        for <linux-mm@kvack.org>; Mon, 28 Oct 2013 08:45:06 -0700 (PDT)
+        Mon, 28 Oct 2013 09:04:13 -0700 (PDT)
+Message-ID: <526E8AF9.6070300@codeaurora.org>
+Date: Mon, 28 Oct 2013 09:04:09 -0700
+From: Laura Abbott <lauraa@codeaurora.org>
 MIME-Version: 1.0
-In-Reply-To: <20131028141310.GA4970@schnuecks.de>
-References: <20131024200730.GB17447@blackmetal.musicnaut.iki.fi>
-	<20131026143617.GA14034@mudshark.cambridge.arm.com>
-	<20131027195115.208f40f3@tom-ThinkPad-T410>
-	<20131028141310.GA4970@schnuecks.de>
-Date: Mon, 28 Oct 2013 23:45:06 +0800
-Message-ID: <CACVXFVMA61Wi6jZs_kf329fCj2oMXgbg9x0EhP5OpEEgPVw4kw@mail.gmail.com>
-Subject: Re: ARM/kirkwood: v3.12-rc6: kernel BUG at mm/util.c:390!
-From: Ming Lei <tom.leiming@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] mm: cma: free cma page to buddy instead of being cpu
+ hot  page
+References: <1382960569-6564-1-git-send-email-zhang.mingjun@linaro.org>
+In-Reply-To: <1382960569-6564-1-git-send-email-zhang.mingjun@linaro.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Baatz <gmbnomis@gmail.com>
-Cc: Will Deacon <will.deacon@arm.com>, Aaro Koskinen <aaro.koskinen@iki.fi>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Andrew Morton <akpm@linux-foundation.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Tejun Heo <tj@kernel.org>, "James E.J. Bottomley" <JBottomley@parallels.com>, Jens Axboe <axboe@kernel.dk>
+To: zhang.mingjun@linaro.org, minchan@kernel.org, m.szyprowski@samsung.com, akpm@linux-foundation.org, mgorman@suse.de, haojian.zhuang@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Mingjun Zhang <troy.zhangmingjun@linaro.org>
 
-On Mon, Oct 28, 2013 at 10:13 PM, Simon Baatz <gmbnomis@gmail.com> wrote:
-> On Sun, Oct 27, 2013 at 07:51:15PM +0800, Ming Lei wrote:
->> diff --git a/lib/scatterlist.c b/lib/scatterlist.c
->> index a685c8a..eea8806 100644
->> --- a/lib/scatterlist.c
->> +++ b/lib/scatterlist.c
->> @@ -577,7 +577,7 @@ void sg_miter_stop(struct sg_mapping_iter *miter)
->>               miter->__offset += miter->consumed;
->>               miter->__remaining -= miter->consumed;
->>
->> -             if (miter->__flags & SG_MITER_TO_SG)
->> +             if ((miter->__flags & SG_MITER_TO_SG) && !PageSlab(page))
+On 10/28/2013 4:42 AM, zhang.mingjun@linaro.org wrote:
+> From: Mingjun Zhang <troy.zhangmingjun@linaro.org>
 >
-> This is what I was going to propose, but I would have used
-> !PageSlab(miter->page) ;-)
-
-OK, I will send a formal one later, thank you for pointing out the above, :-)
-
+> free_contig_range frees cma pages one by one and MIGRATE_CMA pages will be
+> used as MIGRATE_MOVEABLE pages in the pcp list, it causes unnecessary
+> migration action when these pages reused by CMA.
 >
->>                       flush_kernel_dcache_page(miter->page);
+> Signed-off-by: Mingjun Zhang <troy.zhangmingjun@linaro.org>
+> ---
+>   mm/page_alloc.c |    3 ++-
+>   1 file changed, 2 insertions(+), 1 deletion(-)
 >
-> With this, a kernel with DEBUG_VM now boots on Kirkwood.
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 0ee638f..84b9d84 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1362,7 +1362,8 @@ void free_hot_cold_page(struct page *page, int cold)
+>   	 * excessively into the page allocator
+>   	 */
+>   	if (migratetype >= MIGRATE_PCPTYPES) {
+> -		if (unlikely(is_migrate_isolate(migratetype))) {
+> +		if (unlikely(is_migrate_isolate(migratetype))
+> +			|| is_migrate_cma(migratetype))
+>   			free_one_page(zone, page, 0, migratetype);
+>   			goto out;
+>   		}
+>
 
 
+I submitted something very similar a while ago 
+http://marc.info/?l=linaro-mm-sig&m=137645764208287&w=2 . Has the 
+opinion on this patch changed?
 
 Thanks,
+Laura
+
 -- 
-Ming Lei
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
