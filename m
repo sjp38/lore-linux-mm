@@ -1,63 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f206.google.com (mail-vc0-f206.google.com [209.85.220.206])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D76F6B0035
-	for <linux-mm@kvack.org>; Mon, 28 Oct 2013 11:24:01 -0400 (EDT)
-Received: by mail-vc0-f206.google.com with SMTP id ht10so44315vcb.5
-        for <linux-mm@kvack.org>; Mon, 28 Oct 2013 08:24:01 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.125])
-        by mx.google.com with SMTP id gn4si9385600pbc.171.2013.10.27.05.50.47
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DA3A6B0037
+	for <linux-mm@kvack.org>; Mon, 28 Oct 2013 11:45:10 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so7309127pad.30
+        for <linux-mm@kvack.org>; Mon, 28 Oct 2013 08:45:09 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.156])
+        by mx.google.com with SMTP id yj4si13368472pac.50.2013.10.28.08.45.07
         for <linux-mm@kvack.org>;
-        Sun, 27 Oct 2013 05:50:48 -0700 (PDT)
-Date: Sun, 27 Oct 2013 14:50:36 +0200
-From: Aaro Koskinen <aaro.koskinen@iki.fi>
-Subject: Re: ARM/kirkwood: v3.12-rc6: kernel BUG at mm/util.c:390!
-Message-ID: <20131027125036.GJ17447@blackmetal.musicnaut.iki.fi>
-References: <20131024200730.GB17447@blackmetal.musicnaut.iki.fi>
- <20131026143617.GA14034@mudshark.cambridge.arm.com>
- <20131027195115.208f40f3@tom-ThinkPad-T410>
+        Mon, 28 Oct 2013 08:45:09 -0700 (PDT)
+Received: by mail-ve0-f177.google.com with SMTP id oz11so4982375veb.8
+        for <linux-mm@kvack.org>; Mon, 28 Oct 2013 08:45:06 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131027195115.208f40f3@tom-ThinkPad-T410>
+In-Reply-To: <20131028141310.GA4970@schnuecks.de>
+References: <20131024200730.GB17447@blackmetal.musicnaut.iki.fi>
+	<20131026143617.GA14034@mudshark.cambridge.arm.com>
+	<20131027195115.208f40f3@tom-ThinkPad-T410>
+	<20131028141310.GA4970@schnuecks.de>
+Date: Mon, 28 Oct 2013 23:45:06 +0800
+Message-ID: <CACVXFVMA61Wi6jZs_kf329fCj2oMXgbg9x0EhP5OpEEgPVw4kw@mail.gmail.com>
+Subject: Re: ARM/kirkwood: v3.12-rc6: kernel BUG at mm/util.c:390!
+From: Ming Lei <tom.leiming@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <tom.leiming@gmail.com>
-Cc: Will Deacon <will.deacon@arm.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, gmbnomis@gmail.com, catalin.marinas@arm.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Andrew Morton <akpm@linux-foundation.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Tejun Heo <tj@kernel.org>, "James E.J. Bottomley" <JBottomley@parallels.com>, Jens Axboe <axboe@kernel.dk>
+To: Simon Baatz <gmbnomis@gmail.com>
+Cc: Will Deacon <will.deacon@arm.com>, Aaro Koskinen <aaro.koskinen@iki.fi>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Andrew Morton <akpm@linux-foundation.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Tejun Heo <tj@kernel.org>, "James E.J. Bottomley" <JBottomley@parallels.com>, Jens Axboe <axboe@kernel.dk>
 
-Hi,
+On Mon, Oct 28, 2013 at 10:13 PM, Simon Baatz <gmbnomis@gmail.com> wrote:
+> On Sun, Oct 27, 2013 at 07:51:15PM +0800, Ming Lei wrote:
+>> diff --git a/lib/scatterlist.c b/lib/scatterlist.c
+>> index a685c8a..eea8806 100644
+>> --- a/lib/scatterlist.c
+>> +++ b/lib/scatterlist.c
+>> @@ -577,7 +577,7 @@ void sg_miter_stop(struct sg_mapping_iter *miter)
+>>               miter->__offset += miter->consumed;
+>>               miter->__remaining -= miter->consumed;
+>>
+>> -             if (miter->__flags & SG_MITER_TO_SG)
+>> +             if ((miter->__flags & SG_MITER_TO_SG) && !PageSlab(page))
+>
+> This is what I was going to propose, but I would have used
+> !PageSlab(miter->page) ;-)
 
-On Sun, Oct 27, 2013 at 07:51:15PM +0800, Ming Lei wrote:
-> On Sat, 26 Oct 2013 15:36:17 +0100
-> Will Deacon <will.deacon@arm.com> wrote:
-> 
-> > On Thu, Oct 24, 2013 at 09:07:30PM +0100, Aaro Koskinen wrote:
-> > 
-> > > [   36.477203] Backtrace:
-> > > [   36.535603] [<c009237c>] (page_mapping+0x0/0x50) from [<c0010dd8>] (flush_kernel_dcache_page+0x14/0x98)
-> > > [   36.661070] [<c0010dc4>] (flush_kernel_dcache_page+0x0/0x98) from [<c0172b60>] (sg_miter_stop+0xc8/0x10c)
-> > > [   36.792813]  r4:df8a9a64 r3:00000003
-> > > [   36.857524] [<c0172a98>] (sg_miter_stop+0x0/0x10c) from [<c0172f20>] (sg_miter_next+0x14/0x13c)
-> > 
-> > ... assumedly for scatter/gather DMA. How is your block driver allocating
-> > its buffers? If you're using the DMA API, I can't see how this would happen.
-> 
-> Lots of SCSI commands(inquiry, ...) pass kmalloc buffer to block layer,
-> then the sg buffer copy helpers and flush_kernel_dcache_page() may see
-> slab page.
-> 
-> That has been here from commit b1adaf65ba03( [SCSI] block: add sg buffer copy
-> helper functions).
+OK, I will send a formal one later, thank you for pointing out the above, :-)
 
-On ARM v3.9 or older kernels do not trigger this BUG, at seems it only
-started to appear with the following commit (bisected):
+>
+>>                       flush_kernel_dcache_page(miter->page);
+>
+> With this, a kernel with DEBUG_VM now boots on Kirkwood.
 
-commit 1bc39742aab09248169ef9d3727c9def3528b3f3
-Author: Simon Baatz <gmbnomis@gmail.com>
-Date:   Mon Jun 10 21:10:12 2013 +0100
 
-    ARM: 7755/1: handle user space mapped pages in flush_kernel_dcache_page
 
-A.
+Thanks,
+-- 
+Ming Lei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
