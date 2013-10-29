@@ -1,86 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B59E6B003B
-	for <linux-mm@kvack.org>; Wed, 30 Oct 2013 11:31:50 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id um1so1554154pbc.0
-        for <linux-mm@kvack.org>; Wed, 30 Oct 2013 08:31:50 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.179])
-        by mx.google.com with SMTP id a10si2257984pac.308.2013.10.30.08.31.48
+Received: from mail-oa0-f79.google.com (mail-oa0-f79.google.com [209.85.219.79])
+	by kanga.kvack.org (Postfix) with ESMTP id D01376B0035
+	for <linux-mm@kvack.org>; Wed, 30 Oct 2013 12:44:31 -0400 (EDT)
+Received: by mail-oa0-f79.google.com with SMTP id k14so55594oag.10
+        for <linux-mm@kvack.org>; Wed, 30 Oct 2013 09:44:31 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.195])
+        by mx.google.com with SMTP id cx4si15094416pbc.89.2013.10.29.07.31.50
         for <linux-mm@kvack.org>;
-        Wed, 30 Oct 2013 08:31:49 -0700 (PDT)
-Date: Wed, 30 Oct 2013 11:31:38 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1383147098-1rzrc5t2-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20131028221126.GA29431@shutemov.name>
-References: <20131028221618.4078637F@viggo.jf.intel.com>
- <20131028221620.042323B3@viggo.jf.intel.com>
- <20131028221126.GA29431@shutemov.name>
-Subject: Re: [PATCH 2/2] mm: thp: give transparent hugepage code a
- separatecopy_page
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+        Tue, 29 Oct 2013 07:31:51 -0700 (PDT)
+Date: Tue, 29 Oct 2013 10:28:50 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2 3/3] memcg: use __this_cpu_sub() to dec stats to avoid
+ incorrect subtrahend casting
+Message-ID: <20131029142850.GC1548@cmpxchg.org>
+References: <1382895017-19067-1-git-send-email-gthelen@google.com>
+ <1382895017-19067-4-git-send-email-gthelen@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1382895017-19067-4-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.jiang@intel.com, Mel Gorman <mgorman@suse.de>, akpm@linux-foundation.org, dhillf@gmail.com
+To: Greg Thelen <gthelen@google.com>
+Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, handai.szj@taobao.com, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Oct 29, 2013 at 12:11:26AM +0200, Kirill A. Shutemov wrote:
-> On Mon, Oct 28, 2013 at 03:16:20PM -0700, Dave Hansen wrote:
-> > 
-> > From: Dave Hansen <dave.hansen@linux.intel.com>
-> > 
-> > Right now, the migration code in migrate_page_copy() uses 
-> > copy_huge_page() for hugetlbfs and thp pages:
-> > 
-> >        if (PageHuge(page) || PageTransHuge(page))
-> >                 copy_huge_page(newpage, page);
-> > 
-> > So, yay for code reuse.  But:
-> > 
-> > void copy_huge_page(struct page *dst, struct page *src)
-> > {
-> >         struct hstate *h = page_hstate(src);
-> > 
-> > and a non-hugetlbfs page has no page_hstate().  This
-> > works 99% of the time because page_hstate() determines
-> > the hstate from the page order alone.  Since the page
-> > order of a THP page matches the default hugetlbfs page
-> > order, it works.
-> > 
-> > But, if you change the default huge page size on the
-> > boot command-line (say default_hugepagesz=1G), then
-> > we might not even *have* a 2MB hstate so page_hstate()
-> > returns null and copy_huge_page() oopses pretty fast
-> > since copy_huge_page() dereferences the hstate:
-> > 
-> > void copy_huge_page(struct page *dst, struct page *src)
-> > {
-> >         struct hstate *h = page_hstate(src);
-> >         if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
-> > ...
-> > 
-> > This patch creates a copy_high_order_page() which can
-> > be used on THP pages.
+On Sun, Oct 27, 2013 at 10:30:17AM -0700, Greg Thelen wrote:
+> As of v3.11-9444-g3ea67d0 "memcg: add per cgroup writeback pages
+> accounting" memcg counter errors are possible when moving charged
+> memory to a different memcg.  Charge movement occurs when processing
+> writes to memory.force_empty, moving tasks to a memcg with
+> memcg.move_charge_at_immigrate=1, or memcg deletion.  An example
+> showing error after memory.force_empty:
+>   $ cd /sys/fs/cgroup/memory
+>   $ mkdir x
+>   $ rm /data/tmp/file
+>   $ (echo $BASHPID >> x/tasks && exec mmap_writer /data/tmp/file 1M) &
+>   [1] 13600
+>   $ grep ^mapped x/memory.stat
+>   mapped_file 1048576
+>   $ echo 13600 > tasks
+>   $ echo 1 > x/memory.force_empty
+>   $ grep ^mapped x/memory.stat
+>   mapped_file 4503599627370496
 > 
-> We already have copy_user_huge_page() and copy_user_gigantic_page() in
-> generic code (mm/memory.c). I think copy_gigantic_page() and
-> copy_huge_page() should be moved there too.
+> mapped_file should end with 0.
+>   4503599627370496 == 0x10,0000,0000,0000 == 0x100,0000,0000 pages
+>   1048576          == 0x10,0000           == 0x100 pages
+> 
+> This issue only affects the source memcg on 64 bit machines; the
+> destination memcg counters are correct.  So the rmdir case is not too
+> important because such counters are soon disappearing with the entire
+> memcg.  But the memcg.force_empty and
+> memory.move_charge_at_immigrate=1 cases are larger problems as the
+> bogus counters are visible for the (possibly long) remaining life of
+> the source memcg.
+> 
+> The problem is due to memcg use of __this_cpu_from(.., -nr_pages),
+> which is subtly wrong because it subtracts the unsigned int nr_pages
+> (either -1 or -512 for THP) from a signed long percpu counter.  When
+> nr_pages=-1, -nr_pages=0xffffffff.  On 64 bit machines
+> stat->count[idx] is signed 64 bit.  So memcg's attempt to simply
+> decrement a count (e.g. from 1 to 0) boils down to:
+>   long count = 1
+>   unsigned int nr_pages = 1
+>   count += -nr_pages  /* -nr_pages == 0xffff,ffff */
+>   count is now 0x1,0000,0000 instead of 0
+> 
+> The fix is to subtract the unsigned page count rather than adding its
+> negation.  This only works once "percpu: fix this_cpu_sub() subtrahend
+> casting for unsigneds" is applied to fix this_cpu_sub().
+> 
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+> Acked-by: Tejun Heo <tj@kernel.org>
 
-I agree this.
+Huh, it looked so innocent...  At first I thought 2/3 would fix this
+case as well but the cast happens only after the negation, so the sign
+extension does not happen.  Alright, then.
 
-> BTW, I think pages_per_huge_page in copy_user_huge_page() is redunand:
-> compound_order(page) should be enough, right?
-
-I guess that thp code is very strict on performance, so developers chose
-to pass it as an argument instead of calculating compound_order in each call.
-I think the performance gain is small (maybe invisible),
-but it's not a bad idea to me.
-
-Thanks,
-Naoya
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
