@@ -1,128 +1,264 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 74BA86B0031
-	for <linux-mm@kvack.org>; Tue, 29 Oct 2013 12:14:08 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id w10so66074pde.3
-        for <linux-mm@kvack.org>; Tue, 29 Oct 2013 09:14:08 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.124])
-        by mx.google.com with SMTP id dk5si15305414pbc.166.2013.10.29.09.14.06
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id F38516B0031
+	for <linux-mm@kvack.org>; Tue, 29 Oct 2013 12:22:47 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id kp14so251583pab.18
+        for <linux-mm@kvack.org>; Tue, 29 Oct 2013 09:22:47 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.190])
+        by mx.google.com with SMTP id sw1si15298389pbc.342.2013.10.29.09.22.46
         for <linux-mm@kvack.org>;
-        Tue, 29 Oct 2013 09:14:07 -0700 (PDT)
-Message-ID: <526FDECB.7020201@codeaurora.org>
-Date: Tue, 29 Oct 2013 09:14:03 -0700
-From: Laura Abbott <lauraa@codeaurora.org>
+        Tue, 29 Oct 2013 09:22:46 -0700 (PDT)
+Date: Tue, 29 Oct 2013 14:23:05 -0200
+From: Flavio Leitner <fbl@redhat.com>
+Subject: Re: RIP: mem_cgroup_move_account+0xf4/0x290
+Message-ID: <20131029162305.GM13373@plex.lan>
+References: <20131025161555.GA4398@plex.lan>
+ <20131026033936.GA14971@cmpxchg.org>
+ <526BB98B.4070207@alibaba-inc.com>
+ <xr93d2ms2g6g.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: cma: free cma page to buddy instead of being cpu
- hot page
-References: <1382960569-6564-1-git-send-email-zhang.mingjun@linaro.org>	<20131029093322.GA2400@suse.de>	<CAGT3LergVJ1XXCrVD3XeRpRCXehn9gLb7BRHHyjyseKBz39pMg@mail.gmail.com>	<20131029122708.GD2400@suse.de> <CAGT3LerfYfgdkDd=LnuA8y7SUjOSTbw-HddbuzQ=O3yw-vtnnQ@mail.gmail.com>
-In-Reply-To: <CAGT3LerfYfgdkDd=LnuA8y7SUjOSTbw-HddbuzQ=O3yw-vtnnQ@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <xr93d2ms2g6g.fsf@gthelen.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Mingjun <zhang.mingjun@linaro.org>, Mel Gorman <mgorman@suse.de>
-Cc: Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, akpm@linux-foundation.org, Haojian Zhuang <haojian.zhuang@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, troy.zhangmingjun@huawei.com
+To: Greg Thelen <gthelen@google.com>
+Cc: =?utf-8?B?5ZCr6bub?= <handai.szj@alibaba-inc.com>, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 10/29/2013 8:02 AM, Zhang Mingjun wrote:
+On Sat, Oct 26, 2013 at 08:41:11AM -0700, Greg Thelen wrote:
+> On Sat, Oct 26 2013, a?<<e>>? wrote:
+> 
+> > On 10/26/2013 11:39 AM, Johannes Weiner wrote:
+> >> On Fri, Oct 25, 2013 at 02:15:55PM -0200, Flavio Leitner wrote:
+> >>> While playing with guests and net-next kernel, I've triggered
+> >>> this with some frequency.  Even Fedora 19 kernel reproduces.
+> >>>
+> >>> It it a known issue?
+> >>>
+> >>> Thanks,
+> >>> fbl
+> >>>
+> >>> [ 6790.349763] kvm: zapping shadow pages for mmio generation wraparound
+> >>> [ 6792.283879] kvm: zapping shadow pages for mmio generation wraparound
+> >>> [ 7535.654438] perf samples too long (2719 > 2500), lowering kernel.perf_event_max_sample_rate to 50000
+> >>> [ 7535.665948] INFO: NMI handler (perf_event_nmi_handler) took too long to run: 11.560 msecs
+> >>> [ 7691.048392] virbr0: port 1(vnet0) entered disabled state
+> >>> [ 7691.056281] device vnet0 left promiscuous mode
+> >>> [ 7691.061674] virbr0: port 1(vnet0) entered disabled state
+> >>> [ 7691.163363] BUG: unable to handle kernel paging request at 000060fbc0002a20
+> >>> [ 7691.171145] IP: [<ffffffff8119dcb4>] mem_cgroup_move_account+0xf4/0x290
+> >>> [ 7691.178574] PGD 0
+> >>> [ 7691.181042] Oops: 0000 [#1] SMP
+> >>> [ 7691.184761] Modules linked in: vhost_net vhost macvtap macvlan tun veth
+> >>> openvswitch xt_CHECKSUM nf_conntrack_netbios_ns nf_conntrack_broadcast
+> >>> ipt_MASQUERADE ip6t_REJECT xt_conntrack ebtable_nat ebtable_broute bridge stp
+> >>> llc ebtable_filter ebtables ip6table_nat nf_conntrack_ipv6 nf_defrag_ipv6
+> >>> nf_nat_ipv6 vxlan ip_tunnel gre libcrc32c ip6table_mangle ip6table_security
+> >>> ip6table_raw ip6table_filter ip6_tables iptable_nat nf_conntrack_ipv4
+> >>> nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack iptable_mangle
+> >>> iptable_security iptable_raw coretemp kvm_intel snd_hda_codec_realtek
+> >>> snd_hda_intel nfsd snd_hda_codec kvm auth_rpcgss nfs_acl snd_hwdep lockd
+> >>> snd_seq snd_seq_device snd_pcm e1000e snd_page_alloc sunrpc snd_timer
+> >>> crc32c_intel i7core_edac bnx2 shpchp ptp snd iTCO_wdt joydev pps_core
+> >>> iTCO_vendor_support pcspkr soundcore microcode serio_raw lpc_ich edac_core
+> >>> mfd_core i2c_i801 acpi_cpufreq hid_logitech_dj nouveau ata_generic pata_acpi
+> >>> video i2c_algo_bit drm_kms_helper ttm drm mxm_wmi i2c_core pata_marvell wmi
+> >>> [last unloaded: openvswitch]
+> >>> [ 7691.285989] CPU: 1 PID: 14 Comm: kworker/1:0 Tainted: G          I  3.12.0-rc6-01188-gb45bd46 #1
+> >>> [ 7691.295779] Hardware name:                  /DX58SO, BIOS SOX5810J.86A.5599.2012.0529.2218 05/29/2012
+> >>> [ 7691.306066] Workqueue: events css_killed_work_fn
+> >>> [ 7691.311303] task: ffff880429555dc0 ti: ffff88042957a000 task.ti: ffff88042957a000
+> >>> [ 7691.319673] RIP: 0010:[<ffffffff8119dcb4>]  [<ffffffff8119dcb4>] mem_cgroup_move_account+0xf4/0x290
+> >>> [ 7691.329728] RSP: 0018:ffff88042957bcc8  EFLAGS: 00010002
+> >>> [ 7691.335747] RAX: 0000000000000246 RBX: ffff88042b17bc30 RCX: 0000000000000004
+> >>> [ 7691.343720] RDX: ffff880424cd6000 RSI: 000060fbc0002a08 RDI: ffff880424cd622c
+> >>> [ 7691.351735] RBP: ffff88042957bd20 R08: ffff880424cd4000 R09: 0000000000000001
+> >>> [ 7691.359751] R10: 0000000000000001 R11: 0000000000000001 R12: ffffea00103ef0c0
+> >>> [ 7691.367745] R13: ffff880424cd6000 R14: 0000000000000000 R15: ffff880424cd622c
+> >>> [ 7691.375738] FS:  0000000000000000(0000) GS:ffff88043fc20000(0000) knlGS:0000000000000000
+> >>> [ 7691.384755] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> >>> [ 7691.391238] CR2: 000060fbc0002a20 CR3: 0000000001c0c000 CR4: 00000000000027e0
+> >>> [ 7691.399235] Stack:
+> >>> [ 7691.401672]  ffff88042957bce8 ffff88042957bce8 ffffffff81312b6d ffff880424cd4000
+> >>> [ 7691.409968]  ffff880400000001 ffff880424cd6000 ffffea00103ef0c0 ffff880424cd0430
+> >>> [ 7691.418264]  ffff88042b17bc30 ffffea00103ef0e0 ffff880424cd6000 ffff88042957bda8
+> >>> [ 7691.426578] Call Trace:
+> >>> [ 7691.429513]  [<ffffffff81312b6d>] ? list_del+0xd/0x30
+> >>> [ 7691.435250]  [<ffffffff8119f5e7>] mem_cgroup_reparent_charges+0x247/0x460
+> >>> [ 7691.442874]  [<ffffffff8119f9af>] mem_cgroup_css_offline+0xaf/0x1b0
+> >>> [ 7691.449942]  [<ffffffff810da877>] offline_css+0x27/0x50
+> >>> [ 7691.455874]  [<ffffffff810dcf8d>] css_killed_work_fn+0x2d/0xa0
+> >>> [ 7691.462466]  [<ffffffff810821f5>] process_one_work+0x175/0x430
+> >>> [ 7691.469041]  [<ffffffff81082e1b>] worker_thread+0x11b/0x3a0
+> >>> [ 7691.475345]  [<ffffffff81082d00>] ? rescuer_thread+0x340/0x340
+> >>> [ 7691.481919]  [<ffffffff81089860>] kthread+0xc0/0xd0
+> >>> [ 7691.487478]  [<ffffffff810897a0>] ? insert_kthread_work+0x40/0x40
+> >>> [ 7691.494352]  [<ffffffff8166ea3c>] ret_from_fork+0x7c/0xb0
+> >>> [ 7691.500464]  [<ffffffff810897a0>] ? insert_kthread_work+0x40/0x40
+> >>> [ 7691.507335] Code: 85 f6 48 8b 55 d0 44 8b 4d c8 4c 8b 45 c0 0f 85 b3 00 00
+> >>> 00 41 8b 4c 24 18 85 c9 0f 88 a6 00 00 00 48 8b b2 30 02 00 00 45 89 ca <4c>
+> >>> 39 56 18 0f 8c 36 01 00 00 44 89 c9 f7 d9 89 cf 65 48 01 7e
+> >> This is
+> >>
+> >> All code
+> >> ========
+> >>     0:   85 f6                   test   %esi,%esi
+> >>     2:   48 8b 55 d0             mov    -0x30(%rbp),%rdx
+> >>     6:   44 8b 4d c8             mov    -0x38(%rbp),%r9d
+> >>     a:   4c 8b 45 c0             mov    -0x40(%rbp),%r8
+> >>     e:   0f 85 b3 00 00 00       jne    0xc7
+> >>    14:   41 8b 4c 24 18          mov    0x18(%r12),%ecx
+> >>    19:   85 c9                   test   %ecx,%ecx
+> >>    1b:   0f 88 a6 00 00 00       js     0xc7
+> >>    21:   48 8b b2 30 02 00 00    mov    0x230(%rdx),%rsi
+> >>    28:   45 89 ca                mov    %r9d,%r10d
+> >>    2b:*  4c 39 56 18             cmp    %r10,0x18(%rsi)          <-- trapping instruction
+> >>    2f:   0f 8c 36 01 00 00       jl     0x16b
+> >>    35:   44 89 c9                mov    %r9d,%ecx
+> >>    38:   f7 d9                   neg    %ecx
+> >>    3a:   89 cf                   mov    %ecx,%edi
+> >>    3c:   65                      gs
+> >>    3d:   48                      rex.W
+> >>    3e:   01                      .byte 0x1
+> >>    3f:   7e                      .byte 0x7e
+> >>
+> >> which corresponds to
+> >>
+> >> 	WARN_ON_ONCE(from->stat->count[idx] < nr_pages);
+> >>
+> >> Humm.  from->stat is a percpu pointer...  This patch should fix it:
+> >>
+> >> ---
+> >>  From 4e9fe9d7e8502eab1c8bb4761de838f61cd4a8e0 Mon Sep 17 00:00:00 2001
+> >> From: Johannes Weiner <hannes@cmpxchg.org>
+> >> Date: Fri, 25 Oct 2013 23:23:31 -0400
+> >> Subject: [patch] mm: memcg: fix percpu variable access crash
+> >>
+> >> 3ea67d06e467 ("memcg: add per cgroup writeback pages accounting")
+> >> added a WARN_ON_ONCE() to sanity check the page statistics counter
+> >> when moving charges.  Unfortunately, it dereferences the percpu
+> >> counter directly, which may result in a crash like this:
+> >>
+> >> [ 7691.163363] BUG: unable to handle kernel paging request at 000060fbc0002a20
+> >> [ 7691.171145] IP: [<ffffffff8119dcb4>] mem_cgroup_move_account+0xf4/0x290
+> >> [ 7691.178574] PGD 0
+> >> [ 7691.181042] Oops: 0000 [#1] SMP
+> >> [...]
+> >> [ 7691.285989] CPU: 1 PID: 14 Comm: kworker/1:0 Tainted: G          I  3.12.0-rc6-01188-gb45bd46 #1
+> >> [ 7691.295779] Hardware name:                  /DX58SO, BIOS SOX5810J.86A.5599.2012.0529.2218 05/29/2012
+> >> [ 7691.306066] Workqueue: events css_killed_work_fn
+> >> [ 7691.311303] task: ffff880429555dc0 ti: ffff88042957a000 task.ti: ffff88042957a000
+> >> [ 7691.319673] RIP: 0010:[<ffffffff8119dcb4>]  [<ffffffff8119dcb4>] mem_cgroup_move_account+0xf4/0x290
+> >> [ 7691.329728] RSP: 0018:ffff88042957bcc8  EFLAGS: 00010002
+> >> [ 7691.335747] RAX: 0000000000000246 RBX: ffff88042b17bc30 RCX: 0000000000000004
+> >> [ 7691.343720] RDX: ffff880424cd6000 RSI: 000060fbc0002a08 RDI: ffff880424cd622c
+> >> [ 7691.351735] RBP: ffff88042957bd20 R08: ffff880424cd4000 R09: 0000000000000001
+> >> [ 7691.359751] R10: 0000000000000001 R11: 0000000000000001 R12: ffffea00103ef0c0
+> >> [ 7691.367745] R13: ffff880424cd6000 R14: 0000000000000000 R15: ffff880424cd622c
+> >> [ 7691.375738] FS:  0000000000000000(0000) GS:ffff88043fc20000(0000) knlGS:0000000000000000
+> >> [ 7691.384755] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> >> [ 7691.391238] CR2: 000060fbc0002a20 CR3: 0000000001c0c000 CR4: 00000000000027e0
+> >> [ 7691.399235] Stack:
+> >> [ 7691.401672]  ffff88042957bce8 ffff88042957bce8 ffffffff81312b6d ffff880424cd4000
+> >> [ 7691.409968]  ffff880400000001 ffff880424cd6000 ffffea00103ef0c0 ffff880424cd0430
+> >> [ 7691.418264]  ffff88042b17bc30 ffffea00103ef0e0 ffff880424cd6000 ffff88042957bda8
+> >> [ 7691.426578] Call Trace:
+> >> [ 7691.429513]  [<ffffffff81312b6d>] ? list_del+0xd/0x30
+> >> [ 7691.435250]  [<ffffffff8119f5e7>] mem_cgroup_reparent_charges+0x247/0x460
+> >> [ 7691.442874]  [<ffffffff8119f9af>] mem_cgroup_css_offline+0xaf/0x1b0
+> >> [ 7691.449942]  [<ffffffff810da877>] offline_css+0x27/0x50
+> >> [ 7691.455874]  [<ffffffff810dcf8d>] css_killed_work_fn+0x2d/0xa0
+> >> [ 7691.462466]  [<ffffffff810821f5>] process_one_work+0x175/0x430
+> >> [ 7691.469041]  [<ffffffff81082e1b>] worker_thread+0x11b/0x3a0
+> >> [ 7691.475345]  [<ffffffff81082d00>] ? rescuer_thread+0x340/0x340
+> >> [ 7691.481919]  [<ffffffff81089860>] kthread+0xc0/0xd0
+> >> [ 7691.487478]  [<ffffffff810897a0>] ? insert_kthread_work+0x40/0x40
+> >> [ 7691.494352]  [<ffffffff8166ea3c>] ret_from_fork+0x7c/0xb0
+> >> [ 7691.500464]  [<ffffffff810897a0>] ? insert_kthread_work+0x40/0x40
+> >> [ 7691.507335] Code: 85 f6 48 8b 55 d0 44 8b 4d c8 4c 8b 45 c0 0f 85 b3 00 00 00 41 8b 4c 24 18
+> >> 85 c9 0f 88 a6 00 00 00 48 8b b2 30 02 00 00 45 89 ca <4c> 39 56 18 0f 8c 36 01 00 00 44 89 c9
+> >> f7 d9 89 cf 65 48 01 7e
+> >> [ 7691.528638] RIP  [<ffffffff8119dcb4>] mem_cgroup_move_account+0xf4/0x290
+> >>
+> >> Add the required __this_cpu_read().
+> >
+> > Sorry for my mistake and thanks for the fix up, it looks good to me.
+> >
+> > Reviewed-by: Sha Zhengju <handai.szj@taobao.com>
+> >
+> >
+> > Thanks,
+> > Sha
+> >>
+> >> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> >> ---
+> >>   mm/memcontrol.c | 2 +-
+> >>   1 file changed, 1 insertion(+), 1 deletion(-)
+> >>
+> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> >> index 4097a78..a4864b6 100644
+> >> --- a/mm/memcontrol.c
+> >> +++ b/mm/memcontrol.c
+> >> @@ -3773,7 +3773,7 @@ void mem_cgroup_move_account_page_stat(struct mem_cgroup *from,
+> >>   {
+> >>   	/* Update stat data for mem_cgroup */
+> >>   	preempt_disable();
+> >> -	WARN_ON_ONCE(from->stat->count[idx] < nr_pages);
+> >> +	WARN_ON_ONCE(__this_cpu_read(from->stat->count[idx]) < nr_pages);
+> >>   	__this_cpu_add(from->stat->count[idx], -nr_pages);
+> >>   	__this_cpu_add(to->stat->count[idx], nr_pages);
+> >>   	preempt_enable();
+> >
+> >
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> I was just polishing up this following patch which I think is better
+> because it should avoid spurious warnings.
+> 
+> ---8<---
+> 
+> From c1f43ef0f4cc42fb2ecaeaca71bd247365e3521e Mon Sep 17 00:00:00 2001
+> From: Greg Thelen <gthelen@google.com>
+> Date: Fri, 25 Oct 2013 21:59:57 -0700
+> Subject: [PATCH] memcg: remove incorrect underflow check
+> 
+> When a memcg is deleted mem_cgroup_reparent_charges() moves charged
+> memory to the parent memcg.  As of v3.11-9444-g3ea67d0 "memcg: add per
+> cgroup writeback pages accounting" there's bad pointer read.  The goal
+> was to check for counter underflow.  The counter is a per cpu counter
+> and there are two problems with the code:
+> (1) per cpu access function isn't used, instead a naked pointer is
+>     used which easily causes panic.
+> (2) the check doesn't sum all cpus
+> 
+> Test:
+>   $ cd /sys/fs/cgroup/memory
+>   $ mkdir x
+>   $ echo 3 > /proc/sys/vm/drop_caches
+>   $ (echo $BASHPID >> x/tasks && exec cat) &
+>   [1] 7154
+>   $ grep ^mapped x/memory.stat
+>   mapped_file 53248
+>   $ echo 7154 > tasks
+>   $ rmdir x
+>   <PANIC>
+> 
+> The fix is to remove the check.  It's currently dangerous and isn't
+> worth fixing it to use something expensive, such as
+> percpu_counter_sum(), for each reparented page.  __this_cpu_read()
+> isn't enough to fix this because there's no guarantees of the current
+> cpus count.  The only guarantees is that the sum of all per-cpu
+> counter is >= nr_pages.
+> 
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+> ---
 
->     It would move the cost to the CMA paths so I would complain less. Bear
->     in mind as well that forcing everything to go through free_one_page()
->     means that every free goes through the zone lock. I doubt you have any
->     machine large enough but it is possible for simultaneous CMA allocations
->     to now contend on the zone lock that would have been previously fine.
->     Hence, I'm interesting in knowing the underlying cause of the
->     problem you
->     are experiencing.
->
-> my platform uses CMA but disabled CMA's migration func by del MIGRATE_CMA
-> in fallbacks[MIGRATE_MOVEABLE]. But I find CMA pages can still used by
-> pagecache or page fault page request from PCP list and cma allocation has to
-> migrate these page. So I want to free these cma pages to buddy directly
-> not PCP..
->
->      > of course, it will waste the memory outside of the alloc range
->     but in the
->      > pageblocks.
->      >
->
->     I would hope/expect that the loss would only last for the duration of
->     the allocation attempt and a small amount of memory.
->
->      > > when a range of pages have been isolated and migrated. Is there any
->      > > measurable benefit to this patch?
->      > >
->      > after applying this patch, the video player on my platform works more
->      > fluent,
->
->     fluent almost always refers to ones command of a spoken language. I do
->     not see how a video player can be fluent in anything. What is measurably
->     better?
->
->     For example, are allocations faster? If so, why? What cost from another
->     path is removed as a result of this patch? If the cost is in the PCP
->     flush then can it be checked if the PCP flush was unnecessary and called
->     unconditionally even though all the pages were freed already? We had
->     problems in the past where drain_all_pages() or similar were called
->     unnecessarily causing long sync stalls related to IPIs. I'm wondering if
->     we are seeing a similar problem here.
->
->     Maybe the problem is the complete opposite. Are allocations failing
->     because there are PCP pages in the way? In that case, it real fix might
->     be to insert a  if the allocation is failing due to per-cpu
->     pages.
->
-> problem is not the allocation failing, but the unexpected cma migration
-> slows
-> down the allocation.
->
->
->      > and the driver of video decoder on my test platform using cma
->     alloc/free
->      > frequently.
->      >
->
->     CMA allocations are almost never used outside of these contexts. While I
->     appreciate that embedded use is important I'm reluctant to see an impact
->     in fast paths unless there is a good reason for every other use case. I
->     also am a bit unhappy to see CMA allocations making the zone->lock
->     hotter than necessary even if no embedded use case it likely to
->     experience the problem in the short-term.
->
->     --
->     Mel Gorman
->     SUSE Labs
->
->
-
-We've had a similar patch in our tree for a year and a half because of 
-CMA migration failures, not just for a speedup in allocation time. I 
-understand that CMA is not the fast case or the general use case but the 
-problem is that the cost of CMA failure is very high (complete failure 
-of the feature using CMA). Putting CMA on the PCP lists means they may 
-be picked up by users who temporarily make the movable pages unmovable 
-(page cache etc.) which prevents the allocation from succeeding. The 
-problem still exists even if the CMA pages are not on the PCP list but 
-the window gets slightly smaller.
-
-This really highlights one of the biggest issues with CMA today. Movable 
-pages make return -EBUSY for any number of reasons. For non-CMA pages 
-this is mostly fine, another movable page may be substituted for the 
-movable page that is busy. CMA is a restricted range though so any 
-failure in that range is very costly because CMA regions are generally 
-sized exactly for the use cases at hand which means there is very little 
-extra space for retries.
-
-To make CMA actually usable, we've had to go through and add in 
-hacks/quirks that prevent CMA from being allocated in any path which may 
-prevent migration. I've been mixed on if this is the right path or if 
-the definition of MIGRATE_CMA needs to be changed to be more restrictive 
-(can't prevent migration).
-
-Thanks,
-Laura
--- 
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
+Tested-by: Flavio Leitner <fbl@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
