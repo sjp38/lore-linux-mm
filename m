@@ -1,75 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id AFE5B6B0031
-	for <linux-mm@kvack.org>; Mon, 28 Oct 2013 19:07:48 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id x10so3084134pdj.12
-        for <linux-mm@kvack.org>; Mon, 28 Oct 2013 16:07:48 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.112])
-        by mx.google.com with SMTP id cj2si13270215pbc.57.2013.10.28.16.07.46
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id AA1406B0031
+	for <linux-mm@kvack.org>; Tue, 29 Oct 2013 00:54:30 -0400 (EDT)
+Received: by mail-pb0-f54.google.com with SMTP id ro8so4049744pbb.13
+        for <linux-mm@kvack.org>; Mon, 28 Oct 2013 21:54:30 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.113])
+        by mx.google.com with SMTP id gj2si14819915pac.254.2013.10.28.21.54.28
         for <linux-mm@kvack.org>;
-        Mon, 28 Oct 2013 16:07:47 -0700 (PDT)
-Date: Tue, 29 Oct 2013 00:11:26 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 2/2] mm: thp: give transparent hugepage code a separate
- copy_page
-Message-ID: <20131028221126.GA29431@shutemov.name>
-References: <20131028221618.4078637F@viggo.jf.intel.com>
- <20131028221620.042323B3@viggo.jf.intel.com>
+        Mon, 28 Oct 2013 21:54:29 -0700 (PDT)
+Date: Tue, 29 Oct 2013 13:54:30 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: cma: free cma page to buddy instead of being cpu hot
+ page
+Message-ID: <20131029045430.GE17038@bbox>
+References: <1382960569-6564-1-git-send-email-zhang.mingjun@linaro.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131028221620.042323B3@viggo.jf.intel.com>
+In-Reply-To: <1382960569-6564-1-git-send-email-zhang.mingjun@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.jiang@intel.com, Mel Gorman <mgorman@suse.de>, akpm@linux-foundation.org, dhillf@gmail.com
+To: zhang.mingjun@linaro.org
+Cc: m.szyprowski@samsung.com, akpm@linux-foundation.org, mgorman@suse.de, haojian.zhuang@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mingjun Zhang <troy.zhangmingjun@linaro.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Mon, Oct 28, 2013 at 03:16:20PM -0700, Dave Hansen wrote:
-> 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> Right now, the migration code in migrate_page_copy() uses 
-> copy_huge_page() for hugetlbfs and thp pages:
-> 
->        if (PageHuge(page) || PageTransHuge(page))
->                 copy_huge_page(newpage, page);
-> 
-> So, yay for code reuse.  But:
-> 
-> void copy_huge_page(struct page *dst, struct page *src)
-> {
->         struct hstate *h = page_hstate(src);
-> 
-> and a non-hugetlbfs page has no page_hstate().  This
-> works 99% of the time because page_hstate() determines
-> the hstate from the page order alone.  Since the page
-> order of a THP page matches the default hugetlbfs page
-> order, it works.
-> 
-> But, if you change the default huge page size on the
-> boot command-line (say default_hugepagesz=1G), then
-> we might not even *have* a 2MB hstate so page_hstate()
-> returns null and copy_huge_page() oopses pretty fast
-> since copy_huge_page() dereferences the hstate:
-> 
-> void copy_huge_page(struct page *dst, struct page *src)
-> {
->         struct hstate *h = page_hstate(src);
->         if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
-> ...
-> 
-> This patch creates a copy_high_order_page() which can
-> be used on THP pages.
+Hello,
 
-We already have copy_user_huge_page() and copy_user_gigantic_page() in
-generic code (mm/memory.c). I think copy_gigantic_page() and
-copy_huge_page() should be moved there too.
+On Mon, Oct 28, 2013 at 07:42:49PM +0800, zhang.mingjun@linaro.org wrote:
+> From: Mingjun Zhang <troy.zhangmingjun@linaro.org>
+> 
+> free_contig_range frees cma pages one by one and MIGRATE_CMA pages will be
+> used as MIGRATE_MOVEABLE pages in the pcp list, it causes unnecessary
+> migration action when these pages reused by CMA.
 
-BTW, I think pages_per_huge_page in copy_user_huge_page() is redunand:
-compound_order(page) should be enough, right?
+You are saying about the overhead but I'm not sure how much it is
+because it wouldn't be frequent. Although it's frequent, migration is
+already slow path and CMA migration is worse so I really wonder how much
+pain is and how much this patch improve.
+
+Having said that, it makes CMA allocation policy consistent which
+is that CMA migration type is last fallback to minimize number of migration
+and code peice you are adding is already low hit path so that I think
+it has no problem.
+
+> 
+> Signed-off-by: Mingjun Zhang <troy.zhangmingjun@linaro.org>
+> ---
+>  mm/page_alloc.c |    3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 0ee638f..84b9d84 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1362,7 +1362,8 @@ void free_hot_cold_page(struct page *page, int cold)
+>  	 * excessively into the page allocator
+>  	 */
+>  	if (migratetype >= MIGRATE_PCPTYPES) {
+> -		if (unlikely(is_migrate_isolate(migratetype))) {
+> +		if (unlikely(is_migrate_isolate(migratetype))
+> +			|| is_migrate_cma(migratetype))
+
+The concern is likely/unlikely usage is proper in this code peice.
+If we don't use memory isolation, the code path is used for only
+MIGRATE_RESERVE which is very rare allocation in normal workload.
+
+Even, in memory isolation environement, I'm not sure how many
+CMA/HOTPLUG is used compared to normal alloc/free.
+So, I think below is more proper?
+
+if (unlikely(migratetype >= MIGRATE_PCPTYPES)) {
+        if (is_migrate_isolate(migratetype) || is_migrate_cma(migratetype))
+
+I know it's an another topic but I'd like to disucss it in this time because
+we will forget such trivial thing later, again.
+
+}
+
+>  			free_one_page(zone, page, 0, migratetype);
+>  			goto out;
+>  		}
+> -- 
+> 1.7.9.5
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
- Kirill A. Shutemov
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
