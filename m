@@ -1,264 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id F38516B0031
-	for <linux-mm@kvack.org>; Tue, 29 Oct 2013 12:22:47 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id kp14so251583pab.18
-        for <linux-mm@kvack.org>; Tue, 29 Oct 2013 09:22:47 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.190])
-        by mx.google.com with SMTP id sw1si15298389pbc.342.2013.10.29.09.22.46
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 82E066B0031
+	for <linux-mm@kvack.org>; Tue, 29 Oct 2013 13:39:15 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id g10so166695pdj.21
+        for <linux-mm@kvack.org>; Tue, 29 Oct 2013 10:39:15 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.142])
+        by mx.google.com with SMTP id gu5si16446782pac.130.2013.10.29.10.39.13
         for <linux-mm@kvack.org>;
-        Tue, 29 Oct 2013 09:22:46 -0700 (PDT)
-Date: Tue, 29 Oct 2013 14:23:05 -0200
-From: Flavio Leitner <fbl@redhat.com>
-Subject: Re: RIP: mem_cgroup_move_account+0xf4/0x290
-Message-ID: <20131029162305.GM13373@plex.lan>
-References: <20131025161555.GA4398@plex.lan>
- <20131026033936.GA14971@cmpxchg.org>
- <526BB98B.4070207@alibaba-inc.com>
- <xr93d2ms2g6g.fsf@gthelen.mtv.corp.google.com>
+        Tue, 29 Oct 2013 10:39:14 -0700 (PDT)
+Received: from [85.177.119.89] ([85.177.119.89]) by mail.gmx.com (mrgmx102)
+ with ESMTPSA (Nemesis) id 0LjuR3-1W7o7K1oeP-00bslz for <linux-mm@kvack.org>;
+ Tue, 29 Oct 2013 18:39:11 +0100
+Message-ID: <526FF2BD.8030808@gmx.de>
+Date: Tue, 29 Oct 2013 18:39:09 +0100
+From: =?UTF-8?B?VG9yYWxmIEbDtnJzdGVy?= <toralf.foerster@gmx.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+Subject: Re: [uml-devel] fuzz tested 32 bit user mode linux image hangs at
+ in hostfs
+References: <526696BF.6050909@gmx.de> <CAFLxGvy3NeRKu+KQCCm0j4LS60PYhH0bC8WWjfiPvpstPBjAkA@mail.gmail.com> <5266A698.10400@gmx.de> <5266B60A.1000005@nod.at>
+In-Reply-To: <5266B60A.1000005@nod.at>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <xr93d2ms2g6g.fsf@gthelen.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: =?utf-8?B?5ZCr6bub?= <handai.szj@alibaba-inc.com>, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Richard Weinberger <richard@nod.at>
+Cc: Richard Weinberger <richard.weinberger@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, UML devel <user-mode-linux-devel@lists.sourceforge.net>
 
-On Sat, Oct 26, 2013 at 08:41:11AM -0700, Greg Thelen wrote:
-> On Sat, Oct 26 2013, a?<<e>>? wrote:
+On 10/22/2013 07:29 PM, Richard Weinberger wrote:
+> Am 22.10.2013 18:23, schrieb Toralf FA?rster:
+>> On 10/22/2013 06:12 PM, Richard Weinberger wrote:
+>>> On Tue, Oct 22, 2013 at 5:16 PM, Toralf FA?rster <toralf.foerster@gmx.de> wrote:
+>>>>
+>>>> When I fuzz testing a 32 bit UML at a 32 bit host (guest 3.12.-rc6-x, host 3.11.6) with trinity
+>>>> and use hostfs for the victom files for trinity. then trintiy often hangs while trying to finish.
+>>>>
+>>>> At the host I do have 1 process eating 100% CPU power of 1 core. A back trace of thet linux process at the hosts gives :
+>>>>
+>>>> tfoerste@n22 ~ $ sudo gdb /usr/local/bin/linux-v3.12-rc6-57-g69c88dc 16749 -n -batch -ex bt
+>>>> radix_tree_next_chunk (root=0x21, iter=0x47647c60, flags=12) at lib/radix-tree.c:769
+>>>> 769                                     while (++offset < RADIX_TREE_MAP_SIZE) {
+>>>> #0  radix_tree_next_chunk (root=0x21, iter=0x47647c60, flags=12) at lib/radix-tree.c:769
+>>>> #1  0x080cc13e in find_get_pages (mapping=0x483ed240, start=0, nr_pages=14, pages=0xc) at mm/filemap.c:844
+>>>> #2  0x080d5caa in pagevec_lookup (pvec=0x47647cc4, mapping=0x21, start=33, nr_pages=33) at mm/swap.c:914
+>>>> #3  0x080d609a in truncate_inode_pages_range (mapping=0x483ed240, lstart=0, lend=-1) at mm/truncate.c:241
+>>>> #4  0x080d643f in truncate_inode_pages (mapping=0x21, lstart=51539607585) at mm/truncate.c:358
+>>>> #5  0x08260838 in hostfs_evict_inode (inode=0x483ed188) at fs/hostfs/hostfs_kern.c:242
+>>>> #6  0x0811a8cf in evict (inode=0x483ed188) at fs/inode.c:549
+>>>> #7  0x0811b2ad in iput_final (inode=<optimized out>) at fs/inode.c:1391
+>>>> #8  iput (inode=0x483ed188) at fs/inode.c:1409
+>>>> #9  0x08117648 in dentry_iput (dentry=<optimized out>) at fs/dcache.c:331
+>>>> #10 d_kill (dentry=0x47d6d580, parent=0x47d95d10) at fs/dcache.c:477
+>>>> #11 0x08118068 in dentry_kill (dentry=<optimized out>, unlock_on_failure=<optimized out>) at fs/dcache.c:586
+>>>> #12 dput (dentry=0x47d6d580) at fs/dcache.c:641
+>>>> #13 0x08104903 in __fput (file=0x47471840) at fs/file_table.c:264
+>>>> #14 0x0810496b in ____fput (work=0x47471840) at fs/file_table.c:282
+>>>> #15 0x08094496 in task_work_run () at kernel/task_work.c:123
+>>>> #16 0x0807efd2 in exit_task_work (task=<optimized out>) at include/linux/task_work.h:21
+>>>> #17 do_exit (code=1196535808) at kernel/exit.c:787
+>>>> #18 0x0807f5dd in do_group_exit (exit_code=0) at kernel/exit.c:920
+>>>> #19 0x0807f649 in SYSC_exit_group (error_code=<optimized out>) at kernel/exit.c:931
+>>>> #20 SyS_exit_group (error_code=0) at kernel/exit.c:929
+>>>> #21 0x08062984 in handle_syscall (r=0x4763b1d4) at arch/um/kernel/skas/syscall.c:35
+>>>> #22 0x08074fb5 in handle_trap (local_using_sysemu=<optimized out>, regs=<optimized out>, pid=<optimized out>) at arch/um/os-Linux/skas/process.c:198
+>>>> #23 userspace (regs=0x4763b1d4) at arch/um/os-Linux/skas/process.c:431
+>>>> #24 0x0805f750 in fork_handler () at arch/um/kernel/process.c:160
+>>>> #25 0x00000000 in ?? ()
+>>>>
+>>>
+>>> That trace is identical to the one you reported yesterday.
+>>> But this time no nfs is in the game, right?
+>>>
+>>
+>> Right - I could narrow down it in the meanwhile to hostfs only. First I
+>> argued if NFS sometimes might force the issue to happen later but in the
+>> mean while I don't think so.
 > 
-> > On 10/26/2013 11:39 AM, Johannes Weiner wrote:
-> >> On Fri, Oct 25, 2013 at 02:15:55PM -0200, Flavio Leitner wrote:
-> >>> While playing with guests and net-next kernel, I've triggered
-> >>> this with some frequency.  Even Fedora 19 kernel reproduces.
-> >>>
-> >>> It it a known issue?
-> >>>
-> >>> Thanks,
-> >>> fbl
-> >>>
-> >>> [ 6790.349763] kvm: zapping shadow pages for mmio generation wraparound
-> >>> [ 6792.283879] kvm: zapping shadow pages for mmio generation wraparound
-> >>> [ 7535.654438] perf samples too long (2719 > 2500), lowering kernel.perf_event_max_sample_rate to 50000
-> >>> [ 7535.665948] INFO: NMI handler (perf_event_nmi_handler) took too long to run: 11.560 msecs
-> >>> [ 7691.048392] virbr0: port 1(vnet0) entered disabled state
-> >>> [ 7691.056281] device vnet0 left promiscuous mode
-> >>> [ 7691.061674] virbr0: port 1(vnet0) entered disabled state
-> >>> [ 7691.163363] BUG: unable to handle kernel paging request at 000060fbc0002a20
-> >>> [ 7691.171145] IP: [<ffffffff8119dcb4>] mem_cgroup_move_account+0xf4/0x290
-> >>> [ 7691.178574] PGD 0
-> >>> [ 7691.181042] Oops: 0000 [#1] SMP
-> >>> [ 7691.184761] Modules linked in: vhost_net vhost macvtap macvlan tun veth
-> >>> openvswitch xt_CHECKSUM nf_conntrack_netbios_ns nf_conntrack_broadcast
-> >>> ipt_MASQUERADE ip6t_REJECT xt_conntrack ebtable_nat ebtable_broute bridge stp
-> >>> llc ebtable_filter ebtables ip6table_nat nf_conntrack_ipv6 nf_defrag_ipv6
-> >>> nf_nat_ipv6 vxlan ip_tunnel gre libcrc32c ip6table_mangle ip6table_security
-> >>> ip6table_raw ip6table_filter ip6_tables iptable_nat nf_conntrack_ipv4
-> >>> nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack iptable_mangle
-> >>> iptable_security iptable_raw coretemp kvm_intel snd_hda_codec_realtek
-> >>> snd_hda_intel nfsd snd_hda_codec kvm auth_rpcgss nfs_acl snd_hwdep lockd
-> >>> snd_seq snd_seq_device snd_pcm e1000e snd_page_alloc sunrpc snd_timer
-> >>> crc32c_intel i7core_edac bnx2 shpchp ptp snd iTCO_wdt joydev pps_core
-> >>> iTCO_vendor_support pcspkr soundcore microcode serio_raw lpc_ich edac_core
-> >>> mfd_core i2c_i801 acpi_cpufreq hid_logitech_dj nouveau ata_generic pata_acpi
-> >>> video i2c_algo_bit drm_kms_helper ttm drm mxm_wmi i2c_core pata_marvell wmi
-> >>> [last unloaded: openvswitch]
-> >>> [ 7691.285989] CPU: 1 PID: 14 Comm: kworker/1:0 Tainted: G          I  3.12.0-rc6-01188-gb45bd46 #1
-> >>> [ 7691.295779] Hardware name:                  /DX58SO, BIOS SOX5810J.86A.5599.2012.0529.2218 05/29/2012
-> >>> [ 7691.306066] Workqueue: events css_killed_work_fn
-> >>> [ 7691.311303] task: ffff880429555dc0 ti: ffff88042957a000 task.ti: ffff88042957a000
-> >>> [ 7691.319673] RIP: 0010:[<ffffffff8119dcb4>]  [<ffffffff8119dcb4>] mem_cgroup_move_account+0xf4/0x290
-> >>> [ 7691.329728] RSP: 0018:ffff88042957bcc8  EFLAGS: 00010002
-> >>> [ 7691.335747] RAX: 0000000000000246 RBX: ffff88042b17bc30 RCX: 0000000000000004
-> >>> [ 7691.343720] RDX: ffff880424cd6000 RSI: 000060fbc0002a08 RDI: ffff880424cd622c
-> >>> [ 7691.351735] RBP: ffff88042957bd20 R08: ffff880424cd4000 R09: 0000000000000001
-> >>> [ 7691.359751] R10: 0000000000000001 R11: 0000000000000001 R12: ffffea00103ef0c0
-> >>> [ 7691.367745] R13: ffff880424cd6000 R14: 0000000000000000 R15: ffff880424cd622c
-> >>> [ 7691.375738] FS:  0000000000000000(0000) GS:ffff88043fc20000(0000) knlGS:0000000000000000
-> >>> [ 7691.384755] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> >>> [ 7691.391238] CR2: 000060fbc0002a20 CR3: 0000000001c0c000 CR4: 00000000000027e0
-> >>> [ 7691.399235] Stack:
-> >>> [ 7691.401672]  ffff88042957bce8 ffff88042957bce8 ffffffff81312b6d ffff880424cd4000
-> >>> [ 7691.409968]  ffff880400000001 ffff880424cd6000 ffffea00103ef0c0 ffff880424cd0430
-> >>> [ 7691.418264]  ffff88042b17bc30 ffffea00103ef0e0 ffff880424cd6000 ffff88042957bda8
-> >>> [ 7691.426578] Call Trace:
-> >>> [ 7691.429513]  [<ffffffff81312b6d>] ? list_del+0xd/0x30
-> >>> [ 7691.435250]  [<ffffffff8119f5e7>] mem_cgroup_reparent_charges+0x247/0x460
-> >>> [ 7691.442874]  [<ffffffff8119f9af>] mem_cgroup_css_offline+0xaf/0x1b0
-> >>> [ 7691.449942]  [<ffffffff810da877>] offline_css+0x27/0x50
-> >>> [ 7691.455874]  [<ffffffff810dcf8d>] css_killed_work_fn+0x2d/0xa0
-> >>> [ 7691.462466]  [<ffffffff810821f5>] process_one_work+0x175/0x430
-> >>> [ 7691.469041]  [<ffffffff81082e1b>] worker_thread+0x11b/0x3a0
-> >>> [ 7691.475345]  [<ffffffff81082d00>] ? rescuer_thread+0x340/0x340
-> >>> [ 7691.481919]  [<ffffffff81089860>] kthread+0xc0/0xd0
-> >>> [ 7691.487478]  [<ffffffff810897a0>] ? insert_kthread_work+0x40/0x40
-> >>> [ 7691.494352]  [<ffffffff8166ea3c>] ret_from_fork+0x7c/0xb0
-> >>> [ 7691.500464]  [<ffffffff810897a0>] ? insert_kthread_work+0x40/0x40
-> >>> [ 7691.507335] Code: 85 f6 48 8b 55 d0 44 8b 4d c8 4c 8b 45 c0 0f 85 b3 00 00
-> >>> 00 41 8b 4c 24 18 85 c9 0f 88 a6 00 00 00 48 8b b2 30 02 00 00 45 89 ca <4c>
-> >>> 39 56 18 0f 8c 36 01 00 00 44 89 c9 f7 d9 89 cf 65 48 01 7e
-> >> This is
-> >>
-> >> All code
-> >> ========
-> >>     0:   85 f6                   test   %esi,%esi
-> >>     2:   48 8b 55 d0             mov    -0x30(%rbp),%rdx
-> >>     6:   44 8b 4d c8             mov    -0x38(%rbp),%r9d
-> >>     a:   4c 8b 45 c0             mov    -0x40(%rbp),%r8
-> >>     e:   0f 85 b3 00 00 00       jne    0xc7
-> >>    14:   41 8b 4c 24 18          mov    0x18(%r12),%ecx
-> >>    19:   85 c9                   test   %ecx,%ecx
-> >>    1b:   0f 88 a6 00 00 00       js     0xc7
-> >>    21:   48 8b b2 30 02 00 00    mov    0x230(%rdx),%rsi
-> >>    28:   45 89 ca                mov    %r9d,%r10d
-> >>    2b:*  4c 39 56 18             cmp    %r10,0x18(%rsi)          <-- trapping instruction
-> >>    2f:   0f 8c 36 01 00 00       jl     0x16b
-> >>    35:   44 89 c9                mov    %r9d,%ecx
-> >>    38:   f7 d9                   neg    %ecx
-> >>    3a:   89 cf                   mov    %ecx,%edi
-> >>    3c:   65                      gs
-> >>    3d:   48                      rex.W
-> >>    3e:   01                      .byte 0x1
-> >>    3f:   7e                      .byte 0x7e
-> >>
-> >> which corresponds to
-> >>
-> >> 	WARN_ON_ONCE(from->stat->count[idx] < nr_pages);
-> >>
-> >> Humm.  from->stat is a percpu pointer...  This patch should fix it:
-> >>
-> >> ---
-> >>  From 4e9fe9d7e8502eab1c8bb4761de838f61cd4a8e0 Mon Sep 17 00:00:00 2001
-> >> From: Johannes Weiner <hannes@cmpxchg.org>
-> >> Date: Fri, 25 Oct 2013 23:23:31 -0400
-> >> Subject: [patch] mm: memcg: fix percpu variable access crash
-> >>
-> >> 3ea67d06e467 ("memcg: add per cgroup writeback pages accounting")
-> >> added a WARN_ON_ONCE() to sanity check the page statistics counter
-> >> when moving charges.  Unfortunately, it dereferences the percpu
-> >> counter directly, which may result in a crash like this:
-> >>
-> >> [ 7691.163363] BUG: unable to handle kernel paging request at 000060fbc0002a20
-> >> [ 7691.171145] IP: [<ffffffff8119dcb4>] mem_cgroup_move_account+0xf4/0x290
-> >> [ 7691.178574] PGD 0
-> >> [ 7691.181042] Oops: 0000 [#1] SMP
-> >> [...]
-> >> [ 7691.285989] CPU: 1 PID: 14 Comm: kworker/1:0 Tainted: G          I  3.12.0-rc6-01188-gb45bd46 #1
-> >> [ 7691.295779] Hardware name:                  /DX58SO, BIOS SOX5810J.86A.5599.2012.0529.2218 05/29/2012
-> >> [ 7691.306066] Workqueue: events css_killed_work_fn
-> >> [ 7691.311303] task: ffff880429555dc0 ti: ffff88042957a000 task.ti: ffff88042957a000
-> >> [ 7691.319673] RIP: 0010:[<ffffffff8119dcb4>]  [<ffffffff8119dcb4>] mem_cgroup_move_account+0xf4/0x290
-> >> [ 7691.329728] RSP: 0018:ffff88042957bcc8  EFLAGS: 00010002
-> >> [ 7691.335747] RAX: 0000000000000246 RBX: ffff88042b17bc30 RCX: 0000000000000004
-> >> [ 7691.343720] RDX: ffff880424cd6000 RSI: 000060fbc0002a08 RDI: ffff880424cd622c
-> >> [ 7691.351735] RBP: ffff88042957bd20 R08: ffff880424cd4000 R09: 0000000000000001
-> >> [ 7691.359751] R10: 0000000000000001 R11: 0000000000000001 R12: ffffea00103ef0c0
-> >> [ 7691.367745] R13: ffff880424cd6000 R14: 0000000000000000 R15: ffff880424cd622c
-> >> [ 7691.375738] FS:  0000000000000000(0000) GS:ffff88043fc20000(0000) knlGS:0000000000000000
-> >> [ 7691.384755] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> >> [ 7691.391238] CR2: 000060fbc0002a20 CR3: 0000000001c0c000 CR4: 00000000000027e0
-> >> [ 7691.399235] Stack:
-> >> [ 7691.401672]  ffff88042957bce8 ffff88042957bce8 ffffffff81312b6d ffff880424cd4000
-> >> [ 7691.409968]  ffff880400000001 ffff880424cd6000 ffffea00103ef0c0 ffff880424cd0430
-> >> [ 7691.418264]  ffff88042b17bc30 ffffea00103ef0e0 ffff880424cd6000 ffff88042957bda8
-> >> [ 7691.426578] Call Trace:
-> >> [ 7691.429513]  [<ffffffff81312b6d>] ? list_del+0xd/0x30
-> >> [ 7691.435250]  [<ffffffff8119f5e7>] mem_cgroup_reparent_charges+0x247/0x460
-> >> [ 7691.442874]  [<ffffffff8119f9af>] mem_cgroup_css_offline+0xaf/0x1b0
-> >> [ 7691.449942]  [<ffffffff810da877>] offline_css+0x27/0x50
-> >> [ 7691.455874]  [<ffffffff810dcf8d>] css_killed_work_fn+0x2d/0xa0
-> >> [ 7691.462466]  [<ffffffff810821f5>] process_one_work+0x175/0x430
-> >> [ 7691.469041]  [<ffffffff81082e1b>] worker_thread+0x11b/0x3a0
-> >> [ 7691.475345]  [<ffffffff81082d00>] ? rescuer_thread+0x340/0x340
-> >> [ 7691.481919]  [<ffffffff81089860>] kthread+0xc0/0xd0
-> >> [ 7691.487478]  [<ffffffff810897a0>] ? insert_kthread_work+0x40/0x40
-> >> [ 7691.494352]  [<ffffffff8166ea3c>] ret_from_fork+0x7c/0xb0
-> >> [ 7691.500464]  [<ffffffff810897a0>] ? insert_kthread_work+0x40/0x40
-> >> [ 7691.507335] Code: 85 f6 48 8b 55 d0 44 8b 4d c8 4c 8b 45 c0 0f 85 b3 00 00 00 41 8b 4c 24 18
-> >> 85 c9 0f 88 a6 00 00 00 48 8b b2 30 02 00 00 45 89 ca <4c> 39 56 18 0f 8c 36 01 00 00 44 89 c9
-> >> f7 d9 89 cf 65 48 01 7e
-> >> [ 7691.528638] RIP  [<ffffffff8119dcb4>] mem_cgroup_move_account+0xf4/0x290
-> >>
-> >> Add the required __this_cpu_read().
-> >
-> > Sorry for my mistake and thanks for the fix up, it looks good to me.
-> >
-> > Reviewed-by: Sha Zhengju <handai.szj@taobao.com>
-> >
-> >
-> > Thanks,
-> > Sha
-> >>
-> >> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> >> ---
-> >>   mm/memcontrol.c | 2 +-
-> >>   1 file changed, 1 insertion(+), 1 deletion(-)
-> >>
-> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> >> index 4097a78..a4864b6 100644
-> >> --- a/mm/memcontrol.c
-> >> +++ b/mm/memcontrol.c
-> >> @@ -3773,7 +3773,7 @@ void mem_cgroup_move_account_page_stat(struct mem_cgroup *from,
-> >>   {
-> >>   	/* Update stat data for mem_cgroup */
-> >>   	preempt_disable();
-> >> -	WARN_ON_ONCE(from->stat->count[idx] < nr_pages);
-> >> +	WARN_ON_ONCE(__this_cpu_read(from->stat->count[idx]) < nr_pages);
-> >>   	__this_cpu_add(from->stat->count[idx], -nr_pages);
-> >>   	__this_cpu_add(to->stat->count[idx], nr_pages);
-> >>   	preempt_enable();
-> >
-> >
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> It looks like we never find a way out of the while(1) in
+> radix_tree_next_chunk().
 > 
-> I was just polishing up this following patch which I think is better
-> because it should avoid spurious warnings.
+> Thanks,
+> //richard
 > 
-> ---8<---
-> 
-> From c1f43ef0f4cc42fb2ecaeaca71bd247365e3521e Mon Sep 17 00:00:00 2001
-> From: Greg Thelen <gthelen@google.com>
-> Date: Fri, 25 Oct 2013 21:59:57 -0700
-> Subject: [PATCH] memcg: remove incorrect underflow check
-> 
-> When a memcg is deleted mem_cgroup_reparent_charges() moves charged
-> memory to the parent memcg.  As of v3.11-9444-g3ea67d0 "memcg: add per
-> cgroup writeback pages accounting" there's bad pointer read.  The goal
-> was to check for counter underflow.  The counter is a per cpu counter
-> and there are two problems with the code:
-> (1) per cpu access function isn't used, instead a naked pointer is
->     used which easily causes panic.
-> (2) the check doesn't sum all cpus
-> 
-> Test:
->   $ cd /sys/fs/cgroup/memory
->   $ mkdir x
->   $ echo 3 > /proc/sys/vm/drop_caches
->   $ (echo $BASHPID >> x/tasks && exec cat) &
->   [1] 7154
->   $ grep ^mapped x/memory.stat
->   mapped_file 53248
->   $ echo 7154 > tasks
->   $ rmdir x
->   <PANIC>
-> 
-> The fix is to remove the check.  It's currently dangerous and isn't
-> worth fixing it to use something expensive, such as
-> percpu_counter_sum(), for each reparented page.  __this_cpu_read()
-> isn't enough to fix this because there's no guarantees of the current
-> cpus count.  The only guarantees is that the sum of all per-cpu
-> counter is >= nr_pages.
-> 
-> Signed-off-by: Greg Thelen <gthelen@google.com>
-> ---
 
-Tested-by: Flavio Leitner <fbl@redhat.com>
+But today I found a proof that it is not only fs/hostfs specific :
+
+
+tfoerste@n22 ~ $ sudo gdb /home/tfoerste/devel/linux/linux 22692 -n -batch -ex bt
+0x08298fcc in radix_tree_next_chunk (root=0x25, iter=0x3ba6fc4c, flags=6) at lib/radix-tree.c:770
+770                                             if (node->slots[offset])
+#0  0x08298fcc in radix_tree_next_chunk (root=0x25, iter=0x3ba6fc4c, flags=6) at lib/radix-tree.c:770
+#1  0x080cc20e in find_get_pages (mapping=0x3b0d61dc, start=0, nr_pages=14, pages=0x6) at mm/filemap.c:844
+#2  0x080d5d7a in pagevec_lookup (pvec=0x3ba6fcb0, mapping=0x25, start=37, nr_pages=37) at mm/swap.c:914
+#3  0x080d616a in truncate_inode_pages_range (mapping=0x3b0d61dc, lstart=0, lend=-1) at mm/truncate.c:241
+#4  0x080d650f in truncate_inode_pages (mapping=0x25, lstart=25769803813) at mm/truncate.c:358
+#5  0x08205b08 in nfs4_evict_inode (inode=0x3b0d6124) at fs/nfs/nfs4super.c:101
+#6  0x0811a99f in evict (inode=0x3b0d6124) at fs/inode.c:549
+#7  0x0811b37d in iput_final (inode=<optimized out>) at fs/inode.c:1391
+#8  iput (inode=0x3b0d6124) at fs/inode.c:1409
+#9  0x081d6014 in nfs_dentry_iput (dentry=0x6, inode=0x3b0d6124) at fs/nfs/dir.c:1255
+#10 0x08117705 in dentry_iput (dentry=<optimized out>) at fs/dcache.c:329
+#11 d_kill (dentry=0x4508a000, parent=0x47adf790) at fs/dcache.c:477
+#12 0x08118138 in dentry_kill (dentry=<optimized out>, unlock_on_failure=<optimized out>) at fs/dcache.c:586
+#13 dput (dentry=0x4508a000) at fs/dcache.c:641
+#14 0x081049d3 in __fput (file=0x3baf3000) at fs/file_table.c:264
+#15 0x08104a3b in ____fput (work=0x3baf3000) at fs/file_table.c:282
+#16 0x08094496 in task_work_run () at kernel/task_work.c:123
+#17 0x0807efd2 in exit_task_work (task=<optimized out>) at include/linux/task_work.h:21
+#18 do_exit (code=1167823872) at kernel/exit.c:787
+#19 0x0807f5dd in do_group_exit (exit_code=0) at kernel/exit.c:920
+#20 0x0807f649 in SYSC_exit_group (error_code=<optimized out>) at kernel/exit.c:931
+#21 SyS_exit_group (error_code=0) at kernel/exit.c:929
+#22 0x08062984 in handle_syscall (r=0x459741d4) at arch/um/kernel/skas/syscall.c:35
+#23 0x08074fb5 in handle_trap (local_using_sysemu=<optimized out>, regs=<optimized out>, pid=<optimized out>) at arch/um/os-Linux/skas/process.c:198
+#24 userspace (regs=0x459741d4) at arch/um/os-Linux/skas/process.c:431
+#25 0x0805f750 in fork_handler () at arch/um/kernel/process.c:160
+#26 0x00000000 in ?? ()
+
+
+But it happened rarely and I did not found a scenario to easily reproduce it till now.
+
+-- 
+MfG/Sincerely
+Toralf FA?rster
+pgp finger print: 7B1A 07F4 EC82 0F90 D4C2 8936 872A E508 7DB6 9DA3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
