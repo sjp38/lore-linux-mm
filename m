@@ -1,82 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D61ED6B0035
-	for <linux-mm@kvack.org>; Wed, 30 Oct 2013 11:11:01 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id kq14so1063723pab.7
-        for <linux-mm@kvack.org>; Wed, 30 Oct 2013 08:11:01 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.111])
-        by mx.google.com with SMTP id yh6si2208984pab.266.2013.10.30.08.11.00
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id DFFA16B0037
+	for <linux-mm@kvack.org>; Wed, 30 Oct 2013 11:19:13 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id x10so1133763pdj.12
+        for <linux-mm@kvack.org>; Wed, 30 Oct 2013 08:19:13 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.188])
+        by mx.google.com with SMTP id cx4si18216913pbc.299.2013.10.30.08.19.11
         for <linux-mm@kvack.org>;
-        Wed, 30 Oct 2013 08:11:00 -0700 (PDT)
-Date: Wed, 30 Oct 2013 11:10:51 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1383145851-unjeu8ej-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20131028221618.4078637F@viggo.jf.intel.com>
-References: <20131028221618.4078637F@viggo.jf.intel.com>
-Subject: Re: [PATCH 1/2] mm: hugetlbfs: Add some VM_BUG_ON()s to
- catchnon-hugetlbfs pages
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+        Wed, 30 Oct 2013 08:19:12 -0700 (PDT)
+Date: Wed, 30 Oct 2013 15:19:04 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: get rid of unnecessary pageblock scanning in
+ setup_zone_migrate_reserve
+Message-ID: <20131030151904.GO2400@suse.de>
+References: <1382562092-15570-1-git-send-email-kosaki.motohiro@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
+In-Reply-To: <1382562092-15570-1-git-send-email-kosaki.motohiro@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.jiang@intel.com, Mel Gorman <mgorman@suse.de>, akpm@linux-foundation.org, dhillf@gmail.com
+To: kosaki.motohiro@gmail.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-On Mon, Oct 28, 2013 at 03:16:18PM -0700, Dave Hansen wrote:
+On Wed, Oct 23, 2013 at 05:01:32PM -0400, kosaki.motohiro@gmail.com wrote:
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > 
-> Dave Jiang reported that he was seeing oopses when running
-> NUMA systems and default_hugepagesz=1G.  I traced the issue down
-> to migrate_page_copy() trying to use the same code for hugetlb
-> pages and transparent hugepages.  It should not have been trying
-> to pass thp pages in there.
+> Yasuaki Ithimatsu reported memory hot-add spent more than 5 _hours_
+> on 9TB memory machine and we found out setup_zone_migrate_reserve
+> spnet >90% time.
 > 
-> So, add some VM_BUG_ON()s for the next hapless VM developer that
+> The problem is, setup_zone_migrate_reserve scan all pageblock
+> unconditionally, but it is only necessary number of reserved block
+> was reduced (i.e. memory hot remove).
+> Moreover, maximum MIGRATE_RESERVE per zone are currently 2. It mean,
+> number of reserved pageblock are almost always unchanged.
+> 
+> This patch adds zone->nr_migrate_reserve_block to maintain number
+> of MIGRATE_RESERVE pageblock and it reduce an overhead of
+> setup_zone_migrate_reserve dramatically.
+> 
 
-Looks good to me, thanks.
+It seems regrettable to expand the size of struct zone just for this.
+You are right that the number of blocks does not exceed 2 because of a
+check made in setup_zone_migrate_reserve so it should be possible to
+special case this. I didn't test this or think about it particularly
+carefully and no doubt there is a nicer way but for illustration
+purposes see the patch below.
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-
-
-> 
-> ---
-> 
->  linux.git-davehans/include/linux/hugetlb.h |    1 +
->  linux.git-davehans/mm/hugetlb.c            |    1 +
->  2 files changed, 2 insertions(+)
-> 
-> diff -puN include/linux/hugetlb.h~bug-not-hugetlbfs-in-copy_huge_page include/linux/hugetlb.h
-> --- linux.git/include/linux/hugetlb.h~bug-not-hugetlbfs-in-copy_huge_page	2013-10-28 15:06:12.888828815 -0700
-> +++ linux.git-davehans/include/linux/hugetlb.h	2013-10-28 15:06:12.893829038 -0700
-> @@ -355,6 +355,7 @@ static inline pte_t arch_make_huge_pte(p
->  
->  static inline struct hstate *page_hstate(struct page *page)
->  {
-> +	VM_BUG_ON(!PageHuge(page));
->  	return size_to_hstate(PAGE_SIZE << compound_order(page));
->  }
->  
-> diff -puN mm/hugetlb.c~bug-not-hugetlbfs-in-copy_huge_page mm/hugetlb.c
-> --- linux.git/mm/hugetlb.c~bug-not-hugetlbfs-in-copy_huge_page	2013-10-28 15:06:12.890828904 -0700
-> +++ linux.git-davehans/mm/hugetlb.c	2013-10-28 15:06:12.894829082 -0700
-> @@ -498,6 +498,7 @@ void copy_huge_page(struct page *dst, st
->  	int i;
->  	struct hstate *h = page_hstate(src);
->  
-> +	VM_BUG_ON(!h);
->  	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
->  		copy_gigantic_page(dst, src);
->  		return;
-> _
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index dd886fa..1aedddd 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3897,6 +3897,8 @@ static int pageblock_is_reserved(unsigned long start_pfn, unsigned long end_pfn)
+ 	return 0;
+ }
+ 
++#define MAX_MIGRATE_RESERVE_BLOCKS 2
++
+ /*
+  * Mark a number of pageblocks as MIGRATE_RESERVE. The number
+  * of blocks reserved is based on min_wmark_pages(zone). The memory within
+@@ -3910,6 +3912,7 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+ 	struct page *page;
+ 	unsigned long block_migratetype;
+ 	int reserve;
++	int found = 0;
+ 
+ 	/*
+ 	 * Get the start pfn, end pfn and the number of blocks to reserve
+@@ -3926,11 +3929,11 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+ 	/*
+ 	 * Reserve blocks are generally in place to help high-order atomic
+ 	 * allocations that are short-lived. A min_free_kbytes value that
+-	 * would result in more than 2 reserve blocks for atomic allocations
+-	 * is assumed to be in place to help anti-fragmentation for the
+-	 * future allocation of hugepages at runtime.
++	 * would result in more than MAX_MIGRATE_RESERVE_BLOCKS reserve blocks
++	 * for atomic allocations is assumed to be in place to help
++	 * anti-fragmentation for the future allocation of hugepages at runtime.
+ 	 */
+-	reserve = min(2, reserve);
++	reserve = min(MAX_MIGRATE_RESERVE_BLOCKS, reserve);
+ 
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
+ 		if (!pfn_valid(pfn))
+@@ -3956,6 +3959,7 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+ 			/* If this block is reserved, account for it */
+ 			if (block_migratetype == MIGRATE_RESERVE) {
+ 				reserve--;
++				found++;
+ 				continue;
+ 			}
+ 
+@@ -3970,6 +3974,10 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+ 			}
+ 		}
+ 
++		/* If all possible reserve blocks have been found, we're done */
++		if (found >= MAX_MIGRATE_RESERVE_BLOCKS)
++			break;
++
+ 		/*
+ 		 * If the reserve is met and this is a previous reserved block,
+ 		 * take it back
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
