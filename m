@@ -1,178 +1,345 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 48E246B0035
-	for <linux-mm@kvack.org>; Tue, 29 Oct 2013 22:55:43 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id z10so312959pdj.33
-        for <linux-mm@kvack.org>; Tue, 29 Oct 2013 19:55:42 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.138])
-        by mx.google.com with SMTP id hj4si421559pac.213.2013.10.29.19.55.40
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EC326B0035
+	for <linux-mm@kvack.org>; Wed, 30 Oct 2013 01:33:54 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id xb4so877112pbc.8
+        for <linux-mm@kvack.org>; Tue, 29 Oct 2013 22:33:54 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.102])
+        by mx.google.com with SMTP id cj2si16727013pbc.207.2013.10.29.22.33.52
         for <linux-mm@kvack.org>;
-        Tue, 29 Oct 2013 19:55:42 -0700 (PDT)
-Date: Wed, 30 Oct 2013 11:55:45 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: cma: free cma page to buddy instead of being cpu hot
- page
-Message-ID: <20131030025545.GE17013@bbox>
-References: <1382960569-6564-1-git-send-email-zhang.mingjun@linaro.org>
- <20131029093322.GA2400@suse.de>
- <CAGT3LergVJ1XXCrVD3XeRpRCXehn9gLb7BRHHyjyseKBz39pMg@mail.gmail.com>
- <20131029122708.GD2400@suse.de>
- <CAGT3LerfYfgdkDd=LnuA8y7SUjOSTbw-HddbuzQ=O3yw-vtnnQ@mail.gmail.com>
+        Tue, 29 Oct 2013 22:33:53 -0700 (PDT)
+From: Bhushan Bharat-R65777 <R65777@freescale.com>
+Subject: RE: [PATCH v9 01/13] KVM: PPC: POWERNV: move iommu_add_device
+ earlier
+Date: Wed, 30 Oct 2013 05:33:46 +0000
+Message-ID: <6A3DF150A5B70D4F9B66A25E3F7C888D071D7891@039-SN2MPN1-013.039d.mgd.msft.net>
+References: <1377679070-3515-1-git-send-email-aik@ozlabs.ru>
+ <1377679070-3515-2-git-send-email-aik@ozlabs.ru>
+In-Reply-To: <1377679070-3515-2-git-send-email-aik@ozlabs.ru>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGT3LerfYfgdkDd=LnuA8y7SUjOSTbw-HddbuzQ=O3yw-vtnnQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Mingjun <zhang.mingjun@linaro.org>
-Cc: Mel Gorman <mgorman@suse.de>, Marek Szyprowski <m.szyprowski@samsung.com>, akpm@linux-foundation.org, Haojian Zhuang <haojian.zhuang@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, troy.zhangmingjun@huawei.com
+To: Alexander Graf <agraf@suse.de>
+Cc: "kvm@vger.kernel.org" <kvm@vger.kernel.org>, Gleb Natapov <gleb@redhat.com>, "kvm-ppc@vger.kernel.org" <kvm-ppc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Paolo Bonzini <pbonzini@redhat.com>, David Gibson <david@gibson.dropbear.id.au>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, Alexey Kardashevskiy <aik@ozlabs.ru>
 
-Hello,
+Hi Alex,
 
-On Tue, Oct 29, 2013 at 11:02:30PM +0800, Zhang Mingjun wrote:
-> On Tue, Oct 29, 2013 at 8:27 PM, Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > On Tue, Oct 29, 2013 at 07:49:30PM +0800, Zhang Mingjun wrote:
-> > > On Tue, Oct 29, 2013 at 5:33 PM, Mel Gorman <mgorman@suse.de> wrote:
-> > >
-> > > > On Mon, Oct 28, 2013 at 07:42:49PM +0800, zhang.mingjun@linaro.orgwrote:
-> > > > > From: Mingjun Zhang <troy.zhangmingjun@linaro.org>
-> > > > >
-> > > > > free_contig_range frees cma pages one by one and MIGRATE_CMA pages
-> > will
-> > > > be
-> > > > > used as MIGRATE_MOVEABLE pages in the pcp list, it causes unnecessary
-> > > > > migration action when these pages reused by CMA.
-> > > > >
-> > > > > Signed-off-by: Mingjun Zhang <troy.zhangmingjun@linaro.org>
-> > > > > ---
-> > > > >  mm/page_alloc.c |    3 ++-
-> > > > >  1 file changed, 2 insertions(+), 1 deletion(-)
-> > > > >
-> > > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > > > index 0ee638f..84b9d84 100644
-> > > > > --- a/mm/page_alloc.c
-> > > > > +++ b/mm/page_alloc.c
-> > > > > @@ -1362,7 +1362,8 @@ void free_hot_cold_page(struct page *page, int
-> > > > cold)
-> > > > >        * excessively into the page allocator
-> > > > >        */
-> > > > >       if (migratetype >= MIGRATE_PCPTYPES) {
-> > > > > -             if (unlikely(is_migrate_isolate(migratetype))) {
-> > > > > +             if (unlikely(is_migrate_isolate(migratetype))
-> > > > > +                     || is_migrate_cma(migratetype))
-> > > > >                       free_one_page(zone, page, 0, migratetype);
-> > > > >                       goto out;
-> > > >
-> > > > This slightly impacts the page allocator free path for a marginal gain
-> > > > on CMA which are relatively rare allocations. There is no obvious
-> > > > benefit to this patch as I expect CMA allocations to flush the PCP
-> > lists
-> > > >
-> > > how about keeping the migrate type of CMA page block as MIGRATE_ISOLATED
-> > > after
-> > > the alloc_contig_range , and undo_isolate_page_range at the end of
-> > > free_contig_range?
-> >
-> > It would move the cost to the CMA paths so I would complain less. Bear
-> > in mind as well that forcing everything to go through free_one_page()
-> > means that every free goes through the zone lock. I doubt you have any
-> > machine large enough but it is possible for simultaneous CMA allocations
-> > to now contend on the zone lock that would have been previously fine.
-> > Hence, I'm interesting in knowing the underlying cause of the problem you
-> > are experiencing.
-> >
-> > my platform uses CMA but disabled CMA's migration func by del MIGRATE_CMA
-> in fallbacks[MIGRATE_MOVEABLE]. But I find CMA pages can still used by
+Looks like this patch is not picked by anyone, Are you going to pick this p=
+atch?
+My vfio/iommu patches have dependency on this patch (this is already tested=
+ by me).
 
-In that case, why do you want to use CMA?
-It's almost same with resreved memory.
+Thanks
+-Bharat
 
-> pagecache or page fault page request from PCP list and cma allocation has to
-> migrate these page. So I want to free these cma pages to buddy directly not
-> PCP..
+> -----Original Message-----
+> From: Linuxppc-dev [mailto:linuxppc-dev-
+> bounces+bharat.bhushan=3Dfreescale.com@lists.ozlabs.org] On Behalf Of Ale=
+xey
+> Kardashevskiy
+> Sent: Wednesday, August 28, 2013 2:08 PM
+> To: linuxppc-dev@lists.ozlabs.org
+> Cc: kvm@vger.kernel.org; Gleb Natapov; Alexey Kardashevskiy; Alexander Gr=
+af;
+> kvm-ppc@vger.kernel.org; linux-kernel@vger.kernel.org; linux-mm@kvack.org=
+; Paul
+> Mackerras; Paolo Bonzini; David Gibson
+> Subject: [PATCH v9 01/13] KVM: PPC: POWERNV: move iommu_add_device earlie=
+r
+>=20
+> The current implementation of IOMMU on sPAPR does not use iommu_ops and
+> therefore does not call IOMMU API's bus_set_iommu() which
+> 1) sets iommu_ops for a bus
+> 2) registers a bus notifier
+> Instead, PCI devices are added to IOMMU groups from
+> subsys_initcall_sync(tce_iommu_init) which does basically the same thing =
+without
+> using iommu_ops callbacks.
+>=20
+> However Freescale PAMU driver (https://lkml.org/lkml/2013/7/1/158)
+> implements iommu_ops and when tce_iommu_init is called, every PCI device =
+is
+> already added to some group so there is a conflict.
+>=20
+> This patch does 2 things:
+> 1. removes the loop in which PCI devices were added to groups and adds ex=
+plicit
+> iommu_add_device() calls to add devices as soon as they get the iommu_tab=
+le
+> pointer assigned to them.
+> 2. moves a bus notifier to powernv code in order to avoid conflict with t=
+he
+> notifier from Freescale driver.
+>=20
+> iommu_add_device() and iommu_del_device() are public now.
+>=20
+> Signed-off-by: Alexey Kardashevskiy <aik@ozlabs.ru>
+> ---
+> Changes:
+> v8:
+> * added the check for iommu_group!=3DNULL before removing device from a g=
+roup as
+> suggested by Wei Yang <weiyang@linux.vnet.ibm.com>
+>=20
+> v2:
+> * added a helper - set_iommu_table_base_and_group - which does
+> set_iommu_table_base() and iommu_add_device()
+> ---
+>  arch/powerpc/include/asm/iommu.h            |  9 +++++++
+>  arch/powerpc/kernel/iommu.c                 | 41 +++--------------------=
+------
+>  arch/powerpc/platforms/powernv/pci-ioda.c   |  8 +++---
+>  arch/powerpc/platforms/powernv/pci-p5ioc2.c |  2 +-
+>  arch/powerpc/platforms/powernv/pci.c        | 33 ++++++++++++++++++++++-
+>  arch/powerpc/platforms/pseries/iommu.c      |  8 +++---
+>  6 files changed, 55 insertions(+), 46 deletions(-)
+>=20
+> diff --git a/arch/powerpc/include/asm/iommu.h b/arch/powerpc/include/asm/=
+iommu.h
+> index c34656a..19ad77f 100644
+> --- a/arch/powerpc/include/asm/iommu.h
+> +++ b/arch/powerpc/include/asm/iommu.h
+> @@ -103,6 +103,15 @@ extern struct iommu_table *iommu_init_table(struct
+> iommu_table * tbl,
+>  					    int nid);
+>  extern void iommu_register_group(struct iommu_table *tbl,
+>  				 int pci_domain_number, unsigned long pe_num);
+> +extern int iommu_add_device(struct device *dev); extern void
+> +iommu_del_device(struct device *dev);
+> +
+> +static inline void set_iommu_table_base_and_group(struct device *dev,
+> +						  void *base)
+> +{
+> +	set_iommu_table_base(dev, base);
+> +	iommu_add_device(dev);
+> +}
+>=20
+>  extern int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
+>  			struct scatterlist *sglist, int nelems, diff --git
+> a/arch/powerpc/kernel/iommu.c b/arch/powerpc/kernel/iommu.c index
+> b20ff17..15f8ca8 100644
+> --- a/arch/powerpc/kernel/iommu.c
+> +++ b/arch/powerpc/kernel/iommu.c
+> @@ -1105,7 +1105,7 @@ void iommu_release_ownership(struct iommu_table *tb=
+l)  }
+> EXPORT_SYMBOL_GPL(iommu_release_ownership);
+>=20
+> -static int iommu_add_device(struct device *dev)
+> +int iommu_add_device(struct device *dev)
+>  {
+>  	struct iommu_table *tbl;
+>  	int ret =3D 0;
+> @@ -1134,46 +1134,13 @@ static int iommu_add_device(struct device *dev)
+>=20
+>  	return ret;
+>  }
+> +EXPORT_SYMBOL_GPL(iommu_add_device);
+>=20
+> -static void iommu_del_device(struct device *dev)
+> +void iommu_del_device(struct device *dev)
+>  {
+>  	iommu_group_remove_device(dev);
+>  }
+> -
+> -static int iommu_bus_notifier(struct notifier_block *nb,
+> -			      unsigned long action, void *data)
+> -{
+> -	struct device *dev =3D data;
+> -
+> -	switch (action) {
+> -	case BUS_NOTIFY_ADD_DEVICE:
+> -		return iommu_add_device(dev);
+> -	case BUS_NOTIFY_DEL_DEVICE:
+> -		iommu_del_device(dev);
+> -		return 0;
+> -	default:
+> -		return 0;
+> -	}
+> -}
+> -
+> -static struct notifier_block tce_iommu_bus_nb =3D {
+> -	.notifier_call =3D iommu_bus_notifier,
+> -};
+> -
+> -static int __init tce_iommu_init(void)
+> -{
+> -	struct pci_dev *pdev =3D NULL;
+> -
+> -	BUILD_BUG_ON(PAGE_SIZE < IOMMU_PAGE_SIZE);
+> -
+> -	for_each_pci_dev(pdev)
+> -		iommu_add_device(&pdev->dev);
+> -
+> -	bus_register_notifier(&pci_bus_type, &tce_iommu_bus_nb);
+> -	return 0;
+> -}
+> -
+> -subsys_initcall_sync(tce_iommu_init);
+> +EXPORT_SYMBOL_GPL(iommu_del_device);
+>=20
+>  #else
+>=20
+> diff --git a/arch/powerpc/platforms/powernv/pci-ioda.c
+> b/arch/powerpc/platforms/powernv/pci-ioda.c
+> index d8140b1..756bb58 100644
+> --- a/arch/powerpc/platforms/powernv/pci-ioda.c
+> +++ b/arch/powerpc/platforms/powernv/pci-ioda.c
+> @@ -440,7 +440,7 @@ static void pnv_pci_ioda_dma_dev_setup(struct pnv_phb=
+ *phb,
+> struct pci_dev *pdev
+>  		return;
+>=20
+>  	pe =3D &phb->ioda.pe_array[pdn->pe_number];
+> -	set_iommu_table_base(&pdev->dev, &pe->tce32_table);
+> +	set_iommu_table_base_and_group(&pdev->dev, &pe->tce32_table);
+>  }
+>=20
+>  static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe, struct pci_bu=
+s *bus)
+> @@ -448,7 +448,7 @@ static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe=
+ *pe,
+> struct pci_bus *bus)
+>  	struct pci_dev *dev;
+>=20
+>  	list_for_each_entry(dev, &bus->devices, bus_list) {
+> -		set_iommu_table_base(&dev->dev, &pe->tce32_table);
+> +		set_iommu_table_base_and_group(&dev->dev, &pe->tce32_table);
+>  		if (dev->subordinate)
+>  			pnv_ioda_setup_bus_dma(pe, dev->subordinate);
+>  	}
+> @@ -611,7 +611,7 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb =
+*phb,
+>  	iommu_register_group(tbl, pci_domain_nr(pe->pbus), pe->pe_number);
+>=20
+>  	if (pe->pdev)
+> -		set_iommu_table_base(&pe->pdev->dev, tbl);
+> +		set_iommu_table_base_and_group(&pe->pdev->dev, tbl);
+>  	else
+>  		pnv_ioda_setup_bus_dma(pe, pe->pbus);
+>=20
+> @@ -687,7 +687,7 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb=
+ *phb,
+>  	iommu_init_table(tbl, phb->hose->node);
+>=20
+>  	if (pe->pdev)
+> -		set_iommu_table_base(&pe->pdev->dev, tbl);
+> +		set_iommu_table_base_and_group(&pe->pdev->dev, tbl);
+>  	else
+>  		pnv_ioda_setup_bus_dma(pe, pe->pbus);
+>=20
+> diff --git a/arch/powerpc/platforms/powernv/pci-p5ioc2.c
+> b/arch/powerpc/platforms/powernv/pci-p5ioc2.c
+> index b68db63..ede341b 100644
+> --- a/arch/powerpc/platforms/powernv/pci-p5ioc2.c
+> +++ b/arch/powerpc/platforms/powernv/pci-p5ioc2.c
+> @@ -92,7 +92,7 @@ static void pnv_pci_p5ioc2_dma_dev_setup(struct pnv_phb=
+ *phb,
+>  				pci_domain_nr(phb->hose->bus), phb->opal_id);
+>  	}
+>=20
+> -	set_iommu_table_base(&pdev->dev, &phb->p5ioc2.iommu_table);
+> +	set_iommu_table_base_and_group(&pdev->dev, &phb->p5ioc2.iommu_table);
+>  }
+>=20
+>  static void __init pnv_pci_init_p5ioc2_phb(struct device_node *np, u64 h=
+ub_id,
+> diff --git a/arch/powerpc/platforms/powernv/pci.c
+> b/arch/powerpc/platforms/powernv/pci.c
+> index a28d3b5..c005011 100644
+> --- a/arch/powerpc/platforms/powernv/pci.c
+> +++ b/arch/powerpc/platforms/powernv/pci.c
+> @@ -504,7 +504,7 @@ static void pnv_pci_dma_fallback_setup(struct pci_con=
+troller
+> *hose,
+>  		pdn->iommu_table =3D pnv_pci_setup_bml_iommu(hose);
+>  	if (!pdn->iommu_table)
+>  		return;
+> -	set_iommu_table_base(&pdev->dev, pdn->iommu_table);
+> +	set_iommu_table_base_and_group(&pdev->dev, pdn->iommu_table);
+>  }
+>=20
+>  static void pnv_pci_dma_dev_setup(struct pci_dev *pdev) @@ -623,3 +623,3=
+4 @@
+> void __init pnv_pci_init(void)
+>  	ppc_md.teardown_msi_irqs =3D pnv_teardown_msi_irqs;  #endif  }
+> +
+> +static int tce_iommu_bus_notifier(struct notifier_block *nb,
+> +		unsigned long action, void *data)
+> +{
+> +	struct device *dev =3D data;
+> +
+> +	switch (action) {
+> +	case BUS_NOTIFY_ADD_DEVICE:
+> +		return iommu_add_device(dev);
+> +	case BUS_NOTIFY_DEL_DEVICE:
+> +		if (dev->iommu_group)
+> +			iommu_del_device(dev);
+> +		return 0;
+> +	default:
+> +		return 0;
+> +	}
+> +}
+> +
+> +static struct notifier_block tce_iommu_bus_nb =3D {
+> +	.notifier_call =3D tce_iommu_bus_notifier, };
+> +
+> +static int __init tce_iommu_bus_notifier_init(void) {
+> +	BUILD_BUG_ON(PAGE_SIZE < IOMMU_PAGE_SIZE);
+> +
+> +	bus_register_notifier(&pci_bus_type, &tce_iommu_bus_nb);
+> +	return 0;
+> +}
+> +
+> +subsys_initcall_sync(tce_iommu_bus_notifier_init);
+> diff --git a/arch/powerpc/platforms/pseries/iommu.c
+> b/arch/powerpc/platforms/pseries/iommu.c
+> index 23fc1dc..884ae71 100644
+> --- a/arch/powerpc/platforms/pseries/iommu.c
+> +++ b/arch/powerpc/platforms/pseries/iommu.c
+> @@ -687,7 +687,8 @@ static void pci_dma_dev_setup_pSeries(struct pci_dev =
+*dev)
+>  		iommu_table_setparms(phb, dn, tbl);
+>  		PCI_DN(dn)->iommu_table =3D iommu_init_table(tbl, phb->node);
+>  		iommu_register_group(tbl, pci_domain_nr(phb->bus), 0);
+> -		set_iommu_table_base(&dev->dev, PCI_DN(dn)->iommu_table);
+> +		set_iommu_table_base_and_group(&dev->dev,
+> +					       PCI_DN(dn)->iommu_table);
+>  		return;
+>  	}
+>=20
+> @@ -699,7 +700,8 @@ static void pci_dma_dev_setup_pSeries(struct pci_dev =
+*dev)
+>  		dn =3D dn->parent;
+>=20
+>  	if (dn && PCI_DN(dn))
+> -		set_iommu_table_base(&dev->dev, PCI_DN(dn)->iommu_table);
+> +		set_iommu_table_base_and_group(&dev->dev,
+> +					       PCI_DN(dn)->iommu_table);
+>  	else
+>  		printk(KERN_WARNING "iommu: Device %s has no iommu table\n",
+>  		       pci_name(dev));
+> @@ -1193,7 +1195,7 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_=
+dev
+> *dev)
+>  		pr_debug("  found DMA window, table: %p\n", pci->iommu_table);
+>  	}
+>=20
+> -	set_iommu_table_base(&dev->dev, pci->iommu_table);
+> +	set_iommu_table_base_and_group(&dev->dev, pci->iommu_table);
+>  }
+>=20
+>  static int dma_set_mask_pSeriesLP(struct device *dev, u64 dma_mask)
+> --
+> 1.8.4.rc4
+>=20
+> _______________________________________________
+> Linuxppc-dev mailing list
+> Linuxppc-dev@lists.ozlabs.org
+> https://lists.ozlabs.org/listinfo/linuxppc-dev
 
-I know your goal and understand current problem it could make more number
-of migration but how often it happens so that if we apply your patch,
-how much is the gain? For example, you can get a number followin as.
-
-1. old
-
-getting XXXM contiguos memory area: 100ms
-the number of migration : 200
-
-2. new
-
-getting XXXM contiguos memory area: 10ms
-the number of migration : 0
-
-It seems Mel want it and I'd like to see it to convince.
-Of course, Andrew might want it, too.
-
-> 
-> > of course, it will waste the memory outside of the alloc range but in the
-> > > pageblocks.
-> > >
-
-We need to know fundamental problem and number before you go with any method
-so that we could judge if you approach is good.
-Please add more detail explanation about current status in description.
-It would be better to include more statistic data.
-
-> >
-> > I would hope/expect that the loss would only last for the duration of
-> > the allocation attempt and a small amount of memory.
-> >
-> > > > when a range of pages have been isolated and migrated. Is there any
-> > > > measurable benefit to this patch?
-> > > >
-> > > after applying this patch, the video player on my platform works more
-> > > fluent,
-> >
-> > fluent almost always refers to ones command of a spoken language. I do
-> > not see how a video player can be fluent in anything. What is measurably
-> > better?
-> >
-> > For example, are allocations faster? If so, why? What cost from another
-> > path is removed as a result of this patch? If the cost is in the PCP
-> > flush then can it be checked if the PCP flush was unnecessary and called
-> > unconditionally even though all the pages were freed already? We had
-> > problems in the past where drain_all_pages() or similar were called
-> > unnecessarily causing long sync stalls related to IPIs. I'm wondering if
-> > we are seeing a similar problem here.
-> >
-> > Maybe the problem is the complete opposite. Are allocations failing
-> > because there are PCP pages in the way? In that case, it real fix might
-> > be to insert a  if the allocation is failing due to per-cpu
-> > pages.
-> >
-> problem is not the allocation failing, but the unexpected cma migration
-> slows
-> down the allocation.
-
-Okay, So how many? Need number. # of migration and time due to it.
-
-> 
-> >
-> > > and the driver of video decoder on my test platform using cma alloc/free
-> > > frequently.
-> > >
-> >
-> > CMA allocations are almost never used outside of these contexts. While I
-> > appreciate that embedded use is important I'm reluctant to see an impact
-> > in fast paths unless there is a good reason for every other use case. I
-> > also am a bit unhappy to see CMA allocations making the zone->lock
-> > hotter than necessary even if no embedded use case it likely to
-> > experience the problem in the short-term.
-> >
-> > --
-> > Mel Gorman
-> > SUSE Labs
-> >
-
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
