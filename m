@@ -1,35 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id C52376B0035
-	for <linux-mm@kvack.org>; Wed, 30 Oct 2013 04:42:32 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fb1so616187pad.37
-        for <linux-mm@kvack.org>; Wed, 30 Oct 2013 01:42:32 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.112])
-        by mx.google.com with SMTP id z1si17176172pbw.309.2013.10.30.01.42.19
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id CEF856B0035
+	for <linux-mm@kvack.org>; Wed, 30 Oct 2013 06:03:52 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id q10so747020pdj.14
+        for <linux-mm@kvack.org>; Wed, 30 Oct 2013 03:03:52 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.114])
+        by mx.google.com with SMTP id yh6si1430992pab.63.2013.10.30.03.03.47
         for <linux-mm@kvack.org>;
-        Wed, 30 Oct 2013 01:42:20 -0700 (PDT)
-Message-ID: <5270C666.6090209@iki.fi>
-Date: Wed, 30 Oct 2013 10:42:14 +0200
-From: Pekka Enberg <penberg@iki.fi>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 13/15] slab: use struct page for slab management
-References: <1381913052-23875-1-git-send-email-iamjoonsoo.kim@lge.com> <1381913052-23875-14-git-send-email-iamjoonsoo.kim@lge.com> <20131030082800.GA5753@lge.com>
-In-Reply-To: <20131030082800.GA5753@lge.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+        Wed, 30 Oct 2013 03:03:51 -0700 (PDT)
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 16/15] slab: fix to calm down kmemleak warning
+Date: Wed, 30 Oct 2013 19:04:00 +0900
+Message-Id: <1383127441-30563-1-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1381913052-23875-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1381913052-23875-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On 10/30/2013 10:28 AM, Joonsoo Kim wrote:
-> If you want an incremental patch against original patchset,
-> I can do it. Please let me know what you want.
+After using struct page as slab management, we should not call
+kmemleak_scan_area(), since struct page isn't the tracking object of
+kmemleak. Without this patch and if CONFIG_DEBUG_KMEMLEAK is enabled,
+so many kmemleak warnings are printed.
 
-Yes, please. Incremental is much easier to deal with if we want this to 
-end up in v3.13.
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-                     Pekka
+diff --git a/mm/slab.c b/mm/slab.c
+index af2db76..a8a9349 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2531,14 +2531,6 @@ static struct freelist *alloc_slabmgmt(struct kmem_cache *cachep,
+ 		/* Slab management obj is off-slab. */
+ 		freelist = kmem_cache_alloc_node(cachep->freelist_cache,
+ 					      local_flags, nodeid);
+-		/*
+-		 * If the first object in the slab is leaked (it's allocated
+-		 * but no one has a reference to it), we want to make sure
+-		 * kmemleak does not treat the ->s_mem pointer as a reference
+-		 * to the object. Otherwise we will not report the leak.
+-		 */
+-		kmemleak_scan_area(&page->lru, sizeof(struct list_head),
+-				   local_flags);
+ 		if (!freelist)
+ 			return NULL;
+ 	} else {
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
