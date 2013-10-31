@@ -1,44 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id E1B796B0036
-	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 18:25:26 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id y10so2988219pdj.38
-        for <linux-mm@kvack.org>; Thu, 31 Oct 2013 15:25:26 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.102])
-        by mx.google.com with SMTP id t2si3015843pbq.188.2013.10.31.15.25.24
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F30E6B0036
+	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 19:34:07 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id p10so3074245pdj.11
+        for <linux-mm@kvack.org>; Thu, 31 Oct 2013 16:34:07 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.190])
+        by mx.google.com with SMTP id gu5si3430184pac.217.2013.10.31.16.34.06
         for <linux-mm@kvack.org>;
-        Thu, 31 Oct 2013 15:25:25 -0700 (PDT)
-Received: by mail-ea0-f172.google.com with SMTP id r16so1718660ead.17
-        for <linux-mm@kvack.org>; Thu, 31 Oct 2013 15:25:23 -0700 (PDT)
+        Thu, 31 Oct 2013 16:34:07 -0700 (PDT)
+Message-ID: <5272E8EB.5030900@codeaurora.org>
+Date: Thu, 31 Oct 2013 16:34:03 -0700
+From: Olav Haugan <ohaugan@codeaurora.org>
 MIME-Version: 1.0
-In-Reply-To: <20131031095143.GA9692@gmail.com>
-References: <1381141781-10992-1-git-send-email-mgorman@suse.de>
-	<20131024122646.GB2402@suse.de>
-	<20131031095143.GA9692@gmail.com>
-Date: Thu, 31 Oct 2013 15:25:22 -0700
-Message-ID: <CA+55aFyDve4RtZ6n11ghFcq1kmzs52OB+xetZjyP1q3RparUkw@mail.gmail.com>
-Subject: Re: [RFC GIT PULL] NUMA-balancing memory corruption fixes
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: zram/zsmalloc issues in very low memory conditions
+References: <526844E6.1080307@codeaurora.org> <52686FF4.5000303@oracle.com> <5269BCCC.6090509@codeaurora.org> <CAA25o9R_jAZyGFU3xYVjsxCCiBwiEC4gRw+JX6WG9X7G-E3LNw@mail.gmail.com>
+In-Reply-To: <CAA25o9R_jAZyGFU3xYVjsxCCiBwiEC4gRw+JX6WG9X7G-E3LNw@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Tom Weber <l_linux-kernel@mail2news.4t2.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
+To: Luigi Semenzato <semenzato@google.com>
+Cc: Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Oct 31, 2013 at 2:51 AM, Ingo Molnar <mingo@kernel.org> wrote:
->
->
-> ( If you think this is too dangerous for too little benefit then
->   I'll drop this separate tree and will send the original commits in
->   the merge window. )
+Hi Luigi,
 
-Ugh. I hate hate hate the timing, and this is much larger and scarier
-than what I'd like at this point, but I don't see the point to
-delaying this either.
+On 10/24/2013 6:12 PM, Luigi Semenzato wrote:
+> On Thu, Oct 24, 2013 at 5:35 PM, Olav Haugan <ohaugan@codeaurora.org> wrote:
+>> Hi Bob, Luigi,
+>>
+>> On 10/23/2013 5:55 PM, Bob Liu wrote:
+>>>
+>>> On 10/24/2013 05:51 AM, Olav Haugan wrote:
+>>
+>>> By the way, could you take a try with zswap? Which can write pages to
+>>> real swap device if compressed pool is full.
+>>
+>> zswap might not be feasible in all cases if you only have flash as
+>> backing storage.
+> 
+> Zswap can be configured to run without a backing storage.
+> 
 
-So I'm pulling them. And then I may end up doing an rc8 after all.
+I was under the impression that zswap requires a backing storage. Can
+you elaborate on how to configure zswap to not need a backing storage?
 
-                 Linus
+
+Olav Haugan
+
+-- 
+The Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
