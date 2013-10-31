@@ -1,206 +1,403 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 94A996B0036
-	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 05:07:20 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id p10so2085411pdj.39
-        for <linux-mm@kvack.org>; Thu, 31 Oct 2013 02:07:20 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.144])
-        by mx.google.com with SMTP id dj3si1212285pbc.340.2013.10.31.02.07.17
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id CAC6C6B0036
+	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 05:51:51 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id p10so2142365pdj.22
+        for <linux-mm@kvack.org>; Thu, 31 Oct 2013 02:51:51 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.128])
+        by mx.google.com with SMTP id rr7si1373416pbc.75.2013.10.31.02.51.48
         for <linux-mm@kvack.org>;
-        Thu, 31 Oct 2013 02:07:18 -0700 (PDT)
-Date: Thu, 31 Oct 2013 10:07:14 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: + mm-memcg-fix-test-for-child-groups.patch added to -mm tree
-Message-ID: <20131031090714.GD13144@dhcp22.suse.cz>
-References: <527191b6.zSpIEdNWLZ9XUQtM%akpm@linux-foundation.org>
+        Thu, 31 Oct 2013 02:51:50 -0700 (PDT)
+Received: by mail-ea0-f176.google.com with SMTP id q16so1234235ead.7
+        for <linux-mm@kvack.org>; Thu, 31 Oct 2013 02:51:46 -0700 (PDT)
+Date: Thu, 31 Oct 2013 10:51:44 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: [RFC GIT PULL] NUMA-balancing memory corruption fixes
+Message-ID: <20131031095143.GA9692@gmail.com>
+References: <1381141781-10992-1-git-send-email-mgorman@suse.de>
+ <20131024122646.GB2402@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <527191b6.zSpIEdNWLZ9XUQtM%akpm@linux-foundation.org>
+In-Reply-To: <20131024122646.GB2402@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mm-commits@vger.kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Tom Weber <l_linux-kernel@mail2news.4t2.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Wed 30-10-13 16:09:42, Andrew Morton wrote:
-> Subject: + mm-memcg-fix-test-for-child-groups.patch added to -mm tree
-> To: hannes@cmpxchg.org,mhocko@suse.cz
-> From: akpm@linux-foundation.org
-> Date: Wed, 30 Oct 2013 16:09:42 -0700
-> 
-> 
-> The patch titled
->      Subject: mm: memcg: fix test for child groups
-> has been added to the -mm tree.  Its filename is
->      mm-memcg-fix-test-for-child-groups.patch
-> 
-> This patch should soon appear at
->     http://ozlabs.org/~akpm/mmots/broken-out/mm-memcg-fix-test-for-child-groups.patch
-> and later at
->     http://ozlabs.org/~akpm/mmotm/broken-out/mm-memcg-fix-test-for-child-groups.patch
-> 
-> Before you just go and hit "reply", please:
->    a) Consider who else should be cc'ed
->    b) Prefer to cc a suitable mailing list as well
->    c) Ideally: find the original patch on the mailing list and do a
->       reply-to-all to that, adding suitable additional cc's
-> 
-> *** Remember to use Documentation/SubmitChecklist when testing your code ***
-> 
-> The -mm tree is included into linux-next and is updated
-> there every 3-4 working days
-> 
-> ------------------------------------------------------
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Subject: mm: memcg: fix test for child groups
-> 
-> When memcg code needs to know whether any given memcg has children, it
-> uses the cgroup child iteration primitives and returns true/false
-> depending on whether the iteration loop is executed at least once or not.
-> 
-> Because a cgroup's list of children is RCU protected, these primitives
-> require the RCU read-lock to be held, which is not the case for all memcg
-> callers.  This results in the following splat when e.g.  enabling
-> hierarchy mode:
-> 
-> [    3.683974] WARNING: CPU: 3 PID: 1 at /home/hannes/src/linux/linux/kernel/cgroup.c:3043 css_next_child+0xa3/0x160()
-> [    3.686266] CPU: 3 PID: 1 Comm: systemd Not tainted 3.12.0-rc5-00117-g83f11a9-dirty #18
-> [    3.688616] Hardware name: LENOVO 3680B56/3680B56, BIOS 6QET69WW (1.39 ) 04/26/2012
-> [    3.690900]  0000000000000009 ffff88013227bdc8 ffffffff8173602f 0000000000000000
-> [    3.693225]  ffff88013227be00 ffffffff81090af8 0000000000000000 ffff88013220d000
-> [    3.695606]  ffff8800b6c50028 ffff88013220d000 0000000000000000 ffff88013227be10
-> [    3.697950] Call Trace:
-> [    3.700233]  [<ffffffff8173602f>] dump_stack+0x54/0x74
-> [    3.702503]  [<ffffffff81090af8>] warn_slowpath_common+0x78/0xa0
-> [    3.704764]  [<ffffffff81090c0a>] warn_slowpath_null+0x1a/0x20
-> [    3.707009]  [<ffffffff81101173>] css_next_child+0xa3/0x160
-> [    3.709255]  [<ffffffff8118ae7b>] mem_cgroup_hierarchy_write+0x5b/0xa0
-> [    3.711497]  [<ffffffff810fe428>] cgroup_file_write+0x108/0x2a0
-> [    3.713721]  [<ffffffff8119b90d>] ? __sb_start_write+0xed/0x1b0
-> [    3.715936]  [<ffffffff811980fb>] ? vfs_write+0x1bb/0x1e0
-> [    3.718155]  [<ffffffff810b8d3f>] ? up_write+0x1f/0x40
-> [    3.720356]  [<ffffffff81197ffd>] vfs_write+0xbd/0x1e0
-> [    3.722539]  [<ffffffff8119820c>] SyS_write+0x4c/0xa0
-> [    3.724685]  [<ffffffff817400d2>] system_call_fastpath+0x16/0x1b
-> [    3.726809] ---[ end trace ec33c7d4de043d06 ]---
-> 
-> In the memcg case, we only care about children when we are attempting to
-> modify inheritable attributes interactively.  Racing with deletion could
-> mean a spurious -EBUSY, no problem.  Racing with addition is handled just
-> fine as well through the memcg_create_mutex: if the child group is not on
-> the list after the mutex is acquired, it won't be initialized from the
-> parent's attributes until after the unlock.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 
-Yes, I liked the original list_empty check much more than playing cgroup
-iteration game. The argument at the time was that we shouldn't rely on
-cgroups internals so much. I do not think that the children list will
-ever change to something else and if yes let's deal with it when it
-matters.
+Linus,
 
-That being said
-Acked-by: Michal Hocko <mhocko@suse.cz>
+* Mel Gorman <mgorman@suse.de> wrote:
 
-> ---
+> Hi Ingo,
 > 
->  mm/memcontrol.c |   35 +++++++++++------------------------
->  1 file changed, 11 insertions(+), 24 deletions(-)
-> 
-> diff -puN mm/memcontrol.c~mm-memcg-fix-test-for-child-groups mm/memcontrol.c
-> --- a/mm/memcontrol.c~mm-memcg-fix-test-for-child-groups
-> +++ a/mm/memcontrol.c
-> @@ -4959,31 +4959,18 @@ static void mem_cgroup_reparent_charges(
->  	} while (usage > 0);
->  }
->  
-> -/*
-> - * This mainly exists for tests during the setting of set of use_hierarchy.
-> - * Since this is the very setting we are changing, the current hierarchy value
-> - * is meaningless
-> - */
-> -static inline bool __memcg_has_children(struct mem_cgroup *memcg)
-> -{
-> -	struct cgroup_subsys_state *pos;
-> -
-> -	/* bounce at first found */
-> -	css_for_each_child(pos, &memcg->css)
-> -		return true;
-> -	return false;
-> -}
-> -
-> -/*
-> - * Must be called with memcg_create_mutex held, unless the cgroup is guaranteed
-> - * to be already dead (as in mem_cgroup_force_empty, for instance).  This is
-> - * from mem_cgroup_count_children(), in the sense that we don't really care how
-> - * many children we have; we only need to know if we have any.  It also counts
-> - * any memcg without hierarchy as infertile.
-> - */
->  static inline bool memcg_has_children(struct mem_cgroup *memcg)
->  {
-> -	return memcg->use_hierarchy && __memcg_has_children(memcg);
-> +	lockdep_assert_held(&memcg_create_mutex);
-> +	/*
-> +	 * The lock does not prevent addition or deletion to the list
-> +	 * of children, but it prevents a new child from being
-> +	 * initialized based on this parent in css_online(), so it's
-> +	 * enough to decide whether hierarchically inherited
-> +	 * attributes can still be changed or not.
-> +	 */
-> +	return memcg->use_hierarchy &&
-> +		!list_empty(&memcg->css.cgroup->children);
->  }
->  
->  /*
-> @@ -5063,7 +5050,7 @@ static int mem_cgroup_hierarchy_write(st
->  	 */
->  	if ((!parent_memcg || !parent_memcg->use_hierarchy) &&
->  				(val == 1 || val == 0)) {
-> -		if (!__memcg_has_children(memcg))
-> +		if (list_empty(&memcg->css.cgroup->children))
->  			memcg->use_hierarchy = val;
->  		else
->  			retval = -EBUSY;
-> _
-> 
-> Patches currently in -mm which might be from hannes@cmpxchg.org are
-> 
-> percpu-fix-this_cpu_sub-subtrahend-casting-for-unsigneds.patch
-> memcg-use-__this_cpu_sub-to-dec-stats-to-avoid-incorrect-subtrahend-casting.patch
-> mm-memcg-use-proper-memcg-in-limit-bypass.patch
-> mm-memcg-lockdep-annotation-for-memcg-oom-lock.patch
-> mm-memcg-fix-test-for-child-groups.patch
-> mm-nobootmemc-have-__free_pages_memory-free-in-larger-chunks.patch
-> memcg-refactor-mem_control_numa_stat_show.patch
-> memcg-support-hierarchical-memorynuma_stats.patch
-> memblock-factor-out-of-top-down-allocation.patch
-> memblock-introduce-bottom-up-allocation-mode.patch
-> x86-mm-factor-out-of-top-down-direct-mapping-setup.patch
-> x86-mem-hotplug-support-initialize-page-tables-in-bottom-up.patch
-> x86-acpi-crash-kdump-do-reserve_crashkernel-after-srat-is-parsed.patch
-> mem-hotplug-introduce-movable_node-boot-option.patch
-> swap-add-a-simple-detector-for-inappropriate-swapin-readahead-fix.patch
-> percpu-add-test-module-for-various-percpu-operations.patch
-> linux-next.patch
-> mm-avoid-increase-sizeofstruct-page-due-to-split-page-table-lock.patch
-> mm-rename-use_split_ptlocks-to-use_split_pte_ptlocks.patch
-> mm-convert-mm-nr_ptes-to-atomic_long_t.patch
-> mm-introduce-api-for-split-page-table-lock-for-pmd-level.patch
-> mm-thp-change-pmd_trans_huge_lock-to-return-taken-lock.patch
-> mm-thp-move-ptl-taking-inside-page_check_address_pmd.patch
-> mm-thp-do-not-access-mm-pmd_huge_pte-directly.patch
-> mm-hugetlb-convert-hugetlbfs-to-use-split-pmd-lock.patch
-> mm-convert-the-rest-to-new-page-table-lock-api.patch
-> mm-implement-split-page-table-lock-for-pmd-level.patch
-> x86-mm-enable-split-page-table-lock-for-pmd-level.patch
-> debugging-keep-track-of-page-owners-fix-2-fix-fix-fix.patch
-> 
+> Off-list we talked with Peter about the fact that automatic NUMA 
+> balancing as merged in 3.10, 3.11 and 3.12 shortly may corrupt 
+> userspace memory. [...]
 
--- 
-Michal Hocko
-SUSE Labs
+So these fixes are definitely not something I'd like to sit on, but 
+as I said to you at the KS the timing is quite tight, with Linus 
+planning v3.12-final within a week.
+
+Fedora-19 is affected:
+
+ comet:~> grep NUMA_BALANCING /boot/config-3.11.3-201.fc19.x86_64 
+
+ CONFIG_ARCH_SUPPORTS_NUMA_BALANCING=y
+ CONFIG_NUMA_BALANCING_DEFAULT_ENABLED=y
+ CONFIG_NUMA_BALANCING=y
+
+AFAICS Ubuntu will be affected as well, once it updates the kernel:
+
+ hubble:~> grep NUMA_BALANCING /boot/config-3.8.0-32-generic 
+
+ CONFIG_ARCH_SUPPORTS_NUMA_BALANCING=y
+ CONFIG_NUMA_BALANCING_DEFAULT_ENABLED=y
+ CONFIG_NUMA_BALANCING=y
+
+Linus, please consider pulling the latest core-urgent-for-linus git 
+tree from:
+
+   git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git core-urgent-for-linus
+
+   # HEAD: 0255d491848032f6c601b6410c3b8ebded3a37b1 mm: Account for a THP NUMA hinting update as one PTE update
+
+These 6 commits are a minimalized set of cherry-picks needed to fix 
+the memory corruption bugs. All commits are fixes, except "mm: numa: 
+Sanitize task_numa_fault() callsites" which is a cleanup that made 
+two followup fixes simpler.
+
+I've done targeted testing with just this SHA1 to try to make sure 
+there are no cherry-picking artifacts. The original 
+non-cherry-picked set of fixes were exposed to linux-next for a 
+couple of weeks.
+
+( If you think this is too dangerous for too little benefit then
+  I'll drop this separate tree and will send the original commits in 
+  the merge window. )
+
+ Thanks,
+
+	Ingo
+
+------------------>
+Mel Gorman (6):
+      mm: numa: Do not account for a hinting fault if we raced
+      mm: Wait for THP migrations to complete during NUMA hinting faults
+      mm: Prevent parallel splits during THP migration
+      mm: numa: Sanitize task_numa_fault() callsites
+      mm: Close races between THP migration and PMD numa clearing
+      mm: Account for a THP NUMA hinting update as one PTE update
+
+
+ mm/huge_memory.c | 70 ++++++++++++++++++++++++++++++++++++++------------------
+ mm/memory.c      | 53 +++++++++++++++++-------------------------
+ mm/migrate.c     | 19 ++++++++-------
+ mm/mprotect.c    |  2 +-
+ 4 files changed, 81 insertions(+), 63 deletions(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 610e3df..cca80d9 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1278,64 +1278,90 @@ out:
+ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 				unsigned long addr, pmd_t pmd, pmd_t *pmdp)
+ {
++	struct anon_vma *anon_vma = NULL;
+ 	struct page *page;
+ 	unsigned long haddr = addr & HPAGE_PMD_MASK;
++	int page_nid = -1, this_nid = numa_node_id();
+ 	int target_nid;
+-	int current_nid = -1;
+-	bool migrated;
++	bool page_locked;
++	bool migrated = false;
+ 
+ 	spin_lock(&mm->page_table_lock);
+ 	if (unlikely(!pmd_same(pmd, *pmdp)))
+ 		goto out_unlock;
+ 
+ 	page = pmd_page(pmd);
+-	get_page(page);
+-	current_nid = page_to_nid(page);
++	page_nid = page_to_nid(page);
+ 	count_vm_numa_event(NUMA_HINT_FAULTS);
+-	if (current_nid == numa_node_id())
++	if (page_nid == this_nid)
+ 		count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
+ 
++	/*
++	 * Acquire the page lock to serialise THP migrations but avoid dropping
++	 * page_table_lock if at all possible
++	 */
++	page_locked = trylock_page(page);
+ 	target_nid = mpol_misplaced(page, vma, haddr);
+ 	if (target_nid == -1) {
+-		put_page(page);
+-		goto clear_pmdnuma;
++		/* If the page was locked, there are no parallel migrations */
++		if (page_locked)
++			goto clear_pmdnuma;
++
++		/*
++		 * Otherwise wait for potential migrations and retry. We do
++		 * relock and check_same as the page may no longer be mapped.
++		 * As the fault is being retried, do not account for it.
++		 */
++		spin_unlock(&mm->page_table_lock);
++		wait_on_page_locked(page);
++		page_nid = -1;
++		goto out;
+ 	}
+ 
+-	/* Acquire the page lock to serialise THP migrations */
++	/* Page is misplaced, serialise migrations and parallel THP splits */
++	get_page(page);
+ 	spin_unlock(&mm->page_table_lock);
+-	lock_page(page);
++	if (!page_locked)
++		lock_page(page);
++	anon_vma = page_lock_anon_vma_read(page);
+ 
+ 	/* Confirm the PTE did not while locked */
+ 	spin_lock(&mm->page_table_lock);
+ 	if (unlikely(!pmd_same(pmd, *pmdp))) {
+ 		unlock_page(page);
+ 		put_page(page);
++		page_nid = -1;
+ 		goto out_unlock;
+ 	}
+-	spin_unlock(&mm->page_table_lock);
+ 
+-	/* Migrate the THP to the requested node */
++	/*
++	 * Migrate the THP to the requested node, returns with page unlocked
++	 * and pmd_numa cleared.
++	 */
++	spin_unlock(&mm->page_table_lock);
+ 	migrated = migrate_misplaced_transhuge_page(mm, vma,
+ 				pmdp, pmd, addr, page, target_nid);
+-	if (!migrated)
+-		goto check_same;
+-
+-	task_numa_fault(target_nid, HPAGE_PMD_NR, true);
+-	return 0;
++	if (migrated)
++		page_nid = target_nid;
+ 
+-check_same:
+-	spin_lock(&mm->page_table_lock);
+-	if (unlikely(!pmd_same(pmd, *pmdp)))
+-		goto out_unlock;
++	goto out;
+ clear_pmdnuma:
++	BUG_ON(!PageLocked(page));
+ 	pmd = pmd_mknonnuma(pmd);
+ 	set_pmd_at(mm, haddr, pmdp, pmd);
+ 	VM_BUG_ON(pmd_numa(*pmdp));
+ 	update_mmu_cache_pmd(vma, addr, pmdp);
++	unlock_page(page);
+ out_unlock:
+ 	spin_unlock(&mm->page_table_lock);
+-	if (current_nid != -1)
+-		task_numa_fault(current_nid, HPAGE_PMD_NR, false);
++
++out:
++	if (anon_vma)
++		page_unlock_anon_vma_read(anon_vma);
++
++	if (page_nid != -1)
++		task_numa_fault(page_nid, HPAGE_PMD_NR, migrated);
++
+ 	return 0;
+ }
+ 
+diff --git a/mm/memory.c b/mm/memory.c
+index 1311f26..d176154 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3521,12 +3521,12 @@ static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ }
+ 
+ int numa_migrate_prep(struct page *page, struct vm_area_struct *vma,
+-				unsigned long addr, int current_nid)
++				unsigned long addr, int page_nid)
+ {
+ 	get_page(page);
+ 
+ 	count_vm_numa_event(NUMA_HINT_FAULTS);
+-	if (current_nid == numa_node_id())
++	if (page_nid == numa_node_id())
+ 		count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
+ 
+ 	return mpol_misplaced(page, vma, addr);
+@@ -3537,7 +3537,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ {
+ 	struct page *page = NULL;
+ 	spinlock_t *ptl;
+-	int current_nid = -1;
++	int page_nid = -1;
+ 	int target_nid;
+ 	bool migrated = false;
+ 
+@@ -3567,15 +3567,10 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		return 0;
+ 	}
+ 
+-	current_nid = page_to_nid(page);
+-	target_nid = numa_migrate_prep(page, vma, addr, current_nid);
++	page_nid = page_to_nid(page);
++	target_nid = numa_migrate_prep(page, vma, addr, page_nid);
+ 	pte_unmap_unlock(ptep, ptl);
+ 	if (target_nid == -1) {
+-		/*
+-		 * Account for the fault against the current node if it not
+-		 * being replaced regardless of where the page is located.
+-		 */
+-		current_nid = numa_node_id();
+ 		put_page(page);
+ 		goto out;
+ 	}
+@@ -3583,11 +3578,11 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	/* Migrate to the requested node */
+ 	migrated = migrate_misplaced_page(page, target_nid);
+ 	if (migrated)
+-		current_nid = target_nid;
++		page_nid = target_nid;
+ 
+ out:
+-	if (current_nid != -1)
+-		task_numa_fault(current_nid, 1, migrated);
++	if (page_nid != -1)
++		task_numa_fault(page_nid, 1, migrated);
+ 	return 0;
+ }
+ 
+@@ -3602,7 +3597,6 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	unsigned long offset;
+ 	spinlock_t *ptl;
+ 	bool numa = false;
+-	int local_nid = numa_node_id();
+ 
+ 	spin_lock(&mm->page_table_lock);
+ 	pmd = *pmdp;
+@@ -3625,9 +3619,10 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	for (addr = _addr + offset; addr < _addr + PMD_SIZE; pte++, addr += PAGE_SIZE) {
+ 		pte_t pteval = *pte;
+ 		struct page *page;
+-		int curr_nid = local_nid;
++		int page_nid = -1;
+ 		int target_nid;
+-		bool migrated;
++		bool migrated = false;
++
+ 		if (!pte_present(pteval))
+ 			continue;
+ 		if (!pte_numa(pteval))
+@@ -3649,25 +3644,19 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		if (unlikely(page_mapcount(page) != 1))
+ 			continue;
+ 
+-		/*
+-		 * Note that the NUMA fault is later accounted to either
+-		 * the node that is currently running or where the page is
+-		 * migrated to.
+-		 */
+-		curr_nid = local_nid;
+-		target_nid = numa_migrate_prep(page, vma, addr,
+-					       page_to_nid(page));
+-		if (target_nid == -1) {
++		page_nid = page_to_nid(page);
++		target_nid = numa_migrate_prep(page, vma, addr, page_nid);
++		pte_unmap_unlock(pte, ptl);
++		if (target_nid != -1) {
++			migrated = migrate_misplaced_page(page, target_nid);
++			if (migrated)
++				page_nid = target_nid;
++		} else {
+ 			put_page(page);
+-			continue;
+ 		}
+ 
+-		/* Migrate to the requested node */
+-		pte_unmap_unlock(pte, ptl);
+-		migrated = migrate_misplaced_page(page, target_nid);
+-		if (migrated)
+-			curr_nid = target_nid;
+-		task_numa_fault(curr_nid, 1, migrated);
++		if (page_nid != -1)
++			task_numa_fault(page_nid, 1, migrated);
+ 
+ 		pte = pte_offset_map_lock(mm, pmdp, addr, &ptl);
+ 	}
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 7a7325e..c046927 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1715,12 +1715,12 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 		unlock_page(new_page);
+ 		put_page(new_page);		/* Free it */
+ 
+-		unlock_page(page);
++		/* Retake the callers reference and putback on LRU */
++		get_page(page);
+ 		putback_lru_page(page);
+-
+-		count_vm_events(PGMIGRATE_FAIL, HPAGE_PMD_NR);
+-		isolated = 0;
+-		goto out;
++		mod_zone_page_state(page_zone(page),
++			 NR_ISOLATED_ANON + page_lru, -HPAGE_PMD_NR);
++		goto out_fail;
+ 	}
+ 
+ 	/*
+@@ -1737,9 +1737,9 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+ 	entry = pmd_mkhuge(entry);
+ 
+-	page_add_new_anon_rmap(new_page, vma, haddr);
+-
++	pmdp_clear_flush(vma, haddr, pmd);
+ 	set_pmd_at(mm, haddr, pmd, entry);
++	page_add_new_anon_rmap(new_page, vma, haddr);
+ 	update_mmu_cache_pmd(vma, address, &entry);
+ 	page_remove_rmap(page);
+ 	/*
+@@ -1758,7 +1758,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 	count_vm_events(PGMIGRATE_SUCCESS, HPAGE_PMD_NR);
+ 	count_vm_numa_events(NUMA_PAGE_MIGRATE, HPAGE_PMD_NR);
+ 
+-out:
+ 	mod_zone_page_state(page_zone(page),
+ 			NR_ISOLATED_ANON + page_lru,
+ 			-HPAGE_PMD_NR);
+@@ -1767,6 +1766,10 @@ out:
+ out_fail:
+ 	count_vm_events(PGMIGRATE_FAIL, HPAGE_PMD_NR);
+ out_dropref:
++	entry = pmd_mknonnuma(entry);
++	set_pmd_at(mm, haddr, pmd, entry);
++	update_mmu_cache_pmd(vma, address, &entry);
++
+ 	unlock_page(page);
+ 	put_page(page);
+ 	return 0;
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index a3af058..412ba2b 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -148,7 +148,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+ 				split_huge_page_pmd(vma, addr, pmd);
+ 			else if (change_huge_pmd(vma, pmd, addr, newprot,
+ 						 prot_numa)) {
+-				pages += HPAGE_PMD_NR;
++				pages++;
+ 				continue;
+ 			}
+ 			/* fall through */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
