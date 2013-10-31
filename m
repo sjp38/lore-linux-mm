@@ -1,137 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 265A26B0035
-	for <linux-mm@kvack.org>; Wed, 30 Oct 2013 21:39:21 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id fa1so1808370pad.27
-        for <linux-mm@kvack.org>; Wed, 30 Oct 2013 18:39:20 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.122])
-        by mx.google.com with SMTP id gv2si399567pbb.341.2013.10.30.18.39.19
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 318FA6B0035
+	for <linux-mm@kvack.org>; Wed, 30 Oct 2013 22:14:53 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id x10so1797670pdj.23
+        for <linux-mm@kvack.org>; Wed, 30 Oct 2013 19:14:52 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.135])
+        by mx.google.com with SMTP id ll9si808528pab.182.2013.10.30.19.14.50
         for <linux-mm@kvack.org>;
-        Wed, 30 Oct 2013 18:39:20 -0700 (PDT)
-Received: by mail-pb0-f42.google.com with SMTP id jt11so2221758pbb.1
-        for <linux-mm@kvack.org>; Wed, 30 Oct 2013 18:39:18 -0700 (PDT)
-Date: Wed, 30 Oct 2013 18:39:16 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, memcg: add memory.oom_control notification for system
- oom
-Message-ID: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com>
+        Wed, 30 Oct 2013 19:14:52 -0700 (PDT)
+Message-ID: <5271BD15.4050008@codeaurora.org>
+Date: Wed, 30 Oct 2013 19:14:45 -0700
+From: Laura Abbott <lauraa@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] mm: cma: free cma page to buddy instead of being cpu
+ hot page
+References: <1382960569-6564-1-git-send-email-zhang.mingjun@linaro.org> <20131029093322.GA2400@suse.de> <CAGT3LergVJ1XXCrVD3XeRpRCXehn9gLb7BRHHyjyseKBz39pMg@mail.gmail.com> <20131029122708.GD2400@suse.de> <CAGT3LerfYfgdkDd=LnuA8y7SUjOSTbw-HddbuzQ=O3yw-vtnnQ@mail.gmail.com> <526FDECB.7020201@codeaurora.org> <20131030054006.GF17013@bbox>
+In-Reply-To: <20131030054006.GF17013@bbox>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Zhang Mingjun <zhang.mingjun@linaro.org>, Mel Gorman <mgorman@suse.de>, Marek Szyprowski <m.szyprowski@samsung.com>, akpm@linux-foundation.org, Haojian Zhuang <haojian.zhuang@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, troy.zhangmingjun@huawei.com
 
-A subset of applications that wait on memory.oom_control don't disable
-the oom killer for that memcg and simply log or cleanup after the kernel
-oom killer kills a process to free memory.
+On 10/29/2013 10:40 PM, Minchan Kim wrote:
+>>
+>> We've had a similar patch in our tree for a year and a half because
+>> of CMA migration failures, not just for a speedup in allocation
+>> time. I understand that CMA is not the fast case or the general use
+>> case but the problem is that the cost of CMA failure is very high
+>> (complete failure of the feature using CMA). Putting CMA on the PCP
+>> lists means they may be picked up by users who temporarily make the
+>> movable pages unmovable (page cache etc.) which prevents the
+>> allocation from succeeding. The problem still exists even if the CMA
+>> pages are not on the PCP list but the window gets slightly smaller.
+>
+> I understand that I have seen many people want to use CMA have tweaked
+> their system to work well and although they do best effort, it doesn't
+> work well because CMA doesn't gaurantee to succeed in getting free
+> space since there are lots of hurdle. (get_user_pages, AIO ring buffer,
+> buffer cache, short of free memory for migration, no swap and so on).
+> Even, someone want to allocate CMA space with speedy. SIGH.
+>
+> Yeah, at the moment, CMA is really SUCK.
+>
 
-We need the ability to do this for system oom conditions as well, i.e.
-when the system is depleted of all memory and must kill a process.  For
-convenience, this can use memcg since oom notifiers are already present.
+Yes, without hacks there are enough issues where it makes more sense to 
+turn off CMA in some cases.
 
-When a userspace process waits on the root memcg's memory.oom_control, it
-will wake up anytime there is a system oom condition so that it can log
-the event, including what process was killed and the stack, or cleanup
-after the kernel oom killer has killed something.
+>>
+>> This really highlights one of the biggest issues with CMA today.
+>> Movable pages make return -EBUSY for any number of reasons. For
+>> non-CMA pages this is mostly fine, another movable page may be
+>> substituted for the movable page that is busy. CMA is a restricted
+>> range though so any failure in that range is very costly because CMA
+>> regions are generally sized exactly for the use cases at hand which
+>> means there is very little extra space for retries.
+>>
+>> To make CMA actually usable, we've had to go through and add in
+>> hacks/quirks that prevent CMA from being allocated in any path which
+>> may prevent migration. I've been mixed on if this is the right path
+>> or if the definition of MIGRATE_CMA needs to be changed to be more
+>> restrictive (can't prevent migration).
+>
+> Fundamental problem is that every subsystem could grab a page anytime
+> and they doesn't gaurantee to release it soonish or within time CMA
+> user want so it turns out non-determisitic mess which just hook into
+> core MM system here and there.
+>
+> Sometime, I see some people try to solve it case by case with ad-hoc
+> approach. I guess it would be never ending story as kernel evolves.
+>
+> I suggest that we could make new wheel with frontswap/cleancache stuff.
+> The idea is that pages in frontswap/cleancache are evicted from kernel
+> POV so that we can gaurantee that there is no chance to grab a page
+> in CMA area and we could remove lots of hook from core MM which just
+> complicated MM without benefit.
+>
+> As benefit, cleancache pages could drop easily so it would be fast
+> to get free space but frontswap cache pages should be move into somewhere.
+> If there are enough free pages, it could be migrated out there. Optionally
+> we could compress them. Otherwise, we could pageout them into backed device.
+> Yeah, it could be slow than migration but at least, we could estimate the time
+> by storage speed ideally so we could have tunable knob. If someone want
+> fast CMA, he could control it with ratio of cleancache:frontswap.
+> IOW, higher frontswap page ratio is, slower the speed would be.
+> Important thing is admin could have tuned control knob and it gaurantees to
+> get CMA free space with deterministic time.
+>
 
-This is a special case of oom notifiers since it doesn't subsequently
-notify all memcgs under the root memcg (all memcgs on the system).  We
-don't want to trigger those oom handlers which are set aside specifically
-for true memcg oom notifications that disable their own oom killers to
-enforce their own oom policy, for example.
+Before CMA was available, we attempted to do something similar with 
+carved out memory where we hooked up the carveout to tmem and 
+cleancache. The feature never really went anywhere because we saw 
+impacts on file system benchmarks (too much time copying data to 
+carveout memory). The feature has long been deprecated and we never 
+debugged too far. Admittedly, this was many kernel versions ago and with 
+a backport of various patches to an older kernel so I'd take our results 
+with a grain of salt.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- Documentation/cgroups/memory.txt | 11 ++++++-----
- include/linux/memcontrol.h       |  5 +++++
- mm/memcontrol.c                  |  9 +++++++++
- mm/oom_kill.c                    |  4 ++++
- 4 files changed, 24 insertions(+), 5 deletions(-)
+> As drawback, if we fail to tune the ratio, memeory efficieny would be
+> bad so that it ends up thrashing but you guys is saying we have been
+> used CMA without movable fallback which means that it's already static
+> reserved memory and it's never CMA so you already have lost memory
+> efficiency and even fail to get a space so I think it's good trade-off
+> for embedded people.
+>
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -739,18 +739,19 @@ delivery and gets notification when OOM happens.
- 
- To register a notifier, an application must:
-  - create an eventfd using eventfd(2)
-- - open memory.oom_control file
-+ - open memory.oom_control file for reading
-  - write string like "<event_fd> <fd of memory.oom_control>" to
-    cgroup.event_control
- 
--The application will be notified through eventfd when OOM happens.
--OOM notification doesn't work for the root cgroup.
-+The application will be notified through eventfd when OOM happens, including
-+on system oom when used with the root memcg.
- 
- You can disable the OOM-killer by writing "1" to memory.oom_control file, as:
- 
--	#echo 1 > memory.oom_control
-+	# echo 1 > memory.oom_control
- 
--This operation is only allowed to the top cgroup of a sub-hierarchy.
-+This operation is only allowed to the top cgroup of a sub-hierarchy and does
-+not include the root memcg.
- If OOM-killer is disabled, tasks under cgroup will hang/sleep
- in memory cgroup's OOM-waitqueue when they request accountable memory.
- 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -155,6 +155,7 @@ static inline bool task_in_memcg_oom(struct task_struct *p)
- }
- 
- bool mem_cgroup_oom_synchronize(bool wait);
-+void mem_cgroup_root_oom_notify(void);
- 
- #ifdef CONFIG_MEMCG_SWAP
- extern int do_swap_account;
-@@ -397,6 +398,10 @@ static inline bool mem_cgroup_oom_synchronize(bool wait)
- 	return false;
- }
- 
-+static inline void mem_cgroup_root_oom_notify(void)
-+{
-+}
-+
- static inline void mem_cgroup_inc_page_stat(struct page *page,
- 					    enum mem_cgroup_stat_index idx)
- {
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5641,6 +5641,15 @@ static void mem_cgroup_oom_notify(struct mem_cgroup *memcg)
- 		mem_cgroup_oom_notify_cb(iter);
- }
- 
-+/*
-+ * Notify any process waiting on the root memcg's memory.oom_control, but do not
-+ * notify any child memcgs to avoid triggering their per-memcg oom handlers.
-+ */
-+void mem_cgroup_root_oom_notify(void)
-+{
-+	mem_cgroup_oom_notify_cb(root_mem_cgroup);
-+}
-+
- static int mem_cgroup_usage_register_event(struct cgroup_subsys_state *css,
- 	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
- {
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -632,6 +632,10 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
- 		return;
- 	}
- 
-+	/* Avoid waking up processes for oom kills triggered by sysrq */
-+	if (!force_kill)
-+		mem_cgroup_root_oom_notify();
-+
- 	/*
- 	 * Check if there were limitations on the allocation (only relevant for
- 	 * NUMA) that may require different handling.
+Agreed. It really should be a policy decision how much effort to put 
+into getting CMA pages. There isn't a nice way to do this now.
+
+> If anyone has interest the idea, I will move into that.
+> If it sounds crazy idea, feel free to ignore, please.
+>
+
+I'm interested in the idea with the warning noted above.
+
+Thanks,
+Laura
+
+-- 
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
