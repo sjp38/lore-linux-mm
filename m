@@ -1,44 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id B09806B0035
-	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 04:37:14 -0400 (EDT)
-Received: by mail-pb0-f53.google.com with SMTP id up7so2484475pbc.26
-        for <linux-mm@kvack.org>; Thu, 31 Oct 2013 01:37:14 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.126])
-        by mx.google.com with SMTP id ei3si1148467pbc.230.2013.10.31.01.37.12
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 307156B0037
+	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 04:50:24 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id y10so2066676pdj.24
+        for <linux-mm@kvack.org>; Thu, 31 Oct 2013 01:50:23 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.194])
+        by mx.google.com with SMTP id c9si1211667pbj.52.2013.10.31.01.50.21
         for <linux-mm@kvack.org>;
-        Thu, 31 Oct 2013 01:37:12 -0700 (PDT)
-Date: Thu, 31 Oct 2013 09:37:07 +0100
+        Thu, 31 Oct 2013 01:50:22 -0700 (PDT)
+Date: Thu, 31 Oct 2013 09:50:17 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: + mm-memcg-use-proper-memcg-in-limit-bypass.patch added to -mm
- tree
-Message-ID: <20131031083707.GA13144@dhcp22.suse.cz>
-References: <5271845f.Z9YgMQjBJAhXMdBZ%akpm@linux-foundation.org>
+Subject: Re: + mm-memcg-lockdep-annotation-for-memcg-oom-lock.patch added to
+ -mm tree
+Message-ID: <20131031085017.GB13144@dhcp22.suse.cz>
+References: <52718460.4+rPcYBdFtC2v3uh%akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5271845f.Z9YgMQjBJAhXMdBZ%akpm@linux-foundation.org>
+In-Reply-To: <52718460.4+rPcYBdFtC2v3uh%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: mm-commits@vger.kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
 
-On Wed 30-10-13 15:12:47, Andrew Morton wrote:
-> Subject: + mm-memcg-use-proper-memcg-in-limit-bypass.patch added to -mm tree
+On Wed 30-10-13 15:12:48, Andrew Morton wrote:
+> Subject: + mm-memcg-lockdep-annotation-for-memcg-oom-lock.patch added to -mm tree
 > To: hannes@cmpxchg.org,mhocko@suse.cz
 > From: akpm@linux-foundation.org
-> Date: Wed, 30 Oct 2013 15:12:47 -0700
+> Date: Wed, 30 Oct 2013 15:12:48 -0700
 > 
 > 
 > The patch titled
->      Subject: mm: memcg: use proper memcg in limit bypass
+>      Subject: mm: memcg: lockdep annotation for memcg OOM lock
 > has been added to the -mm tree.  Its filename is
->      mm-memcg-use-proper-memcg-in-limit-bypass.patch
+>      mm-memcg-lockdep-annotation-for-memcg-oom-lock.patch
 > 
 > This patch should soon appear at
->     http://ozlabs.org/~akpm/mmots/broken-out/mm-memcg-use-proper-memcg-in-limit-bypass.patch
+>     http://ozlabs.org/~akpm/mmots/broken-out/mm-memcg-lockdep-annotation-for-memcg-oom-lock.patch
 > and later at
->     http://ozlabs.org/~akpm/mmotm/broken-out/mm-memcg-use-proper-memcg-in-limit-bypass.patch
+>     http://ozlabs.org/~akpm/mmotm/broken-out/mm-memcg-lockdep-annotation-for-memcg-oom-lock.patch
 > 
 > Before you just go and hit "reply", please:
 >    a) Consider who else should be cc'ed
@@ -53,49 +53,65 @@ On Wed 30-10-13 15:12:47, Andrew Morton wrote:
 > 
 > ------------------------------------------------------
 > From: Johannes Weiner <hannes@cmpxchg.org>
-> Subject: mm: memcg: use proper memcg in limit bypass
+> Subject: mm: memcg: lockdep annotation for memcg OOM lock
 > 
-> 84235de ("fs: buffer: move allocation failure loop into the allocator")
-> allowed __GFP_NOFAIL allocations to bypass the limit if they fail to
-> reclaim enough memory for the charge.  Because the main test case was on a
-> 3.2-based system, this patch missed the fact that on newer kernels the
-> charge function needs to return root_mem_cgroup when bypassing the limit,
-> and not NULL.  This will corrupt whatever memory is at NULL + percpu
-> pointer offset.  Fix this quickly before problems are reported.
-> 
+> The memcg OOM lock is a mutex-type lock that is open-coded due to memcg's
+> special needs.  Add annotations for lockdep coverage.
+
+I am not sure what this gives us to be honest. AA and AB-BA deadlocks
+are impossible due to nature of the lock (it is trylock so we never
+block on it).
+
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 > Cc: Michal Hocko <mhocko@suse.cz>
 > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-I guess this should be marked for stable as 84235de has been marked so.
-It would be also nice to mention that bypass with root_mem_cgroup
-happened at 3.3 times (it was done by 38c5d72f3ebe5 AFAICS).
-
 > ---
 > 
->  mm/memcontrol.c |    8 ++++----
->  1 file changed, 4 insertions(+), 4 deletions(-)
+>  mm/memcontrol.c |   11 ++++++++++-
+>  1 file changed, 10 insertions(+), 1 deletion(-)
 > 
-> diff -puN mm/memcontrol.c~mm-memcg-use-proper-memcg-in-limit-bypass mm/memcontrol.c
-> --- a/mm/memcontrol.c~mm-memcg-use-proper-memcg-in-limit-bypass
+> diff -puN mm/memcontrol.c~mm-memcg-lockdep-annotation-for-memcg-oom-lock mm/memcontrol.c
+> --- a/mm/memcontrol.c~mm-memcg-lockdep-annotation-for-memcg-oom-lock
 > +++ a/mm/memcontrol.c
-> @@ -2765,10 +2765,10 @@ done:
->  	*ptr = memcg;
->  	return 0;
->  nomem:
-> -	*ptr = NULL;
-> -	if (gfp_mask & __GFP_NOFAIL)
-> -		return 0;
-> -	return -ENOMEM;
-> +	if (!(gfp_mask & __GFP_NOFAIL)) {
-> +		*ptr = NULL;
-> +		return -ENOMEM;
-> +	}
->  bypass:
->  	*ptr = root_mem_cgroup;
->  	return -EINTR;
+> @@ -54,6 +54,7 @@
+>  #include <linux/page_cgroup.h>
+>  #include <linux/cpu.h>
+>  #include <linux/oom.h>
+> +#include <linux/lockdep.h>
+>  #include "internal.h"
+>  #include <net/sock.h>
+>  #include <net/ip.h>
+> @@ -2046,6 +2047,12 @@ static int mem_cgroup_soft_reclaim(struc
+>  	return total;
+>  }
+>  
+> +#ifdef CONFIG_LOCKDEP
+> +static struct lockdep_map memcg_oom_lock_dep_map = {
+> +	.name = "memcg_oom_lock",
+> +};
+> +#endif
+> +
+>  static DEFINE_SPINLOCK(memcg_oom_lock);
+>  
+>  /*
+> @@ -2083,7 +2090,8 @@ static bool mem_cgroup_oom_trylock(struc
+>  			}
+>  			iter->oom_lock = false;
+>  		}
+> -	}
+> +	} else
+> +		mutex_acquire(&memcg_oom_lock_dep_map, 0, 1, _RET_IP_);
+>  
+>  	spin_unlock(&memcg_oom_lock);
+>  
+> @@ -2095,6 +2103,7 @@ static void mem_cgroup_oom_unlock(struct
+>  	struct mem_cgroup *iter;
+>  
+>  	spin_lock(&memcg_oom_lock);
+> +	mutex_release(&memcg_oom_lock_dep_map, 1, _RET_IP_);
+>  	for_each_mem_cgroup_tree(iter, memcg)
+>  		iter->oom_lock = false;
+>  	spin_unlock(&memcg_oom_lock);
 > _
 > 
 > Patches currently in -mm which might be from hannes@cmpxchg.org are
