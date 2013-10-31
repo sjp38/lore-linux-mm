@@ -1,34 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id C476B6B0035
-	for <linux-mm@kvack.org>; Wed, 30 Oct 2013 22:40:59 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so1856150pad.30
-        for <linux-mm@kvack.org>; Wed, 30 Oct 2013 19:40:59 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.190])
-        by mx.google.com with SMTP id mj9si877000pab.103.2013.10.30.19.40.57
+Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E76B6B0035
+	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 00:24:59 -0400 (EDT)
+Received: by mail-ie0-f178.google.com with SMTP id x13so4093274ief.9
+        for <linux-mm@kvack.org>; Wed, 30 Oct 2013 21:24:59 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.173])
+        by mx.google.com with SMTP id je4si1388704icb.100.2013.10.30.21.24.57
         for <linux-mm@kvack.org>;
-        Wed, 30 Oct 2013 19:40:57 -0700 (PDT)
-Received: by mail-pa0-f52.google.com with SMTP id bj1so1850099pad.39
-        for <linux-mm@kvack.org>; Wed, 30 Oct 2013 19:40:56 -0700 (PDT)
-Date: Wed, 30 Oct 2013 19:40:54 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 3/3] memcg, kmem: use cache_from_memcg_idx instead of
- hard code
-In-Reply-To: <1382527875-10112-4-git-send-email-h.huangqiang@huawei.com>
-Message-ID: <alpine.DEB.2.02.1310301940400.18783@chino.kir.corp.google.com>
-References: <1382527875-10112-1-git-send-email-h.huangqiang@huawei.com> <1382527875-10112-4-git-send-email-h.huangqiang@huawei.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Wed, 30 Oct 2013 21:24:58 -0700 (PDT)
+Received: by mail-ea0-f180.google.com with SMTP id l9so915066eaj.11
+        for <linux-mm@kvack.org>; Wed, 30 Oct 2013 21:24:55 -0700 (PDT)
+From: kosaki.motohiro@gmail.com
+Subject: [PATCH] mm: __rmqueue_fallback() should respect pageblock type
+Date: Thu, 31 Oct 2013 00:24:49 -0400
+Message-Id: <1383193489-27331-1-git-send-email-kosaki.motohiro@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Qiang Huang <h.huangqiang@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, hannes@cmpxchg.org, mhocko@suse.cz, cl@linux-foundation.org, penberg@kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, lizefan@huawei.com
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>
 
-On Wed, 23 Oct 2013, Qiang Huang wrote:
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-> Signed-off-by: Qiang Huang <h.huangqiang@huawei.com>
+When __rmqueue_fallback() don't find out a free block with the same size
+of required, it splits a larger page and puts back rest peiece of the page
+to free list.
 
-Acked-by: David Rientjes <rientjes@google.com>
+But it has one serious mistake. When putting back, __rmqueue_fallback()
+always use start_migratetype if type is not CMA. However, __rmqueue_fallback()
+is only called when all of start_migratetype queue are empty. That said,
+__rmqueue_fallback always put back memory to wrong queue except
+try_to_steal_freepages() changed pageblock type (i.e. requested size is
+smaller than half of page block). Finally, antifragmentation framework
+increase fragmenation instead of decrease.
+
+Mel's original anti fragmentation do the right thing. But commit 47118af076
+(mm: mmzone: MIGRATE_CMA migration type added) broke it.
+
+This patch restores sane and old behavior.
+
+Cc: Mel Gorman <mgorman@suse.de>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/page_alloc.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index dd886fa..ea7bb9a 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1101,7 +1101,7 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ 			 */
+ 			expand(zone, page, order, current_order, area,
+ 			       is_migrate_cma(migratetype)
+-			     ? migratetype : start_migratetype);
++			     ? migratetype : new_type);
+ 
+ 			trace_mm_page_alloc_extfrag(page, order,
+ 				current_order, start_migratetype, migratetype,
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
