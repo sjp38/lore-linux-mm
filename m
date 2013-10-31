@@ -1,83 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f79.google.com (mail-oa0-f79.google.com [209.85.219.79])
-	by kanga.kvack.org (Postfix) with ESMTP id 51C8A6B003A
-	for <linux-mm@kvack.org>; Fri,  1 Nov 2013 10:09:46 -0400 (EDT)
-Received: by mail-oa0-f79.google.com with SMTP id k14so140645oag.2
-        for <linux-mm@kvack.org>; Fri, 01 Nov 2013 07:09:46 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.156])
-        by mx.google.com with SMTP id ru9si2015561pbc.318.2013.10.31.07.16.59
+Received: from mail-ie0-f205.google.com (mail-ie0-f205.google.com [209.85.223.205])
+	by kanga.kvack.org (Postfix) with ESMTP id 991526B003D
+	for <linux-mm@kvack.org>; Fri,  1 Nov 2013 10:09:54 -0400 (EDT)
+Received: by mail-ie0-f205.google.com with SMTP id tp5so140167ieb.8
+        for <linux-mm@kvack.org>; Fri, 01 Nov 2013 07:09:54 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.152])
+        by mx.google.com with SMTP id t2si769776pbq.68.2013.10.30.22.52.32
         for <linux-mm@kvack.org>;
-        Thu, 31 Oct 2013 07:17:00 -0700 (PDT)
-Date: Thu, 31 Oct 2013 10:14:09 -0400
+        Wed, 30 Oct 2013 22:52:33 -0700 (PDT)
+Date: Thu, 31 Oct 2013 01:49:42 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: + mm-memcg-use-proper-memcg-in-limit-bypass.patch added to -mm
- tree
-Message-ID: <20131031141409.GD14054@cmpxchg.org>
-References: <5271845f.Z9YgMQjBJAhXMdBZ%akpm@linux-foundation.org>
- <20131031083707.GA13144@dhcp22.suse.cz>
+Subject: Re: [patch] mm, memcg: add memory.oom_control notification for
+ system oom
+Message-ID: <20131031054942.GA26301@cmpxchg.org>
+References: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131031083707.GA13144@dhcp22.suse.cz>
+In-Reply-To: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Thu, Oct 31, 2013 at 09:37:07AM +0100, Michal Hocko wrote:
-> On Wed 30-10-13 15:12:47, Andrew Morton wrote:
-> > Subject: + mm-memcg-use-proper-memcg-in-limit-bypass.patch added to -mm tree
-> > To: hannes@cmpxchg.org,mhocko@suse.cz
-> > From: akpm@linux-foundation.org
-> > Date: Wed, 30 Oct 2013 15:12:47 -0700
-> > 
-> > 
-> > The patch titled
-> >      Subject: mm: memcg: use proper memcg in limit bypass
-> > has been added to the -mm tree.  Its filename is
-> >      mm-memcg-use-proper-memcg-in-limit-bypass.patch
-> > 
-> > This patch should soon appear at
-> >     http://ozlabs.org/~akpm/mmots/broken-out/mm-memcg-use-proper-memcg-in-limit-bypass.patch
-> > and later at
-> >     http://ozlabs.org/~akpm/mmotm/broken-out/mm-memcg-use-proper-memcg-in-limit-bypass.patch
-> > 
-> > Before you just go and hit "reply", please:
-> >    a) Consider who else should be cc'ed
-> >    b) Prefer to cc a suitable mailing list as well
-> >    c) Ideally: find the original patch on the mailing list and do a
-> >       reply-to-all to that, adding suitable additional cc's
-> > 
-> > *** Remember to use Documentation/SubmitChecklist when testing your code ***
-> > 
-> > The -mm tree is included into linux-next and is updated
-> > there every 3-4 working days
-> > 
-> > ------------------------------------------------------
-> > From: Johannes Weiner <hannes@cmpxchg.org>
-> > Subject: mm: memcg: use proper memcg in limit bypass
-> > 
-> > 84235de ("fs: buffer: move allocation failure loop into the allocator")
-> > allowed __GFP_NOFAIL allocations to bypass the limit if they fail to
-> > reclaim enough memory for the charge.  Because the main test case was on a
-> > 3.2-based system, this patch missed the fact that on newer kernels the
-> > charge function needs to return root_mem_cgroup when bypassing the limit,
-> > and not NULL.  This will corrupt whatever memory is at NULL + percpu
-> > pointer offset.  Fix this quickly before problems are reported.
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Michal Hocko <mhocko@suse.cz>
-> > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+On Wed, Oct 30, 2013 at 06:39:16PM -0700, David Rientjes wrote:
+> A subset of applications that wait on memory.oom_control don't disable
+> the oom killer for that memcg and simply log or cleanup after the kernel
+> oom killer kills a process to free memory.
 > 
-> Acked-by: Michal Hocko <mhocko@suse.cz>
+> We need the ability to do this for system oom conditions as well, i.e.
+> when the system is depleted of all memory and must kill a process.  For
+> convenience, this can use memcg since oom notifiers are already present.
 > 
-> I guess this should be marked for stable as 84235de has been marked so.
-> It would be also nice to mention that bypass with root_mem_cgroup
-> happened at 3.3 times (it was done by 38c5d72f3ebe5 AFAICS).
+> When a userspace process waits on the root memcg's memory.oom_control, it
+> will wake up anytime there is a system oom condition so that it can log
+> the event, including what process was killed and the stack, or cleanup
+> after the kernel oom killer has killed something.
+> 
+> This is a special case of oom notifiers since it doesn't subsequently
+> notify all memcgs under the root memcg (all memcgs on the system).  We
+> don't want to trigger those oom handlers which are set aside specifically
+> for true memcg oom notifications that disable their own oom killers to
+> enforce their own oom policy, for example.
 
-I recalled the stable tag for the other patch, will send the full
-series to stable once those patches have been in a release for some
-time.
+There is nothing they can do anyway since the handler is hardcoded for
+the root cgroup, so this seems fine.
+
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -155,6 +155,7 @@ static inline bool task_in_memcg_oom(struct task_struct *p)
+>  }
+>  
+>  bool mem_cgroup_oom_synchronize(bool wait);
+> +void mem_cgroup_root_oom_notify(void);
+>  
+>  #ifdef CONFIG_MEMCG_SWAP
+>  extern int do_swap_account;
+> @@ -397,6 +398,10 @@ static inline bool mem_cgroup_oom_synchronize(bool wait)
+>  	return false;
+>  }
+>  
+> +static inline void mem_cgroup_root_oom_notify(void)
+> +{
+> +}
+> +
+>  static inline void mem_cgroup_inc_page_stat(struct page *page,
+>  					    enum mem_cgroup_stat_index idx)
+>  {
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5641,6 +5641,15 @@ static void mem_cgroup_oom_notify(struct mem_cgroup *memcg)
+>  		mem_cgroup_oom_notify_cb(iter);
+>  }
+>  
+> +/*
+> + * Notify any process waiting on the root memcg's memory.oom_control, but do not
+> + * notify any child memcgs to avoid triggering their per-memcg oom handlers.
+> + */
+> +void mem_cgroup_root_oom_notify(void)
+> +{
+> +	mem_cgroup_oom_notify_cb(root_mem_cgroup);
+> +}
+> +
+>  static int mem_cgroup_usage_register_event(struct cgroup_subsys_state *css,
+>  	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
+>  {
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -632,6 +632,10 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+>  		return;
+>  	}
+>  
+> +	/* Avoid waking up processes for oom kills triggered by sysrq */
+> +	if (!force_kill)
+> +		mem_cgroup_root_oom_notify();
+
+We have an API for global OOM notifications, please just use
+register_oom_notifier() instead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
