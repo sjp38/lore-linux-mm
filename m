@@ -1,63 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E6366B0037
-	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 08:55:27 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id w10so2334725pde.17
-        for <linux-mm@kvack.org>; Thu, 31 Oct 2013 05:55:27 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.134])
-        by mx.google.com with SMTP id ud7si2171047pac.62.2013.10.31.05.55.26
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id EE3C06B0036
+	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 11:36:31 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id p10so2519674pdj.25
+        for <linux-mm@kvack.org>; Thu, 31 Oct 2013 08:36:31 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.153])
+        by mx.google.com with SMTP id dj3si2252360pbc.70.2013.10.31.08.36.28
         for <linux-mm@kvack.org>;
-        Thu, 31 Oct 2013 05:55:26 -0700 (PDT)
-Received: from /spool/local
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <zwu.kernel@gmail.com>;
-	Thu, 31 Oct 2013 06:55:25 -0600
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id C2EFDC40006
-	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 06:55:08 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9VCt21r234488
-	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 06:55:03 -0600
-Received: from d03av01.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id r9VCt1BA008481
-	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 06:55:01 -0600
-From: Zhi Yong Wu <zwu.kernel@gmail.com>
-Subject: [PATCH 1/2] mm: fix the incorrect function name in alloc_low_pages()
-Date: Thu, 31 Oct 2013 20:52:32 +0800
-Message-Id: <1383223953-28803-1-git-send-email-zwu.kernel@gmail.com>
+        Thu, 31 Oct 2013 08:36:30 -0700 (PDT)
+Date: Thu, 31 Oct 2013 16:36:24 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: + mm-memcg-lockdep-annotation-for-memcg-oom-lock.patch added to
+ -mm tree
+Message-ID: <20131031153624.GA32240@dhcp22.suse.cz>
+References: <52718460.4+rPcYBdFtC2v3uh%akpm@linux-foundation.org>
+ <20131031085017.GB13144@dhcp22.suse.cz>
+ <20131031143758.GE14054@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131031143758.GE14054@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Zhi Yong Wu <wuzhy@linux.vnet.ibm.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
-From: Zhi Yong Wu <wuzhy@linux.vnet.ibm.com>
+On Thu 31-10-13 10:37:58, Johannes Weiner wrote:
+> On Thu, Oct 31, 2013 at 09:50:17AM +0100, Michal Hocko wrote:
+> > On Wed 30-10-13 15:12:48, Andrew Morton wrote:
+[...]
+> > > From: Johannes Weiner <hannes@cmpxchg.org>
+> > > Subject: mm: memcg: lockdep annotation for memcg OOM lock
+> > > 
+> > > The memcg OOM lock is a mutex-type lock that is open-coded due to memcg's
+> > > special needs.  Add annotations for lockdep coverage.
+> > 
+> > I am not sure what this gives us to be honest. AA and AB-BA deadlocks
+> > are impossible due to nature of the lock (it is trylock so we never
+> > block on it).
+> 
+> It's not an actual trylock, because we loop around it.  If it fails,
+> we wait for the unlock, restart the fault, and try again.  That's a
+> LOCK operation.
 
-Signed-off-by: Zhi Yong Wu <wuzhy@linux.vnet.ibm.com>
----
- arch/x86/mm/init.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
-index 04664cd..64d860f 100644
---- a/arch/x86/mm/init.c
-+++ b/arch/x86/mm/init.c
-@@ -53,12 +53,12 @@ __ref void *alloc_low_pages(unsigned int num)
- 	if ((pgt_buf_end + num) > pgt_buf_top || !can_use_brk_pgt) {
- 		unsigned long ret;
- 		if (min_pfn_mapped >= max_pfn_mapped)
--			panic("alloc_low_page: ran out of memory");
-+			panic("alloc_low_pages: ran out of memory");
- 		ret = memblock_find_in_range(min_pfn_mapped << PAGE_SHIFT,
- 					max_pfn_mapped << PAGE_SHIFT,
- 					PAGE_SIZE * num , PAGE_SIZE);
- 		if (!ret)
--			panic("alloc_low_page: can not alloc memory");
-+			panic("alloc_low_pages: can not alloc memory");
- 		memblock_reserve(ret, PAGE_SIZE * num);
- 		pfn = ret >> PAGE_SHIFT;
- 	} else {
+OK, I have to revisit the shole series. Do you plan to post it anytime
+soon? Or where can I find the latest version?
 -- 
-1.7.11.7
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
