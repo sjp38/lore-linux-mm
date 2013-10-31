@@ -1,82 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 98A766B0038
-	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 06:15:32 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id ld10so2275850pab.24
-        for <linux-mm@kvack.org>; Thu, 31 Oct 2013 03:15:32 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.185])
-        by mx.google.com with SMTP id yk3si1747686pac.128.2013.10.31.03.15.30
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 363686B0036
+	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 08:55:14 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id rp16so2760355pbb.17
+        for <linux-mm@kvack.org>; Thu, 31 Oct 2013 05:55:13 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.118])
+        by mx.google.com with SMTP id gv2si1818475pbb.251.2013.10.31.05.55.12
         for <linux-mm@kvack.org>;
-        Thu, 31 Oct 2013 03:15:31 -0700 (PDT)
-Date: Thu, 31 Oct 2013 10:15:25 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: get rid of unnecessary pageblock scanning in
- setup_zone_migrate_reserve
-Message-ID: <20131031101525.GT2400@suse.de>
-References: <1382562092-15570-1-git-send-email-kosaki.motohiro@gmail.com>
- <20131030151904.GO2400@suse.de>
- <527169BB.8020104@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <527169BB.8020104@gmail.com>
+        Thu, 31 Oct 2013 05:55:13 -0700 (PDT)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <zwu.kernel@gmail.com>;
+	Thu, 31 Oct 2013 08:55:10 -0400
+Received: from b01cxnp22034.gho.pok.ibm.com (b01cxnp22034.gho.pok.ibm.com [9.57.198.24])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 6A84238C803B
+	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 08:55:07 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by b01cxnp22034.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r9VCt8ZO58327286
+	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 12:55:08 GMT
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r9VCt705005676
+	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 08:55:07 -0400
+From: Zhi Yong Wu <zwu.kernel@gmail.com>
+Subject: [PATCH 2/2] mm: fix the comment in zlc_setup()
+Date: Thu, 31 Oct 2013 20:52:33 +0800
+Message-Id: <1383223953-28803-2-git-send-email-zwu.kernel@gmail.com>
+In-Reply-To: <1383223953-28803-1-git-send-email-zwu.kernel@gmail.com>
+References: <1383223953-28803-1-git-send-email-zwu.kernel@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Zhi Yong Wu <wuzhy@linux.vnet.ibm.com>
 
-On Wed, Oct 30, 2013 at 04:19:07PM -0400, KOSAKI Motohiro wrote:
-> >@@ -3926,11 +3929,11 @@ static void setup_zone_migrate_reserve(struct zone *zone)
-> >  	/*
-> >  	 * Reserve blocks are generally in place to help high-order atomic
-> >  	 * allocations that are short-lived. A min_free_kbytes value that
-> >-	 * would result in more than 2 reserve blocks for atomic allocations
-> >-	 * is assumed to be in place to help anti-fragmentation for the
-> >-	 * future allocation of hugepages at runtime.
-> >+	 * would result in more than MAX_MIGRATE_RESERVE_BLOCKS reserve blocks
-> >+	 * for atomic allocations is assumed to be in place to help
-> >+	 * anti-fragmentation for the future allocation of hugepages at runtime.
-> >  	 */
-> >-	reserve = min(2, reserve);
-> >+	reserve = min(MAX_MIGRATE_RESERVE_BLOCKS, reserve);
-> >
-> >  	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
-> >  		if (!pfn_valid(pfn))
-> >@@ -3956,6 +3959,7 @@ static void setup_zone_migrate_reserve(struct zone *zone)
-> >  			/* If this block is reserved, account for it */
-> >  			if (block_migratetype == MIGRATE_RESERVE) {
-> >  				reserve--;
-> >+				found++;
-> >  				continue;
-> >  			}
-> >
-> >@@ -3970,6 +3974,10 @@ static void setup_zone_migrate_reserve(struct zone *zone)
-> >  			}
-> >  		}
-> >
-> >+		/* If all possible reserve blocks have been found, we're done */
-> >+		if (found >= MAX_MIGRATE_RESERVE_BLOCKS)
-> >+			break;
-> >+
-> >  		/*
-> >  		 * If the reserve is met and this is a previous reserved block,
-> >  		 * take it back
-> 
-> Nit. I would like to add following hunk. This is just nit because moving
-> reserve pageblock is extreme rare.
-> 
-> 		if (block_migratetype == MIGRATE_RESERVE) {
-> +                       found++;
-> 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
-> 			move_freepages_block(zone, page, MIGRATE_MOVABLE);
-> 		}
+From: Zhi Yong Wu <wuzhy@linux.vnet.ibm.com>
 
-I don't really see the advantage but if you think it is necessary then I
-do not object either.
+Signed-off-by: Zhi Yong Wu <wuzhy@linux.vnet.ibm.com>
+---
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index dd886fa..3d94d0c 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1711,7 +1711,7 @@ bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
+  * comments in mmzone.h.  Reduces cache footprint of zonelist scans
+  * that have to skip over a lot of full or unallowed zones.
+  *
+- * If the zonelist cache is present in the passed in zonelist, then
++ * If the zonelist cache is present in the passed zonelist, then
+  * returns a pointer to the allowed node mask (either the current
+  * tasks mems_allowed, or node_states[N_MEMORY].)
+  *
 -- 
-Mel Gorman
-SUSE Labs
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
