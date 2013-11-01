@@ -1,48 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 250346B0036
-	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 20:27:19 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id fa1so3264851pad.41
-        for <linux-mm@kvack.org>; Thu, 31 Oct 2013 17:27:18 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.204])
-        by mx.google.com with SMTP id cj2si3180332pbc.297.2013.10.31.17.27.17
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id B99506B0036
+	for <linux-mm@kvack.org>; Thu, 31 Oct 2013 20:36:06 -0400 (EDT)
+Received: by mail-pb0-f53.google.com with SMTP id up7so3530199pbc.40
+        for <linux-mm@kvack.org>; Thu, 31 Oct 2013 17:36:06 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.202])
+        by mx.google.com with SMTP id it5si3229651pbc.65.2013.10.31.17.36.05
         for <linux-mm@kvack.org>;
-        Thu, 31 Oct 2013 17:27:18 -0700 (PDT)
-Received: by mail-ie0-f182.google.com with SMTP id as1so6382900iec.27
-        for <linux-mm@kvack.org>; Thu, 31 Oct 2013 17:27:16 -0700 (PDT)
+        Thu, 31 Oct 2013 17:36:05 -0700 (PDT)
+Message-ID: <5272F766.8000804@oracle.com>
+Date: Fri, 01 Nov 2013 08:35:50 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <5272E8EB.5030900@codeaurora.org>
-References: <526844E6.1080307@codeaurora.org>
-	<52686FF4.5000303@oracle.com>
-	<5269BCCC.6090509@codeaurora.org>
-	<CAA25o9R_jAZyGFU3xYVjsxCCiBwiEC4gRw+JX6WG9X7G-E3LNw@mail.gmail.com>
-	<5272E8EB.5030900@codeaurora.org>
-Date: Thu, 31 Oct 2013 17:27:16 -0700
-Message-ID: <CAA25o9RwKbjDo5knY9ZFvmVFKDCwE2Gu3fmz2GwMFjBO2f-V=Q@mail.gmail.com>
 Subject: Re: zram/zsmalloc issues in very low memory conditions
-From: Luigi Semenzato <semenzato@google.com>
+References: <526844E6.1080307@codeaurora.org> <52686FF4.5000303@oracle.com> <5269BCCC.6090509@codeaurora.org> <CAA25o9R_jAZyGFU3xYVjsxCCiBwiEC4gRw+JX6WG9X7G-E3LNw@mail.gmail.com> <5272E8EB.5030900@codeaurora.org>
+In-Reply-To: <5272E8EB.5030900@codeaurora.org>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Olav Haugan <ohaugan@codeaurora.org>, Stephen Barber <smbarber@stanford.edu>
-Cc: Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-
-[apologies for the previous HTML email]
+To: Olav Haugan <ohaugan@codeaurora.org>
+Cc: Luigi Semenzato <semenzato@google.com>, Minchan Kim <minchan@kernel.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 Hi Olav,
 
-I haven't personally done it.  Seth outlines the configuration in this thread:
-
-http://thread.gmane.org/gmane.linux.kernel.mm/105378/focus=105543
-
-Stephen, can you add more detail from your experience?
-
-Thanks!
-
-
-On Thu, Oct 31, 2013 at 4:34 PM, Olav Haugan <ohaugan@codeaurora.org> wrote:
+On 11/01/2013 07:34 AM, Olav Haugan wrote:
 > Hi Luigi,
->
+> 
 > On 10/24/2013 6:12 PM, Luigi Semenzato wrote:
 >> On Thu, Oct 24, 2013 at 5:35 PM, Olav Haugan <ohaugan@codeaurora.org> wrote:
 >>> Hi Bob, Luigi,
@@ -59,16 +43,18 @@ On Thu, Oct 31, 2013 at 4:34 PM, Olav Haugan <ohaugan@codeaurora.org> wrote:
 >>
 >> Zswap can be configured to run without a backing storage.
 >>
->
+> 
 > I was under the impression that zswap requires a backing storage. Can
 > you elaborate on how to configure zswap to not need a backing storage?
->
->
-> Olav Haugan
->
-> --
-> The Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-> hosted by The Linux Foundation
+> 
+
+AFAIK, currently zswap can't be used without a backing storage.
+Perhaps you can take a try by creating a swap device backed by a file on
+storage.
+
+-- 
+Regards,
+-Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
