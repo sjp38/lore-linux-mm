@@ -1,98 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 606F16B0036
-	for <linux-mm@kvack.org>; Fri,  1 Nov 2013 10:31:52 -0400 (EDT)
-Received: by mail-pb0-f50.google.com with SMTP id uo5so4329358pbc.23
-        for <linux-mm@kvack.org>; Fri, 01 Nov 2013 07:31:52 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.112])
-        by mx.google.com with SMTP id hj4si5018658pac.242.2013.11.01.07.31.48
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 32A556B0035
+	for <linux-mm@kvack.org>; Fri,  1 Nov 2013 15:09:51 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id kp14so4438604pab.4
+        for <linux-mm@kvack.org>; Fri, 01 Nov 2013 12:09:50 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.151])
+        by mx.google.com with SMTP id sg3si5202771pbb.313.2013.11.01.12.09.49
         for <linux-mm@kvack.org>;
-        Fri, 01 Nov 2013 07:31:48 -0700 (PDT)
-Subject: [PATCH] mm: add strictlimit knob
-From: Maxim Patlasov <MPatlasov@parallels.com>
-Date: Fri, 01 Nov 2013 18:31:40 +0400
-Message-ID: <20131101142941.1161.40314.stgit@dhcp-10-30-17-2.sw.ru>
-In-Reply-To: <20131031142612.GA28003@kipc2.localdomain>
-References: <20131031142612.GA28003@kipc2.localdomain>
+        Fri, 01 Nov 2013 12:09:50 -0700 (PDT)
+Date: Fri, 1 Nov 2013 19:09:47 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v2 17/15] slab: replace non-existing 'struct freelist *'
+ with 'void *'
+In-Reply-To: <1383127441-30563-2-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <0000014215124298-73ed0d4f-b9ff-4645-87de-87a60abe4dc2-000000@email.amazonses.com>
+References: <1381913052-23875-1-git-send-email-iamjoonsoo.kim@lge.com> <1383127441-30563-1-git-send-email-iamjoonsoo.kim@lge.com> <1383127441-30563-2-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: karl.kiniger@med.ge.com
-Cc: jack@suse.cz, linux-kernel@vger.kernel.org, t.artem@lycos.com, linux-mm@kvack.org, mgorman@suse.de, tytso@mit.edu, akpm@linux-foundation.org, fengguang.wu@intel.com, torvalds@linux-foundation.org, mpatlasov@parallels.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-"strictlimit" feature was introduced to enforce per-bdi dirty limits for
-FUSE which sets bdi max_ratio to 1% by default:
+On Wed, 30 Oct 2013, Joonsoo Kim wrote:
 
-http://www.http.com//article.gmane.org/gmane.linux.kernel.mm/105809
+> There is no 'strcut freelist', but codes use pointer to 'struct freelist'.
+> Although compiler doesn't complain anything about this wrong usage and
+> codes work fine, but fixing it is better.
 
-However the feature can be useful for other relatively slow or untrusted
-BDIs like USB flash drives and DVD+RW. The patch adds a knob to enable the
-feature:
-
-echo 1 > /sys/class/bdi/X:Y/strictlimit
-
-Being enabled, the feature enforces bdi max_ratio limit even if global (10%)
-dirty limit is not reached. Of course, the effect is not visible until
-max_ratio is decreased to some reasonable value.
-
-Signed-off-by: Maxim Patlasov <MPatlasov@parallels.com>
----
- mm/backing-dev.c |   35 +++++++++++++++++++++++++++++++++++
- 1 file changed, 35 insertions(+)
-
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index ce682f7..4ee1d64 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -234,11 +234,46 @@ static ssize_t stable_pages_required_show(struct device *dev,
- }
- static DEVICE_ATTR_RO(stable_pages_required);
- 
-+static ssize_t strictlimit_store(struct device *dev,
-+		struct device_attribute *attr, const char *buf, size_t count)
-+{
-+	struct backing_dev_info *bdi = dev_get_drvdata(dev);
-+	unsigned int val;
-+	ssize_t ret;
-+
-+	ret = kstrtouint(buf, 10, &val);
-+	if (ret < 0)
-+		return ret;
-+
-+	switch (val) {
-+	case 0:
-+		bdi->capabilities &= ~BDI_CAP_STRICTLIMIT;
-+		break;
-+	case 1:
-+		bdi->capabilities |= BDI_CAP_STRICTLIMIT;
-+		break;
-+	default:
-+		return -EINVAL;
-+	}
-+
-+	return count;
-+}
-+static ssize_t strictlimit_show(struct device *dev,
-+		struct device_attribute *attr, char *page)
-+{
-+	struct backing_dev_info *bdi = dev_get_drvdata(dev);
-+
-+	return snprintf(page, PAGE_SIZE-1, "%d\n",
-+			!!(bdi->capabilities & BDI_CAP_STRICTLIMIT));
-+}
-+static DEVICE_ATTR_RW(strictlimit);
-+
- static struct attribute *bdi_dev_attrs[] = {
- 	&dev_attr_read_ahead_kb.attr,
- 	&dev_attr_min_ratio.attr,
- 	&dev_attr_max_ratio.attr,
- 	&dev_attr_stable_pages_required.attr,
-+	&dev_attr_strictlimit.attr,
- 	NULL,
- };
- ATTRIBUTE_GROUPS(bdi_dev);
+I think its better to avoid "void" when possible. struct freelist is good.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
