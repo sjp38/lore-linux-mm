@@ -1,105 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f205.google.com (mail-ie0-f205.google.com [209.85.223.205])
-	by kanga.kvack.org (Postfix) with ESMTP id 991526B003D
-	for <linux-mm@kvack.org>; Fri,  1 Nov 2013 10:09:54 -0400 (EDT)
-Received: by mail-ie0-f205.google.com with SMTP id tp5so140167ieb.8
-        for <linux-mm@kvack.org>; Fri, 01 Nov 2013 07:09:54 -0700 (PDT)
-Received: from psmtp.com ([74.125.245.152])
-        by mx.google.com with SMTP id t2si769776pbq.68.2013.10.30.22.52.32
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 606F16B0036
+	for <linux-mm@kvack.org>; Fri,  1 Nov 2013 10:31:52 -0400 (EDT)
+Received: by mail-pb0-f50.google.com with SMTP id uo5so4329358pbc.23
+        for <linux-mm@kvack.org>; Fri, 01 Nov 2013 07:31:52 -0700 (PDT)
+Received: from psmtp.com ([74.125.245.112])
+        by mx.google.com with SMTP id hj4si5018658pac.242.2013.11.01.07.31.48
         for <linux-mm@kvack.org>;
-        Wed, 30 Oct 2013 22:52:33 -0700 (PDT)
-Date: Thu, 31 Oct 2013 01:49:42 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm, memcg: add memory.oom_control notification for
- system oom
-Message-ID: <20131031054942.GA26301@cmpxchg.org>
-References: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com>
+        Fri, 01 Nov 2013 07:31:48 -0700 (PDT)
+Subject: [PATCH] mm: add strictlimit knob
+From: Maxim Patlasov <MPatlasov@parallels.com>
+Date: Fri, 01 Nov 2013 18:31:40 +0400
+Message-ID: <20131101142941.1161.40314.stgit@dhcp-10-30-17-2.sw.ru>
+In-Reply-To: <20131031142612.GA28003@kipc2.localdomain>
+References: <20131031142612.GA28003@kipc2.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: karl.kiniger@med.ge.com
+Cc: jack@suse.cz, linux-kernel@vger.kernel.org, t.artem@lycos.com, linux-mm@kvack.org, mgorman@suse.de, tytso@mit.edu, akpm@linux-foundation.org, fengguang.wu@intel.com, torvalds@linux-foundation.org, mpatlasov@parallels.com
 
-On Wed, Oct 30, 2013 at 06:39:16PM -0700, David Rientjes wrote:
-> A subset of applications that wait on memory.oom_control don't disable
-> the oom killer for that memcg and simply log or cleanup after the kernel
-> oom killer kills a process to free memory.
-> 
-> We need the ability to do this for system oom conditions as well, i.e.
-> when the system is depleted of all memory and must kill a process.  For
-> convenience, this can use memcg since oom notifiers are already present.
-> 
-> When a userspace process waits on the root memcg's memory.oom_control, it
-> will wake up anytime there is a system oom condition so that it can log
-> the event, including what process was killed and the stack, or cleanup
-> after the kernel oom killer has killed something.
-> 
-> This is a special case of oom notifiers since it doesn't subsequently
-> notify all memcgs under the root memcg (all memcgs on the system).  We
-> don't want to trigger those oom handlers which are set aside specifically
-> for true memcg oom notifications that disable their own oom killers to
-> enforce their own oom policy, for example.
+"strictlimit" feature was introduced to enforce per-bdi dirty limits for
+FUSE which sets bdi max_ratio to 1% by default:
 
-There is nothing they can do anyway since the handler is hardcoded for
-the root cgroup, so this seems fine.
+http://www.http.com//article.gmane.org/gmane.linux.kernel.mm/105809
 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -155,6 +155,7 @@ static inline bool task_in_memcg_oom(struct task_struct *p)
->  }
->  
->  bool mem_cgroup_oom_synchronize(bool wait);
-> +void mem_cgroup_root_oom_notify(void);
->  
->  #ifdef CONFIG_MEMCG_SWAP
->  extern int do_swap_account;
-> @@ -397,6 +398,10 @@ static inline bool mem_cgroup_oom_synchronize(bool wait)
->  	return false;
->  }
->  
-> +static inline void mem_cgroup_root_oom_notify(void)
-> +{
-> +}
-> +
->  static inline void mem_cgroup_inc_page_stat(struct page *page,
->  					    enum mem_cgroup_stat_index idx)
->  {
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -5641,6 +5641,15 @@ static void mem_cgroup_oom_notify(struct mem_cgroup *memcg)
->  		mem_cgroup_oom_notify_cb(iter);
->  }
->  
-> +/*
-> + * Notify any process waiting on the root memcg's memory.oom_control, but do not
-> + * notify any child memcgs to avoid triggering their per-memcg oom handlers.
-> + */
-> +void mem_cgroup_root_oom_notify(void)
-> +{
-> +	mem_cgroup_oom_notify_cb(root_mem_cgroup);
-> +}
-> +
->  static int mem_cgroup_usage_register_event(struct cgroup_subsys_state *css,
->  	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
->  {
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -632,6 +632,10 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
->  		return;
->  	}
->  
-> +	/* Avoid waking up processes for oom kills triggered by sysrq */
-> +	if (!force_kill)
-> +		mem_cgroup_root_oom_notify();
+However the feature can be useful for other relatively slow or untrusted
+BDIs like USB flash drives and DVD+RW. The patch adds a knob to enable the
+feature:
 
-We have an API for global OOM notifications, please just use
-register_oom_notifier() instead.
+echo 1 > /sys/class/bdi/X:Y/strictlimit
+
+Being enabled, the feature enforces bdi max_ratio limit even if global (10%)
+dirty limit is not reached. Of course, the effect is not visible until
+max_ratio is decreased to some reasonable value.
+
+Signed-off-by: Maxim Patlasov <MPatlasov@parallels.com>
+---
+ mm/backing-dev.c |   35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)
+
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index ce682f7..4ee1d64 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -234,11 +234,46 @@ static ssize_t stable_pages_required_show(struct device *dev,
+ }
+ static DEVICE_ATTR_RO(stable_pages_required);
+ 
++static ssize_t strictlimit_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t count)
++{
++	struct backing_dev_info *bdi = dev_get_drvdata(dev);
++	unsigned int val;
++	ssize_t ret;
++
++	ret = kstrtouint(buf, 10, &val);
++	if (ret < 0)
++		return ret;
++
++	switch (val) {
++	case 0:
++		bdi->capabilities &= ~BDI_CAP_STRICTLIMIT;
++		break;
++	case 1:
++		bdi->capabilities |= BDI_CAP_STRICTLIMIT;
++		break;
++	default:
++		return -EINVAL;
++	}
++
++	return count;
++}
++static ssize_t strictlimit_show(struct device *dev,
++		struct device_attribute *attr, char *page)
++{
++	struct backing_dev_info *bdi = dev_get_drvdata(dev);
++
++	return snprintf(page, PAGE_SIZE-1, "%d\n",
++			!!(bdi->capabilities & BDI_CAP_STRICTLIMIT));
++}
++static DEVICE_ATTR_RW(strictlimit);
++
+ static struct attribute *bdi_dev_attrs[] = {
+ 	&dev_attr_read_ahead_kb.attr,
+ 	&dev_attr_min_ratio.attr,
+ 	&dev_attr_max_ratio.attr,
+ 	&dev_attr_stable_pages_required.attr,
++	&dev_attr_strictlimit.attr,
+ 	NULL,
+ };
+ ATTRIBUTE_GROUPS(bdi_dev);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
