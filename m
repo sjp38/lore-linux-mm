@@ -1,50 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 751F36B0036
-	for <linux-mm@kvack.org>; Mon,  4 Nov 2013 02:05:06 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id lf10so6568825pab.34
-        for <linux-mm@kvack.org>; Sun, 03 Nov 2013 23:05:06 -0800 (PST)
-Received: from psmtp.com ([74.125.245.113])
-        by mx.google.com with SMTP id it5si9740747pbc.95.2013.11.03.23.05.04
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 30C476B0035
+	for <linux-mm@kvack.org>; Mon,  4 Nov 2013 02:36:47 -0500 (EST)
+Received: by mail-pb0-f43.google.com with SMTP id md4so6774974pbc.16
+        for <linux-mm@kvack.org>; Sun, 03 Nov 2013 23:36:46 -0800 (PST)
+Received: from psmtp.com ([74.125.245.132])
+        by mx.google.com with SMTP id gn4si9790412pbc.141.2013.11.03.23.36.45
         for <linux-mm@kvack.org>;
-        Sun, 03 Nov 2013 23:05:05 -0800 (PST)
-Received: by mail-ee0-f54.google.com with SMTP id c50so905117eek.27
-        for <linux-mm@kvack.org>; Sun, 03 Nov 2013 23:05:02 -0800 (PST)
-Date: Mon, 4 Nov 2013 08:05:00 +0100
+        Sun, 03 Nov 2013 23:36:46 -0800 (PST)
+Received: by mail-ee0-f51.google.com with SMTP id t10so882273eei.38
+        for <linux-mm@kvack.org>; Sun, 03 Nov 2013 23:36:43 -0800 (PST)
+Date: Mon, 4 Nov 2013 08:36:40 +0100
 From: Ingo Molnar <mingo@kernel.org>
 Subject: Re: [PATCH] mm: cache largest vma
-Message-ID: <20131104070500.GE13030@gmail.com>
+Message-ID: <20131104073640.GF13030@gmail.com>
 References: <1383337039.2653.18.camel@buesod1.americas.hpqcorp.net>
- <20131103101234.GB5330@gmail.com>
- <1383538810.2373.22.camel@buesod1.americas.hpqcorp.net>
+ <CA+55aFwrtOaFtwGc6xyZH6-1j3f--AG1JS-iZM8-pZPnwRHBow@mail.gmail.com>
+ <1383537862.2373.14.camel@buesod1.americas.hpqcorp.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1383538810.2373.22.camel@buesod1.americas.hpqcorp.net>
+In-Reply-To: <1383537862.2373.14.camel@buesod1.americas.hpqcorp.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>, =?iso-8859-1?Q?Fr=E9d=E9ric?= Weisbecker <fweisbec@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, aswin@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, "Chandramouleeswaran, Aswin" <aswin@hp.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
 
 * Davidlohr Bueso <davidlohr@hp.com> wrote:
 
-> Btw, do you suggest using a high level tool such as perf for getting 
-> this data or sprinkling get_cycles() in find_vma() -- I'd think that the 
-> first isn't fine grained enough, while the later will probably variate a 
-> lot from run to run but the ratio should be rather constant.
+> I will look into doing the vma cache per thread instead of mm (I hadn't 
+> really looked at the problem like this) as well as Ingo's suggestion on 
+> the weighted LRU approach. However, having seen that we can cheaply and 
+> easily reach around ~70% hit rate in a lot of workloads, makes me wonder 
+> how good is good enough?
 
-LOL - I guess I should have read your mail before replying to it ;-)
+So I think it all really depends on the hit/miss cost difference. It makes 
+little sense to add a more complex scheme if it washes out most of the 
+benefits!
 
-Yes, I think get_cycles() works better in this case - not due to 
-granularity (perf stat will report cycle granular just fine), but due to 
-the size of the critical path you'll be measuring. You really want to 
-extract the delta, because it's probably so much smaller than the overhead 
-of the workload itself.
+Also note the historic context: the _original_ mmap_cache, that I 
+implemented 16 years ago, was a front-line cache to a linear list walk 
+over all vmas (!).
 
-[ We still don't have good 'measure overhead from instruction X to 
-  instruction Y' delta measurement infrastructure in perf yet, although
-  Frederic is working on such a trigger/delta facility AFAIK. ]
+This is the relevant 2.1.37pre1 code in include/linux/mm.h:
+
+/* Look up the first VMA which satisfies  addr < vm_end,  NULL if none. */
+static inline struct vm_area_struct * find_vma(struct mm_struct * mm, unsigned long addr)
+{
+        struct vm_area_struct *vma = NULL;
+
+        if (mm) {
+                /* Check the cache first. */
+                vma = mm->mmap_cache;
+                if(!vma || (vma->vm_end <= addr) || (vma->vm_start > addr)) {
+                        vma = mm->mmap;
+                        while(vma && vma->vm_end <= addr)
+                                vma = vma->vm_next;
+                        mm->mmap_cache = vma;
+                }
+        }
+        return vma;
+}
+
+See that vma->vm_next iteration? It was awful - but back then most of us 
+had at most a couple of megs of RAM with just a few vmas. No RAM, no SMP, 
+no worries - the mm was really simple back then.
+
+Today we have the vma rbtree, which is self-balancing and a lot faster 
+than your typical linear list walk search ;-)
+
+So I'd _really_ suggest to first examine the assumptions behind the cache, 
+it being named 'cache' and it having a hit rate does in itself not 
+guarantee that it gives us any worthwile cost savings when put in front of 
+an rbtree ...
 
 Thanks,
 
