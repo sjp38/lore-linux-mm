@@ -1,65 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id DF34F6B0035
-	for <linux-mm@kvack.org>; Mon,  4 Nov 2013 15:03:49 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id wy17so4422661pbc.0
-        for <linux-mm@kvack.org>; Mon, 04 Nov 2013 12:03:49 -0800 (PST)
-Received: from psmtp.com ([74.125.245.191])
-        by mx.google.com with SMTP id i8si2323392paa.329.2013.11.04.12.03.48
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 118B36B0036
+	for <linux-mm@kvack.org>; Mon,  4 Nov 2013 16:09:54 -0500 (EST)
+Received: by mail-pa0-f52.google.com with SMTP id bj1so7412717pad.39
+        for <linux-mm@kvack.org>; Mon, 04 Nov 2013 13:09:54 -0800 (PST)
+Received: from psmtp.com ([74.125.245.180])
+        by mx.google.com with SMTP id z1si732621pbn.241.2013.11.04.13.09.53
         for <linux-mm@kvack.org>;
-        Mon, 04 Nov 2013 12:03:48 -0800 (PST)
-Date: Mon, 4 Nov 2013 14:03:46 -0600
-From: Alex Thorlton <athorlton@sgi.com>
-Subject: Re: BUG: mm, numa: test segfaults, only when NUMA balancing is on
-Message-ID: <20131104200346.GA3066@sgi.com>
-References: <20131016155429.GP25735@sgi.com>
- <20131104145828.GA1218@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131104145828.GA1218@suse.de>
+        Mon, 04 Nov 2013 13:09:54 -0800 (PST)
+Date: Mon, 4 Nov 2013 13:09:51 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] x86, mm: get ASLR work for hugetlb mappings
+Message-Id: <20131104130951.44c20ed3d29395a3da57ad46@linux-foundation.org>
+In-Reply-To: <20131104104152.72F91E0090@blue.fi.intel.com>
+References: <1382449940-24357-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<20131104104152.72F91E0090@blue.fi.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>
 
-On Mon, Nov 04, 2013 at 02:58:28PM +0000, Mel Gorman wrote:
-> On Wed, Oct 16, 2013 at 10:54:29AM -0500, Alex Thorlton wrote:
-> > Hi guys,
+On Mon,  4 Nov 2013 12:41:52 +0200 (EET) "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+
+> Kirill A. Shutemov wrote:
+> > Matthew noticed that hugetlb doesn't participate in ASLR on x86-64.
+> > The reason is genereic hugetlb_get_unmapped_area() which is used on
+> > x86-64. It doesn't support randomization and use bottom-up unmapped area
+> > lookup, instead of usual top-down on x86-64.
 > > 
-> > I ran into a bug a week or so ago, that I believe has something to do
-> > with NUMA balancing, but I'm having a tough time tracking down exactly
-> > what is causing it.  When running with the following configuration
-> > options set:
+> > x86 has arch-specific hugetlb_get_unmapped_area(), but it's used only on
+> > x86-32.
 > > 
+> > Let's use arch-specific hugetlb_get_unmapped_area() on x86-64 too.
+> > It fixes the issue and make hugetlb use top-down unmapped area lookup.
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Cc: Matthew Wilcox <willy@linux.intel.com>
 > 
-> Can you test with patches
-> cd65718712469ad844467250e8fad20a5838baae..0255d491848032f6c601b6410c3b8ebded3a37b1
-> applied? They fix some known memory corruption problems, were merged for
-> 3.12 (so alternatively just test 3.12) and have been tagged for -stable.
+> Andrew, any comments?
 
-I just finished testing with 3.12, and I'm still seeing the same issue.
-This is actually a bit strange to me, because, when I tested with
-3.12-rc5 a while back, everything seemed to be ok (see previoues e-mail
-in this thread, to Bob Liu).  I guess, embarrasingly enough, I must have
-been playing with a screwed up config that day, and managed to somehow
-avoid the problem...  Either way, it appears that we still have a
-problem here.
-
-I'll poke around a bit more on this in the next few days and see if I
-can come up with any more information.  In the meantime, let me know if
-you have any other suggestions.
-
-Thanks,
-
-- Alex
-
-> 
-> Thanks.
-> 
-> -- 
-> Mel Gorman
-> SUSE Labs
+whome?  I'm convinced, but it's an x86 patch.  I tossed it in there so
+it gets a bit of linux-next exposure.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
