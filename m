@@ -1,49 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 118B36B0036
-	for <linux-mm@kvack.org>; Mon,  4 Nov 2013 16:09:54 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id bj1so7412717pad.39
-        for <linux-mm@kvack.org>; Mon, 04 Nov 2013 13:09:54 -0800 (PST)
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id BF7AB6B0035
+	for <linux-mm@kvack.org>; Mon,  4 Nov 2013 17:01:08 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id fb1so7519828pad.37
+        for <linux-mm@kvack.org>; Mon, 04 Nov 2013 14:01:08 -0800 (PST)
 Received: from psmtp.com ([74.125.245.180])
-        by mx.google.com with SMTP id z1si732621pbn.241.2013.11.04.13.09.53
+        by mx.google.com with SMTP id tu7si9759174pab.162.2013.11.04.14.01.07
         for <linux-mm@kvack.org>;
-        Mon, 04 Nov 2013 13:09:54 -0800 (PST)
-Date: Mon, 4 Nov 2013 13:09:51 -0800
+        Mon, 04 Nov 2013 14:01:07 -0800 (PST)
+Date: Mon, 4 Nov 2013 14:01:04 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] x86, mm: get ASLR work for hugetlb mappings
-Message-Id: <20131104130951.44c20ed3d29395a3da57ad46@linux-foundation.org>
-In-Reply-To: <20131104104152.72F91E0090@blue.fi.intel.com>
-References: <1382449940-24357-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<20131104104152.72F91E0090@blue.fi.intel.com>
+Subject: Re: [PATCH] mm: add strictlimit knob
+Message-Id: <20131104140104.7936d263258a7a6753eb325e@linux-foundation.org>
+In-Reply-To: <20131101142941.1161.40314.stgit@dhcp-10-30-17-2.sw.ru>
+References: <20131031142612.GA28003@kipc2.localdomain>
+	<20131101142941.1161.40314.stgit@dhcp-10-30-17-2.sw.ru>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>
+To: Maxim Patlasov <MPatlasov@parallels.com>
+Cc: karl.kiniger@med.ge.com, jack@suse.cz, linux-kernel@vger.kernel.org, t.artem@lycos.com, linux-mm@kvack.org, mgorman@suse.de, tytso@mit.edu, fengguang.wu@intel.com, torvalds@linux-foundation.org, mpatlasov@parallels.com
 
-On Mon,  4 Nov 2013 12:41:52 +0200 (EET) "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+On Fri, 01 Nov 2013 18:31:40 +0400 Maxim Patlasov <MPatlasov@parallels.com> wrote:
 
-> Kirill A. Shutemov wrote:
-> > Matthew noticed that hugetlb doesn't participate in ASLR on x86-64.
-> > The reason is genereic hugetlb_get_unmapped_area() which is used on
-> > x86-64. It doesn't support randomization and use bottom-up unmapped area
-> > lookup, instead of usual top-down on x86-64.
-> > 
-> > x86 has arch-specific hugetlb_get_unmapped_area(), but it's used only on
-> > x86-32.
-> > 
-> > Let's use arch-specific hugetlb_get_unmapped_area() on x86-64 too.
-> > It fixes the issue and make hugetlb use top-down unmapped area lookup.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Cc: Matthew Wilcox <willy@linux.intel.com>
+> "strictlimit" feature was introduced to enforce per-bdi dirty limits for
+> FUSE which sets bdi max_ratio to 1% by default:
 > 
-> Andrew, any comments?
+> http://www.http.com//article.gmane.org/gmane.linux.kernel.mm/105809
+> 
+> However the feature can be useful for other relatively slow or untrusted
+> BDIs like USB flash drives and DVD+RW. The patch adds a knob to enable the
+> feature:
+> 
+> echo 1 > /sys/class/bdi/X:Y/strictlimit
+> 
+> Being enabled, the feature enforces bdi max_ratio limit even if global (10%)
+> dirty limit is not reached. Of course, the effect is not visible until
+> max_ratio is decreased to some reasonable value.
 
-whome?  I'm convinced, but it's an x86 patch.  I tossed it in there so
-it gets a bit of linux-next exposure.
+I suggest replacing "max_ratio" here with the much more informative
+"/sys/class/bdi/X:Y/max_ratio".
+
+Also, Documentation/ABI/testing/sysfs-class-bdi will need an update
+please.
+
+>  mm/backing-dev.c |   35 +++++++++++++++++++++++++++++++++++
+>  1 file changed, 35 insertions(+)
+> 
+
+I'm not really sure what to make of the patch.  I assume you tested it
+and observed some effect.  Could you please describe the test setup and
+the effects in some detail?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
