@@ -1,67 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id C3D3A6B0036
-	for <linux-mm@kvack.org>; Mon,  4 Nov 2013 03:13:27 -0500 (EST)
-Received: by mail-pb0-f54.google.com with SMTP id ro12so1355531pbb.41
-        for <linux-mm@kvack.org>; Mon, 04 Nov 2013 00:13:27 -0800 (PST)
-Received: from psmtp.com ([74.125.245.106])
-        by mx.google.com with SMTP id sw1si9837949pbc.312.2013.11.04.00.13.25
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 5520F6B0035
+	for <linux-mm@kvack.org>; Mon,  4 Nov 2013 05:08:25 -0500 (EST)
+Received: by mail-pb0-f49.google.com with SMTP id xb4so6851179pbc.8
+        for <linux-mm@kvack.org>; Mon, 04 Nov 2013 02:08:25 -0800 (PST)
+Received: from psmtp.com ([74.125.245.153])
+        by mx.google.com with SMTP id ra5si7151042pbc.314.2013.11.04.02.08.23
         for <linux-mm@kvack.org>;
-        Mon, 04 Nov 2013 00:13:25 -0800 (PST)
-Received: by mail-qc0-f176.google.com with SMTP id s19so3817102qcw.35
-        for <linux-mm@kvack.org>; Mon, 04 Nov 2013 00:13:23 -0800 (PST)
+        Mon, 04 Nov 2013 02:08:24 -0800 (PST)
+Date: Mon, 4 Nov 2013 10:08:18 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: Do not walk all of system memory during show_mem
+Message-ID: <20131104100818.GB2400@suse.de>
+References: <20131016104228.GM11028@suse.de>
+ <alpine.DEB.2.02.1310161809470.12062@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <1383223953-28803-2-git-send-email-zwu.kernel@gmail.com>
-References: <1383223953-28803-1-git-send-email-zwu.kernel@gmail.com>
-	<1383223953-28803-2-git-send-email-zwu.kernel@gmail.com>
-Date: Mon, 4 Nov 2013 16:13:23 +0800
-Message-ID: <CAEH94LjN4ZEFg_UFASpTs4TH+6c_KyMddgoF5Ymk5_1d1EVD3A@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm: fix the comment in zlc_setup()
-From: Zhi Yong Wu <zwu.kernel@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1310161809470.12062@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel mlist <linux-kernel@vger.kernel.org>, Zhi Yong Wu <wuzhy@linux.vnet.ibm.com>, akpm@linux-foundation.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-CCed Andrew Morton
+On Wed, Oct 16, 2013 at 06:11:56PM -0700, David Rientjes wrote:
+> On Wed, 16 Oct 2013, Mel Gorman wrote:
+> 
+> > It has been reported on very large machines that show_mem is taking almost
+> > 5 minutes to display information. This is a serious problem if there is
+> > an OOM storm. The bulk of the cost is in show_mem doing a very expensive
+> > PFN walk to give us the following information
+> > 
+> > Total RAM:	Also available as totalram_pages
+> > Highmem pages:	Also available as totalhigh_pages
+> > Reserved pages:	Can be inferred from the zone structure
+> > Shared pages:	PFN walk required
+> > Unshared pages:	PFN walk required
+> > Quick pages:	Per-cpu walk required
+> > 
+> > Only the shared/unshared pages requires a full PFN walk but that information
+> > is useless. It is also inaccurate as page pins of unshared pages would
+> > be accounted for as shared.  Even if the information was accurate, I'm
+> > struggling to think how the shared/unshared information could be useful
+> > for debugging OOM conditions. Maybe it was useful before rmap existed when
+> > reclaiming shared pages was costly but it is less relevant today.
+> > 
+> > The PFN walk could be optimised a bit but why bother as the information is
+> > useless. This patch deletes the PFN walker and infers the total RAM, highmem
+> > and reserved pages count from struct zone. It omits the shared/unshared page
+> > usage on the grounds that it is useless.  It also corrects the reporting
+> > of HighMem as HighMem/MovableOnly as ZONE_MOVABLE has similar problems to
+> > HighMem with respect to lowmem/highmem exhaustion.
+> > 
+> 
+> We haven't been hit by this for the oom killer, but we did get hit with 
+> this for page allocation failure warnings as a result of having irqs 
+> disabled and passing GFP_ATOMIC to the page allocator without GFP_NOWARN.  
+> That was the intention of passing SHOW_MEM_FILTER_PAGE_COUNT into 
+> show_mem() in 4b59e6c47309 ("mm, show_mem: suppress page counts in 
+> non-blockable contexts").
+> 
+> With this, I assume we can just remove SHOW_MEM_FILTER_PAGE_COUNT 
+> entirely?
 
-On Thu, Oct 31, 2013 at 8:52 PM, Zhi Yong Wu <zwu.kernel@gmail.com> wrote:
-> From: Zhi Yong Wu <wuzhy@linux.vnet.ibm.com>
->
-> Signed-off-by: Zhi Yong Wu <wuzhy@linux.vnet.ibm.com>
-> ---
->  mm/page_alloc.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index dd886fa..3d94d0c 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1711,7 +1711,7 @@ bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
->   * comments in mmzone.h.  Reduces cache footprint of zonelist scans
->   * that have to skip over a lot of full or unallowed zones.
->   *
-> - * If the zonelist cache is present in the passed in zonelist, then
-> + * If the zonelist cache is present in the passed zonelist, then
->   * returns a pointer to the allowed node mask (either the current
->   * tasks mems_allowed, or node_states[N_MEMORY].)
->   *
-> --
-> 1.7.11.7
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+We could once all the per-arch show_mem functions were updated similar
+to lib/show_mem.c. I've added a todo item to do just that. Thanks.
 
 
 -- 
-Regards,
-
-Zhi Yong Wu
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
