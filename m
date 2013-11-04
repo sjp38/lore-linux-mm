@@ -1,75 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 5520F6B0035
-	for <linux-mm@kvack.org>; Mon,  4 Nov 2013 05:08:25 -0500 (EST)
-Received: by mail-pb0-f49.google.com with SMTP id xb4so6851179pbc.8
-        for <linux-mm@kvack.org>; Mon, 04 Nov 2013 02:08:25 -0800 (PST)
-Received: from psmtp.com ([74.125.245.153])
-        by mx.google.com with SMTP id ra5si7151042pbc.314.2013.11.04.02.08.23
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 239DB6B0035
+	for <linux-mm@kvack.org>; Mon,  4 Nov 2013 05:41:59 -0500 (EST)
+Received: by mail-pb0-f52.google.com with SMTP id rr4so485888pbb.25
+        for <linux-mm@kvack.org>; Mon, 04 Nov 2013 02:41:58 -0800 (PST)
+Received: from psmtp.com ([74.125.245.161])
+        by mx.google.com with SMTP id hb3si10494291pac.36.2013.11.04.02.41.57
         for <linux-mm@kvack.org>;
-        Mon, 04 Nov 2013 02:08:24 -0800 (PST)
-Date: Mon, 4 Nov 2013 10:08:18 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: Do not walk all of system memory during show_mem
-Message-ID: <20131104100818.GB2400@suse.de>
-References: <20131016104228.GM11028@suse.de>
- <alpine.DEB.2.02.1310161809470.12062@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1310161809470.12062@chino.kir.corp.google.com>
+        Mon, 04 Nov 2013 02:41:58 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <1382449940-24357-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1382449940-24357-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: RE: [PATCH] x86, mm: get ASLR work for hugetlb mappings
+Content-Transfer-Encoding: 7bit
+Message-Id: <20131104104152.72F91E0090@blue.fi.intel.com>
+Date: Mon,  4 Nov 2013 12:41:52 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>
 
-On Wed, Oct 16, 2013 at 06:11:56PM -0700, David Rientjes wrote:
-> On Wed, 16 Oct 2013, Mel Gorman wrote:
+Kirill A. Shutemov wrote:
+> Matthew noticed that hugetlb doesn't participate in ASLR on x86-64.
+> The reason is genereic hugetlb_get_unmapped_area() which is used on
+> x86-64. It doesn't support randomization and use bottom-up unmapped area
+> lookup, instead of usual top-down on x86-64.
 > 
-> > It has been reported on very large machines that show_mem is taking almost
-> > 5 minutes to display information. This is a serious problem if there is
-> > an OOM storm. The bulk of the cost is in show_mem doing a very expensive
-> > PFN walk to give us the following information
-> > 
-> > Total RAM:	Also available as totalram_pages
-> > Highmem pages:	Also available as totalhigh_pages
-> > Reserved pages:	Can be inferred from the zone structure
-> > Shared pages:	PFN walk required
-> > Unshared pages:	PFN walk required
-> > Quick pages:	Per-cpu walk required
-> > 
-> > Only the shared/unshared pages requires a full PFN walk but that information
-> > is useless. It is also inaccurate as page pins of unshared pages would
-> > be accounted for as shared.  Even if the information was accurate, I'm
-> > struggling to think how the shared/unshared information could be useful
-> > for debugging OOM conditions. Maybe it was useful before rmap existed when
-> > reclaiming shared pages was costly but it is less relevant today.
-> > 
-> > The PFN walk could be optimised a bit but why bother as the information is
-> > useless. This patch deletes the PFN walker and infers the total RAM, highmem
-> > and reserved pages count from struct zone. It omits the shared/unshared page
-> > usage on the grounds that it is useless.  It also corrects the reporting
-> > of HighMem as HighMem/MovableOnly as ZONE_MOVABLE has similar problems to
-> > HighMem with respect to lowmem/highmem exhaustion.
-> > 
+> x86 has arch-specific hugetlb_get_unmapped_area(), but it's used only on
+> x86-32.
 > 
-> We haven't been hit by this for the oom killer, but we did get hit with 
-> this for page allocation failure warnings as a result of having irqs 
-> disabled and passing GFP_ATOMIC to the page allocator without GFP_NOWARN.  
-> That was the intention of passing SHOW_MEM_FILTER_PAGE_COUNT into 
-> show_mem() in 4b59e6c47309 ("mm, show_mem: suppress page counts in 
-> non-blockable contexts").
+> Let's use arch-specific hugetlb_get_unmapped_area() on x86-64 too.
+> It fixes the issue and make hugetlb use top-down unmapped area lookup.
 > 
-> With this, I assume we can just remove SHOW_MEM_FILTER_PAGE_COUNT 
-> entirely?
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Matthew Wilcox <willy@linux.intel.com>
 
-We could once all the per-arch show_mem functions were updated similar
-to lib/show_mem.c. I've added a todo item to do just that. Thanks.
-
+Andrew, any comments?
 
 -- 
-Mel Gorman
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
