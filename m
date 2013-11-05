@@ -1,33 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id DC1A86B003D
-	for <linux-mm@kvack.org>; Tue,  5 Nov 2013 06:15:18 -0500 (EST)
-Received: by mail-pd0-f173.google.com with SMTP id r10so8215789pdi.32
-        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 03:15:18 -0800 (PST)
-Received: from psmtp.com ([74.125.245.106])
-        by mx.google.com with SMTP id i8si4226441paa.126.2013.11.05.03.15.16
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 496236B004D
+	for <linux-mm@kvack.org>; Tue,  5 Nov 2013 06:22:44 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id x10so8168697pdj.40
+        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 03:22:43 -0800 (PST)
+Received: from psmtp.com ([74.125.245.148])
+        by mx.google.com with SMTP id sj5si13582575pab.23.2013.11.05.03.22.41
         for <linux-mm@kvack.org>;
-        Tue, 05 Nov 2013 03:15:17 -0800 (PST)
-Date: Tue, 5 Nov 2013 12:14:35 +0100
+        Tue, 05 Nov 2013 03:22:42 -0800 (PST)
+Date: Tue, 5 Nov 2013 12:22:12 +0100
 From: Peter Zijlstra <peterz@infradead.org>
 Subject: Re: [PATCH 4/4] MCS Lock: Make mcs_spinlock.h includable in other
  files
-Message-ID: <20131105111435.GN28601@twins.programming.kicks-ass.net>
+Message-ID: <20131105112212.GO28601@twins.programming.kicks-ass.net>
 References: <cover.1383604526.git.tim.c.chen@linux.intel.com>
  <1383608233.11046.263.camel@schen9-DESK>
+ <20131105101538.GA26895@mudshark.cambridge.arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1383608233.11046.263.camel@schen9-DESK>
+In-Reply-To: <20131105101538.GA26895@mudshark.cambridge.arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>
 
-On Mon, Nov 04, 2013 at 03:37:13PM -0800, Tim Chen wrote:
-> +EXPORT_SYMBOL(mcs_spin_lock);
+On Tue, Nov 05, 2013 at 10:15:38AM +0000, Will Deacon wrote:
+> Hello,
+> 
+> On Mon, Nov 04, 2013 at 11:37:13PM +0000, Tim Chen wrote:
+> > The following changes are made to enable mcs_spinlock.h file to be
+> > widely included in other files without causing problem:
+> > 
+> > 1) Include a number of prerequisite header files and define
+> >    arch_mutex_cpu_relax(), if not previously defined.
+> > 2) Separate out mcs_spin_lock() into a mcs_spinlock.c file.
+> > 3) Make mcs_spin_unlock() an inlined function.
+> 
+> [...]
+> 
+> > +void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
+> > +{
+> > +	struct mcs_spinlock *prev;
+> > +
+> > +	/* Init node */
+> > +	node->locked = 0;
+> > +	node->next   = NULL;
+> > +
+> > +	prev = xchg(lock, node);
+> > +	if (likely(prev == NULL)) {
+> > +		/* Lock acquired */
+> > +		node->locked = 1;
+> > +		return;
+> > +	}
+> > +	ACCESS_ONCE(prev->next) = node;
+> > +	smp_wmb();
+> > +	/* Wait until the lock holder passes the lock down */
+> > +	while (!ACCESS_ONCE(node->locked))
+> > +		arch_mutex_cpu_relax();
+> > +}
+> 
+> You have the barrier in a different place than the version in the header
+> file; is this intentional?
+> 
+> Also, why is an smp_wmb() sufficient (as opposed to a full smp_mb()?). Are
+> there restrictions on the types of access that can occur in the critical
+> section?
 
-If that can be a GPL, please make it so.
+Oh, good spot. I missed it because it doesn't actually remove the one in
+the header, why is that?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
