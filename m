@@ -1,215 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id AE41F6B0035
-	for <linux-mm@kvack.org>; Mon,  4 Nov 2013 21:49:32 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id bj1so7837465pad.11
-        for <linux-mm@kvack.org>; Mon, 04 Nov 2013 18:49:32 -0800 (PST)
-Received: from psmtp.com ([74.125.245.183])
-        by mx.google.com with SMTP id t2si12048087pbq.308.2013.11.04.18.49.29
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id BC1B66B0035
+	for <linux-mm@kvack.org>; Mon,  4 Nov 2013 23:12:54 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id q10so7740250pdj.0
+        for <linux-mm@kvack.org>; Mon, 04 Nov 2013 20:12:54 -0800 (PST)
+Received: from psmtp.com ([74.125.245.173])
+        by mx.google.com with SMTP id qj1si6755567pbc.174.2013.11.04.20.12.51
         for <linux-mm@kvack.org>;
-        Mon, 04 Nov 2013 18:49:31 -0800 (PST)
-Date: Tue, 5 Nov 2013 10:49:15 +0800 (CST)
-From: =?utf-8?B?566h6Zuq5rab?= <gxt@pku.edu.cn>
-Message-ID: <289468516.24288.1383619755331.JavaMail.root@bj-mail03.pku.edu.cn>
-In-Reply-To: <20131104044844.GN13318@ZenIV.linux.org.uk>
-Subject: =?gbk?B?UmU6IGNvbnZlcnRpbmcgdW5pY29yZTMyIHRvIGdhdGVfdm1hIGFzIGRvbmUgZm9yIGFybSAod2FzIFJlOg0KIFtQQVRDSF0gbW06IGNhY2hlIGxhcmdlc3Qgdm1hKQ==?=
+        Mon, 04 Nov 2013 20:12:52 -0800 (PST)
+Date: Tue, 5 Nov 2013 15:12:45 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Disabling in-memory write cache for x86-64 in Linux II
+Message-ID: <20131105041245.GY6188@dastard>
+References: <160824051.3072.1382685914055.JavaMail.mail@webmail07>
+ <CA+55aFxj81TRhe1+FJWqER7VVH_z_Sk0+hwtHvniA0ATsF_eKw@mail.gmail.com>
+ <89AE8FE8-5B15-41DB-B9CE-DFF73531D821@dilger.ca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <89AE8FE8-5B15-41DB-B9CE-DFF73531D821@dilger.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@ZenIV.linux.org.uk>
-Cc: Davidlohr Bueso <davidlohr@hp.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, aswin@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Andreas Dilger <adilger@dilger.ca>
+Cc: "Artem S. Tashkinov" <t.artem@lycos.com>, Wu Fengguang <fengguang.wu@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, linux-mm <linux-mm@kvack.org>
 
-The patch is ok for unicore32. Thanks Al.
+On Mon, Nov 04, 2013 at 05:50:13PM -0700, Andreas Dilger wrote:
+> 
+> On Oct 25, 2013, at 2:18 AM, Linus Torvalds <torvalds@linux-foundation.org> wrote:
+> > On Fri, Oct 25, 2013 at 8:25 AM, Artem S. Tashkinov <t.artem@lycos.com> wrote:
+> >> 
+> >> On my x86-64 PC (Intel Core i5 2500, 16GB RAM), I have the same 3.11
+> >> kernel built for the i686 (with PAE) and x86-64 architectures. Whata??s
+> >> really troubling me is that the x86-64 kernel has the following problem:
+> >> 
+> >> When I copy large files to any storage device, be it my HDD with ext4
+> >> partitions or flash drive with FAT32 partitions, the kernel first
+> >> caches them in memory entirely then flushes them some time later
+> >> (quite unpredictably though) or immediately upon invoking "sync".
+> > 
+> > Yeah, I think we default to a 10% "dirty background memory" (and
+> > allows up to 20% dirty), so on your 16GB machine, we allow up to 1.6GB
+> > of dirty memory for writeout before we even start writing, and twice
+> > that before we start *waiting* for it.
+> > 
+> > On 32-bit x86, we only count the memory in the low 1GB (really
+> > actually up to about 890MB), so "10% dirty" really means just about
+> > 90MB of buffering (and a "hard limit" of ~180MB of dirty).
+> > 
+> > And that "up to 3.2GB of dirty memory" is just crazy. Our defaults
+> > come from the old days of less memory (and perhaps servers that don't
+> > much care), and the fact that x86-32 ends up having much lower limits
+> > even if you end up having more memory.
+> 
+> I think the a??delay writes for a long timea?? is a holdover from the
+> days when e.g. /tmp was on a disk and compilers had lousy IO
+> patterns, then they deleted the file.  Today, /tmp is always in
+> RAM, and IMHO the a??write and deletea?? workload tested by dbench
+> is not worthwhile optimizing for.
+> 
+> With Lustre, wea??ve long taken the approach that if there is enough
+> dirty data on a file to make a decent write (which is around 8MB
+> today even for very fast storage) then there isna??t much point to
+> hold back for more data before starting the IO.
 
-While testing this patch, a bug is found in arch/unicore32/include/asm/pgta=
-ble.h:
+Agreed - write-through caching is much better for high throughput
+streaming data environments than write back caching that can leave
+the devices unnecessarily idle.
 
-@@ -96,7 +96,7 @@ extern pgprot_t pgprot_kernel;
-                                                                | PTE_EXEC)
- #define PAGE_READONLY          __pgprot(pgprot_val(pgprot_user | PTE_READ)
- #define PAGE_READONLY_EXEC     __pgprot(pgprot_val(pgprot_user | PTE_READ =
-\
--                                                               | PTE_EXEC)
-+                                                               | PTE_EXEC)=
-)
+However, most systems are not running in high-throughput streaming
+data environments... :/
 
-In fact, all similar macros are wrong. I'll post an bug-fix patch for this =
-obvious error.
+> Any decent allocator will be able to grow allocated extents to
+> handle following data, or allocate a new extent.  At 4-8MB extents,
+> even very seek-impaired media could do 400-800MB/s (likely much
+> faster than the underlying storage anyway).
 
-Xuetao
+True, but this makes the assumption that the filesystem you are
+using is optimising purely for write throughput and your storage is
+not seek limited on reads. That's simply not an assumption we can
+allow the generic writeback code to make.
 
------ Al Viro <viro@ZenIV.linux.org.uk> =E5=86=99=E9=81=93=EF=BC=9A
-> On Sun, Nov 03, 2013 at 08:20:10PM -0800, Davidlohr Bueso wrote:
-> > > > diff --git a/arch/unicore32/include/asm/mmu_context.h b/arch/unicor=
-e32/include/asm/mmu_context.h
-> > > > index fb5e4c6..38cc7fc 100644
-> > > > --- a/arch/unicore32/include/asm/mmu_context.h
-> > > > +++ b/arch/unicore32/include/asm/mmu_context.h
-> > > > @@ -73,7 +73,7 @@ do { \
-> > > >  =09=09else \
-> > > >  =09=09=09mm->mmap =3D NULL; \
-> > > >  =09=09rb_erase(&high_vma->vm_rb, &mm->mm_rb); \
-> > > > -=09=09mm->mmap_cache =3D NULL; \
-> > > > +=09=09vma_clear_caches(mm);=09=09=09\
-> > > >  =09=09mm->map_count--; \
-> > > >  =09=09remove_vma(high_vma); \
-> > > >  =09} \
->=20
-> BTW, this one needs an analog of
-> commit f9d4861fc32b995b1616775614459b8f266c803c
-> Author: Will Deacon <will.deacon@arm.com>
-> Date:   Fri Jan 20 12:01:13 2012 +0100
->=20
->     ARM: 7294/1: vectors: use gate_vma for vectors user mapping
->=20
-> This code is a copy of older arm logics rewritten in that commit; unicore=
-32
-> never got its counterpart.  I have a [completely untested] variant sittin=
-g
-> in vfs.git#vm^; it's probably worth testing - if it works, we'll get rid
-> of one more place that needs to be aware of MM guts and unicore32 folks
-> will have fewer potential headache sources...
->=20
-> FWIW, after porting to the current tree it becomes the following; I'm not
-> sure whether we want VM_DONTEXPAND | VM_DONTDUMP set for this one, though=
-...
->=20
-> Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
-> ---
-> diff --git a/arch/unicore32/include/asm/elf.h b/arch/unicore32/include/as=
-m/elf.h
-> index 829042d..eeba258 100644
-> --- a/arch/unicore32/include/asm/elf.h
-> +++ b/arch/unicore32/include/asm/elf.h
-> @@ -87,8 +87,4 @@ struct mm_struct;
->  extern unsigned long arch_randomize_brk(struct mm_struct *mm);
->  #define arch_randomize_brk arch_randomize_brk
-> =20
-> -extern int vectors_user_mapping(void);
-> -#define arch_setup_additional_pages(bprm, uses_interp) vectors_user_mapp=
-ing()
-> -#define ARCH_HAS_SETUP_ADDITIONAL_PAGES
-> -
->  #endif
-> diff --git a/arch/unicore32/include/asm/mmu_context.h b/arch/unicore32/in=
-clude/asm/mmu_context.h
-> index fb5e4c6..600b1b8 100644
-> --- a/arch/unicore32/include/asm/mmu_context.h
-> +++ b/arch/unicore32/include/asm/mmu_context.h
-> @@ -18,6 +18,7 @@
-> =20
->  #include <asm/cacheflush.h>
->  #include <asm/cpu-single.h>
-> +#include <asm-generic/mm_hooks.h>
-> =20
->  #define init_new_context(tsk, mm)=090
-> =20
-> @@ -56,32 +57,4 @@ switch_mm(struct mm_struct *prev, struct mm_struct *ne=
-xt,
->  #define deactivate_mm(tsk, mm)=09do { } while (0)
->  #define activate_mm(prev, next)=09switch_mm(prev, next, NULL)
-> =20
-> -/*
-> - * We are inserting a "fake" vma for the user-accessible vector page so
-> - * gdb and friends can get to it through ptrace and /proc/<pid>/mem.
-> - * But we also want to remove it before the generic code gets to see it
-> - * during process exit or the unmapping of it would  cause total havoc.
-> - * (the macro is used as remove_vma() is static to mm/mmap.c)
-> - */
-> -#define arch_exit_mmap(mm) \
-> -do { \
-> -=09struct vm_area_struct *high_vma =3D find_vma(mm, 0xffff0000); \
-> -=09if (high_vma) { \
-> -=09=09BUG_ON(high_vma->vm_next);  /* it should be last */ \
-> -=09=09if (high_vma->vm_prev) \
-> -=09=09=09high_vma->vm_prev->vm_next =3D NULL; \
-> -=09=09else \
-> -=09=09=09mm->mmap =3D NULL; \
-> -=09=09rb_erase(&high_vma->vm_rb, &mm->mm_rb); \
-> -=09=09mm->mmap_cache =3D NULL; \
-> -=09=09mm->map_count--; \
-> -=09=09remove_vma(high_vma); \
-> -=09} \
-> -} while (0)
-> -
-> -static inline void arch_dup_mmap(struct mm_struct *oldmm,
-> -=09=09=09=09 struct mm_struct *mm)
-> -{
-> -}
-> -
->  #endif
-> diff --git a/arch/unicore32/include/asm/page.h b/arch/unicore32/include/a=
-sm/page.h
-> index 594b322..e79da8b 100644
-> --- a/arch/unicore32/include/asm/page.h
-> +++ b/arch/unicore32/include/asm/page.h
-> @@ -28,6 +28,8 @@ extern void copy_page(void *to, const void *from);
->  #define clear_user_page(page, vaddr, pg)=09clear_page(page)
->  #define copy_user_page(to, from, vaddr, pg)=09copy_page(to, from)
-> =20
-> +#define __HAVE_ARCH_GATE_AREA 1
-> +
->  #undef STRICT_MM_TYPECHECKS
-> =20
->  #ifdef STRICT_MM_TYPECHECKS
-> diff --git a/arch/unicore32/kernel/process.c b/arch/unicore32/kernel/proc=
-ess.c
-> index 778ebba..51d129e 100644
-> --- a/arch/unicore32/kernel/process.c
-> +++ b/arch/unicore32/kernel/process.c
-> @@ -307,21 +307,39 @@ unsigned long arch_randomize_brk(struct mm_struct *=
-mm)
-> =20
->  /*
->   * The vectors page is always readable from user space for the
-> - * atomic helpers and the signal restart code.  Let's declare a mapping
-> - * for it so it is visible through ptrace and /proc/<pid>/mem.
-> + * atomic helpers and the signal restart code. Insert it into the
-> + * gate_vma so that it is visible through ptrace and /proc/<pid>/mem.
->   */
-> +static struct vm_area_struct gate_vma =3D {
-> +=09.vm_start=09=3D 0xffff0000,
-> +=09.vm_end=09=09=3D 0xffff0000 + PAGE_SIZE,
-> +=09.vm_flags=09=3D VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYEXEC |
-> +=09=09=09  VM_DONTEXPAND | VM_DONTDUMP,
-> +};
-> +
-> +static int __init gate_vma_init(void)
-> +{
-> +=09gate_vma.vm_page_prot=09=3D PAGE_READONLY_EXEC;
-> +=09return 0;
-> +}
-> +arch_initcall(gate_vma_init);
-> +
-> +struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
-> +{
-> +=09return &gate_vma;
-> +}
-> +
-> +int in_gate_area(struct mm_struct *mm, unsigned long addr)
-> +{
-> +=09return (addr >=3D gate_vma.vm_start) && (addr < gate_vma.vm_end);
-> +}
-> =20
-> -int vectors_user_mapping(void)
-> +int in_gate_area_no_mm(unsigned long addr)
->  {
-> -=09struct mm_struct *mm =3D current->mm;
-> -=09return install_special_mapping(mm, 0xffff0000, PAGE_SIZE,
-> -=09=09=09=09       VM_READ | VM_EXEC |
-> -=09=09=09=09       VM_MAYREAD | VM_MAYEXEC |
-> -=09=09=09=09       VM_DONTEXPAND | VM_DONTDUMP,
-> -=09=09=09=09       NULL);
-> +=09return in_gate_area(NULL, addr);
->  }
-> =20
->  const char *arch_vma_name(struct vm_area_struct *vma)
->  {
-> -=09return (vma->vm_start =3D=3D 0xffff0000) ? "[vectors]" : NULL;
-> +=09return (vma =3D=3D &gate_vma) ? "[vectors]" : NULL;
->  }
+In more detail, if we simply implement "we have 8 MB of dirty pages
+on a single file, write it" we can maximise write throughput by
+allocating sequentially on disk for each subsquent write. The
+problem with this comes when you are writing multiple files at a
+time, and that leads to this pattern on disk:
+
+ ABC...ABC....ABC....ABC....
+
+And the result is a) fragmented files b) a large number of seeks
+during sequential read operations and c) filesystems that age and
+degrade rapidly under workloads that concurrently write files with
+different life times (i.e. due to free space fragmention).
+
+In some situations this is acceptable, but the performance
+degradation as the filesystem ages that this sort of allocation
+causes in most environments is not. I'd say that >90% of filesystems
+out there would suffer accelerated aging as a result of doing
+writeback in this manner by default.
+
+> This also avoids wasting (tens of?) seconds of idle disk bandwidth.
+> If the disk is already busy, then the IO will be delayed anyway.
+> If it is not busy, then why aggregate GB of dirty data in memory
+> before flushing it?
+
+There are plenty of workloads out there where delaying IO for a few
+seconds can result in writeback that is an order of magnitude
+faster. Similarly, I've seen other workloads where the writeback
+delay results in files that can be *read* orders of magnitude
+faster....
+
+> Something simple like a??start writing at 16MB dirty on a single filea??
+> would probably avoid a lot of complexity at little real-world cost.
+> That shouldna??t throttle dirtying memory above 16MB, but just start
+> writeout much earlier than it does today.
+
+That doesn't solve the "slow device, large file" problem. We can
+write data into the page cache at rates of over a GB/s, so it's
+irrelevant to a device that can write at 5MB/s whether we start
+writeback immediately or a second later when there is 500MB of dirty
+pages in memory.  AFAIK, the only way to avoid that problem is to
+use write-through caching for such devices - where they throttle to
+the IO rate at very low levels of cached data.
+
+Realistically, there is no "one right answer" for all combinations
+of applications, filesystems and hardware, but writeback caching is
+the best *general solution* we've got right now.
+
+However, IMO users should not need to care about tuning BDI dirty
+ratios or even have to understand what a BDI dirty ratio is to
+select the rigth caching method for their devices and/or workload.
+The difference between writeback and write through caching is easy
+to explain and AFAICT those two modes suffice to solve the problems
+being discussed here.  Further, if two modes suffice to solve the
+problems, then we should be able to easily define a trigger to
+automatically switch modes.
+
+/me notes that if we look at random vs sequential IO and the impact
+that has on writeback duration, then it's very similar to suddenly
+having a very slow device. IOWs, fadvise(RANDOM) could be used to
+switch an *inode* to write through mode rather than writeback mode
+to solve the problem aggregating massive amounts of random write IO
+in the page cache...
+
+So rather than treating this as a "one size fits all" type of
+problem, let's step back and:
+
+	a) define 2-3 different caching behaviours we consider
+	   optimal for the majority of workloads/hardware we care
+	   about.
+	b) determine optimal workloads for each caching
+	   behaviour.
+	c) develop reliable triggers to detect when we
+	   should switch between caching behaviours.
+
+e.g:
+
+	a) write back caching
+		- what we have now
+	   write through caching
+		- extremely low dirty threshold before writeback
+		  starts, enough to optimise for, say, stripe width
+		  of the underlying storage.
+
+	b) write back caching:
+		- general purpose workload
+	   write through caching:
+		- slow device, write large file, sync
+		- extremely high bandwidth devices, multi-stream
+		  sequential IO
+		- random IO.
+
+	c) write back caching:
+		- default
+		- fadvise(NORMAL, SEQUENTIAL, WILLNEED)
+	   write through caching:
+		- fadvise(NOREUSE, DONTNEED, RANDOM)
+		- random IO
+		- sequential IO, BDI write bandwidth <<< dirty threshold
+		- sequential IO, BDI write bandwidth >>> dirty threshold
+
+I think that covers most of the issues and use cases that have been
+discussed in this thread. IMO, this is the level at which we need to
+solve the problem (i.e. architectural), not at the level of "let's
+add sysfs variables so we can tweak bdi ratios".
+
+Indeed, the above implies that we need the caching behaviour to be a
+property of the address space, not just a property of the backing
+device.
+
+IOWs, the implementation needs to trickle down from a coherent high
+level design - that will define the knobs that we need to expose to
+userspace. We should not be adding new writeback behaviours by
+adding knobs to sysfs without first having some clue about whether
+we are solving the right problem and solving it in a sane manner...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
