@@ -1,80 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id B65CD6B00A0
-	for <linux-mm@kvack.org>; Tue,  5 Nov 2013 18:27:29 -0500 (EST)
-Received: by mail-pb0-f45.google.com with SMTP id ma3so8103204pbc.4
-        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 15:27:29 -0800 (PST)
-Received: from psmtp.com ([74.125.245.186])
-        by mx.google.com with SMTP id ul9si3473320pab.287.2013.11.05.15.27.27
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E53E6B00A2
+	for <linux-mm@kvack.org>; Tue,  5 Nov 2013 18:38:30 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id x10so9242822pdj.40
+        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 15:38:29 -0800 (PST)
+Received: from psmtp.com ([74.125.245.156])
+        by mx.google.com with SMTP id gn4si15017508pbc.351.2013.11.05.15.38.27
         for <linux-mm@kvack.org>;
-        Tue, 05 Nov 2013 15:27:28 -0800 (PST)
-Received: by mail-ve0-f202.google.com with SMTP id pa12so398946veb.5
-        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 15:27:26 -0800 (PST)
-From: Sameer Nanda <snanda@chromium.org>
-Subject: [PATCH] mm, oom: Fix race when selecting process to kill
-Date: Tue,  5 Nov 2013 15:26:27 -0800
-Message-Id: <1383693987-14171-1-git-send-email-snanda@chromium.org>
+        Tue, 05 Nov 2013 15:38:28 -0800 (PST)
+Date: Wed, 6 Nov 2013 00:42:17 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: create a separate slab for page->ptl allocation
+Message-ID: <20131105224217.GC20167@shutemov.name>
+References: <1382442839-7458-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20131105150145.734a5dd5b5d455800ebfa0d3@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131105150145.734a5dd5b5d455800ebfa0d3@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.cz, rientjes@google.com, hannes@cmpxchg.org, rusty@rustcorp.com.au
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sameer Nanda <snanda@chromium.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-The selection of the process to be killed happens in two spots -- first
-in select_bad_process and then a further refinement by looking for
-child processes in oom_kill_process. Since this is a two step process,
-it is possible that the process selected by select_bad_process may get a
-SIGKILL just before oom_kill_process executes. If this were to happen,
-__unhash_process deletes this process from the thread_group list. This
-then results in oom_kill_process getting stuck in an infinite loop when
-traversing the thread_group list of the selected process.
 
-Fix this race by holding the tasklist_lock across the calls to both
-select_bad_process and oom_kill_process.
+[ sorry, resend to all ]
 
-Change-Id: I8f96b106b3257b5c103d6497bac7f04f4dff4e60
-Signed-off-by: Sameer Nanda <snanda@chromium.org>
----
- mm/oom_kill.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+On Tue, Nov 05, 2013 at 03:01:45PM -0800, Andrew Morton wrote:
+> On Tue, 22 Oct 2013 14:53:59 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+> 
+> > If DEBUG_SPINLOCK and DEBUG_LOCK_ALLOC are enabled spinlock_t on x86_64
+> > is 72 bytes. For page->ptl they will be allocated from kmalloc-96 slab,
+> > so we loose 24 on each. An average system can easily allocate few tens
+> > thousands of page->ptl and overhead is significant.
+> > 
+> > Let's create a separate slab for page->ptl allocation to solve this.
+> > 
+> > ...
+> >
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -4332,11 +4332,19 @@ void copy_user_huge_page(struct page *dst, struct page *src,
+> >  #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
+> >  
+> >  #if USE_SPLIT_PTE_PTLOCKS
+> > +struct kmem_cache *page_ptl_cachep;
+> > +void __init ptlock_cache_init(void)
+> > +{
+> > +	if (sizeof(spinlock_t) > sizeof(long))
+> > +		page_ptl_cachep = kmem_cache_create("page->ptl",
+> > +				sizeof(spinlock_t), 0, SLAB_PANIC, NULL);
+> > +}
+> 
+> Confused.  If (sizeof(spinlock_t) > sizeof(long)) happens to be false
+> then the kernel will later crash.  It would be better to use BUILD_BUG_ON()
+> here, if that works.  Otherwise BUG_ON.
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 6738c47..7bd3587 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -436,7 +436,6 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 	 * parent.  This attempts to lose the minimal amount of work done while
- 	 * still freeing memory.
- 	 */
--	read_lock(&tasklist_lock);
- 	do {
- 		list_for_each_entry(child, &t->children, sibling) {
- 			unsigned int child_points;
-@@ -456,7 +455,6 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 			}
- 		}
- 	} while_each_thread(p, t);
--	read_unlock(&tasklist_lock);
- 
- 	rcu_read_lock();
- 	p = find_lock_task_mm(victim);
-@@ -641,6 +639,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
- 	mpol_mask = (constraint == CONSTRAINT_MEMORY_POLICY) ? nodemask : NULL;
- 	check_panic_on_oom(constraint, gfp_mask, order, mpol_mask);
- 
-+	read_lock(&tasklist_lock);
- 	if (sysctl_oom_kill_allocating_task && current->mm &&
- 	    !oom_unkillable_task(current, NULL, nodemask) &&
- 	    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
-@@ -663,6 +662,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
- 		killed = 1;
- 	}
- out:
-+	read_unlock(&tasklist_lock);
- 	/*
- 	 * Give the killed threads a good chance of exiting before trying to
- 	 * allocate memory again.
+if (sizeof(spinlock_t) > sizeof(long)) is false, we don't need dynamicly
+allocate page->ptl. It's embedded to struct page itself. __ptlock_alloc()
+never called in this case.
+
+> Also, we have the somewhat silly KMEM_CACHE() macro, but it looks
+> inapplicable here?
+
+The first argument of KMEM_CACHE() is struct name, but we have typedef
+here.
+
+> >  bool __ptlock_alloc(struct page *page)
+> >  {
+> >  	spinlock_t *ptl;
+> >  
+> > -	ptl = kmalloc(sizeof(spinlock_t), GFP_KERNEL);
+> > +	ptl = kmem_cache_alloc(page_ptl_cachep, GFP_KERNEL);
+> >  	if (!ptl)
+> >  		return false;
+> >  	page->ptl = (unsigned long)ptl;
+> > @@ -4346,6 +4354,6 @@ bool __ptlock_alloc(struct page *page)
+> >  void __ptlock_free(struct page *page)
+> >  {
+> >  	if (sizeof(spinlock_t) > sizeof(page->ptl))
+> > -		kfree((spinlock_t *)page->ptl);
+> > +		kmem_cache_free(page_ptl_cachep, (spinlock_t *)page->ptl);
+> 
+> A void* cast would suffice here, but I suppose the spinlock_t* cast has
+> some documentation value.
+
+Right.
+
 -- 
-1.8.4.1
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
