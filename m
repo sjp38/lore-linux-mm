@@ -1,51 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DF1E6B0080
-	for <linux-mm@kvack.org>; Tue,  5 Nov 2013 13:47:56 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so9312173pad.30
-        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 10:47:55 -0800 (PST)
-Received: from psmtp.com ([74.125.245.109])
-        by mx.google.com with SMTP id bc2si14699380pad.129.2013.11.05.10.47.53
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 711336B0082
+	for <linux-mm@kvack.org>; Tue,  5 Nov 2013 13:57:47 -0500 (EST)
+Received: by mail-pd0-f177.google.com with SMTP id p10so8882747pdj.8
+        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 10:57:47 -0800 (PST)
+Received: from psmtp.com ([74.125.245.167])
+        by mx.google.com with SMTP id gw3si14723022pac.114.2013.11.05.10.57.45
         for <linux-mm@kvack.org>;
-        Tue, 05 Nov 2013 10:47:53 -0800 (PST)
-Message-ID: <52793D27.8050607@sr71.net>
-Date: Tue, 05 Nov 2013 10:47:03 -0800
-From: Dave Hansen <dave@sr71.net>
+        Tue, 05 Nov 2013 10:57:45 -0800 (PST)
+Date: Tue, 5 Nov 2013 19:57:17 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v2 4/4] MCS Lock: Make mcs_spinlock.h includable in other
+ files
+Message-ID: <20131105185717.GZ16117@laptop.programming.kicks-ass.net>
+References: <cover.1383670202.git.tim.c.chen@linux.intel.com>
+ <1383673359.11046.280.camel@schen9-DESK>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] mm: thp: give transparent hugepage code a separate
- copy_page
-References: <20131028221618.4078637F@viggo.jf.intel.com> <20131028221620.042323B3@viggo.jf.intel.com> <20131028221126.GA29431@shutemov.name>
-In-Reply-To: <20131028221126.GA29431@shutemov.name>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1383673359.11046.280.camel@schen9-DESK>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.jiang@intel.com, Mel Gorman <mgorman@suse.de>, akpm@linux-foundation.org, dhillf@gmail.com
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, Will Deacon <will.deacon@arm.com>
 
-On 10/28/2013 03:11 PM, Kirill A. Shutemov wrote:
-> On Mon, Oct 28, 2013 at 03:16:20PM -0700, Dave Hansen wrote:
->> void copy_huge_page(struct page *dst, struct page *src)
->> {
->>         struct hstate *h = page_hstate(src);
->>         if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
->> ...
->>
->> This patch creates a copy_high_order_page() which can
->> be used on THP pages.
-> 
-> We already have copy_user_huge_page() and copy_user_gigantic_page() in
-> generic code (mm/memory.c). I think copy_gigantic_page() and
-> copy_huge_page() should be moved there too.
+On Tue, Nov 05, 2013 at 09:42:39AM -0800, Tim Chen wrote:
+> + * The _raw_mcs_spin_lock() function should not be called directly. Instead,
+> + * users should call mcs_spin_lock().
+>   */
+> -static noinline
+> -void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
+> +static inline
+> +void _raw_mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
+>  {
+>  	struct mcs_spinlock *prev;
+>  
 
-That would be fine I guesss... in another patch. :)
-
-> BTW, I think pages_per_huge_page in copy_user_huge_page() is redunand:
-> compound_order(page) should be enough, right?
-
-The way it is now, the compiler can optimize for the !HUGETLBFS case.
-Also, pages_per_huge_page() works for gigantic pages.  compound_order()
-wouldn't work for those.
+So why keep it in the header at all?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
