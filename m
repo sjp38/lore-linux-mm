@@ -1,74 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 496236B004D
-	for <linux-mm@kvack.org>; Tue,  5 Nov 2013 06:22:44 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id x10so8168697pdj.40
-        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 03:22:43 -0800 (PST)
-Received: from psmtp.com ([74.125.245.148])
-        by mx.google.com with SMTP id sj5si13582575pab.23.2013.11.05.03.22.41
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 62E1D6B005A
+	for <linux-mm@kvack.org>; Tue,  5 Nov 2013 09:27:27 -0500 (EST)
+Received: by mail-pd0-f177.google.com with SMTP id p10so8468747pdj.22
+        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 06:27:26 -0800 (PST)
+Received: from psmtp.com ([74.125.245.136])
+        by mx.google.com with SMTP id ph6si13685988pbb.307.2013.11.05.06.27.25
         for <linux-mm@kvack.org>;
-        Tue, 05 Nov 2013 03:22:42 -0800 (PST)
-Date: Tue, 5 Nov 2013 12:22:12 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 4/4] MCS Lock: Make mcs_spinlock.h includable in other
- files
-Message-ID: <20131105112212.GO28601@twins.programming.kicks-ass.net>
-References: <cover.1383604526.git.tim.c.chen@linux.intel.com>
- <1383608233.11046.263.camel@schen9-DESK>
- <20131105101538.GA26895@mudshark.cambridge.arm.com>
+        Tue, 05 Nov 2013 06:27:25 -0800 (PST)
+Date: Tue, 5 Nov 2013 15:27:07 +0100
+From: Jiri Olsa <jolsa@redhat.com>
+Subject: Re: [PATCH] mm: cache largest vma
+Message-ID: <20131105142707.GC30283@krava.brq.redhat.com>
+References: <1383337039.2653.18.camel@buesod1.americas.hpqcorp.net>
+ <20131103101234.GB5330@gmail.com>
+ <1383538810.2373.22.camel@buesod1.americas.hpqcorp.net>
+ <20131104070500.GE13030@gmail.com>
+ <20131104142001.GE9299@localhost.localdomain>
+ <20131104175245.GA19517@gmail.com>
+ <20131104181012.GK9299@localhost.localdomain>
+ <20131105082450.GA10127@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131105101538.GA26895@mudshark.cambridge.arm.com>
+In-Reply-To: <20131105082450.GA10127@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Frederic Weisbecker <fweisbec@gmail.com>, Davidlohr Bueso <davidlohr@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, aswin@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, David Ahern <dsahern@gmail.com>, Arnaldo Carvalho de Melo <acme@redhat.com>
 
-On Tue, Nov 05, 2013 at 10:15:38AM +0000, Will Deacon wrote:
-> Hello,
-> 
-> On Mon, Nov 04, 2013 at 11:37:13PM +0000, Tim Chen wrote:
-> > The following changes are made to enable mcs_spinlock.h file to be
-> > widely included in other files without causing problem:
+On Tue, Nov 05, 2013 at 09:24:51AM +0100, Ingo Molnar wrote:
+
+SNIP
+
 > > 
-> > 1) Include a number of prerequisite header files and define
-> >    arch_mutex_cpu_relax(), if not previously defined.
-> > 2) Separate out mcs_spin_lock() into a mcs_spinlock.c file.
-> > 3) Make mcs_spin_unlock() an inlined function.
+> > Yeah that would be a nice interface. Speaking about that, it would be nice to get your input
+> > on the proposed interface for toggle events.
+> > 
+> > It's still in an RFC state, although it's getting quite elaborated, and I believe we haven't
+> > yet found a real direction to take for the tooling interface IIRC. For example the perf record
+> > cmdline used to state toggle events based contexts was one of the parts we were not that confident about.
+> > And we really don't want to take a wrong direction for that as it's going to be complicated
+> > to handle in any case.
+> > 
+> > See this thread:
+> > https://lwn.net/Articles/568602/
 > 
-> [...]
+> At the risk of hijacking this discussion, here's my take on triggers:
 > 
-> > +void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
-> > +{
-> > +	struct mcs_spinlock *prev;
-> > +
-> > +	/* Init node */
-> > +	node->locked = 0;
-> > +	node->next   = NULL;
-> > +
-> > +	prev = xchg(lock, node);
-> > +	if (likely(prev == NULL)) {
-> > +		/* Lock acquired */
-> > +		node->locked = 1;
-> > +		return;
-> > +	}
-> > +	ACCESS_ONCE(prev->next) = node;
-> > +	smp_wmb();
-> > +	/* Wait until the lock holder passes the lock down */
-> > +	while (!ACCESS_ONCE(node->locked))
-> > +		arch_mutex_cpu_relax();
-> > +}
+> I think the primary interface should be to allow the disabling/enabling of 
+> a specific event from other events.
 > 
-> You have the barrier in a different place than the version in the header
-> file; is this intentional?
+> From user-space it would be fd driven: add a perf attribute to allow a 
+> specific event to set the state of another event if it triggers. The 
+> 'other event' would be an fd, similar to how group events are specified.
 > 
-> Also, why is an smp_wmb() sufficient (as opposed to a full smp_mb()?). Are
-> there restrictions on the types of access that can occur in the critical
-> section?
+> An 'off' trigger sets the state to 0 (disabled).
+> An 'on' trigger sets the state to 1 (enabled).
+> 
+> Using such a facility the measurement of deltas would need 3 events:
+> 
+>  - fd1: a cycles event that is created disabled
+> 
+>  - fd2: a kprobes event at the 'start' RIP, set to counting only,
+>         connected to fd1, setting state to '1'
+> 
+>  - fd3: a kprobes event at the 'stop' RIP, set to counting only,
+>         connected to fd1, setting state to '0'.
+> 
+> This way every time the (fd2) start-RIP kprobes event executes, the 
+> trigger code sees that it's supposed to enable the (fd1) cycles event. 
+> Every time the (fd3) stop-RIP kprobes event executes, the trigger code 
+> sees that it's set to disable the (fd1) cycles event.
 
-Oh, good spot. I missed it because it doesn't actually remove the one in
-the header, why is that?
+that's more or less how the current code works,
+you can check this wiki for details:
+https://perf.wiki.kernel.org/index.php/Jolsa_Features_Togle_Event
+
+> 
+> Instead of 'cycles event', it could count instructions, or pagefaults, or 
+> cachemisses.
+
+we made it general for any kind of event
+
+> 
+> ( If the (fd1) cycles event is a sampling event then this would allow nice 
+>   things like the profiling of individual functions within the context of 
+>   a specific system call, driven by triggers. )
+> 
+> In theory we could allow self-referential triggers as well: the first 
+> execution of the trigger would disable itself. If the trigger state is not 
+> on/off but a counter then this would allow 'take 100 samples then shut 
+> off' type of functionality as well.
+
+ok, there's something similar in ftrace and we already
+discussed this for perf.. I'll check
+
+> 
+> But success primarily depends on how useful the tooling UI turns out to 
+> be: create a nice Slang or GTK UI for kprobes and triggers, and/or turn it 
+> into a really intuitive command line UI, and people will use it.
+> 
+> I think annotated assembly/source output is a really nice match for 
+> triggers and kprobes, so I'd suggest the Slang TUI route ...
+
+yep, current toggling command line UI is not much user friendly
+
+but perhaps we should leave it there (because it seems it wont
+get much better anyway) and focus more on Slang UI as the
+target one..
+
+CCing Arnaldo ;-)
+
+thanks,
+jirka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
