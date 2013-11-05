@@ -1,47 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B352A6B00A6
-	for <linux-mm@kvack.org>; Tue,  5 Nov 2013 18:53:23 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id ld10so9620869pab.38
-        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 15:53:23 -0800 (PST)
-Received: from psmtp.com ([74.125.245.131])
-        by mx.google.com with SMTP id n5si15400161pav.156.2013.11.05.15.53.21
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 8055F6B00A8
+	for <linux-mm@kvack.org>; Tue,  5 Nov 2013 18:56:23 -0500 (EST)
+Received: by mail-pb0-f54.google.com with SMTP id ro12so2699948pbb.41
+        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 15:56:23 -0800 (PST)
+Received: from psmtp.com ([74.125.245.107])
+        by mx.google.com with SMTP id je1si15087928pbb.210.2013.11.05.15.56.21
         for <linux-mm@kvack.org>;
-        Tue, 05 Nov 2013 15:53:22 -0800 (PST)
-Date: Tue, 5 Nov 2013 15:53:19 -0800
+        Tue, 05 Nov 2013 15:56:22 -0800 (PST)
+Date: Tue, 5 Nov 2013 15:56:19 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 2/2] mm: allow to set overcommit ratio more precisely
-Message-Id: <20131105155319.732dcbefb162c2ee4716ef9d@linux-foundation.org>
-In-Reply-To: <1382101019-23563-2-git-send-email-jmarchan@redhat.com>
-References: <1382101019-23563-1-git-send-email-jmarchan@redhat.com>
-	<1382101019-23563-2-git-send-email-jmarchan@redhat.com>
+Subject: Re: [PATCH] mm: create a separate slab for page->ptl allocation
+Message-Id: <20131105155619.021f32eba1ca8f15a73ed4c9@linux-foundation.org>
+In-Reply-To: <20131105224217.GC20167@shutemov.name>
+References: <1382442839-7458-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<20131105150145.734a5dd5b5d455800ebfa0d3@linux-foundation.org>
+	<20131105224217.GC20167@shutemov.name>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-On Fri, 18 Oct 2013 14:56:59 +0200 Jerome Marchand <jmarchan@redhat.com> wrote:
+On Wed, 6 Nov 2013 00:42:17 +0200 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
-> Some applications that run on HPC clusters are designed around the
-> availability of RAM and the overcommit ratio is fine tuned to get the
-> maximum usage of memory without swapping. With growing memory, the 1%
-> of all RAM grain provided by overcommit_ratio has become too coarse
-> for these workload (on a 2TB machine it represents no less than
-> 20GB).
+> > >  #if USE_SPLIT_PTE_PTLOCKS
+> > > +struct kmem_cache *page_ptl_cachep;
+> > > +void __init ptlock_cache_init(void)
+> > > +{
+> > > +	if (sizeof(spinlock_t) > sizeof(long))
+> > > +		page_ptl_cachep = kmem_cache_create("page->ptl",
+> > > +				sizeof(spinlock_t), 0, SLAB_PANIC, NULL);
+> > > +}
+> > 
+> > Confused.  If (sizeof(spinlock_t) > sizeof(long)) happens to be false
+> > then the kernel will later crash.  It would be better to use BUILD_BUG_ON()
+> > here, if that works.  Otherwise BUG_ON.
 > 
-> This patch adds the new overcommit_ratio_ppm sysctl variable that
-> allow to set overcommit ratio with a part per million precision.
-> The old overcommit_ratio variable can still be used to set and read
-> the ratio with a 1% precision. That way, overcommit_ratio interface
-> isn't broken in any way that I can imagine.
+> if (sizeof(spinlock_t) > sizeof(long)) is false, we don't need dynamicly
+> allocate page->ptl. It's embedded to struct page itself. __ptlock_alloc()
+> never called in this case.
 
-The way we've permanently squished this mistake in the past is to
-switch to "bytes".  See /proc/sys/vm/*bytes.
+OK.  Please add a comment explaining this so the next reader doesn't get
+tripped up like I was.
 
-Would that approach work in this case?
+Really the function shouldn't exist in this case.  It is __init so the
+sin is not terrible, but can this be arranged?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
