@@ -1,33 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 255A36B00F8
-	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 14:13:34 -0500 (EST)
-Received: by mail-pd0-f170.google.com with SMTP id v10so10700811pde.1
-        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 11:13:33 -0800 (PST)
-Received: from psmtp.com ([74.125.245.121])
-        by mx.google.com with SMTP id je1si17956552pbb.30.2013.11.06.11.13.31
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id CDB906B00FA
+	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 14:16:37 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id fb1so105173pad.3
+        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 11:16:37 -0800 (PST)
+Received: from psmtp.com ([74.125.245.184])
+        by mx.google.com with SMTP id ai2si148095pad.233.2013.11.06.11.16.35
         for <linux-mm@kvack.org>;
-        Wed, 06 Nov 2013 11:13:32 -0800 (PST)
-Message-ID: <527A94C8.2020907@hp.com>
-Date: Wed, 06 Nov 2013 14:13:12 -0500
-From: Waiman Long <waiman.long@hp.com>
+        Wed, 06 Nov 2013 11:16:36 -0800 (PST)
+Date: Wed, 6 Nov 2013 19:16:33 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm/slub: Switch slub_debug kernel option to early_param
+ to avoid boot panic
+In-Reply-To: <20131106184529.GB5661@alberich>
+Message-ID: <000001422ed8406b-14bef091-eee0-4e0e-bcdd-a8909c605910-000000@email.amazonses.com>
+References: <20131106184529.GB5661@alberich>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 3/4] MCS Lock: Barrier corrections
-References: <cover.1383670202.git.tim.c.chen@linux.intel.com>  <1383673356.11046.279.camel@schen9-DESK>  <20131105183744.GJ26895@mudshark.cambridge.arm.com>  <1383679317.11046.293.camel@schen9-DESK>  <20131105211803.GS28601@twins.programming.kicks-ass.net>  <20131106144520.GK18245@linux.vnet.ibm.com> <1383762133.11046.339.camel@schen9-DESK>
-In-Reply-To: <1383762133.11046.339.camel@schen9-DESK>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: paulmck@linux.vnet.ibm.com, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>
+To: Andreas Herrmann <andreas.herrmann@calxeda.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Tim,
+On Wed, 6 Nov 2013, Andreas Herrmann wrote:
 
-I have just sent out a patch as an addendum to your patch series. 
-Hopefully that will address the memory barrier issue.
+> When I've used slub_debug kernel option (e.g.
+> "slub_debug=,skbuff_fclone_cache" or similar) on a debug session I've
+> seen a panic like:
 
--Longman
+Hmmm.. That looks like its due to some slabs not having names
+during early boot. kmem_cache_flags is called with NULL as a parameter.
+
+Are you sure that this fixes the issue? Looks like the
+kmem_cache_flag function should fail regardless of how early you set it.
+
+AFAICT the right fix would be:
+
+
+Subject: slub: Handle NULL parameter in kmem_cache_flags
+
+kmem_cache_flags may be called with NULL parameter during early boot.
+Skip the test in that case.
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c	2013-10-15 13:55:44.000000000 -0500
++++ linux/mm/slub.c	2013-11-06 13:09:21.810583134 -0600
+@@ -1217,7 +1217,7 @@ static unsigned long kmem_cache_flags(un
+ 	/*
+ 	 * Enable debugging if selected on the kernel commandline.
+ 	 */
+-	if (slub_debug && (!slub_debug_slabs ||
++	if (slub_debug && name && (!slub_debug_slabs ||
+ 		!strncmp(slub_debug_slabs, name, strlen(slub_debug_slabs))))
+ 		flags |= slub_debug;
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
