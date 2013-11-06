@@ -1,89 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 791B46B00C2
-	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 02:17:20 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so10095615pad.16
-        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 23:17:20 -0800 (PST)
-Received: from psmtp.com ([74.125.245.140])
-        by mx.google.com with SMTP id hb3si16407864pac.268.2013.11.05.23.17.18
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 75CC56B00C4
+	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 03:42:44 -0500 (EST)
+Received: by mail-pd0-f170.google.com with SMTP id v10so9991458pde.1
+        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 00:42:44 -0800 (PST)
+Received: from psmtp.com ([74.125.245.123])
+        by mx.google.com with SMTP id ph6si16336491pbb.97.2013.11.06.00.42.41
         for <linux-mm@kvack.org>;
-        Tue, 05 Nov 2013 23:17:19 -0800 (PST)
-Received: by mail-ie0-f172.google.com with SMTP id tp5so17176283ieb.17
-        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 23:17:17 -0800 (PST)
+        Wed, 06 Nov 2013 00:42:42 -0800 (PST)
+Date: Wed, 6 Nov 2013 03:42:20 -0500 (EST)
+From: Jerome Marchand <jmarchan@redhat.com>
+Message-ID: <1450211196.19341043.1383727340985.JavaMail.root@redhat.com>
+In-Reply-To: <20131105155319.732dcbefb162c2ee4716ef9d@linux-foundation.org>
+References: <1382101019-23563-1-git-send-email-jmarchan@redhat.com> <1382101019-23563-2-git-send-email-jmarchan@redhat.com> <20131105155319.732dcbefb162c2ee4716ef9d@linux-foundation.org>
+Subject: Re: [PATCH v4 2/2] mm: allow to set overcommit ratio more precisely
 MIME-Version: 1.0
-In-Reply-To: <CAA25o9QG2BOmV5MoXCH73sadKoRD6wPivKq6TLvEem8GhZeXGg@mail.gmail.com>
-References: <1383693987-14171-1-git-send-email-snanda@chromium.org>
-	<alpine.DEB.2.02.1311051715090.29471@chino.kir.corp.google.com>
-	<CAA25o9SFZW7JxDQGv+h43EMSS3xH0eXy=LoHO_Psmk_n3dxqoA@mail.gmail.com>
-	<alpine.DEB.2.02.1311051727090.29471@chino.kir.corp.google.com>
-	<CANMivWZrefY1bbgpJgABqcUwKfqOR9HQtGNY6cWdutcMASeo2A@mail.gmail.com>
-	<CAA25o9QG2BOmV5MoXCH73sadKoRD6wPivKq6TLvEem8GhZeXGg@mail.gmail.com>
-Date: Tue, 5 Nov 2013 23:17:16 -0800
-Message-ID: <CAA25o9Q-HvjQ_5pFJgYNeutaCoYgPu=e=k7EHq=6-+jeEuhzoA@mail.gmail.com>
-Subject: Re: [PATCH] mm, oom: Fix race when selecting process to kill
-From: Luigi Semenzato <semenzato@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sameer Nanda <snanda@chromium.org>, msb@facebook.com
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.cz, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-
-Regarding other fixes: would it be possible to have the thread
-iterator insert a dummy marker element in the thread list before the
-scan?  There would be one such dummy element per CPU, so that multiple
-CPUs can scan the list in parallel.  The loop would skip such
-elements, and each dummy element would be removed at the end of each
-scan.
-
-I think this would work, i.e. it would have all the right properties,
-but I don't have a sense of whether the performance impact is
-acceptable.  Probably not, or it would have been proposed earlier.
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave hansen <dave.hansen@intel.com>
 
 
 
-On Tue, Nov 5, 2013 at 8:45 PM, Luigi Semenzato <semenzato@google.com> wrote:
-> It's interesting that this was known for 3+ years, but nobody bothered
-> adding a small warning to the code.
->
-> We noticed this because it's actually happening on Chromebooks in the
-> field.  We try to minimize OOM kills, but we can deal with them.  Of
-> course, a hung kernel we cannot deal with.
->
-> On Tue, Nov 5, 2013 at 7:04 PM, Sameer Nanda <snanda@chromium.org> wrote:
->>
->>
->>
->> On Tue, Nov 5, 2013 at 5:27 PM, David Rientjes <rientjes@google.com> wrote:
->>>
->>> On Tue, 5 Nov 2013, Luigi Semenzato wrote:
->>>
->>> > It's not enough to hold a reference to the task struct, because it can
->>> > still be taken out of the circular list of threads.  The RCU
->>> > assumptions don't hold in that case.
->>> >
->>>
->>> Could you please post a proper bug report that isolates this at the cause?
->>
->>
->> We've been running into this issue on Chrome OS. crbug.com/256326 has
->> additional
->> details.  The issue manifests itself as a soft lockup.
->>
->> The kernel we've been seeing this on is 3.8.
->>
->> We have a pretty consistent repro currently.  Happy to try out other
->> suggestions
->> for a fix.
->>
->>>
->>>
->>> Thanks.
->>
->>
->>
->>
->> --
->> Sameer
+----- Original Message -----
+> From: "Andrew Morton" <akpm@linux-foundation.org>
+> To: "Jerome Marchand" <jmarchan@redhat.com>
+> Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "dave hansen" <dave.hansen@intel.com>
+> Sent: Wednesday, November 6, 2013 12:53:19 AM
+> Subject: Re: [PATCH v4 2/2] mm: allow to set overcommit ratio more precisely
+> 
+> On Fri, 18 Oct 2013 14:56:59 +0200 Jerome Marchand <jmarchan@redhat.com>
+> wrote:
+> 
+> > Some applications that run on HPC clusters are designed around the
+> > availability of RAM and the overcommit ratio is fine tuned to get the
+> > maximum usage of memory without swapping. With growing memory, the 1%
+> > of all RAM grain provided by overcommit_ratio has become too coarse
+> > for these workload (on a 2TB machine it represents no less than
+> > 20GB).
+> > 
+> > This patch adds the new overcommit_ratio_ppm sysctl variable that
+> > allow to set overcommit ratio with a part per million precision.
+> > The old overcommit_ratio variable can still be used to set and read
+> > the ratio with a 1% precision. That way, overcommit_ratio interface
+> > isn't broken in any way that I can imagine.
+> 
+> The way we've permanently squished this mistake in the past is to
+> switch to "bytes".  See /proc/sys/vm/*bytes.
+> 
+> Would that approach work in this case?
+> 
+
+That was my first version of this patch (actually "kbytes" to avoid
+overflow).
+Dave raised the issue that it silently breaks the user interface:
+overcommit_ratio is zero while the system behaves differently.
+
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
