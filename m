@@ -1,36 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 532D16B00E8
-	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 11:06:39 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id wy17so6066282pbc.28
-        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 08:06:38 -0800 (PST)
-Received: from psmtp.com ([74.125.245.161])
-        by mx.google.com with SMTP id hk1si2121539pbb.11.2013.11.06.08.06.37
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B6156B00EA
+	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 11:08:52 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id q10so10448251pdj.28
+        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 08:08:52 -0800 (PST)
+Received: from psmtp.com ([74.125.245.206])
+        by mx.google.com with SMTP id ba2si16829708pbc.268.2013.11.06.08.08.48
         for <linux-mm@kvack.org>;
-        Wed, 06 Nov 2013 08:06:38 -0800 (PST)
-Received: by mail-ie0-f171.google.com with SMTP id tp5so17817700ieb.16
-        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 08:06:36 -0800 (PST)
+        Wed, 06 Nov 2013 08:08:49 -0800 (PST)
+Date: Wed, 6 Nov 2013 17:08:15 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v2 4/4] MCS Lock: Make mcs_spinlock.h includable in other
+ files
+Message-ID: <20131106160815.GR10651@twins.programming.kicks-ass.net>
+References: <cover.1383670202.git.tim.c.chen@linux.intel.com>
+ <1383673359.11046.280.camel@schen9-DESK>
+ <20131105185717.GZ16117@laptop.programming.kicks-ass.net>
+ <1383679842.11046.298.camel@schen9-DESK>
+ <527A60E3.3000106@hp.com>
 MIME-Version: 1.0
-In-Reply-To: <52715AD1.7000703@gmx.de>
-References: <526696BF.6050909@gmx.de>
-	<CAFLxGvy3NeRKu+KQCCm0j4LS60PYhH0bC8WWjfiPvpstPBjAkA@mail.gmail.com>
-	<5266A698.10400@gmx.de>
-	<5266B60A.1000005@nod.at>
-	<52715AD1.7000703@gmx.de>
-Date: Wed, 6 Nov 2013 20:06:36 +0400
-Message-ID: <CALYGNiPvJF1u8gXNcX1AZR5-VkGqJnaose84KBbdaoBAq8aoGQ@mail.gmail.com>
-Subject: Re: [uml-devel] fuzz tested 32 bit user mode linux image hangs in radix_tree_next_chunk()
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <527A60E3.3000106@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?Toralf_F=C3=B6rster?= <toralf.foerster@gmx.de>
-Cc: Richard Weinberger <richard@nod.at>, Richard Weinberger <richard.weinberger@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, UML devel <user-mode-linux-devel@lists.sourceforge.net>
+To: Waiman Long <waiman.long@hp.com>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, Will Deacon <will.deacon@arm.com>
 
-In this case it must stop after scanning whole tree in line:
-/* Overflow after ~0UL */
-if (!index)
-  return NULL;
+On Wed, Nov 06, 2013 at 10:31:47AM -0500, Waiman Long wrote:
+> On 11/05/2013 02:30 PM, Tim Chen wrote:
+> >On Tue, 2013-11-05 at 19:57 +0100, Peter Zijlstra wrote:
+> >>On Tue, Nov 05, 2013 at 09:42:39AM -0800, Tim Chen wrote:
+> >>>+ * The _raw_mcs_spin_lock() function should not be called directly. Instead,
+> >>>+ * users should call mcs_spin_lock().
+> >>>   */
+> >>>-static noinline
+> >>>-void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
+> >>>+static inline
+> >>>+void _raw_mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
+> >>>  {
+> >>>  	struct mcs_spinlock *prev;
+> >>>
+> >>So why keep it in the header at all?
+> >I also made the suggestion originally of keeping both lock and unlock in
+> >mcs_spinlock.c.  Wonder if Waiman decides to keep them in header
+> >because in-lining the unlock function makes execution a bit faster?
+> >
+> >Tim
+> >
+> 
+> I was following the example of the spinlock code where the lock function is
+> not inlined, but the unlock function is. I have no objection to make them
+> both as non-inlined functions, if you think that is the right move.
+
+I don't care, what I do find odd is the existence of
+_raw_mcs_spin_lock(). If you want to out-of-line it, just move the
+entire thing into a .c file already.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
