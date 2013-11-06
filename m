@@ -1,68 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D14A6B0106
-	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 16:31:16 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so266531pab.0
-        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 13:31:15 -0800 (PST)
-Received: from psmtp.com ([74.125.245.146])
-        by mx.google.com with SMTP id gj2si499051pac.80.2013.11.06.13.31.12
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B1C76B0108
+	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 16:37:03 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id lj1so269624pab.22
+        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 13:37:03 -0800 (PST)
+Received: from psmtp.com ([74.125.245.202])
+        by mx.google.com with SMTP id ws5si478056pab.238.2013.11.06.13.37.01
         for <linux-mm@kvack.org>;
-        Wed, 06 Nov 2013 13:31:13 -0800 (PST)
-Message-ID: <527AB51B.1020005@nod.at>
-Date: Wed, 06 Nov 2013 22:31:07 +0100
-From: Richard Weinberger <richard@nod.at>
-MIME-Version: 1.0
-Subject: Re: [uml-devel] fuzz tested 32 bit user mode linux image hangs in
- radix_tree_next_chunk()
-References: <526696BF.6050909@gmx.de>	<CAFLxGvy3NeRKu+KQCCm0j4LS60PYhH0bC8WWjfiPvpstPBjAkA@mail.gmail.com>	<5266A698.10400@gmx.de>	<5266B60A.1000005@nod.at>	<52715AD1.7000703@gmx.de> <CALYGNiPvJF1u8gXNcX1AZR5-VkGqJnaose84KBbdaoBAq8aoGQ@mail.gmail.com> <527AB23D.2060305@gmx.de>
-In-Reply-To: <527AB23D.2060305@gmx.de>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+        Wed, 06 Nov 2013 13:37:01 -0800 (PST)
+Subject: [PATCH v3 0/4] MCS Lock: MCS lock code cleanup and optimizations
+From: Tim Chen <tim.c.chen@linux.intel.com>
+References: <cover.1383771175.git.tim.c.chen@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 06 Nov 2013 13:36:56 -0800
+Message-ID: <1383773816.11046.352.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?VG9yYWxmIEbDtnJzdGVy?= <toralf.foerster@gmx.de>
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, UML devel <user-mode-linux-devel@lists.sourceforge.net>
+To: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul
+ E.McKenney" <paulmck@linux.vnet.ibm.com>, Tim Chen <tim.c.chen@linux.intel.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, Will Deacon <will.deacon@arm.com>, "Figo.zhang" <figo1802@gmail.com>
 
-Am 06.11.2013 22:18, schrieb Toralf FA?rster:
-> On 11/06/2013 05:06 PM, Konstantin Khlebnikov wrote:
->> In this case it must stop after scanning whole tree in line:
->> /* Overflow after ~0UL */
->> if (!index)
->>   return NULL;
->>
-> 
-> A fresh current example with latest git tree shows that lines 769 and 770 do alternate :
+In this patch series, we separated out the MCS lock code which was
+previously embedded in the mutex.c.  This allows for easier reuse of
+MCS lock in other places like rwsem and qrwlock.  We also did some micro
+optimizations and barrier cleanup.
 
-Can you please ask gdb for the value of offset?
+This patches were previously part of the rwsem optimization patch series
+but now we spearate them out.
 
-Thanks,
-//richard
+Tim Chen
 
-> 
-> tfoerste@n22 ~/devel/linux $ sudo gdb /usr/local/bin/linux-v3.12-48-gbe408cd 16619 -n -batch -ex bt
-> 0x08296a8c in radix_tree_next_chunk (root=0x25, iter=0x462e7c64, flags=12) at lib/radix-tree.c:770
-> 770                                             if (node->slots[offset])
-> #0  0x08296a8c in radix_tree_next_chunk (root=0x25, iter=0x462e7c64, flags=12) at lib/radix-tree.c:770
-> #1  0x080cc1fe in find_get_pages (mapping=0x462ad470, start=0, nr_pages=14, pages=0xc) at mm/filemap.c:844
-> #2  0x080d5d6a in pagevec_lookup (pvec=0x462e7cc8, mapping=0x25, start=37, nr_pages=37) at mm/swap.c:914
-> #3  0x080d615a in truncate_inode_pages_range (mapping=0x462ad470, lstart=0, lend=-1) at mm/truncate.c:241
-> #4  0x080d64ff in truncate_inode_pages (mapping=0x25, lstart=51539607589) at mm/truncate.c:358
-> 
-> 
-> 
-> 
-> tfoerste@n22 ~/devel/linux $ sudo gdb /usr/local/bin/linux-v3.12-48-gbe408cd 16619 -n -batch -ex bt
-> radix_tree_next_chunk (root=0x28, iter=0x462e7c64, flags=18) at lib/radix-tree.c:769
-> 769                                     while (++offset < RADIX_TREE_MAP_SIZE) {
-> #0  radix_tree_next_chunk (root=0x28, iter=0x462e7c64, flags=18) at lib/radix-tree.c:769
-> #1  0x080cc1fe in find_get_pages (mapping=0x462ad470, start=0, nr_pages=14, pages=0x12) at mm/filemap.c:844
-> #2  0x080d5d6a in pagevec_lookup (pvec=0x462e7cc8, mapping=0x28, start=40, nr_pages=40) at mm/swap.c:914
-> #3  0x080d615a in truncate_inode_pages_range (mapping=0x462ad470, lstart=0, lend=-1) at mm/truncate.c:241
-> #4  0x080d64ff in truncate_inode_pages (mapping=0x28, lstart=77309411368) at mm/truncate.c:358
-> #5  0x0825e388 in hostfs_evict_inode (inode=0x462ad3b8) at fs/hostfs/hostfs_kern.c:242
-> #6  0x0811a8df in evict (inode=0x462ad3b8) at fs/inode.c:549
-> 
-> 
+v3:
+1. modified memory barriers to support non x86 architectures that have
+weak memory ordering.
+
+v2:
+1. change export mcs_spin_lock as a GPL export symbol
+2. corrected mcs_spin_lock to references
+
+
+Jason Low (2):
+  MCS Lock: optimizations and extra comments
+  MCS Lock: Barrier corrections
+
+
+Jason Low (2):
+  MCS Lock: optimizations and extra comments
+  MCS Lock: Barrier corrections
+
+Tim Chen (1):
+  MCS Lock: Restructure the MCS lock defines and locking code into its
+    own file
+
+Waiman Long (2):
+  MCS Lock: Make mcs_spinlock.h includable in other files
+  MCS Lock: Allow architecture specific memory barrier in lock/unlock
+
+ arch/x86/include/asm/barrier.h |    6 +++
+ include/linux/mcs_spinlock.h   |   25 ++++++++++
+ include/linux/mutex.h          |    5 +-
+ kernel/Makefile                |    6 +-
+ kernel/mcs_spinlock.c          |   96 ++++++++++++++++++++++++++++++++++++++++
+ kernel/mutex.c                 |   60 +++----------------------
+ 6 files changed, 140 insertions(+), 58 deletions(-)
+ create mode 100644 include/linux/mcs_spinlock.h
+ create mode 100644 kernel/mcs_spinlock.c
+
+-- 
+1.7.4.4
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
