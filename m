@@ -1,46 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 2504B6B00AC
-	for <linux-mm@kvack.org>; Tue,  5 Nov 2013 19:42:22 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id kq14so9607708pab.7
-        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 16:42:21 -0800 (PST)
-Received: from psmtp.com ([74.125.245.198])
-        by mx.google.com with SMTP id p2si993176pbe.308.2013.11.05.16.42.19
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id A68276B00AE
+	for <linux-mm@kvack.org>; Tue,  5 Nov 2013 20:18:50 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id rd3so9788949pab.33
+        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 17:18:50 -0800 (PST)
+Received: from psmtp.com ([74.125.245.138])
+        by mx.google.com with SMTP id yl8si4172981pab.118.2013.11.05.17.18.48
         for <linux-mm@kvack.org>;
-        Tue, 05 Nov 2013 16:42:20 -0800 (PST)
-Date: Tue, 5 Nov 2013 16:43:51 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: create a separate slab for page->ptl allocation
-Message-Id: <20131105164351.b2c63109.akpm@linux-foundation.org>
-In-Reply-To: <20131105231310.GE20167@shutemov.name>
-References: <1382442839-7458-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<20131105150145.734a5dd5b5d455800ebfa0d3@linux-foundation.org>
-	<20131105224217.GC20167@shutemov.name>
-	<20131105155619.021f32eba1ca8f15a73ed4c9@linux-foundation.org>
-	<20131105231310.GE20167@shutemov.name>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 05 Nov 2013 17:18:49 -0800 (PST)
+Received: by mail-pa0-f45.google.com with SMTP id kp14so9755067pab.18
+        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 17:18:47 -0800 (PST)
+Date: Tue, 5 Nov 2013 17:18:45 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm, oom: Fix race when selecting process to kill
+In-Reply-To: <1383693987-14171-1-git-send-email-snanda@chromium.org>
+Message-ID: <alpine.DEB.2.02.1311051715090.29471@chino.kir.corp.google.com>
+References: <1383693987-14171-1-git-send-email-snanda@chromium.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Sameer Nanda <snanda@chromium.org>
+Cc: akpm@linux-foundation.org, mhocko@suse.cz, hannes@cmpxchg.org, rusty@rustcorp.com.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 6 Nov 2013 01:13:11 +0200 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+On Tue, 5 Nov 2013, Sameer Nanda wrote:
 
-> > Really the function shouldn't exist in this case.  It is __init so the
-> > sin is not terrible, but can this be arranged?
+> The selection of the process to be killed happens in two spots -- first
+> in select_bad_process and then a further refinement by looking for
+> child processes in oom_kill_process. Since this is a two step process,
+> it is possible that the process selected by select_bad_process may get a
+> SIGKILL just before oom_kill_process executes. If this were to happen,
+> __unhash_process deletes this process from the thread_group list. This
+> then results in oom_kill_process getting stuck in an infinite loop when
+> traversing the thread_group list of the selected process.
 > 
-> I would like to get rid of __ptlock_alloc()/__ptlock_free() too, but I
-> don't see a way within C: we need to know sizeof(spinlock_t) on
-> preprocessor stage.
+> Fix this race by holding the tasklist_lock across the calls to both
+> select_bad_process and oom_kill_process.
 > 
-> We can have a hack on kbuild level: write small helper program to find out
-> sizeof(spinlock_t) before start building and turn it into define.
-> But it's overkill from my POV. And cross-compilation will be a fun.
+> Change-Id: I8f96b106b3257b5c103d6497bac7f04f4dff4e60
+> Signed-off-by: Sameer Nanda <snanda@chromium.org>
 
-Yes, it doesn't seem worth the fuss.  The compiler will remove all this
-code anyway, so for example ptlock_cache_init() becomes an empty function.
+Nack, we had to avoid taking tasklist_lock for this duration since it 
+stalls out forks and exits on other cpus trying to take the writeside with 
+irqs disabled to avoid watchdog problems.
+
+What kernel version are you patching?  If you check the latest Linus tree, 
+we hold a reference to the task_struct of the chosen process before 
+calling oom_kill_process() so the hypothesis would seem incorrect.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
