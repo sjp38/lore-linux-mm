@@ -1,79 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id EFFE66B00D6
-	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 09:03:42 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id wy17so5905503pbc.0
-        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 06:03:42 -0800 (PST)
-Received: from psmtp.com ([74.125.245.166])
-        by mx.google.com with SMTP id z1si17136523pbw.159.2013.11.06.06.03.40
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id CF7E66B00D8
+	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 09:18:07 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so10734011pab.0
+        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 06:18:07 -0800 (PST)
+Received: from psmtp.com ([74.125.245.203])
+        by mx.google.com with SMTP id mi5si17514750pab.19.2013.11.06.06.18.04
         for <linux-mm@kvack.org>;
-        Wed, 06 Nov 2013 06:03:41 -0800 (PST)
-Received: by mail-ie0-f175.google.com with SMTP id aq17so16954122iec.6
-        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 06:03:39 -0800 (PST)
+        Wed, 06 Nov 2013 06:18:05 -0800 (PST)
+Date: Wed, 6 Nov 2013 15:21:55 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: create a separate slab for page->ptl allocation
+Message-ID: <20131106132155.GA22132@shutemov.name>
+References: <1382442839-7458-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20131105150145.734a5dd5b5d455800ebfa0d3@linux-foundation.org>
+ <20131105224217.GC20167@shutemov.name>
+ <20131105155619.021f32eba1ca8f15a73ed4c9@linux-foundation.org>
+ <20131105231310.GE20167@shutemov.name>
+ <20131106093131.GU28601@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <20131106060132.GB24044@gmail.com>
-References: <1383337039.2653.18.camel@buesod1.americas.hpqcorp.net>
-	<20131103101234.GB5330@gmail.com>
-	<1383538810.2373.22.camel@buesod1.americas.hpqcorp.net>
-	<20131104070500.GE13030@gmail.com>
-	<20131104142001.GE9299@localhost.localdomain>
-	<20131104175245.GA19517@gmail.com>
-	<20131104181012.GK9299@localhost.localdomain>
-	<20131105082450.GA10127@gmail.com>
-	<20131105142707.GC30283@krava.brq.redhat.com>
-	<20131106060132.GB24044@gmail.com>
-Date: Wed, 6 Nov 2013 18:03:39 +0400
-Message-ID: <CALYGNiNc__rWZGTdW-TZ2zp+HPziCiCj764JECP1tnvK4C0S8A@mail.gmail.com>
-Subject: Re: [PATCH] mm: cache largest vma
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131106093131.GU28601@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Jiri Olsa <jolsa@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Davidlohr Bueso <davidlohr@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, aswin@hp.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, David Ahern <dsahern@gmail.com>, Arnaldo Carvalho de Melo <acme@redhat.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-Some time ago I've thought about caching vma on PTE's struct page.
-This will work for all huge vmas not only for largest ones.
+On Wed, Nov 06, 2013 at 10:31:31AM +0100, Peter Zijlstra wrote:
+> On Wed, Nov 06, 2013 at 01:13:11AM +0200, Kirill A. Shutemov wrote:
+> > I would like to get rid of __ptlock_alloc()/__ptlock_free() too, but I
+> > don't see a way within C: we need to know sizeof(spinlock_t) on
+> > preprocessor stage.
+> > 
+> > We can have a hack on kbuild level: write small helper program to find out
+> > sizeof(spinlock_t) before start building and turn it into define.
+> > But it's overkill from my POV. And cross-compilation will be a fun.
+> 
+> Ah, I just remembered, we have such a thing!
 
-Of course this requires some reordering in do_page_fault because
-currently it lookups vma before pte for obvious reason.
+Great!
+
+> @@ -1354,7 +1356,7 @@ static inline bool ptlock_init(struct page *page)
+>  	 * slab code uses page->slab_cache and page->first_page (for tail
+>  	 * pages), which share storage with page->ptl.
+>  	 */
+> -	VM_BUG_ON(page->ptl);
+> +	VM_BUG_ON(*(unsigned long *)&page->ptl);
+
+Huh? Why not direct cast to unsigned long?
+
+VM_BUG_ON((unsigned long)page->ptl);
+
+Otherwise:
+
+Reviewed-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
 
-On Wed, Nov 6, 2013 at 10:01 AM, Ingo Molnar <mingo@kernel.org> wrote:
->
-> * Jiri Olsa <jolsa@redhat.com> wrote:
->
->> > But success primarily depends on how useful the tooling UI turns out
->> > to be: create a nice Slang or GTK UI for kprobes and triggers, and/or
->> > turn it into a really intuitive command line UI, and people will use
->> > it.
->> >
->> > I think annotated assembly/source output is a really nice match for
->> > triggers and kprobes, so I'd suggest the Slang TUI route ...
->>
->> yep, current toggling command line UI is not much user friendly
->>
->> but perhaps we should leave it there (because it seems it wont get much
->> better anyway) and focus more on Slang UI as the target one..
->>
->> CCing Arnaldo ;-)
->
-> Btw., I think we should do the TUI interface _before_ we can merge the
-> kernel changes. Frankly, 'not very user friendly' means that it's not used
-> (and tested) much - which begs the question: why merge the feature at all?
->
-> Making a new kernel feature usable to as many people as possible must be a
-> primary concern, not an afterthought.
->
-> Thanks,
->
->         Ingo
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
