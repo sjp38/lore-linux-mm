@@ -1,65 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 224736B00BE
-	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 01:01:40 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id fb1so10054676pad.37
-        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 22:01:39 -0800 (PST)
-Received: from psmtp.com ([74.125.245.105])
-        by mx.google.com with SMTP id gn4si15925447pbc.171.2013.11.05.22.01.36
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AEA46B00C0
+	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 01:42:35 -0500 (EST)
+Received: by mail-pb0-f44.google.com with SMTP id rp8so2504925pbb.31
+        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 22:42:35 -0800 (PST)
+Received: from psmtp.com ([74.125.245.139])
+        by mx.google.com with SMTP id ll9si16328260pab.298.2013.11.05.22.42.31
         for <linux-mm@kvack.org>;
-        Tue, 05 Nov 2013 22:01:37 -0800 (PST)
-Received: by mail-ea0-f172.google.com with SMTP id r16so4729504ead.31
-        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 22:01:34 -0800 (PST)
-Date: Wed, 6 Nov 2013 07:01:32 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH] mm: cache largest vma
-Message-ID: <20131106060132.GB24044@gmail.com>
-References: <1383337039.2653.18.camel@buesod1.americas.hpqcorp.net>
- <20131103101234.GB5330@gmail.com>
- <1383538810.2373.22.camel@buesod1.americas.hpqcorp.net>
- <20131104070500.GE13030@gmail.com>
- <20131104142001.GE9299@localhost.localdomain>
- <20131104175245.GA19517@gmail.com>
- <20131104181012.GK9299@localhost.localdomain>
- <20131105082450.GA10127@gmail.com>
- <20131105142707.GC30283@krava.brq.redhat.com>
+        Tue, 05 Nov 2013 22:42:32 -0800 (PST)
+Date: Wed, 6 Nov 2013 15:43:02 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: cma: free cma page to buddy instead of being cpu hot
+ page
+Message-ID: <20131106064302.GC30958@bbox>
+References: <1382960569-6564-1-git-send-email-zhang.mingjun@linaro.org>
+ <20131029093322.GA2400@suse.de>
+ <20131105134448.7677d6febbfff4721373be4b@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131105142707.GC30283@krava.brq.redhat.com>
+In-Reply-To: <20131105134448.7677d6febbfff4721373be4b@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Olsa <jolsa@redhat.com>
-Cc: Frederic Weisbecker <fweisbec@gmail.com>, Davidlohr Bueso <davidlohr@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, aswin@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, David Ahern <dsahern@gmail.com>, Arnaldo Carvalho de Melo <acme@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, zhang.mingjun@linaro.org, m.szyprowski@samsung.com, haojian.zhuang@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mingjun Zhang <troy.zhangmingjun@linaro.org>
 
+Hello Andrew,
 
-* Jiri Olsa <jolsa@redhat.com> wrote:
-
-> > But success primarily depends on how useful the tooling UI turns out 
-> > to be: create a nice Slang or GTK UI for kprobes and triggers, and/or 
-> > turn it into a really intuitive command line UI, and people will use 
-> > it.
+On Tue, Nov 05, 2013 at 01:44:48PM -0800, Andrew Morton wrote:
+> On Tue, 29 Oct 2013 09:33:23 +0000 Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > On Mon, Oct 28, 2013 at 07:42:49PM +0800, zhang.mingjun@linaro.org wrote:
+> > > From: Mingjun Zhang <troy.zhangmingjun@linaro.org>
+> > > 
+> > > free_contig_range frees cma pages one by one and MIGRATE_CMA pages will be
+> > > used as MIGRATE_MOVEABLE pages in the pcp list, it causes unnecessary
+> > > migration action when these pages reused by CMA.
+> > > 
+> > > Signed-off-by: Mingjun Zhang <troy.zhangmingjun@linaro.org>
+> > > ---
+> > >  mm/page_alloc.c |    3 ++-
+> > >  1 file changed, 2 insertions(+), 1 deletion(-)
+> > > 
+> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > index 0ee638f..84b9d84 100644
+> > > --- a/mm/page_alloc.c
+> > > +++ b/mm/page_alloc.c
+> > > @@ -1362,7 +1362,8 @@ void free_hot_cold_page(struct page *page, int cold)
+> > >  	 * excessively into the page allocator
+> > >  	 */
+> > >  	if (migratetype >= MIGRATE_PCPTYPES) {
+> > > -		if (unlikely(is_migrate_isolate(migratetype))) {
+> > > +		if (unlikely(is_migrate_isolate(migratetype))
+> > > +			|| is_migrate_cma(migratetype))
+> > >  			free_one_page(zone, page, 0, migratetype);
+> > >  			goto out;
 > > 
-> > I think annotated assembly/source output is a really nice match for 
-> > triggers and kprobes, so I'd suggest the Slang TUI route ...
+> > This slightly impacts the page allocator free path for a marginal gain
+> > on CMA which are relatively rare allocations. There is no obvious
+> > benefit to this patch as I expect CMA allocations to flush the PCP lists
+> > when a range of pages have been isolated and migrated. Is there any
+> > measurable benefit to this patch?
 > 
-> yep, current toggling command line UI is not much user friendly
+> The added overhead is pretty small - just a comparison of a local with
+> a constant.  And that cost is not incurred for MIGRATE_UNMOVABLE,
+> MIGRATE_RECLAIMABLE and MIGRATE_MOVABLE, which are the common cases
+> (yes?).
+
+True but bloat code might affect icache so we should be careful.
+And what Mel has a concern is about zone->lock, which would be more contended.
+I agree his opinion.
+
+In addition, I think the gain is marginal because normally CMA is big range
+so free_contig_range in dma release path will fill per_cpu_pages with freed pages
+easily so it could drain per_cpu_pages frequently so race which steal page from
+per_cpu_pages is not big, I guess.
+
+Morever, we could change free_contig_range with batch_free_page which would
+be useful for other cases if they want to free many number of pages
+all at once.
+
+The bottom line is we need *number and real scenario* for that.
+
+If it's really needed, after merging this patch, we could enhance it with
+batch_free_page so we could solve Mel's concern, too.
+
 > 
-> but perhaps we should leave it there (because it seems it wont get much 
-> better anyway) and focus more on Slang UI as the target one..
+> This thread is a bit straggly and inconclusive, but it sounds to me
+> that the benefit to CMA users is quite large and the cost to others is
+> small, so I'm inclined to run with the original patch.  Someone stop me
+> if that's wrong.
+
+I want you to stop until we see the number.
+
 > 
-> CCing Arnaldo ;-)
+> (we could speed up some of the migratetype tests if the MIGRATE_foo
+> constants were converted to bitfields.  The above test becomes "if
+> (migratetype & (MIGRATE_CMA|MIGRATE_ISOLATE))").
+> 
+> (why is is_migrate_cma() implemented as a macro in mmzone.h while
+> is_migrate_isolate() is an inline in page-isolation.h?)
 
-Btw., I think we should do the TUI interface _before_ we can merge the 
-kernel changes. Frankly, 'not very user friendly' means that it's not used 
-(and tested) much - which begs the question: why merge the feature at all?
+Just preference?
+I like inline than macro and that's why is_migrate_isolate was inline.
 
-Making a new kernel feature usable to as many people as possible must be a 
-primary concern, not an afterthought.
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Thanks,
-
-	Ingo
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
