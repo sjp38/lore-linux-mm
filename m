@@ -1,43 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BA786B00E0
-	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 09:32:29 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id y10so10155731pdj.38
-        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 06:32:28 -0800 (PST)
-Received: from psmtp.com ([74.125.245.201])
-        by mx.google.com with SMTP id ai2si17570506pad.1.2013.11.06.06.32.26
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 117306B00E2
+	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 10:06:10 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so10604404pad.2
+        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 07:06:10 -0800 (PST)
+Received: from psmtp.com ([74.125.245.169])
+        by mx.google.com with SMTP id j10si17638718pac.54.2013.11.06.07.06.06
         for <linux-mm@kvack.org>;
-        Wed, 06 Nov 2013 06:32:27 -0800 (PST)
-Date: Wed, 6 Nov 2013 15:32:14 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: lockref: Use bloated_spinlocks to avoid explicit config
- dependencies
-Message-ID: <20131106143214.GP10651@twins.programming.kicks-ass.net>
-References: <1382442839-7458-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20131105150145.734a5dd5b5d455800ebfa0d3@linux-foundation.org>
- <20131105224217.GC20167@shutemov.name>
- <20131105155619.021f32eba1ca8f15a73ed4c9@linux-foundation.org>
- <20131105231310.GE20167@shutemov.name>
- <20131106093131.GU28601@twins.programming.kicks-ass.net>
- <20131106111845.GG26785@twins.programming.kicks-ass.net>
- <20131106133112.GB22132@shutemov.name>
+        Wed, 06 Nov 2013 07:06:08 -0800 (PST)
+Subject: [PATCH] mm: add strictlimit knob -v2
+From: Maxim Patlasov <MPatlasov@parallels.com>
+Date: Wed, 06 Nov 2013 19:05:57 +0400
+Message-ID: <20131106150515.25906.55017.stgit@dhcp-10-30-17-2.sw.ru>
+In-Reply-To: <20131104140104.7936d263258a7a6753eb325e@linux-foundation.org>
+References: <20131104140104.7936d263258a7a6753eb325e@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131106133112.GB22132@shutemov.name>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: akpm@linux-foundation.org
+Cc: karl.kiniger@med.ge.com, tytso@mit.edu, linux-kernel@vger.kernel.org, t.artem@lycos.com, linux-mm@kvack.org, mgorman@suse.de, jack@suse.cz, fengguang.wu@intel.com, torvalds@linux-foundation.org, mpatlasov@parallels.com
 
-On Wed, Nov 06, 2013 at 03:31:12PM +0200, Kirill A. Shutemov wrote:
-> Should we get rid of CONFIG_CMPXCHG_LOCKREF completely and have here:
-> 
-> #if defined(CONFIG_ARCH_USE_CMPXCHG_LOCKREF) && \
-> 	defined(CONFIG_SMP) && !BLOATED_SPINLOCKS
-> 
+"strictlimit" feature was introduced to enforce per-bdi dirty limits for
+FUSE which sets bdi max_ratio to 1% by default:
 
-Yeah, that might make more sense.
+http://article.gmane.org/gmane.linux.kernel.mm/105809
+
+However the feature can be useful for other relatively slow or untrusted
+BDIs like USB flash drives and DVD+RW. The patch adds a knob to enable the
+feature:
+
+echo 1 > /sys/class/bdi/X:Y/strictlimit
+
+Being enabled, the feature enforces bdi max_ratio limit even if global (10%)
+dirty limit is not reached. Of course, the effect is not visible until
+/sys/class/bdi/X:Y/max_ratio is decreased to some reasonable value.
+
+Changed in v2:
+ - updated patch description and documentation
+
+Signed-off-by: Maxim Patlasov <MPatlasov@parallels.com>
+---
+ Documentation/ABI/testing/sysfs-class-bdi |    8 +++++++
+ mm/backing-dev.c                          |   35 +++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)
+
+diff --git a/Documentation/ABI/testing/sysfs-class-bdi b/Documentation/ABI/testing/sysfs-class-bdi
+index d773d56..3187a18 100644
+--- a/Documentation/ABI/testing/sysfs-class-bdi
++++ b/Documentation/ABI/testing/sysfs-class-bdi
+@@ -53,3 +53,11 @@ stable_pages_required (read-only)
+ 
+ 	If set, the backing device requires that all pages comprising a write
+ 	request must not be changed until writeout is complete.
++
++strictlimit (read-write)
++
++	Forces per-BDI checks for the share of given device in the write-back
++	cache even before the global background dirty limit is reached. This
++	is useful in situations where the global limit is much higher than
++	affordable for given relatively slow (or untrusted) device. Turning
++	strictlimit on has no visible effect if max_ratio is equal to 100%.
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index ce682f7..4ee1d64 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -234,11 +234,46 @@ static ssize_t stable_pages_required_show(struct device *dev,
+ }
+ static DEVICE_ATTR_RO(stable_pages_required);
+ 
++static ssize_t strictlimit_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t count)
++{
++	struct backing_dev_info *bdi = dev_get_drvdata(dev);
++	unsigned int val;
++	ssize_t ret;
++
++	ret = kstrtouint(buf, 10, &val);
++	if (ret < 0)
++		return ret;
++
++	switch (val) {
++	case 0:
++		bdi->capabilities &= ~BDI_CAP_STRICTLIMIT;
++		break;
++	case 1:
++		bdi->capabilities |= BDI_CAP_STRICTLIMIT;
++		break;
++	default:
++		return -EINVAL;
++	}
++
++	return count;
++}
++static ssize_t strictlimit_show(struct device *dev,
++		struct device_attribute *attr, char *page)
++{
++	struct backing_dev_info *bdi = dev_get_drvdata(dev);
++
++	return snprintf(page, PAGE_SIZE-1, "%d\n",
++			!!(bdi->capabilities & BDI_CAP_STRICTLIMIT));
++}
++static DEVICE_ATTR_RW(strictlimit);
++
+ static struct attribute *bdi_dev_attrs[] = {
+ 	&dev_attr_read_ahead_kb.attr,
+ 	&dev_attr_min_ratio.attr,
+ 	&dev_attr_max_ratio.attr,
+ 	&dev_attr_stable_pages_required.attr,
++	&dev_attr_strictlimit.attr,
+ 	NULL,
+ };
+ ATTRIBUTE_GROUPS(bdi_dev);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
