@@ -1,119 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AEA46B00C0
-	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 01:42:35 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id rp8so2504925pbb.31
-        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 22:42:35 -0800 (PST)
-Received: from psmtp.com ([74.125.245.139])
-        by mx.google.com with SMTP id ll9si16328260pab.298.2013.11.05.22.42.31
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 791B46B00C2
+	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 02:17:20 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so10095615pad.16
+        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 23:17:20 -0800 (PST)
+Received: from psmtp.com ([74.125.245.140])
+        by mx.google.com with SMTP id hb3si16407864pac.268.2013.11.05.23.17.18
         for <linux-mm@kvack.org>;
-        Tue, 05 Nov 2013 22:42:32 -0800 (PST)
-Date: Wed, 6 Nov 2013 15:43:02 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: cma: free cma page to buddy instead of being cpu hot
- page
-Message-ID: <20131106064302.GC30958@bbox>
-References: <1382960569-6564-1-git-send-email-zhang.mingjun@linaro.org>
- <20131029093322.GA2400@suse.de>
- <20131105134448.7677d6febbfff4721373be4b@linux-foundation.org>
+        Tue, 05 Nov 2013 23:17:19 -0800 (PST)
+Received: by mail-ie0-f172.google.com with SMTP id tp5so17176283ieb.17
+        for <linux-mm@kvack.org>; Tue, 05 Nov 2013 23:17:17 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131105134448.7677d6febbfff4721373be4b@linux-foundation.org>
+In-Reply-To: <CAA25o9QG2BOmV5MoXCH73sadKoRD6wPivKq6TLvEem8GhZeXGg@mail.gmail.com>
+References: <1383693987-14171-1-git-send-email-snanda@chromium.org>
+	<alpine.DEB.2.02.1311051715090.29471@chino.kir.corp.google.com>
+	<CAA25o9SFZW7JxDQGv+h43EMSS3xH0eXy=LoHO_Psmk_n3dxqoA@mail.gmail.com>
+	<alpine.DEB.2.02.1311051727090.29471@chino.kir.corp.google.com>
+	<CANMivWZrefY1bbgpJgABqcUwKfqOR9HQtGNY6cWdutcMASeo2A@mail.gmail.com>
+	<CAA25o9QG2BOmV5MoXCH73sadKoRD6wPivKq6TLvEem8GhZeXGg@mail.gmail.com>
+Date: Tue, 5 Nov 2013 23:17:16 -0800
+Message-ID: <CAA25o9Q-HvjQ_5pFJgYNeutaCoYgPu=e=k7EHq=6-+jeEuhzoA@mail.gmail.com>
+Subject: Re: [PATCH] mm, oom: Fix race when selecting process to kill
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, zhang.mingjun@linaro.org, m.szyprowski@samsung.com, haojian.zhuang@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mingjun Zhang <troy.zhangmingjun@linaro.org>
+To: Sameer Nanda <snanda@chromium.org>, msb@facebook.com
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.cz, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello Andrew,
+Regarding other fixes: would it be possible to have the thread
+iterator insert a dummy marker element in the thread list before the
+scan?  There would be one such dummy element per CPU, so that multiple
+CPUs can scan the list in parallel.  The loop would skip such
+elements, and each dummy element would be removed at the end of each
+scan.
 
-On Tue, Nov 05, 2013 at 01:44:48PM -0800, Andrew Morton wrote:
-> On Tue, 29 Oct 2013 09:33:23 +0000 Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > On Mon, Oct 28, 2013 at 07:42:49PM +0800, zhang.mingjun@linaro.org wrote:
-> > > From: Mingjun Zhang <troy.zhangmingjun@linaro.org>
-> > > 
-> > > free_contig_range frees cma pages one by one and MIGRATE_CMA pages will be
-> > > used as MIGRATE_MOVEABLE pages in the pcp list, it causes unnecessary
-> > > migration action when these pages reused by CMA.
-> > > 
-> > > Signed-off-by: Mingjun Zhang <troy.zhangmingjun@linaro.org>
-> > > ---
-> > >  mm/page_alloc.c |    3 ++-
-> > >  1 file changed, 2 insertions(+), 1 deletion(-)
-> > > 
-> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > index 0ee638f..84b9d84 100644
-> > > --- a/mm/page_alloc.c
-> > > +++ b/mm/page_alloc.c
-> > > @@ -1362,7 +1362,8 @@ void free_hot_cold_page(struct page *page, int cold)
-> > >  	 * excessively into the page allocator
-> > >  	 */
-> > >  	if (migratetype >= MIGRATE_PCPTYPES) {
-> > > -		if (unlikely(is_migrate_isolate(migratetype))) {
-> > > +		if (unlikely(is_migrate_isolate(migratetype))
-> > > +			|| is_migrate_cma(migratetype))
-> > >  			free_one_page(zone, page, 0, migratetype);
-> > >  			goto out;
-> > 
-> > This slightly impacts the page allocator free path for a marginal gain
-> > on CMA which are relatively rare allocations. There is no obvious
-> > benefit to this patch as I expect CMA allocations to flush the PCP lists
-> > when a range of pages have been isolated and migrated. Is there any
-> > measurable benefit to this patch?
-> 
-> The added overhead is pretty small - just a comparison of a local with
-> a constant.  And that cost is not incurred for MIGRATE_UNMOVABLE,
-> MIGRATE_RECLAIMABLE and MIGRATE_MOVABLE, which are the common cases
-> (yes?).
+I think this would work, i.e. it would have all the right properties,
+but I don't have a sense of whether the performance impact is
+acceptable.  Probably not, or it would have been proposed earlier.
 
-True but bloat code might affect icache so we should be careful.
-And what Mel has a concern is about zone->lock, which would be more contended.
-I agree his opinion.
 
-In addition, I think the gain is marginal because normally CMA is big range
-so free_contig_range in dma release path will fill per_cpu_pages with freed pages
-easily so it could drain per_cpu_pages frequently so race which steal page from
-per_cpu_pages is not big, I guess.
 
-Morever, we could change free_contig_range with batch_free_page which would
-be useful for other cases if they want to free many number of pages
-all at once.
-
-The bottom line is we need *number and real scenario* for that.
-
-If it's really needed, after merging this patch, we could enhance it with
-batch_free_page so we could solve Mel's concern, too.
-
-> 
-> This thread is a bit straggly and inconclusive, but it sounds to me
-> that the benefit to CMA users is quite large and the cost to others is
-> small, so I'm inclined to run with the original patch.  Someone stop me
-> if that's wrong.
-
-I want you to stop until we see the number.
-
-> 
-> (we could speed up some of the migratetype tests if the MIGRATE_foo
-> constants were converted to bitfields.  The above test becomes "if
-> (migratetype & (MIGRATE_CMA|MIGRATE_ISOLATE))").
-> 
-> (why is is_migrate_cma() implemented as a macro in mmzone.h while
-> is_migrate_isolate() is an inline in page-isolation.h?)
-
-Just preference?
-I like inline than macro and that's why is_migrate_isolate was inline.
-
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+On Tue, Nov 5, 2013 at 8:45 PM, Luigi Semenzato <semenzato@google.com> wrote:
+> It's interesting that this was known for 3+ years, but nobody bothered
+> adding a small warning to the code.
+>
+> We noticed this because it's actually happening on Chromebooks in the
+> field.  We try to minimize OOM kills, but we can deal with them.  Of
+> course, a hung kernel we cannot deal with.
+>
+> On Tue, Nov 5, 2013 at 7:04 PM, Sameer Nanda <snanda@chromium.org> wrote:
+>>
+>>
+>>
+>> On Tue, Nov 5, 2013 at 5:27 PM, David Rientjes <rientjes@google.com> wrote:
+>>>
+>>> On Tue, 5 Nov 2013, Luigi Semenzato wrote:
+>>>
+>>> > It's not enough to hold a reference to the task struct, because it can
+>>> > still be taken out of the circular list of threads.  The RCU
+>>> > assumptions don't hold in that case.
+>>> >
+>>>
+>>> Could you please post a proper bug report that isolates this at the cause?
+>>
+>>
+>> We've been running into this issue on Chrome OS. crbug.com/256326 has
+>> additional
+>> details.  The issue manifests itself as a soft lockup.
+>>
+>> The kernel we've been seeing this on is 3.8.
+>>
+>> We have a pretty consistent repro currently.  Happy to try out other
+>> suggestions
+>> for a fix.
+>>
+>>>
+>>>
+>>> Thanks.
+>>
+>>
+>>
+>>
+>> --
+>> Sameer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
