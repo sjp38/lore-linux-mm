@@ -1,132 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B2B16B00F0
-	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 11:59:08 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id lj1so10738646pab.36
-        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 08:59:08 -0800 (PST)
-Received: from psmtp.com ([74.125.245.175])
-        by mx.google.com with SMTP id sd2si17573624pbb.319.2013.11.06.08.59.06
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BF466B00F2
+	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 12:05:36 -0500 (EST)
+Received: by mail-pb0-f47.google.com with SMTP id rq13so5124620pbb.20
+        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 09:05:36 -0800 (PST)
+Received: from psmtp.com ([74.125.245.116])
+        by mx.google.com with SMTP id pl8si110355pbb.134.2013.11.06.09.05.33
         for <linux-mm@kvack.org>;
-        Wed, 06 Nov 2013 08:59:07 -0800 (PST)
-Received: by mail-wg0-f53.google.com with SMTP id y10so5302624wgg.32
-        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 08:59:04 -0800 (PST)
+        Wed, 06 Nov 2013 09:05:34 -0800 (PST)
+Message-ID: <527A76C9.1030208@hp.com>
+Date: Wed, 06 Nov 2013 12:05:13 -0500
+From: Waiman Long <waiman.long@hp.com>
 MIME-Version: 1.0
-In-Reply-To: <CAA25o9Q-HvjQ_5pFJgYNeutaCoYgPu=e=k7EHq=6-+jeEuhzoA@mail.gmail.com>
-References: <1383693987-14171-1-git-send-email-snanda@chromium.org>
- <alpine.DEB.2.02.1311051715090.29471@chino.kir.corp.google.com>
- <CAA25o9SFZW7JxDQGv+h43EMSS3xH0eXy=LoHO_Psmk_n3dxqoA@mail.gmail.com>
- <alpine.DEB.2.02.1311051727090.29471@chino.kir.corp.google.com>
- <CANMivWZrefY1bbgpJgABqcUwKfqOR9HQtGNY6cWdutcMASeo2A@mail.gmail.com>
- <CAA25o9QG2BOmV5MoXCH73sadKoRD6wPivKq6TLvEem8GhZeXGg@mail.gmail.com> <CAA25o9Q-HvjQ_5pFJgYNeutaCoYgPu=e=k7EHq=6-+jeEuhzoA@mail.gmail.com>
-From: Sameer Nanda <snanda@chromium.org>
-Date: Wed, 6 Nov 2013 08:58:44 -0800
-Message-ID: <CANMivWZhNRGW6DPcqpYiUBjOX23LRZ_kJ9DzzfS7VdRpm075ZA@mail.gmail.com>
-Subject: Re: [PATCH] mm, oom: Fix race when selecting process to kill
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v2 3/4] MCS Lock: Barrier corrections
+References: <cover.1383670202.git.tim.c.chen@linux.intel.com> <1383673356.11046.279.camel@schen9-DESK> <20131105183744.GJ26895@mudshark.cambridge.arm.com> <1383679317.11046.293.camel@schen9-DESK> <CAF7GXvra3U_MqeJOUztdK7ggCSJcMZxJHuYtHJ4jRqNv2ZCY7Q@mail.gmail.com> <20131106122019.GG21074@mudshark.cambridge.arm.com>
+In-Reply-To: <20131106122019.GG21074@mudshark.cambridge.arm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: msb@facebook.com, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.cz, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Will Deacon <will.deacon@arm.com>
+Cc: "Figo.zhang" <figo1802@gmail.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>
 
-(adding back context from thread history)
-On Tue, Nov 5, 2013 at 5:18 PM, David Rientjes <rientjes@google.com> wrote:
-> On Tue, 5 Nov 2013, Sameer Nanda wrote:
->
->> The selection of the process to be killed happens in two spots -- first
->> in select_bad_process and then a further refinement by looking for
->> child processes in oom_kill_process. Since this is a two step process,
->> it is possible that the process selected by select_bad_process may get a
->> SIGKILL just before oom_kill_process executes. If this were to happen,
->> __unhash_process deletes this process from the thread_group list. This
->> then results in oom_kill_process getting stuck in an infinite loop when
->> traversing the thread_group list of the selected process.
->>
->> Fix this race by holding the tasklist_lock across the calls to both
->> select_bad_process and oom_kill_process.
->>
->> Change-Id: I8f96b106b3257b5c103d6497bac7f04f4dff4e60
->> Signed-off-by: Sameer Nanda <snanda@chromium.org>
->
-> Nack, we had to avoid taking tasklist_lock for this duration since it
-> stalls out forks and exits on other cpus trying to take the writeside with
-> irqs disabled to avoid watchdog problems.
->
-
-David -- I think we can make the duration that the tasklist_lock is
-held smaller by consolidating the process selection logic that is
-currently split across select_bad_process and oom_kill_process into
-one place in select_bad_process.  The tasklist_lock would then need to
-be held only when the thread lists are being traversed.  Would you be
-ok with that?  I can re-spin the patch if that sounds like a workable
-option.
-
-> What kernel version are you patching?  If you check the latest Linus tree,
-> we hold a reference to the task_struct of the chosen process before
-> calling oom_kill_process() so the hypothesis would seem incorrect.
-
-
-On Tue, Nov 5, 2013 at 11:17 PM, Luigi Semenzato <semenzato@google.com> wrote:
-> Regarding other fixes: would it be possible to have the thread
-> iterator insert a dummy marker element in the thread list before the
-> scan?  There would be one such dummy element per CPU, so that multiple
-> CPUs can scan the list in parallel.  The loop would skip such
-> elements, and each dummy element would be removed at the end of each
-> scan.
->
-> I think this would work, i.e. it would have all the right properties,
-> but I don't have a sense of whether the performance impact is
-> acceptable.  Probably not, or it would have been proposed earlier.
->
->
->
-> On Tue, Nov 5, 2013 at 8:45 PM, Luigi Semenzato <semenzato@google.com> wrote:
->> It's interesting that this was known for 3+ years, but nobody bothered
->> adding a small warning to the code.
->>
->> We noticed this because it's actually happening on Chromebooks in the
->> field.  We try to minimize OOM kills, but we can deal with them.  Of
->> course, a hung kernel we cannot deal with.
->>
->> On Tue, Nov 5, 2013 at 7:04 PM, Sameer Nanda <snanda@chromium.org> wrote:
->>>
->>>
->>>
->>> On Tue, Nov 5, 2013 at 5:27 PM, David Rientjes <rientjes@google.com> wrote:
+On 11/06/2013 07:20 AM, Will Deacon wrote:
+> On Wed, Nov 06, 2013 at 05:44:42AM +0000, Figo.zhang wrote:
+>> 2013/11/6 Tim Chen<tim.c.chen@linux.intel.com<mailto:tim.c.chen@linux.intel.com>>
+>> On Tue, 2013-11-05 at 18:37 +0000, Will Deacon wrote:
+>>> On Tue, Nov 05, 2013 at 05:42:36PM +0000, Tim Chen wrote:
+>>>> diff --git a/include/linux/mcs_spinlock.h b/include/linux/mcs_spinlock.h
+>>>> index 96f14299..93d445d 100644
+>>>> --- a/include/linux/mcs_spinlock.h
+>>>> +++ b/include/linux/mcs_spinlock.h
+>>>> @@ -36,16 +36,19 @@ void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
+>>>>      node->locked = 0;
+>>>>      node->next   = NULL;
 >>>>
->>>> On Tue, 5 Nov 2013, Luigi Semenzato wrote:
+>>>> +   /* xchg() provides a memory barrier */
+>>>>      prev = xchg(lock, node);
+>>>>      if (likely(prev == NULL)) {
+>>>>              /* Lock acquired */
+>>>>              return;
+>>>>      }
+>>>>      ACCESS_ONCE(prev->next) = node;
+>>>> -   smp_wmb();
+>>>>      /* Wait until the lock holder passes the lock down */
+>>>>      while (!ACCESS_ONCE(node->locked))
+>>>>              arch_mutex_cpu_relax();
+>>>> +
+>>>> +   /* Make sure subsequent operations happen after the lock is acquired */
+>>>> +   smp_rmb();
+>>> Ok, so this is an smp_rmb() because we assume that stores aren't speculated,
+>>> right? (i.e. the control dependency above is enough for stores to be ordered
+>>> with respect to taking the lock)...
+>>>
+>>>>   }
 >>>>
->>>> > It's not enough to hold a reference to the task struct, because it can
->>>> > still be taken out of the circular list of threads.  The RCU
->>>> > assumptions don't hold in that case.
->>>> >
+>>>>   /*
+>>>> @@ -58,6 +61,7 @@ static void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *nod
 >>>>
->>>> Could you please post a proper bug report that isolates this at the cause?
->>>
->>>
->>> We've been running into this issue on Chrome OS. crbug.com/256326 has
->>> additional
->>> details.  The issue manifests itself as a soft lockup.
->>>
->>> The kernel we've been seeing this on is 3.8.
->>>
->>> We have a pretty consistent repro currently.  Happy to try out other
->>> suggestions
->>> for a fix.
->>>
->>>>
->>>>
->>>> Thanks.
->>>
->>>
->>>
->>>
->>> --
->>> Sameer
+>>>>      if (likely(!next)) {
+>>>>              /*
+>>>> +            * cmpxchg() provides a memory barrier.
+>>>>               * Release the lock by setting it to NULL
+>>>>               */
+>>>>              if (likely(cmpxchg(lock, node, NULL) == node))
+>>>> @@ -65,9 +69,14 @@ static void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *nod
+>>>>              /* Wait until the next pointer is set */
+>>>>              while (!(next = ACCESS_ONCE(node->next)))
+>>>>                      arch_mutex_cpu_relax();
+>>>> +   } else {
+>>>> +           /*
+>>>> +            * Make sure all operations within the critical section
+>>>> +            * happen before the lock is released.
+>>>> +            */
+>>>> +           smp_wmb();
+>>> ...but I don't see what prevents reads inside the critical section from
+>>> moving across the smp_wmb() here.
+>> This is to prevent any read in next critical section from
+>> creeping up before write in the previous critical section
+>> has completed
+> Understood, but an smp_wmb() doesn't provide any ordering guarantees with
+> respect to reads, hence why I think you need an smp_mb() here.
 
+A major reason for the current design is to avoid overhead of a full 
+memory barrier in x86 which doesn't need that. I do agree that the 
+current code may not be enough for other architectures. I would like to 
+propose that the following changes:
 
+1) Move the lock/unlock functions to mcs_spinlock.c.
+2) Define a set of primitives - smp_mb__before_critical_section(), 
+smp_mb_after_critical_section() that will fall back to smp_mb() if they 
+are not defined in asm/processor.h, for example.
+3) Use the new primitives instead of the current smp_rmb() and smp_wmb() 
+memory barrier.
 
--- 
-Sameer
+That will allow each architecture to tailor what sort of memory barrier 
+do they want to use.
+
+Regards,
+Longman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
