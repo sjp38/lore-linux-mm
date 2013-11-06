@@ -1,58 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C47F6B0126
-	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 18:41:26 -0500 (EST)
-Received: by mail-pd0-f177.google.com with SMTP id p10so220186pdj.36
-        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 15:41:26 -0800 (PST)
-Received: from psmtp.com ([74.125.245.113])
-        by mx.google.com with SMTP id pl8si394787pbb.224.2013.11.06.15.41.22
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id A16146B0127
+	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 18:50:50 -0500 (EST)
+Received: by mail-pd0-f173.google.com with SMTP id r10so232386pdi.4
+        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 15:50:50 -0800 (PST)
+Received: from psmtp.com ([74.125.245.164])
+        by mx.google.com with SMTP id hb3si799777pac.123.2013.11.06.15.50.47
         for <linux-mm@kvack.org>;
-        Wed, 06 Nov 2013 15:41:23 -0800 (PST)
-Date: Wed, 6 Nov 2013 15:41:20 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: cma: free cma page to buddy instead of being cpu
- hot page
-Message-Id: <20131106154120.477a4cd83f8fb120d4d4f6cf@linux-foundation.org>
-In-Reply-To: <20131106064302.GC30958@bbox>
-References: <1382960569-6564-1-git-send-email-zhang.mingjun@linaro.org>
-	<20131029093322.GA2400@suse.de>
-	<20131105134448.7677d6febbfff4721373be4b@linux-foundation.org>
-	<20131106064302.GC30958@bbox>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Wed, 06 Nov 2013 15:50:48 -0800 (PST)
+Message-ID: <527AD5A2.70902@intel.com>
+Date: Wed, 06 Nov 2013 15:49:54 -0800
+From: Dave Hansen <dave.hansen@intel.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v4 2/2] mm: allow to set overcommit ratio more precisely
+References: <1382101019-23563-1-git-send-email-jmarchan@redhat.com>	<1382101019-23563-2-git-send-email-jmarchan@redhat.com>	<20131105155319.732dcbefb162c2ee4716ef9d@linux-foundation.org>	<1450211196.19341043.1383727340985.JavaMail.root@redhat.com> <20131106143313.1a368250df917fba0faf56fe@linux-foundation.org>
+In-Reply-To: <20131106143313.1a368250df917fba0faf56fe@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, zhang.mingjun@linaro.org, m.szyprowski@samsung.com, haojian.zhuang@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mingjun Zhang <troy.zhangmingjun@linaro.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Jerome Marchand <jmarchan@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 6 Nov 2013 15:43:02 +0900 Minchan Kim <minchan@kernel.org> wrote:
+On 11/06/2013 02:33 PM, Andrew Morton wrote:
+> On Wed, 6 Nov 2013 03:42:20 -0500 (EST) Jerome Marchand <jmarchan@redhat.com> wrote:
+>> That was my first version of this patch (actually "kbytes" to avoid
+>> overflow).
+>> Dave raised the issue that it silently breaks the user interface:
+>> overcommit_ratio is zero while the system behaves differently.
+> 
+> I don't understand that at all.  We keep overcommit_ratio as-is, with
+> the same default values and add a different way of altering it.  That
+> should be back-compatible?
 
-> > The added overhead is pretty small - just a comparison of a local with
-> > a constant.  And that cost is not incurred for MIGRATE_UNMOVABLE,
-> > MIGRATE_RECLAIMABLE and MIGRATE_MOVABLE, which are the common cases
-> > (yes?).
-> 
-> True but bloat code might affect icache so we should be careful.
-> And what Mel has a concern is about zone->lock, which would be more contended.
-> I agree his opinion.
-> 
-> In addition, I think the gain is marginal because normally CMA is big range
-> so free_contig_range in dma release path will fill per_cpu_pages with freed pages
-> easily so it could drain per_cpu_pages frequently so race which steal page from
-> per_cpu_pages is not big, I guess.
-> 
-> Morever, we could change free_contig_range with batch_free_page which would
-> be useful for other cases if they want to free many number of pages
-> all at once.
-> 
-> The bottom line is we need *number and real scenario* for that.
+Reading the old thread, I think my main point was that we shouldn't
+output overcommit_ratio=0 when overcommit_bytes>0.  We need to round up
+for numbers less than 1 so that folks don't think overcommit_ratio is _off_.
 
-Well yes, quantitative results are always good to have with a patch like
-this.
-
-It doesn't actually compile (missing a "}"), which doesn't inspire
-confidence.  I'll make the patch go away for now
+I was really just trying to talk you in to cramming the extra precision
+in to the _existing_ sysctl. :)  I don't think bytes vs. ratio is really
+that big of a deal.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
