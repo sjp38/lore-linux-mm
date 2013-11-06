@@ -1,71 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id EA6B46B0121
-	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 17:33:17 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id rp8so154174pbb.31
-        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 14:33:17 -0800 (PST)
-Received: from psmtp.com ([74.125.245.197])
-        by mx.google.com with SMTP id it5si244172pbc.245.2013.11.06.14.33.15
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C47F6B0126
+	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 18:41:26 -0500 (EST)
+Received: by mail-pd0-f177.google.com with SMTP id p10so220186pdj.36
+        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 15:41:26 -0800 (PST)
+Received: from psmtp.com ([74.125.245.113])
+        by mx.google.com with SMTP id pl8si394787pbb.224.2013.11.06.15.41.22
         for <linux-mm@kvack.org>;
-        Wed, 06 Nov 2013 14:33:16 -0800 (PST)
-Date: Wed, 6 Nov 2013 14:33:13 -0800
+        Wed, 06 Nov 2013 15:41:23 -0800 (PST)
+Date: Wed, 6 Nov 2013 15:41:20 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 2/2] mm: allow to set overcommit ratio more precisely
-Message-Id: <20131106143313.1a368250df917fba0faf56fe@linux-foundation.org>
-In-Reply-To: <1450211196.19341043.1383727340985.JavaMail.root@redhat.com>
-References: <1382101019-23563-1-git-send-email-jmarchan@redhat.com>
-	<1382101019-23563-2-git-send-email-jmarchan@redhat.com>
-	<20131105155319.732dcbefb162c2ee4716ef9d@linux-foundation.org>
-	<1450211196.19341043.1383727340985.JavaMail.root@redhat.com>
+Subject: Re: [PATCH] mm: cma: free cma page to buddy instead of being cpu
+ hot page
+Message-Id: <20131106154120.477a4cd83f8fb120d4d4f6cf@linux-foundation.org>
+In-Reply-To: <20131106064302.GC30958@bbox>
+References: <1382960569-6564-1-git-send-email-zhang.mingjun@linaro.org>
+	<20131029093322.GA2400@suse.de>
+	<20131105134448.7677d6febbfff4721373be4b@linux-foundation.org>
+	<20131106064302.GC30958@bbox>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave hansen <dave.hansen@intel.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, zhang.mingjun@linaro.org, m.szyprowski@samsung.com, haojian.zhuang@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mingjun Zhang <troy.zhangmingjun@linaro.org>
 
-On Wed, 6 Nov 2013 03:42:20 -0500 (EST) Jerome Marchand <jmarchan@redhat.com> wrote:
+On Wed, 6 Nov 2013 15:43:02 +0900 Minchan Kim <minchan@kernel.org> wrote:
 
+> > The added overhead is pretty small - just a comparison of a local with
+> > a constant.  And that cost is not incurred for MIGRATE_UNMOVABLE,
+> > MIGRATE_RECLAIMABLE and MIGRATE_MOVABLE, which are the common cases
+> > (yes?).
 > 
+> True but bloat code might affect icache so we should be careful.
+> And what Mel has a concern is about zone->lock, which would be more contended.
+> I agree his opinion.
 > 
-> ----- Original Message -----
-> > From: "Andrew Morton" <akpm@linux-foundation.org>
-> > To: "Jerome Marchand" <jmarchan@redhat.com>
-> > Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "dave hansen" <dave.hansen@intel.com>
-> > Sent: Wednesday, November 6, 2013 12:53:19 AM
-> > Subject: Re: [PATCH v4 2/2] mm: allow to set overcommit ratio more precisely
-> > 
-> > On Fri, 18 Oct 2013 14:56:59 +0200 Jerome Marchand <jmarchan@redhat.com>
-> > wrote:
-> > 
-> > > Some applications that run on HPC clusters are designed around the
-> > > availability of RAM and the overcommit ratio is fine tuned to get the
-> > > maximum usage of memory without swapping. With growing memory, the 1%
-> > > of all RAM grain provided by overcommit_ratio has become too coarse
-> > > for these workload (on a 2TB machine it represents no less than
-> > > 20GB).
-> > > 
-> > > This patch adds the new overcommit_ratio_ppm sysctl variable that
-> > > allow to set overcommit ratio with a part per million precision.
-> > > The old overcommit_ratio variable can still be used to set and read
-> > > the ratio with a 1% precision. That way, overcommit_ratio interface
-> > > isn't broken in any way that I can imagine.
-> > 
-> > The way we've permanently squished this mistake in the past is to
-> > switch to "bytes".  See /proc/sys/vm/*bytes.
-> > 
-> > Would that approach work in this case?
-> > 
+> In addition, I think the gain is marginal because normally CMA is big range
+> so free_contig_range in dma release path will fill per_cpu_pages with freed pages
+> easily so it could drain per_cpu_pages frequently so race which steal page from
+> per_cpu_pages is not big, I guess.
 > 
-> That was my first version of this patch (actually "kbytes" to avoid
-> overflow).
-> Dave raised the issue that it silently breaks the user interface:
-> overcommit_ratio is zero while the system behaves differently.
+> Morever, we could change free_contig_range with batch_free_page which would
+> be useful for other cases if they want to free many number of pages
+> all at once.
+> 
+> The bottom line is we need *number and real scenario* for that.
 
-I don't understand that at all.  We keep overcommit_ratio as-is, with
-the same default values and add a different way of altering it.  That
-should be back-compatible?
+Well yes, quantitative results are always good to have with a patch like
+this.
+
+It doesn't actually compile (missing a "}"), which doesn't inspire
+confidence.  I'll make the patch go away for now
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
