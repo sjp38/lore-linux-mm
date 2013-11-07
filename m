@@ -1,68 +1,230 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id D074D6B016A
-	for <linux-mm@kvack.org>; Thu,  7 Nov 2013 11:55:18 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so891179pab.28
-        for <linux-mm@kvack.org>; Thu, 07 Nov 2013 08:55:18 -0800 (PST)
-Received: from psmtp.com ([74.125.245.204])
-        by mx.google.com with SMTP id z1si3237648pbw.189.2013.11.07.08.55.14
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id F17F96B016C
+	for <linux-mm@kvack.org>; Thu,  7 Nov 2013 12:06:29 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id fa1so889348pad.27
+        for <linux-mm@kvack.org>; Thu, 07 Nov 2013 09:06:29 -0800 (PST)
+Received: from psmtp.com ([74.125.245.165])
+        by mx.google.com with SMTP id kg8si3638568pad.241.2013.11.07.09.06.27
         for <linux-mm@kvack.org>;
-        Thu, 07 Nov 2013 08:55:15 -0800 (PST)
-Subject: Re: [PATCH v4 5/5] MCS Lock: Allow architecture specific memory
- barrier in lock/unlock
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <20131107074038.GB26654@gmail.com>
-References: <cover.1383783691.git.tim.c.chen@linux.intel.com>
-	 <1383787620.11046.368.camel@schen9-DESK> <20131107074038.GB26654@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 07 Nov 2013 08:55:11 -0800
-Message-ID: <1383843311.11046.370.camel@schen9-DESK>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Thu, 07 Nov 2013 09:06:28 -0800 (PST)
+Received: by mail-ie0-f169.google.com with SMTP id ar20so1273690iec.14
+        for <linux-mm@kvack.org>; Thu, 07 Nov 2013 09:06:26 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20131107070451.GA10645@bbox>
+References: <20131107070451.GA10645@bbox>
+Date: Thu, 7 Nov 2013 09:06:26 -0800
+Message-ID: <CAA25o9TaWG7Wu6uXwyapKD1oaVYqb47_9Ag7JbT-ZyQT7iaJEA@mail.gmail.com>
+Subject: Re: [PATCH] staging: zsmalloc: Ensure handle is never 0 on success
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, Will Deacon <will.deacon@arm.com>, "Figo.zhang" <figo1802@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg KH <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, lliubbo@gmail.com, jmarchan@redhat.com, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Thu, 2013-11-07 at 08:40 +0100, Ingo Molnar wrote:
-> * Tim Chen <tim.c.chen@linux.intel.com> wrote:
-> 
-> > This patch moves the decision of what kind of memory barriers to be
-> > used in the MCS lock and unlock functions to the architecture specific
-> > layer. It also moves the actual lock/unlock code to mcs_spinlock.c
-> > file.
-> > 
-> > A full memory barrier will be used if the following macros are not
-> > defined:
-> >  1) smp_mb__before_critical_section()
-> >  2) smp_mb__after_critical_section()
-> > 
-> > For the x86 architecture, only compiler barrier will be needed.
-> > 
-> > Acked-by: Tim Chen <tim.c.chen@linux.intel.com>
-> 
-> This should be Signed-off-by and should come last in the SOB chain, as you 
-> are the person passing the patch along.
-> 
-> > Signed-off-by: Waiman Long <Waiman.Long@hp.com>
-> 
-> I think you lost a:
-> 
->   From: Waiman Long <Waiman.Long@hp.com>
-> 
-> from the beginning of the mail, because right now if your patch is applied 
-> it will credit you with being the author - that wasn't the intention, 
-> right?
+If I may add my usual 2c (and some news):
 
-Will fix that.  Thanks.
+zram is used by default on all Chrome OS devices.  I can't say how
+many devices, but it's not a small number, google it, and it's an
+important market, low-end laptops for education and the less affluent.
+ It has been available experimentally for well over a year.
 
-Tim
+Android 4.4 KitKat is also using zram, to better support devices with
+less than 1 MB RAM.  (That's the news.)
 
-> 
-> Thanks,
-> 
-> 	Ingo
+When comparing the relative advantages of the two subsystems (zram and
+zswap), let's not forget that considerable effort goes into in tuning
+and bug fixing for specific use cases---possibly even more than the
+initial development effort.  Zram has not just been sitting around in
+drivers/staging, it's in serious use.
 
+If we were to judge systems based merely on theoretical technical
+merit, then we should consider switching en masse to FreeBSD.  (I said
+we should *consider* :).
+
+I am very familiar with the limitations of zram, but it works well and
+I think it would be wise to keep supporting it.  Besides, it's small
+and AFAICT it interfaces cleanly with the rest of the system, so I
+don't see what the big deal is.
+
+Thanks!
+
+
+
+On Wed, Nov 6, 2013 at 11:04 PM, Minchan Kim <minchan@kernel.org> wrote:
+> On Wed, Nov 06, 2013 at 07:05:11PM -0800, Greg KH wrote:
+>> On Wed, Nov 06, 2013 at 03:46:19PM -0800, Nitin Gupta wrote:
+>>  > I'm getting really tired of them hanging around in here for many years
+>> > > now...
+>> > >
+>> >
+>> > Minchan has tried many times to promote zram out of staging. This was
+>> > his most recent attempt:
+>> >
+>> > https://lkml.org/lkml/2013/8/21/54
+>> >
+>> > There he provided arguments for zram inclusion, how it can help in
+>> > situations where zswap can't and why generalizing /dev/ramX would
+>> > not be a great idea. So, cannot say why it wasn't picked up
+>> > for inclusion at that time.
+>> >
+>> > > Should I just remove them if no one is working on getting them merged
+>> > > "properly"?
+>> > >
+>> >
+>> > Please refer the mail thread (link above) and see Minchan's
+>> > justifications for zram.
+>> > If they don't sound convincing enough then please remove zram+zsmalloc
+>> > from staging.
+>>
+>> You don't need to be convincing me, you need to be convincing the
+>> maintainers of the area of the kernel you are working with.
+>>
+>> And since the last time you all tried to get this merged was back in
+>> August, I'm feeling that you all have given up, so it needs to be
+>> deleted.  I'll go do that for 3.14, and if someone wants to pick it up
+>> and merge it properly, they can easily revert it.
+>
+> I'm guilty and I have been busy by other stuff. Sorry for that.
+> Fortunately, I discussed this issue with Hugh in this Linuxcon for a
+> long time(Thanks Hugh!) he felt zram's block device abstraction is
+> better design rather than frontswap backend stuff although it's a question
+> where we put zsmalloc. I will CC Hugh because many of things is related
+> to swap subsystem and his opinion is really important.
+> And I discussed it with Rik and he feel positive about zram.
+>
+> Last impression Andrw gave me by private mail is he want to merge
+> zram's functionality into zswap or vise versa.
+> If I misunderstood, please correct me.
+> I understand his concern but I guess he didn't have a time to read
+> my long description due to a ton of works at that time.
+> So, I will try one more time.
+> I hope I'd like to listen feedback than *silence* so that we can
+> move forward than stall.
+>
+> Recently, Bob tried to move zsmalloc under mm directory to unify
+> zram and zswap with adding pseudo block device in zswap(It's
+> very weired to me. I think it's horrible monster which is lying
+> between mm and block in layering POV) but he was ignoring zram's
+> block device (a.k.a zram-blk) feature and considered only swap
+> usecase of zram, in turn, it lose zram's good concept.
+> I already convered other topics Bob raised in this thread[1]
+> and why I think zram is better in the thread.
+>
+> Will repeat one more time and hope gray beards penguins grab a
+> time in this time and they give a conclusion/direction to me so
+> that we don't lose lots of user and functionality.
+>
+> ========== &< ===========
+>
+> Mel raised an another issue in v6, "maintainance headache".
+> He claimed zswap and zram has a similar goal that is to compresss
+> swap pages so if we promote zram, maintainance headache happens
+> sometime by diverging implementaion between zswap and zram
+> so that he want to unify zram and zswap. For it, he want zswap
+> to implement pseudo block device like Bob did to emulate zram so
+> zswap can have an advantage of writeback as well as zram's benefit.
+> But I wonder frontswap-based zswap's writeback is really good
+> approach for writeback POV. I think that problem isn't only
+> specific for zswap. If we want to configure multiple swap hierarchy
+> with various speed device such as RAM, NVRAM, SSD, eMMC, NAS etc,
+> it would be a general problem. So we should think of more general
+> approach. At a glance, I can see two approach.
+>
+> First, VM could be aware of heterogeneous swap configuration
+> so it could aim for being able to configure cache hierarchy
+> among swap devices. It may need indirction layer on swap, which
+> was already talked about that way so VM can migrate a block from
+> A to B easily. It will support various configuration with VM's
+> hints, maybe, in future.
+> http://lkml.indiana.edu/hypermail/linux/kernel/1203.3/03812.html
+>
+> Second, as more practical solution, we could use device mapper like
+> dm-cache(https://lwn.net/Articles/540996/), which makes it very
+> flexible. Now, it supports various configruation and cache policy
+> (block size, writeback/writethrough, LRU, MFU although MQ is merged
+> now) so it would be good fit for our purpose. Even, it can make zram
+> support writeback. I tested it following as following scenario
+> in KVM 4 CPU, 1G DRAM with background 800M memory hogger, which is
+> allocates random data up to 800M.
+>
+> 1) zram swap disk 1G, untar kernel.tgz to tmpfs, build -j 4
+>    Fail to untar due to shortage of memory space by tmpfs default size limit
+>
+> 2) zram swap disk 1G, untar kernel.tgz to ext2 on zram-blk, build -j 4
+>    OOM happens while building the kernel but it untar successfully
+>    on ext2 based on zram-blk. The reason OOM happend is zram can not find
+>    free pages from main memory to store swap out pages although empty
+>    swap space is still enough.
+>
+> 3) dm-cache swap disk 1G, untar kernel.tgz to ext2 on zram-blk, build -j 4
+>    dmcache consists of zram-meta 10M, zram-cache 1G and real swap storage 1G
+>    No OOM happens and successfully building done.
+>
+> Above tests proves zram can support writeback into real swap storage
+> so that zram-cache can always have a free space. If necessary, we could
+> add new plugin in dm-cache. I see It's really flexible and well-layered
+> architecure so zram-blk's concept is good for us and it has lots of
+> potential to be enhanced by MM/FS/Block developers.
+>
+> As other disadvantage of zswap writeback, frontswap's semantic is
+> synchronous API so zswap should decompress in memory zpage
+> right before writeback and even, it writes pages one by one,
+> not a batch. If we extend frontswap API, we would enhance it but
+> I belive we can do better in device mapper layer which is aware of
+> block align, bandwidth, mapping table, asynchronous and lots of hints
+> from the block layer. Nonetheless, if we should merge zram's
+> functionality to zswap, I think zram should include zswap's
+> functionaliy(But I hope it will never happen) because old age zram
+> already has lots of real users rather than new young zswap so it's
+> more handy to unify them with keeping changelog which is one of
+> valuable things getting from staging stay for a long time.
+>
+> The reason zram doesn't support writeback until now is just shortage
+> of needs. The zram's main customers were embedded people so writeback
+> into real swap storage is too bad for interactivity and wear-leveling
+> on low falsh devices. But like above, zram has a potential to support
+> writeback with other block drivers or more reasonable VM enhance
+> so I'd like to claim zram's block concept is really good.
+>
+> Another zram-blk's usecase is following as.
+> The admin can format /dev/zramX with any FS and mount on it.
+> It could help small memory system, too. For exmaple, many embedded
+> system don't have swap so although tmpfs can support swapout,
+> it's pointless. Then, let's assume temp file growing up until half
+> of system memory once in a while. We don't want to write it on flash
+> by wear-leveing issue and response problem so we want to keep in-memory.
+> But if we use tmpfs, it should evict half of working set to cover them
+> when the size reach peak. In the case, zram-blk would be good fit, too.
+>
+> I'd like to enhance zram with more features like zsmalloc-compaction,
+> , async I/O, parallel decompression and so on but zram developers cannot
+> do it now because Greg, staging maintainer, doesn't want to add new feature
+> until promotion is done because zram have been in staging for a very long time.
+> Acutally, some patches about enhance are pending for a long time.
+>
+> [1] https://lkml.org/lkml/2013/8/21/141
+>
+>>
+>> thanks,
+>>
+>> greg k-h
+>> --
+>> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+>> the body of a message to majordomo@vger.kernel.org
+>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>> Please read the FAQ at  http://www.tux.org/lkml/
+>
+> --
+> Kind regards,
+> Minchan Kim
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
