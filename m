@@ -1,50 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A4CA6B012E
-	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 19:35:22 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id g10so272799pdj.34
-        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 16:35:22 -0800 (PST)
-Received: from psmtp.com ([74.125.245.137])
-        by mx.google.com with SMTP id kn3si543510pbc.64.2013.11.06.16.35.20
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id A1D516B0130
+	for <linux-mm@kvack.org>; Wed,  6 Nov 2013 20:26:50 -0500 (EST)
+Received: by mail-pb0-f48.google.com with SMTP id mc8so322742pbc.21
+        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 17:26:50 -0800 (PST)
+Received: from psmtp.com ([74.125.245.106])
+        by mx.google.com with SMTP id w8si674400pbi.47.2013.11.06.17.26.47
         for <linux-mm@kvack.org>;
-        Wed, 06 Nov 2013 16:35:21 -0800 (PST)
-Received: by mail-pd0-f178.google.com with SMTP id x10so268442pdj.37
-        for <linux-mm@kvack.org>; Wed, 06 Nov 2013 16:35:19 -0800 (PST)
-Date: Wed, 6 Nov 2013 16:35:16 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm, oom: Fix race when selecting process to kill
-In-Reply-To: <CANMivWZhNRGW6DPcqpYiUBjOX23LRZ_kJ9DzzfS7VdRpm075ZA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.02.1311061631280.22318@chino.kir.corp.google.com>
-References: <1383693987-14171-1-git-send-email-snanda@chromium.org> <alpine.DEB.2.02.1311051715090.29471@chino.kir.corp.google.com> <CAA25o9SFZW7JxDQGv+h43EMSS3xH0eXy=LoHO_Psmk_n3dxqoA@mail.gmail.com> <alpine.DEB.2.02.1311051727090.29471@chino.kir.corp.google.com>
- <CANMivWZrefY1bbgpJgABqcUwKfqOR9HQtGNY6cWdutcMASeo2A@mail.gmail.com> <CAA25o9QG2BOmV5MoXCH73sadKoRD6wPivKq6TLvEem8GhZeXGg@mail.gmail.com> <CAA25o9Q-HvjQ_5pFJgYNeutaCoYgPu=e=k7EHq=6-+jeEuhzoA@mail.gmail.com>
- <CANMivWZhNRGW6DPcqpYiUBjOX23LRZ_kJ9DzzfS7VdRpm075ZA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Wed, 06 Nov 2013 17:26:48 -0800 (PST)
+Subject: [PATCH v4 0/4] MCS Lock: MCS lock code cleanup and optimizations
+From: Tim Chen <tim.c.chen@linux.intel.com>
+References: <cover.1383783691.git.tim.c.chen@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 06 Nov 2013 17:26:40 -0800
+Message-ID: <1383787600.11046.363.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sameer Nanda <snanda@chromium.org>
-Cc: Luigi Semenzato <semenzato@google.com>, msb@facebook.com, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.cz, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, oleg@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul
+ E.McKenney" <paulmck@linux.vnet.ibm.com>, Tim Chen <tim.c.chen@linux.intel.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, Will Deacon <will.deacon@arm.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Wed, 6 Nov 2013, Sameer Nanda wrote:
+In this patch series, we separated out the MCS lock code which was
+previously embedded in the mutex.c.  This allows for easier reuse of
+MCS lock in other places like rwsem and qrwlock.  We also did some micro
+optimizations and barrier cleanup.
 
-> David -- I think we can make the duration that the tasklist_lock is
-> held smaller by consolidating the process selection logic that is
-> currently split across select_bad_process and oom_kill_process into
-> one place in select_bad_process.  The tasklist_lock would then need to
-> be held only when the thread lists are being traversed.  Would you be
-> ok with that?  I can re-spin the patch if that sounds like a workable
-> option.
-> 
+This patches were previously part of the rwsem optimization patch series
+but now we spearate them out.
 
-No, this caused hundreds of machines to hit soft lockups for Google 
-because there's no synchronization that prevents dozens of cpus to take 
-tasklist_lock in the oom killer during parallel memcg oom conditions and 
-never allow the write_lock_irq() on fork() or exit() to make progress.  We 
-absolutely must hold tasklist_lock for as little time as possible in the 
-oom killer.
+Tim Chen
 
-That said, I've never actually seen your reported bug manifest in our 
-production environment so let's see if Oleg has any ideas.
+v4:
+1. Move patch series to the latest tip after v3.12
+
+v3:
+1. modified memory barriers to support non x86 architectures that have
+weak memory ordering.
+
+v2:
+1. change export mcs_spin_lock as a GPL export symbol
+2. corrected mcs_spin_lock to references
+
+
+Jason Low (2):
+  MCS Lock: optimizations and extra comments
+  MCS Lock: Barrier corrections
+
+Tim Chen (1):
+  MCS Lock: Restructure the MCS lock defines and locking code into its
+    own file
+
+Waiman Long (2):
+  MCS Lock: Make mcs_spinlock.h includable in other files
+  MCS Lock: Allow architecture specific memory barrier in lock/unlock
+
+ arch/x86/include/asm/barrier.h |    6 +++
+ include/linux/mcs_spinlock.h   |   25 ++++++++++
+ include/linux/mutex.h          |    5 +-
+ kernel/locking/Makefile        |    6 +-
+ kernel/locking/mcs_spinlock.c  |   96 ++++++++++++++++++++++++++++++++++++++++
+ kernel/locking/mutex.c         |   60 +++----------------------
+ 6 files changed, 140 insertions(+), 58 deletions(-)
+ create mode 100644 include/linux/mcs_spinlock.h
+ create mode 100644 kernel/locking/mcs_spinlock.c
+
+-- 
+1.7.4.4
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
