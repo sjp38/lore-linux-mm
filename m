@@ -1,60 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 80EBF6B0152
-	for <linux-mm@kvack.org>; Thu,  7 Nov 2013 07:06:33 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id kp14so517766pab.32
-        for <linux-mm@kvack.org>; Thu, 07 Nov 2013 04:06:33 -0800 (PST)
-Received: from psmtp.com ([74.125.245.156])
-        by mx.google.com with SMTP id ru9si2419278pbc.198.2013.11.07.04.06.31
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id B9E186B0154
+	for <linux-mm@kvack.org>; Thu,  7 Nov 2013 07:27:08 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id x10so535452pdj.9
+        for <linux-mm@kvack.org>; Thu, 07 Nov 2013 04:27:08 -0800 (PST)
+Received: from psmtp.com ([74.125.245.199])
+        by mx.google.com with SMTP id d2si2835121pac.213.2013.11.07.04.27.05
         for <linux-mm@kvack.org>;
-        Thu, 07 Nov 2013 04:06:32 -0800 (PST)
-Received: by mail-ve0-f182.google.com with SMTP id jy13so299878veb.13
-        for <linux-mm@kvack.org>; Thu, 07 Nov 2013 04:06:29 -0800 (PST)
+        Thu, 07 Nov 2013 04:27:06 -0800 (PST)
+Date: Thu, 7 Nov 2013 10:26:58 -0200
+From: Henrique de Moraes Holschuh <hmh@hmh.eng.br>
+Subject: Re: [PATCH] mm: add strictlimit knob -v2
+Message-ID: <20131107122658.GA3355@khazad-dum.debian.net>
+References: <20131104140104.7936d263258a7a6753eb325e@linux-foundation.org>
+ <20131106150515.25906.55017.stgit@dhcp-10-30-17-2.sw.ru>
 MIME-Version: 1.0
-In-Reply-To: <CANN689HkNP-UZOu+vDCFPG5_k=BNZG6a+oP+Ope16vLc2ShFzw@mail.gmail.com>
-References: <cover.1383771175.git.tim.c.chen@linux.intel.com>
-	<1383773827.11046.355.camel@schen9-DESK>
-	<CA+55aFyNX=5i0hmk-KuD+Vk+yBD-kkAiywx1Lx_JJmHVPx=1wA@mail.gmail.com>
-	<CANN689HkNP-UZOu+vDCFPG5_k=BNZG6a+oP+Ope16vLc2ShFzw@mail.gmail.com>
-Date: Thu, 7 Nov 2013 21:06:29 +0900
-Message-ID: <CA+55aFwn1HUt3iXo6Zz8j1HUJi+qJ1NfcnUz-P+XCYLL7gjCMQ@mail.gmail.com>
-Subject: Re: [PATCH v3 3/5] MCS Lock: Barrier corrections
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: multipart/alternative; boundary=089e0115f6828bdaee04ea95184d
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131106150515.25906.55017.stgit@dhcp-10-30-17-2.sw.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Waiman Long <waiman.long@hp.com>, Arnd Bergmann <arnd@arndb.de>, Rik van Riel <riel@redhat.com>, Aswin Chandramouleeswaran <aswin@hp.com>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, "Figo. zhang" <figo1802@gmail.com>, linux-arch@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, George Spelvin <linux@horizon.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Peter Hurley <peter@hurleysoftware.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, linux-kernel@vger.kernel.org, Scott J Norton <scott.norton@hp.com>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@intel.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Will Deacon <will.deacon@arm.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>
+To: Maxim Patlasov <MPatlasov@parallels.com>
+Cc: akpm@linux-foundation.org, karl.kiniger@med.ge.com, tytso@mit.edu, linux-kernel@vger.kernel.org, t.artem@lycos.com, linux-mm@kvack.org, mgorman@suse.de, jack@suse.cz, fengguang.wu@intel.com, torvalds@linux-foundation.org
 
---089e0115f6828bdaee04ea95184d
-Content-Type: text/plain; charset=UTF-8
+Is there a reason to not enforce strictlimit by default?
 
-On Nov 7, 2013 6:55 PM, "Michel Lespinasse" <walken@google.com> wrote:
->
-> Rather than writing arch-specific locking code, would you agree to
-> introduce acquire and release memory operations ?
-
-Yes, that's probably the right thing to do. What ops do we need? Store with
-release, cmpxchg and load with acquire? Anything else?
-
-      Linus
-
---089e0115f6828bdaee04ea95184d
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<p dir=3D"ltr"><br>
-On Nov 7, 2013 6:55 PM, &quot;Michel Lespinasse&quot; &lt;<a href=3D"mailto=
-:walken@google.com">walken@google.com</a>&gt; wrote:<br>
-&gt;<br>
-&gt; Rather than writing arch-specific locking code, would you agree to<br>
-&gt; introduce acquire and release memory operations ?</p>
-<p dir=3D"ltr">Yes, that&#39;s probably the right thing to do. What ops do =
-we need? Store with release, cmpxchg and load with acquire? Anything else?<=
-/p>
-<p dir=3D"ltr">=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 Linus</p>
-
---089e0115f6828bdaee04ea95184d--
+-- 
+  "One disk to rule them all, One disk to find them. One disk to bring
+  them all and in the darkness grind them. In the Land of Redmond
+  where the shadows lie." -- The Silicon Valley Tarot
+  Henrique Holschuh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
