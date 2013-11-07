@@ -1,91 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 57F526B0170
-	for <linux-mm@kvack.org>; Thu,  7 Nov 2013 12:18:34 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id z10so880858pdj.33
-        for <linux-mm@kvack.org>; Thu, 07 Nov 2013 09:18:34 -0800 (PST)
-Received: from psmtp.com ([74.125.245.171])
-        by mx.google.com with SMTP id dk5si3320987pbc.196.2013.11.07.09.18.31
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D6986B0172
+	for <linux-mm@kvack.org>; Thu,  7 Nov 2013 12:36:48 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id kx10so925758pab.40
+        for <linux-mm@kvack.org>; Thu, 07 Nov 2013 09:36:47 -0800 (PST)
+Received: from psmtp.com ([74.125.245.182])
+        by mx.google.com with SMTP id hi3si3372446pbb.183.2013.11.07.09.36.46
         for <linux-mm@kvack.org>;
-        Thu, 07 Nov 2013 09:18:32 -0800 (PST)
-Message-ID: <527BCB4A.8030801@oracle.com>
-Date: Thu, 07 Nov 2013 10:18:02 -0700
-From: Khalid Aziz <khalid.aziz@oracle.com>
+        Thu, 07 Nov 2013 09:36:46 -0800 (PST)
+Received: by mail-ie0-f182.google.com with SMTP id as1so1367822iec.27
+        for <linux-mm@kvack.org>; Thu, 07 Nov 2013 09:36:45 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: hugetlbfs: fix hugetlbfs optimization
-References: <20131105221017.GI3835@redhat.com>
-In-Reply-To: <20131105221017.GI3835@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAA25o9TaWG7Wu6uXwyapKD1oaVYqb47_9Ag7JbT-ZyQT7iaJEA@mail.gmail.com>
+References: <20131107070451.GA10645@bbox>
+	<CAA25o9TaWG7Wu6uXwyapKD1oaVYqb47_9Ag7JbT-ZyQT7iaJEA@mail.gmail.com>
+Date: Thu, 7 Nov 2013 09:36:44 -0800
+Message-ID: <CAA25o9R1EppGKMBojtWk0UHEqD3aYsNxqF+P7xfVEy1i8ameSQ@mail.gmail.com>
+Subject: Re: [PATCH] staging: zsmalloc: Ensure handle is never 0 on success
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: gregkh@linuxfoundation.org, bhutchings@solarflare.com, pshelar@nicira.com, cl@linux.com, hannes@cmpxchg.org, mel@csn.ul.ie, riel@redhat.com, minchan@kernel.org, andi@firstfloor.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg KH <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, lliubbo@gmail.com, jmarchan@redhat.com, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
 
-On 11/05/2013 03:10 PM, Andrea Arcangeli wrote:
-> Hi,
->
-> this patch is an alternative implementation of the hugetlbfs directio
-> optimization discussed earlier. We've been looking into this with
-> Khalid last week and an earlier version of this patch (fully
-> equivalent as far as CPU overhead is concerned) was benchmarked by
-> Khalid and it didn't degrade performance compared to the PageHuge
-> check in current upstream code, so we should be good.
->
-> The patch applies cleanly only after reverting
-> 7cb2ef56e6a8b7b368b2e883a0a47d02fed66911, it's much easier to review
-> it in this form as it avoids all the alignment changes. I'll resend to
-> Andrew against current upstream by squashing it with the revert after
-> reviews.
->
-> I wished to remove the _mapcount tailpage refcounting for slab and
-> hugetlbfs tails too, but if the last put_page of a slab tail happens
-> after the slab page isn't a slab page anymore (but still compound as
-> it wasn't freed yet because of the tail pin), a VM_BUG_ON would
-> trigger during the last (unpinning) put_page(slab_tail) with the
-> mapcount underflow:
->
-> 			VM_BUG_ON(page_mapcount(page) <= 0);
->
-> Not even sure if any driver is doing anything like that, but the
-> current code would allow it, Pravin should know more about when
-> exactly in which conditions the last put_page is done on slab tail
-> pages.
->
-> It shall be possible to remove the _mapcount refcounting anyway, as it
-> is only read by split_huge_page and so it doesn't actually matter if
-> it underflows, but I prefer to keep the VM_BUG_ON. In fact I added one
-> more VM_BUG_ON(!PageHead()) even in this patch.
->
-> I also didn't notice we missed a PageHead check before calling
-> __put_single_page(page_head), so I corrected that. It sounds very
-> unlikely that it could have ever triggered but still better to fix it.
->
-> I just booted it... not very well tested yet. Help with the testing
-> appreciated :).
->
+On Thu, Nov 7, 2013 at 9:06 AM, Luigi Semenzato <semenzato@google.com> wrote:
 
-Hi Andrea,
+-> Android 4.4 KitKat is also using zram, to better support devices with
+-> less than 1 MB RAM.  (That's the news.)
 
-I ran performance tests on this patch. I am seeing 4.5% degradation with 
-1M random reads, 9.2% degradation with 64K random reads and 13.8% 
-degradation with 8K using the orion tool. Just to double check, I 
-repeated the same tests with the last version of patch we had exchanged 
-before some of the final tweaks you made and degradation with that patch 
-is 0.7% for 1M, 2.3% with 64K and 3% for 8K. Actual numbers are in the 
-table below (all numbers are in MB/s):
+Sorry, I meant 1 GB RAM.
 
-              3.12.0      3.12.0+this_patch      3.12.0+prev_patch
-              -------     ------------------     -----------------
-1M            8467        8087 (-4.5%)           8409 (-0.7%)
-64K           4049        3675 (-9.2%)           3957 (-2.3%)
-8K            732         631 (-13.8%)           710 (-3.0%)
-
-One of the tweaks is causing problems. I will try to isolate which one.
-
---
-Khalid
-
+http://dilbert.com/strips/comic/1991-09-27/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
