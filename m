@@ -1,160 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id A93856B015A
-	for <linux-mm@kvack.org>; Thu,  7 Nov 2013 08:48:14 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id bj1so626076pad.39
-        for <linux-mm@kvack.org>; Thu, 07 Nov 2013 05:48:14 -0800 (PST)
-Received: from psmtp.com ([74.125.245.132])
-        by mx.google.com with SMTP id dj3si2692052pbc.250.2013.11.07.05.48.11
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 29B936B015C
+	for <linux-mm@kvack.org>; Thu,  7 Nov 2013 09:14:13 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id x10so642360pdj.23
+        for <linux-mm@kvack.org>; Thu, 07 Nov 2013 06:14:12 -0800 (PST)
+Received: from psmtp.com ([74.125.245.161])
+        by mx.google.com with SMTP id pl8si2777698pbb.194.2013.11.07.06.14.10
         for <linux-mm@kvack.org>;
-        Thu, 07 Nov 2013 05:48:12 -0800 (PST)
-Date: Thu, 7 Nov 2013 14:48:06 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: Disabling in-memory write cache for x86-64 in Linux II
-Message-ID: <20131107134806.GB30832@quack.suse.cz>
-References: <160824051.3072.1382685914055.JavaMail.mail@webmail07>
- <CA+55aFxj81TRhe1+FJWqER7VVH_z_Sk0+hwtHvniA0ATsF_eKw@mail.gmail.com>
- <89AE8FE8-5B15-41DB-B9CE-DFF73531D821@dilger.ca>
- <20131105041245.GY6188@dastard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20131105041245.GY6188@dastard>
+        Thu, 07 Nov 2013 06:14:11 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH 1/2] mm: Properly separate the bloated ptl from the regular case
+Date: Thu,  7 Nov 2013 16:14:03 +0200
+Message-Id: <1383833644-27091-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Andreas Dilger <adilger@dilger.ca>, "Artem S. Tashkinov" <t.artem@lycos.com>, Wu Fengguang <fengguang.wu@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue 05-11-13 15:12:45, Dave Chinner wrote:
-> On Mon, Nov 04, 2013 at 05:50:13PM -0700, Andreas Dilger wrote:
-> > Something simple like a??start writing at 16MB dirty on a single filea??
-> > would probably avoid a lot of complexity at little real-world cost.
-> > That shouldna??t throttle dirtying memory above 16MB, but just start
-> > writeout much earlier than it does today.
-> 
-> That doesn't solve the "slow device, large file" problem. We can
-> write data into the page cache at rates of over a GB/s, so it's
-> irrelevant to a device that can write at 5MB/s whether we start
-> writeback immediately or a second later when there is 500MB of dirty
-> pages in memory.  AFAIK, the only way to avoid that problem is to
-> use write-through caching for such devices - where they throttle to
-> the IO rate at very low levels of cached data.
-  Agreed.
+From: Peter Zijlstra <peterz@infradead.org>
 
-> Realistically, there is no "one right answer" for all combinations
-> of applications, filesystems and hardware, but writeback caching is
-> the best *general solution* we've got right now.
-> 
-> However, IMO users should not need to care about tuning BDI dirty
-> ratios or even have to understand what a BDI dirty ratio is to
-> select the rigth caching method for their devices and/or workload.
-> The difference between writeback and write through caching is easy
-> to explain and AFAICT those two modes suffice to solve the problems
-> being discussed here.  Further, if two modes suffice to solve the
-> problems, then we should be able to easily define a trigger to
-> automatically switch modes.
-> 
-> /me notes that if we look at random vs sequential IO and the impact
-> that has on writeback duration, then it's very similar to suddenly
-> having a very slow device. IOWs, fadvise(RANDOM) could be used to
-> switch an *inode* to write through mode rather than writeback mode
-> to solve the problem aggregating massive amounts of random write IO
-> in the page cache...
-  I disagree here. Writeback cache is also useful for aggregating random
-writes and making semi-sequential writes out of them. There are quite some
-applications which rely on the fact that they can write a file in a rather
-random manner (Berkeley DB, linker, ...) but the files are written out in
-one large linear sweep. That is actually the reason why SLES (and I believe
-RHEL as well) tune dirty_limit even higher than what's the default value.
+Use kernel/bounds.c to convert build-time spinlock_t size check into
+a preprocessor symbol and apply that to properly separate the page::ptl
+situation.
 
-So I think it's rather the other way around: If you can detect the file is
-being written in a streaming manner, there's not much point in caching too
-much data for it. And I agree with you that we also have to be careful not
-to cache too few because otherwise two streaming writes would be
-interleaved too much. Currently, we have writeback_chunk_size() which
-determines how much we ask to write from a single inode. So streaming
-writers are going to be interleaved at this chunk size anyway (currently
-that number is "measured bandwidth / 2"). So it would make sense to also
-limit amount of dirty cache for each file with streaming pattern at this
-number.
+Signed-off-by: Peter Zijlstra <peterz@infradead.org>
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ include/linux/mm.h       | 24 +++++++++++++-----------
+ include/linux/mm_types.h |  9 +++++----
+ kernel/bounds.c          |  2 ++
+ mm/memory.c              | 11 +++++------
+ 4 files changed, 25 insertions(+), 21 deletions(-)
 
-> So rather than treating this as a "one size fits all" type of
-> problem, let's step back and:
-> 
-> 	a) define 2-3 different caching behaviours we consider
-> 	   optimal for the majority of workloads/hardware we care
-> 	   about.
-> 	b) determine optimal workloads for each caching
-> 	   behaviour.
-> 	c) develop reliable triggers to detect when we
-> 	   should switch between caching behaviours.
-> 
-> e.g:
-> 
-> 	a) write back caching
-> 		- what we have now
-> 	   write through caching
-> 		- extremely low dirty threshold before writeback
-> 		  starts, enough to optimise for, say, stripe width
-> 		  of the underlying storage.
-> 
-> 	b) write back caching:
-> 		- general purpose workload
-> 	   write through caching:
-> 		- slow device, write large file, sync
-> 		- extremely high bandwidth devices, multi-stream
-> 		  sequential IO
-> 		- random IO.
-> 
-> 	c) write back caching:
-> 		- default
-> 		- fadvise(NORMAL, SEQUENTIAL, WILLNEED)
-> 	   write through caching:
-> 		- fadvise(NOREUSE, DONTNEED, RANDOM)
-> 		- random IO
-> 		- sequential IO, BDI write bandwidth <<< dirty threshold
-> 		- sequential IO, BDI write bandwidth >>> dirty threshold
-> 
-> I think that covers most of the issues and use cases that have been
-> discussed in this thread. IMO, this is the level at which we need to
-> solve the problem (i.e. architectural), not at the level of "let's
-> add sysfs variables so we can tweak bdi ratios".
-> 
-> Indeed, the above implies that we need the caching behaviour to be a
-> property of the address space, not just a property of the backing
-> device.
-  Yes, and that would be interesting to implement and not make a mess out
-of the whole writeback logic because the way we currently do writeback is
-inherently BDI based. When we introduce some special per-inode limits,
-flusher threads would have to pick more carefully what to write and what
-not. We might be forced to go that way eventually anyway because of memcg
-aware writeback but it's not a simple step.
-
-> IOWs, the implementation needs to trickle down from a coherent high
-> level design - that will define the knobs that we need to expose to
-> userspace. We should not be adding new writeback behaviours by
-> adding knobs to sysfs without first having some clue about whether
-> we are solving the right problem and solving it in a sane manner...
-  Agreed. But the ability to limit amount of dirty pages outstanding
-against a particular BDI seems as a sane one to me. It's not as flexible
-and automatic as the approach you suggested but it's much simpler and
-solves most of problems we currently have.
-
-The biggest objection against the sysfs-tunable approach is that most
-people won't have a clue meaning that the tunable is useless for them. But I
-wonder if something like:
-1) turn on strictlimit by default
-2) don't allow dirty cache of BDI to grow over 5s of measured writeback
-   speed
-
-won't go a long way into solving our current problems without too much
-complication...
-
-								Honza
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index d0339741b6ce..1cedd000cf29 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1317,27 +1317,29 @@ static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long a
+ #endif /* CONFIG_MMU && !__ARCH_HAS_4LEVEL_HACK */
+ 
+ #if USE_SPLIT_PTE_PTLOCKS
+-bool __ptlock_alloc(struct page *page);
+-void __ptlock_free(struct page *page);
++#if BLOATED_SPINLOCKS
++extern bool ptlock_alloc(struct page *page);
++extern void ptlock_free(struct page *page);
++
++static inline spinlock_t *ptlock_ptr(struct page *page)
++{
++	return page->ptl;
++}
++#else /* BLOATED_SPINLOCKS */
+ static inline bool ptlock_alloc(struct page *page)
+ {
+-	if (sizeof(spinlock_t) > sizeof(page->ptl))
+-		return __ptlock_alloc(page);
+ 	return true;
+ }
++
+ static inline void ptlock_free(struct page *page)
+ {
+-	if (sizeof(spinlock_t) > sizeof(page->ptl))
+-		__ptlock_free(page);
+ }
+ 
+ static inline spinlock_t *ptlock_ptr(struct page *page)
+ {
+-	if (sizeof(spinlock_t) > sizeof(page->ptl))
+-		return (spinlock_t *) page->ptl;
+-	else
+-		return (spinlock_t *) &page->ptl;
++	return &page->ptl;
+ }
++#endif /* BLOATED_SPINLOCKS */
+ 
+ static inline spinlock_t *pte_lockptr(struct mm_struct *mm, pmd_t *pmd)
+ {
+@@ -1354,7 +1356,7 @@ static inline bool ptlock_init(struct page *page)
+ 	 * slab code uses page->slab_cache and page->first_page (for tail
+ 	 * pages), which share storage with page->ptl.
+ 	 */
+-	VM_BUG_ON(page->ptl);
++	VM_BUG_ON(*(unsigned long *)&page->ptl);
+ 	if (!ptlock_alloc(page))
+ 		return false;
+ 	spin_lock_init(ptlock_ptr(page));
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 752b6d4ee5dc..7ddc3d5c7776 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -156,10 +156,11 @@ struct page {
+ 						 * system if PG_buddy is set.
+ 						 */
+ #if USE_SPLIT_PTE_PTLOCKS
+-		unsigned long ptl; /* It's spinlock_t if it fits to long,
+-				    * otherwise it's pointer to dynamicaly
+-				    * allocated spinlock_t.
+-				    */
++#if BLOATED_SPINLOCKS
++		spinlock_t *ptl;
++#else
++		spinlock_t ptl;
++#endif
+ #endif
+ 		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
+ 		struct page *first_page;	/* Compound tail pages */
+diff --git a/kernel/bounds.c b/kernel/bounds.c
+index e8ca97b5c386..578782ef6ae1 100644
+--- a/kernel/bounds.c
++++ b/kernel/bounds.c
+@@ -11,6 +11,7 @@
+ #include <linux/kbuild.h>
+ #include <linux/page_cgroup.h>
+ #include <linux/log2.h>
++#include <linux/spinlock.h>
+ 
+ void foo(void)
+ {
+@@ -21,5 +22,6 @@ void foo(void)
+ #ifdef CONFIG_SMP
+ 	DEFINE(NR_CPUS_BITS, ilog2(CONFIG_NR_CPUS));
+ #endif
++	DEFINE(BLOATED_SPINLOCKS, sizeof(spinlock_t) > sizeof(int));
+ 	/* End of constants */
+ }
+diff --git a/mm/memory.c b/mm/memory.c
+index 6f7bdee617e2..f6cd03e4dec6 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -4271,21 +4271,20 @@ void copy_user_huge_page(struct page *dst, struct page *src,
+ }
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
+ 
+-#if USE_SPLIT_PTE_PTLOCKS
+-bool __ptlock_alloc(struct page *page)
++#if USE_SPLIT_PTE_PTLOCKS && BLOATED_SPINLOCKS
++bool ptlock_alloc(struct page *page)
+ {
+ 	spinlock_t *ptl;
+ 
+ 	ptl = kmalloc(sizeof(spinlock_t), GFP_KERNEL);
+ 	if (!ptl)
+ 		return false;
+-	page->ptl = (unsigned long)ptl;
++	page->ptl = ptl;
+ 	return true;
+ }
+ 
+-void __ptlock_free(struct page *page)
++void ptlock_free(struct page *page)
+ {
+-	if (sizeof(spinlock_t) > sizeof(page->ptl))
+-		kfree((spinlock_t *)page->ptl);
++	kfree(page->ptl);
+ }
+ #endif
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+1.8.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
