@@ -1,62 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EC766B0150
-	for <linux-mm@kvack.org>; Thu,  7 Nov 2013 05:43:53 -0500 (EST)
-Received: by mail-pb0-f53.google.com with SMTP id up7so416118pbc.26
-        for <linux-mm@kvack.org>; Thu, 07 Nov 2013 02:43:52 -0800 (PST)
-Received: from psmtp.com ([74.125.245.181])
-        by mx.google.com with SMTP id cj2si2161826pbc.357.2013.11.07.02.43.50
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 80EBF6B0152
+	for <linux-mm@kvack.org>; Thu,  7 Nov 2013 07:06:33 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id kp14so517766pab.32
+        for <linux-mm@kvack.org>; Thu, 07 Nov 2013 04:06:33 -0800 (PST)
+Received: from psmtp.com ([74.125.245.156])
+        by mx.google.com with SMTP id ru9si2419278pbc.198.2013.11.07.04.06.31
         for <linux-mm@kvack.org>;
-        Thu, 07 Nov 2013 02:43:51 -0800 (PST)
-Date: Thu, 7 Nov 2013 05:43:48 -0500 (EST)
-From: Jerome Marchand <jmarchan@redhat.com>
-Message-ID: <1605509214.19935074.1383821028439.JavaMail.root@redhat.com>
-In-Reply-To: <527AD5A2.70902@intel.com>
-References: <1382101019-23563-1-git-send-email-jmarchan@redhat.com> <1382101019-23563-2-git-send-email-jmarchan@redhat.com> <20131105155319.732dcbefb162c2ee4716ef9d@linux-foundation.org> <1450211196.19341043.1383727340985.JavaMail.root@redhat.com> <20131106143313.1a368250df917fba0faf56fe@linux-foundation.org> <527AD5A2.70902@intel.com>
-Subject: Re: [PATCH v4 2/2] mm: allow to set overcommit ratio more precisely
+        Thu, 07 Nov 2013 04:06:32 -0800 (PST)
+Received: by mail-ve0-f182.google.com with SMTP id jy13so299878veb.13
+        for <linux-mm@kvack.org>; Thu, 07 Nov 2013 04:06:29 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CANN689HkNP-UZOu+vDCFPG5_k=BNZG6a+oP+Ope16vLc2ShFzw@mail.gmail.com>
+References: <cover.1383771175.git.tim.c.chen@linux.intel.com>
+	<1383773827.11046.355.camel@schen9-DESK>
+	<CA+55aFyNX=5i0hmk-KuD+Vk+yBD-kkAiywx1Lx_JJmHVPx=1wA@mail.gmail.com>
+	<CANN689HkNP-UZOu+vDCFPG5_k=BNZG6a+oP+Ope16vLc2ShFzw@mail.gmail.com>
+Date: Thu, 7 Nov 2013 21:06:29 +0900
+Message-ID: <CA+55aFwn1HUt3iXo6Zz8j1HUJi+qJ1NfcnUz-P+XCYLL7gjCMQ@mail.gmail.com>
+Subject: Re: [PATCH v3 3/5] MCS Lock: Barrier corrections
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: multipart/alternative; boundary=089e0115f6828bdaee04ea95184d
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michel Lespinasse <walken@google.com>
+Cc: Waiman Long <waiman.long@hp.com>, Arnd Bergmann <arnd@arndb.de>, Rik van Riel <riel@redhat.com>, Aswin Chandramouleeswaran <aswin@hp.com>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, "Figo. zhang" <figo1802@gmail.com>, linux-arch@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, George Spelvin <linux@horizon.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Peter Hurley <peter@hurleysoftware.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, linux-kernel@vger.kernel.org, Scott J Norton <scott.norton@hp.com>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@intel.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Will Deacon <will.deacon@arm.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>
 
+--089e0115f6828bdaee04ea95184d
+Content-Type: text/plain; charset=UTF-8
 
+On Nov 7, 2013 6:55 PM, "Michel Lespinasse" <walken@google.com> wrote:
+>
+> Rather than writing arch-specific locking code, would you agree to
+> introduce acquire and release memory operations ?
 
------ Original Message -----
-> From: "Dave Hansen" <dave.hansen@intel.com>
-> To: "Andrew Morton" <akpm@linux-foundation.org>, "Jerome Marchand" <jmarchan@redhat.com>
-> Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-> Sent: Thursday, November 7, 2013 12:49:54 AM
-> Subject: Re: [PATCH v4 2/2] mm: allow to set overcommit ratio more precisely
-> 
-> On 11/06/2013 02:33 PM, Andrew Morton wrote:
-> > On Wed, 6 Nov 2013 03:42:20 -0500 (EST) Jerome Marchand
-> > <jmarchan@redhat.com> wrote:
-> >> That was my first version of this patch (actually "kbytes" to avoid
-> >> overflow).
-> >> Dave raised the issue that it silently breaks the user interface:
-> >> overcommit_ratio is zero while the system behaves differently.
-> > 
-> > I don't understand that at all.  We keep overcommit_ratio as-is, with
-> > the same default values and add a different way of altering it.  That
-> > should be back-compatible?
-> 
-> Reading the old thread, I think my main point was that we shouldn't
-> output overcommit_ratio=0 when overcommit_bytes>0. We need to round up
-> for numbers less than 1 so that folks don't think overcommit_ratio is _off_.
+Yes, that's probably the right thing to do. What ops do we need? Store with
+release, cmpxchg and load with acquire? Anything else?
 
-This is not how current *bytes work. Also the *ratio and *bytes value
-would diverge if the amount of memory changes (e.g. memory hotplug).
+      Linus
 
-> 
-> I was really just trying to talk you in to cramming the extra precision
-> in to the _existing_ sysctl. :)  I don't think bytes vs. ratio is really
-> that big of a deal.
-> 
+--089e0115f6828bdaee04ea95184d
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-If everybody agrees on overcommit_kbytes, I can resend my original patch.
+<p dir=3D"ltr"><br>
+On Nov 7, 2013 6:55 PM, &quot;Michel Lespinasse&quot; &lt;<a href=3D"mailto=
+:walken@google.com">walken@google.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt; Rather than writing arch-specific locking code, would you agree to<br>
+&gt; introduce acquire and release memory operations ?</p>
+<p dir=3D"ltr">Yes, that&#39;s probably the right thing to do. What ops do =
+we need? Store with release, cmpxchg and load with acquire? Anything else?<=
+/p>
+<p dir=3D"ltr">=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 Linus</p>
+
+--089e0115f6828bdaee04ea95184d--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
