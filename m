@@ -1,112 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 066416B017A
-	for <linux-mm@kvack.org>; Thu,  7 Nov 2013 16:08:38 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id rp16so1113577pbb.17
-        for <linux-mm@kvack.org>; Thu, 07 Nov 2013 13:08:38 -0800 (PST)
-Received: from psmtp.com ([74.125.245.156])
-        by mx.google.com with SMTP id vs7si3863530pbc.235.2013.11.07.13.08.36
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 082376B017C
+	for <linux-mm@kvack.org>; Thu,  7 Nov 2013 16:16:05 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id lj1so1181450pab.8
+        for <linux-mm@kvack.org>; Thu, 07 Nov 2013 13:16:05 -0800 (PST)
+Received: from psmtp.com ([74.125.245.143])
+        by mx.google.com with SMTP id t6si4215749paa.337.2013.11.07.13.16.03
         for <linux-mm@kvack.org>;
-        Thu, 07 Nov 2013 13:08:37 -0800 (PST)
-Message-ID: <527C0149.6020902@infradead.org>
-Date: Thu, 07 Nov 2013 13:08:25 -0800
-From: Randy Dunlap <rdunlap@infradead.org>
-MIME-Version: 1.0
-Subject: Re: [memcg:since-3.12 75/75] fs/proc/meminfo.c:undefined reference
- to `vm_commit_limit'
-References: <527b74a0.xBELNKuc6Ws8XONb%fengguang.wu@intel.com>	<20131107132505.GA16393@dhcp22.suse.cz> <20131107125103.c81016a87bfd72b0acf4058c@linux-foundation.org>
-In-Reply-To: <20131107125103.c81016a87bfd72b0acf4058c@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+        Thu, 07 Nov 2013 13:16:04 -0800 (PST)
+Subject: Re: [PATCH v3 3/5] MCS Lock: Barrier corrections
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <CANN689FqUSnr=Prum0Kt6+0gr9dWKD8GT9Gbrtiyyg+PTyFkyA@mail.gmail.com>
+References: <cover.1383771175.git.tim.c.chen@linux.intel.com>
+	 <1383773827.11046.355.camel@schen9-DESK>
+	 <CA+55aFyNX=5i0hmk-KuD+Vk+yBD-kkAiywx1Lx_JJmHVPx=1wA@mail.gmail.com>
+	 <CANN689HkNP-UZOu+vDCFPG5_k=BNZG6a+oP+Ope16vLc2ShFzw@mail.gmail.com>
+	 <CA+55aFwn1HUt3iXo6Zz8j1HUJi+qJ1NfcnUz-P+XCYLL7gjCMQ@mail.gmail.com>
+	 <CANN689EgdDQV=srsLELUpiTGOSF0SLUZ=BC2LnMxNrYTv3H=Wg@mail.gmail.com>
+	 <20131107143139.GT18245@linux.vnet.ibm.com>
+	 <CANN689FqUSnr=Prum0Kt6+0gr9dWKD8GT9Gbrtiyyg+PTyFkyA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 07 Nov 2013 13:15:51 -0800
+Message-ID: <1383858951.11046.399.camel@schen9-DESK>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>
-Cc: Jerome Marchand <jmarchan@redhat.com>, kbuild-all@01.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, fengguang.wu@intel.com
+To: Michel Lespinasse <walken@google.com>
+Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Arnd Bergmann <arnd@arndb.de>, Rik van Riel <riel@redhat.com>, Aswin Chandramouleeswaran <aswin@hp.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, "Figo. zhang" <figo1802@gmail.com>, linux-arch@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, George Spelvin <linux@horizon.com>, Ingo Molnar <mingo@elte.hu>, Peter Hurley <peter@hurleysoftware.com>, "H. Peter
+ Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Scott J Norton <scott.norton@hp.com>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@intel.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Will Deacon <will.deacon@arm.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>
 
-On 11/07/13 12:51, Andrew Morton wrote:
-> On Thu, 7 Nov 2013 14:25:05 +0100 Michal Hocko <mhocko@suse.cz> wrote:
+On Thu, 2013-11-07 at 11:59 -0800, Michel Lespinasse wrote:
+> On Thu, Nov 7, 2013 at 6:31 AM, Paul E. McKenney
+> <paulmck@linux.vnet.ibm.com> wrote:
+> > On Thu, Nov 07, 2013 at 04:50:23AM -0800, Michel Lespinasse wrote:
+> >> On Thu, Nov 7, 2013 at 4:06 AM, Linus Torvalds
+> >> <torvalds@linux-foundation.org> wrote:
+> >> >
+> >> > On Nov 7, 2013 6:55 PM, "Michel Lespinasse" <walken@google.com> wrote:
+> >> >>
+> >> >> Rather than writing arch-specific locking code, would you agree to
+> >> >> introduce acquire and release memory operations ?
+> >> >
+> >> > Yes, that's probably the right thing to do. What ops do we need? Store with
+> >> > release, cmpxchg and load with acquire? Anything else?
+> >>
+> >> Depends on what lock types we want to implement on top; for MCS we would need:
+> >> - xchg acquire (common case) and load acquire (for spinning on our
+> >> locker's wait word)
+> >> - cmpxchg release (when there is no next locker) and store release
+> >> (when writing to the next locker's wait word)
+> >>
+> >> One downside of the proposal is that using a load acquire for spinning
+> >> puts the memory barrier within the spin loop. So this model is very
+> >> intuitive and does not add unnecessary barriers on x86, but it my
+> >> place the barriers in a suboptimal place for architectures that need
+> >> them.
+> >
+> > OK, I will bite...  Why is a barrier in the spinloop suboptimal?
 > 
->> On Thu 07-11-13 19:08:16, Wu Fengguang wrote:
->>> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.12
->>> head:   2f11d7af8df66cb4f217b6293ad8189aa101d601
->>> commit: 2f11d7af8df66cb4f217b6293ad8189aa101d601 [75/75] mm-factor-commit-limit-calculation-fix
->>> config: make ARCH=blackfin BF526-EZBRD_defconfig
->>>
->>> All error/warnings:
->>>
->>>    mm/built-in.o: In function `__vm_enough_memory':
->>>    (.text+0x11b4c): undefined reference to `vm_commit_limit'
->>>    fs/built-in.o: In function `meminfo_proc_show':
->>>>> fs/proc/meminfo.c:(.text+0x37ef0): undefined reference to `vm_commit_limit'
->>
->> Andrew, it seems that moving vm_commit_limit out of mman.h is not that
->> easy because it breaks NOMMU configurations. mm/mmap.o is not part of
->> the nommu build apparently.
->>
->> So either we move it back to mman.h or put it somewhere else. I do not
->> have a good idea where, though.
->>
+> It's probably not a big deal - all I meant to say is that if you were
+> manually placing barriers, you would probably put one after the loop
+> instead. I don't deal much with architectures where such barriers are
+> needed, so I don't know for sure if the difference means much.
+
+We could do a load acquire at the end of the 
+spin loop in the lock function and not in the spin loop itself if cost
+of barrier within spin loop is a concern.
+
+Michel, are you planning to do an implementation of
+load-acquire/store-release functions of various architectures?
+
+Or is the approach of arch specific memory barrier for MCS 
+an acceptable one before load-acquire and store-release
+are available?  Are there any technical issues remaining with 
+the patchset after including including Waiman's arch specific barrier?
+
+Tim
+
 > 
-> util.c?
+> > Can't say that I have tried measuring it, but the barrier should not
+> > normally result in interconnect traffic.  Given that the barrier is
+> > required anyway, it should not affect lock-acquisition latency.
 > 
-> diff -puN mm/mmap.c~mm-factor-commit-limit-calculation-fix-fix mm/mmap.c
-> --- a/mm/mmap.c~mm-factor-commit-limit-calculation-fix-fix
-> +++ a/mm/mmap.c
-> @@ -110,15 +110,6 @@ unsigned long vm_memory_committed(void)
->  EXPORT_SYMBOL_GPL(vm_memory_committed);
->  
->  /*
-> - * Commited memory limit enforced when OVERCOMMIT_NEVER policy is used
-> - */
-> -unsigned long vm_commit_limit(void)
-> -{
-> -	return ((totalram_pages - hugetlb_total_pages())
-> -		* sysctl_overcommit_ratio / 100) + total_swap_pages;
-> -}
-> -
-> -/*
->   * Check that a process has enough memory to allocate a new virtual
->   * mapping. 0 means there is enough memory for the allocation to
->   * succeed and -ENOMEM implies there is not.
-> --- a/mm/util.c~mm-factor-commit-limit-calculation-fix-fix
-> +++ a/mm/util.c
-> @@ -7,6 +7,9 @@
->  #include <linux/security.h>
->  #include <linux/swap.h>
->  #include <linux/swapops.h>
-> +#include <linux/mman.h>
-> +#include <linux/hugetlb.h>
-> +
->  #include <asm/uaccess.h>
->  
->  #include "internal.h"
-> @@ -398,6 +401,16 @@ struct address_space *page_mapping(struc
->  	return mapping;
->  }
->  
-> +/*
-> + * Commited memory limit enforced when OVERCOMMIT_NEVER policy is used
-
-      Committed
-
-> + */
-> +unsigned long vm_commit_limit(void)
-> +{
-> +	return ((totalram_pages - hugetlb_total_pages())
-> +		* sysctl_overcommit_ratio / 100) + total_swap_pages;
-> +}
-> +
-> +
->  /* Tracepoints definitions. */
->  EXPORT_TRACEPOINT_SYMBOL(kmalloc);
->  EXPORT_TRACEPOINT_SYMBOL(kmem_cache_alloc);
-> _
+> Agree
 > 
-> --
+> > So what am I missing here?
+> 
+> I think you read my second email as me trying to shoot down a proposal
+> - I wasn't, as I really like the acquire/release model and find it
+> easy to program with, which is why I'm proposing it in the first
+> place. I just wanted to be upfront about all potential downsides, so
+> we can consider them and see if they are significant - I don't think
+> they are, but I'm not the best person to judge that as I mostly just
+> deal with x86 stuff.
+> 
 
-
--- 
-~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
