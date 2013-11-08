@@ -1,84 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id A83F96B018C
-	for <linux-mm@kvack.org>; Fri,  8 Nov 2013 05:29:19 -0500 (EST)
-Received: by mail-pd0-f177.google.com with SMTP id p10so1954976pdj.36
-        for <linux-mm@kvack.org>; Fri, 08 Nov 2013 02:29:19 -0800 (PST)
-Received: from psmtp.com ([74.125.245.181])
-        by mx.google.com with SMTP id pz2si6422258pac.28.2013.11.08.02.29.17
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 62FB66B018D
+	for <linux-mm@kvack.org>; Fri,  8 Nov 2013 05:44:24 -0500 (EST)
+Received: by mail-pd0-f173.google.com with SMTP id r10so1961225pdi.18
+        for <linux-mm@kvack.org>; Fri, 08 Nov 2013 02:44:24 -0800 (PST)
+Received: from psmtp.com ([74.125.245.126])
+        by mx.google.com with SMTP id pz2si6403528pac.289.2013.11.08.02.44.22
         for <linux-mm@kvack.org>;
-        Fri, 08 Nov 2013 02:29:18 -0800 (PST)
-Message-ID: <527CBCE4.3080106@oracle.com>
-Date: Fri, 08 Nov 2013 18:28:52 +0800
+        Fri, 08 Nov 2013 02:44:23 -0800 (PST)
+Message-ID: <527CC072.1000200@oracle.com>
+Date: Fri, 08 Nov 2013 18:44:02 +0800
 From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [Patch 3.11.7 1/1]mm: remove and free expired data in time in
- zswap
-References: <1383904203.2715.2.camel@ubuntu>
-In-Reply-To: <1383904203.2715.2.camel@ubuntu>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH] staging: zsmalloc: Ensure handle is never 0 on success
+References: <20131107070451.GA10645@bbox>
+In-Reply-To: <20131107070451.GA10645@bbox>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "changkun.li" <xfishcoder@gmail.com>
-Cc: sjenning@linux.vnet.ibm.com, linux-mm@kvack.org, luyi@360.cn, lichangkun@360.cn, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg KH <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, lliubbo@gmail.com, jmarchan@redhat.com, mgorman@suse.de, riel@redhat.com, hughd@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
 
-On 11/08/2013 05:50 PM, changkun.li wrote:
-> In zswap, store page A to zbud if the compression ratio is high, insert
-> its entry into rbtree. if there is a entry B which has the same offset
-> in the rbtree.Remove and free B before insert the entry of A.
+On 11/07/2013 03:04 PM, Minchan Kim wrote:
+> On Wed, Nov 06, 2013 at 07:05:11PM -0800, Greg KH wrote:
+>> On Wed, Nov 06, 2013 at 03:46:19PM -0800, Nitin Gupta wrote:
+>>  > I'm getting really tired of them hanging around in here for many years
+>>>> now...
+>>>>
+>>>
+>>> Minchan has tried many times to promote zram out of staging. This was
+>>> his most recent attempt:
+>>>
+>>> https://lkml.org/lkml/2013/8/21/54
+>>>
+>>> There he provided arguments for zram inclusion, how it can help in
+>>> situations where zswap can't and why generalizing /dev/ramX would
+>>> not be a great idea. So, cannot say why it wasn't picked up
+>>> for inclusion at that time.
+>>>
+>>>> Should I just remove them if no one is working on getting them merged
+>>>> "properly"?
+>>>>
+>>>
+>>> Please refer the mail thread (link above) and see Minchan's
+>>> justifications for zram.
+>>> If they don't sound convincing enough then please remove zram+zsmalloc
+>>> from staging.
+>>
+>> You don't need to be convincing me, you need to be convincing the
+>> maintainers of the area of the kernel you are working with.
+>>
+>> And since the last time you all tried to get this merged was back in
+>> August, I'm feeling that you all have given up, so it needs to be
+>> deleted.  I'll go do that for 3.14, and if someone wants to pick it up
+>> and merge it properly, they can easily revert it.
 > 
-> case:
-> if the compression ratio of page A is not high, return without checking
-> the same offset one in rbtree.
+> I'm guilty and I have been busy by other stuff. Sorry for that.
+> Fortunately, I discussed this issue with Hugh in this Linuxcon for a
+> long time(Thanks Hugh!) he felt zram's block device abstraction is
+> better design rather than frontswap backend stuff although it's a question
+> where we put zsmalloc. I will CC Hugh because many of things is related
+> to swap subsystem and his opinion is really important.
+> And I discussed it with Rik and he feel positive about zram.
 > 
-> if there is a entry B which has the same offset in the rbtree. Now, we
-> make sure B is invalid or expired. But the entry and compressed memory
-> of B are not freed in time.
+> Last impression Andrw gave me by private mail is he want to merge
+> zram's functionality into zswap or vise versa.
+> If I misunderstood, please correct me.
+> I understand his concern but I guess he didn't have a time to read
+> my long description due to a ton of works at that time.
+> So, I will try one more time.
+> I hope I'd like to listen feedback than *silence* so that we can
+> move forward than stall.
 > 
-> Because zswap spaces data in memory, it makes the utilization of memory
-> lower. the other valid data in zbud is writeback to swap device more
-> possibility, when zswap is full.
+> Recently, Bob tried to move zsmalloc under mm directory to unify
+> zram and zswap with adding pseudo block device in zswap(It's
+> very weired to me. I think it's horrible monster which is lying
+> between mm and block in layering POV) but he was ignoring zram's
+> block device (a.k.a zram-blk) feature and considered only swap
+> usecase of zram, in turn, it lose zram's good concept. 
+> I already convered other topics Bob raised in this thread[1]
+> and why I think zram is better in the thread.
 > 
-> So if we make sure a entry is expired, free it in time.
-> 
-> Signed-off-by: changkun.li<xfishcoder@gmail.com>
-> ---
->  mm/zswap.c |    5 ++++-
->  1 files changed, 4 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/zswap.c b/mm/zswap.c
-> index cbd9578..90a2813 100644
-> --- a/mm/zswap.c
-> +++ b/mm/zswap.c
-> @@ -596,6 +596,7 @@ fail:
->  	return ret;
->  }
->  
-> +static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t
-> offset);
->  /*********************************
->  * frontswap hooks
->  **********************************/
-> @@ -614,7 +615,7 @@ static int zswap_frontswap_store(unsigned type,
-> pgoff_t offset,
->  
->  	if (!tree) {
->  		ret = -ENODEV;
-> -		goto reject;
-> +		goto nodev;
->  	}
->  
->  	/* reclaim space if needed */
-> @@ -695,6 +696,8 @@ freepage:
->  	put_cpu_var(zswap_dstmem);
->  	zswap_entry_cache_free(entry);
->  reject:
-> +	zswap_frontswap_invalidate_page(type, offset);
 
-I'm afraid when arrives here zswap_rb_search(offset) will always return
-NULL entry. So most of the time, it's just waste time to call
-zswap_frontswap_invalidate_page() to search rbtree.
+I have no objections for zram, and I also think is good for zswap can
+support zsmalloc and fake swap device. At least users can have more
+options just like slab/slub/slob.
 
 -- 
 Regards,
