@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id ACFC96B024C
-	for <linux-mm@kvack.org>; Fri,  8 Nov 2013 18:43:33 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id z10so2799845pdj.19
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 29D776B024E
+	for <linux-mm@kvack.org>; Fri,  8 Nov 2013 18:43:34 -0500 (EST)
+Received: by mail-pb0-f44.google.com with SMTP id rp16so2763001pbb.17
         for <linux-mm@kvack.org>; Fri, 08 Nov 2013 15:43:33 -0800 (PST)
-Received: from psmtp.com ([74.125.245.166])
-        by mx.google.com with SMTP id qj1si8088278pbc.144.2013.11.08.15.43.31
+Received: from psmtp.com ([74.125.245.163])
+        by mx.google.com with SMTP id kn3si8074012pbc.214.2013.11.08.15.43.32
         for <linux-mm@kvack.org>;
         Fri, 08 Nov 2013 15:43:32 -0800 (PST)
 From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [PATCH 23/24] mm/ARM: mm: Use memblock apis for early memory allocations
-Date: Fri, 8 Nov 2013 18:41:59 -0500
-Message-ID: <1383954120-24368-24-git-send-email-santosh.shilimkar@ti.com>
+Subject: [PATCH 18/24] mm/page_cgroup: Use memblock apis for early memory allocations
+Date: Fri, 8 Nov 2013 18:41:54 -0500
+Message-ID: <1383954120-24368-19-git-send-email-santosh.shilimkar@ti.com>
 In-Reply-To: <1383954120-24368-1-git-send-email-santosh.shilimkar@ti.com>
 References: <1383954120-24368-1-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
@@ -19,7 +19,9 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: tj@kernel.org, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Santosh Shilimkar <santosh.shilimkar@ti.com>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Grygorii Strashko <grygorii.strashko@ti.com>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, Santosh Shilimkar <santosh.shilimkar@ti.com>
+
+From: Grygorii Strashko <grygorii.strashko@ti.com>
 
 Switch to memblock interfaces for early memory allocator instead of
 bootmem allocator. No functional change in beahvior than what it is
@@ -33,25 +35,33 @@ bootmem APIs.
 Cc: Yinghai Lu <yinghai@kernel.org>
 Cc: Tejun Heo <tj@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: cgroups@vger.kernel.org
 
+Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
 Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 ---
- arch/arm/mm/init.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/page_cgroup.c |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-index cef338d..091e2c9 100644
---- a/arch/arm/mm/init.c
-+++ b/arch/arm/mm/init.c
-@@ -414,7 +414,7 @@ free_memmap(unsigned long start_pfn, unsigned long end_pfn)
- 	 * free the section of the memmap array.
- 	 */
- 	if (pg < pgend)
--		free_bootmem(pg, pgend - pg);
-+		memblock_free_early(pg, pgend - pg);
- }
+diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+index 6d757e3a..d8bd2c5 100644
+--- a/mm/page_cgroup.c
++++ b/mm/page_cgroup.c
+@@ -54,8 +54,9 @@ static int __init alloc_node_page_cgroup(int nid)
  
- /*
+ 	table_size = sizeof(struct page_cgroup) * nr_pages;
+ 
+-	base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
+-			table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
++	base = memblock_virt_alloc_try_nid_nopanic(
++			table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
++			BOOTMEM_ALLOC_ACCESSIBLE, nid);
+ 	if (!base)
+ 		return -ENOMEM;
+ 	NODE_DATA(nid)->node_page_cgroup = base;
 -- 
 1.7.9.5
 
