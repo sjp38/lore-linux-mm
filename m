@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CF066B0201
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id ED4EA6B0201
 	for <linux-mm@kvack.org>; Fri,  8 Nov 2013 18:43:19 -0500 (EST)
-Received: by mail-pb0-f53.google.com with SMTP id up7so2788847pbc.26
-        for <linux-mm@kvack.org>; Fri, 08 Nov 2013 15:43:18 -0800 (PST)
-Received: from psmtp.com ([74.125.245.182])
-        by mx.google.com with SMTP id pl8si8067862pbb.224.2013.11.08.15.43.16
+Received: by mail-pd0-f174.google.com with SMTP id z10so2799671pdj.19
+        for <linux-mm@kvack.org>; Fri, 08 Nov 2013 15:43:19 -0800 (PST)
+Received: from psmtp.com ([74.125.245.116])
+        by mx.google.com with SMTP id sw1si8094615pbc.102.2013.11.08.15.43.17
         for <linux-mm@kvack.org>;
-        Fri, 08 Nov 2013 15:43:17 -0800 (PST)
+        Fri, 08 Nov 2013 15:43:18 -0800 (PST)
 From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [PATCH 06/24] mm/staging: remove unnecessary inclusion of bootmem.h
-Date: Fri, 8 Nov 2013 18:41:42 -0500
-Message-ID: <1383954120-24368-7-git-send-email-santosh.shilimkar@ti.com>
+Subject: [PATCH 11/24] mm/printk: Use memblock apis for early memory allocations
+Date: Fri, 8 Nov 2013 18:41:47 -0500
+Message-ID: <1383954120-24368-12-git-send-email-santosh.shilimkar@ti.com>
 In-Reply-To: <1383954120-24368-1-git-send-email-santosh.shilimkar@ti.com>
 References: <1383954120-24368-1-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
@@ -19,39 +19,48 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: tj@kernel.org, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Grygorii Strashko <grygorii.strashko@ti.com>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, William Hubbs <w.d.hubbs@gmail.com>, Chris Brannon <chris@the-brannons.com>, Kirk Reiser <kirk@reisers.ca>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Santosh Shilimkar <santosh.shilimkar@ti.com>
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Santosh Shilimkar <santosh.shilimkar@ti.com>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Grygorii Strashko <grygorii.strashko@ti.com>
 
-From: Grygorii Strashko <grygorii.strashko@ti.com>
+Switch to memblock interfaces for early memory allocator instead of
+bootmem allocator. No functional change in beahvior than what it is
+in current code from bootmem users points of view.
 
-Clean-up to remove depedency with bootmem headers.
-
+Archs already converted to NO_BOOTMEM now directly use memblock
+interfaces instead of bootmem wrappers build on top of memblock. And the
+archs which still uses bootmem, these new apis just fallback to exiting
+bootmem APIs.
 Cc: Yinghai Lu <yinghai@kernel.org>
 Cc: Tejun Heo <tj@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: William Hubbs <w.d.hubbs@gmail.com>
-Cc: Chris Brannon <chris@the-brannons.com>
-Cc: Kirk Reiser <kirk@reisers.ca>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
 Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 ---
- drivers/staging/speakup/main.c |    2 --
- 1 file changed, 2 deletions(-)
+ kernel/printk/printk.c |   10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)
 
-diff --git a/drivers/staging/speakup/main.c b/drivers/staging/speakup/main.c
-index 14079c4..041f01e 100644
---- a/drivers/staging/speakup/main.c
-+++ b/drivers/staging/speakup/main.c
-@@ -37,8 +37,6 @@
- #include <linux/input.h>
- #include <linux/kmod.h>
+diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
+index b4e8500..706295e 100644
+--- a/kernel/printk/printk.c
++++ b/kernel/printk/printk.c
+@@ -757,14 +757,10 @@ void __init setup_log_buf(int early)
+ 		return;
  
--#include <linux/bootmem.h>	/* for alloc_bootmem */
+ 	if (early) {
+-		unsigned long mem;
 -
- /* speakup_*_selection */
- #include <linux/module.h>
- #include <linux/sched.h>
+-		mem = memblock_alloc(new_log_buf_len, PAGE_SIZE);
+-		if (!mem)
+-			return;
+-		new_log_buf = __va(mem);
++		new_log_buf =
++			memblock_virt_alloc_align(new_log_buf_len, PAGE_SIZE);
+ 	} else {
+-		new_log_buf = alloc_bootmem_nopanic(new_log_buf_len);
++		new_log_buf = memblock_virt_alloc_nopanic(new_log_buf_len);
+ 	}
+ 
+ 	if (unlikely(!new_log_buf)) {
 -- 
 1.7.9.5
 
