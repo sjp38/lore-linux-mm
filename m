@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 383466B024B
-	for <linux-mm@kvack.org>; Fri,  8 Nov 2013 18:43:32 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id y10so2772845pdj.38
-        for <linux-mm@kvack.org>; Fri, 08 Nov 2013 15:43:31 -0800 (PST)
-Received: from psmtp.com ([74.125.245.189])
-        by mx.google.com with SMTP id mj9si8415859pab.277.2013.11.08.15.43.30
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id ACFC96B024C
+	for <linux-mm@kvack.org>; Fri,  8 Nov 2013 18:43:33 -0500 (EST)
+Received: by mail-pd0-f174.google.com with SMTP id z10so2799845pdj.19
+        for <linux-mm@kvack.org>; Fri, 08 Nov 2013 15:43:33 -0800 (PST)
+Received: from psmtp.com ([74.125.245.166])
+        by mx.google.com with SMTP id qj1si8088278pbc.144.2013.11.08.15.43.31
         for <linux-mm@kvack.org>;
-        Fri, 08 Nov 2013 15:43:31 -0800 (PST)
+        Fri, 08 Nov 2013 15:43:32 -0800 (PST)
 From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [PATCH 22/24] mm/ARM: kernel: Use memblock apis for early memory allocations
-Date: Fri, 8 Nov 2013 18:41:58 -0500
-Message-ID: <1383954120-24368-23-git-send-email-santosh.shilimkar@ti.com>
+Subject: [PATCH 23/24] mm/ARM: mm: Use memblock apis for early memory allocations
+Date: Fri, 8 Nov 2013 18:41:59 -0500
+Message-ID: <1383954120-24368-24-git-send-email-santosh.shilimkar@ti.com>
 In-Reply-To: <1383954120-24368-1-git-send-email-santosh.shilimkar@ti.com>
 References: <1383954120-24368-1-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
@@ -36,36 +36,22 @@ Cc: Andrew Morton <akpm@linux-foundation.org>
 
 Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 ---
- arch/arm/kernel/devtree.c |    2 +-
- arch/arm/kernel/setup.c   |    2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ arch/arm/mm/init.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/arch/arm/kernel/devtree.c b/arch/arm/kernel/devtree.c
-index f35906b..a07892e 100644
---- a/arch/arm/kernel/devtree.c
-+++ b/arch/arm/kernel/devtree.c
-@@ -33,7 +33,7 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
- 
- void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
- {
--	return alloc_bootmem_align(size, align);
-+	return memblock_virt_alloc_align(size, align);
+diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+index cef338d..091e2c9 100644
+--- a/arch/arm/mm/init.c
++++ b/arch/arm/mm/init.c
+@@ -414,7 +414,7 @@ free_memmap(unsigned long start_pfn, unsigned long end_pfn)
+ 	 * free the section of the memmap array.
+ 	 */
+ 	if (pg < pgend)
+-		free_bootmem(pg, pgend - pg);
++		memblock_free_early(pg, pgend - pg);
  }
  
- void __init arm_dt_memblock_reserve(void)
-diff --git a/arch/arm/kernel/setup.c b/arch/arm/kernel/setup.c
-index e1b1394..d25db56 100644
---- a/arch/arm/kernel/setup.c
-+++ b/arch/arm/kernel/setup.c
-@@ -707,7 +707,7 @@ static void __init request_standard_resources(const struct machine_desc *mdesc)
- 	kernel_data.end     = virt_to_phys(_end - 1);
- 
- 	for_each_memblock(memory, region) {
--		res = alloc_bootmem_low(sizeof(*res));
-+		res = memblock_virt_alloc(sizeof(*res));
- 		res->name  = "System RAM";
- 		res->start = __pfn_to_phys(memblock_region_memory_base_pfn(region));
- 		res->end = __pfn_to_phys(memblock_region_memory_end_pfn(region)) - 1;
+ /*
 -- 
 1.7.9.5
 
