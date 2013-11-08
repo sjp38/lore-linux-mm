@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id B705A6B0075
-	for <linux-mm@kvack.org>; Fri,  8 Nov 2013 18:43:09 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id kp14so2876486pab.4
-        for <linux-mm@kvack.org>; Fri, 08 Nov 2013 15:43:09 -0800 (PST)
-Received: from psmtp.com ([74.125.245.150])
-        by mx.google.com with SMTP id do4si903020pbc.227.2013.11.08.15.43.07
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 247086B008C
+	for <linux-mm@kvack.org>; Fri,  8 Nov 2013 18:43:11 -0500 (EST)
+Received: by mail-pd0-f170.google.com with SMTP id v10so2808620pde.29
+        for <linux-mm@kvack.org>; Fri, 08 Nov 2013 15:43:10 -0800 (PST)
+Received: from psmtp.com ([74.125.245.185])
+        by mx.google.com with SMTP id hk1si8054839pbb.311.2013.11.08.15.43.08
         for <linux-mm@kvack.org>;
-        Fri, 08 Nov 2013 15:43:08 -0800 (PST)
+        Fri, 08 Nov 2013 15:43:09 -0800 (PST)
 From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [PATCH 01/24] mm/memblock: debug: correct displaying of upper memory boundary
-Date: Fri, 8 Nov 2013 18:41:37 -0500
-Message-ID: <1383954120-24368-2-git-send-email-santosh.shilimkar@ti.com>
+Subject: [PATCH 02/24] mm/memblock: debug: don't free reserved array if !ARCH_DISCARD_MEMBLOCK
+Date: Fri, 8 Nov 2013 18:41:38 -0500
+Message-ID: <1383954120-24368-3-git-send-email-santosh.shilimkar@ti.com>
 In-Reply-To: <1383954120-24368-1-git-send-email-santosh.shilimkar@ti.com>
 References: <1383954120-24368-1-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
@@ -23,49 +23,61 @@ Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Grygorii Strashko 
 
 From: Grygorii Strashko <grygorii.strashko@ti.com>
 
-When debugging is enabled (cmdline has "memblock=debug") the memblock
-will display upper memory boundary per each allocated/freed memory range
-wrongly. For example:
- memblock_reserve: [0x0000009e7e8000-0x0000009e7ed000] _memblock_early_alloc_try_nid_nopanic+0xfc/0x12c
+Now the Nobootmem allocator will always try to free memory allocated for
+reserved memory regions (free_low_memory_core_early()) without taking
+into to account current memblock debugging configuration
+(CONFIG_ARCH_DISCARD_MEMBLOCK and CONFIG_DEBUG_FS state).
+As result if:
+ - CONFIG_DEBUG_FS defined
+ - CONFIG_ARCH_DISCARD_MEMBLOCK not defined;
+-  reserved memory regions array have been resized during boot
 
-The 0x0000009e7ed000 is displayed instead of 0x0000009e7ecfff
+then:
+- memory allocated for reserved memory regions array will be freed to
+buddy allocator;
+- debug_fs entry "sys/kernel/debug/memblock/reserved" will show garbage
+instead of state of memory reservations. like:
+   0: 0x98393bc0..0x9a393bbf
+   1: 0xff120000..0xff11ffff
+   2: 0x00000000..0xffffffff
 
-Hence, correct this by changing formula used to calculate upper memory
-boundary to (u64)base + size - 1 instead of  (u64)base + size everywhere
-in the debug messages.
+Hence, do not free memory allocated for reserved memory regions if
+defined(CONFIG_DEBUG_FS) && !defined(CONFIG_ARCH_DISCARD_MEMBLOCK).
 
 Cc: Yinghai Lu <yinghai@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 
-Acked-by: Tejun Heo <tj@kernel.org>
 Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
 Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 ---
- mm/memblock.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/memblock.c |   13 +++++++++++++
+ 1 file changed, 13 insertions(+)
 
 diff --git a/mm/memblock.c b/mm/memblock.c
-index 0ac412a..e03918e 100644
+index e03918e..88a6a0e 100644
 --- a/mm/memblock.c
 +++ b/mm/memblock.c
-@@ -545,7 +545,7 @@ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
- {
- 	memblock_dbg("   memblock_free: [%#016llx-%#016llx] %pF\n",
- 		     (unsigned long long)base,
--		     (unsigned long long)base + size,
-+		     (unsigned long long)base + size - 1,
- 		     (void *)_RET_IP_);
+@@ -167,6 +167,19 @@ phys_addr_t __init_memblock get_allocated_memblock_reserved_regions_info(
+ 	if (memblock.reserved.regions == memblock_reserved_init_regions)
+ 		return 0;
  
- 	return __memblock_remove(&memblock.reserved, base, size);
-@@ -557,7 +557,7 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
++	/*
++	 * Don't allow Nobootmem allocator to free reserved memory regions
++	 * array if
++	 *  - CONFIG_DEBUG_FS is enabled;
++	 *  - CONFIG_ARCH_DISCARD_MEMBLOCK is not enabled;
++	 *  - reserved memory regions array have been resized during boot.
++	 * Otherwise debug_fs entry "sys/kernel/debug/memblock/reserved"
++	 * will show garbage instead of state of memory reservations.
++	 */
++	if (IS_ENABLED(CONFIG_DEBUG_FS) &&
++	    !IS_ENABLED(CONFIG_ARCH_DISCARD_MEMBLOCK))
++		return 0;
++
+ 	*addr = __pa(memblock.reserved.regions);
  
- 	memblock_dbg("memblock_reserve: [%#016llx-%#016llx] %pF\n",
- 		     (unsigned long long)base,
--		     (unsigned long long)base + size,
-+		     (unsigned long long)base + size - 1,
- 		     (void *)_RET_IP_);
- 
- 	return memblock_add_region(_rgn, base, size, MAX_NUMNODES);
+ 	return PAGE_ALIGN(sizeof(struct memblock_region) *
 -- 
 1.7.9.5
 
