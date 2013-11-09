@@ -1,186 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id AE5DD6B0266
-	for <linux-mm@kvack.org>; Sat,  9 Nov 2013 11:55:20 -0500 (EST)
-Received: by mail-pb0-f52.google.com with SMTP id rr4so3425699pbb.25
-        for <linux-mm@kvack.org>; Sat, 09 Nov 2013 08:55:20 -0800 (PST)
-Received: from psmtp.com ([74.125.245.201])
-        by mx.google.com with SMTP id fn9si3367839pab.14.2013.11.09.08.55.15
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 834DF6B0268
+	for <linux-mm@kvack.org>; Sat,  9 Nov 2013 14:07:29 -0500 (EST)
+Received: by mail-pb0-f48.google.com with SMTP id mc17so1208722pbc.35
+        for <linux-mm@kvack.org>; Sat, 09 Nov 2013 11:07:29 -0800 (PST)
+Received: from psmtp.com ([74.125.245.149])
+        by mx.google.com with SMTP id dj3si10624649pbc.310.2013.11.09.11.07.27
         for <linux-mm@kvack.org>;
-        Sat, 09 Nov 2013 08:55:19 -0800 (PST)
-In-Reply-To: <1383954120-24368-15-git-send-email-santosh.shilimkar@ti.com>
-References: <1383954120-24368-1-git-send-email-santosh.shilimkar@ti.com> <1383954120-24368-15-git-send-email-santosh.shilimkar@ti.com>
+        Sat, 09 Nov 2013 11:07:28 -0800 (PST)
+Received: from [192.168.178.21] ([85.177.156.93]) by mail.gmx.com (mrgmx103)
+ with ESMTPSA (Nemesis) id 0M2L60-1VveET0jTA-00s85e for <linux-mm@kvack.org>;
+ Sat, 09 Nov 2013 20:07:25 +0100
+Message-ID: <527E87EA.8080700@gmx.de>
+Date: Sat, 09 Nov 2013 20:07:22 +0100
+From: =?UTF-8?B?VG9yYWxmIEbDtnJzdGVy?= <toralf.foerster@gmx.de>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain;
- charset=UTF-8
-Subject: Re: [PATCH 14/24] mm/lib/swiotlb: Use memblock apis for early memory allocations
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Date: Sat, 09 Nov 2013 11:55:03 -0500
-Message-ID: <6314f039-a40e-4250-9d62-6bb6ac7c6bec@email.android.com>
+Subject: Re: [uml-devel] fuzz tested 32 bit user mode linux image hangs in
+ radix_tree_next_chunk()
+References: <526696BF.6050909@gmx.de>	<CAFLxGvy3NeRKu+KQCCm0j4LS60PYhH0bC8WWjfiPvpstPBjAkA@mail.gmail.com>	<5266A698.10400@gmx.de>	<5266B60A.1000005@nod.at>	<52715AD1.7000703@gmx.de> <CALYGNiPvJF1u8gXNcX1AZR5-VkGqJnaose84KBbdaoBAq8aoGQ@mail.gmail.com> <527AB23D.2060305@gmx.de> <527AB51B.1020005@nod.at>
+In-Reply-To: <527AB51B.1020005@nod.at>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Santosh Shilimkar <santosh.shilimkar@ti.com>, tj@kernel.org, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Richard Weinberger <richard@nod.at>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, UML devel <user-mode-linux-devel@lists.sourceforge.net>
 
-Santosh Shilimkar <santosh=2Eshilimkar@ti=2Ecom> wrote:
->Switch to memblock=
- interfaces for early memory allocator instead of
->bootmem allocator=2E No =
-functional change in beahvior than what it is
->in current code from bootmem=
- users points of view=2E
->
->Archs already converted to NO_BOOTMEM now direc=
-tly use memblock
->interfaces instead of bootmem wrappers build on top of me=
-mblock=2E And
->the
->archs which still uses bootmem, these new apis just fal=
-lback to exiting
->bootmem APIs=2E
->
->Cc: Yinghai Lu <yinghai@kernel=2Eorg>
-=
->Cc: Tejun Heo <tj@kernel=2Eorg>
->Cc: Andrew Morton <akpm@linux-foundation=
-=2Eorg>
->Cc: Konrad Rzeszutek Wilk <konrad=2Ewilk@oracle=2Ecom>
->
->Signed-o=
-ff-by: Santosh Shilimkar <santosh=2Eshilimkar@ti=2Ecom>
->---
-> lib/swiotlb=
-=2Ec |   36 +++++++++++++++++++++---------------
-> 1 file changed, 21 inser=
-tions(+), 15 deletions(-)
->
->diff --git a/lib/swiotlb=2Ec b/lib/swiotlb=2Ec=
-
->index 4e8686c=2E=2E78ac01a 100644
->--- a/lib/swiotlb=2Ec
->+++ b/lib/swiot=
-lb=2Ec
->@@ -169,8 +169,9 @@ int __init swiotlb_init_with_tbl(char *tlb,
->un=
-signed long nslabs, int verbose)
-> 	/*
-> 	 * Get the overflow emergency buf=
-fer
-> 	 */
->-	v_overflow_buffer =3D alloc_bootmem_low_pages_nopanic(
->-				=
-		PAGE_ALIGN(io_tlb_overflow));
->+	v_overflow_buffer =3D memblock_virt_allo=
-c_align_nopanic(
->+						PAGE_ALIGN(io_tlb_overflow),
->+						PAGE_SIZE);
-
-=
-Does this guarantee that the pages will be allocated below 4GB?
-
-> 	if (!v_=
-overflow_buffer)
-> 		return -ENOMEM;
+On 11/06/2013 10:31 PM, Richard Weinberger wrote:
+> Am 06.11.2013 22:18, schrieb Toralf FA?rster:
+>> On 11/06/2013 05:06 PM, Konstantin Khlebnikov wrote:
+>>> In this case it must stop after scanning whole tree in line:
+>>> /* Overflow after ~0UL */
+>>> if (!index)
+>>>   return NULL;
+>>>
+>>
+>> A fresh current example with latest git tree shows that lines 769 and 770 do alternate :
 > 
->@@ -181,11 +182,15 @@ int __init s=
-wiotlb_init_with_tbl(char *tlb,
->unsigned long nslabs, int verbose)
->	 * to=
- find contiguous free memory regions of size up to IO_TLB_SEGSIZE
-> 	 * bet=
-ween io_tlb_start and io_tlb_end=2E
-> 	 */
->-	io_tlb_list =3D alloc_bootmem=
-_pages(PAGE_ALIGN(io_tlb_nslabs *
->sizeof(int)));
->+	io_tlb_list =3D memblo=
-ck_virt_alloc_align(
->+				PAGE_ALIGN(io_tlb_nslabs * sizeof(int)),
->+				P=
-AGE_SIZE);
-> 	for (i =3D 0; i < io_tlb_nslabs; i++)
->  		io_tlb_list[i] =3D=
- IO_TLB_SEGSIZE - OFFSET(i, IO_TLB_SEGSIZE);
-> 	io_tlb_index =3D 0;
->-	io_t=
-lb_orig_addr =3D alloc_bootmem_pages(PAGE_ALIGN(io_tlb_nslabs *
->sizeof(phy=
-s_addr_t)));
->+	io_tlb_orig_addr =3D memblock_virt_alloc_align(
->+				PAGE_=
-ALIGN(io_tlb_nslabs * sizeof(phys_addr_t)),
->+				PAGE_SIZE);
+> Can you please ask gdb for the value of offset?
 > 
-> 	if (ver=
-bose)
-> 		swiotlb_print_info();
->@@ -212,13 +217,14 @@ swiotlb_init(int ver=
-bose)
-> 	bytes =3D io_tlb_nslabs << IO_TLB_SHIFT;
+> Thanks,
+> //richard
 > 
-> 	/* Get IO TLB memor=
-y from the low pages */
->-	vstart =3D alloc_bootmem_low_pages_nopanic(PAGE_=
-ALIGN(bytes));
->+	vstart =3D memblock_virt_alloc_align_nopanic(PAGE_ALIGN(b=
-ytes),
->+						   PAGE_SIZE);
 
-Ditto?
-> 	if (vstart && !swiotlb_init_with_t=
-bl(vstart, io_tlb_nslabs, verbose))
-> 		return;
-> 
-> 	if (io_tlb_start)
->-	=
-	free_bootmem(io_tlb_start,
->-				 PAGE_ALIGN(io_tlb_nslabs << IO_TLB_SHIFT=
-));
->+		memblock_free_early(io_tlb_start,
->+				    PAGE_ALIGN(io_tlb_nslab=
-s << IO_TLB_SHIFT));
-> 	pr_warn("Cannot allocate SWIOTLB buffer");
-> 	no_io=
-tlb_memory =3D true;
-> }
->@@ -354,14 +360,14 @@ void __init swiotlb_free(vo=
-id)
-> 		free_pages((unsigned long)phys_to_virt(io_tlb_start),
-> 			   get_o=
-rder(io_tlb_nslabs << IO_TLB_SHIFT));
-> 	} else {
->-		free_bootmem_late(io_=
-tlb_overflow_buffer,
->-				  PAGE_ALIGN(io_tlb_overflow));
->-		free_bootmem=
-_late(__pa(io_tlb_orig_addr),
->-				  PAGE_ALIGN(io_tlb_nslabs * sizeof(phy=
-s_addr_t)));
->-		free_bootmem_late(__pa(io_tlb_list),
->-				  PAGE_ALIGN(io=
-_tlb_nslabs * sizeof(int)));
->-		free_bootmem_late(io_tlb_start,
->-				  PA=
-GE_ALIGN(io_tlb_nslabs << IO_TLB_SHIFT));
->+		memblock_free_late(io_tlb_ove=
-rflow_buffer,
->+				   PAGE_ALIGN(io_tlb_overflow));
->+		memblock_free_late=
-(__pa(io_tlb_orig_addr),
->+				   PAGE_ALIGN(io_tlb_nslabs * sizeof(phys_ad=
-dr_t)));
->+		memblock_free_late(__pa(io_tlb_list),
->+				   PAGE_ALIGN(io_t=
-lb_nslabs * sizeof(int)));
->+		memblock_free_late(io_tlb_start,
->+				   PA=
-GE_ALIGN(io_tlb_nslabs << IO_TLB_SHIFT));
-> 	}
-> 	io_tlb_nslabs =3D 0;
-> }
-=
+Still trying to get those values. One attempt to do that was to replace -O2 with -O0 in the Makefile,
+but that resulted into this error :
 
+  LD      kernel/built-in.o
+  CC      mm/memory.o
+In function a??zap_pmd_rangea??,
+    inlined from a??zap_pud_rangea?? at mm/memory.c:1265:8,
+    inlined from a??unmap_page_rangea?? at mm/memory.c:1290:8:
+mm/memory.c:1220:23: error: call to a??__compiletime_assert_1220a?? declared with attribute error: BUILD_BUG failed
+mm/memory.c: In function a??follow_page_maska??:
+mm/memory.c:1530:18: error: call to a??__compiletime_assert_1530a?? declared with attribute error: BUILD_BUG failed
+make[1]: *** [mm/memory.o] Error 1
+make: *** [mm] Error 2
+
+
+With -O1 it compiled at least.
+
+
+>>
+>> tfoerste@n22 ~/devel/linux $ sudo gdb /usr/local/bin/linux-v3.12-48-gbe408cd 16619 -n -batch -ex bt
+>> 0x08296a8c in radix_tree_next_chunk (root=0x25, iter=0x462e7c64, flags=12) at lib/radix-tree.c:770
+>> 770                                             if (node->slots[offset])
+>> #0  0x08296a8c in radix_tree_next_chunk (root=0x25, iter=0x462e7c64, flags=12) at lib/radix-tree.c:770
+>> #1  0x080cc1fe in find_get_pages (mapping=0x462ad470, start=0, nr_pages=14, pages=0xc) at mm/filemap.c:844
+>> #2  0x080d5d6a in pagevec_lookup (pvec=0x462e7cc8, mapping=0x25, start=37, nr_pages=37) at mm/swap.c:914
+>> #3  0x080d615a in truncate_inode_pages_range (mapping=0x462ad470, lstart=0, lend=-1) at mm/truncate.c:241
+>> #4  0x080d64ff in truncate_inode_pages (mapping=0x25, lstart=51539607589) at mm/truncate.c:358
+>>
+>>
+>>
+>>
+>> tfoerste@n22 ~/devel/linux $ sudo gdb /usr/local/bin/linux-v3.12-48-gbe408cd 16619 -n -batch -ex bt
+>> radix_tree_next_chunk (root=0x28, iter=0x462e7c64, flags=18) at lib/radix-tree.c:769
+>> 769                                     while (++offset < RADIX_TREE_MAP_SIZE) {
+>> #0  radix_tree_next_chunk (root=0x28, iter=0x462e7c64, flags=18) at lib/radix-tree.c:769
+>> #1  0x080cc1fe in find_get_pages (mapping=0x462ad470, start=0, nr_pages=14, pages=0x12) at mm/filemap.c:844
+>> #2  0x080d5d6a in pagevec_lookup (pvec=0x462e7cc8, mapping=0x28, start=40, nr_pages=40) at mm/swap.c:914
+>> #3  0x080d615a in truncate_inode_pages_range (mapping=0x462ad470, lstart=0, lend=-1) at mm/truncate.c:241
+>> #4  0x080d64ff in truncate_inode_pages (mapping=0x28, lstart=77309411368) at mm/truncate.c:358
+>> #5  0x0825e388 in hostfs_evict_inode (inode=0x462ad3b8) at fs/hostfs/hostfs_kern.c:242
+>> #6  0x0811a8df in evict (inode=0x462ad3b8) at fs/inode.c:549
+>>
+>>
+> 
+> 
+
+
+-- 
+MfG/Sincerely
+Toralf FA?rster
+pgp finger print: 7B1A 07F4 EC82 0F90 D4C2 8936 872A E508 7DB6 9DA3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
