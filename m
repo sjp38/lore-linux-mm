@@ -1,74 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 846E36B025E
-	for <linux-mm@kvack.org>; Fri,  8 Nov 2013 18:43:39 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so2868940pad.30
-        for <linux-mm@kvack.org>; Fri, 08 Nov 2013 15:43:39 -0800 (PST)
-Received: from psmtp.com ([74.125.245.185])
-        by mx.google.com with SMTP id kg8si8460943pad.96.2013.11.08.15.43.33
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EABD6B025F
+	for <linux-mm@kvack.org>; Fri,  8 Nov 2013 20:18:29 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id wy17so2896757pbc.14
+        for <linux-mm@kvack.org>; Fri, 08 Nov 2013 17:18:28 -0800 (PST)
+Received: from psmtp.com ([74.125.245.180])
+        by mx.google.com with SMTP id gl1si8671301pac.24.2013.11.08.17.18.24
         for <linux-mm@kvack.org>;
-        Fri, 08 Nov 2013 15:43:34 -0800 (PST)
-From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [PATCH 24/24] mm/ARM: OMAP: Use memblock apis for early memory allocations
-Date: Fri, 8 Nov 2013 18:42:00 -0500
-Message-ID: <1383954120-24368-25-git-send-email-santosh.shilimkar@ti.com>
-In-Reply-To: <1383954120-24368-1-git-send-email-santosh.shilimkar@ti.com>
-References: <1383954120-24368-1-git-send-email-santosh.shilimkar@ti.com>
+        Fri, 08 Nov 2013 17:18:25 -0800 (PST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCH 13/24] mm/power: Use memblock apis for early memory allocations
+Date: Sat, 09 Nov 2013 02:30:44 +0100
+Message-ID: <1479529.EjZ9YN8f8I@vostro.rjw.lan>
+In-Reply-To: <1383954120-24368-14-git-send-email-santosh.shilimkar@ti.com>
+References: <1383954120-24368-1-git-send-email-santosh.shilimkar@ti.com> <1383954120-24368-14-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tj@kernel.org, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Santosh Shilimkar <santosh.shilimkar@ti.com>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Paul Walmsley <paul@pwsan.com>, Tony Lindgren <tony@atomide.com>
+To: Santosh Shilimkar <santosh.shilimkar@ti.com>
+Cc: tj@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Pavel Machek <pavel@ucw.cz>, linux-pm@vger.kernel.org
 
-Switch to memblock interfaces for early memory allocator instead of
-bootmem allocator. No functional change in beahvior than what it is
-in current code from bootmem users points of view.
+On Friday, November 08, 2013 06:41:49 PM Santosh Shilimkar wrote:
+> Switch to memblock interfaces for early memory allocator instead of
+> bootmem allocator. No functional change in beahvior than what it is
+> in current code from bootmem users points of view.
+> 
+> Archs already converted to NO_BOOTMEM now directly use memblock
+> interfaces instead of bootmem wrappers build on top of memblock. And the
+> archs which still uses bootmem, these new apis just fallback to exiting
+> bootmem APIs.
+> 
+> Cc: Yinghai Lu <yinghai@kernel.org>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Pavel Machek <pavel@ucw.cz>
+> Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
+> Cc: linux-pm@vger.kernel.org
+> 
+> Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 
-Archs already converted to NO_BOOTMEM now directly use memblock
-interfaces instead of bootmem wrappers build on top of memblock. And the
-archs which still uses bootmem, these new apis just fallback to exiting
-bootmem APIs.
+Fine by me, thanks!
 
-Cc: Yinghai Lu <yinghai@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Paul Walmsley <paul@pwsan.com>
-Cc: Tony Lindgren <tony@atomide.com>
-
-Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
----
- arch/arm/mach-omap2/omap_hwmod.c |    8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
-
-diff --git a/arch/arm/mach-omap2/omap_hwmod.c b/arch/arm/mach-omap2/omap_hwmod.c
-index d9ee0ff..0a3a048 100644
---- a/arch/arm/mach-omap2/omap_hwmod.c
-+++ b/arch/arm/mach-omap2/omap_hwmod.c
-@@ -2676,9 +2676,7 @@ static int __init _alloc_links(struct omap_hwmod_link **ml,
- 	sz = sizeof(struct omap_hwmod_link) * LINKS_PER_OCP_IF;
- 
- 	*sl = NULL;
--	*ml = alloc_bootmem(sz);
--
--	memset(*ml, 0, sz);
-+	*ml = memblock_virt_alloc(sz);
- 
- 	*sl = (void *)(*ml) + sizeof(struct omap_hwmod_link);
- 
-@@ -2797,9 +2795,7 @@ static int __init _alloc_linkspace(struct omap_hwmod_ocp_if **ois)
- 	pr_debug("omap_hwmod: %s: allocating %d byte linkspace (%d links)\n",
- 		 __func__, sz, max_ls);
- 
--	linkspace = alloc_bootmem(sz);
--
--	memset(linkspace, 0, sz);
-+	linkspace = memblock_virt_alloc(sz);
- 
- 	return 0;
- }
+> ---
+>  kernel/power/snapshot.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
+> index 358a146..887134e 100644
+> --- a/kernel/power/snapshot.c
+> +++ b/kernel/power/snapshot.c
+> @@ -637,7 +637,7 @@ __register_nosave_region(unsigned long start_pfn, unsigned long end_pfn,
+>  		BUG_ON(!region);
+>  	} else
+>  		/* This allocation cannot fail */
+> -		region = alloc_bootmem(sizeof(struct nosave_region));
+> +		region = memblock_virt_alloc(sizeof(struct nosave_region));
+>  	region->start_pfn = start_pfn;
+>  	region->end_pfn = end_pfn;
+>  	list_add_tail(&region->list, &nosave_regions);
+> 
 -- 
-1.7.9.5
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
