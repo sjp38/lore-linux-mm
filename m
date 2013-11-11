@@ -1,49 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A08D6B00BE
-	for <linux-mm@kvack.org>; Mon, 11 Nov 2013 02:25:41 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id kq14so4974451pab.21
-        for <linux-mm@kvack.org>; Sun, 10 Nov 2013 23:25:40 -0800 (PST)
-Received: from psmtp.com ([74.125.245.182])
-        by mx.google.com with SMTP id j10si5164408pae.68.2013.11.10.23.25.38
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id EF6866B0169
+	for <linux-mm@kvack.org>; Mon, 11 Nov 2013 02:43:46 -0500 (EST)
+Received: by mail-pd0-f170.google.com with SMTP id q10so1554077pdj.29
+        for <linux-mm@kvack.org>; Sun, 10 Nov 2013 23:43:46 -0800 (PST)
+Received: from psmtp.com ([74.125.245.201])
+        by mx.google.com with SMTP id w7si14976704pbg.262.2013.11.10.23.43.44
         for <linux-mm@kvack.org>;
-        Sun, 10 Nov 2013 23:25:39 -0800 (PST)
-Date: Mon, 11 Nov 2013 07:25:06 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: converting unicore32 to gate_vma as done for arm (was Re:??
- [PATCH] mm: cache largest vma)
-Message-ID: <20131111072506.GW13318@ZenIV.linux.org.uk>
-References: <20131104044844.GN13318@ZenIV.linux.org.uk>
- <289468516.24288.1383619755331.JavaMail.root@bj-mail03.pku.edu.cn>
+        Sun, 10 Nov 2013 23:43:45 -0800 (PST)
+Received: by mail-qa0-f54.google.com with SMTP id j7so1553149qaq.20
+        for <linux-mm@kvack.org>; Sun, 10 Nov 2013 23:43:43 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <289468516.24288.1383619755331.JavaMail.root@bj-mail03.pku.edu.cn>
+In-Reply-To: <1384143129.6940.32.camel@buesod1.americas.hpqcorp.net>
+References: <1383337039.2653.18.camel@buesod1.americas.hpqcorp.net>
+	<CA+55aFwrtOaFtwGc6xyZH6-1j3f--AG1JS-iZM8-pZPnwRHBow@mail.gmail.com>
+	<1383537862.2373.14.camel@buesod1.americas.hpqcorp.net>
+	<20131104073640.GF13030@gmail.com>
+	<1384143129.6940.32.camel@buesod1.americas.hpqcorp.net>
+Date: Sun, 10 Nov 2013 23:43:43 -0800
+Message-ID: <CANN689Eauq+DHQrn8Wr=VU-PFGDOELz6HTabGDGERdDfeOK_UQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: cache largest vma
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ????????? <gxt@pku.edu.cn>
-Cc: Davidlohr Bueso <davidlohr@hp.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, aswin@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, "Chandramouleeswaran, Aswin" <aswin@hp.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Tue, Nov 05, 2013 at 10:49:15AM +0800, ????????? wrote:
-> The patch is ok for unicore32. Thanks Al.
-> 
-> While testing this patch, a bug is found in arch/unicore32/include/asm/pgtable.h:
-> 
-> @@ -96,7 +96,7 @@ extern pgprot_t pgprot_kernel;
->                                                                 | PTE_EXEC)
->  #define PAGE_READONLY          __pgprot(pgprot_val(pgprot_user | PTE_READ)
->  #define PAGE_READONLY_EXEC     __pgprot(pgprot_val(pgprot_user | PTE_READ \
-> -                                                               | PTE_EXEC)
-> +                                                               | PTE_EXEC))
-> 
-> In fact, all similar macros are wrong. I'll post an bug-fix patch for this obvious error.
+On Sun, Nov 10, 2013 at 8:12 PM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+> 2) Oracle Data mining (4K pages)
+> +------------------------+----------+------------------+---------+
+> |    mmap_cache type     | hit-rate | cycles (billion) | stddev  |
+> +------------------------+----------+------------------+---------+
+> | no mmap_cache          | -        | 63.35            | 0.20207 |
+> | current mmap_cache     | 65.66%   | 19.55            | 0.35019 |
+> | mmap_cache+largest VMA | 71.53%   | 15.84            | 0.26764 |
+> | 4 element hash table   | 70.75%   | 15.90            | 0.25586 |
+> | per-thread mmap_cache  | 86.42%   | 11.57            | 0.29462 |
+> +------------------------+----------+------------------+---------+
+>
+> This workload sure makes the point of how much we can benefit of caching
+> the vma, otherwise find_vma() can cost more than 220% extra cycles. We
+> clearly win here by having a per-thread cache instead of per address
+> space. I also tried the same workload with 2Mb hugepages and the results
+> are much more closer to the kernel build, but with the per-thread vma
+> still winning over the rest of the alternatives.
+>
+> All in all I think that we should probably have a per-thread vma cache.
+> Please let me know if there is some other workload you'd like me to try
+> out. If folks agree then I can cleanup the patch and send it out.
 
-BTW, another missing thing is an analog of commit 9b61a4 (ARM: prevent
-VM_GROWSDOWN mmaps extending below FIRST_USER_ADDRESS); I'm not sure why
-does unicore32 have FIRST_USER_ADDRESS set to PAGE_SIZE (some no-MMU
-arm variants really need that, what with the vectors page living at
-address 0 on those), but since you have it set that way, you'd probably
-better not allow a mapping to grow down there...
+Per thread cache sounds interesting - with per-mm caches there is a
+real risk that some modern threaded apps pay the cost of cache updates
+without seeing much of the benefit. However, how do you cheaply handle
+invalidations for the per thread cache ?
+
+If you have a nice simple scheme for invalidations, I could see per
+thread LRU cache working well.
+
+That said, the difficulty with this kind of measurements
+(instrumenting code to fish out the cost of a particular function) is
+that it would be easy to lose somewhere else - for example for keeping
+the cache up to date - and miss that on the instrumented measurement.
+
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
