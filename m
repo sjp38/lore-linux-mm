@@ -1,127 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 082966B0149
-	for <linux-mm@kvack.org>; Mon, 11 Nov 2013 09:41:25 -0500 (EST)
-Received: by mail-pb0-f43.google.com with SMTP id md4so5271643pbc.30
-        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 06:41:25 -0800 (PST)
-Received: from psmtp.com ([74.125.245.186])
-        by mx.google.com with SMTP id gj2si16467927pac.167.2013.11.11.06.41.22
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 725A76B010B
+	for <linux-mm@kvack.org>; Mon, 11 Nov 2013 13:12:41 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id y13so2678264pdi.14
+        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 10:12:41 -0800 (PST)
+Received: from psmtp.com ([74.125.245.178])
+        by mx.google.com with SMTP id xp9si14158620pab.200.2013.11.11.10.12.38
         for <linux-mm@kvack.org>;
-        Mon, 11 Nov 2013 06:41:23 -0800 (PST)
-Date: Mon, 11 Nov 2013 15:45:19 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] x86, mm: get ASLR work for hugetlb mappings
-Message-ID: <20131111134519.GA2926@shutemov.name>
-References: <1382449940-24357-1-git-send-email-kirill.shutemov@linux.intel.com>
+        Mon, 11 Nov 2013 10:12:40 -0800 (PST)
+Date: Mon, 11 Nov 2013 18:10:49 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v5 4/4] MCS Lock: Barrier corrections
+Message-ID: <20131111181049.GL28302@mudshark.cambridge.arm.com>
+References: <cover.1383935697.git.tim.c.chen@linux.intel.com>
+ <1383940358.11046.417.camel@schen9-DESK>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1382449940-24357-1-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1383940358.11046.417.camel@schen9-DESK>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nadia Yvette Chambers <nyc@holomorphy.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Tue, Oct 22, 2013 at 04:52:20PM +0300, Kirill A. Shutemov wrote:
-> Matthew noticed that hugetlb doesn't participate in ASLR on x86-64.
-> The reason is genereic hugetlb_get_unmapped_area() which is used on
-> x86-64. It doesn't support randomization and use bottom-up unmapped area
-> lookup, instead of usual top-down on x86-64.
+Hello,
+
+On Fri, Nov 08, 2013 at 07:52:38PM +0000, Tim Chen wrote:
+> From: Waiman Long <Waiman.Long@hp.com>
 > 
-> x86 has arch-specific hugetlb_get_unmapped_area(), but it's used only on
-> x86-32.
+> This patch corrects the way memory barriers are used in the MCS lock
+> with smp_load_acquire and smp_store_release fucnction.
+> It removes ones that are not needed.
 > 
-> Let's use arch-specific hugetlb_get_unmapped_area() on x86-64 too.
-> It fixes the issue and make hugetlb use top-down unmapped area lookup.
+> It uses architecture specific load-acquire and store-release
+> primitives for synchronization, if available. Generic implementations
+> are provided in case they are not defined even though they may not
+> be optimal. These generic implementation could be removed later on
+> once changes are made in all the relevant header files.
 > 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Matthew Wilcox <willy@linux.intel.com>
-
-Gentelmen,
-
-Could you take a look on the patch, please?
-
-It's currently in -mm to get it tested on -next, but it should go through
-x86 tree, I believe.
-
+> Suggested-by: Michel Lespinasse <walken@google.com>
+> Signed-off-by: Waiman Long <Waiman.Long@hp.com>
+> Signed-off-by: Jason Low <jason.low2@hp.com>
+> Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
 > ---
->  arch/x86/include/asm/page.h    | 1 +
->  arch/x86/include/asm/page_32.h | 4 ----
->  arch/x86/mm/hugetlbpage.c      | 9 +++------
->  3 files changed, 4 insertions(+), 10 deletions(-)
+>  kernel/locking/mcs_spinlock.c |   48 +++++++++++++++++++++++++++++++++++------
+>  1 files changed, 41 insertions(+), 7 deletions(-)
 > 
-> diff --git a/arch/x86/include/asm/page.h b/arch/x86/include/asm/page.h
-> index c87892442e..775873d3be 100644
-> --- a/arch/x86/include/asm/page.h
-> +++ b/arch/x86/include/asm/page.h
-> @@ -71,6 +71,7 @@ extern bool __virt_addr_valid(unsigned long kaddr);
->  #include <asm-generic/getorder.h>
->  
->  #define __HAVE_ARCH_GATE_AREA 1
-> +#define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
->  
->  #endif	/* __KERNEL__ */
->  #endif /* _ASM_X86_PAGE_H */
-> diff --git a/arch/x86/include/asm/page_32.h b/arch/x86/include/asm/page_32.h
-> index 4d550d04b6..904f528cc8 100644
-> --- a/arch/x86/include/asm/page_32.h
-> +++ b/arch/x86/include/asm/page_32.h
-> @@ -5,10 +5,6 @@
->  
->  #ifndef __ASSEMBLY__
->  
-> -#ifdef CONFIG_HUGETLB_PAGE
-> -#define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
-> -#endif
-> -
->  #define __phys_addr_nodebug(x)	((x) - PAGE_OFFSET)
->  #ifdef CONFIG_DEBUG_VIRTUAL
->  extern unsigned long __phys_addr(unsigned long);
-> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-> index 9d980d88b7..8c9f647ff9 100644
-> --- a/arch/x86/mm/hugetlbpage.c
-> +++ b/arch/x86/mm/hugetlbpage.c
-> @@ -87,9 +87,7 @@ int pmd_huge_support(void)
->  }
+> diff --git a/kernel/locking/mcs_spinlock.c b/kernel/locking/mcs_spinlock.c
+> index b6f27f8..df5c167 100644
+> --- a/kernel/locking/mcs_spinlock.c
+> +++ b/kernel/locking/mcs_spinlock.c
+> @@ -23,6 +23,31 @@
 >  #endif
 >  
-> -/* x86_64 also uses this file */
-> -
-> -#ifdef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
-> +#ifdef CONFIG_HUGETLB_PAGE
->  static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,
->  		unsigned long addr, unsigned long len,
->  		unsigned long pgoff, unsigned long flags)
-> @@ -99,7 +97,7 @@ static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,
->  
->  	info.flags = 0;
->  	info.length = len;
-> -	info.low_limit = TASK_UNMAPPED_BASE;
-> +	info.low_limit = current->mm->mmap_legacy_base;
->  	info.high_limit = TASK_SIZE;
->  	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
->  	info.align_offset = 0;
-> @@ -172,8 +170,7 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
->  		return hugetlb_get_unmapped_area_topdown(file, addr, len,
->  				pgoff, flags);
->  }
-> -
-> -#endif /*HAVE_ARCH_HUGETLB_UNMAPPED_AREA*/
-> +#endif /* CONFIG_HUGETLB_PAGE */
->  
->  #ifdef CONFIG_X86_64
->  static __init int setup_hugepagesz(char *opt)
-> -- 
-> 1.8.4.rc3
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+>  /*
+> + * Fall back to use the regular atomic operations and memory barrier if
+> + * the acquire/release versions are not defined.
+> + */
+> +#ifndef	xchg_acquire
+> +# define xchg_acquire(p, v)		xchg(p, v)
+> +#endif
+> +
+> +#ifndef	smp_load_acquire
+> +# define smp_load_acquire(p)				\
+> +	({						\
+> +		typeof(*p) __v = ACCESS_ONCE(*(p));	\
+> +		smp_mb();				\
+> +		__v;					\
+> +	})
+> +#endif
+> +
+> +#ifndef smp_store_release
+> +# define smp_store_release(p, v)		\
+> +	do {					\
+> +		smp_mb();			\
+> +		ACCESS_ONCE(*(p)) = v;		\
+> +	} while (0)
+> +#endif
 
--- 
- Kirill A. Shutemov
+PeterZ already has a series implementing acquire/release accessors, so you
+should probably take a look at that rather than rolling your own here.
+
+You could then augment that with [cmp]xchg_{acquire,release} as
+appropriate.
+
+> +/*
+>   * In order to acquire the lock, the caller should declare a local node and
+>   * pass a reference of the node to this function in addition to the lock.
+>   * If the lock has already been acquired, then this will proceed to spin
+> @@ -37,15 +62,19 @@ void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
+>  	node->locked = 0;
+>  	node->next   = NULL;
+>  
+> -	prev = xchg(lock, node);
+> +	/* xchg() provides a memory barrier */
+> +	prev = xchg_acquire(lock, node);
+>  	if (likely(prev == NULL)) {
+>  		/* Lock acquired */
+>  		return;
+>  	}
+>  	ACCESS_ONCE(prev->next) = node;
+> -	smp_wmb();
+> -	/* Wait until the lock holder passes the lock down */
+> -	while (!ACCESS_ONCE(node->locked))
+> +	/*
+> +	 * Wait until the lock holder passes the lock down.
+> +	 * Using smp_load_acquire() provides a memory barrier that
+> +	 * ensures subsequent operations happen after the lock is acquired.
+> +	 */
+> +	while (!(smp_load_acquire(&node->locked)))
+>  		arch_mutex_cpu_relax();
+
+After a chat with some micro-architects, I'm going to have to disagree with
+Paul here. For architectures where acquire/release are implemented with
+explicit barriers (similarly for simple microarchitectures), emitting
+barriers in a loop *is* going to have an affect on overall performance,
+since those barriers may well result in traffic outside of the core (at
+least, on ARM).
+
+Thinking more about that, the real issue here is that arch_mutex_cpu_relax()
+doesn't have a corresponding hook on the unlock side. On ARM, for example,
+we can enter a low-power state using the wfe instruction, but that requires
+the unlocker to wake up the core when the lock is released.
+
+So, although I'm completely in favour of introducing acquire/release
+accessors, I really think the mcs locking routines would benefit from
+some arch-specific backend code, even if it's optional (although I would
+imagine most architectures implementing something to improve power and/or
+performance).
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
