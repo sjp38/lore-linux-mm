@@ -1,180 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id E5C306B00F6
-	for <linux-mm@kvack.org>; Mon, 11 Nov 2013 15:59:42 -0500 (EST)
-Received: by mail-pb0-f42.google.com with SMTP id uo5so1508581pbc.1
-        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 12:59:42 -0800 (PST)
-Received: from psmtp.com ([74.125.245.188])
-        by mx.google.com with SMTP id gl1si17281401pac.169.2013.11.11.12.59.40
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id CDD336B00FE
+	for <linux-mm@kvack.org>; Mon, 11 Nov 2013 16:09:31 -0500 (EST)
+Received: by mail-pb0-f48.google.com with SMTP id mc17so3423792pbc.35
+        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 13:09:31 -0800 (PST)
+Received: from psmtp.com ([74.125.245.186])
+        by mx.google.com with SMTP id ll9si17338819pab.8.2013.11.11.13.09.29
         for <linux-mm@kvack.org>;
-        Mon, 11 Nov 2013 12:59:41 -0800 (PST)
-Message-ID: <1384203573.6940.67.camel@buesod1.americas.hpqcorp.net>
+        Mon, 11 Nov 2013 13:09:30 -0800 (PST)
+Received: by mail-ea0-f178.google.com with SMTP id a10so2430813eae.23
+        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 13:09:27 -0800 (PST)
+Date: Mon, 11 Nov 2013 22:09:24 +0100
+From: Ingo Molnar <mingo@kernel.org>
 Subject: Re: [PATCH] mm: cache largest vma
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Mon, 11 Nov 2013 12:59:33 -0800
-In-Reply-To: <20131111204702.GD18886@gmail.com>
+Message-ID: <20131111210924.GA19284@gmail.com>
 References: <1383337039.2653.18.camel@buesod1.americas.hpqcorp.net>
-	 <CA+55aFwrtOaFtwGc6xyZH6-1j3f--AG1JS-iZM8-pZPnwRHBow@mail.gmail.com>
-	 <1383537862.2373.14.camel@buesod1.americas.hpqcorp.net>
-	 <20131104073640.GF13030@gmail.com>
-	 <1384143129.6940.32.camel@buesod1.americas.hpqcorp.net>
-	 <20131111120116.GA21291@gmail.com>
-	 <1384194271.6940.40.camel@buesod1.americas.hpqcorp.net>
-	 <20131111204702.GD18886@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <CA+55aFwrtOaFtwGc6xyZH6-1j3f--AG1JS-iZM8-pZPnwRHBow@mail.gmail.com>
+ <1383537862.2373.14.camel@buesod1.americas.hpqcorp.net>
+ <20131104073640.GF13030@gmail.com>
+ <1384143129.6940.32.camel@buesod1.americas.hpqcorp.net>
+ <20131111120116.GA21291@gmail.com>
+ <1384194271.6940.40.camel@buesod1.americas.hpqcorp.net>
+ <20131111204702.GD18886@gmail.com>
+ <1384203573.6940.67.camel@buesod1.americas.hpqcorp.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1384203573.6940.67.camel@buesod1.americas.hpqcorp.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, "Chandramouleeswaran, Aswin" <aswin@hp.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, "Chandramouleeswaran, Aswin" <aswin@hp.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, =?iso-8859-1?Q?Fr=E9d=E9ric?= Weisbecker <fweisbec@gmail.com>
 
-On Mon, 2013-11-11 at 21:47 +0100, Ingo Molnar wrote:
-> * Davidlohr Bueso <davidlohr@hp.com> wrote:
-> 
-> > On Mon, 2013-11-11 at 13:01 +0100, Ingo Molnar wrote:
-> > > * Davidlohr Bueso <davidlohr@hp.com> wrote:
-> > > 
-> > > > Hi Ingo,
-> > > > 
-> > > > On Mon, 2013-11-04 at 08:36 +0100, Ingo Molnar wrote:
-> > > > > * Davidlohr Bueso <davidlohr@hp.com> wrote:
-> > > > > 
-> > > > > > I will look into doing the vma cache per thread instead of mm (I hadn't 
-> > > > > > really looked at the problem like this) as well as Ingo's suggestion on 
-> > > > > > the weighted LRU approach. However, having seen that we can cheaply and 
-> > > > > > easily reach around ~70% hit rate in a lot of workloads, makes me wonder 
-> > > > > > how good is good enough?
-> > > > > 
-> > > > > So I think it all really depends on the hit/miss cost difference. It makes 
-> > > > > little sense to add a more complex scheme if it washes out most of the 
-> > > > > benefits!
-> > > > > 
-> > > > > Also note the historic context: the _original_ mmap_cache, that I 
-> > > > > implemented 16 years ago, was a front-line cache to a linear list walk 
-> > > > > over all vmas (!).
-> > > > > 
-> > > > > This is the relevant 2.1.37pre1 code in include/linux/mm.h:
-> > > > > 
-> > > > > /* Look up the first VMA which satisfies  addr < vm_end,  NULL if none. */
-> > > > > static inline struct vm_area_struct * find_vma(struct mm_struct * mm, unsigned long addr)
-> > > > > {
-> > > > >         struct vm_area_struct *vma = NULL;
-> > > > > 
-> > > > >         if (mm) {
-> > > > >                 /* Check the cache first. */
-> > > > >                 vma = mm->mmap_cache;
-> > > > >                 if(!vma || (vma->vm_end <= addr) || (vma->vm_start > addr)) {
-> > > > >                         vma = mm->mmap;
-> > > > >                         while(vma && vma->vm_end <= addr)
-> > > > >                                 vma = vma->vm_next;
-> > > > >                         mm->mmap_cache = vma;
-> > > > >                 }
-> > > > >         }
-> > > > >         return vma;
-> > > > > }
-> > > > > 
-> > > > > See that vma->vm_next iteration? It was awful - but back then most of us 
-> > > > > had at most a couple of megs of RAM with just a few vmas. No RAM, no SMP, 
-> > > > > no worries - the mm was really simple back then.
-> > > > > 
-> > > > > Today we have the vma rbtree, which is self-balancing and a lot faster 
-> > > > > than your typical linear list walk search ;-)
-> > > > > 
-> > > > > So I'd _really_ suggest to first examine the assumptions behind the cache, 
-> > > > > it being named 'cache' and it having a hit rate does in itself not 
-> > > > > guarantee that it gives us any worthwile cost savings when put in front of 
-> > > > > an rbtree ...
-> > > > 
-> > > > So having mmap_cache around, in whatever form, is an important
-> > > > optimization for find_vma() - even to this day. It can save us at least
-> > > > 50% cycles that correspond to this function. [...]
-> > > 
-> > > I'm glad it still helps! :-)
-> > > 
-> > > > [...] I ran a variety of mmap_cache alternatives over two workloads that 
-> > > > are heavy on page faults (as opposed to Java based ones I had tried 
-> > > > previously, which really don't trigger enough for it to be worthwhile).  
-> > > > So we now have a comparison of 5 different caching schemes -- note that 
-> > > > the 4 element hash table is quite similar to two elements, with a hash 
-> > > > function of (addr % hash_size).
-> > > > 
-> > > > 1) Kernel build
-> > > > +------------------------+----------+------------------+---------+
-> > > > |    mmap_cache type     | hit-rate | cycles (billion) | stddev  |
-> > > > +------------------------+----------+------------------+---------+
-> > > > | no mmap_cache          | -        | 15.85            | 0.10066 |
-> > > > | current mmap_cache     | 72.32%   | 11.03            | 0.01155 |
-> > > > | mmap_cache+largest VMA | 84.55%   |  9.91            | 0.01414 |
-> > > > | 4 element hash table   | 78.38%   | 10.52            | 0.01155 |
-> > > > | per-thread mmap_cache  | 78.84%   | 10.69            | 0.01325 |
-> > > > +------------------------+----------+------------------+---------+
-> > > > 
-> > > > In this particular workload the proposed patch benefits the most and 
-> > > > current alternatives, while they do help some, aren't really worth 
-> > > > bothering with as the current implementation already does a nice enough 
-> > > > job.
-> > > 
-> > > Interesting.
-> > > 
-> > > > 2) Oracle Data mining (4K pages)
-> > > > +------------------------+----------+------------------+---------+
-> > > > |    mmap_cache type     | hit-rate | cycles (billion) | stddev  |
-> > > > +------------------------+----------+------------------+---------+
-> > > > | no mmap_cache          | -        | 63.35            | 0.20207 |
-> > > > | current mmap_cache     | 65.66%   | 19.55            | 0.35019 |
-> > > > | mmap_cache+largest VMA | 71.53%   | 15.84            | 0.26764 |
-> > > > | 4 element hash table   | 70.75%   | 15.90            | 0.25586 |
-> > > > | per-thread mmap_cache  | 86.42%   | 11.57            | 0.29462 |
-> > > > +------------------------+----------+------------------+---------+
-> > > > 
-> > > > This workload sure makes the point of how much we can benefit of caching 
-> > > > the vma, otherwise find_vma() can cost more than 220% extra cycles. We 
-> > > > clearly win here by having a per-thread cache instead of per address 
-> > > > space. I also tried the same workload with 2Mb hugepages and the results 
-> > > > are much more closer to the kernel build, but with the per-thread vma 
-> > > > still winning over the rest of the alternatives.
-> > > 
-> > > That's also very interesting, and it's exactly the kind of data we need to 
-> > > judge such matters. Kernel builds and DB loads are two very different, yet 
-> > > important workloads, so if we improve both cases then the probability that 
-> > > we improve all other workloads as well increases substantially.
-> > > 
-> > > Do you have any data on the number of find_vma() calls performed in these 
-> > > two cases, so that we can know the per function call average cost?
-> > > 
-> > 
-> > For the kernel build we get around 140 million calls to find_vma(), and 
-> > for Oracle around 27 million. So the function ends up costing 
-> > significantly more for the DB workload.
-> 
-> Hm, mind tabulating that into per function call (cycles) and such, for an 
-> easier overview?
-> 
-> I do think the Oracle case might be pinpointing a separate 
-> bug/problem/property: unless it's using an obscene number of vmas its 
-> rbtree should have a manageable depth, what is the average (accessed) 
-> depth of the rbtree, and is it properly balanced?
 
-That is something I didn't measure. However, by judging the huge
-increase of cycles when we remove the mmap_cache, it must be an enormous
-tree and/or the way the tree is sorted by address really isn't helping
-the workload.
+* Davidlohr Bueso <davidlohr@hp.com> wrote:
 
+> > Or is access to varied in the Oracle case that it's missing the cache 
+> > all the time, because the rbtree causes many cachemisses as the 
+> > separate nodes are accessed during an rb-walk?
 > 
-> Or is access to varied in the Oracle case that it's missing the cache all 
-> the time, because the rbtree causes many cachemisses as the separate nodes 
-> are accessed during an rb-walk?
+> Similar to get_cycles(), is there anyway to quickly measure the amount 
+> of executed instructions? Getting the IPC for the mmap_cache (this of 
+> course is constant) and the treewalk could give us a nice overview of 
+> the function's cost. I was thinking of stealing some perf-stat 
+> functionality for this but didn't get around to it. Hopefully there's an 
+> easier way...
 
-Similar to get_cycles(), is there anyway to quickly measure the amount
-of executed instructions? Getting the IPC for the mmap_cache (this of
-course is constant) and the treewalk could give us a nice overview of
-the function's cost. I was thinking of stealing some perf-stat
-functionality for this but didn't get around to it. Hopefully there's an
-easier way...
+There's no such easy method I'm afraid (Frederic's probe based trigger 
+facility will give us that and more - but it's not ready yet) - but you 
+could try profiling the workload for significant cache-misses:
+
+  perf record -e cache-misses ...
+
+I _think_ if it's really catastrophic cache-misses then the rbtree walk 
+should light up on the perf radar like crazy.
 
 Thanks,
-Davidlohr
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
