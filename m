@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-	by kanga.kvack.org (Postfix) with ESMTP id D6AAD6B00F4
-	for <linux-mm@kvack.org>; Mon, 11 Nov 2013 18:27:06 -0500 (EST)
-Received: by mail-pb0-f43.google.com with SMTP id md4so5844191pbc.16
-        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 15:27:06 -0800 (PST)
-Received: from psmtp.com ([74.125.245.125])
-        by mx.google.com with SMTP id mj9si17556678pab.335.2013.11.11.15.27.03
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D0046B00F8
+	for <linux-mm@kvack.org>; Mon, 11 Nov 2013 18:27:07 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so487037pab.14
+        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 15:27:07 -0800 (PST)
+Received: from psmtp.com ([74.125.245.148])
+        by mx.google.com with SMTP id yk3si17632279pac.12.2013.11.11.15.27.05
         for <linux-mm@kvack.org>;
-        Mon, 11 Nov 2013 15:27:05 -0800 (PST)
+        Mon, 11 Nov 2013 15:27:06 -0800 (PST)
 From: Laura Abbott <lauraa@codeaurora.org>
-Subject: [RFC PATCH 2/4] arm: mm: Track lowmem in vmalloc
-Date: Mon, 11 Nov 2013 15:26:50 -0800
-Message-Id: <1384212412-21236-3-git-send-email-lauraa@codeaurora.org>
+Subject: [RFC PATCH 3/4] mm/vmalloc.c: Allow lowmem to be tracked in vmalloc
+Date: Mon, 11 Nov 2013 15:26:51 -0800
+Message-Id: <1384212412-21236-4-git-send-email-lauraa@codeaurora.org>
 In-Reply-To: <1384212412-21236-1-git-send-email-lauraa@codeaurora.org>
 References: <1384212412-21236-1-git-send-email-lauraa@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,249 +19,124 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
 Cc: Laura Abbott <lauraa@codeaurora.org>, Neeti Desai <neetid@codeaurora.org>
 
-Rather than always keeping lowmem and vmalloc separate, we can
-now allow the two to be mixed. This means that all lowmem areas
-need to be explicitly tracked in vmalloc to avoid over allocating.
-Additionally, adjust the vmalloc reserve to account for the fact
-that there may be a hole in the middle consisting of vmalloc.
+vmalloc is currently assumed to be a completely separate address space
+from the lowmem region. While this may be true in the general case,
+there are some instances where lowmem and virtual space intermixing
+provides gains. One example is needing to steal a large chunk of physical
+lowmem for another purpose outside the systems usage. Rather than
+waste the precious lowmem space on a 32-bit system, we can allow the
+virtual holes created by the physical holes to be used by vmalloc
+for virtual addressing. Track lowmem allocations in vmalloc to
+allow mixing of lowmem and vmalloc.
 
 Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
 Signed-off-by: Neeti Desai <neetid@codeaurora.org>
 ---
- arch/arm/Kconfig   |    3 +
- arch/arm/mm/init.c |  104 ++++++++++++++++++++++++++++++++++++----------------
- arch/arm/mm/mm.h   |    1 +
- arch/arm/mm/mmu.c  |   23 +++++++++++
- 4 files changed, 99 insertions(+), 32 deletions(-)
+ include/linux/mm.h      |    6 ++++++
+ include/linux/vmalloc.h |    1 +
+ mm/Kconfig              |   11 +++++++++++
+ mm/vmalloc.c            |   26 ++++++++++++++++++++++++++
+ 4 files changed, 44 insertions(+), 0 deletions(-)
 
-diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 051fce4..1f36664 100644
---- a/arch/arm/Kconfig
-+++ b/arch/arm/Kconfig
-@@ -270,6 +270,9 @@ config GENERIC_BUG
- 	def_bool y
- 	depends on BUG
- 
-+config ARCH_TRACKS_VMALLOC
-+	bool
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index f022460..76df50d 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -308,6 +308,10 @@ unsigned long vmalloc_to_pfn(const void *addr);
+  * On nommu, vmalloc/vfree wrap through kmalloc/kfree directly, so there
+  * is no special casing required.
+  */
 +
- source "init/Kconfig"
- 
- source "kernel/Kconfig.freezer"
-diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-index 15225d8..c9ca316 100644
---- a/arch/arm/mm/init.c
-+++ b/arch/arm/mm/init.c
-@@ -576,6 +576,46 @@ static void __init free_highpages(void)
- #endif
- }
- 
-+#define MLK(b, t) b, t, ((t) - (b)) >> 10
-+#define MLM(b, t) b, t, ((t) - (b)) >> 20
-+#define MLK_ROUNDUP(b, t) b, t, DIV_ROUND_UP(((t) - (b)), SZ_1K)
-+
-+#ifdef CONFIG_ENABLE_VMALLOC_SAVING
-+void print_vmalloc_lowmem_info(void)
-+{
-+	int i;
-+	void *va_start, *va_end;
-+
-+	printk(KERN_NOTICE
-+		"	   vmalloc : 0x%08lx - 0x%08lx   (%4ld MB)\n",
-+		MLM(VMALLOC_START, VMALLOC_END));
-+
-+	for (i = meminfo.nr_banks - 1; i >= 0; i--) {
-+		if (!meminfo.bank[i].highmem) {
-+			va_start = __va(meminfo.bank[i].start);
-+			va_end = __va(meminfo.bank[i].start +
-+						meminfo.bank[i].size);
-+			printk(KERN_NOTICE
-+			 "	    lowmem : 0x%08lx - 0x%08lx   (%4ld MB)\n",
-+			MLM((unsigned long)va_start, (unsigned long)va_end));
-+		}
-+		if (i && ((meminfo.bank[i-1].start + meminfo.bank[i-1].size) !=
-+			   meminfo.bank[i].start)) {
-+			if (meminfo.bank[i-1].start + meminfo.bank[i-1].size
-+				   <= MAX_HOLE_ADDRESS) {
-+				va_start = __va(meminfo.bank[i-1].start
-+						+ meminfo.bank[i-1].size);
-+				va_end = __va(meminfo.bank[i].start);
-+				printk(KERN_NOTICE
-+				"	   vmalloc : 0x%08lx - 0x%08lx   (%4ld MB)\n",
-+					   MLM((unsigned long)va_start,
-+						   (unsigned long)va_end));
-+			}
-+		}
-+	}
-+}
-+#endif
-+
- /*
-  * mem_init() marks the free areas in the mem_map and tells us how much
-  * memory is free.  This is done after various parts of the system have
-@@ -604,55 +644,52 @@ void __init mem_init(void)
- 
- 	mem_init_print_info(NULL);
- 
--#define MLK(b, t) b, t, ((t) - (b)) >> 10
--#define MLM(b, t) b, t, ((t) - (b)) >> 20
--#define MLK_ROUNDUP(b, t) b, t, DIV_ROUND_UP(((t) - (b)), SZ_1K)
--
- 	printk(KERN_NOTICE "Virtual kernel memory layout:\n"
- 			"    vector  : 0x%08lx - 0x%08lx   (%4ld kB)\n"
- #ifdef CONFIG_HAVE_TCM
- 			"    DTCM    : 0x%08lx - 0x%08lx   (%4ld kB)\n"
- 			"    ITCM    : 0x%08lx - 0x%08lx   (%4ld kB)\n"
- #endif
--			"    fixmap  : 0x%08lx - 0x%08lx   (%4ld kB)\n"
--			"    vmalloc : 0x%08lx - 0x%08lx   (%4ld MB)\n"
--			"    lowmem  : 0x%08lx - 0x%08lx   (%4ld MB)\n"
--#ifdef CONFIG_HIGHMEM
--			"    pkmap   : 0x%08lx - 0x%08lx   (%4ld MB)\n"
--#endif
--#ifdef CONFIG_MODULES
--			"    modules : 0x%08lx - 0x%08lx   (%4ld MB)\n"
--#endif
--			"      .text : 0x%p" " - 0x%p" "   (%4d kB)\n"
--			"      .init : 0x%p" " - 0x%p" "   (%4d kB)\n"
--			"      .data : 0x%p" " - 0x%p" "   (%4d kB)\n"
--			"       .bss : 0x%p" " - 0x%p" "   (%4d kB)\n",
--
-+			"    fixmap  : 0x%08lx - 0x%08lx   (%4ld kB)\n",
- 			MLK(UL(CONFIG_VECTORS_BASE), UL(CONFIG_VECTORS_BASE) +
- 				(PAGE_SIZE)),
- #ifdef CONFIG_HAVE_TCM
- 			MLK(DTCM_OFFSET, (unsigned long) dtcm_end),
- 			MLK(ITCM_OFFSET, (unsigned long) itcm_end),
- #endif
--			MLK(FIXADDR_START, FIXADDR_TOP),
--			MLM(VMALLOC_START, VMALLOC_END),
--			MLM(PAGE_OFFSET, (unsigned long)high_memory),
-+			MLK(FIXADDR_START, FIXADDR_TOP));
-+#ifdef CONFIG_ENABLE_VMALLOC_SAVING
-+	print_vmalloc_lowmem_info();
++#ifdef CONFIG_VMALLOC_SAVING
++extern int is_vmalloc_addr(const void *x)
 +#else
-+	printk(KERN_NOTICE
-+		   "    vmalloc : 0x%08lx - 0x%08lx   (%4ld MB)\n"
-+		   "    lowmem  : 0x%08lx - 0x%08lx   (%4ld MB)\n",
-+		   MLM(VMALLOC_START, VMALLOC_END),
-+		   MLM(PAGE_OFFSET, (unsigned long)high_memory));
-+#endif
- #ifdef CONFIG_HIGHMEM
--			MLM(PKMAP_BASE, (PKMAP_BASE) + (LAST_PKMAP) *
-+	printk(KERN_NOTICE
-+		   "    pkmap   : 0x%08lx - 0x%08lx   (%4ld MB)\n"
-+#endif
-+#ifdef CONFIG_MODULES
-+		   "    modules : 0x%08lx - 0x%08lx   (%4ld MB)\n"
-+#endif
-+		   "      .text : 0x%p" " - 0x%p" "   (%4d kB)\n"
-+		   "      .init : 0x%p" " - 0x%p" "   (%4d kB)\n"
-+		   "      .data : 0x%p" " - 0x%p" "   (%4d kB)\n"
-+		   "       .bss : 0x%p" " - 0x%p" "   (%4d kB)\n",
-+#ifdef CONFIG_HIGHMEM
-+		   MLM(PKMAP_BASE, (PKMAP_BASE) + (LAST_PKMAP) *
- 				(PAGE_SIZE)),
- #endif
- #ifdef CONFIG_MODULES
--			MLM(MODULES_VADDR, MODULES_END),
-+		   MLM(MODULES_VADDR, MODULES_END),
- #endif
- 
--			MLK_ROUNDUP(_text, _etext),
--			MLK_ROUNDUP(__init_begin, __init_end),
--			MLK_ROUNDUP(_sdata, _edata),
--			MLK_ROUNDUP(__bss_start, __bss_stop));
--
--#undef MLK
--#undef MLM
--#undef MLK_ROUNDUP
-+		   MLK_ROUNDUP(_text, _etext),
-+		   MLK_ROUNDUP(__init_begin, __init_end),
-+		   MLK_ROUNDUP(_sdata, _edata),
-+		   MLK_ROUNDUP(__bss_start, __bss_stop));
- 
- 	/*
- 	 * Check boundaries twice: Some fundamental inconsistencies can
-@@ -660,7 +697,7 @@ void __init mem_init(void)
- 	 */
+ static inline int is_vmalloc_addr(const void *x)
+ {
  #ifdef CONFIG_MMU
- 	BUILD_BUG_ON(TASK_SIZE				> MODULES_VADDR);
--	BUG_ON(TASK_SIZE 				> MODULES_VADDR);
-+	BUG_ON(TASK_SIZE				> MODULES_VADDR);
+@@ -318,6 +322,8 @@ static inline int is_vmalloc_addr(const void *x)
+ 	return 0;
  #endif
+ }
++#endif
++
+ #ifdef CONFIG_MMU
+ extern int is_vmalloc_or_module_addr(const void *x);
+ #else
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index 4b8a891..e0c8c49 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -16,6 +16,7 @@ struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
+ #define VM_USERMAP		0x00000008	/* suitable for remap_vmalloc_range */
+ #define VM_VPAGES		0x00000010	/* buffer for pages was vmalloc'ed */
+ #define VM_UNINITIALIZED	0x00000020	/* vm_struct is not fully initialized */
++#define VM_LOWMEM		0x00000040	/* Tracking of direct mapped lowmem */
+ /* bits [20..32] reserved for arch specific ioremap internals */
  
- #ifdef CONFIG_HIGHMEM
-@@ -679,6 +716,9 @@ void __init mem_init(void)
- 	}
+ /*
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 8028dcc..b3c459d 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -519,3 +519,14 @@ config MEM_SOFT_DIRTY
+ 	  it can be cleared by hands.
+ 
+ 	  See Documentation/vm/soft-dirty.txt for more details.
++
++config ENABLE_VMALLOC_SAVING
++	bool "Intermix lowmem and vmalloc virtual space"
++	depends on ARCH_TRACKS_VMALLOC
++	help
++	  Some memory layouts on embedded systems steal large amounts
++	  of lowmem physical memory for purposes outside of the kernel.
++	  Rather than waste the physical and virtual space, allow the
++	  kernel to use the virtual space as vmalloc space.
++
++	  If unsure, say N.
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 13a5495..c7b138b 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -204,6 +204,29 @@ static int vmap_page_range(unsigned long start, unsigned long end,
+ 	return ret;
  }
  
-+#undef MLK
-+#undef MLM
-+#undef MLK_ROUNDUP
- void free_initmem(void)
- {
- #ifdef CONFIG_HAVE_TCM
-diff --git a/arch/arm/mm/mm.h b/arch/arm/mm/mm.h
-index 27a3680..f484e52 100644
---- a/arch/arm/mm/mm.h
-+++ b/arch/arm/mm/mm.h
-@@ -85,6 +85,7 @@ extern phys_addr_t arm_dma_limit;
- #define arm_dma_limit ((phys_addr_t)~0)
- #endif
- 
-+#define MAX_HOLE_ADDRESS    (PHYS_OFFSET + 0x10000000)
- extern phys_addr_t arm_lowmem_limit;
- 
- void __init bootmem_init(void);
-diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
-index b83ed88..ed2a4fa 100644
---- a/arch/arm/mm/mmu.c
-+++ b/arch/arm/mm/mmu.c
-@@ -1004,6 +1004,19 @@ void __init sanity_check_meminfo(void)
- 	int i, j, highmem = 0;
- 	phys_addr_t vmalloc_limit = __pa(vmalloc_min - 1) + 1;
- 
-+#ifdef CONFIG_ARCH_TRACKS_VMALLOC
-+	unsigned long hole_start;
-+	for (i = 0; i < (meminfo.nr_banks - 1); i++) {
-+		hole_start = meminfo.bank[i].start + meminfo.bank[i].size;
-+		if (hole_start != meminfo.bank[i+1].start) {
-+			if (hole_start <= MAX_HOLE_ADDRESS) {
-+				vmalloc_min = (void *) (vmalloc_min +
-+				(meminfo.bank[i+1].start - hole_start));
-+			}
++#ifdef ENABLE_VMALLOC_SAVING
++int is_vmalloc_addr(const void *x)
++{
++	struct rb_node *n;
++	struct vmap_area *va;
++	int ret = 0;
++
++	spin_lock(&vmap_area_lock);
++
++	for (n = rb_first(vmap_area_root); n; rb_next(n)) {
++		va = rb_entry(n, struct vmap_area, rb_node);
++		if (x >= va->va_start && x < va->va_end) {
++			ret = 1;
++			break;
 +		}
 +	}
++
++	spin_unlock(&vmap_area_lock);
++	return ret;
++}
++EXPORT_SYMBOL(is_vmalloc_addr);
 +#endif
 +
- 	for (i = 0, j = 0; i < meminfo.nr_banks; i++) {
- 		struct membank *bank = &meminfo.bank[j];
- 		phys_addr_t size_limit;
-@@ -1311,6 +1324,7 @@ static void __init map_lowmem(void)
- 		phys_addr_t start = reg->base;
- 		phys_addr_t end = start + reg->size;
- 		struct map_desc map;
-+		struct vm_struct *vm;
+ int is_vmalloc_or_module_addr(const void *x)
+ {
+ 	/*
+@@ -2628,6 +2651,9 @@ static int s_show(struct seq_file *m, void *p)
+ 	if (v->flags & VM_VPAGES)
+ 		seq_printf(m, " vpages");
  
- 		if (end > arm_lowmem_limit)
- 			end = arm_lowmem_limit;
-@@ -1323,6 +1337,15 @@ static void __init map_lowmem(void)
- 		map.type = MT_MEMORY;
- 
- 		create_mapping(&map);
++	if (v->flags & VM_LOWMEM)
++		seq_printf(m, " lowmem");
 +
-+#ifdef CONFIG_ARCH_TRACKS_VMALLOC
-+		vm = early_alloc_aligned(sizeof(*vm), __alignof__(*vm));
-+		vm->addr = (void *)map.virtual;
-+		vm->size = end - start;
-+		vm->flags = VM_LOWMEM;
-+		vm->caller = map_lowmem;
-+		vm_area_add_early(vm);
-+#endif
- 	}
- }
- 
+ 	show_numa_info(m, v);
+ 	seq_putc(m, '\n');
+ 	return 0;
 -- 
 The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
 hosted by The Linux Foundation
