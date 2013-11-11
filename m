@@ -1,155 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id EDC1C6B0112
-	for <linux-mm@kvack.org>; Mon, 11 Nov 2013 16:17:22 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id z10so5722996pdj.33
-        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 13:17:22 -0800 (PST)
-Received: from psmtp.com ([74.125.245.203])
-        by mx.google.com with SMTP id pl8si16970118pbb.104.2013.11.11.13.17.20
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AE0C6B00F0
+	for <linux-mm@kvack.org>; Mon, 11 Nov 2013 18:16:17 -0500 (EST)
+Received: by mail-pb0-f50.google.com with SMTP id xb12so1766891pbc.23
+        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 15:16:17 -0800 (PST)
+Received: from psmtp.com ([74.125.245.185])
+        by mx.google.com with SMTP id yl8si17578716pab.176.2013.11.11.15.16.14
         for <linux-mm@kvack.org>;
-        Mon, 11 Nov 2013 13:17:21 -0800 (PST)
-Subject: Re: [PATCH v5 4/4] MCS Lock: Barrier corrections
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Date: Mon, 11 Nov 2013 13:17:52 -0800
-In-Reply-To: <20131111181049.GL28302@mudshark.cambridge.arm.com>
-References: <cover.1383935697.git.tim.c.chen@linux.intel.com>
-	 <1383940358.11046.417.camel@schen9-DESK>
-	 <20131111181049.GL28302@mudshark.cambridge.arm.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Message-ID: <1384204673.10046.6.camel@schen9-mobl3>
-Mime-Version: 1.0
+        Mon, 11 Nov 2013 15:16:16 -0800 (PST)
+Received: by mail-we0-f169.google.com with SMTP id q58so5329885wes.28
+        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 15:16:12 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20131109151639.GB14249@redhat.com>
+References: <20131108184515.GA11555@redhat.com> <1383940173-16480-1-git-send-email-snanda@chromium.org>
+ <20131109151639.GB14249@redhat.com>
+From: Sameer Nanda <snanda@chromium.org>
+Date: Mon, 11 Nov 2013 15:15:52 -0800
+Message-ID: <CANMivWax_gbt8np_1CMGwZCAB2FR8so7-nimt01PDGy8DWasSA@mail.gmail.com>
+Subject: Re: [PATCH v3] mm, oom: Fix race when selecting process to kill
+Content-Type: multipart/alternative; boundary=f46d043be1b0006c2404eaeeebcb
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.cz, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, Luigi Semenzato <semenzato@google.com>, murzin.v@gmail.com, dserrg@gmail.com, "msb@chromium.org" <msb@chromium.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 2013-11-11 at 18:10 +0000, Will Deacon wrote:
-> Hello,
-> 
-> On Fri, Nov 08, 2013 at 07:52:38PM +0000, Tim Chen wrote:
-> > From: Waiman Long <Waiman.Long@hp.com>
-> > 
-> > This patch corrects the way memory barriers are used in the MCS lock
-> > with smp_load_acquire and smp_store_release fucnction.
-> > It removes ones that are not needed.
-> > 
-> > It uses architecture specific load-acquire and store-release
-> > primitives for synchronization, if available. Generic implementations
-> > are provided in case they are not defined even though they may not
-> > be optimal. These generic implementation could be removed later on
-> > once changes are made in all the relevant header files.
-> > 
-> > Suggested-by: Michel Lespinasse <walken@google.com>
-> > Signed-off-by: Waiman Long <Waiman.Long@hp.com>
-> > Signed-off-by: Jason Low <jason.low2@hp.com>
-> > Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
-> > ---
-> >  kernel/locking/mcs_spinlock.c |   48 +++++++++++++++++++++++++++++++++++------
-> >  1 files changed, 41 insertions(+), 7 deletions(-)
-> > 
-> > diff --git a/kernel/locking/mcs_spinlock.c b/kernel/locking/mcs_spinlock.c
-> > index b6f27f8..df5c167 100644
-> > --- a/kernel/locking/mcs_spinlock.c
-> > +++ b/kernel/locking/mcs_spinlock.c
-> > @@ -23,6 +23,31 @@
-> >  #endif
-> >  
-> >  /*
-> > + * Fall back to use the regular atomic operations and memory barrier if
-> > + * the acquire/release versions are not defined.
-> > + */
-> > +#ifndef	xchg_acquire
-> > +# define xchg_acquire(p, v)		xchg(p, v)
-> > +#endif
+--f46d043be1b0006c2404eaeeebcb
+Content-Type: text/plain; charset=UTF-8
+
+On Sat, Nov 9, 2013 at 7:16 AM, Oleg Nesterov <oleg@redhat.com> wrote:
+
+> On 11/08, Sameer Nanda wrote:
+> >
+> > @@ -413,12 +413,20 @@ void oom_kill_process(struct task_struct *p, gfp_t
+> gfp_mask, int order,
+> >                                             DEFAULT_RATELIMIT_BURST);
+> > @@ -456,10 +463,18 @@ void oom_kill_process(struct task_struct *p, gfp_t
+> gfp_mask, int order,
+> >                       }
+> >               }
+> >       } while_each_thread(p, t);
+> > -     read_unlock(&tasklist_lock);
+> >
+> >       rcu_read_lock();
 > > +
-> > +#ifndef	smp_load_acquire
-> > +# define smp_load_acquire(p)				\
-> > +	({						\
-> > +		typeof(*p) __v = ACCESS_ONCE(*(p));	\
-> > +		smp_mb();				\
-> > +		__v;					\
-> > +	})
-> > +#endif
+> >       p = find_lock_task_mm(victim);
 > > +
-> > +#ifndef smp_store_release
-> > +# define smp_store_release(p, v)		\
-> > +	do {					\
-> > +		smp_mb();			\
-> > +		ACCESS_ONCE(*(p)) = v;		\
-> > +	} while (0)
-> > +#endif
-> 
-> PeterZ already has a series implementing acquire/release accessors, so you
-> should probably take a look at that rather than rolling your own here.
+> > +     /*
+> > +      * Since while_each_thread is currently not RCU safe, this unlock
+> of
+> > +      * tasklist_lock may need to be moved further down if any
+> additional
+> > +      * while_each_thread loops get added to this function.
+> > +      */
+> > +     read_unlock(&tasklist_lock);
+>
+> Well, ack... but with this change find_lock_task_mm() relies on tasklist,
+> so it makes sense to move rcu_read_lock() down before for_each_process().
+> Otherwise this looks confusing, but I won't insist.
+>
 
-Yes, we are using Peter Z's implementation here.  The above is for anything
-where smp_load_acquire and smp_store_release are *not* defined.  We can
-remove this once all architectures implement the acquire and release 
-functions as mentioned in the comments of the patch.
+Agreed that this looks a bit confusing.  I will respin the patch.
 
-> 
-> You could then augment that with [cmp]xchg_{acquire,release} as
-> appropriate.
-> 
-> > +/*
-> >   * In order to acquire the lock, the caller should declare a local node and
-> >   * pass a reference of the node to this function in addition to the lock.
-> >   * If the lock has already been acquired, then this will proceed to spin
-> > @@ -37,15 +62,19 @@ void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
-> >  	node->locked = 0;
-> >  	node->next   = NULL;
-> >  
-> > -	prev = xchg(lock, node);
-> > +	/* xchg() provides a memory barrier */
-> > +	prev = xchg_acquire(lock, node);
-> >  	if (likely(prev == NULL)) {
-> >  		/* Lock acquired */
-> >  		return;
-> >  	}
-> >  	ACCESS_ONCE(prev->next) = node;
-> > -	smp_wmb();
-> > -	/* Wait until the lock holder passes the lock down */
-> > -	while (!ACCESS_ONCE(node->locked))
-> > +	/*
-> > +	 * Wait until the lock holder passes the lock down.
-> > +	 * Using smp_load_acquire() provides a memory barrier that
-> > +	 * ensures subsequent operations happen after the lock is acquired.
-> > +	 */
-> > +	while (!(smp_load_acquire(&node->locked)))
-> >  		arch_mutex_cpu_relax();
-> 
 
-An alternate implementation is
-	while (!ACCESS_ONCE(node->locked))
-		arch_mutex_cpu_relax();
-	smp_load_acquire(&node->locked);
+>
+> Oleg.
+>
+>
 
-Leaving the smp_load_acquire at the end to provide appropriate barrier.
-Will that be acceptable?
 
-Tim
+-- 
+Sameer
 
-> After a chat with some micro-architects, I'm going to have to disagree with
-> Paul here. For architectures where acquire/release are implemented with
-> explicit barriers (similarly for simple microarchitectures), emitting
-> barriers in a loop *is* going to have an affect on overall performance,
-> since those barriers may well result in traffic outside of the core (at
-> least, on ARM).
-> 
-> Thinking more about that, the real issue here is that arch_mutex_cpu_relax()
-> doesn't have a corresponding hook on the unlock side. On ARM, for example,
-> we can enter a low-power state using the wfe instruction, but that requires
-> the unlocker to wake up the core when the lock is released.
-> 
-> So, although I'm completely in favour of introducing acquire/release
-> accessors, I really think the mcs locking routines would benefit from
-> some arch-specific backend code, even if it's optional (although I would
-> imagine most architectures implementing something to improve power and/or
-> performance).
-> 
-> Will
+--f46d043be1b0006c2404eaeeebcb
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
+<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><br><div class=3D"gmail=
+_quote">On Sat, Nov 9, 2013 at 7:16 AM, Oleg Nesterov <span dir=3D"ltr">&lt=
+;<a href=3D"mailto:oleg@redhat.com" target=3D"_blank" class=3D"cremed">oleg=
+@redhat.com</a>&gt;</span> wrote:<br>
+
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex"><div class=3D"im">On 11/08, Sameer Nanda wro=
+te:<br>
+&gt;<br>
+</div><div class=3D"im">&gt; @@ -413,12 +413,20 @@ void oom_kill_process(st=
+ruct task_struct *p, gfp_t gfp_mask, int order,<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 DEFAULT_RATELIMIT_BURST);<br>
+</div><div class=3D"im">&gt; @@ -456,10 +463,18 @@ void oom_kill_process(st=
+ruct task_struct *p, gfp_t gfp_mask, int order,<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 }<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 } while_each_thread(p, t);<br>
+&gt; - =C2=A0 =C2=A0 read_unlock(&amp;tasklist_lock);<br>
+&gt;<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 rcu_read_lock();<br>
+&gt; +<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 p =3D find_lock_task_mm(victim);<br>
+&gt; +<br>
+&gt; + =C2=A0 =C2=A0 /*<br>
+&gt; + =C2=A0 =C2=A0 =C2=A0* Since while_each_thread is currently not RCU s=
+afe, this unlock of<br>
+&gt; + =C2=A0 =C2=A0 =C2=A0* tasklist_lock may need to be moved further dow=
+n if any additional<br>
+&gt; + =C2=A0 =C2=A0 =C2=A0* while_each_thread loops get added to this func=
+tion.<br>
+&gt; + =C2=A0 =C2=A0 =C2=A0*/<br>
+&gt; + =C2=A0 =C2=A0 read_unlock(&amp;tasklist_lock);<br>
+<br>
+</div>Well, ack... but with this change find_lock_task_mm() relies on taskl=
+ist,<br>
+so it makes sense to move rcu_read_lock() down before for_each_process().<b=
+r>
+Otherwise this looks confusing, but I won&#39;t insist.<br></blockquote><di=
+v><br></div><div>Agreed that this looks a bit confusing. =C2=A0I will respi=
+n the patch.</div><div>=C2=A0</div><blockquote class=3D"gmail_quote" style=
+=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+
+<span class=3D"HOEnZb"><font color=3D"#888888"><br>
+Oleg.<br>
+<br>
+</font></span></blockquote></div><br><br clear=3D"all"><div><br></div>-- <b=
+r>Sameer
+</div></div>
+
+--f46d043be1b0006c2404eaeeebcb--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
