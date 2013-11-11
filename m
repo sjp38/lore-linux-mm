@@ -1,168 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 834F56B00B4
-	for <linux-mm@kvack.org>; Sun, 10 Nov 2013 22:22:39 -0500 (EST)
-Received: by mail-pb0-f53.google.com with SMTP id up7so4578111pbc.40
-        for <linux-mm@kvack.org>; Sun, 10 Nov 2013 19:22:39 -0800 (PST)
-Received: from psmtp.com ([74.125.245.188])
-        by mx.google.com with SMTP id gj2si14698398pac.312.2013.11.10.19.22.36
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id A54476B017D
+	for <linux-mm@kvack.org>; Sun, 10 Nov 2013 23:12:20 -0500 (EST)
+Received: by mail-pd0-f179.google.com with SMTP id y10so4674432pdj.10
+        for <linux-mm@kvack.org>; Sun, 10 Nov 2013 20:12:20 -0800 (PST)
+Received: from psmtp.com ([74.125.245.196])
+        by mx.google.com with SMTP id dj3si14464551pbc.190.2013.11.10.20.12.18
         for <linux-mm@kvack.org>;
-        Sun, 10 Nov 2013 19:22:38 -0800 (PST)
-Date: Mon, 11 Nov 2013 14:22:11 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Disabling in-memory write cache for x86-64 in Linux II
-Message-ID: <20131111032211.GT6188@dastard>
-References: <160824051.3072.1382685914055.JavaMail.mail@webmail07>
- <CA+55aFxj81TRhe1+FJWqER7VVH_z_Sk0+hwtHvniA0ATsF_eKw@mail.gmail.com>
- <89AE8FE8-5B15-41DB-B9CE-DFF73531D821@dilger.ca>
- <20131105041245.GY6188@dastard>
- <20131107134806.GB30832@quack.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20131107134806.GB30832@quack.suse.cz>
+        Sun, 10 Nov 2013 20:12:19 -0800 (PST)
+Message-ID: <1384143129.6940.32.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH] mm: cache largest vma
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Sun, 10 Nov 2013 20:12:09 -0800
+In-Reply-To: <20131104073640.GF13030@gmail.com>
+References: <1383337039.2653.18.camel@buesod1.americas.hpqcorp.net>
+	 <CA+55aFwrtOaFtwGc6xyZH6-1j3f--AG1JS-iZM8-pZPnwRHBow@mail.gmail.com>
+	 <1383537862.2373.14.camel@buesod1.americas.hpqcorp.net>
+	 <20131104073640.GF13030@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andreas Dilger <adilger@dilger.ca>, "Artem S. Tashkinov" <t.artem@lycos.com>, Wu Fengguang <fengguang.wu@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, linux-mm <linux-mm@kvack.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, "Chandramouleeswaran, Aswin" <aswin@hp.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Thu, Nov 07, 2013 at 02:48:06PM +0100, Jan Kara wrote:
-> On Tue 05-11-13 15:12:45, Dave Chinner wrote:
-> > On Mon, Nov 04, 2013 at 05:50:13PM -0700, Andreas Dilger wrote:
-> > > Something simple like a??start writing at 16MB dirty on a single filea??
-> > > would probably avoid a lot of complexity at little real-world cost.
-> > > That shouldna??t throttle dirtying memory above 16MB, but just start
-> > > writeout much earlier than it does today.
-> > 
-> > That doesn't solve the "slow device, large file" problem. We can
-> > write data into the page cache at rates of over a GB/s, so it's
-> > irrelevant to a device that can write at 5MB/s whether we start
-> > writeback immediately or a second later when there is 500MB of dirty
-> > pages in memory.  AFAIK, the only way to avoid that problem is to
-> > use write-through caching for such devices - where they throttle to
-> > the IO rate at very low levels of cached data.
->   Agreed.
+Hi Ingo,
+
+On Mon, 2013-11-04 at 08:36 +0100, Ingo Molnar wrote:
+> * Davidlohr Bueso <davidlohr@hp.com> wrote:
 > 
-> > Realistically, there is no "one right answer" for all combinations
-> > of applications, filesystems and hardware, but writeback caching is
-> > the best *general solution* we've got right now.
-> > 
-> > However, IMO users should not need to care about tuning BDI dirty
-> > ratios or even have to understand what a BDI dirty ratio is to
-> > select the rigth caching method for their devices and/or workload.
-> > The difference between writeback and write through caching is easy
-> > to explain and AFAICT those two modes suffice to solve the problems
-> > being discussed here.  Further, if two modes suffice to solve the
-> > problems, then we should be able to easily define a trigger to
-> > automatically switch modes.
-> > 
-> > /me notes that if we look at random vs sequential IO and the impact
-> > that has on writeback duration, then it's very similar to suddenly
-> > having a very slow device. IOWs, fadvise(RANDOM) could be used to
-> > switch an *inode* to write through mode rather than writeback mode
-> > to solve the problem aggregating massive amounts of random write IO
-> > in the page cache...
->   I disagree here. Writeback cache is also useful for aggregating random
-> writes and making semi-sequential writes out of them. There are quite some
-> applications which rely on the fact that they can write a file in a rather
-> random manner (Berkeley DB, linker, ...) but the files are written out in
-> one large linear sweep. That is actually the reason why SLES (and I believe
-> RHEL as well) tune dirty_limit even higher than what's the default value.
-
-Right - but the correct behaviour really depends on the pattern of
-randomness. The common case we get into trouble with is when no
-clustering occurs and we end up with small, random IO for gigabytes
-of cached data. That's the case where write-through caching for
-random data is better.
-
-It's also questionable whether writeback caching for aggregation is
-faster for random IO on high-IOPS devices or not. Again, I think it
-woul depend very much on how random the patterns are...
-
-> So I think it's rather the other way around: If you can detect the file is
-> being written in a streaming manner, there's not much point in caching too
-> much data for it.
-
-But we're not talking about how much data we cache here - we are
-considering how much data we allow to get dirty before writing it
-back.  It doesn't matter if we use writeback or write through
-caching, the page cache footprint for a given workload is likely to
-be similar, but without any data we can't draw any conclusions here.
-
-> And I agree with you that we also have to be careful not
-> to cache too few because otherwise two streaming writes would be
-> interleaved too much. Currently, we have writeback_chunk_size() which
-> determines how much we ask to write from a single inode. So streaming
-> writers are going to be interleaved at this chunk size anyway (currently
-> that number is "measured bandwidth / 2"). So it would make sense to also
-> limit amount of dirty cache for each file with streaming pattern at this
-> number.
-
-My experience says that for streaming IO we typically need at least
-5s of cached *dirty* data to even out delays and latencies in the
-writeback IO pipeline. Hence limiting a file to what we can write in
-a second given we might only write a file once a second is likely
-going to result in pipeline stalls...
-
-Remember, writeback caching is about maximising throughput, not
-minimising latency. The "sync latency" problem with caching too much
-dirty data on slow block devices is really a corner case behaviour
-and should not compromise the common case for bulk writeback
-throughput.
-
-> > Indeed, the above implies that we need the caching behaviour to be a
-> > property of the address space, not just a property of the backing
-> > device.
->   Yes, and that would be interesting to implement and not make a mess out
-> of the whole writeback logic because the way we currently do writeback is
-> inherently BDI based. When we introduce some special per-inode limits,
-> flusher threads would have to pick more carefully what to write and what
-> not. We might be forced to go that way eventually anyway because of memcg
-> aware writeback but it's not a simple step.
-
-Agreed, it's not simple, and that's why we need to start working
-from the architectural level....
-
-> > IOWs, the implementation needs to trickle down from a coherent high
-> > level design - that will define the knobs that we need to expose to
-> > userspace. We should not be adding new writeback behaviours by
-> > adding knobs to sysfs without first having some clue about whether
-> > we are solving the right problem and solving it in a sane manner...
->   Agreed. But the ability to limit amount of dirty pages outstanding
-> against a particular BDI seems as a sane one to me. It's not as flexible
-> and automatic as the approach you suggested but it's much simpler and
-> solves most of problems we currently have.
-
-That's true, but....
-
-> The biggest objection against the sysfs-tunable approach is that most
-> people won't have a clue meaning that the tunable is useless for them.
-
-.... that's the big problem I see - nobody is going to know how to
-use it, when to use it, or be able to tell if it's the root cause of
-some weird performance problem they are seeing.
-
-> But I
-> wonder if something like:
-> 1) turn on strictlimit by default
-> 2) don't allow dirty cache of BDI to grow over 5s of measured writeback
->    speed
+> > I will look into doing the vma cache per thread instead of mm (I hadn't 
+> > really looked at the problem like this) as well as Ingo's suggestion on 
+> > the weighted LRU approach. However, having seen that we can cheaply and 
+> > easily reach around ~70% hit rate in a lot of workloads, makes me wonder 
+> > how good is good enough?
 > 
-> won't go a long way into solving our current problems without too much
-> complication...
+> So I think it all really depends on the hit/miss cost difference. It makes 
+> little sense to add a more complex scheme if it washes out most of the 
+> benefits!
+> 
+> Also note the historic context: the _original_ mmap_cache, that I 
+> implemented 16 years ago, was a front-line cache to a linear list walk 
+> over all vmas (!).
+> 
+> This is the relevant 2.1.37pre1 code in include/linux/mm.h:
+> 
+> /* Look up the first VMA which satisfies  addr < vm_end,  NULL if none. */
+> static inline struct vm_area_struct * find_vma(struct mm_struct * mm, unsigned long addr)
+> {
+>         struct vm_area_struct *vma = NULL;
+> 
+>         if (mm) {
+>                 /* Check the cache first. */
+>                 vma = mm->mmap_cache;
+>                 if(!vma || (vma->vm_end <= addr) || (vma->vm_start > addr)) {
+>                         vma = mm->mmap;
+>                         while(vma && vma->vm_end <= addr)
+>                                 vma = vma->vm_next;
+>                         mm->mmap_cache = vma;
+>                 }
+>         }
+>         return vma;
+> }
+> 
+> See that vma->vm_next iteration? It was awful - but back then most of us 
+> had at most a couple of megs of RAM with just a few vmas. No RAM, no SMP, 
+> no worries - the mm was really simple back then.
+> 
+> Today we have the vma rbtree, which is self-balancing and a lot faster 
+> than your typical linear list walk search ;-)
+> 
+> So I'd _really_ suggest to first examine the assumptions behind the cache, 
+> it being named 'cache' and it having a hit rate does in itself not 
+> guarantee that it gives us any worthwile cost savings when put in front of 
+> an rbtree ...
 
-Turning on strict limit by default is going to change behaviour
-quite markedly. Again, it's not something I'd want to see done
-without a bunch of data showing that it doesn't cause regressions
-for common workloads...
+So having mmap_cache around, in whatever form, is an important
+optimization for find_vma() - even to this day. It can save us at least
+50% cycles that correspond to this function. I ran a variety of
+mmap_cache alternatives over two workloads that are heavy on page faults
+(as opposed to Java based ones I had tried previously, which really
+don't trigger enough for it to be worthwhile).  So we now have a
+comparison of 5 different caching schemes -- note that the 4 element
+hash table is quite similar to two elements, with a hash function of
+(addr % hash_size).
 
-Cheers,
+1) Kernel build
++------------------------+----------+------------------+---------+
+|    mmap_cache type     | hit-rate | cycles (billion) | stddev  |
++------------------------+----------+------------------+---------+
+| no mmap_cache          | -        | 15.85            | 0.10066 |
+| current mmap_cache     | 72.32%   | 11.03            | 0.01155 |
+| mmap_cache+largest VMA | 84.55%   |  9.91            | 0.01414 |
+| 4 element hash table   | 78.38%   | 10.52            | 0.01155 |
+| per-thread mmap_cache  | 78.84%   | 10.69            | 0.01325 |
++------------------------+----------+------------------+---------+
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+In this particular workload the proposed patch benefits the most and
+current alternatives, while they do help some, aren't really worth
+bothering with as the current implementation already does a nice enough
+job.
+
+2) Oracle Data mining (4K pages)
++------------------------+----------+------------------+---------+
+|    mmap_cache type     | hit-rate | cycles (billion) | stddev  |
++------------------------+----------+------------------+---------+
+| no mmap_cache          | -        | 63.35            | 0.20207 |
+| current mmap_cache     | 65.66%   | 19.55            | 0.35019 |
+| mmap_cache+largest VMA | 71.53%   | 15.84            | 0.26764 |
+| 4 element hash table   | 70.75%   | 15.90            | 0.25586 |
+| per-thread mmap_cache  | 86.42%   | 11.57            | 0.29462 |
++------------------------+----------+------------------+---------+
+
+This workload sure makes the point of how much we can benefit of caching
+the vma, otherwise find_vma() can cost more than 220% extra cycles. We
+clearly win here by having a per-thread cache instead of per address
+space. I also tried the same workload with 2Mb hugepages and the results
+are much more closer to the kernel build, but with the per-thread vma
+still winning over the rest of the alternatives.
+
+All in all I think that we should probably have a per-thread vma cache.
+Please let me know if there is some other workload you'd like me to try
+out. If folks agree then I can cleanup the patch and send it out.
+
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
