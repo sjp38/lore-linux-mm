@@ -1,134 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AE0C6B00F0
-	for <linux-mm@kvack.org>; Mon, 11 Nov 2013 18:16:17 -0500 (EST)
-Received: by mail-pb0-f50.google.com with SMTP id xb12so1766891pbc.23
-        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 15:16:17 -0800 (PST)
-Received: from psmtp.com ([74.125.245.185])
-        by mx.google.com with SMTP id yl8si17578716pab.176.2013.11.11.15.16.14
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E0786B00F1
+	for <linux-mm@kvack.org>; Mon, 11 Nov 2013 18:27:02 -0500 (EST)
+Received: by mail-pb0-f54.google.com with SMTP id ro12so2783769pbb.27
+        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 15:27:02 -0800 (PST)
+Received: from psmtp.com ([74.125.245.180])
+        by mx.google.com with SMTP id dk5si17242107pbc.136.2013.11.11.15.27.00
         for <linux-mm@kvack.org>;
-        Mon, 11 Nov 2013 15:16:16 -0800 (PST)
-Received: by mail-we0-f169.google.com with SMTP id q58so5329885wes.28
-        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 15:16:12 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20131109151639.GB14249@redhat.com>
-References: <20131108184515.GA11555@redhat.com> <1383940173-16480-1-git-send-email-snanda@chromium.org>
- <20131109151639.GB14249@redhat.com>
-From: Sameer Nanda <snanda@chromium.org>
-Date: Mon, 11 Nov 2013 15:15:52 -0800
-Message-ID: <CANMivWax_gbt8np_1CMGwZCAB2FR8so7-nimt01PDGy8DWasSA@mail.gmail.com>
-Subject: Re: [PATCH v3] mm, oom: Fix race when selecting process to kill
-Content-Type: multipart/alternative; boundary=f46d043be1b0006c2404eaeeebcb
+        Mon, 11 Nov 2013 15:27:01 -0800 (PST)
+From: Laura Abbott <lauraa@codeaurora.org>
+Subject: [RFC 0/4] Intermix Lowmem and vmalloc
+Date: Mon, 11 Nov 2013 15:26:48 -0800
+Message-Id: <1384212412-21236-1-git-send-email-lauraa@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.cz, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, Luigi Semenzato <semenzato@google.com>, murzin.v@gmail.com, dserrg@gmail.com, "msb@chromium.org" <msb@chromium.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
 
---f46d043be1b0006c2404eaeeebcb
-Content-Type: text/plain; charset=UTF-8
+Hi,
 
-On Sat, Nov 9, 2013 at 7:16 AM, Oleg Nesterov <oleg@redhat.com> wrote:
+This is an RFC for a feature to allow lowmem and vmalloc virtual address space
+to be intermixed. This has currently only been tested on a narrow set of ARM
+chips.
 
-> On 11/08, Sameer Nanda wrote:
-> >
-> > @@ -413,12 +413,20 @@ void oom_kill_process(struct task_struct *p, gfp_t
-> gfp_mask, int order,
-> >                                             DEFAULT_RATELIMIT_BURST);
-> > @@ -456,10 +463,18 @@ void oom_kill_process(struct task_struct *p, gfp_t
-> gfp_mask, int order,
-> >                       }
-> >               }
-> >       } while_each_thread(p, t);
-> > -     read_unlock(&tasklist_lock);
-> >
-> >       rcu_read_lock();
-> > +
-> >       p = find_lock_task_mm(victim);
-> > +
-> > +     /*
-> > +      * Since while_each_thread is currently not RCU safe, this unlock
-> of
-> > +      * tasklist_lock may need to be moved further down if any
-> additional
-> > +      * while_each_thread loops get added to this function.
-> > +      */
-> > +     read_unlock(&tasklist_lock);
->
-> Well, ack... but with this change find_lock_task_mm() relies on tasklist,
-> so it makes sense to move rcu_read_lock() down before for_each_process().
-> Otherwise this looks confusing, but I won't insist.
->
-
-Agreed that this looks a bit confusing.  I will respin the patch.
+Currently on 32-bit systems we have
 
 
->
-> Oleg.
->
->
+                  Virtual                             Physical
+
+   PAGE_OFFSET   +--------------+     PHYS_OFFSET   +------------+
+                 |              |                   |            |
+                 |              |                   |            |
+                 |              |                   |            |
+                 | lowmem       |                   |  direct    |
+                 |              |                   |   mapped   |
+                 |              |                   |            |
+                 |              |                   |            |
+                 |              |                   |            |
+                 +--------------+------------------>x------------>
+                 |              |                   |            |
+                 |              |                   |            |
+                 |              |                   |  not-direct|
+                 |              |                   | mapped     |
+                 | vmalloc      |                   |            |
+                 |              |                   |            |
+                 |              |                   |            |
+                 |              |                   |            |
+                 +--------------+                   +------------+
+
+Where part of the virtual spaced above PHYS_OFFSET is reserved for direct
+mapped lowmem and part of the virtual address space is reserved for vmalloc.
+
+Obviously, we want to optimize for having as much direct mapped memory as
+possible since there is a penalty for mapping/unmapping highmem. Unfortunately
+system constraints often give memory layouts such as
+
+                  Virtual                             Physical
+
+   PAGE_OFFSET   +--------------+     PHYS_OFFSET   +------------+
+                 |              |                   |            |
+                 |              |                   |            |
+                 |              |                   |xxxxxxxxxxxx|
+                 | lowmem       |                   |xxxxxxxxxxxx|
+                 |              |                   |xxxxxxxxxxxx|
+                 |              |                   |xxxxxxxxxxxx|
+                 |              |                   |            |
+                 |              |                   |            |
+                 +--------------+------------------>x------------>
+                 |              |                   |            |
+                 |              |                   |            |
+                 |              |                   |  not-direct|
+                 |              |                   | mapped     |
+                 | vmalloc      |                   |            |
+                 |              |                   |            |
+                 |              |                   |            |
+                 |              |                   |            |
+                 +--------------+                   +------------+
+
+                 (x = Linux cannot touch this memory)
+
+where part of physical region that would be direct mapped as lowmem is not
+actually in use by Linux.
+
+This means that even though the system is not actually accessing the memory
+we are still losing that portion of the direct mapped lowmem space. What this
+series does is treat the virtual address space that would have been taken up
+by the lowmem memory as vmalloc space and allows more lowmem to be mapped
 
 
--- 
-Sameer
 
---f46d043be1b0006c2404eaeeebcb
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+                  Virtual                             Physical
 
-<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><br><div class=3D"gmail=
-_quote">On Sat, Nov 9, 2013 at 7:16 AM, Oleg Nesterov <span dir=3D"ltr">&lt=
-;<a href=3D"mailto:oleg@redhat.com" target=3D"_blank" class=3D"cremed">oleg=
-@redhat.com</a>&gt;</span> wrote:<br>
+   PAGE_OFFSET   +--------------+     PHYS_OFFSET   +------------+
+                 |              |                   |            |
+                 | lowmem       |                   |            |
+                 <----------------------------------+xxxxxxxxxxxx|
+                 |              |                   |xxxxxxxxxxxx|
+                 | vmalloc      |                   |xxxxxxxxxxxx|
+                 <----------------------------------+xxxxxxxxxxxx|
+                 |              |                   |            |
+                 | lowmem       |                   |            |
+                 |              |                   |            |
+                 |              |                   |            |
+                 |              |                   |            |
+                 |              |                   |            |
+                 +----------------------------------------------->
+                 | vmalloc      |                   |            |
+                 |              |                   |  not-direct|
+                 |              |                   | mapped     |
+                 |              |                   |            |
+                 +--------------+                   +------------+
 
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex"><div class=3D"im">On 11/08, Sameer Nanda wro=
-te:<br>
-&gt;<br>
-</div><div class=3D"im">&gt; @@ -413,12 +413,20 @@ void oom_kill_process(st=
-ruct task_struct *p, gfp_t gfp_mask, int order,<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 DEFAULT_RATELIMIT_BURST);<br>
-</div><div class=3D"im">&gt; @@ -456,10 +463,18 @@ void oom_kill_process(st=
-ruct task_struct *p, gfp_t gfp_mask, int order,<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 }<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 } while_each_thread(p, t);<br>
-&gt; - =C2=A0 =C2=A0 read_unlock(&amp;tasklist_lock);<br>
-&gt;<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 rcu_read_lock();<br>
-&gt; +<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 p =3D find_lock_task_mm(victim);<br>
-&gt; +<br>
-&gt; + =C2=A0 =C2=A0 /*<br>
-&gt; + =C2=A0 =C2=A0 =C2=A0* Since while_each_thread is currently not RCU s=
-afe, this unlock of<br>
-&gt; + =C2=A0 =C2=A0 =C2=A0* tasklist_lock may need to be moved further dow=
-n if any additional<br>
-&gt; + =C2=A0 =C2=A0 =C2=A0* while_each_thread loops get added to this func=
-tion.<br>
-&gt; + =C2=A0 =C2=A0 =C2=A0*/<br>
-&gt; + =C2=A0 =C2=A0 read_unlock(&amp;tasklist_lock);<br>
-<br>
-</div>Well, ack... but with this change find_lock_task_mm() relies on taskl=
-ist,<br>
-so it makes sense to move rcu_read_lock() down before for_each_process().<b=
-r>
-Otherwise this looks confusing, but I won&#39;t insist.<br></blockquote><di=
-v><br></div><div>Agreed that this looks a bit confusing. =C2=A0I will respi=
-n the patch.</div><div>=C2=A0</div><blockquote class=3D"gmail_quote" style=
-=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+The goal here is to allow as much lowmem to be mapped as if the block of memory
+was not reserved from the physical lowmem region. Previously, we had been
+hacking up the direct virt <-> phys translation to ignore a large region of
+memory. This did not scale for multiple holes of memory however.
 
+Open issues:
+	- vmalloc=<size> will account for all vmalloc now. This may have the
+	side effect of shrinking 'traditional' vmalloc too much for regular
+	static mappings. We were debating if this is just part of finding the
+	correct size for vmalloc or if there is a need for vmalloc_upper=
+	- People who like bike shedding more than I do can suggest better
+	config names if there is sufficient interest in the series.
 
-<span class=3D"HOEnZb"><font color=3D"#888888"><br>
-Oleg.<br>
-<br>
-</font></span></blockquote></div><br><br clear=3D"all"><div><br></div>-- <b=
-r>Sameer
-</div></div>
+Comments or suggestions on other ways to accomplish the same thing are welcome.
 
---f46d043be1b0006c2404eaeeebcb--
+ arch/arm/Kconfig                |    3 +
+ arch/arm/include/asm/mach/map.h |    2 +
+ arch/arm/mm/dma-mapping.c       |    2 +-
+ arch/arm/mm/init.c              |  104 +++++++++++++++++++++++++++------------
+ arch/arm/mm/ioremap.c           |    5 +-
+ arch/arm/mm/mm.h                |    3 +-
+ arch/arm/mm/mmu.c               |   40 ++++++++++++++-
+ include/linux/mm.h              |    6 ++
+ include/linux/vmalloc.h         |    1 +
+ mm/Kconfig                      |   11 ++++
+ mm/vmalloc.c                    |   37 ++++++++++++++
+ 11 files changed, 175 insertions(+), 39 deletions(-)
+
+Thanks,
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
