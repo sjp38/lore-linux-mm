@@ -1,65 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 6886D6B00EC
-	for <linux-mm@kvack.org>; Tue, 12 Nov 2013 09:25:20 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id jt11so729129pbb.0
-        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 06:25:20 -0800 (PST)
-Received: from psmtp.com ([74.125.245.153])
-        by mx.google.com with SMTP id ws5si20063358pab.238.2013.11.12.06.25.18
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 385CD6B00D7
+	for <linux-mm@kvack.org>; Tue, 12 Nov 2013 10:13:14 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id y13so4193151pdi.0
+        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 07:13:13 -0800 (PST)
+Received: from psmtp.com ([74.125.245.128])
+        by mx.google.com with SMTP id kg8si20247480pad.96.2013.11.12.07.13.11
         for <linux-mm@kvack.org>;
-        Tue, 12 Nov 2013 06:25:19 -0800 (PST)
-Received: by mail-we0-f180.google.com with SMTP id q59so6123972wes.11
-        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 06:25:16 -0800 (PST)
+        Tue, 12 Nov 2013 07:13:12 -0800 (PST)
+Date: Tue, 12 Nov 2013 16:13:08 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v4] mm, oom: Fix race when selecting process to kill
+Message-ID: <20131112151308.GD6049@dhcp22.suse.cz>
+References: <20131109151639.GB14249@redhat.com>
+ <1384215717-2389-1-git-send-email-snanda@chromium.org>
 MIME-Version: 1.0
-In-Reply-To: <5281F0B4.8060902@oracle.com>
-References: <CALZtONAxsYxLizARV3Aam_n7534g5gh_FFkTz6jb-0Q9gThuBQ@mail.gmail.com>
- <5281F0B4.8060902@oracle.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Tue, 12 Nov 2013 09:24:55 -0500
-Message-ID: <CALZtONDAitXFfQWPfWG2Qy03NY7Q-2Asch0xQn0FEa-A6oNZTg@mail.gmail.com>
-Subject: Re: mm/zswap: change to writethrough
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1384215717-2389-1-git-send-email-snanda@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <bob.liu@oracle.com>
-Cc: sjennings@variantweb.net, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, minchan@kernel.org, weijie.yang@samsung.com, k.kozlowski@samsung.com, konrad.wilk@oracle.com
+To: Sameer Nanda <snanda@chromium.org>
+Cc: akpm@linux-foundation.org, rientjes@google.com, hannes@cmpxchg.org, rusty@rustcorp.com.au, semenzato@google.com, murzin.v@gmail.com, oleg@redhat.com, dserrg@gmail.com, msb@chromium.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Nov 12, 2013 at 4:11 AM, Bob Liu <bob.liu@oracle.com> wrote:
->
-> On 11/12/2013 03:12 AM, Dan Streetman wrote:
->> Seth, have you (or anyone else) considered making zswap a writethrough
->> cache instead of writeback?  I think that it would significantly help
->> the case where zswap fills up and starts writing back its oldest pages
->> to disc - all the decompression work would be avoided since zswap
->> could just evict old pages and forget about them, and it seems likely
->> that when zswap is full that's probably the worst time to add extra
->> work/delay, while adding extra disc IO (presumably using dma) before
->> zswap is full doesn't seem to me like it would have much impact,
->> except in the case where zswap isn't full but there is so little free
->> memory that new allocs are waiting on swap-out.
->>
->> Besides the additional disc IO that obviously comes with making zswap
->> writethrough (additional only before zswap fills up), are there any
->> other disadvantages?  Is it a common situation for there to be no
->> memory left and get_free_page actively waiting on swap-out, but before
->> zswap fills up?
->>
->> Making it writethrough also could open up other possible improvements,
->> like making the compression and storage of new swap-out pages async,
->> so the compression doesn't delay the write out to disc.
->>
->
-> I like this idea and those benefits, the only question I'm not sure is
-> would it be too complicate to implement this feature? It sounds like we
-> need to reimplement something like swapcache to handle zswap write through.
+On Mon 11-11-13 16:21:57, Sameer Nanda wrote:
+> The selection of the process to be killed happens in two spots:
+> first in select_bad_process and then a further refinement by
+> looking for child processes in oom_kill_process. Since this is
+> a two step process, it is possible that the process selected by
+> select_bad_process may get a SIGKILL just before oom_kill_process
+> executes. If this were to happen, __unhash_process deletes this
+> process from the thread_group list. This results in oom_kill_process
+> getting stuck in an infinite loop when traversing the thread_group
+> list of the selected process.
+> 
+> Fix this race by adding a pid_alive check for the selected process
+> with tasklist_lock held in oom_kill_process.
+> 
+> Signed-off-by: Sameer Nanda <snanda@chromium.org>
+> ---
+>  mm/oom_kill.c | 24 +++++++++++++++++++-----
+>  1 file changed, 19 insertions(+), 5 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 6738c47..57638ef 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -413,12 +413,20 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+>  					      DEFAULT_RATELIMIT_BURST);
+>  
+>  	/*
+> +	 * while_each_thread is currently not RCU safe. Lets hold the
+> +	 * tasklist_lock across all invocations of while_each_thread (including
+> +	 * the one in find_lock_task_mm) in this function.
+> +	 */
+> +	read_lock(&tasklist_lock);
+> +
+> +	/*
+>  	 * If the task is already exiting, don't alarm the sysadmin or kill
+>  	 * its children or threads, just set TIF_MEMDIE so it can die quickly
+>  	 */
+> -	if (p->flags & PF_EXITING) {
+> +	if (p->flags & PF_EXITING || !pid_alive(p)) {
+>  		set_tsk_thread_flag(p, TIF_MEMDIE);
+>  		put_task_struct(p);
+> +		read_unlock(&tasklist_lock);
+>  		return;
+>  	}
 
-Simply converting to writethrough should be as easy as returning
-non-zero from zswap_frontswap_store(), although
-zswap_writeback_entry() also needs simplification to skip the
-writeback.  I think it shouldn't be difficult; I'll start working on a
-first pass of a patch.
+show_mem used to be one of a bottleneck but now that we have Mel's "mm:
+do not walk all of system memory during show_mem" it shouldn't be a big
+deal anymore.
+The real trouble is with dump_tasks which might be zillions of tasks and
+we do not want to hold tasklist_lock for that long.
 
-Thanks!
+So no this would regress on the huge machines and yes we have seen
+reports like that and explicit requests to backport 6b0c81b3be114 (mm,
+oom: reduce dependency on tasklist_lock) so this would be a step
+backwards although I see there is a real problem that it tries to fix.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
