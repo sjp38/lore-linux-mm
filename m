@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id E727D6B0102
-	for <linux-mm@kvack.org>; Mon, 11 Nov 2013 20:57:49 -0500 (EST)
-Received: by mail-pb0-f49.google.com with SMTP id um1so4028617pbc.8
-        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 17:57:49 -0800 (PST)
-Received: from psmtp.com ([74.125.245.191])
-        by mx.google.com with SMTP id p2si17605109pbe.98.2013.11.11.17.57.47
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CF2B6B005C
+	for <linux-mm@kvack.org>; Mon, 11 Nov 2013 21:09:56 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id wy17so6110030pbc.14
+        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 18:09:56 -0800 (PST)
+Received: from psmtp.com ([74.125.245.131])
+        by mx.google.com with SMTP id rr7si17603615pbc.225.2013.11.11.18.09.54
         for <linux-mm@kvack.org>;
-        Mon, 11 Nov 2013 17:57:48 -0800 (PST)
-Message-ID: <52818B07.70000@hp.com>
-Date: Mon, 11 Nov 2013 20:57:27 -0500
+        Mon, 11 Nov 2013 18:09:55 -0800 (PST)
+Message-ID: <52818DDC.1020105@hp.com>
+Date: Mon, 11 Nov 2013 21:09:32 -0500
 From: Waiman Long <waiman.long@hp.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v5 4/4] MCS Lock: Barrier corrections
