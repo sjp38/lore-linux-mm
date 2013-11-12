@@ -1,80 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EEEF6B00B5
-	for <linux-mm@kvack.org>; Tue, 12 Nov 2013 13:54:03 -0500 (EST)
-Received: by mail-pb0-f52.google.com with SMTP id rr4so7292807pbb.25
-        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 10:54:03 -0800 (PST)
-Received: from psmtp.com ([74.125.245.150])
-        by mx.google.com with SMTP id hb3si20908168pac.7.2013.11.12.10.53.59
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id E79746B00B4
+	for <linux-mm@kvack.org>; Tue, 12 Nov 2013 14:22:53 -0500 (EST)
+Received: by mail-pb0-f53.google.com with SMTP id up7so7327144pbc.26
+        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 11:22:53 -0800 (PST)
+Received: from psmtp.com ([74.125.245.174])
+        by mx.google.com with SMTP id gg8si18521pac.147.2013.11.12.11.22.51
         for <linux-mm@kvack.org>;
-        Tue, 12 Nov 2013 10:54:02 -0800 (PST)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Wed, 13 Nov 2013 00:23:56 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 24C44125803F
-	for <linux-mm@kvack.org>; Wed, 13 Nov 2013 00:24:43 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rACIrp3u47317226
-	for <linux-mm@kvack.org>; Wed, 13 Nov 2013 00:23:51 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rACIrrpx020328
-	for <linux-mm@kvack.org>; Wed, 13 Nov 2013 00:23:54 +0530
-Message-ID: <52827839.80904@linux.vnet.ibm.com>
-Date: Wed, 13 Nov 2013 00:19:29 +0530
-From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+        Tue, 12 Nov 2013 11:22:52 -0800 (PST)
+Received: by mail-vb0-f54.google.com with SMTP id q4so1710749vbe.27
+        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 11:22:50 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [Results] [RFC PATCH v4 00/40] mm: Memory Power Management
-References: <20130925231250.26184.31438.stgit@srivatsabhat.in.ibm.com> <52437128.7030402@linux.vnet.ibm.com> <20130925164057.6bbaf23bdc5057c42b2ab010@linux-foundation.org> <52442F6F.5020703@linux.vnet.ibm.com> <5281E09B.3060303@linux.vnet.ibm.com>
-In-Reply-To: <5281E09B.3060303@linux.vnet.ibm.com>
+In-Reply-To: <20131105221017.GI3835@redhat.com>
+References: <20131105221017.GI3835@redhat.com>
+Date: Tue, 12 Nov 2013 11:22:50 -0800
+Message-ID: <CALnjE+prqCg2ZAMLQBQjY0OqmW2ofjioUoS25pa8Y93somc8Gg@mail.gmail.com>
+Subject: Re: [PATCH] mm: hugetlbfs: fix hugetlbfs optimization
+From: Pravin Shelar <pshelar@nicira.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: mgorman@suse.de, dave@sr71.net, hannes@cmpxchg.org, tony.luck@intel.com, matthew.garrett@nebula.com, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, willy@linux.intel.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, paulmck@linux.vnet.ibm.com, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, isimatu.yasuaki@jp.fujitsu.com, santosh.shilimkar@ti.com, kosaki.motohiro@gmail.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, amit.kachhap@linaro.org, thomas.abraham@linaro.org, markgross@thegnar.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Khalid Aziz <khalid.aziz@oracle.com>, gregkh@linuxfoundation.org, Ben Hutchings <bhutchings@solarflare.com>, Christoph Lameter <cl@linux.com>, hannes@cmpxchg.org, mel@csn.ul.ie, riel@redhat.com, minchan@kernel.org, andi@firstfloor.org, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, linux-mm@kvack.org
 
-On 11/12/2013 01:32 PM, Srivatsa S. Bhat wrote:
-> On 09/26/2013 06:28 PM, Srivatsa S. Bhat wrote:
->> On 09/26/2013 05:10 AM, Andrew Morton wrote:
->>> On Thu, 26 Sep 2013 04:56:32 +0530 "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com> wrote:
->>>
->>>> Experimental Results:
->>>> ====================
->>>>
->>>> Test setup:
->>>> ----------
->>>>
->>>> x86 Sandybridge dual-socket quad core HT-enabled machine, with 128GB RAM.
->>>> Memory Region size = 512MB.
->>>
->>> Yes, but how much power was saved ;)
->>>
->>
->> I don't have those numbers yet, but I'll be able to get them going forward.
->>
-> 
+On Tue, Nov 5, 2013 at 2:10 PM, Andrea Arcangeli <aarcange@redhat.com> wrote:
 > Hi,
-> 
-> I performed experiments on an IBM POWER 7 machine and got actual power-savings
-> numbers (upto 2.6% of total system power) from this patchset. I presented them
-> at the Kernel Summit but forgot to post them on LKML. So here they are:
-> 
+>
+> this patch is an alternative implementation of the hugetlbfs directio
+> optimization discussed earlier. We've been looking into this with
+> Khalid last week and an earlier version of this patch (fully
+> equivalent as far as CPU overhead is concerned) was benchmarked by
+> Khalid and it didn't degrade performance compared to the PageHuge
+> check in current upstream code, so we should be good.
+>
+> The patch applies cleanly only after reverting
+> 7cb2ef56e6a8b7b368b2e883a0a47d02fed66911, it's much easier to review
+> it in this form as it avoids all the alignment changes. I'll resend to
+> Andrew against current upstream by squashing it with the revert after
+> reviews.
+>
+> I wished to remove the _mapcount tailpage refcounting for slab and
+> hugetlbfs tails too, but if the last put_page of a slab tail happens
+> after the slab page isn't a slab page anymore (but still compound as
+> it wasn't freed yet because of the tail pin), a VM_BUG_ON would
+> trigger during the last (unpinning) put_page(slab_tail) with the
+> mapcount underflow:
+>
+>                         VM_BUG_ON(page_mapcount(page) <= 0);
+>
+> Not even sure if any driver is doing anything like that, but the
+> current code would allow it, Pravin should know more about when
+> exactly in which conditions the last put_page is done on slab tail
+> pages.
+>
+Yes, This can happen when slab object is directly passed for IO and it
+is done in few filesystems (ocfs, xfs) when I checked last time.
 
-<snip>
-
-And here is a recent LWN article that highlights the important design changes
-in this version and gives a good overview of this patchset as a whole:
-
-http://lwn.net/Articles/568891/
-
-And here is the link to the patchset (v4):
-http://lwn.net/Articles/568369/
-
-Regards,
-Srivatsa S. Bhat
- 
+> It shall be possible to remove the _mapcount refcounting anyway, as it
+> is only read by split_huge_page and so it doesn't actually matter if
+> it underflows, but I prefer to keep the VM_BUG_ON. In fact I added one
+> more VM_BUG_ON(!PageHead()) even in this patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
