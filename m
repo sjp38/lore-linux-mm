@@ -1,74 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CF2B6B005C
-	for <linux-mm@kvack.org>; Mon, 11 Nov 2013 21:09:56 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id wy17so6110030pbc.14
-        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 18:09:56 -0800 (PST)
-Received: from psmtp.com ([74.125.245.131])
-        by mx.google.com with SMTP id rr7si17603615pbc.225.2013.11.11.18.09.54
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 339716B00E5
+	for <linux-mm@kvack.org>; Mon, 11 Nov 2013 22:16:27 -0500 (EST)
+Received: by mail-pd0-f173.google.com with SMTP id x10so862591pdj.18
+        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 19:16:26 -0800 (PST)
+Received: from psmtp.com ([74.125.245.177])
+        by mx.google.com with SMTP id gn4si17796023pbc.81.2013.11.11.19.16.24
         for <linux-mm@kvack.org>;
-        Mon, 11 Nov 2013 18:09:55 -0800 (PST)
-Message-ID: <52818DDC.1020105@hp.com>
-Date: Mon, 11 Nov 2013 21:09:32 -0500
-From: Waiman Long <waiman.long@hp.com>
+        Mon, 11 Nov 2013 19:16:25 -0800 (PST)
+Date: Mon, 11 Nov 2013 22:16:23 -0500 (EST)
+From: Zhouping Liu <zliu@redhat.com>
+Message-ID: <988917896.22733181.1384226183266.JavaMail.root@redhat.com>
+In-Reply-To: <732806765.22731241.1384225623693.JavaMail.root@redhat.com>
+Subject: WARNING: CPU: 8 PID: 12860 at net/core/sock.c:313
+ sk_clear_memalloc+0x49/0x70()
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 4/4] MCS Lock: Barrier corrections
-References: <cover.1383935697.git.tim.c.chen@linux.intel.com>  <1383940358.11046.417.camel@schen9-DESK>  <20131111181049.GL28302@mudshark.cambridge.arm.com> <1384204673.10046.6.camel@schen9-mobl3>
-In-Reply-To: <1384204673.10046.6.camel@schen9-mobl3>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Will Deacon <will.deacon@arm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>
 
-On 11/11/2013 04:17 PM, Tim Chen wrote:
->> You could then augment that with [cmp]xchg_{acquire,release} as
->> appropriate.
->>
->>> +/*
->>>    * In order to acquire the lock, the caller should declare a local node and
->>>    * pass a reference of the node to this function in addition to the lock.
->>>    * If the lock has already been acquired, then this will proceed to spin
->>> @@ -37,15 +62,19 @@ void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
->>>   	node->locked = 0;
->>>   	node->next   = NULL;
->>>
->>> -	prev = xchg(lock, node);
->>> +	/* xchg() provides a memory barrier */
->>> +	prev = xchg_acquire(lock, node);
->>>   	if (likely(prev == NULL)) {
->>>   		/* Lock acquired */
->>>   		return;
->>>   	}
->>>   	ACCESS_ONCE(prev->next) = node;
->>> -	smp_wmb();
->>> -	/* Wait until the lock holder passes the lock down */
->>> -	while (!ACCESS_ONCE(node->locked))
->>> +	/*
->>> +	 * Wait until the lock holder passes the lock down.
->>> +	 * Using smp_load_acquire() provides a memory barrier that
->>> +	 * ensures subsequent operations happen after the lock is acquired.
->>> +	 */
->>> +	while (!(smp_load_acquire(&node->locked)))
->>>   		arch_mutex_cpu_relax();
-> An alternate implementation is
-> 	while (!ACCESS_ONCE(node->locked))
-> 		arch_mutex_cpu_relax();
-> 	smp_load_acquire(&node->locked);
->
-> Leaving the smp_load_acquire at the end to provide appropriate barrier.
-> Will that be acceptable?
->
-> Tim
+Hi All,
 
-I second Tim's opinion. It will be help to have a smp_mb_load_acquire() 
-function that provide a memory barrier with load-acquire semantic. I 
-don't think we need one for store-release as that will not be in a loop.
+I found the WARNING in the latest mainline with commint 8b5baa460b.
 
-Peter, what do you think about adding that to your patch?
+[61323.305424] ------------[ cut here ]------------
+[61323.310562] WARNING: CPU: 8 PID: 12860 at net/core/sock.c:313 sk_clear_memalloc+0x49/0x70()
+[61323.319779] Modules linked in: rpcsec_gss_krb5 nfsv4 dns_resolver nfs fscache sg nfsd netxen_nic hpilo sp5100_tco auth_rpcgss hpwdt amd64_edac_mod edac_mce_amd microcode pcspkr shpchp serio_raw i2c_piix4 edac_core ipmi_si k10temp nfs_acl lockd ipmi_msghandler acpi_power_meter acpi_cpufreq sunrpc xfs libcrc32c radeon i2c_algo_bit drm_kms_helper ttm sd_mod crc_t10dif ata_generic crct10dif_common drm pata_acpi ahci libahci pata_atiixp libata i2c_core hpsa dm_mirror dm_region_hash dm_log dm_mod
+[61323.368625] CPU: 8 PID: 12860 Comm: swapoff Not tainted 3.12.0+ #1
+[61323.375452] Hardware name: HP ProLiant DL585 G7, BIOS A16 12/17/2012
+[61323.382463]  0000000000000009 ffff882dfce43e68 ffffffff816204b7 0000000000000000
+[61323.390692]  ffff882dfce43ea0 ffffffff8106495d ffff88190b551d00 ffff88080ff0b600
+[61323.398940]  ffff88080ff0b650 0000000000000001 ffff880810fe64a0 ffff882dfce43eb0
+[61323.407188] Call Trace:
+[61323.409916]  [] dump_stack+0x45/0x56
+[61323.415616]  [] warn_slowpath_common+0x7d/0xa0
+[61323.422257]  [] warn_slowpath_null+0x1a/0x20
+[61323.428705]  [] sk_clear_memalloc+0x49/0x70
+[61323.435094]  [] xs_swapper+0x41/0x60 [sunrpc]
+[61323.441671]  [] nfs_swap_deactivate+0x2d/0x30 [nfs]
+[61323.448796]  [] destroy_swap_extents+0x61/0x70
+[61323.455436]  [] SyS_swapoff+0x220/0x610
+[61323.461420]  [] ? do_page_fault+0x1a/0x70
+[61323.467582]  [] system_call_fastpath+0x16/0x1b
+[61323.474215] ---[ end trace 919f685513b38356 ]---
 
--Longman
+I found the warning during doing swapoff the swap over NFS mount, so if you need to reproduce it,
+you should do the following:
+1. Open CONFIG_NFS_SWAP in testing machine
+2. Create a NFS server, and create a swap file in NFS server
+   in NFS server: # dd if=/dev/zero of=/NFS_FOLDER/swapfile bs=1M count=1024; mkswap swapfile
+3. Inside testing machine, setup a swap over NFS, then swapoff it, the swapoff action will
+   trigger the WARNING.
+
+-- 
+Thanks,
+Zhouping
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
