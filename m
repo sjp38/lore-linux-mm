@@ -1,132 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B82F6B00B4
-	for <linux-mm@kvack.org>; Tue, 12 Nov 2013 15:24:05 -0500 (EST)
-Received: by mail-pd0-f180.google.com with SMTP id v10so3312098pde.39
-        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 12:24:04 -0800 (PST)
-Received: from psmtp.com ([74.125.245.176])
-        by mx.google.com with SMTP id dj3si20769745pbc.100.2013.11.12.12.23.44
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id C953D6B003C
+	for <linux-mm@kvack.org>; Tue, 12 Nov 2013 16:29:06 -0500 (EST)
+Received: by mail-pb0-f44.google.com with SMTP id rp16so7522720pbb.3
+        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 13:29:06 -0800 (PST)
+Received: from psmtp.com ([74.125.245.167])
+        by mx.google.com with SMTP id gn4si20894716pbc.231.2013.11.12.13.29.04
         for <linux-mm@kvack.org>;
-        Tue, 12 Nov 2013 12:23:45 -0800 (PST)
-Received: by mail-oa0-f73.google.com with SMTP id g12so1066069oah.2
-        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 12:23:43 -0800 (PST)
-From: Sameer Nanda <snanda@chromium.org>
-Subject: [PATCH v5] mm, oom: Fix race when selecting process to kill
-Date: Tue, 12 Nov 2013 12:23:32 -0800
-Message-Id: <1384287812-3694-1-git-send-email-snanda@chromium.org>
-In-Reply-To: <CANMivWZFXYGB_95WqToKEUyMsKMS2nQ4p5a_-Lte-=bhCC5u2g@mail.gmail.com>
-References: <CANMivWZFXYGB_95WqToKEUyMsKMS2nQ4p5a_-Lte-=bhCC5u2g@mail.gmail.com>
+        Tue, 12 Nov 2013 13:29:05 -0800 (PST)
+Date: Tue, 12 Nov 2013 15:29:02 -0600
+From: Alex Thorlton <athorlton@sgi.com>
+Subject: Re: BUG: mm, numa: test segfaults, only when NUMA balancing is on
+Message-ID: <20131112212902.GA4725@sgi.com>
+References: <20131016155429.GP25735@sgi.com>
+ <20131104145828.GA1218@suse.de>
+ <20131104200346.GA3066@sgi.com>
+ <20131106131048.GC4877@suse.de>
+ <20131107214838.GY3066@sgi.com>
+ <20131108112054.GB5040@suse.de>
+ <20131108221329.GD4236@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131108221329.GD4236@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.cz, rientjes@google.com, hannes@cmpxchg.org, rusty@rustcorp.com.au, semenzato@google.com, murzin.v@gmail.com, oleg@redhat.com, dserrg@gmail.com, msb@chromium.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sameer Nanda <snanda@chromium.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The selection of the process to be killed happens in two spots:
-first in select_bad_process and then a further refinement by
-looking for child processes in oom_kill_process. Since this is
-a two step process, it is possible that the process selected by
-select_bad_process may get a SIGKILL just before oom_kill_process
-executes. If this were to happen, __unhash_process deletes this
-process from the thread_group list. This results in oom_kill_process
-getting stuck in an infinite loop when traversing the thread_group
-list of the selected process.
+On Fri, Nov 08, 2013 at 04:13:29PM -0600, Alex Thorlton wrote:
+> On Fri, Nov 08, 2013 at 11:20:54AM +0000, Mel Gorman wrote:
+> > On Thu, Nov 07, 2013 at 03:48:38PM -0600, Alex Thorlton wrote:
+> > > > Try the following patch on top of 3.12. It's a patch that is expected to
+> > > > be merged for 3.13. On its own it'll hurt automatic NUMA balancing in
+> > > > -stable but corruption trumps performance and the full series is not
+> > > > going to be considered acceptable for -stable
+> > > 
+> > > I gave this patch a shot, and it didn't seem to solve the problem.
+> > > Actually I'm running into what appear to be *worse* problems on the 3.12
+> > > kernel.  Here're a couple stack traces of what I get when I run the test
+> > > on 3.12, 512 cores:
+> > > 
+> > 
+> > Ok, so there are two issues at least. Whatever is causing your
+> > corruption (which I still cannot reproduce) and the fact that 3.12 is
+> > worse. The largest machine I've tested with is 40 cores. I'm trying to
+> > get time on a 60 core machine to see if has a better chance. I will not
+> > be able to get access to anything resembling 512 cores.
+> 
+> At this point, the smallest machine I've been able to recreate this
+> issue on has been a 128 core, but it's rare on a machine that small.
+> I'll kick off a really long run on a 64 core over the weekend and see if
+> I can hit it on there at all, but I haven't been able to previously.
 
-Fix this race by adding a pid_alive check for the selected process
-with tasklist_lock held in oom_kill_process.
+Just a quick update, I ran this test 500 times on 64 cores, allocating
+512m per core, and every single test completed successfully.  At this
+point, it looks like you definitely need at least 128 cores to reproduce
+the issue.
 
-Change-Id: I62f9652a780863467a8174e18ea5e19bbcd78c31
-Signed-off-by: Sameer Nanda <snanda@chromium.org>
----
- mm/oom_kill.c | 42 +++++++++++++++++++++++++++++-------------
- 1 file changed, 29 insertions(+), 13 deletions(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 6738c47..5108c2b 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -412,31 +412,40 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
- 					      DEFAULT_RATELIMIT_BURST);
- 
-+	if (__ratelimit(&oom_rs))
-+		dump_header(p, gfp_mask, order, memcg, nodemask);
-+
-+	task_lock(p);
-+	pr_err("%s: Kill process %d (%s) score %d or sacrifice child\n",
-+		message, task_pid_nr(p), p->comm, points);
-+	task_unlock(p);
-+
-+	/*
-+	 * while_each_thread is currently not RCU safe. Lets hold the
-+	 * tasklist_lock across all invocations of while_each_thread (including
-+	 * the one in find_lock_task_mm) in this function.
-+	 */
-+	read_lock(&tasklist_lock);
-+
- 	/*
- 	 * If the task is already exiting, don't alarm the sysadmin or kill
- 	 * its children or threads, just set TIF_MEMDIE so it can die quickly
- 	 */
--	if (p->flags & PF_EXITING) {
-+	if (p->flags & PF_EXITING || !pid_alive(p)) {
-+		pr_info("%s: Not killing process %d, just setting TIF_MEMDIE\n",
-+			message, task_pid_nr(p));
- 		set_tsk_thread_flag(p, TIF_MEMDIE);
- 		put_task_struct(p);
-+		read_unlock(&tasklist_lock);
- 		return;
- 	}
- 
--	if (__ratelimit(&oom_rs))
--		dump_header(p, gfp_mask, order, memcg, nodemask);
--
--	task_lock(p);
--	pr_err("%s: Kill process %d (%s) score %d or sacrifice child\n",
--		message, task_pid_nr(p), p->comm, points);
--	task_unlock(p);
--
- 	/*
- 	 * If any of p's children has a different mm and is eligible for kill,
- 	 * the one with the highest oom_badness() score is sacrificed for its
- 	 * parent.  This attempts to lose the minimal amount of work done while
- 	 * still freeing memory.
- 	 */
--	read_lock(&tasklist_lock);
- 	do {
- 		list_for_each_entry(child, &t->children, sibling) {
- 			unsigned int child_points;
-@@ -456,12 +465,17 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 			}
- 		}
- 	} while_each_thread(p, t);
--	read_unlock(&tasklist_lock);
- 
--	rcu_read_lock();
- 	p = find_lock_task_mm(victim);
-+
-+	/*
-+	 * Since while_each_thread is currently not RCU safe, this unlock of
-+	 * tasklist_lock may need to be moved further down if any additional
-+	 * while_each_thread loops get added to this function.
-+	 */
-+	read_unlock(&tasklist_lock);
-+
- 	if (!p) {
--		rcu_read_unlock();
- 		put_task_struct(victim);
- 		return;
- 	} else if (victim != p) {
-@@ -478,6 +492,8 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 		K(get_mm_counter(victim->mm, MM_FILEPAGES)));
- 	task_unlock(victim);
- 
-+	rcu_read_lock();
-+
- 	/*
- 	 * Kill all user processes sharing victim->mm in other thread groups, if
- 	 * any.  They don't get access to memory reserves, though, to avoid
--- 
-1.8.4.1
+- Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
