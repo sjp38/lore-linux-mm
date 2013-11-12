@@ -1,66 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 116ED6B00B4
-	for <linux-mm@kvack.org>; Tue, 12 Nov 2013 15:09:08 -0500 (EST)
-Received: by mail-pd0-f172.google.com with SMTP id w10so7401203pde.17
-        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 12:09:08 -0800 (PST)
-Received: from psmtp.com ([74.125.245.115])
-        by mx.google.com with SMTP id hb3si21093941pac.123.2013.11.12.12.09.06
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B82F6B00B4
+	for <linux-mm@kvack.org>; Tue, 12 Nov 2013 15:24:05 -0500 (EST)
+Received: by mail-pd0-f180.google.com with SMTP id v10so3312098pde.39
+        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 12:24:04 -0800 (PST)
+Received: from psmtp.com ([74.125.245.176])
+        by mx.google.com with SMTP id dj3si20769745pbc.100.2013.11.12.12.23.44
         for <linux-mm@kvack.org>;
-        Tue, 12 Nov 2013 12:09:07 -0800 (PST)
-Received: by mail-we0-f173.google.com with SMTP id u56so536047wes.4
-        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 12:09:04 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20131112200156.GA9820@redhat.com>
-References: <20131109151639.GB14249@redhat.com> <1384215717-2389-1-git-send-email-snanda@chromium.org>
- <20131112200156.GA9820@redhat.com>
+        Tue, 12 Nov 2013 12:23:45 -0800 (PST)
+Received: by mail-oa0-f73.google.com with SMTP id g12so1066069oah.2
+        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 12:23:43 -0800 (PST)
 From: Sameer Nanda <snanda@chromium.org>
-Date: Tue, 12 Nov 2013 12:08:44 -0800
-Message-ID: <CANMivWZFXYGB_95WqToKEUyMsKMS2nQ4p5a_-Lte-=bhCC5u2g@mail.gmail.com>
-Subject: Re: [PATCH v4] mm, oom: Fix race when selecting process to kill
-Content-Type: text/plain; charset=UTF-8
+Subject: [PATCH v5] mm, oom: Fix race when selecting process to kill
+Date: Tue, 12 Nov 2013 12:23:32 -0800
+Message-Id: <1384287812-3694-1-git-send-email-snanda@chromium.org>
+In-Reply-To: <CANMivWZFXYGB_95WqToKEUyMsKMS2nQ4p5a_-Lte-=bhCC5u2g@mail.gmail.com>
+References: <CANMivWZFXYGB_95WqToKEUyMsKMS2nQ4p5a_-Lte-=bhCC5u2g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.cz, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, Luigi Semenzato <semenzato@google.com>, murzin.v@gmail.com, dserrg@gmail.com, "msb@chromium.org" <msb@chromium.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org, mhocko@suse.cz, rientjes@google.com, hannes@cmpxchg.org, rusty@rustcorp.com.au, semenzato@google.com, murzin.v@gmail.com, oleg@redhat.com, dserrg@gmail.com, msb@chromium.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sameer Nanda <snanda@chromium.org>
 
-On Tue, Nov 12, 2013 at 12:01 PM, Oleg Nesterov <oleg@redhat.com> wrote:
-> On 11/11, Sameer Nanda wrote:
->>
->> The selection of the process to be killed happens in two spots:
->> first in select_bad_process and then a further refinement by
->> looking for child processes in oom_kill_process. Since this is
->> a two step process, it is possible that the process selected by
->> select_bad_process may get a SIGKILL just before oom_kill_process
->> executes. If this were to happen, __unhash_process deletes this
->> process from the thread_group list. This results in oom_kill_process
->> getting stuck in an infinite loop when traversing the thread_group
->> list of the selected process.
->>
->> Fix this race by adding a pid_alive check for the selected process
->> with tasklist_lock held in oom_kill_process.
->
-> OK, looks correct to me. Thanks.
->
->
-> Yes, this is a step backwards, hopefully we will revert this patch soon.
-> I am starting to think something like while_each_thread_lame_but_safe()
-> makes sense before we really fix this nasty (and afaics not simple)
-> problem with with while_each_thread() (which should die).
+The selection of the process to be killed happens in two spots:
+first in select_bad_process and then a further refinement by
+looking for child processes in oom_kill_process. Since this is
+a two step process, it is possible that the process selected by
+select_bad_process may get a SIGKILL just before oom_kill_process
+executes. If this were to happen, __unhash_process deletes this
+process from the thread_group list. This results in oom_kill_process
+getting stuck in an infinite loop when traversing the thread_group
+list of the selected process.
 
-Looking forward to a real fix for the nasty problems with
-while_each_thread.  In the meanwhile, let me float one more
-(hopefully, the last) version of this patch that should address
-Michal's concern.  Thanks for your feedback!
+Fix this race by adding a pid_alive check for the selected process
+with tasklist_lock held in oom_kill_process.
 
->
-> Oleg.
->
+Change-Id: I62f9652a780863467a8174e18ea5e19bbcd78c31
+Signed-off-by: Sameer Nanda <snanda@chromium.org>
+---
+ mm/oom_kill.c | 42 +++++++++++++++++++++++++++++-------------
+ 1 file changed, 29 insertions(+), 13 deletions(-)
 
-
-
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 6738c47..5108c2b 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -412,31 +412,40 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+ 					      DEFAULT_RATELIMIT_BURST);
+ 
++	if (__ratelimit(&oom_rs))
++		dump_header(p, gfp_mask, order, memcg, nodemask);
++
++	task_lock(p);
++	pr_err("%s: Kill process %d (%s) score %d or sacrifice child\n",
++		message, task_pid_nr(p), p->comm, points);
++	task_unlock(p);
++
++	/*
++	 * while_each_thread is currently not RCU safe. Lets hold the
++	 * tasklist_lock across all invocations of while_each_thread (including
++	 * the one in find_lock_task_mm) in this function.
++	 */
++	read_lock(&tasklist_lock);
++
+ 	/*
+ 	 * If the task is already exiting, don't alarm the sysadmin or kill
+ 	 * its children or threads, just set TIF_MEMDIE so it can die quickly
+ 	 */
+-	if (p->flags & PF_EXITING) {
++	if (p->flags & PF_EXITING || !pid_alive(p)) {
++		pr_info("%s: Not killing process %d, just setting TIF_MEMDIE\n",
++			message, task_pid_nr(p));
+ 		set_tsk_thread_flag(p, TIF_MEMDIE);
+ 		put_task_struct(p);
++		read_unlock(&tasklist_lock);
+ 		return;
+ 	}
+ 
+-	if (__ratelimit(&oom_rs))
+-		dump_header(p, gfp_mask, order, memcg, nodemask);
+-
+-	task_lock(p);
+-	pr_err("%s: Kill process %d (%s) score %d or sacrifice child\n",
+-		message, task_pid_nr(p), p->comm, points);
+-	task_unlock(p);
+-
+ 	/*
+ 	 * If any of p's children has a different mm and is eligible for kill,
+ 	 * the one with the highest oom_badness() score is sacrificed for its
+ 	 * parent.  This attempts to lose the minimal amount of work done while
+ 	 * still freeing memory.
+ 	 */
+-	read_lock(&tasklist_lock);
+ 	do {
+ 		list_for_each_entry(child, &t->children, sibling) {
+ 			unsigned int child_points;
+@@ -456,12 +465,17 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 			}
+ 		}
+ 	} while_each_thread(p, t);
+-	read_unlock(&tasklist_lock);
+ 
+-	rcu_read_lock();
+ 	p = find_lock_task_mm(victim);
++
++	/*
++	 * Since while_each_thread is currently not RCU safe, this unlock of
++	 * tasklist_lock may need to be moved further down if any additional
++	 * while_each_thread loops get added to this function.
++	 */
++	read_unlock(&tasklist_lock);
++
+ 	if (!p) {
+-		rcu_read_unlock();
+ 		put_task_struct(victim);
+ 		return;
+ 	} else if (victim != p) {
+@@ -478,6 +492,8 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 		K(get_mm_counter(victim->mm, MM_FILEPAGES)));
+ 	task_unlock(victim);
+ 
++	rcu_read_lock();
++
+ 	/*
+ 	 * Kill all user processes sharing victim->mm in other thread groups, if
+ 	 * any.  They don't get access to memory reserves, though, to avoid
 -- 
-Sameer
+1.8.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
