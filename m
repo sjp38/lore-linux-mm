@@ -1,110 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 0610D6B0104
-	for <linux-mm@kvack.org>; Mon, 11 Nov 2013 19:22:34 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id y10so5860093pdj.24
-        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 16:22:34 -0800 (PST)
-Received: from psmtp.com ([74.125.245.105])
-        by mx.google.com with SMTP id p2si17339902pbe.248.2013.11.11.16.22.32
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 313216B00E9
+	for <linux-mm@kvack.org>; Mon, 11 Nov 2013 20:23:07 -0500 (EST)
+Received: by mail-pb0-f54.google.com with SMTP id ro12so2925098pbb.27
+        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 17:23:06 -0800 (PST)
+Received: from psmtp.com ([74.125.245.128])
+        by mx.google.com with SMTP id bf6si6370012pad.77.2013.11.11.17.23.04
         for <linux-mm@kvack.org>;
-        Mon, 11 Nov 2013 16:22:33 -0800 (PST)
-Received: by mail-oa0-f73.google.com with SMTP id g12so858299oah.2
-        for <linux-mm@kvack.org>; Mon, 11 Nov 2013 16:22:31 -0800 (PST)
-From: Sameer Nanda <snanda@chromium.org>
-Subject: [PATCH v4] mm, oom: Fix race when selecting process to kill
-Date: Mon, 11 Nov 2013 16:21:57 -0800
-Message-Id: <1384215717-2389-1-git-send-email-snanda@chromium.org>
-In-Reply-To: <20131109151639.GB14249@redhat.com>
-References: <20131109151639.GB14249@redhat.com>
+        Mon, 11 Nov 2013 17:23:05 -0800 (PST)
+Message-ID: <528182F6.4070308@codeaurora.org>
+Date: Mon, 11 Nov 2013 17:23:02 -0800
+From: Laura Abbott <lauraa@codeaurora.org>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH 3/4] mm/vmalloc.c: Allow lowmem to be tracked in vmalloc
+References: <1384212412-21236-1-git-send-email-lauraa@codeaurora.org> <1384212412-21236-4-git-send-email-lauraa@codeaurora.org> <CAH9JG2Uh7PBEqRGPe5H6H+n1cnqwLFrFfB9aUOee8myG27DoiA@mail.gmail.com>
+In-Reply-To: <CAH9JG2Uh7PBEqRGPe5H6H+n1cnqwLFrFfB9aUOee8myG27DoiA@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.cz, rientjes@google.com, hannes@cmpxchg.org, rusty@rustcorp.com.au, semenzato@google.com, murzin.v@gmail.com, oleg@redhat.com, dserrg@gmail.com, msb@chromium.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sameer Nanda <snanda@chromium.org>
+To: Kyungmin Park <kmpark@infradead.org>
+Cc: linux-mm@kvack.org, Neeti Desai <neetid@codeaurora.org>, linux-arm-kernel@lists.infradead.org
 
-The selection of the process to be killed happens in two spots:
-first in select_bad_process and then a further refinement by
-looking for child processes in oom_kill_process. Since this is
-a two step process, it is possible that the process selected by
-select_bad_process may get a SIGKILL just before oom_kill_process
-executes. If this were to happen, __unhash_process deletes this
-process from the thread_group list. This results in oom_kill_process
-getting stuck in an infinite loop when traversing the thread_group
-list of the selected process.
+On 11/11/2013 3:37 PM, Kyungmin Park wrote:
+> Hi Laura,
+>
+> On Tue, Nov 12, 2013 at 8:26 AM, Laura Abbott <lauraa@codeaurora.org> wrote:
+>> vmalloc is currently assumed to be a completely separate address space
+>> from the lowmem region. While this may be true in the general case,
+>> there are some instances where lowmem and virtual space intermixing
+>> provides gains. One example is needing to steal a large chunk of physical
+>> lowmem for another purpose outside the systems usage. Rather than
+>> waste the precious lowmem space on a 32-bit system, we can allow the
+>> virtual holes created by the physical holes to be used by vmalloc
+>> for virtual addressing. Track lowmem allocations in vmalloc to
+>> allow mixing of lowmem and vmalloc.
+>>
+>> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
+>> Signed-off-by: Neeti Desai <neetid@codeaurora.org>
+>> ---
+>>   include/linux/mm.h      |    6 ++++++
+>>   include/linux/vmalloc.h |    1 +
+>>   mm/Kconfig              |   11 +++++++++++
+>>   mm/vmalloc.c            |   26 ++++++++++++++++++++++++++
+>>   4 files changed, 44 insertions(+), 0 deletions(-)
+>>
+>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>> index f022460..76df50d 100644
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -308,6 +308,10 @@ unsigned long vmalloc_to_pfn(const void *addr);
+>>    * On nommu, vmalloc/vfree wrap through kmalloc/kfree directly, so there
+>>    * is no special casing required.
+>>    */
+>> +
+>> +#ifdef CONFIG_VMALLOC_SAVING
+> mismatch below Kconfig. CONFIG_ENABLE_VMALLOC_SAVING?
 
-Fix this race by adding a pid_alive check for the selected process
-with tasklist_lock held in oom_kill_process.
+Argh, I folded in a wrong patch when integrating. I'll fix it.
 
-Signed-off-by: Sameer Nanda <snanda@chromium.org>
----
- mm/oom_kill.c | 24 +++++++++++++++++++-----
- 1 file changed, 19 insertions(+), 5 deletions(-)
+>> +extern int is_vmalloc_addr(const void *x)
+>> +#else
+>>   static inline int is_vmalloc_addr(const void *x)
+>>   {
+>>   #ifdef CONFIG_MMU
+>> @@ -318,6 +322,8 @@ static inline int is_vmalloc_addr(const void *x)
+>>          return 0;
+>>   #endif
+>>   }
+>> +#endif
+>> +
+>>   #ifdef CONFIG_MMU
+>>   extern int is_vmalloc_or_module_addr(const void *x);
+>>   #else
+>> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+>> index 4b8a891..e0c8c49 100644
+>> --- a/include/linux/vmalloc.h
+>> +++ b/include/linux/vmalloc.h
+>> @@ -16,6 +16,7 @@ struct vm_area_struct;                /* vma defining user mapping in mm_types.h */
+>>   #define VM_USERMAP             0x00000008      /* suitable for remap_vmalloc_range */
+>>   #define VM_VPAGES              0x00000010      /* buffer for pages was vmalloc'ed */
+>>   #define VM_UNINITIALIZED       0x00000020      /* vm_struct is not fully initialized */
+>> +#define VM_LOWMEM              0x00000040      /* Tracking of direct mapped lowmem */
+>>   /* bits [20..32] reserved for arch specific ioremap internals */
+>>
+>>   /*
+>> diff --git a/mm/Kconfig b/mm/Kconfig
+>> index 8028dcc..b3c459d 100644
+>> --- a/mm/Kconfig
+>> +++ b/mm/Kconfig
+>> @@ -519,3 +519,14 @@ config MEM_SOFT_DIRTY
+>>            it can be cleared by hands.
+>>
+>>            See Documentation/vm/soft-dirty.txt for more details.
+>> +
+>> +config ENABLE_VMALLOC_SAVING
+>> +       bool "Intermix lowmem and vmalloc virtual space"
+>> +       depends on ARCH_TRACKS_VMALLOC
+>> +       help
+>> +         Some memory layouts on embedded systems steal large amounts
+>> +         of lowmem physical memory for purposes outside of the kernel.
+>> +         Rather than waste the physical and virtual space, allow the
+>> +         kernel to use the virtual space as vmalloc space.
+>> +
+>> +         If unsure, say N.
+>> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+>> index 13a5495..c7b138b 100644
+>> --- a/mm/vmalloc.c
+>> +++ b/mm/vmalloc.c
+>> @@ -204,6 +204,29 @@ static int vmap_page_range(unsigned long start, unsigned long end,
+>>          return ret;
+>>   }
+>>
+>> +#ifdef ENABLE_VMALLOC_SAVING
+> missing "CONFIG_"
+>
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 6738c47..57638ef 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -413,12 +413,20 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 					      DEFAULT_RATELIMIT_BURST);
- 
- 	/*
-+	 * while_each_thread is currently not RCU safe. Lets hold the
-+	 * tasklist_lock across all invocations of while_each_thread (including
-+	 * the one in find_lock_task_mm) in this function.
-+	 */
-+	read_lock(&tasklist_lock);
-+
-+	/*
- 	 * If the task is already exiting, don't alarm the sysadmin or kill
- 	 * its children or threads, just set TIF_MEMDIE so it can die quickly
- 	 */
--	if (p->flags & PF_EXITING) {
-+	if (p->flags & PF_EXITING || !pid_alive(p)) {
- 		set_tsk_thread_flag(p, TIF_MEMDIE);
- 		put_task_struct(p);
-+		read_unlock(&tasklist_lock);
- 		return;
- 	}
- 
-@@ -436,7 +444,6 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 	 * parent.  This attempts to lose the minimal amount of work done while
- 	 * still freeing memory.
- 	 */
--	read_lock(&tasklist_lock);
- 	do {
- 		list_for_each_entry(child, &t->children, sibling) {
- 			unsigned int child_points;
-@@ -456,12 +463,17 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 			}
- 		}
- 	} while_each_thread(p, t);
--	read_unlock(&tasklist_lock);
- 
--	rcu_read_lock();
- 	p = find_lock_task_mm(victim);
-+
-+	/*
-+	 * Since while_each_thread is currently not RCU safe, this unlock of
-+	 * tasklist_lock may need to be moved further down if any additional
-+	 * while_each_thread loops get added to this function.
-+	 */
-+	read_unlock(&tasklist_lock);
-+
- 	if (!p) {
--		rcu_read_unlock();
- 		put_task_struct(victim);
- 		return;
- 	} else if (victim != p) {
-@@ -478,6 +490,8 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 		K(get_mm_counter(victim->mm, MM_FILEPAGES)));
- 	task_unlock(victim);
- 
-+	rcu_read_lock();
-+
- 	/*
- 	 * Kill all user processes sharing victim->mm in other thread groups, if
- 	 * any.  They don't get access to memory reserves, though, to avoid
+Yes, this is a mess and needs to be cleaned up.
+
+> Thank you,
+> Kyungimn Park
+
+Thanks,
+Laura
+
 -- 
-1.8.4.1
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
