@@ -1,58 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id D88496B0106
-	for <linux-mm@kvack.org>; Tue, 12 Nov 2013 04:11:33 -0500 (EST)
-Received: by mail-pb0-f50.google.com with SMTP id xb12so2548153pbc.23
-        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 01:11:33 -0800 (PST)
-Received: from psmtp.com ([74.125.245.119])
-        by mx.google.com with SMTP id gn4si18752580pbc.351.2013.11.12.01.11.31
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 55B9A6B00EF
+	for <linux-mm@kvack.org>; Tue, 12 Nov 2013 05:30:53 -0500 (EST)
+Received: by mail-pb0-f46.google.com with SMTP id un15so6718994pbc.5
+        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 02:30:52 -0800 (PST)
+Received: from psmtp.com ([74.125.245.123])
+        by mx.google.com with SMTP id je1si19061066pbb.30.2013.11.12.02.30.50
         for <linux-mm@kvack.org>;
-        Tue, 12 Nov 2013 01:11:32 -0800 (PST)
-Message-ID: <5281F0B4.8060902@oracle.com>
-Date: Tue, 12 Nov 2013 17:11:16 +0800
-From: Bob Liu <bob.liu@oracle.com>
+        Tue, 12 Nov 2013 02:30:51 -0800 (PST)
+Received: by mail-vc0-f173.google.com with SMTP id lh4so4079875vcb.18
+        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 02:30:49 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: mm/zswap: change to writethrough
-References: <CALZtONAxsYxLizARV3Aam_n7534g5gh_FFkTz6jb-0Q9gThuBQ@mail.gmail.com>
-In-Reply-To: <CALZtONAxsYxLizARV3Aam_n7534g5gh_FFkTz6jb-0Q9gThuBQ@mail.gmail.com>
+In-Reply-To: <1381441622-26215-1-git-send-email-hannes@cmpxchg.org>
+References: <1381441622-26215-1-git-send-email-hannes@cmpxchg.org>
+Date: Tue, 12 Nov 2013 18:30:49 +0800
+Message-ID: <CAA_GA1df0sbaBvTPjfPB0Pqyc=KtFq98Qsg=r7NPRn5z=Qsw2g@mail.gmail.com>
+Subject: Re: [patch 0/8] mm: thrash detection-based file cache sizing v5
+From: Bob Liu <lliubbo@gmail.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: sjennings@variantweb.net, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, minchan@kernel.org, weijie.yang@samsung.com, k.kozlowski@samsung.com, konrad.wilk@oracle.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, Vlastimil Babka <vbabka@suse.cz>, Tejun Heo <tj@kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Linux-Kernel <linux-kernel@vger.kernel.org>
 
+Hi Johannes,
 
-On 11/12/2013 03:12 AM, Dan Streetman wrote:
-> Seth, have you (or anyone else) considered making zswap a writethrough
-> cache instead of writeback?  I think that it would significantly help
-> the case where zswap fills up and starts writing back its oldest pages
-> to disc - all the decompression work would be avoided since zswap
-> could just evict old pages and forget about them, and it seems likely
-> that when zswap is full that's probably the worst time to add extra
-> work/delay, while adding extra disc IO (presumably using dma) before
-> zswap is full doesn't seem to me like it would have much impact,
-> except in the case where zswap isn't full but there is so little free
-> memory that new allocs are waiting on swap-out.
-> 
-> Besides the additional disc IO that obviously comes with making zswap
-> writethrough (additional only before zswap fills up), are there any
-> other disadvantages?  Is it a common situation for there to be no
-> memory left and get_free_page actively waiting on swap-out, but before
-> zswap fills up?
-> 
-> Making it writethrough also could open up other possible improvements,
-> like making the compression and storage of new swap-out pages async,
-> so the compression doesn't delay the write out to disc.
-> 
+On Fri, Oct 11, 2013 at 5:46 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+>         Future
+>
+> Right now we have a fixed ratio (50:50) between inactive and active
+> list but we already have complaints about working sets exceeding half
+> of memory being pushed out of the cache by simple used-once streaming
+> in the background.  Ultimately, we want to adjust this ratio and allow
+> for a much smaller inactive list.  These patches are an essential step
+> in this direction because they decouple the VMs ability to detect
+> working set changes from the inactive list size.  This would allow us
+> to base the inactive list size on something more sensible, like the
+> combined readahead window size for example.
+>
 
-I like this idea and those benefits, the only question I'm not sure is
-would it be too complicate to implement this feature? It sounds like we
-need to reimplement something like swapcache to handle zswap write through.
+I found that this patchset have the similar purpose as
+Zcache(http://lwn.net/Articles/562254/) in some way.
+
+Zcache uses the cleancache API to compress clean file pages so as to
+keep them in memory, and only pages which used to in active file pages
+are considered. Through Zcache we can hold more active pages in memory
+and won't be effected by streaming workload.
+
+Perhaps you can take a look at the way of zcache, your workloads are
+very likely to benefit from it.
+And zcache don't need so many changes to core VM/VFS subsystem because
+it's based on cleancache API. I think it's more acceptable.
 
 -- 
 Regards,
--Bob
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
