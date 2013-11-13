@@ -1,180 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 04AC66B00A2
-	for <linux-mm@kvack.org>; Wed, 13 Nov 2013 11:47:00 -0500 (EST)
-Received: by mail-pd0-f171.google.com with SMTP id z10so645669pdj.30
-        for <linux-mm@kvack.org>; Wed, 13 Nov 2013 08:47:00 -0800 (PST)
-Received: from psmtp.com ([74.125.245.167])
-        by mx.google.com with SMTP id gn4si24188847pbc.51.2013.11.13.08.46.57
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id DD0A46B007D
+	for <linux-mm@kvack.org>; Wed, 13 Nov 2013 12:08:18 -0500 (EST)
+Received: by mail-pd0-f172.google.com with SMTP id q10so681167pdj.17
+        for <linux-mm@kvack.org>; Wed, 13 Nov 2013 09:08:18 -0800 (PST)
+Received: from psmtp.com ([74.125.245.145])
+        by mx.google.com with SMTP id gl1si24589864pac.227.2013.11.13.09.08.16
         for <linux-mm@kvack.org>;
-        Wed, 13 Nov 2013 08:46:58 -0800 (PST)
-Received: by mail-we0-f179.google.com with SMTP id x55so710251wes.10
-        for <linux-mm@kvack.org>; Wed, 13 Nov 2013 08:46:55 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.02.1311121829220.29891@chino.kir.corp.google.com>
-References: <CANMivWZFXYGB_95WqToKEUyMsKMS2nQ4p5a_-Lte-=bhCC5u2g@mail.gmail.com>
- <1384287812-3694-1-git-send-email-snanda@chromium.org> <alpine.DEB.2.02.1311121829220.29891@chino.kir.corp.google.com>
-From: Sameer Nanda <snanda@chromium.org>
-Date: Wed, 13 Nov 2013 08:46:35 -0800
-Message-ID: <CANMivWaXE=bn4fhvGdz3cPwN+CZpWwrWqmU1BKX8o+vE2JawOw@mail.gmail.com>
-Subject: Re: [PATCH v5] mm, oom: Fix race when selecting process to kill
-Content-Type: text/plain; charset=UTF-8
+        Wed, 13 Nov 2013 09:08:17 -0800 (PST)
+Message-ID: <1384362490.2527.20.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH] mm: cache largest vma
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Wed, 13 Nov 2013 09:08:10 -0800
+In-Reply-To: <1384202848.6940.59.camel@buesod1.americas.hpqcorp.net>
+References: <1383337039.2653.18.camel@buesod1.americas.hpqcorp.net>
+	 <CA+55aFwrtOaFtwGc6xyZH6-1j3f--AG1JS-iZM8-pZPnwRHBow@mail.gmail.com>
+	 <1383537862.2373.14.camel@buesod1.americas.hpqcorp.net>
+	 <20131104073640.GF13030@gmail.com>
+	 <1384143129.6940.32.camel@buesod1.americas.hpqcorp.net>
+	 <CANN689Eauq+DHQrn8Wr=VU-PFGDOELz6HTabGDGERdDfeOK_UQ@mail.gmail.com>
+	 <20131111120421.GB21291@gmail.com>
+	 <1384202848.6940.59.camel@buesod1.americas.hpqcorp.net>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.cz, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, Luigi Semenzato <semenzato@google.com>, Vladimir Murzin <murzin.v@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Sergey Dyasly <dserrg@gmail.com>, "msb@chromium.org" <msb@chromium.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Michel Lespinasse <walken@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, "Chandramouleeswaran, Aswin" <aswin@hp.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Tue, Nov 12, 2013 at 6:33 PM, David Rientjes <rientjes@google.com> wrote:
-> On Tue, 12 Nov 2013, Sameer Nanda wrote:
->
->> The selection of the process to be killed happens in two spots:
->> first in select_bad_process and then a further refinement by
->> looking for child processes in oom_kill_process. Since this is
->> a two step process, it is possible that the process selected by
->> select_bad_process may get a SIGKILL just before oom_kill_process
->> executes. If this were to happen, __unhash_process deletes this
->> process from the thread_group list. This results in oom_kill_process
->> getting stuck in an infinite loop when traversing the thread_group
->> list of the selected process.
->>
->> Fix this race by adding a pid_alive check for the selected process
->> with tasklist_lock held in oom_kill_process.
->>
->> Change-Id: I62f9652a780863467a8174e18ea5e19bbcd78c31
->
-> Is this needed?
+On Mon, 2013-11-11 at 12:47 -0800, Davidlohr Bueso wrote:
+> On Mon, 2013-11-11 at 13:04 +0100, Ingo Molnar wrote:
+> > * Michel Lespinasse <walken@google.com> wrote:
+> > 
+> > > On Sun, Nov 10, 2013 at 8:12 PM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+> > > > 2) Oracle Data mining (4K pages)
+> > > > +------------------------+----------+------------------+---------+
+> > > > |    mmap_cache type     | hit-rate | cycles (billion) | stddev  |
+> > > > +------------------------+----------+------------------+---------+
+> > > > | no mmap_cache          | -        | 63.35            | 0.20207 |
+> > > > | current mmap_cache     | 65.66%   | 19.55            | 0.35019 |
+> > > > | mmap_cache+largest VMA | 71.53%   | 15.84            | 0.26764 |
+> > > > | 4 element hash table   | 70.75%   | 15.90            | 0.25586 |
+> > > > | per-thread mmap_cache  | 86.42%   | 11.57            | 0.29462 |
+> > > > +------------------------+----------+------------------+---------+
+> > > >
+> > > > This workload sure makes the point of how much we can benefit of 
+> > > > caching the vma, otherwise find_vma() can cost more than 220% extra 
+> > > > cycles. We clearly win here by having a per-thread cache instead of 
+> > > > per address space. I also tried the same workload with 2Mb hugepages 
+> > > > and the results are much more closer to the kernel build, but with the 
+> > > > per-thread vma still winning over the rest of the alternatives.
+> > > >
+> > > > All in all I think that we should probably have a per-thread vma 
+> > > > cache. Please let me know if there is some other workload you'd like 
+> > > > me to try out. If folks agree then I can cleanup the patch and send it 
+> > > > out.
+> > > 
+> > > Per thread cache sounds interesting - with per-mm caches there is a real 
+> > > risk that some modern threaded apps pay the cost of cache updates 
+> > > without seeing much of the benefit. However, how do you cheaply handle 
+> > > invalidations for the per thread cache ?
+> > 
+> > The cheapest way to handle that would be to have a generation counter for 
+> > the mm and to couple cache validity to a specific value of that. 
+> > 'Invalidation' is then the free side effect of bumping the generation 
+> > counter when a vma is removed/moved.
 
-No, it's not.  It's a side effect of using Chrome OS tools to manage
-the patches.  I will make sure to remove it on the next version of the
-patch.
+Wouldn't this approach make us invalidate all vmas even when we just
+want to do it for one? I mean we have no way of associating a single vma
+with an mm->mmap_seqnum, or am I missing something?
 
->
->> Signed-off-by: Sameer Nanda <snanda@chromium.org>
->> ---
->>  mm/oom_kill.c | 42 +++++++++++++++++++++++++++++-------------
->>  1 file changed, 29 insertions(+), 13 deletions(-)
->>
->> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
->> index 6738c47..5108c2b 100644
->> --- a/mm/oom_kill.c
->> +++ b/mm/oom_kill.c
->> @@ -412,31 +412,40 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
->>       static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
->>                                             DEFAULT_RATELIMIT_BURST);
->>
->> +     if (__ratelimit(&oom_rs))
->> +             dump_header(p, gfp_mask, order, memcg, nodemask);
->> +
->> +     task_lock(p);
->> +     pr_err("%s: Kill process %d (%s) score %d or sacrifice child\n",
->> +             message, task_pid_nr(p), p->comm, points);
->> +     task_unlock(p);
->> +
->> +     /*
->> +      * while_each_thread is currently not RCU safe. Lets hold the
->> +      * tasklist_lock across all invocations of while_each_thread (including
->> +      * the one in find_lock_task_mm) in this function.
->> +      */
->> +     read_lock(&tasklist_lock);
->> +
->>       /*
->>        * If the task is already exiting, don't alarm the sysadmin or kill
->>        * its children or threads, just set TIF_MEMDIE so it can die quickly
->>        */
->> -     if (p->flags & PF_EXITING) {
->> +     if (p->flags & PF_EXITING || !pid_alive(p)) {
->> +             pr_info("%s: Not killing process %d, just setting TIF_MEMDIE\n",
->> +                     message, task_pid_nr(p));
->
-> That makes no sense in the kernel log to have
->
->         Out of Memory: Kill process 1234 (comm) score 50 or sacrifice child
->         Out of Memory: Not killing process 1234, just setting TIF_MEMDIE
->
-> Those are contradictory statements (and will actually mess with kernel log
-> parsing at Google) and nobody other than kernel developers are going to
-> know what TIF_MEMDIE is.
+> 
+> I was basing the invalidations on the freeing of vm_area_cachep, so I
+> mark current->mmap_cache = NULL whenever we call
+> kmem_cache_free(vm_area_cachep, ...). But I can see this being a problem
+> if more than one task's mmap_cache points to the same vma, as we end up
+> invalidating only one. I'd really like to use a similar logic and base
+> everything around the existence of the vma instead of adding a counting
+> infrastructure. Sure we'd end up doing more reads when we do the lookup
+> in find_vma() but the cost of maintaining it comes free. I just ran into
+> a similar idea from 2 years ago:
+> http://lkml.indiana.edu/hypermail/linux/kernel/1112.1/01352.html
+> 
+> While there are several things that aren't needed, it does do the
+> is_kmem_cache() to verify that the vma is still a valid slab.
 
-Since the "Kill process" printk has now moved above the (p->flags &
-PF_EXITING || !pid_alive(p)) check, it is possible that
-oom_kill_process will emit the "Kill process" message but will not
-actually try to kill the process or its child.  The new "Not killing
-process" printk helps disambiguate this case from when a process is
-actually killed by oom_kill_process.  However, since you are finding
-it confusing, let me remove it.
+Doing invalidations this way is definitely not the way to go. While our
+hit rate does match my previous attempt, the cost of checking the slab
+ends up costing an extra 25% more of cycles than what we currently have.
 
->
->>               set_tsk_thread_flag(p, TIF_MEMDIE);
->>               put_task_struct(p);
->> +             read_unlock(&tasklist_lock);
->>               return;
->>       }
->>
->> -     if (__ratelimit(&oom_rs))
->> -             dump_header(p, gfp_mask, order, memcg, nodemask);
->> -
->> -     task_lock(p);
->> -     pr_err("%s: Kill process %d (%s) score %d or sacrifice child\n",
->> -             message, task_pid_nr(p), p->comm, points);
->> -     task_unlock(p);
->> -
->>       /*
->>        * If any of p's children has a different mm and is eligible for kill,
->>        * the one with the highest oom_badness() score is sacrificed for its
->>        * parent.  This attempts to lose the minimal amount of work done while
->>        * still freeing memory.
->>        */
->> -     read_lock(&tasklist_lock);
->>       do {
->>               list_for_each_entry(child, &t->children, sibling) {
->>                       unsigned int child_points;
->> @@ -456,12 +465,17 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
->>                       }
->>               }
->>       } while_each_thread(p, t);
->> -     read_unlock(&tasklist_lock);
->>
->> -     rcu_read_lock();
->>       p = find_lock_task_mm(victim);
->> +
->> +     /*
->> +      * Since while_each_thread is currently not RCU safe, this unlock of
->> +      * tasklist_lock may need to be moved further down if any additional
->> +      * while_each_thread loops get added to this function.
->> +      */
->
-> This comment should be moved to sched.h to indicate how
-> while_each_thread() needs to be handled with respect to tasklist_lock,
-> it's not specific to the oom killer.
-
-OK.
->
->> +     read_unlock(&tasklist_lock);
->> +
->>       if (!p) {
->> -             rcu_read_unlock();
->>               put_task_struct(victim);
->>               return;
->>       } else if (victim != p) {
->> @@ -478,6 +492,8 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
->>               K(get_mm_counter(victim->mm, MM_FILEPAGES)));
->>       task_unlock(victim);
->>
->> +     rcu_read_lock();
->> +
->>       /*
->>        * Kill all user processes sharing victim->mm in other thread groups, if
->>        * any.  They don't get access to memory reserves, though, to avoid
->
-> Please move this rcu_read_lock() to be immediatley before the
-> for_each_process() instead of before the comment.
-
-OK.
-
-
-
--- 
-Sameer
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
