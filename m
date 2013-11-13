@@ -1,70 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A8D16B009A
-	for <linux-mm@kvack.org>; Wed, 13 Nov 2013 14:21:02 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id kx10so111780pab.29
-        for <linux-mm@kvack.org>; Wed, 13 Nov 2013 11:21:01 -0800 (PST)
-Received: from psmtp.com ([74.125.245.175])
-        by mx.google.com with SMTP id cx4si24612659pbc.299.2013.11.13.11.20.59
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 18C616B003B
+	for <linux-mm@kvack.org>; Wed, 13 Nov 2013 17:43:59 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id lj1so1129244pab.13
+        for <linux-mm@kvack.org>; Wed, 13 Nov 2013 14:43:58 -0800 (PST)
+Received: from psmtp.com ([74.125.245.206])
+        by mx.google.com with SMTP id g10si272759pao.279.2013.11.13.14.19.06
         for <linux-mm@kvack.org>;
-        Wed, 13 Nov 2013 11:21:00 -0800 (PST)
-Received: by mail-oa0-f47.google.com with SMTP id i7so1018601oag.34
-        for <linux-mm@kvack.org>; Wed, 13 Nov 2013 11:20:58 -0800 (PST)
+        Wed, 13 Nov 2013 14:19:07 -0800 (PST)
+Received: by mail-pd0-f182.google.com with SMTP id y13so1037555pdi.41
+        for <linux-mm@kvack.org>; Wed, 13 Nov 2013 14:19:05 -0800 (PST)
+Date: Wed, 13 Nov 2013 14:19:00 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, memcg: add memory.oom_control notification for system
+ oom
+In-Reply-To: <20131031054942.GA26301@cmpxchg.org>
+Message-ID: <alpine.DEB.2.02.1311131416460.23211@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com> <20131031054942.GA26301@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.02.1311121811310.29891@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1311121811310.29891@chino.kir.corp.google.com>
-Date: Wed, 13 Nov 2013 11:20:58 -0800
-Message-ID: <CAGXu5jKXuATW-Yy_C+5Cz7NPAKxW7VO_b=OzdXKvjGurG6BCGw@mail.gmail.com>
-Subject: Re: [patch -mm] mm, mempolicy: silence gcc warning
-From: Kees Cook <keescook@chromium.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Tue, Nov 12, 2013 at 6:12 PM, David Rientjes <rientjes@google.com> wrote:
-> Fengguang Wu reports that compiling mm/mempolicy.c results in a warning:
->
->         mm/mempolicy.c: In function 'mpol_to_str':
->         mm/mempolicy.c:2878:2: error: format not a string literal and no format arguments
->
-> Kees says this is because he is using -Wformat-security.
->
-> Silence the warning.
->
-> Reported-by: Fengguang Wu <fengguang.wu@intel.com>
-> Suggested-by: Kees Cook <keescook@chromium.org>
-> Signed-off-by: David Rientjes <rientjes@google.com>
+On Thu, 31 Oct 2013, Johannes Weiner wrote:
 
-Thanks for helping silence my -Wformat-security warning checks. :)
+> > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> > --- a/include/linux/memcontrol.h
+> > +++ b/include/linux/memcontrol.h
+> > @@ -155,6 +155,7 @@ static inline bool task_in_memcg_oom(struct task_struct *p)
+> >  }
+> >  
+> >  bool mem_cgroup_oom_synchronize(bool wait);
+> > +void mem_cgroup_root_oom_notify(void);
+> >  
+> >  #ifdef CONFIG_MEMCG_SWAP
+> >  extern int do_swap_account;
+> > @@ -397,6 +398,10 @@ static inline bool mem_cgroup_oom_synchronize(bool wait)
+> >  	return false;
+> >  }
+> >  
+> > +static inline void mem_cgroup_root_oom_notify(void)
+> > +{
+> > +}
+> > +
+> >  static inline void mem_cgroup_inc_page_stat(struct page *page,
+> >  					    enum mem_cgroup_stat_index idx)
+> >  {
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -5641,6 +5641,15 @@ static void mem_cgroup_oom_notify(struct mem_cgroup *memcg)
+> >  		mem_cgroup_oom_notify_cb(iter);
+> >  }
+> >  
+> > +/*
+> > + * Notify any process waiting on the root memcg's memory.oom_control, but do not
+> > + * notify any child memcgs to avoid triggering their per-memcg oom handlers.
+> > + */
+> > +void mem_cgroup_root_oom_notify(void)
+> > +{
+> > +	mem_cgroup_oom_notify_cb(root_mem_cgroup);
+> > +}
+> > +
+> >  static int mem_cgroup_usage_register_event(struct cgroup_subsys_state *css,
+> >  	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
+> >  {
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -632,6 +632,10 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+> >  		return;
+> >  	}
+> >  
+> > +	/* Avoid waking up processes for oom kills triggered by sysrq */
+> > +	if (!force_kill)
+> > +		mem_cgroup_root_oom_notify();
+> 
+> We have an API for global OOM notifications, please just use
+> register_oom_notifier() instead.
+> 
 
-Acked-by: Kees Cook <keescook@chromium.org>
-
--Kees
-
-> ---
->  mm/mempolicy.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -2950,7 +2950,7 @@ void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
->                 return;
->         }
->
-> -       p += snprintf(p, maxlen, policy_modes[mode]);
-> +       p += snprintf(p, maxlen, "%s", policy_modes[mode]);
->
->         if (flags & MPOL_MODE_FLAGS) {
->                 p += snprintf(p, buffer + maxlen - p, "=");
-
-
-
--- 
-Kees Cook
-Chrome OS Security
+We can't use register_oom_notifier() because we don't want to notify the 
+root memcg for a system oom handler if existing oom notifiers free memory 
+(powerpc or s390).  We also don't want to notify the root memcg when 
+current is exiting or has a pending SIGKILL, we just want to silently give 
+it access to memory reserves and exit.  The mem_cgroup_root_oom_notify() 
+here is placed correctly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
