@@ -1,70 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 2877F6B00AE
-	for <linux-mm@kvack.org>; Tue, 12 Nov 2013 17:27:45 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id z10so7508562pdj.5
-        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 14:27:44 -0800 (PST)
-Received: from psmtp.com ([74.125.245.113])
-        by mx.google.com with SMTP id ws5si21372951pab.296.2013.11.12.14.27.43
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 102146B00AA
+	for <linux-mm@kvack.org>; Tue, 12 Nov 2013 21:02:23 -0500 (EST)
+Received: by mail-pb0-f53.google.com with SMTP id ma3so169452pbc.40
+        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 18:02:23 -0800 (PST)
+Received: from psmtp.com ([74.125.245.117])
+        by mx.google.com with SMTP id ws5si1585337pab.35.2013.11.12.18.02.21
         for <linux-mm@kvack.org>;
-        Tue, 12 Nov 2013 14:27:43 -0800 (PST)
-From: Laura Abbott <lauraa@codeaurora.org>
-Subject: [RFC PATCHv2 4/4] mm/vmalloc.c: Treat the entire kernel virtual space as vmalloc
-Date: Tue, 12 Nov 2013 14:27:32 -0800
-Message-Id: <1384295252-31778-5-git-send-email-lauraa@codeaurora.org>
-In-Reply-To: <1384295252-31778-1-git-send-email-lauraa@codeaurora.org>
-References: <1384295252-31778-1-git-send-email-lauraa@codeaurora.org>
+        Tue, 12 Nov 2013 18:02:22 -0800 (PST)
+Received: by mail-pa0-f47.google.com with SMTP id ld10so3173000pab.20
+        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 18:02:20 -0800 (PST)
+Date: Tue, 12 Nov 2013 18:02:18 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, vmscan: abort futile reclaim if we've been oom killed
+Message-ID: <alpine.DEB.2.02.1311121801200.18803@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
-Cc: Kyungmin Park <kmpark@infradead.org>, Russell King <linux@arm.linux.org.uk>, Laura Abbott <lauraa@codeaurora.org>, Neeti Desai <neetid@codeaurora.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-With CONFIG_ENABLE_VMALLOC_SAVINGS, all lowmem is tracked in
-vmalloc. This means that all the kernel virtual address space
-can be treated as part of the vmalloc region. Allow vm areas
-to be allocated from the full kernel address range.
+The oom killer is only invoked when reclaim has already failed and it
+only kills processes if the victim is also oom.  In other words, the oom
+killer does not select victims when a process tries to allocate from a
+disjoint cpuset or allocate DMA memory, for example.
 
-Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
-Signed-off-by: Neeti Desai <neetid@codeaurora.org>
+Therefore, it's pointless for an oom killed process to continue
+attempting to reclaim memory in a loop when it has been granted access to
+memory reserves.  It can simply return to the page allocator and allocate
+memory.
+
+If there is a very large number of processes trying to reclaim memory,
+the cond_resched() in shrink_slab() becomes troublesome since it always
+forces a schedule to other processes also trying to reclaim memory.
+Compounded by many reclaim loops, it is possible for a process to sit in
+do_try_to_free_pages() for a very long time when reclaim is pointless and
+it could allocate if it just returned to the page allocator.
+
+This patch checks if current has been oom killed and, if so, aborts
+futile reclaim immediately.  We're not concerned with complete depletion
+of memory reserves since there's nothing else we can do.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- mm/vmalloc.c |   11 +++++++++++
- 1 files changed, 11 insertions(+), 0 deletions(-)
+ mm/vmscan.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 2ec9ac7..31644b6 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1394,16 +1394,27 @@ struct vm_struct *__get_vm_area_caller(unsigned long size, unsigned long flags,
-  */
- struct vm_struct *get_vm_area(unsigned long size, unsigned long flags)
- {
-+#ifdef CONFIG_ENABLE_VMALLOC_SAVING
-+	return __get_vm_area_node(size, 1, flags, PAGE_OFFSET, VMALLOC_END,
-+				  NUMA_NO_NODE, GFP_KERNEL,
-+				  __builtin_return_address(0));
-+#else
- 	return __get_vm_area_node(size, 1, flags, VMALLOC_START, VMALLOC_END,
- 				  NUMA_NO_NODE, GFP_KERNEL,
- 				  __builtin_return_address(0));
-+#endif
- }
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2428,6 +2428,14 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 			goto out;
  
- struct vm_struct *get_vm_area_caller(unsigned long size, unsigned long flags,
- 				const void *caller)
- {
-+#ifdef CONFIG_ENABLE_VMALLOC_SAVING
-+	return __get_vm_area_node(size, 1, flags, PAGE_OFFSET, VMALLOC_END,
-+				  NUMA_NO_NODE, GFP_KERNEL, caller);
-+#else
- 	return __get_vm_area_node(size, 1, flags, VMALLOC_START, VMALLOC_END,
- 				  NUMA_NO_NODE, GFP_KERNEL, caller);
-+#endif
- }
- 
- /**
--- 
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
-hosted by The Linux Foundation
+ 		/*
++		 * If we've been oom killed, reclaim has already failed.  We've
++		 * been given access to memory reserves so that we can allocate
++		 * and quickly die, so just abort futile efforts.
++		 */
++		if (unlikely(test_thread_flag(TIF_MEMDIE)))
++			aborted_reclaim = true;
++
++		/*
+ 		 * If we're getting trouble reclaiming, start doing
+ 		 * writepage even in laptop mode.
+ 		 */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
