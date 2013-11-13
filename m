@@ -1,45 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id D07446B00AE
-	for <linux-mm@kvack.org>; Tue, 12 Nov 2013 21:40:05 -0500 (EST)
-Received: by mail-pd0-f176.google.com with SMTP id r10so2484490pdi.35
-        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 18:40:05 -0800 (PST)
-Received: from psmtp.com ([74.125.245.169])
-        by mx.google.com with SMTP id bf6si10562740pad.77.2013.11.12.18.40.03
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 62E696B00A8
+	for <linux-mm@kvack.org>; Wed, 13 Nov 2013 00:04:42 -0500 (EST)
+Received: by mail-pd0-f172.google.com with SMTP id w10so7945653pde.31
+        for <linux-mm@kvack.org>; Tue, 12 Nov 2013 21:04:42 -0800 (PST)
+Received: from psmtp.com ([74.125.245.174])
+        by mx.google.com with SMTP id rz8si1330142pab.329.2013.11.12.21.04.39
         for <linux-mm@kvack.org>;
-        Tue, 12 Nov 2013 18:40:04 -0800 (PST)
-Date: Wed, 13 Nov 2013 11:42:52 +0900
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH] staging: zsmalloc: Ensure handle is never 0 on success
-Message-ID: <20131113024252.GA1023@kroah.com>
-References: <20131107070451.GA10645@bbox>
- <20131112154137.GA3330@gmail.com>
+        Tue, 12 Nov 2013 21:04:40 -0800 (PST)
+Message-ID: <528308E8.8040203@asianux.com>
+Date: Wed, 13 Nov 2013 13:06:48 +0800
+From: Chen Gang <gang.chen@asianux.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131112154137.GA3330@gmail.com>
+Subject: [PATCH] arch: um: kernel: skas: mmu: remove pmd_free() and pud_free()
+ for failure processing in init_stub_pte()
+References: <alpine.LNX.2.00.1310150330350.9078@eggly.anvils>
+In-Reply-To: <alpine.LNX.2.00.1310150330350.9078@eggly.anvils>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, lliubbo@gmail.com, jmarchan@redhat.com, mgorman@suse.de, riel@redhat.com, hughd@google.com, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Luigi Semenzato <semenzato@google.com>
+To: Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, uml-devel <user-mode-linux-devel@lists.sourceforge.net>, uml-user <user-mode-linux-user@lists.sourceforge.net>
 
-On Wed, Nov 13, 2013 at 12:41:38AM +0900, Minchan Kim wrote:
-> We spent much time with preventing zram enhance since it have been in staging
-> and Greg never want to improve without promotion.
+Unfortunately, p?d_alloc() and p?d_free() are not pair!! If p?d_alloc()
+succeed, they may be used, so in the next failure, we have to skip them
+to let exit_mmap() or do_munmap() to process it.
 
-It's not "improve", it's "Greg does not want you adding new features and
-functionality while the code is in staging."  I want you to spend your
-time on getting it out of staging first.
+According to "Documentation/vm/locking", 'mm->page_table_lock' is for
+using vma list, so not need it when its related vmas are detached or
+unmapped from using vma list.
 
-Now if something needs to be done based on review and comments to the
-code, then that's fine to do and I'll accept that, but I've been seeing
-new functionality be added to the code, which I will not accept because
-it seems that you all have given up on getting it merged, which isn't
-ok.
+The related work flow:
 
-thanks,
+  exit_mmap() ->
+    unmap_vmas(); /* so not need mm->page_table_lock */
+    free_pgtables();
 
-greg k-h
+  do_munmap()->
+    detach_vmas_to_be_unmapped(); /* so not need mm->page_table_lock */
+    unmap_region() ->
+      free_pgtables();
+
+  free_pgtables() ->
+    free_pgd_range() ->
+      free_pud_range() ->
+        free_pmd_range() ->
+          free_pte_range() ->
+            pmd_clear();
+            pte_free_tlb();
+          pud_clear();
+          pmd_free_tlb();
+        pgd_clear(); 
+        pud_free_tlb();
+
+
+Signed-off-by: Chen Gang <gang.chen@asianux.com>
+---
+ arch/um/kernel/skas/mmu.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/um/kernel/skas/mmu.c b/arch/um/kernel/skas/mmu.c
+index 007d550..3fd1951 100644
+--- a/arch/um/kernel/skas/mmu.c
++++ b/arch/um/kernel/skas/mmu.c
+@@ -40,9 +40,9 @@ static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
+ 	return 0;
+ 
+  out_pte:
+-	pmd_free(mm, pmd);
++	/* used by mm->pgd->pud, will free in do_munmap() or exit_mmap() */
+  out_pmd:
+-	pud_free(mm, pud);
++	/* used by mm->pgd, will free in do_munmap() or exit_mmap() */
+  out:
+ 	return -ENOMEM;
+ }
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
