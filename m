@@ -1,69 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 10D706B003D
-	for <linux-mm@kvack.org>; Thu, 14 Nov 2013 12:46:24 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so2409326pab.14
-        for <linux-mm@kvack.org>; Thu, 14 Nov 2013 09:46:24 -0800 (PST)
-Received: from psmtp.com ([74.125.245.126])
-        by mx.google.com with SMTP id xa2si874997pab.316.2013.11.14.09.46.21
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 109426B003B
+	for <linux-mm@kvack.org>; Thu, 14 Nov 2013 13:46:12 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id z10so809830pdj.2
+        for <linux-mm@kvack.org>; Thu, 14 Nov 2013 10:46:12 -0800 (PST)
+Received: from psmtp.com ([74.125.245.143])
+        by mx.google.com with SMTP id yg5si8173087pbc.296.2013.11.14.10.46.08
         for <linux-mm@kvack.org>;
-        Thu, 14 Nov 2013 09:46:22 -0800 (PST)
-Message-ID: <52850C37.1080506@sr71.net>
-Date: Thu, 14 Nov 2013 09:45:27 -0800
-From: Dave Hansen <dave@sr71.net>
+        Thu, 14 Nov 2013 10:46:09 -0800 (PST)
+Message-ID: <52851A56.1040709@zytor.com>
+Date: Thu, 14 Nov 2013 10:45:42 -0800
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 3/4] mm/vmalloc.c: Allow lowmem to be tracked in vmalloc
-References: <1384212412-21236-1-git-send-email-lauraa@codeaurora.org> <1384212412-21236-4-git-send-email-lauraa@codeaurora.org>
-In-Reply-To: <1384212412-21236-4-git-send-email-lauraa@codeaurora.org>
+Subject: Re: [PATCH 0/3] Early use of boot service memory
+References: <1384222558-38527-1-git-send-email-jerry.hoemann@hp.com>	<d73ccce9-6a0d-4470-bda3-f0c6eb96b5e4@email.android.com>	<20131113224503.GB25344@anatevka.fc.hp.com>	<52840206.5020006@zytor.com>	<20131113235708.GC25344@anatevka.fc.hp.com>	<CAOJsxLFkHQ6_f+=CMwfNLykh59TZH5VrWeVEDPCWPF1wiw7tjQ@mail.gmail.com>	<20131114180455.GA32212@anatevka.fc.hp.com> <CAOJsxLFWMi8DoFp+ufri7XoFO27v+2=0oksh8+NhM6P-OdkOwg@mail.gmail.com>
+In-Reply-To: <CAOJsxLFWMi8DoFp+ufri7XoFO27v+2=0oksh8+NhM6P-OdkOwg@mail.gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
-Cc: Neeti Desai <neetid@codeaurora.org>
+To: Pekka Enberg <penberg@kernel.org>, Jerry Hoemann <jerry.hoemann@hp.com>
+Cc: Rob Landley <rob@landley.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, x86 maintainers <x86@kernel.org>, Matt Fleming <matt.fleming@intel.com>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "list@ebiederm.org:DOCUMENTATION" <linux-doc@vger.kernel.org>, "list@ebiederm.org:MEMORY MANAGEMENT" <linux-mm@kvack.org>linux-doc@vger.kernel.org, linux-efi@vger.kernel.org, Vivek Goyal <vgoyal@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On 11/11/2013 03:26 PM, Laura Abbott wrote:
-> +config ENABLE_VMALLOC_SAVING
-> +	bool "Intermix lowmem and vmalloc virtual space"
-> +	depends on ARCH_TRACKS_VMALLOC
-> +	help
-> +	  Some memory layouts on embedded systems steal large amounts
-> +	  of lowmem physical memory for purposes outside of the kernel.
-> +	  Rather than waste the physical and virtual space, allow the
-> +	  kernel to use the virtual space as vmalloc space.
+On 11/14/2013 10:44 AM, Pekka Enberg wrote:
+> On Thu, Nov 14, 2013 at 8:04 PM,  <jerry.hoemann@hp.com> wrote:
+>> Making this issue a quirk will be a lot more practical.  Its a small, focused
+>> change whose implications are limited and more easily understood.
+> 
+> There's nothing practical with requiring users to pass a kernel option
+> to make kdump work.  It's a workaround, sure, but it's not a proper
+> fix.
 
-I really don't think this needs to be exposed with help text and so
-forth.   How about just defining a 'def_bool n' with some comments and
-let the architecture 'select' it?
+And once you have to do that anyway, you might as well just do the kdump
+load high...
 
-> +#ifdef ENABLE_VMALLOC_SAVING
-> +int is_vmalloc_addr(const void *x)
-> +{
-> +	struct rb_node *n;
-> +	struct vmap_area *va;
-> +	int ret = 0;
-> +
-> +	spin_lock(&vmap_area_lock);
-> +
-> +	for (n = rb_first(vmap_area_root); n; rb_next(n)) {
-> +		va = rb_entry(n, struct vmap_area, rb_node);
-> +		if (x >= va->va_start && x < va->va_end) {
-> +			ret = 1;
-> +			break;
-> +		}
-> +	}
-> +
-> +	spin_unlock(&vmap_area_lock);
-> +	return ret;
-> +}
-> +EXPORT_SYMBOL(is_vmalloc_addr);
-> +#endif
+	-hpa
 
-It's probably worth noting that this makes is_vmalloc_addr() a *LOT*
-more expensive than it was before.  There are a couple dozen of these in
-the tree in kinda weird places (ext4, netlink, tcp).  You didn't
-mention it here, but you probably want to at least make sure you're not
-adding a spinlock and a tree walk in some critical path.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
