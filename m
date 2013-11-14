@@ -1,121 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AE2D6B003C
-	for <linux-mm@kvack.org>; Wed, 13 Nov 2013 19:56:16 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id hz1so1262573pad.31
-        for <linux-mm@kvack.org>; Wed, 13 Nov 2013 16:56:15 -0800 (PST)
-Received: from psmtp.com ([74.125.245.132])
-        by mx.google.com with SMTP id v7si864021pbi.98.2013.11.13.16.56.13
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D72A6B0044
+	for <linux-mm@kvack.org>; Wed, 13 Nov 2013 21:54:28 -0500 (EST)
+Received: by mail-pd0-f174.google.com with SMTP id y10so1326049pdj.33
+        for <linux-mm@kvack.org>; Wed, 13 Nov 2013 18:54:28 -0800 (PST)
+Received: from psmtp.com ([74.125.245.184])
+        by mx.google.com with SMTP id n5si26139229pav.243.2013.11.13.18.54.26
         for <linux-mm@kvack.org>;
-        Wed, 13 Nov 2013 16:56:14 -0800 (PST)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so1270550pab.14
-        for <linux-mm@kvack.org>; Wed, 13 Nov 2013 16:56:11 -0800 (PST)
-Date: Wed, 13 Nov 2013 16:56:09 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, memcg: add memory.oom_control notification for system
- oom
-In-Reply-To: <20131113233419.GJ707@cmpxchg.org>
-Message-ID: <alpine.DEB.2.02.1311131649110.6735@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com> <20131031054942.GA26301@cmpxchg.org> <alpine.DEB.2.02.1311131416460.23211@chino.kir.corp.google.com> <20131113233419.GJ707@cmpxchg.org>
+        Wed, 13 Nov 2013 18:54:27 -0800 (PST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 375BC3EE1D9
+	for <linux-mm@kvack.org>; Thu, 14 Nov 2013 11:54:24 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 26A1445DE51
+	for <linux-mm@kvack.org>; Thu, 14 Nov 2013 11:54:24 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.nic.fujitsu.com [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 026D745DE4D
+	for <linux-mm@kvack.org>; Thu, 14 Nov 2013 11:54:24 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EAF1D1DB8032
+	for <linux-mm@kvack.org>; Thu, 14 Nov 2013 11:54:23 +0900 (JST)
+Received: from g01jpfmpwyt01.exch.g01.fujitsu.local (g01jpfmpwyt01.exch.g01.fujitsu.local [10.128.193.38])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 554D81DB803E
+	for <linux-mm@kvack.org>; Thu, 14 Nov 2013 11:54:23 +0900 (JST)
+Message-ID: <52843B0E.60600@jp.fujitsu.com>
+Date: Thu, 14 Nov 2013 11:53:02 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: [PATCH resend] mm: get rid of unnecessary pageblock scanning in setup_zone_migrate_reserve
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, kosaki.motohiro@gmail.com, mgorman@suse.de
 
-On Wed, 13 Nov 2013, Johannes Weiner wrote:
+I resend this patch.
+I added performance result into description of the patch.
 
-> > > > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> > > > --- a/include/linux/memcontrol.h
-> > > > +++ b/include/linux/memcontrol.h
-> > > > @@ -155,6 +155,7 @@ static inline bool task_in_memcg_oom(struct task_struct *p)
-> > > >  }
-> > > >  
-> > > >  bool mem_cgroup_oom_synchronize(bool wait);
-> > > > +void mem_cgroup_root_oom_notify(void);
-> > > >  
-> > > >  #ifdef CONFIG_MEMCG_SWAP
-> > > >  extern int do_swap_account;
-> > > > @@ -397,6 +398,10 @@ static inline bool mem_cgroup_oom_synchronize(bool wait)
-> > > >  	return false;
-> > > >  }
-> > > >  
-> > > > +static inline void mem_cgroup_root_oom_notify(void)
-> > > > +{
-> > > > +}
-> > > > +
-> > > >  static inline void mem_cgroup_inc_page_stat(struct page *page,
-> > > >  					    enum mem_cgroup_stat_index idx)
-> > > >  {
-> > > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > > --- a/mm/memcontrol.c
-> > > > +++ b/mm/memcontrol.c
-> > > > @@ -5641,6 +5641,15 @@ static void mem_cgroup_oom_notify(struct mem_cgroup *memcg)
-> > > >  		mem_cgroup_oom_notify_cb(iter);
-> > > >  }
-> > > >  
-> > > > +/*
-> > > > + * Notify any process waiting on the root memcg's memory.oom_control, but do not
-> > > > + * notify any child memcgs to avoid triggering their per-memcg oom handlers.
-> > > > + */
-> > > > +void mem_cgroup_root_oom_notify(void)
-> > > > +{
-> > > > +	mem_cgroup_oom_notify_cb(root_mem_cgroup);
-> > > > +}
-> > > > +
-> > > >  static int mem_cgroup_usage_register_event(struct cgroup_subsys_state *css,
-> > > >  	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
-> > > >  {
-> > > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > > > --- a/mm/oom_kill.c
-> > > > +++ b/mm/oom_kill.c
-> > > > @@ -632,6 +632,10 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
-> > > >  		return;
-> > > >  	}
-> > > >  
-> > > > +	/* Avoid waking up processes for oom kills triggered by sysrq */
-> > > > +	if (!force_kill)
-> > > > +		mem_cgroup_root_oom_notify();
-> > > 
-> > > We have an API for global OOM notifications, please just use
-> > > register_oom_notifier() instead.
-> > > 
-> > 
-> > We can't use register_oom_notifier() because we don't want to notify the 
-> > root memcg for a system oom handler if existing oom notifiers free memory 
-> > (powerpc or s390).  We also don't want to notify the root memcg when 
-> > current is exiting or has a pending SIGKILL, we just want to silently give 
-> > it access to memory reserves and exit.  The mem_cgroup_root_oom_notify() 
-> > here is placed correctly.
-> 
-> This is all handwaving.
+------------------------------------------------------------------
+Yasuaki Ishimatsu reported memory hot-add spent more than 5 _hours_
+on 9TB memory machine since onlining memory sections is too slow.
+And we found out setup_zone_migrate_reserve spnet >90% time.
 
-I'm defining the semantics of the system oom notification for the root 
-memcg.  Userspace oom handlers are not going to want to wakeup when a 
-kernel oom notifier is capable of freeing memory to prevent the oom killer 
-from doing anything at all or if current simply needs access to memory 
-reserves to make forward progress.  Userspace oom handlers want a wakeup 
-when a process must be killed to free memory, and thus this is correctly 
-placed.
+The problem is, setup_zone_migrate_reserve scan all pageblock
+unconditionally, but it is only necessary number of reserved block
+was reduced (i.e. memory hot remove).
+Moreover, maximum MIGRATE_RESERVE per zone are currently 2. It mean,
+number of reserved pageblock are almost always unchanged.
 
-> Somebody called out_of_memory() after they
-> failed reclaim, the machine is OOM.
+This patch adds zone->nr_migrate_reserve_block to maintain number
+of MIGRATE_RESERVE pageblock and it reduce an overhead of
+setup_zone_migrate_reserve dramatically. Following table shows
+time of onlining a memory section.
 
-While momentarily oom, the oom notifiers in powerpc and s390 have the 
-ability to free memory without requiring a kill.
+  Amount of memory     | 128GB | 192GB | 256GB|
+  ---------------------------------------------
+  linux-3.12           |  23.9 |  31.4 | 44.5 |
+  This patch           |   8.3 |   8.3 |  8.6 |
+  Mel's proposal patch |  10.9 |  19.2 | 31.3 |
+  ---------------------------------------------
+                                   (millisecond)
 
-> The fact that current is exiting
-> without requiring a kill is coincidental and irrelevant.  You want an
-> OOM notification, use the OOM notifiers, that's what they're for.
-> 
+  128GB : 4 nodes and each node has 32GB of memory
+  192GB : 6 nodes and each node has 32GB of memory
+  256GB : 8 nodes and each node has 32GB of memory
 
-I think you're misunderstanding the kernel oom notifiers, they exist 
-solely to free memory so that the oom killer actually doesn't have to kill 
-anything.  The fact that they use kernel notifiers is irrelevant and 
-userspace oom notification is separate.  Userspace is only going to want a 
-notification when the oom killer has to kill something, the EXACT same 
-semantics as the non-root-memcg memory.oom_control.
+  (*1) Mel proposed his idea by the following threads.
+       https://lkml.org/lkml/2013/10/30/272	
+
+Cc: Mel Gorman <mgorman@suse.de>
+Reported-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Tested-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ include/linux/mmzone.h |  6 ++++++
+ mm/page_alloc.c        | 13 +++++++++++++
+ 2 files changed, 19 insertions(+)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index bd791e4..67ab5fe 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -490,6 +490,12 @@ struct zone {
+ 	unsigned long		managed_pages;
+
+ 	/*
++	 * Number of MIGRATE_RESEVE page block. To maintain for just
++	 * optimization. Protected by zone->lock.
++	 */
++	int			nr_migrate_reserve_block;
++
++	/*
+ 	 * rarely used fields:
+ 	 */
+ 	const char		*name;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5a98836..da93109 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3908,6 +3908,7 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+ 	struct page *page;
+ 	unsigned long block_migratetype;
+ 	int reserve;
++	int old_reserve;
+
+ 	/*
+ 	 * Get the start pfn, end pfn and the number of blocks to reserve
+@@ -3929,6 +3930,12 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+ 	 * future allocation of hugepages at runtime.
+ 	 */
+ 	reserve = min(2, reserve);
++	old_reserve = zone->nr_migrate_reserve_block;
++
++	/* When memory hot-add, we almost always need to do nothing */
++	if (reserve == old_reserve)
++		return;
++	zone->nr_migrate_reserve_block = reserve;
+
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
+ 		if (!pfn_valid(pfn))
+@@ -3966,6 +3973,12 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+ 				reserve--;
+ 				continue;
+ 			}
++		} else if (!old_reserve) {
++			/*
++			 * When boot time, we don't need scan whole zone
++			 * for turning off MIGRATE_RESERVE.
++			 */
++			break;
+ 		}
+
+ 		/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
