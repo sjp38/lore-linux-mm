@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 753C76B0037
-	for <linux-mm@kvack.org>; Thu, 14 Nov 2013 18:26:57 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id kx10so2013914pab.15
-        for <linux-mm@kvack.org>; Thu, 14 Nov 2013 15:26:57 -0800 (PST)
-Received: from psmtp.com ([74.125.245.197])
-        by mx.google.com with SMTP id yk3si94817pac.186.2013.11.14.15.26.55
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 330F86B0038
+	for <linux-mm@kvack.org>; Thu, 14 Nov 2013 18:27:03 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id w10so559107pde.34
+        for <linux-mm@kvack.org>; Thu, 14 Nov 2013 15:27:02 -0800 (PST)
+Received: from psmtp.com ([74.125.245.192])
+        by mx.google.com with SMTP id v7si107008pbi.128.2013.11.14.15.27.00
         for <linux-mm@kvack.org>;
-        Thu, 14 Nov 2013 15:26:56 -0800 (PST)
-Received: by mail-yh0-f52.google.com with SMTP id i57so1434138yha.39
-        for <linux-mm@kvack.org>; Thu, 14 Nov 2013 15:26:54 -0800 (PST)
-Date: Thu, 14 Nov 2013 15:26:51 -0800 (PST)
+        Thu, 14 Nov 2013 15:27:00 -0800 (PST)
+Received: by mail-yh0-f41.google.com with SMTP id f11so1454812yha.0
+        for <linux-mm@kvack.org>; Thu, 14 Nov 2013 15:26:58 -0800 (PST)
+Date: Thu, 14 Nov 2013 15:26:55 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-In-Reply-To: <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com>
+Subject: [patch 2/2] mm, memcg: add memory.oom_control notification for system
+ oom
+In-Reply-To: <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.02.1311141526300.30112@chino.kir.corp.google.com>
 References: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com> <20131031054942.GA26301@cmpxchg.org> <alpine.DEB.2.02.1311131416460.23211@chino.kir.corp.google.com> <20131113233419.GJ707@cmpxchg.org> <alpine.DEB.2.02.1311131649110.6735@chino.kir.corp.google.com>
- <20131114032508.GL707@cmpxchg.org> <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com>
+ <20131114032508.GL707@cmpxchg.org> <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com> <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -25,62 +25,116 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-When current has a pending SIGKILL or is already in the exit path, it
-only needs access to memory reserves to fully exit.  In that sense, the
-memcg is not actually oom for current, it simply needs to bypass memory
-charges to exit and free its memory, which is guarantee itself that
-memory will be freed.
+A subset of applications that wait on memory.oom_control don't disable
+the oom killer for that memcg and simply log or cleanup after the kernel
+oom killer kills a process to free memory.
 
-We only want to notify userspace for actionable oom conditions where
-something needs to be done (and all oom handling can already be deferred
-to userspace through this method by disabling the memcg oom killer with
-memory.oom_control), not simply when a memcg has reached its limit, which
-would actually have to happen before memcg reclaim actually frees memory
-for charges.
+We need the ability to do this for system oom conditions as well, i.e.
+when the system is depleted of all memory and must kill a process.  For
+convenience, this can use memcg since oom notifiers are already present.
 
-Reported-by: Johannes Weiner <hannes@cmpxchg.org>
+When a userspace process waits on the root memcg's memory.oom_control, it
+will wake up anytime there is a system oom condition so that it can log
+the event, including what process was killed and the stack, or cleanup
+after the kernel oom killer has killed something.
+
+This is a special case of oom notifiers since it doesn't subsequently
+notify all memcgs under the root memcg (all memcgs on the system).  We
+don't want to trigger those oom handlers which are set aside specifically
+for true memcg oom notifications that disable their own oom killers to
+enforce their own oom policy, for example.
+
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- mm/memcontrol.c | 20 ++++++++++----------
- 1 file changed, 10 insertions(+), 10 deletions(-)
+ Documentation/cgroups/memory.txt | 11 ++++++-----
+ include/linux/memcontrol.h       |  5 +++++
+ mm/memcontrol.c                  |  9 +++++++++
+ mm/oom_kill.c                    |  4 ++++
+ 4 files changed, 24 insertions(+), 5 deletions(-)
 
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -743,18 +743,19 @@ delivery and gets notification when OOM happens.
+ 
+ To register a notifier, an application must:
+  - create an eventfd using eventfd(2)
+- - open memory.oom_control file
++ - open memory.oom_control file for reading
+  - write string like "<event_fd> <fd of memory.oom_control>" to
+    cgroup.event_control
+ 
+-The application will be notified through eventfd when OOM happens.
+-OOM notification doesn't work for the root cgroup.
++The application will be notified through eventfd when OOM happens, including
++on system oom when used with the root memcg.
+ 
+ You can disable the OOM-killer by writing "1" to memory.oom_control file, as:
+ 
+-	#echo 1 > memory.oom_control
++	# echo 1 > memory.oom_control
+ 
+-This operation is only allowed to the top cgroup of a sub-hierarchy.
++This operation is only allowed to the top cgroup of a sub-hierarchy and does
++not include the root memcg.
+ If OOM-killer is disabled, tasks under cgroup will hang/sleep
+ in memory cgroup's OOM-waitqueue when they request accountable memory.
+ 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -155,6 +155,7 @@ static inline bool task_in_memcg_oom(struct task_struct *p)
+ }
+ 
+ bool mem_cgroup_oom_synchronize(bool wait);
++void mem_cgroup_root_oom_notify(void);
+ 
+ #ifdef CONFIG_MEMCG_SWAP
+ extern int do_swap_account;
+@@ -397,6 +398,10 @@ static inline bool mem_cgroup_oom_synchronize(bool wait)
+ 	return false;
+ }
+ 
++static inline void mem_cgroup_root_oom_notify(void)
++{
++}
++
+ static inline void mem_cgroup_inc_page_stat(struct page *page,
+ 					    enum mem_cgroup_stat_index idx)
+ {
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -1783,16 +1783,6 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	unsigned int points = 0;
- 	struct task_struct *chosen = NULL;
+@@ -5648,6 +5648,15 @@ static void mem_cgroup_oom_notify(struct mem_cgroup *memcg)
+ 		mem_cgroup_oom_notify_cb(iter);
+ }
  
--	/*
--	 * If current has a pending SIGKILL or is exiting, then automatically
--	 * select it.  The goal is to allow it to allocate so that it may
--	 * quickly exit and free its memory.
--	 */
--	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
--		set_thread_flag(TIF_MEMDIE);
--		return;
--	}
--
- 	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, order, NULL);
- 	totalpages = mem_cgroup_get_limit(memcg) >> PAGE_SHIFT ? : 1;
- 	for_each_mem_cgroup_tree(iter, memcg) {
-@@ -2243,6 +2233,16 @@ bool mem_cgroup_oom_synchronize(bool handle)
- 	if (!handle)
- 		goto cleanup;
- 
-+	/*
-+	 * If current has a pending SIGKILL or is exiting, then automatically
-+	 * select it.  The goal is to allow it to allocate so that it may
-+	 * quickly exit and free its memory.
-+	 */
-+	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
-+		set_thread_flag(TIF_MEMDIE);
-+		goto cleanup;
-+	}
++/*
++ * Notify any process waiting on the root memcg's memory.oom_control, but do not
++ * notify any child memcgs to avoid triggering their per-memcg oom handlers.
++ */
++void mem_cgroup_root_oom_notify(void)
++{
++	mem_cgroup_oom_notify_cb(root_mem_cgroup);
++}
 +
- 	owait.memcg = memcg;
- 	owait.wait.flags = 0;
- 	owait.wait.func = memcg_oom_wake_function;
+ static int mem_cgroup_usage_register_event(struct cgroup_subsys_state *css,
+ 	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
+ {
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -632,6 +632,10 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 		return;
+ 	}
+ 
++	/* Avoid waking up processes for oom kills triggered by sysrq */
++	if (!force_kill)
++		mem_cgroup_root_oom_notify();
++
+ 	/*
+ 	 * Check if there were limitations on the allocation (only relevant for
+ 	 * NUMA) that may require different handling.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
