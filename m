@@ -1,88 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C4266B0044
-	for <linux-mm@kvack.org>; Wed, 13 Nov 2013 23:01:04 -0500 (EST)
-Received: by mail-pd0-f178.google.com with SMTP id p10so1391420pdj.37
-        for <linux-mm@kvack.org>; Wed, 13 Nov 2013 20:01:03 -0800 (PST)
-Received: from psmtp.com ([74.125.245.174])
-        by mx.google.com with SMTP id hb3si26338403pac.210.2013.11.13.20.01.02
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BE3C6B0044
+	for <linux-mm@kvack.org>; Thu, 14 Nov 2013 00:20:49 -0500 (EST)
+Received: by mail-pb0-f49.google.com with SMTP id um1so1489850pbc.36
+        for <linux-mm@kvack.org>; Wed, 13 Nov 2013 21:20:49 -0800 (PST)
+Received: from psmtp.com ([74.125.245.145])
+        by mx.google.com with SMTP id g8si560439pae.107.2013.11.13.21.20.47
         for <linux-mm@kvack.org>;
-        Wed, 13 Nov 2013 20:01:03 -0800 (PST)
-Received: by mail-pd0-f180.google.com with SMTP id v10so1395976pde.11
-        for <linux-mm@kvack.org>; Wed, 13 Nov 2013 20:01:01 -0800 (PST)
-Date: Wed, 13 Nov 2013 20:00:34 -0800 (PST)
+        Wed, 13 Nov 2013 21:20:48 -0800 (PST)
+Received: by mail-pd0-f181.google.com with SMTP id p10so1457813pdj.40
+        for <linux-mm@kvack.org>; Wed, 13 Nov 2013 21:20:46 -0800 (PST)
+Date: Wed, 13 Nov 2013 21:20:27 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] staging: zsmalloc: Ensure handle is never 0 on success
-In-Reply-To: <20131112154137.GA3330@gmail.com>
-Message-ID: <alpine.LNX.2.00.1311131811030.1120@eggly.anvils>
-References: <20131107070451.GA10645@bbox> <20131112154137.GA3330@gmail.com>
+Subject: Re: [PATCH] arch: um: kernel: skas: mmu: remove pmd_free() and
+ pud_free() for failure processing in init_stub_pte()
+In-Reply-To: <528308E8.8040203@asianux.com>
+Message-ID: <alpine.LNX.2.00.1311132041200.1785@eggly.anvils>
+References: <alpine.LNX.2.00.1310150330350.9078@eggly.anvils> <528308E8.8040203@asianux.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Greg KH <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, lliubbo@gmail.com, jmarchan@redhat.com, mgorman@suse.de, riel@redhat.com, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Luigi Semenzato <semenzato@google.com>
+To: Chen Gang <gang.chen@asianux.com>
+Cc: Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, uml-devel <user-mode-linux-devel@lists.sourceforge.net>, uml-user <user-mode-linux-user@lists.sourceforge.net>
 
-On Wed, 13 Nov 2013, Minchan Kim wrote:
-> On Thu, Nov 07, 2013 at 04:04:51PM +0900, Minchan Kim wrote:
-> > On Wed, Nov 06, 2013 at 07:05:11PM -0800, Greg KH wrote:
-> > > On Wed, Nov 06, 2013 at 03:46:19PM -0800, Nitin Gupta wrote:
-> > >  > I'm getting really tired of them hanging around in here for many years
-> > > > > now...
-> > > > >
-> > > > 
-> > > > Minchan has tried many times to promote zram out of staging. This was
-> > > > his most recent attempt:
-> > > > 
-> > > > https://lkml.org/lkml/2013/8/21/54
-...
+On Wed, 13 Nov 2013, Chen Gang wrote:
+
+> Unfortunately, p?d_alloc() and p?d_free() are not pair!! If p?d_alloc()
+> succeed, they may be used, so in the next failure, we have to skip them
+> to let exit_mmap() or do_munmap() to process it.
 > 
-> Hello Andrew,
+> According to "Documentation/vm/locking", 'mm->page_table_lock' is for
+> using vma list, so not need it when its related vmas are detached or
+> unmapped from using vma list.
+
+Hah, don't believe a word of Documentation/vm/locking.  From time to
+time someone or other has updated some part of it, but on the whole
+it represents the state of the art in 1999.  Look at its git history:
+not a lot of activity there.
+
+And please don't ask me to update it, and please don't try to update
+it yourself.  Delete it?  Maybe.
+
+Study the code itself for how mm locking is actually done
+(can you see anywhere we use page_table_lock on the vma list?)
+
 > 
-> I'd like to listen your opinion.
+> The related work flow:
 > 
-> The zram promotion trial started since Aug 2012 and I already have get many
-> Acked/Reviewed feedback and positive feedback from Rik and Bob in this thread.
-> (ex, Jens Axboe[1], Konrad Rzeszutek Wilk[2], Nitin Gupta[3], Pekka Enberg[4])
-> In Linuxcon, Hugh gave positive feedback about zram(Hugh, If I misunderstood,
-> please correct me!). And there are lots of users already in embedded industry
-> ex, (most of TV in the world, Chromebook, CyanogenMod, Android Kitkat.)
-> They are not idiot. Zram is really effective for embedded world.
+>   exit_mmap() ->
+>     unmap_vmas(); /* so not need mm->page_table_lock */
+>     free_pgtables();
+> 
+>   do_munmap()->
+>     detach_vmas_to_be_unmapped(); /* so not need mm->page_table_lock */
+>     unmap_region() ->
+>       free_pgtables();
+> 
+>   free_pgtables() ->
+>     free_pgd_range() ->
+>       free_pud_range() ->
+>         free_pmd_range() ->
+>           free_pte_range() ->
+>             pmd_clear();
+>             pte_free_tlb();
+>           pud_clear();
+>           pmd_free_tlb();
+>         pgd_clear(); 
+>         pud_free_tlb();
 
-Sorry for taking so long to respond, Minchan: no, you do not misrepresent
-me at all.  Promotion of zram and zsmalloc from staging is way overdue:
-they long ago proved their worth, look tidy, and have an active maintainer.
+I don't think those notes would belong in this patch...
 
-Putting them into drivers/staging was always a mistake, and I quite
-understand Greg's impatience with them by now; but please let's move
-them to where they belong instead of removing them.
+> 
+> Signed-off-by: Chen Gang <gang.chen@asianux.com>
+> ---
+>  arch/um/kernel/skas/mmu.c |    4 ++--
+>  1 files changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/arch/um/kernel/skas/mmu.c b/arch/um/kernel/skas/mmu.c
+> index 007d550..3fd1951 100644
+> --- a/arch/um/kernel/skas/mmu.c
+> +++ b/arch/um/kernel/skas/mmu.c
+> @@ -40,9 +40,9 @@ static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
+>  	return 0;
+>  
+>   out_pte:
+> -	pmd_free(mm, pmd);
+> +	/* used by mm->pgd->pud, will free in do_munmap() or exit_mmap() */
+>   out_pmd:
+> -	pud_free(mm, pud);
+> +	/* used by mm->pgd, will free in do_munmap() or exit_mmap() */
+>   out:
+>  	return -ENOMEM;
+>  }
+> -- 
+> 1.7.7.6
 
-I would not have lent support to zswap if I'd thought that was going to
-block zram.  And I was not the only one surprised when zswap replaced its
-use of zsmalloc by zbud: we had rather expected a zbud option to be added,
-and I still assume that zsmalloc support will be added back to zswap later.
+... but I'm not going to ack this: I just don't share your zest
+for mucking around with what I don't understand, and don't have
+the time to spare to understand it well enough.
 
-I think your August 2013 posting moved zsmalloc under zram and moved it
-all to drivers/block?  That is the right place for zram, but I do think
-zsmalloc.c (I'm not very keen on _drvs and -mains myself) should be
-alongside zbud.c in mm, where we can better keep an eye on its
-struct-pageyness.
+>From the look of it, if an error did occur in init_stub_pte(),
+then the special mapping of STUB_CODE and STUB_DATA would not
+be installed, so this area would be invisible to munmap and exit,
+and with your patch then the pages allocated likely to be leaked.
 
-IMHO
+Which is not to say that the existing code is actually correct:
+you're probably right that it's technically wrong.  But it would
+be very hard to get init_stub_pte() to fail, and has anyone
+reported a problem with it?  My guess is not, and my own
+inclination to dabble here is zero.
+
 Hugh
-
-> 
-> We spent much time with preventing zram enhance since it have been in staging
-> and Greg never want to improve without promotion.
-> 
-> Please consider promotion and let us improve it.
-> I think only remained thing is your decision.
-> 
-> 
-> 1. https://lkml.org/lkml/2012/9/11/551
-> 2. https://lkml.org/lkml/2012/8/9/636
-> 3. https://lkml.org/lkml/2012/8/8/390
-> 4. https://lkml.org/lkml/2012/9/26/126
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
