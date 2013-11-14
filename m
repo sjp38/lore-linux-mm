@@ -1,21 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 64EA76B003B
-	for <linux-mm@kvack.org>; Thu, 14 Nov 2013 12:27:21 -0500 (EST)
-Received: by mail-pb0-f52.google.com with SMTP id wy17so1139184pbc.39
-        for <linux-mm@kvack.org>; Thu, 14 Nov 2013 09:27:21 -0800 (PST)
-Received: from psmtp.com ([74.125.245.181])
-        by mx.google.com with SMTP id v7si3644773pbi.188.2013.11.14.09.27.13
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 10D706B003D
+	for <linux-mm@kvack.org>; Thu, 14 Nov 2013 12:46:24 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so2409326pab.14
+        for <linux-mm@kvack.org>; Thu, 14 Nov 2013 09:46:24 -0800 (PST)
+Received: from psmtp.com ([74.125.245.126])
+        by mx.google.com with SMTP id xa2si874997pab.316.2013.11.14.09.46.21
         for <linux-mm@kvack.org>;
-        Thu, 14 Nov 2013 09:27:14 -0800 (PST)
-Message-ID: <528507BA.9010101@intel.com>
-Date: Thu, 14 Nov 2013 09:26:18 -0800
-From: Dave Hansen <dave.hansen@intel.com>
+        Thu, 14 Nov 2013 09:46:22 -0800 (PST)
+Message-ID: <52850C37.1080506@sr71.net>
+Date: Thu, 14 Nov 2013 09:45:27 -0800
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 4/4] mm/vmalloc.c: Treat the entire kernel virtual
- space as vmalloc
-References: <1384212412-21236-1-git-send-email-lauraa@codeaurora.org> <1384212412-21236-5-git-send-email-lauraa@codeaurora.org>
-In-Reply-To: <1384212412-21236-5-git-send-email-lauraa@codeaurora.org>
+Subject: Re: [RFC PATCH 3/4] mm/vmalloc.c: Allow lowmem to be tracked in vmalloc
+References: <1384212412-21236-1-git-send-email-lauraa@codeaurora.org> <1384212412-21236-4-git-send-email-lauraa@codeaurora.org>
+In-Reply-To: <1384212412-21236-4-git-send-email-lauraa@codeaurora.org>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,81 +23,47 @@ To: Laura Abbott <lauraa@codeaurora.org>, linux-arm-kernel@lists.infradead.org, 
 Cc: Neeti Desai <neetid@codeaurora.org>
 
 On 11/11/2013 03:26 PM, Laura Abbott wrote:
-> With CONFIG_ENABLE_VMALLOC_SAVINGS, all lowmem is tracked in
-> vmalloc. This means that all the kernel virtual address space
-> can be treated as part of the vmalloc region. Allow vm areas
-> to be allocated from the full kernel address range.
-> 
-> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
-> Signed-off-by: Neeti Desai <neetid@codeaurora.org>
-> ---
->  mm/vmalloc.c |   11 +++++++++++
->  1 files changed, 11 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index c7b138b..181247d 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -1385,16 +1385,27 @@ struct vm_struct *__get_vm_area_caller(unsigned long size, unsigned long flags,
->   */
->  struct vm_struct *get_vm_area(unsigned long size, unsigned long flags)
->  {
-> +#ifdef CONFIG_ENABLE_VMALLOC_SAVING
-> +	return __get_vm_area_node(size, 1, flags, PAGE_OFFSET, VMALLOC_END,
-> +				  NUMA_NO_NODE, GFP_KERNEL,
-> +				  __builtin_return_address(0));
-> +#else
->  	return __get_vm_area_node(size, 1, flags, VMALLOC_START, VMALLOC_END,
->  				  NUMA_NO_NODE, GFP_KERNEL,
->  				  __builtin_return_address(0));
+> +config ENABLE_VMALLOC_SAVING
+> +	bool "Intermix lowmem and vmalloc virtual space"
+> +	depends on ARCH_TRACKS_VMALLOC
+> +	help
+> +	  Some memory layouts on embedded systems steal large amounts
+> +	  of lowmem physical memory for purposes outside of the kernel.
+> +	  Rather than waste the physical and virtual space, allow the
+> +	  kernel to use the virtual space as vmalloc space.
+
+I really don't think this needs to be exposed with help text and so
+forth.   How about just defining a 'def_bool n' with some comments and
+let the architecture 'select' it?
+
+> +#ifdef ENABLE_VMALLOC_SAVING
+> +int is_vmalloc_addr(const void *x)
+> +{
+> +	struct rb_node *n;
+> +	struct vmap_area *va;
+> +	int ret = 0;
+> +
+> +	spin_lock(&vmap_area_lock);
+> +
+> +	for (n = rb_first(vmap_area_root); n; rb_next(n)) {
+> +		va = rb_entry(n, struct vmap_area, rb_node);
+> +		if (x >= va->va_start && x < va->va_end) {
+> +			ret = 1;
+> +			break;
+> +		}
+> +	}
+> +
+> +	spin_unlock(&vmap_area_lock);
+> +	return ret;
+> +}
+> +EXPORT_SYMBOL(is_vmalloc_addr);
 > +#endif
->  }
->  
->  struct vm_struct *get_vm_area_caller(unsigned long size, unsigned long flags,
->  				const void *caller)
->  {
-> +#ifdef CONFIG_ENABLE_VMALLOC_SAVING
-> +	return __get_vm_area_node(size, 1, flags, PAGE_OFFSET, VMALLOC_END,
-> +				  NUMA_NO_NODE, GFP_KERNEL, caller);
-> +#else
->  	return __get_vm_area_node(size, 1, flags, VMALLOC_START, VMALLOC_END,
->  				  NUMA_NO_NODE, GFP_KERNEL, caller);
-> +#endif
->  }
 
-Couple of nits: first of all, there's no reason to copy, paste, and
-#ifdef this much code.  This just invites one of the copies to bitrot.
-I'd much rather see this:
-
-#ifdef CONFIG_ENABLE_VMALLOC_SAVING
-#define LOWEST_VMALLOC_VADDR PAGE_OFFSET
-#else
-#define LOWEST_VMALLOC_VADDR VMALLOC_START
-#endif
-
-Then just replace the PAGE_OFFSET in the function arguments with
-LOWEST_VMALLOC_VADDR.
-
-Have you done any audits to make sure that the rest of the code that
-deals with vmalloc addresses in the kernel is using is_vmalloc_addr()?
-I'd be a bit worried that we might have picked up an assumption or two
-that *all* vmalloc addresses are _above_ VMALLOC_START.
-
-The percpu.c code looks like it might do this, and maybe the kcore code.
- The vmalloc.c code itself has this in get_vmalloc_info():
-
->                 /*
->                  * Some archs keep another range for modules in vmalloc space
->                  */
->                 if (addr < VMALLOC_START)
->                         continue;
-
-Seems like that would break as well.
-
-With this patch, VMALLOC_START loses enough of its meaning that I wonder
-if we should even keep it around.  It's the start of the _dedicated_
-vmalloc space, but it's mostly useless and obscure enough that maybe we
-should get rid of its use in common code.
+It's probably worth noting that this makes is_vmalloc_addr() a *LOT*
+more expensive than it was before.  There are a couple dozen of these in
+the tree in kinda weird places (ext4, netlink, tcp).  You didn't
+mention it here, but you probably want to at least make sure you're not
+adding a spinlock and a tree walk in some critical path.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
