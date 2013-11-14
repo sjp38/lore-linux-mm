@@ -1,201 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F7DE6B003B
-	for <linux-mm@kvack.org>; Thu, 14 Nov 2013 12:04:00 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id fa1so2350286pad.2
-        for <linux-mm@kvack.org>; Thu, 14 Nov 2013 09:03:59 -0800 (PST)
-Received: from psmtp.com ([74.125.245.177])
-        by mx.google.com with SMTP id kn3si28181721pbc.154.2013.11.14.09.03.55
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 64EA76B003B
+	for <linux-mm@kvack.org>; Thu, 14 Nov 2013 12:27:21 -0500 (EST)
+Received: by mail-pb0-f52.google.com with SMTP id wy17so1139184pbc.39
+        for <linux-mm@kvack.org>; Thu, 14 Nov 2013 09:27:21 -0800 (PST)
+Received: from psmtp.com ([74.125.245.181])
+        by mx.google.com with SMTP id v7si3644773pbi.188.2013.11.14.09.27.13
         for <linux-mm@kvack.org>;
-        Thu, 14 Nov 2013 09:03:57 -0800 (PST)
-Received: by mail-we0-f170.google.com with SMTP id p61so2329012wes.15
-        for <linux-mm@kvack.org>; Thu, 14 Nov 2013 09:03:53 -0800 (PST)
+        Thu, 14 Nov 2013 09:27:14 -0800 (PST)
+Message-ID: <528507BA.9010101@intel.com>
+Date: Thu, 14 Nov 2013 09:26:18 -0800
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CAMw+i9hi9pBPkfWHo3mh0=PATQFzbNOCSPaLkw+zqUvwK2wbxA@mail.gmail.com>
-References: <CANMivWaXE=bn4fhvGdz3cPwN+CZpWwrWqmU1BKX8o+vE2JawOw@mail.gmail.com>
- <1384363093-8025-1-git-send-email-snanda@chromium.org> <CAMw+i9hi9pBPkfWHo3mh0=PATQFzbNOCSPaLkw+zqUvwK2wbxA@mail.gmail.com>
-From: Sameer Nanda <snanda@chromium.org>
-Date: Thu, 14 Nov 2013 09:03:33 -0800
-Message-ID: <CANMivWbNTev3vq6fys5Rexrzh1So9CgVKmtG1L5heE6N6TMiAg@mail.gmail.com>
-Subject: Re: [PATCH v6] mm, oom: Fix race when selecting process to kill
+Subject: Re: [RFC PATCH 4/4] mm/vmalloc.c: Treat the entire kernel virtual
+ space as vmalloc
+References: <1384212412-21236-1-git-send-email-lauraa@codeaurora.org> <1384212412-21236-5-git-send-email-lauraa@codeaurora.org>
+In-Reply-To: <1384212412-21236-5-git-send-email-lauraa@codeaurora.org>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dserrg <dserrg@gmail.com>
-Cc: Rusty Russell <rusty@rustcorp.com.au>, Johannes Weiner <hannes@cmpxchg.org>, "msb@chromium.org" <msb@chromium.org>, Oleg Nesterov <oleg@redhat.com>, =?UTF-8?B?0JzRg9GA0LfQuNC9INCS0LvQsNC00LjQvNC40YA=?= <murzin.v@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, mhocko@suse.cz, Andrew Morton <akpm@linux-foundation.org>, Luigi Semenzato <semenzato@google.com>, linux-kernel@vger.kernel.org
+To: Laura Abbott <lauraa@codeaurora.org>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
+Cc: Neeti Desai <neetid@codeaurora.org>
 
-On Thu, Nov 14, 2013 at 5:43 AM, dserrg <dserrg@gmail.com> wrote:
-> (sorry for html)
->
-> Why do we even bother with locking?
-> Why not just merge my original patch? (The link is in Vladimir's message)
-> It provides much more elegant (and working!) solution for this problem.
+On 11/11/2013 03:26 PM, Laura Abbott wrote:
+> With CONFIG_ENABLE_VMALLOC_SAVINGS, all lowmem is tracked in
+> vmalloc. This means that all the kernel virtual address space
+> can be treated as part of the vmalloc region. Allow vm areas
+> to be allocated from the full kernel address range.
+> 
+> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
+> Signed-off-by: Neeti Desai <neetid@codeaurora.org>
+> ---
+>  mm/vmalloc.c |   11 +++++++++++
+>  1 files changed, 11 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index c7b138b..181247d 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -1385,16 +1385,27 @@ struct vm_struct *__get_vm_area_caller(unsigned long size, unsigned long flags,
+>   */
+>  struct vm_struct *get_vm_area(unsigned long size, unsigned long flags)
+>  {
+> +#ifdef CONFIG_ENABLE_VMALLOC_SAVING
+> +	return __get_vm_area_node(size, 1, flags, PAGE_OFFSET, VMALLOC_END,
+> +				  NUMA_NO_NODE, GFP_KERNEL,
+> +				  __builtin_return_address(0));
+> +#else
+>  	return __get_vm_area_node(size, 1, flags, VMALLOC_START, VMALLOC_END,
+>  				  NUMA_NO_NODE, GFP_KERNEL,
+>  				  __builtin_return_address(0));
+> +#endif
+>  }
+>  
+>  struct vm_struct *get_vm_area_caller(unsigned long size, unsigned long flags,
+>  				const void *caller)
+>  {
+> +#ifdef CONFIG_ENABLE_VMALLOC_SAVING
+> +	return __get_vm_area_node(size, 1, flags, PAGE_OFFSET, VMALLOC_END,
+> +				  NUMA_NO_NODE, GFP_KERNEL, caller);
+> +#else
+>  	return __get_vm_area_node(size, 1, flags, VMALLOC_START, VMALLOC_END,
+>  				  NUMA_NO_NODE, GFP_KERNEL, caller);
+> +#endif
+>  }
 
-As Oleg alluded to in that thread, that patch makes the race window
-smaller, but doesn't close it completely.  Imagine if a SIGKILL gets
-sent to the task p immediately after the fatal_signal_pending check.
-In that case, the infinite loop in while_each_thread will still happen
-since  __unhash_process would delete the task p from the thread_group
-list while while_each_thread loop is in progress on another CPU.  This
-is precisely why we need to hold read_lock(&tasklist_lock) _before_
-checking the state of the process p and entering the while_each_thread
-loop.
+Couple of nits: first of all, there's no reason to copy, paste, and
+#ifdef this much code.  This just invites one of the copies to bitrot.
+I'd much rather see this:
 
-> David, how did you miss it in the first place?
->
-> Oh.. and by the way. I was hitting the same bug in other
-> while_each_thread loops in oom_kill.c.
+#ifdef CONFIG_ENABLE_VMALLOC_SAVING
+#define LOWEST_VMALLOC_VADDR PAGE_OFFSET
+#else
+#define LOWEST_VMALLOC_VADDR VMALLOC_START
+#endif
 
-> Anyway, goodluck ;)
+Then just replace the PAGE_OFFSET in the function arguments with
+LOWEST_VMALLOC_VADDR.
 
-Thanks!
+Have you done any audits to make sure that the rest of the code that
+deals with vmalloc addresses in the kernel is using is_vmalloc_addr()?
+I'd be a bit worried that we might have picked up an assumption or two
+that *all* vmalloc addresses are _above_ VMALLOC_START.
 
->
-> 14 =D0=BD=D0=BE=D1=8F=D0=B1. 2013 =D0=B3. 2:18 =D0=BF=D0=BE=D0=BB=D1=8C=
-=D0=B7=D0=BE=D0=B2=D0=B0=D1=82=D0=B5=D0=BB=D1=8C "Sameer Nanda" <snanda@chr=
-omium.org>
-> =D0=BD=D0=B0=D0=BF=D0=B8=D1=81=D0=B0=D0=BB:
->
->> The selection of the process to be killed happens in two spots:
->> first in select_bad_process and then a further refinement by
->> looking for child processes in oom_kill_process. Since this is
->> a two step process, it is possible that the process selected by
->> select_bad_process may get a SIGKILL just before oom_kill_process
->> executes. If this were to happen, __unhash_process deletes this
->> process from the thread_group list. This results in oom_kill_process
->> getting stuck in an infinite loop when traversing the thread_group
->> list of the selected process.
->>
->> Fix this race by adding a pid_alive check for the selected process
->> with tasklist_lock held in oom_kill_process.
->>
->> Signed-off-by: Sameer Nanda <snanda@chromium.org>
->> ---
->>  include/linux/sched.h |  5 +++++
->>  mm/oom_kill.c         | 34 +++++++++++++++++++++-------------
->>  2 files changed, 26 insertions(+), 13 deletions(-)
->>
->> diff --git a/include/linux/sched.h b/include/linux/sched.h
->> index e27baee..8975dbb 100644
->> --- a/include/linux/sched.h
->> +++ b/include/linux/sched.h
->> @@ -2156,6 +2156,11 @@ extern bool current_is_single_threaded(void);
->>  #define do_each_thread(g, t) \
->>         for (g =3D t =3D &init_task ; (g =3D t =3D next_task(g)) !=3D &i=
-nit_task ; )
->> do
->>
->> +/*
->> + * Careful: while_each_thread is not RCU safe. Callers should hold
->> + * read_lock(tasklist_lock) across while_each_thread loops.
->> + */
->> +
->>  #define while_each_thread(g, t) \
->>         while ((t =3D next_thread(t)) !=3D g)
->>
->> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
->> index 6738c47..0d1f804 100644
->> --- a/mm/oom_kill.c
->> +++ b/mm/oom_kill.c
->> @@ -412,31 +412,33 @@ void oom_kill_process(struct task_struct *p, gfp_t
->> gfp_mask, int order,
->>         static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL=
-,
->>                                               DEFAULT_RATELIMIT_BURST);
->>
->> +       if (__ratelimit(&oom_rs))
->> +               dump_header(p, gfp_mask, order, memcg, nodemask);
->> +
->> +       task_lock(p);
->> +       pr_err("%s: Kill process %d (%s) score %d or sacrifice child\n",
->> +               message, task_pid_nr(p), p->comm, points);
->> +       task_unlock(p);
->> +
->> +       read_lock(&tasklist_lock);
->> +
->>         /*
->>          * If the task is already exiting, don't alarm the sysadmin or
->> kill
->>          * its children or threads, just set TIF_MEMDIE so it can die
->> quickly
->>          */
->> -       if (p->flags & PF_EXITING) {
->> +       if (p->flags & PF_EXITING || !pid_alive(p)) {
->>                 set_tsk_thread_flag(p, TIF_MEMDIE);
->>                 put_task_struct(p);
->> +               read_unlock(&tasklist_lock);
->>                 return;
->>         }
->>
->> -       if (__ratelimit(&oom_rs))
->> -               dump_header(p, gfp_mask, order, memcg, nodemask);
->> -
->> -       task_lock(p);
->> -       pr_err("%s: Kill process %d (%s) score %d or sacrifice child\n",
->> -               message, task_pid_nr(p), p->comm, points);
->> -       task_unlock(p);
->> -
->>         /*
->>          * If any of p's children has a different mm and is eligible for
->> kill,
->>          * the one with the highest oom_badness() score is sacrificed fo=
-r
->> its
->>          * parent.  This attempts to lose the minimal amount of work don=
-e
->> while
->>          * still freeing memory.
->>          */
->> -       read_lock(&tasklist_lock);
->>         do {
->>                 list_for_each_entry(child, &t->children, sibling) {
->>                         unsigned int child_points;
->> @@ -456,12 +458,17 @@ void oom_kill_process(struct task_struct *p, gfp_t
->> gfp_mask, int order,
->>                         }
->>                 }
->>         } while_each_thread(p, t);
->> -       read_unlock(&tasklist_lock);
->>
->> -       rcu_read_lock();
->>         p =3D find_lock_task_mm(victim);
->> +
->> +       /*
->> +        * Since while_each_thread is currently not RCU safe, this unloc=
-k
->> of
->> +        * tasklist_lock may need to be moved further down if any
->> additional
->> +        * while_each_thread loops get added to this function.
->> +        */
->> +       read_unlock(&tasklist_lock);
->> +
->>         if (!p) {
->> -               rcu_read_unlock();
->>                 put_task_struct(victim);
->>                 return;
->>         } else if (victim !=3D p) {
->> @@ -487,6 +494,7 @@ void oom_kill_process(struct task_struct *p, gfp_t
->> gfp_mask, int order,
->>          * That thread will now get access to memory reserves since it h=
-as
->> a
->>          * pending fatal signal.
->>          */
->> +       rcu_read_lock();
->>         for_each_process(p)
->>                 if (p->mm =3D=3D mm && !same_thread_group(p, victim) &&
->>                     !(p->flags & PF_KTHREAD)) {
->> --
->> 1.8.4.1
->>
->
+The percpu.c code looks like it might do this, and maybe the kcore code.
+ The vmalloc.c code itself has this in get_vmalloc_info():
 
+>                 /*
+>                  * Some archs keep another range for modules in vmalloc space
+>                  */
+>                 if (addr < VMALLOC_START)
+>                         continue;
 
+Seems like that would break as well.
 
---=20
-Sameer
+With this patch, VMALLOC_START loses enough of its meaning that I wonder
+if we should even keep it around.  It's the start of the _dedicated_
+vmalloc space, but it's mostly useless and obscure enough that maybe we
+should get rid of its use in common code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
