@@ -1,91 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 003836B003C
-	for <linux-mm@kvack.org>; Wed, 13 Nov 2013 19:48:37 -0500 (EST)
-Received: by mail-pb0-f48.google.com with SMTP id mc17so1192168pbc.7
-        for <linux-mm@kvack.org>; Wed, 13 Nov 2013 16:48:37 -0800 (PST)
-Received: from psmtp.com ([74.125.245.120])
-        by mx.google.com with SMTP id bc2si25811923pad.129.2013.11.13.16.48.35
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AE2D6B003C
+	for <linux-mm@kvack.org>; Wed, 13 Nov 2013 19:56:16 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id hz1so1262573pad.31
+        for <linux-mm@kvack.org>; Wed, 13 Nov 2013 16:56:15 -0800 (PST)
+Received: from psmtp.com ([74.125.245.132])
+        by mx.google.com with SMTP id v7si864021pbi.98.2013.11.13.16.56.13
         for <linux-mm@kvack.org>;
-        Wed, 13 Nov 2013 16:48:36 -0800 (PST)
-Received: by mail-pd0-f169.google.com with SMTP id y13so1204639pdi.28
-        for <linux-mm@kvack.org>; Wed, 13 Nov 2013 16:48:34 -0800 (PST)
-Date: Wed, 13 Nov 2013 16:48:32 -0800 (PST)
+        Wed, 13 Nov 2013 16:56:14 -0800 (PST)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so1270550pab.14
+        for <linux-mm@kvack.org>; Wed, 13 Nov 2013 16:56:11 -0800 (PST)
+Date: Wed, 13 Nov 2013 16:56:09 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, vmscan: abort futile reclaim if we've been oom
- killed
-In-Reply-To: <20131114000043.GK707@cmpxchg.org>
-Message-ID: <alpine.DEB.2.02.1311131639010.6735@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1311121801200.18803@chino.kir.corp.google.com> <20131113152412.GH707@cmpxchg.org> <alpine.DEB.2.02.1311131400300.23211@chino.kir.corp.google.com> <20131114000043.GK707@cmpxchg.org>
+Subject: Re: [patch] mm, memcg: add memory.oom_control notification for system
+ oom
+In-Reply-To: <20131113233419.GJ707@cmpxchg.org>
+Message-ID: <alpine.DEB.2.02.1311131649110.6735@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com> <20131031054942.GA26301@cmpxchg.org> <alpine.DEB.2.02.1311131416460.23211@chino.kir.corp.google.com> <20131113233419.GJ707@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
 On Wed, 13 Nov 2013, Johannes Weiner wrote:
 
-> > The reclaim will fail, the only reason current has TIF_MEMDIE set is 
-> > because reclaim has completely failed.
+> > > > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> > > > --- a/include/linux/memcontrol.h
+> > > > +++ b/include/linux/memcontrol.h
+> > > > @@ -155,6 +155,7 @@ static inline bool task_in_memcg_oom(struct task_struct *p)
+> > > >  }
+> > > >  
+> > > >  bool mem_cgroup_oom_synchronize(bool wait);
+> > > > +void mem_cgroup_root_oom_notify(void);
+> > > >  
+> > > >  #ifdef CONFIG_MEMCG_SWAP
+> > > >  extern int do_swap_account;
+> > > > @@ -397,6 +398,10 @@ static inline bool mem_cgroup_oom_synchronize(bool wait)
+> > > >  	return false;
+> > > >  }
+> > > >  
+> > > > +static inline void mem_cgroup_root_oom_notify(void)
+> > > > +{
+> > > > +}
+> > > > +
+> > > >  static inline void mem_cgroup_inc_page_stat(struct page *page,
+> > > >  					    enum mem_cgroup_stat_index idx)
+> > > >  {
+> > > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > > > --- a/mm/memcontrol.c
+> > > > +++ b/mm/memcontrol.c
+> > > > @@ -5641,6 +5641,15 @@ static void mem_cgroup_oom_notify(struct mem_cgroup *memcg)
+> > > >  		mem_cgroup_oom_notify_cb(iter);
+> > > >  }
+> > > >  
+> > > > +/*
+> > > > + * Notify any process waiting on the root memcg's memory.oom_control, but do not
+> > > > + * notify any child memcgs to avoid triggering their per-memcg oom handlers.
+> > > > + */
+> > > > +void mem_cgroup_root_oom_notify(void)
+> > > > +{
+> > > > +	mem_cgroup_oom_notify_cb(root_mem_cgroup);
+> > > > +}
+> > > > +
+> > > >  static int mem_cgroup_usage_register_event(struct cgroup_subsys_state *css,
+> > > >  	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
+> > > >  {
+> > > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > > > --- a/mm/oom_kill.c
+> > > > +++ b/mm/oom_kill.c
+> > > > @@ -632,6 +632,10 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+> > > >  		return;
+> > > >  	}
+> > > >  
+> > > > +	/* Avoid waking up processes for oom kills triggered by sysrq */
+> > > > +	if (!force_kill)
+> > > > +		mem_cgroup_root_oom_notify();
+> > > 
+> > > We have an API for global OOM notifications, please just use
+> > > register_oom_notifier() instead.
+> > > 
+> > 
+> > We can't use register_oom_notifier() because we don't want to notify the 
+> > root memcg for a system oom handler if existing oom notifiers free memory 
+> > (powerpc or s390).  We also don't want to notify the root memcg when 
+> > current is exiting or has a pending SIGKILL, we just want to silently give 
+> > it access to memory reserves and exit.  The mem_cgroup_root_oom_notify() 
+> > here is placed correctly.
 > 
-> ...for somebody else.
+> This is all handwaving.
+
+I'm defining the semantics of the system oom notification for the root 
+memcg.  Userspace oom handlers are not going to want to wakeup when a 
+kernel oom notifier is capable of freeing memory to prevent the oom killer 
+from doing anything at all or if current simply needs access to memory 
+reserves to make forward progress.  Userspace oom handlers want a wakeup 
+when a process must be killed to free memory, and thus this is correctly 
+placed.
+
+> Somebody called out_of_memory() after they
+> failed reclaim, the machine is OOM.
+
+While momentarily oom, the oom notifiers in powerpc and s390 have the 
+ability to free memory without requiring a kill.
+
+> The fact that current is exiting
+> without requiring a kill is coincidental and irrelevant.  You want an
+> OOM notification, use the OOM notifiers, that's what they're for.
 > 
 
-That process is in the same allocating context as current, otherwise 
-current would not have been selected as a victim.  The oom killer tries to 
-only kill processes that will lead to future memory freeing where reclaim 
-has failed.
-
-> > I don't know of any other "random places" other than when the oom killed 
-> > process is sitting in reclaim before it is selected as the victim.  Once 
-> > it returns to the page allocator, it will immediately allocate and then be 
-> > able to handle its pending SIGKILL.  The one spot identified where it is 
-> > absolutely pointless to spin is in reclaim since it is virtually 
-> > guaranteed to fail.  This patch fixes that issue.
-> 
-> No, this applies to every other operation that does not immediately
-> lead to the task exiting or which creates more system load.  Readahead
-> would be another example.  They're all pointless and you could do
-> without all of them at this point, but I'm not okay with putting these
-> checks in random places that happen to bother you right now.  It's not
-> a proper solution to the problem.
-> 
-
-If you have an alternative solution, please feel free to propose it and 
-I'll try it out.
-
-This isn't only about the cond_resched() in shrink_slab(), the reclaim is 
-going to fail.  There should be no instances where an oom killed process 
-can go and start magically reclaiming memory that would have prevented it 
-from becoming oom in the first place.  I have seen the oom killer trigger 
-and the victim stall for several seconds before actually allocating memory 
-and that stall is pointless, especially when we're not touching a hotpath 
-here, we're in direct reclaim already.
-
-> Is it a good idea to let ~700 processes simultaneously go into direct
-> global reclaim?
-> 
-> The victim aborting reclaim still leaves you with ~699 processes
-> spinning in reclaim that should instead just retry the allocation as
-> well.  What about them?
-> 
-
-Um, no, those processes are going through a repeated loop of direct 
-reclaim, calling the oom killer, iterating the tasklist, finding an 
-existing oom killed process that has yet to exit, and looping.  They 
-wouldn't loop for too long if we can reduce the amount of time that it 
-takes for that oom killed process to exit.
-
-> The situation your setups seem to get in frequently is bananas, don't
-> micro optimize this.
-> 
-
-Unless you propose an alternative solution, this is the patch that fixes 
-the problem when an oom killed process gets killed and then stalls for 
-seconds before it actually retries allocating memory.
-
-Thanks for your thoughts.
+I think you're misunderstanding the kernel oom notifiers, they exist 
+solely to free memory so that the oom killer actually doesn't have to kill 
+anything.  The fact that they use kernel notifiers is irrelevant and 
+userspace oom notification is separate.  Userspace is only going to want a 
+notification when the oom killer has to kill something, the EXACT same 
+semantics as the non-root-memcg memory.oom_control.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
