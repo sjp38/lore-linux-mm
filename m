@@ -1,60 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 88D276B0044
-	for <linux-mm@kvack.org>; Thu, 14 Nov 2013 10:57:06 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id lj1so2280330pab.27
-        for <linux-mm@kvack.org>; Thu, 14 Nov 2013 07:57:06 -0800 (PST)
-Received: from psmtp.com ([74.125.245.175])
-        by mx.google.com with SMTP id gl1si28396231pac.111.2013.11.14.07.57.04
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id B417C6B0044
+	for <linux-mm@kvack.org>; Thu, 14 Nov 2013 11:21:15 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id p10so2194468pdj.9
+        for <linux-mm@kvack.org>; Thu, 14 Nov 2013 08:21:15 -0800 (PST)
+Received: from psmtp.com ([74.125.245.111])
+        by mx.google.com with SMTP id ru9si28072324pbc.198.2013.11.14.08.21.13
         for <linux-mm@kvack.org>;
-        Thu, 14 Nov 2013 07:57:05 -0800 (PST)
-Message-ID: <5284F2B0.1080708@redhat.com>
-Date: Thu, 14 Nov 2013 10:56:32 -0500
-From: Rik van Riel <riel@redhat.com>
+        Thu, 14 Nov 2013 08:21:14 -0800 (PST)
+Received: by mail-ob0-f178.google.com with SMTP id va2so2449964obc.9
+        for <linux-mm@kvack.org>; Thu, 14 Nov 2013 08:21:12 -0800 (PST)
+Date: Thu, 14 Nov 2013 10:21:03 -0600
+From: Seth Jennings <sjennings@variantweb.net>
+Subject: Re: [PATCH] staging: zsmalloc: Ensure handle is never 0 on success
+Message-ID: <20131114162103.GA4370@cerebellum.variantweb.net>
+References: <20131107070451.GA10645@bbox>
+ <20131112154137.GA3330@gmail.com>
+ <alpine.LNX.2.00.1311131811030.1120@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [patch 0/8] mm: thrash detection-based file cache sizing v5
-References: <1381441622-26215-1-git-send-email-hannes@cmpxchg.org> <5264F353.1080603@suse.cz>
-In-Reply-To: <5264F353.1080603@suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LNX.2.00.1311131811030.1120@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>, Greg KH <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, lliubbo@gmail.com, jmarchan@redhat.com, mgorman@suse.de, riel@redhat.com, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Luigi Semenzato <semenzato@google.com>
 
-On 10/21/2013 05:26 AM, Vlastimil Babka wrote:
-> On 10/10/2013 11:46 PM, Johannes Weiner wrote:
->> Hi everyone,
->>
->> here is an update to the cache sizing patches for 3.13.
->>
->> 	Changes in this revision
->>
->> o Drop frequency synchronization between refaulted and demoted pages
->>    and just straight up activate refaulting pages whose access
->>    frequency indicates they could stay in memory.  This was suggested
->>    by Rik van Riel a looong time ago but misinterpretation of test
->>    results during early stages of development took me a while to
->>    overcome.  It's still the same overall concept, but a little simpler
->>    and with even faster cache adaptation.  Yay!
->
-> Oh, I liked the previous approach with direct competition between the
-> refaulted and demoted page :) Doesn't the new approach favor the
-> refaulted page too much? No wonder it leads to faster cache adaptation,
-> but could it also cause degradations for workloads that don't benefit
-> from it? Were there any tests for performance regressions on workloads
-> that were not the target of the patchset?
+On Wed, Nov 13, 2013 at 08:00:34PM -0800, Hugh Dickins wrote:
+> On Wed, 13 Nov 2013, Minchan Kim wrote:
+> > On Thu, Nov 07, 2013 at 04:04:51PM +0900, Minchan Kim wrote:
+> > > On Wed, Nov 06, 2013 at 07:05:11PM -0800, Greg KH wrote:
+> > > > On Wed, Nov 06, 2013 at 03:46:19PM -0800, Nitin Gupta wrote:
+> > > >  > I'm getting really tired of them hanging around in here for many years
+> > > > > > now...
+> > > > > >
+> > > > > 
+> > > > > Minchan has tried many times to promote zram out of staging. This was
+> > > > > his most recent attempt:
+> > > > > 
+> > > > > https://lkml.org/lkml/2013/8/21/54
+> ...
+> > 
+> > Hello Andrew,
+> > 
+> > I'd like to listen your opinion.
+> > 
+> > The zram promotion trial started since Aug 2012 and I already have get many
+> > Acked/Reviewed feedback and positive feedback from Rik and Bob in this thread.
+> > (ex, Jens Axboe[1], Konrad Rzeszutek Wilk[2], Nitin Gupta[3], Pekka Enberg[4])
+> > In Linuxcon, Hugh gave positive feedback about zram(Hugh, If I misunderstood,
+> > please correct me!). And there are lots of users already in embedded industry
+> > ex, (most of TV in the world, Chromebook, CyanogenMod, Android Kitkat.)
+> > They are not idiot. Zram is really effective for embedded world.
+> 
+> Sorry for taking so long to respond, Minchan: no, you do not misrepresent
+> me at all.  Promotion of zram and zsmalloc from staging is way overdue:
+> they long ago proved their worth, look tidy, and have an active maintainer.
+> 
+> Putting them into drivers/staging was always a mistake, and I quite
+> understand Greg's impatience with them by now; but please let's move
+> them to where they belong instead of removing them.
+> 
+> I would not have lent support to zswap if I'd thought that was going to
+> block zram.  And I was not the only one surprised when zswap replaced its
+> use of zsmalloc by zbud: we had rather expected a zbud option to be added,
+> and I still assume that zsmalloc support will be added back to zswap later.
 
-This is a good question, and one that is probably
-best settled through experimentation.
+Yes, it is still the plan to reintroduce zsmalloc as an option (possibly
+_the_ option) for zswap.
 
-Even with the first scheme (fault refaulted page to
-the inactive list), those pages only need 2 accesses
-to be promoted to the active list.
+An idea being tossed around is making zswap writethrough instead of
+delayed writeback.
 
-That is because a refault tends to immediately be
-followed by an access (after all, the attempted
-access causes the page to get loaded back into memory).
+Doing this would be mean that zswap would no longer reduce swap out
+traffic, but would continue to reduce swap in latency by reading out of
+the compressed cache instead of the swap device.
+
+For that loss, we gain a benefit: the compressed pages in the cache are
+clean, meaning we can reclaim them at any time with no writeback
+cost.  This addresses Mel's initial concern (the one that led to zswap
+moving to zbud) about writeback latency when the zswap pool is full.
+
+If there is no writeback cost for reclaiming space in the compressed
+pool, then we can use higher density packing like zsmalloc.
+
+Making zswap writethough would also make the difference between zswap
+and zram, both in terms of operation and application, more apparent,
+demonstrating the need for both.
+
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
