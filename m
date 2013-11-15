@@ -1,84 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id B46866B0031
-	for <linux-mm@kvack.org>; Fri, 15 Nov 2013 12:01:27 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id rp16so3833461pbb.3
-        for <linux-mm@kvack.org>; Fri, 15 Nov 2013 09:01:27 -0800 (PST)
-Received: from psmtp.com ([74.125.245.144])
-        by mx.google.com with SMTP id ws5si2505728pab.267.2013.11.15.09.01.25
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 602686B0031
+	for <linux-mm@kvack.org>; Fri, 15 Nov 2013 12:33:45 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id lf10so3904358pab.36
+        for <linux-mm@kvack.org>; Fri, 15 Nov 2013 09:33:45 -0800 (PST)
+Received: from psmtp.com ([74.125.245.139])
+        by mx.google.com with SMTP id dj6si2566815pad.322.2013.11.15.09.33.43
         for <linux-mm@kvack.org>;
-        Fri, 15 Nov 2013 09:01:26 -0800 (PST)
-Date: Fri, 15 Nov 2013 18:00:57 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: hugetlbfs: fix hugetlbfs optimization
-Message-ID: <20131115170057.GE23559@redhat.com>
-References: <20131105221017.GI3835@redhat.com>
- <CALnjE+prqCg2ZAMLQBQjY0OqmW2ofjioUoS25pa8Y93somc8Gg@mail.gmail.com>
- <20131113161022.GI15985@redhat.com>
+        Fri, 15 Nov 2013 09:33:44 -0800 (PST)
+Received: by mail-ie0-f170.google.com with SMTP id to1so5210406ieb.1
+        for <linux-mm@kvack.org>; Fri, 15 Nov 2013 09:33:42 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131113161022.GI15985@redhat.com>
+In-Reply-To: <20131115140738.GB6637@redhat.com>
+References: <20131113224503.GB25344@anatevka.fc.hp.com>
+	<52840206.5020006@zytor.com>
+	<20131113235708.GC25344@anatevka.fc.hp.com>
+	<CAOJsxLFkHQ6_f+=CMwfNLykh59TZH5VrWeVEDPCWPF1wiw7tjQ@mail.gmail.com>
+	<20131114180455.GA32212@anatevka.fc.hp.com>
+	<CAOJsxLFWMi8DoFp+ufri7XoFO27v+2=0oksh8+NhM6P-OdkOwg@mail.gmail.com>
+	<20131115005049.GJ5116@anatevka.fc.hp.com>
+	<20131115062417.GB9237@gmail.com>
+	<CAE9FiQWzSTtW8N=0hoUe6iCSM-k64Mv97n0whAS0_vZ+psuOsg@mail.gmail.com>
+	<5285C639.5040203@zytor.com>
+	<20131115140738.GB6637@redhat.com>
+Date: Fri, 15 Nov 2013 09:33:41 -0800
+Message-ID: <CAE9FiQUnw9Ujmdtq-AgC4VctQ=fZSBkzehoTbvw=aZeARL+pwA@mail.gmail.com>
+Subject: Re: [PATCH 0/3] Early use of boot service memory
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pravin Shelar <pshelar@nicira.com>
-Cc: Khalid Aziz <khalid.aziz@oracle.com>, gregkh@linuxfoundation.org, Ben Hutchings <bhutchings@solarflare.com>, Christoph Lameter <cl@linux.com>, hannes@cmpxchg.org, mel@csn.ul.ie, riel@redhat.com, minchan@kernel.org, andi@firstfloor.org, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, linux-mm@kvack.org
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, jerry.hoemann@hp.com, Pekka Enberg <penberg@kernel.org>, Rob Landley <rob@landley.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, x86 maintainers <x86@kernel.org>, Matt Fleming <matt.fleming@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "list@ebiederm.org:DOCUMENTATION" <linux-doc@vger.kernel.org>, "list@ebiederm.org:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-efi@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-Hi,
+On Fri, Nov 15, 2013 at 6:07 AM, Vivek Goyal <vgoyal@redhat.com> wrote:
+> On Thu, Nov 14, 2013 at 10:59:05PM -0800, H. Peter Anvin wrote:
+>> On 11/14/2013 10:55 PM, Yinghai Lu wrote:
+>> >
+>> > Why just asking distros to append ",high" in their installation
+>> > program for 64bit by default?
+>> >
+>> [...]
+>> >
+>> > What is hpa's suggestion?
+>> >
+>>
+>> Pretty much what you just said ;)
+>
+> I think crashkernel=X,high is not a good default choice for distros.
+> Reserving memory high reserves 72MB (or more) low memory for swiotlb. We
+> work hard to keep crashkernel memory amount low and currently reserve
+> 128M by default. Now suddenly our total memory reservation will shoot
+> to 200 MB if we choose ,high option. That's jump of more than 50%. It
+> is not needed.
 
-so while optimizing away the _mapcount tail page refcounting for slab
-and hugetlbfs pages incremental with the fix for the hugetlbfs
-optimization I just sent, I also noticed another bug in the current
-code (already fixed by the patch). gup_fast is still increasing
-_mapcount for hugetlbfs, but it's not decreased in put_page.
+If the system support intel IOMMU, we only need to that 72M for SWIOTLB
+or AMD workaround.
+If the user really care that for intel iommu enable system, they could use
+"crashkernel=0,low" to have that 72M back.
 
-It's only noticeable if you do:
+and that 72M is under 4G instead of 896M.
 
-echo 0 >/sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
+so reserve 72M is not better than reserve 128M?
 
-On current upstream I get:
+>
+> We can do dumping operation successfully in *less* reserved memory by
+> reserving memory below 4G. And hence crashkernel=,high is not a good
+> default.
+>
+> Instead, crashkernel=X is a good default if we are ready to change
+> semantics a bit. If sufficient crashkernel memory is not available
+> in low memory area, look for it above 4G. This incurs penalty of
+> 72M *only* if it has to and not by default on most of the systems.
+>
+> And this should solve jerry's problem too on *latest* kernels. For
+> older kernels, we don't have ,high support. So using that is not
+> an option. (until and unless somebody is ready to backport everything
+> needed to boot old kernel above 4G).
 
-BUG: Bad page state in process bash  pfn:59a01
-page:ffffea000139b038 count:0 mapcount:10 mapping:          (null) index:0x0
-page flags: 0x1c00000000008000(tail)
-Modules linked in:
-CPU: 6 PID: 2018 Comm: bash Not tainted 3.12.0+ #25
-Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
- 0000000000000009 ffff880079cb5cc8 ffffffff81640e8b 0000000000000006
- ffffea000139b038 ffff880079cb5ce8 ffffffff8115bb15 00000000000002c1
- ffffea000139b038 ffff880079cb5d48 ffffffff8115bd83 ffff880079cb5de8
-Call Trace:
- [<ffffffff81640e8b>] dump_stack+0x55/0x76
- [<ffffffff8115bb15>] bad_page+0xd5/0x130
- [<ffffffff8115bd83>] free_pages_prepare+0x213/0x280
- [<ffffffff8115df16>] __free_pages+0x36/0x80
- [<ffffffff8119b011>] update_and_free_page+0xc1/0xd0
- [<ffffffff8119b512>] free_pool_huge_page+0xc2/0xe0
- [<ffffffff8119b8cc>] set_max_huge_pages.part.58+0x14c/0x220
- [<ffffffff81308a8c>] ? _kstrtoull+0x2c/0x90
- [<ffffffff8119ba70>] nr_hugepages_store_common.isra.60+0xd0/0xf0
- [<ffffffff8119bac3>] nr_hugepages_store+0x13/0x20
- [<ffffffff812f763f>] kobj_attr_store+0xf/0x20
- [<ffffffff812354e9>] sysfs_write_file+0x189/0x1e0
- [<ffffffff811baff5>] vfs_write+0xc5/0x1f0
- [<ffffffff811bb505>] SyS_write+0x55/0xb0
- [<ffffffff81651712>] system_call_fastpath+0x16/0x1b
+that problem looks not related.
 
-So good thing I stopped the hugetlbfs optimization from going into
-stable.
+I have one system with 6TiB memory, kdump does not work even
+crashkernel=512M in legacy mode. ( it only work on system with
+4.5TiB).
+--- first kernel can reserve the 512M under 896M, second kernel will
+OOM as it load driver for every pci devices...
 
-I'll send a v2 of this work as a patchset of 3 patches where the first
-is the same identical patch I already sent but incremental to upstream
-and it contains all the fixes needed including for the above
-problem.
+So why would RH guys not spend some time on optimizing your kdump initrd
+build scripts and only put dump device related driver in it?
 
-Patch 1/3 should be applied more urgently as it fixes all those
-various bugs. The 2/3 and 3/3 can be deferred.
+Thanks
 
-The patch 3/3 especially should be benchmarked in the usual 8GB/sec
-setup before being applied, unless it makes a real difference I
-wouldn't apply it because it tends to slowdown the THP case a bit and
-it complicates things a bit more.
+Yinghai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
