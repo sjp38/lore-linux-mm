@@ -1,64 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 669E26B0031
-	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 13:04:51 -0500 (EST)
-Received: by mail-pb0-f53.google.com with SMTP id ma3so7012249pbc.26
-        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 10:04:51 -0800 (PST)
-Received: from psmtp.com ([74.125.245.175])
-        by mx.google.com with SMTP id mj9si4327887pab.161.2013.11.18.10.04.49
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id DAF6A6B0031
+	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 13:29:47 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id kp14so1306115pab.4
+        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 10:29:47 -0800 (PST)
+Received: from psmtp.com ([74.125.245.126])
+        by mx.google.com with SMTP id yd9si10311224pab.89.2013.11.18.10.29.43
         for <linux-mm@kvack.org>;
-        Mon, 18 Nov 2013 10:04:50 -0800 (PST)
-Message-ID: <528A56A7.3020301@oracle.com>
-Date: Mon, 18 Nov 2013 11:04:23 -0700
-From: Khalid Aziz <khalid.aziz@oracle.com>
+        Mon, 18 Nov 2013 10:29:45 -0800 (PST)
+Message-ID: <528A5C7E.5080007@zytor.com>
+Date: Mon, 18 Nov 2013 10:29:18 -0800
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/3] mm: hugetlbfs: fix hugetlbfs optimization v2
-References: <1384537668-10283-1-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1384537668-10283-1-git-send-email-aarcange@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 0/3] Early use of boot service memory
+References: <20131115005049.GJ5116@anatevka.fc.hp.com> <20131115062417.GB9237@gmail.com> <CAE9FiQWzSTtW8N=0hoUe6iCSM-k64Mv97n0whAS0_vZ+psuOsg@mail.gmail.com> <5285C639.5040203@zytor.com> <20131115140738.GB6637@redhat.com> <CAE9FiQUnw9Ujmdtq-AgC4VctQ=fZSBkzehoTbvw=aZeARL+pwA@mail.gmail.com> <52865CA1.5020309@zytor.com> <20131115183002.GE6637@redhat.com> <52866C0D.3050006@zytor.com> <52867309.4040406@zytor.com> <20131118152255.GA32168@redhat.com>
+In-Reply-To: <20131118152255.GA32168@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pravin Shelar <pshelar@nicira.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Ben Hutchings <bhutchings@solarflare.com>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Yinghai Lu <yinghai@kernel.org>, Ingo Molnar <mingo@kernel.org>, jerry.hoemann@hp.com, Pekka Enberg <penberg@kernel.org>, Rob Landley <rob@landley.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, x86 maintainers <x86@kernel.org>, Matt Fleming <matt.fleming@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "list@ebiederm.org:DOCUMENTATION" <linux-doc@vger.kernel.org>, "list@ebiederm.org:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-efi@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On 11/15/2013 10:47 AM, Andrea Arcangeli wrote:
-> Hi,
->
-> 1/3 is a bugfix so it should be applied more urgently. 1/3 is not as
-> fast as the current upstream code in the hugetlbfs + directio extreme
-> 8GB/sec benchmark (but 3/3 should fill the gap later). The code is
-> identical to the one I posted in v1 just rebased on upstream and was
-> developed in collaboration with Khalid who already tested it.
->
-> 2/3 and 3/3 had very little testing yet, and they're incremental
-> optimization. 2/3 is minor and most certainly worth applying later.
->
-> 3/3 instead complicates things a bit and adds more branches to the THP
-> fast paths, so it should only be applied if the benchmarks of
-> hugetlbfs + directio show that it is very worthwhile (that has not
-> been verified yet). If it's not worthwhile 3/3 should be dropped (and
-> the gap should be filled in some other way if the gap is not caused by
-> the _mapcount mangling as I guessed). Ideally this should bring even
-> more performance than current upstream code, as current upstream code
-> still increased the _mapcount in gup_fast by mistake, while this
-> eliminates the locked op on the tail page cacheline in gup_fast too
-> (which is required for correctness too).
+On 11/18/2013 07:22 AM, Vivek Goyal wrote:
+> 
+> And if that's true, then reserving 72M extra due to crashkernel=X,high
+> should not be a big issue in KVM guests. It will still be an issue on
+> physical servers though.
+> 
 
-Hi Andrea,
+Yes, but there it is a single instance and not a huge amount of RAM.
 
-I ran directio benchmark and here are the performance numbers (MBytes/sec):
+	-hpa
 
-Block size        3.12         3.12+patch 1      3.12+patch 1,2,3
-----------        ----         ------------      ----------------
-1M                8467           8114              7648
-64K               4049           4043              4175
-
-Performance numbers with 64K reads look good but there is further 
-deterioration with 1M reads.
-
---
-Khalid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
