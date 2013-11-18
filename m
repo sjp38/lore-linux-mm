@@ -1,76 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 235E06B0031
-	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 10:32:28 -0500 (EST)
-Received: by mail-pb0-f49.google.com with SMTP id jt11so2336816pbb.36
-        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 07:32:27 -0800 (PST)
-Received: from psmtp.com ([74.125.245.195])
-        by mx.google.com with SMTP id cx4si9942980pbc.119.2013.11.18.07.32.25
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 73D146B0031
+	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 10:55:01 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id z10so5160319pdj.16
+        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 07:55:01 -0800 (PST)
+Received: from psmtp.com ([74.125.245.111])
+        by mx.google.com with SMTP id qj1si9956908pbc.354.2013.11.18.07.54.59
         for <linux-mm@kvack.org>;
-        Mon, 18 Nov 2013 07:32:26 -0800 (PST)
-Date: Mon, 18 Nov 2013 10:32:11 -0500
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 0/3] Early use of boot service memory
-Message-ID: <20131118153211.GB32168@redhat.com>
-References: <20131114180455.GA32212@anatevka.fc.hp.com>
- <CAOJsxLFWMi8DoFp+ufri7XoFO27v+2=0oksh8+NhM6P-OdkOwg@mail.gmail.com>
- <20131115005049.GJ5116@anatevka.fc.hp.com>
- <20131115062417.GB9237@gmail.com>
- <CAE9FiQWzSTtW8N=0hoUe6iCSM-k64Mv97n0whAS0_vZ+psuOsg@mail.gmail.com>
- <5285C639.5040203@zytor.com>
- <20131115140738.GB6637@redhat.com>
- <CAE9FiQUnw9Ujmdtq-AgC4VctQ=fZSBkzehoTbvw=aZeARL+pwA@mail.gmail.com>
- <20131115180324.GD6637@redhat.com>
- <CAE9FiQU_OstEq3VWwBB879O4EY0DE+zVWVens+w0MLFUQmr3sw@mail.gmail.com>
+        Mon, 18 Nov 2013 07:55:00 -0800 (PST)
+Date: Mon, 18 Nov 2013 10:54:50 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch] mm, memcg: add memory.oom_control notification for
+ system oom
+Message-ID: <20131118155450.GB3556@cmpxchg.org>
+References: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com>
+ <20131031054942.GA26301@cmpxchg.org>
+ <alpine.DEB.2.02.1311131416460.23211@chino.kir.corp.google.com>
+ <20131113233419.GJ707@cmpxchg.org>
+ <alpine.DEB.2.02.1311131649110.6735@chino.kir.corp.google.com>
+ <20131114032508.GL707@cmpxchg.org>
+ <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAE9FiQU_OstEq3VWwBB879O4EY0DE+zVWVens+w0MLFUQmr3sw@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, jerry.hoemann@hp.com, Pekka Enberg <penberg@kernel.org>, Rob Landley <rob@landley.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, x86 maintainers <x86@kernel.org>, Matt Fleming <matt.fleming@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "list@ebiederm.org:DOCUMENTATION" <linux-doc@vger.kernel.org>, "list@ebiederm.org:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-efi@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Fri, Nov 15, 2013 at 02:24:25PM -0800, Yinghai Lu wrote:
-> On Fri, Nov 15, 2013 at 10:03 AM, Vivek Goyal <vgoyal@redhat.com> wrote:
-> > On Fri, Nov 15, 2013 at 09:33:41AM -0800, Yinghai Lu wrote:
+On Thu, Nov 14, 2013 at 02:57:51PM -0800, David Rientjes wrote:
+> On Wed, 13 Nov 2013, Johannes Weiner wrote:
 > 
-> >> I have one system with 6TiB memory, kdump does not work even
-> >> crashkernel=512M in legacy mode. ( it only work on system with
-> >> 4.5TiB).
-> >
-> > Recently I tested one system with 6TB of memory and dumped successfully
-> > with 512MB reserved under 896MB. Also I have heard reports of successful
-> > dump of 12TB system with 512MB reserved below 896MB (due to cyclic
-> > mode of makedumpfile).
-> >
-> > So with newer releases only reason one might want to reserve more
-> > memory is that it might provide speed benefits. We need more testing
-> > to quantify this.
+> > > > Somebody called out_of_memory() after they
+> > > > failed reclaim, the machine is OOM.
+> > > 
+> > > While momentarily oom, the oom notifiers in powerpc and s390 have the 
+> > > ability to free memory without requiring a kill.
+> > 
+> > So either
+> > 
+> > 1) they should be part of the regular reclaim process, or
+> > 
+> > 2) their invocation is severe enough to not be part of reclaim, at
+> >    which point we should probably tell userspace about the OOM
+> > 
 > 
-> You may need bunch of PCIe cards installed.
+> (1) is already true, we can avoid oom by freeing memory for subsystems 
+> using register_oom_notifier(), so we're not actually oom.  It's a late 
+> callback into the kernel to free memory in a sense of reclaim.  It was 
+> added directly into out_of_memory() purely for simplicity; it could be 
+> moved to the page allocator if we move all of the oom_notify_list helpers 
+> there as well.
+
+If they can easily free it without any repercussions, they should
+really be part of regular reclaim.  Maybe convert them to shrinkers.
+
+And then you can use OOM notifiers to be notified about OOM.
+
+> The same is true of silently setting TIF_MEMDIE for current so that it has 
+> access to memory reserves and may exit when it has a pending SIGKILL or is 
+> already exiting.
 > 
-> The system with 6TiB + 16 PCIe cards, second kernel OOM.
-> The system with 4.5TiB + 16 PCIe cards, second kernel works with vmcore dumped.
-
-What's the distro you are testing with? Do you have latest bits of
-makeudmpfile where we use cyclic mode by default and one does not need
-more reserved memory because of more physical memory present in the
-box. I suspect that might be the problem in your testing environment
-and old makedumpfile wil try to allocate larger memory on large
-RAM machines and OOM.
-
-[..]
-> > So issue remains that crashkernel=X,high is not a good default choice
-> > because it consumes extra 72M which we don't have to.
+> In both cases, we're not actually oom because either (a) the kernel can 
+> still free memory and avoid actually killing a process, or (b) current 
+> simply needs access to memory reserves so it may die.
 > 
-> then if it falls into 896~4G, user may still need to update kexec-tools ?
+> We don't want to invoke the userspace oom handler when we first enter 
+> direct reclaim, for example, for the same reason.
 
-Yep. But distributions control the version of kexec-tools and version
-of kernel and can ship updated kexec-tools by default.
+Reclaim is an option the kernel always has, the current task exiting
+is a coincidence.
 
-Thanks
-Vivek
+And accessing the emergency reserves means we are definitely no longer
+A-OK, this is not comparable to the first direct reclaim invocation.
+
+We exhausted our options and we got really lucky.  It should not be
+considered the baseline and a user listening for "OOM conditions"
+should be informed about this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
