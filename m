@@ -1,55 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EBD96B0031
-	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 04:44:24 -0500 (EST)
-Received: by mail-pb0-f47.google.com with SMTP id um1so51213pbc.6
-        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 01:44:24 -0800 (PST)
-Received: from psmtp.com ([74.125.245.129])
-        by mx.google.com with SMTP id yj7si2975977pab.141.2013.11.18.01.44.21
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 36A0E6B0031
+	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 05:33:03 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id bj1so1552257pad.14
+        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 02:33:02 -0800 (PST)
+Received: from psmtp.com ([74.125.245.182])
+        by mx.google.com with SMTP id hb3si9324753pac.7.2013.11.18.02.32.55
         for <linux-mm@kvack.org>;
-        Mon, 18 Nov 2013 01:44:23 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH] sparc64: fix build regession
-Date: Mon, 18 Nov 2013 11:44:09 +0200
-Message-Id: <1384767850-2574-1-git-send-email-kirill.shutemov@linux.intel.com>
+        Mon, 18 Nov 2013 02:33:00 -0800 (PST)
+Date: Mon, 18 Nov 2013 10:32:47 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [v3][PATCH 2/2] mm: thp: give transparent hugepage code a
+ separate copy_page
+Message-ID: <20131118103247.GF26002@suse.de>
+References: <20131115225550.737E5C33@viggo.jf.intel.com>
+ <20131115225553.B0E9DFFB@viggo.jf.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20131115225553.B0E9DFFB@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "David S. Miller" <davem@davemloft.net>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.jiang@intel.com, akpm@linux-foundation.org, dhillf@gmail.com, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Commit ea1e7ed33708 triggers build regression on sparc64.
+On Fri, Nov 15, 2013 at 02:55:53PM -0800, Dave Hansen wrote:
+> 
+> Changes from v2:
+>  * 
+> Changes from v1:
+>  * removed explicit might_sleep() in favor of the one that we
+>    get from the cond_resched();
+> 
+> --
+> 
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+> 
+> Right now, the migration code in migrate_page_copy() uses
+> copy_huge_page() for hugetlbfs and thp pages:
+> 
+>        if (PageHuge(page) || PageTransHuge(page))
+>                 copy_huge_page(newpage, page);
+> 
+> So, yay for code reuse.  But:
+> 
+> void copy_huge_page(struct page *dst, struct page *src)
+> {
+>         struct hstate *h = page_hstate(src);
+> 
+> and a non-hugetlbfs page has no page_hstate().  This works 99% of
+> the time because page_hstate() determines the hstate from the
+> page order alone.  Since the page order of a THP page matches the
+> default hugetlbfs page order, it works.
+> 
+> But, if you change the default huge page size on the boot
+> command-line (say default_hugepagesz=1G), then we might not even
+> *have* a 2MB hstate so page_hstate() returns null and
+> copy_huge_page() oopses pretty fast since copy_huge_page()
+> dereferences the hstate:
+> 
+> void copy_huge_page(struct page *dst, struct page *src)
+> {
+>         struct hstate *h = page_hstate(src);
+>         if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
+> ...
+> 
+> Mel noticed that the migration code is really the only user of
+> these functions.  This moves all the copy code over to migrate.c
+> and makes copy_huge_page() work for THP by checking for it
+> explicitly.
+> 
+> I believe the bug was introduced in b32967ff101:
+> Author: Mel Gorman <mgorman@suse.de>
+> Date:   Mon Nov 19 12:35:47 2012 +0000
+> mm: numa: Add THP migration for the NUMA working set scanning fault case.
+> 
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 
-include/linux/mm.h:1391:2: error: implicit declaration of function 'pgtable_cache_init' [-Werror=implicit-function-declaration]
-arch/sparc/include/asm/pgtable_64.h:978:13: error: conflicting types for 'pgtable_cache_init' [-Werror]
+Acked-by: Mel Gorman <mgorman@suse.de>
 
-It happens due headers include loop:
-
-<linux/mm.h> -> <asm/pgtable.h> -> <asm/pgtable_64.h> ->
-	<asm/tlbflush.h> -> <asm/tlbflush_64.h> -> <linux/mm.h>
-
-Let's drop <linux/mm.h> include from asm/tlbflush_64.h.
-Build tested with allmodconfig.
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reported-by: Geert Uytterhoeven <geert@linux-m68k.org>
----
- arch/sparc/include/asm/tlbflush_64.h | 1 -
- 1 file changed, 1 deletion(-)
-
-diff --git a/arch/sparc/include/asm/tlbflush_64.h b/arch/sparc/include/asm/tlbflush_64.h
-index f0d6a9700f4c..3c3c89f52643 100644
---- a/arch/sparc/include/asm/tlbflush_64.h
-+++ b/arch/sparc/include/asm/tlbflush_64.h
-@@ -1,7 +1,6 @@
- #ifndef _SPARC64_TLBFLUSH_H
- #define _SPARC64_TLBFLUSH_H
- 
--#include <linux/mm.h>
- #include <asm/mmu_context.h>
- 
- /* TSB flush operations. */
 -- 
-1.8.4.3
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
