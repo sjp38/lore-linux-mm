@@ -1,59 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id CFE636B0031
-	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 14:39:50 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id bj1so7096756pad.7
-        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 11:39:50 -0800 (PST)
-Received: from psmtp.com ([74.125.245.169])
-        by mx.google.com with SMTP id ai2si10441277pad.1.2013.11.18.11.39.48
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id C6C1D6B0031
+	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 15:20:32 -0500 (EST)
+Received: by mail-pb0-f48.google.com with SMTP id md12so806500pbc.21
+        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 12:20:32 -0800 (PST)
+Received: from psmtp.com ([74.125.245.175])
+        by mx.google.com with SMTP id z1si10495448pbn.91.2013.11.18.12.20.29
         for <linux-mm@kvack.org>;
-        Mon, 18 Nov 2013 11:39:49 -0800 (PST)
-Date: Mon, 18 Nov 2013 14:39:42 -0500
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 0/3] Early use of boot service memory
-Message-ID: <20131118193942.GE32168@redhat.com>
-References: <20131115005049.GJ5116@anatevka.fc.hp.com>
- <20131115062417.GB9237@gmail.com>
- <CAE9FiQWzSTtW8N=0hoUe6iCSM-k64Mv97n0whAS0_vZ+psuOsg@mail.gmail.com>
- <5285C639.5040203@zytor.com>
- <20131115140738.GB6637@redhat.com>
- <CAE9FiQUnw9Ujmdtq-AgC4VctQ=fZSBkzehoTbvw=aZeARL+pwA@mail.gmail.com>
- <20131115180324.GD6637@redhat.com>
- <CAE9FiQU_OstEq3VWwBB879O4EY0DE+zVWVens+w0MLFUQmr3sw@mail.gmail.com>
- <20131118153211.GB32168@redhat.com>
- <CAE9FiQWue3rBVTmXAMoBpWCTgFQ1VP+bkm-k_v1wx4U94ctPBA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Mon, 18 Nov 2013 12:20:30 -0800 (PST)
+Date: Mon, 18 Nov 2013 15:20:22 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1384806022-4718p9lh-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <528A6448.3080907@sr71.net>
+References: <20131115225550.737E5C33@viggo.jf.intel.com>
+ <20131115225553.B0E9DFFB@viggo.jf.intel.com>
+ <1384800714-y653r3ch-mutt-n-horiguchi@ah.jp.nec.com>
+ <1384800841-314l1f3e-mutt-n-horiguchi@ah.jp.nec.com>
+ <528A6448.3080907@sr71.net>
+Subject: Re: [PATCH] mm: call cond_resched() per MAX_ORDER_NR_PAGES pages copy
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <CAE9FiQWue3rBVTmXAMoBpWCTgFQ1VP+bkm-k_v1wx4U94ctPBA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, jerry.hoemann@hp.com, Pekka Enberg <penberg@kernel.org>, Rob Landley <rob@landley.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, x86 maintainers <x86@kernel.org>, Matt Fleming <matt.fleming@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "list@ebiederm.org:DOCUMENTATION" <linux-doc@vger.kernel.org>, "list@ebiederm.org:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-efi@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.jiang@intel.com, akpm@linux-foundation.org, dhillf@gmail.com, Mel Gorman <mgorman@suse.de>
 
-On Mon, Nov 18, 2013 at 11:34:04AM -0800, Yinghai Lu wrote:
-> On Mon, Nov 18, 2013 at 7:32 AM, Vivek Goyal <vgoyal@redhat.com> wrote:
-> >> You may need bunch of PCIe cards installed.
-> >>
-> >> The system with 6TiB + 16 PCIe cards, second kernel OOM.
-> >> The system with 4.5TiB + 16 PCIe cards, second kernel works with vmcore dumped.
-> >
-> > What's the distro you are testing with? Do you have latest bits of
-> > makeudmpfile where we use cyclic mode by default and one does not need
-> > more reserved memory because of more physical memory present in the
-> > box. I suspect that might be the problem in your testing environment
-> > and old makedumpfile wil try to allocate larger memory on large
-> > RAM machines and OOM.
+On Mon, Nov 18, 2013 at 11:02:32AM -0800, Dave Hansen wrote:
+> On 11/18/2013 10:54 AM, Naoya Horiguchi wrote:
+> > diff --git a/mm/migrate.c b/mm/migrate.c
+> > index cb5d152b58bc..661ff5f66591 100644
+> > --- a/mm/migrate.c
+> > +++ b/mm/migrate.c
+> > @@ -454,7 +454,8 @@ static void __copy_gigantic_page(struct page *dst, struct page *src,
+> >  	struct page *src_base = src;
+> >  
+> >  	for (i = 0; i < nr_pages; ) {
+> > -		cond_resched();
+> > +		if (i % MAX_ORDER_NR_PAGES == 0)
+> > +			cond_resched();
+> >  		copy_highpage(dst, src);
 > 
-> Default RHEL 6.4.
+> This is certainly OK on x86, but remember that MAX_ORDER can be
+> overridden by a config variable.  Just picking one at random:
 > 
-> Will check if i can enable cyclic mode.
+> config FORCE_MAX_ZONEORDER
+>         int "Maximum zone order"
+>         range 9 64 if PPC64 && PPC_64K_PAGES
+> ...
+> 
+> Would it be OK to only resched once every 2^63 pages? ;)
 
-6.4 does not have makedumpfile cyclic mode support. 6.5 does and it
-is enabled by default and no user intervention is required to enable it.
+You're right. We need use more reliable value here.
+HPAGE_SIZE/PAGE_SIZE looks better to me.
 
-Thanks
-Vivek
+> Really, though, a lot of things seem to have MAX_ORDER set up so that
+> it's at 256MB or 512MB.  That's an awful lot to do between rescheds.
+
+Yes.
+
+BTW, I found that we have the same problem for other functions like
+copy_user_gigantic_page, copy_user_huge_page, and maybe clear_gigantic_page.
+So we had better handle them too.
+
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
