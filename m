@@ -1,119 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id CB2236B0031
-	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 07:55:11 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id fa1so6703920pad.30
-        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 04:55:11 -0800 (PST)
-Received: from psmtp.com ([74.125.245.161])
-        by mx.google.com with SMTP id am2si9593212pad.154.2013.11.18.04.55.09
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id C2C866B0031
+	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 10:23:11 -0500 (EST)
+Received: by mail-pb0-f45.google.com with SMTP id rp16so431568pbb.4
+        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 07:23:11 -0800 (PST)
+Received: from psmtp.com ([74.125.245.200])
+        by mx.google.com with SMTP id xj9si4935293pab.208.2013.11.18.07.23.09
         for <linux-mm@kvack.org>;
-        Mon, 18 Nov 2013 04:55:10 -0800 (PST)
-Date: Mon, 18 Nov 2013 13:55:07 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-Message-ID: <20131118125507.GD32623@dhcp22.suse.cz>
-References: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com>
- <20131031054942.GA26301@cmpxchg.org>
- <alpine.DEB.2.02.1311131416460.23211@chino.kir.corp.google.com>
- <20131113233419.GJ707@cmpxchg.org>
- <alpine.DEB.2.02.1311131649110.6735@chino.kir.corp.google.com>
- <20131114032508.GL707@cmpxchg.org>
- <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com>
- <20131118125240.GC32623@dhcp22.suse.cz>
+        Mon, 18 Nov 2013 07:23:10 -0800 (PST)
+Date: Mon, 18 Nov 2013 10:22:55 -0500
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH 0/3] Early use of boot service memory
+Message-ID: <20131118152255.GA32168@redhat.com>
+References: <20131115005049.GJ5116@anatevka.fc.hp.com>
+ <20131115062417.GB9237@gmail.com>
+ <CAE9FiQWzSTtW8N=0hoUe6iCSM-k64Mv97n0whAS0_vZ+psuOsg@mail.gmail.com>
+ <5285C639.5040203@zytor.com>
+ <20131115140738.GB6637@redhat.com>
+ <CAE9FiQUnw9Ujmdtq-AgC4VctQ=fZSBkzehoTbvw=aZeARL+pwA@mail.gmail.com>
+ <52865CA1.5020309@zytor.com>
+ <20131115183002.GE6637@redhat.com>
+ <52866C0D.3050006@zytor.com>
+ <52867309.4040406@zytor.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131118125240.GC32623@dhcp22.suse.cz>
+In-Reply-To: <52867309.4040406@zytor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, "Eric W. Biederman" <ebiederm@xmission.com>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Yinghai Lu <yinghai@kernel.org>, Ingo Molnar <mingo@kernel.org>, jerry.hoemann@hp.com, Pekka Enberg <penberg@kernel.org>, Rob Landley <rob@landley.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, x86 maintainers <x86@kernel.org>, Matt Fleming <matt.fleming@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "list@ebiederm.org:DOCUMENTATION" <linux-doc@vger.kernel.org>, "list@ebiederm.org:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-efi@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 18-11-13 13:52:40, Michal Hocko wrote:
-> [Adding Eric to CC]
-> 
-> On Thu 14-11-13 15:26:51, David Rientjes wrote:
-> > When current has a pending SIGKILL or is already in the exit path, it
-> > only needs access to memory reserves to fully exit.  In that sense, the
-> > memcg is not actually oom for current, it simply needs to bypass memory
-> > charges to exit and free its memory, which is guarantee itself that
-> > memory will be freed.
+On Fri, Nov 15, 2013 at 11:16:25AM -0800, H. Peter Anvin wrote:
+> On 11/15/2013 10:46 AM, H. Peter Anvin wrote:
+> > On 11/15/2013 10:30 AM, Vivek Goyal wrote:
+> >>
+> >> I agree taking assistance of hypervisor should be useful.
+> >>
+> >> One reason we use kdump for VM too because it makes life simple. There
+> >> is no difference in how we configure, start and manage crash dumps
+> >> in baremetal or inside VM. And in practice have not heard of lot of
+> >> failures of kdump in VM environment.
+> >>
+> >> So while reliability remains a theoritical concern, in practice it
+> >> has not been a real concern and that's one reason I think we have
+> >> not seen a major push for alternative method in VM environment.
+> >>
 > > 
-> > We only want to notify userspace for actionable oom conditions where
-> > something needs to be done (and all oom handling can already be deferred
-> > to userspace through this method by disabling the memcg oom killer with
-> > memory.oom_control), not simply when a memcg has reached its limit, which
-> > would actually have to happen before memcg reclaim actually frees memory
-> > for charges.
-> 
-> I believe this also fixes the issue reported by Eric
-> (https://lkml.org/lkml/2013/7/28/74). I had a patch for this
-> https://lkml.org/lkml/2013/7/31/94 but the code changed since then and
-> this should be equivalent.
->  
-> > Reported-by: Johannes Weiner <hannes@cmpxchg.org>
-> > Signed-off-by: David Rientjes <rientjes@google.com>
-
-Anyway, the patch looks good to me but please mention the above bug in
-the changelog.
-
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-> > ---
-> >  mm/memcontrol.c | 20 ++++++++++----------
-> >  1 file changed, 10 insertions(+), 10 deletions(-)
+> > Another reason, again, is that it doesn't sit on all that memory.
 > > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -1783,16 +1783,6 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
-> >  	unsigned int points = 0;
-> >  	struct task_struct *chosen = NULL;
-> >  
-> > -	/*
-> > -	 * If current has a pending SIGKILL or is exiting, then automatically
-> > -	 * select it.  The goal is to allow it to allocate so that it may
-> > -	 * quickly exit and free its memory.
-> > -	 */
-> > -	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
-> > -		set_thread_flag(TIF_MEMDIE);
-> > -		return;
-> > -	}
-> > -
-> >  	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, order, NULL);
-> >  	totalpages = mem_cgroup_get_limit(memcg) >> PAGE_SHIFT ? : 1;
-> >  	for_each_mem_cgroup_tree(iter, memcg) {
-> > @@ -2243,6 +2233,16 @@ bool mem_cgroup_oom_synchronize(bool handle)
-> >  	if (!handle)
-> >  		goto cleanup;
-> >  
-> > +	/*
-> > +	 * If current has a pending SIGKILL or is exiting, then automatically
-> > +	 * select it.  The goal is to allow it to allocate so that it may
-> > +	 * quickly exit and free its memory.
-> > +	 */
-> > +	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
-> > +		set_thread_flag(TIF_MEMDIE);
-> > +		goto cleanup;
-> > +	}
-> > +
-> >  	owait.memcg = memcg;
-> >  	owait.wait.flags = 0;
-> >  	owait.wait.func = memcg_oom_wake_function;
 > 
-> -- 
-> Michal Hocko
-> SUSE Labs
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> This led me to a potentially interesting idea.  If we can tell the
+> hypervisor about which memory blocks belong to kdump, we can still use
+> kdump in its current form with only a few hypervisor calls thrown in.
+> 
+> One set of calls would mark memory ranges as belonging to kdump.  This
+> would (a) make them protected,
 
--- 
-Michal Hocko
-SUSE Labs
+This sounds good. We already have arch hooks to map/unmap crash kernel
+ranges, crash_map_reserved_pages() and crash_unmap_reserved_pages(). Now x86,
+should be able to use these hooks to tell hypervisor to remove mappings
+for certain physical certain ranges and remap these back when needed. s390
+already does some magic there.
+
+> and (b) tell the hypervisor that these
+> memory ranges will not be accessed and don't need to occupy physical RAM.
+
+I am not sure if we need to do anything here. I am assuming that most of
+the crashkernel memory has not been touched and does not occupy physical
+memory till crash actually happens. We probably will touch only 20-30MB
+of crashkernel memory during kernel load and that should ultimately make
+its way to swap at some point of time.
+
+And if that's true, then reserving 72M extra due to crashkernel=X,high
+should not be a big issue in KVM guests. It will still be an issue on
+physical servers though.
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
