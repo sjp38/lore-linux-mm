@@ -1,72 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 0457C6B0036
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 10:49:52 -0500 (EST)
-Received: by mail-pb0-f53.google.com with SMTP id ma3so10014827pbc.26
-        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 07:49:52 -0800 (PST)
-Received: from psmtp.com ([74.125.245.167])
-        by mx.google.com with SMTP id ai2si14551684pad.88.2013.11.20.07.49.50
+Received: from mail-ob0-f205.google.com (mail-ob0-f205.google.com [209.85.214.205])
+	by kanga.kvack.org (Postfix) with ESMTP id 258076B0031
+	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 11:00:17 -0500 (EST)
+Received: by mail-ob0-f205.google.com with SMTP id vb8so84444obc.4
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 08:00:16 -0800 (PST)
+Received: from psmtp.com ([74.125.245.194])
+        by mx.google.com with SMTP id yj7si3737658pab.141.2013.11.18.07.41.26
         for <linux-mm@kvack.org>;
-        Wed, 20 Nov 2013 07:49:51 -0800 (PST)
-Date: Wed, 20 Nov 2013 15:46:43 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
-Message-ID: <20131120154643.GG19352@mudshark.cambridge.arm.com>
-References: <cover.1384885312.git.tim.c.chen@linux.intel.com>
- <1384911463.11046.454.camel@schen9-DESK>
- <20131120153123.GF4138@linux.vnet.ibm.com>
+        Mon, 18 Nov 2013 07:41:27 -0800 (PST)
+Date: Mon, 18 Nov 2013 10:41:15 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
+ access to memory reserves
+Message-ID: <20131118154115.GA3556@cmpxchg.org>
+References: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com>
+ <20131031054942.GA26301@cmpxchg.org>
+ <alpine.DEB.2.02.1311131416460.23211@chino.kir.corp.google.com>
+ <20131113233419.GJ707@cmpxchg.org>
+ <alpine.DEB.2.02.1311131649110.6735@chino.kir.corp.google.com>
+ <20131114032508.GL707@cmpxchg.org>
+ <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131120153123.GF4138@linux.vnet.ibm.com>
+In-Reply-To: <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-Hi Paul,
-
-On Wed, Nov 20, 2013 at 03:31:23PM +0000, Paul E. McKenney wrote:
-> On Tue, Nov 19, 2013 at 05:37:43PM -0800, Tim Chen wrote:
-> > @@ -68,7 +72,12 @@ void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
-> >  		while (!(next = ACCESS_ONCE(node->next)))
-> >  			arch_mutex_cpu_relax();
-> >  	}
-> > -	ACCESS_ONCE(next->locked) = 1;
-> > -	smp_wmb();
-> > +	/*
-> > +	 * Pass lock to next waiter.
-> > +	 * smp_store_release() provides a memory barrier to ensure
-> > +	 * all operations in the critical section has been completed
-> > +	 * before unlocking.
-> > +	 */
-> > +	smp_store_release(&next->locked, 1);
+On Thu, Nov 14, 2013 at 03:26:51PM -0800, David Rientjes wrote:
+> When current has a pending SIGKILL or is already in the exit path, it
+> only needs access to memory reserves to fully exit.  In that sense, the
+> memcg is not actually oom for current, it simply needs to bypass memory
+> charges to exit and free its memory, which is guarantee itself that
+> memory will be freed.
 > 
-> However, there is one problem with this that I missed yesterday.
-> 
-> Documentation/memory-barriers.txt requires that an unlock-lock pair
-> provide a full barrier, but this is not guaranteed if we use
-> smp_store_release() for unlock and smp_load_acquire() for lock.
-> At least one of these needs a full memory barrier.
+> We only want to notify userspace for actionable oom conditions where
+> something needs to be done (and all oom handling can already be deferred
+> to userspace through this method by disabling the memcg oom killer with
+> memory.oom_control), not simply when a memcg has reached its limit, which
+> would actually have to happen before memcg reclaim actually frees memory
+> for charges.
 
-Hmm, so in the following case:
+Even though the situation may not require a kill, the user still wants
+to know that the memory hard limit was breached and the isolation
+broken in order to prevent a kill.  We just came really close and the
+fact that current is exiting is coincidental.  Not everybody is having
+OOM situations on a frequent basis and they might want to know when
+they are redlining the system and that the same workload might blow up
+the next time it's run.
 
-  Access A
-  unlock()	/* release semantics */
-  lock()	/* acquire semantics */
-  Access B
+The emergency reserves are there to prevent the system from
+deadlocking.  We only dip into them to avert a more imminent disaster
+but we are no longer in good shape at this point.  But by not even
+announcing this situation to userspace anymore you are making this the
+new baseline and declaring that everything is fine when the system is
+already clutching at straws.
 
-A cannot pass beyond the unlock() and B cannot pass the before the lock().
-
-I agree that accesses between the unlock and the lock can be move across both
-A and B, but that doesn't seem to matter by my reading of the above.
-
-What is the problematic scenario you have in mind? Are you thinking of the
-lock() moving before the unlock()? That's only permitted by RCpc afaiu,
-which I don't think any architectures supported by Linux implement...
-(ARMv8 acquire/release is RCsc).
-
-Will
+I maintain that we should signal OOM when our healthy and
+always-available options are exhausted.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
