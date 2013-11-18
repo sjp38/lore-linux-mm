@@ -1,50 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id DE6116B0031
-	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 18:08:09 -0500 (EST)
-Received: by mail-pd0-f171.google.com with SMTP id z10so5643288pdj.16
-        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 15:08:09 -0800 (PST)
-Received: from psmtp.com ([74.125.245.185])
-        by mx.google.com with SMTP id gn4si10721577pbc.81.2013.11.18.15.08.07
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DF516B0037
+	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 18:15:33 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id up15so2736632pbc.10
+        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 15:15:33 -0800 (PST)
+Received: from psmtp.com ([74.125.245.132])
+        by mx.google.com with SMTP id yj7si4494796pab.83.2013.11.18.15.15.28
         for <linux-mm@kvack.org>;
-        Mon, 18 Nov 2013 15:08:08 -0800 (PST)
-Date: Mon, 18 Nov 2013 18:08:04 -0500 (EST)
-Message-Id: <20131118.180804.1868971161928013977.davem@davemloft.net>
-Subject: Re: [PATCH] sparc64: fix build regession
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <1384767850-2574-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1384767850-2574-1-git-send-email-kirill.shutemov@linux.intel.com>
+        Mon, 18 Nov 2013 15:15:30 -0800 (PST)
+Date: Mon, 18 Nov 2013 23:15:06 +0000
+From: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>
+Subject: Re: [patch] mm, memcg: add memory.oom_control notification for
+ system oom
+Message-ID: <20131118231506.32ec2467@alan.etchedpixels.co.uk>
+In-Reply-To: <20131118155450.GB3556@cmpxchg.org>
+References: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com>
+	<20131031054942.GA26301@cmpxchg.org>
+	<alpine.DEB.2.02.1311131416460.23211@chino.kir.corp.google.com>
+	<20131113233419.GJ707@cmpxchg.org>
+	<alpine.DEB.2.02.1311131649110.6735@chino.kir.corp.google.com>
+	<20131114032508.GL707@cmpxchg.org>
+	<alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com>
+	<20131118155450.GB3556@cmpxchg.org>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kirill.shutemov@linux.intel.com
-Cc: geert@linux-m68k.org, sfr@canb.auug.org.au, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Date: Mon, 18 Nov 2013 11:44:09 +0200
+> And accessing the emergency reserves means we are definitely no longer
+> A-OK, this is not comparable to the first direct reclaim invocation.
+> 
+> We exhausted our options and we got really lucky.  It should not be
+> considered the baseline and a user listening for "OOM conditions"
+> should be informed about this.
 
-> Commit ea1e7ed33708 triggers build regression on sparc64.
-> 
-> include/linux/mm.h:1391:2: error: implicit declaration of function 'pgtable_cache_init' [-Werror=implicit-function-declaration]
-> arch/sparc/include/asm/pgtable_64.h:978:13: error: conflicting types for 'pgtable_cache_init' [-Werror]
-> 
-> It happens due headers include loop:
-> 
-> <linux/mm.h> -> <asm/pgtable.h> -> <asm/pgtable_64.h> ->
-> 	<asm/tlbflush.h> -> <asm/tlbflush_64.h> -> <linux/mm.h>
-> 
-> Let's drop <linux/mm.h> include from asm/tlbflush_64.h.
-> Build tested with allmodconfig.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Reported-by: Geert Uytterhoeven <geert@linux-m68k.org>
+Definitely concur - there are loading tuning cases where you want to
+drive the box to the point it starts whining and then scale back a touch.
 
-Applied, please post sparc patches to sparclinux@vger.kernel.org in the
-future so that I can properly track them.
-
-Thanks.
+It's an API change in effect, and while I can believe there are good
+arguments for both any API change ought to be a new API for listening
+only to serious OOM cases.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
