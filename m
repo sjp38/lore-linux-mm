@@ -1,96 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id DEC486B0039
-	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 14:28:45 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id lj1so1396051pab.29
-        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 11:28:45 -0800 (PST)
-Received: from psmtp.com ([74.125.245.206])
-        by mx.google.com with SMTP id it5si10406417pbc.125.2013.11.18.11.28.43
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 43A2E6B0035
+	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 14:34:07 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id up15so2444184pbc.24
+        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 11:34:06 -0800 (PST)
+Received: from psmtp.com ([74.125.245.200])
+        by mx.google.com with SMTP id sn7si10405008pab.167.2013.11.18.11.34.05
         for <linux-mm@kvack.org>;
-        Mon, 18 Nov 2013 11:28:44 -0800 (PST)
-Date: Mon, 18 Nov 2013 19:28:41 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: vmstat: On demand vmstat workers V3
-In-Reply-To: <20131116154224.GC18855@localhost.localdomain>
-Message-ID: <000001426cafac3e-0ff96cdc-7ecb-43e7-9f26-79a80f469473-000000@email.amazonses.com>
-References: <000001417f6834f1-32b83f22-8bde-4b9e-b591-bc31329660e4-000000@email.amazonses.com> <20131116154224.GC18855@localhost.localdomain>
+        Mon, 18 Nov 2013 11:34:06 -0800 (PST)
+Received: by mail-ie0-f170.google.com with SMTP id qd12so190294ieb.1
+        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 11:34:04 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20131118153211.GB32168@redhat.com>
+References: <20131114180455.GA32212@anatevka.fc.hp.com>
+	<CAOJsxLFWMi8DoFp+ufri7XoFO27v+2=0oksh8+NhM6P-OdkOwg@mail.gmail.com>
+	<20131115005049.GJ5116@anatevka.fc.hp.com>
+	<20131115062417.GB9237@gmail.com>
+	<CAE9FiQWzSTtW8N=0hoUe6iCSM-k64Mv97n0whAS0_vZ+psuOsg@mail.gmail.com>
+	<5285C639.5040203@zytor.com>
+	<20131115140738.GB6637@redhat.com>
+	<CAE9FiQUnw9Ujmdtq-AgC4VctQ=fZSBkzehoTbvw=aZeARL+pwA@mail.gmail.com>
+	<20131115180324.GD6637@redhat.com>
+	<CAE9FiQU_OstEq3VWwBB879O4EY0DE+zVWVens+w0MLFUQmr3sw@mail.gmail.com>
+	<20131118153211.GB32168@redhat.com>
+Date: Mon, 18 Nov 2013 11:34:04 -0800
+Message-ID: <CAE9FiQWue3rBVTmXAMoBpWCTgFQ1VP+bkm-k_v1wx4U94ctPBA@mail.gmail.com>
+Subject: Re: [PATCH 0/3] Early use of boot service memory
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Frederic Weisbecker <fweisbec@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, jerry.hoemann@hp.com, Pekka Enberg <penberg@kernel.org>, Rob Landley <rob@landley.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, x86 maintainers <x86@kernel.org>, Matt Fleming <matt.fleming@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "list@ebiederm.org:DOCUMENTATION" <linux-doc@vger.kernel.org>, "list@ebiederm.org:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-efi@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Sat, 16 Nov 2013, Frederic Weisbecker wrote:
-
-> Not really. Thomas suggested an infrastructure to move CPU-local periodic
-> jobs handling to be offlined to set of remote housekeeping CPU.
-
-As I said in my reply to that proposal this is not possible since the cpu
-local jobs rely on cpu local operations in order to reduce the impact of
-statistics keeping on vm operations.
-
-> Now the problem is that vmstats updates use pure local lockless
-> operations. It may be possible to offline this update to remote CPUs
-> but then we need to convert vmstats updates to use locks. Which is
-> potentially costly. Unless we can find some clever lockless update
-> scheme. Do you think this can be possible?
-
-We got to these per cpu operations for vm statistics because they
-can have an significant influence on kernel performance. Experiments in
-in this area have usually led to significant performance degradations.
-We have code in the VM that fine tunes the limits of when global data is
-updated due to the performance impact that these limits have.
-
-> > +	schedule_delayed_work_on(s, d,
-> > +		__round_jiffies_relative(sysctl_stat_interval, s));
+On Mon, Nov 18, 2013 at 7:32 AM, Vivek Goyal <vgoyal@redhat.com> wrote:
+>> You may need bunch of PCIe cards installed.
+>>
+>> The system with 6TiB + 16 PCIe cards, second kernel OOM.
+>> The system with 4.5TiB + 16 PCIe cards, second kernel works with vmcore dumped.
 >
-> Note that on dynticks idle (CONFIG_NO_HZ_IDLE=y), the timekeeper CPU can change quickly and often.
->
-> I can imagine a nasty race there: CPU 0 is the timekeeper. It schedules the
-> vmstat sherpherd work in 2 seconds. But CPU 0 goes to sleep for a big while
-> and some other CPU takes the timekeeping duty. The shepherd timer won't be
-> processed until CPU 0 wakes up although we may have CPUs to monitor.
->
-> CONFIG_NO_HZ_FULL may work incidentally because CPU 0 is the only timekeeper there
-> but this is a temporary limitation. Expect the timekeeper to be dynamic in the future
-> under that config.
+> What's the distro you are testing with? Do you have latest bits of
+> makeudmpfile where we use cyclic mode by default and one does not need
+> more reserved memory because of more physical memory present in the
+> box. I suspect that might be the problem in your testing environment
+> and old makedumpfile wil try to allocate larger memory on large
+> RAM machines and OOM.
 
-Could we stabilize the timekeeper? Its not really productive to move time
-and other processing  between different cores. Low latency configurations
-mean that processes are bound to certain processores. Moving
-processing between cores causes cache disturbances and therefore more
-latencies. Also timekeeping tunes its clock depending on the performance
-of a core. Timekeeping could be thrown off.
+Default RHEL 6.4.
 
-I could make this depend on CONFIG_NO_HZ_FULL or we can introduce another
-config option that keeps the timekeeper constant.
+Will check if i can enable cyclic mode.
 
-> So such a system that dynamically schedules timers on demand is enough if we
-> want to _minimize_ timers. But what we want is a strong guarantee that the
-> CPU won't be disturbed at least while it runs in userland, right?
+Thanks
 
-Sure if we could have then we'd want it.
-
-> I mean, we are not only interested in optimizations but also in guarantees if
-> we have an extreme workload that strongly depends on the CPU not beeing disturbed
-> at all. I know that some people in realtime want that. And I thought it's also
-> what your want, may be I misunderstood your usecase?
-
-Sure I want that too if its possible. I do know of any design that would
-be acceptable performance wise that would allow us to do that. Failing
-that I think that what I proposed is the best way to get rid of as much OS
-noise as possible.
-
-Also if a process invokes a system call then there are numerous reasons
-for the OS to enable the tick. F.e any network actions may require softirq
-processing, block operations may need something else. So this is not the
-only reason that the OS would have to interrupt the appliation. The
-lesson here is that a low latency application should avoid using system calls
-that require deferred processing.
-
-I can refine this approach if we have an agreement with going forward with
-the basic idea here of switching folding of differentials on an off.
+Yinghai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
