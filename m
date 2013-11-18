@@ -1,112 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DE676B0031
-	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 11:41:19 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id kx10so568866pab.36
-        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 08:41:18 -0800 (PST)
-Received: from psmtp.com ([74.125.245.108])
-        by mx.google.com with SMTP id sw1si10105818pbc.72.2013.11.18.08.41.16
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id CBAEE6B0031
+	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 11:51:15 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id p10so6771272pdj.9
+        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 08:51:15 -0800 (PST)
+Received: from psmtp.com ([74.125.245.163])
+        by mx.google.com with SMTP id pz2si10127927pac.28.2013.11.18.08.51.12
         for <linux-mm@kvack.org>;
-        Mon, 18 Nov 2013 08:41:17 -0800 (PST)
-Date: Mon, 18 Nov 2013 11:41:07 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm, vmscan: abort futile reclaim if we've been oom killed
-Message-ID: <20131118164107.GC3556@cmpxchg.org>
-References: <alpine.DEB.2.02.1311121801200.18803@chino.kir.corp.google.com>
- <20131113152412.GH707@cmpxchg.org>
- <alpine.DEB.2.02.1311131400300.23211@chino.kir.corp.google.com>
- <20131114000043.GK707@cmpxchg.org>
- <alpine.DEB.2.02.1311131639010.6735@chino.kir.corp.google.com>
+        Mon, 18 Nov 2013 08:51:13 -0800 (PST)
+Date: Mon, 18 Nov 2013 17:51:10 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
+ access to memory reserves
+Message-ID: <20131118165110.GE32623@dhcp22.suse.cz>
+References: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com>
+ <20131031054942.GA26301@cmpxchg.org>
+ <alpine.DEB.2.02.1311131416460.23211@chino.kir.corp.google.com>
+ <20131113233419.GJ707@cmpxchg.org>
+ <alpine.DEB.2.02.1311131649110.6735@chino.kir.corp.google.com>
+ <20131114032508.GL707@cmpxchg.org>
+ <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com>
+ <20131118154115.GA3556@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1311131639010.6735@chino.kir.corp.google.com>
+In-Reply-To: <20131118154115.GA3556@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Wed, Nov 13, 2013 at 04:48:32PM -0800, David Rientjes wrote:
-> On Wed, 13 Nov 2013, Johannes Weiner wrote:
-> 
-> > > The reclaim will fail, the only reason current has TIF_MEMDIE set is 
-> > > because reclaim has completely failed.
+On Mon 18-11-13 10:41:15, Johannes Weiner wrote:
+> On Thu, Nov 14, 2013 at 03:26:51PM -0800, David Rientjes wrote:
+> > When current has a pending SIGKILL or is already in the exit path, it
+> > only needs access to memory reserves to fully exit.  In that sense, the
+> > memcg is not actually oom for current, it simply needs to bypass memory
+> > charges to exit and free its memory, which is guarantee itself that
+> > memory will be freed.
 > > 
-> > ...for somebody else.
-> > 
+> > We only want to notify userspace for actionable oom conditions where
+> > something needs to be done (and all oom handling can already be deferred
+> > to userspace through this method by disabling the memcg oom killer with
+> > memory.oom_control), not simply when a memcg has reached its limit, which
+> > would actually have to happen before memcg reclaim actually frees memory
+> > for charges.
 > 
-> That process is in the same allocating context as current, otherwise 
-> current would not have been selected as a victim.  The oom killer tries to 
-> only kill processes that will lead to future memory freeing where reclaim 
-> has failed.
-> 
-> > > I don't know of any other "random places" other than when the oom killed 
-> > > process is sitting in reclaim before it is selected as the victim.  Once 
-> > > it returns to the page allocator, it will immediately allocate and then be 
-> > > able to handle its pending SIGKILL.  The one spot identified where it is 
-> > > absolutely pointless to spin is in reclaim since it is virtually 
-> > > guaranteed to fail.  This patch fixes that issue.
-> > 
-> > No, this applies to every other operation that does not immediately
-> > lead to the task exiting or which creates more system load.  Readahead
-> > would be another example.  They're all pointless and you could do
-> > without all of them at this point, but I'm not okay with putting these
-> > checks in random places that happen to bother you right now.  It's not
-> > a proper solution to the problem.
-> > 
-> 
-> If you have an alternative solution, please feel free to propose it and 
-> I'll try it out.
-> 
-> This isn't only about the cond_resched() in shrink_slab(), the reclaim is 
-> going to fail.  There should be no instances where an oom killed process 
-> can go and start magically reclaiming memory that would have prevented it 
-> from becoming oom in the first place.  I have seen the oom killer trigger 
-> and the victim stall for several seconds before actually allocating memory 
-> and that stall is pointless, especially when we're not touching a hotpath 
-> here, we're in direct reclaim already.
-> 
-> > Is it a good idea to let ~700 processes simultaneously go into direct
-> > global reclaim?
-> > 
-> > The victim aborting reclaim still leaves you with ~699 processes
-> > spinning in reclaim that should instead just retry the allocation as
-> > well.  What about them?
-> > 
-> 
-> Um, no, those processes are going through a repeated loop of direct 
-> reclaim, calling the oom killer, iterating the tasklist, finding an 
-> existing oom killed process that has yet to exit, and looping.  They 
-> wouldn't loop for too long if we can reduce the amount of time that it 
-> takes for that oom killed process to exit.
+> Even though the situation may not require a kill, the user still wants
+> to know that the memory hard limit was breached and the isolation
+> broken in order to prevent a kill.  We just came really close and the
 
-I'm not talking about the big loop in the page allocator.  The victim
-is going through the same loop.  This patch is about the victim being
-in a pointless direct reclaim cycle when it could be exiting, all I'm
-saying is that the other tasks doing direct reclaim at that moment
-should also be quitting and retrying the allocation.
+You can observe that you are getting into troubles from fail counter
+already. The usability without more reclaim statistics is a bit
+questionable but you get a rough impression that something is wrong at
+least.
 
-Because the victim exiting will put memory on the allocator free
-lists, not the LRU lists, it will not allow the other direct
-reclaimers to make progress any faster.
+> fact that current is exiting is coincidental.  Not everybody is having
+> OOM situations on a frequent basis and they might want to know when
+> they are redlining the system and that the same workload might blow up
+> the next time it's run.
 
-> > The situation your setups seem to get in frequently is bananas, don't
-> > micro optimize this.
-> > 
+I am just concerned that signaling temporal OOM conditions which do not
+require any OOM killer action (user or kernel space) might be confusing.
+Userspace would have harder times to tell whether any action is required
+or not.
+
+> The emergency reserves are there to prevent the system from
+> deadlocking.  We only dip into them to avert a more imminent disaster
+> but we are no longer in good shape at this point.  But by not even
+> announcing this situation to userspace anymore you are making this the
+> new baseline and declaring that everything is fine when the system is
+> already clutching at straws.
 > 
-> Unless you propose an alternative solution, this is the patch that fixes 
-> the problem when an oom killed process gets killed and then stalls for 
-> seconds before it actually retries allocating memory.
+> I maintain that we should signal OOM when our healthy and
+> always-available options are exhausted.
 
-If we have multi-second stalls in direct reclaim then it should be
-fixed for all direct reclaimers.  The problem is not only OOM kill
-victims getting stuck, it's every direct reclaimer being stuck trying
-to do way too much work before retrying the allocation.
-
-Kswapd checks the system state after every priority cycle.  Direct
-reclaim should probably do the same and retry the allocation after
-every priority cycle or every X pages scanned, where X is something
-reasonable and not "up to every LRU page in the system".
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
