@@ -1,83 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id CBAEE6B0031
-	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 11:51:15 -0500 (EST)
-Received: by mail-pd0-f178.google.com with SMTP id p10so6771272pdj.9
-        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 08:51:15 -0800 (PST)
-Received: from psmtp.com ([74.125.245.163])
-        by mx.google.com with SMTP id pz2si10127927pac.28.2013.11.18.08.51.12
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 669E26B0031
+	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 13:04:51 -0500 (EST)
+Received: by mail-pb0-f53.google.com with SMTP id ma3so7012249pbc.26
+        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 10:04:51 -0800 (PST)
+Received: from psmtp.com ([74.125.245.175])
+        by mx.google.com with SMTP id mj9si4327887pab.161.2013.11.18.10.04.49
         for <linux-mm@kvack.org>;
-        Mon, 18 Nov 2013 08:51:13 -0800 (PST)
-Date: Mon, 18 Nov 2013 17:51:10 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-Message-ID: <20131118165110.GE32623@dhcp22.suse.cz>
-References: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com>
- <20131031054942.GA26301@cmpxchg.org>
- <alpine.DEB.2.02.1311131416460.23211@chino.kir.corp.google.com>
- <20131113233419.GJ707@cmpxchg.org>
- <alpine.DEB.2.02.1311131649110.6735@chino.kir.corp.google.com>
- <20131114032508.GL707@cmpxchg.org>
- <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com>
- <20131118154115.GA3556@cmpxchg.org>
+        Mon, 18 Nov 2013 10:04:50 -0800 (PST)
+Message-ID: <528A56A7.3020301@oracle.com>
+Date: Mon, 18 Nov 2013 11:04:23 -0700
+From: Khalid Aziz <khalid.aziz@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131118154115.GA3556@cmpxchg.org>
+Subject: Re: [PATCH 0/3] mm: hugetlbfs: fix hugetlbfs optimization v2
+References: <1384537668-10283-1-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1384537668-10283-1-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pravin Shelar <pshelar@nicira.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Ben Hutchings <bhutchings@solarflare.com>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Mon 18-11-13 10:41:15, Johannes Weiner wrote:
-> On Thu, Nov 14, 2013 at 03:26:51PM -0800, David Rientjes wrote:
-> > When current has a pending SIGKILL or is already in the exit path, it
-> > only needs access to memory reserves to fully exit.  In that sense, the
-> > memcg is not actually oom for current, it simply needs to bypass memory
-> > charges to exit and free its memory, which is guarantee itself that
-> > memory will be freed.
-> > 
-> > We only want to notify userspace for actionable oom conditions where
-> > something needs to be done (and all oom handling can already be deferred
-> > to userspace through this method by disabling the memcg oom killer with
-> > memory.oom_control), not simply when a memcg has reached its limit, which
-> > would actually have to happen before memcg reclaim actually frees memory
-> > for charges.
-> 
-> Even though the situation may not require a kill, the user still wants
-> to know that the memory hard limit was breached and the isolation
-> broken in order to prevent a kill.  We just came really close and the
+On 11/15/2013 10:47 AM, Andrea Arcangeli wrote:
+> Hi,
+>
+> 1/3 is a bugfix so it should be applied more urgently. 1/3 is not as
+> fast as the current upstream code in the hugetlbfs + directio extreme
+> 8GB/sec benchmark (but 3/3 should fill the gap later). The code is
+> identical to the one I posted in v1 just rebased on upstream and was
+> developed in collaboration with Khalid who already tested it.
+>
+> 2/3 and 3/3 had very little testing yet, and they're incremental
+> optimization. 2/3 is minor and most certainly worth applying later.
+>
+> 3/3 instead complicates things a bit and adds more branches to the THP
+> fast paths, so it should only be applied if the benchmarks of
+> hugetlbfs + directio show that it is very worthwhile (that has not
+> been verified yet). If it's not worthwhile 3/3 should be dropped (and
+> the gap should be filled in some other way if the gap is not caused by
+> the _mapcount mangling as I guessed). Ideally this should bring even
+> more performance than current upstream code, as current upstream code
+> still increased the _mapcount in gup_fast by mistake, while this
+> eliminates the locked op on the tail page cacheline in gup_fast too
+> (which is required for correctness too).
 
-You can observe that you are getting into troubles from fail counter
-already. The usability without more reclaim statistics is a bit
-questionable but you get a rough impression that something is wrong at
-least.
+Hi Andrea,
 
-> fact that current is exiting is coincidental.  Not everybody is having
-> OOM situations on a frequent basis and they might want to know when
-> they are redlining the system and that the same workload might blow up
-> the next time it's run.
+I ran directio benchmark and here are the performance numbers (MBytes/sec):
 
-I am just concerned that signaling temporal OOM conditions which do not
-require any OOM killer action (user or kernel space) might be confusing.
-Userspace would have harder times to tell whether any action is required
-or not.
+Block size        3.12         3.12+patch 1      3.12+patch 1,2,3
+----------        ----         ------------      ----------------
+1M                8467           8114              7648
+64K               4049           4043              4175
 
-> The emergency reserves are there to prevent the system from
-> deadlocking.  We only dip into them to avert a more imminent disaster
-> but we are no longer in good shape at this point.  But by not even
-> announcing this situation to userspace anymore you are making this the
-> new baseline and declaring that everything is fine when the system is
-> already clutching at straws.
-> 
-> I maintain that we should signal OOM when our healthy and
-> always-available options are exhausted.
+Performance numbers with 64K reads look good but there is further 
+deterioration with 1M reads.
 
--- 
-Michal Hocko
-SUSE Labs
+--
+Khalid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
