@@ -1,63 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id B39346B0035
-	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 13:52:20 -0500 (EST)
-Received: by mail-pb0-f48.google.com with SMTP id md12so687422pbc.7
-        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 10:52:20 -0800 (PST)
-Received: from psmtp.com ([74.125.245.148])
-        by mx.google.com with SMTP id qj1si10357017pbc.84.2013.11.18.10.52.17
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id E4A3C6B0037
+	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 13:52:35 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id kp14so5562825pab.9
+        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 10:52:35 -0800 (PST)
+Received: from psmtp.com ([74.125.245.131])
+        by mx.google.com with SMTP id n5si10375115pav.11.2013.11.18.10.52.30
         for <linux-mm@kvack.org>;
-        Mon, 18 Nov 2013 10:52:18 -0800 (PST)
-Received: by mail-ea0-f180.google.com with SMTP id f15so879018eak.39
-        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 10:52:15 -0800 (PST)
-Date: Mon, 18 Nov 2013 19:52:13 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 2/2] mm, memcg: add memory.oom_control notification for
- system oom
-Message-ID: <20131118185213.GA12923@dhcp22.suse.cz>
-References: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com>
- <20131031054942.GA26301@cmpxchg.org>
- <alpine.DEB.2.02.1311131416460.23211@chino.kir.corp.google.com>
- <20131113233419.GJ707@cmpxchg.org>
- <alpine.DEB.2.02.1311131649110.6735@chino.kir.corp.google.com>
- <20131114032508.GL707@cmpxchg.org>
- <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1311141526300.30112@chino.kir.corp.google.com>
+        Mon, 18 Nov 2013 10:52:31 -0800 (PST)
+Date: Mon, 18 Nov 2013 13:52:24 -0500
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH 0/3] Early use of boot service memory
+Message-ID: <20131118185224.GD32168@redhat.com>
+References: <CAE9FiQWzSTtW8N=0hoUe6iCSM-k64Mv97n0whAS0_vZ+psuOsg@mail.gmail.com>
+ <5285C639.5040203@zytor.com>
+ <20131115140738.GB6637@redhat.com>
+ <CAE9FiQUnw9Ujmdtq-AgC4VctQ=fZSBkzehoTbvw=aZeARL+pwA@mail.gmail.com>
+ <52865CA1.5020309@zytor.com>
+ <20131115183002.GE6637@redhat.com>
+ <52866C0D.3050006@zytor.com>
+ <52867309.4040406@zytor.com>
+ <20131118152255.GA32168@redhat.com>
+ <528A5C7E.5080007@zytor.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1311141526300.30112@chino.kir.corp.google.com>
+In-Reply-To: <528A5C7E.5080007@zytor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Yinghai Lu <yinghai@kernel.org>, Ingo Molnar <mingo@kernel.org>, jerry.hoemann@hp.com, Pekka Enberg <penberg@kernel.org>, Rob Landley <rob@landley.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, x86 maintainers <x86@kernel.org>, Matt Fleming <matt.fleming@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "list@ebiederm.org:DOCUMENTATION" <linux-doc@vger.kernel.org>, "list@ebiederm.org:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-efi@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 14-11-13 15:26:55, David Rientjes wrote:
-> A subset of applications that wait on memory.oom_control don't disable
-> the oom killer for that memcg and simply log or cleanup after the kernel
-> oom killer kills a process to free memory.
+On Mon, Nov 18, 2013 at 10:29:18AM -0800, H. Peter Anvin wrote:
+> On 11/18/2013 07:22 AM, Vivek Goyal wrote:
+> > 
+> > And if that's true, then reserving 72M extra due to crashkernel=X,high
+> > should not be a big issue in KVM guests. It will still be an issue on
+> > physical servers though.
+> > 
 > 
-> We need the ability to do this for system oom conditions as well, i.e.
-> when the system is depleted of all memory and must kill a process.  For
-> convenience, this can use memcg since oom notifiers are already present.
+> Yes, but there it is a single instance and not a huge amount of RAM.
 
-Using the memcg interface for "read-only" interface without any plan for
-the "write" is only halfway solution. We want to handle global OOM in a
-more user defined ways but we have to agree on the proper interface
-first. I do not want to end up with something half baked with memcg and
-a different interface to do the real thing just because memcg turns out
-to be unsuitable.
+Agreed. But for some people it is. For example, we don't enable kdump
+by default on fedora. Often people don't like 128MB of their laptop
+memory not being used. And I have been thinking how to reduce memory
+usage further so that I can enable kdump by default on Fedora.
 
-And to be honest, the more I am thinking about memcg based interface the
-stronger is my feeling that it is unsuitable for the user defined OOM
-policies. But that should be discussed properly (I will send a RFD in
-the follow up days).
+Instead, now this 72MB increase come in picture which does not bring
+us any benefit for most of the people. Only people who benefit from
+it are large memory servers and everybody else (having memory more
+than 4G) pays this penalty.
 
-[...]
--- 
-Michal Hocko
-SUSE Labs
+I rather prefer that this penalty of 72M is paid only by those who need
+to have memory reservation above 4G.
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
