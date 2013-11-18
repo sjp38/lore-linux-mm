@@ -1,86 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 36A0E6B0031
-	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 05:33:03 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id bj1so1552257pad.14
-        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 02:33:02 -0800 (PST)
-Received: from psmtp.com ([74.125.245.182])
-        by mx.google.com with SMTP id hb3si9324753pac.7.2013.11.18.02.32.55
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C42E6B0031
+	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 07:52:46 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id p10so6403916pdj.26
+        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 04:52:46 -0800 (PST)
+Received: from psmtp.com ([74.125.245.134])
+        by mx.google.com with SMTP id yg5si9589322pbc.206.2013.11.18.04.52.43
         for <linux-mm@kvack.org>;
-        Mon, 18 Nov 2013 02:33:00 -0800 (PST)
-Date: Mon, 18 Nov 2013 10:32:47 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [v3][PATCH 2/2] mm: thp: give transparent hugepage code a
- separate copy_page
-Message-ID: <20131118103247.GF26002@suse.de>
-References: <20131115225550.737E5C33@viggo.jf.intel.com>
- <20131115225553.B0E9DFFB@viggo.jf.intel.com>
+        Mon, 18 Nov 2013 04:52:44 -0800 (PST)
+Date: Mon, 18 Nov 2013 13:52:40 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
+ access to memory reserves
+Message-ID: <20131118125240.GC32623@dhcp22.suse.cz>
+References: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com>
+ <20131031054942.GA26301@cmpxchg.org>
+ <alpine.DEB.2.02.1311131416460.23211@chino.kir.corp.google.com>
+ <20131113233419.GJ707@cmpxchg.org>
+ <alpine.DEB.2.02.1311131649110.6735@chino.kir.corp.google.com>
+ <20131114032508.GL707@cmpxchg.org>
+ <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131115225553.B0E9DFFB@viggo.jf.intel.com>
+In-Reply-To: <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.jiang@intel.com, akpm@linux-foundation.org, dhillf@gmail.com, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, "Eric W. Biederman" <ebiederm@xmission.com>
 
-On Fri, Nov 15, 2013 at 02:55:53PM -0800, Dave Hansen wrote:
-> 
-> Changes from v2:
->  * 
-> Changes from v1:
->  * removed explicit might_sleep() in favor of the one that we
->    get from the cond_resched();
-> 
-> --
-> 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> Right now, the migration code in migrate_page_copy() uses
-> copy_huge_page() for hugetlbfs and thp pages:
-> 
->        if (PageHuge(page) || PageTransHuge(page))
->                 copy_huge_page(newpage, page);
-> 
-> So, yay for code reuse.  But:
-> 
-> void copy_huge_page(struct page *dst, struct page *src)
-> {
->         struct hstate *h = page_hstate(src);
-> 
-> and a non-hugetlbfs page has no page_hstate().  This works 99% of
-> the time because page_hstate() determines the hstate from the
-> page order alone.  Since the page order of a THP page matches the
-> default hugetlbfs page order, it works.
-> 
-> But, if you change the default huge page size on the boot
-> command-line (say default_hugepagesz=1G), then we might not even
-> *have* a 2MB hstate so page_hstate() returns null and
-> copy_huge_page() oopses pretty fast since copy_huge_page()
-> dereferences the hstate:
-> 
-> void copy_huge_page(struct page *dst, struct page *src)
-> {
->         struct hstate *h = page_hstate(src);
->         if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
-> ...
-> 
-> Mel noticed that the migration code is really the only user of
-> these functions.  This moves all the copy code over to migrate.c
-> and makes copy_huge_page() work for THP by checking for it
-> explicitly.
-> 
-> I believe the bug was introduced in b32967ff101:
-> Author: Mel Gorman <mgorman@suse.de>
-> Date:   Mon Nov 19 12:35:47 2012 +0000
-> mm: numa: Add THP migration for the NUMA working set scanning fault case.
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+[Adding Eric to CC]
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+On Thu 14-11-13 15:26:51, David Rientjes wrote:
+> When current has a pending SIGKILL or is already in the exit path, it
+> only needs access to memory reserves to fully exit.  In that sense, the
+> memcg is not actually oom for current, it simply needs to bypass memory
+> charges to exit and free its memory, which is guarantee itself that
+> memory will be freed.
+> 
+> We only want to notify userspace for actionable oom conditions where
+> something needs to be done (and all oom handling can already be deferred
+> to userspace through this method by disabling the memcg oom killer with
+> memory.oom_control), not simply when a memcg has reached its limit, which
+> would actually have to happen before memcg reclaim actually frees memory
+> for charges.
+
+I believe this also fixes the issue reported by Eric
+(https://lkml.org/lkml/2013/7/28/74). I had a patch for this
+https://lkml.org/lkml/2013/7/31/94 but the code changed since then and
+this should be equivalent.
+ 
+> Reported-by: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  mm/memcontrol.c | 20 ++++++++++----------
+>  1 file changed, 10 insertions(+), 10 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1783,16 +1783,6 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  	unsigned int points = 0;
+>  	struct task_struct *chosen = NULL;
+>  
+> -	/*
+> -	 * If current has a pending SIGKILL or is exiting, then automatically
+> -	 * select it.  The goal is to allow it to allocate so that it may
+> -	 * quickly exit and free its memory.
+> -	 */
+> -	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
+> -		set_thread_flag(TIF_MEMDIE);
+> -		return;
+> -	}
+> -
+>  	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, order, NULL);
+>  	totalpages = mem_cgroup_get_limit(memcg) >> PAGE_SHIFT ? : 1;
+>  	for_each_mem_cgroup_tree(iter, memcg) {
+> @@ -2243,6 +2233,16 @@ bool mem_cgroup_oom_synchronize(bool handle)
+>  	if (!handle)
+>  		goto cleanup;
+>  
+> +	/*
+> +	 * If current has a pending SIGKILL or is exiting, then automatically
+> +	 * select it.  The goal is to allow it to allocate so that it may
+> +	 * quickly exit and free its memory.
+> +	 */
+> +	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
+> +		set_thread_flag(TIF_MEMDIE);
+> +		goto cleanup;
+> +	}
+> +
+>  	owait.memcg = memcg;
+>  	owait.wait.flags = 0;
+>  	owait.wait.func = memcg_oom_wake_function;
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
