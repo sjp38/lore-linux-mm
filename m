@@ -1,46 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 19AEF6B0031
-	for <linux-mm@kvack.org>; Tue, 19 Nov 2013 12:04:25 -0500 (EST)
-Received: by mail-pb0-f53.google.com with SMTP id ma3so8530504pbc.26
-        for <linux-mm@kvack.org>; Tue, 19 Nov 2013 09:04:24 -0800 (PST)
-Received: from psmtp.com ([74.125.245.121])
-        by mx.google.com with SMTP id pl7si1707389pac.281.2013.11.19.09.04.21
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id A68DB6B0031
+	for <linux-mm@kvack.org>; Tue, 19 Nov 2013 13:42:06 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id fb1so7131421pad.17
+        for <linux-mm@kvack.org>; Tue, 19 Nov 2013 10:42:06 -0800 (PST)
+Received: from psmtp.com ([74.125.245.193])
+        by mx.google.com with SMTP id ob10si12221229pbb.277.2013.11.19.10.42.03
         for <linux-mm@kvack.org>;
-        Tue, 19 Nov 2013 09:04:22 -0800 (PST)
-Date: Tue, 19 Nov 2013 17:04:16 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH] Reimplement old functionality of vm_munmap to
- vm_munmap_mm
-Message-ID: <20131119170416.GD10323@ZenIV.linux.org.uk>
-References: <1384878592-194909-1-git-send-email-jcuster@sgi.com>
+        Tue, 19 Nov 2013 10:42:04 -0800 (PST)
+Date: Tue, 19 Nov 2013 19:42:00 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] Expose sysctls for enabling slab/file_cache
+ interleaving
+Message-ID: <20131119184200.GD29695@two.firstfloor.org>
+References: <1384822222-28795-1-git-send-email-andi@firstfloor.org>
+ <20131119104203.GB18872@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1384878592-194909-1-git-send-email-jcuster@sgi.com>
+In-Reply-To: <20131119104203.GB18872@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Custer <jcuster@sgi.com>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jiang Liu <jiang.liu@huawei.com>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
 
-On Tue, Nov 19, 2013 at 10:29:52AM -0600, James Custer wrote:
-> Commit bfce281c287a427d0841fadf5d59242757b4e620 killed the mm parameter to
-> vm_munmap. Although the mm parameter was not used in any in-tree kernel
-> modules, it is used by some out-of-tree modules.
+On Tue, Nov 19, 2013 at 11:42:03AM +0100, Michal Hocko wrote:
+> On Mon 18-11-13 16:50:22, Andi Kleen wrote:
+> [...]
+> > diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
+> > index cc1b01c..10966f5 100644
+> > --- a/include/linux/cpuset.h
+> > +++ b/include/linux/cpuset.h
+> > @@ -72,12 +72,14 @@ extern int cpuset_slab_spread_node(void);
+> >  
+> >  static inline int cpuset_do_page_mem_spread(void)
+> >  {
+> > -	return current->flags & PF_SPREAD_PAGE;
+> > +	return (current->flags & PF_SPREAD_PAGE) ||
+> > +		sysctl_spread_file_cache;
+> >  }
 > 
-> We create a new function vm_munmap_mm that has the same functionality as
-> vm_munmap, whereas vm_munmap uses current->mm, vm_munmap_mm takes the mm as
-> a paramter.
-> 
-> Since this is a newly exported symbol it is marked EXPORT_SYMBOL_GPL.
+> But this might break applications that explicitly opt out from
+> spreading.
 
-Which modules and what are they doing with it?  More to the point,
-what prevents races with e.g. dumping core?  And that's not an idle
-question - for example, fs/aio.c used to contain very unpleasant
-races of that kind exactly because it was playing games with modifying
-->mm other than current->mm.
+What do you mean? There's no such setting at the moment.
 
-In other words, NAK.
+They can only enable it.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
