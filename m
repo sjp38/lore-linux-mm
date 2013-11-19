@@ -1,75 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E2E266B0039
-	for <linux-mm@kvack.org>; Tue, 19 Nov 2013 18:05:51 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id fa1so150752pad.38
-        for <linux-mm@kvack.org>; Tue, 19 Nov 2013 15:05:51 -0800 (PST)
-Received: from psmtp.com ([74.125.245.188])
-        by mx.google.com with SMTP id yk3si12635505pac.302.2013.11.19.15.05.49
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D2546B0039
+	for <linux-mm@kvack.org>; Tue, 19 Nov 2013 18:11:51 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id p10so1123479pdj.40
+        for <linux-mm@kvack.org>; Tue, 19 Nov 2013 15:11:50 -0800 (PST)
+Received: from psmtp.com ([74.125.245.122])
+        by mx.google.com with SMTP id am2si12651780pad.241.2013.11.19.15.11.49
         for <linux-mm@kvack.org>;
-        Tue, 19 Nov 2013 15:05:50 -0800 (PST)
-Received: from /spool/local
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Tue, 19 Nov 2013 16:05:48 -0700
-Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 9B4F219D8041
-	for <linux-mm@kvack.org>; Tue, 19 Nov 2013 16:05:40 -0700 (MST)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by b03cxnp07028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rAJL3lU19699728
-	for <linux-mm@kvack.org>; Tue, 19 Nov 2013 22:03:47 +0100
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id rAJN8bTO026642
-	for <linux-mm@kvack.org>; Tue, 19 Nov 2013 16:08:39 -0700
-Date: Tue, 19 Nov 2013 15:05:42 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH v5 2/4] MCS Lock: optimizations and extra comments
-Message-ID: <20131119230542.GW4138@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <cover.1383935697.git.tim.c.chen@linux.intel.com>
- <1383940325.11046.415.camel@schen9-DESK>
- <20131119191310.GO4138@linux.vnet.ibm.com>
- <1384901861.11046.449.camel@schen9-DESK>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1384901861.11046.449.camel@schen9-DESK>
+        Tue, 19 Nov 2013 15:11:49 -0800 (PST)
+Date: Tue, 19 Nov 2013 15:11:46 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/3] mm: hugetlbfs: fix hugetlbfs optimization
+Message-Id: <20131119151146.a1e1f9073a0e5d35c4e83bab@linux-foundation.org>
+In-Reply-To: <1384537668-10283-2-git-send-email-aarcange@redhat.com>
+References: <1384537668-10283-1-git-send-email-aarcange@redhat.com>
+	<1384537668-10283-2-git-send-email-aarcange@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, Will Deacon <will.deacon@arm.com>, "Figo.zhang" <figo1802@gmail.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Pravin Shelar <pshelar@nicira.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Ben Hutchings <bhutchings@solarflare.com>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Tue, Nov 19, 2013 at 02:57:41PM -0800, Tim Chen wrote:
-> On Tue, 2013-11-19 at 11:13 -0800, Paul E. McKenney wrote:
-> > On Fri, Nov 08, 2013 at 11:52:05AM -0800, Tim Chen wrote:
-> > > 
-> > > +/*
-> > > + * Releases the lock. The caller should pass in the corresponding node that
-> > > + * was used to acquire the lock.
-> > > + */
-> > >  static void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
-> > >  {
-> > >  	struct mcs_spinlock *next = ACCESS_ONCE(node->next);
-> > > @@ -51,7 +60,7 @@ static void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *nod
-> > >  		/*
-> > >  		 * Release the lock by setting it to NULL
-> > >  		 */
-> > > -		if (cmpxchg(lock, node, NULL) == node)
-> > > +		if (likely(cmpxchg(lock, node, NULL) == node))
-> > 
-> > Agreed here as well.  Takes a narrow race to hit this.
-> > 
-> > So, did your testing exercise this path?  If the answer is "yes", 
-> 
-> 
-> Paul,
-> 
-> I did some instrumentation and confirmed that the path in question has 
-> been exercised.  So this patch should be okay.
+On Fri, 15 Nov 2013 18:47:46 +0100 Andrea Arcangeli <aarcange@redhat.com> wrote:
 
-Very good!
+> The patch from commit 7cb2ef56e6a8b7b368b2e883a0a47d02fed66911 can
+> cause dereference of a dangling pointer if split_huge_page runs during
+> PageHuge() if there are updates to the tail_page->private field.
+> 
+> Also it is repeating compound_head twice for hugetlbfs and it is
+> running compound_head+compound_trans_head for THP when a single one is
+> needed in both cases.
+> 
+> The new code within the PageSlab() check doesn't need to verify that
+> the THP page size is never bigger than the smallest hugetlbfs page
+> size, to avoid memory corruption.
+> 
+> A longstanding theoretical race condition was found while fixing the
+> above (see the change right after the skip_unlock label, that is
+> relevant for the compound_lock path too).
+> 
+> By re-establishing the _mapcount tail refcounting for all compound
+> pages, this also fixes the below problem:
+> 
+> echo 0 >/sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
+> 
+> ...
+>
+> +/*
+> + * PageHeadHuge() only returns true for hugetlbfs head page, but not for
+> + * normal or transparent huge pages.
+> + */
+> +int PageHeadHuge(struct page *page_head)
+> +{
+> +	compound_page_dtor *dtor;
+> +
+> +	if (!PageHead(page_head))
+> +		return 0;
+> +
+> +	dtor = get_compound_page_dtor(page_head);
+> +
+> +	return dtor == free_huge_page;
+> +}
+> +EXPORT_SYMBOL_GPL(PageHeadHuge);
 
-							Thanx, Paul
+This is all rather verbose.  How about we do this?
+
+--- a/mm/hugetlb.c~mm-hugetlbc-simplify-pageheadhuge-and-pagehuge
++++ a/mm/hugetlb.c
+@@ -690,15 +690,11 @@ static void prep_compound_gigantic_page(
+  */
+ int PageHuge(struct page *page)
+ {
+-	compound_page_dtor *dtor;
+-
+ 	if (!PageCompound(page))
+ 		return 0;
+ 
+ 	page = compound_head(page);
+-	dtor = get_compound_page_dtor(page);
+-
+-	return dtor == free_huge_page;
++	return get_compound_page_dtor(page) == free_huge_page;
+ }
+ EXPORT_SYMBOL_GPL(PageHuge);
+ 
+@@ -708,14 +704,10 @@ EXPORT_SYMBOL_GPL(PageHuge);
+  */
+ int PageHeadHuge(struct page *page_head)
+ {
+-	compound_page_dtor *dtor;
+-
+ 	if (!PageHead(page_head))
+ 		return 0;
+ 
+-	dtor = get_compound_page_dtor(page_head);
+-
+-	return dtor == free_huge_page;
++	return get_compound_page_dtor(page_head) == free_huge_page;
+ }
+ EXPORT_SYMBOL_GPL(PageHeadHuge);
+ 
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -82,19 +82,6 @@ static void __put_compound_page(struct page *page)
+>  
+>  static void put_compound_page(struct page *page)
+
+This function has become quite crazy.  I sat down to refamiliarize but
+immediately failed.
+
+: static void put_compound_page(struct page *page)
+: {
+: 	if (unlikely(PageTail(page))) {
+:	...
+: 	} else if (put_page_testzero(page)) {
+: 		if (PageHead(page))
+
+How can a page be both PageTail() and PageHead()?
+
+: 			__put_compound_page(page);
+: 		else
+: 			__put_single_page(page);
+: 	}
+: }
+: 
+: 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
