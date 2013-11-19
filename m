@@ -1,64 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 8ADF56B0035
-	for <linux-mm@kvack.org>; Tue, 19 Nov 2013 16:49:31 -0500 (EST)
-Received: by mail-pd0-f171.google.com with SMTP id z10so7106263pdj.16
-        for <linux-mm@kvack.org>; Tue, 19 Nov 2013 13:49:31 -0800 (PST)
-Received: from psmtp.com ([74.125.245.146])
-        by mx.google.com with SMTP id ob10si12517314pbb.337.2013.11.19.13.49.29
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id AC7166B0031
+	for <linux-mm@kvack.org>; Tue, 19 Nov 2013 17:51:18 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so3250856pab.29
+        for <linux-mm@kvack.org>; Tue, 19 Nov 2013 14:51:18 -0800 (PST)
+Received: from psmtp.com ([74.125.245.204])
+        by mx.google.com with SMTP id rw4si12634532pac.178.2013.11.19.14.51.16
         for <linux-mm@kvack.org>;
-        Tue, 19 Nov 2013 13:49:30 -0800 (PST)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] Expose sysctls for enabling slab/file_cache interleaving
-References: <1384822222-28795-1-git-send-email-andi@firstfloor.org>
-	<20131119104203.GB18872@dhcp22.suse.cz>
-	<20131119184200.GD29695@two.firstfloor.org>
-	<20131119191135.GA8634@dhcp22.suse.cz>
-	<20131119201333.GD19762@tassilo.jf.intel.com>
-	<20131119212123.GA9339@dhcp22.suse.cz>
-Date: Tue, 19 Nov 2013 13:49:28 -0800
-In-Reply-To: <20131119212123.GA9339@dhcp22.suse.cz> (Michal Hocko's message of
-	"Tue, 19 Nov 2013 22:21:23 +0100")
-Message-ID: <87y54kvz87.fsf@tassilo.jf.intel.com>
+        Tue, 19 Nov 2013 14:51:17 -0800 (PST)
+Received: by mail-pa0-f43.google.com with SMTP id bj1so927423pad.2
+        for <linux-mm@kvack.org>; Tue, 19 Nov 2013 14:51:15 -0800 (PST)
+Message-ID: <528BEB60.7040402@amacapital.net>
+Date: Tue, 19 Nov 2013 14:51:12 -0800
+From: Andy Lutomirski <luto@amacapital.net>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH RFC 0/3] Add dirty-tracking infrastructure for non-page-backed
+ address spaces
+References: <1384891576-7851-1-git-send-email-thellstrom@vmware.com>
+In-Reply-To: <1384891576-7851-1-git-send-email-thellstrom@vmware.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Thomas Hellstrom <thellstrom@vmware.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-graphics-maintainer@vmware.com
 
-Michal Hocko <mhocko@suse.cz> writes:
->
-> Another option would be to use sysctl values for the top cpuset as a
-> default. But then why not just do it manually without sysctl?
+On 11/19/2013 12:06 PM, Thomas Hellstrom wrote:
+> Hi!
+> 
+> Before going any further with this I'd like to check whether this is an
+> acceptable way to go.
+> Background:
+> GPU buffer objects in general and vmware svga GPU buffers in
+> particular are mapped by user-space using MIXEDMAP or PFNMAP. Sometimes the
+> address space is backed by a set of pages, sometimes it's backed by PCI memory.
+> In the latter case in particular, there is no way to track dirty regions
+> using page_mkwrite() and page_mkclean(), other than allocating a bounce
+> buffer and perform dirty tracking on it, and then copy data to the real GPU
+> buffer. This comes with a big memory- and performance overhead.
+> 
+> So I'd like to add the following infrastructure with a callback pfn_mkwrite()
+> and a function mkclean_mapping_range(). Typically we will be cleaning a range
+> of ptes rather than random ptes in a vma.
+> This comes with the extra benefit of being usable when the backing memory of
+> the GPU buffer is not coherent with the GPU itself, and where we either need
+> to flush caches or move data to synchronize.
+> 
+> So this is a RFC for
+> 1) The API. Is it acceptable? Any other suggestions if not?
+> 2) Modifying apply_to_page_range(). Better to make a standalone
+> non-populating version?
+> 3) tlb- mmu- and cache-flushing calls. I've looked at unmap_mapping_range()
+> and page_mkclean_one() to try to get it right, but still unsure.
 
-I want to provide an alternative to having to use cpusets to use this,
-that is actually usable for normal people.
+Most (all?) architectures have real dirty tracking -- you can mark a pte
+as "clean" and the hardware (or arch code) will mark it dirty when
+written, *without* a page fault.
 
-Also this is really a global setting in my mind.
+I'm not convinced that it works completely correctly right now (I
+suspect that there are some TLB flushing issues on the dirty->clean
+transition), and it's likely prone to bit-rot, since the page cache
+doesn't rely on it.
 
-> If you create a cpuset and explicitly disable spreading then you would
-> be quite surprised that your process gets pages from all nodes, no?
+That being said, using hardware dirty tracking should be *much* faster
+and less latency-inducing than doing it in software like this.  It may
+be worth trying to get HW dirty tracking working before adding more page
+fault-based tracking.
 
-If I enable it globally using a sysctl I would be quite surprised 
-if some cpuset can override it.
+(I think there's also some oddity on S/390.  I don't know what that
+oddity is or whether you should care.)
 
-That argument is equally valid :-)
-
-The user configured an inconsistent configuration, and the kernel
-has to make a decision somehow.
-
-In the end it is arbitary, but not having to check the cpuset
-here is a lot cheaper, so I prefer the "sysctl has priority" 
-option.
-
-Could EINVAL the cpuset setting when the sysctl is set
-though (but it's difficult to do the other way round).
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
