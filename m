@@ -1,170 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id A35416B0031
-	for <linux-mm@kvack.org>; Tue, 19 Nov 2013 02:19:37 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id kp14so2120417pab.4
-        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 23:19:37 -0800 (PST)
-Received: from psmtp.com ([74.125.245.149])
-        by mx.google.com with SMTP id iy4si11326798pbb.0.2013.11.18.23.19.35
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 429E96B0031
+	for <linux-mm@kvack.org>; Tue, 19 Nov 2013 04:58:57 -0500 (EST)
+Received: by mail-pb0-f43.google.com with SMTP id rq2so5994038pbb.2
+        for <linux-mm@kvack.org>; Tue, 19 Nov 2013 01:58:56 -0800 (PST)
+Received: from psmtp.com ([74.125.245.120])
+        by mx.google.com with SMTP id bc2si11446675pad.332.2013.11.19.01.58.54
         for <linux-mm@kvack.org>;
-        Mon, 18 Nov 2013 23:19:36 -0800 (PST)
-Received: by mail-qc0-f202.google.com with SMTP id k18so444945qcv.5
-        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 23:19:34 -0800 (PST)
-From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH] ipc,shm: fix shm_file deletion races
-Date: Mon, 18 Nov 2013 23:19:15 -0800
-Message-Id: <1384845555-11099-1-git-send-email-gthelen@google.com>
+        Tue, 19 Nov 2013 01:58:55 -0800 (PST)
+Message-ID: <528B35DB.9050209@cn.fujitsu.com>
+Date: Tue, 19 Nov 2013 17:56:43 +0800
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH part2 v2 0/8] Arrange hotpluggable memory as ZONE_MOVABLE
+References: <5258E560.5050506@cn.fujitsu.com> <528383BB.6060901@gmail.com>
+In-Reply-To: <528383BB.6060901@gmail.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Davidlohr Bueso <davidlohr@hp.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, stable@vger.kernel.org
+To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J . Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Chen Tang <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>
 
-When IPC_RMID races with other shm operations there's potential for
-use-after-free of the shm object's associated file (shm_file).
+ping...
 
-Here's the race before this patch:
-  TASK 1                     TASK 2
-  ------                     ------
-  shm_rmid()
-    ipc_lock_object()
-                             shmctl()
-                             shp = shm_obtain_object_check()
+On 11/13/2013 09:50 PM, Zhang Yanfei wrote:
+> Hello guys,
+> 
+> Could anyone help reviewing this part?
+> 
+> The first part has been merged into linus's tree. And I've tried to apply this part
+> to today's linus tree:
+> 
+> commit 42a2d923cc349583ebf6fdd52a7d35e1c2f7e6bd
+> Merge: 5cbb3d2 75ecab1
+> Author: Linus Torvalds <torvalds@linux-foundation.org>
+> Date:   Wed Nov 13 17:40:34 2013 +0900
+> 
+>     Merge git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-next
+> 
+> No conflict, no compiling error and it works well.
+> 
+> Tejun, any comments?
+> 
+> On 10/12/2013 02:00 PM, Zhang Yanfei wrote:
+>> Hello guys, this is the part2 of our memory hotplug work. This part
+>> is based on the part1:
+>>     "x86, memblock: Allocate memory near kernel image before SRAT parsed"
+>> which is base on 3.12-rc4.
+>>
+>> You could refer part1 from: https://lkml.org/lkml/2013/10/10/644
+>>
+>> Any comments are welcome! Thanks!
+>>
+>> [Problem]
+>>
+>> The current Linux cannot migrate pages used by the kerenl because
+>> of the kernel direct mapping. In Linux kernel space, va = pa + PAGE_OFFSET.
+>> When the pa is changed, we cannot simply update the pagetable and
+>> keep the va unmodified. So the kernel pages are not migratable.
+>>
+>> There are also some other issues will cause the kernel pages not migratable.
+>> For example, the physical address may be cached somewhere and will be used.
+>> It is not to update all the caches.
+>>
+>> When doing memory hotplug in Linux, we first migrate all the pages in one
+>> memory device somewhere else, and then remove the device. But if pages are
+>> used by the kernel, they are not migratable. As a result, memory used by
+>> the kernel cannot be hot-removed.
+>>
+>> Modifying the kernel direct mapping mechanism is too difficult to do. And
+>> it may cause the kernel performance down and unstable. So we use the following
+>> way to do memory hotplug.
+>>
+>>
+>> [What we are doing]
+>>
+>> In Linux, memory in one numa node is divided into several zones. One of the
+>> zones is ZONE_MOVABLE, which the kernel won't use.
+>>
+>> In order to implement memory hotplug in Linux, we are going to arrange all
+>> hotpluggable memory in ZONE_MOVABLE so that the kernel won't use these memory.
+>>
+>> To do this, we need ACPI's help.
+>>
+>>
+>> [How we do this]
+>>
+>> In ACPI, SRAT(System Resource Affinity Table) contains NUMA info. The memory
+>> affinities in SRAT record every memory range in the system, and also, flags
+>> specifying if the memory range is hotpluggable.
+>> (Please refer to ACPI spec 5.0 5.2.16)
+>>
+>> With the help of SRAT, we have to do the following two things to achieve our
+>> goal:
+>>
+>> 1. When doing memory hot-add, allow the users arranging hotpluggable as
+>>    ZONE_MOVABLE.
+>>    (This has been done by the MOVABLE_NODE functionality in Linux.)
+>>
+>> 2. when the system is booting, prevent bootmem allocator from allocating
+>>    hotpluggable memory for the kernel before the memory initialization
+>>    finishes.
+>>    (This is what we are going to do. See below.)
+>>
+>>
+>> [About this patch-set]
+>>
+>> In previous part's patches, we have made the kernel allocate memory near
+>> kernel image before SRAT parsed to avoid allocating hotpluggable memory
+>> for kernel. So this patch-set does the following things:
+>>
+>> 1. Improve memblock to support flags, which are used to indicate different 
+>>    memory type.
+>>
+>> 2. Mark all hotpluggable memory in memblock.memory[].
+>>
+>> 3. Make the default memblock allocator skip hotpluggable memory.
+>>
+>> 4. Improve "movable_node" boot option to have higher priority of movablecore
+>>    and kernelcore boot option.
+>>
+>> Change log v1 -> v2:
+>> 1. Rebase this part on the v7 version of part1
+>> 2. Fix bug: If movable_node boot option not specified, memblock still
+>>    checks hotpluggable memory when allocating memory. 
+>>
+>> Tang Chen (7):
+>>   memblock, numa: Introduce flag into memblock
+>>   memblock, mem_hotplug: Introduce MEMBLOCK_HOTPLUG flag to mark
+>>     hotpluggable regions
+>>   memblock: Make memblock_set_node() support different memblock_type
+>>   acpi, numa, mem_hotplug: Mark hotpluggable memory in memblock
+>>   acpi, numa, mem_hotplug: Mark all nodes the kernel resides
+>>     un-hotpluggable
+>>   memblock, mem_hotplug: Make memblock skip hotpluggable regions if
+>>     needed
+>>   x86, numa, acpi, memory-hotplug: Make movable_node have higher
+>>     priority
+>>
+>> Yasuaki Ishimatsu (1):
+>>   x86: get pg_data_t's memory from other node
+>>
+>>  arch/metag/mm/init.c      |    3 +-
+>>  arch/metag/mm/numa.c      |    3 +-
+>>  arch/microblaze/mm/init.c |    3 +-
+>>  arch/powerpc/mm/mem.c     |    2 +-
+>>  arch/powerpc/mm/numa.c    |    8 ++-
+>>  arch/sh/kernel/setup.c    |    4 +-
+>>  arch/sparc/mm/init_64.c   |    5 +-
+>>  arch/x86/mm/init_32.c     |    2 +-
+>>  arch/x86/mm/init_64.c     |    2 +-
+>>  arch/x86/mm/numa.c        |   63 +++++++++++++++++++++--
+>>  arch/x86/mm/srat.c        |    5 ++
+>>  include/linux/memblock.h  |   39 ++++++++++++++-
+>>  mm/memblock.c             |  123 ++++++++++++++++++++++++++++++++++++++-------
+>>  mm/memory_hotplug.c       |    1 +
+>>  mm/page_alloc.c           |   28 ++++++++++-
+>>  15 files changed, 252 insertions(+), 39 deletions(-)
+>>
+> 
+> 
 
-    shm_destroy()
-      shum_unlock()
-      fput(shp->shm_file)
-                             ipc_lock_object()
-                             shmem_lock(shp->shm_file)
-                             <OOPS>
 
-The oops is caused because shm_destroy() calls fput() after dropping the
-ipc_lock.  fput() clears the file's f_inode, f_path.dentry, and
-f_path.mnt, which causes various NULL pointer references in task 2.  I
-reliably see the oops in task 2 if with shmlock, shmu
-
-This patch fixes the races by:
-1) set shm_file=NULL in shm_destroy() while holding ipc_object_lock().
-2) modify at risk operations to check shm_file while holding
-   ipc_object_lock().
-
-Example workloads, which each trigger oops...
-
-Workload 1:
-  while true; do
-    id=$(shmget 1 4096)
-    shm_rmid $id &
-    shmlock $id &
-    wait
-  done
-
-  The oops stack shows accessing NULL f_inode due to racing fput:
-    _raw_spin_lock
-    shmem_lock
-    SyS_shmctl
-
-Workload 2:
-  while true; do
-    id=$(shmget 1 4096)
-    shmat $id 4096 &
-    shm_rmid $id &
-    wait
-  done
-
-  The oops stack is similar to workload 1 due to NULL f_inode:
-    touch_atime
-    shmem_mmap
-    shm_mmap
-    mmap_region
-    do_mmap_pgoff
-    do_shmat
-    SyS_shmat
-
-Workload 3:
-  while true; do
-    id=$(shmget 1 4096)
-    shmlock $id
-    shm_rmid $id &
-    shmunlock $id &
-    wait
-  done
-
-  The oops stack shows second fput tripping on an NULL f_inode.  The
-  first fput() completed via from shm_destroy(), but a racing thread did
-  a get_file() and queued this fput():
-    locks_remove_flock
-    __fput
-    ____fput
-    task_work_run
-    do_notify_resume
-    int_signal
-
-Fixes: c2c737a0461e ("ipc,shm: shorten critical region for shmat")
-Fixes: 2caacaa82a51 ("ipc,shm: shorten critical region for shmctl")
-Signed-off-by: Greg Thelen <gthelen@google.com>
-Cc: <stable@vger.kernel.org>  # 3.10.17+ 3.11.6+
----
- ipc/shm.c | 28 +++++++++++++++++++++++-----
- 1 file changed, 23 insertions(+), 5 deletions(-)
-
-diff --git a/ipc/shm.c b/ipc/shm.c
-index d69739610fd4..0bdf21c6814e 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -208,15 +208,18 @@ static void shm_open(struct vm_area_struct *vma)
-  */
- static void shm_destroy(struct ipc_namespace *ns, struct shmid_kernel *shp)
- {
-+	struct file *shm_file;
-+
-+	shm_file = shp->shm_file;
-+	shp->shm_file = NULL;
- 	ns->shm_tot -= (shp->shm_segsz + PAGE_SIZE - 1) >> PAGE_SHIFT;
- 	shm_rmid(ns, shp);
- 	shm_unlock(shp);
--	if (!is_file_hugepages(shp->shm_file))
--		shmem_lock(shp->shm_file, 0, shp->mlock_user);
-+	if (!is_file_hugepages(shm_file))
-+		shmem_lock(shm_file, 0, shp->mlock_user);
- 	else if (shp->mlock_user)
--		user_shm_unlock(file_inode(shp->shm_file)->i_size,
--						shp->mlock_user);
--	fput (shp->shm_file);
-+		user_shm_unlock(file_inode(shm_file)->i_size, shp->mlock_user);
-+	fput(shm_file);
- 	ipc_rcu_putref(shp, shm_rcu_free);
- }
- 
-@@ -983,6 +986,13 @@ SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
- 		}
- 
- 		shm_file = shp->shm_file;
-+
-+		/* check if shm_destroy() is tearing down shp */
-+		if (shm_file == NULL) {
-+			err = -EIDRM;
-+			goto out_unlock0;
-+		}
-+
- 		if (is_file_hugepages(shm_file))
- 			goto out_unlock0;
- 
-@@ -1101,6 +1111,14 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
- 		goto out_unlock;
- 
- 	ipc_lock_object(&shp->shm_perm);
-+
-+	/* check if shm_destroy() is tearing down shp */
-+	if (shp->shm_file == NULL) {
-+		ipc_unlock_object(&shp->shm_perm);
-+		err = -EIDRM;
-+		goto out_unlock;
-+	}
-+
- 	path = shp->shm_file->f_path;
- 	path_get(&path);
- 	shp->shm_nattch++;
 -- 
-1.8.4.1
+Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
