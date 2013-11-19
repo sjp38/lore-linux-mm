@@ -1,59 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 79E6C6B0031
-	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 20:22:23 -0500 (EST)
-Received: by mail-pd0-f177.google.com with SMTP id q10so2156583pdj.36
-        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 17:22:22 -0800 (PST)
-Received: from psmtp.com ([74.125.245.182])
-        by mx.google.com with SMTP id xj9si5883456pab.237.2013.11.18.17.22.20
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 81A986B0031
+	for <linux-mm@kvack.org>; Mon, 18 Nov 2013 20:25:19 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so1779825pab.15
+        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 17:25:19 -0800 (PST)
+Received: from psmtp.com ([74.125.245.146])
+        by mx.google.com with SMTP id kn3si10883602pbc.64.2013.11.18.17.25.17
         for <linux-mm@kvack.org>;
-        Mon, 18 Nov 2013 17:22:21 -0800 (PST)
-Received: by mail-gg0-f182.google.com with SMTP id h3so3181789gge.41
-        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 17:22:18 -0800 (PST)
-Date: Mon, 18 Nov 2013 17:22:16 -0800 (PST)
+        Mon, 18 Nov 2013 17:25:18 -0800 (PST)
+Received: by mail-yh0-f45.google.com with SMTP id i7so3868949yha.32
+        for <linux-mm@kvack.org>; Mon, 18 Nov 2013 17:25:16 -0800 (PST)
+Date: Mon, 18 Nov 2013 17:25:13 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-In-Reply-To: <20131118165110.GE32623@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.02.1311181719390.4292@chino.kir.corp.google.com>
+Subject: Re: [patch 2/2] mm, memcg: add memory.oom_control notification for
+ system oom
+In-Reply-To: <20131118185213.GA12923@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.02.1311181722380.4292@chino.kir.corp.google.com>
 References: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com> <20131031054942.GA26301@cmpxchg.org> <alpine.DEB.2.02.1311131416460.23211@chino.kir.corp.google.com> <20131113233419.GJ707@cmpxchg.org> <alpine.DEB.2.02.1311131649110.6735@chino.kir.corp.google.com>
- <20131114032508.GL707@cmpxchg.org> <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com> <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com> <20131118154115.GA3556@cmpxchg.org> <20131118165110.GE32623@dhcp22.suse.cz>
+ <20131114032508.GL707@cmpxchg.org> <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com> <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com> <alpine.DEB.2.02.1311141526300.30112@chino.kir.corp.google.com>
+ <20131118185213.GA12923@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
 On Mon, 18 Nov 2013, Michal Hocko wrote:
 
-> > Even though the situation may not require a kill, the user still wants
-> > to know that the memory hard limit was breached and the isolation
-> > broken in order to prevent a kill.  We just came really close and the
+> > A subset of applications that wait on memory.oom_control don't disable
+> > the oom killer for that memcg and simply log or cleanup after the kernel
+> > oom killer kills a process to free memory.
+> > 
+> > We need the ability to do this for system oom conditions as well, i.e.
+> > when the system is depleted of all memory and must kill a process.  For
+> > convenience, this can use memcg since oom notifiers are already present.
 > 
-> You can observe that you are getting into troubles from fail counter
-> already. The usability without more reclaim statistics is a bit
-> questionable but you get a rough impression that something is wrong at
-> least.
-> 
-
-Agreed, but it seems like the appropriate mechanism for this is through 
-the memory.{,memsw.}usage_in_bytes notifiers which already exist.
-
-> > fact that current is exiting is coincidental.  Not everybody is having
-> > OOM situations on a frequent basis and they might want to know when
-> > they are redlining the system and that the same workload might blow up
-> > the next time it's run.
-> 
-> I am just concerned that signaling temporal OOM conditions which do not
-> require any OOM killer action (user or kernel space) might be confusing.
-> Userspace would have harder times to tell whether any action is required
-> or not.
+> Using the memcg interface for "read-only" interface without any plan for
+> the "write" is only halfway solution. We want to handle global OOM in a
+> more user defined ways but we have to agree on the proper interface
+> first. I do not want to end up with something half baked with memcg and
+> a different interface to do the real thing just because memcg turns out
+> to be unsuitable.
 > 
 
-Completely agreed, in fact there is no reliable and non-racy way in 
-userspace to determine "is this a real oom condition that I must act upon 
-or can the kernel handle it?"
+This patch isn't really a halfway solution, you can still determine if the 
+open(O_WRONLY) succeeds or not to determine if that feature has been 
+implemented.  I'm concerned about disabling the oom killer entirely for 
+system oom conditions, though, so I didn't implement it to be writable.  I 
+don't think we should be doing anything special in terms of "write" 
+behavior for the root memcg memory.oom_control, so I'd argue against doing 
+anything other than disabling the oom killer.  That's scary.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
