@@ -1,92 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 691046B0031
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 01:58:53 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id rq2so3065789pbb.31
-        for <linux-mm@kvack.org>; Tue, 19 Nov 2013 22:58:53 -0800 (PST)
-Received: from psmtp.com ([74.125.245.134])
-        by mx.google.com with SMTP id n8si13493543pax.160.2013.11.19.22.58.50
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 991A66B0031
+	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 02:50:36 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id hz1so6364496pad.26
+        for <linux-mm@kvack.org>; Tue, 19 Nov 2013 23:50:36 -0800 (PST)
+Received: from psmtp.com ([74.125.245.127])
+        by mx.google.com with SMTP id z1si13582598pbn.181.2013.11.19.23.50.34
         for <linux-mm@kvack.org>;
-        Tue, 19 Nov 2013 22:58:52 -0800 (PST)
-Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
-	Wed, 20 Nov 2013 12:28:45 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id B62EC3940057
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 12:28:42 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rAK6wb2n57999542
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 12:28:37 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rAK6wf3H016392
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 12:28:41 +0530
-Date: Wed, 20 Nov 2013 14:58:40 +0800
-From: Wei Yang <weiyang@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/3] percpu: stop the loop when a cpu belongs to a new
- group
-Message-ID: <20131120065840.GA10839@weiyang.vnet.ibm.com>
-Reply-To: Wei Yang <weiyang@linux.vnet.ibm.com>
-References: <1382345893-6644-1-git-send-email-weiyang@linux.vnet.ibm.com>
- <20131027123008.GJ14934@mtj.dyndns.org>
- <20131028030055.GC15642@weiyang.vnet.ibm.com>
- <20131028113120.GB11541@mtj.dyndns.org>
- <20131028151746.GA7548@weiyang.vnet.ibm.com>
- <20131120030056.GA15273@weiyang.vnet.ibm.com>
- <20131120055121.GA13754@mtj.dyndns.org>
+        Tue, 19 Nov 2013 23:50:35 -0800 (PST)
+Received: by mail-yh0-f49.google.com with SMTP id z20so2539785yhz.22
+        for <linux-mm@kvack.org>; Tue, 19 Nov 2013 23:50:33 -0800 (PST)
+Date: Tue, 19 Nov 2013 23:50:29 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: user defined OOM policies
+In-Reply-To: <20131119131400.GC20655@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.02.1311192341300.20752@chino.kir.corp.google.com>
+References: <20131119131400.GC20655@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131120055121.GA13754@mtj.dyndns.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Wei Yang <weiyang@linux.vnet.ibm.com>, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Joern Engel <joern@logfs.org>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Nov 20, 2013 at 12:51:21AM -0500, Tejun Heo wrote:
->Hello,
->
->On Wed, Nov 20, 2013 at 11:00:56AM +0800, Wei Yang wrote:
->> What do you think about this one?
->> 
->> >
->> >From bd70498b9df47b25ff20054e24bb510c5430c0c3 Mon Sep 17 00:00:00 2001
->> >From: Wei Yang <weiyang@linux.vnet.ibm.com>
->> >Date: Thu, 10 Oct 2013 09:42:14 +0800
->> >Subject: [PATCH] percpu: optimize group assignment when cpu_distance_fn is
->> > NULL
->> >
->> >When cpu_distance_fn is NULL, all CPUs belongs to group 0. The original logic
->> >will continue to go through each CPU and its predecessor. cpu_distance_fn is
->> >always NULL when pcpu_build_alloc_info() is called from pcpu_page_first_chunk().
->> >
->> >By applying this patch, the time complexity will drop to O(n) form O(n^2) in
->> >case cpu_distance_fn is NULL.
->
->The test was put in the inner loop because the nesting was already too
->deep and cpu_distance_fn is unlikely to be NULL on machines where the
->number of CPUs is high enough to matter.  If that O(n^2) loop is gonna
->be a problem, it's gonna be a problem on large NUMA machines and we'll
->have to do something about it for cases where cpu_distance_fn exists
->anyway.
+On Tue, 19 Nov 2013, Michal Hocko wrote:
 
-Tejun,
+> Hi,
+> it's been quite some time since LSFMM 2013 when this has been
+> discussed[1]. In short, it seems that there are usecases with a
+> strong demand on a better user/admin policy control for the global
+> OOM situations. Per process oom_{adj,score} which is used for the
+> prioritizing is no longer sufficient because there are other categories
+> which might be important. For example, often it doesn't make sense to
+> kill just a part of the workload and killing the whole group would be a
+> better fit. I am pretty sure there are many others some of them workload
+> specific and thus not appropriate for the generic implementation.
+> 
 
-Yep, hope this will not bring some problem on a large NUMA machie when
-cpu_distance_fn is not NULL.
+Thanks for starting this thread.  We'd like to have two things:
 
->
->The patch is just extremely marginal.  Ah well... why not?  I'll apply
->it once -rc1 drops.
->
->Thanks.
->
->-- 
->tejun
+ - allow userspace to call into our implementation of malloc() to free
+   excess memory that will avoid requiring anything from being killed,
+   which may include freeing userspace caches back to the kernel or
+   using MADV_DONTNEED over a range of unused memory within the arena,
+   and
 
--- 
-Richard Yang
-Help you, Help me
+ - enforce a hierarchical memcg prioritization policy so that memcgs can 
+   be iterated at each level beneath the oom memcg (which may include the
+   root memcg for system oom conditions) and eligible processes are killed 
+   in the lowest priority memcg.
+
+This obviously allows for much more powerful implementations as well that 
+can be defined by users of memcgs to drop caches, increase memcg limits, 
+signaling applications to free unused memory, start throttling memory 
+usage, heap analysis, logging, etc. and userspace oom handlers are the 
+perfect place to do so.
+
+> We have basically ended up with 3 options AFAIR:
+> 	1) allow memcg approach (memcg.oom_control) on the root level
+>            for both OOM notification and blocking OOM killer and handle
+>            the situation from the userspace same as we can for other
+> 	   memcgs.
+
+This is what I've been proposing both with my latest patches, the 
+memory.oom_delay_millisecs patch in the past, and future patch to allow 
+for per-memcg memory reserves that allow charging to be bypassed to a 
+pre-defined threshold much like per-zone memory reserves for TIF_MEMDIE 
+processes today so that userspace has access to memory to handle the 
+situation even in system oom conditions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
