@@ -1,142 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id F036E6B0035
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 11:51:01 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id kl14so5225885pab.19
-        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 08:51:01 -0800 (PST)
-Received: from psmtp.com ([74.125.245.127])
-        by mx.google.com with SMTP id m9si14631512pba.293.2013.11.20.08.50.59
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 716AB6B0036
+	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 12:01:04 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id bj1so2131093pad.30
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 09:01:04 -0800 (PST)
+Received: from psmtp.com ([74.125.245.122])
+        by mx.google.com with SMTP id v7si14646086pbi.278.2013.11.20.09.01.02
         for <linux-mm@kvack.org>;
-        Wed, 20 Nov 2013 08:51:00 -0800 (PST)
-Received: by mail-ve0-f176.google.com with SMTP id oz11so1734735veb.35
-        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 08:50:58 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <528C6ED9.3070600@vmware.com>
-References: <1384891576-7851-1-git-send-email-thellstrom@vmware.com>
- <528BEB60.7040402@amacapital.net> <528C6ED9.3070600@vmware.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 20 Nov 2013 08:50:37 -0800
-Message-ID: <CALCETrXFqV1S6qVsxHRDrxw-trGK0O4Jf1rXOFwze4JL0uAEAA@mail.gmail.com>
-Subject: Re: [PATCH RFC 0/3] Add dirty-tracking infrastructure for
- non-page-backed address spaces
-Content-Type: text/plain; charset=ISO-8859-1
+        Wed, 20 Nov 2013 09:01:03 -0800 (PST)
+Subject: Re: [PATCH v6 0/5] MCS Lock: MCS lock code cleanup and
+ optimizations
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <20131120101957.GA19352@mudshark.cambridge.arm.com>
+References: <cover.1384885312.git.tim.c.chen@linux.intel.com>
+	 <1384911446.11046.450.camel@schen9-DESK>
+	 <20131120101957.GA19352@mudshark.cambridge.arm.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 20 Nov 2013 09:00:47 -0800
+Message-ID: <1384966847.11046.457.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Hellstrom <thellstrom@vmware.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-graphics-maintainer@vmware.com
+To: Will Deacon <will.deacon@arm.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Wed, Nov 20, 2013 at 12:12 AM, Thomas Hellstrom
-<thellstrom@vmware.com> wrote:
-> On 11/19/2013 11:51 PM, Andy Lutomirski wrote:
->>
->> On 11/19/2013 12:06 PM, Thomas Hellstrom wrote:
->>>
->>> Hi!
->>>
->>> Before going any further with this I'd like to check whether this is an
->>> acceptable way to go.
->>> Background:
->>> GPU buffer objects in general and vmware svga GPU buffers in
->>> particular are mapped by user-space using MIXEDMAP or PFNMAP. Sometimes
->>> the
->>> address space is backed by a set of pages, sometimes it's backed by PCI
->>> memory.
->>> In the latter case in particular, there is no way to track dirty regions
->>> using page_mkwrite() and page_mkclean(), other than allocating a bounce
->>> buffer and perform dirty tracking on it, and then copy data to the real
->>> GPU
->>> buffer. This comes with a big memory- and performance overhead.
->>>
->>> So I'd like to add the following infrastructure with a callback
->>> pfn_mkwrite()
->>> and a function mkclean_mapping_range(). Typically we will be cleaning a
->>> range
->>> of ptes rather than random ptes in a vma.
->>> This comes with the extra benefit of being usable when the backing memory
->>> of
->>> the GPU buffer is not coherent with the GPU itself, and where we either
->>> need
->>> to flush caches or move data to synchronize.
->>>
->>> So this is a RFC for
->>> 1) The API. Is it acceptable? Any other suggestions if not?
->>> 2) Modifying apply_to_page_range(). Better to make a standalone
->>> non-populating version?
->>> 3) tlb- mmu- and cache-flushing calls. I've looked at
->>> unmap_mapping_range()
->>> and page_mkclean_one() to try to get it right, but still unsure.
->>
->> Most (all?) architectures have real dirty tracking -- you can mark a pte
->> as "clean" and the hardware (or arch code) will mark it dirty when
->> written, *without* a page fault.
->>
->> I'm not convinced that it works completely correctly right now (I
->> suspect that there are some TLB flushing issues on the dirty->clean
->> transition), and it's likely prone to bit-rot, since the page cache
->> doesn't rely on it.
->>
->> That being said, using hardware dirty tracking should be *much* faster
->> and less latency-inducing than doing it in software like this.  It may
->> be worth trying to get HW dirty tracking working before adding more page
->> fault-based tracking.
->>
->> (I think there's also some oddity on S/390.  I don't know what that
->> oddity is or whether you should care.)
->>
->> --Andy
->
->
-> Andy,
->
-> Thanks for the tip. It indeed sounds interesting, however there are a couple
-> of culprits:
->
-> 1) As you say, it sounds like there might be TLB flushing issues. Let's say
-> the TLB detects a write and raises an IRQ for the arch code to set the PTE
-> dirty bit, and before servicing that interrupt, we clear the PTE and flush
-> that TLB. What will happen?
+On Wed, 2013-11-20 at 10:19 +0000, Will Deacon wrote:
+> Hi Tim,
+> 
+> On Wed, Nov 20, 2013 at 01:37:26AM +0000, Tim Chen wrote:
+> > In this patch series, we separated out the MCS lock code which was
+> > previously embedded in the mutex.c.  This allows for easier reuse of
+> > MCS lock in other places like rwsem and qrwlock.  We also did some micro
+> > optimizations and barrier cleanup.  
+> > 
+> > The original code has potential leaks between critical sections, which
+> > was not a problem when MCS was embedded within the mutex but needs
+> > to be corrected when allowing the MCS lock to be used by itself for
+> > other locking purposes. 
+> > 
+> > Proper barriers are now embedded with the usage of smp_load_acquire() in
+> > mcs_spin_lock() and smp_store_release() in mcs_spin_unlock.  See
+> > http://marc.info/?l=linux-arch&m=138386254111507 for info on the
+> > new smp_load_acquire() and smp_store_release() functions. 
+> > 
+> > This patches were previously part of the rwsem optimization patch series
+> > but now we spearate them out.
+> > 
+> > We have also added hooks to allow for architecture specific 
+> > implementation of the mcs_spin_lock and mcs_spin_unlock functions.
+> > 
+> > Will, do you want to take a crack at adding implementation for ARM
+> > with wfe instruction?
+> 
+> Sure, I'll have a go this week. Thanks for keeping that as a consideration!
+> 
+> As an aside: what are you using to test this code, so that I can make sure I
+> don't break it?
+> 
 
-This should be fine.  I assume that all architectures that do this
-kind of software dirty tracking will make the write block until the
-fault is handled, so the write won't have happened when you clear the
-PTE.  After the TLB flush, the PTE will become dirty again and then
-the page will be written.
+I was testing it against my rwsem patches.  But any workload that 
+exercises mutex should also use this code, as this is part of mutex.
 
-> And if the TLB hardware would write directly to
-> the in-memory PTE I guess we'd have the same synchronization issues. I guess
-> we'd then need an atomic read-modify-write against the TLB hardware?
+Tim
 
-IIRC the part that looked fishy to me was the combination of hw dirty
-tracking and write protecting the page.  If you see that the pte is
-clean and want to write protect it, you probably need to set the write
-protect bit (atomically so you don't lose a dirty bit), flush the TLB,
-and then check the dirty bit again.
+> Will
 
-> 2) Even if most hardware is capable of this stuff, I'm not sure what would
-> happen in a virtual machine. Need to check.
-
-This should be fine.  Any VM monitor that fails to implement dirty
-tracking is probably terminally broken.
-
-> 3) For dirty contents that need to appear on a screen within a short
-> interval, we need the write notification anyway, to start a delayed task
-> that will gather the dirty data and flush it to the screen...
->
-
-So that's what you want to do :)
-
-I bet that the best approach is some kind of hybrid.  If, on the first
-page fault per frame, you un-write-protected the entire buffer and
-then, near the end of the frame, check all the hw dirty bits and
-re-write-protect the entire buffer, you get the benefit detecting
-which pages were written, but you only take one write fault per frame
-instead of one write fault per page.
-
-(I imagine that there are video apps out that there that would slow
-down measurably if they started taking one write fault per page per
-frame.)
-
---Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
