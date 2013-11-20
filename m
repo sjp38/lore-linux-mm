@@ -1,99 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 1551E6B0031
-	for <linux-mm@kvack.org>; Tue, 19 Nov 2013 19:26:18 -0500 (EST)
-Received: by mail-pd0-f169.google.com with SMTP id v10so3291247pde.28
-        for <linux-mm@kvack.org>; Tue, 19 Nov 2013 16:26:17 -0800 (PST)
-Received: from psmtp.com ([74.125.245.107])
-        by mx.google.com with SMTP id sg3si12774407pbb.283.2013.11.19.16.26.16
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B0746B0031
+	for <linux-mm@kvack.org>; Tue, 19 Nov 2013 20:37:34 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id v10so3340606pde.41
+        for <linux-mm@kvack.org>; Tue, 19 Nov 2013 17:37:33 -0800 (PST)
+Received: from psmtp.com ([74.125.245.180])
+        by mx.google.com with SMTP id ku6si12912966pbc.156.2013.11.19.17.37.31
         for <linux-mm@kvack.org>;
-        Tue, 19 Nov 2013 16:26:16 -0800 (PST)
-Date: Wed, 20 Nov 2013 01:26:00 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 1/3] mm: hugetlbfs: fix hugetlbfs optimization
-Message-ID: <20131120002600.GF10493@redhat.com>
-References: <1384537668-10283-1-git-send-email-aarcange@redhat.com>
- <1384537668-10283-2-git-send-email-aarcange@redhat.com>
- <20131119151146.a1e1f9073a0e5d35c4e83bab@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131119151146.a1e1f9073a0e5d35c4e83bab@linux-foundation.org>
+        Tue, 19 Nov 2013 17:37:32 -0800 (PST)
+Subject: [PATCH v6 0/5] MCS Lock: MCS lock code cleanup and optimizations
+From: Tim Chen <tim.c.chen@linux.intel.com>
+References: <cover.1384885312.git.tim.c.chen@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 19 Nov 2013 17:37:26 -0800
+Message-ID: <1384911446.11046.450.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Pravin Shelar <pshelar@nicira.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Ben Hutchings <bhutchings@solarflare.com>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, "Paul
+ E.McKenney" <paulmck@linux.vnet.ibm.com>, Tim Chen <tim.c.chen@linux.intel.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, Will Deacon <will.deacon@arm.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Tue, Nov 19, 2013 at 03:11:46PM -0800, Andrew Morton wrote:
-> This is all rather verbose.  How about we do this?
-> 
-> --- a/mm/hugetlb.c~mm-hugetlbc-simplify-pageheadhuge-and-pagehuge
-> +++ a/mm/hugetlb.c
-> @@ -690,15 +690,11 @@ static void prep_compound_gigantic_page(
->   */
->  int PageHuge(struct page *page)
->  {
-> -	compound_page_dtor *dtor;
-> -
->  	if (!PageCompound(page))
->  		return 0;
->  
->  	page = compound_head(page);
-> -	dtor = get_compound_page_dtor(page);
-> -
-> -	return dtor == free_huge_page;
-> +	return get_compound_page_dtor(page) == free_huge_page;
->  }
->  EXPORT_SYMBOL_GPL(PageHuge);
->  
-> @@ -708,14 +704,10 @@ EXPORT_SYMBOL_GPL(PageHuge);
->   */
->  int PageHeadHuge(struct page *page_head)
->  {
-> -	compound_page_dtor *dtor;
-> -
->  	if (!PageHead(page_head))
->  		return 0;
->  
-> -	dtor = get_compound_page_dtor(page_head);
-> -
-> -	return dtor == free_huge_page;
-> +	return get_compound_page_dtor(page_head) == free_huge_page;
->  }
->  EXPORT_SYMBOL_GPL(PageHeadHuge);
+In this patch series, we separated out the MCS lock code which was
+previously embedded in the mutex.c.  This allows for easier reuse of
+MCS lock in other places like rwsem and qrwlock.  We also did some micro
+optimizations and barrier cleanup.  
 
-Sure good idea!
+The original code has potential leaks between critical sections, which
+was not a problem when MCS was embedded within the mutex but needs
+to be corrected when allowing the MCS lock to be used by itself for
+other locking purposes. 
 
-> > @@ -82,19 +82,6 @@ static void __put_compound_page(struct page *page)
-> >  
-> >  static void put_compound_page(struct page *page)
-> 
-> This function has become quite crazy.  I sat down to refamiliarize but
-> immediately failed.
-> 
-> : static void put_compound_page(struct page *page)
-> : {
-> : 	if (unlikely(PageTail(page))) {
-> :	...
-> : 	} else if (put_page_testzero(page)) {
-> : 		if (PageHead(page))
-> 
-> How can a page be both PageTail() and PageHead()?
+Proper barriers are now embedded with the usage of smp_load_acquire() in
+mcs_spin_lock() and smp_store_release() in mcs_spin_unlock.  See
+http://marc.info/?l=linux-arch&m=138386254111507 for info on the
+new smp_load_acquire() and smp_store_release() functions. 
 
-We execute the PageHead you quoted only if it's !PageTail. So then
-PageHead tells us if if it's compound head or not compound by the time
-all reference counts have been released (by the time the last
-reference is released it can't be splitted anymore).
+This patches were previously part of the rwsem optimization patch series
+but now we spearate them out.
 
-> 
-> : 			__put_compound_page(page);
-> : 		else
-> : 			__put_single_page(page);
-> : 	}
-> : }
-> : 
-> : 
-> 
+We have also added hooks to allow for architecture specific 
+implementation of the mcs_spin_lock and mcs_spin_unlock functions.
+
+Will, do you want to take a crack at adding implementation for ARM
+with wfe instruction?
+
+Tim
+
+v6:
+1. Fix a bug of improper xchg_acquire and extra space in barrier
+fixing patch.
+2. Added extra hooks to allow for architecture specific version
+of mcs_spin_lock and mcs_spin_unlock to be used.
+
+v5:
+1. Rework barrier correction patch.  We now use smp_load_acquire()
+in mcs_spin_lock() and smp_store_release() in
+mcs_spin_unlock() to allow for architecture dependent barriers to be
+automatically used.  This is clean and will provide the right
+barriers for all architecture.
+
+v4:
+1. Move patch series to the latest tip after v3.12
+
+v3:
+1. modified memory barriers to support non x86 architectures that have
+weak memory ordering.
+
+v2:
+1. change export mcs_spin_lock as a GPL export symbol
+2. corrected mcs_spin_lock to references
+
+
+Jason Low (1):
+  MCS Lock: optimizations and extra comments
+
+Tim Chen (2):
+  MCS Lock: Restructure the MCS lock defines and locking code into its
+    own file
+  MCS Lock: Allows for architecture specific mcs lock and unlock
+
+Waiman Long (2):
+  MCS Lock: Move mcs_lock/unlock function into its own file
+  MCS Lock: Barrier corrections
+
+ arch/Kconfig                  |  3 ++
+ include/linux/mcs_spinlock.h  | 30 +++++++++++++
+ include/linux/mutex.h         |  5 ++-
+ kernel/locking/Makefile       |  6 +--
+ kernel/locking/mcs_spinlock.c | 98 +++++++++++++++++++++++++++++++++++++++++++
+ kernel/locking/mutex.c        | 60 ++++----------------------
+ 6 files changed, 144 insertions(+), 58 deletions(-)
+ create mode 100644 include/linux/mcs_spinlock.h
+ create mode 100644 kernel/locking/mcs_spinlock.c
+
+-- 
+1.7.11.7
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
