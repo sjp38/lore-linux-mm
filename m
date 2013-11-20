@@ -1,97 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f42.google.com (mail-bk0-f42.google.com [209.85.214.42])
-	by kanga.kvack.org (Postfix) with ESMTP id D2C186B0031
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 12:34:00 -0500 (EST)
-Received: by mail-bk0-f42.google.com with SMTP id w11so1280763bkz.15
-        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 09:34:00 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id h2si4092422bko.267.2013.11.20.09.33.59
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E35C6B0035
+	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 12:34:41 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id p10so2268794pdj.26
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 09:34:41 -0800 (PST)
+Received: from psmtp.com ([74.125.245.185])
+        by mx.google.com with SMTP id z1si14725080pbn.241.2013.11.20.09.34.38
         for <linux-mm@kvack.org>;
-        Wed, 20 Nov 2013 09:33:59 -0800 (PST)
-Date: Wed, 20 Nov 2013 18:33:57 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: user defined OOM policies
-Message-ID: <20131120173357.GC18809@dhcp22.suse.cz>
-References: <20131119131400.GC20655@dhcp22.suse.cz>
- <20131119134007.GD20655@dhcp22.suse.cz>
- <20131120172119.GA1848@hp530>
+        Wed, 20 Nov 2013 09:34:39 -0800 (PST)
+Received: by mail-la0-f53.google.com with SMTP id ea20so7682316lab.12
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 09:34:35 -0800 (PST)
+Date: Wed, 20 Nov 2013 18:33:50 +0100
+From: Vladimir Murzin <murzin.v@gmail.com>
+Subject: Re: [PATCH] mm/zswap: change params from hidden to ro
+Message-ID: <20131120173347.GA2369@hp530>
+References: <1384965522-5788-1-git-send-email-ddstreet@ieee.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=koi8-r
 Content-Disposition: inline
-In-Reply-To: <20131120172119.GA1848@hp530>
+In-Reply-To: <1384965522-5788-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Murzin <murzin.v@gmail.com>
-Cc: linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Joern Engel <joern@logfs.org>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: linux-mm@kvack.org, Seth Jennings <sjennings@variantweb.net>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>
 
-On Wed 20-11-13 18:21:23, Vladimir Murzin wrote:
-> On Tue, Nov 19, 2013 at 02:40:07PM +0100, Michal Hocko wrote:
-> Hi Michal
-> > On Tue 19-11-13 14:14:00, Michal Hocko wrote:
-> > [...]
-> > > We have basically ended up with 3 options AFAIR:
-> > > 	1) allow memcg approach (memcg.oom_control) on the root level
-> > >            for both OOM notification and blocking OOM killer and handle
-> > >            the situation from the userspace same as we can for other
-> > > 	   memcgs.
-> > 
-> > This looks like a straightforward approach as the similar thing is done
-> > on the local (memcg) level. There are several problems though.
-> > Running userspace from within OOM context is terribly hard to do
-> > right. This is true even in the memcg case and we strongly discurage
-> > users from doing that. The global case has nothing like outside of OOM
-> > context though. So any hang would blocking the whole machine. Even
-> > if the oom killer is careful and locks in all the resources it would
-> > have hard time to query the current system state (existing processes
-> > and their states) without any allocation.  There are certain ways to
-> > workaround these issues - e.g. give the killer access to memory reserves
-> > - but this all looks scary and fragile.
-> > 
-> > > 	2) allow modules to hook into OOM killer path and take the
-> > > 	   appropriate action.
-> > 
-> > This already exists actually. There is oom_notify_list callchain and
-> > {un}register_oom_notifier that allow modules to hook into oom and
-> > skip the global OOM if some memory is freed. There are currently only
-> > s390 and powerpc which seem to abuse it for something that looks like a
-> > shrinker except it is done in OOM path...
-> > 
-> > I think the interface should be changed if something like this would be
-> > used in practice. There is a lot of information lost on the way. I would
-> > basically expect to get everything that out_of_memory gets.
+Hi Dan!
+
+On Wed, Nov 20, 2013 at 11:38:42AM -0500, Dan Streetman wrote:
+> The "compressor" and "enabled" params are currently hidden,
+> this changes them to read-only, so userspace can tell if
+> zswap is enabled or not and see what compressor is in use.
+
+Could you elaborate more why this pice of information is necessary for
+userspace?
+
+Vladimir
+
 > 
-> Some time ago I was trying to hook OOM with custom module based policy. I
-> needed to select process based on uss/pss values which required page walking
-> (yes, I know it is extremely expensive, but sometimes I'd pay the bill). The
-> learned lesson is quite simple - it is harmful to expose (all?) internal
-> functions and locking into modules - the result is going to be completely
-> unreliable and non predictable mess, unless the well defined interface and
-> helpers will be established. 
-
-OK, I was a bit vague it seems. I meant to give zonelist, gfp_mask,
-allocation order and nodemask parameters to the modules. So they have a
-better picture of what is the OOM context.
-What everything ould modules need to do an effective work is a matter
-for discussion.
-
-> > > 	3) create a generic filtering mechanism which could be
-> > > 	   controlled from the userspace by a set of rules (e.g.
-> > > 	   something analogous to packet filtering).
-> > 
-> > This looks generic enough but I have no idea about the complexity.
+> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+> ---
+>  mm/zswap.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 > 
-> Never thought about it, but just wonder which input and output supposed to
-> have for this filtering mechanism?
-
-I wasn't an author of this idea and didn't think about details so much.
-My very superficial understanding is that oom basically needs to filter
-and cathegory tasks into few cathegories. Those to kill immediatelly,
-those that can wait for a fallback and those that should never be
-touched. I didn't get beyond this level of thinking. I have mentioned
-that merely because this idea was mentioned in the room at the time.
--- 
-Michal Hocko
-SUSE Labs
+> diff --git a/mm/zswap.c b/mm/zswap.c
+> index d93510c..36b268b 100644
+> --- a/mm/zswap.c
+> +++ b/mm/zswap.c
+> @@ -77,12 +77,12 @@ static u64 zswap_duplicate_entry;
+>  **********************************/
+>  /* Enable/disable zswap (disabled by default, fixed at boot for now) */
+>  static bool zswap_enabled __read_mostly;
+> -module_param_named(enabled, zswap_enabled, bool, 0);
+> +module_param_named(enabled, zswap_enabled, bool, 0444);
+>  
+>  /* Compressor to be used by zswap (fixed at boot for now) */
+>  #define ZSWAP_COMPRESSOR_DEFAULT "lzo"
+>  static char *zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
+> -module_param_named(compressor, zswap_compressor, charp, 0);
+> +module_param_named(compressor, zswap_compressor, charp, 0444);
+>  
+>  /* The maximum percentage of memory that the compressed pool can occupy */
+>  static unsigned int zswap_max_pool_percent = 20;
+> -- 
+> 1.8.3.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
