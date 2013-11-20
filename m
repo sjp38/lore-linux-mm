@@ -1,66 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f205.google.com (mail-ob0-f205.google.com [209.85.214.205])
-	by kanga.kvack.org (Postfix) with ESMTP id 258076B0031
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 11:00:17 -0500 (EST)
-Received: by mail-ob0-f205.google.com with SMTP id vb8so84444obc.4
-        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 08:00:16 -0800 (PST)
-Received: from psmtp.com ([74.125.245.194])
-        by mx.google.com with SMTP id yj7si3737658pab.141.2013.11.18.07.41.26
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D0236B0031
+	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 11:39:27 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id lf10so2963489pab.0
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 08:39:27 -0800 (PST)
+Received: from psmtp.com ([74.125.245.143])
+        by mx.google.com with SMTP id dj6si14640667pad.32.2013.11.20.08.39.23
         for <linux-mm@kvack.org>;
-        Mon, 18 Nov 2013 07:41:27 -0800 (PST)
-Date: Mon, 18 Nov 2013 10:41:15 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-Message-ID: <20131118154115.GA3556@cmpxchg.org>
-References: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com>
- <20131031054942.GA26301@cmpxchg.org>
- <alpine.DEB.2.02.1311131416460.23211@chino.kir.corp.google.com>
- <20131113233419.GJ707@cmpxchg.org>
- <alpine.DEB.2.02.1311131649110.6735@chino.kir.corp.google.com>
- <20131114032508.GL707@cmpxchg.org>
- <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com>
+        Wed, 20 Nov 2013 08:39:25 -0800 (PST)
+Received: by mail-yh0-f44.google.com with SMTP id f64so1883450yha.3
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 08:39:22 -0800 (PST)
+From: Dan Streetman <ddstreet@ieee.org>
+Subject: [PATCH] mm/zswap: change params from hidden to ro
+Date: Wed, 20 Nov 2013 11:38:42 -0500
+Message-Id: <1384965522-5788-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: linux-mm@kvack.org, Seth Jennings <sjennings@variantweb.net>
+Cc: Dan Streetman <ddstreet@ieee.org>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>
 
-On Thu, Nov 14, 2013 at 03:26:51PM -0800, David Rientjes wrote:
-> When current has a pending SIGKILL or is already in the exit path, it
-> only needs access to memory reserves to fully exit.  In that sense, the
-> memcg is not actually oom for current, it simply needs to bypass memory
-> charges to exit and free its memory, which is guarantee itself that
-> memory will be freed.
-> 
-> We only want to notify userspace for actionable oom conditions where
-> something needs to be done (and all oom handling can already be deferred
-> to userspace through this method by disabling the memcg oom killer with
-> memory.oom_control), not simply when a memcg has reached its limit, which
-> would actually have to happen before memcg reclaim actually frees memory
-> for charges.
+The "compressor" and "enabled" params are currently hidden,
+this changes them to read-only, so userspace can tell if
+zswap is enabled or not and see what compressor is in use.
 
-Even though the situation may not require a kill, the user still wants
-to know that the memory hard limit was breached and the isolation
-broken in order to prevent a kill.  We just came really close and the
-fact that current is exiting is coincidental.  Not everybody is having
-OOM situations on a frequent basis and they might want to know when
-they are redlining the system and that the same workload might blow up
-the next time it's run.
+Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+---
+ mm/zswap.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-The emergency reserves are there to prevent the system from
-deadlocking.  We only dip into them to avert a more imminent disaster
-but we are no longer in good shape at this point.  But by not even
-announcing this situation to userspace anymore you are making this the
-new baseline and declaring that everything is fine when the system is
-already clutching at straws.
-
-I maintain that we should signal OOM when our healthy and
-always-available options are exhausted.
+diff --git a/mm/zswap.c b/mm/zswap.c
+index d93510c..36b268b 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -77,12 +77,12 @@ static u64 zswap_duplicate_entry;
+ **********************************/
+ /* Enable/disable zswap (disabled by default, fixed at boot for now) */
+ static bool zswap_enabled __read_mostly;
+-module_param_named(enabled, zswap_enabled, bool, 0);
++module_param_named(enabled, zswap_enabled, bool, 0444);
+ 
+ /* Compressor to be used by zswap (fixed at boot for now) */
+ #define ZSWAP_COMPRESSOR_DEFAULT "lzo"
+ static char *zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
+-module_param_named(compressor, zswap_compressor, charp, 0);
++module_param_named(compressor, zswap_compressor, charp, 0444);
+ 
+ /* The maximum percentage of memory that the compressed pool can occupy */
+ static unsigned int zswap_max_pool_percent = 20;
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
