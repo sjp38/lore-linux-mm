@@ -1,97 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id ACC176B0036
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 12:14:10 -0500 (EST)
-Received: by mail-pb0-f49.google.com with SMTP id jt11so5673933pbb.22
-        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 09:14:10 -0800 (PST)
-Received: from psmtp.com ([74.125.245.155])
-        by mx.google.com with SMTP id am2si14691268pad.212.2013.11.20.09.14.08
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F02F6B0039
+	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 12:14:57 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id kp14so8668477pab.37
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 09:14:57 -0800 (PST)
+Received: from psmtp.com ([74.125.245.165])
+        by mx.google.com with SMTP id ei3si211324pbc.230.2013.11.20.09.14.53
         for <linux-mm@kvack.org>;
-        Wed, 20 Nov 2013 09:14:09 -0800 (PST)
-Received: from /spool/local
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Wed, 20 Nov 2013 10:14:07 -0700
-Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id BC6323E4003F
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 10:14:03 -0700 (MST)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by b03cxnp08025.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rAKFCGmY25886842
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 16:12:16 +0100
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id rAKHGtKt010430
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 10:16:57 -0700
-Date: Wed, 20 Nov 2013 09:14:00 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
-Message-ID: <20131120171400.GI4138@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <cover.1384885312.git.tim.c.chen@linux.intel.com>
- <1384911463.11046.454.camel@schen9-DESK>
- <20131120153123.GF4138@linux.vnet.ibm.com>
- <20131120154643.GG19352@mudshark.cambridge.arm.com>
+        Wed, 20 Nov 2013 09:14:55 -0800 (PST)
+Received: by mail-ie0-f172.google.com with SMTP id qd12so4930782ieb.17
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 09:14:52 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131120154643.GG19352@mudshark.cambridge.arm.com>
+In-Reply-To: <20131120152251.GA18809@dhcp22.suse.cz>
+References: <20131119131400.GC20655@dhcp22.suse.cz>
+	<20131119134007.GD20655@dhcp22.suse.cz>
+	<alpine.DEB.2.02.1311192352070.20752@chino.kir.corp.google.com>
+	<20131120152251.GA18809@dhcp22.suse.cz>
+Date: Wed, 20 Nov 2013 09:14:51 -0800
+Message-ID: <CAA25o9S5EQBvyk=HP3obdCaXKjoUVtzeb4QsNmoLMq6NnOYifA@mail.gmail.com>
+Subject: Re: user defined OOM policies
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Joern Engel <joern@logfs.org>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Nov 20, 2013 at 03:46:43PM +0000, Will Deacon wrote:
-> Hi Paul,
-> 
-> On Wed, Nov 20, 2013 at 03:31:23PM +0000, Paul E. McKenney wrote:
-> > On Tue, Nov 19, 2013 at 05:37:43PM -0800, Tim Chen wrote:
-> > > @@ -68,7 +72,12 @@ void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
-> > >  		while (!(next = ACCESS_ONCE(node->next)))
-> > >  			arch_mutex_cpu_relax();
-> > >  	}
-> > > -	ACCESS_ONCE(next->locked) = 1;
-> > > -	smp_wmb();
-> > > +	/*
-> > > +	 * Pass lock to next waiter.
-> > > +	 * smp_store_release() provides a memory barrier to ensure
-> > > +	 * all operations in the critical section has been completed
-> > > +	 * before unlocking.
-> > > +	 */
-> > > +	smp_store_release(&next->locked, 1);
-> > 
-> > However, there is one problem with this that I missed yesterday.
-> > 
-> > Documentation/memory-barriers.txt requires that an unlock-lock pair
-> > provide a full barrier, but this is not guaranteed if we use
-> > smp_store_release() for unlock and smp_load_acquire() for lock.
-> > At least one of these needs a full memory barrier.
-> 
-> Hmm, so in the following case:
-> 
->   Access A
->   unlock()	/* release semantics */
->   lock()	/* acquire semantics */
->   Access B
-> 
-> A cannot pass beyond the unlock() and B cannot pass the before the lock().
-> 
-> I agree that accesses between the unlock and the lock can be move across both
-> A and B, but that doesn't seem to matter by my reading of the above.
-> 
-> What is the problematic scenario you have in mind? Are you thinking of the
-> lock() moving before the unlock()? That's only permitted by RCpc afaiu,
-> which I don't think any architectures supported by Linux implement...
-> (ARMv8 acquire/release is RCsc).
+On Wed, Nov 20, 2013 at 7:22 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Wed 20-11-13 00:02:20, David Rientjes wrote:
+>> On Tue, 19 Nov 2013, Michal Hocko wrote:
+>>
+>> > > We have basically ended up with 3 options AFAIR:
+>> > >   1) allow memcg approach (memcg.oom_control) on the root level
+>> > >            for both OOM notification and blocking OOM killer and handle
+>> > >            the situation from the userspace same as we can for other
+>> > >      memcgs.
+>> >
+>> > This looks like a straightforward approach as the similar thing is done
+>> > on the local (memcg) level. There are several problems though.
+>> > Running userspace from within OOM context is terribly hard to do
+>> > right.
+>>
+>> Not sure it's hard if you have per-memcg memory reserves which I've
+>> brought up in the past with true and complete kmem accounting.  Even if
+>> you don't allocate slab, it guarantees that there will be at least a
+>> little excess memory available so that the userspace oom handler isn't oom
+>> itself.
+>> This involves treating processes waiting on memory.oom_control to be
+>> treated as a special class
+>
+> How do you identify such a process?
+>
+>> so that they are allowed to allocate an
+>> additional pre-configured amount of memory.  For non-root memcgs, this
+>> would simply be a dummy usage that would be charged to the memcg when the
+>> oom notification is registered and actually accessible only by the oom
+>> handler itself while memcg->under_oom.  For root memcgs, this would simply
+>> be a PF_MEMALLOC type behavior that dips into per-zone memory reserves.
+>>
+>> > This is true even in the memcg case and we strongly discurage
+>> > users from doing that. The global case has nothing like outside of OOM
+>> > context though. So any hang would blocking the whole machine.
+>>
+>> Why would there be a hang if the userspace oom handlers aren't actually
+>> oom themselves as described above?
+>
+> Because all the reserves might be depleted.
+>
+>> I'd suggest against the other two suggestions because hierarchical
+>> per-memcg userspace oom handlers are very powerful and can be useful
+>> without actually killing anything at all, and parent oom handlers can
+>> signal child oom handlers to free memory in oom conditions (in other
+>> words, defer a parent oom condition to a child's oom handler upon
+>> notification).
+>
+> OK, but what about those who are not using memcg and need a similar
+> functionality? Are there any, btw?
 
-If smp_load_acquire() and smp_store_release() are both implemented using
-lwsync on powerpc, and if Access A is a store and Access B is a load,
-then Access A and Access B can be reordered.
+Chrome OS uses a custom low-memory notification to minimize OOM kills.
+ When the notifier triggers, the Chrome browser tries to free memory,
+including by shutting down processes, before the full OOM occurs.  But
+OOM kills cannot always be avoided, depending on the speed of
+allocation and how much CPU the freeing tasks are able to use
+(certainly they could be given higher priority, but it get complex).
 
-Of course, if every other architecture will be providing RCsc implementations
-for smp_load_acquire() and smp_store_release(), which would not be a bad
-thing, then another approach is for powerpc to use sync rather than lwsync
-for one or the other of smp_load_acquire() or smp_store_release().
+We may end up using memcg so we can use the cgroup
+memory.pressure_level file instead of our own notifier, but we have no
+need for finer control over OOM kills beyond the very useful kill
+priority.  One process at a time is good enough for us.
 
-							Thanx, Paul
+>
+>> I was planning on writing a liboom library that would lay
+>> the foundation for how this was supposed to work and some generic
+>> functions that make use of the per-memcg memory reserves.
+>>
+>> So my plan for the complete solution was:
+>>
+>>  - allow userspace notification from the root memcg on system oom
+>>    conditions,
+>>
+>>  - implement a memory.oom_delay_millisecs timeout so that the kernel
+>>    eventually intervenes if userspace fails to respond, including for
+>>    system oom conditions, for whatever reason which would be set to 0
+>>    if no userspace oom handler is registered for the notification, and
+>
+> One thing I really dislike about timeout is that there is no easy way to
+> find out which value is safe. It might be easier for well controlled
+> environments where you know what the load is and how it behaves. How an
+> ordinary user knows which number to put there without risking a race
+> where the userspace just doesn't respond in time?
+>
+>>  - implement per-memcg reserves as described above so that userspace oom
+>>    handlers have access to memory even in oom conditions as an upfront
+>>    charge and have the ability to free memory as necessary.
+>
+> This has a similar issue as above. How to estimate the size of the
+> reserve? How to make such a reserve stable over different kernel
+> versions where the same query might consume more memory.
+>
+> As I've said in my previous email. The reserves can help but it is still
+> easy to do wrong and looks rather fragile for general purposes.
+>
+>> We already have the ability to do the actual kill from userspace, both the
+>> system oom killer and the memcg oom killer grants access to memory
+>> reserves for any process needing to allocate memory if it has a pending
+>> SIGKILL which we can send from userspace.
+>
+> Yes, the killing part is not a problem the selection is the hard one.
+>
+> --
+> Michal Hocko
+> SUSE Labs
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
