@@ -1,369 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 34C356B0036
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 14:49:44 -0500 (EST)
-Received: by mail-qc0-f173.google.com with SMTP id l4so632697qcv.18
-        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 11:49:43 -0800 (PST)
-Received: from mail-qe0-x235.google.com (mail-qe0-x235.google.com [2607:f8b0:400d:c02::235])
-        by mx.google.com with ESMTPS id k1si6811330qao.42.2013.11.20.11.49.43
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 664196B0031
+	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 15:16:51 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id p10so2473134pdj.12
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 12:16:51 -0800 (PST)
+Received: from smtp-outbound-1.vmware.com (smtp-outbound-1.vmware.com. [208.91.2.12])
+        by mx.google.com with ESMTPS id n5si15012313pav.98.2013.11.20.12.16.49
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 20 Nov 2013 11:49:43 -0800 (PST)
-Received: by mail-qe0-f53.google.com with SMTP id cy11so6441527qeb.40
-        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 11:49:42 -0800 (PST)
-From: Dan Streetman <ddstreet@ieee.org>
-Subject: [PATCH v2] mm/zswap: change zswap to writethrough cache
-Date: Wed, 20 Nov 2013 14:49:33 -0500
-Message-Id: <1384976973-32722-1-git-send-email-ddstreet@ieee.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 20 Nov 2013 12:16:50 -0800 (PST)
+Message-ID: <528D18AB.5020009@vmware.com>
+Date: Wed, 20 Nov 2013 21:16:43 +0100
+From: Thomas Hellstrom <thellstrom@vmware.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH RFC 0/3] Add dirty-tracking infrastructure for non-page-backed
+ address spaces
+References: <1384891576-7851-1-git-send-email-thellstrom@vmware.com> <528BEB60.7040402@amacapital.net> <528C6ED9.3070600@vmware.com> <CALCETrXFqV1S6qVsxHRDrxw-trGK0O4Jf1rXOFwze4JL0uAEAA@mail.gmail.com>
+In-Reply-To: <CALCETrXFqV1S6qVsxHRDrxw-trGK0O4Jf1rXOFwze4JL0uAEAA@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjennings@variantweb.net>
-Cc: Dan Streetman <ddstreet@ieee.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-graphics-maintainer@vmware.com
 
-Currently, zswap is writeback cache; stored pages are not sent
-to swap disk, and when zswap wants to evict old pages it must
-first write them back to swap cache/disk manually.  This avoids
-swap out disk I/O up front, but only moves that disk I/O to
-the writeback case (for pages that are evicted), and adds the
-overhead of having to uncompress the evicted pages, and adds the
-need for an additional free page (to store the uncompressed page)
-at a time of likely high memory pressure.  Additionally, being
-writeback adds complexity to zswap by having to perform the
-writeback on page eviction.
+On 11/20/2013 05:50 PM, Andy Lutomirski wrote:
+> On Wed, Nov 20, 2013 at 12:12 AM, Thomas Hellstrom
+> <thellstrom@vmware.com> wrote:
+>> On 11/19/2013 11:51 PM, Andy Lutomirski wrote:
+>>> On 11/19/2013 12:06 PM, Thomas Hellstrom wrote:
+>>>> Hi!
+>>>>
+>>>> Before going any further with this I'd like to check whether this is an
+>>>> acceptable way to go.
+>>>> Background:
+>>>> GPU buffer objects in general and vmware svga GPU buffers in
+>>>> particular are mapped by user-space using MIXEDMAP or PFNMAP. Sometimes
+>>>> the
+>>>> address space is backed by a set of pages, sometimes it's backed by PCI
+>>>> memory.
+>>>> In the latter case in particular, there is no way to track dirty regions
+>>>> using page_mkwrite() and page_mkclean(), other than allocating a bounce
+>>>> buffer and perform dirty tracking on it, and then copy data to the real
+>>>> GPU
+>>>> buffer. This comes with a big memory- and performance overhead.
+>>>>
+>>>> So I'd like to add the following infrastructure with a callback
+>>>> pfn_mkwrite()
+>>>> and a function mkclean_mapping_range(). Typically we will be cleaning a
+>>>> range
+>>>> of ptes rather than random ptes in a vma.
+>>>> This comes with the extra benefit of being usable when the backing memory
+>>>> of
+>>>> the GPU buffer is not coherent with the GPU itself, and where we either
+>>>> need
+>>>> to flush caches or move data to synchronize.
+>>>>
+>>>> So this is a RFC for
+>>>> 1) The API. Is it acceptable? Any other suggestions if not?
+>>>> 2) Modifying apply_to_page_range(). Better to make a standalone
+>>>> non-populating version?
+>>>> 3) tlb- mmu- and cache-flushing calls. I've looked at
+>>>> unmap_mapping_range()
+>>>> and page_mkclean_one() to try to get it right, but still unsure.
+>>> Most (all?) architectures have real dirty tracking -- you can mark a pte
+>>> as "clean" and the hardware (or arch code) will mark it dirty when
+>>> written, *without* a page fault.
+>>>
+>>> I'm not convinced that it works completely correctly right now (I
+>>> suspect that there are some TLB flushing issues on the dirty->clean
+>>> transition), and it's likely prone to bit-rot, since the page cache
+>>> doesn't rely on it.
+>>>
+>>> That being said, using hardware dirty tracking should be *much* faster
+>>> and less latency-inducing than doing it in software like this.  It may
+>>> be worth trying to get HW dirty tracking working before adding more page
+>>> fault-based tracking.
+>>>
+>>> (I think there's also some oddity on S/390.  I don't know what that
+>>> oddity is or whether you should care.)
+>>>
+>>> --Andy
+>>
+>> Andy,
+>>
+>> Thanks for the tip. It indeed sounds interesting, however there are a couple
+>> of culprits:
+>>
+>> 1) As you say, it sounds like there might be TLB flushing issues. Let's say
+>> the TLB detects a write and raises an IRQ for the arch code to set the PTE
+>> dirty bit, and before servicing that interrupt, we clear the PTE and flush
+>> that TLB. What will happen?
+> This should be fine.  I assume that all architectures that do this
+> kind of software dirty tracking will make the write block until the
+> fault is handled, so the write won't have happened when you clear the
+> PTE.  After the TLB flush, the PTE will become dirty again and then
+> the page will be written.
+>
+>> And if the TLB hardware would write directly to
+>> the in-memory PTE I guess we'd have the same synchronization issues. I guess
+>> we'd then need an atomic read-modify-write against the TLB hardware?
+> IIRC the part that looked fishy to me was the combination of hw dirty
+> tracking and write protecting the page.  If you see that the pte is
+> clean and want to write protect it, you probably need to set the write
+> protect bit (atomically so you don't lose a dirty bit), flush the TLB,
+> and then check the dirty bit again.
+>
+>> 2) Even if most hardware is capable of this stuff, I'm not sure what would
+>> happen in a virtual machine. Need to check.
+> This should be fine.  Any VM monitor that fails to implement dirty
+> tracking is probably terminally broken.
 
-This changes zswap to writethrough cache by enabling
-frontswap_writethrough() before registering, so that any
-successful page store will also be written to swap disk.  All the
-writeback code is removed since it is no longer needed, and the
-only operation during a page eviction is now to remove the entry
-from the tree and free it.
+OK. I'll give it a try. If I understand this correctly, even if I set up 
+a shared RW mapping, the
+PTEs should magically be marked dirty if written to, and everything 
+works as it should?
 
-Signed-off-by: Dan Streetman <ddstreet@ieee.org>
----
+>
+>> 3) For dirty contents that need to appear on a screen within a short
+>> interval, we need the write notification anyway, to start a delayed task
+>> that will gather the dirty data and flush it to the screen...
+>>
+> So that's what you want to do :)
 
-This does require the patch just sent to the list
-"mm/zswap: don't allow entry eviction if in use by load"
-is applied.
+Well this is mostly a benefit, actually. We already do this using 
+fb_defio, but without this
+new interface we need a bounce-buffer covering the whole screen. Luckily 
+this isn't a
+common use-case.
+Typically (if we use this) we'd gather dirty data when the buffer is 
+referenced in a GPU
+command stream.
 
-Changes since v1:
-update to apply to latest -tip, previous patch missed several recent
-zswap patches.
+>
+> I bet that the best approach is some kind of hybrid.  If, on the first
+> page fault per frame, you un-write-protected the entire buffer and
+> then, near the end of the frame, check all the hw dirty bits and
+> re-write-protect the entire buffer, you get the benefit detecting
+> which pages were written, but you only take one write fault per frame
+> instead of one write fault per page.
 
- mm/zswap.c | 208 ++++++-------------------------------------------------------
- 1 file changed, 18 insertions(+), 190 deletions(-)
+Yes, that sounds sane, particularly as un-write-protecting shouldn't 
+need any additional
+tlb flushing, AFAICT.
 
-diff --git a/mm/zswap.c b/mm/zswap.c
-index f4fbbd5..2d209a3 100644
---- a/mm/zswap.c
-+++ b/mm/zswap.c
-@@ -39,7 +39,6 @@
- #include <linux/mm_types.h>
- #include <linux/page-flags.h>
- #include <linux/swapops.h>
--#include <linux/writeback.h>
- #include <linux/pagemap.h>
- 
- /*********************************
-@@ -59,8 +58,8 @@ static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
- 
- /* Pool limit was hit (see zswap_max_pool_percent) */
- static u64 zswap_pool_limit_hit;
--/* Pages written back when pool limit was reached */
--static u64 zswap_written_back_pages;
-+/* Pages evicted when pool limit was reached */
-+static u64 zswap_evicted_pages;
- /* Store failed due to a reclaim failure after pool limit was reached */
- static u64 zswap_reject_reclaim_fail;
- /* Compressed page was too big for the allocator to (optimally) store */
-@@ -160,7 +159,7 @@ static void zswap_comp_exit(void)
-  * rbnode - links the entry into red-black tree for the appropriate swap type
-  * refcount - the number of outstanding reference to the entry. This is needed
-  *            to protect against premature freeing of the entry by code
-- *            concurent calls to load, invalidate, and writeback.  The lock
-+ *            concurent calls to load, invalidate, and evict.  The lock
-  *            for the zswap_tree structure that contains the entry must
-  *            be held while changing the refcount.  Since the lock must
-  *            be held, there is no reason to also make refcount atomic.
-@@ -412,132 +411,19 @@ static bool zswap_is_full(void)
- }
- 
- /*********************************
--* writeback code
-+* evict
- **********************************/
--/* return enum for zswap_get_swap_cache_page */
--enum zswap_get_swap_ret {
--	ZSWAP_SWAPCACHE_NEW,
--	ZSWAP_SWAPCACHE_EXIST,
--	ZSWAP_SWAPCACHE_FAIL,
--};
--
--/*
-- * zswap_get_swap_cache_page
-- *
-- * This is an adaption of read_swap_cache_async()
-- *
-- * This function tries to find a page with the given swap entry
-- * in the swapper_space address space (the swap cache).  If the page
-- * is found, it is returned in retpage.  Otherwise, a page is allocated,
-- * added to the swap cache, and returned in retpage.
-- *
-- * If success, the swap cache page is returned in retpage
-- * Returns ZSWAP_SWAPCACHE_EXIST if page was already in the swap cache
-- * Returns ZSWAP_SWAPCACHE_NEW if the new page needs to be populated,
-- *     the new page is added to swapcache and locked
-- * Returns ZSWAP_SWAPCACHE_FAIL on error
-- */
--static int zswap_get_swap_cache_page(swp_entry_t entry,
--				struct page **retpage)
--{
--	struct page *found_page, *new_page = NULL;
--	struct address_space *swapper_space = swap_address_space(entry);
--	int err;
--
--	*retpage = NULL;
--	do {
--		/*
--		 * First check the swap cache.  Since this is normally
--		 * called after lookup_swap_cache() failed, re-calling
--		 * that would confuse statistics.
--		 */
--		found_page = find_get_page(swapper_space, entry.val);
--		if (found_page)
--			break;
--
--		/*
--		 * Get a new page to read into from swap.
--		 */
--		if (!new_page) {
--			new_page = alloc_page(GFP_KERNEL);
--			if (!new_page)
--				break; /* Out of memory */
--		}
--
--		/*
--		 * call radix_tree_preload() while we can wait.
--		 */
--		err = radix_tree_preload(GFP_KERNEL);
--		if (err)
--			break;
--
--		/*
--		 * Swap entry may have been freed since our caller observed it.
--		 */
--		err = swapcache_prepare(entry);
--		if (err == -EEXIST) { /* seems racy */
--			radix_tree_preload_end();
--			continue;
--		}
--		if (err) { /* swp entry is obsolete ? */
--			radix_tree_preload_end();
--			break;
--		}
--
--		/* May fail (-ENOMEM) if radix-tree node allocation failed. */
--		__set_page_locked(new_page);
--		SetPageSwapBacked(new_page);
--		err = __add_to_swap_cache(new_page, entry);
--		if (likely(!err)) {
--			radix_tree_preload_end();
--			lru_cache_add_anon(new_page);
--			*retpage = new_page;
--			return ZSWAP_SWAPCACHE_NEW;
--		}
--		radix_tree_preload_end();
--		ClearPageSwapBacked(new_page);
--		__clear_page_locked(new_page);
--		/*
--		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
--		 * clear SWAP_HAS_CACHE flag.
--		 */
--		swapcache_free(entry, NULL);
--	} while (err != -ENOMEM);
--
--	if (new_page)
--		page_cache_release(new_page);
--	if (!found_page)
--		return ZSWAP_SWAPCACHE_FAIL;
--	*retpage = found_page;
--	return ZSWAP_SWAPCACHE_EXIST;
--}
- 
- /*
-- * Attempts to free an entry by adding a page to the swap cache,
-- * decompressing the entry data into the page, and issuing a
-- * bio write to write the page back to the swap device.
-- *
-- * This can be thought of as a "resumed writeback" of the page
-- * to the swap device.  We are basically resuming the same swap
-- * writeback path that was intercepted with the frontswap_store()
-- * in the first place.  After the page has been decompressed into
-- * the swap cache, the compressed version stored by zswap can be
-- * freed.
-+ * This is called from zbud to remove an entry that is being evicted.
-  */
--static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
-+static int zswap_evict_entry(struct zbud_pool *pool, unsigned long handle)
- {
- 	struct zswap_header *zhdr;
- 	swp_entry_t swpentry;
- 	struct zswap_tree *tree;
- 	pgoff_t offset;
- 	struct zswap_entry *entry;
--	struct page *page;
--	u8 *src, *dst;
--	unsigned int dlen;
--	int ret;
--	struct writeback_control wbc = {
--		.sync_mode = WB_SYNC_NONE,
--	};
- 
- 	/* extract swpentry from data */
- 	zhdr = zbud_map(pool, handle);
-@@ -547,89 +433,30 @@ static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
- 	offset = swp_offset(swpentry);
- 	BUG_ON(pool != tree->pool);
- 
--	/* find and ref zswap entry */
-+	/* find zswap entry */
- 	spin_lock(&tree->lock);
--	entry = zswap_entry_find_get(&tree->rbroot, offset);
-+	entry = zswap_rb_search(&tree->rbroot, offset);
- 	if (!entry) {
- 		/* entry was invalidated */
- 		spin_unlock(&tree->lock);
- 		return 0;
- 	}
--	spin_unlock(&tree->lock);
- 	BUG_ON(offset != entry->offset);
- 
--	/* try to allocate swap cache page */
--	switch (zswap_get_swap_cache_page(swpentry, &page)) {
--	case ZSWAP_SWAPCACHE_FAIL: /* no memory or invalidate happened */
--		ret = -ENOMEM;
--		goto fail;
--
--	case ZSWAP_SWAPCACHE_EXIST:
--		/* page is already in the swap cache, ignore for now */
--		page_cache_release(page);
--		ret = -EEXIST;
--		goto fail;
--
--	case ZSWAP_SWAPCACHE_NEW: /* page is locked */
--		/* decompress */
--		dlen = PAGE_SIZE;
--		src = (u8 *)zbud_map(tree->pool, entry->handle) +
--			sizeof(struct zswap_header);
--		dst = kmap_atomic(page);
--		ret = zswap_comp_op(ZSWAP_COMPOP_DECOMPRESS, src,
--				entry->length, dst, &dlen);
--		kunmap_atomic(dst);
--		zbud_unmap(tree->pool, entry->handle);
--		BUG_ON(ret);
--		BUG_ON(dlen != PAGE_SIZE);
--
--		/* page is up to date */
--		SetPageUptodate(page);
--	}
--
--	/* move it to the tail of the inactive list after end_writeback */
--	SetPageReclaim(page);
--
--	/* start writeback */
--	__swap_writepage(page, &wbc, end_swap_bio_write);
--	page_cache_release(page);
--	zswap_written_back_pages++;
--
--	spin_lock(&tree->lock);
--	/* drop local reference */
-+	/* drop initial reference */
- 	zswap_entry_put(tree, entry);
- 
--	/*
--	* There are three possible situations for entry here:
--	* (1) refcount is 1(normal case),  entry is valid and on the tree
--	* (2) refcount is 0, entry is freed and not on the tree
--	*     because invalidate happened during writeback
--	* (3) refcount is 2, entry is in use by load, prevent eviction
--	*/
--	if (likely(entry->refcount > 0))
--		zswap_entry_put(tree, entry);
-+	/* if still in use by load(), do not allow eviction */
- 	if (unlikely(entry->refcount > 0)) {
- 		spin_unlock(&tree->lock);
- 		return -EAGAIN;
- 	}
--	spin_unlock(&tree->lock);
- 
--	goto end;
-+	zswap_evicted_pages++;
- 
--	/*
--	* if we get here due to ZSWAP_SWAPCACHE_EXIST
--	* a load may happening concurrently
--	* it is safe and okay to not free the entry
--	* if we free the entry in the following put
--	* it it either okay to return !0
--	*/
--fail:
--	spin_lock(&tree->lock);
--	zswap_entry_put(tree, entry);
- 	spin_unlock(&tree->lock);
- 
--end:
--	return ret;
-+	return 0;
- }
- 
- /*********************************
-@@ -746,7 +573,7 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
- 	spin_lock(&tree->lock);
- 	entry = zswap_entry_find_get(&tree->rbroot, offset);
- 	if (!entry) {
--		/* entry was written back */
-+		/* entry was evicted */
- 		spin_unlock(&tree->lock);
- 		return -1;
- 	}
-@@ -780,7 +607,7 @@ static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
- 	spin_lock(&tree->lock);
- 	entry = zswap_rb_search(&tree->rbroot, offset);
- 	if (!entry) {
--		/* entry was written back */
-+		/* entry was evicted */
- 		spin_unlock(&tree->lock);
- 		return;
- 	}
-@@ -813,7 +640,7 @@ static void zswap_frontswap_invalidate_area(unsigned type)
- }
- 
- static struct zbud_ops zswap_zbud_ops = {
--	.evict = zswap_writeback_entry
-+	.evict = zswap_evict_entry
- };
- 
- static void zswap_frontswap_init(unsigned type)
-@@ -872,8 +699,8 @@ static int __init zswap_debugfs_init(void)
- 			zswap_debugfs_root, &zswap_reject_kmemcache_fail);
- 	debugfs_create_u64("reject_compress_poor", S_IRUGO,
- 			zswap_debugfs_root, &zswap_reject_compress_poor);
--	debugfs_create_u64("written_back_pages", S_IRUGO,
--			zswap_debugfs_root, &zswap_written_back_pages);
-+	debugfs_create_u64("evicted_pages", S_IRUGO,
-+			zswap_debugfs_root, &zswap_evicted_pages);
- 	debugfs_create_u64("duplicate_entry", S_IRUGO,
- 			zswap_debugfs_root, &zswap_duplicate_entry);
- 	debugfs_create_u64("pool_pages", S_IRUGO,
-@@ -918,6 +745,7 @@ static int __init init_zswap(void)
- 		pr_err("per-cpu initialization failed\n");
- 		goto pcpufail;
- 	}
-+	frontswap_writethrough(true);
- 	frontswap_register_ops(&zswap_frontswap_ops);
- 	if (zswap_debugfs_init())
- 		pr_warn("debugfs initialization failed\n");
--- 
-1.8.3.1
+>
+> (I imagine that there are video apps out that there that would slow
+> down measurably if they started taking one write fault per page per
+> frame.)
+
+I actually hope to be able to avoid this stuff completely, but I need a 
+backup plan, so
+that's why I threw out this RFC.
+
+>
+> --Andy
+
+Thanks,
+Thomas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
