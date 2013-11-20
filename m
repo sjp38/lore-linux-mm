@@ -1,156 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vb0-f51.google.com (mail-vb0-f51.google.com [209.85.212.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 587E06B0031
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 15:29:49 -0500 (EST)
-Received: by mail-vb0-f51.google.com with SMTP id m10so1916617vbh.10
-        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 12:29:49 -0800 (PST)
-Received: from mail-ve0-f181.google.com (mail-ve0-f181.google.com [209.85.128.181])
-        by mx.google.com with ESMTPS id mq14si9899030vcb.56.2013.11.20.12.29.47
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 20 Nov 2013 12:29:48 -0800 (PST)
-Received: by mail-ve0-f181.google.com with SMTP id oy12so3579729veb.40
-        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 12:29:47 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <528D18AB.5020009@vmware.com>
-References: <1384891576-7851-1-git-send-email-thellstrom@vmware.com>
- <528BEB60.7040402@amacapital.net> <528C6ED9.3070600@vmware.com>
- <CALCETrXFqV1S6qVsxHRDrxw-trGK0O4Jf1rXOFwze4JL0uAEAA@mail.gmail.com> <528D18AB.5020009@vmware.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 20 Nov 2013 12:29:27 -0800
-Message-ID: <CALCETrXGi3267NefnFJr0gykUFVE5HVGqH4vL1KhpOXHxhfq1A@mail.gmail.com>
-Subject: Re: [PATCH RFC 0/3] Add dirty-tracking infrastructure for
- non-page-backed address spaces
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FAC36B0031
+	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 15:36:12 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id kp14so4670707pab.4
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 12:36:11 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id dj6si15027016pad.148.2013.11.20.12.36.10
+        for <linux-mm@kvack.org>;
+        Wed, 20 Nov 2013 12:36:10 -0800 (PST)
+Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <20131120190616.GL4138@linux.vnet.ibm.com>
+References: <cover.1384885312.git.tim.c.chen@linux.intel.com>
+	 <1384911463.11046.454.camel@schen9-DESK>
+	 <20131120153123.GF4138@linux.vnet.ibm.com>
+	 <20131120154643.GG19352@mudshark.cambridge.arm.com>
+	 <20131120171400.GI4138@linux.vnet.ibm.com>
+	 <1384973026.11046.465.camel@schen9-DESK>
+	 <20131120190616.GL4138@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 20 Nov 2013 12:36:07 -0800
+Message-ID: <1384979767.11046.489.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Hellstrom <thellstrom@vmware.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-graphics-maintainer <linux-graphics-maintainer@vmware.com>
+To: paulmck@linux.vnet.ibm.com
+Cc: Will Deacon <will.deacon@arm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Wed, Nov 20, 2013 at 12:16 PM, Thomas Hellstrom
-<thellstrom@vmware.com> wrote:
-> On 11/20/2013 05:50 PM, Andy Lutomirski wrote:
->>
->> On Wed, Nov 20, 2013 at 12:12 AM, Thomas Hellstrom
->> <thellstrom@vmware.com> wrote:
->>>
->>> On 11/19/2013 11:51 PM, Andy Lutomirski wrote:
->>>>
->>>> On 11/19/2013 12:06 PM, Thomas Hellstrom wrote:
->>>>>
->>>>> Hi!
->>>>>
->>>>> Before going any further with this I'd like to check whether this is an
->>>>> acceptable way to go.
->>>>> Background:
->>>>> GPU buffer objects in general and vmware svga GPU buffers in
->>>>> particular are mapped by user-space using MIXEDMAP or PFNMAP. Sometimes
->>>>> the
->>>>> address space is backed by a set of pages, sometimes it's backed by PCI
->>>>> memory.
->>>>> In the latter case in particular, there is no way to track dirty
->>>>> regions
->>>>> using page_mkwrite() and page_mkclean(), other than allocating a bounce
->>>>> buffer and perform dirty tracking on it, and then copy data to the real
->>>>> GPU
->>>>> buffer. This comes with a big memory- and performance overhead.
->>>>>
->>>>> So I'd like to add the following infrastructure with a callback
->>>>> pfn_mkwrite()
->>>>> and a function mkclean_mapping_range(). Typically we will be cleaning a
->>>>> range
->>>>> of ptes rather than random ptes in a vma.
->>>>> This comes with the extra benefit of being usable when the backing
->>>>> memory
->>>>> of
->>>>> the GPU buffer is not coherent with the GPU itself, and where we either
->>>>> need
->>>>> to flush caches or move data to synchronize.
->>>>>
->>>>> So this is a RFC for
->>>>> 1) The API. Is it acceptable? Any other suggestions if not?
->>>>> 2) Modifying apply_to_page_range(). Better to make a standalone
->>>>> non-populating version?
->>>>> 3) tlb- mmu- and cache-flushing calls. I've looked at
->>>>> unmap_mapping_range()
->>>>> and page_mkclean_one() to try to get it right, but still unsure.
->>>>
->>>> Most (all?) architectures have real dirty tracking -- you can mark a pte
->>>> as "clean" and the hardware (or arch code) will mark it dirty when
->>>> written, *without* a page fault.
->>>>
->>>> I'm not convinced that it works completely correctly right now (I
->>>> suspect that there are some TLB flushing issues on the dirty->clean
->>>> transition), and it's likely prone to bit-rot, since the page cache
->>>> doesn't rely on it.
->>>>
->>>> That being said, using hardware dirty tracking should be *much* faster
->>>> and less latency-inducing than doing it in software like this.  It may
->>>> be worth trying to get HW dirty tracking working before adding more page
->>>> fault-based tracking.
->>>>
->>>> (I think there's also some oddity on S/390.  I don't know what that
->>>> oddity is or whether you should care.)
->>>>
->>>> --Andy
->>>
->>>
->>> Andy,
->>>
->>> Thanks for the tip. It indeed sounds interesting, however there are a
->>> couple
->>> of culprits:
->>>
->>> 1) As you say, it sounds like there might be TLB flushing issues. Let's
->>> say
->>> the TLB detects a write and raises an IRQ for the arch code to set the
->>> PTE
->>> dirty bit, and before servicing that interrupt, we clear the PTE and
->>> flush
->>> that TLB. What will happen?
->>
->> This should be fine.  I assume that all architectures that do this
->> kind of software dirty tracking will make the write block until the
->> fault is handled, so the write won't have happened when you clear the
->> PTE.  After the TLB flush, the PTE will become dirty again and then
->> the page will be written.
->>
->>> And if the TLB hardware would write directly to
->>> the in-memory PTE I guess we'd have the same synchronization issues. I
->>> guess
->>> we'd then need an atomic read-modify-write against the TLB hardware?
->>
->> IIRC the part that looked fishy to me was the combination of hw dirty
->> tracking and write protecting the page.  If you see that the pte is
->> clean and want to write protect it, you probably need to set the write
->> protect bit (atomically so you don't lose a dirty bit), flush the TLB,
->> and then check the dirty bit again.
->>
->>> 2) Even if most hardware is capable of this stuff, I'm not sure what
->>> would
->>> happen in a virtual machine. Need to check.
->>
->> This should be fine.  Any VM monitor that fails to implement dirty
->> tracking is probably terminally broken.
->
->
-> OK. I'll give it a try. If I understand this correctly, even if I set up a
-> shared RW mapping, the
-> PTEs should magically be marked dirty if written to, and everything works as
-> it should?
->
+On Wed, 2013-11-20 at 11:06 -0800, Paul E. McKenney wrote:
+> On Wed, Nov 20, 2013 at 10:43:46AM -0800, Tim Chen wrote:
+> > On Wed, 2013-11-20 at 09:14 -0800, Paul E. McKenney wrote:
+> > > On Wed, Nov 20, 2013 at 03:46:43PM +0000, Will Deacon wrote:
+> > > > Hi Paul,
+> > > > 
+> > > > On Wed, Nov 20, 2013 at 03:31:23PM +0000, Paul E. McKenney wrote:
+> > > > > On Tue, Nov 19, 2013 at 05:37:43PM -0800, Tim Chen wrote:
+> > > > > > @@ -68,7 +72,12 @@ void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
+> > > > > >  		while (!(next = ACCESS_ONCE(node->next)))
+> > > > > >  			arch_mutex_cpu_relax();
+> > > > > >  	}
+> > > > > > -	ACCESS_ONCE(next->locked) = 1;
+> > > > > > -	smp_wmb();
+> > > > > > +	/*
+> > > > > > +	 * Pass lock to next waiter.
+> > > > > > +	 * smp_store_release() provides a memory barrier to ensure
+> > > > > > +	 * all operations in the critical section has been completed
+> > > > > > +	 * before unlocking.
+> > > > > > +	 */
+> > > > > > +	smp_store_release(&next->locked, 1);
+> > > > > 
+> > > > > However, there is one problem with this that I missed yesterday.
+> > > > > 
+> > > > > Documentation/memory-barriers.txt requires that an unlock-lock pair
+> > > > > provide a full barrier, but this is not guaranteed if we use
+> > > > > smp_store_release() for unlock and smp_load_acquire() for lock.
+> > > > > At least one of these needs a full memory barrier.
+> > > > 
+> > > > Hmm, so in the following case:
+> > > > 
+> > > >   Access A
+> > > >   unlock()	/* release semantics */
+> > > >   lock()	/* acquire semantics */
+> > > >   Access B
+> > > > 
+> > > > A cannot pass beyond the unlock() and B cannot pass the before the lock().
+> > > > 
+> > > > I agree that accesses between the unlock and the lock can be move across both
+> > > > A and B, but that doesn't seem to matter by my reading of the above.
+> > > > 
+> > > > What is the problematic scenario you have in mind? Are you thinking of the
+> > > > lock() moving before the unlock()? That's only permitted by RCpc afaiu,
+> > > > which I don't think any architectures supported by Linux implement...
+> > > > (ARMv8 acquire/release is RCsc).
+> > > 
+> > > If smp_load_acquire() and smp_store_release() are both implemented using
+> > > lwsync on powerpc, and if Access A is a store and Access B is a load,
+> > > then Access A and Access B can be reordered.
+> > > 
+> > > Of course, if every other architecture will be providing RCsc implementations
+> > > for smp_load_acquire() and smp_store_release(), which would not be a bad
+> > > thing, then another approach is for powerpc to use sync rather than lwsync
+> > > for one or the other of smp_load_acquire() or smp_store_release().
+> > 
+> > Can we count on the xchg function in the beginning of mcs_lock to
+> > provide a memory barrier? It should provide an implicit memory
+> > barrier according to the memory-barriers document.
+> 
+> The problem with the implicit full barrier associated with the xchg()
+> function is that it is in the wrong place if the lock is contended.
+> We need to ensure that the previous lock holder's critical section
+> is seen by everyone to precede that of the next lock holder, and
+> we need transitivity.  The only operations that are in the right place
+> to force the needed ordering in the contended case are those involved
+> in the lock handoff.  :-(
+> 
 
-I *think* so.  (It's certainly worth doing a quick-and-dirty test to
-make sure I'm not completely nuts before you invest too much time here
--- I've read the code, and I've looked at the Intel specs, but I've
-never actually verified that pte_dirty and pte_mkclean to what I think
-they do.)
+Paul,
 
-(If you ever intend to run on S/390, you should ask someone who
-understands what's going on.  I, personally, have no clue, other than
-having seen references to something weird happening.)
+I'm still scratching my head on how ACCESS A 
+and ACCESS B could get reordered.
 
---Andy
+The smp_store_release instruction in unlock should guarantee that
+all memory operations in the previous lock holder's critical section has
+been completed and seen by everyone, before the store operation 
+to set the lock for the next holder is seen. And the 
+smp_load_acquire should guarantee that all memory operations 
+for next lock holder happen after checking that it has got lock.  
+So it seems like the two critical sections should not overlap.
+
+Does using lwsync means that these smp_load_acquire 
+and smp_store_release guarantees are no longer true?
+
+Tim
+
+> 							Thanx, Paul
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
