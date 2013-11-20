@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 991A66B0031
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 02:50:36 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id hz1so6364496pad.26
-        for <linux-mm@kvack.org>; Tue, 19 Nov 2013 23:50:36 -0800 (PST)
-Received: from psmtp.com ([74.125.245.127])
-        by mx.google.com with SMTP id z1si13582598pbn.181.2013.11.19.23.50.34
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id B80F86B0031
+	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 03:02:26 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id v10so3732452pde.13
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 00:02:26 -0800 (PST)
+Received: from psmtp.com ([74.125.245.142])
+        by mx.google.com with SMTP id cx4si13590213pbc.299.2013.11.20.00.02.24
         for <linux-mm@kvack.org>;
-        Tue, 19 Nov 2013 23:50:35 -0800 (PST)
-Received: by mail-yh0-f49.google.com with SMTP id z20so2539785yhz.22
-        for <linux-mm@kvack.org>; Tue, 19 Nov 2013 23:50:33 -0800 (PST)
-Date: Tue, 19 Nov 2013 23:50:29 -0800 (PST)
+        Wed, 20 Nov 2013 00:02:25 -0800 (PST)
+Received: by mail-yh0-f44.google.com with SMTP id f64so1466503yha.17
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 00:02:23 -0800 (PST)
+Date: Wed, 20 Nov 2013 00:02:20 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
 Subject: Re: user defined OOM policies
-In-Reply-To: <20131119131400.GC20655@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.02.1311192341300.20752@chino.kir.corp.google.com>
-References: <20131119131400.GC20655@dhcp22.suse.cz>
+In-Reply-To: <20131119134007.GD20655@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.02.1311192352070.20752@chino.kir.corp.google.com>
+References: <20131119131400.GC20655@dhcp22.suse.cz> <20131119134007.GD20655@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -25,49 +25,65 @@ Cc: linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer
 
 On Tue, 19 Nov 2013, Michal Hocko wrote:
 
-> Hi,
-> it's been quite some time since LSFMM 2013 when this has been
-> discussed[1]. In short, it seems that there are usecases with a
-> strong demand on a better user/admin policy control for the global
-> OOM situations. Per process oom_{adj,score} which is used for the
-> prioritizing is no longer sufficient because there are other categories
-> which might be important. For example, often it doesn't make sense to
-> kill just a part of the workload and killing the whole group would be a
-> better fit. I am pretty sure there are many others some of them workload
-> specific and thus not appropriate for the generic implementation.
+> > We have basically ended up with 3 options AFAIR:
+> > 	1) allow memcg approach (memcg.oom_control) on the root level
+> >            for both OOM notification and blocking OOM killer and handle
+> >            the situation from the userspace same as we can for other
+> > 	   memcgs.
 > 
+> This looks like a straightforward approach as the similar thing is done
+> on the local (memcg) level. There are several problems though.
+> Running userspace from within OOM context is terribly hard to do
+> right.
 
-Thanks for starting this thread.  We'd like to have two things:
+Not sure it's hard if you have per-memcg memory reserves which I've 
+brought up in the past with true and complete kmem accounting.  Even if 
+you don't allocate slab, it guarantees that there will be at least a 
+little excess memory available so that the userspace oom handler isn't oom 
+itself.
 
- - allow userspace to call into our implementation of malloc() to free
-   excess memory that will avoid requiring anything from being killed,
-   which may include freeing userspace caches back to the kernel or
-   using MADV_DONTNEED over a range of unused memory within the arena,
-   and
+This involves treating processes waiting on memory.oom_control to be 
+treated as a special class so that they are allowed to allocate an 
+additional pre-configured amount of memory.  For non-root memcgs, this 
+would simply be a dummy usage that would be charged to the memcg when the 
+oom notification is registered and actually accessible only by the oom 
+handler itself while memcg->under_oom.  For root memcgs, this would simply 
+be a PF_MEMALLOC type behavior that dips into per-zone memory reserves.
 
- - enforce a hierarchical memcg prioritization policy so that memcgs can 
-   be iterated at each level beneath the oom memcg (which may include the
-   root memcg for system oom conditions) and eligible processes are killed 
-   in the lowest priority memcg.
+> This is true even in the memcg case and we strongly discurage
+> users from doing that. The global case has nothing like outside of OOM
+> context though. So any hang would blocking the whole machine.
 
-This obviously allows for much more powerful implementations as well that 
-can be defined by users of memcgs to drop caches, increase memcg limits, 
-signaling applications to free unused memory, start throttling memory 
-usage, heap analysis, logging, etc. and userspace oom handlers are the 
-perfect place to do so.
+Why would there be a hang if the userspace oom handlers aren't actually 
+oom themselves as described above?
 
-> We have basically ended up with 3 options AFAIR:
-> 	1) allow memcg approach (memcg.oom_control) on the root level
->            for both OOM notification and blocking OOM killer and handle
->            the situation from the userspace same as we can for other
-> 	   memcgs.
+I'd suggest against the other two suggestions because hierarchical 
+per-memcg userspace oom handlers are very powerful and can be useful 
+without actually killing anything at all, and parent oom handlers can 
+signal child oom handlers to free memory in oom conditions (in other 
+words, defer a parent oom condition to a child's oom handler upon 
+notification).  I was planning on writing a liboom library that would lay 
+the foundation for how this was supposed to work and some generic 
+functions that make use of the per-memcg memory reserves.
 
-This is what I've been proposing both with my latest patches, the 
-memory.oom_delay_millisecs patch in the past, and future patch to allow 
-for per-memcg memory reserves that allow charging to be bypassed to a 
-pre-defined threshold much like per-zone memory reserves for TIF_MEMDIE 
-processes today so that userspace has access to memory to handle the 
-situation even in system oom conditions.
+So my plan for the complete solution was:
+
+ - allow userspace notification from the root memcg on system oom 
+   conditions,
+
+ - implement a memory.oom_delay_millisecs timeout so that the kernel 
+   eventually intervenes if userspace fails to respond, including for
+   system oom conditions, for whatever reason which would be set to 0
+   if no userspace oom handler is registered for the notification, and
+
+ - implement per-memcg reserves as described above so that userspace oom 
+   handlers have access to memory even in oom conditions as an upfront
+   charge and have the ability to free memory as necessary.
+
+We already have the ability to do the actual kill from userspace, both the 
+system oom killer and the memcg oom killer grants access to memory 
+reserves for any process needing to allocate memory if it has a pending 
+SIGKILL which we can send from userspace.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
