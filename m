@@ -1,62 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F9896B0031
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 06:40:01 -0500 (EST)
-Received: by mail-pd0-f180.google.com with SMTP id q10so4322147pdj.39
-        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 03:40:01 -0800 (PST)
-Received: from psmtp.com ([74.125.245.177])
-        by mx.google.com with SMTP id qu5si1400950pbc.180.2013.11.20.03.39.59
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 9631B6B0031
+	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 07:50:32 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id kq14so5311055pab.6
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 04:50:32 -0800 (PST)
+Received: from psmtp.com ([74.125.245.183])
+        by mx.google.com with SMTP id ot3si3859434pac.50.2013.11.20.04.50.30
         for <linux-mm@kvack.org>;
-        Wed, 20 Nov 2013 03:40:00 -0800 (PST)
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Subject: Aliasing VIPT dcache / Page colouring
-Date: Wed, 20 Nov 2013 11:39:54 +0000
-Message-ID: <C2D7FE5348E1B147BCA15975FBA23075156B6B@IN01WEMBXA.internal.synopsys.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Wed, 20 Nov 2013 04:50:31 -0800 (PST)
+Received: from /spool/local
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Wed, 20 Nov 2013 05:50:29 -0700
+Received: from b03cxnp08027.gho.boulder.ibm.com (b03cxnp08027.gho.boulder.ibm.com [9.17.130.19])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 7AA2F1FF001B
+	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 05:50:09 -0700 (MST)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by b03cxnp08027.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rAKAmeke26804378
+	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 11:48:40 +0100
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id rAKCrJWt030293
+	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 05:53:21 -0700
+Date: Wed, 20 Nov 2013 04:50:23 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH v6 0/5] MCS Lock: MCS lock code cleanup and optimizations
+Message-ID: <20131120125023.GC4138@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <cover.1384885312.git.tim.c.chen@linux.intel.com>
+ <1384911446.11046.450.camel@schen9-DESK>
+ <20131120101957.GA19352@mudshark.cambridge.arm.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131120101957.GA19352@mudshark.cambridge.arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-Hi Michal,
+On Wed, Nov 20, 2013 at 10:19:57AM +0000, Will Deacon wrote:
+> Hi Tim,
+> 
+> On Wed, Nov 20, 2013 at 01:37:26AM +0000, Tim Chen wrote:
+> > In this patch series, we separated out the MCS lock code which was
+> > previously embedded in the mutex.c.  This allows for easier reuse of
+> > MCS lock in other places like rwsem and qrwlock.  We also did some micro
+> > optimizations and barrier cleanup.  
+> > 
+> > The original code has potential leaks between critical sections, which
+> > was not a problem when MCS was embedded within the mutex but needs
+> > to be corrected when allowing the MCS lock to be used by itself for
+> > other locking purposes. 
+> > 
+> > Proper barriers are now embedded with the usage of smp_load_acquire() in
+> > mcs_spin_lock() and smp_store_release() in mcs_spin_unlock.  See
+> > http://marc.info/?l=linux-arch&m=138386254111507 for info on the
+> > new smp_load_acquire() and smp_store_release() functions. 
+> > 
+> > This patches were previously part of the rwsem optimization patch series
+> > but now we spearate them out.
+> > 
+> > We have also added hooks to allow for architecture specific 
+> > implementation of the mcs_spin_lock and mcs_spin_unlock functions.
+> > 
+> > Will, do you want to take a crack at adding implementation for ARM
+> > with wfe instruction?
+> 
+> Sure, I'll have a go this week. Thanks for keeping that as a consideration!
+> 
+> As an aside: what are you using to test this code, so that I can make sure I
+> don't break it?
 
-I read thru your fantastic work on Page coloring
++1 to that!  In fact, it would be nice to have the test code in-tree,
+especially if it can test a wide variety of locks.  (/me needs to look
+at what test code for locks might already be in tree, for that matter...)
 
-http://d3s.mff.cuni.cz/publications/download/hocko-sipew10.pdf
-
-and slightly different one at
-
-http://citeseerx.ist.psu.edu/viewdoc/download?doi=3D10.1.1.65.2260&rep=3Dre=
-p1&type=3Dpdf
-
-I had a few questions on your paper/code, which you could hopefully answer.
-
-To give you some background, I maintain the Linux port to ARC cores (from S=
-ynopsys).  We have ARC700 core with VIPT, 4 way set associative, L1 dcache.=
- With a PAGE_SIZE of 8k, dcache >=3D 64k can potentially suffer from VIPT a=
-liasing (we don't have specific hardware assist). Kernel runs in untranslat=
-ed address space, hence uses paddr as handle for r/w to page, which can pot=
-entially alias with a non congruent userspace mapping of page. Currently we=
- work around by doing the needed preventive flushes in update_mmu_cache( ) =
-and other hooks intended for this purpose (although adding kmap_atomic base=
-d mapping for @src in copy_user_highpage is still on my TODO list)
-
-Regarding your paper/code I wanted to confirm my understanding that the sch=
-eme itself can't be used in general for VIPT aliasing issue (ignoring the i=
-ntrusiveness to core VM, Linus detesting it ...). It seems to be targeted a=
-t large PIPT caches, primarily to help spread the cache access via coloring=
- / bin hopping etc. Plus it relies on user space defining the hints. The fi=
-le backed page mapping doesn't take the color allocation path at all so I c=
-an't see how it will work with VIPT at all. anon mappings cause pages alloc=
-ation rightaway, breaking the lazy allocation paradigm.
-
-Am I reading it correctly ?
-
-TIA,
--Vineet
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
