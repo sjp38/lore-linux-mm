@@ -1,70 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f77.google.com (mail-oa0-f77.google.com [209.85.219.77])
-	by kanga.kvack.org (Postfix) with ESMTP id B3B856B0031
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 13:23:44 -0500 (EST)
-Received: by mail-oa0-f77.google.com with SMTP id o6so2056oag.0
-        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 10:23:44 -0800 (PST)
-Received: from psmtp.com ([74.125.245.105])
-        by mx.google.com with SMTP id hk1si14566694pbb.221.2013.11.20.08.07.20
-        for <linux-mm@kvack.org>;
-        Wed, 20 Nov 2013 08:07:21 -0800 (PST)
-Date: Wed, 20 Nov 2013 11:07:12 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm, vmscan: abort futile reclaim if we've been oom killed
-Message-ID: <20131120160712.GF3556@cmpxchg.org>
-References: <alpine.DEB.2.02.1311121801200.18803@chino.kir.corp.google.com>
- <20131113152412.GH707@cmpxchg.org>
- <alpine.DEB.2.02.1311131400300.23211@chino.kir.corp.google.com>
- <20131114000043.GK707@cmpxchg.org>
- <alpine.DEB.2.02.1311131639010.6735@chino.kir.corp.google.com>
- <20131118164107.GC3556@cmpxchg.org>
- <alpine.DEB.2.02.1311181712080.4292@chino.kir.corp.google.com>
+Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
+	by kanga.kvack.org (Postfix) with ESMTP id DBFE96B0031
+	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 14:11:56 -0500 (EST)
+Received: by mail-qc0-f171.google.com with SMTP id s13so141268qcv.2
+        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 11:11:56 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id u5si14944662qed.99.2013.11.21.11.11.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Nov 2013 11:11:51 -0800 (PST)
+Message-ID: <528E5AEF.6020007@infradead.org>
+Date: Thu, 21 Nov 2013 11:11:43 -0800
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1311181712080.4292@chino.kir.corp.google.com>
+Subject: Re: [PATCH] slab: remove the redundant declaration of kmalloc
+References: <528DA0C0.8010505@huawei.com>
+In-Reply-To: <528DA0C0.8010505@huawei.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Qiang Huang <h.huangqiang@huawei.com>, cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Nov 18, 2013 at 05:17:31PM -0800, David Rientjes wrote:
-> On Mon, 18 Nov 2013, Johannes Weiner wrote:
+On 11/20/13 21:57, Qiang Huang wrote:
 > 
-> > > Um, no, those processes are going through a repeated loop of direct 
-> > > reclaim, calling the oom killer, iterating the tasklist, finding an 
-> > > existing oom killed process that has yet to exit, and looping.  They 
-> > > wouldn't loop for too long if we can reduce the amount of time that it 
-> > > takes for that oom killed process to exit.
-> > 
-> > I'm not talking about the big loop in the page allocator.  The victim
-> > is going through the same loop.  This patch is about the victim being
-> > in a pointless direct reclaim cycle when it could be exiting, all I'm
-> > saying is that the other tasks doing direct reclaim at that moment
-> > should also be quitting and retrying the allocation.
-> > 
+> Signed-off-by: Qiang Huang <h.huangqiang@huawei.com>
+
+or use my patch from 2013-09-17:
+http://marc.info/?l=linux-mm&m=137944291611467&w=2
+
+Would be nice to one of these merged...
+
+
+> ---
+>  include/linux/slab.h | 102 +++++++++++++++++++++++----------------------------
+>  1 file changed, 46 insertions(+), 56 deletions(-)
 > 
-> "All other tasks" would be defined as though sharing the same mempolicy 
-> context as the oom kill victim or the same set of cpuset mems, I'm not 
-> sure what type of method for determining reclaim eligiblity you're 
-> proposing to avoid pointlessly spinning without making progress.  Until an 
-> alternative exists, my patch avoids the needless spinning and expedites 
-> the exit, so I'll ask that it be merged.
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 74f1058..630f22f 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -381,7 +381,52 @@ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
+>  /**
+>   * kmalloc - allocate memory
+>   * @size: how many bytes of memory are required.
+> - * @flags: the type of memory to allocate (see kcalloc).
+> + * @flags: the type of memory to allocate.
+> + *
+> + * The @flags argument may be one of:
+> + *
+> + * %GFP_USER - Allocate memory on behalf of user.  May sleep.
+> + *
+> + * %GFP_KERNEL - Allocate normal kernel ram.  May sleep.
+> + *
+> + * %GFP_ATOMIC - Allocation will not sleep.  May use emergency pools.
+> + *   For example, use this inside interrupt handlers.
+> + *
+> + * %GFP_HIGHUSER - Allocate pages from high memory.
+> + *
+> + * %GFP_NOIO - Do not do any I/O at all while trying to get memory.
+> + *
+> + * %GFP_NOFS - Do not make any fs calls while trying to get memory.
+> + *
+> + * %GFP_NOWAIT - Allocation will not sleep.
+> + *
+> + * %GFP_THISNODE - Allocate node-local memory only.
+> + *
+> + * %GFP_DMA - Allocation suitable for DMA.
+> + *   Should only be used for kmalloc() caches. Otherwise, use a
+> + *   slab created with SLAB_DMA.
+> + *
+> + * Also it is possible to set different flags by OR'ing
+> + * in one or more of the following additional @flags:
+> + *
+> + * %__GFP_COLD - Request cache-cold pages instead of
+> + *   trying to return cache-warm pages.
+> + *
+> + * %__GFP_HIGH - This allocation has high priority and may use emergency pools.
+> + *
+> + * %__GFP_NOFAIL - Indicate that this allocation is in no way allowed to fail
+> + *   (think twice before using).
+> + *
+> + * %__GFP_NORETRY - If memory is not immediately available,
+> + *   then give up at once.
+> + *
+> + * %__GFP_NOWARN - If allocation fails, don't issue any warnings.
+> + *
+> + * %__GFP_REPEAT - If allocation fails initially, try once more before failing.
+> + *
+> + * There are other flags available as well, but these are not intended
+> + * for general use, and so are not documented here. For a full list of
+> + * potential flags, always refer to linux/gfp.h.
+>   *
+>   * kmalloc is the normal method of allocating memory
+>   * for objects smaller than page size in the kernel.
+> @@ -495,61 +540,6 @@ int cache_show(struct kmem_cache *s, struct seq_file *m);
+>  void print_slabinfo_header(struct seq_file *m);
+> 
+>  /**
+> - * kmalloc - allocate memory
+> - * @size: how many bytes of memory are required.
+> - * @flags: the type of memory to allocate.
+> - *
+> - * The @flags argument may be one of:
+> - *
+> - * %GFP_USER - Allocate memory on behalf of user.  May sleep.
+> - *
+> - * %GFP_KERNEL - Allocate normal kernel ram.  May sleep.
+> - *
+> - * %GFP_ATOMIC - Allocation will not sleep.  May use emergency pools.
+> - *   For example, use this inside interrupt handlers.
+> - *
+> - * %GFP_HIGHUSER - Allocate pages from high memory.
+> - *
+> - * %GFP_NOIO - Do not do any I/O at all while trying to get memory.
+> - *
+> - * %GFP_NOFS - Do not make any fs calls while trying to get memory.
+> - *
+> - * %GFP_NOWAIT - Allocation will not sleep.
+> - *
+> - * %GFP_THISNODE - Allocate node-local memory only.
+> - *
+> - * %GFP_DMA - Allocation suitable for DMA.
+> - *   Should only be used for kmalloc() caches. Otherwise, use a
+> - *   slab created with SLAB_DMA.
+> - *
+> - * Also it is possible to set different flags by OR'ing
+> - * in one or more of the following additional @flags:
+> - *
+> - * %__GFP_COLD - Request cache-cold pages instead of
+> - *   trying to return cache-warm pages.
+> - *
+> - * %__GFP_HIGH - This allocation has high priority and may use emergency pools.
+> - *
+> - * %__GFP_NOFAIL - Indicate that this allocation is in no way allowed to fail
+> - *   (think twice before using).
+> - *
+> - * %__GFP_NORETRY - If memory is not immediately available,
+> - *   then give up at once.
+> - *
+> - * %__GFP_NOWARN - If allocation fails, don't issue any warnings.
+> - *
+> - * %__GFP_REPEAT - If allocation fails initially, try once more before failing.
+> - *
+> - * There are other flags available as well, but these are not intended
+> - * for general use, and so are not documented here. For a full list of
+> - * potential flags, always refer to linux/gfp.h.
+> - *
+> - * kmalloc is the normal method of allocating memory
+> - * in the kernel.
+> - */
+> -static __always_inline void *kmalloc(size_t size, gfp_t flags);
+> -
+> -/**
+>   * kmalloc_array - allocate memory for an array.
+>   * @n: number of elements.
+>   * @size: element size.
+> 
 
-I laid this out in the second half of my email, which you apparently
-did not read:
 
-"If we have multi-second stalls in direct reclaim then it should be
- fixed for all direct reclaimers.  The problem is not only OOM kill
- victims getting stuck, it's every direct reclaimer being stuck trying
- to do way too much work before retrying the allocation.
-
- Kswapd checks the system state after every priority cycle.  Direct
- reclaim should probably do the same and retry the allocation after
- every priority cycle or every X pages scanned, where X is something
- reasonable and not "up to every LRU page in the system"."
-
-NAK to this incomplete drive-by fix.
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
