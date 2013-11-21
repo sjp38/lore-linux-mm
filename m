@@ -1,89 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f50.google.com (mail-bk0-f50.google.com [209.85.214.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DAA66B0031
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 11:40:30 -0500 (EST)
-Received: by mail-bk0-f50.google.com with SMTP id e11so416988bkh.9
-        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 08:40:30 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id uq6si1507315bkb.151.2013.11.21.08.40.29
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 21 Nov 2013 08:40:29 -0800 (PST)
-Date: Thu, 21 Nov 2013 11:40:19 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm, vmscan: abort futile reclaim if we've been oom killed
-Message-ID: <20131121164019.GK3556@cmpxchg.org>
-References: <alpine.DEB.2.02.1311121801200.18803@chino.kir.corp.google.com>
- <20131113152412.GH707@cmpxchg.org>
- <alpine.DEB.2.02.1311131400300.23211@chino.kir.corp.google.com>
- <20131114000043.GK707@cmpxchg.org>
- <alpine.DEB.2.02.1311131639010.6735@chino.kir.corp.google.com>
- <20131118164107.GC3556@cmpxchg.org>
- <alpine.DEB.2.02.1311181712080.4292@chino.kir.corp.google.com>
- <20131120160712.GF3556@cmpxchg.org>
- <alpine.DEB.2.02.1311201803000.30862@chino.kir.corp.google.com>
+Received: from mail-bk0-f44.google.com (mail-bk0-f44.google.com [209.85.214.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 934566B0031
+	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 12:13:10 -0500 (EST)
+Received: by mail-bk0-f44.google.com with SMTP id d7so419567bkh.17
+        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 09:13:09 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTP id rl9si5026870bkb.67.2013.11.21.09.13.09
+        for <linux-mm@kvack.org>;
+        Thu, 21 Nov 2013 09:13:09 -0800 (PST)
+Date: Thu, 21 Nov 2013 18:13:07 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: user defined OOM policies
+Message-ID: <20131121171307.GB16703@dhcp22.suse.cz>
+References: <20131119131400.GC20655@dhcp22.suse.cz>
+ <20131119134007.GD20655@dhcp22.suse.cz>
+ <20131120172119.GA1848@hp530>
+ <20131120173357.GC18809@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1311201937120.7167@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1311201803000.30862@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1311201937120.7167@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Vladimir Murzin <murzin.v@gmail.com>, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Joern Engel <joern@logfs.org>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Nov 20, 2013 at 07:08:50PM -0800, David Rientjes wrote:
-> My patch is not in a fastpath, it has extremely minimal overhead, and it 
-> allows an oom killed victim to exit much quicker instead of incurring 
-> O(seconds) stalls because of 700 other allocators grabbing the cpu in a 
-> futile effort to reclaim memory themselves.
+On Wed 20-11-13 19:38:56, David Rientjes wrote:
+> On Wed, 20 Nov 2013, Michal Hocko wrote:
 > 
-> Andrew, this fixes a real-world issue that exists and I'm asking that it 
-> be merged so that oom killed processes can quickly allocate and exit to 
-> free its memory.  If a more invasive future patch causes it to no longer 
-> be necessary, that's what we call kernel development.  Thanks.
+> > OK, I was a bit vague it seems. I meant to give zonelist, gfp_mask,
+> > allocation order and nodemask parameters to the modules. So they have a
+> > better picture of what is the OOM context.
+> > What everything ould modules need to do an effective work is a matter
+> > for discussion.
+> > 
+> 
+> It's an interesting idea but unfortunately a non-starter for us because 
+> our users don't have root,
 
-All I'm trying to do is find the broader root cause for the problem
-you are experiencing and find a solution that will leave us with
-maintainable code.  It does not matter how few instructions your fix
-adds, it changes the outcome of the algorithm and makes every
-developer trying to grasp the complexity of page reclaim think about
-yet another special condition.
+I wouldn't see this as a problem. You can still have a module which
+exports the notification interface you need. Including timeout
+fallback. That would be trivial to implement and maybe more appropriate
+to very specific environments. Moreover the global OOM handling wouldn't
+be memcg bound.
 
-The more specific the code is, the harder it will be to understand in
-the future.  Yes, it's a one-liner, but we've had death by a thousand
-cuts before, many times.  A few cycles ago, kswapd was blowing up left
-and right simply because it was trying to meet too many specific
-objectives from facilitating order-0 allocators, maintaining zone
-health, enabling compaction for higher order allocation, writing back
-dirty pages.  Ultimately, it just got stuck in endless loops because
-of conflicting conditionals.  We've had similar problems in the scan
-count calculation etc where all the checks and special cases left us
-with code that was impossible to reason about.  There really is a
-history of "low overhead one-liner fixes" eating us alive in the VM.
+> we create their memcg tree and then chown it to the user.  They can
+> freely register for oom notifications but cannot load their own kernel
+> modules for their own specific policy.
 
-The solution was always to take a step back and integrate all
-requirements properly.  Not only did this fix the problems, the code
-ended up being much more robust and easier to understand and modify as
-well.
-
-If shortening the direct reclaim cycle is an adequate solution to your
-problem, it would be much preferable.  Because
-
-  "checking at a reasonable interval if the work I'm doing is still
-   necessary"
-
-is a much more approachable, generic, and intuitive concept than
-
-  "the OOM killer has gone off, direct reclaim is futile, I should
-   exit quickly to release memory so that not more tasks get caught
-   doing direct reclaim".
-
-and the fix would benefit a much wider audience.
-
-Lastly, as far as I know, you are the only reporter that noticed an
-issue with this loooooong-standing behavior, and you don't even run
-upstream kernels.  There really is no excuse to put up with a quick &
-dirty fix.
+yes I see but that requires just a notification interface. It doesn't
+have to be memcg specific, right?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
