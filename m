@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 903786B0031
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 20:59:22 -0500 (EST)
-Received: by mail-qc0-f182.google.com with SMTP id n7so6528690qcx.27
-        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 17:59:22 -0800 (PST)
-Received: from mail-qe0-x230.google.com (mail-qe0-x230.google.com [2607:f8b0:400d:c02::230])
-        by mx.google.com with ESMTPS id 8si18108497qev.20.2013.11.20.17.59.20
+Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
+	by kanga.kvack.org (Postfix) with ESMTP id ECA0B6B0031
+	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 21:52:56 -0500 (EST)
+Received: by mail-qc0-f169.google.com with SMTP id u18so6523264qcx.28
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 18:52:56 -0800 (PST)
+Received: from mail-qe0-x22f.google.com (mail-qe0-x22f.google.com [2607:f8b0:400d:c02::22f])
+        by mx.google.com with ESMTPS id t9si989890qat.53.2013.11.20.18.52.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 20 Nov 2013 17:59:21 -0800 (PST)
-Received: by mail-qe0-f48.google.com with SMTP id gc15so2577983qeb.7
-        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 17:59:20 -0800 (PST)
+        Wed, 20 Nov 2013 18:52:56 -0800 (PST)
+Received: by mail-qe0-f47.google.com with SMTP id t7so2140297qeb.20
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 18:52:55 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1384976909-32671-1-git-send-email-ddstreet@ieee.org>
-References: <1384976909-32671-1-git-send-email-ddstreet@ieee.org>
-Date: Thu, 21 Nov 2013 09:59:20 +0800
-Message-ID: <CAL1ERfPcAbNyt9hTYKMj9OGK2=ynLrTVm9udEn=hF+bFptC16Q@mail.gmail.com>
-Subject: Re: [PATCH] mm/zswap: don't allow entry eviction if in use by load
+In-Reply-To: <1384976824-32624-1-git-send-email-ddstreet@ieee.org>
+References: <1384976824-32624-1-git-send-email-ddstreet@ieee.org>
+Date: Thu, 21 Nov 2013 10:52:55 +0800
+Message-ID: <CAL1ERfNNAZCS58K9mT85wxQfH8B3AyR4aLE8r745me1dJRmPfg@mail.gmail.com>
+Subject: Re: [PATCH] mm/zswap: remove unneeded zswap_rb_erase calls
 From: Weijie Yang <weijie.yang.kh@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
@@ -26,60 +26,69 @@ Cc: Seth Jennings <sjennings@variantweb.net>, linux-mm@kvack.org, linux-kernel <
 
 Hello Dan
 
-On Thu, Nov 21, 2013 at 3:48 AM, Dan Streetman <ddstreet@ieee.org> wrote:
-> The changes in commit 0ab0abcf511545d1fddbe72a36b3ca73388ac937
-> introduce a bug in writeback, if an entry is in use by load
-> it will be evicted anyway, which isn't correct (technically,
-> the code currently in zbud doesn't actually care much what the
-> zswap evict function returns, but that could change).
-
-Thanks for your work. Howerver it is not a bug.
-
-I have thought about this situation, and it will never happen.
-If entry is being loaded, its corresponding page must be in swapcache
-so zswap_get_swap_cache_page() will return ZSWAP_SWAPCACHE_EXIST
-
-If I miss something, please let me know.
-
-Thanks!
-
-> This changes the check in the writeback function to prevent eviction
-> if the entry is still in use (with a nonzero refcount).  The
-> refcount is used instead of searching the rb tree beacuse we're
-> holding the tree lock (which is required for any changes to refcount)
-> and it's faster than a tree search.
+On Thu, Nov 21, 2013 at 3:47 AM, Dan Streetman <ddstreet@ieee.org> wrote:
+> Since zswap_rb_erase was added to the final (when refcount == 0)
+> zswap_put_entry, there is no need to call zswap_rb_erase before
+> calling zswap_put_entry.
 >
 > Signed-off-by: Dan Streetman <ddstreet@ieee.org>
 > ---
->  mm/zswap.c | 10 +++++++---
->  1 file changed, 7 insertions(+), 3 deletions(-)
+>  mm/zswap.c | 5 -----
+>  1 file changed, 5 deletions(-)
 >
 > diff --git a/mm/zswap.c b/mm/zswap.c
-> index e55bab9..e154f1e 100644
+> index e154f1e..f4fbbd5 100644
 > --- a/mm/zswap.c
 > +++ b/mm/zswap.c
-> @@ -600,14 +600,18 @@ static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
+> @@ -711,8 +711,6 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+>                 ret = zswap_rb_insert(&tree->rbroot, entry, &dupentry);
+>                 if (ret == -EEXIST) {
+>                         zswap_duplicate_entry++;
+> -                       /* remove from rbtree */
+> -                       zswap_rb_erase(&tree->rbroot, dupentry);
+>                         zswap_entry_put(tree, dupentry);
+>                 }
+>         } while (ret == -EEXIST);
+
+If remove zswap_rb_erase, it would loop until free this dupentry. This
+would cause 2 proplems:
+1.  zswap_duplicate_entry counter is not correct
+2. trigger BUG_ON in zswap_entry_put when this dupentry is being writeback,
+   because zswap_writeback_entry will call zswap_entry_put either.
+
+So, I don't think it is a good idea to remove zswap_rb_erase call.
+
+> @@ -787,9 +785,6 @@ static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
+>                 return;
+>         }
+>
+> -       /* remove from rbtree */
+> -       zswap_rb_erase(&tree->rbroot, entry);
+> -
+>         /* drop the initial reference from entry creation */
 >         zswap_entry_put(tree, entry);
->
->         /*
-> -       * There are two possible situations for entry here:
-> +       * There are three possible situations for entry here:
->         * (1) refcount is 1(normal case),  entry is valid and on the tree
->         * (2) refcount is 0, entry is freed and not on the tree
->         *     because invalidate happened during writeback
-> -       *  search the tree and free the entry if find entry
-> +       * (3) refcount is 2, entry is in use by load, prevent eviction
->         */
-> -       if (entry == zswap_rb_search(&tree->rbroot, offset))
-> +       if (likely(entry->refcount > 0))
->                 zswap_entry_put(tree, entry);
-> +       if (unlikely(entry->refcount > 0)) {
-> +               spin_unlock(&tree->lock);
-> +               return -EAGAIN;
-> +       }
->         spin_unlock(&tree->lock);
->
->         goto end;
+
+I think it is better not to remove the zswap_rb_erase call.
+
+>From frontswap interface view, if invalidate is called, the page(and
+entry) should never visible to upper.
+If remove the zswap_rb_erase call, it is not fit this semantic.
+
+Consider the following scenario:
+1. thread 0: entry A is being writeback
+2. thread 1: invalidate entry A, as refcount != 0, it will still exist
+on rbtree.
+3. thread 1: reuse  entry A 's swp_entry_t, do a frontswap_store
+   it will conflict with the  entry A on the rbtree, it is not a
+normal duplicate store.
+
+If we place the zswap_rb_erase call in zswap_frontswap_invalidate_page,
+we can avoid the above scenario.
+
+So, I don't think it is a good idea to remove zswap_rb_erase call.
+
+Regards,
+
 > --
 > 1.8.3.1
 >
