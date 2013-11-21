@@ -1,93 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f42.google.com (mail-qe0-f42.google.com [209.85.128.42])
-	by kanga.kvack.org (Postfix) with ESMTP id D7CFC6B0031
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 08:20:52 -0500 (EST)
-Received: by mail-qe0-f42.google.com with SMTP id t9so4568540qeq.29
-        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 05:20:52 -0800 (PST)
-Received: from e38.co.us.ibm.com (e38.co.us.ibm.com. [32.97.110.159])
-        by mx.google.com with ESMTPS id x18si4112659qef.13.2013.11.21.05.20.51
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 21 Nov 2013 05:20:51 -0800 (PST)
-Received: from /spool/local
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Thu, 21 Nov 2013 06:20:50 -0700
-Received: from b03cxnp08027.gho.boulder.ibm.com (b03cxnp08027.gho.boulder.ibm.com [9.17.130.19])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 15D4019D8048
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 06:20:41 -0700 (MST)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by b03cxnp08027.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rALBIxDF28442768
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 12:18:59 +0100
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id rALDNcBF032372
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 06:23:40 -0700
-Date: Thu, 21 Nov 2013 05:20:41 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
-Message-ID: <20131121132041.GS4138@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <cover.1384885312.git.tim.c.chen@linux.intel.com>
- <1384911463.11046.454.camel@schen9-DESK>
- <20131120153123.GF4138@linux.vnet.ibm.com>
- <20131120154643.GG19352@mudshark.cambridge.arm.com>
- <20131120171400.GI4138@linux.vnet.ibm.com>
- <20131121110308.GC10022@twins.programming.kicks-ass.net>
- <20131121125616.GI3694@twins.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail-ea0-f172.google.com (mail-ea0-f172.google.com [209.85.215.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 2630F6B0031
+	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 09:38:26 -0500 (EST)
+Received: by mail-ea0-f172.google.com with SMTP id q10so2417747ead.17
+        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 06:38:25 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id s8si20119321eeh.17.2013.11.21.06.38.22
+        for <linux-mm@kvack.org>;
+        Thu, 21 Nov 2013 06:38:22 -0800 (PST)
+Date: Thu, 21 Nov 2013 09:38:17 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1385044697-rn5og2ir-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1385038810-15513-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1385038810-15513-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH] mm: place page->pmd_huge_pte to right union
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20131121125616.GI3694@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Will Deacon <will.deacon@arm.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Nov 21, 2013 at 01:56:16PM +0100, Peter Zijlstra wrote:
-> On Thu, Nov 21, 2013 at 12:03:08PM +0100, Peter Zijlstra wrote:
-> > On Wed, Nov 20, 2013 at 09:14:00AM -0800, Paul E. McKenney wrote:
-> > > > Hmm, so in the following case:
-> > > > 
-> > > >   Access A
-> > > >   unlock()	/* release semantics */
-> > > >   lock()	/* acquire semantics */
-> > > >   Access B
-> > > > 
-> > > > A cannot pass beyond the unlock() and B cannot pass the before the lock().
-> > > > 
-> > > > I agree that accesses between the unlock and the lock can be move across both
-> > > > A and B, but that doesn't seem to matter by my reading of the above.
-> > > > 
-> > > > What is the problematic scenario you have in mind? Are you thinking of the
-> > > > lock() moving before the unlock()? That's only permitted by RCpc afaiu,
-> > > > which I don't think any architectures supported by Linux implement...
-> > > > (ARMv8 acquire/release is RCsc).
-> > > 
-> > > If smp_load_acquire() and smp_store_release() are both implemented using
-> > > lwsync on powerpc, and if Access A is a store and Access B is a load,
-> > > then Access A and Access B can be reordered.
-> > > 
-> > > Of course, if every other architecture will be providing RCsc implementations
-> > > for smp_load_acquire() and smp_store_release(), which would not be a bad
-> > > thing, then another approach is for powerpc to use sync rather than lwsync
-> > > for one or the other of smp_load_acquire() or smp_store_release().
-> > 
-> > So which of the two would make most sense?
-> > 
-> > As per the Document, loads/stores should not be able to pass up through
-> > an ACQUIRE and loads/stores should not be able to pass down through a
-> > RELEASE.
-> > 
-> > I think PPC would match that if we use sync for smp_store_release() such
-> > that it will flush the store buffer, and thereby guarantee all stores
-> > are kept within the required section.
+On Thu, Nov 21, 2013 at 03:00:10PM +0200, Kirill A. Shutemov wrote:
+> I don't know what went wrong, mis-merge or something, but ->pmd_huge_pte
+> placed in wrong union within struct page.
 > 
-> Wouldn't that also mean that TSO archs need the full barrier on
-> RELEASE?
+> In original patch[1] it's placed to union with ->lru and ->slab, but in
+> commit e009bb30c8df it's in union with ->index and ->freelist.
+> 
+> That union seems also unused for pages with table tables and safe to
+> re-use, but it's not what I've tested.
+> 
+> Let's move it to original place. It fixes indentation at least. :)
+> 
+> [1] https://lkml.org/lkml/2013/10/7/288
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-It just might...  I was thinking not, but I do need to check.
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-							Thanx, Paul
+> ---
+>  include/linux/mm_types.h | 6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
+> 
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index 10f5a7272b80..011eb85d7b0f 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -65,9 +65,6 @@ struct page {
+>  						 * this page is only used to
+>  						 * free other pages.
+>  						 */
+> -#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && USE_SPLIT_PMD_PTLOCKS
+> -		pgtable_t pmd_huge_pte; /* protected by page->ptl */
+> -#endif
+>  		};
+>  
+>  		union {
+> @@ -135,6 +132,9 @@ struct page {
+>  
+>  		struct list_head list;	/* slobs list of pages */
+>  		struct slab *slab_page; /* slab fields */
+> +#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && USE_SPLIT_PMD_PTLOCKS
+> +		pgtable_t pmd_huge_pte; /* protected by page->ptl */
+> +#endif
+>  	};
+>  
+>  	/* Remainder is not double word aligned */
+> -- 
+> 1.8.4.3
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
