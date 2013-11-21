@@ -1,123 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f52.google.com (mail-oa0-f52.google.com [209.85.219.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EF056B0036
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 17:52:16 -0500 (EST)
-Received: by mail-oa0-f52.google.com with SMTP id h16so525181oag.11
-        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 14:52:16 -0800 (PST)
-Received: from e38.co.us.ibm.com (e38.co.us.ibm.com. [32.97.110.159])
-        by mx.google.com with ESMTPS id w10si20372170obo.121.2013.11.21.14.52.14
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 21 Nov 2013 14:52:15 -0800 (PST)
-Received: from /spool/local
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Thu, 21 Nov 2013 15:52:14 -0700
-Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id A59C13E40040
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 15:52:11 -0700 (MST)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by b03cxnp07028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rALKoCWv2228612
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 21:50:12 +0100
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id rALMt4NX024145
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 15:55:06 -0700
-Date: Thu, 21 Nov 2013 14:52:08 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
-Message-ID: <20131121225208.GJ4138@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20131120153123.GF4138@linux.vnet.ibm.com>
- <20131120154643.GG19352@mudshark.cambridge.arm.com>
- <20131120171400.GI4138@linux.vnet.ibm.com>
- <1384973026.11046.465.camel@schen9-DESK>
- <20131120190616.GL4138@linux.vnet.ibm.com>
- <1384979767.11046.489.camel@schen9-DESK>
- <20131120214402.GM4138@linux.vnet.ibm.com>
- <1384991514.11046.504.camel@schen9-DESK>
- <20131121045333.GO4138@linux.vnet.ibm.com>
- <CA+55aFyXzDUss55SjQBy+C-neRZbVsmVRR4aat+wiWfuSQJxaQ@mail.gmail.com>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 152BA6B0036
+	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 17:58:19 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id fa1so424530pad.38
+        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 14:58:18 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id bl1si2262995pad.103.2013.11.21.14.58.16
+        for <linux-mm@kvack.org>;
+        Thu, 21 Nov 2013 14:58:17 -0800 (PST)
+Message-ID: <528E8FCE.1000707@intel.com>
+Date: Thu, 21 Nov 2013 14:57:18 -0800
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFyXzDUss55SjQBy+C-neRZbVsmVRR4aat+wiWfuSQJxaQ@mail.gmail.com>
+Subject: NUMA? bisected performance regression 3.11->3.12
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Will Deacon <will.deacon@arm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Kevin Hilman <khilman@linaro.org>, Andrea Arcangeli <aarcange@redhat.com>, Paul Bolle <paul.bollee@gmail.com>, Zlatko Calusic <zcalusic@bitsync.net>, Andrew Morton <akpm@linux-foundation.org>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>
 
-On Thu, Nov 21, 2013 at 02:27:01PM -0800, Linus Torvalds wrote:
-> On Wed, Nov 20, 2013 at 8:53 PM, Paul E. McKenney
-> <paulmck@linux.vnet.ibm.com> wrote:
-> >
-> > The other option is to weaken lock semantics so that unlock-lock no
-> > longer implies a full barrier, but I believe that we would regret taking
-> > that path.  (It would be OK by me, I would just add a few smp_mb()
-> > calls on various slowpaths in RCU.  But...)
-> 
-> Hmm. I *thought* we already did that, exactly because some
-> architecture already hit this issue, and we got rid of some of the
-> more subtle "this works because.."
-> 
-> No?
-> 
-> Anyway, isn't "unlock+lock" fundamentally guaranteed to be a memory
-> barrier? Anything before the unlock cannot possibly migrate down below
-> the unlock, and anything after the lock must not possibly migrate up
-> to before the lock? If either of those happens, then something has
-> migrated out of the critical region, which is against the whole point
-> of locking..
+Hey Johannes,
 
-Actually, the weakest forms of locking only guarantee a consistent view
-of memory if you are actually holding the lock.  Not "a" lock, but "the"
-lock.  The trick is that use of a common lock variable short-circuits
-the transitivity that would otherwise be required, which in turn
-allows cheaper memory barriers to be used.  But when implementing these
-weakest forms of locking (which Peter and Tim inadvertently did with the
-combination of MCS lock and a PPC implementation of smp_load_acquire()
-and smp_store_release() that used lwsync), then "unlock+lock" is no
-longer guaranteed to be a memory barrier.
+I'm running an open/close microbenchmark from the will-it-scale set:
+> https://github.com/antonblanchard/will-it-scale/blob/master/tests/open1.c
 
-Which is why I (admittedly belatedly) complained.
+I was seeing some weird symptoms on 3.12 vs 3.11.  The throughput in
+that test was going from down from 50 million to 35 million.
 
-So the three fixes I know of at the moment are:
+The profiles show an increase in cpu time in _raw_spin_lock_irq.  The
+profiles pointed to slub code that hasn't been touched in quite a while.
+ I bisected it down to:
 
-1.	Upgrade smp_store_release()'s PPC implementation from lwsync
-	to sync.
-	
-	What about ARM?  ARM platforms that have the load-acquire and
-	store-release instructions could use them, but other ARM
-	platforms have to use dmb.  ARM avoids PPC's lwsync issue
-	because it has no equivalent to lwsync.
+81c0a2bb515fd4daae8cab64352877480792b515 is the first bad commit
+commit 81c0a2bb515fd4daae8cab64352877480792b515
+Author: Johannes Weiner <hannes@cmpxchg.org>
+Date:   Wed Sep 11 14:20:47 2013 -0700
 
-2.	Place an explicit smp_mb() into the MCS-lock queued handoff
-	code.
+Which also seems a bit weird, but I've tested with this and its
+preceding commit enough times to be fairly sure that I did it right.
 
-3.	Remove the requirement that "unlock+lock" be a full memory
-	barrier.
+__slab_free() and free_one_page() both seem to be spending more time
+spinning on their respective spinlocks, even though the throughput went
+down and we should have been doing fewer actual allocations/frees.  The
+best explanation for this would be if CPUs are tending to go after and
+contending for remote cachelines more often once this patch is applied.
 
-We have been leaning towards #1, but before making any hard decision
-on this we are looking more closely at what the situation is on other
-architectures.
+Any ideas?
 
-> It's the "lock+unlock" where it's possible that something before the
-> lock might migrate *into* the critical region (ie after the lock), and
-> something after the unlock might similarly migrate to precede the
-> unlock, so you could end up having out-of-order accesses across a
-> lock/unlock sequence (that both happen "inside" the lock, but there is
-> no guaranteed ordering between the two accesses themselves).
+It's a 8-socket/160-thread (one NUMA node per socket) system that is not
+under memory pressure during the test.  The latencies are also such that
+vm.zone_reclaim_mode=0.
 
-Agreed.
+Raw perf profiles and .config are in here:
+http://www.sr71.net/~dave/intel/201311-wisregress0/
 
-> Or am I confused? The one major reason for strong memory ordering is
-> that weak ordering is too f*cking easy to get wrong on a software
-> level, and even people who know about it will make mistakes.
-
-Guilty to charges as read!  ;-)
-
-That is a major reason why I am leaning towards #1 on the list above.
-
-							Thanx, Paul
+Here's a chunk of the 'perf diff':
+>     17.65%   +3.47%  [kernel.kallsyms]  [k] _raw_spin_lock_irqsave           
+>     13.80%   -0.31%  [kernel.kallsyms]  [k] _raw_spin_lock                   
+>      7.21%   -0.51%  [unknown]          [.] 0x00007f7849058640               
+>      3.43%   +0.15%  [kernel.kallsyms]  [k] setup_object                     
+>      2.99%   -0.31%  [kernel.kallsyms]  [k] file_free_rcu                    
+>      2.71%   -0.13%  [kernel.kallsyms]  [k] rcu_process_callbacks            
+>      2.26%   -0.09%  [kernel.kallsyms]  [k] get_empty_filp                   
+>      2.06%   -0.09%  [kernel.kallsyms]  [k] kmem_cache_alloc                 
+>      1.65%   -0.08%  [kernel.kallsyms]  [k] link_path_walk                   
+>      1.53%   -0.08%  [kernel.kallsyms]  [k] memset                           
+>      1.46%   -0.09%  [kernel.kallsyms]  [k] do_dentry_open                   
+>      1.44%   -0.04%  [kernel.kallsyms]  [k] __d_lookup_rcu                   
+>      1.27%   -0.04%  [kernel.kallsyms]  [k] do_last                          
+>      1.18%   -0.04%  [kernel.kallsyms]  [k] ext4_release_file                
+>      1.16%   -0.04%  [kernel.kallsyms]  [k] __call_rcu.constprop.11          
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
