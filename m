@@ -1,62 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E67F6B0039
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 06:19:28 -0500 (EST)
-Received: by mail-pb0-f46.google.com with SMTP id md12so4922632pbc.5
-        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 03:19:27 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id qu5si4089140pbc.30.2013.11.21.03.19.26
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 5375D6B003B
+	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 07:47:36 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id rd3so4287172pab.35
+        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 04:47:35 -0800 (PST)
+Received: from psmtp.com ([74.125.245.114])
+        by mx.google.com with SMTP id do3si11243522pbc.322.2013.11.21.04.47.34
         for <linux-mm@kvack.org>;
-        Thu, 21 Nov 2013 03:19:27 -0800 (PST)
+        Thu, 21 Nov 2013 04:47:35 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <20131120144014.386293ce24e7b298ebab7b8e@linux-foundation.org>
-References: <20131120174211.GF10323@ZenIV.linux.org.uk>
- <20131120174712.GG10323@ZenIV.linux.org.uk>
- <CA+55aFw_SuTAtTM0YTgiGf1pq4v4j5jbB1af=ExxjyFRbAJ4Ow@mail.gmail.com>
- <20131120144014.386293ce24e7b298ebab7b8e@linux-foundation.org>
-Subject: Re: [git pull] vfs.git bits and pieces
-Content-Transfer-Encoding: 7bit
-Message-Id: <20131121111906.B97AEE0090@blue.fi.intel.com>
-Date: Thu, 21 Nov 2013 13:19:06 +0200 (EET)
+Subject: [PATCH] x86, mm: do not leak page->ptl for pmd page tables
+Date: Thu, 21 Nov 2013 14:46:47 +0200
+Message-Id: <1385038007-29666-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Andrew Morton wrote:
-> On Wed, 20 Nov 2013 14:33:35 -0800 Linus Torvalds <torvalds@linux-foundation.org> wrote:
-> 
-> > On Wed, Nov 20, 2013 at 9:47 AM, Al Viro <viro@zeniv.linux.org.uk> wrote:
-> > >
-> > > BTW, something odd happened to mm/memory.c - either a mangled patch
-> > > or a lost followup:
-> > >
-> > >     commit ea1e7ed33708
-> > >     mm: create a separate slab for page->ptl allocation
-> > >
-> > > Fair enough, and yes, it does create that separate slab.  The problem is,
-> > > it's still using kmalloc/kfree for those beasts - page_ptl_cachep isn't
-> > > used at all...
-> > 
-> > Ok, it looks straightforward enough to just replace the kmalloc/kfree
-> > with using a slab allocation using the page_ptl_cachep pointer. I'd do
-> > it myself, but I would like to know how it got lost? Also, much
-> > testing to make sure the cachep is initialized early enough.
-> 
-> agh, I went through hell keeping that patch alive and it appears I lost
-> some of it.
+There are two code paths how page with pmd page table can be freed:
+pmd_free() and pmd_free_tlb().
 
-Actually, I've lost it while adding BLOATED_SPINLOCKS :(
+I've missed the second one and didn't add page table destructor call
+there. It leads to leak of page->ptl for pmd page tables, if dynamically
+allocated page->ptl is in use.
 
-> > Or should we just revert the commit that added the pointless/unused
-> > slab pointer?
-> > 
-> > Andrew, Kirill, comments?
-> 
-> Let's just kill it please.  We can try again for 3.14.
+The patch adds the missed destructor and modifies documentation
+accordingly.
 
-I'm okay with that.
-Only side note: it's useful not only for debug case, but also for
-PREEMPT_RT where spinlock_t is always bloated.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reported-and-Tested-by: Andrey Vagin <avagin@openvz.org>
+---
+ Documentation/vm/split_page_table_lock | 6 +++---
+ arch/x86/mm/pgtable.c                  | 4 +++-
+ 2 files changed, 6 insertions(+), 4 deletions(-)
 
-Fixed patch:
+diff --git a/Documentation/vm/split_page_table_lock b/Documentation/vm/split_page_table_lock
+index 7521d367f21d..6dea4fd5c961 100644
+--- a/Documentation/vm/split_page_table_lock
++++ b/Documentation/vm/split_page_table_lock
+@@ -63,9 +63,9 @@ levels.
+ PMD split lock enabling requires pgtable_pmd_page_ctor() call on PMD table
+ allocation and pgtable_pmd_page_dtor() on freeing.
+ 
+-Allocation usually happens in pmd_alloc_one(), freeing in pmd_free(), but
+-make sure you cover all PMD table allocation / freeing paths: i.e X86_PAE
+-preallocate few PMDs on pgd_alloc().
++Allocation usually happens in pmd_alloc_one(), freeing in pmd_free() and
++pmd_free_tlb(), but make sure you cover all PMD table allocation / freeing
++paths: i.e X86_PAE preallocate few PMDs on pgd_alloc().
+ 
+ With everything in place you can set CONFIG_ARCH_ENABLE_SPLIT_PMD_PTLOCK.
+ 
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index a7cccb6d7fec..7be5809754cf 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -61,6 +61,7 @@ void ___pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
+ #if PAGETABLE_LEVELS > 2
+ void ___pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
+ {
++	struct page *page = virt_to_page(pmd);
+ 	paravirt_release_pmd(__pa(pmd) >> PAGE_SHIFT);
+ 	/*
+ 	 * NOTE! For PAE, any changes to the top page-directory-pointer-table
+@@ -69,7 +70,8 @@ void ___pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
+ #ifdef CONFIG_X86_PAE
+ 	tlb->need_flush_all = 1;
+ #endif
+-	tlb_remove_page(tlb, virt_to_page(pmd));
++	pgtable_pmd_page_dtor(page);
++	tlb_remove_page(tlb, page);
+ }
+ 
+ #if PAGETABLE_LEVELS > 3
+-- 
+1.8.4.3
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
