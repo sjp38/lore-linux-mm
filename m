@@ -1,58 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 087B76B0031
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 19:43:05 -0500 (EST)
-Received: by mail-ob0-f179.google.com with SMTP id wm4so5607451obc.38
-        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 16:43:05 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id sy1si18122765obc.12.2013.11.20.16.43.04
+Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
+	by kanga.kvack.org (Postfix) with ESMTP id AA8746B0031
+	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 19:52:13 -0500 (EST)
+Received: by mail-qc0-f174.google.com with SMTP id r5so2471841qcx.5
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 16:52:13 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id nj18si17969579qeb.35.2013.11.20.16.52.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 20 Nov 2013 16:43:04 -0800 (PST)
-Message-ID: <528D570D.3020006@oracle.com>
-Date: Thu, 21 Nov 2013 08:42:53 +0800
-From: Bob Liu <bob.liu@oracle.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Nov 2013 16:52:10 -0800 (PST)
+Message-ID: <528D5935.6070907@infradead.org>
+Date: Wed, 20 Nov 2013 16:52:05 -0800
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm/zswap: change zswap to writethrough cache
-References: <1384976973-32722-1-git-send-email-ddstreet@ieee.org>
-In-Reply-To: <1384976973-32722-1-git-send-email-ddstreet@ieee.org>
+Subject: Re: mmotm 2013-11-20-16-13 uploaded (arch/um/kernel/sysrq.c)
+References: <20131121001408.17DC85A41C6@corp2gmr1-2.hot.corp.google.com>
+In-Reply-To: <20131121001408.17DC85A41C6@corp2gmr1-2.hot.corp.google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Seth Jennings <sjennings@variantweb.net>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>
+To: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, Richard Weinberger <richard@nod.at>, user-mode-linux-devel@lists.sourceforge.net
 
-Hi Dan,
-
-On 11/21/2013 03:49 AM, Dan Streetman wrote:
-> Currently, zswap is writeback cache; stored pages are not sent
-> to swap disk, and when zswap wants to evict old pages it must
-> first write them back to swap cache/disk manually.  This avoids
-> swap out disk I/O up front, but only moves that disk I/O to
-> the writeback case (for pages that are evicted), and adds the
-> overhead of having to uncompress the evicted pages, and adds the
-> need for an additional free page (to store the uncompressed page)
-> at a time of likely high memory pressure.  Additionally, being
-> writeback adds complexity to zswap by having to perform the
-> writeback on page eviction.
+On 11/20/13 16:14, akpm@linux-foundation.org wrote:
+> The mm-of-the-moment snapshot 2013-11-20-16-13 has been uploaded to
+> 
+>    http://www.ozlabs.org/~akpm/mmotm/
+> 
+> mmotm-readme.txt says
+> 
+> README for mm-of-the-moment:
+> 
+> http://www.ozlabs.org/~akpm/mmotm/
+> 
+> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> more than once a week.
 > 
 
-Good work!
+on i386:
+(with um i386 defconfig)
 
-> This changes zswap to writethrough cache by enabling
-> frontswap_writethrough() before registering, so that any
-> successful page store will also be written to swap disk.  All the
-> writeback code is removed since it is no longer needed, and the
-> only operation during a page eviction is now to remove the entry
-> from the tree and free it.
-> 
+arch/um/kernel/sysrq.c:22:13: error: expected identifier or '(' before 'do'
+um/kernel/sysrq.c:22:13: error: expected identifier or '(' before 'while'
 
-Could you do some testing using eg. SPECjbb? And compare the result with
-original zswap.
 
-Thanks,
--Bob
+so sysrq.c is picking up <linux/stacktrace.h> somehow and not liking it.
+
+
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
