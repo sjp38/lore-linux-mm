@@ -1,76 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 152BA6B0036
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 17:58:19 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id fa1so424530pad.38
-        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 14:58:18 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id bl1si2262995pad.103.2013.11.21.14.58.16
-        for <linux-mm@kvack.org>;
-        Thu, 21 Nov 2013 14:58:17 -0800 (PST)
-Message-ID: <528E8FCE.1000707@intel.com>
-Date: Thu, 21 Nov 2013 14:57:18 -0800
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 007216B0036
+	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 18:00:45 -0500 (EST)
+Received: by mail-we0-f180.google.com with SMTP id u56so423884wes.25
+        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 15:00:45 -0800 (PST)
+Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com [2a00:1450:400c:c05::231])
+        by mx.google.com with ESMTPS id di1si12055949wjc.44.2013.11.21.15.00.45
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 21 Nov 2013 15:00:45 -0800 (PST)
+Received: by mail-wi0-f177.google.com with SMTP id cc10so446072wib.16
+        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 15:00:45 -0800 (PST)
 MIME-Version: 1.0
-Subject: NUMA? bisected performance regression 3.11->3.12
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAL1ERfNr+J5gT-s1Qe+RVmNz+CenNFOzAWi86MNCt2ZGLB4ZCA@mail.gmail.com>
+References: <1384976973-32722-1-git-send-email-ddstreet@ieee.org>
+ <528D570D.3020006@oracle.com> <CAL1ERfNr+J5gT-s1Qe+RVmNz+CenNFOzAWi86MNCt2ZGLB4ZCA@mail.gmail.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Thu, 21 Nov 2013 18:00:24 -0500
+Message-ID: <CALZtONBzk4Yh9yHk3320a4x2DfSvUxGik8q+sLV38_cy4cuefg@mail.gmail.com>
+Subject: Re: [PATCH v2] mm/zswap: change zswap to writethrough cache
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Kevin Hilman <khilman@linaro.org>, Andrea Arcangeli <aarcange@redhat.com>, Paul Bolle <paul.bollee@gmail.com>, Zlatko Calusic <zcalusic@bitsync.net>, Andrew Morton <akpm@linux-foundation.org>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>
+To: Weijie Yang <weijie.yang.kh@gmail.com>
+Cc: Bob Liu <bob.liu@oracle.com>, Seth Jennings <sjennings@variantweb.net>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>
 
-Hey Johannes,
+On Wed, Nov 20, 2013 at 10:50 PM, Weijie Yang <weijie.yang.kh@gmail.com> wrote:
+> Hello Dan,
+>
+> On Thu, Nov 21, 2013 at 8:42 AM, Bob Liu <bob.liu@oracle.com> wrote:
+>> Hi Dan,
+>>
+>> On 11/21/2013 03:49 AM, Dan Streetman wrote:
+>>> Currently, zswap is writeback cache; stored pages are not sent
+>>> to swap disk, and when zswap wants to evict old pages it must
+>>> first write them back to swap cache/disk manually.  This avoids
+>>> swap out disk I/O up front, but only moves that disk I/O to
+>>> the writeback case (for pages that are evicted), and adds the
+>>> overhead of having to uncompress the evicted pages, and adds the
+>>> need for an additional free page (to store the uncompressed page)
+>>> at a time of likely high memory pressure.  Additionally, being
+>>> writeback adds complexity to zswap by having to perform the
+>>> writeback on page eviction.
+>>>
+>>
+>> Good work!
+>>
+>>> This changes zswap to writethrough cache by enabling
+>>> frontswap_writethrough() before registering, so that any
+>>> successful page store will also be written to swap disk.  All the
+>>> writeback code is removed since it is no longer needed, and the
+>>> only operation during a page eviction is now to remove the entry
+>>> from the tree and free it.
+>>>
+>
+> Thanks for your work. I reviewed this patch, and it is good to me.
+>
+> However, I am skeptical about it because:
+> 1. it will add more IO than original zswap, how does it result in a
+> performance improvement ?
 
-I'm running an open/close microbenchmark from the will-it-scale set:
-> https://github.com/antonblanchard/will-it-scale/blob/master/tests/open1.c
+I haven't used SPECjbb yet (I don't have it, I'll have to find someone
+who has it that I can borrow), but my testing with a small test
+program I wrote does show that CPU-bound performance is better with
+writethrough over writeback, once zswap is full, which I think is
+expected since writeback adds cycles for decompressing old pages while
+writethrough simply drops the compressed page.  Now, the additional
+CPU load may be more desirable depending on CPU speed, # of CPUs, swap
+disk speed, etc., so maybe it would be better to make zswap writeback
+or writethrough, with a param to select, depending on the specific hw
+it's being run on.
 
-I was seeing some weird symptoms on 3.12 vs 3.11.  The throughput in
-that test was going from down from 50 million to 35 million.
+> 2. most embedded device use NAND, more IO will reduce its working life
 
-The profiles show an increase in cpu time in _raw_spin_lock_irq.  The
-profiles pointed to slub code that hasn't been touched in quite a while.
- I bisected it down to:
+This is certainly true; but most embedded devices also have tiny cpus
+that might get hit hard when zswap fills up and has to start
+decompressing pages while simultaneously compressing newly swapped out
+pages.  I'd expect for many embedded devices it would be better to
+simply invoke the oom killer and/or reboot than try to run with
+overcommitted memory.  But, having writeback vs writethrough
+selectable by param would allow flexibility based on the specific
+user's needs.
 
-81c0a2bb515fd4daae8cab64352877480792b515 is the first bad commit
-commit 81c0a2bb515fd4daae8cab64352877480792b515
-Author: Johannes Weiner <hannes@cmpxchg.org>
-Date:   Wed Sep 11 14:20:47 2013 -0700
 
-Which also seems a bit weird, but I've tested with this and its
-preceding commit enough times to be fairly sure that I did it right.
-
-__slab_free() and free_one_page() both seem to be spending more time
-spinning on their respective spinlocks, even though the throughput went
-down and we should have been doing fewer actual allocations/frees.  The
-best explanation for this would be if CPUs are tending to go after and
-contending for remote cachelines more often once this patch is applied.
-
-Any ideas?
-
-It's a 8-socket/160-thread (one NUMA node per socket) system that is not
-under memory pressure during the test.  The latencies are also such that
-vm.zone_reclaim_mode=0.
-
-Raw perf profiles and .config are in here:
-http://www.sr71.net/~dave/intel/201311-wisregress0/
-
-Here's a chunk of the 'perf diff':
->     17.65%   +3.47%  [kernel.kallsyms]  [k] _raw_spin_lock_irqsave           
->     13.80%   -0.31%  [kernel.kallsyms]  [k] _raw_spin_lock                   
->      7.21%   -0.51%  [unknown]          [.] 0x00007f7849058640               
->      3.43%   +0.15%  [kernel.kallsyms]  [k] setup_object                     
->      2.99%   -0.31%  [kernel.kallsyms]  [k] file_free_rcu                    
->      2.71%   -0.13%  [kernel.kallsyms]  [k] rcu_process_callbacks            
->      2.26%   -0.09%  [kernel.kallsyms]  [k] get_empty_filp                   
->      2.06%   -0.09%  [kernel.kallsyms]  [k] kmem_cache_alloc                 
->      1.65%   -0.08%  [kernel.kallsyms]  [k] link_path_walk                   
->      1.53%   -0.08%  [kernel.kallsyms]  [k] memset                           
->      1.46%   -0.09%  [kernel.kallsyms]  [k] do_dentry_open                   
->      1.44%   -0.04%  [kernel.kallsyms]  [k] __d_lookup_rcu                   
->      1.27%   -0.04%  [kernel.kallsyms]  [k] do_last                          
->      1.18%   -0.04%  [kernel.kallsyms]  [k] ext4_release_file                
->      1.16%   -0.04%  [kernel.kallsyms]  [k] __call_rcu.constprop.11          
+>
+> Regards
+>
+>> Could you do some testing using eg. SPECjbb? And compare the result with
+>> original zswap.
+>>
+>> Thanks,
+>> -Bob
+>> --
+>> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+>> the body of a message to majordomo@vger.kernel.org
+>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
