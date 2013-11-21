@@ -1,47 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id D8C396B0036
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 17:06:46 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id w10so355437pde.34
-        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 14:06:46 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id m10si5317398pac.19.2013.11.21.14.06.45
-        for <linux-mm@kvack.org>;
-        Thu, 21 Nov 2013 14:06:45 -0800 (PST)
-Message-ID: <528E83B6.5040107@intel.com>
-Date: Thu, 21 Nov 2013 14:05:42 -0800
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id E0C3B6B0036
+	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 17:18:42 -0500 (EST)
+Received: by mail-wi0-f174.google.com with SMTP id ez12so2028606wid.1
+        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 14:18:42 -0800 (PST)
+Received: from mail-we0-x230.google.com (mail-we0-x230.google.com [2a00:1450:400c:c03::230])
+        by mx.google.com with ESMTPS id fy1si11994802wjb.65.2013.11.21.14.18.42
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 21 Nov 2013 14:18:42 -0800 (PST)
+Received: by mail-we0-f176.google.com with SMTP id t61so389493wes.7
+        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 14:18:41 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/bootmem.c: remove unused 'limit' variable
-References: <20131121164335.066fd6aa@redhat.com>
-In-Reply-To: <20131121164335.066fd6aa@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CALZtONByWEv-vyx8+HMn+o53hPO4L_UY-+BbLRrBoWx-u2UejA@mail.gmail.com>
+References: <1384976909-32671-1-git-send-email-ddstreet@ieee.org>
+ <CAL1ERfPcAbNyt9hTYKMj9OGK2=ynLrTVm9udEn=hF+bFptC16Q@mail.gmail.com> <CALZtONByWEv-vyx8+HMn+o53hPO4L_UY-+BbLRrBoWx-u2UejA@mail.gmail.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Thu, 21 Nov 2013 17:18:21 -0500
+Message-ID: <CALZtONDH1naq7uKOfcqCz+5bREYYd3A5-DN72wJ5TOpZEcaygw@mail.gmail.com>
+Subject: Re: [PATCH] mm/zswap: don't allow entry eviction if in use by load
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org
+To: Weijie Yang <weijie.yang.kh@gmail.com>
+Cc: Seth Jennings <sjennings@variantweb.net>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>
 
-On 11/21/2013 01:43 PM, Luiz Capitulino wrote:
-> @@ -655,9 +655,7 @@ restart:
->  void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
->  					unsigned long goal)
->  {
-> -	unsigned long limit = 0;
-> -
-> -	return ___alloc_bootmem_nopanic(size, align, goal, limit);
-> +	return ___alloc_bootmem_nopanic(size, align, goal, 0);
->  }
+On Thu, Nov 21, 2013 at 4:44 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+> On Wed, Nov 20, 2013 at 8:59 PM, Weijie Yang <weijie.yang.kh@gmail.com> wrote:
+>> Hello Dan
+>>
+>> On Thu, Nov 21, 2013 at 3:48 AM, Dan Streetman <ddstreet@ieee.org> wrote:
+>>> The changes in commit 0ab0abcf511545d1fddbe72a36b3ca73388ac937
+>>> introduce a bug in writeback, if an entry is in use by load
+>>> it will be evicted anyway, which isn't correct (technically,
+>>> the code currently in zbud doesn't actually care much what the
+>>> zswap evict function returns, but that could change).
+>>
+>> Thanks for your work. Howerver it is not a bug.
+>>
+>> I have thought about this situation, and it will never happen.
+>> If entry is being loaded, its corresponding page must be in swapcache
+>> so zswap_get_swap_cache_page() will return ZSWAP_SWAPCACHE_EXIST
+>
+>
+> Can I also ask why you do a rb_search instead of just checking the
+> entry->refcount?  Doing the search is going to take longer than just
+> checking the refcount; is there some case where the entry will not be
+> in the rb but will have a nonzero refcount?
 
-FWIW, I like those.  The way you leave it:
-
-	return ___alloc_bootmem_nopanic(size, align, goal, 0);
-
-the 0 is a magic number that you have to go look up the declaration of
-___alloc_bootmem_nopanic() to decipher, or you have to add a comment to
-it in some way.
-
-I find it much more readable to have an 'unused' variable like that.
+Never mind; I realized the entry will have been free'd once it's
+refcount is 0 so that can't be checked.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
