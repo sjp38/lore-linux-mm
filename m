@@ -1,72 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 08A546B0036
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 17:27:03 -0500 (EST)
-Received: by mail-we0-f181.google.com with SMTP id x55so411194wes.12
-        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 14:27:03 -0800 (PST)
-Received: from mail-ee0-x22c.google.com (mail-ee0-x22c.google.com [2a00:1450:4013:c00::22c])
-        by mx.google.com with ESMTPS id d6si1565021wic.19.2013.11.21.14.27.03
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D7F36B0031
+	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 17:34:09 -0500 (EST)
+Received: by mail-wg0-f47.google.com with SMTP id y10so407523wgg.14
+        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 14:34:09 -0800 (PST)
+Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com [2a00:1450:400c:c05::231])
+        by mx.google.com with ESMTPS id x19si1574664wie.11.2013.11.21.14.34.09
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 21 Nov 2013 14:27:03 -0800 (PST)
-Received: by mail-ee0-f44.google.com with SMTP id d51so164931eek.3
-        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 14:27:01 -0800 (PST)
+        Thu, 21 Nov 2013 14:34:09 -0800 (PST)
+Received: by mail-wi0-f177.google.com with SMTP id cc10so415973wib.10
+        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 14:34:09 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20131121045333.GO4138@linux.vnet.ibm.com>
-References: <cover.1384885312.git.tim.c.chen@linux.intel.com>
-	<1384911463.11046.454.camel@schen9-DESK>
-	<20131120153123.GF4138@linux.vnet.ibm.com>
-	<20131120154643.GG19352@mudshark.cambridge.arm.com>
-	<20131120171400.GI4138@linux.vnet.ibm.com>
-	<1384973026.11046.465.camel@schen9-DESK>
-	<20131120190616.GL4138@linux.vnet.ibm.com>
-	<1384979767.11046.489.camel@schen9-DESK>
-	<20131120214402.GM4138@linux.vnet.ibm.com>
-	<1384991514.11046.504.camel@schen9-DESK>
-	<20131121045333.GO4138@linux.vnet.ibm.com>
-Date: Thu, 21 Nov 2013 14:27:01 -0800
-Message-ID: <CA+55aFyXzDUss55SjQBy+C-neRZbVsmVRR4aat+wiWfuSQJxaQ@mail.gmail.com>
-Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
-From: Linus Torvalds <torvalds@linux-foundation.org>
+In-Reply-To: <CAL1ERfNNAZCS58K9mT85wxQfH8B3AyR4aLE8r745me1dJRmPfg@mail.gmail.com>
+References: <1384976824-32624-1-git-send-email-ddstreet@ieee.org> <CAL1ERfNNAZCS58K9mT85wxQfH8B3AyR4aLE8r745me1dJRmPfg@mail.gmail.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Thu, 21 Nov 2013 17:33:49 -0500
+Message-ID: <CALZtOND62CZTM-SHNrD3-wwZ=XZz4AAMg9GtrbW1gD6i7LqA-w@mail.gmail.com>
+Subject: Re: [PATCH] mm/zswap: remove unneeded zswap_rb_erase calls
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul McKenney <paulmck@linux.vnet.ibm.com>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Will Deacon <will.deacon@arm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: Weijie Yang <weijie.yang.kh@gmail.com>
+Cc: Seth Jennings <sjennings@variantweb.net>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>
 
-On Wed, Nov 20, 2013 at 8:53 PM, Paul E. McKenney
-<paulmck@linux.vnet.ibm.com> wrote:
+On Wed, Nov 20, 2013 at 9:52 PM, Weijie Yang <weijie.yang.kh@gmail.com> wrote:
+> Hello Dan
 >
-> The other option is to weaken lock semantics so that unlock-lock no
-> longer implies a full barrier, but I believe that we would regret taking
-> that path.  (It would be OK by me, I would just add a few smp_mb()
-> calls on various slowpaths in RCU.  But...)
+> On Thu, Nov 21, 2013 at 3:47 AM, Dan Streetman <ddstreet@ieee.org> wrote:
+>> Since zswap_rb_erase was added to the final (when refcount == 0)
+>> zswap_put_entry, there is no need to call zswap_rb_erase before
+>> calling zswap_put_entry.
+>>
+>> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+>> ---
+>>  mm/zswap.c | 5 -----
+>>  1 file changed, 5 deletions(-)
+>>
+>> diff --git a/mm/zswap.c b/mm/zswap.c
+>> index e154f1e..f4fbbd5 100644
+>> --- a/mm/zswap.c
+>> +++ b/mm/zswap.c
+>> @@ -711,8 +711,6 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+>>                 ret = zswap_rb_insert(&tree->rbroot, entry, &dupentry);
+>>                 if (ret == -EEXIST) {
+>>                         zswap_duplicate_entry++;
+>> -                       /* remove from rbtree */
+>> -                       zswap_rb_erase(&tree->rbroot, dupentry);
+>>                         zswap_entry_put(tree, dupentry);
+>>                 }
+>>         } while (ret == -EEXIST);
+>
+> If remove zswap_rb_erase, it would loop until free this dupentry. This
+> would cause 2 proplems:
 
-Hmm. I *thought* we already did that, exactly because some
-architecture already hit this issue, and we got rid of some of the
-more subtle "this works because.."
+I need to get more familiar with when it's possible to hit a duplicate
+entry, it seems strange to me that higher level swap code would be
+trying to store a page with an already used offset.
 
-No?
+> 1.  zswap_duplicate_entry counter is not correct
+> 2. trigger BUG_ON in zswap_entry_put when this dupentry is being writeback,
+>    because zswap_writeback_entry will call zswap_entry_put either.
+>
+> So, I don't think it is a good idea to remove zswap_rb_erase call.
+>
+>> @@ -787,9 +785,6 @@ static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
+>>                 return;
+>>         }
+>>
+>> -       /* remove from rbtree */
+>> -       zswap_rb_erase(&tree->rbroot, entry);
+>> -
+>>         /* drop the initial reference from entry creation */
+>>         zswap_entry_put(tree, entry);
+>
+> I think it is better not to remove the zswap_rb_erase call.
+>
+> From frontswap interface view, if invalidate is called, the page(and
+> entry) should never visible to upper.
+> If remove the zswap_rb_erase call, it is not fit this semantic.
+>
+> Consider the following scenario:
+> 1. thread 0: entry A is being writeback
+> 2. thread 1: invalidate entry A, as refcount != 0, it will still exist
+> on rbtree.
+> 3. thread 1: reuse  entry A 's swp_entry_t, do a frontswap_store
+>    it will conflict with the  entry A on the rbtree, it is not a
+> normal duplicate store.
+>
+> If we place the zswap_rb_erase call in zswap_frontswap_invalidate_page,
+> we can avoid the above scenario.
+>
+> So, I don't think it is a good idea to remove zswap_rb_erase call.
 
-Anyway, isn't "unlock+lock" fundamentally guaranteed to be a memory
-barrier? Anything before the unlock cannot possibly migrate down below
-the unlock, and anything after the lock must not possibly migrate up
-to before the lock? If either of those happens, then something has
-migrated out of the critical region, which is against the whole point
-of locking..
+It seems to me that zswap_rb_erase shouldn't have been folded into
+zswap_entry_put; if it was removed now, the only place it would need
+to be added back is into the success path of writeback, i.e.:
 
-It's the "lock+unlock" where it's possible that something before the
-lock might migrate *into* the critical region (ie after the lock), and
-something after the unlock might similarly migrate to precede the
-unlock, so you could end up having out-of-order accesses across a
-lock/unlock sequence (that both happen "inside" the lock, but there is
-no guaranteed ordering between the two accesses themselves).
-
-Or am I confused? The one major reason for strong memory ordering is
-that weak ordering is too f*cking easy to get wrong on a software
-level, and even people who know about it will make mistakes.
-
-             Linus
+  if (entry == zswap_rb_search(&tree->rbroot, offset)) {
+   zswap_rb_erase(&tree->rbroot, entry);
+   zswap_entry_put(tree, entry);
+  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
