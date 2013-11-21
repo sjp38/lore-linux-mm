@@ -1,17 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id B0C316B0031
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 09:51:41 -0500 (EST)
-Received: by mail-pd0-f172.google.com with SMTP id g10so6913523pdj.31
-        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 06:51:41 -0800 (PST)
-Received: from psmtp.com ([74.125.245.161])
-        by mx.google.com with SMTP id ai2si17184087pad.88.2013.11.21.06.51.38
-        for <linux-mm@kvack.org>;
-        Thu, 21 Nov 2013 06:51:39 -0800 (PST)
-Date: Thu, 21 Nov 2013 09:51:28 -0500
+Received: from mail-bk0-f50.google.com (mail-bk0-f50.google.com [209.85.214.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DAA66B0031
+	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 11:40:30 -0500 (EST)
+Received: by mail-bk0-f50.google.com with SMTP id e11so416988bkh.9
+        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 08:40:30 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id uq6si1507315bkb.151.2013.11.21.08.40.29
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 21 Nov 2013 08:40:29 -0800 (PST)
+Date: Thu, 21 Nov 2013 11:40:19 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [patch] mm, vmscan: abort futile reclaim if we've been oom killed
-Message-ID: <20131121145128.GJ3556@cmpxchg.org>
+Message-ID: <20131121164019.GK3556@cmpxchg.org>
 References: <alpine.DEB.2.02.1311121801200.18803@chino.kir.corp.google.com>
  <20131113152412.GH707@cmpxchg.org>
  <alpine.DEB.2.02.1311131400300.23211@chino.kir.corp.google.com>
@@ -31,123 +32,58 @@ To: David Rientjes <rientjes@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 On Wed, Nov 20, 2013 at 07:08:50PM -0800, David Rientjes wrote:
-> On Wed, 20 Nov 2013, Johannes Weiner wrote:
+> My patch is not in a fastpath, it has extremely minimal overhead, and it 
+> allows an oom killed victim to exit much quicker instead of incurring 
+> O(seconds) stalls because of 700 other allocators grabbing the cpu in a 
+> futile effort to reclaim memory themselves.
 > 
-> > > "All other tasks" would be defined as though sharing the same mempolicy 
-> > > context as the oom kill victim or the same set of cpuset mems, I'm not 
-> > > sure what type of method for determining reclaim eligiblity you're 
-> > > proposing to avoid pointlessly spinning without making progress.  Until an 
-> > > alternative exists, my patch avoids the needless spinning and expedites 
-> > > the exit, so I'll ask that it be merged.
-> > 
-> > I laid this out in the second half of my email, which you apparently
-> > did not read:
-> > 
-> 
-> I read it, but your proposal is incomplete, see below.
-> 
-> > "If we have multi-second stalls in direct reclaim then it should be
-> >  fixed for all direct reclaimers.  The problem is not only OOM kill
-> >  victims getting stuck, it's every direct reclaimer being stuck trying
-> >  to do way too much work before retrying the allocation.
-> > 
-> 
-> I'm addressing oom conditions here, including system, mempolicy, and 
-> cpuset ooms.
-> 
-> I'm not addressing a large number of processes that are doing direct 
-> reclaim in parallel over the same set of zones.  That would be a more 
-> invasive change and could potentially cause regressions because reclaim 
-> would be stopped prematurely before reclaiming the given threshold.  I do 
-> not have a bug report in front of me that suggests this is an issue 
-> outside of oom conditions and the current behavior is actually intuitive: 
-> if there are a large number of processes attempting reclaim, the demand 
-> for memory from those zones is higher and it is intuitive to have reclaim 
-> done in parallel up to a threshold.
-> 
-> >  Kswapd checks the system state after every priority cycle.  Direct
-> >  reclaim should probably do the same and retry the allocation after
-> >  every priority cycle or every X pages scanned, where X is something
-> >  reasonable and not "up to every LRU page in the system"."
-> > 
-> > NAK to this incomplete drive-by fix.
-> > 
-> 
-> This is a fix for a real-world situation that current exists in reclaim: 
-> specifically, preventing unnecessary stalls in reclaim in oom conditions 
-> that is known to be futile.  There is no possibility that reclaim itself 
-> will be successful because of the oom condition, and that condition is the 
-> only condition where reclaim is guaranteed to not be successful.  I'm sure 
-> we both agree that there is no use in an oom killed process continually 
-> looping in reclaim and yielding the cpu back to another process which just 
-> prolongs the duration before the oom killed process can free its memory.
+> Andrew, this fixes a real-world issue that exists and I'm asking that it 
+> be merged so that oom killed processes can quickly allocate and exit to 
+> free its memory.  If a more invasive future patch causes it to no longer 
+> be necessary, that's what we call kernel development.  Thanks.
 
-Yes, but you are actively avoiding the only question I have asked from
-the beginning:
+All I'm trying to do is find the broader root cause for the problem
+you are experiencing and find a solution that will leave us with
+maintainable code.  It does not matter how few instructions your fix
+adds, it changes the outcome of the algorithm and makes every
+developer trying to grasp the complexity of page reclaim think about
+yet another special condition.
 
-If there is an OOM kill, direct reclaim for a given memory context has
-failed and every continuation of direct reclaim in this context is
-just pointless burning of cpu cycles.  You said you have 700 processes
-in direct reclaim.  Your patch allows ONE of them to exit prematurely.
-What about the other 699?  There is still nothing to reclaim for them.
+The more specific the code is, the harder it will be to understand in
+the future.  Yes, it's a one-liner, but we've had death by a thousand
+cuts before, many times.  A few cycles ago, kswapd was blowing up left
+and right simply because it was trying to meet too many specific
+objectives from facilitating order-0 allocators, maintaining zone
+health, enabling compaction for higher order allocation, writing back
+dirty pages.  Ultimately, it just got stuck in endless loops because
+of conflicting conditionals.  We've had similar problems in the scan
+count calculation etc where all the checks and special cases left us
+with code that was impossible to reason about.  There really is a
+history of "low overhead one-liner fixes" eating us alive in the VM.
 
-My proposal was: if they would all check back with the allocator more
-frequently, this would properly resolve this problem.  You added an
-OOM victim check after every priority cycle to solve this problem for
-one task, but if we checked the watermarks as well each priority
-cycle, all 700 tasks could quit useless burning of CPU cycles once
-direct reclaim has failed.
+The solution was always to take a step back and integrate all
+requirements properly.  Not only did this fix the problems, the code
+ended up being much more robust and easier to understand and modify as
+well.
 
-> You're advocating that the allocation is retried after every priority 
-> cycle as an alternative and that seems potentially racy and incomplete: if 
-> 32 processes enter reclaim all doing order-0 allocations and one process 
-> reclaims a page, they would all terminate reclaim and retry the 
-> allocation.  31 processes would then loop the page allocator again, and 
-> reenter reclaim again at the starting priority.  Much better, in my 
-> opinion, would be to reclaim up to a threshold for each and then return to 
-> the page allocator since all 32 processes have demand for memory; that 
-> threshold is debatable, but SWAP_CLUSTER_MAX is reasonable.
+If shortening the direct reclaim cycle is an adequate solution to your
+problem, it would be much preferable.  Because
 
-They would re-enter at the next priority of course, not the same one
-again.  All I suggested is retrying the allocation in between reclaim
-priority cycles, I'm not sure where you are getting the rest from.
+  "checking at a reasonable interval if the work I'm doing is still
+   necessary"
 
-> So I would be nervous to carry the classzone_idx into direct reclaim, do 
-> an alloc_flags |= ALLOC_NO_WATERMARKS iff TIF_MEMDIE, iterate the 
-> zonelist, and do a __zone_watermark_ok_safe() for some watermark that's 
-> greater than the low watermark to avoid finding ourselves oom again upon 
-> returning to the page allocator without causing regressions in reclaim.
-> 
-> The page allocator already tries to allocate memory between direct reclaim 
-> and calling the oom killer specifically for cases where reclaim was 
-> unsuccessful for a single process because memory was freed externally.
+is a much more approachable, generic, and intuitive concept than
 
-Lol, but you complain that the direct reclaim part of this cycle is
-too long!  I propose shortening it.  Why are we still having this
-argument?!
+  "the OOM killer has gone off, direct reclaim is futile, I should
+   exit quickly to release memory so that not more tasks get caught
+   doing direct reclaim".
 
-> The situation I'm addressing occurs when reclaim will never be successful 
-> and nothing external to it will reclaim anything that the oom kill victim 
-> can use.  The non-victim processes will continue to loop through the oom 
-> killer and get put to sleep since they aren't victims themselves, but in 
-> the case described there are 700 processes competing for cpu all doing 
-> memory allocations so that doesn't help as it normally would.  Older 
-> kernels used to increase the timeslice that oom kill victims have so they 
-> exit as quickly as possible, but that was removed since 341aea2bc48b 
-> ("oom-kill: remove boost_dying_task_prio()").
+and the fix would benefit a much wider audience.
 
-Yes, the OOM victim should exit direct reclaim.  But so should ALL
-OTHER 699 TASKS, given that there is nothing to reclaim from this
-context!
-
-I just don't get why you are so focussed on this one victim task.  The
-OOM situation is not property of this one task, it's a context-wide
-state.  If a context goes OOM, direct reclaim has failed and should be
-stopped as soon as possible.  It does not make sense for the victim to
-continue, it does not make sense for anybody else to continue.
-
-12 priority cycles is just too long of a stretch before checking back
-with the overall state of affairs, that's the real problem in my view.
+Lastly, as far as I know, you are the only reporter that noticed an
+issue with this loooooong-standing behavior, and you don't even run
+upstream kernels.  There really is no excuse to put up with a quick &
+dirty fix.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
