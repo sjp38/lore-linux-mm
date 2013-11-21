@@ -1,120 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id CA22A6B0031
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 22:08:56 -0500 (EST)
-Received: by mail-pb0-f47.google.com with SMTP id um1so4405185pbc.6
-        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 19:08:56 -0800 (PST)
-Received: from psmtp.com ([74.125.245.122])
-        by mx.google.com with SMTP id hk1si15677951pbb.341.2013.11.20.19.08.54
-        for <linux-mm@kvack.org>;
-        Wed, 20 Nov 2013 19:08:55 -0800 (PST)
-Received: by mail-yh0-f51.google.com with SMTP id t59so6063716yho.24
-        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 19:08:53 -0800 (PST)
-Date: Wed, 20 Nov 2013 19:08:50 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, vmscan: abort futile reclaim if we've been oom
- killed
-In-Reply-To: <20131120160712.GF3556@cmpxchg.org>
-Message-ID: <alpine.DEB.2.02.1311201803000.30862@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1311121801200.18803@chino.kir.corp.google.com> <20131113152412.GH707@cmpxchg.org> <alpine.DEB.2.02.1311131400300.23211@chino.kir.corp.google.com> <20131114000043.GK707@cmpxchg.org> <alpine.DEB.2.02.1311131639010.6735@chino.kir.corp.google.com>
- <20131118164107.GC3556@cmpxchg.org> <alpine.DEB.2.02.1311181712080.4292@chino.kir.corp.google.com> <20131120160712.GF3556@cmpxchg.org>
+Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
+	by kanga.kvack.org (Postfix) with ESMTP id C42606B0031
+	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 22:12:59 -0500 (EST)
+Received: by mail-qa0-f42.google.com with SMTP id k4so2399285qaq.15
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 19:12:59 -0800 (PST)
+Received: from mail-qc0-x22d.google.com (mail-qc0-x22d.google.com [2607:f8b0:400d:c01::22d])
+        by mx.google.com with ESMTPS id pe8si18248831qeb.52.2013.11.20.19.12.58
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 20 Nov 2013 19:12:59 -0800 (PST)
+Received: by mail-qc0-f173.google.com with SMTP id l4so948712qcv.32
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 19:12:58 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <CALZtONA81=R4abFMpMMtDZKQe0s-8+JxvEfZO3NEZ910VwRDmw@mail.gmail.com>
+References: <1384965522-5788-1-git-send-email-ddstreet@ieee.org>
+	<20131120173347.GA2369@hp530>
+	<CALZtONA81=R4abFMpMMtDZKQe0s-8+JxvEfZO3NEZ910VwRDmw@mail.gmail.com>
+Date: Thu, 21 Nov 2013 11:12:58 +0800
+Message-ID: <CAL1ERfMdOQ+DKiYEVBpP54RZYQWS_-7Xgf2YTA5jAZRxWsE6ag@mail.gmail.com>
+Subject: Re: [PATCH] mm/zswap: change params from hidden to ro
+From: Weijie Yang <weijie.yang.kh@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Vladimir Murzin <murzin.v@gmail.com>, linux-mm@kvack.org, Seth Jennings <sjennings@variantweb.net>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>
 
-On Wed, 20 Nov 2013, Johannes Weiner wrote:
+On Thu, Nov 21, 2013 at 1:52 AM, Dan Streetman <ddstreet@ieee.org> wrote:
+> On Wed, Nov 20, 2013 at 12:33 PM, Vladimir Murzin <murzin.v@gmail.com> wrote:
+>> Hi Dan!
+>>
+>> On Wed, Nov 20, 2013 at 11:38:42AM -0500, Dan Streetman wrote:
+>>> The "compressor" and "enabled" params are currently hidden,
+>>> this changes them to read-only, so userspace can tell if
+>>> zswap is enabled or not and see what compressor is in use.
+>>
+>> Could you elaborate more why this pice of information is necessary for
+>> userspace?
+>
+> For anyone interested in zswap, it's handy to be able to tell if it's
+> enabled or not ;-)  Technically people can check to see if the zswap
+> debug files are in /sys/kernel/debug/zswap, but I think the actual
+> "enabled" param is more obvious.  And the compressor param is really
+> the only way anyone from userspace can see what compressor's being
+> used; that's helpful to know for anyone that might want to be using a
+> non-default compressor.
+>
+> And of course, eventually we'll want to make the params writable, so
+> the compressor can be changed dynamically, and zswap can be enabled or
+> disabled dynamically (or at least enabled after boot).
 
-> > "All other tasks" would be defined as though sharing the same mempolicy 
-> > context as the oom kill victim or the same set of cpuset mems, I'm not 
-> > sure what type of method for determining reclaim eligiblity you're 
-> > proposing to avoid pointlessly spinning without making progress.  Until an 
-> > alternative exists, my patch avoids the needless spinning and expedites 
-> > the exit, so I'll ask that it be merged.
-> 
-> I laid this out in the second half of my email, which you apparently
-> did not read:
-> 
+Please do not make them writable.
+There is no requirement to do that, and it will make zswap more complex.
 
-I read it, but your proposal is incomplete, see below.
-
-> "If we have multi-second stalls in direct reclaim then it should be
->  fixed for all direct reclaimers.  The problem is not only OOM kill
->  victims getting stuck, it's every direct reclaimer being stuck trying
->  to do way too much work before retrying the allocation.
-> 
-
-I'm addressing oom conditions here, including system, mempolicy, and 
-cpuset ooms.
-
-I'm not addressing a large number of processes that are doing direct 
-reclaim in parallel over the same set of zones.  That would be a more 
-invasive change and could potentially cause regressions because reclaim 
-would be stopped prematurely before reclaiming the given threshold.  I do 
-not have a bug report in front of me that suggests this is an issue 
-outside of oom conditions and the current behavior is actually intuitive: 
-if there are a large number of processes attempting reclaim, the demand 
-for memory from those zones is higher and it is intuitive to have reclaim 
-done in parallel up to a threshold.
-
->  Kswapd checks the system state after every priority cycle.  Direct
->  reclaim should probably do the same and retry the allocation after
->  every priority cycle or every X pages scanned, where X is something
->  reasonable and not "up to every LRU page in the system"."
-> 
-> NAK to this incomplete drive-by fix.
-> 
-
-This is a fix for a real-world situation that current exists in reclaim: 
-specifically, preventing unnecessary stalls in reclaim in oom conditions 
-that is known to be futile.  There is no possibility that reclaim itself 
-will be successful because of the oom condition, and that condition is the 
-only condition where reclaim is guaranteed to not be successful.  I'm sure 
-we both agree that there is no use in an oom killed process continually 
-looping in reclaim and yielding the cpu back to another process which just 
-prolongs the duration before the oom killed process can free its memory.
-
-You're advocating that the allocation is retried after every priority 
-cycle as an alternative and that seems potentially racy and incomplete: if 
-32 processes enter reclaim all doing order-0 allocations and one process 
-reclaims a page, they would all terminate reclaim and retry the 
-allocation.  31 processes would then loop the page allocator again, and 
-reenter reclaim again at the starting priority.  Much better, in my 
-opinion, would be to reclaim up to a threshold for each and then return to 
-the page allocator since all 32 processes have demand for memory; that 
-threshold is debatable, but SWAP_CLUSTER_MAX is reasonable.
-
-So I would be nervous to carry the classzone_idx into direct reclaim, do 
-an alloc_flags |= ALLOC_NO_WATERMARKS iff TIF_MEMDIE, iterate the 
-zonelist, and do a __zone_watermark_ok_safe() for some watermark that's 
-greater than the low watermark to avoid finding ourselves oom again upon 
-returning to the page allocator without causing regressions in reclaim.
-
-The page allocator already tries to allocate memory between direct reclaim 
-and calling the oom killer specifically for cases where reclaim was 
-unsuccessful for a single process because memory was freed externally.
-
-The situation I'm addressing occurs when reclaim will never be successful 
-and nothing external to it will reclaim anything that the oom kill victim 
-can use.  The non-victim processes will continue to loop through the oom 
-killer and get put to sleep since they aren't victims themselves, but in 
-the case described there are 700 processes competing for cpu all doing 
-memory allocations so that doesn't help as it normally would.  Older 
-kernels used to increase the timeslice that oom kill victims have so they 
-exit as quickly as possible, but that was removed since 341aea2bc48b 
-("oom-kill: remove boost_dying_task_prio()").
-
-My patch is not in a fastpath, it has extremely minimal overhead, and it 
-allows an oom killed victim to exit much quicker instead of incurring 
-O(seconds) stalls because of 700 other allocators grabbing the cpu in a 
-futile effort to reclaim memory themselves.
-
-Andrew, this fixes a real-world issue that exists and I'm asking that it 
-be merged so that oom killed processes can quickly allocate and exit to 
-free its memory.  If a more invasive future patch causes it to no longer 
-be necessary, that's what we call kernel development.  Thanks.
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
