@@ -1,102 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
-	by kanga.kvack.org (Postfix) with ESMTP id ECA0B6B0031
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 21:52:56 -0500 (EST)
-Received: by mail-qc0-f169.google.com with SMTP id u18so6523264qcx.28
-        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 18:52:56 -0800 (PST)
-Received: from mail-qe0-x22f.google.com (mail-qe0-x22f.google.com [2607:f8b0:400d:c02::22f])
-        by mx.google.com with ESMTPS id t9si989890qat.53.2013.11.20.18.52.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 20 Nov 2013 18:52:56 -0800 (PST)
-Received: by mail-qe0-f47.google.com with SMTP id t7so2140297qeb.20
-        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 18:52:55 -0800 (PST)
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id CA22A6B0031
+	for <linux-mm@kvack.org>; Wed, 20 Nov 2013 22:08:56 -0500 (EST)
+Received: by mail-pb0-f47.google.com with SMTP id um1so4405185pbc.6
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 19:08:56 -0800 (PST)
+Received: from psmtp.com ([74.125.245.122])
+        by mx.google.com with SMTP id hk1si15677951pbb.341.2013.11.20.19.08.54
+        for <linux-mm@kvack.org>;
+        Wed, 20 Nov 2013 19:08:55 -0800 (PST)
+Received: by mail-yh0-f51.google.com with SMTP id t59so6063716yho.24
+        for <linux-mm@kvack.org>; Wed, 20 Nov 2013 19:08:53 -0800 (PST)
+Date: Wed, 20 Nov 2013 19:08:50 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, vmscan: abort futile reclaim if we've been oom
+ killed
+In-Reply-To: <20131120160712.GF3556@cmpxchg.org>
+Message-ID: <alpine.DEB.2.02.1311201803000.30862@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1311121801200.18803@chino.kir.corp.google.com> <20131113152412.GH707@cmpxchg.org> <alpine.DEB.2.02.1311131400300.23211@chino.kir.corp.google.com> <20131114000043.GK707@cmpxchg.org> <alpine.DEB.2.02.1311131639010.6735@chino.kir.corp.google.com>
+ <20131118164107.GC3556@cmpxchg.org> <alpine.DEB.2.02.1311181712080.4292@chino.kir.corp.google.com> <20131120160712.GF3556@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <1384976824-32624-1-git-send-email-ddstreet@ieee.org>
-References: <1384976824-32624-1-git-send-email-ddstreet@ieee.org>
-Date: Thu, 21 Nov 2013 10:52:55 +0800
-Message-ID: <CAL1ERfNNAZCS58K9mT85wxQfH8B3AyR4aLE8r745me1dJRmPfg@mail.gmail.com>
-Subject: Re: [PATCH] mm/zswap: remove unneeded zswap_rb_erase calls
-From: Weijie Yang <weijie.yang.kh@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Seth Jennings <sjennings@variantweb.net>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello Dan
+On Wed, 20 Nov 2013, Johannes Weiner wrote:
 
-On Thu, Nov 21, 2013 at 3:47 AM, Dan Streetman <ddstreet@ieee.org> wrote:
-> Since zswap_rb_erase was added to the final (when refcount == 0)
-> zswap_put_entry, there is no need to call zswap_rb_erase before
-> calling zswap_put_entry.
->
-> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
-> ---
->  mm/zswap.c | 5 -----
->  1 file changed, 5 deletions(-)
->
-> diff --git a/mm/zswap.c b/mm/zswap.c
-> index e154f1e..f4fbbd5 100644
-> --- a/mm/zswap.c
-> +++ b/mm/zswap.c
-> @@ -711,8 +711,6 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
->                 ret = zswap_rb_insert(&tree->rbroot, entry, &dupentry);
->                 if (ret == -EEXIST) {
->                         zswap_duplicate_entry++;
-> -                       /* remove from rbtree */
-> -                       zswap_rb_erase(&tree->rbroot, dupentry);
->                         zswap_entry_put(tree, dupentry);
->                 }
->         } while (ret == -EEXIST);
+> > "All other tasks" would be defined as though sharing the same mempolicy 
+> > context as the oom kill victim or the same set of cpuset mems, I'm not 
+> > sure what type of method for determining reclaim eligiblity you're 
+> > proposing to avoid pointlessly spinning without making progress.  Until an 
+> > alternative exists, my patch avoids the needless spinning and expedites 
+> > the exit, so I'll ask that it be merged.
+> 
+> I laid this out in the second half of my email, which you apparently
+> did not read:
+> 
 
-If remove zswap_rb_erase, it would loop until free this dupentry. This
-would cause 2 proplems:
-1.  zswap_duplicate_entry counter is not correct
-2. trigger BUG_ON in zswap_entry_put when this dupentry is being writeback,
-   because zswap_writeback_entry will call zswap_entry_put either.
+I read it, but your proposal is incomplete, see below.
 
-So, I don't think it is a good idea to remove zswap_rb_erase call.
+> "If we have multi-second stalls in direct reclaim then it should be
+>  fixed for all direct reclaimers.  The problem is not only OOM kill
+>  victims getting stuck, it's every direct reclaimer being stuck trying
+>  to do way too much work before retrying the allocation.
+> 
 
-> @@ -787,9 +785,6 @@ static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
->                 return;
->         }
->
-> -       /* remove from rbtree */
-> -       zswap_rb_erase(&tree->rbroot, entry);
-> -
->         /* drop the initial reference from entry creation */
->         zswap_entry_put(tree, entry);
+I'm addressing oom conditions here, including system, mempolicy, and 
+cpuset ooms.
 
-I think it is better not to remove the zswap_rb_erase call.
+I'm not addressing a large number of processes that are doing direct 
+reclaim in parallel over the same set of zones.  That would be a more 
+invasive change and could potentially cause regressions because reclaim 
+would be stopped prematurely before reclaiming the given threshold.  I do 
+not have a bug report in front of me that suggests this is an issue 
+outside of oom conditions and the current behavior is actually intuitive: 
+if there are a large number of processes attempting reclaim, the demand 
+for memory from those zones is higher and it is intuitive to have reclaim 
+done in parallel up to a threshold.
 
->From frontswap interface view, if invalidate is called, the page(and
-entry) should never visible to upper.
-If remove the zswap_rb_erase call, it is not fit this semantic.
+>  Kswapd checks the system state after every priority cycle.  Direct
+>  reclaim should probably do the same and retry the allocation after
+>  every priority cycle or every X pages scanned, where X is something
+>  reasonable and not "up to every LRU page in the system"."
+> 
+> NAK to this incomplete drive-by fix.
+> 
 
-Consider the following scenario:
-1. thread 0: entry A is being writeback
-2. thread 1: invalidate entry A, as refcount != 0, it will still exist
-on rbtree.
-3. thread 1: reuse  entry A 's swp_entry_t, do a frontswap_store
-   it will conflict with the  entry A on the rbtree, it is not a
-normal duplicate store.
+This is a fix for a real-world situation that current exists in reclaim: 
+specifically, preventing unnecessary stalls in reclaim in oom conditions 
+that is known to be futile.  There is no possibility that reclaim itself 
+will be successful because of the oom condition, and that condition is the 
+only condition where reclaim is guaranteed to not be successful.  I'm sure 
+we both agree that there is no use in an oom killed process continually 
+looping in reclaim and yielding the cpu back to another process which just 
+prolongs the duration before the oom killed process can free its memory.
 
-If we place the zswap_rb_erase call in zswap_frontswap_invalidate_page,
-we can avoid the above scenario.
+You're advocating that the allocation is retried after every priority 
+cycle as an alternative and that seems potentially racy and incomplete: if 
+32 processes enter reclaim all doing order-0 allocations and one process 
+reclaims a page, they would all terminate reclaim and retry the 
+allocation.  31 processes would then loop the page allocator again, and 
+reenter reclaim again at the starting priority.  Much better, in my 
+opinion, would be to reclaim up to a threshold for each and then return to 
+the page allocator since all 32 processes have demand for memory; that 
+threshold is debatable, but SWAP_CLUSTER_MAX is reasonable.
 
-So, I don't think it is a good idea to remove zswap_rb_erase call.
+So I would be nervous to carry the classzone_idx into direct reclaim, do 
+an alloc_flags |= ALLOC_NO_WATERMARKS iff TIF_MEMDIE, iterate the 
+zonelist, and do a __zone_watermark_ok_safe() for some watermark that's 
+greater than the low watermark to avoid finding ourselves oom again upon 
+returning to the page allocator without causing regressions in reclaim.
 
-Regards,
+The page allocator already tries to allocate memory between direct reclaim 
+and calling the oom killer specifically for cases where reclaim was 
+unsuccessful for a single process because memory was freed externally.
 
-> --
-> 1.8.3.1
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+The situation I'm addressing occurs when reclaim will never be successful 
+and nothing external to it will reclaim anything that the oom kill victim 
+can use.  The non-victim processes will continue to loop through the oom 
+killer and get put to sleep since they aren't victims themselves, but in 
+the case described there are 700 processes competing for cpu all doing 
+memory allocations so that doesn't help as it normally would.  Older 
+kernels used to increase the timeslice that oom kill victims have so they 
+exit as quickly as possible, but that was removed since 341aea2bc48b 
+("oom-kill: remove boost_dying_task_prio()").
+
+My patch is not in a fastpath, it has extremely minimal overhead, and it 
+allows an oom killed victim to exit much quicker instead of incurring 
+O(seconds) stalls because of 700 other allocators grabbing the cpu in a 
+futile effort to reclaim memory themselves.
+
+Andrew, this fixes a real-world issue that exists and I'm asking that it 
+be merged so that oom killed processes can quickly allocate and exit to 
+free its memory.  If a more invasive future patch causes it to no longer 
+be necessary, that's what we call kernel development.  Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
