@@ -1,83 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
-	by kanga.kvack.org (Postfix) with ESMTP id EF2D16B0031
-	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 15:37:45 -0500 (EST)
-Received: by mail-ob0-f181.google.com with SMTP id uy5so1825603obc.26
-        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 12:37:45 -0800 (PST)
-Received: from e36.co.us.ibm.com (e36.co.us.ibm.com. [32.97.110.154])
-        by mx.google.com with ESMTPS id r7si22707571oem.19.2013.11.22.12.37.44
+Received: from mail-vc0-f181.google.com (mail-vc0-f181.google.com [209.85.220.181])
+	by kanga.kvack.org (Postfix) with ESMTP id D68CB6B0031
+	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 16:01:16 -0500 (EST)
+Received: by mail-vc0-f181.google.com with SMTP id ks9so1232155vcb.40
+        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 13:01:16 -0800 (PST)
+Received: from mail-ve0-x22b.google.com (mail-ve0-x22b.google.com [2607:f8b0:400c:c01::22b])
+        by mx.google.com with ESMTPS id tj6si13195152vcb.43.2013.11.22.13.01.15
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 22 Nov 2013 12:37:45 -0800 (PST)
-Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Fri, 22 Nov 2013 13:37:44 -0700
-Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id AB2FB3E40040
-	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 13:37:41 -0700 (MST)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by b03cxnp08025.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rAMIZrCm6095196
-	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 19:35:53 +0100
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id rAMKeYv8020204
-	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 13:40:35 -0700
-Date: Fri, 22 Nov 2013 12:37:38 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
-Message-ID: <20131122203738.GC4138@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20131121225208.GJ4138@linux.vnet.ibm.com>
- <CA+55aFx3FSGAtdSTYmsZ8xtdpiSBM-XPSnxnMpRQY+S_v_72-g@mail.gmail.com>
- <20131122040856.GK4138@linux.vnet.ibm.com>
- <CA+55aFxSL96G_uuPSbJaXfGh7DpYZ1g0NcVfPKOFg1O0o0fyZg@mail.gmail.com>
- <20131122062314.GN4138@linux.vnet.ibm.com>
- <20131122151600.GA14988@gmail.com>
- <20131122184937.GX4138@linux.vnet.ibm.com>
- <CA+55aFyKKpf-i4pQ_dhy9gic74xtCbO+U8GXU6mCtQj1ZHy05A@mail.gmail.com>
- <20131122200620.GA4138@linux.vnet.ibm.com>
- <CA+55aFz0nP1_O8jO2UkX1DmDzcBm53-fFejvz=oY=x3cGNBJSQ@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 22 Nov 2013 13:01:15 -0800 (PST)
+Received: by mail-ve0-f171.google.com with SMTP id pa12so1347888veb.30
+        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 13:01:15 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFz0nP1_O8jO2UkX1DmDzcBm53-fFejvz=oY=x3cGNBJSQ@mail.gmail.com>
+In-Reply-To: <20131122203738.GC4138@linux.vnet.ibm.com>
+References: <20131121225208.GJ4138@linux.vnet.ibm.com>
+	<CA+55aFx3FSGAtdSTYmsZ8xtdpiSBM-XPSnxnMpRQY+S_v_72-g@mail.gmail.com>
+	<20131122040856.GK4138@linux.vnet.ibm.com>
+	<CA+55aFxSL96G_uuPSbJaXfGh7DpYZ1g0NcVfPKOFg1O0o0fyZg@mail.gmail.com>
+	<20131122062314.GN4138@linux.vnet.ibm.com>
+	<20131122151600.GA14988@gmail.com>
+	<20131122184937.GX4138@linux.vnet.ibm.com>
+	<CA+55aFyKKpf-i4pQ_dhy9gic74xtCbO+U8GXU6mCtQj1ZHy05A@mail.gmail.com>
+	<20131122200620.GA4138@linux.vnet.ibm.com>
+	<CA+55aFz0nP1_O8jO2UkX1DmDzcBm53-fFejvz=oY=x3cGNBJSQ@mail.gmail.com>
+	<20131122203738.GC4138@linux.vnet.ibm.com>
+Date: Fri, 22 Nov 2013 13:01:14 -0800
+Message-ID: <CA+55aFwHUuaGzW_=xEWNcyVnHT-zW8-bs6Xi=M458xM3Y1qE0w@mail.gmail.com>
+Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
+To: Paul McKenney <paulmck@linux.vnet.ibm.com>
 Cc: Ingo Molnar <mingo@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, Will Deacon <will.deacon@arm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Fri, Nov 22, 2013 at 12:09:31PM -0800, Linus Torvalds wrote:
-> On Fri, Nov 22, 2013 at 12:06 PM, Paul E. McKenney
-> <paulmck@linux.vnet.ibm.com> wrote:
-> >
-> > I am sorry, but that is not always correct.  For example, in the contended
-> > case for Tim Chen's MCS queued locks, the x86 acquisition-side handoff
-> > code does -not- contain any stores or memory-barrier instructions.
-> 
-> So? In order to get *into* that contention code, you will have to go
-> through the fast-case code. Which will contain a locked instruction.
+On Fri, Nov 22, 2013 at 12:37 PM, Paul E. McKenney
+<paulmck@linux.vnet.ibm.com> wrote:
+> On Fri, Nov 22, 2013 at 12:09:31PM -0800, Linus Torvalds wrote:
+>>
+>> So? In order to get *into* that contention code, you will have to go
+>> through the fast-case code. Which will contain a locked instruction.
+>
+> So you must also maintain ordering against the critical section that just
+> ended on some other CPU.
 
-So you must also maintain ordering against the critical section that just
-ended on some other CPU.  And that just-ended critical section might
-well have started -after- you passed through your own fast-case code.
-In that case, the barriers in your fast-case code cannot possibly
-help you.  Instead, ordering must be supplied by the code in the two
-handoff code sequences.  And in the case of the most recent version of
-Tim Chen's MCS lock on x86, the two handoff code sequences (release
-and corresponding acquire) contain neither atomic instructions nor
-memory-barrier instructions.
+But that's completely irrelevant to what you yourself have been saying
+in this thread.
 
-The weird thing is that it looks like those two handoff code sequences
-nevertheless provide the unlock+lock guarantee on x86.  But I need to
-look at it some more, and eventually run it by experts from Intel and
-AMD.
+Your stated concern in this thread been whether the "unlock+lock"
+sequence implies an ordering that is at least equivalent to a memory
+barrier. And it clearly does, because the lock clearly contains a
+memory barrier inside of it.
 
-							Thanx, Paul
+The fact that the locking sequence contains *other* things too is
+irrelevant for that question. Those other things are at most relevant
+then for *other* questions, ie from the standpoint of somebody wanting
+to convince himself that the locking actually works as a lock, but
+that wasn't what we were actually talking about earlier.
 
-> So I repeat: a "lock" sequence will always be a memory barrier on x86.
-> 
->                    Linus
-> 
+The x86 memory ordering doesn't follow the traditional theoretical
+operations, no. Tough. It's generally superior than the alternatives
+because of its somewhat unorthodox rules (in that it then makes the
+many other common barriers generally be no-ops). If you try to
+describe the x86 ops in terms of the theory, you will have pain. So
+just don't do it. Think of them in the context of their own rules, not
+somehow trying to translate them to non-x86 rules.
+
+I think you can try to approximate the x86 rules as "every load is a
+RCpc acquire, every store is a RCpc release", and then to make
+yourself happier you can say that the lock sequence always starts out
+with a serializing operation (which is obviously the actual locked
+r-m-w op) so that on a lock/unlock level (as opposed to an individual
+memory op level) you get the RCsc behavior of the acquire/releases not
+re-ordering across separate locking events.
+
+I'm not actually convinced that that is really a full and true
+description of the x86 semantics, but it may _approximate_ being true
+to the degree that you might translate it to some of the academic
+papers that talk about these things.
+
+(Side note: this is also true when the locked r-m-w instruction has
+been replaced with a xbegin/xend. Intel documents that an RTM region
+has the "same ordering semantics as a LOCK prefixed instruction": see
+section 15.3.6 in the intel x86 architecture sw manual)
+
+             Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
