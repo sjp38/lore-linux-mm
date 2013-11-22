@@ -1,58 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id E05D46B0031
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 20:37:13 -0500 (EST)
-Received: by mail-wi0-f182.google.com with SMTP id en1so1955821wid.15
-        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 17:37:13 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id hk1si12234871wjc.73.2013.11.21.17.37.12
-        for <linux-mm@kvack.org>;
-        Thu, 21 Nov 2013 17:37:12 -0800 (PST)
-Date: Thu, 21 Nov 2013 20:37:07 -0500
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: Re: [PATCH] mm/bootmem.c: remove unused 'limit' variable
-Message-ID: <20131121203707.4f59f86e@redhat.com>
-In-Reply-To: <528E83B6.5040107@intel.com>
-References: <20131121164335.066fd6aa@redhat.com>
-	<528E83B6.5040107@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 647866B0031
+	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 20:39:38 -0500 (EST)
+Received: by mail-wg0-f48.google.com with SMTP id z12so542223wgg.3
+        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 17:39:37 -0800 (PST)
+Received: from longford.logfs.org (longford.logfs.org. [213.229.74.203])
+        by mx.google.com with ESMTPS id dl9si1791494wib.55.2013.11.21.17.39.37
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 21 Nov 2013 17:39:37 -0800 (PST)
+Date: Thu, 21 Nov 2013 19:19:00 -0500
+From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
+Subject: Re: user defined OOM policies
+Message-ID: <20131122001859.GA9510@logfs.org>
+References: <20131119131400.GC20655@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20131119131400.GC20655@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 21 Nov 2013 14:05:42 -0800
-Dave Hansen <dave.hansen@intel.com> wrote:
+On Tue, 19 November 2013 14:14:00 +0100, Michal Hocko wrote:
+> 
+> We have basically ended up with 3 options AFAIR:
+> 	1) allow memcg approach (memcg.oom_control) on the root level
+>            for both OOM notification and blocking OOM killer and handle
+>            the situation from the userspace same as we can for other
+> 	   memcgs.
+> 	2) allow modules to hook into OOM killer path and take the
+> 	   appropriate action.
+> 	3) create a generic filtering mechanism which could be
+> 	   controlled from the userspace by a set of rules (e.g.
+> 	   something analogous to packet filtering).
 
-> On 11/21/2013 01:43 PM, Luiz Capitulino wrote:
-> > @@ -655,9 +655,7 @@ restart:
-> >  void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
-> >  					unsigned long goal)
-> >  {
-> > -	unsigned long limit = 0;
-> > -
-> > -	return ___alloc_bootmem_nopanic(size, align, goal, limit);
-> > +	return ___alloc_bootmem_nopanic(size, align, goal, 0);
-> >  }
-> 
-> FWIW, I like those.  The way you leave it:
-> 
-> 	return ___alloc_bootmem_nopanic(size, align, goal, 0);
-> 
-> the 0 is a magic number that you have to go look up the declaration of
-> ___alloc_bootmem_nopanic() to decipher, or you have to add a comment to
-> it in some way.
-> 
-> I find it much more readable to have an 'unused' variable like that.
+One ancient option I sometime miss was this:
+	- Kill the biggest process.
 
-Got it. I was reading that code and thought 'limit' was a leftover,
-so I posted the patch...
+Doesn't always make the optimal choice, but neither did any of the
+refinements.  But it had the nice advantage that even I could predict
+which bad choice it would make and why.  Every bit of sophistication
+means that you still get it wrong sometimes, but in less obvious and
+more annoying ways.
 
-Btw, I also have a patch consitfying some zone access functions
-parameters that are read-only. Wondering if anyone will object
-to such a change? Or maybe I should just stop doing trivial patches :)
+Then again, an alternative I actually use in production is to reboot
+the machine on OOM.  Again, very simple, very blunt and very
+predictable.
+
+JA?rn
+
+--
+No art, however minor, demands less than total dedication if you want
+to excel in it.
+-- Leon Battista Alberti
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
