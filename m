@@ -1,55 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f41.google.com (mail-bk0-f41.google.com [209.85.214.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CC726B0036
-	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 12:18:01 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id v15so925255bkz.28
-        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 09:18:00 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id np3si5994722bkb.93.2013.11.22.09.18.00
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 4815B6B0038
+	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 12:18:22 -0500 (EST)
+Received: by mail-wg0-f54.google.com with SMTP id n12so371686wgh.21
+        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 09:18:21 -0800 (PST)
+Received: from mail-we0-x22f.google.com (mail-we0-x22f.google.com [2a00:1450:400c:c03::22f])
+        by mx.google.com with ESMTPS id de7si13379376wjc.82.2013.11.22.09.18.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 22 Nov 2013 09:18:00 -0800 (PST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch] mm: memcg: do not declare OOM from __GFP_NOFAIL allocations
-Date: Fri, 22 Nov 2013 12:17:56 -0500
-Message-Id: <1385140676-5677-1-git-send-email-hannes@cmpxchg.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 22 Nov 2013 09:18:21 -0800 (PST)
+Received: by mail-we0-f175.google.com with SMTP id p61so1455886wes.34
+        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 09:18:21 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20131122073851.GB1853@hp530>
+References: <1384965522-5788-1-git-send-email-ddstreet@ieee.org>
+ <20131120173347.GA2369@hp530> <CALZtONA81=R4abFMpMMtDZKQe0s-8+JxvEfZO3NEZ910VwRDmw@mail.gmail.com>
+ <20131122073851.GB1853@hp530>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Fri, 22 Nov 2013 12:18:01 -0500
+Message-ID: <CALZtONA-CdTJ=cg3cnacEz0uDtQVinkqkyPQuNSCWT18OD+Y5w@mail.gmail.com>
+Subject: Re: [PATCH] mm/zswap: change params from hidden to ro
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Vladimir Murzin <murzin.v@gmail.com>
+Cc: linux-mm@kvack.org, Seth Jennings <sjennings@variantweb.net>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>
 
-84235de394d9 ("fs: buffer: move allocation failure loop into the
-allocator") started recognizing __GFP_NOFAIL in memory cgroups but
-forgot to disable the OOM killer.
+On Fri, Nov 22, 2013 at 2:38 AM, Vladimir Murzin <murzin.v@gmail.com> wrote:
+> On Wed, Nov 20, 2013 at 12:52:47PM -0500, Dan Streetman wrote: > On Wed, Nov
+> 20, 2013 at 12:33 PM, Vladimir Murzin <murzin.v@gmail.com> wrote: > > Hi Dan!
+>> >
+>> > On Wed, Nov 20, 2013 at 11:38:42AM -0500, Dan Streetman wrote:
+>> >> The "compressor" and "enabled" params are currently hidden,
+>> >> this changes them to read-only, so userspace can tell if
+>> >> zswap is enabled or not and see what compressor is in use.
+>> >
+>> > Could you elaborate more why this pice of information is necessary for
+>> > userspace?
+>>
+>> For anyone interested in zswap, it's handy to be able to tell if it's
+>> enabled or not ;-)  Technically people can check to see if the zswap
+>> debug files are in /sys/kernel/debug/zswap, but I think the actual
+>> "enabled" param is more obvious.  And the compressor param is really
+>> the only way anyone from userspace can see what compressor's being
+>> used; that's helpful to know for anyone that might want to be using a
+>> non-default compressor.
+>
+> So, it is needed for user not userspace? I tend to think that users are smart
+> enough to check cmdline for that.
 
-Any task that does not fail allocation will also not enter the OOM
-completion path.  So don't declare an OOM state in this case or it'll
-be leaked and the task be able to bypass the limit until the next
-userspace-triggered page fault cleans up the OOM state.
-
-Reported-by: William Dauchy <wdauchy@gmail.com>
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: stable@kernel.org # 3.12
----
- mm/memcontrol.c | 3 +++
- 1 file changed, 3 insertions(+)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 13b9d0f..cc4f9cb 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2677,6 +2677,9 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- 	if (unlikely(task_in_memcg_oom(current)))
- 		goto bypass;
- 
-+	if (gfp_mask & __GFP_NOFAIL)
-+		oom = false;
-+
- 	/*
- 	 * We always charge the cgroup the mm_struct belongs to.
- 	 * The mm_struct's mem_cgroup changes on task migration if the
--- 
-1.8.4.2
+Let's try a different way.  Can you explain what the problem is with
+making these params user-readable?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
