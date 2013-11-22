@@ -1,169 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f176.google.com (mail-ea0-f176.google.com [209.85.215.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 323376B0031
-	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 15:35:42 -0500 (EST)
-Received: by mail-ea0-f176.google.com with SMTP id h14so706804eaj.7
-        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 12:35:41 -0800 (PST)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.15.15])
-        by mx.google.com with ESMTPS id j44si7498595eep.178.2013.11.22.12.35.41
+Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
+	by kanga.kvack.org (Postfix) with ESMTP id EF2D16B0031
+	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 15:37:45 -0500 (EST)
+Received: by mail-ob0-f181.google.com with SMTP id uy5so1825603obc.26
+        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 12:37:45 -0800 (PST)
+Received: from e36.co.us.ibm.com (e36.co.us.ibm.com. [32.97.110.154])
+        by mx.google.com with ESMTPS id r7si22707571oem.19.2013.11.22.12.37.44
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Nov 2013 12:35:41 -0800 (PST)
-Received: from [192.168.178.21] ([92.224.129.130]) by mail.gmx.com (mrgmx003)
- with ESMTPSA (Nemesis) id 0LrNE4-1VXhUu1cku-0134Gm for <linux-mm@kvack.org>;
- Fri, 22 Nov 2013 21:35:40 +0100
-Message-ID: <528FC01A.6000300@gmx.de>
-Date: Fri, 22 Nov 2013 21:35:38 +0100
-From: =?UTF-8?B?VG9yYWxmIEbDtnJzdGVy?= <toralf.foerster@gmx.de>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 22 Nov 2013 12:37:45 -0800 (PST)
+Received: from /spool/local
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Fri, 22 Nov 2013 13:37:44 -0700
+Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id AB2FB3E40040
+	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 13:37:41 -0700 (MST)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by b03cxnp08025.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rAMIZrCm6095196
+	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 19:35:53 +0100
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id rAMKeYv8020204
+	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 13:40:35 -0700
+Date: Fri, 22 Nov 2013 12:37:38 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
+Message-ID: <20131122203738.GC4138@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20131121225208.GJ4138@linux.vnet.ibm.com>
+ <CA+55aFx3FSGAtdSTYmsZ8xtdpiSBM-XPSnxnMpRQY+S_v_72-g@mail.gmail.com>
+ <20131122040856.GK4138@linux.vnet.ibm.com>
+ <CA+55aFxSL96G_uuPSbJaXfGh7DpYZ1g0NcVfPKOFg1O0o0fyZg@mail.gmail.com>
+ <20131122062314.GN4138@linux.vnet.ibm.com>
+ <20131122151600.GA14988@gmail.com>
+ <20131122184937.GX4138@linux.vnet.ibm.com>
+ <CA+55aFyKKpf-i4pQ_dhy9gic74xtCbO+U8GXU6mCtQj1ZHy05A@mail.gmail.com>
+ <20131122200620.GA4138@linux.vnet.ibm.com>
+ <CA+55aFz0nP1_O8jO2UkX1DmDzcBm53-fFejvz=oY=x3cGNBJSQ@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [uml-devel] fuzz tested 32 bit user mode linux image hangs in
- radix_tree_next_chunk()
-References: <526696BF.6050909@gmx.de>	<CAFLxGvy3NeRKu+KQCCm0j4LS60PYhH0bC8WWjfiPvpstPBjAkA@mail.gmail.com>	<5266A698.10400@gmx.de>	<5266B60A.1000005@nod.at>	<52715AD1.7000703@gmx.de> <CALYGNiPvJF1u8gXNcX1AZR5-VkGqJnaose84KBbdaoBAq8aoGQ@mail.gmail.com> <527AB23D.2060305@gmx.de> <527AB51B.1020005@nod.at>
-In-Reply-To: <527AB51B.1020005@nod.at>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFz0nP1_O8jO2UkX1DmDzcBm53-fFejvz=oY=x3cGNBJSQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Weinberger <richard@nod.at>
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, UML devel <user-mode-linux-devel@lists.sourceforge.net>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Ingo Molnar <mingo@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, Will Deacon <will.deacon@arm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On 11/06/2013 10:31 PM, Richard Weinberger wrote:
-> Can you please ask gdb for the value of offset?
+On Fri, Nov 22, 2013 at 12:09:31PM -0800, Linus Torvalds wrote:
+> On Fri, Nov 22, 2013 at 12:06 PM, Paul E. McKenney
+> <paulmck@linux.vnet.ibm.com> wrote:
+> >
+> > I am sorry, but that is not always correct.  For example, in the contended
+> > case for Tim Chen's MCS queued locks, the x86 acquisition-side handoff
+> > code does -not- contain any stores or memory-barrier instructions.
+> 
+> So? In order to get *into* that contention code, you will have to go
+> through the fast-case code. Which will contain a locked instruction.
 
-With this diff against latest Linus tree v3.12-11355-g57498f9 :
+So you must also maintain ordering against the critical section that just
+ended on some other CPU.  And that just-ended critical section might
+well have started -after- you passed through your own fast-case code.
+In that case, the barriers in your fast-case code cannot possibly
+help you.  Instead, ordering must be supplied by the code in the two
+handoff code sequences.  And in the case of the most recent version of
+Tim Chen's MCS lock on x86, the two handoff code sequences (release
+and corresponding acquire) contain neither atomic instructions nor
+memory-barrier instructions.
 
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 7811ed3..54d9802 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -750,6 +750,7 @@ restart:
-        /* Index outside of the tree */
-        if (offset >= RADIX_TREE_MAP_SIZE)
-                return NULL;
-+       printk ("offset a: %lu \n", offset);
+The weird thing is that it looks like those two handoff code sequences
+nevertheless provide the unlock+lock guarantee on x86.  But I need to
+look at it some more, and eventually run it by experts from Intel and
+AMD.
 
-        node = rnode;
-        while (1) {
-@@ -770,6 +771,7 @@ restart:
-                                        if (node->slots[offset])
-                                                break;
-                                }
-+                       printk ("offset b: %lu \n", offset);
-                        index &= ~((RADIX_TREE_MAP_SIZE << shift) - 1);
-                        index += offset << shift;
-                        /* Overflow after ~0UL */
-@@ -812,6 +814,7 @@ restart:
-                }
-        }
+							Thanx, Paul
 
-+       printk ("offset c: %lu \n", offset);
-        return node->slots + offset;
- }
- EXPORT_SYMBOL(radix_tree_next_chunk);
-
-
-I got today these syslog message when the trinity process hangs at a 32 bit Gentoo linux:
-
-
-Nov 22 21:29:29 trinity kernel: offset b: 63
-Nov 22 21:29:29 trinity kernel: offset b: 63
-Nov 22 21:29:29 trinity kernel: offset b: 63
-Nov 22 21:29:29 trinity kernel: offset c: 63
-Nov 22 21:29:29 trinity kernel: offset a: 0
-Nov 22 21:29:29 trinity kernel: offset b: 3
-Nov 22 21:29:29 trinity kernel: offset b: 63
-Nov 22 21:29:29 trinity kernel: offset b: 63
-Nov 22 21:29:29 trinity kernel: offset b: 63
-Nov 22 21:29:29 trinity kernel: offset b: 63
-Nov 22 21:29:29 trinity kernel: offset b: 63
-Nov 22 21:29:29 trinity kernel: offset c: 63
-Nov 22 21:29:29 trinity kernel: offset a: 0
-Nov 22 21:29:29 trinity kernel: offset b: 3
-Nov 22 21:29:29 trinity kernel: offset b: 63
-Nov 22 21:29:29 trinity kernel: offset b: 63
-Nov 22 21:29:29 trinity kernel: offset b: 63
-Nov 22 21:29:29 trinity sshd[1299]: pam_unix(sshd:session): session closed for user tfoerste
-Nov 22 21:29:29 trinity kernel: offset b: 63
-Nov 22 21:29:29 trinity kernel: offset b: 63
-Nov 22 21:29:29 trinity kernel: offset c: 63
-Nov 22 21:29:29 trinity kernel: offset a: 0
-Nov 22 21:29:29 trinity kernel: offset b: 3
-Nov 22 21:29:29 trinity kernel: offset b: 63
-Nov 22 21:29:29 trinity kernel: offset b: 63
-Nov 22 21:29:30 trinity kernel: offset b: 63
-Nov 22 21:29:30 trinity kernel: offset b: 63
-Nov 22 21:29:30 trinity kernel: offset b: 63
-Nov 22 21:29:30 trinity kernel: offset c: 63
-Nov 22 21:29:30 trinity kernel: offset a: 0
-Nov 22 21:29:30 trinity kernel: offset b: 3
-Nov 22 21:29:30 trinity kernel: offset b: 63
-Nov 22 21:29:30 trinity kernel: offset b: 63
-Nov 22 21:29:30 trinity kernel: offset b: 63
-Nov 22 21:29:30 trinity kernel: offset b: 63
-Nov 22 21:29:30 trinity kernel: offset b: 63
-Nov 22 21:29:30 trinity kernel: offset c: 63
-Nov 22 21:29:30 trinity kernel: offset a: 0
-Nov 22 21:29:30 trinity kernel: offset b: 3
-Nov 22 21:29:30 trinity kernel: offset b: 63
-Nov 22 21:29:30 trinity kernel: offset b: 63
-Nov 22 21:29:30 trinity kernel: offset b: 63
-Nov 22 21:29:30 trinity sshd[1533]: pam_unix(sshd:session): session opened for user root by (uid=0)
-Nov 22 21:29:30 trinity kernel: offset b: 63
-Nov 22 21:29:30 trinity kernel: offset b: 63
-Nov 22 21:29:30 trinity kernel: offset c: 63
-Nov 22 21:29:30 trinity kernel: offset a: 0
-Nov 22 21:29:30 trinity kernel: offset b: 3
-Nov 22 21:29:31 trinity kernel: offset b: 63
-Nov 22 21:29:31 trinity kernel: offset b: 63
-Nov 22 21:29:31 trinity kernel: offset b: 63
-Nov 22 21:29:31 trinity kernel: offset b: 63
-Nov 22 21:29:31 trinity kernel: offset b: 63
-Nov 22 21:29:31 trinity kernel: offset c: 63
-Nov 22 21:29:31 trinity shutdown[1536]: shutting down for system halt
-Nov 22 21:29:31 trinity init: Switching to runlevel: 0
-
-
-FWIW gdb's output :
-
-
-tfoerste@n22 ~/devel/linux $ sudo gdb /home/tfoerste/devel/linux/linux 3612 -n -batch -ex bt
-0x083d3c83 in memcpy ()
-#0  0x083d3c83 in memcpy ()
-#1  0x080a6257 in log_store (facility=0, level=4, flags=LOG_NEWLINE, ts_nsec=0, dict=0x86101e0 <__log_buf+25512> "\200=\355\265D", dict_len=0, text=0x86101e0 <__log_buf+25512> "\200=\355\265D", text_len=13) at kernel/printk/printk.c:344
-#2  0x080a7158 in vprintk_emit (facility=0, level=4, dict=0x0, dictlen=0, fmt=0x63a8 <Address 0x63a8 out of bounds>, args=0x63a8 <Address 0x63a8 out of bounds>) at kernel/printk/printk.c:1610
-#3  0x08423845 in printk (fmt=0x63a8 <Address 0x63a8 out of bounds>) at kernel/printk/printk.c:1690
-#4  0x0829c39e in radix_tree_next_chunk (root=0x63a8, iter=0x3f, flags=0) at lib/radix-tree.c:774
-#5  0x080cc78e in find_get_pages (mapping=0x48c21010, start=0, nr_pages=14, pages=0x86101e0 <__log_buf+25512>) at mm/filemap.c:844
-#6  0x080d654a in pagevec_lookup (pvec=0x49bffcc8, mapping=0x63a8, start=25512, nr_pages=25512) at mm/swap.c:937
-#7  0x080d694a in truncate_inode_pages_range (mapping=0x48c21010, lstart=0, lend=-1) at mm/truncate.c:241
-#8  0x080d6cef in truncate_inode_pages (mapping=0x63a8, lstart=603765886628684712) at mm/truncate.c:358
-#9  0x08260a48 in hostfs_evict_inode (inode=0x48c20f58) at fs/hostfs/hostfs_kern.c:233
-#10 0x0811b46f in evict (inode=0x48c20f58) at fs/inode.c:549
-#11 0x0811bf5d in iput_final (inode=<optimized out>) at fs/inode.c:1419
-#12 iput (inode=0x48c20f58) at fs/inode.c:1437
-#13 0x08118858 in dentry_iput (dentry=<optimized out>) at fs/dcache.c:300
-#14 d_kill (parent=<optimized out>, dentry=<optimized out>) at fs/dcache.c:447
-#15 dentry_kill (dentry=0x4957de70, unlock_on_failure=<optimized out>) at fs/dcache.c:549
-#16 0x08118b5d in dput (dentry=0x4957de70) at fs/dcache.c:605
-#17 0x08105353 in __fput (file=0x48a7cd80) at fs/file_table.c:261
-#18 0x081053bb in ____fput (work=0x48a7cd80) at fs/file_table.c:279
-#19 0x08094486 in task_work_run () at kernel/task_work.c:123
-#20 0x0807efb2 in exit_task_work (task=<optimized out>) at include/linux/task_work.h:21
-#21 do_exit (code=1217397248) at kernel/exit.c:787
-#22 0x0807f5fd in do_group_exit (exit_code=0) at kernel/exit.c:920
-#23 0x0807f669 in SYSC_exit_group (error_code=<optimized out>) at kernel/exit.c:931
-#24 SyS_exit_group (error_code=0) at kernel/exit.c:929
-#25 0x08062ab4 in handle_syscall (r=0x48a787cc) at arch/um/kernel/skas/syscall.c:35
-#26 0x08075115 in handle_trap (local_using_sysemu=<optimized out>, regs=<optimized out>, pid=<optimized out>) at arch/um/os-Linux/skas/process.c:198
-#27 userspace (regs=0x48a787cc) at arch/um/os-Linux/skas/process.c:431
-#28 0x0805f770 in fork_handler () at arch/um/kernel/process.c:149
-#29 0x00000000 in ?? ()
-
-
--- 
-MfG/Sincerely
-Toralf FA?rster
-pgp finger print: 7B1A 07F4 EC82 0F90 D4C2 8936 872A E508 7DB6 9DA3
+> So I repeat: a "lock" sequence will always be a memory barrier on x86.
+> 
+>                    Linus
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
