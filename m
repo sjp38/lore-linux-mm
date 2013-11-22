@@ -1,107 +1,195 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f46.google.com (mail-bk0-f46.google.com [209.85.214.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 42AD66B0035
-	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 13:08:45 -0500 (EST)
-Received: by mail-bk0-f46.google.com with SMTP id u15so932906bkz.33
-        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 10:08:44 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id xz5si4310945bkb.78.2013.11.22.10.08.44
+Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 05AD86B0036
+	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 13:26:39 -0500 (EST)
+Received: by mail-qa0-f53.google.com with SMTP id j5so4346523qaq.19
+        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 10:26:39 -0800 (PST)
+Received: from e35.co.us.ibm.com (e35.co.us.ibm.com. [32.97.110.153])
+        by mx.google.com with ESMTPS id l10si23968840qer.0.2013.11.22.10.26.38
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 22 Nov 2013 10:08:44 -0800 (PST)
-Date: Fri, 22 Nov 2013 13:08:35 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: user defined OOM policies
-Message-ID: <20131122180835.GO3556@cmpxchg.org>
-References: <20131119131400.GC20655@dhcp22.suse.cz>
- <20131119134007.GD20655@dhcp22.suse.cz>
- <alpine.DEB.2.02.1311192352070.20752@chino.kir.corp.google.com>
- <20131120152251.GA18809@dhcp22.suse.cz>
- <CAA25o9S5EQBvyk=HP3obdCaXKjoUVtzeb4QsNmoLMq6NnOYifA@mail.gmail.com>
- <alpine.DEB.2.02.1311201933420.7167@chino.kir.corp.google.com>
- <CAA25o9Q64eK5LHhrRyVn73kFz=Z7Jji=rYWS=9jWL_4y9ZGbQA@mail.gmail.com>
+        Fri, 22 Nov 2013 10:26:39 -0800 (PST)
+Received: from /spool/local
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Fri, 22 Nov 2013 11:26:38 -0700
+Received: from b03cxnp08028.gho.boulder.ibm.com (b03cxnp08028.gho.boulder.ibm.com [9.17.130.20])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 593713E40040
+	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 11:26:35 -0700 (MST)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by b03cxnp08028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rAMGOmRG35913862
+	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 17:24:48 +0100
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id rAMITScC018763
+	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 11:29:30 -0700
+Date: Fri, 22 Nov 2013 10:26:32 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
+Message-ID: <20131122182632.GW4138@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20131120153123.GF4138@linux.vnet.ibm.com>
+ <20131120154643.GG19352@mudshark.cambridge.arm.com>
+ <20131120171400.GI4138@linux.vnet.ibm.com>
+ <20131121110308.GC10022@twins.programming.kicks-ass.net>
+ <20131121125616.GI3694@twins.programming.kicks-ass.net>
+ <20131121132041.GS4138@linux.vnet.ibm.com>
+ <20131121172558.GA27927@linux.vnet.ibm.com>
+ <20131121215249.GZ16796@laptop.programming.kicks-ass.net>
+ <20131121221859.GH4138@linux.vnet.ibm.com>
+ <20131122155835.GR3866@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAA25o9Q64eK5LHhrRyVn73kFz=Z7Jji=rYWS=9jWL_4y9ZGbQA@mail.gmail.com>
+In-Reply-To: <20131122155835.GR3866@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Joern Engel <joern@logfs.org>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Will Deacon <will.deacon@arm.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Wed, Nov 20, 2013 at 11:03:33PM -0800, Luigi Semenzato wrote:
-> On Wed, Nov 20, 2013 at 7:36 PM, David Rientjes <rientjes@google.com> wrote:
-> > On Wed, 20 Nov 2013, Luigi Semenzato wrote:
-> >
-> >> Chrome OS uses a custom low-memory notification to minimize OOM kills.
-> >>  When the notifier triggers, the Chrome browser tries to free memory,
-> >> including by shutting down processes, before the full OOM occurs.  But
-> >> OOM kills cannot always be avoided, depending on the speed of
-> >> allocation and how much CPU the freeing tasks are able to use
-> >> (certainly they could be given higher priority, but it get complex).
-> >>
-> >> We may end up using memcg so we can use the cgroup
-> >> memory.pressure_level file instead of our own notifier, but we have no
-> >> need for finer control over OOM kills beyond the very useful kill
-> >> priority.  One process at a time is good enough for us.
-> >>
-> >
-> > Even with your own custom low-memory notifier or memory.pressure_level,
-> > it's still possible that all memory is depleted and you run into an oom
-> > kill before your userspace had a chance to wakeup and prevent it.  I think
-> > what you'll want is either your custom notifier of memory.pressure_level
-> > to do pre-oom freeing but fallback to a userspace oom handler that
-> > prevents kernel oom kills until it ensures userspace did everything it
-> > could to free unneeded memory, do any necessary logging, etc, and do so
-> > over a grace period of memory.oom_delay_millisecs before the kernel
-> > eventually steps in and kills.
+On Fri, Nov 22, 2013 at 04:58:35PM +0100, Peter Zijlstra wrote:
+> On Thu, Nov 21, 2013 at 02:18:59PM -0800, Paul E. McKenney wrote:
+> > > > Let's apply the Intel manual to the earlier example:
+> > > >
+> > > >	CPU 0		CPU 1			CPU 2
+> > > >	-----		-----			-----
+> > > >	x = 1;		r1 = SLA(lock);		y = 1;
+> > > >	SSR(lock, 1);	r2 = y;			smp_mb();
+> > > >						r3 = x;
+> > > >
+> > > >	assert(!(r1 == 1 && r2 == 0 && r3 == 0));
+> > > >
+> > > > Let's try applying this to x86:
+> > > >
+> > > > o	Stores from a given processor are ordered, so everyone
+> > > >	agrees that CPU 0's store to x happens before the store-release
+> > > >	to lock.
+> > > >
+> > > > o	Reads from a given processor are ordered, so everyone agrees
+> > > >	that CPU 1's load from lock precedes its load from y.
+> > > >
+> > > > o	Because r1 == 1, we know that CPU 0's store to lock happened
+> > > >	before CPU 1's load from lock.
+> > > >
+> > > > o	Causality (AKA transitive visibility) means that everyone
+> > > >	agrees that CPU 0's store to x happens before CPU 1's load
+> > > >	from y.  (This is a crucial point, so it would be good to
+> > > >	have confirmation/debunking from someone who understands
+> > > >	the x86 architecture better than I do.)
+> > > >
+> > > > o	CPU 2's memory barrier prohibits CPU 2's store to y from
+> > > >	being reordered with its load from x.
+> > > >
+> > > > o	Because r2 == 0, we know that CPU 1's load from y happened
+> > > >	before CPU 2's store to y.
+> > > >
+> > > > o	At this point, it looks to me that (r1 == 1 && r2 == 0)
+> > > >	implies r3 == 1.
 > 
-> Yes, I agree that we can't always prevent OOM situations, and in fact
-> we tolerate OOM kills, although they have a worse impact on the users
-> than controlled freeing does.
+> Agreed, and I now fully appreciate the transitive point. I can't say if
+> x86 does in fact do this, but I can agree that rules in the SDM support
+> your logic.
+
+OK, thank you for looking it over!
+
+> > > > Sewell's model plays out as follows:
 > 
-> Well OK here it goes.  I hate to be a party-pooper, but the notion of
-> a user-level OOM-handler scares me a bit for various reasons.
+> I have problems with these rules, for instance:
 > 
-> 1. Our custom notifier sends low-memory warnings well ahead of memory
-> depletion.  If we don't have enough time to free memory then, what can
-> the last-minute OOM handler do?
->
-> 2. In addition to the time factor, it's not trivial to do anything,
-> including freeing memory, without allocating memory first, so we'll
-> need a reserve, but how much, and who is allowed to use it?
+> > > > o	Rules 3 and 4 force CPU 0's writes to be seen in order.
 > 
-> 3. How does one select the OOM-handler timeout?  If the freeing paths
-> in the code are swapped out, the time needed to bring them in can be
-> highly variable.
+> Nothing in those rules state the store buffer is a strict FIFO, it might
+> be suggested by rule 4's use of 'oldest', but being a pendant the text
+> as given doesn't disallow store reordering in the store buffer.
 > 
-> 4. Why wouldn't the OOM-handler also do the killing itself?  (Which is
-> essentially what we do.)  Then all we need is a low-memory notifier
-> which can predict how quickly we'll run out of memory.
+> Suppose an address a was written to two times, a store buffer might
+> simply update the entry for the first write with the new value. The
+> entry would still become oldest at some point and get flushed.
 > 
-> 5. The use case mentioned earlier (the fact that the killing of one
-> process can make an entire group of processes useless) can be dealt
-> with using OOM priorities and user-level code.
+> (Note the above is ambiguous in if the entry's time stamp is updated or
+> not -- also note that both cases violate TSO and therefore it doesn't
+> matter.)
+> 
+> That violates FIFO (and TSO) but not the definitions.
+> 
+> Similarly its not at all clear from rule 2 that reads are not
+> re-ordered.
+> 
+> So I'll ignore this section for now.
+> 
+> 
+> OK, so reading back a little he does describe the abstract machine and
+> does say the store buffer is FIFO, but what use are rules if you first
+> need more 'rules'.
+> 
+> Rules should be self supporting.
 
-I would also be interested in the answers to all these questions.
+Better than the older versions, but yes, could be better.  The key point
+is that if a store updates an existing store buffer, that buffer becomes
+the youngest.  It would be interesting to see what a continuous series
+of stores to the same variable from different CPUs did to the hardware.
+By this set of rules, the hardware would be within its rights to never
+propagate any of the stored values to memory.  ;-)
 
-> I confess I am surprised that the OOM killer works as well as I think
-> it does.  Adding a user-level component would bring a whole new level
-> of complexity to code that's already hard to fully comprehend, and
-> might not really address the fundamental issues.
+> > > I _think_ so.. but its late. I'm also struggling to find where lwsync
+> > > goes bad in this story, because as you say lwsync does all except flush
+> > > the store buffer, which sounds like TSO.. but clearly is not quite the
+> > > same.
+> > > 
+> > > For one TSO has multi-copy atomicity, whereas ARM/PPC do not have this.
+> > 
+> > At least PPC lwsync does not have multi-copy atomicity. 
+> 
+> Right, which is why it lacks transitivity.
+> 
+> > The heavier sync
+> > instruction does.  Last I checked, ARM did not have a direct replacment
+> > for lwsync, though it does have something sort of like eieio.
+> > 
+> > But yes, we were trying to use lwsync for both smp_load_acquire() and
+> > smp_store_release(), which does not provide exactly the same guarantees
+> > that TSO does.  Though it does come close in many cases.
+> 
+> Right, and this lack of transitivity is what kills it.
 
-Agreed.
+I am thinking that Linus's email and Ingo's follow-on says that the
+powerpc version of smp_store_release() needs to be sync.  Though to
+be honest, it is x86 that has been causing me the most cognitive pain.
+And to be even more honest, I must confess that I still don't understand
+the nature of the complaint.  Ah well, that is the next email to
+reply to.  ;-)
 
-OOM killing is supposed to be a last resort and should be avoided as
-much as possible.  The situation is so precarious at this point that
-the thought of involving USERSPACE to fix it seems crazy to me.
+The real source of my cognitive pain is that here we have a sequence of
+code that has neither atomic instructions or memory-barrier instructions,
+but it looks like it still manages to act as a full memory barrier.
+Still not quite sure I should trust it...
 
-It would make much more sense to me to focus on early notifications
-and deal with looming situations while we still have the resources to
-do so.
+> > > The explanation of lwsync given in 3.3 of 'A Tutorial Introduction to
+> > > the ARM and POWER Relaxed Memory Models'
+> > > 
+> > >   http://www.cl.cam.ac.uk/~pes20/ppc-supplemental/test7.pdf
+> > > 
+> > > Leaves me slightly puzzled as to the exact differences between the 2 WW
+> > > variants.
+> > 
+> > The WW at the top of the page is discussing the ARM "dmb" instruction
+> > and the PPC "sync" instruction, both of which are full barriers, and
+> > both of which can therefore be thought of as flushing the store buffer.
+> > 
+> > In contrast, the WW at the bottom of the page is discussing the PPC
+> > lwsync instruction, which most definitely is not guaranteed to flush
+> > the write buffer.
+> 
+> Right, my complaint was that from the two definitions given the factual
+> difference in behaviour was not clear to me.
+> 
+> I knew that upgrading the SSR's lwsync to sync would 'fix' the thing,
+> and that is exactly the WW case, but given these two definitions I was
+> at a loss to find the hole.
 
-Before attempting to build a teleportation device in the kernel, maybe
-we should just stop painting ourselves into corners?
+Well, it certainly shows that placing lwsync between each pair of memory
+references does not bring powerpc all the way to TSO.
+
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
