@@ -1,181 +1,379 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f45.google.com (mail-oa0-f45.google.com [209.85.219.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E6806B0031
-	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 16:52:17 -0500 (EST)
-Received: by mail-oa0-f45.google.com with SMTP id o6so2049171oag.32
-        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 13:52:17 -0800 (PST)
-Received: from e31.co.us.ibm.com (e31.co.us.ibm.com. [32.97.110.149])
-        by mx.google.com with ESMTPS id ds9si22798937obc.8.2013.11.22.13.52.15
+Received: from mail-qe0-f49.google.com (mail-qe0-f49.google.com [209.85.128.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 18A686B0035
+	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 17:10:47 -0500 (EST)
+Received: by mail-qe0-f49.google.com with SMTP id w7so1438061qeb.8
+        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 14:10:46 -0800 (PST)
+Received: from mail-qe0-x236.google.com (mail-qe0-x236.google.com [2607:f8b0:400d:c02::236])
+        by mx.google.com with ESMTPS id hb10si16650962qeb.84.2013.11.22.14.10.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 22 Nov 2013 13:52:16 -0800 (PST)
-Received: from /spool/local
-	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Fri, 22 Nov 2013 14:52:15 -0700
-Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 1780B3E40044
-	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 14:52:12 -0700 (MST)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by b03cxnp07028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rAMJoCjo7471372
-	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 20:50:12 +0100
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id rAMLt4aG022602
-	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 14:55:06 -0700
-Date: Fri, 22 Nov 2013 13:52:08 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
-Message-ID: <20131122215208.GD4138@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20131122040856.GK4138@linux.vnet.ibm.com>
- <CA+55aFxSL96G_uuPSbJaXfGh7DpYZ1g0NcVfPKOFg1O0o0fyZg@mail.gmail.com>
- <20131122062314.GN4138@linux.vnet.ibm.com>
- <20131122151600.GA14988@gmail.com>
- <20131122184937.GX4138@linux.vnet.ibm.com>
- <CA+55aFyKKpf-i4pQ_dhy9gic74xtCbO+U8GXU6mCtQj1ZHy05A@mail.gmail.com>
- <20131122200620.GA4138@linux.vnet.ibm.com>
- <CA+55aFz0nP1_O8jO2UkX1DmDzcBm53-fFejvz=oY=x3cGNBJSQ@mail.gmail.com>
- <20131122203738.GC4138@linux.vnet.ibm.com>
- <CA+55aFwHUuaGzW_=xEWNcyVnHT-zW8-bs6Xi=M458xM3Y1qE0w@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFwHUuaGzW_=xEWNcyVnHT-zW8-bs6Xi=M458xM3Y1qE0w@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 22 Nov 2013 14:10:45 -0800 (PST)
+Received: by mail-qe0-f54.google.com with SMTP id 1so1434917qec.41
+        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 14:10:44 -0800 (PST)
+From: Dan Streetman <ddstreet@ieee.org>
+Subject: [PATCH v3] mm/zswap: change zswap to writethrough cache
+Date: Fri, 22 Nov 2013 17:10:16 -0500
+Message-Id: <1385158216-6247-1-git-send-email-ddstreet@ieee.org>
+In-Reply-To: <1384976973-32722-1-git-send-email-ddstreet@ieee.org>
+References: <1384976973-32722-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, Will Deacon <will.deacon@arm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: Seth Jennings <sjennings@variantweb.net>
+Cc: Dan Streetman <ddstreet@ieee.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>
 
-On Fri, Nov 22, 2013 at 01:01:14PM -0800, Linus Torvalds wrote:
-> On Fri, Nov 22, 2013 at 12:37 PM, Paul E. McKenney
-> <paulmck@linux.vnet.ibm.com> wrote:
-> > On Fri, Nov 22, 2013 at 12:09:31PM -0800, Linus Torvalds wrote:
-> >>
-> >> So? In order to get *into* that contention code, you will have to go
-> >> through the fast-case code. Which will contain a locked instruction.
-> >
-> > So you must also maintain ordering against the critical section that just
-> > ended on some other CPU.
-> 
-> But that's completely irrelevant to what you yourself have been saying
-> in this thread.
-> 
-> Your stated concern in this thread been whether the "unlock+lock"
-> sequence implies an ordering that is at least equivalent to a memory
-> barrier. And it clearly does, because the lock clearly contains a
-> memory barrier inside of it.
+Currently, zswap is writeback cache; stored pages are not sent
+to swap disk, and when zswap wants to evict old pages it must
+first write them back to swap cache/disk manually.  This avoids
+swap out disk I/O up front, but only moves that disk I/O to
+the writeback case (for pages that are evicted), and adds the
+overhead of having to uncompress the evicted pages, and adds the
+need for an additional free page (to store the uncompressed page)
+at a time of likely high memory pressure.  Additionally, being
+writeback adds complexity to zswap by having to perform the
+writeback on page eviction.
 
-You seem to be assuming that the unlock+lock rule applies only when the
-unlock and the lock are executed by the same CPU.  This is not always
-the case.  For example, when the unlock and lock are operating on the
-same lock variable, the critical sections must appear to be ordered from
-the perspective of some other CPU, even when that CPU is not holding
-any lock.  Please see the last example in "LOCKS VS MEMORY ACCESSES"
-in Documentation/memory-barriers.txt, which was added in March 2006:
+This changes zswap to writethrough cache by enabling
+frontswap_writethrough() before registering, so that any
+successful page store will also be written to swap disk.  All the
+writeback code is removed since it is no longer needed, and the
+only operation during a page eviction is now to remove the entry
+from the tree and free it.
 
-------------------------------------------------------------------------
+Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+---
 
-	CPU 1				CPU 2
-	===============================	===============================
-	*A = a;
-	LOCK M		[1]
-	*B = b;
-	*C = c;
-	UNLOCK M	[1]
-	*D = d;				*E = e;
-					LOCK M		[2]
-					*F = f;
-					*G = g;
-					UNLOCK M	[2]
-					*H = h;
+I still owe the results of testing pre-patch and post-patch;
+I don't think I'll have SPECjbb results today, but I do have a
+small test program I can send with results of nozswap,
+zswap writeback, and zswap writethrough; I'll send the SPECjbb
+results also when I get them.
 
-CPU 3 might see:
+Changes since v2:
+change the evict function to remove the entry from the tree,
+and avoid checking if the entry is in use by load.  It is ok
+to return success for the eviction even if load is using the entry
+as zbud does not use the evict function return value in any significant
+way (I'll submit a future patch to remove the return value entirely
+from the evict function).
 
-	*E, LOCK M [1], *C, *B, *A, UNLOCK M [1],
-		LOCK M [2], *H, *F, *G, UNLOCK M [2], *D
+Changes since v1:
+update to apply to latest -tip, previous patch missed several recent
+zswap patches.
 
-But assuming CPU 1 gets the lock first, CPU 3 won't see any of:
 
-	*B, *C, *D, *F, *G or *H preceding LOCK M [1]
-	*A, *B or *C following UNLOCK M [1]
-	*F, *G or *H preceding LOCK M [2]
-	*A, *B, *C, *E, *F or *G following UNLOCK M [2]
+ mm/zswap.c | 209 ++++++-------------------------------------------------------
+ 1 file changed, 19 insertions(+), 190 deletions(-)
 
-------------------------------------------------------------------------
-
-The code that CPU 2 executes after acquiring lock M must be seen by some
-other CPU not holding any lock as following CPU 1's release of lock M.
-And the other three sets of ordering constraints must hold as well.
-
-Admittedly, this example only shows stores, but then again so do the
-earlier examples that illustrate single-CPU unlock-lock acting as a full
-memory barrier.  The intent was that unlock and a subsequent lock of a
-given lock variable act as a full memory barrier regardless of whether
-or not the unlock and lock were executed by the same CPU.
-
-> The fact that the locking sequence contains *other* things too is
-> irrelevant for that question. Those other things are at most relevant
-> then for *other* questions, ie from the standpoint of somebody wanting
-> to convince himself that the locking actually works as a lock, but
-> that wasn't what we were actually talking about earlier.
-
-Also from the standpoint of somebody wanting to convince himself
-that an unlock on one CPU and a lock of that same lock on another
-CPU provides ordering for some other CPU not holding that lock.
-Which in fact was the case I was worried about.
-
-> The x86 memory ordering doesn't follow the traditional theoretical
-> operations, no. Tough. It's generally superior than the alternatives
-> because of its somewhat unorthodox rules (in that it then makes the
-> many other common barriers generally be no-ops). If you try to
-> describe the x86 ops in terms of the theory, you will have pain. So
-> just don't do it. Think of them in the context of their own rules, not
-> somehow trying to translate them to non-x86 rules.
-> 
-> I think you can try to approximate the x86 rules as "every load is a
-> RCpc acquire, every store is a RCpc release", and then to make
-> yourself happier you can say that the lock sequence always starts out
-> with a serializing operation (which is obviously the actual locked
-> r-m-w op) so that on a lock/unlock level (as opposed to an individual
-> memory op level) you get the RCsc behavior of the acquire/releases not
-> re-ordering across separate locking events.
-> 
-> I'm not actually convinced that that is really a full and true
-> description of the x86 semantics, but it may _approximate_ being true
-> to the degree that you might translate it to some of the academic
-> papers that talk about these things.
-
-This approach is fine most of the time.  But when faced with something
-as strange as "got a full barrier despite having no atomic instructions
-and no memory-barrier instructions", I feel the need to look at it from
-multiple viewpoints.  The multiple viewpoints I have used thus far do
-seem to agree with each other, which does give me some confidence in
-the result.
-
-> (Side note: this is also true when the locked r-m-w instruction has
-> been replaced with a xbegin/xend. Intel documents that an RTM region
-> has the "same ordering semantics as a LOCK prefixed instruction": see
-> section 15.3.6 in the intel x86 architecture sw manual)
-
-Understood.  So, yes, it would be possible to implement locking with RTM,
-as long as you had a non-RTM fallback path.  The fallback path would be
-very rarely used, but I suspecct that you could exercise it by putting
-it in userspace and attempting to single-step through the transaction.
-
-But in the handoff case, there are no locked r-m-w instructions, so I
-think I lost the thread somewhere in your side note.  Unless you are
-simply saying that hardware transactional memory can be a good thing,
-in which case I agree, at least for transactions that are small enough
-to fit in the cache and to not need to be debugged via single-stepping.
-I don't buy the infinite-composition argument of some transactional
-memory academics, though.  Too many corner cases, such as having a remote
-procedure call between the two transactions to be composed.  In fact,
-one can argue that transactions are composable only to about the same
-degree as are locks.  Not popular among those who want to believe that
-transactions are infinitely composable and locks are not, but I never
-have been popular among those people anyway.  ;-)
-
-							Thanx, Paul
+diff --git a/mm/zswap.c b/mm/zswap.c
+index e55bab9..fc35a7a 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -39,7 +39,6 @@
+ #include <linux/mm_types.h>
+ #include <linux/page-flags.h>
+ #include <linux/swapops.h>
+-#include <linux/writeback.h>
+ #include <linux/pagemap.h>
+ 
+ /*********************************
+@@ -59,8 +58,8 @@ static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
+ 
+ /* Pool limit was hit (see zswap_max_pool_percent) */
+ static u64 zswap_pool_limit_hit;
+-/* Pages written back when pool limit was reached */
+-static u64 zswap_written_back_pages;
++/* Pages evicted when pool limit was reached */
++static u64 zswap_evicted_pages;
+ /* Store failed due to a reclaim failure after pool limit was reached */
+ static u64 zswap_reject_reclaim_fail;
+ /* Compressed page was too big for the allocator to (optimally) store */
+@@ -160,7 +159,7 @@ static void zswap_comp_exit(void)
+  * rbnode - links the entry into red-black tree for the appropriate swap type
+  * refcount - the number of outstanding reference to the entry. This is needed
+  *            to protect against premature freeing of the entry by code
+- *            concurent calls to load, invalidate, and writeback.  The lock
++ *            concurent calls to load, invalidate, and evict.  The lock
+  *            for the zswap_tree structure that contains the entry must
+  *            be held while changing the refcount.  Since the lock must
+  *            be held, there is no reason to also make refcount atomic.
+@@ -412,132 +411,19 @@ static bool zswap_is_full(void)
+ }
+ 
+ /*********************************
+-* writeback code
++* evict
+ **********************************/
+-/* return enum for zswap_get_swap_cache_page */
+-enum zswap_get_swap_ret {
+-	ZSWAP_SWAPCACHE_NEW,
+-	ZSWAP_SWAPCACHE_EXIST,
+-	ZSWAP_SWAPCACHE_FAIL,
+-};
+ 
+ /*
+- * zswap_get_swap_cache_page
+- *
+- * This is an adaption of read_swap_cache_async()
+- *
+- * This function tries to find a page with the given swap entry
+- * in the swapper_space address space (the swap cache).  If the page
+- * is found, it is returned in retpage.  Otherwise, a page is allocated,
+- * added to the swap cache, and returned in retpage.
+- *
+- * If success, the swap cache page is returned in retpage
+- * Returns ZSWAP_SWAPCACHE_EXIST if page was already in the swap cache
+- * Returns ZSWAP_SWAPCACHE_NEW if the new page needs to be populated,
+- *     the new page is added to swapcache and locked
+- * Returns ZSWAP_SWAPCACHE_FAIL on error
++ * This is called from zbud to remove an entry that is being evicted.
+  */
+-static int zswap_get_swap_cache_page(swp_entry_t entry,
+-				struct page **retpage)
+-{
+-	struct page *found_page, *new_page = NULL;
+-	struct address_space *swapper_space = swap_address_space(entry);
+-	int err;
+-
+-	*retpage = NULL;
+-	do {
+-		/*
+-		 * First check the swap cache.  Since this is normally
+-		 * called after lookup_swap_cache() failed, re-calling
+-		 * that would confuse statistics.
+-		 */
+-		found_page = find_get_page(swapper_space, entry.val);
+-		if (found_page)
+-			break;
+-
+-		/*
+-		 * Get a new page to read into from swap.
+-		 */
+-		if (!new_page) {
+-			new_page = alloc_page(GFP_KERNEL);
+-			if (!new_page)
+-				break; /* Out of memory */
+-		}
+-
+-		/*
+-		 * call radix_tree_preload() while we can wait.
+-		 */
+-		err = radix_tree_preload(GFP_KERNEL);
+-		if (err)
+-			break;
+-
+-		/*
+-		 * Swap entry may have been freed since our caller observed it.
+-		 */
+-		err = swapcache_prepare(entry);
+-		if (err == -EEXIST) { /* seems racy */
+-			radix_tree_preload_end();
+-			continue;
+-		}
+-		if (err) { /* swp entry is obsolete ? */
+-			radix_tree_preload_end();
+-			break;
+-		}
+-
+-		/* May fail (-ENOMEM) if radix-tree node allocation failed. */
+-		__set_page_locked(new_page);
+-		SetPageSwapBacked(new_page);
+-		err = __add_to_swap_cache(new_page, entry);
+-		if (likely(!err)) {
+-			radix_tree_preload_end();
+-			lru_cache_add_anon(new_page);
+-			*retpage = new_page;
+-			return ZSWAP_SWAPCACHE_NEW;
+-		}
+-		radix_tree_preload_end();
+-		ClearPageSwapBacked(new_page);
+-		__clear_page_locked(new_page);
+-		/*
+-		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
+-		 * clear SWAP_HAS_CACHE flag.
+-		 */
+-		swapcache_free(entry, NULL);
+-	} while (err != -ENOMEM);
+-
+-	if (new_page)
+-		page_cache_release(new_page);
+-	if (!found_page)
+-		return ZSWAP_SWAPCACHE_FAIL;
+-	*retpage = found_page;
+-	return ZSWAP_SWAPCACHE_EXIST;
+-}
+-
+-/*
+- * Attempts to free an entry by adding a page to the swap cache,
+- * decompressing the entry data into the page, and issuing a
+- * bio write to write the page back to the swap device.
+- *
+- * This can be thought of as a "resumed writeback" of the page
+- * to the swap device.  We are basically resuming the same swap
+- * writeback path that was intercepted with the frontswap_store()
+- * in the first place.  After the page has been decompressed into
+- * the swap cache, the compressed version stored by zswap can be
+- * freed.
+- */
+-static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
++static int zswap_evict_entry(struct zbud_pool *pool, unsigned long handle)
+ {
+ 	struct zswap_header *zhdr;
+ 	swp_entry_t swpentry;
+ 	struct zswap_tree *tree;
+ 	pgoff_t offset;
+ 	struct zswap_entry *entry;
+-	struct page *page;
+-	u8 *src, *dst;
+-	unsigned int dlen;
+-	int ret;
+-	struct writeback_control wbc = {
+-		.sync_mode = WB_SYNC_NONE,
+-	};
+ 
+ 	/* extract swpentry from data */
+ 	zhdr = zbud_map(pool, handle);
+@@ -547,85 +433,27 @@ static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
+ 	offset = swp_offset(swpentry);
+ 	BUG_ON(pool != tree->pool);
+ 
+-	/* find and ref zswap entry */
++	/* find zswap entry */
+ 	spin_lock(&tree->lock);
+-	entry = zswap_entry_find_get(&tree->rbroot, offset);
++	entry = zswap_rb_search(&tree->rbroot, offset);
+ 	if (!entry) {
+ 		/* entry was invalidated */
+ 		spin_unlock(&tree->lock);
+ 		return 0;
+ 	}
+-	spin_unlock(&tree->lock);
+ 	BUG_ON(offset != entry->offset);
+ 
+-	/* try to allocate swap cache page */
+-	switch (zswap_get_swap_cache_page(swpentry, &page)) {
+-	case ZSWAP_SWAPCACHE_FAIL: /* no memory or invalidate happened */
+-		ret = -ENOMEM;
+-		goto fail;
+-
+-	case ZSWAP_SWAPCACHE_EXIST:
+-		/* page is already in the swap cache, ignore for now */
+-		page_cache_release(page);
+-		ret = -EEXIST;
+-		goto fail;
+-
+-	case ZSWAP_SWAPCACHE_NEW: /* page is locked */
+-		/* decompress */
+-		dlen = PAGE_SIZE;
+-		src = (u8 *)zbud_map(tree->pool, entry->handle) +
+-			sizeof(struct zswap_header);
+-		dst = kmap_atomic(page);
+-		ret = zswap_comp_op(ZSWAP_COMPOP_DECOMPRESS, src,
+-				entry->length, dst, &dlen);
+-		kunmap_atomic(dst);
+-		zbud_unmap(tree->pool, entry->handle);
+-		BUG_ON(ret);
+-		BUG_ON(dlen != PAGE_SIZE);
+-
+-		/* page is up to date */
+-		SetPageUptodate(page);
+-	}
+-
+-	/* move it to the tail of the inactive list after end_writeback */
+-	SetPageReclaim(page);
+-
+-	/* start writeback */
+-	__swap_writepage(page, &wbc, end_swap_bio_write);
+-	page_cache_release(page);
+-	zswap_written_back_pages++;
++	/* remove from rbtree */
++	zswap_rb_erase(&tree->rbroot, entry);
+ 
+-	spin_lock(&tree->lock);
+-	/* drop local reference */
++	/* drop initial reference */
+ 	zswap_entry_put(tree, entry);
+ 
+-	/*
+-	* There are two possible situations for entry here:
+-	* (1) refcount is 1(normal case),  entry is valid and on the tree
+-	* (2) refcount is 0, entry is freed and not on the tree
+-	*     because invalidate happened during writeback
+-	*  search the tree and free the entry if find entry
+-	*/
+-	if (entry == zswap_rb_search(&tree->rbroot, offset))
+-		zswap_entry_put(tree, entry);
+-	spin_unlock(&tree->lock);
+-
+-	goto end;
++	zswap_evicted_pages++;
+ 
+-	/*
+-	* if we get here due to ZSWAP_SWAPCACHE_EXIST
+-	* a load may happening concurrently
+-	* it is safe and okay to not free the entry
+-	* if we free the entry in the following put
+-	* it it either okay to return !0
+-	*/
+-fail:
+-	spin_lock(&tree->lock);
+-	zswap_entry_put(tree, entry);
+ 	spin_unlock(&tree->lock);
+ 
+-end:
+-	return ret;
++	return 0;
+ }
+ 
+ /*********************************
+@@ -744,7 +572,7 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
+ 	spin_lock(&tree->lock);
+ 	entry = zswap_entry_find_get(&tree->rbroot, offset);
+ 	if (!entry) {
+-		/* entry was written back */
++		/* entry was evicted */
+ 		spin_unlock(&tree->lock);
+ 		return -1;
+ 	}
+@@ -778,7 +606,7 @@ static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
+ 	spin_lock(&tree->lock);
+ 	entry = zswap_rb_search(&tree->rbroot, offset);
+ 	if (!entry) {
+-		/* entry was written back */
++		/* entry was evicted */
+ 		spin_unlock(&tree->lock);
+ 		return;
+ 	}
+@@ -814,7 +642,7 @@ static void zswap_frontswap_invalidate_area(unsigned type)
+ }
+ 
+ static struct zbud_ops zswap_zbud_ops = {
+-	.evict = zswap_writeback_entry
++	.evict = zswap_evict_entry
+ };
+ 
+ static void zswap_frontswap_init(unsigned type)
+@@ -873,8 +701,8 @@ static int __init zswap_debugfs_init(void)
+ 			zswap_debugfs_root, &zswap_reject_kmemcache_fail);
+ 	debugfs_create_u64("reject_compress_poor", S_IRUGO,
+ 			zswap_debugfs_root, &zswap_reject_compress_poor);
+-	debugfs_create_u64("written_back_pages", S_IRUGO,
+-			zswap_debugfs_root, &zswap_written_back_pages);
++	debugfs_create_u64("evicted_pages", S_IRUGO,
++			zswap_debugfs_root, &zswap_evicted_pages);
+ 	debugfs_create_u64("duplicate_entry", S_IRUGO,
+ 			zswap_debugfs_root, &zswap_duplicate_entry);
+ 	debugfs_create_u64("pool_pages", S_IRUGO,
+@@ -919,6 +747,7 @@ static int __init init_zswap(void)
+ 		pr_err("per-cpu initialization failed\n");
+ 		goto pcpufail;
+ 	}
++	frontswap_writethrough(true);
+ 	frontswap_register_ops(&zswap_frontswap_ops);
+ 	if (zswap_debugfs_init())
+ 		pr_warn("debugfs initialization failed\n");
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
