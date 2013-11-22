@@ -1,72 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 552FB6B0035
-	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 18:39:34 -0500 (EST)
-Received: by mail-wi0-f178.google.com with SMTP id ca18so3327137wib.11
-        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 15:39:33 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id e10si3429272wij.30.2013.11.22.15.39.32
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B2716B0035
+	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 18:45:08 -0500 (EST)
+Received: by mail-pd0-f170.google.com with SMTP id g10so1906644pdj.15
+        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 15:45:08 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id hb3si20978549pac.7.2013.11.22.15.45.06
         for <linux-mm@kvack.org>;
-        Fri, 22 Nov 2013 15:39:33 -0800 (PST)
-Date: Fri, 22 Nov 2013 18:39:28 -0500
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: Re: [PATCH] mmzone.h: constify some zone access functions
-Message-ID: <20131122183928.15941f0e@redhat.com>
-In-Reply-To: <20131122143047.51b4fbe7aa227b8e37908106@linux-foundation.org>
-References: <20131122120106.4c372847@redhat.com>
-	<20131122143047.51b4fbe7aa227b8e37908106@linux-foundation.org>
+        Fri, 22 Nov 2013 15:45:07 -0800 (PST)
+Date: Fri, 22 Nov 2013 15:45:05 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: add strictlimit knob -v2
+Message-Id: <20131122154505.3e686fcfc584534d555399e5@linux-foundation.org>
+In-Reply-To: <20131106150515.25906.55017.stgit@dhcp-10-30-17-2.sw.ru>
+References: <20131104140104.7936d263258a7a6753eb325e@linux-foundation.org>
+	<20131106150515.25906.55017.stgit@dhcp-10-30-17-2.sw.ru>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@intel.com
+To: Maxim Patlasov <MPatlasov@parallels.com>
+Cc: karl.kiniger@med.ge.com, tytso@mit.edu, linux-kernel@vger.kernel.org, t.artem@lycos.com, linux-mm@kvack.org, mgorman@suse.de, jack@suse.cz, fengguang.wu@intel.com, torvalds@linux-foundation.org, mpatlasov@parallels.com
 
-On Fri, 22 Nov 2013 14:30:47 -0800
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Wed, 06 Nov 2013 19:05:57 +0400 Maxim Patlasov <MPatlasov@parallels.com> wrote:
 
-> On Fri, 22 Nov 2013 12:01:06 -0500 Luiz Capitulino <lcapitulino@redhat.com> wrote:
+> "strictlimit" feature was introduced to enforce per-bdi dirty limits for
+> FUSE which sets bdi max_ratio to 1% by default:
 > 
-> > Signed-off-by: Luiz capitulino <lcapitulino@redhat.com>
-> > ---
-> >  include/linux/mmzone.h | 6 +++---
-> >  1 file changed, 3 insertions(+), 3 deletions(-)
-> > 
-> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> > index bd791e4..5e202d6 100644
-> > --- a/include/linux/mmzone.h
-> > +++ b/include/linux/mmzone.h
-> > @@ -560,12 +560,12 @@ static inline bool zone_spans_pfn(const struct zone *zone, unsigned long pfn)
-> >  	return zone->zone_start_pfn <= pfn && pfn < zone_end_pfn(zone);
-> >  }
-> >  
-> > -static inline bool zone_is_initialized(struct zone *zone)
-> > +static inline bool zone_is_initialized(const struct zone *zone)
-> >  {
-> >  	return !!zone->wait_table;
-> >  }
-> >  
-> > -static inline bool zone_is_empty(struct zone *zone)
-> > +static inline bool zone_is_empty(const struct zone *zone)
-> >  {
-> >  	return zone->spanned_pages == 0;
-> >  }
-> > @@ -843,7 +843,7 @@ unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
-> >   */
-> >  #define zone_idx(zone)		((zone) - (zone)->zone_pgdat->node_zones)
-> >  
-> > -static inline int populated_zone(struct zone *zone)
-> > +static inline int populated_zone(const struct zone *zone)
-> >  {
-> >  	return (!!zone->present_pages);
-> >  }
+> http://article.gmane.org/gmane.linux.kernel.mm/105809
 > 
-> hm, why?  I counted ten similarly constifyable functions in mm.h and
-> stopped only 1/4 of the way through. What's so special about these three?
+> However the feature can be useful for other relatively slow or untrusted
+> BDIs like USB flash drives and DVD+RW. The patch adds a knob to enable the
+> feature:
+> 
+> echo 1 > /sys/class/bdi/X:Y/strictlimit
+> 
+> Being enabled, the feature enforces bdi max_ratio limit even if global (10%)
+> dirty limit is not reached. Of course, the effect is not visible until
+> /sys/class/bdi/X:Y/max_ratio is decreased to some reasonable value.
+> 
+> ...
+>
+> --- a/Documentation/ABI/testing/sysfs-class-bdi
+> +++ b/Documentation/ABI/testing/sysfs-class-bdi
+> @@ -53,3 +53,11 @@ stable_pages_required (read-only)
+>  
+>  	If set, the backing device requires that all pages comprising a write
+>  	request must not be changed until writeout is complete.
+> +
+> +strictlimit (read-write)
+> +
+> +	Forces per-BDI checks for the share of given device in the write-back
+> +	cache even before the global background dirty limit is reached. This
+> +	is useful in situations where the global limit is much higher than
+> +	affordable for given relatively slow (or untrusted) device. Turning
+> +	strictlimit on has no visible effect if max_ratio is equal to 100%.
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index ce682f7..4ee1d64 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -234,11 +234,46 @@ static ssize_t stable_pages_required_show(struct device *dev,
+>  }
+>  static DEVICE_ATTR_RO(stable_pages_required);
+>  
+> +static ssize_t strictlimit_store(struct device *dev,
+> +		struct device_attribute *attr, const char *buf, size_t count)
+> +{
+> +	struct backing_dev_info *bdi = dev_get_drvdata(dev);
+> +	unsigned int val;
+> +	ssize_t ret;
+> +
+> +	ret = kstrtouint(buf, 10, &val);
+> +	if (ret < 0)
+> +		return ret;
+> +
+> +	switch (val) {
+> +	case 0:
+> +		bdi->capabilities &= ~BDI_CAP_STRICTLIMIT;
+> +		break;
+> +	case 1:
+> +		bdi->capabilities |= BDI_CAP_STRICTLIMIT;
+> +		break;
+> +	default:
+> +		return -EINVAL;
+> +	}
+> +
+> +	return count;
+> +}
+> +static ssize_t strictlimit_show(struct device *dev,
+> +		struct device_attribute *attr, char *page)
+> +{
+> +	struct backing_dev_info *bdi = dev_get_drvdata(dev);
+> +
+> +	return snprintf(page, PAGE_SIZE-1, "%d\n",
+> +			!!(bdi->capabilities & BDI_CAP_STRICTLIMIT));
+> +}
+> +static DEVICE_ATTR_RW(strictlimit);
+> +
+>  static struct attribute *bdi_dev_attrs[] = {
+>  	&dev_attr_read_ahead_kb.attr,
+>  	&dev_attr_min_ratio.attr,
+>  	&dev_attr_max_ratio.attr,
+>  	&dev_attr_stable_pages_required.attr,
+> +	&dev_attr_strictlimit.attr,
+>  	NULL,
 
-I spotted them while reading code. If you want to me convert the others,
-I can do that.
+Well the patch is certainly simple and straightforward enough and
+*seems* like it will be useful.  The main (and large!) downside is that
+it adds to the user interface so we'll have to maintain this feature
+and its functionality for ever.
+
+Given this, my concern is that while potentially useful, the feature
+might not be *sufficiently* useful to justify its inclusion.  So we'll
+end up addressing these issues by other means, then we're left
+maintaining this obsolete legacy feature.
+
+So I'm thinking that unless someone can show that this is good and
+complete and sufficient for a "large enough" set of issues, I'll take a
+pass on the patch[1].  What do people think?
+
+
+[1] Actually, I'll stick it in -mm and maintain it, so next time
+someone reports an issue I can say "hey, try this".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
