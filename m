@@ -1,129 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id DED956B0031
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 19:57:00 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id kl14so554324pab.9
-        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 16:57:00 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id vs7si18292619pbc.55.2013.11.21.16.56.59
-        for <linux-mm@kvack.org>;
-        Thu, 21 Nov 2013 16:56:59 -0800 (PST)
-Date: Thu, 21 Nov 2013 16:56:57 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 65201] New: kswapd0 randomly high cpu load
-Message-Id: <20131121165657.5f9a410a4162a3cabe8ee808@linux-foundation.org>
-In-Reply-To: <bug-65201-27@https.bugzilla.kernel.org/>
-References: <bug-65201-27@https.bugzilla.kernel.org/>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 92B856B0031
+	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 20:09:46 -0500 (EST)
+Received: by mail-wi0-f173.google.com with SMTP id hm4so70948wib.0
+        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 17:09:46 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id hk1si12202562wjc.73.2013.11.21.17.09.41
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 21 Nov 2013 17:09:45 -0800 (PST)
+Message-ID: <528EAE3E.5080604@huawei.com>
+Date: Fri, 22 Nov 2013 09:07:10 +0800
+From: Qiang Huang <h.huangqiang@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] slab: remove the redundant declaration of kmalloc
+References: <528DA0C0.8010505@huawei.com> <528E5AEF.6020007@infradead.org>
+In-Reply-To: <528E5AEF.6020007@infradead.org>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: nleo@nm.ru
-Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: Randy Dunlap <rdunlap@infradead.org>, cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
-
-On Tue, 19 Nov 2013 19:40:40 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
-
-> https://bugzilla.kernel.org/show_bug.cgi?id=65201
+On 2013/11/22 3:11, Randy Dunlap wrote:
+> On 11/20/13 21:57, Qiang Huang wrote:
+>>
+>> Signed-off-by: Qiang Huang <h.huangqiang@huawei.com>
 > 
->             Bug ID: 65201
->            Summary: kswapd0 randomly high cpu load
->            Product: Memory Management
->            Version: 2.5
->     Kernel Version: 3.12
->           Hardware: x86-64
->                 OS: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: normal
->           Priority: P1
->          Component: Other
->           Assignee: akpm@linux-foundation.org
->           Reporter: nleo@nm.ru
->         Regression: No
+> or use my patch from 2013-09-17:
+> http://marc.info/?l=linux-mm&m=137944291611467&w=2
 > 
-> kswapd0 randomly load one core of CPU by 100%
-> 
-> Linux localhost 3.12.0-1-ARCH #1 SMP PREEMPT Wed Nov 6 09:06:27 CET 2013 x86_64
-> GNU/Linux
-> 
-> No swap enabled
-> 
-> Befor on same laptop was installed Ubuntu 12.04 and kernel 3.2 32-bit pae, and
-> there is no such problem.
-> 
-> [root@localhost ~]# free -mh
->              total       used       free     shared    buffers     cached
-> Mem:          3.8G       2.4G       1.3G         0B       150M       508M
-> -/+ buffers/cache:       1.8G       2.0G
-> Swap:           0B         0B         0B
+> Would be nice to one of these merged...
 
-hm, I wonder what kswapd is up to.
+Yes, sorry for not notice this, merge your patch should be property :)
+But why it's still not be merged?
 
-Could you please make it happen again and then
-
-dmesg -n 7
-dmesg -c
-echo m > /proc/sysrq-trigger
-echo t > /proc/sysrq-trigger
-dmesg -s 1000000 > foo
-
-then send us foo?
+Ping...
 
 > 
-> [root@localhost ~]# cat /proc/meminfo
-> MemTotal:        3935792 kB
-> MemFree:         1381360 kB
-> Buffers:          154216 kB
-> Cached:           533096 kB
-> SwapCached:            0 kB
-> Active:          1958896 kB
-> Inactive:         438004 kB
-> Active(anon):    1740916 kB
-> Inactive(anon):   136292 kB
-> Active(file):     217980 kB
-> Inactive(file):   301712 kB
-> Unevictable:           0 kB
-> Mlocked:               0 kB
-> SwapTotal:             0 kB
-> SwapFree:              0 kB
-> Dirty:              2064 kB
-> Writeback:             0 kB
-> AnonPages:       1709628 kB
-> Mapped:           196696 kB
-> Shmem:            167620 kB
-> Slab:              81516 kB
-> SReclaimable:      61312 kB
-> SUnreclaim:        20204 kB
-> KernelStack:        1696 kB
-> PageTables:        13088 kB
-> NFS_Unstable:          0 kB
-> Bounce:                0 kB
-> WritebackTmp:          0 kB
-> CommitLimit:     1967896 kB
-> Committed_AS:    3498576 kB
-> VmallocTotal:   34359738367 kB
-> VmallocUsed:      361304 kB
-> VmallocChunk:   34359300731 kB
-> HardwareCorrupted:     0 kB
-> AnonHugePages:    157696 kB
-> HugePages_Total:       0
-> HugePages_Free:        0
-> HugePages_Rsvd:        0
-> HugePages_Surp:        0
-> Hugepagesize:       2048 kB
-> DirectMap4k:       18476 kB
-> DirectMap2M:     4059136 kB
 > 
-> And I can't kill it. I heared that it's not good idea, but just for lulz)
+>> ---
+>>  include/linux/slab.h | 102 +++++++++++++++++++++++----------------------------
+>>  1 file changed, 46 insertions(+), 56 deletions(-)
+>>
+>> diff --git a/include/linux/slab.h b/include/linux/slab.h
+>> index 74f1058..630f22f 100644
+>> --- a/include/linux/slab.h
+>> +++ b/include/linux/slab.h
+>> @@ -381,7 +381,52 @@ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
+>>  /**
+>>   * kmalloc - allocate memory
+>>   * @size: how many bytes of memory are required.
+>> - * @flags: the type of memory to allocate (see kcalloc).
+>> + * @flags: the type of memory to allocate.
+>> + *
+>> + * The @flags argument may be one of:
+>> + *
+>> + * %GFP_USER - Allocate memory on behalf of user.  May sleep.
+>> + *
+>> + * %GFP_KERNEL - Allocate normal kernel ram.  May sleep.
+>> + *
+>> + * %GFP_ATOMIC - Allocation will not sleep.  May use emergency pools.
+>> + *   For example, use this inside interrupt handlers.
+>> + *
+>> + * %GFP_HIGHUSER - Allocate pages from high memory.
+>> + *
+>> + * %GFP_NOIO - Do not do any I/O at all while trying to get memory.
+>> + *
+>> + * %GFP_NOFS - Do not make any fs calls while trying to get memory.
+>> + *
+>> + * %GFP_NOWAIT - Allocation will not sleep.
+>> + *
+>> + * %GFP_THISNODE - Allocate node-local memory only.
+>> + *
+>> + * %GFP_DMA - Allocation suitable for DMA.
+>> + *   Should only be used for kmalloc() caches. Otherwise, use a
+>> + *   slab created with SLAB_DMA.
+>> + *
+>> + * Also it is possible to set different flags by OR'ing
+>> + * in one or more of the following additional @flags:
+>> + *
+>> + * %__GFP_COLD - Request cache-cold pages instead of
+>> + *   trying to return cache-warm pages.
+>> + *
+>> + * %__GFP_HIGH - This allocation has high priority and may use emergency pools.
+>> + *
+>> + * %__GFP_NOFAIL - Indicate that this allocation is in no way allowed to fail
+>> + *   (think twice before using).
+>> + *
+>> + * %__GFP_NORETRY - If memory is not immediately available,
+>> + *   then give up at once.
+>> + *
+>> + * %__GFP_NOWARN - If allocation fails, don't issue any warnings.
+>> + *
+>> + * %__GFP_REPEAT - If allocation fails initially, try once more before failing.
+>> + *
+>> + * There are other flags available as well, but these are not intended
+>> + * for general use, and so are not documented here. For a full list of
+>> + * potential flags, always refer to linux/gfp.h.
+>>   *
+>>   * kmalloc is the normal method of allocating memory
+>>   * for objects smaller than page size in the kernel.
+>> @@ -495,61 +540,6 @@ int cache_show(struct kmem_cache *s, struct seq_file *m);
+>>  void print_slabinfo_header(struct seq_file *m);
+>>
+>>  /**
+>> - * kmalloc - allocate memory
+>> - * @size: how many bytes of memory are required.
+>> - * @flags: the type of memory to allocate.
+>> - *
+>> - * The @flags argument may be one of:
+>> - *
+>> - * %GFP_USER - Allocate memory on behalf of user.  May sleep.
+>> - *
+>> - * %GFP_KERNEL - Allocate normal kernel ram.  May sleep.
+>> - *
+>> - * %GFP_ATOMIC - Allocation will not sleep.  May use emergency pools.
+>> - *   For example, use this inside interrupt handlers.
+>> - *
+>> - * %GFP_HIGHUSER - Allocate pages from high memory.
+>> - *
+>> - * %GFP_NOIO - Do not do any I/O at all while trying to get memory.
+>> - *
+>> - * %GFP_NOFS - Do not make any fs calls while trying to get memory.
+>> - *
+>> - * %GFP_NOWAIT - Allocation will not sleep.
+>> - *
+>> - * %GFP_THISNODE - Allocate node-local memory only.
+>> - *
+>> - * %GFP_DMA - Allocation suitable for DMA.
+>> - *   Should only be used for kmalloc() caches. Otherwise, use a
+>> - *   slab created with SLAB_DMA.
+>> - *
+>> - * Also it is possible to set different flags by OR'ing
+>> - * in one or more of the following additional @flags:
+>> - *
+>> - * %__GFP_COLD - Request cache-cold pages instead of
+>> - *   trying to return cache-warm pages.
+>> - *
+>> - * %__GFP_HIGH - This allocation has high priority and may use emergency pools.
+>> - *
+>> - * %__GFP_NOFAIL - Indicate that this allocation is in no way allowed to fail
+>> - *   (think twice before using).
+>> - *
+>> - * %__GFP_NORETRY - If memory is not immediately available,
+>> - *   then give up at once.
+>> - *
+>> - * %__GFP_NOWARN - If allocation fails, don't issue any warnings.
+>> - *
+>> - * %__GFP_REPEAT - If allocation fails initially, try once more before failing.
+>> - *
+>> - * There are other flags available as well, but these are not intended
+>> - * for general use, and so are not documented here. For a full list of
+>> - * potential flags, always refer to linux/gfp.h.
+>> - *
+>> - * kmalloc is the normal method of allocating memory
+>> - * in the kernel.
+>> - */
+>> -static __always_inline void *kmalloc(size_t size, gfp_t flags);
+>> -
+>> -/**
+>>   * kmalloc_array - allocate memory for an array.
+>>   * @n: number of elements.
+>>   * @size: element size.
+>>
 > 
-> -- 
-> You are receiving this mail because:
-> You are the assignee for the bug.
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
