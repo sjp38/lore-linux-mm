@@ -1,56 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 4815B6B0038
-	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 12:18:22 -0500 (EST)
-Received: by mail-wg0-f54.google.com with SMTP id n12so371686wgh.21
-        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 09:18:21 -0800 (PST)
-Received: from mail-we0-x22f.google.com (mail-we0-x22f.google.com [2a00:1450:400c:c03::22f])
-        by mx.google.com with ESMTPS id de7si13379376wjc.82.2013.11.22.09.18.21
+Received: from mail-yh0-f45.google.com (mail-yh0-f45.google.com [209.85.213.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FB3F6B0036
+	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 12:21:56 -0500 (EST)
+Received: by mail-yh0-f45.google.com with SMTP id i7so981158yha.32
+        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 09:21:56 -0800 (PST)
+Received: from mail-oa0-x22e.google.com (mail-oa0-x22e.google.com [2607:f8b0:4003:c02::22e])
+        by mx.google.com with ESMTPS id 41si11388842yhf.252.2013.11.22.09.21.54
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 22 Nov 2013 09:18:21 -0800 (PST)
-Received: by mail-we0-f175.google.com with SMTP id p61so1455886wes.34
-        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 09:18:21 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20131122073851.GB1853@hp530>
-References: <1384965522-5788-1-git-send-email-ddstreet@ieee.org>
- <20131120173347.GA2369@hp530> <CALZtONA81=R4abFMpMMtDZKQe0s-8+JxvEfZO3NEZ910VwRDmw@mail.gmail.com>
- <20131122073851.GB1853@hp530>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Fri, 22 Nov 2013 12:18:01 -0500
-Message-ID: <CALZtONA-CdTJ=cg3cnacEz0uDtQVinkqkyPQuNSCWT18OD+Y5w@mail.gmail.com>
+        Fri, 22 Nov 2013 09:21:54 -0800 (PST)
+Received: by mail-oa0-f46.google.com with SMTP id o6so1667696oag.19
+        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 09:21:53 -0800 (PST)
+Date: Fri, 22 Nov 2013 11:21:47 -0600
+From: Seth Jennings <sjennings@variantweb.net>
 Subject: Re: [PATCH] mm/zswap: change params from hidden to ro
-Content-Type: text/plain; charset=UTF-8
+Message-ID: <20131122172147.GA6477@cerebellum.variantweb.net>
+References: <1384965522-5788-1-git-send-email-ddstreet@ieee.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1384965522-5788-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Murzin <murzin.v@gmail.com>
-Cc: linux-mm@kvack.org, Seth Jennings <sjennings@variantweb.net>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>
 
-On Fri, Nov 22, 2013 at 2:38 AM, Vladimir Murzin <murzin.v@gmail.com> wrote:
-> On Wed, Nov 20, 2013 at 12:52:47PM -0500, Dan Streetman wrote: > On Wed, Nov
-> 20, 2013 at 12:33 PM, Vladimir Murzin <murzin.v@gmail.com> wrote: > > Hi Dan!
->> >
->> > On Wed, Nov 20, 2013 at 11:38:42AM -0500, Dan Streetman wrote:
->> >> The "compressor" and "enabled" params are currently hidden,
->> >> this changes them to read-only, so userspace can tell if
->> >> zswap is enabled or not and see what compressor is in use.
->> >
->> > Could you elaborate more why this pice of information is necessary for
->> > userspace?
->>
->> For anyone interested in zswap, it's handy to be able to tell if it's
->> enabled or not ;-)  Technically people can check to see if the zswap
->> debug files are in /sys/kernel/debug/zswap, but I think the actual
->> "enabled" param is more obvious.  And the compressor param is really
->> the only way anyone from userspace can see what compressor's being
->> used; that's helpful to know for anyone that might want to be using a
->> non-default compressor.
->
-> So, it is needed for user not userspace? I tend to think that users are smart
-> enough to check cmdline for that.
+On Wed, Nov 20, 2013 at 11:38:42AM -0500, Dan Streetman wrote:
+> The "compressor" and "enabled" params are currently hidden,
+> this changes them to read-only, so userspace can tell if
+> zswap is enabled or not and see what compressor is in use.
 
-Let's try a different way.  Can you explain what the problem is with
-making these params user-readable?
+Reasonable to me.
+
+Acked-by: Seth Jennings <sjennings@variantweb.net>
+
+> 
+> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+> ---
+>  mm/zswap.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/zswap.c b/mm/zswap.c
+> index d93510c..36b268b 100644
+> --- a/mm/zswap.c
+> +++ b/mm/zswap.c
+> @@ -77,12 +77,12 @@ static u64 zswap_duplicate_entry;
+>  **********************************/
+>  /* Enable/disable zswap (disabled by default, fixed at boot for now) */
+>  static bool zswap_enabled __read_mostly;
+> -module_param_named(enabled, zswap_enabled, bool, 0);
+> +module_param_named(enabled, zswap_enabled, bool, 0444);
+>  
+>  /* Compressor to be used by zswap (fixed at boot for now) */
+>  #define ZSWAP_COMPRESSOR_DEFAULT "lzo"
+>  static char *zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
+> -module_param_named(compressor, zswap_compressor, charp, 0);
+> +module_param_named(compressor, zswap_compressor, charp, 0444);
+>  
+>  /* The maximum percentage of memory that the compressed pool can occupy */
+>  static unsigned int zswap_max_pool_percent = 20;
+> -- 
+> 1.8.3.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
