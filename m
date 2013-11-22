@@ -1,173 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 92B856B0031
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 20:09:46 -0500 (EST)
-Received: by mail-wi0-f173.google.com with SMTP id hm4so70948wib.0
-        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 17:09:46 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id hk1si12202562wjc.73.2013.11.21.17.09.41
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 21 Nov 2013 17:09:45 -0800 (PST)
-Message-ID: <528EAE3E.5080604@huawei.com>
-Date: Fri, 22 Nov 2013 09:07:10 +0800
-From: Qiang Huang <h.huangqiang@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] slab: remove the redundant declaration of kmalloc
-References: <528DA0C0.8010505@huawei.com> <528E5AEF.6020007@infradead.org>
-In-Reply-To: <528E5AEF.6020007@infradead.org>
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id E05D46B0031
+	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 20:37:13 -0500 (EST)
+Received: by mail-wi0-f182.google.com with SMTP id en1so1955821wid.15
+        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 17:37:13 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id hk1si12234871wjc.73.2013.11.21.17.37.12
+        for <linux-mm@kvack.org>;
+        Thu, 21 Nov 2013 17:37:12 -0800 (PST)
+Date: Thu, 21 Nov 2013 20:37:07 -0500
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: Re: [PATCH] mm/bootmem.c: remove unused 'limit' variable
+Message-ID: <20131121203707.4f59f86e@redhat.com>
+In-Reply-To: <528E83B6.5040107@intel.com>
+References: <20131121164335.066fd6aa@redhat.com>
+	<528E83B6.5040107@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>, cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 
-On 2013/11/22 3:11, Randy Dunlap wrote:
-> On 11/20/13 21:57, Qiang Huang wrote:
->>
->> Signed-off-by: Qiang Huang <h.huangqiang@huawei.com>
-> 
-> or use my patch from 2013-09-17:
-> http://marc.info/?l=linux-mm&m=137944291611467&w=2
-> 
-> Would be nice to one of these merged...
+On Thu, 21 Nov 2013 14:05:42 -0800
+Dave Hansen <dave.hansen@intel.com> wrote:
 
-Yes, sorry for not notice this, merge your patch should be property :)
-But why it's still not be merged?
+> On 11/21/2013 01:43 PM, Luiz Capitulino wrote:
+> > @@ -655,9 +655,7 @@ restart:
+> >  void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
+> >  					unsigned long goal)
+> >  {
+> > -	unsigned long limit = 0;
+> > -
+> > -	return ___alloc_bootmem_nopanic(size, align, goal, limit);
+> > +	return ___alloc_bootmem_nopanic(size, align, goal, 0);
+> >  }
+> 
+> FWIW, I like those.  The way you leave it:
+> 
+> 	return ___alloc_bootmem_nopanic(size, align, goal, 0);
+> 
+> the 0 is a magic number that you have to go look up the declaration of
+> ___alloc_bootmem_nopanic() to decipher, or you have to add a comment to
+> it in some way.
+> 
+> I find it much more readable to have an 'unused' variable like that.
 
-Ping...
+Got it. I was reading that code and thought 'limit' was a leftover,
+so I posted the patch...
 
-> 
-> 
->> ---
->>  include/linux/slab.h | 102 +++++++++++++++++++++++----------------------------
->>  1 file changed, 46 insertions(+), 56 deletions(-)
->>
->> diff --git a/include/linux/slab.h b/include/linux/slab.h
->> index 74f1058..630f22f 100644
->> --- a/include/linux/slab.h
->> +++ b/include/linux/slab.h
->> @@ -381,7 +381,52 @@ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
->>  /**
->>   * kmalloc - allocate memory
->>   * @size: how many bytes of memory are required.
->> - * @flags: the type of memory to allocate (see kcalloc).
->> + * @flags: the type of memory to allocate.
->> + *
->> + * The @flags argument may be one of:
->> + *
->> + * %GFP_USER - Allocate memory on behalf of user.  May sleep.
->> + *
->> + * %GFP_KERNEL - Allocate normal kernel ram.  May sleep.
->> + *
->> + * %GFP_ATOMIC - Allocation will not sleep.  May use emergency pools.
->> + *   For example, use this inside interrupt handlers.
->> + *
->> + * %GFP_HIGHUSER - Allocate pages from high memory.
->> + *
->> + * %GFP_NOIO - Do not do any I/O at all while trying to get memory.
->> + *
->> + * %GFP_NOFS - Do not make any fs calls while trying to get memory.
->> + *
->> + * %GFP_NOWAIT - Allocation will not sleep.
->> + *
->> + * %GFP_THISNODE - Allocate node-local memory only.
->> + *
->> + * %GFP_DMA - Allocation suitable for DMA.
->> + *   Should only be used for kmalloc() caches. Otherwise, use a
->> + *   slab created with SLAB_DMA.
->> + *
->> + * Also it is possible to set different flags by OR'ing
->> + * in one or more of the following additional @flags:
->> + *
->> + * %__GFP_COLD - Request cache-cold pages instead of
->> + *   trying to return cache-warm pages.
->> + *
->> + * %__GFP_HIGH - This allocation has high priority and may use emergency pools.
->> + *
->> + * %__GFP_NOFAIL - Indicate that this allocation is in no way allowed to fail
->> + *   (think twice before using).
->> + *
->> + * %__GFP_NORETRY - If memory is not immediately available,
->> + *   then give up at once.
->> + *
->> + * %__GFP_NOWARN - If allocation fails, don't issue any warnings.
->> + *
->> + * %__GFP_REPEAT - If allocation fails initially, try once more before failing.
->> + *
->> + * There are other flags available as well, but these are not intended
->> + * for general use, and so are not documented here. For a full list of
->> + * potential flags, always refer to linux/gfp.h.
->>   *
->>   * kmalloc is the normal method of allocating memory
->>   * for objects smaller than page size in the kernel.
->> @@ -495,61 +540,6 @@ int cache_show(struct kmem_cache *s, struct seq_file *m);
->>  void print_slabinfo_header(struct seq_file *m);
->>
->>  /**
->> - * kmalloc - allocate memory
->> - * @size: how many bytes of memory are required.
->> - * @flags: the type of memory to allocate.
->> - *
->> - * The @flags argument may be one of:
->> - *
->> - * %GFP_USER - Allocate memory on behalf of user.  May sleep.
->> - *
->> - * %GFP_KERNEL - Allocate normal kernel ram.  May sleep.
->> - *
->> - * %GFP_ATOMIC - Allocation will not sleep.  May use emergency pools.
->> - *   For example, use this inside interrupt handlers.
->> - *
->> - * %GFP_HIGHUSER - Allocate pages from high memory.
->> - *
->> - * %GFP_NOIO - Do not do any I/O at all while trying to get memory.
->> - *
->> - * %GFP_NOFS - Do not make any fs calls while trying to get memory.
->> - *
->> - * %GFP_NOWAIT - Allocation will not sleep.
->> - *
->> - * %GFP_THISNODE - Allocate node-local memory only.
->> - *
->> - * %GFP_DMA - Allocation suitable for DMA.
->> - *   Should only be used for kmalloc() caches. Otherwise, use a
->> - *   slab created with SLAB_DMA.
->> - *
->> - * Also it is possible to set different flags by OR'ing
->> - * in one or more of the following additional @flags:
->> - *
->> - * %__GFP_COLD - Request cache-cold pages instead of
->> - *   trying to return cache-warm pages.
->> - *
->> - * %__GFP_HIGH - This allocation has high priority and may use emergency pools.
->> - *
->> - * %__GFP_NOFAIL - Indicate that this allocation is in no way allowed to fail
->> - *   (think twice before using).
->> - *
->> - * %__GFP_NORETRY - If memory is not immediately available,
->> - *   then give up at once.
->> - *
->> - * %__GFP_NOWARN - If allocation fails, don't issue any warnings.
->> - *
->> - * %__GFP_REPEAT - If allocation fails initially, try once more before failing.
->> - *
->> - * There are other flags available as well, but these are not intended
->> - * for general use, and so are not documented here. For a full list of
->> - * potential flags, always refer to linux/gfp.h.
->> - *
->> - * kmalloc is the normal method of allocating memory
->> - * in the kernel.
->> - */
->> -static __always_inline void *kmalloc(size_t size, gfp_t flags);
->> -
->> -/**
->>   * kmalloc_array - allocate memory for an array.
->>   * @n: number of elements.
->>   * @size: element size.
->>
-> 
-> 
-
+Btw, I also have a patch consitfying some zone access functions
+parameters that are read-only. Wondering if anyone will object
+to such a change? Or maybe I should just stop doing trivial patches :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
