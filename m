@@ -1,101 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 007216B0036
-	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 18:00:45 -0500 (EST)
-Received: by mail-we0-f180.google.com with SMTP id u56so423884wes.25
-        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 15:00:45 -0800 (PST)
-Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com [2a00:1450:400c:c05::231])
-        by mx.google.com with ESMTPS id di1si12055949wjc.44.2013.11.21.15.00.45
+Received: from mail-vb0-f41.google.com (mail-vb0-f41.google.com [209.85.212.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D6FD6B0031
+	for <linux-mm@kvack.org>; Thu, 21 Nov 2013 19:09:51 -0500 (EST)
+Received: by mail-vb0-f41.google.com with SMTP id w5so376842vbf.0
+        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 16:09:50 -0800 (PST)
+Received: from mail-vc0-x229.google.com (mail-vc0-x229.google.com [2607:f8b0:400c:c03::229])
+        by mx.google.com with ESMTPS id tw10si11606730vec.44.2013.11.21.16.09.49
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 21 Nov 2013 15:00:45 -0800 (PST)
-Received: by mail-wi0-f177.google.com with SMTP id cc10so446072wib.16
-        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 15:00:45 -0800 (PST)
+        Thu, 21 Nov 2013 16:09:49 -0800 (PST)
+Received: by mail-vc0-f169.google.com with SMTP id hu19so369546vcb.28
+        for <linux-mm@kvack.org>; Thu, 21 Nov 2013 16:09:49 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CAL1ERfNr+J5gT-s1Qe+RVmNz+CenNFOzAWi86MNCt2ZGLB4ZCA@mail.gmail.com>
-References: <1384976973-32722-1-git-send-email-ddstreet@ieee.org>
- <528D570D.3020006@oracle.com> <CAL1ERfNr+J5gT-s1Qe+RVmNz+CenNFOzAWi86MNCt2ZGLB4ZCA@mail.gmail.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Thu, 21 Nov 2013 18:00:24 -0500
-Message-ID: <CALZtONBzk4Yh9yHk3320a4x2DfSvUxGik8q+sLV38_cy4cuefg@mail.gmail.com>
-Subject: Re: [PATCH v2] mm/zswap: change zswap to writethrough cache
+In-Reply-To: <20131121225208.GJ4138@linux.vnet.ibm.com>
+References: <20131120153123.GF4138@linux.vnet.ibm.com>
+	<20131120154643.GG19352@mudshark.cambridge.arm.com>
+	<20131120171400.GI4138@linux.vnet.ibm.com>
+	<1384973026.11046.465.camel@schen9-DESK>
+	<20131120190616.GL4138@linux.vnet.ibm.com>
+	<1384979767.11046.489.camel@schen9-DESK>
+	<20131120214402.GM4138@linux.vnet.ibm.com>
+	<1384991514.11046.504.camel@schen9-DESK>
+	<20131121045333.GO4138@linux.vnet.ibm.com>
+	<CA+55aFyXzDUss55SjQBy+C-neRZbVsmVRR4aat+wiWfuSQJxaQ@mail.gmail.com>
+	<20131121225208.GJ4138@linux.vnet.ibm.com>
+Date: Thu, 21 Nov 2013 16:09:49 -0800
+Message-ID: <CA+55aFx3FSGAtdSTYmsZ8xtdpiSBM-XPSnxnMpRQY+S_v_72-g@mail.gmail.com>
+Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang.kh@gmail.com>
-Cc: Bob Liu <bob.liu@oracle.com>, Seth Jennings <sjennings@variantweb.net>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>
+To: Paul McKenney <paulmck@linux.vnet.ibm.com>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Will Deacon <will.deacon@arm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Wed, Nov 20, 2013 at 10:50 PM, Weijie Yang <weijie.yang.kh@gmail.com> wrote:
-> Hello Dan,
+On Thu, Nov 21, 2013 at 2:52 PM, Paul E. McKenney
+<paulmck@linux.vnet.ibm.com> wrote:
 >
-> On Thu, Nov 21, 2013 at 8:42 AM, Bob Liu <bob.liu@oracle.com> wrote:
->> Hi Dan,
->>
->> On 11/21/2013 03:49 AM, Dan Streetman wrote:
->>> Currently, zswap is writeback cache; stored pages are not sent
->>> to swap disk, and when zswap wants to evict old pages it must
->>> first write them back to swap cache/disk manually.  This avoids
->>> swap out disk I/O up front, but only moves that disk I/O to
->>> the writeback case (for pages that are evicted), and adds the
->>> overhead of having to uncompress the evicted pages, and adds the
->>> need for an additional free page (to store the uncompressed page)
->>> at a time of likely high memory pressure.  Additionally, being
->>> writeback adds complexity to zswap by having to perform the
->>> writeback on page eviction.
->>>
->>
->> Good work!
->>
->>> This changes zswap to writethrough cache by enabling
->>> frontswap_writethrough() before registering, so that any
->>> successful page store will also be written to swap disk.  All the
->>> writeback code is removed since it is no longer needed, and the
->>> only operation during a page eviction is now to remove the entry
->>> from the tree and free it.
->>>
+> Actually, the weakest forms of locking only guarantee a consistent view
+> of memory if you are actually holding the lock.  Not "a" lock, but "the"
+> lock.
+
+I don't think we necessarily support any architecture that does that,
+though. And afaik, it's almost impossible to actually do sanely in
+hardware with any sane cache coherency, so..
+
+So realistically, I think we only really need to worry about memory
+ordering that is tied to cache coherency protocols, where even locking
+rules tend to be about memory ordering (although extended rules like
+acquire/release rather than the broken pure barrier model).
+
+Do you know any actual architecture where this isn't the case?
+
+> So the three fixes I know of at the moment are:
 >
-> Thanks for your work. I reviewed this patch, and it is good to me.
+> 1.      Upgrade smp_store_release()'s PPC implementation from lwsync
+>         to sync.
 >
-> However, I am skeptical about it because:
-> 1. it will add more IO than original zswap, how does it result in a
-> performance improvement ?
-
-I haven't used SPECjbb yet (I don't have it, I'll have to find someone
-who has it that I can borrow), but my testing with a small test
-program I wrote does show that CPU-bound performance is better with
-writethrough over writeback, once zswap is full, which I think is
-expected since writeback adds cycles for decompressing old pages while
-writethrough simply drops the compressed page.  Now, the additional
-CPU load may be more desirable depending on CPU speed, # of CPUs, swap
-disk speed, etc., so maybe it would be better to make zswap writeback
-or writethrough, with a param to select, depending on the specific hw
-it's being run on.
-
-> 2. most embedded device use NAND, more IO will reduce its working life
-
-This is certainly true; but most embedded devices also have tiny cpus
-that might get hit hard when zswap fills up and has to start
-decompressing pages while simultaneously compressing newly swapped out
-pages.  I'd expect for many embedded devices it would be better to
-simply invoke the oom killer and/or reboot than try to run with
-overcommitted memory.  But, having writeback vs writethrough
-selectable by param would allow flexibility based on the specific
-user's needs.
-
-
+>         What about ARM?  ARM platforms that have the load-acquire and
+>         store-release instructions could use them, but other ARM
+>         platforms have to use dmb.  ARM avoids PPC's lwsync issue
+>         because it has no equivalent to lwsync.
 >
-> Regards
+> 2.      Place an explicit smp_mb() into the MCS-lock queued handoff
+>         code.
 >
->> Could you do some testing using eg. SPECjbb? And compare the result with
->> original zswap.
->>
->> Thanks,
->> -Bob
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->> Please read the FAQ at  http://www.tux.org/lkml/
+> 3.      Remove the requirement that "unlock+lock" be a full memory
+>         barrier.
+>
+> We have been leaning towards #1, but before making any hard decision
+> on this we are looking more closely at what the situation is on other
+> architectures.
+
+So I might be inclined to lean towards #1 simply because of test coverage.
+
+We have no sane test coverage of weakly ordered models. Sure, ARM may
+be weakly ordered (with saner acquire/release in ARM64), but
+realistically, no existing ARM platforms actually gives us any
+reasonable test *coverage* for things like this, despite having tons
+of chips out there running Linux. Very few people debug problems in
+that world. The PPC people probably have much better testing and are
+more likely to figure out the bugs, but don't have the pure number of
+machines. So x86 tends to still remain the main platform where serious
+testing gets done.
+
+That said, I'd still be perfectly happy with #3, since - unlike, say,
+the PCI ordering issues with drivers - at least people *can* try to
+think about this somewhat analytically, even if it's ripe for
+confusion and subtle mistakes. And I still think you got the ordering
+wrong, and should be talking about "lock+unlock" rather than
+"unlock+lock".
+
+                       Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
