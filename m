@@ -1,65 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 302486B0035
-	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 17:30:51 -0500 (EST)
-Received: by mail-pd0-f170.google.com with SMTP id g10so1849291pdj.1
-        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 14:30:50 -0800 (PST)
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id A40856B0035
+	for <linux-mm@kvack.org>; Fri, 22 Nov 2013 17:59:30 -0500 (EST)
+Received: by mail-pd0-f180.google.com with SMTP id q10so1847110pdj.39
+        for <linux-mm@kvack.org>; Fri, 22 Nov 2013 14:59:30 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id iz5si976015pbd.2.2013.11.22.14.30.49
+        by mx.google.com with ESMTP id dk5si20859561pbc.166.2013.11.22.14.59.28
         for <linux-mm@kvack.org>;
-        Fri, 22 Nov 2013 14:30:49 -0800 (PST)
-Date: Fri, 22 Nov 2013 14:30:47 -0800
+        Fri, 22 Nov 2013 14:59:29 -0800 (PST)
+Date: Fri, 22 Nov 2013 14:59:27 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mmzone.h: constify some zone access functions
-Message-Id: <20131122143047.51b4fbe7aa227b8e37908106@linux-foundation.org>
-In-Reply-To: <20131122120106.4c372847@redhat.com>
-References: <20131122120106.4c372847@redhat.com>
+Subject: Re: [PATCH 3/3] mm, memory-failure: fix the typo in
+ me_pagecache_dirty()
+Message-Id: <20131122145927.f3745790b1332c231087fd60@linux-foundation.org>
+In-Reply-To: <1383914858-14533-3-git-send-email-zwu.kernel@gmail.com>
+References: <1383914858-14533-1-git-send-email-zwu.kernel@gmail.com>
+	<1383914858-14533-3-git-send-email-zwu.kernel@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@intel.com
+To: Zhi Yong Wu <zwu.kernel@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zhi Yong Wu <wuzhy@linux.vnet.ibm.com>
 
-On Fri, 22 Nov 2013 12:01:06 -0500 Luiz Capitulino <lcapitulino@redhat.com> wrote:
+On Fri,  8 Nov 2013 20:47:38 +0800 Zhi Yong Wu <zwu.kernel@gmail.com> wrote:
 
-> Signed-off-by: Luiz capitulino <lcapitulino@redhat.com>
-> ---
->  include/linux/mmzone.h | 6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index bd791e4..5e202d6 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -560,12 +560,12 @@ static inline bool zone_spans_pfn(const struct zone *zone, unsigned long pfn)
->  	return zone->zone_start_pfn <= pfn && pfn < zone_end_pfn(zone);
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -611,7 +611,7 @@ static int me_pagecache_clean(struct page *p, unsigned long pfn)
 >  }
 >  
-> -static inline bool zone_is_initialized(struct zone *zone)
-> +static inline bool zone_is_initialized(const struct zone *zone)
->  {
->  	return !!zone->wait_table;
->  }
->  
-> -static inline bool zone_is_empty(struct zone *zone)
-> +static inline bool zone_is_empty(const struct zone *zone)
->  {
->  	return zone->spanned_pages == 0;
->  }
-> @@ -843,7 +843,7 @@ unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
+>  /*
+> - * Dirty cache page page
+> + * Dirty cache page
+>   * Issues: when the error hit a hole page the error is not properly
+>   * propagated.
 >   */
->  #define zone_idx(zone)		((zone) - (zone)->zone_pgdat->node_zones)
->  
-> -static inline int populated_zone(struct zone *zone)
-> +static inline int populated_zone(const struct zone *zone)
->  {
->  	return (!!zone->present_pages);
->  }
 
-hm, why?  I counted ten similarly constifyable functions in mm.h and
-stopped only 1/4 of the way through. What's so special about these three?
+The accurate and complete description of this page is actually
+"pagecache page", so...
+
+--- a/mm/memory-failure.c~mm-memory-failure-fix-the-typo-in-me_pagecache_dirty-fix
++++ a/mm/memory-failure.c
+@@ -611,7 +611,7 @@ static int me_pagecache_clean(struct pag
+ }
+ 
+ /*
+- * Dirty cache page
++ * Dirty pagecache page
+  * Issues: when the error hit a hole page the error is not properly
+  * propagated.
+  */
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
