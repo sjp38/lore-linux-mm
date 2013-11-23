@@ -1,57 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f53.google.com (mail-yh0-f53.google.com [209.85.213.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D4846B0035
-	for <linux-mm@kvack.org>; Sat, 23 Nov 2013 15:49:30 -0500 (EST)
-Received: by mail-yh0-f53.google.com with SMTP id b20so1774546yha.26
-        for <linux-mm@kvack.org>; Sat, 23 Nov 2013 12:49:29 -0800 (PST)
-Received: from mail-ob0-x235.google.com (mail-ob0-x235.google.com [2607:f8b0:4003:c01::235])
-        by mx.google.com with ESMTPS id b7si15065858yhm.135.2013.11.23.12.49.28
+Received: from mail-qe0-f49.google.com (mail-qe0-f49.google.com [209.85.128.49])
+	by kanga.kvack.org (Postfix) with ESMTP id C3B3B6B0035
+	for <linux-mm@kvack.org>; Sat, 23 Nov 2013 16:30:10 -0500 (EST)
+Received: by mail-qe0-f49.google.com with SMTP id w7so2286613qeb.36
+        for <linux-mm@kvack.org>; Sat, 23 Nov 2013 13:30:10 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id o8si3248480qab.23.2013.11.23.13.30.06
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 23 Nov 2013 12:49:29 -0800 (PST)
-Received: by mail-ob0-f181.google.com with SMTP id uy5so2679793obc.26
-        for <linux-mm@kvack.org>; Sat, 23 Nov 2013 12:49:28 -0800 (PST)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 23 Nov 2013 13:30:06 -0800 (PST)
+Date: Sat, 23 Nov 2013 22:29:29 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
+Message-ID: <20131123212929.GP4971@laptop.programming.kicks-ass.net>
+References: <20131122200620.GA4138@linux.vnet.ibm.com>
+ <CA+55aFz0nP1_O8jO2UkX1DmDzcBm53-fFejvz=oY=x3cGNBJSQ@mail.gmail.com>
+ <20131122203738.GC4138@linux.vnet.ibm.com>
+ <CA+55aFwHUuaGzW_=xEWNcyVnHT-zW8-bs6Xi=M458xM3Y1qE0w@mail.gmail.com>
+ <20131122215208.GD4138@linux.vnet.ibm.com>
+ <CA+55aFzS2yd-VbJB5t14mP8NZG8smB1BQaYCw3Zo19FWQL92vA@mail.gmail.com>
+ <20131123002542.GF4138@linux.vnet.ibm.com>
+ <CA+55aFy8kx1qaWszc9nrbUaqFu7GfTtDkpzPBeE2g2U6RZjYkA@mail.gmail.com>
+ <20131123013654.GG4138@linux.vnet.ibm.com>
+ <CA+55aFxQy8afgf6geqJOEHmsJ=ME-6CXrrPfj=aggH7u_jEEZA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20131120141534.06ea091ca53b1dec60ace63d@linux-foundation.org>
-References: <alpine.DEB.2.02.1311121811310.29891@chino.kir.corp.google.com> <20131120141534.06ea091ca53b1dec60ace63d@linux-foundation.org>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Sat, 23 Nov 2013 15:49:08 -0500
-Message-ID: <CAHGf_=ooNHx=2HeUDGxrZFma-6YRvL42ViDMkSOqLOffk8MVsw@mail.gmail.com>
-Subject: Re: [patch -mm] mm, mempolicy: silence gcc warning
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFxQy8afgf6geqJOEHmsJ=ME-6CXrrPfj=aggH7u_jEEZA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Kees Cook <keescook@chromium.org>, Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, Will Deacon <will.deacon@arm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
->> --- a/mm/mempolicy.c
->> +++ b/mm/mempolicy.c
->> @@ -2950,7 +2950,7 @@ void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
->>               return;
->>       }
->>
->> -     p += snprintf(p, maxlen, policy_modes[mode]);
->> +     p += snprintf(p, maxlen, "%s", policy_modes[mode]);
->>
->>       if (flags & MPOL_MODE_FLAGS) {
->>               p += snprintf(p, buffer + maxlen - p, "=");
->
-> mutter.  There are no '%'s in policy_modes[].  Maybe we should only do
-> this #ifdef CONFIG_KEES.
->
-> mpol_to_str() would be simpler (and slower) if it was switched to use
-> strncat().
+On Sat, Nov 23, 2013 at 12:21:13PM -0800, Linus Torvalds wrote:
+> *SOME* assumption of mine must be wrong. But I don't see which one.
 
-IMHO, you should queue this patch. mpol_to_str() is not fast path at all and
-I don't want worry about false positive warning.
+I haven't read your email in full detail yet, but one thing I did miss
+was cache-snoops.
 
-> It worries me that the CONFIG_NUMA=n version of mpol_to_str() doesn't
-> stick a '\0' into *buffer.  Hopefully it never gets called...
+One of the reasons for failing transitive / multi-copy atomicity is that
+CPUs might have different views of the memory state depending on from
+which caches they can get snoops.
 
-Don't worry. It never happens. Currently, all of caller depend on CONFIG_NUMA.
-However it would be nice if CONFIG_NUMA=n version of mpol_to_str() is
-implemented
-more carefully. I don't know who's mistake.
+Eg. if CPU0 and CPU1 share a cache level but CPU2 does not, CPU1 might
+observe a write before CPU2 can.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
