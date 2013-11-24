@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f44.google.com (mail-bk0-f44.google.com [209.85.214.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 033386B003A
-	for <linux-mm@kvack.org>; Sun, 24 Nov 2013 18:39:23 -0500 (EST)
-Received: by mail-bk0-f44.google.com with SMTP id d7so1636666bkh.3
-        for <linux-mm@kvack.org>; Sun, 24 Nov 2013 15:39:23 -0800 (PST)
+Received: from mail-bk0-f45.google.com (mail-bk0-f45.google.com [209.85.214.45])
+	by kanga.kvack.org (Postfix) with ESMTP id B432C6B003A
+	for <linux-mm@kvack.org>; Sun, 24 Nov 2013 18:39:24 -0500 (EST)
+Received: by mail-bk0-f45.google.com with SMTP id mx13so1609915bkb.18
+        for <linux-mm@kvack.org>; Sun, 24 Nov 2013 15:39:24 -0800 (PST)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id kn7si8752159bkb.99.2013.11.24.15.39.23
+        by mx.google.com with ESMTPS id aq1si3894871bkc.149.2013.11.24.15.39.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
         Sun, 24 Nov 2013 15:39:23 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 3/9] mm: shmem: save one radix tree lookup when truncating swapped pages
-Date: Sun, 24 Nov 2013 18:38:22 -0500
-Message-Id: <1385336308-27121-4-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 1/9] fs: cachefiles: use add_to_page_cache_lru()
+Date: Sun, 24 Nov 2013 18:38:20 -0500
+Message-Id: <1385336308-27121-2-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1385336308-27121-1-git-send-email-hannes@cmpxchg.org>
 References: <1385336308-27121-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,72 +20,119 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Chinner <david@fromorbit.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Tejun Heo <tj@kernel.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Page cache radix tree slots are usually stabilized by the page lock,
-but shmem's swap cookies have no such thing.  Because the overall
-truncation loop is lockless, the swap entry is currently confirmed by
-a tree lookup and then deleted by another tree lookup under the same
-tree lock region.
-
-Use radix_tree_delete_item() instead, which does the verification and
-deletion with only one lookup.  This also allows removing the
-delete-only special case from shmem_radix_tree_replace().
+This code used to have its own lru cache pagevec up until a0b8cab3
+("mm: remove lru parameter from __pagevec_lru_add and remove parts of
+pagevec API").  Now it's just add_to_page_cache() followed by
+lru_cache_add(), might as well use add_to_page_cache_lru() directly.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/shmem.c | 25 ++++++++++++-------------
- 1 file changed, 12 insertions(+), 13 deletions(-)
+ fs/cachefiles/rdwr.c | 33 +++++++++++++--------------------
+ 1 file changed, 13 insertions(+), 20 deletions(-)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 8297623..7c67249 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -242,19 +242,17 @@ static int shmem_radix_tree_replace(struct address_space *mapping,
- 			pgoff_t index, void *expected, void *replacement)
- {
- 	void **pslot;
--	void *item = NULL;
-+	void *item;
+diff --git a/fs/cachefiles/rdwr.c b/fs/cachefiles/rdwr.c
+index ebaff36..4b1fb5c 100644
+--- a/fs/cachefiles/rdwr.c
++++ b/fs/cachefiles/rdwr.c
+@@ -265,24 +265,22 @@ static int cachefiles_read_backing_file_one(struct cachefiles_object *object,
+ 				goto nomem_monitor;
+ 		}
  
- 	VM_BUG_ON(!expected);
-+	VM_BUG_ON(!replacement);
- 	pslot = radix_tree_lookup_slot(&mapping->page_tree, index);
--	if (pslot)
--		item = radix_tree_deref_slot_protected(pslot,
--							&mapping->tree_lock);
-+	if (!pslot)
-+		return -ENOENT;
-+	item = radix_tree_deref_slot_protected(pslot, &mapping->tree_lock);
- 	if (item != expected)
- 		return -ENOENT;
--	if (replacement)
--		radix_tree_replace_slot(pslot, replacement);
--	else
--		radix_tree_delete(&mapping->page_tree, index);
-+	radix_tree_replace_slot(pslot, replacement);
- 	return 0;
- }
+-		ret = add_to_page_cache(newpage, bmapping,
+-					netpage->index, cachefiles_gfp);
++		ret = add_to_page_cache_lru(newpage, bmapping,
++					    netpage->index, cachefiles_gfp);
+ 		if (ret == 0)
+ 			goto installed_new_backing_page;
+ 		if (ret != -EEXIST)
+ 			goto nomem_page;
+ 	}
  
-@@ -386,14 +384,15 @@ export:
- static int shmem_free_swap(struct address_space *mapping,
- 			   pgoff_t index, void *radswap)
- {
--	int error;
-+	void *old;
+-	/* we've installed a new backing page, so now we need to add it
+-	 * to the LRU list and start it reading */
++	/* we've installed a new backing page, so now we need to start
++	 * it reading */
+ installed_new_backing_page:
+ 	_debug("- new %p", newpage);
  
- 	spin_lock_irq(&mapping->tree_lock);
--	error = shmem_radix_tree_replace(mapping, index, radswap, NULL);
-+	old = radix_tree_delete_item(&mapping->page_tree, index, radswap);
- 	spin_unlock_irq(&mapping->tree_lock);
--	if (!error)
--		free_swap_and_cache(radix_to_swp_entry(radswap));
--	return error;
-+	if (old != radswap)
-+		return -ENOENT;
-+	free_swap_and_cache(radix_to_swp_entry(radswap));
-+	return 0;
- }
+ 	backpage = newpage;
+ 	newpage = NULL;
  
- /*
+-	lru_cache_add_file(backpage);
+-
+ read_backing_page:
+ 	ret = bmapping->a_ops->readpage(NULL, backpage);
+ 	if (ret < 0)
+@@ -510,24 +508,23 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ 					goto nomem;
+ 			}
+ 
+-			ret = add_to_page_cache(newpage, bmapping,
+-						netpage->index, cachefiles_gfp);
++			ret = add_to_page_cache_lru(newpage, bmapping,
++						    netpage->index,
++						    cachefiles_gfp);
+ 			if (ret == 0)
+ 				goto installed_new_backing_page;
+ 			if (ret != -EEXIST)
+ 				goto nomem;
+ 		}
+ 
+-		/* we've installed a new backing page, so now we need to add it
+-		 * to the LRU list and start it reading */
++		/* we've installed a new backing page, so now we need
++		 * to start it reading */
+ 	installed_new_backing_page:
+ 		_debug("- new %p", newpage);
+ 
+ 		backpage = newpage;
+ 		newpage = NULL;
+ 
+-		lru_cache_add_file(backpage);
+-
+ 	reread_backing_page:
+ 		ret = bmapping->a_ops->readpage(NULL, backpage);
+ 		if (ret < 0)
+@@ -538,8 +535,8 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ 	monitor_backing_page:
+ 		_debug("- monitor add");
+ 
+-		ret = add_to_page_cache(netpage, op->mapping, netpage->index,
+-					cachefiles_gfp);
++		ret = add_to_page_cache_lru(netpage, op->mapping,
++					    netpage->index, cachefiles_gfp);
+ 		if (ret < 0) {
+ 			if (ret == -EEXIST) {
+ 				page_cache_release(netpage);
+@@ -549,8 +546,6 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ 			goto nomem;
+ 		}
+ 
+-		lru_cache_add_file(netpage);
+-
+ 		/* install a monitor */
+ 		page_cache_get(netpage);
+ 		monitor->netfs_page = netpage;
+@@ -613,8 +608,8 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ 	backing_page_already_uptodate:
+ 		_debug("- uptodate");
+ 
+-		ret = add_to_page_cache(netpage, op->mapping, netpage->index,
+-					cachefiles_gfp);
++		ret = add_to_page_cache_lru(netpage, op->mapping,
++					    netpage->index, cachefiles_gfp);
+ 		if (ret < 0) {
+ 			if (ret == -EEXIST) {
+ 				page_cache_release(netpage);
+@@ -631,8 +626,6 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ 
+ 		fscache_mark_page_cached(op, netpage);
+ 
+-		lru_cache_add_file(netpage);
+-
+ 		/* the netpage is unlocked and marked up to date here */
+ 		fscache_end_io(op, netpage, 0);
+ 		page_cache_release(netpage);
 -- 
 1.8.4.2
 
