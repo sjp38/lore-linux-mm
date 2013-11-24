@@ -1,72 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E1F26B0035
-	for <linux-mm@kvack.org>; Sat, 23 Nov 2013 20:49:16 -0500 (EST)
-Received: by mail-pb0-f43.google.com with SMTP id rq2so3391544pbb.30
-        for <linux-mm@kvack.org>; Sat, 23 Nov 2013 17:49:15 -0800 (PST)
-Received: from e28smtp05.in.ibm.com (e28smtp05.in.ibm.com. [122.248.162.5])
-        by mx.google.com with ESMTPS id cx4si23814779pbc.89.2013.11.23.17.49.13
+Received: from mail-bk0-f51.google.com (mail-bk0-f51.google.com [209.85.214.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B56936B0035
+	for <linux-mm@kvack.org>; Sun, 24 Nov 2013 09:16:22 -0500 (EST)
+Received: by mail-bk0-f51.google.com with SMTP id 6so1449758bkj.38
+        for <linux-mm@kvack.org>; Sun, 24 Nov 2013 06:16:21 -0800 (PST)
+Received: from mail-la0-x22d.google.com (mail-la0-x22d.google.com [2a00:1450:4010:c03::22d])
+        by mx.google.com with ESMTPS id qw8si8204108bkb.211.2013.11.24.06.16.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 23 Nov 2013 17:49:14 -0800 (PST)
-Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
-	Sun, 24 Nov 2013 07:19:10 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 07230394003F
-	for <linux-mm@kvack.org>; Sun, 24 Nov 2013 07:19:07 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rAO1n0CZ38600796
-	for <linux-mm@kvack.org>; Sun, 24 Nov 2013 07:19:01 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rAO1n4oj002337
-	for <linux-mm@kvack.org>; Sun, 24 Nov 2013 07:19:04 +0530
-Date: Sun, 24 Nov 2013 09:48:58 +0800
-From: Wei Yang <weiyang@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/3] percpu: stop the loop when a cpu belongs to a new
- group
-Message-ID: <20131124014858.GA10185@weiyang.vnet.ibm.com>
-Reply-To: Wei Yang <weiyang@linux.vnet.ibm.com>
-References: <1382345893-6644-1-git-send-email-weiyang@linux.vnet.ibm.com>
- <20131027123008.GJ14934@mtj.dyndns.org>
- <20131028030055.GC15642@weiyang.vnet.ibm.com>
- <20131028113120.GB11541@mtj.dyndns.org>
- <20131028151746.GA7548@weiyang.vnet.ibm.com>
- <20131120030056.GA15273@weiyang.vnet.ibm.com>
- <20131120055121.GA13754@mtj.dyndns.org>
- <20131122230400.GG8981@mtj.dyndns.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 24 Nov 2013 06:16:21 -0800 (PST)
+Received: by mail-la0-f45.google.com with SMTP id eh20so2191138lab.4
+        for <linux-mm@kvack.org>; Sun, 24 Nov 2013 06:16:21 -0800 (PST)
+Date: Sun, 24 Nov 2013 15:15:49 +0100
+From: Vladimir Murzin <murzin.v@gmail.com>
+Subject: Re: [PATCH] mm/zswap: change params from hidden to ro
+Message-ID: <20131124141545.GA2106@hp530>
+References: <1384965522-5788-1-git-send-email-ddstreet@ieee.org>
+ <20131120173347.GA2369@hp530>
+ <CALZtONA81=R4abFMpMMtDZKQe0s-8+JxvEfZO3NEZ910VwRDmw@mail.gmail.com>
+ <20131122073851.GB1853@hp530>
+ <CALZtONA-CdTJ=cg3cnacEz0uDtQVinkqkyPQuNSCWT18OD+Y5w@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=koi8-r
 Content-Disposition: inline
-In-Reply-To: <20131122230400.GG8981@mtj.dyndns.org>
+In-Reply-To: <CALZtONA-CdTJ=cg3cnacEz0uDtQVinkqkyPQuNSCWT18OD+Y5w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Wei Yang <weiyang@linux.vnet.ibm.com>, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: linux-mm@kvack.org, Seth Jennings <sjennings@variantweb.net>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>
 
-On Fri, Nov 22, 2013 at 06:04:00PM -0500, Tejun Heo wrote:
->Hello,
->
->On Wed, Nov 20, 2013 at 12:51:21AM -0500, Tejun Heo wrote:
->> The patch is just extremely marginal.  Ah well... why not?  I'll apply
->> it once -rc1 drops.
->
->So, I was about to apply this patch but decided against it.  It
->doesn't really make anything better and the code looks worse
->afterwards.
+On Fri, Nov 22, 2013 at 12:18:01PM -0500, Dan Streetman wrote:
+> On Fri, Nov 22, 2013 at 2:38 AM, Vladimir Murzin <murzin.v@gmail.com> wrote:
+> > On Wed, Nov 20, 2013 at 12:52:47PM -0500, Dan Streetman wrote: > On Wed, Nov
+> > 20, 2013 at 12:33 PM, Vladimir Murzin <murzin.v@gmail.com> wrote: > > Hi Dan!
+> >> >
+> >> > On Wed, Nov 20, 2013 at 11:38:42AM -0500, Dan Streetman wrote:
+> >> >> The "compressor" and "enabled" params are currently hidden,
+> >> >> this changes them to read-only, so userspace can tell if
+> >> >> zswap is enabled or not and see what compressor is in use.
+> >> >
+> >> > Could you elaborate more why this pice of information is necessary for
+> >> > userspace?
+> >>
+> >> For anyone interested in zswap, it's handy to be able to tell if it's
+> >> enabled or not ;-)  Technically people can check to see if the zswap
+> >> debug files are in /sys/kernel/debug/zswap, but I think the actual
+> >> "enabled" param is more obvious.  And the compressor param is really
+> >> the only way anyone from userspace can see what compressor's being
+> >> used; that's helpful to know for anyone that might want to be using a
+> >> non-default compressor.
+> >
+> > So, it is needed for user not userspace? I tend to think that users are smart
+> > enough to check cmdline for that.
+> 
+> Let's try a different way.  Can you explain what the problem is with
+> making these params user-readable?
 
-Ok, that's fine. Maybe we could find a better way :-)
+This patch is absolutely neutral for me - nothing bad and nothing good. I've just
+been curious what argument for this patch you have except "let it be".
 
->
->Thanks.
->
->-- 
->tejun
-
--- 
-Richard Yang
-Help you, Help me
+Thanks
+Vadimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
