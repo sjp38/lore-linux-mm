@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f54.google.com (mail-bk0-f54.google.com [209.85.214.54])
-	by kanga.kvack.org (Postfix) with ESMTP id D8C626B00BB
-	for <linux-mm@kvack.org>; Mon, 25 Nov 2013 09:26:52 -0500 (EST)
-Received: by mail-bk0-f54.google.com with SMTP id v16so1999033bkz.41
+Received: from mail-bk0-f46.google.com (mail-bk0-f46.google.com [209.85.214.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 6ABF86B00BD
+	for <linux-mm@kvack.org>; Mon, 25 Nov 2013 09:26:53 -0500 (EST)
+Received: by mail-bk0-f46.google.com with SMTP id u15so1989021bkz.5
         for <linux-mm@kvack.org>; Mon, 25 Nov 2013 06:26:52 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id nm9si9606536bkb.321.2013.11.25.06.26.51
+        by mx.google.com with ESMTP id yf5si9620845bkb.89.2013.11.25.06.26.52
         for <linux-mm@kvack.org>;
-        Mon, 25 Nov 2013 06:26:51 -0800 (PST)
+        Mon, 25 Nov 2013 06:26:52 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 3/5] mm: compaction: detect when scanners meet in isolate_freepages
-Date: Mon, 25 Nov 2013 15:26:08 +0100
-Message-Id: <1385389570-11393-4-git-send-email-vbabka@suse.cz>
+Subject: [PATCH 4/5] mm: compaction: do not mark unmovable pageblocks as skipped in async compaction
+Date: Mon, 25 Nov 2013 15:26:09 +0100
+Message-Id: <1385389570-11393-5-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1385389570-11393-1-git-send-email-vbabka@suse.cz>
 References: <1385389570-11393-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -19,110 +19,61 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-Compaction of a zone is finished when the migrate scanner (which begins at the
-zone's lowest pfn) meets the free page scanner (which begins at the zone's
-highest pfn). This is detected in compact_zone() and in the case of direct
-compaction, the compact_blockskip_flush flag is set so that kswapd later resets
-the cached scanner pfn's, and a new compaction may again start at the zone's
-borders.
+Compaction temporarily marks pageblocks where it fails to isolate pages as
+to-be-skipped in further compactions, in order to improve efficiency. One of
+the reasons to fail isolating pages is that isolation is not attempted in
+pageblocks that are not of MIGRATE_MOVABLE (or CMA) type.
 
-The meeting of the scanners can happen during either scanner's activity.
-However, it may currently fail to be detected when it occurs in the free page
-scanner, due to two problems. First, isolate_freepages() keeps free_pfn at the
-highest block where it isolated pages from, for the purposes of not missing the
-pages that are returned back to allocator when migration fails. Second, failing
-to isolate enough free pages due to scanners meeting results in -ENOMEM being
-returned by migrate_pages(), which makes compact_zone() bail out immediately
-without calling compact_finished() that would detect scanners meeting.
+The problem is that blocks skipped due to not being MIGRATE_MOVABLE in async
+compaction become skipped due to the temporary mark also in future sync
+compaction. Moreover, this may follow quite soon during __alloc_page_slowpath,
+without much time for kswapd to clear the pageblock skip marks. This goes
+against the idea that sync compaction should try to scan these blocks more
+thoroughly than the async compaction.
 
-This failure to detect scanners meeting might result in repeated attempts at
-compaction of a zone that keep starting from the cached pfn's close to the
-meeting point, and quickly failing through the -ENOMEM path, without the cached
-pfns being reset, over and over. This has been observed (through additional
-tracepoints) in the third phase of the mmtests stress-highalloc benchmark, where
-the allocator runs on an otherwise idle system. The problem was observed in the
-DMA32 zone, which was used as a fallback to the preferred Normal zone, but on
-the 4GB system it was actually the largest zone. The problem is even amplified
-for such fallback zone - the deferred compaction logic, which could (after
-being fixed by a previous patch) reset the cached scanner pfn's, is only
-applied to the preferred zone and not for the fallbacks.
-
-The problem in the third phase of the benchmark was further amplified by commit
-81c0a2bb ("mm: page_alloc: fair zone allocator policy") which resulted in a
-non-deterministic regression of the allocation success rate from ~85% to ~65%.
-This occurs in about half of benchmark runs, making bisection problematic.
-It is unlikely that the commit itself is buggy, but it should put more pressure
-on the DMA32 zone during phases 1 and 2, which may leave it more fragmented in
-phase 3 and expose the bugs that this patch fixes.
-
-The fix is to make scanners meeting in isolate_freepage() stay that way, and
-to check in compact_zone() for scanners meeting when migrate_pages() returns
--ENOMEM. The result is that compact_finished() also detects scanners meeting
-and sets the compact_blockskip_flush flag to make kswapd reset the scanner
-pfn's.
-
-The results in stress-highalloc benchmark show that the "regression" by commit
-81c0a2bb in phase 3 no longer occurs, and phase 1 and 2 allocation success rates
-are significantly improved.
+The fix is to ensure in async compaction that these !MIGRATE_MOVABLE blocks are
+not marked to be skipped. Note this should not affect performance or locking
+impact of further async compactions, as skipping a block due to being
+!MIGRATE_MOVABLE is done soon after skipping a block marked to be skipped, both
+without locking.
 
 Cc: Mel Gorman <mgorman@suse.de>
 Cc: Rik van Riel <riel@redhat.com>
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/compaction.c | 19 +++++++++++++++----
- 1 file changed, 15 insertions(+), 4 deletions(-)
+ mm/compaction.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 6a2f0c2..0702bdf 100644
+index 0702bdf..f481193 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -656,7 +656,7 @@ static void isolate_freepages(struct zone *zone,
- 	 * is the end of the pageblock the migration scanner is using.
- 	 */
- 	pfn = cc->free_pfn;
--	low_pfn = cc->migrate_pfn + pageblock_nr_pages;
-+	low_pfn = ALIGN(cc->migrate_pfn + 1, pageblock_nr_pages);
+@@ -455,6 +455,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+ 	unsigned long flags;
+ 	bool locked = false;
+ 	struct page *page = NULL, *valid_page = NULL;
++	bool skipped_unmovable = false;
++
  
  	/*
- 	 * Take care that if the migration scanner is at the end of the zone
-@@ -672,7 +672,7 @@ static void isolate_freepages(struct zone *zone,
- 	 * pages on cc->migratepages. We stop searching if the migrate
- 	 * and free page scanners meet or enough free pages are isolated.
- 	 */
--	for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages;
-+	for (; pfn >= low_pfn && cc->nr_migratepages > nr_freepages;
- 					pfn -= pageblock_nr_pages) {
- 		unsigned long isolated;
+ 	 * Ensure that there are not too many pages isolated from the LRU
+@@ -530,6 +532,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+ 		if (!cc->sync && last_pageblock_nr != pageblock_nr &&
+ 		    !migrate_async_suitable(get_pageblock_migratetype(page))) {
+ 			cc->finished_update_migrate = true;
++			skipped_unmovable = true;
+ 			goto next_pageblock;
+ 		}
  
-@@ -734,7 +734,14 @@ static void isolate_freepages(struct zone *zone,
- 	/* split_free_page does not map the pages */
- 	map_pages(freelist);
+@@ -624,7 +627,7 @@ next_pageblock:
+ 		spin_unlock_irqrestore(&zone->lru_lock, flags);
  
--	cc->free_pfn = high_pfn;
-+        /*
-+         * If we crossed the migrate scanner, we want to keep it that way
-+	 * so that compact_finished() may detect this
-+	 */
-+	if (pfn < low_pfn)
-+		cc->free_pfn = max(pfn, zone->zone_start_pfn);
-+	else
-+		cc->free_pfn = high_pfn;
- 	cc->nr_freepages = nr_freepages;
- }
+ 	/* Update the pageblock-skip if the whole pageblock was scanned */
+-	if (low_pfn == end_pfn)
++	if (low_pfn == end_pfn && !skipped_unmovable)
+ 		update_pageblock_skip(cc, valid_page, nr_isolated, true);
  
-@@ -999,7 +1006,11 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 		if (err) {
- 			putback_movable_pages(&cc->migratepages);
- 			cc->nr_migratepages = 0;
--			if (err == -ENOMEM) {
-+			/*
-+			 * migrate_pages() may return -ENOMEM when scanners meet
-+			 * and we want compact_finished() to detect it
-+			 */
-+			if (err == -ENOMEM && cc->free_pfn > cc->migrate_pfn) {
- 				ret = COMPACT_PARTIAL;
- 				goto out;
- 			}
+ 	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
 -- 
 1.8.1.4
 
