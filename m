@@ -1,82 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f47.google.com (mail-bk0-f47.google.com [209.85.214.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F2856B00BE
-	for <linux-mm@kvack.org>; Mon, 25 Nov 2013 09:26:54 -0500 (EST)
-Received: by mail-bk0-f47.google.com with SMTP id mx12so2025320bkb.34
-        for <linux-mm@kvack.org>; Mon, 25 Nov 2013 06:26:53 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id cr5si9617622bkc.146.2013.11.25.06.26.53
-        for <linux-mm@kvack.org>;
-        Mon, 25 Nov 2013 06:26:53 -0800 (PST)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 5/5] mm: compaction: reset scanner positions immediately when they meet
-Date: Mon, 25 Nov 2013 15:26:10 +0100
-Message-Id: <1385389570-11393-6-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1385389570-11393-1-git-send-email-vbabka@suse.cz>
-References: <1385389570-11393-1-git-send-email-vbabka@suse.cz>
+Received: from mail-yh0-f45.google.com (mail-yh0-f45.google.com [209.85.213.45])
+	by kanga.kvack.org (Postfix) with ESMTP id EA1DD6B00C4
+	for <linux-mm@kvack.org>; Mon, 25 Nov 2013 10:56:35 -0500 (EST)
+Received: by mail-yh0-f45.google.com with SMTP id v1so1861485yhn.4
+        for <linux-mm@kvack.org>; Mon, 25 Nov 2013 07:56:35 -0800 (PST)
+Received: from mail-yh0-x22d.google.com (mail-yh0-x22d.google.com [2607:f8b0:4002:c01::22d])
+        by mx.google.com with ESMTPS id w8si21201032yhd.83.2013.11.25.07.56.34
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 25 Nov 2013 07:56:35 -0800 (PST)
+Received: by mail-yh0-f45.google.com with SMTP id v1so1920433yhn.32
+        for <linux-mm@kvack.org>; Mon, 25 Nov 2013 07:56:34 -0800 (PST)
+Date: Mon, 25 Nov 2013 10:56:29 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] mm: nobootmem: avoid type warning about alignment value
+Message-ID: <20131125155629.GA24344@htj.dyndns.org>
+References: <1385249326-9089-1-git-send-email-santosh.shilimkar@ti.com>
+ <529217C7.6030304@cogentembedded.com>
+ <52935762.1080409@ti.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <52935762.1080409@ti.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
+To: Santosh Shilimkar <santosh.shilimkar@ti.com>
+Cc: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org
 
-Compaction used to start its migrate and free page scaners at the zone's lowest
-and highest pfn, respectively. Later, caching was introduced to remember the
-scanners' progress across compaction attempts so that pageblocks are not
-re-scanned uselessly. Additionally, pageblocks where isolation failed are
-marked to be quickly skipped when encountered again in future compactions.
+On Mon, Nov 25, 2013 at 08:57:54AM -0500, Santosh Shilimkar wrote:
+> On Sunday 24 November 2013 10:14 AM, Sergei Shtylyov wrote:
+> > Hello.
+> > 
+> > On 24-11-2013 3:28, Santosh Shilimkar wrote:
+> > 
+> >> Building ARM with NO_BOOTMEM generates below warning. Using min_t
+> > 
+> >    Where is that below? :-)
+> > 
+> Damn.. Posted a wrong version of the patch ;-(
+> Here is the one with warning message included.
+> 
+> From 571dfdf4cf8ac7dfd50bd9b7519717c42824f1c3 Mon Sep 17 00:00:00 2001
+> From: Santosh Shilimkar <santosh.shilimkar@ti.com>
+> Date: Sat, 23 Nov 2013 18:16:50 -0500
+> Subject: [PATCH] mm: nobootmem: avoid type warning about alignment value
+> 
+> Building ARM with NO_BOOTMEM generates below warning.
+> 
+> mm/nobootmem.c: In function a??__free_pages_memorya??:
+> mm/nobootmem.c:88:11: warning: comparison of distinct pointer types lacks a cast
+> 
+> Using min_t to find the correct alignment avoids the warning.
+> 
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 
-Currently, both the reset of cached pfn's and clearing of the pageblock skip
-information for a zone is done in __reset_isolation_suitable(). This function
-gets called when:
- - compaction is restarting after being deferred
- - compact_blockskip_flush flag is set in compact_finished() when the scanners
-   meet (and not again cleared when direct compaction succeeds in allocation)
-   and kswapd acts upon this flag before going to sleep
+Acked-by: Tejun Heo <tj@kernel.org>
 
-This behavior is suboptimal for several reasons:
- - when direct sync compaction is called after async compaction fails (in the
-   allocation slowpath), it will effectively do nothing, unless kswapd
-   happens to process the compact_blockskip_flush flag meanwhile. This is racy
-   and goes against the purpose of sync compaction to more thoroughly retry
-   the compaction of a zone where async compaction has failed.
-   The restart-after-deferring path cannot help here as deferring happens only
-   after the sync compaction fails. It is also done only for the preferred
-   zone, while the compaction might be done for a fallback zone.
- - the mechanism of marking pageblock to be skipped has little value since the
-   cached pfn's are reset only together with the pageblock skip flags. This
-   effectively limits pageblock skip usage to parallel compactions.
+Thanks.
 
-This patch changes compact_finished() so that cached pfn's are reset
-immediately when the scanners meet. Clearing pageblock skip flags is unchanged,
-as well as the other situations where cached pfn's are reset. This allows the
-sync-after-async compaction to retry pageblocks not marked as skipped, such as
-blocks !MIGRATE_MOVABLE blocks that async compactions now skips without
-marking them.
-
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/compaction.c | 4 ++++
- 1 file changed, 4 insertions(+)
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index f481193..2c2cc4a 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -843,6 +843,10 @@ static int compact_finished(struct zone *zone,
- 
- 	/* Compaction run completes if the migrate and free scanner meet */
- 	if (cc->free_pfn <= cc->migrate_pfn) {
-+		/* Let the next compaction start anew. */
-+		zone->compact_cached_migrate_pfn = zone->zone_start_pfn;
-+	        zone->compact_cached_free_pfn = zone_end_pfn(zone);
-+
- 		/*
- 		 * Mark that the PG_migrate_skip information should be cleared
- 		 * by kswapd when it goes to sleep. kswapd does not set the
 -- 
-1.8.1.4
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
