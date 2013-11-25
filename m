@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 76D896B0093
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id A14C66B0095
 	for <linux-mm@kvack.org>; Mon, 25 Nov 2013 07:07:52 -0500 (EST)
-Received: by mail-lb0-f182.google.com with SMTP id u14so3147187lbd.13
+Received: by mail-lb0-f174.google.com with SMTP id c11so3060579lbj.19
         for <linux-mm@kvack.org>; Mon, 25 Nov 2013 04:07:51 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id ww4si6658048lbb.177.2013.11.25.04.07.50
+        by mx.google.com with ESMTPS id m1si15884526lae.40.2013.11.25.04.07.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
         Mon, 25 Nov 2013 04:07:50 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH v11 00/15] kmemcg shrinkers
-Date: Mon, 25 Nov 2013 16:07:33 +0400
-Message-ID: <cover.1385377616.git.vdavydov@parallels.com>
+Subject: [PATCH v11 01/15] memcg: make cache index determination more robust
+Date: Mon, 25 Nov 2013 16:07:34 +0400
+Message-ID: <0ccced80c1270d6cb502cd03aac26bda9d2e0a6f.1385377616.git.vdavydov@parallels.com>
+In-Reply-To: <cover.1385377616.git.vdavydov@parallels.com>
+References: <cover.1385377616.git.vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -20,91 +22,49 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, mhocko@suse.cz
 Cc: glommer@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org
 
-This patchset implements targeted shrinking for memcg when kmem limits are
-present. So far, we've been accounting kernel objects but failing allocations
-when short of memory. This is because our only option would be to call the
-global shrinker, depleting objects from all caches and breaking isolation.
+From: Glauber Costa <glommer@openvz.org>
 
-The main idea is to associate per-memcg lists with each of the LRUs. The main
-LRU still provides a single entry point and when adding or removing an element
-from the LRU, we use the page information to figure out which memcg it belongs
-to and relay it to the right list.
+I caught myself doing something like the following outside memcg core:
 
-The bulk of the code is written by Glauber Costa. The only change I introduced
-myself in this iteration is reworking per-memcg LRU lists. Instead of extending
-the existing list_lru structure, which seems to be neat as is, I introduced a
-new one, memcg_list_lru, which aggregates list_lru objects for each kmem-active
-memcg and keeps them uptodate as memcgs are created/destroyed. I hope this
-simplified call paths and made the code easier to read.
+	memcg_id = -1;
+	if (memcg && memcg_kmem_is_active(memcg))
+		memcg_id = memcg_cache_id(memcg);
 
-The patchset is based on top of Linux 3.13-rc1.
+to be able to handle all possible memcgs in a sane manner. In particular, the
+root cache will have kmemcg_id = -1 (just because we don't call memcg_kmem_init
+to the root cache since it is not limitable). We have always coped with that by
+making sure we sanitize which cache is passed to memcg_cache_id. Although this
+example is given for root, what we really need to know is whether or not a
+cache is kmem active.
 
-Any comments and proposals are appreciated.
+But outside the memcg core testing for root, for instance, is not trivial since
+we don't export mem_cgroup_is_root. I ended up realizing that this tests really
+belong inside memcg_cache_id. This patch moves a similar but stronger test
+inside memcg_cache_id and make sure it always return a meaningful value.
 
-== Known issues ==
+Signed-off-by: Glauber Costa <glommer@openvz.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memcontrol.c |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
- * In case kmem limit is less than sum mem limit, reaching memcg kmem limit
-   will result in an attempt to shrink all memcg slabs (see
-   try_to_free_mem_cgroup_kmem()). Although this is better than simply failing
-   allocation as it works now, it is still to be improved.
-
- * Since FS shrinkers can't be executed on __GFP_FS allocations, such
-   allocations will fail if memcg kmem limit is less than sum mem limit and the
-   memcg kmem usage is close to its limit. Glauber proposed to schedule a
-   worker which would shrink kmem in the background on such allocations.
-   However, this approach does not eliminate failures completely, it just makes
-   them rarer. I'm thinking on implementing soft limits for memcg kmem so that
-   striking the soft limit will trigger the reclaimer, but won't fail the
-   allocation. I would appreciate any other proposals on how this can be fixed.
-
- * Only dcache and icache are reclaimed on memcg pressure. Other FS objects are
-   left for global pressure only. However, it should not be a serious problem
-   to make them reclaimable too by passing on memcg to the FS-layer and letting
-   each FS decide if its internal objects are shrinkable on memcg pressure.
-
-== Changes from v10 ==
-
- * Rework per-memcg list_lru infrastructure.
-
-Previous iteration (with full changelog) can be found here:
-
-http://www.spinics.net/lists/linux-fsdevel/msg66632.html
-
-Glauber Costa (12):
-  memcg: make cache index determination more robust
-  memcg: consolidate callers of memcg_cache_id
-  vmscan: also shrink slab in memcg pressure
-  memcg: move initialization to memcg creation
-  memcg: move stop and resume accounting functions
-  memcg: per-memcg kmem shrinking
-  memcg: scan cache objects hierarchically
-  vmscan: take at least one pass with shrinkers
-  memcg: allow kmem limit to be resized down
-  vmpressure: in-kernel notifications
-  memcg: reap dead memcgs upon global memory pressure
-  memcg: flush memcg items upon memcg destruction
-
-Vladimir Davydov (3):
-  memcg,list_lru: add per-memcg LRU list infrastructure
-  memcg,list_lru: add function walking over all lists of a per-memcg
-    LRU
-  super: make icache, dcache shrinkers memcg-aware
-
- fs/dcache.c                |   25 +-
- fs/inode.c                 |   16 +-
- fs/internal.h              |    9 +-
- fs/super.c                 |   45 +--
- include/linux/fs.h         |    4 +-
- include/linux/list_lru.h   |   77 +++++
- include/linux/memcontrol.h |   23 ++
- include/linux/shrinker.h   |    6 +-
- include/linux/swap.h       |    2 +
- include/linux/vmpressure.h |    5 +
- mm/memcontrol.c            |  709 +++++++++++++++++++++++++++++++++++++++-----
- mm/vmpressure.c            |   53 +++-
- mm/vmscan.c                |  178 +++++++++--
- 13 files changed, 1018 insertions(+), 134 deletions(-)
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index f1a0ae6..02b5176 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3073,7 +3073,9 @@ void memcg_cache_list_add(struct mem_cgroup *memcg, struct kmem_cache *cachep)
+  */
+ int memcg_cache_id(struct mem_cgroup *memcg)
+ {
+-	return memcg ? memcg->kmemcg_id : -1;
++	if (!memcg || !memcg_can_account_kmem(memcg))
++		return -1;
++	return memcg->kmemcg_id;
+ }
+ 
+ /*
 -- 
 1.7.10.4
 
