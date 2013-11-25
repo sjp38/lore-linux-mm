@@ -1,63 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id BB5ED6B00EA
-	for <linux-mm@kvack.org>; Mon, 25 Nov 2013 15:31:12 -0500 (EST)
-Received: by mail-pd0-f176.google.com with SMTP id w10so6225756pde.21
-        for <linux-mm@kvack.org>; Mon, 25 Nov 2013 12:31:12 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id ei3si14205235pbc.320.2013.11.25.12.31.10
+Received: from mail-qe0-f43.google.com (mail-qe0-f43.google.com [209.85.128.43])
+	by kanga.kvack.org (Postfix) with ESMTP id E11976B0035
+	for <linux-mm@kvack.org>; Mon, 25 Nov 2013 17:08:10 -0500 (EST)
+Received: by mail-qe0-f43.google.com with SMTP id 2so4650828qeb.2
+        for <linux-mm@kvack.org>; Mon, 25 Nov 2013 14:08:10 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id k3si9087513qao.90.2013.11.25.14.08.09
         for <linux-mm@kvack.org>;
-        Mon, 25 Nov 2013 12:31:11 -0800 (PST)
-Date: Mon, 25 Nov 2013 12:31:08 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch -mm] mm, mempolicy: silence gcc warning
-Message-Id: <20131125123108.79c80eb59c2b1bc41c879d9e@linux-foundation.org>
-In-Reply-To: <CAHGf_=ooNHx=2HeUDGxrZFma-6YRvL42ViDMkSOqLOffk8MVsw@mail.gmail.com>
-References: <alpine.DEB.2.02.1311121811310.29891@chino.kir.corp.google.com>
-	<20131120141534.06ea091ca53b1dec60ace63d@linux-foundation.org>
-	<CAHGf_=ooNHx=2HeUDGxrZFma-6YRvL42ViDMkSOqLOffk8MVsw@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Mon, 25 Nov 2013 14:08:09 -0800 (PST)
+Message-ID: <5293CA44.10904@redhat.com>
+Date: Mon, 25 Nov 2013 17:08:04 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/5] mm: compaction: encapsulate defer reset logic
+References: <1385389570-11393-1-git-send-email-vbabka@suse.cz> <1385389570-11393-2-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1385389570-11393-2-git-send-email-vbabka@suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Kees Cook <keescook@chromium.org>, Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>
 
-On Sat, 23 Nov 2013 15:49:08 -0500 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On 11/25/2013 09:26 AM, Vlastimil Babka wrote:
+> Currently there are several functions to manipulate the deferred compaction
+> state variables. The remaining case where the variables are touched directly
+> is when a successful allocation occurs in direct compaction, or is expected
+> to be successful in the future by kswapd. Here, the lowest order that is
+> expected to fail is updated, and in the case of direct compaction, the deferred
+> status is reset completely.
+>
+> Create a new function compaction_defer_reset() to encapsulate this
+> functionality and make it easier to understand the code. No functional change.
+>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Rik van Riel <riel@redhat.com>
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
-> >> --- a/mm/mempolicy.c
-> >> +++ b/mm/mempolicy.c
-> >> @@ -2950,7 +2950,7 @@ void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
-> >>               return;
-> >>       }
-> >>
-> >> -     p += snprintf(p, maxlen, policy_modes[mode]);
-> >> +     p += snprintf(p, maxlen, "%s", policy_modes[mode]);
-> >>
-> >>       if (flags & MPOL_MODE_FLAGS) {
-> >>               p += snprintf(p, buffer + maxlen - p, "=");
-> >
-> > mutter.  There are no '%'s in policy_modes[].  Maybe we should only do
-> > this #ifdef CONFIG_KEES.
-> >
-> > mpol_to_str() would be simpler (and slower) if it was switched to use
-> > strncat().
-> 
-> IMHO, you should queue this patch. mpol_to_str() is not fast path at all and
-> I don't want worry about false positive warning.
-
-Yup, it's in mainline.
-
-> > It worries me that the CONFIG_NUMA=n version of mpol_to_str() doesn't
-> > stick a '\0' into *buffer.  Hopefully it never gets called...
-> 
-> Don't worry. It never happens. Currently, all of caller depend on CONFIG_NUMA.
-> However it would be nice if CONFIG_NUMA=n version of mpol_to_str() is
-> implemented
-> more carefully. I don't know who's mistake.
-
-Put a BUG() in there?
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
