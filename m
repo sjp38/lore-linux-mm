@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 82DA16B009E
-	for <linux-mm@kvack.org>; Mon, 25 Nov 2013 07:07:55 -0500 (EST)
-Received: by mail-lb0-f176.google.com with SMTP id x18so3077227lbi.21
-        for <linux-mm@kvack.org>; Mon, 25 Nov 2013 04:07:54 -0800 (PST)
+Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C4E76B009E
+	for <linux-mm@kvack.org>; Mon, 25 Nov 2013 07:07:56 -0500 (EST)
+Received: by mail-la0-f45.google.com with SMTP id eh20so2913126lab.18
+        for <linux-mm@kvack.org>; Mon, 25 Nov 2013 04:07:55 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id ax2si2152010lbc.150.2013.11.25.04.07.54
+        by mx.google.com with ESMTPS id rc10si3524652lbb.44.2013.11.25.04.07.54
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 25 Nov 2013 04:07:54 -0800 (PST)
+        Mon, 25 Nov 2013 04:07:55 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH v11 12/15] memcg: allow kmem limit to be resized down
-Date: Mon, 25 Nov 2013 16:07:45 +0400
-Message-ID: <5560d34ea157c87c6e809620756aa1aa964cbce8.1385377616.git.vdavydov@parallels.com>
+Subject: [PATCH v11 14/15] memcg: reap dead memcgs upon global memory pressure
+Date: Mon, 25 Nov 2013 16:07:47 +0400
+Message-ID: <78812d104f535d6293a6cdd54df28d5a7446d979.1385377616.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1385377616.git.vdavydov@parallels.com>
 References: <cover.1385377616.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -24,104 +24,162 @@ Cc: glommer@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroup
 
 From: Glauber Costa <glommer@openvz.org>
 
-The userspace memory limit can be freely resized down. Upon attempt,
-reclaim will be called to flush the pages away until we either reach the
-limit we want or give up.
+When we delete kmem-enabled memcgs, they can still be zombieing
+around for a while. The reason is that the objects may still be alive,
+and we won't be able to delete them at destruction time.
 
-It wasn't possible so far with the kmem limit, since we had no way to
-shrink the kmem buffers other than using the big hammer of shrink_slab,
-that effectively frees data around the whole system.
-
-The situation flips now that we have a per-memcg shrinker
-infrastructure. We will proceed analogously to our user memory
-counterpart and try to shrink our buffers until we either reach the
-limit we want or give up.
+The only entry point for that, though, are the shrinkers. The
+shrinker interface, however, is not exactly tailored to our needs. It
+could be a little bit better by using the API Dave Chinner proposed, but
+it is still not ideal since we aren't really a count-and-scan event, but
+more a one-off flush-all-you-can event that would have to abuse that
+somehow.
 
 Signed-off-by: Glauber Costa <glommer@openvz.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Anton Vorontsov <anton@enomsg.org>
+Cc: John Stultz <john.stultz@linaro.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>
 Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/memcontrol.c |   43 ++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 38 insertions(+), 5 deletions(-)
+ mm/memcontrol.c |   80 ++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 77 insertions(+), 3 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 7b4f420..a605eb0 100644
+index a605eb0..3533d33 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -5581,10 +5581,39 @@ static ssize_t mem_cgroup_read(struct cgroup_subsys_state *css,
- 	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
- }
+@@ -287,8 +287,16 @@ struct mem_cgroup {
+ 	/* thresholds for mem+swap usage. RCU-protected */
+ 	struct mem_cgroup_thresholds memsw_thresholds;
  
-+#ifdef CONFIG_MEMCG_KMEM
-+/*
-+ * This is slightly different than res or memsw reclaim.  We already have
-+ * vmscan behind us to drive the reclaim, so we can basically keep trying until
-+ * all buffers that can be flushed are flushed. We have a very clear signal
-+ * about it in the form of the return value of try_to_free_mem_cgroup_kmem.
-+ */
-+static int mem_cgroup_resize_kmem_limit(struct mem_cgroup *memcg,
-+					unsigned long long val)
-+{
-+	int ret = -EBUSY;
-+
-+	for (;;) {
-+		if (signal_pending(current)) {
-+			ret = -EINTR;
-+			break;
-+		}
-+
-+		ret = res_counter_set_limit(&memcg->kmem, val);
-+		if (!ret)
-+			break;
-+
-+		/* Can't free anything, pointless to continue */
-+		if (!try_to_free_mem_cgroup_kmem(memcg, GFP_KERNEL))
-+			break;
-+	}
-+
-+	return ret;
-+}
-+
- static int memcg_update_kmem_limit(struct cgroup_subsys_state *css, u64 val)
- {
- 	int ret = -EINVAL;
--#ifdef CONFIG_MEMCG_KMEM
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+-	/* For oom notifier event fd */
+-	struct list_head oom_notify;
++	union {
++		/* For oom notifier event fd */
++		struct list_head oom_notify;
++		/*
++		 * we can only trigger an oom event if the memcg is alive.
++		 * so we will reuse this field to hook the memcg in the list
++		 * of dead memcgs.
++		 */
++		struct list_head dead;
++	};
+ 
  	/*
- 	 * For simplicity, we won't allow this to be disabled.  It also can't
-@@ -5619,16 +5648,15 @@ static int memcg_update_kmem_limit(struct cgroup_subsys_state *css, u64 val)
- 		 * starts accounting before all call sites are patched
- 		 */
- 		memcg_kmem_set_active(memcg);
--	} else
--		ret = res_counter_set_limit(&memcg->kmem, val);
-+	} else {
-+		ret = mem_cgroup_resize_kmem_limit(memcg, val);
-+	}
- out:
- 	mutex_unlock(&set_limit_mutex);
- 	mutex_unlock(&memcg_create_mutex);
--#endif
- 	return ret;
- }
+ 	 * Should we move charges of a task when a task is moved into this
+@@ -338,6 +346,29 @@ struct mem_cgroup {
+ 	/* WARNING: nodeinfo must be the last member here */
+ };
  
--#ifdef CONFIG_MEMCG_KMEM
- static int memcg_propagate_kmem(struct mem_cgroup *memcg)
- {
- 	int ret = 0;
-@@ -5665,6 +5693,11 @@ static int memcg_propagate_kmem(struct mem_cgroup *memcg)
- out:
- 	return ret;
- }
-+#else
-+static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
++#if defined(CONFIG_MEMCG_KMEM) || defined(CONFIG_MEMCG_SWAP)
++static LIST_HEAD(dangling_memcgs);
++static DEFINE_MUTEX(dangling_memcgs_mutex);
++
++static inline void memcg_dangling_del(struct mem_cgroup *memcg)
 +{
-+	return -EINVAL;
++	mutex_lock(&dangling_memcgs_mutex);
++	list_del(&memcg->dead);
++	mutex_unlock(&dangling_memcgs_mutex);
 +}
- #endif /* CONFIG_MEMCG_KMEM */
++
++static inline void memcg_dangling_add(struct mem_cgroup *memcg)
++{
++	INIT_LIST_HEAD(&memcg->dead);
++	mutex_lock(&dangling_memcgs_mutex);
++	list_add(&memcg->dead, &dangling_memcgs);
++	mutex_unlock(&dangling_memcgs_mutex);
++}
++#else
++static inline void memcg_dangling_free(struct mem_cgroup *memcg) {}
++static inline void memcg_dangling_add(struct mem_cgroup *memcg) {}
++#endif
++
+ static size_t memcg_size(void)
+ {
+ 	return sizeof(struct mem_cgroup) +
+@@ -6364,6 +6395,41 @@ static int mem_cgroup_oom_control_write(struct cgroup_subsys_state *css,
+ }
  
- /*
+ #ifdef CONFIG_MEMCG_KMEM
++static void memcg_vmpressure_shrink_dead(void)
++{
++	struct memcg_cache_params *params, *tmp;
++	struct kmem_cache *cachep;
++	struct mem_cgroup *memcg;
++
++	mutex_lock(&dangling_memcgs_mutex);
++	list_for_each_entry(memcg, &dangling_memcgs, dead) {
++		mutex_lock(&memcg->slab_caches_mutex);
++		/* The element may go away as an indirect result of shrink */
++		list_for_each_entry_safe(params, tmp,
++					 &memcg->memcg_slab_caches, list) {
++			cachep = memcg_params_to_cache(params);
++			/*
++			 * the cpu_hotplug lock is taken in kmem_cache_create
++			 * outside the slab_caches_mutex manipulation. It will
++			 * be taken by kmem_cache_shrink to flush the cache.
++			 * So we need to drop the lock. It is all right because
++			 * the lock only protects elements moving in and out the
++			 * list.
++			 */
++			mutex_unlock(&memcg->slab_caches_mutex);
++			kmem_cache_shrink(cachep);
++			mutex_lock(&memcg->slab_caches_mutex);
++		}
++		mutex_unlock(&memcg->slab_caches_mutex);
++	}
++	mutex_unlock(&dangling_memcgs_mutex);
++}
++
++static void memcg_register_kmem_events(struct cgroup_subsys_state *css)
++{
++	vmpressure_register_kernel_event(css, memcg_vmpressure_shrink_dead);
++}
++
+ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+ {
+ 	int ret;
+@@ -6421,6 +6487,10 @@ static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
+ 		css_put(&memcg->css);
+ }
+ #else
++static inline void memcg_register_kmem_events(struct cgroup *cont)
++{
++}
++
+ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+ {
+ 	return 0;
+@@ -6759,8 +6829,10 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
+ 	if (css->cgroup->id > MEM_CGROUP_ID_MAX)
+ 		return -ENOSPC;
+ 
+-	if (!parent)
++	if (!parent) {
++		memcg_register_kmem_events(css);
+ 		return 0;
++	}
+ 
+ 	mutex_lock(&memcg_create_mutex);
+ 
+@@ -6822,6 +6894,7 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
+ 	mem_cgroup_invalidate_reclaim_iterators(memcg);
+ 	mem_cgroup_reparent_charges(memcg);
+ 	mem_cgroup_destroy_all_caches(memcg);
++	memcg_dangling_add(memcg);
+ 	vmpressure_cleanup(&memcg->vmpressure);
+ }
+ 
+@@ -6830,6 +6903,7 @@ static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
+ 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+ 
+ 	memcg_destroy_kmem(memcg);
++	memcg_dangling_del(memcg);
+ 	__mem_cgroup_free(memcg);
+ }
+ 
 -- 
 1.7.10.4
 
