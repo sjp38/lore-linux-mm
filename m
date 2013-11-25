@@ -1,66 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f54.google.com (mail-qe0-f54.google.com [209.85.128.54])
-	by kanga.kvack.org (Postfix) with ESMTP id DD20B6B00E7
-	for <linux-mm@kvack.org>; Mon, 25 Nov 2013 13:53:34 -0500 (EST)
-Received: by mail-qe0-f54.google.com with SMTP id cy11so2658358qeb.13
-        for <linux-mm@kvack.org>; Mon, 25 Nov 2013 10:53:34 -0800 (PST)
-Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id b15si431219qey.96.2013.11.25.10.53.33
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Nov 2013 10:53:34 -0800 (PST)
-Message-ID: <52939C5A.3070208@zytor.com>
-Date: Mon, 25 Nov 2013 10:52:10 -0800
-From: "H. Peter Anvin" <hpa@zytor.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
-References: <20131120171400.GI4138@linux.vnet.ibm.com> <20131121110308.GC10022@twins.programming.kicks-ass.net> <20131121125616.GI3694@twins.programming.kicks-ass.net> <20131121132041.GS4138@linux.vnet.ibm.com> <20131121172558.GA27927@linux.vnet.ibm.com> <20131121215249.GZ16796@laptop.programming.kicks-ass.net> <20131121221859.GH4138@linux.vnet.ibm.com> <20131122155835.GR3866@twins.programming.kicks-ass.net> <20131122182632.GW4138@linux.vnet.ibm.com> <20131122185107.GJ4971@laptop.programming.kicks-ass.net> <20131125173540.GK3694@twins.programming.kicks-ass.net>
-In-Reply-To: <20131125173540.GK3694@twins.programming.kicks-ass.net>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id BB5ED6B00EA
+	for <linux-mm@kvack.org>; Mon, 25 Nov 2013 15:31:12 -0500 (EST)
+Received: by mail-pd0-f176.google.com with SMTP id w10so6225756pde.21
+        for <linux-mm@kvack.org>; Mon, 25 Nov 2013 12:31:12 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id ei3si14205235pbc.320.2013.11.25.12.31.10
+        for <linux-mm@kvack.org>;
+        Mon, 25 Nov 2013 12:31:11 -0800 (PST)
+Date: Mon, 25 Nov 2013 12:31:08 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch -mm] mm, mempolicy: silence gcc warning
+Message-Id: <20131125123108.79c80eb59c2b1bc41c879d9e@linux-foundation.org>
+In-Reply-To: <CAHGf_=ooNHx=2HeUDGxrZFma-6YRvL42ViDMkSOqLOffk8MVsw@mail.gmail.com>
+References: <alpine.DEB.2.02.1311121811310.29891@chino.kir.corp.google.com>
+	<20131120141534.06ea091ca53b1dec60ace63d@linux-foundation.org>
+	<CAHGf_=ooNHx=2HeUDGxrZFma-6YRvL42ViDMkSOqLOffk8MVsw@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Will Deacon <will.deacon@arm.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Kees Cook <keescook@chromium.org>, Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 11/25/2013 09:35 AM, Peter Zijlstra wrote:
-> 
-> I think this means x86 needs help too.
-> 
-> Consider:
-> 
-> x = y = 0
-> 
->   w[x] = 1  |  w[y] = 1
->   mfence    |  mfence
->   r[y] = 0  |  r[x] = 0
-> 
-> This is generally an impossible case, right? (Since if we observe y=0
-> this means that w[y]=1 has not yet happened, and therefore x=1, and
-> vice-versa).
-> 
-> Now replace one of the mfences with smp_store_release(l1);
-> smp_load_acquire(l2); such that we have a RELEASE+ACQUIRE pair that
-> _should_ form a full barrier:
-> 
->   w[x] = 1   | w[y] = 1
->   w[l1] = 1  | mfence
->   r[l2] = 0  | r[x] = 0
->   r[y] = 0   |
-> 
-> At which point we can observe the impossible, because as per the rule:
-> 
-> 'reads may be reordered with older writes to different locations'
-> 
-> Our r[y] can slip before the w[x]=1.
-> 
+On Sat, 23 Nov 2013 15:49:08 -0500 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-Yes, because although r[l2] and r[y] are ordered with respect to each
-other, they are allowed to be executed before w[x] and w[l1].  In other
-words, smp_store_release() followed by smp_load_acquire() to a different
-location do not form a full barrier.  To the *same* location, they will.
+> >> --- a/mm/mempolicy.c
+> >> +++ b/mm/mempolicy.c
+> >> @@ -2950,7 +2950,7 @@ void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
+> >>               return;
+> >>       }
+> >>
+> >> -     p += snprintf(p, maxlen, policy_modes[mode]);
+> >> +     p += snprintf(p, maxlen, "%s", policy_modes[mode]);
+> >>
+> >>       if (flags & MPOL_MODE_FLAGS) {
+> >>               p += snprintf(p, buffer + maxlen - p, "=");
+> >
+> > mutter.  There are no '%'s in policy_modes[].  Maybe we should only do
+> > this #ifdef CONFIG_KEES.
+> >
+> > mpol_to_str() would be simpler (and slower) if it was switched to use
+> > strncat().
+> 
+> IMHO, you should queue this patch. mpol_to_str() is not fast path at all and
+> I don't want worry about false positive warning.
 
-	-hpa
+Yup, it's in mainline.
+
+> > It worries me that the CONFIG_NUMA=n version of mpol_to_str() doesn't
+> > stick a '\0' into *buffer.  Hopefully it never gets called...
+> 
+> Don't worry. It never happens. Currently, all of caller depend on CONFIG_NUMA.
+> However it would be nice if CONFIG_NUMA=n version of mpol_to_str() is
+> implemented
+> more carefully. I don't know who's mistake.
+
+Put a BUG() in there?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
