@@ -1,108 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id D02346B0035
-	for <linux-mm@kvack.org>; Mon, 25 Nov 2013 17:58:28 -0500 (EST)
-Received: by mail-pd0-f172.google.com with SMTP id g10so6486519pdj.31
-        for <linux-mm@kvack.org>; Mon, 25 Nov 2013 14:58:28 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id ty3si24256268pbc.17.2013.11.25.14.58.26
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id EF5846B0035
+	for <linux-mm@kvack.org>; Mon, 25 Nov 2013 18:18:22 -0500 (EST)
+Received: by mail-pb0-f53.google.com with SMTP id ma3so6752756pbc.40
+        for <linux-mm@kvack.org>; Mon, 25 Nov 2013 15:18:22 -0800 (PST)
+Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
+        by mx.google.com with ESMTP id fb6si18242534pab.8.2013.11.25.15.18.20
         for <linux-mm@kvack.org>;
-        Mon, 25 Nov 2013 14:58:27 -0800 (PST)
-Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <52939C5A.3070208@zytor.com>
-References: <20131120171400.GI4138@linux.vnet.ibm.com>
-	 <20131121110308.GC10022@twins.programming.kicks-ass.net>
-	 <20131121125616.GI3694@twins.programming.kicks-ass.net>
-	 <20131121132041.GS4138@linux.vnet.ibm.com>
-	 <20131121172558.GA27927@linux.vnet.ibm.com>
-	 <20131121215249.GZ16796@laptop.programming.kicks-ass.net>
-	 <20131121221859.GH4138@linux.vnet.ibm.com>
-	 <20131122155835.GR3866@twins.programming.kicks-ass.net>
-	 <20131122182632.GW4138@linux.vnet.ibm.com>
-	 <20131122185107.GJ4971@laptop.programming.kicks-ass.net>
-	 <20131125173540.GK3694@twins.programming.kicks-ass.net>
-	 <52939C5A.3070208@zytor.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 25 Nov 2013 14:58:22 -0800
-Message-ID: <1385420302.11046.539.camel@schen9-DESK>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Mon, 25 Nov 2013 15:18:21 -0800 (PST)
+Date: Tue, 26 Nov 2013 10:17:16 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [patch 6/9] mm + fs: store shadow entries in page cache
+Message-ID: <20131125231716.GJ8803@dastard>
+References: <1385336308-27121-1-git-send-email-hannes@cmpxchg.org>
+ <1385336308-27121-7-git-send-email-hannes@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1385336308-27121-7-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Will Deacon <will.deacon@arm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Tejun Heo <tj@kernel.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, 2013-11-25 at 10:52 -0800, H. Peter Anvin wrote:
-> On 11/25/2013 09:35 AM, Peter Zijlstra wrote:
-> > 
-> > I think this means x86 needs help too.
-> > 
-> > Consider:
-> > 
-> > x = y = 0
-> > 
-> >   w[x] = 1  |  w[y] = 1
-> >   mfence    |  mfence
-> >   r[y] = 0  |  r[x] = 0
-> > 
-> > This is generally an impossible case, right? (Since if we observe y=0
-> > this means that w[y]=1 has not yet happened, and therefore x=1, and
-> > vice-versa).
-> > 
-> > Now replace one of the mfences with smp_store_release(l1);
-> > smp_load_acquire(l2); such that we have a RELEASE+ACQUIRE pair that
-> > _should_ form a full barrier:
-> > 
-> >   w[x] = 1   | w[y] = 1
-> >   w[l1] = 1  | mfence
-> >   r[l2] = 0  | r[x] = 0
-> >   r[y] = 0   |
-> > 
-> > At which point we can observe the impossible, because as per the rule:
-> > 
-> > 'reads may be reordered with older writes to different locations'
-> > 
-> > Our r[y] can slip before the w[x]=1.
-> > 
+On Sun, Nov 24, 2013 at 06:38:25PM -0500, Johannes Weiner wrote:
+> Reclaim will be leaving shadow entries in the page cache radix tree
+> upon evicting the real page.  As those pages are found from the LRU,
+> an iput() can lead to the inode being freed concurrently.  At this
+> point, reclaim must no longer install shadow pages because the inode
+> freeing code needs to ensure the page tree is really empty.
 > 
-> Yes, because although r[l2] and r[y] are ordered with respect to each
-> other, they are allowed to be executed before w[x] and w[l1].  In other
-> words, smp_store_release() followed by smp_load_acquire() to a different
-> location do not form a full barrier.  To the *same* location, they will.
+> Add an address_space flag, AS_EXITING, that the inode freeing code
+> sets under the tree lock before doing the final truncate.  Reclaim
+> will check for this flag before installing shadow pages.
 > 
-> 	-hpa
-> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+....
+> @@ -545,10 +546,25 @@ static void evict(struct inode *inode)
+>  	 */
+>  	inode_wait_for_writeback(inode);
+>  
+> +	/*
+> +	 * Page reclaim can not do iput() and thus can race with the
+> +	 * inode teardown.  Tell it when the address space is exiting,
+> +	 * so that it does not install eviction information after the
+> +	 * final truncate has begun.
+> +	 *
+> +	 * As truncation uses a lockless tree lookup, acquire the
+> +	 * spinlock to make sure any ongoing tree modification that
+> +	 * does not see AS_EXITING is completed before starting the
+> +	 * final truncate.
+> +	 */
+> +	spin_lock_irq(&inode->i_data.tree_lock);
+> +	mapping_set_exiting(&inode->i_data);
+> +	spin_unlock_irq(&inode->i_data.tree_lock);
+> +
+>  	if (op->evict_inode) {
+>  		op->evict_inode(inode);
+>  	} else {
+> -		if (inode->i_data.nrpages)
+> +		if (inode->i_data.nrpages || inode->i_data.nrshadows)
+>  			truncate_inode_pages(&inode->i_data, 0);
+>  		clear_inode(inode);
+>  	}
 
-Peter,
+Ok, so what I see here is that we need a wrapper function that
+handles setting the AS_EXITING flag and doing the "final"
+truncate_inode_pages() call, and the locking for the AS_EXITING flag
+moved into mapping_set_exiting()
 
-Want to check with you on Paul's example, 
-where we are indeed writing and reading to the same
-lock location when passing the lock on x86 with smp_store_release and
-smp_load_acquire.  So the unlock and lock sequence looks like:
+That is, because this AS_EXITING flag and it's locking constraints
+are directly related to the upcoming truncate_inode_pages() call,
+I'd prefer to see a helper that captures that relationship used
+in all the filesystem code. e.g:
 
-        CPU 0 (releasing)       CPU 1 (acquiring)
-        -----                   -----
-        ACCESS_ONCE(X) = 1;     while (ACCESS_ONCE(lock) == 1)
-                                  continue;
-        ACCESS_ONCE(lock) = 0;  
-                                r1 = ACCESS_ONCE(Y);
+void truncate_inode_pages_final(struct address_space *mapping)
+{
+	spin_lock_irq(&mapping->tree_lock);
+	mapping_set_exiting(mapping);
+	spin_unlock_irq(&mapping->tree_lock);
+	if (inode->i_data.nrpages || inode->i_data.nrshadows)
+		truncate_inode_pages_range(mapping, 0, (loff_t)-1);
+}
 
-observer CPU 2:
+And document it in Documentation/filesystems/porting as a mandatory
+function to be called from ->evict_inode() implementations before
+calling clear_inode().  You can then replace all the direct calls to
+truncate_inode_pages() in the evict_inode() path with a call to
+truncate_inode_pages_final().
 
-        CPU 2
-        -----
-        ACCESS_ONCE(Y) = 1;
-        smp_mb();
-        r2 = ACCESS_ONCE(X);
+As it is, I'd really like to see that unconditional irq disable go
+away from this code - disabling and enabling interrupts for every
+single inode we reclaim is going to add significant overhead to this
+hot code path. And given that:
 
-If the write and read to lock act as a full memory barrier, 
-it would be impossible to
-end up with (r1 == 0 && r2 == 0), correct?
+> +static inline void mapping_set_exiting(struct address_space *mapping)
+> +{
+> +	set_bit(AS_EXITING, &mapping->flags);
+> +}
+> +
+> +static inline int mapping_exiting(struct address_space *mapping)
+> +{
+> +	return test_bit(AS_EXITING, &mapping->flags);
+> +}
 
-Tim
+these atomic bit ops, why do we need to take the tree_lock and
+disable irqs in evict() to set this bit if there's nothing to
+truncate on the inode? i.e. something like this:
 
+void truncate_inode_pages_final(struct address_space *mapping)
+{
+	mapping_set_exiting(mapping);
+	if (inode->i_data.nrpages || inode->i_data.nrshadows) {
+		/*
+		 * spinlock barrier to ensure all modifications are
+		 * complete before we do the final truncate
+		 */
+		spin_lock_irq(&mapping->tree_lock);
+		spin_unlock_irq(&mapping->tree_lock);
+		truncate_inode_pages_range(mapping, 0, (loff_t)-1);
+}
 
+and thereby avoiding the mapping lock altogether for inodes that do
+not require it to be taken?
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
