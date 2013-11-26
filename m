@@ -1,238 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 14D776B0035
-	for <linux-mm@kvack.org>; Mon, 25 Nov 2013 20:24:01 -0500 (EST)
-Received: by mail-pb0-f53.google.com with SMTP id ma3so6914346pbc.26
-        for <linux-mm@kvack.org>; Mon, 25 Nov 2013 17:24:00 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id cx4si29254546pbc.119.2013.11.25.17.23.58
-        for <linux-mm@kvack.org>;
-        Mon, 25 Nov 2013 17:23:59 -0800 (PST)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: [PATCH] Expose sysctls for enabling slab/file_cache interleaving v2
-Date: Mon, 25 Nov 2013 17:23:54 -0800
-Message-Id: <1385429034-29465-1-git-send-email-andi@firstfloor.org>
+Received: from mail-yh0-f45.google.com (mail-yh0-f45.google.com [209.85.213.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B71B6B0035
+	for <linux-mm@kvack.org>; Mon, 25 Nov 2013 20:29:24 -0500 (EST)
+Received: by mail-yh0-f45.google.com with SMTP id v1so2424381yhn.4
+        for <linux-mm@kvack.org>; Mon, 25 Nov 2013 17:29:24 -0800 (PST)
+Received: from mail-yh0-x230.google.com (mail-yh0-x230.google.com [2607:f8b0:4002:c01::230])
+        by mx.google.com with ESMTPS id z5si22344001yhd.224.2013.11.25.17.29.23
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 25 Nov 2013 17:29:23 -0800 (PST)
+Received: by mail-yh0-f48.google.com with SMTP id f73so3483184yha.7
+        for <linux-mm@kvack.org>; Mon, 25 Nov 2013 17:29:23 -0800 (PST)
+Date: Mon, 25 Nov 2013 17:29:20 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: user defined OOM policies
+In-Reply-To: <CAA25o9Q64eK5LHhrRyVn73kFz=Z7Jji=rYWS=9jWL_4y9ZGbQA@mail.gmail.com>
+Message-ID: <alpine.DEB.2.02.1311251717370.27270@chino.kir.corp.google.com>
+References: <20131119131400.GC20655@dhcp22.suse.cz> <20131119134007.GD20655@dhcp22.suse.cz> <alpine.DEB.2.02.1311192352070.20752@chino.kir.corp.google.com> <20131120152251.GA18809@dhcp22.suse.cz> <CAA25o9S5EQBvyk=HP3obdCaXKjoUVtzeb4QsNmoLMq6NnOYifA@mail.gmail.com>
+ <alpine.DEB.2.02.1311201933420.7167@chino.kir.corp.google.com> <CAA25o9Q64eK5LHhrRyVn73kFz=Z7Jji=rYWS=9jWL_4y9ZGbQA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
+To: Luigi Semenzato <semenzato@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Joern Engel <joern@logfs.org>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>
 
-From: Andi Kleen <ak@linux.intel.com>
+On Wed, 20 Nov 2013, Luigi Semenzato wrote:
 
-cpusets has settings per cpu sets to enable NUMA node
-interleaving for the slab cache or for the file cache.
-These are quite useful, especially the setting for interleaving
-the file page cache. This avoids the problem that some
-program doing IO fills up a node completely and prevents
-other programs from getting local memory. File IO
-is often slow enough that the small NUMA differences do
-not matter. In some cases doing the same for slab
-is also useful.
+> Yes, I agree that we can't always prevent OOM situations, and in fact
+> we tolerate OOM kills, although they have a worse impact on the users
+> than controlled freeing does.
+> 
 
-This was always available using cpusets, but setting up
-cpusets just for these two settings was always awkward
-and complicated for many system administrators.
+If the controlled freeing is able to actually free memory in time before 
+hitting an oom condition, it should work pretty well.  That ability is 
+seems to be highly dependent on sane thresholds for indvidual applications 
+and I'm afraid we can never positively ensure that we wakeup and are able 
+to free memory in time to avoid the oom condition.
 
-Add two sysctls that expose these settings directly.
-When the sysctl is set it overrides the default choice
-from cpusets. The default is still no interleaving,
-so no defaults change.
+> Well OK here it goes.  I hate to be a party-pooper, but the notion of
+> a user-level OOM-handler scares me a bit for various reasons.
+> 
+> 1. Our custom notifier sends low-memory warnings well ahead of memory
+> depletion.  If we don't have enough time to free memory then, what can
+> the last-minute OOM handler do?
+> 
 
-One of the past SLES version had a sysctl similar
-to spread_file_cache (with a different name)
+The userspace oom handler doesn't necessarily guarantee that you can do 
+memory freeing, our usecase wants to do a priority-based oom killing that 
+is different from the kernel oom killer based on rss.  To do that, you 
+only really need to read certain proc files and you can do killing based 
+on uptime, for example.  You can also do a hierarchical traversal of 
+memcgs based on a priority.
 
-There is basically no new code, we just use the existing
-cpuset hooks/code. Right now the sysctls are only
-active when cpusets are compiled in, but that
-could be easily relaxed by changing a few
-ifdefs and move the function to do it outside
-cpuset.c
+We already have hooks in the kernel oom killer, things like 
+/proc/sys/vm/oom_kill_allocating_task and /proc/sys/vm/panic_on_oom that 
+implement different policies that could now trivially be done in userspace 
+with memory reserves and a timeout.  The point is that we can't possibly 
+encode every possible policy into the kernel and there's no reason why 
+userspace can't do the kill itself.
 
-v2: Handle the case when cpusets override the spread
-decision. This needed new task struct flags.
-Note there is currently no interface to reset a once
-set cpuset to do "whatever the sysctl says"
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
----
- Documentation/sysctl/vm.txt | 16 ++++++++++++++++
- include/linux/cpuset.h      | 10 ++++++----
- include/linux/mm.h          |  2 ++
- include/linux/sched.h       |  3 +++
- kernel/cpuset.c             | 14 ++++++++++----
- kernel/sysctl.c             | 16 ++++++++++++++++
- mm/memory.c                 |  5 +++++
- 7 files changed, 58 insertions(+), 8 deletions(-)
+> 2. In addition to the time factor, it's not trivial to do anything,
+> including freeing memory, without allocating memory first, so we'll
+> need a reserve, but how much, and who is allowed to use it?
+> 
 
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index 1fbd4eb..4249fef 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -53,6 +53,8 @@ Currently, these files are in /proc/sys/vm:
- - panic_on_oom
- - percpu_pagelist_fraction
- - stat_interval
-+- spread_file_cache
-+- spread_slab
- - swappiness
- - user_reserve_kbytes
- - vfs_cache_pressure
-@@ -680,6 +682,20 @@ is 1 second.
- 
- ==============================================================
- 
-+spread_slab
-+
-+When not 0 interleave the slab cache over all NUMA nodes, instead of 
-+allocating on the current node. Only works for SLAB. Default 0.
-+
-+==============================================================
-+
-+spread_file_cache
-+
-+When not 0 interleave the file cache over all NUMA nodes, instead
-+of following the policy of the current process. Default 0.
-+
-+==============================================================
-+
- swappiness
- 
- This control is used to define how aggressive the kernel will swap
-diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
-index cc1b01c..39e27b9 100644
---- a/include/linux/cpuset.h
-+++ b/include/linux/cpuset.h
-@@ -72,12 +72,14 @@ extern int cpuset_slab_spread_node(void);
- 
- static inline int cpuset_do_page_mem_spread(void)
- {
--	return current->flags & PF_SPREAD_PAGE;
-+	return (current->flags & PF_SPREAD_PAGE) ||
-+		(sysctl_spread_file_cache && !current->no_page_spread);
- }
- 
- static inline int cpuset_do_slab_mem_spread(void)
- {
--	return current->flags & PF_SPREAD_SLAB;
-+	return (current->flags & PF_SPREAD_SLAB) || 
-+		(sysctl_spread_slab && !current->no_slab_spread);
- }
- 
- extern int current_cpuset_is_being_rebound(void);
-@@ -195,12 +197,12 @@ static inline int cpuset_slab_spread_node(void)
- 
- static inline int cpuset_do_page_mem_spread(void)
- {
--	return 0;
-+	return sysctl_spread_file_cache;
- }
- 
- static inline int cpuset_do_slab_mem_spread(void)
- {
--	return 0;
-+	return sysctl_spread_slab;
- }
- 
- static inline int current_cpuset_is_being_rebound(void)
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 42a35d9..e26b26a 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1921,5 +1921,7 @@ void __init setup_nr_node_ids(void);
- static inline void setup_nr_node_ids(void) {}
- #endif
- 
-+extern int sysctl_spread_slab, sysctl_spread_file_cache;
-+
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_H */
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index f7efc86..0d97eee 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1123,6 +1123,9 @@ struct task_struct {
- 	unsigned sched_reset_on_fork:1;
- 	unsigned sched_contributes_to_load:1;
- 
-+	unsigned no_slab_spread:1;
-+	unsigned no_page_spread:1;
-+
- 	pid_t pid;
- 	pid_t tgid;
- 
-diff --git a/kernel/cpuset.c b/kernel/cpuset.c
-index 6bf981e..ceec878 100644
---- a/kernel/cpuset.c
-+++ b/kernel/cpuset.c
-@@ -343,14 +343,20 @@ static void guarantee_online_mems(struct cpuset *cs, nodemask_t *pmask)
- static void cpuset_update_task_spread_flag(struct cpuset *cs,
- 					struct task_struct *tsk)
- {
--	if (is_spread_page(cs))
-+	if (is_spread_page(cs)) {
- 		tsk->flags |= PF_SPREAD_PAGE;
--	else
-+		tsk->no_page_spread = 0;
-+	} else {
- 		tsk->flags &= ~PF_SPREAD_PAGE;
--	if (is_spread_slab(cs))
-+		tsk->no_page_spread = 1;
-+	}
-+	if (is_spread_slab(cs)) {
- 		tsk->flags |= PF_SPREAD_SLAB;
--	else
-+		tsk->no_slab_spread = 0;
-+	} else {
- 		tsk->flags &= ~PF_SPREAD_SLAB;
-+		tsk->no_slab_spread = 1;
-+	}
- }
- 
- /*
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index d37d9dd..7995ba6 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1375,6 +1375,22 @@ static struct ctl_table vm_table[] = {
- 		.extra1		= &zero,
- 		.extra2		= &one_hundred,
- 	},
-+#ifdef CONFIG_CPUSETS
-+	{
-+		.procname	= "spread_slab",
-+		.data		= &sysctl_spread_slab,
-+		.maxlen		= sizeof(sysctl_spread_slab),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec,
-+	},
-+	{
-+		.procname	= "spread_file_cache",
-+		.data		= &sysctl_spread_file_cache,
-+		.maxlen		= sizeof(sysctl_spread_file_cache),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec,
-+	},
-+#endif
- #endif
- #ifdef CONFIG_SMP
- 	{
-diff --git a/mm/memory.c b/mm/memory.c
-index bf86658..b6b8fcb 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -69,6 +69,11 @@
- 
- #include "internal.h"
- 
-+#ifdef CONFIG_NUMA
-+int __read_mostly sysctl_spread_file_cache;	/* Interleave file cache */ 
-+int __read_mostly sysctl_spread_slab;		/* Interleave slab */ 
-+#endif
-+
- #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
- #warning Unfortunate NUMA and NUMA Balancing config, growing page-frame for last_cpupid.
- #endif
--- 
-1.8.3.1
+The reserve is configurable in the proposal as a memcg precharge and would 
+be dependent on the memory needed by the userspace oom handler at wakeup.  
+Only processes that are waiting on memory.oom_control have access to the 
+memory reserve.
+
+> 3. How does one select the OOM-handler timeout?  If the freeing paths
+> in the code are swapped out, the time needed to bring them in can be
+> highly variable.
+> 
+
+The userspace oom handler itself is mlocked in memory, you'd want to 
+select a timeout that is large enough to only react in situations where 
+userspace is known to be unresponsive; it's only meant as a failsafe to 
+avoid the memcg sitting around forever not making any forward progress.
+
+> 4. Why wouldn't the OOM-handler also do the killing itself?  (Which is
+> essentially what we do.)  Then all we need is a low-memory notifier
+> which can predict how quickly we'll run out of memory.
+> 
+
+It can, but the prediction of how quickly we'll run out of memory is 
+nearly impossible for every class of application and the timeout is 
+required before the kernel steps in to solve the situation.
+
+> 5. The use case mentioned earlier (the fact that the killing of one
+> process can make an entire group of processes useless) can be dealt
+> with using OOM priorities and user-level code.
+> 
+
+It depends on the application being killed.
+
+> I confess I am surprised that the OOM killer works as well as I think
+> it does.  Adding a user-level component would bring a whole new level
+> of complexity to code that's already hard to fully comprehend, and
+> might not really address the fundamental issues.
+> 
+
+The kernel code that would be added certainly isn't complex and I believe 
+it is better than the current functionality that only allows you to 
+disable the memcg oom killer entirely to effect any userspace policy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
