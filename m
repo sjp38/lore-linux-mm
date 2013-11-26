@@ -1,119 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f49.google.com (mail-bk0-f49.google.com [209.85.214.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 3923B6B007B
-	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 09:24:44 -0500 (EST)
-Received: by mail-bk0-f49.google.com with SMTP id my13so2594957bkb.36
-        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 06:24:43 -0800 (PST)
-Received: from mail-bk0-x235.google.com (mail-bk0-x235.google.com [2a00:1450:4008:c01::235])
-        by mx.google.com with ESMTPS id dc8si10909178bkc.271.2013.11.26.06.24.43
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 26 Nov 2013 06:24:43 -0800 (PST)
-Received: by mail-bk0-f53.google.com with SMTP id na10so2575599bkb.26
-        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 06:24:43 -0800 (PST)
-Message-ID: <5294AF27.8080605@gmail.com>
-Date: Tue, 26 Nov 2013 15:24:39 +0100
-From: Juri Lelli <juri.lelli@gmail.com>
+Received: from mail-bk0-f47.google.com (mail-bk0-f47.google.com [209.85.214.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E90A6B0080
+	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 11:44:50 -0500 (EST)
+Received: by mail-bk0-f47.google.com with SMTP id mx12so2721331bkb.34
+        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 08:44:49 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTP id db3si11053471bkc.39.2013.11.26.08.44.48
+        for <linux-mm@kvack.org>;
+        Tue, 26 Nov 2013 08:44:49 -0800 (PST)
+Message-ID: <5294CFFD.70204@suse.cz>
+Date: Tue, 26 Nov 2013 17:44:45 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] cpuset: Fix memory allocator deadlock
-References: <20131126140341.GL10022@twins.programming.kicks-ass.net>
-In-Reply-To: <20131126140341.GL10022@twins.programming.kicks-ass.net>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 3/5] mm: compaction: detect when scanners meet in isolate_freepages
+References: <1385389570-11393-1-git-send-email-vbabka@suse.cz> <1385389570-11393-4-git-send-email-vbabka@suse.cz> <20131126104542.GH5285@suse.de>
+In-Reply-To: <20131126104542.GH5285@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>, Li Zefan <lizefan@huawei.com>, Tejun Heo <tj@kernel.org>
-Cc: John Stultz <john.stultz@linaro.org>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>
 
-On 11/26/2013 03:03 PM, Peter Zijlstra wrote:
-> Juri hit the below lockdep report:
+On 11/26/2013 11:45 AM, Mel Gorman wrote:
+> On Mon, Nov 25, 2013 at 03:26:08PM +0100, Vlastimil Babka wrote:
+>> Compaction of a zone is finished when the migrate scanner (which begins at the
+>> zone's lowest pfn) meets the free page scanner (which begins at the zone's
+>> highest pfn). This is detected in compact_zone() and in the case of direct
+>> compaction, the compact_blockskip_flush flag is set so that kswapd later resets
+>> the cached scanner pfn's, and a new compaction may again start at the zone's
+>> borders.
+>>
+>> The meeting of the scanners can happen during either scanner's activity.
+>> However, it may currently fail to be detected when it occurs in the free page
+>> scanner, due to two problems. First, isolate_freepages() keeps free_pfn at the
+>> highest block where it isolated pages from, for the purposes of not missing the
+>> pages that are returned back to allocator when migration fails. Second, failing
+>> to isolate enough free pages due to scanners meeting results in -ENOMEM being
+>> returned by migrate_pages(), which makes compact_zone() bail out immediately
+>> without calling compact_finished() that would detect scanners meeting.
+>>
+>> This failure to detect scanners meeting might result in repeated attempts at
+>> compaction of a zone that keep starting from the cached pfn's close to the
+>> meeting point, and quickly failing through the -ENOMEM path, without the cached
+>> pfns being reset, over and over. This has been observed (through additional
+>> tracepoints) in the third phase of the mmtests stress-highalloc benchmark, where
+>> the allocator runs on an otherwise idle system. The problem was observed in the
+>> DMA32 zone, which was used as a fallback to the preferred Normal zone, but on
+>> the 4GB system it was actually the largest zone. The problem is even amplified
+>> for such fallback zone - the deferred compaction logic, which could (after
+>> being fixed by a previous patch) reset the cached scanner pfn's, is only
+>> applied to the preferred zone and not for the fallbacks.
+>>
+>> The problem in the third phase of the benchmark was further amplified by commit
+>> 81c0a2bb ("mm: page_alloc: fair zone allocator policy") which resulted in a
+>> non-deterministic regression of the allocation success rate from ~85% to ~65%.
+>> This occurs in about half of benchmark runs, making bisection problematic.
+>> It is unlikely that the commit itself is buggy, but it should put more pressure
+>> on the DMA32 zone during phases 1 and 2, which may leave it more fragmented in
+>> phase 3 and expose the bugs that this patch fixes.
+>>
+>> The fix is to make scanners meeting in isolate_freepage() stay that way, and
+>> to check in compact_zone() for scanners meeting when migrate_pages() returns
+>> -ENOMEM. The result is that compact_finished() also detects scanners meeting
+>> and sets the compact_blockskip_flush flag to make kswapd reset the scanner
+>> pfn's.
+>>
+>> The results in stress-highalloc benchmark show that the "regression" by commit
+>> 81c0a2bb in phase 3 no longer occurs, and phase 1 and 2 allocation success rates
+>> are significantly improved.
+>>
+>> Cc: Mel Gorman <mgorman@suse.de>
+>> Cc: Rik van Riel <riel@redhat.com>
+>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+>> ---
+>>  mm/compaction.c | 19 +++++++++++++++----
+>>  1 file changed, 15 insertions(+), 4 deletions(-)
+>>
+>> diff --git a/mm/compaction.c b/mm/compaction.c
+>> index 6a2f0c2..0702bdf 100644
+>> --- a/mm/compaction.c
+>> +++ b/mm/compaction.c
+>> @@ -656,7 +656,7 @@ static void isolate_freepages(struct zone *zone,
+>>  	 * is the end of the pageblock the migration scanner is using.
+>>  	 */
+>>  	pfn = cc->free_pfn;
+>> -	low_pfn = cc->migrate_pfn + pageblock_nr_pages;
+>> +	low_pfn = ALIGN(cc->migrate_pfn + 1, pageblock_nr_pages);
+>>  
+>>  	/*
+>>  	 * Take care that if the migration scanner is at the end of the zone
+>> @@ -672,7 +672,7 @@ static void isolate_freepages(struct zone *zone,
+>>  	 * pages on cc->migratepages. We stop searching if the migrate
+>>  	 * and free page scanners meet or enough free pages are isolated.
+>>  	 */
+>> -	for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages;
+>> +	for (; pfn >= low_pfn && cc->nr_migratepages > nr_freepages;
+>>  					pfn -= pageblock_nr_pages) {
+>>  		unsigned long isolated;
+>>  
+>> @@ -734,7 +734,14 @@ static void isolate_freepages(struct zone *zone,
+>>  	/* split_free_page does not map the pages */
+>>  	map_pages(freelist);
+>>  
+>> -	cc->free_pfn = high_pfn;
+>> +        /*
+>> +         * If we crossed the migrate scanner, we want to keep it that way
+>> +	 * so that compact_finished() may detect this
+>> +	 */
 > 
-> [    4.303391] ======================================================
-> [    4.303392] [ INFO: SOFTIRQ-safe -> SOFTIRQ-unsafe lock order detected ]
-> [    4.303394] 3.12.0-dl-peterz+ #144 Not tainted
-> [    4.303395] ------------------------------------------------------
-> [    4.303397] kworker/u4:3/689 [HC0[0]:SC0[0]:HE0:SE1] is trying to acquire:
-> [    4.303399]  (&p->mems_allowed_seq){+.+...}, at: [<ffffffff8114e63c>] new_slab+0x6c/0x290
-> [    4.303417]
-> [    4.303417] and this task is already holding:
-> [    4.303418]  (&(&q->__queue_lock)->rlock){..-...}, at: [<ffffffff812d2dfb>] blk_execute_rq_nowait+0x5b/0x100
-> [    4.303431] which would create a new lock dependency:
-> [    4.303432]  (&(&q->__queue_lock)->rlock){..-...} -> (&p->mems_allowed_seq){+.+...}
-> [    4.303436]
+> Whitespace damage.
+
+Thanks, will fix.
+
+>> +	if (pfn < low_pfn)
+>> +		cc->free_pfn = max(pfn, zone->zone_start_pfn);
 > 
-> [    4.303898] the dependencies between the lock to be acquired and SOFTIRQ-irq-unsafe lock:
-> [    4.303918] -> (&p->mems_allowed_seq){+.+...} ops: 2762 {
-> [    4.303922]    HARDIRQ-ON-W at:
-> [    4.303923]                     [<ffffffff8108ab9a>] __lock_acquire+0x65a/0x1ff0
-> [    4.303926]                     [<ffffffff8108cbe3>] lock_acquire+0x93/0x140
-> [    4.303929]                     [<ffffffff81063dd6>] kthreadd+0x86/0x180
-> [    4.303931]                     [<ffffffff816ded6c>] ret_from_fork+0x7c/0xb0
-> [    4.303933]    SOFTIRQ-ON-W at:
-> [    4.303933]                     [<ffffffff8108abcc>] __lock_acquire+0x68c/0x1ff0
-> [    4.303935]                     [<ffffffff8108cbe3>] lock_acquire+0x93/0x140
-> [    4.303940]                     [<ffffffff81063dd6>] kthreadd+0x86/0x180
-> [    4.303955]                     [<ffffffff816ded6c>] ret_from_fork+0x7c/0xb0
-> [    4.303959]    INITIAL USE at:
-> [    4.303960]                    [<ffffffff8108a884>] __lock_acquire+0x344/0x1ff0
-> [    4.303963]                    [<ffffffff8108cbe3>] lock_acquire+0x93/0x140
-> [    4.303966]                    [<ffffffff81063dd6>] kthreadd+0x86/0x180
-> [    4.303969]                    [<ffffffff816ded6c>] ret_from_fork+0x7c/0xb0
-> [    4.303972]  }
-> 
-> Which reports that we take mems_allowed_seq with interrupts enabled. A
-> little digging found that this can only be from
-> cpuset_change_task_nodemask().
-> 
-> This is an actual deadlock because an interrupt doing an allocation will
-> hit get_mems_allowed()->...->__read_seqcount_begin(), which will spin
-> forever waiting for the write side to complete.
-> 
+> Is it even possible for this condition to occur? low_pfn bound is
+> cc->migrate_pfn and the free scanner should only start after some pages
+> have already been isolated for migration.
 
-And this patch fixes it, thanks!
+If a zone starts in a middle of a pageblock and migrate scanner isolates
+enough pages early to stay within that pageblock, low_pfn will be at the
+end of that pageblock and after the for cycle in this function ends, pfn
+might be at the beginning of that pageblock. It might not be an actual
+problem (this compaction will finish at this point, and if someone else
+is racing, he will probably check the boundaries himself), but I played
+it safe.
 
-> Cc: John Stultz <john.stultz@linaro.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Reported-by: Juri Lelli <juri.lelli@gmail.com>
-> Signed-off-by: Peter Zijlstra <peterz@infradead.org>
-
-Tested-by: Juri Lelli <juri.lelli@gmail.com>
-
-Best,
-
-- Juri
-
-> ---
->  kernel/cpuset.c | 8 ++++++--
->  1 file changed, 6 insertions(+), 2 deletions(-)
-> 
-> diff --git a/kernel/cpuset.c b/kernel/cpuset.c
-> index 6bf981e13c43..4772034b4b17 100644
-> --- a/kernel/cpuset.c
-> +++ b/kernel/cpuset.c
-> @@ -1033,8 +1033,10 @@ static void cpuset_change_task_nodemask(struct task_struct *tsk,
->  	need_loop = task_has_mempolicy(tsk) ||
->  			!nodes_intersects(*newmems, tsk->mems_allowed);
->  
-> -	if (need_loop)
-> +	if (need_loop) {
-> +		local_irq_disable();
->  		write_seqcount_begin(&tsk->mems_allowed_seq);
-> +	}
->  
->  	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
->  	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
-> @@ -1042,8 +1044,10 @@ static void cpuset_change_task_nodemask(struct task_struct *tsk,
->  	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP2);
->  	tsk->mems_allowed = *newmems;
->  
-> -	if (need_loop)
-> +	if (need_loop) {
->  		write_seqcount_end(&tsk->mems_allowed_seq);
-> +		local_irq_enable();
-> +	}
->  
->  	task_unlock(tsk);
->  }
+>> +	else
+>> +		cc->free_pfn = high_pfn;
+>>  	cc->nr_freepages = nr_freepages;
+>>  }
+>>  
+>> @@ -999,7 +1006,11 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+>>  		if (err) {
+>>  			putback_movable_pages(&cc->migratepages);
+>>  			cc->nr_migratepages = 0;
+>> -			if (err == -ENOMEM) {
+>> +			/*
+>> +			 * migrate_pages() may return -ENOMEM when scanners meet
+>> +			 * and we want compact_finished() to detect it
+>> +			 */
+>> +			if (err == -ENOMEM && cc->free_pfn > cc->migrate_pfn) {
+>>  				ret = COMPACT_PARTIAL;
+>>  				goto out;
+>>  			}
+>> -- 
+>> 1.8.1.4
+>>
 > 
 
 --
