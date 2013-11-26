@@ -1,57 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f50.google.com (mail-qa0-f50.google.com [209.85.216.50])
-	by kanga.kvack.org (Postfix) with ESMTP id B8AE66B0073
-	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 08:16:16 -0500 (EST)
-Received: by mail-qa0-f50.google.com with SMTP id i13so8023564qae.16
-        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 05:16:16 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id r10si11106301qai.133.2013.11.26.05.16.15
-        for <linux-mm@kvack.org>;
-        Tue, 26 Nov 2013 05:16:15 -0800 (PST)
-Message-ID: <52949F1C.2060607@redhat.com>
-Date: Tue, 26 Nov 2013 08:16:12 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-qe0-f41.google.com (mail-qe0-f41.google.com [209.85.128.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AB456B0075
+	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 09:03:56 -0500 (EST)
+Received: by mail-qe0-f41.google.com with SMTP id gh4so3163167qeb.0
+        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 06:03:56 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id ik2si11269362qab.60.2013.11.26.06.03.54
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Nov 2013 06:03:55 -0800 (PST)
+Date: Tue, 26 Nov 2013 15:03:41 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: [PATCH] cpuset: Fix memory allocator deadlock
+Message-ID: <20131126140341.GL10022@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/5] mm: compaction: reset cached scanner pfn's before
- reading them
-References: <1385389570-11393-1-git-send-email-vbabka@suse.cz> <1385389570-11393-3-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1385389570-11393-3-git-send-email-vbabka@suse.cz>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>
+To: Li Zefan <lizefan@huawei.com>, Tejun Heo <tj@kernel.org>
+Cc: John Stultz <john.stultz@linaro.org>, Mel Gorman <mgorman@suse.de>, Juri Lelli <juri.lelli@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 11/25/2013 09:26 AM, Vlastimil Babka wrote:
-> Compaction caches pfn's for its migrate and free scanners to avoid scanning
-> the whole zone each time. In compact_zone(), the cached values are read to
-> set up initial values for the scanners. There are several situations when
-> these cached pfn's are reset to the first and last pfn of the zone,
-> respectively. One of these situations is when a compaction has been deferred
-> for a zone and is now being restarted during a direct compaction, which is also
-> done in compact_zone().
-> 
-> However, compact_zone() currently reads the cached pfn's *before* resetting
-> them. This means the reset doesn't affect the compaction that performs it, and
-> with good chance also subsequent compactions, as update_pageblock_skip() is
-> likely to be called and update the cached pfn's to those being processed.
-> Another chance for a successful reset is when a direct compaction detects that
-> migration and free scanners meet (which has its own problems addressed by
-> another patch) and sets update_pageblock_skip flag which kswapd uses to do the
-> reset because it goes to sleep.
-> 
-> This is clearly a bug that results in non-deterministic behavior, so this patch
-> moves the cached pfn reset to be performed *before* the values are read.
-> 
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Rik van Riel <riel@redhat.com>
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Juri hit the below lockdep report:
 
-Acked-by: Rik van Riel <riel@redhat.com>
+[    4.303391] ======================================================
+[    4.303392] [ INFO: SOFTIRQ-safe -> SOFTIRQ-unsafe lock order detected ]
+[    4.303394] 3.12.0-dl-peterz+ #144 Not tainted
+[    4.303395] ------------------------------------------------------
+[    4.303397] kworker/u4:3/689 [HC0[0]:SC0[0]:HE0:SE1] is trying to acquire:
+[    4.303399]  (&p->mems_allowed_seq){+.+...}, at: [<ffffffff8114e63c>] new_slab+0x6c/0x290
+[    4.303417]
+[    4.303417] and this task is already holding:
+[    4.303418]  (&(&q->__queue_lock)->rlock){..-...}, at: [<ffffffff812d2dfb>] blk_execute_rq_nowait+0x5b/0x100
+[    4.303431] which would create a new lock dependency:
+[    4.303432]  (&(&q->__queue_lock)->rlock){..-...} -> (&p->mems_allowed_seq){+.+...}
+[    4.303436]
 
--- 
-All rights reversed
+[    4.303898] the dependencies between the lock to be acquired and SOFTIRQ-irq-unsafe lock:
+[    4.303918] -> (&p->mems_allowed_seq){+.+...} ops: 2762 {
+[    4.303922]    HARDIRQ-ON-W at:
+[    4.303923]                     [<ffffffff8108ab9a>] __lock_acquire+0x65a/0x1ff0
+[    4.303926]                     [<ffffffff8108cbe3>] lock_acquire+0x93/0x140
+[    4.303929]                     [<ffffffff81063dd6>] kthreadd+0x86/0x180
+[    4.303931]                     [<ffffffff816ded6c>] ret_from_fork+0x7c/0xb0
+[    4.303933]    SOFTIRQ-ON-W at:
+[    4.303933]                     [<ffffffff8108abcc>] __lock_acquire+0x68c/0x1ff0
+[    4.303935]                     [<ffffffff8108cbe3>] lock_acquire+0x93/0x140
+[    4.303940]                     [<ffffffff81063dd6>] kthreadd+0x86/0x180
+[    4.303955]                     [<ffffffff816ded6c>] ret_from_fork+0x7c/0xb0
+[    4.303959]    INITIAL USE at:
+[    4.303960]                    [<ffffffff8108a884>] __lock_acquire+0x344/0x1ff0
+[    4.303963]                    [<ffffffff8108cbe3>] lock_acquire+0x93/0x140
+[    4.303966]                    [<ffffffff81063dd6>] kthreadd+0x86/0x180
+[    4.303969]                    [<ffffffff816ded6c>] ret_from_fork+0x7c/0xb0
+[    4.303972]  }
+
+Which reports that we take mems_allowed_seq with interrupts enabled. A
+little digging found that this can only be from
+cpuset_change_task_nodemask().
+
+This is an actual deadlock because an interrupt doing an allocation will
+hit get_mems_allowed()->...->__read_seqcount_begin(), which will spin
+forever waiting for the write side to complete.
+
+Cc: John Stultz <john.stultz@linaro.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Reported-by: Juri Lelli <juri.lelli@gmail.com>
+Signed-off-by: Peter Zijlstra <peterz@infradead.org>
+---
+ kernel/cpuset.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+index 6bf981e13c43..4772034b4b17 100644
+--- a/kernel/cpuset.c
++++ b/kernel/cpuset.c
+@@ -1033,8 +1033,10 @@ static void cpuset_change_task_nodemask(struct task_struct *tsk,
+ 	need_loop = task_has_mempolicy(tsk) ||
+ 			!nodes_intersects(*newmems, tsk->mems_allowed);
+ 
+-	if (need_loop)
++	if (need_loop) {
++		local_irq_disable();
+ 		write_seqcount_begin(&tsk->mems_allowed_seq);
++	}
+ 
+ 	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
+ 	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
+@@ -1042,8 +1044,10 @@ static void cpuset_change_task_nodemask(struct task_struct *tsk,
+ 	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP2);
+ 	tsk->mems_allowed = *newmems;
+ 
+-	if (need_loop)
++	if (need_loop) {
+ 		write_seqcount_end(&tsk->mems_allowed_seq);
++		local_irq_enable();
++	}
+ 
+ 	task_unlock(tsk);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
