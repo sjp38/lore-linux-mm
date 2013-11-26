@@ -1,74 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 43F8C6B0035
-	for <linux-mm@kvack.org>; Mon, 25 Nov 2013 19:21:02 -0500 (EST)
-Received: by mail-pb0-f52.google.com with SMTP id uo5so6809844pbc.25
-        for <linux-mm@kvack.org>; Mon, 25 Nov 2013 16:21:01 -0800 (PST)
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 02B406B0035
+	for <linux-mm@kvack.org>; Mon, 25 Nov 2013 19:57:32 -0500 (EST)
+Received: by mail-pd0-f180.google.com with SMTP id q10so6645531pdj.11
+        for <linux-mm@kvack.org>; Mon, 25 Nov 2013 16:57:32 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id yd9si29098208pab.321.2013.11.25.16.21.00
+        by mx.google.com with ESMTP id ru9si29220370pbc.48.2013.11.25.16.57.30
         for <linux-mm@kvack.org>;
-        Mon, 25 Nov 2013 16:21:00 -0800 (PST)
-Date: Mon, 25 Nov 2013 16:20:59 -0800
+        Mon, 25 Nov 2013 16:57:31 -0800 (PST)
+Date: Mon, 25 Nov 2013 16:57:29 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch -mm] mm, mempolicy: silence gcc warning
-Message-Id: <20131125162059.6989ef1680d43ed7a0a042ff@linux-foundation.org>
-In-Reply-To: <5293E66F.8090000@jp.fujitsu.com>
-References: <alpine.DEB.2.02.1311121811310.29891@chino.kir.corp.google.com>
-	<20131120141534.06ea091ca53b1dec60ace63d@linux-foundation.org>
-	<CAHGf_=ooNHx=2HeUDGxrZFma-6YRvL42ViDMkSOqLOffk8MVsw@mail.gmail.com>
-	<20131125123108.79c80eb59c2b1bc41c879d9e@linux-foundation.org>
-	<5293E66F.8090000@jp.fujitsu.com>
+Subject: Re: [patch 0/9] mm: thrash detection-based file cache sizing v6
+Message-Id: <20131125165729.3ad409506fb6db058d88c258@linux-foundation.org>
+In-Reply-To: <1385336308-27121-1-git-send-email-hannes@cmpxchg.org>
+References: <1385336308-27121-1-git-send-email-hannes@cmpxchg.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: rientjes@google.com, fengguang.wu@intel.com, keescook@chromium.org, riel@redhat.com, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Dave Chinner <david@fromorbit.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Tejun Heo <tj@kernel.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, 25 Nov 2013 19:08:15 -0500 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Sun, 24 Nov 2013 18:38:19 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> >>> It worries me that the CONFIG_NUMA=n version of mpol_to_str() doesn't
-> >>> stick a '\0' into *buffer.  Hopefully it never gets called...
-> >>
-> >> Don't worry. It never happens. Currently, all of caller depend on CONFIG_NUMA.
-> >> However it would be nice if CONFIG_NUMA=n version of mpol_to_str() is
-> >> implemented
-> >> more carefully. I don't know who's mistake.
-> > 
-> > Put a BUG() in there?
-> 
-> I think this is enough. What do you think?
-> 
-> 
-> commit 5691f7f336c511d39fc05821d204a8f7ba18c0cf
-> Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Date:   Mon Nov 25 18:38:25 2013 -0500
-> 
->     mempolicy: implement mpol_to_str() fallback implementation when !CONFIG_NUMA
-> 
->     Andrew Morton pointed out mpol_to_str() has no fallback implementation
->     for !CONFIG_NUMA and it could be dangerous because callers might assume
->     buffer is filled zero terminated string. Fortunately there is no such
->     caller. But it would be nice to provide default safe implementation.
-> 
->     Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> 
-> diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
-> index 9fe426b..eee0597 100644
-> --- a/include/linux/mempolicy.h
-> +++ b/include/linux/mempolicy.h
-> @@ -309,6 +309,8 @@ static inline int mpol_parse_str(char *str, struct mempolicy **mpol)
-> 
->  static inline void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
->  {
-> +	strncpy(buffer, "default", maxlen-1);
-> +	buffer[maxlen-1] = '\0';
->  }
-> 
+> This series solves the problem by maintaining a history of pages
+> evicted from the inactive list, enabling the VM to detect frequently
+> used pages regardless of inactive list size and facilitate working set
+> transitions.
 
-Well, as David said, BUILD_BUG() would be the preferred cleanup.  I'll
-stick one in there and see what the build bot has to say?
+It's a very readable patchset - thanks for taking the time to do that.
+
+> 31 files changed, 1253 insertions(+), 401 deletions(-)
+
+It's also a *ton* of stuff.  More code complexity, larger kernel data
+structures.  All to address a quite narrow class of workloads on a
+relatively small window of machine sizes.  How on earth do we decide
+whether it's worth doing?
+
+Also, what's the memcg angle?  This is presently a global thing - do
+you think we're likely to want to make it per-memcg in the future?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
