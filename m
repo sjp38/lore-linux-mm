@@ -1,73 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f51.google.com (mail-bk0-f51.google.com [209.85.214.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 57B986B0069
-	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 06:03:35 -0500 (EST)
-Received: by mail-bk0-f51.google.com with SMTP id 6so2479341bkj.38
-        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 03:03:34 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id ta6si6924746bkb.313.2013.11.26.03.03.34
-        for <linux-mm@kvack.org>;
-        Tue, 26 Nov 2013 03:03:34 -0800 (PST)
-Date: Tue, 26 Nov 2013 11:03:30 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 5/5] mm: compaction: reset scanner positions immediately
- when they meet
-Message-ID: <20131126110330.GJ5285@suse.de>
-References: <1385389570-11393-1-git-send-email-vbabka@suse.cz>
- <1385389570-11393-6-git-send-email-vbabka@suse.cz>
+Received: from mail-bk0-f44.google.com (mail-bk0-f44.google.com [209.85.214.44])
+	by kanga.kvack.org (Postfix) with ESMTP id D11E66B006E
+	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 07:02:23 -0500 (EST)
+Received: by mail-bk0-f44.google.com with SMTP id d7so2562974bkh.3
+        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 04:02:23 -0800 (PST)
+Received: from mail-bk0-x233.google.com (mail-bk0-x233.google.com [2a00:1450:4008:c01::233])
+        by mx.google.com with ESMTPS id b2si10752574bko.253.2013.11.26.04.02.22
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 26 Nov 2013 04:02:22 -0800 (PST)
+Received: by mail-bk0-f51.google.com with SMTP id 6so2581231bkj.10
+        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 04:02:22 -0800 (PST)
+Date: Tue, 26 Nov 2013 13:02:18 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
+Message-ID: <20131126120218.GB6103@gmail.com>
+References: <CA+55aFwHUuaGzW_=xEWNcyVnHT-zW8-bs6Xi=M458xM3Y1qE0w@mail.gmail.com>
+ <20131122215208.GD4138@linux.vnet.ibm.com>
+ <CA+55aFzS2yd-VbJB5t14mP8NZG8smB1BQaYCw3Zo19FWQL92vA@mail.gmail.com>
+ <20131123002542.GF4138@linux.vnet.ibm.com>
+ <CA+55aFy8kx1qaWszc9nrbUaqFu7GfTtDkpzPBeE2g2U6RZjYkA@mail.gmail.com>
+ <20131123013654.GG4138@linux.vnet.ibm.com>
+ <CA+55aFyJRAX4e9H0AFGcPMrBBTmGC6K_iCCS3dc7Mx6ejTmYMA@mail.gmail.com>
+ <20131123040507.GI4138@linux.vnet.ibm.com>
+ <20131123112450.GA26801@gmail.com>
+ <20131123170603.GL4138@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1385389570-11393-6-git-send-email-vbabka@suse.cz>
+In-Reply-To: <20131123170603.GL4138@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Tim Chen <tim.c.chen@linux.intel.com>, Will Deacon <will.deacon@arm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Mon, Nov 25, 2013 at 03:26:10PM +0100, Vlastimil Babka wrote:
-> Compaction used to start its migrate and free page scaners at the zone's lowest
-> and highest pfn, respectively. Later, caching was introduced to remember the
-> scanners' progress across compaction attempts so that pageblocks are not
-> re-scanned uselessly. Additionally, pageblocks where isolation failed are
-> marked to be quickly skipped when encountered again in future compactions.
-> 
-> Currently, both the reset of cached pfn's and clearing of the pageblock skip
-> information for a zone is done in __reset_isolation_suitable(). This function
-> gets called when:
->  - compaction is restarting after being deferred
->  - compact_blockskip_flush flag is set in compact_finished() when the scanners
->    meet (and not again cleared when direct compaction succeeds in allocation)
->    and kswapd acts upon this flag before going to sleep
-> 
-> This behavior is suboptimal for several reasons:
->  - when direct sync compaction is called after async compaction fails (in the
->    allocation slowpath), it will effectively do nothing, unless kswapd
->    happens to process the compact_blockskip_flush flag meanwhile. This is racy
->    and goes against the purpose of sync compaction to more thoroughly retry
->    the compaction of a zone where async compaction has failed.
->    The restart-after-deferring path cannot help here as deferring happens only
->    after the sync compaction fails. It is also done only for the preferred
->    zone, while the compaction might be done for a fallback zone.
->  - the mechanism of marking pageblock to be skipped has little value since the
->    cached pfn's are reset only together with the pageblock skip flags. This
->    effectively limits pageblock skip usage to parallel compactions.
-> 
-> This patch changes compact_finished() so that cached pfn's are reset
-> immediately when the scanners meet. Clearing pageblock skip flags is unchanged,
-> as well as the other situations where cached pfn's are reset. This allows the
-> sync-after-async compaction to retry pageblocks not marked as skipped, such as
-> blocks !MIGRATE_MOVABLE blocks that async compactions now skips without
-> marking them.
-> 
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Rik van Riel <riel@redhat.com>
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+* Paul E. McKenney <paulmck@linux.vnet.ibm.com> wrote:
 
--- 
-Mel Gorman
-SUSE Labs
+> On Sat, Nov 23, 2013 at 12:24:50PM +0100, Ingo Molnar wrote:
+> > 
+> > * Paul E. McKenney <paulmck@linux.vnet.ibm.com> wrote:
+> > 
+> > > > x86 does have that extra "Memory ordering obeys causality (memory 
+> > > > ordering respects transitive visibility)." rule, and the example 
+> > > > in the architecture manual (section 8.2.3.6 "Stores Are 
+> > > > Transitively Visible") seems to very much about this, but your 
+> > > > particular example is subtly different, so..
+> > > 
+> > > Indeed, my example needs CPU 1's -load- from y to be transitively 
+> > > visible, so I am nervous about this one as well.
+> > > 
+> > > > I will have to ruminate on this.
+> > > 
+> > > The rules on the left-hand column of page 5 of the below URL apply 
+> > > to this example more straightforwardly, but I don't know that Intel 
+> > > and AMD stand behind them:
+> > > 
+> > > 	http://www.cl.cam.ac.uk/~pes20/weakmemory/cacm.pdf
+> > > 
+> > > My guess is that x86 does guarantee this ordering, but at this point 
+> > > I would have to ask someone from Intel and AMD.
+> > 
+> > An additional option might be to create a user-space testcase 
+> > engineered to hit all the exotic ordering situations, one that 
+> > might disprove any particular assumptions we have about the 
+> > behavior of hardware. (Back a decade ago when the x86 space first 
+> > introduced quad core CPUs with newfangled on-die cache coherency I 
+> > managed to demonstrate a causality violation by simulating kernel 
+> > locks in user-space, which turned out to be a hardware bug. Also, 
+> > when Hyperthreading/SMT was new it demonstrated many interesting 
+> > bugs never seen in practice before. So running stuff on real 
+> > hardware is useful.)
+> > 
+> > And a cache coherency (and/or locking) test suite would be very 
+> > useful anyway, for so many other purposes as well: such as a new 
+> > platform/CPU bootstrap, or to prove the correctness of some fancy 
+> > new locking scheme people want to add. Maybe as an extension to 
+> > rcutorture, or a generalization of it?
+> 
+> I have the locking counterpart of rcutorture on my todo list.  ;-)
+> 
+> Of course, we cannot prove locks correct via testing, but a quick 
+> test can often find a bug faster and more reliably than manual 
+> inspection.
+
+We cannot prove them correct via testing, but we can test our 
+hypothesis about how the platform works and chances are that if the 
+tests are smart enough then we will be proven wrong via an actual 
+failure if our assumptions are wrong.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
