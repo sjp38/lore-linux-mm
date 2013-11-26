@@ -1,196 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 27CA36B00A7
-	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 17:18:19 -0500 (EST)
-Received: by mail-qa0-f49.google.com with SMTP id ii20so8282694qab.15
-        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 14:18:19 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id s9si12334732qas.179.2013.11.26.14.18.16
+Received: from mail-vb0-f42.google.com (mail-vb0-f42.google.com [209.85.212.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 8006B6B00AE
+	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 17:29:46 -0500 (EST)
+Received: by mail-vb0-f42.google.com with SMTP id w18so4503454vbj.1
+        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 14:29:46 -0800 (PST)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:6])
+        by mx.google.com with ESMTP id om4si20091220vcb.68.2013.11.26.14.29.44
         for <linux-mm@kvack.org>;
-        Tue, 26 Nov 2013 14:18:17 -0800 (PST)
-From: riel@redhat.com
-Subject: [RFC PATCH 2/4] track from which nodes NUMA faults are triggered
-Date: Tue, 26 Nov 2013 17:03:26 -0500
-Message-Id: <1385503408-30041-3-git-send-email-riel@redhat.com>
-In-Reply-To: <1385503408-30041-1-git-send-email-riel@redhat.com>
-References: <1385503408-30041-1-git-send-email-riel@redhat.com>
+        Tue, 26 Nov 2013 14:29:45 -0800 (PST)
+Date: Wed, 27 Nov 2013 09:29:37 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [patch 9/9] mm: keep page cache radix tree nodes in check
+Message-ID: <20131126222937.GA10988@dastard>
+References: <1385336308-27121-1-git-send-email-hannes@cmpxchg.org>
+ <1385336308-27121-10-git-send-email-hannes@cmpxchg.org>
+ <20131125234921.GK8803@dastard>
+ <20131126212725.GG22729@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131126212725.GG22729@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, mgorman@suse.de, chegu_vinod@hp.com, peterz@infradead.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Tejun Heo <tj@kernel.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-From: Rik van Riel <riel@redhat.com>
+On Tue, Nov 26, 2013 at 04:27:25PM -0500, Johannes Weiner wrote:
+> On Tue, Nov 26, 2013 at 10:49:21AM +1100, Dave Chinner wrote:
+> > On Sun, Nov 24, 2013 at 06:38:28PM -0500, Johannes Weiner wrote:
+> > > Previously, page cache radix tree nodes were freed after reclaim
+> > > emptied out their page pointers.  But now reclaim stores shadow
+> > > entries in their place, which are only reclaimed when the inodes
+> > > themselves are reclaimed.  This is problematic for bigger files that
+> > > are still in use after they have a significant amount of their cache
+> > > reclaimed, without any of those pages actually refaulting.  The shadow
+> > > entries will just sit there and waste memory.  In the worst case, the
+> > > shadow entries will accumulate until the machine runs out of memory.
+....
+> > ....
+> > > +	radix_tree_replace_slot(slot, page);
+> > > +	if (node) {
+> > > +		node->count++;
+> > > +		/* Installed page, can't be shadow-only anymore */
+> > > +		if (!list_empty(&node->lru))
+> > > +			list_lru_del(&workingset_shadow_nodes, &node->lru);
+> > > +	}
+> > > +	return 0;
+> > 
+> > Hmmmmm - what's the overhead of direct management of LRU removal
+> > here? Most list_lru code uses lazy removal (i.e. via the shrinker)
+> > to avoid having to touch the LRU when adding new references to an
+> > object.....
+> 
+> It's measurable in microbenchmarks, but not when any real IO is
+> involved.  The difference was in the noise even on SSD drives.
 
-Track which nodes NUMA faults are triggered from. This uses a similar
-mechanism to what is used to track the memory involved in numa faults.
+Well, it's not an SSD or two I'm worried about - it's devices that
+can do millions of IOPS where this is likely to be noticable...
 
-This is used, in the next patch, to build up a bitmap of which nodes
-a workload is actively running on.
+> The other list_lru users see items only once they become unused and
+> subsequent references are expected to be few and temporary, right?
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- include/linux/sched.h | 10 ++++++++--
- kernel/sched/fair.c   | 30 +++++++++++++++++++++++-------
- 2 files changed, 31 insertions(+), 9 deletions(-)
+They go onto the list when the refcount falls to zero, but reuse can
+be frequent when being referenced repeatedly by a single user. That
+avoids every reuse from removing the object from the LRU then
+putting it back on the LRU for every reference cycle...
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 9e4cb598..e4b00d8 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1368,6 +1368,14 @@ struct task_struct {
- 	unsigned long *numa_faults_buffer;
- 
- 	/*
-+	 * Track the nodes where faults are incurred. This is not very
-+	 * interesting on a per-task basis, but it help with smarter
-+	 * numa memory placement for groups of processes.
-+	 */
-+	unsigned long *numa_faults_from;
-+	unsigned long *numa_faults_from_buffer;
-+
-+	/*
- 	 * numa_faults_locality tracks if faults recorded during the last
- 	 * scan window were remote/local. The task scan period is adapted
- 	 * based on the locality of the faults with different weights
-@@ -1467,8 +1475,6 @@ extern void task_numa_fault(int last_node, int node, int pages, int flags);
- extern pid_t task_numa_group_id(struct task_struct *p);
- extern void set_numabalancing_state(bool enabled);
- extern void task_numa_free(struct task_struct *p);
--
--extern unsigned int sysctl_numa_balancing_migrate_deferred;
- #else
- static inline void task_numa_fault(int last_node, int node, int pages,
- 				   int flags)
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 410858e..89b5217 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -870,6 +870,7 @@ struct numa_group {
- 
- 	struct rcu_head rcu;
- 	unsigned long total_faults;
-+	unsigned long *faults_from;
- 	unsigned long faults[0];
- };
- 
-@@ -1327,10 +1328,11 @@ static void task_numa_placement(struct task_struct *p)
- 		int priv, i;
- 
- 		for (priv = 0; priv < 2; priv++) {
--			long diff;
-+			long diff, f_diff;
- 
- 			i = task_faults_idx(nid, priv);
- 			diff = -p->numa_faults[i];
-+			f_diff = -p->numa_faults_from[i];
- 
- 			/* Decay existing window, copy faults since last scan */
- 			p->numa_faults[i] >>= 1;
-@@ -1338,12 +1340,18 @@ static void task_numa_placement(struct task_struct *p)
- 			fault_types[priv] += p->numa_faults_buffer[i];
- 			p->numa_faults_buffer[i] = 0;
- 
-+			p->numa_faults_from[i] >>= 1;
-+			p->numa_faults_from[i] += p->numa_faults_from_buffer[i];
-+			p->numa_faults_from_buffer[i] = 0;
-+
- 			faults += p->numa_faults[i];
- 			diff += p->numa_faults[i];
-+			f_diff += p->numa_faults_from[i];
- 			p->total_numa_faults += diff;
- 			if (p->numa_group) {
- 				/* safe because we can only change our own group */
- 				p->numa_group->faults[i] += diff;
-+				p->numa_group->faults_from[i] += f_diff;
- 				p->numa_group->total_faults += diff;
- 				group_faults += p->numa_group->faults[i];
- 			}
-@@ -1412,7 +1420,7 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
- 
- 	if (unlikely(!p->numa_group)) {
- 		unsigned int size = sizeof(struct numa_group) +
--				    2*nr_node_ids*sizeof(unsigned long);
-+				    4*nr_node_ids*sizeof(unsigned long);
- 
- 		grp = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
- 		if (!grp)
-@@ -1422,8 +1430,10 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
- 		spin_lock_init(&grp->lock);
- 		INIT_LIST_HEAD(&grp->task_list);
- 		grp->gid = p->pid;
-+		/* Second half of the array tracks where faults come from */
-+		grp->faults_from = grp->faults + 2 * nr_node_ids;
- 
--		for (i = 0; i < 2*nr_node_ids; i++)
-+		for (i = 0; i < 4*nr_node_ids; i++)
- 			grp->faults[i] = p->numa_faults[i];
- 
- 		grp->total_faults = p->total_numa_faults;
-@@ -1482,7 +1492,7 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
- 
- 	double_lock(&my_grp->lock, &grp->lock);
- 
--	for (i = 0; i < 2*nr_node_ids; i++) {
-+	for (i = 0; i < 4*nr_node_ids; i++) {
- 		my_grp->faults[i] -= p->numa_faults[i];
- 		grp->faults[i] += p->numa_faults[i];
- 	}
-@@ -1509,7 +1519,7 @@ void task_numa_free(struct task_struct *p)
- 
- 	if (grp) {
- 		spin_lock(&grp->lock);
--		for (i = 0; i < 2*nr_node_ids; i++)
-+		for (i = 0; i < 4*nr_node_ids; i++)
- 			grp->faults[i] -= p->numa_faults[i];
- 		grp->total_faults -= p->total_numa_faults;
- 
-@@ -1522,6 +1532,8 @@ void task_numa_free(struct task_struct *p)
- 
- 	p->numa_faults = NULL;
- 	p->numa_faults_buffer = NULL;
-+	p->numa_faults_from = NULL;
-+	p->numa_faults_from_buffer = NULL;
- 	kfree(numa_faults);
- }
- 
-@@ -1532,6 +1544,7 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
- {
- 	struct task_struct *p = current;
- 	bool migrated = flags & TNF_MIGRATED;
-+	int this_node = task_node(current);
- 	int priv;
- 
- 	if (!numabalancing_enabled)
-@@ -1547,7 +1560,7 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
- 
- 	/* Allocate buffer to track faults on a per-node basis */
- 	if (unlikely(!p->numa_faults)) {
--		int size = sizeof(*p->numa_faults) * 2 * nr_node_ids;
-+		int size = sizeof(*p->numa_faults) * 4 * nr_node_ids;
- 
- 		/* numa_faults and numa_faults_buffer share the allocation */
- 		p->numa_faults = kzalloc(size * 2, GFP_KERNEL|__GFP_NOWARN);
-@@ -1555,7 +1568,9 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
- 			return;
- 
- 		BUG_ON(p->numa_faults_buffer);
--		p->numa_faults_buffer = p->numa_faults + (2 * nr_node_ids);
-+		p->numa_faults_from = p->numa_faults + (2 * nr_node_ids);
-+		p->numa_faults_buffer = p->numa_faults + (4 * nr_node_ids);
-+		p->numa_faults_from_buffer = p->numa_faults + (6 * nr_node_ids);
- 		p->total_numa_faults = 0;
- 		memset(p->numa_faults_locality, 0, sizeof(p->numa_faults_locality));
- 	}
-@@ -1585,6 +1600,7 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
- 		p->numa_pages_migrated += pages;
- 
- 	p->numa_faults_buffer[task_faults_idx(node, priv)] += pages;
-+	p->numa_faults_from_buffer[task_faults_idx(this_node, priv)] += pages;
- 	p->numa_faults_locality[!!(flags & TNF_FAULT_LOCAL)] += pages;
- }
- 
+> We expect pages to refault in spades on certain loads, at which point
+> we may have thousands of those nodes on the list that are no longer
+> reclaimable (10k nodes for about 2.5G of cache).
+
+Sure, look at the way the inode and dentry caches work - entire
+caches of millions of inodes and dentries often sit on the LRUs. A
+quick look at my workstations dentry cache shows:
+
+$ at /proc/sys/fs/dentry-state 
+180108  170596  45      0       0       0
+
+180k allocated dentries, 170k sitting on the LRU...
+
+> > > + * Page cache radix tree nodes containing only shadow entries can grow
+> > > + * excessively on certain workloads.  That's why they are tracked on
+> > > + * per-(NUMA)node lists and pushed back by a shrinker, but with a
+> > > + * slightly higher threshold than regular shrinkers so we don't
+> > > + * discard the entries too eagerly - after all, during light memory
+> > > + * pressure is exactly when we need them.
+> > > + *
+> > > + * The list_lru lock nests inside the IRQ-safe mapping->tree_lock, so
+> > > + * we have to disable IRQs for any list_lru operation as well.
+> > > + */
+> > > +
+> > > +struct list_lru workingset_shadow_nodes;
+> > > +
+> > > +static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+> > > +					struct shrink_control *sc)
+> > > +{
+> > > +	unsigned long count;
+> > > +
+> > > +	local_irq_disable();
+> > > +	count = list_lru_count_node(&workingset_shadow_nodes, sc->nid);
+> > > +	local_irq_enable();
+> > 
+> > The count returned is not perfectly accurate, and the use of it in
+> > the shrinker will be concurrent with other modifications, so
+> > disabling IRQs here doesn't add any anything but unnecessary
+> > overhead.
+> 
+> Lockdep complains when taking an IRQ-unsafe lock (lru_lock) inside an
+> IRQ-safe lock (mapping->tree_lock).
+
+Bah - sometimes I hate lockdep because it makes people do silly
+things just to shut it up. IMO, the right fix is this patch:
+
+https://lkml.org/lkml/2013/7/31/7
+
+> > > +#define NOIRQ_BATCH 32
+> > > +
+> > > +static enum lru_status shadow_lru_isolate(struct list_head *item,
+> > > +					  spinlock_t *lru_lock,
+> > > +					  void *arg)
+> > > +{
+> > > +	struct address_space *mapping;
+> > > +	struct radix_tree_node *node;
+> > > +	unsigned long *batch = arg;
+> > > +	unsigned int i;
+> > > +
+> > > +	node = container_of(item, struct radix_tree_node, lru);
+> > > +	mapping = node->private;
+> > > +
+> > > +	/* Don't disable IRQs for too long */
+> > > +	if (--(*batch) == 0) {
+> > > +		spin_unlock_irq(lru_lock);
+> > > +		*batch = NOIRQ_BATCH;
+> > > +		spin_lock_irq(lru_lock);
+> > > +		return LRU_RETRY;
+> > > +	}
+> > 
+> > Ugh.
+> > 
+> > > +	/* Coming from the list, inverse the lock order */
+> > > +	if (!spin_trylock(&mapping->tree_lock))
+> > > +		return LRU_SKIP;
+> > 
+> > Why not spin_trylock_irq(&mapping->tree_lock) and get rid of the
+> > nasty irq batching stuff? The LRU list is internally consistent,
+> > so I don't see why irqs need to be disabled to walk across the
+> > objects in the list - we only need that to avoid taking an interrupt
+> > while holding the mapping->tree_lock() and the interrupt running
+> > I/O completion which may try to take the mapping->tree_lock....
+> 
+> Same reason, IRQ-unsafe nesting inside IRQ-safe lock...
+
+Seems to me like you're designing the code to workaround lockdep
+deficiencies rather than thinking about the most efficient way to
+solve the problem. lockdep can always be fixed to work with
+whatever code we come up with, so don't let lockdep stifle your
+creativity. ;)
+
+> > Given that we should always be removing the item from the head of
+> > the LRU list (except when we can't get the mapping lock), I'd
+> > suggest that it would be better to do something like this:
+> > 
+> > 	/*
+> > 	 * Coming from the list, inverse the lock order. Drop the
+> > 	 * list lock, too, so that if a caller is spinning on it we
+> > 	 * don't get stuck here.
+> > 	 */
+> > 	if (!spin_trylock(&mapping->tree_lock)) {
+
+That should be spin_trylock_irq()....
+
+Cheers,
+
+Dave.
 -- 
-1.8.3.1
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
