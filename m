@@ -1,46 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f46.google.com (mail-qe0-f46.google.com [209.85.128.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FF4C6B0088
-	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 12:19:09 -0500 (EST)
-Received: by mail-qe0-f46.google.com with SMTP id a11so5868784qen.5
-        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 09:19:09 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id j1si11777344qaf.102.2013.11.26.09.19.06
+Received: from mail-yh0-f42.google.com (mail-yh0-f42.google.com [209.85.213.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 6893E6B008A
+	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 13:40:32 -0500 (EST)
+Received: by mail-yh0-f42.google.com with SMTP id z6so4308076yhz.29
+        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 10:40:32 -0800 (PST)
+Received: from mail-ob0-x231.google.com (mail-ob0-x231.google.com [2607:f8b0:4003:c01::231])
+        by mx.google.com with ESMTPS id s46si24907038yhd.170.2013.11.26.10.40.31
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Nov 2013 09:19:07 -0800 (PST)
-Date: Tue, 26 Nov 2013 18:18:31 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
-Message-ID: <20131126171831.GX3866@twins.programming.kicks-ass.net>
-References: <20131121221859.GH4138@linux.vnet.ibm.com>
- <20131122155835.GR3866@twins.programming.kicks-ass.net>
- <20131122182632.GW4138@linux.vnet.ibm.com>
- <20131122185107.GJ4971@laptop.programming.kicks-ass.net>
- <20131125173540.GK3694@twins.programming.kicks-ass.net>
- <20131125180250.GR4138@linux.vnet.ibm.com>
- <20131125182715.GG10022@twins.programming.kicks-ass.net>
- <20131125235252.GA4138@linux.vnet.ibm.com>
- <20131126095945.GI10022@twins.programming.kicks-ass.net>
- <20131126171106.GJ4138@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 26 Nov 2013 10:40:31 -0800 (PST)
+Received: by mail-ob0-f177.google.com with SMTP id va2so6116536obc.8
+        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 10:40:30 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131126171106.GJ4138@linux.vnet.ibm.com>
+In-Reply-To: <20131125162059.6989ef1680d43ed7a0a042ff@linux-foundation.org>
+References: <alpine.DEB.2.02.1311121811310.29891@chino.kir.corp.google.com>
+ <20131120141534.06ea091ca53b1dec60ace63d@linux-foundation.org>
+ <CAHGf_=ooNHx=2HeUDGxrZFma-6YRvL42ViDMkSOqLOffk8MVsw@mail.gmail.com>
+ <20131125123108.79c80eb59c2b1bc41c879d9e@linux-foundation.org>
+ <5293E66F.8090000@jp.fujitsu.com> <20131125162059.6989ef1680d43ed7a0a042ff@linux-foundation.org>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Tue, 26 Nov 2013 13:40:09 -0500
+Message-ID: <CAHGf_=pbFF8odDqh6jN2rPNh_FJhBqeo=Zf0GwSD-RbwWuopGg@mail.gmail.com>
+Subject: Re: [patch -mm] mm, mempolicy: silence gcc warning
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Will Deacon <will.deacon@arm.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Kees Cook <keescook@chromium.org>, "riel@redhat.com" <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Nov 26, 2013 at 09:11:06AM -0800, Paul E. McKenney wrote:
-> So what am I missing?
+>> diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+>> index 9fe426b..eee0597 100644
+>> --- a/include/linux/mempolicy.h
+>> +++ b/include/linux/mempolicy.h
+>> @@ -309,6 +309,8 @@ static inline int mpol_parse_str(char *str, struct mempolicy **mpol)
+>>
+>>  static inline void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
+>>  {
+>> +     strncpy(buffer, "default", maxlen-1);
+>> +     buffer[maxlen-1] = '\0';
+>>  }
+>>
+>
+> Well, as David said, BUILD_BUG() would be the preferred cleanup.  I'll
+> stick one in there and see what the build bot has to say?
 
-I got loads and stores mixed up again..
-
-its loads that can be re-ordered against earlier stores. Not the other
-way around.
-
-/me dons brown paper hat
+Sigh, I can't understand why you always prefer to increase maintenance annoying.
+However up to you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
