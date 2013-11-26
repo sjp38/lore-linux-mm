@@ -1,50 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 2451A6B003B
-	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 05:21:23 -0500 (EST)
-Received: by mail-qa0-f43.google.com with SMTP id ii20so4175517qab.2
-        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 02:21:22 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id ik2si10730739qab.12.2013.11.26.02.21.21
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Nov 2013 02:21:22 -0800 (PST)
-Date: Tue, 26 Nov 2013 11:20:53 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [patch 6/9] mm + fs: store shadow entries in page cache
-Message-ID: <20131126102053.GJ10022@twins.programming.kicks-ass.net>
-References: <1385336308-27121-1-git-send-email-hannes@cmpxchg.org>
- <1385336308-27121-7-git-send-email-hannes@cmpxchg.org>
- <20131125231716.GJ8803@dastard>
+Received: from mail-bk0-f47.google.com (mail-bk0-f47.google.com [209.85.214.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 0338C6B003D
+	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 05:23:09 -0500 (EST)
+Received: by mail-bk0-f47.google.com with SMTP id mx12so2427732bkb.6
+        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 02:23:09 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTP id l5si10641037bkr.199.2013.11.26.02.23.09
+        for <linux-mm@kvack.org>;
+        Tue, 26 Nov 2013 02:23:09 -0800 (PST)
+Date: Tue, 26 Nov 2013 10:23:06 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 2/5] mm: compaction: reset cached scanner pfn's before
+ reading them
+Message-ID: <20131126102306.GF5285@suse.de>
+References: <1385389570-11393-1-git-send-email-vbabka@suse.cz>
+ <1385389570-11393-3-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20131125231716.GJ8803@dastard>
+In-Reply-To: <1385389570-11393-3-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Tejun Heo <tj@kernel.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>
 
-On Tue, Nov 26, 2013 at 10:17:16AM +1100, Dave Chinner wrote:
-> void truncate_inode_pages_final(struct address_space *mapping)
-> {
-> 	mapping_set_exiting(mapping);
-> 	if (inode->i_data.nrpages || inode->i_data.nrshadows) {
-> 		/*
-> 		 * spinlock barrier to ensure all modifications are
-> 		 * complete before we do the final truncate
-> 		 */
-> 		spin_lock_irq(&mapping->tree_lock);
-> 		spin_unlock_irq(&mapping->tree_lock);
+On Mon, Nov 25, 2013 at 03:26:07PM +0100, Vlastimil Babka wrote:
+> Compaction caches pfn's for its migrate and free scanners to avoid scanning
+> the whole zone each time. In compact_zone(), the cached values are read to
+> set up initial values for the scanners. There are several situations when
+> these cached pfn's are reset to the first and last pfn of the zone,
+> respectively. One of these situations is when a compaction has been deferred
+> for a zone and is now being restarted during a direct compaction, which is also
+> done in compact_zone().
+> 
+> However, compact_zone() currently reads the cached pfn's *before* resetting
+> them. This means the reset doesn't affect the compaction that performs it, and
+> with good chance also subsequent compactions, as update_pageblock_skip() is
+> likely to be called and update the cached pfn's to those being processed.
+> Another chance for a successful reset is when a direct compaction detects that
+> migration and free scanners meet (which has its own problems addressed by
+> another patch) and sets update_pageblock_skip flag which kswapd uses to do the
+> reset because it goes to sleep.
+> 
+> This is clearly a bug that results in non-deterministic behavior, so this patch
+> moves the cached pfn reset to be performed *before* the values are read.
+> 
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Rik van Riel <riel@redhat.com>
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
-	spin_unlock_wait() ?
+Acked-by: Mel Gorman <mgorman@suse.de>
 
-Its cheaper, but prone to starvation; its typically useful when you're
-waiting for the last owner to go away and know there won't be any new
-ones around.
-
-> 		truncate_inode_pages_range(mapping, 0, (loff_t)-1);
-> }
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
