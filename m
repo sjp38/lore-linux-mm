@@ -1,96 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 5782E6B0036
-	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 20:28:51 -0500 (EST)
-Received: by mail-we0-f171.google.com with SMTP id q58so6066139wes.2
-        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 17:28:50 -0800 (PST)
-Received: from mail-wg0-x22e.google.com (mail-wg0-x22e.google.com [2a00:1450:400c:c00::22e])
-        by mx.google.com with ESMTPS id m10si9776756wic.50.2013.11.26.17.28.50
+Received: from mail-qe0-f46.google.com (mail-qe0-f46.google.com [209.85.128.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 15F546B0036
+	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 20:31:32 -0500 (EST)
+Received: by mail-qe0-f46.google.com with SMTP id a11so6769978qen.33
+        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 17:31:31 -0800 (PST)
+Received: from e36.co.us.ibm.com (e36.co.us.ibm.com. [32.97.110.154])
+        by mx.google.com with ESMTPS id u5si31847252qed.23.2013.11.26.17.31.30
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 26 Nov 2013 17:28:50 -0800 (PST)
-Received: by mail-wg0-f46.google.com with SMTP id m15so6130255wgh.25
-        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 17:28:50 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 26 Nov 2013 17:31:31 -0800 (PST)
+Received: from /spool/local
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Tue, 26 Nov 2013 18:31:30 -0700
+Received: from b03cxnp08026.gho.boulder.ibm.com (b03cxnp08026.gho.boulder.ibm.com [9.17.130.18])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 1CA2E1FF001A
+	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 18:31:08 -0700 (MST)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by b03cxnp08026.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rAQNTcR629098118
+	for <linux-mm@kvack.org>; Wed, 27 Nov 2013 00:29:38 +0100
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id rAR1YMew014558
+	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 18:34:24 -0700
+Date: Tue, 26 Nov 2013 17:31:24 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
+Message-ID: <20131127013124.GK4137@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20131125182715.GG10022@twins.programming.kicks-ass.net>
+ <20131125235252.GA4138@linux.vnet.ibm.com>
+ <20131126095945.GI10022@twins.programming.kicks-ass.net>
+ <CA+55aFxXEbHuaKuxBDH=7a2-n_z849CdfeDtdL=_nFxu_Tx9_g@mail.gmail.com>
+ <20131126192003.GA4137@linux.vnet.ibm.com>
+ <CA+55aFyjisiM1eC53STpcKLky84n8JRz3Aagp-CQd_+3AOJhow@mail.gmail.com>
+ <20131126225136.GG4137@linux.vnet.ibm.com>
+ <CA+55aFw58i3X67exR39M4OwUt5j+9BF4VU03FayRY0xGrnQvrg@mail.gmail.com>
+ <20131127003904.GI4137@linux.vnet.ibm.com>
+ <CA+55aFwhC0kk6TwsTsFEuoUoTe45qBza2=Nf+mrbPONyEGx-Ug@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20131125180030.GA23396@cerebellum.variantweb.net>
-References: <1384976973-32722-1-git-send-email-ddstreet@ieee.org>
- <20131122172916.GB6477@cerebellum.variantweb.net> <20131125180030.GA23396@cerebellum.variantweb.net>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Tue, 26 Nov 2013 20:28:29 -0500
-Message-ID: <CALZtONCW1Gxa-aT25Yf7PP6R=sW_6KBu5XPKoU75pJgvmAknbg@mail.gmail.com>
-Subject: Re: [PATCH v2] mm/zswap: change zswap to writethrough cache
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFwhC0kk6TwsTsFEuoUoTe45qBza2=Nf+mrbPONyEGx-Ug@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjennings@variantweb.net>
-Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Mon, Nov 25, 2013 at 1:00 PM, Seth Jennings <sjennings@variantweb.net> wrote:
-> On Fri, Nov 22, 2013 at 11:29:16AM -0600, Seth Jennings wrote:
->> On Wed, Nov 20, 2013 at 02:49:33PM -0500, Dan Streetman wrote:
->> > Currently, zswap is writeback cache; stored pages are not sent
->> > to swap disk, and when zswap wants to evict old pages it must
->> > first write them back to swap cache/disk manually.  This avoids
->> > swap out disk I/O up front, but only moves that disk I/O to
->> > the writeback case (for pages that are evicted), and adds the
->> > overhead of having to uncompress the evicted pages, and adds the
->> > need for an additional free page (to store the uncompressed page)
->> > at a time of likely high memory pressure.  Additionally, being
->> > writeback adds complexity to zswap by having to perform the
->> > writeback on page eviction.
->> >
->> > This changes zswap to writethrough cache by enabling
->> > frontswap_writethrough() before registering, so that any
->> > successful page store will also be written to swap disk.  All the
->> > writeback code is removed since it is no longer needed, and the
->> > only operation during a page eviction is now to remove the entry
->> > from the tree and free it.
->>
->> I like it.  It gets rid of a lot of nasty writeback code in zswap.
->>
->> I'll have to test before I ack, hopefully by the end of the day.
->>
->> Yes, this will increase writes to the swap device over the delayed
->> writeback approach.  I think it is a good thing though.  I think it
->> makes the difference between zswap and zram, both in operation and in
->> application, more apparent. Zram is the better choice for embedded where
->> write wear is a concern, and zswap being better if you need more
->> flexibility to dynamically manage the compressed pool.
->
-> One thing I realized while doing my testing was that making zswap
-> writethrough also impacts synchronous reclaim.  Zswap, as it is now,
-> makes the swapcache page clean during swap_writepage() which allows
-> shrink_page_list() to immediately reclaim it.  Making zswap writethrough
-> eliminates this advantage and swapcache pages must be scanned again
-> before they can be reclaimed, as is the case with normal swapping.
+On Tue, Nov 26, 2013 at 05:05:14PM -0800, Linus Torvalds wrote:
+> On Tue, Nov 26, 2013 at 4:39 PM, Paul E. McKenney
+> <paulmck@linux.vnet.ibm.com> wrote:
+> >
+> > Cross-CPU ordering.
+> 
+> Ok, in that case I *suspect* we want an actual "spin_lock_mb()"
+> primitive, because if we go with the MCS lock approach, it's quite
+> possible that we find cases where the fast-case is already a barrier
+> (like it is on x86 by virtue of the locked instruction) but the MCS
+> case then is not. And then a separate barrier wouldn't be able to make
+> that kind of judgement.
+> 
+> Or maybe we don't care enough. It *sounds* like on x86, we do probably
+> already get the cross-cpu case for free, and on other architectures we
+> may always need the memory barrier, so maybe the whole
+> "mb_after_spin_lock()" thing is fine.
+> 
+> Ugh.
 
-Yep, I thought about that as well, and it is true, but only while
-zswap is not full.  With writeback, once zswap fills up, page stores
-will frequently have to reclaim pages by writing compressed pages to
-disk.  With writethrough, the zbud reclaim should be quick, as it only
-has to evict the pages, not write them to disk.  So I think basically
-writeback should speed up (compared to no-zswap case) swap_writepage()
-while zswap is not full, but (theoretically) slow it down (compared to
-no-zswap case) while zswap is full, while writethrough should slow
-down swap_writepage() slightly (the time it takes to compress/store
-the page) but consistently, almost the same amount before it's full vs
-when it's full.  Theoretically :-)  Definitely something to think
-about and test for.
+Indeed!  I don't know any way to deal with it other than enumerating
+the architectures and checking each.  My first cut at that was earlier
+in this thread.
 
-Another idea that I was going to bring up after/if writethrough was
-added, was to move the page compression out of the store, maybe using
-a mempool and worker thread (or something), so that the zswap store is
-very fast.  Testing would of course be needed to see if that really
-improved things or not...
-
-
-
-
-
->
-> Just something I am thinking about.
->
-> Seth
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
