@@ -1,84 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vb0-f42.google.com (mail-vb0-f42.google.com [209.85.212.42])
-	by kanga.kvack.org (Postfix) with ESMTP id CB36F6B0031
-	for <linux-mm@kvack.org>; Wed, 27 Nov 2013 13:53:51 -0500 (EST)
-Received: by mail-vb0-f42.google.com with SMTP id w18so5381763vbj.1
-        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 10:53:51 -0800 (PST)
-Received: from mail-yh0-x236.google.com (mail-yh0-x236.google.com [2607:f8b0:4002:c01::236])
-        by mx.google.com with ESMTPS id z9si21496508veh.108.2013.11.27.10.53.45
+Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 942F56B0035
+	for <linux-mm@kvack.org>; Wed, 27 Nov 2013 16:26:43 -0500 (EST)
+Received: by mail-qa0-f41.google.com with SMTP id j5so6279972qaq.14
+        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 13:26:43 -0800 (PST)
+Received: from e34.co.us.ibm.com (e34.co.us.ibm.com. [32.97.110.152])
+        by mx.google.com with ESMTPS id a4si1174917qar.12.2013.11.27.13.26.42
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 27 Nov 2013 10:53:45 -0800 (PST)
-Received: by mail-yh0-f54.google.com with SMTP id z12so5397723yhz.27
-        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 10:53:44 -0800 (PST)
-Date: Wed, 27 Nov 2013 13:53:40 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] cpuset: Fix memory allocator deadlock
-Message-ID: <20131127185340.GC13098@mtj.dyndns.org>
-References: <20131126140341.GL10022@twins.programming.kicks-ass.net>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 27 Nov 2013 13:26:42 -0800 (PST)
+Received: from /spool/local
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Wed, 27 Nov 2013 14:26:41 -0700
+Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 6FD6D1FF0021
+	for <linux-mm@kvack.org>; Wed, 27 Nov 2013 14:26:18 -0700 (MST)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by b03cxnp08025.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rARJOmeg4456878
+	for <linux-mm@kvack.org>; Wed, 27 Nov 2013 20:24:48 +0100
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id rARLTXC3019224
+	for <linux-mm@kvack.org>; Wed, 27 Nov 2013 14:29:35 -0700
+Date: Wed, 27 Nov 2013 09:11:43 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
+Message-ID: <20131127171143.GN4137@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20131125173540.GK3694@twins.programming.kicks-ass.net>
+ <20131125180250.GR4138@linux.vnet.ibm.com>
+ <20131125182715.GG10022@twins.programming.kicks-ass.net>
+ <20131125235252.GA4138@linux.vnet.ibm.com>
+ <20131126095945.GI10022@twins.programming.kicks-ass.net>
+ <CA+55aFxXEbHuaKuxBDH=7a2-n_z849CdfeDtdL=_nFxu_Tx9_g@mail.gmail.com>
+ <20131126192003.GA4137@linux.vnet.ibm.com>
+ <CA+55aFyjisiM1eC53STpcKLky84n8JRz3Aagp-CQd_+3AOJhow@mail.gmail.com>
+ <20131126225136.GG4137@linux.vnet.ibm.com>
+ <20131127101613.GC9032@mudshark.cambridge.arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131126140341.GL10022@twins.programming.kicks-ass.net>
+In-Reply-To: <20131127101613.GC9032@mudshark.cambridge.arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Li Zefan <lizefan@huawei.com>, John Stultz <john.stultz@linaro.org>, Mel Gorman <mgorman@suse.de>, Juri Lelli <juri.lelli@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Will Deacon <will.deacon@arm.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Tue, Nov 26, 2013 at 03:03:41PM +0100, Peter Zijlstra wrote:
-> Juri hit the below lockdep report:
+On Wed, Nov 27, 2013 at 10:16:13AM +0000, Will Deacon wrote:
+> On Tue, Nov 26, 2013 at 10:51:36PM +0000, Paul E. McKenney wrote:
+> > On Tue, Nov 26, 2013 at 11:32:25AM -0800, Linus Torvalds wrote:
+> > > On Tue, Nov 26, 2013 at 11:20 AM, Paul E. McKenney
+> > > <paulmck@linux.vnet.ibm.com> wrote:
+> > > >
+> > > > There are several places in RCU that assume unlock+lock is a full
+> > > > memory barrier, but I would be more than happy to fix them up given
+> > > > an smp_mb__after_spinlock() and an smp_mb__before_spinunlock(), or
+> > > > something similar.
+> > > 
+> > > A "before_spinunlock" would actually be expensive on x86.
+> > 
+> > Good point, on x86 the typical non-queued spin-lock acquisition path
+> > has an atomic operation with full memory barrier in any case.  I believe
+> > that this is the case for the other TSO architectures.  For the non-TSO
+> > architectures:
+> > 
+> > o	ARM has an smp_mb() during lock acquisition, so after_spinlock()
+> > 	can be a no-op for them.
 > 
-> [    4.303391] ======================================================
-> [    4.303392] [ INFO: SOFTIRQ-safe -> SOFTIRQ-unsafe lock order detected ]
-> [    4.303394] 3.12.0-dl-peterz+ #144 Not tainted
-> [    4.303395] ------------------------------------------------------
-> [    4.303397] kworker/u4:3/689 [HC0[0]:SC0[0]:HE0:SE1] is trying to acquire:
-> [    4.303399]  (&p->mems_allowed_seq){+.+...}, at: [<ffffffff8114e63c>] new_slab+0x6c/0x290
-> [    4.303417]
-> [    4.303417] and this task is already holding:
-> [    4.303418]  (&(&q->__queue_lock)->rlock){..-...}, at: [<ffffffff812d2dfb>] blk_execute_rq_nowait+0x5b/0x100
-> [    4.303431] which would create a new lock dependency:
-> [    4.303432]  (&(&q->__queue_lock)->rlock){..-...} -> (&p->mems_allowed_seq){+.+...}
-> [    4.303436]
-> 
-> [    4.303898] the dependencies between the lock to be acquired and SOFTIRQ-irq-unsafe lock:
-> [    4.303918] -> (&p->mems_allowed_seq){+.+...} ops: 2762 {
-> [    4.303922]    HARDIRQ-ON-W at:
-> [    4.303923]                     [<ffffffff8108ab9a>] __lock_acquire+0x65a/0x1ff0
-> [    4.303926]                     [<ffffffff8108cbe3>] lock_acquire+0x93/0x140
-> [    4.303929]                     [<ffffffff81063dd6>] kthreadd+0x86/0x180
-> [    4.303931]                     [<ffffffff816ded6c>] ret_from_fork+0x7c/0xb0
-> [    4.303933]    SOFTIRQ-ON-W at:
-> [    4.303933]                     [<ffffffff8108abcc>] __lock_acquire+0x68c/0x1ff0
-> [    4.303935]                     [<ffffffff8108cbe3>] lock_acquire+0x93/0x140
-> [    4.303940]                     [<ffffffff81063dd6>] kthreadd+0x86/0x180
-> [    4.303955]                     [<ffffffff816ded6c>] ret_from_fork+0x7c/0xb0
-> [    4.303959]    INITIAL USE at:
-> [    4.303960]                    [<ffffffff8108a884>] __lock_acquire+0x344/0x1ff0
-> [    4.303963]                    [<ffffffff8108cbe3>] lock_acquire+0x93/0x140
-> [    4.303966]                    [<ffffffff81063dd6>] kthreadd+0x86/0x180
-> [    4.303969]                    [<ffffffff816ded6c>] ret_from_fork+0x7c/0xb0
-> [    4.303972]  }
-> 
-> Which reports that we take mems_allowed_seq with interrupts enabled. A
-> little digging found that this can only be from
-> cpuset_change_task_nodemask().
-> 
-> This is an actual deadlock because an interrupt doing an allocation will
-> hit get_mems_allowed()->...->__read_seqcount_begin(), which will spin
-> forever waiting for the write side to complete.
-> 
-> Cc: John Stultz <john.stultz@linaro.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Reported-by: Juri Lelli <juri.lelli@gmail.com>
-> Signed-off-by: Peter Zijlstra <peterz@infradead.org>
+> Ok, but what about arm64? We use acquire for lock() and release for
+> unlock(), so in Linus' example:
 
-Applied to cgroup/for-3.13-fixes w/ stable cc'd.
+Right, I did forget the arm vs. arm64 split!
 
-Thanks.
+>     write A;
+>     spin_lock()
+>     mb__after_spinlock();
+>     read B
+> 
+> Then A could very well be reordered after B if mb__after_spinlock() is a nop.
+> Making that a full barrier kind of defeats the point of using acquire in the
+> first place...
 
--- 
-tejun
+The trick is that you don't have mb__after_spinlock() unless you need the
+ordering, which we expect in a small minority of the lock acquisitions.
+So you would normally get the benefit of acquire/release efficiency.
+
+> It's one thing ordering unlock -> lock, but another getting those two to
+> behave as full barriers for any arbitrary memory accesses.
+
+And in fact the unlock+lock barrier is all that RCU needs.  I guess the
+question is whether it is worth having two flavors of __after_spinlock(),
+one that is a full barrier with just the lock, and another that is
+only guaranteed to be a full barrier with unlock+lock.
+
+								Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
