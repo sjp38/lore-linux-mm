@@ -1,86 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f51.google.com (mail-yh0-f51.google.com [209.85.213.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DF1906B0031
-	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 22:00:39 -0500 (EST)
-Received: by mail-yh0-f51.google.com with SMTP id c41so3094585yho.24
-        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 19:00:39 -0800 (PST)
-Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id z5si26071283yhd.299.2013.11.26.19.00.38
+Received: from mail-vb0-f46.google.com (mail-vb0-f46.google.com [209.85.212.46])
+	by kanga.kvack.org (Postfix) with ESMTP id AA0796B0031
+	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 22:33:16 -0500 (EST)
+Received: by mail-vb0-f46.google.com with SMTP id i12so4423687vbh.19
+        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 19:33:16 -0800 (PST)
+Received: from mail-yh0-x234.google.com (mail-yh0-x234.google.com [2607:f8b0:4002:c01::234])
+        by mx.google.com with ESMTPS id c1si20418114vcs.103.2013.11.26.19.33.15
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Nov 2013 19:00:38 -0800 (PST)
-Message-Id: <201311270259.rAR2xBI6003167@mail.zytor.com>
-In-Reply-To: <20131127012719.GJ4137@linux.vnet.ibm.com>
-References: <20131121215249.GZ16796@laptop.programming.kicks-ass.net> <20131121221859.GH4138@linux.vnet.ibm.com> <20131122155835.GR3866@twins.programming.kicks-ass.net> <20131122182632.GW4138@linux.vnet.ibm.com> <20131122185107.GJ4971@laptop.programming.kicks-ass.net> <20131125173540.GK3694@twins.programming.kicks-ass.net> <20131125180250.GR4138@linux.vnet.ibm.com> <5293E37F.5020908@zytor.com> <20131126031626.GE4138@linux.vnet.ibm.com> <529540FE.3070504@zytor.com> <20131127012719.GJ4137@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 26 Nov 2013 19:33:15 -0800 (PST)
+Received: by mail-yh0-f52.google.com with SMTP id i72so4676369yha.39
+        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 19:33:15 -0800 (PST)
+Date: Tue, 26 Nov 2013 19:33:12 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm: memcg: do not declare OOM from __GFP_NOFAIL
+ allocations
+In-Reply-To: <alpine.DEB.2.02.1311261658170.21003@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.02.1311261931210.5973@chino.kir.corp.google.com>
+References: <1385140676-5677-1-git-send-email-hannes@cmpxchg.org> <alpine.DEB.2.02.1311261658170.21003@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
- charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
-From: "H. Peter Anvin" <hpa@zytor.com>
-Date: Tue, 26 Nov 2013 18:59:01 -0800
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmck@linux.vnet.ibm.com"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, Figo.zhang@zytor.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-<figo1802@gmail.com>
-Message-ID: <589ca54b-4171-4164-b9ba-dc3a5bad6376@email.android.com>
+On Tue, 26 Nov 2013, David Rientjes wrote:
 
-Yes, if you have concrete scenarios we can discuss them.
+> On Fri, 22 Nov 2013, Johannes Weiner wrote:
+> 
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 13b9d0f..cc4f9cb 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -2677,6 +2677,9 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
+> >  	if (unlikely(task_in_memcg_oom(current)))
+> >  		goto bypass;
+> >  
+> > +	if (gfp_mask & __GFP_NOFAIL)
+> > +		oom = false;
+> > +
+> >  	/*
+> >  	 * We always charge the cgroup the mm_struct belongs to.
+> >  	 * The mm_struct's mem_cgroup changes on task migration if the
+> 
+> Sorry, I don't understand this.  What happens in the following scenario:
+> 
+>  - memory.usage_in_bytes == memory.limit_in_bytes,
+> 
+>  - memcg reclaim fails to reclaim memory, and
+> 
+>  - all processes (perhaps only one) attached to the memcg are doing one of
+>    the over dozen __GFP_NOFAIL allocations in the kernel?
+> 
+> How do we make forward progress if you cannot oom kill something?
+> 
 
-"Paul E. McKenney" <paulmck@linux.vnet.ibm.com> wrote:
->On Tue, Nov 26, 2013 at 04:46:54PM -0800, H. Peter Anvin wrote:
->> On 11/25/2013 07:16 PM, Paul E. McKenney wrote:
->> > 
->> > My biggest question is the definition of "Memory ordering obeys
->causality
->> > (memory ordering respects transitive visibility)" in Section 3.2.2
->of
->> > the "IntelA(R) 64 and IA-32 Architectures Developer's Manual: Vol. 3A"
->> > dated March 2013 from:
->> > 
->> >
->http://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.html
->> > 
->> > I am guessing that is orders loads as well as stores, so that a
->load
->> > is said to be "visible" to some other CPU once that CPU no longer
->has
->> > the opportunity to affect the return value from the load.  Is that
->a
->> > reasonable interpretation?
->> 
->> The best pointer I can give is the example in section 8.2.3.6 of the
->> current SDM (version 048, dated September 2013).  It is a bit more
->> complex than what you have described above.
->
->OK, I did see that example.  It is similar to the one we are chasing
->in this thread, but there are some important differences.  But you
->did mention that that other example operated as expected on x86, so
->we are good for the moment.  I was hoping to gain more general
->understanding, but I would guess that there will be other examples
->to help towards that goal.  ;-)
->
->> > More generally, is the model put forward by Sewell et al. in
->"x86-TSO:
->> > A Rigorous and Usable Programmer's Model for x86 Multiprocessors"
->> > accurate?  This is on pages 4 and 5 here:
->> > 
->> > 	http://www.cl.cam.ac.uk/~pes20/weakmemory/cacm.pdf
->> 
->> I think for Intel to give that one a formal stamp of approval would
->take
->> some serious analysis.
->
->I bet!!!
->
->Hey, I had to ask!  ;-)
->
->							Thanx, Paul
-
--- 
-Sent from my mobile phone.  Please pardon brevity and lack of formatting.
+Ah, this is because of 3168ecbe1c04 ("mm: memcg: use proper memcg in limit 
+bypass") which just bypasses all of these allocations and charges the root 
+memcg.  So if allocations want to bypass memcg isolation they just have to 
+be __GFP_NOFAIL?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
