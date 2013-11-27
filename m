@@ -1,57 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f45.google.com (mail-yh0-f45.google.com [209.85.213.45])
-	by kanga.kvack.org (Postfix) with ESMTP id BB0376B0035
-	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 19:48:36 -0500 (EST)
-Received: by mail-yh0-f45.google.com with SMTP id v1so3493057yhn.4
-        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 16:48:36 -0800 (PST)
-Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id e33si19079286yhq.243.2013.11.26.16.48.35
+Received: from mail-yh0-f51.google.com (mail-yh0-f51.google.com [209.85.213.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E8C8B6B0031
+	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 19:53:50 -0500 (EST)
+Received: by mail-yh0-f51.google.com with SMTP id c41so3021190yho.24
+        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 16:53:50 -0800 (PST)
+Received: from mail-yh0-x229.google.com (mail-yh0-x229.google.com [2607:f8b0:4002:c01::229])
+        by mx.google.com with ESMTPS id e33si19090782yhq.243.2013.11.26.16.53.49
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Nov 2013 16:48:35 -0800 (PST)
-Message-ID: <529540FE.3070504@zytor.com>
-Date: Tue, 26 Nov 2013 16:46:54 -0800
-From: "H. Peter Anvin" <hpa@zytor.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 26 Nov 2013 16:53:50 -0800 (PST)
+Received: by mail-yh0-f41.google.com with SMTP id f11so4628544yha.0
+        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 16:53:49 -0800 (PST)
+Date: Tue, 26 Nov 2013 16:53:47 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
+ access to memory reserves
+In-Reply-To: <20131122165100.GN3556@cmpxchg.org>
+Message-ID: <alpine.DEB.2.02.1311261648570.21003@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1310301838300.13556@chino.kir.corp.google.com> <20131031054942.GA26301@cmpxchg.org> <alpine.DEB.2.02.1311131416460.23211@chino.kir.corp.google.com> <20131113233419.GJ707@cmpxchg.org> <alpine.DEB.2.02.1311131649110.6735@chino.kir.corp.google.com>
+ <20131114032508.GL707@cmpxchg.org> <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com> <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com> <20131118154115.GA3556@cmpxchg.org> <20131118165110.GE32623@dhcp22.suse.cz>
+ <20131122165100.GN3556@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
-References: <20131121132041.GS4138@linux.vnet.ibm.com> <20131121172558.GA27927@linux.vnet.ibm.com> <20131121215249.GZ16796@laptop.programming.kicks-ass.net> <20131121221859.GH4138@linux.vnet.ibm.com> <20131122155835.GR3866@twins.programming.kicks-ass.net> <20131122182632.GW4138@linux.vnet.ibm.com> <20131122185107.GJ4971@laptop.programming.kicks-ass.net> <20131125173540.GK3694@twins.programming.kicks-ass.net> <20131125180250.GR4138@linux.vnet.ibm.com> <5293E37F.5020908@zytor.com> <20131126031626.GE4138@linux.vnet.ibm.com>
-In-Reply-To: <20131126031626.GE4138@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmck@linux.vnet.ibm.com
-Cc: Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On 11/25/2013 07:16 PM, Paul E. McKenney wrote:
+On Fri, 22 Nov 2013, Johannes Weiner wrote:
+
+> But userspace in all likeliness DOES need to take action.
 > 
-> My biggest question is the definition of "Memory ordering obeys causality
-> (memory ordering respects transitive visibility)" in Section 3.2.2 of
-> the "Intel(R) 64 and IA-32 Architectures Developer's Manual: Vol. 3A"
-> dated March 2013 from:
+> Reclaim is a really long process.  If 5 times doing 12 priority cycles
+> and scanning thousands of pages is not enough to reclaim a single
+> page, what does that say about the health of the memcg?
 > 
-> http://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.html
-> 
-> I am guessing that is orders loads as well as stores, so that a load
-> is said to be "visible" to some other CPU once that CPU no longer has
-> the opportunity to affect the return value from the load.  Is that a
-> reasonable interpretation?
+> But more importantly, OOM handling is just inherently racy.  A task
+> might receive the kill signal a split second *after* userspace was
+> notified.  Or a task may exit voluntarily a split second after a
+> victim was chosen and killed.
 > 
 
-The best pointer I can give is the example in section 8.2.3.6 of the
-current SDM (version 048, dated September 2013).  It is a bit more
-complex than what you have described above.
+That's not true even today without the userspace oom handling proposal 
+currently being discussed if you have a memcg oom handler attached to a 
+parent memcg with access to more memory than an oom child memcg.  The oom 
+handler can disable the child memcg's oom killer with memory.oom_control 
+and implement its own policy to deal with any notification of oom.
 
-> More generally, is the model put forward by Sewell et al. in "x86-TSO:
-> A Rigorous and Usable Programmer's Model for x86 Multiprocessors"
-> accurate?  This is on pages 4 and 5 here:
-> 
-> 	http://www.cl.cam.ac.uk/~pes20/weakmemory/cacm.pdf
+This patch is required to ensure that in such a scenario that the oom 
+handler sitting in the parent memcg only wakes up when it's required to 
+intervene.  Making an inference about the "health of the memcg" can 
+certainly be done with memory thresholds and vmpressure, if you need that.
 
-I think for Intel to give that one a formal stamp of approval would take
-some serious analysis.
-
-	-hpa
+I agree with Michal.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
