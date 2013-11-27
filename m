@@ -1,70 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f54.google.com (mail-bk0-f54.google.com [209.85.214.54])
-	by kanga.kvack.org (Postfix) with ESMTP id D82A26B0031
-	for <linux-mm@kvack.org>; Wed, 27 Nov 2013 08:45:05 -0500 (EST)
-Received: by mail-bk0-f54.google.com with SMTP id v16so3279411bkz.27
-        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 05:45:05 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id tv4si8641611bkb.228.2013.11.27.05.45.04
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id EF4E86B0031
+	for <linux-mm@kvack.org>; Wed, 27 Nov 2013 10:46:12 -0500 (EST)
+Received: by mail-lb0-f172.google.com with SMTP id z5so5594578lbh.31
+        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 07:46:12 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id h4si12598833lam.41.2013.11.27.07.46.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 27 Nov 2013 05:45:05 -0800 (PST)
-Date: Wed, 27 Nov 2013 14:44:58 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: netfilter: active obj WARN when cleaning up
-In-Reply-To: <20131127134015.GA6011@n2100.arm.linux.org.uk>
-Message-ID: <alpine.DEB.2.02.1311271443580.30673@ionos.tec.linutronix.de>
-References: <522B25B5.6000808@oracle.com> <5294F27D.4000108@oracle.com> <20131126230709.GA10948@localhost> <alpine.DEB.2.02.1311271106090.30673@ionos.tec.linutronix.de> <20131127113939.GL16735@n2100.arm.linux.org.uk> <alpine.DEB.2.02.1311271409280.30673@ionos.tec.linutronix.de>
- <20131127133231.GO16735@n2100.arm.linux.org.uk> <20131127134015.GA6011@n2100.arm.linux.org.uk>
+        Wed, 27 Nov 2013 07:46:11 -0800 (PST)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH] memcg: fix kmem_account_flags check in memcg_can_account_kmem()
+Date: Wed, 27 Nov 2013 19:46:01 +0400
+Message-ID: <1385567162-14973-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Pablo Neira Ayuso <pablo@netfilter.org>, Sasha Levin <sasha.levin@oracle.com>, Patrick McHardy <kaber@trash.net>, kadlec@blackhole.kfki.hu, "David S. Miller" <davem@davemloft.net>, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Greg KH <greg@kroah.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Wed, 27 Nov 2013, Russell King - ARM Linux wrote:
+We should start kmem accounting for a memory cgroup only after both its
+kmem limit is set (KMEM_ACCOUNTED_ACTIVE) and related call sites are
+patched (KMEM_ACCOUNTED_ACTIVATED). Currently memcg_can_account_kmem()
+allows kmem accounting even if only one of the conditions is true.
+Fix it.
 
-> On Wed, Nov 27, 2013 at 01:32:31PM +0000, Russell King - ARM Linux wrote:
-> > On Wed, Nov 27, 2013 at 02:29:41PM +0100, Thomas Gleixner wrote:
-> > > Though the kobject is the only thing which has a delayed work embedded
-> > > inside struct kmem_cache. And the debug object splat points at the
-> > > kmem_cache_free() of the struct kmem_cache itself. That's why I
-> > > assumed the wreckage around that place. And indeed:
-> > > 
-> > > kmem_cache_destroy(s)
-> > >     __kmem_cache_shutdown(s)
-> > >       sysfs_slab_remove(s)
-> > >         ....
-> > > 	kobject_put(&s->kobj)
-> > >            kref_put(&kobj->kref, kobject_release);
-> > > 	     kobject_release(kref)
-> > >     	       #ifdef CONFIG_DEBUG_KOBJECT_RELEASE
-> > > 	         schedule_delayed_work(&kobj->release)
-> > > 	       #else
-> > > 	        kobject_cleanup(kobj)
-> > > 	       #endif
-> > > 
-> > > So in the CONFIG_DEBUG_KOBJECT_RELEASE=y case, schedule_delayed_work()
-> > > _IS_ called which arms the timer. debugobjects catches the attempt to
-> > > free struct kmem_cache which contains the armed timer.
-> > 
-> > You fail to show where the free is in the above path.
-> 
-> Right, there's a kmem_cache_free(kmem_cache, s); by the slob code
-> after the above sequence, which is The Bug(tm).
-> 
-> As I said, a kobject has its own lifetime.  If you embed that into
-> another structure, that structure inherits the lifetime of the kobject,
-> which is from the point at which it's created to the point at which the
-> kobject's release function is called.
-> 
-> So no, the code here is buggy.  The kobject debugging has yet again
-> found a violation of the kobject lifetime rules.  slub needs fixing.
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Balbir Singh <bsingharora@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memcontrol.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-I leave that discussion to you, greg and the slub folks.
-
-/me prepares deck chair, drinks and popcorn 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index f1a0ae6..40efb9d 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2956,7 +2956,8 @@ static DEFINE_MUTEX(set_limit_mutex);
+ static inline bool memcg_can_account_kmem(struct mem_cgroup *memcg)
+ {
+ 	return !mem_cgroup_disabled() && !mem_cgroup_is_root(memcg) &&
+-		(memcg->kmem_account_flags & KMEM_ACCOUNTED_MASK);
++		(memcg->kmem_account_flags & KMEM_ACCOUNTED_MASK) ==
++							KMEM_ACCOUNTED_MASK;
+ }
+ 
+ /*
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
