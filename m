@@ -1,157 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f48.google.com (mail-bk0-f48.google.com [209.85.214.48])
-	by kanga.kvack.org (Postfix) with ESMTP id B40C76B0036
-	for <linux-mm@kvack.org>; Wed, 27 Nov 2013 12:09:11 -0500 (EST)
-Received: by mail-bk0-f48.google.com with SMTP id v10so3314922bkz.21
-        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 09:09:10 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id ke1si12531092bkb.241.2013.11.27.09.09.10
+Received: from mail-vb0-f42.google.com (mail-vb0-f42.google.com [209.85.212.42])
+	by kanga.kvack.org (Postfix) with ESMTP id CB36F6B0031
+	for <linux-mm@kvack.org>; Wed, 27 Nov 2013 13:53:51 -0500 (EST)
+Received: by mail-vb0-f42.google.com with SMTP id w18so5381763vbj.1
+        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 10:53:51 -0800 (PST)
+Received: from mail-yh0-x236.google.com (mail-yh0-x236.google.com [2607:f8b0:4002:c01::236])
+        by mx.google.com with ESMTPS id z9si21496508veh.108.2013.11.27.10.53.45
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 27 Nov 2013 09:09:10 -0800 (PST)
-Date: Wed, 27 Nov 2013 12:08:04 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 6/9] mm + fs: store shadow entries in page cache
-Message-ID: <20131127170804.GD3556@cmpxchg.org>
-References: <1385336308-27121-1-git-send-email-hannes@cmpxchg.org>
- <1385336308-27121-7-git-send-email-hannes@cmpxchg.org>
- <20131125231716.GJ8803@dastard>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 27 Nov 2013 10:53:45 -0800 (PST)
+Received: by mail-yh0-f54.google.com with SMTP id z12so5397723yhz.27
+        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 10:53:44 -0800 (PST)
+Date: Wed, 27 Nov 2013 13:53:40 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] cpuset: Fix memory allocator deadlock
+Message-ID: <20131127185340.GC13098@mtj.dyndns.org>
+References: <20131126140341.GL10022@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131125231716.GJ8803@dastard>
+In-Reply-To: <20131126140341.GL10022@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Tejun Heo <tj@kernel.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Li Zefan <lizefan@huawei.com>, John Stultz <john.stultz@linaro.org>, Mel Gorman <mgorman@suse.de>, Juri Lelli <juri.lelli@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Nov 26, 2013 at 10:17:16AM +1100, Dave Chinner wrote:
-> On Sun, Nov 24, 2013 at 06:38:25PM -0500, Johannes Weiner wrote:
-> > Reclaim will be leaving shadow entries in the page cache radix tree
-> > upon evicting the real page.  As those pages are found from the LRU,
-> > an iput() can lead to the inode being freed concurrently.  At this
-> > point, reclaim must no longer install shadow pages because the inode
-> > freeing code needs to ensure the page tree is really empty.
-> > 
-> > Add an address_space flag, AS_EXITING, that the inode freeing code
-> > sets under the tree lock before doing the final truncate.  Reclaim
-> > will check for this flag before installing shadow pages.
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ....
-> > @@ -545,10 +546,25 @@ static void evict(struct inode *inode)
-> >  	 */
-> >  	inode_wait_for_writeback(inode);
-> >  
-> > +	/*
-> > +	 * Page reclaim can not do iput() and thus can race with the
-> > +	 * inode teardown.  Tell it when the address space is exiting,
-> > +	 * so that it does not install eviction information after the
-> > +	 * final truncate has begun.
-> > +	 *
-> > +	 * As truncation uses a lockless tree lookup, acquire the
-> > +	 * spinlock to make sure any ongoing tree modification that
-> > +	 * does not see AS_EXITING is completed before starting the
-> > +	 * final truncate.
-> > +	 */
-> > +	spin_lock_irq(&inode->i_data.tree_lock);
-> > +	mapping_set_exiting(&inode->i_data);
-> > +	spin_unlock_irq(&inode->i_data.tree_lock);
-> > +
-> >  	if (op->evict_inode) {
-> >  		op->evict_inode(inode);
-> >  	} else {
-> > -		if (inode->i_data.nrpages)
-> > +		if (inode->i_data.nrpages || inode->i_data.nrshadows)
-> >  			truncate_inode_pages(&inode->i_data, 0);
-> >  		clear_inode(inode);
-> >  	}
+On Tue, Nov 26, 2013 at 03:03:41PM +0100, Peter Zijlstra wrote:
+> Juri hit the below lockdep report:
 > 
-> Ok, so what I see here is that we need a wrapper function that
-> handles setting the AS_EXITING flag and doing the "final"
-> truncate_inode_pages() call, and the locking for the AS_EXITING flag
-> moved into mapping_set_exiting()
+> [    4.303391] ======================================================
+> [    4.303392] [ INFO: SOFTIRQ-safe -> SOFTIRQ-unsafe lock order detected ]
+> [    4.303394] 3.12.0-dl-peterz+ #144 Not tainted
+> [    4.303395] ------------------------------------------------------
+> [    4.303397] kworker/u4:3/689 [HC0[0]:SC0[0]:HE0:SE1] is trying to acquire:
+> [    4.303399]  (&p->mems_allowed_seq){+.+...}, at: [<ffffffff8114e63c>] new_slab+0x6c/0x290
+> [    4.303417]
+> [    4.303417] and this task is already holding:
+> [    4.303418]  (&(&q->__queue_lock)->rlock){..-...}, at: [<ffffffff812d2dfb>] blk_execute_rq_nowait+0x5b/0x100
+> [    4.303431] which would create a new lock dependency:
+> [    4.303432]  (&(&q->__queue_lock)->rlock){..-...} -> (&p->mems_allowed_seq){+.+...}
+> [    4.303436]
 > 
-> That is, because this AS_EXITING flag and it's locking constraints
-> are directly related to the upcoming truncate_inode_pages() call,
-> I'd prefer to see a helper that captures that relationship used
-> in all the filesystem code. e.g:
+> [    4.303898] the dependencies between the lock to be acquired and SOFTIRQ-irq-unsafe lock:
+> [    4.303918] -> (&p->mems_allowed_seq){+.+...} ops: 2762 {
+> [    4.303922]    HARDIRQ-ON-W at:
+> [    4.303923]                     [<ffffffff8108ab9a>] __lock_acquire+0x65a/0x1ff0
+> [    4.303926]                     [<ffffffff8108cbe3>] lock_acquire+0x93/0x140
+> [    4.303929]                     [<ffffffff81063dd6>] kthreadd+0x86/0x180
+> [    4.303931]                     [<ffffffff816ded6c>] ret_from_fork+0x7c/0xb0
+> [    4.303933]    SOFTIRQ-ON-W at:
+> [    4.303933]                     [<ffffffff8108abcc>] __lock_acquire+0x68c/0x1ff0
+> [    4.303935]                     [<ffffffff8108cbe3>] lock_acquire+0x93/0x140
+> [    4.303940]                     [<ffffffff81063dd6>] kthreadd+0x86/0x180
+> [    4.303955]                     [<ffffffff816ded6c>] ret_from_fork+0x7c/0xb0
+> [    4.303959]    INITIAL USE at:
+> [    4.303960]                    [<ffffffff8108a884>] __lock_acquire+0x344/0x1ff0
+> [    4.303963]                    [<ffffffff8108cbe3>] lock_acquire+0x93/0x140
+> [    4.303966]                    [<ffffffff81063dd6>] kthreadd+0x86/0x180
+> [    4.303969]                    [<ffffffff816ded6c>] ret_from_fork+0x7c/0xb0
+> [    4.303972]  }
 > 
-> void truncate_inode_pages_final(struct address_space *mapping)
-> {
-> 	spin_lock_irq(&mapping->tree_lock);
-> 	mapping_set_exiting(mapping);
-> 	spin_unlock_irq(&mapping->tree_lock);
-> 	if (inode->i_data.nrpages || inode->i_data.nrshadows)
-> 		truncate_inode_pages_range(mapping, 0, (loff_t)-1);
-> }
+> Which reports that we take mems_allowed_seq with interrupts enabled. A
+> little digging found that this can only be from
+> cpuset_change_task_nodemask().
 > 
-> And document it in Documentation/filesystems/porting as a mandatory
-> function to be called from ->evict_inode() implementations before
-> calling clear_inode().  You can then replace all the direct calls to
-> truncate_inode_pages() in the evict_inode() path with a call to
-> truncate_inode_pages_final().
-
-Ok, fair enough.  I'll add a BUG_ON(!mapping_exiting(&inode->i_data))
-to the inode sanity checks on final teardown to make sure filesystems
-don't miss the change to truncate_inode_pages_final().
-
-> As it is, I'd really like to see that unconditional irq disable go
-> away from this code - disabling and enabling interrupts for every
-> single inode we reclaim is going to add significant overhead to this
-> hot code path. And given that:
+> This is an actual deadlock because an interrupt doing an allocation will
+> hit get_mems_allowed()->...->__read_seqcount_begin(), which will spin
+> forever waiting for the write side to complete.
 > 
-> > +static inline void mapping_set_exiting(struct address_space *mapping)
-> > +{
-> > +	set_bit(AS_EXITING, &mapping->flags);
-> > +}
-> > +
-> > +static inline int mapping_exiting(struct address_space *mapping)
-> > +{
-> > +	return test_bit(AS_EXITING, &mapping->flags);
-> > +}
-> 
-> these atomic bit ops, why do we need to take the tree_lock and
-> disable irqs in evict() to set this bit if there's nothing to
-> truncate on the inode? i.e. something like this:
-> 
-> void truncate_inode_pages_final(struct address_space *mapping)
-> {
-> 	mapping_set_exiting(mapping);
-> 	if (inode->i_data.nrpages || inode->i_data.nrshadows) {
-> 		/*
-> 		 * spinlock barrier to ensure all modifications are
-> 		 * complete before we do the final truncate
-> 		 */
-> 		spin_lock_irq(&mapping->tree_lock);
-> 		spin_unlock_irq(&mapping->tree_lock);
-> 		truncate_inode_pages_range(mapping, 0, (loff_t)-1);
-> }
+> Cc: John Stultz <john.stultz@linaro.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Reported-by: Juri Lelli <juri.lelli@gmail.com>
+> Signed-off-by: Peter Zijlstra <peterz@infradead.org>
 
-That would almost work, but we need to enforce ordering of the counter
-reads and updates or truncation might read 0 on both while racing with
-reclaim.
+Applied to cgroup/for-3.13-fixes w/ stable cc'd.
 
-Reclaim would have to do:
+Thanks.
 
-  spin_lock_irq(&mapping->tree_lock)
-  if !mapping_exiting():
-    swap shadow entry
-    mapping->nrshadows++
-    smp_wmb()
-    mapping->nrpages--
-  spin_unlock_irq(&mapping->tree_lock)
-
-and the final truncate side would have to do
-
-  mapping_set_exiting()
-  nrpages = mapping->nrpages
-  smp_rmb()
-  nrshadows = mapping->nrshadows
-  if (nrpages || nrshadows)
-    spin_lock_irq(&mapping->tree_lock)
-    spin_unlock_irq(&mapping->tree_lock)
-    truncate
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
