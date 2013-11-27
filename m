@@ -1,70 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f49.google.com (mail-bk0-f49.google.com [209.85.214.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DC586B0031
-	for <linux-mm@kvack.org>; Wed, 27 Nov 2013 11:39:21 -0500 (EST)
-Received: by mail-bk0-f49.google.com with SMTP id my13so3301273bkb.22
-        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 08:39:20 -0800 (PST)
+Received: from mail-bk0-f50.google.com (mail-bk0-f50.google.com [209.85.214.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 354BA6B0031
+	for <linux-mm@kvack.org>; Wed, 27 Nov 2013 11:46:35 -0500 (EST)
+Received: by mail-bk0-f50.google.com with SMTP id e11so3275459bkh.23
+        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 08:46:34 -0800 (PST)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id cg7si12482104bkc.339.2013.11.27.08.39.20
+        by mx.google.com with ESMTPS id cg7si12508878bkc.75.2013.11.27.08.46.34
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 27 Nov 2013 08:39:20 -0800 (PST)
-Date: Wed, 27 Nov 2013 11:39:16 -0500
+        Wed, 27 Nov 2013 08:46:34 -0800 (PST)
+Date: Wed, 27 Nov 2013 11:45:44 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm: memcg: do not declare OOM from __GFP_NOFAIL
- allocations
-Message-ID: <20131127163916.GB3556@cmpxchg.org>
-References: <1385140676-5677-1-git-send-email-hannes@cmpxchg.org>
- <alpine.DEB.2.02.1311261658170.21003@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1311261931210.5973@chino.kir.corp.google.com>
+Subject: Re: [patch 6/9] mm + fs: store shadow entries in page cache
+Message-ID: <20131127164544.GC3556@cmpxchg.org>
+References: <1385336308-27121-1-git-send-email-hannes@cmpxchg.org>
+ <1385336308-27121-7-git-send-email-hannes@cmpxchg.org>
+ <20131125231716.GJ8803@dastard>
+ <20131126102053.GJ10022@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1311261931210.5973@chino.kir.corp.google.com>
+In-Reply-To: <20131126102053.GJ10022@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Tejun Heo <tj@kernel.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Michel Lespinasse <walken@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Ozgun Erdogan <ozgun@citusdata.com>, Metin Doslu <metin@citusdata.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Nov 26, 2013 at 07:33:12PM -0800, David Rientjes wrote:
-> On Tue, 26 Nov 2013, David Rientjes wrote:
+On Tue, Nov 26, 2013 at 11:20:53AM +0100, Peter Zijlstra wrote:
+> On Tue, Nov 26, 2013 at 10:17:16AM +1100, Dave Chinner wrote:
+> > void truncate_inode_pages_final(struct address_space *mapping)
+> > {
+> > 	mapping_set_exiting(mapping);
+> > 	if (inode->i_data.nrpages || inode->i_data.nrshadows) {
+> > 		/*
+> > 		 * spinlock barrier to ensure all modifications are
+> > 		 * complete before we do the final truncate
+> > 		 */
+> > 		spin_lock_irq(&mapping->tree_lock);
+> > 		spin_unlock_irq(&mapping->tree_lock);
 > 
-> > On Fri, 22 Nov 2013, Johannes Weiner wrote:
-> > 
-> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > index 13b9d0f..cc4f9cb 100644
-> > > --- a/mm/memcontrol.c
-> > > +++ b/mm/memcontrol.c
-> > > @@ -2677,6 +2677,9 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
-> > >  	if (unlikely(task_in_memcg_oom(current)))
-> > >  		goto bypass;
-> > >  
-> > > +	if (gfp_mask & __GFP_NOFAIL)
-> > > +		oom = false;
-> > > +
-> > >  	/*
-> > >  	 * We always charge the cgroup the mm_struct belongs to.
-> > >  	 * The mm_struct's mem_cgroup changes on task migration if the
-> > 
-> > Sorry, I don't understand this.  What happens in the following scenario:
-> > 
-> >  - memory.usage_in_bytes == memory.limit_in_bytes,
-> > 
-> >  - memcg reclaim fails to reclaim memory, and
-> > 
-> >  - all processes (perhaps only one) attached to the memcg are doing one of
-> >    the over dozen __GFP_NOFAIL allocations in the kernel?
-> > 
-> > How do we make forward progress if you cannot oom kill something?
+> 	spin_unlock_wait() ?
+> 
+> Its cheaper, but prone to starvation; its typically useful when you're
+> waiting for the last owner to go away and know there won't be any new
+> ones around.
 
-Bypass the limit.
-
-> Ah, this is because of 3168ecbe1c04 ("mm: memcg: use proper memcg in limit 
-> bypass") which just bypasses all of these allocations and charges the root 
-> memcg.  So if allocations want to bypass memcg isolation they just have to 
-> be __GFP_NOFAIL?
-
-I don't think we have another option.
+The other side is reclaim plucking pages one-by-one from the address
+space in LRU order.  It'd be preferable to not starve the truncation
+side, because it is much more efficient at getting rid of those pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
