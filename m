@@ -1,65 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vb0-f46.google.com (mail-vb0-f46.google.com [209.85.212.46])
-	by kanga.kvack.org (Postfix) with ESMTP id AA0796B0031
-	for <linux-mm@kvack.org>; Tue, 26 Nov 2013 22:33:16 -0500 (EST)
-Received: by mail-vb0-f46.google.com with SMTP id i12so4423687vbh.19
-        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 19:33:16 -0800 (PST)
-Received: from mail-yh0-x234.google.com (mail-yh0-x234.google.com [2607:f8b0:4002:c01::234])
-        by mx.google.com with ESMTPS id c1si20418114vcs.103.2013.11.26.19.33.15
+Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
+	by kanga.kvack.org (Postfix) with ESMTP id A78A36B0031
+	for <linux-mm@kvack.org>; Wed, 27 Nov 2013 01:26:23 -0500 (EST)
+Received: by mail-lb0-f173.google.com with SMTP id u14so5233151lbd.32
+        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 22:26:22 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id y7si18599875lal.104.2013.11.26.22.26.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 26 Nov 2013 19:33:15 -0800 (PST)
-Received: by mail-yh0-f52.google.com with SMTP id i72so4676369yha.39
-        for <linux-mm@kvack.org>; Tue, 26 Nov 2013 19:33:15 -0800 (PST)
-Date: Tue, 26 Nov 2013 19:33:12 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm: memcg: do not declare OOM from __GFP_NOFAIL
- allocations
-In-Reply-To: <alpine.DEB.2.02.1311261658170.21003@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.02.1311261931210.5973@chino.kir.corp.google.com>
-References: <1385140676-5677-1-git-send-email-hannes@cmpxchg.org> <alpine.DEB.2.02.1311261658170.21003@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 26 Nov 2013 22:26:22 -0800 (PST)
+Message-ID: <52959089.6030607@parallels.com>
+Date: Wed, 27 Nov 2013 10:26:17 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v11 00/15] kmemcg shrinkers
+References: <cover.1385377616.git.vdavydov@parallels.com> <20131125174135.GE22729@cmpxchg.org> <529443E4.7080602@parallels.com> <20131126224742.GB10988@dastard>
+In-Reply-To: <20131126224742.GB10988@dastard>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, akpm@linux-foundation.org, mhocko@suse.cz, glommer@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org
 
-On Tue, 26 Nov 2013, David Rientjes wrote:
+On 11/27/2013 02:47 AM, Dave Chinner wrote:
+> On Tue, Nov 26, 2013 at 10:47:00AM +0400, Vladimir Davydov wrote:
+>> Hi,
+>>
+>> Thank you for the review. I agree with all your comments and I'll
+>> resend the fixed version soon.
+>>
+>> If anyone still has something to say about the patchset, I'd be glad
+>> to hear from them.
+> Please CC me on all the shrinker/list-lru changes being made as I am
+> the original author of the list-lru code and the shrinker
+> integration and have more than a passing interest in ensuring
+> it doesn't get broken or crippled....
 
-> On Fri, 22 Nov 2013, Johannes Weiner wrote:
-> 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 13b9d0f..cc4f9cb 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -2677,6 +2677,9 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
-> >  	if (unlikely(task_in_memcg_oom(current)))
-> >  		goto bypass;
-> >  
-> > +	if (gfp_mask & __GFP_NOFAIL)
-> > +		oom = false;
-> > +
-> >  	/*
-> >  	 * We always charge the cgroup the mm_struct belongs to.
-> >  	 * The mm_struct's mem_cgroup changes on task migration if the
-> 
-> Sorry, I don't understand this.  What happens in the following scenario:
-> 
->  - memory.usage_in_bytes == memory.limit_in_bytes,
-> 
->  - memcg reclaim fails to reclaim memory, and
-> 
->  - all processes (perhaps only one) attached to the memcg are doing one of
->    the over dozen __GFP_NOFAIL allocations in the kernel?
-> 
-> How do we make forward progress if you cannot oom kill something?
-> 
-
-Ah, this is because of 3168ecbe1c04 ("mm: memcg: use proper memcg in limit 
-bypass") which just bypasses all of these allocations and charges the root 
-memcg.  So if allocations want to bypass memcg isolation they just have to 
-be __GFP_NOFAIL?
+Sure, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
