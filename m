@@ -1,78 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 020626B0035
-	for <linux-mm@kvack.org>; Thu, 28 Nov 2013 06:42:17 -0500 (EST)
-Received: by mail-wi0-f179.google.com with SMTP id ey16so717406wid.6
-        for <linux-mm@kvack.org>; Thu, 28 Nov 2013 03:42:17 -0800 (PST)
-Received: from mail-ea0-x22f.google.com (mail-ea0-x22f.google.com [2a00:1450:4013:c01::22f])
-        by mx.google.com with ESMTPS id a5si23065747wjb.32.2013.11.28.03.42.17
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 28 Nov 2013 03:42:17 -0800 (PST)
-Received: by mail-ea0-f175.google.com with SMTP id z10so5604690ead.6
-        for <linux-mm@kvack.org>; Thu, 28 Nov 2013 03:42:17 -0800 (PST)
-Date: Thu, 28 Nov 2013 12:42:14 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: user defined OOM policies
-Message-ID: <20131128114214.GJ2761@dhcp22.suse.cz>
-References: <20131119131400.GC20655@dhcp22.suse.cz>
- <20131119134007.GD20655@dhcp22.suse.cz>
- <alpine.DEB.2.02.1311192352070.20752@chino.kir.corp.google.com>
- <20131120152251.GA18809@dhcp22.suse.cz>
- <CAA25o9S5EQBvyk=HP3obdCaXKjoUVtzeb4QsNmoLMq6NnOYifA@mail.gmail.com>
- <alpine.DEB.2.02.1311201933420.7167@chino.kir.corp.google.com>
- <CAA25o9Q64eK5LHhrRyVn73kFz=Z7Jji=rYWS=9jWL_4y9ZGbQA@mail.gmail.com>
- <alpine.DEB.2.02.1311251717370.27270@chino.kir.corp.google.com>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id B108D6B0036
+	for <linux-mm@kvack.org>; Thu, 28 Nov 2013 06:42:47 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id cc10so713714wib.16
+        for <linux-mm@kvack.org>; Thu, 28 Nov 2013 03:42:46 -0800 (PST)
+Received: from cam-admin0.cambridge.arm.com (cam-admin0.cambridge.arm.com. [217.140.96.50])
+        by mx.google.com with ESMTP id pt5si23042845wjc.105.2013.11.28.03.42.46
+        for <linux-mm@kvack.org>;
+        Thu, 28 Nov 2013 03:42:46 -0800 (PST)
+Date: Thu, 28 Nov 2013 11:40:59 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
+Message-ID: <20131128114058.GC21354@mudshark.cambridge.arm.com>
+References: <20131125180250.GR4138@linux.vnet.ibm.com>
+ <20131125182715.GG10022@twins.programming.kicks-ass.net>
+ <20131125235252.GA4138@linux.vnet.ibm.com>
+ <20131126095945.GI10022@twins.programming.kicks-ass.net>
+ <CA+55aFxXEbHuaKuxBDH=7a2-n_z849CdfeDtdL=_nFxu_Tx9_g@mail.gmail.com>
+ <20131126192003.GA4137@linux.vnet.ibm.com>
+ <CA+55aFyjisiM1eC53STpcKLky84n8JRz3Aagp-CQd_+3AOJhow@mail.gmail.com>
+ <20131126225136.GG4137@linux.vnet.ibm.com>
+ <20131127101613.GC9032@mudshark.cambridge.arm.com>
+ <20131127171143.GN4137@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1311251717370.27270@chino.kir.corp.google.com>
+In-Reply-To: <20131127171143.GN4137@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Joern Engel <joern@logfs.org>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Mon 25-11-13 17:29:20, David Rientjes wrote:
-> On Wed, 20 Nov 2013, Luigi Semenzato wrote:
-> 
-> > Yes, I agree that we can't always prevent OOM situations, and in fact
-> > we tolerate OOM kills, although they have a worse impact on the users
-> > than controlled freeing does.
+On Wed, Nov 27, 2013 at 05:11:43PM +0000, Paul E. McKenney wrote:
+> On Wed, Nov 27, 2013 at 10:16:13AM +0000, Will Deacon wrote:
+> > On Tue, Nov 26, 2013 at 10:51:36PM +0000, Paul E. McKenney wrote:
+> > > On Tue, Nov 26, 2013 at 11:32:25AM -0800, Linus Torvalds wrote:
+> > > > On Tue, Nov 26, 2013 at 11:20 AM, Paul E. McKenney wrote:
+> > > o	ARM has an smp_mb() during lock acquisition, so after_spinlock()
+> > > 	can be a no-op for them.
 > > 
+> > Ok, but what about arm64? We use acquire for lock() and release for
+> > unlock(), so in Linus' example:
 > 
-> If the controlled freeing is able to actually free memory in time before 
-> hitting an oom condition, it should work pretty well.  That ability is 
-> seems to be highly dependent on sane thresholds for indvidual applications 
-> and I'm afraid we can never positively ensure that we wakeup and are able 
-> to free memory in time to avoid the oom condition.
+> Right, I did forget the arm vs. arm64 split!
 > 
-> > Well OK here it goes.  I hate to be a party-pooper, but the notion of
-> > a user-level OOM-handler scares me a bit for various reasons.
+> >     write A;
+> >     spin_lock()
+> >     mb__after_spinlock();
+> >     read B
 > > 
-> > 1. Our custom notifier sends low-memory warnings well ahead of memory
-> > depletion.  If we don't have enough time to free memory then, what can
-> > the last-minute OOM handler do?
-> > 
+> > Then A could very well be reordered after B if mb__after_spinlock() is a nop.
+> > Making that a full barrier kind of defeats the point of using acquire in the
+> > first place...
 > 
-> The userspace oom handler doesn't necessarily guarantee that you can do 
-> memory freeing, our usecase wants to do a priority-based oom killing that 
-> is different from the kernel oom killer based on rss.  To do that, you 
-> only really need to read certain proc files and you can do killing based 
-> on uptime, for example.  You can also do a hierarchical traversal of 
-> memcgs based on a priority.
-> 
-> We already have hooks in the kernel oom killer, things like 
-> /proc/sys/vm/oom_kill_allocating_task
+> The trick is that you don't have mb__after_spinlock() unless you need the
+> ordering, which we expect in a small minority of the lock acquisitions.
+> So you would normally get the benefit of acquire/release efficiency.
 
-How would you implement oom_kill_allocating_task in userspace? You do
-not have any context on who is currently allocating or would you rely on
-reading /proc/*/stack to grep for allocation functions?
+Ok, understood. I take it this means that you don't care about ordering the
+write to A with the actual locking operation? (that would require the mb to
+be *inside* the spin_lock() implementation).
 
-> and /proc/sys/vm/panic_on_oom that 
-[...]
--- 
-Michal Hocko
-SUSE Labs
+> > It's one thing ordering unlock -> lock, but another getting those two to
+> > behave as full barriers for any arbitrary memory accesses.
+> 
+> And in fact the unlock+lock barrier is all that RCU needs.  I guess the
+> question is whether it is worth having two flavors of __after_spinlock(),
+> one that is a full barrier with just the lock, and another that is
+> only guaranteed to be a full barrier with unlock+lock.
+
+I think it's worth distinguishing those cases because, in my mind, one is
+potentially a lot heavier than the other. The risk is that we end up
+producing a set of strangely named barrier abstractions that nobody can
+figure out how to use properly:
+
+
+	/*
+	 * Prevent re-ordering of arbitrary accesses across spin_lock and
+	 * spin_unlock.
+	 */
+	mb__after_spin_lock()
+	mb__after_spin_unlock()
+
+	/*
+	 * Order spin_lock() vs spin_unlock()
+	 */
+	mb__between_spin_unlock_lock() /* Horrible name! */
+
+
+We could potentially replace the first set of barriers with spin_lock_mb()
+and spin_unlock_mb() variants (which would be more efficient than half
+barrier + full barrier), then we only end up with strangely named barrier
+which applies to the non _mb() spinlock routines.
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
