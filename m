@@ -1,117 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 579FA6B0035
-	for <linux-mm@kvack.org>; Thu, 28 Nov 2013 05:02:17 -0500 (EST)
-Received: by mail-wi0-f181.google.com with SMTP id hq4so591810wib.14
-        for <linux-mm@kvack.org>; Thu, 28 Nov 2013 02:02:16 -0800 (PST)
-Received: from mail-ea0-x232.google.com (mail-ea0-x232.google.com [2a00:1450:4013:c01::232])
-        by mx.google.com with ESMTPS id dx3si12218904wib.59.2013.11.28.02.02.16
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D7DA6B0035
+	for <linux-mm@kvack.org>; Thu, 28 Nov 2013 05:20:53 -0500 (EST)
+Received: by mail-wg0-f41.google.com with SMTP id y10so650775wgg.0
+        for <linux-mm@kvack.org>; Thu, 28 Nov 2013 02:20:52 -0800 (PST)
+Received: from mail-ea0-x231.google.com (mail-ea0-x231.google.com [2a00:1450:4013:c01::231])
+        by mx.google.com with ESMTPS id cn2si12254348wid.3.2013.11.28.02.20.51
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 28 Nov 2013 02:02:16 -0800 (PST)
-Received: by mail-ea0-f178.google.com with SMTP id d10so5580953eaj.37
-        for <linux-mm@kvack.org>; Thu, 28 Nov 2013 02:02:16 -0800 (PST)
-Date: Thu, 28 Nov 2013 11:02:13 +0100
+        Thu, 28 Nov 2013 02:20:51 -0800 (PST)
+Received: by mail-ea0-f177.google.com with SMTP id n15so5553401ead.36
+        for <linux-mm@kvack.org>; Thu, 28 Nov 2013 02:20:51 -0800 (PST)
+Date: Thu, 28 Nov 2013 11:20:49 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [merged]
- mm-memcg-handle-non-error-oom-situations-more-gracefully.patch removed from
- -mm tree
-Message-ID: <20131128100213.GE2761@dhcp22.suse.cz>
-References: <526028bd.k5qPj2+MDOK1o6ii%akpm@linux-foundation.org>
- <alpine.DEB.2.02.1311271453270.13682@chino.kir.corp.google.com>
- <20131127233353.GH3556@cmpxchg.org>
- <alpine.DEB.2.02.1311271622330.10617@chino.kir.corp.google.com>
- <20131128021809.GI3556@cmpxchg.org>
- <alpine.DEB.2.02.1311271826001.5120@chino.kir.corp.google.com>
- <20131128031313.GK3556@cmpxchg.org>
- <alpine.DEB.2.02.1311271914460.5120@chino.kir.corp.google.com>
+Subject: Re: [patch] mm: memcg: do not declare OOM from __GFP_NOFAIL
+ allocations
+Message-ID: <20131128102049.GF2761@dhcp22.suse.cz>
+References: <1385140676-5677-1-git-send-email-hannes@cmpxchg.org>
+ <alpine.DEB.2.02.1311261658170.21003@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1311261931210.5973@chino.kir.corp.google.com>
+ <20131127163916.GB3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311271336220.9222@chino.kir.corp.google.com>
+ <20131127225340.GE3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311271526080.22848@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1311271914460.5120@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1311271526080.22848@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, azurit@pobox.sk, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed 27-11-13 19:20:37, David Rientjes wrote:
+On Wed 27-11-13 15:34:24, David Rientjes wrote:
 > On Wed, 27 Nov 2013, Johannes Weiner wrote:
 > 
-> > > It appears as though this work is being developed in Linus's tree rather 
-> > > than -mm, so I'm asking if we should consider backing some of it out for 
-> > > 3.14 instead.
+> > > We don't give __GFP_NOFAIL allocations access to memory reserves in the 
+> > > page allocator and we do call the oom killer for them so that a process is 
+> > > killed so that memory is freed.  Why do we have a different policy for 
+> > > memcg?
 > > 
-> > The changes fix a deadlock problem.  Are they creating problems that
-> > are worse than deadlocks, that would justify their revert?
+> > Oh boy, that's the epic story we dealt with all throughout the last
+> > merge window... ;-)
 > > 
-> 
-> None that I am currently aware of,
-
-Are you saing that scenarios described in 3812c8c8f395 (mm: memcg: do not
-trap chargers with full callstack on OOM) are not real or that _you_
-haven't seen an issue like that?
-
-The later doesn't seem to be so relevant as we had at least one user who
-has seen those in the real life.
-
-> I'll continue to try them out. 
-
-> I'd suggest just dropping the stable@kernel.org from the whole series
-> though unless there is another report of such a problem that people
-> are running into.
-
-The stable backport is another question though. Although the bug was
-there since ages and the rework by Johannes is definitely a step forward
-I would be careful to push this into stable becuase the rework brings an
-user visible behavior change which might be unexpected (especially in
-the middle of the stable life cycle). Seeing allocation failures instead
-of OOM for charges outside of page fault context is surely a big change
-in semantic.
-
-Take mmap(MAP_POPULATE) as an example. Previously we would OOM if the
-limit was reached. Now the syscall returns without any error code but a
-later access might block on the OOM. While I do not see this as a
-problem in general as this is consistent with !memcg case I wouldn't
-like to see a breakage of the previous expectation in the middle stable
-life cycle.
-
-> > Since we can't physically draw a perfect line, we should strive for a
-> > reasonable and intuitive line.  After that it's rapidly diminishing
-> > returns.  Killing something after that much reclaim effort without
-> > success is a completely reasonable and intuitive line to draw.  It's
-> > also the line that has been drawn a long time ago and we're not
-> > breaking this because of a micro optmimization.
+> > __GFP_NOFAIL allocations might come in with various filesystem locks
+> > held that could prevent an OOM victim from exiting, so a loop around
+> > the OOM killer in an allocation context is prone to loop endlessly.
 > > 
 > 
-> You don't think something like this is helpful after scanning a memcg will 
-> a large number of processes?
+> Ok, so let's forget about GFP_KERNEL | __GFP_NOFAIL since anything doing 
+> __GFP_FS should not be holding such locks, we have some of those in the 
+> drivers code and that makes sense that they are doing GFP_KERNEL.
+> 
+> Focusing on the GFP_NOFS | __GFP_NOFAIL allocations in the filesystem 
+> code, the kernel oom killer independent of memcg never gets called because 
+> !__GFP_FS and they'll simply loop around the page allocator forever.
+> 
+> In the past, Andrew has expressed the desire to get rid of __GFP_NOFAIL 
+> entirely since it's flawed when combined with GFP_NOFS (and GFP_KERNEL | 
+> __GFP_NOFAIL could simply be reimplemented in the caller) because of the 
+> reason you point out in addition to making it very difficult in the page 
+> allocator to free memory independent of memcg.
+> 
+> So I'm wondering if we should just disable the oom killer in memcg for 
+> __GFP_NOFAIL as you've done here, but not bypass to the root memcg and 
+> just allow them to spin?  I think we should be focused on the fixing the 
+> callers rather than breaking memcg isolation.
 
-It looks as a one-shot workaround for short lived processes to me.
-I agree with Johannes that it doesn't seem to be worth it. The race will
-be always there. Moreover why should memcg OOM killer should behave
-differently from the global OOM?
+What if the callers simply cannot deal with the allocation failure?
+84235de394d97 (fs: buffer: move allocation failure loop into the
+allocator) describes one such case when __getblk_slow tries desperately
+to grow buffers relying on the reclaim to free something. As there might
+be no reclaim going on we are screwed.
 
-> We've had this patch internally since we started using memcg, it has 
-> avoided some unnecessary oom killing.
-> ---
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1836,6 +1836,13 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
->  	if (!chosen)
->  		return;
->  	points = chosen_points * 1000 / totalpages;
-> +
-> +	/* One last chance to see if we really need to kill something */
-> +	if (mem_cgroup_margin(memcg) >= (1 << order)) {
-> +		put_task_struct(chosen);
-> +		return;
-> +	}
-> +
->  	oom_kill_process(chosen, gfp_mask, order, points, totalpages, memcg,
->  			 NULL, "Memory cgroup out of memory");
->  }
-
+That being said, while I do agree with you that we should strive for
+isolation as much as possible there are certain cases when this is
+impossible to achieve without seeing much worse consequences. For now,
+we hope that __GFP_NOFAIL is used very scarcely.
 -- 
 Michal Hocko
 SUSE Labs
