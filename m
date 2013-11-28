@@ -1,117 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f48.google.com (mail-bk0-f48.google.com [209.85.214.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 4742A6B0035
-	for <linux-mm@kvack.org>; Thu, 28 Nov 2013 04:18:52 -0500 (EST)
-Received: by mail-bk0-f48.google.com with SMTP id v10so3675339bkz.35
-        for <linux-mm@kvack.org>; Thu, 28 Nov 2013 01:18:51 -0800 (PST)
-Received: from gmmr7.centrum.cz (gmmr7.centrum.cz. [2a00:da80:0:502::5])
-        by mx.google.com with ESMTPS id oe5si13386212bkb.259.2013.11.28.01.18.51
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 579FA6B0035
+	for <linux-mm@kvack.org>; Thu, 28 Nov 2013 05:02:17 -0500 (EST)
+Received: by mail-wi0-f181.google.com with SMTP id hq4so591810wib.14
+        for <linux-mm@kvack.org>; Thu, 28 Nov 2013 02:02:16 -0800 (PST)
+Received: from mail-ea0-x232.google.com (mail-ea0-x232.google.com [2a00:1450:4013:c01::232])
+        by mx.google.com with ESMTPS id dx3si12218904wib.59.2013.11.28.02.02.16
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 28 Nov 2013 01:18:51 -0800 (PST)
-Subject: =?utf-8?q?Re=3A_=5BPATCH=5D_Fix_race_between_oom_kill_and_task_exit?=
-Date: Thu, 28 Nov 2013 10:18:50 +0100
-From: "azurIt" <azurit@pobox.sk>
-References: <3917C05D9F83184EAA45CE249FF1B1DD0253093A@shsmsx103.ccr.corp.intel.com> <20131128063505.GN3556@cmpxchg.org>
-In-Reply-To: <20131128063505.GN3556@cmpxchg.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 28 Nov 2013 02:02:16 -0800 (PST)
+Received: by mail-ea0-f178.google.com with SMTP id d10so5580953eaj.37
+        for <linux-mm@kvack.org>; Thu, 28 Nov 2013 02:02:16 -0800 (PST)
+Date: Thu, 28 Nov 2013 11:02:13 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [merged]
+ mm-memcg-handle-non-error-oom-situations-more-gracefully.patch removed from
+ -mm tree
+Message-ID: <20131128100213.GE2761@dhcp22.suse.cz>
+References: <526028bd.k5qPj2+MDOK1o6ii%akpm@linux-foundation.org>
+ <alpine.DEB.2.02.1311271453270.13682@chino.kir.corp.google.com>
+ <20131127233353.GH3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311271622330.10617@chino.kir.corp.google.com>
+ <20131128021809.GI3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311271826001.5120@chino.kir.corp.google.com>
+ <20131128031313.GK3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311271914460.5120@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Message-Id: <20131128101850.9F8A4575@pobox.sk>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1311271914460.5120@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>, =?utf-8?q?Ma=2C_Xindong?= <xindong.ma@intel.com>
-Cc: =?utf-8?q?akpm=40linux=2Dfoundation=2Eorg?= <akpm@linux-foundation.org>, =?utf-8?q?mhocko=40suse=2Ecz?= <mhocko@suse.cz>, =?utf-8?q?rientjes=40google=2Ecom?= <rientjes@google.com>, =?utf-8?q?rusty=40rustcorp=2Ecom=2Eau?= <rusty@rustcorp.com.au>, =?utf-8?q?linux=2Dmm=40kvack=2Eorg?= <linux-mm@kvack.org>, =?utf-8?q?linux=2Dkernel=40vger=2Ekernel=2Eorg?= <linux-kernel@vger.kernel.org>, =?utf-8?q?=27Peter_Zijlstra=27?= <peterz@infradead.org>, =?utf-8?q?=27gregkh=40linuxfoundation=2Eorg=27?= <gregkh@linuxfoundation.org>, =?utf-8?q?Tu=2C_Xiaobing?= <xiaobing.tu@intel.com>, =?utf-8?q?William_Dauchy?= <wdauchy@gmail.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, azurit@pobox.sk, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-> Od: Johannes Weiner <hannes@cmpxchg.org>
-> Komu: "Ma, Xindong" <xindong.ma@intel.com>
-> DA!tum: 28.11.2013 07:54
-> Predmet: Re: [PATCH] Fix race between oom kill and task exit
->
-> CC: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "rientjes@google.com" <rientjes@google.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "'Peter Zijlstra'" <peterz@infradead.org>, "'gregkh@linuxfoundation.org'" <gregkh@linuxfoundation.org>, "Tu, Xiaobing" <xiaobing.tu@intel.com>, "William Dauchy" <wdauchy@gmail.com>
->Cc William and azur who might have encountered this problem.
->
->On Thu, Nov 28, 2013 at 05:09:16AM +0000, Ma, Xindong wrote:
->> From: Leon Ma <xindong.ma@intel.com>
->> Date: Thu, 28 Nov 2013 12:46:09 +0800
->> Subject: [PATCH] Fix race between oom kill and task exit
->> 
->> There is a race between oom kill and task exit. Scenario is:
->>    TASK  A                      TASK  B
->> TASK B is selected to oom kill
->> in oom_kill_process()
->> check PF_EXITING of TASK B
->>                             task call do_exit()
->>                             task set PF_EXITING flag
->>                             write_lock_irq(&tasklist_lock);
->>                             remove TASK B from thread group in __unhash_process()
->>                             write_unlock_irq(&tasklist_lock);
->> read_lock(&tasklist_lock);
->> traverse threads of TASK B
->> read_unlock(&tasklist_lock);
->> 
->> After that, the following traversal of threads in TASK B will not end because TASK B is not in the thread group:
->> do {
->> ....
->> } while_each_thread(p, t);
->> 
->> Signed-off-by: Leon Ma <xindong.ma@intel.com>
->> Signed-off-by: xiaobing tu <xiaobing.tu@intel.com>
->> ---
->>  mm/oom_kill.c |   20 ++++++++++----------
->>  1 files changed, 10 insertions(+), 10 deletions(-)
->> 
->> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
->> index 1e4a600..32ec88d 100644
->> --- a/mm/oom_kill.c
->> +++ b/mm/oom_kill.c
->> @@ -412,16 +412,6 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
->>  	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
->>  					      DEFAULT_RATELIMIT_BURST);
->>  
->> -	/*
->> -	 * If the task is already exiting, don't alarm the sysadmin or kill
->> -	 * its children or threads, just set TIF_MEMDIE so it can die quickly
->> -	 */
->> -	if (p->flags & PF_EXITING) {
->> -		set_tsk_thread_flag(p, TIF_MEMDIE);
->> -		put_task_struct(p);
->> -		return;
->> -	}
->> -
->>  	if (__ratelimit(&oom_rs))
->>  		dump_header(p, gfp_mask, order, memcg, nodemask);
->>  
->> @@ -437,6 +427,16 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
->>  	 * still freeing memory.
->>  	 */
->>  	read_lock(&tasklist_lock);
->> +	/*
->> +	 * If the task is already exiting, don't alarm the sysadmin or kill
->> +	 * its children or threads, just set TIF_MEMDIE so it can die quickly
->> +	 */
->> +	if (p->flags & PF_EXITING) {
->> +		set_tsk_thread_flag(p, TIF_MEMDIE);
->> +		put_task_struct(p);
->> +		read_unlock(&tasklist_lock);
->> +		return;
->> +	}
->>  	do {
->>  		list_for_each_entry(child, &t->children, sibling) {
->>  			unsigned int child_points;
->> -- 
->> 1.7.4.1
->> 
->
+On Wed 27-11-13 19:20:37, David Rientjes wrote:
+> On Wed, 27 Nov 2013, Johannes Weiner wrote:
+> 
+> > > It appears as though this work is being developed in Linus's tree rather 
+> > > than -mm, so I'm asking if we should consider backing some of it out for 
+> > > 3.14 instead.
+> > 
+> > The changes fix a deadlock problem.  Are they creating problems that
+> > are worse than deadlocks, that would justify their revert?
+> > 
+> 
+> None that I am currently aware of,
 
+Are you saing that scenarios described in 3812c8c8f395 (mm: memcg: do not
+trap chargers with full callstack on OOM) are not real or that _you_
+haven't seen an issue like that?
 
+The later doesn't seem to be so relevant as we had at least one user who
+has seen those in the real life.
 
+> I'll continue to try them out. 
 
-Hi Johannes,
+> I'd suggest just dropping the stable@kernel.org from the whole series
+> though unless there is another report of such a problem that people
+> are running into.
 
-thank you very much! Fortunately, i didn't notice anything like this yet.
+The stable backport is another question though. Although the bug was
+there since ages and the rework by Johannes is definitely a step forward
+I would be careful to push this into stable becuase the rework brings an
+user visible behavior change which might be unexpected (especially in
+the middle of the stable life cycle). Seeing allocation failures instead
+of OOM for charges outside of page fault context is surely a big change
+in semantic.
 
-azur
+Take mmap(MAP_POPULATE) as an example. Previously we would OOM if the
+limit was reached. Now the syscall returns without any error code but a
+later access might block on the OOM. While I do not see this as a
+problem in general as this is consistent with !memcg case I wouldn't
+like to see a breakage of the previous expectation in the middle stable
+life cycle.
+
+> > Since we can't physically draw a perfect line, we should strive for a
+> > reasonable and intuitive line.  After that it's rapidly diminishing
+> > returns.  Killing something after that much reclaim effort without
+> > success is a completely reasonable and intuitive line to draw.  It's
+> > also the line that has been drawn a long time ago and we're not
+> > breaking this because of a micro optmimization.
+> > 
+> 
+> You don't think something like this is helpful after scanning a memcg will 
+> a large number of processes?
+
+It looks as a one-shot workaround for short lived processes to me.
+I agree with Johannes that it doesn't seem to be worth it. The race will
+be always there. Moreover why should memcg OOM killer should behave
+differently from the global OOM?
+
+> We've had this patch internally since we started using memcg, it has 
+> avoided some unnecessary oom killing.
+> ---
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1836,6 +1836,13 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  	if (!chosen)
+>  		return;
+>  	points = chosen_points * 1000 / totalpages;
+> +
+> +	/* One last chance to see if we really need to kill something */
+> +	if (mem_cgroup_margin(memcg) >= (1 << order)) {
+> +		put_task_struct(chosen);
+> +		return;
+> +	}
+> +
+>  	oom_kill_process(chosen, gfp_mask, order, points, totalpages, memcg,
+>  			 NULL, "Memory cgroup out of memory");
+>  }
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
