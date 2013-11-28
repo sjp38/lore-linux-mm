@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 94A516B003C
-	for <linux-mm@kvack.org>; Thu, 28 Nov 2013 02:46:48 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id rq2so12097336pbb.31
-        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 23:46:48 -0800 (PST)
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 794296B005A
+	for <linux-mm@kvack.org>; Thu, 28 Nov 2013 02:46:49 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id v10so11592276pde.27
+        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 23:46:49 -0800 (PST)
 Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
-        by mx.google.com with ESMTP id bc2si36008234pad.71.2013.11.27.23.46.44
+        by mx.google.com with ESMTP id dk5si36041337pbc.316.2013.11.27.23.46.44
         for <linux-mm@kvack.org>;
-        Wed, 27 Nov 2013 23:46:47 -0800 (PST)
+        Wed, 27 Nov 2013 23:46:46 -0800 (PST)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH 6/9] mm/rmap: use rmap_walk() in try_to_unmap()
-Date: Thu, 28 Nov 2013 16:48:43 +0900
-Message-Id: <1385624926-28883-7-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 8/9] mm/rmap: use rmap_walk() in page_referenced()
+Date: Thu, 28 Nov 2013 16:48:45 +0900
+Message-Id: <1385624926-28883-9-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1385624926-28883-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1385624926-28883-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,173 +22,374 @@ Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel 
 Now, we have an infrastructure in rmap_walk() to handle difference
 from variants of rmap traversing functions.
 
-So, just use it in try_to_unmap().
+So, just use it in page_referenced().
 
 In this patch, I change following things.
 
-1. enable rmap_walk() if !CONFIG_MIGRATION.
-2. mechanical change to use rmap_walk() in try_to_unmap().
+1. remove some variants of rmap traversing functions.
+	cf> page_referenced_ksm, page_referenced_anon,
+	page_referenced_file
+2. introduce new struct page_referenced_arg and pass it to
+page_referenced_one(), main function of rmap_walk, in order to
+count reference, to store vm_flags and to check finish condition.
+3. mechanical change to use rmap_walk() in page_referenced().
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
+diff --git a/include/linux/ksm.h b/include/linux/ksm.h
+index 91b9719..3be6bb1 100644
+--- a/include/linux/ksm.h
++++ b/include/linux/ksm.h
+@@ -73,8 +73,6 @@ static inline void set_page_stable_node(struct page *page,
+ struct page *ksm_might_need_to_copy(struct page *page,
+ 			struct vm_area_struct *vma, unsigned long address);
+ 
+-int page_referenced_ksm(struct page *page,
+-			struct mem_cgroup *memcg, unsigned long *vm_flags);
+ int rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc);
+ void ksm_migrate_page(struct page *newpage, struct page *oldpage);
+ 
 diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 58624b4..d641f6d 100644
+index d641f6d..e529ba3 100644
 --- a/include/linux/rmap.h
 +++ b/include/linux/rmap.h
-@@ -190,7 +190,7 @@ int page_referenced_one(struct page *, struct vm_area_struct *,
+@@ -184,7 +184,7 @@ static inline void page_dup_rmap(struct page *page)
+ int page_referenced(struct page *, int is_locked,
+ 			struct mem_cgroup *memcg, unsigned long *vm_flags);
+ int page_referenced_one(struct page *, struct vm_area_struct *,
+-	unsigned long address, unsigned int *mapcount, unsigned long *vm_flags);
++	unsigned long address, void *arg);
  
- int try_to_unmap(struct page *, enum ttu_flags flags);
- int try_to_unmap_one(struct page *, struct vm_area_struct *,
--			unsigned long address, enum ttu_flags flags);
-+			unsigned long address, void *arg);
+ #define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
  
- /*
-  * Called from mm/filemap_xip.c to unmap empty zero page
 diff --git a/mm/ksm.c b/mm/ksm.c
-index 0aa6e09..e1b0198 100644
+index 4f25cf7..4c4541b 100644
 --- a/mm/ksm.c
 +++ b/mm/ksm.c
-@@ -1982,7 +1982,7 @@ again:
- 				continue;
- 
- 			ret = try_to_unmap_one(page, vma,
--					rmap_item->address, flags);
-+					rmap_item->address, (void *)flags);
- 			if (ret != SWAP_AGAIN || !page_mapped(page)) {
- 				anon_vma_unlock_read(anon_vma);
- 				goto out;
-@@ -1996,7 +1996,6 @@ out:
- 	return ret;
+@@ -1891,61 +1891,6 @@ struct page *ksm_might_need_to_copy(struct page *page,
+ 	return new_page;
  }
  
--#ifdef CONFIG_MIGRATION
+-int page_referenced_ksm(struct page *page, struct mem_cgroup *memcg,
+-			unsigned long *vm_flags)
+-{
+-	struct stable_node *stable_node;
+-	struct rmap_item *rmap_item;
+-	unsigned int mapcount = page_mapcount(page);
+-	int referenced = 0;
+-	int search_new_forks = 0;
+-
+-	VM_BUG_ON(!PageKsm(page));
+-	VM_BUG_ON(!PageLocked(page));
+-
+-	stable_node = page_stable_node(page);
+-	if (!stable_node)
+-		return 0;
+-again:
+-	hlist_for_each_entry(rmap_item, &stable_node->hlist, hlist) {
+-		struct anon_vma *anon_vma = rmap_item->anon_vma;
+-		struct anon_vma_chain *vmac;
+-		struct vm_area_struct *vma;
+-
+-		anon_vma_lock_read(anon_vma);
+-		anon_vma_interval_tree_foreach(vmac, &anon_vma->rb_root,
+-					       0, ULONG_MAX) {
+-			vma = vmac->vma;
+-			if (rmap_item->address < vma->vm_start ||
+-			    rmap_item->address >= vma->vm_end)
+-				continue;
+-			/*
+-			 * Initially we examine only the vma which covers this
+-			 * rmap_item; but later, if there is still work to do,
+-			 * we examine covering vmas in other mms: in case they
+-			 * were forked from the original since ksmd passed.
+-			 */
+-			if ((rmap_item->mm == vma->vm_mm) == search_new_forks)
+-				continue;
+-
+-			if (memcg && !mm_match_cgroup(vma->vm_mm, memcg))
+-				continue;
+-
+-			referenced += page_referenced_one(page, vma,
+-				rmap_item->address, &mapcount, vm_flags);
+-			if (!search_new_forks || !mapcount)
+-				break;
+-		}
+-		anon_vma_unlock_read(anon_vma);
+-		if (!mapcount)
+-			goto out;
+-	}
+-	if (!search_new_forks++)
+-		goto again;
+-out:
+-	return referenced;
+-}
+-
  int rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
  {
  	struct stable_node *stable_node;
-@@ -2054,6 +2053,7 @@ out:
- 	return ret;
- }
- 
-+#ifdef CONFIG_MIGRATION
- void ksm_migrate_page(struct page *newpage, struct page *oldpage)
- {
- 	struct stable_node *stable_node;
 diff --git a/mm/rmap.c b/mm/rmap.c
-index 5dad5dd..7407710 100644
+index 860a393..5e78d5c 100644
 --- a/mm/rmap.c
 +++ b/mm/rmap.c
-@@ -1177,13 +1177,14 @@ out:
-  * repeatedly from try_to_unmap_ksm, try_to_unmap_anon or try_to_unmap_file.
-  */
- int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
--		     unsigned long address, enum ttu_flags flags)
-+		     unsigned long address, void *arg)
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	pte_t *pte;
- 	pte_t pteval;
- 	spinlock_t *ptl;
- 	int ret = SWAP_AGAIN;
-+	enum ttu_flags flags = (enum ttu_flags)arg;
- 
- 	pte = page_check_address(page, mm, address, &ptl, 0);
- 	if (!pte)
-@@ -1509,6 +1510,11 @@ bool is_vma_temporary_stack(struct vm_area_struct *vma)
- 	return false;
+@@ -656,17 +656,23 @@ int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
+ 	return 1;
  }
  
-+static int skip_vma_temporary_stack(struct vm_area_struct *vma, void *arg)
-+{
-+	return (int)is_vma_temporary_stack(vma);
-+}
-+
- /**
-  * try_to_unmap_anon - unmap or unlock anonymous page using the object-based
-  * rmap method
-@@ -1554,7 +1560,7 @@ static int try_to_unmap_anon(struct page *page, enum ttu_flags flags)
- 			continue;
- 
- 		address = vma_address(page, vma);
--		ret = try_to_unmap_one(page, vma, address, flags);
-+		ret = try_to_unmap_one(page, vma, address, (void *)flags);
- 		if (ret != SWAP_AGAIN || !page_mapped(page))
- 			break;
- 	}
-@@ -1591,7 +1597,7 @@ static int try_to_unmap_file(struct page *page, enum ttu_flags flags)
- 	mutex_lock(&mapping->i_mmap_mutex);
- 	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
- 		unsigned long address = vma_address(page, vma);
--		ret = try_to_unmap_one(page, vma, address, flags);
-+		ret = try_to_unmap_one(page, vma, address, (void *)flags);
- 		if (ret != SWAP_AGAIN || !page_mapped(page))
- 			goto out;
- 	}
-@@ -1613,6 +1619,11 @@ out:
- 	return ret;
- }
- 
-+static int page_not_mapped(struct page *page)
-+{
-+	return !page_mapped(page);
++struct page_referenced_arg {
++	int mapcount;
++	int referenced;
++	unsigned long vm_flags;
 +};
 +
- /**
-  * try_to_unmap - try to remove all page table mappings to a page
-  * @page: the page to get unmapped
-@@ -1630,16 +1641,30 @@ out:
- int try_to_unmap(struct page *page, enum ttu_flags flags)
+ /*
+  * Subfunctions of page_referenced: page_referenced_one called
+  * repeatedly from either page_referenced_anon or page_referenced_file.
+  */
+ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+-			unsigned long address, unsigned int *mapcount,
+-			unsigned long *vm_flags)
++			unsigned long address, void *arg)
  {
- 	int ret;
-+	struct rmap_walk_control rwc;
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	spinlock_t *ptl;
+ 	int referenced = 0;
++	struct page_referenced_arg *ra = arg;
  
+ 	if (unlikely(PageTransHuge(page))) {
+ 		pmd_t *pmd;
+@@ -678,13 +684,12 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+ 		pmd = page_check_address_pmd(page, mm, address,
+ 					     PAGE_CHECK_ADDRESS_PMD_FLAG, &ptl);
+ 		if (!pmd)
+-			goto out;
++			return SWAP_AGAIN;
+ 
+ 		if (vma->vm_flags & VM_LOCKED) {
+ 			spin_unlock(ptl);
+-			*mapcount = 0;	/* break early from loop */
+-			*vm_flags |= VM_LOCKED;
+-			goto out;
++			ra->vm_flags |= VM_LOCKED;
++			return SWAP_FAIL; /* To break the loop */
+ 		}
+ 
+ 		/* go ahead even if the pmd is pmd_trans_splitting() */
+@@ -700,13 +705,12 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+ 		 */
+ 		pte = page_check_address(page, mm, address, &ptl, 0);
+ 		if (!pte)
+-			goto out;
++			return SWAP_AGAIN;
+ 
+ 		if (vma->vm_flags & VM_LOCKED) {
+ 			pte_unmap_unlock(pte, ptl);
+-			*mapcount = 0;	/* break early from loop */
+-			*vm_flags |= VM_LOCKED;
+-			goto out;
++			ra->vm_flags |= VM_LOCKED;
++			return SWAP_FAIL; /* To break the loop */
+ 		}
+ 
+ 		if (ptep_clear_flush_young_notify(vma, address, pte)) {
+@@ -723,113 +727,26 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+ 		pte_unmap_unlock(pte, ptl);
+ 	}
+ 
+-	(*mapcount)--;
+-
+-	if (referenced)
+-		*vm_flags |= vma->vm_flags;
+-out:
+-	return referenced;
+-}
+-
+-static int page_referenced_anon(struct page *page,
+-				struct mem_cgroup *memcg,
+-				unsigned long *vm_flags)
+-{
+-	unsigned int mapcount;
+-	struct anon_vma *anon_vma;
+-	pgoff_t pgoff;
+-	struct anon_vma_chain *avc;
+-	int referenced = 0;
+-
+-	anon_vma = page_lock_anon_vma_read(page);
+-	if (!anon_vma)
+-		return referenced;
+-
+-	mapcount = page_mapcount(page);
+-	pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+-	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root, pgoff, pgoff) {
+-		struct vm_area_struct *vma = avc->vma;
+-		unsigned long address = vma_address(page, vma);
+-		/*
+-		 * If we are reclaiming on behalf of a cgroup, skip
+-		 * counting on behalf of references from different
+-		 * cgroups
+-		 */
+-		if (memcg && !mm_match_cgroup(vma->vm_mm, memcg))
+-			continue;
+-		referenced += page_referenced_one(page, vma, address,
+-						  &mapcount, vm_flags);
+-		if (!mapcount)
+-			break;
++	if (referenced) {
++		ra->referenced++;
++		ra->vm_flags |= vma->vm_flags;
+ 	}
+ 
+-	page_unlock_anon_vma_read(anon_vma);
+-	return referenced;
++	ra->mapcount--;
++	if (!ra->mapcount)
++		return SWAP_SUCCESS; /* To break the loop */
++
++	return SWAP_AGAIN;
+ }
+ 
+-/**
+- * page_referenced_file - referenced check for object-based rmap
+- * @page: the page we're checking references on.
+- * @memcg: target memory control group
+- * @vm_flags: collect encountered vma->vm_flags who actually referenced the page
+- *
+- * For an object-based mapped page, find all the places it is mapped and
+- * check/clear the referenced flag.  This is done by following the page->mapping
+- * pointer, then walking the chain of vmas it holds.  It returns the number
+- * of references it found.
+- *
+- * This function is only called from page_referenced for object-based pages.
+- */
+-static int page_referenced_file(struct page *page,
+-				struct mem_cgroup *memcg,
+-				unsigned long *vm_flags)
++static int skip_vma_non_matched_memcg(struct vm_area_struct *vma, void *arg)
+ {
+-	unsigned int mapcount;
+-	struct address_space *mapping = page->mapping;
+-	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+-	struct vm_area_struct *vma;
+-	int referenced = 0;
+-
+-	/*
+-	 * The caller's checks on page->mapping and !PageAnon have made
+-	 * sure that this is a file page: the check for page->mapping
+-	 * excludes the case just before it gets set on an anon page.
+-	 */
+-	BUG_ON(PageAnon(page));
++	struct mem_cgroup *memcg = arg;
+ 
+-	/*
+-	 * The page lock not only makes sure that page->mapping cannot
+-	 * suddenly be NULLified by truncation, it makes sure that the
+-	 * structure at mapping cannot be freed and reused yet,
+-	 * so we can safely take mapping->i_mmap_mutex.
+-	 */
 -	BUG_ON(!PageLocked(page));
- 	VM_BUG_ON(!PageHuge(page) && PageTransHuge(page));
++	if (!mm_match_cgroup(vma->vm_mm, memcg))
++		return 1;
  
--	if (unlikely(PageKsm(page)))
--		ret = try_to_unmap_ksm(page, flags);
--	else if (PageAnon(page))
--		ret = try_to_unmap_anon(page, flags);
--	else
--		ret = try_to_unmap_file(page, flags);
+-	mutex_lock(&mapping->i_mmap_mutex);
+-
+-	/*
+-	 * i_mmap_mutex does not stabilize mapcount at all, but mapcount
+-	 * is more likely to be accurate if we note it after spinning.
+-	 */
+-	mapcount = page_mapcount(page);
+-
+-	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
+-		unsigned long address = vma_address(page, vma);
+-		/*
+-		 * If we are reclaiming on behalf of a cgroup, skip
+-		 * counting on behalf of references from different
+-		 * cgroups
+-		 */
+-		if (memcg && !mm_match_cgroup(vma->vm_mm, memcg))
+-			continue;
+-		referenced += page_referenced_one(page, vma, address,
+-						  &mapcount, vm_flags);
+-		if (!mapcount)
+-			break;
+-	}
+-
+-	mutex_unlock(&mapping->i_mmap_mutex);
+-	return referenced;
++	return 0;
+ }
+ 
+ /**
+@@ -847,32 +764,48 @@ int page_referenced(struct page *page,
+ 		    struct mem_cgroup *memcg,
+ 		    unsigned long *vm_flags)
+ {
+-	int referenced = 0;
++	int ret;
+ 	int we_locked = 0;
++	struct rmap_walk_control rwc;
++	struct page_referenced_arg ra;
+ 
+ 	*vm_flags = 0;
+-	if (page_mapped(page) && page_rmapping(page)) {
+-		if (!is_locked && (!PageAnon(page) || PageKsm(page))) {
+-			we_locked = trylock_page(page);
+-			if (!we_locked) {
+-				referenced++;
+-				goto out;
+-			}
+-		}
+-		if (unlikely(PageKsm(page)))
+-			referenced += page_referenced_ksm(page, memcg,
+-								vm_flags);
+-		else if (PageAnon(page))
+-			referenced += page_referenced_anon(page, memcg,
+-								vm_flags);
+-		else if (page->mapping)
+-			referenced += page_referenced_file(page, memcg,
+-								vm_flags);
+-		if (we_locked)
+-			unlock_page(page);
++	if (!page_mapped(page))
++		return 0;
++
++	if (!page_rmapping(page))
++		return 0;
++
++	if (!is_locked && (!PageAnon(page) || PageKsm(page))) {
++		we_locked = trylock_page(page);
++		if (!we_locked)
++			return 1;
+ 	}
+-out:
+-	return referenced;
++
 +	memset(&rwc, 0, sizeof(rwc));
-+	rwc.main = try_to_unmap_one;
-+	rwc.arg = (void *)flags;
-+	rwc.main_done = page_not_mapped;
-+	rwc.file_nonlinear = try_to_unmap_nonlinear;
++	memset(&ra, 0, sizeof(ra));
++	rwc.main = page_referenced_one;
++	rwc.arg = (void *)&ra;
 +	rwc.anon_lock = page_lock_anon_vma_read;
++	ra.mapcount = page_mapcount(page);
 +
 +	/*
-+	 * During exec, a temporary VMA is setup and later moved.
-+	 * The VMA is moved under the anon_vma lock but not the
-+	 * page tables leading to a race where migration cannot
-+	 * find the migration ptes. Rather than increasing the
-+	 * locking requirements of exec(), migration skips
-+	 * temporary VMAs until after exec() completes.
++	 * If we are reclaiming on behalf of a cgroup, skip
++	 * counting on behalf of references from different
++	 * cgroups
 +	 */
-+	if (flags & TTU_MIGRATION && !PageKsm(page) && PageAnon(page))
-+		rwc.vma_skip = skip_vma_temporary_stack;
++	if (memcg) {
++		rwc.vma_skip = skip_vma_non_matched_memcg;
++		rwc.skip_arg = (void *)memcg;
++	}
 +
 +	ret = rmap_walk(page, &rwc);
++	*vm_flags = ra.vm_flags;
 +
- 	if (ret != SWAP_MLOCK && !page_mapped(page))
- 		ret = SWAP_SUCCESS;
- 	return ret;
-@@ -1682,7 +1707,6 @@ void __put_anon_vma(struct anon_vma *anon_vma)
- 	anon_vma_free(anon_vma);
++	if (we_locked)
++		unlock_page(page);
++
++	return ra.referenced;
  }
  
--#ifdef CONFIG_MIGRATION
- static struct anon_vma *rmap_walk_anon_lock(struct page *page,
- 					struct rmap_walk_control *rwc)
- {
-@@ -1788,7 +1812,6 @@ int rmap_walk(struct page *page, struct rmap_walk_control *rwc)
- 	else
- 		return rmap_walk_file(page, rwc);
- }
--#endif /* CONFIG_MIGRATION */
- 
- #ifdef CONFIG_HUGETLB_PAGE
- /*
+ static int page_mkclean_one(struct page *page, struct vm_area_struct *vma,
 -- 
 1.7.9.5
 
