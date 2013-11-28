@@ -1,44 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A8B66B0035
-	for <linux-mm@kvack.org>; Thu, 28 Nov 2013 06:55:01 -0500 (EST)
-Received: by mail-wg0-f41.google.com with SMTP id y10so742768wgg.2
-        for <linux-mm@kvack.org>; Thu, 28 Nov 2013 03:55:01 -0800 (PST)
-Received: from mail-ea0-x236.google.com (mail-ea0-x236.google.com [2a00:1450:4013:c01::236])
-        by mx.google.com with ESMTPS id mx2si11122951wic.10.2013.11.28.03.55.00
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id F3F6C6B0035
+	for <linux-mm@kvack.org>; Thu, 28 Nov 2013 07:00:21 -0500 (EST)
+Received: by mail-wg0-f50.google.com with SMTP id a1so6213625wgh.17
+        for <linux-mm@kvack.org>; Thu, 28 Nov 2013 04:00:21 -0800 (PST)
+Received: from mail-ea0-x22b.google.com (mail-ea0-x22b.google.com [2a00:1450:4013:c01::22b])
+        by mx.google.com with ESMTPS id x19si12393597wie.11.2013.11.28.04.00.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 28 Nov 2013 03:55:00 -0800 (PST)
-Received: by mail-ea0-f182.google.com with SMTP id o10so7562965eaj.13
-        for <linux-mm@kvack.org>; Thu, 28 Nov 2013 03:55:00 -0800 (PST)
-Date: Thu, 28 Nov 2013 12:54:58 +0100
+        Thu, 28 Nov 2013 04:00:21 -0800 (PST)
+Received: by mail-ea0-f171.google.com with SMTP id h10so5736691eak.16
+        for <linux-mm@kvack.org>; Thu, 28 Nov 2013 04:00:21 -0800 (PST)
+Date: Thu, 28 Nov 2013 13:00:18 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: user defined OOM policies
-Message-ID: <20131128115458.GK2761@dhcp22.suse.cz>
-References: <20131119131400.GC20655@dhcp22.suse.cz>
- <20131119134007.GD20655@dhcp22.suse.cz>
- <alpine.DEB.2.02.1311192352070.20752@chino.kir.corp.google.com>
- <20131120152251.GA18809@dhcp22.suse.cz>
- <alpine.DEB.2.02.1311201917520.7167@chino.kir.corp.google.com>
+Subject: Re: [PATCH] Fix race between oom kill and task exit
+Message-ID: <20131128120018.GL2761@dhcp22.suse.cz>
+References: <3917C05D9F83184EAA45CE249FF1B1DD0253093A@SHSMSX103.ccr.corp.intel.com>
+ <20131128063505.GN3556@cmpxchg.org>
+ <CAJ75kXZXxCMgf8=pghUWf=W9EKf3Z4nzKKy=CAn+7keVF_DCRA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1311201917520.7167@chino.kir.corp.google.com>
+In-Reply-To: <CAJ75kXZXxCMgf8=pghUWf=W9EKf3Z4nzKKy=CAn+7keVF_DCRA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Joern Engel <joern@logfs.org>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>
+To: William Dauchy <wdauchy@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, "Ma, Xindong" <xindong.ma@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "rientjes@google.com" <rientjes@google.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "Tu, Xiaobing" <xiaobing.tu@intel.com>, azurIt <azurit@pobox.sk>, Sameer Nanda <snanda@chromium.org>, Oleg Nesterov <oleg@redhat.com>
 
-On Wed 20-11-13 19:33:00, David Rientjes wrote:
+[CCing Oleg - the thread started here:
+https://lkml.org/lkml/2013/11/28/2]
+
+On Thu 28-11-13 09:41:40, William Dauchy wrote:
 [...]
-> Agreed, and I think the big downside of doing it with the loadable module 
-> suggestion is that you can't implement such a wide variety of different 
-> policies in modules.  Each of our users who own a memcg tree on our 
-> systems may want to have their own policy and they can't load a module at 
-> runtime or ship with the kernel.
+> However, I'm now wondering if this present patch is a replacement of
+> Sameer Nanda's patch or if this a complementary patch.
 
-But those users care about their local (memcg) OOM, don't they? So they
-do not need any module and all they want is to get a notification.
+They are both trying to solve the same issue. Neither of them is
+optimal unfortunately. Oleg said he would look into this and I have seen
+some patches but didn't geto check them.
+
 -- 
 Michal Hocko
 SUSE Labs
