@@ -1,89 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f47.google.com (mail-bk0-f47.google.com [209.85.214.47])
-	by kanga.kvack.org (Postfix) with ESMTP id A959D6B0035
-	for <linux-mm@kvack.org>; Wed, 27 Nov 2013 21:28:13 -0500 (EST)
-Received: by mail-bk0-f47.google.com with SMTP id mx12so3561262bkb.34
-        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 18:28:13 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id kw6si13075200bkb.247.2013.11.27.18.28.12
+Received: from mail-yh0-f47.google.com (mail-yh0-f47.google.com [209.85.213.47])
+	by kanga.kvack.org (Postfix) with ESMTP id B138C6B0035
+	for <linux-mm@kvack.org>; Wed, 27 Nov 2013 21:38:35 -0500 (EST)
+Received: by mail-yh0-f47.google.com with SMTP id 29so5730266yhl.34
+        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 18:38:35 -0800 (PST)
+Received: from mail-yh0-x22e.google.com (mail-yh0-x22e.google.com [2607:f8b0:4002:c01::22e])
+        by mx.google.com with ESMTPS id k26si29741735yha.254.2013.11.27.18.38.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 27 Nov 2013 18:28:12 -0800 (PST)
-Date: Wed, 27 Nov 2013 21:28:04 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-Message-ID: <20131128022804.GJ3556@cmpxchg.org>
-References: <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com>
- <20131118154115.GA3556@cmpxchg.org>
- <20131118165110.GE32623@dhcp22.suse.cz>
- <20131122165100.GN3556@cmpxchg.org>
- <alpine.DEB.2.02.1311261648570.21003@chino.kir.corp.google.com>
- <20131127163435.GA3556@cmpxchg.org>
- <alpine.DEB.2.02.1311271343250.9222@chino.kir.corp.google.com>
- <20131127231931.GG3556@cmpxchg.org>
- <alpine.DEB.2.02.1311271613340.10617@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 27 Nov 2013 18:38:34 -0800 (PST)
+Received: by mail-yh0-f46.google.com with SMTP id l109so5662843yhq.19
+        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 18:38:34 -0800 (PST)
+Date: Wed, 27 Nov 2013 18:38:31 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [merged] mm-memcg-handle-non-error-oom-situations-more-gracefully.patch
+ removed from -mm tree
+In-Reply-To: <20131128021809.GI3556@cmpxchg.org>
+Message-ID: <alpine.DEB.2.02.1311271826001.5120@chino.kir.corp.google.com>
+References: <526028bd.k5qPj2+MDOK1o6ii%akpm@linux-foundation.org> <alpine.DEB.2.02.1311271453270.13682@chino.kir.corp.google.com> <20131127233353.GH3556@cmpxchg.org> <alpine.DEB.2.02.1311271622330.10617@chino.kir.corp.google.com>
+ <20131128021809.GI3556@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1311271613340.10617@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, Michal Hocko <mhocko@suse.cz>, azurit@pobox.sk, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Nov 27, 2013 at 04:22:18PM -0800, David Rientjes wrote:
-> On Wed, 27 Nov 2013, Johannes Weiner wrote:
-> 
-> > > The patch is drawing the line at "the kernel can no longer do anything to 
-> > > free memory", and that's the line where userspace should be notified or a 
-> > > process killed by the kernel.
-> > >
-> > > Giving current access to memory reserves in the oom killer is an
-> > > optimization so that all reclaim is exhausted prior to declaring
-> > > that they are necessary, the kernel still has the ability to allow
-> > > that process to exit and free memory.
-> > 
-> > "they" are necessary?
-> > 
-> 
-> Memory reserves.
-> 
-> > > This is the same as the oom notifiers within the kernel that free
-> > > memory from s390 and powerpc archs: the kernel still has the ability
-> > > to free memory.
-> > 
-> > They're not the same at all.  One is the kernel freeing memory, the
-> > other is a random coincidence.
-> > 
-> 
-> Current is on the way to memory freeing because it has a pending SIGKILL 
-> or is already exiting, it simply needs access to memory reserves to do so.  
-> This was originally introduced to prevent the oom killer from having to 
-> scan the set of eligible processes and silently giving it access to memory 
-> reserves; we didn't want to emit all of the messages to the kernel log 
-> because scripts (and admins) were looking at the kernel log and seeing 
-> that the oom killer killed something when it really came from a different 
-> source or was already exiting.
-> 
-> We have a differing opinion on what to consider the point of oom (the 
-> "notification line that has to be drawn").  My position is to notify 
-> userspace when the kernel has exhausted its capability to free memory 
-> without killing something.  In the case of current exiting or having a 
-> pending SIGKILL, memory is going to be freed, the oom killer simply needs 
-> to preempt the tasklist scan.  The situation is going to be remedied.  I 
-> defined the notification with this patch to only happen when the kernel 
-> can't free any memory without a kill so that userspace may do so itself.  
-> Michal concurred with that position.
+On Wed, 27 Nov 2013, Johannes Weiner wrote:
 
-The long-standing, user-visible definition of the current line agrees
-with me.  You can't just redefine this, period.
+> > The task that is bypassing the memcg charge to the root memcg may not be 
+> > the process that is chosen by the oom killer, and it's possible the amount 
+> > of memory freed by killing the victim is less than the amount of memory 
+> > bypassed.
+> 
+> That's true, though unlikely.
+> 
 
-I tried to explain to you how insane the motivation for this patch is,
-but it does not look like you are reading what I write.  But you don't
-get to change user-visible behavior just like that anyway, much less
-so without a sane reason, so this was a complete waste of time :-(
+Well, the "goto bypass" allows it and it's trivial to cause by 
+manipulating /proc/pid/oom_score_adj values to prefer processes with very 
+little rss.  It will just continue looping and killing processes as they 
+are forked and never cause the memcg to free memory below its limit.  At 
+least the "goto nomem" allows us to free some memory instead of leaking to 
+the root memcg.
+
+> > Were you targeting these to 3.13 instead?  If so, it would have already 
+> > appeared in 3.13-rc1 anyway.  Is it still a work in progress?
+> 
+> I don't know how to answer this question.
+> 
+
+It appears as though this work is being developed in Linus's tree rather 
+than -mm, so I'm asking if we should consider backing some of it out for 
+3.14 instead.
+
+> > Should we be checking mem_cgroup_margin() here to ensure 
+> > task_in_memcg_oom() is still accurate and we haven't raced by freeing 
+> > memory?
+> 
+> We would have invoked the OOM killer long before this point prior to
+> my patches.  There is a line we draw and from that point on we start
+> killing things.  I tried to explain multiple times now that there is
+> no race-free OOM killing and I'm tired of it.  Convince me otherwise
+> or stop repeating this non-sense.
+> 
+
+In our internal kernel we call mem_cgroup_margin() with the order of the 
+charge immediately prior to sending the SIGKILL to see if it's still 
+needed even after selecting the victim.  It makes the race smaller.
+
+It's obvious that after the SIGKILL is sent, either from the kernel or 
+from userspace, that memory might subsequently be freed or another process 
+might exit before the process killed could even wake up.  There's nothing 
+we can do about that since we don't have psychic abilities.  I think we 
+should try to reduce the chance for unnecessary oom killing as much as 
+possible, however.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
