@@ -1,117 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f47.google.com (mail-bk0-f47.google.com [209.85.214.47])
-	by kanga.kvack.org (Postfix) with ESMTP id A2AD46B0035
-	for <linux-mm@kvack.org>; Thu, 28 Nov 2013 12:42:31 -0500 (EST)
-Received: by mail-bk0-f47.google.com with SMTP id mx12so3870197bkb.6
-        for <linux-mm@kvack.org>; Thu, 28 Nov 2013 09:42:30 -0800 (PST)
-Received: from mail-la0-x234.google.com (mail-la0-x234.google.com [2a00:1450:4010:c03::234])
-        by mx.google.com with ESMTPS id aq1si9139357bkc.237.2013.11.28.09.42.30
+Received: from mail-bk0-f42.google.com (mail-bk0-f42.google.com [209.85.214.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BDEC6B0035
+	for <linux-mm@kvack.org>; Thu, 28 Nov 2013 12:57:49 -0500 (EST)
+Received: by mail-bk0-f42.google.com with SMTP id w11so3966500bkz.15
+        for <linux-mm@kvack.org>; Thu, 28 Nov 2013 09:57:48 -0800 (PST)
+Received: from mail-la0-x233.google.com (mail-la0-x233.google.com [2a00:1450:4010:c03::233])
+        by mx.google.com with ESMTPS id qy10si14017987bkb.68.2013.11.28.09.57.46
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 28 Nov 2013 09:42:30 -0800 (PST)
-Received: by mail-la0-f52.google.com with SMTP id y1so4308033lam.39
-        for <linux-mm@kvack.org>; Thu, 28 Nov 2013 09:42:30 -0800 (PST)
-Date: Thu, 28 Nov 2013 18:41:57 +0100
+        Thu, 28 Nov 2013 09:57:47 -0800 (PST)
+Received: by mail-la0-f51.google.com with SMTP id ec20so6115185lab.24
+        for <linux-mm@kvack.org>; Thu, 28 Nov 2013 09:57:46 -0800 (PST)
+Date: Thu, 28 Nov 2013 18:57:11 +0100
 From: Vladimir Murzin <murzin.v@gmail.com>
-Subject: Re: [PATCH]mm/vmalloc: interchage the implementation of
- vmalloc_to_{pfn,page}
-Message-ID: <20131128174152.GA2258@hp530>
-References: <20131128162913.GA4234@lcx>
+Subject: Re: [PATCH] Fix race between oom kill and task exit
+Message-ID: <20131128175708.GA1875@hp530>
+References: <3917C05D9F83184EAA45CE249FF1B1DD0253093A@SHSMSX103.ccr.corp.intel.com>
+ <20131128063505.GN3556@cmpxchg.org>
+ <CAJ75kXZXxCMgf8=pghUWf=W9EKf3Z4nzKKy=CAn+7keVF_DCRA@mail.gmail.com>
+ <20131128120018.GL2761@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=koi8-r
 Content-Disposition: inline
-In-Reply-To: <20131128162913.GA4234@lcx>
+In-Reply-To: <20131128120018.GL2761@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianyu Zhan <nasa4836@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, zhangyanfei@cn.fujitsu.com, liwanp@linux.vnet.ibm.com, rientjes@google.com, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: William Dauchy <wdauchy@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Ma, Xindong" <xindong.ma@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "rientjes@google.com" <rientjes@google.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "Tu, Xiaobing" <xiaobing.tu@intel.com>, azurIt <azurit@pobox.sk>, Sameer Nanda <snanda@chromium.org>, Oleg Nesterov <oleg@redhat.com>, dserrg@gmail.com
 
-On Fri, Nov 29, 2013 at 12:29:13AM +0800, Jianyu Zhan wrote:
-> Currently we are implementing vmalloc_to_pfn() as a wrapper of 
-> vmalloc_to_page(), which is implemented as follow: 
+On Thu, Nov 28, 2013 at 01:00:18PM +0100, Michal Hocko wrote:
+> [CCing Oleg - the thread started here:
+> https://lkml.org/lkml/2013/11/28/2]
 > 
->  1. walks the page talbes to generates the corresponding pfn,
->  2. then wraps the pfn to struct page,
->  3. returns it.
+> On Thu 28-11-13 09:41:40, William Dauchy wrote:
+> [...]
+> > However, I'm now wondering if this present patch is a replacement of
+> > Sameer Nanda's patch or if this a complementary patch.
 > 
-> And vmalloc_to_pfn() re-wraps the vmalloc_to_page() to get the pfn.
-> 
-> This seems too circuitous, so this patch reverses the way:
-> implementing the vmalloc_to_page() as a wrapper of vmalloc_to_pfn().
-> This makes vmalloc_to_pfn() and vmalloc_to_page() slightly effective.
+> They are both trying to solve the same issue. Neither of them is
+> optimal unfortunately. Oleg said he would look into this and I have seen
+> some patches but didn't geto check them.
 
-Any numbers for efficiency?
-
-> 
-
-> No functional change. 
-> 
-> Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
-> ---
-> mm/vmalloc.c | 20 ++++++++++----------
->  1 file changed, 10 insertions(+), 10 deletions(-)
-> 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index 0fdf968..a335e21 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -220,12 +220,12 @@ int is_vmalloc_or_module_addr(const void *x)
->  }
->  
->  /*
-> - * Walk a vmap address to the struct page it maps.
-> + * Walk a vmap address to the physical pfn it maps to.
->   */
-> -struct page *vmalloc_to_page(const void *vmalloc_addr)
-> +unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
->  {
->  	unsigned long addr = (unsigned long) vmalloc_addr;
-> -	struct page *page = NULL;
-> +	unsigned long pfn;
-
-uninitialized pfn will lead to a bug.
-
->  	pgd_t *pgd = pgd_offset_k(addr);
->  
->  	/*
-> @@ -244,23 +244,23 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
->  				ptep = pte_offset_map(pmd, addr);
->  				pte = *ptep;
->  				if (pte_present(pte))
-> -					page = pte_page(pte);
-> +					pfn = pte_page(pte);
-
-page_to_pfn is missed here.
-
-Have you ever tested there is no functional changes?
+CCing Sergey - he reported and proposed the patch for the similar issue.
 
 Vladimir
 
->  				pte_unmap(ptep);
->  			}
->  		}
->  	}
-> -	return page;
-> +	return pfn;
->  }
-> -EXPORT_SYMBOL(vmalloc_to_page);
-> +EXPORT_SYMBOL(vmalloc_to_pfn);
->  
->  /*
-> - * Map a vmalloc()-space virtual address to the physical page frame number.
-> + * Map a vmalloc()-space virtual address to the struct page.
->   */
-> -unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
-> +struct page *vmalloc_to_page(const void *vmalloc_addr)
->  {
-> -	return page_to_pfn(vmalloc_to_page(vmalloc_addr));
-> +	return pfn_to_page(vmalloc_to_pfn(vmalloc_addr));
->  }
-> -EXPORT_SYMBOL(vmalloc_to_pfn);
-> +EXPORT_SYMBOL(vmalloc_to_page);
->  
->  
->  /*** Global kva allocator ***/
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
