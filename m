@@ -1,101 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f51.google.com (mail-bk0-f51.google.com [209.85.214.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 463466B0035
-	for <linux-mm@kvack.org>; Thu, 28 Nov 2013 01:35:24 -0500 (EST)
-Received: by mail-bk0-f51.google.com with SMTP id 6so3547913bkj.24
-        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 22:35:23 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id lf2si13154010bkb.218.2013.11.27.22.35.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 27 Nov 2013 22:35:22 -0800 (PST)
-Date: Thu, 28 Nov 2013 01:35:05 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] Fix race between oom kill and task exit
-Message-ID: <20131128063505.GN3556@cmpxchg.org>
-References: <3917C05D9F83184EAA45CE249FF1B1DD0253093A@SHSMSX103.ccr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3917C05D9F83184EAA45CE249FF1B1DD0253093A@SHSMSX103.ccr.corp.intel.com>
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id DEFB36B0035
+	for <linux-mm@kvack.org>; Thu, 28 Nov 2013 02:46:43 -0500 (EST)
+Received: by mail-pb0-f47.google.com with SMTP id um1so12044692pbc.20
+        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 23:46:43 -0800 (PST)
+Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
+        by mx.google.com with ESMTP id dk5si36045629pbc.286.2013.11.27.23.46.41
+        for <linux-mm@kvack.org>;
+        Wed, 27 Nov 2013 23:46:42 -0800 (PST)
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: [PATCH 0/9] mm/rmap: unify rmap traversing functions through rmap_walk
+Date: Thu, 28 Nov 2013 16:48:37 +0900
+Message-Id: <1385624926-28883-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Ma, Xindong" <xindong.ma@intel.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "rientjes@google.com" <rientjes@google.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 'Peter Zijlstra' <peterz@infradead.org>, "'gregkh@linuxfoundation.org'" <gregkh@linuxfoundation.org>, "Tu, Xiaobing" <xiaobing.tu@intel.com>, William Dauchy <wdauchy@gmail.com>, azurIt <azurit@pobox.sk>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Cc William and azur who might have encountered this problem.
+Rmap traversing is used in five different cases, try_to_unmap(),
+try_to_munlock(), page_referenced(), page_mkclean() and
+remove_migration_ptes(). Each one implements its own traversing functions
+for the cases, anon, file, ksm, respectively. These cause lots of duplications
+and cause maintenance overhead. They also make codes being hard to understand
+and error-prone. One example is hugepage handling. There is a code to compute
+hugepage offset correctly in try_to_unmap_file(), but, there isn't a code
+to compute hugepage offset in rmap_walk_file(). These are used pairwise
+in migration context, but we missed to modify pairwise.
 
-On Thu, Nov 28, 2013 at 05:09:16AM +0000, Ma, Xindong wrote:
-> From: Leon Ma <xindong.ma@intel.com>
-> Date: Thu, 28 Nov 2013 12:46:09 +0800
-> Subject: [PATCH] Fix race between oom kill and task exit
-> 
-> There is a race between oom kill and task exit. Scenario is:
->    TASK  A                      TASK  B
-> TASK B is selected to oom kill
-> in oom_kill_process()
-> check PF_EXITING of TASK B
->                             task call do_exit()
->                             task set PF_EXITING flag
->                             write_lock_irq(&tasklist_lock);
->                             remove TASK B from thread group in __unhash_process()
->                             write_unlock_irq(&tasklist_lock);
-> read_lock(&tasklist_lock);
-> traverse threads of TASK B
-> read_unlock(&tasklist_lock);
-> 
-> After that, the following traversal of threads in TASK B will not end because TASK B is not in the thread group:
-> do {
-> ....
-> } while_each_thread(p, t);
-> 
-> Signed-off-by: Leon Ma <xindong.ma@intel.com>
-> Signed-off-by: xiaobing tu <xiaobing.tu@intel.com>
-> ---
->  mm/oom_kill.c |   20 ++++++++++----------
->  1 files changed, 10 insertions(+), 10 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 1e4a600..32ec88d 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -412,16 +412,6 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
->  	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
->  					      DEFAULT_RATELIMIT_BURST);
->  
-> -	/*
-> -	 * If the task is already exiting, don't alarm the sysadmin or kill
-> -	 * its children or threads, just set TIF_MEMDIE so it can die quickly
-> -	 */
-> -	if (p->flags & PF_EXITING) {
-> -		set_tsk_thread_flag(p, TIF_MEMDIE);
-> -		put_task_struct(p);
-> -		return;
-> -	}
-> -
->  	if (__ratelimit(&oom_rs))
->  		dump_header(p, gfp_mask, order, memcg, nodemask);
->  
-> @@ -437,6 +427,16 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
->  	 * still freeing memory.
->  	 */
->  	read_lock(&tasklist_lock);
-> +	/*
-> +	 * If the task is already exiting, don't alarm the sysadmin or kill
-> +	 * its children or threads, just set TIF_MEMDIE so it can die quickly
-> +	 */
-> +	if (p->flags & PF_EXITING) {
-> +		set_tsk_thread_flag(p, TIF_MEMDIE);
-> +		put_task_struct(p);
-> +		read_unlock(&tasklist_lock);
-> +		return;
-> +	}
->  	do {
->  		list_for_each_entry(child, &t->children, sibling) {
->  			unsigned int child_points;
-> -- 
-> 1.7.4.1
-> 
+To overcome these drawbacks, we should unify these through one unified
+function. I decide rmap_walk() as main function since it has no
+unnecessity. And to control behavior of rmap_walk(), I introduce
+struct rmap_walk_control having some function pointers. These makes
+rmap_walk() working for their specific needs.
+
+This patchset remove a lot of duplicated code as you can see in below
+short-stat and kernel text size also decrease slightly.
+
+   text    data     bss     dec     hex filename
+  10640       1      16   10657    29a1 mm/rmap.o
+  10047       1      16   10064    2750 mm/rmap.o
+
+  13823     705    8288   22816    5920 mm/ksm.o
+  13199     705    8288   22192    56b0 mm/ksm.o
+
+Thanks.
+
+Joonsoo Kim (9):
+  mm/rmap: recompute pgoff for huge page
+  mm/rmap: factor nonlinear handling out of try_to_unmap_file()
+  mm/rmap: factor lock function out of rmap_walk_anon()
+  mm/rmap: make rmap_walk to get the rmap_walk_control argument
+  mm/rmap: extend rmap_walk_xxx() to cope with different cases
+  mm/rmap: use rmap_walk() in try_to_unmap()
+  mm/rmap: use rmap_walk() in try_to_munlock()
+  mm/rmap: use rmap_walk() in page_referenced()
+  mm/rmap: use rmap_walk() in page_mkclean()
+
+ include/linux/ksm.h  |   15 +-
+ include/linux/rmap.h |   19 +-
+ mm/ksm.c             |  116 +---------
+ mm/migrate.c         |    7 +-
+ mm/rmap.c            |  570 ++++++++++++++++++++++----------------------------
+ 5 files changed, 286 insertions(+), 441 deletions(-)
+
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
