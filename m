@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 180716B003D
-	for <linux-mm@kvack.org>; Thu, 28 Nov 2013 02:46:46 -0500 (EST)
-Received: by mail-pb0-f45.google.com with SMTP id rp16so12080739pbb.18
-        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 23:46:46 -0800 (PST)
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F25B6B004D
+	for <linux-mm@kvack.org>; Thu, 28 Nov 2013 02:46:47 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id p10so11421657pdj.26
+        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 23:46:47 -0800 (PST)
 Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
-        by mx.google.com with ESMTP id dk5si36045629pbc.286.2013.11.27.23.46.44
+        by mx.google.com with ESMTP id ot3si25785247pac.166.2013.11.27.23.46.44
         for <linux-mm@kvack.org>;
         Wed, 27 Nov 2013 23:46:45 -0800 (PST)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH 7/9] mm/rmap: use rmap_walk() in try_to_munlock()
-Date: Thu, 28 Nov 2013 16:48:44 +0900
-Message-Id: <1385624926-28883-8-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 9/9] mm/rmap: use rmap_walk() in page_mkclean()
+Date: Thu, 28 Nov 2013 16:48:46 +0900
+Message-Id: <1385624926-28883-10-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1385624926-28883-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1385624926-28883-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,291 +22,106 @@ Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel 
 Now, we have an infrastructure in rmap_walk() to handle difference
 from variants of rmap traversing functions.
 
-So, just use it in try_to_munlock().
+So, just use it in page_mkclean().
 
 In this patch, I change following things.
 
 1. remove some variants of rmap traversing functions.
-	cf> try_to_unmap_ksm, try_to_unmap_anon, try_to_unmap_file
-2. mechanical change to use rmap_walk() in try_to_munlock().
-3. copy and paste comments.
+    cf> page_mkclean_file
+2. mechanical change to use rmap_walk() in page_mkclean().
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-diff --git a/include/linux/ksm.h b/include/linux/ksm.h
-index 0eef8cb..91b9719 100644
---- a/include/linux/ksm.h
-+++ b/include/linux/ksm.h
-@@ -75,7 +75,6 @@ struct page *ksm_might_need_to_copy(struct page *page,
- 
- int page_referenced_ksm(struct page *page,
- 			struct mem_cgroup *memcg, unsigned long *vm_flags);
--int try_to_unmap_ksm(struct page *page, enum ttu_flags flags);
- int rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc);
- void ksm_migrate_page(struct page *newpage, struct page *oldpage);
- 
-@@ -114,11 +113,6 @@ static inline int page_referenced_ksm(struct page *page,
- 	return 0;
- }
- 
--static inline int try_to_unmap_ksm(struct page *page, enum ttu_flags flags)
--{
--	return 0;
--}
--
- static inline int rmap_walk_ksm(struct page *page,
- 			struct rmap_walk_control *rwc)
- {
-diff --git a/mm/ksm.c b/mm/ksm.c
-index e1b0198..4f25cf7 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1946,56 +1946,6 @@ out:
- 	return referenced;
- }
- 
--int try_to_unmap_ksm(struct page *page, enum ttu_flags flags)
--{
--	struct stable_node *stable_node;
--	struct rmap_item *rmap_item;
--	int ret = SWAP_AGAIN;
--	int search_new_forks = 0;
--
--	VM_BUG_ON(!PageKsm(page));
--	VM_BUG_ON(!PageLocked(page));
--
--	stable_node = page_stable_node(page);
--	if (!stable_node)
--		return SWAP_FAIL;
--again:
--	hlist_for_each_entry(rmap_item, &stable_node->hlist, hlist) {
--		struct anon_vma *anon_vma = rmap_item->anon_vma;
--		struct anon_vma_chain *vmac;
--		struct vm_area_struct *vma;
--
--		anon_vma_lock_read(anon_vma);
--		anon_vma_interval_tree_foreach(vmac, &anon_vma->rb_root,
--					       0, ULONG_MAX) {
--			vma = vmac->vma;
--			if (rmap_item->address < vma->vm_start ||
--			    rmap_item->address >= vma->vm_end)
--				continue;
--			/*
--			 * Initially we examine only the vma which covers this
--			 * rmap_item; but later, if there is still work to do,
--			 * we examine covering vmas in other mms: in case they
--			 * were forked from the original since ksmd passed.
--			 */
--			if ((rmap_item->mm == vma->vm_mm) == search_new_forks)
--				continue;
--
--			ret = try_to_unmap_one(page, vma,
--					rmap_item->address, (void *)flags);
--			if (ret != SWAP_AGAIN || !page_mapped(page)) {
--				anon_vma_unlock_read(anon_vma);
--				goto out;
--			}
--		}
--		anon_vma_unlock_read(anon_vma);
--	}
--	if (!search_new_forks++)
--		goto again;
--out:
--	return ret;
--}
--
- int rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
- {
- 	struct stable_node *stable_node;
 diff --git a/mm/rmap.c b/mm/rmap.c
-index 7407710..860a393 100644
+index 5e78d5c..bbbc705 100644
 --- a/mm/rmap.c
 +++ b/mm/rmap.c
-@@ -1515,110 +1515,6 @@ static int skip_vma_temporary_stack(struct vm_area_struct *vma, void *arg)
- 	return (int)is_vma_temporary_stack(vma);
+@@ -809,12 +809,13 @@ int page_referenced(struct page *page,
  }
  
--/**
-- * try_to_unmap_anon - unmap or unlock anonymous page using the object-based
-- * rmap method
-- * @page: the page to unmap/unlock
-- * @flags: action and flags
-- *
-- * Find all the mappings of a page using the mapping pointer and the vma chains
-- * contained in the anon_vma struct it points to.
-- *
-- * This function is only called from try_to_unmap/try_to_munlock for
-- * anonymous pages.
-- * When called from try_to_munlock(), the mmap_sem of the mm containing the vma
-- * where the page was found will be held for write.  So, we won't recheck
-- * vm_flags for that VMA.  That should be OK, because that vma shouldn't be
-- * 'LOCKED.
-- */
--static int try_to_unmap_anon(struct page *page, enum ttu_flags flags)
--{
--	struct anon_vma *anon_vma;
--	pgoff_t pgoff;
--	struct anon_vma_chain *avc;
--	int ret = SWAP_AGAIN;
--
--	anon_vma = page_lock_anon_vma_read(page);
--	if (!anon_vma)
--		return ret;
--
--	pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
--	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root, pgoff, pgoff) {
--		struct vm_area_struct *vma = avc->vma;
--		unsigned long address;
--
--		/*
--		 * During exec, a temporary VMA is setup and later moved.
--		 * The VMA is moved under the anon_vma lock but not the
--		 * page tables leading to a race where migration cannot
--		 * find the migration ptes. Rather than increasing the
--		 * locking requirements of exec(), migration skips
--		 * temporary VMAs until after exec() completes.
--		 */
--		if (IS_ENABLED(CONFIG_MIGRATION) && (flags & TTU_MIGRATION) &&
--				is_vma_temporary_stack(vma))
--			continue;
--
--		address = vma_address(page, vma);
--		ret = try_to_unmap_one(page, vma, address, (void *)flags);
--		if (ret != SWAP_AGAIN || !page_mapped(page))
--			break;
--	}
--
--	page_unlock_anon_vma_read(anon_vma);
+ static int page_mkclean_one(struct page *page, struct vm_area_struct *vma,
+-			    unsigned long address)
++			    unsigned long address, void *arg)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
+ 	int ret = 0;
++	int *cleaned = arg;
+ 
+ 	pte = page_check_address(page, mm, address, &ptl, 1);
+ 	if (!pte)
+@@ -833,44 +834,46 @@ static int page_mkclean_one(struct page *page, struct vm_area_struct *vma,
+ 
+ 	pte_unmap_unlock(pte, ptl);
+ 
+-	if (ret)
++	if (ret) {
+ 		mmu_notifier_invalidate_page(mm, address);
++		(*cleaned)++;
++	}
+ out:
 -	return ret;
--}
--
--/**
-- * try_to_unmap_file - unmap/unlock file page using the object-based rmap method
-- * @page: the page to unmap/unlock
-- * @flags: action and flags
-- *
-- * Find all the mappings of a page using the mapping pointer and the vma chains
-- * contained in the address_space struct it points to.
-- *
-- * This function is only called from try_to_unmap/try_to_munlock for
-- * object-based pages.
-- * When called from try_to_munlock(), the mmap_sem of the mm containing the vma
-- * where the page was found will be held for write.  So, we won't recheck
-- * vm_flags for that VMA.  That should be OK, because that vma shouldn't be
-- * 'LOCKED.
-- */
--static int try_to_unmap_file(struct page *page, enum ttu_flags flags)
--{
--	struct address_space *mapping = page->mapping;
++	return SWAP_AGAIN;
+ }
+ 
+-static int page_mkclean_file(struct address_space *mapping, struct page *page)
++static int skip_vma_non_shared(struct vm_area_struct *vma, void *arg)
+ {
 -	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
 -	struct vm_area_struct *vma;
--	int ret = SWAP_AGAIN;
+-	int ret = 0;
 -
--	if (PageHuge(page))
--		pgoff = page->index << compound_order(page);
--
+-	BUG_ON(PageAnon(page));
++	if (vma->vm_flags & VM_SHARED)
++		return 0;
+ 
 -	mutex_lock(&mapping->i_mmap_mutex);
 -	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
--		unsigned long address = vma_address(page, vma);
--		ret = try_to_unmap_one(page, vma, address, (void *)flags);
--		if (ret != SWAP_AGAIN || !page_mapped(page))
--			goto out;
+-		if (vma->vm_flags & VM_SHARED) {
+-			unsigned long address = vma_address(page, vma);
+-			ret += page_mkclean_one(page, vma, address);
+-		}
 -	}
--
--	if (list_empty(&mapping->i_mmap_nonlinear))
--		goto out;
--
--	/*
--	 * We don't bother to try to find the munlocked page in nonlinears.
--	 * It's costly. Instead, later, page reclaim logic may call
--	 * try_to_unmap(TTU_MUNLOCK) and recover PG_mlocked lazily.
--	 */
--	if (TTU_ACTION(flags) == TTU_MUNLOCK)
--		goto out;
--
--	ret = try_to_unmap_nonlinear(page, mapping, vma);
--out:
 -	mutex_unlock(&mapping->i_mmap_mutex);
 -	return ret;
--}
--
- static int page_not_mapped(struct page *page)
++	return 1;
+ }
+ 
+ int page_mkclean(struct page *page)
  {
- 	return !page_mapped(page);
-@@ -1687,14 +1583,26 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
-  */
- int try_to_munlock(struct page *page)
- {
-+	int ret;
+-	int ret = 0;
++	struct address_space *mapping;
 +	struct rmap_walk_control rwc;
-+
- 	VM_BUG_ON(!PageLocked(page) || PageLRU(page));
++	int cleaned;
  
--	if (unlikely(PageKsm(page)))
--		return try_to_unmap_ksm(page, TTU_MUNLOCK);
--	else if (PageAnon(page))
--		return try_to_unmap_anon(page, TTU_MUNLOCK);
--	else
--		return try_to_unmap_file(page, TTU_MUNLOCK);
+ 	BUG_ON(!PageLocked(page));
+ 
+-	if (page_mapped(page)) {
+-		struct address_space *mapping = page_mapping(page);
+-		if (mapping)
+-			ret = page_mkclean_file(mapping, page);
+-	}
++	if (!page_mapped(page))
++		return 0;
+ 
+-	return ret;
++	mapping = page_mapping(page);
++	if (!mapping)
++		return 0;
++
 +	memset(&rwc, 0, sizeof(rwc));
-+	rwc.main = try_to_unmap_one;
-+	rwc.arg = (void *)TTU_MUNLOCK;
-+	rwc.main_done = page_not_mapped;
++	cleaned = 0;
++	rwc.main = page_mkclean_one;
++	rwc.arg = (void *)&cleaned;
++	rwc.vma_skip = skip_vma_non_shared;
 +
-+	/*
-+	 * We don't bother to try to find the munlocked page in nonlinears.
-+	 * It's costly. Instead, later, page reclaim logic may call
-+	 * try_to_unmap(TTU_MUNLOCK) and recover PG_mlocked lazily.
-+	 */
-+	rwc.file_nonlinear = NULL;
-+	rwc.anon_lock = page_lock_anon_vma_read;
++	rmap_walk(page, &rwc);
 +
-+	ret = rmap_walk(page, &rwc);
-+	return ret;
++	return cleaned;
  }
+ EXPORT_SYMBOL_GPL(page_mkclean);
  
- void __put_anon_vma(struct anon_vma *anon_vma)
-@@ -1730,8 +1638,18 @@ static struct anon_vma *rmap_walk_anon_lock(struct page *page,
- }
- 
- /*
-- * rmap_walk() and its helpers rmap_walk_anon() and rmap_walk_file():
-- * Called by migrate.c to remove migration ptes, but might be used more later.
-+ * rmap_walk_anon - do something to anonymous page using the object-based
-+ * rmap method
-+ * @page: the page to be handled
-+ * @rwc: control variable according to each walk type
-+ *
-+ * Find all the mappings of a page using the mapping pointer and the vma chains
-+ * contained in the anon_vma struct it points to.
-+ *
-+ * When called from try_to_munlock(), the mmap_sem of the mm containing the vma
-+ * where the page was found will be held for write.  So, we won't recheck
-+ * vm_flags for that VMA.  That should be OK, because that vma shouldn't be
-+ * LOCKED.
-  */
- static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc)
- {
-@@ -1761,6 +1679,19 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc)
- 	return ret;
- }
- 
-+/*
-+ * rmap_walk_file - do something to file page using the object-based rmap method
-+ * @page: the page to be handled
-+ * @rwc: control variable according to each walk type
-+ *
-+ * Find all the mappings of a page using the mapping pointer and the vma chains
-+ * contained in the address_space struct it points to.
-+ *
-+ * When called from try_to_munlock(), the mmap_sem of the mm containing the vma
-+ * where the page was found will be held for write.  So, we won't recheck
-+ * vm_flags for that VMA.  That should be OK, because that vma shouldn't be
-+ * LOCKED.
-+ */
- static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc)
- {
- 	struct address_space *mapping = page->mapping;
 -- 
 1.7.9.5
 
