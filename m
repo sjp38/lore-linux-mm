@@ -1,78 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f52.google.com (mail-yh0-f52.google.com [209.85.213.52])
-	by kanga.kvack.org (Postfix) with ESMTP id E607C6B0035
-	for <linux-mm@kvack.org>; Wed, 27 Nov 2013 19:22:21 -0500 (EST)
-Received: by mail-yh0-f52.google.com with SMTP id i72so5606922yha.11
-        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 16:22:21 -0800 (PST)
-Received: from mail-yh0-x22c.google.com (mail-yh0-x22c.google.com [2607:f8b0:4002:c01::22c])
-        by mx.google.com with ESMTPS id 41si29389633yhf.227.2013.11.27.16.22.20
+Received: from mail-yh0-f44.google.com (mail-yh0-f44.google.com [209.85.213.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F3166B0035
+	for <linux-mm@kvack.org>; Wed, 27 Nov 2013 19:56:09 -0500 (EST)
+Received: by mail-yh0-f44.google.com with SMTP id f64so5716321yha.31
+        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 16:56:08 -0800 (PST)
+Received: from mail-yh0-x231.google.com (mail-yh0-x231.google.com [2607:f8b0:4002:c01::231])
+        by mx.google.com with ESMTPS id a9si29476592yhm.187.2013.11.27.16.56.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 27 Nov 2013 16:22:21 -0800 (PST)
-Received: by mail-yh0-f44.google.com with SMTP id f64so5631706yha.3
-        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 16:22:20 -0800 (PST)
-Date: Wed, 27 Nov 2013 16:22:18 -0800 (PST)
+        Wed, 27 Nov 2013 16:56:07 -0800 (PST)
+Received: by mail-yh0-f49.google.com with SMTP id z20so5582153yhz.36
+        for <linux-mm@kvack.org>; Wed, 27 Nov 2013 16:56:07 -0800 (PST)
+Date: Wed, 27 Nov 2013 16:56:04 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-In-Reply-To: <20131127231931.GG3556@cmpxchg.org>
-Message-ID: <alpine.DEB.2.02.1311271613340.10617@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1311131649110.6735@chino.kir.corp.google.com> <20131114032508.GL707@cmpxchg.org> <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com> <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com> <20131118154115.GA3556@cmpxchg.org>
- <20131118165110.GE32623@dhcp22.suse.cz> <20131122165100.GN3556@cmpxchg.org> <alpine.DEB.2.02.1311261648570.21003@chino.kir.corp.google.com> <20131127163435.GA3556@cmpxchg.org> <alpine.DEB.2.02.1311271343250.9222@chino.kir.corp.google.com>
- <20131127231931.GG3556@cmpxchg.org>
+Subject: Re: [merged] mm-memcg-handle-non-error-oom-situations-more-gracefully.patch
+ removed from -mm tree
+In-Reply-To: <20131127233353.GH3556@cmpxchg.org>
+Message-ID: <alpine.DEB.2.02.1311271622330.10617@chino.kir.corp.google.com>
+References: <526028bd.k5qPj2+MDOK1o6ii%akpm@linux-foundation.org> <alpine.DEB.2.02.1311271453270.13682@chino.kir.corp.google.com> <20131127233353.GH3556@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, Michal Hocko <mhocko@suse.cz>, azurit@pobox.sk, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 On Wed, 27 Nov 2013, Johannes Weiner wrote:
 
-> > The patch is drawing the line at "the kernel can no longer do anything to 
-> > free memory", and that's the line where userspace should be notified or a 
-> > process killed by the kernel.
-> >
-> > Giving current access to memory reserves in the oom killer is an
-> > optimization so that all reclaim is exhausted prior to declaring
-> > that they are necessary, the kernel still has the ability to allow
-> > that process to exit and free memory.
+> > The memcg oom killer has incurred a serious regression since the 3.12-rc6 
+> > kernel where this was merged as 4942642080ea ("mm: memcg: handle non-error 
+> > OOM situations more gracefully").  It cc'd stable@kernel.org although it 
+> > doesn't appear to have been picked up yet, and I'm hoping that we can 
+> > avoid having it merged in a stable kernel until we get this fixed.
+> > 
+> > This patch, specifically the above, allows memcgs to bypass their limits 
+> > by charging the root memcg in oom conditions.
+> > 
+> > If I create a memcg, cg1, with memory.limit_in_bytes == 128MB and start a
+> > memory allocator in it to induce oom, the memcg limit is trivially broken:
+> > 
+> > membench invoked oom-killer: gfp_mask=0xd0, order=0, oom_score_adj=0
+> > membench cpuset=/ mems_allowed=0-3
+> > CPU: 9 PID: 11388 Comm: membench Not tainted 3.13-rc1
+> >  ffffc90015ec6000 ffff880671c3dc18 ffffffff8154a1e3 0000000000000007
+> >  ffff880674c215d0 ffff880671c3dc98 ffffffff81548b45 ffff880671c3dc58
+> >  ffffffff81151de7 0000000000000001 0000000000000292 ffff880800000000
+> > Call Trace:
+> >  [<ffffffff8154a1e3>] dump_stack+0x46/0x58
+> >  [<ffffffff81548b45>] dump_header+0x7a/0x1bb
+> >  [<ffffffff81151de7>] ? find_lock_task_mm+0x27/0x70
+> >  [<ffffffff812e8b76>] ? ___ratelimit+0x96/0x110
+> >  [<ffffffff811521c4>] oom_kill_process+0x1c4/0x330
+> >  [<ffffffff81099ee5>] ? has_ns_capability_noaudit+0x15/0x20
+> >  [<ffffffff811a916a>] mem_cgroup_oom_synchronize+0x50a/0x570
+> >  [<ffffffff811a8660>] ? __mem_cgroup_try_charge_swapin+0x70/0x70
+> >  [<ffffffff81152968>] pagefault_out_of_memory+0x18/0x90
+> >  [<ffffffff81547b86>] mm_fault_error+0xb7/0x15a
+> >  [<ffffffff81553efb>] __do_page_fault+0x42b/0x500
+> >  [<ffffffff810c667d>] ? set_next_entity+0xad/0xd0
+> >  [<ffffffff810c670b>] ? pick_next_task_fair+0x6b/0x170
+> >  [<ffffffff8154d08e>] ? __schedule+0x38e/0x780
+> >  [<ffffffff81553fde>] do_page_fault+0xe/0x10
+> >  [<ffffffff815509e2>] page_fault+0x22/0x30
+> > Task in /cg1 killed as a result of limit of /cg1
+> > memory: usage 131072kB, limit 131072kB, failcnt 1053
+> > memory+swap: usage 0kB, limit 18014398509481983kB, failcnt 0
+> > kmem: usage 0kB, limit 18014398509481983kB, failcnt 0
+> > Memory cgroup stats for /cg1: cache:84KB rss:130988KB rss_huge:116736KB mapped_file:72KB writeback:0KB inactive_anon:0KB active_anon:130976KB inactive_file:4KB active_file:0KB unevictable:0KB
+> > [ pid ]   uid  tgid total_vm      rss nr_ptes swapents oom_score_adj name
+> > [ 7761]     0  7761     1106      483       5        0             0 bash
+> > [11388]    99 11388   270773    33031      83        0             0 membench
+> > Memory cgroup out of memory: Kill process 11388 (membench) score 1010 or sacrifice child
+> > Killed process 11388 (membench) total-vm:1083092kB, anon-rss:130824kB, file-rss:1300kB
+> > 
+> > The score of 1010 shown for pid 11388 (membench) should never happen in 
+> > the oom killer, the maximum value should always be 1000 in any oom 
+> > context.  This indicates that the process has allocated more memory than 
+> > is available to the memcg.  The rss value, 33031 pages, shows that it has 
+> > allocated >129MB of memory in a memcg limited to 128MB.
+> > 
+> > The entire premise of memcg is to prevent processes attached to it to not 
+> > be able to allocate more memory than allowed and this trivially breaks 
+> > that premise in oom conditions.
 > 
-> "they" are necessary?
+> We already allow a task to allocate beyond the limit if it's selected
+> by the OOM killer, so that it can exit faster.
+> 
+> My patch added that a task can bypass the limit when it decided to
+> trigger the OOM killer, so that it can get to the OOM kill faster.
 > 
 
-Memory reserves.
+The task that is bypassing the memcg charge to the root memcg may not be 
+the process that is chosen by the oom killer, and it's possible the amount 
+of memory freed by killing the victim is less than the amount of memory 
+bypassed.
 
-> > This is the same as the oom notifiers within the kernel that free
-> > memory from s390 and powerpc archs: the kernel still has the ability
-> > to free memory.
+> So I don't think my patch has broken "the entire premise of memcgs".
+> At the same time, it also does not really rely on that bypass, we
+> should be able to remove it.
 > 
-> They're not the same at all.  One is the kernel freeing memory, the
-> other is a random coincidence.
+> This patch series was not supposed to go into the last merge window, I
+> already told stable to hold off on these until further notice.
 > 
 
-Current is on the way to memory freeing because it has a pending SIGKILL 
-or is already exiting, it simply needs access to memory reserves to do so.  
-This was originally introduced to prevent the oom killer from having to 
-scan the set of eligible processes and silently giving it access to memory 
-reserves; we didn't want to emit all of the messages to the kernel log 
-because scripts (and admins) were looking at the kernel log and seeing 
-that the oom killer killed something when it really came from a different 
-source or was already exiting.
+Were you targeting these to 3.13 instead?  If so, it would have already 
+appeared in 3.13-rc1 anyway.  Is it still a work in progress?
 
-We have a differing opinion on what to consider the point of oom (the 
-"notification line that has to be drawn").  My position is to notify 
-userspace when the kernel has exhausted its capability to free memory 
-without killing something.  In the case of current exiting or having a 
-pending SIGKILL, memory is going to be freed, the oom killer simply needs 
-to preempt the tasklist scan.  The situation is going to be remedied.  I 
-defined the notification with this patch to only happen when the kernel 
-can't free any memory without a kill so that userspace may do so itself.  
-Michal concurred with that position.
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 13b9d0f..5f9e467 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2675,7 +2675,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
+>  		goto bypass;
+>  
+>  	if (unlikely(task_in_memcg_oom(current)))
+> -		goto bypass;
+> +		goto nomem;
+>  
+>  	/*
+>  	 * We always charge the cgroup the mm_struct belongs to.
 
-So I'll repeat: if you are interested in situations when the limit is 
-reached, use memory thresholds, if you are interested in situations where 
-reclaim is struggling to free memory, use VMPRESSURE_CRITICAL.
+Is there any benefit to doing this over just schedule_timeout_killable() 
+since we need to wait for mem_cgroup_oom_synchronize() to be able to make 
+forward progress at this point?
+
+Should we be checking mem_cgroup_margin() here to ensure 
+task_in_memcg_oom() is still accurate and we haven't raced by freeing 
+memory?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
