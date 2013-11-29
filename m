@@ -1,53 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-	by kanga.kvack.org (Postfix) with ESMTP id CBB776B0031
-	for <linux-mm@kvack.org>; Fri, 29 Nov 2013 13:20:08 -0500 (EST)
-Received: by mail-we0-f176.google.com with SMTP id w62so3976555wes.35
-        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 10:20:08 -0800 (PST)
-Received: from cam-admin0.cambridge.arm.com (cam-admin0.cambridge.arm.com. [217.140.96.50])
-        by mx.google.com with ESMTP id fb7si20774729wjc.173.2013.11.29.10.20.07
-        for <linux-mm@kvack.org>;
-        Fri, 29 Nov 2013 10:20:08 -0800 (PST)
-Date: Fri, 29 Nov 2013 18:18:17 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
-Message-ID: <20131129181817.GL31000@mudshark.cambridge.arm.com>
-References: <20131127101613.GC9032@mudshark.cambridge.arm.com>
- <20131127171143.GN4137@linux.vnet.ibm.com>
- <20131128114058.GC21354@mudshark.cambridge.arm.com>
- <20131128173853.GV4137@linux.vnet.ibm.com>
- <20131128180318.GE16203@mudshark.cambridge.arm.com>
- <20131128182712.GW4137@linux.vnet.ibm.com>
- <20131128185341.GG16203@mudshark.cambridge.arm.com>
- <20131128195039.GX4137@linux.vnet.ibm.com>
- <20131129161711.GG31000@mudshark.cambridge.arm.com>
- <CA+55aFwHgnH4h0YwybThQjvicFCVbGbwaAy3Fw0b738gJMtqBA@mail.gmail.com>
+Received: from mail-yh0-f49.google.com (mail-yh0-f49.google.com [209.85.213.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FDFE6B0035
+	for <linux-mm@kvack.org>; Fri, 29 Nov 2013 18:46:20 -0500 (EST)
+Received: by mail-yh0-f49.google.com with SMTP id z20so7103190yhz.8
+        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 15:46:20 -0800 (PST)
+Received: from mail-yh0-x235.google.com (mail-yh0-x235.google.com [2607:f8b0:4002:c01::235])
+        by mx.google.com with ESMTPS id r46si29821392yhm.297.2013.11.29.15.46.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 29 Nov 2013 15:46:19 -0800 (PST)
+Received: by mail-yh0-f53.google.com with SMTP id b20so7199917yha.12
+        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 15:46:18 -0800 (PST)
+Date: Fri, 29 Nov 2013 15:46:16 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm: memcg: do not declare OOM from __GFP_NOFAIL
+ allocations
+In-Reply-To: <20131128102049.GF2761@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.02.1311291543400.22413@chino.kir.corp.google.com>
+References: <1385140676-5677-1-git-send-email-hannes@cmpxchg.org> <alpine.DEB.2.02.1311261658170.21003@chino.kir.corp.google.com> <alpine.DEB.2.02.1311261931210.5973@chino.kir.corp.google.com> <20131127163916.GB3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311271336220.9222@chino.kir.corp.google.com> <20131127225340.GE3556@cmpxchg.org> <alpine.DEB.2.02.1311271526080.22848@chino.kir.corp.google.com> <20131128102049.GF2761@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFwHgnH4h0YwybThQjvicFCVbGbwaAy3Fw0b738gJMtqBA@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, "Figo. zhang" <figo1802@gmail.com>, Aswin Chandramouleeswaran <aswin@hp.com>, Rik van Riel <riel@redhat.com>, Waiman Long <waiman.long@hp.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>, George Spelvin <linux@horizon.com>, Tim Chen <tim.c.chen@linux.intel.com>, Michel Lespinasse <walken@google.com>, Ingo Molnar <mingo@elte.hu>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Hurley <peter@hurleysoftware.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Alex Shi <alex.shi@linaro.org>, Andrea Arcangeli <aarcange@redhat.com>, Scott J Norton <scott.norton@hp.com>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <peterz@infradead.org>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Nov 29, 2013 at 04:44:41PM +0000, Linus Torvalds wrote:
+On Thu, 28 Nov 2013, Michal Hocko wrote:
+
+> > Ok, so let's forget about GFP_KERNEL | __GFP_NOFAIL since anything doing 
+> > __GFP_FS should not be holding such locks, we have some of those in the 
+> > drivers code and that makes sense that they are doing GFP_KERNEL.
+> > 
+> > Focusing on the GFP_NOFS | __GFP_NOFAIL allocations in the filesystem 
+> > code, the kernel oom killer independent of memcg never gets called because 
+> > !__GFP_FS and they'll simply loop around the page allocator forever.
+> > 
+> > In the past, Andrew has expressed the desire to get rid of __GFP_NOFAIL 
+> > entirely since it's flawed when combined with GFP_NOFS (and GFP_KERNEL | 
+> > __GFP_NOFAIL could simply be reimplemented in the caller) because of the 
+> > reason you point out in addition to making it very difficult in the page 
+> > allocator to free memory independent of memcg.
+> > 
+> > So I'm wondering if we should just disable the oom killer in memcg for 
+> > __GFP_NOFAIL as you've done here, but not bypass to the root memcg and 
+> > just allow them to spin?  I think we should be focused on the fixing the 
+> > callers rather than breaking memcg isolation.
 > 
-> On Nov 29, 2013 8:18 AM, "Will Deacon"
-> <will.deacon@arm.com<mailto:will.deacon@arm.com>> wrote:
-> >
-> >  To get some sort of idea, I tried adding a dmb to the start of
-> >  spin_unlock on ARMv7 and I saw a 3% performance hit in hackbench on my
-> >  dual-cluster board.
+> What if the callers simply cannot deal with the allocation failure?
+> 84235de394d97 (fs: buffer: move allocation failure loop into the
+> allocator) describes one such case when __getblk_slow tries desperately
+> to grow buffers relying on the reclaim to free something. As there might
+> be no reclaim going on we are screwed.
 > 
-> Don't do a dmb. Just do a dummy release. You just said that on arm64 a
-> unlock+lock is a memory barrier, so just make the mb__before_spinlock() be
-> a dummy store with release to the stack..
 
-Good idea! That should work quite nicely (I don't have anything sane I can
-benchmark it on), so I think that solves the issue I was moaning about.
+My suggestion is to spin, not return NULL.  Bypassing to the root memcg 
+can lead to a system oom condition whereas if memcg weren't involved at 
+all the page allocator would just spin (because of !__GFP_FS).
 
-Will
+> That being said, while I do agree with you that we should strive for
+> isolation as much as possible there are certain cases when this is
+> impossible to achieve without seeing much worse consequences. For now,
+> we hope that __GFP_NOFAIL is used very scarcely.
+
+If that's true, why not bypass the per-zone min watermarks in the page 
+allocator as well to allow these allocations to succeed?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
