@@ -1,62 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f51.google.com (mail-yh0-f51.google.com [209.85.213.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A1066B0035
-	for <linux-mm@kvack.org>; Fri, 29 Nov 2013 11:50:59 -0500 (EST)
-Received: by mail-yh0-f51.google.com with SMTP id c41so5364325yho.38
-        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 08:50:59 -0800 (PST)
-Received: from comal.ext.ti.com (comal.ext.ti.com. [198.47.26.152])
-        by mx.google.com with ESMTPS id v3si3086573yhd.163.2013.11.29.08.50.58
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 29 Nov 2013 08:50:58 -0800 (PST)
-Message-ID: <5298C5C2.60008@ti.com>
-Date: Fri, 29 Nov 2013 11:50:10 -0500
-From: Santosh Shilimkar <santosh.shilimkar@ti.com>
+Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
+	by kanga.kvack.org (Postfix) with ESMTP id CBB776B0031
+	for <linux-mm@kvack.org>; Fri, 29 Nov 2013 13:20:08 -0500 (EST)
+Received: by mail-we0-f176.google.com with SMTP id w62so3976555wes.35
+        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 10:20:08 -0800 (PST)
+Received: from cam-admin0.cambridge.arm.com (cam-admin0.cambridge.arm.com. [217.140.96.50])
+        by mx.google.com with ESMTP id fb7si20774729wjc.173.2013.11.29.10.20.07
+        for <linux-mm@kvack.org>;
+        Fri, 29 Nov 2013 10:20:08 -0800 (PST)
+Date: Fri, 29 Nov 2013 18:18:17 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
+Message-ID: <20131129181817.GL31000@mudshark.cambridge.arm.com>
+References: <20131127101613.GC9032@mudshark.cambridge.arm.com>
+ <20131127171143.GN4137@linux.vnet.ibm.com>
+ <20131128114058.GC21354@mudshark.cambridge.arm.com>
+ <20131128173853.GV4137@linux.vnet.ibm.com>
+ <20131128180318.GE16203@mudshark.cambridge.arm.com>
+ <20131128182712.GW4137@linux.vnet.ibm.com>
+ <20131128185341.GG16203@mudshark.cambridge.arm.com>
+ <20131128195039.GX4137@linux.vnet.ibm.com>
+ <20131129161711.GG31000@mudshark.cambridge.arm.com>
+ <CA+55aFwHgnH4h0YwybThQjvicFCVbGbwaAy3Fw0b738gJMtqBA@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/24] mm: Use memblock interface instead of bootmem
-References: <1383954120-24368-1-git-send-email-santosh.shilimkar@ti.com>
-In-Reply-To: <1383954120-24368-1-git-send-email-santosh.shilimkar@ti.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFwHgnH4h0YwybThQjvicFCVbGbwaAy3Fw0b738gJMtqBA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tj@kernel.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Santosh Shilimkar <santosh.shilimkar@ti.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Yinghai Lu <yinghai@kernel.org>, "H.
- Peter Anvin" <hpa@zytor.com>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Nicolas Pitre <nicolas.pitre@linaro.org>, Olof Johansson <olof@lixom.net>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, "Figo. zhang" <figo1802@gmail.com>, Aswin Chandramouleeswaran <aswin@hp.com>, Rik van Riel <riel@redhat.com>, Waiman Long <waiman.long@hp.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>, George Spelvin <linux@horizon.com>, Tim Chen <tim.c.chen@linux.intel.com>, Michel Lespinasse <walken@google.com>, Ingo Molnar <mingo@elte.hu>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Hurley <peter@hurleysoftware.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Alex Shi <alex.shi@linaro.org>, Andrea Arcangeli <aarcange@redhat.com>, Scott J Norton <scott.norton@hp.com>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <peterz@infradead.org>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>
 
-Tejun, Andrew,
-
-On Friday 08 November 2013 06:41 PM, Santosh Shilimkar wrote:
-> Tejun and others,
+On Fri, Nov 29, 2013 at 04:44:41PM +0000, Linus Torvalds wrote:
 > 
-> Following up with the earlier RFC [1] comments, here is the updated
-> patch series based on the discussion. This series is the last bottleneck
-> now for me to enable the coherency on keystone ARM LPAE architecture on which
-> the physical memory starts after 4BG. I would like to get these patches
-> in next merge window(3.14), so any help in terms of testing/comments is
-> appreciated.
+> On Nov 29, 2013 8:18 AM, "Will Deacon"
+> <will.deacon@arm.com<mailto:will.deacon@arm.com>> wrote:
+> >
+> >  To get some sort of idea, I tried adding a dmb to the start of
+> >  spin_unlock on ARMv7 and I saw a 3% performance hit in hackbench on my
+> >  dual-cluster board.
 > 
-Now since the 3.13-rc1 is out, it will be best to apply these patches 
-on memblock tree so that they start appearing in next to catch any
-regressions, issues etc. It will give us some time to fix any issues
-arises from next.
+> Don't do a dmb. Just do a dummy release. You just said that on arm64 a
+> unlock+lock is a memory barrier, so just make the mb__before_spinlock() be
+> a dummy store with release to the stack..
 
-For convenience, I have re-based the series on top of 3.13-rc1 and
-pushed it on below tree.
+Good idea! That should work quite nicely (I don't have anything sane I can
+benchmark it on), so I think that solves the issue I was moaning about.
 
-git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone.git
-for_3.14/memblock
-
-web-url:
-https://git.kernel.org/cgit/linux/kernel/git/ssantosh/linux-keystone.git/log/?h=for_3.14/memblock
-
-Can you please pull these in you tree and apply against your
-next branch ?
-
-Regards,
-Santosh		 
-
-
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
