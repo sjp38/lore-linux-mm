@@ -1,98 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 892D76B0035
-	for <linux-mm@kvack.org>; Fri, 29 Nov 2013 11:18:58 -0500 (EST)
-Received: by mail-we0-f174.google.com with SMTP id q58so9443131wes.19
-        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 08:18:57 -0800 (PST)
-Received: from cam-admin0.cambridge.arm.com (cam-admin0.cambridge.arm.com. [217.140.96.50])
-        by mx.google.com with ESMTP id nj8si14530103wic.73.2013.11.29.08.18.57
-        for <linux-mm@kvack.org>;
-        Fri, 29 Nov 2013 08:18:57 -0800 (PST)
-Date: Fri, 29 Nov 2013 16:17:11 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
-Message-ID: <20131129161711.GG31000@mudshark.cambridge.arm.com>
-References: <CA+55aFyjisiM1eC53STpcKLky84n8JRz3Aagp-CQd_+3AOJhow@mail.gmail.com>
- <20131126225136.GG4137@linux.vnet.ibm.com>
- <20131127101613.GC9032@mudshark.cambridge.arm.com>
- <20131127171143.GN4137@linux.vnet.ibm.com>
- <20131128114058.GC21354@mudshark.cambridge.arm.com>
- <20131128173853.GV4137@linux.vnet.ibm.com>
- <20131128180318.GE16203@mudshark.cambridge.arm.com>
- <20131128182712.GW4137@linux.vnet.ibm.com>
- <20131128185341.GG16203@mudshark.cambridge.arm.com>
- <20131128195039.GX4137@linux.vnet.ibm.com>
+Received: from mail-vb0-f52.google.com (mail-vb0-f52.google.com [209.85.212.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A4486B0035
+	for <linux-mm@kvack.org>; Fri, 29 Nov 2013 11:44:43 -0500 (EST)
+Received: by mail-vb0-f52.google.com with SMTP id f13so6953873vbg.11
+        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 08:44:43 -0800 (PST)
+Received: from mail-vb0-x22b.google.com (mail-vb0-x22b.google.com [2607:f8b0:400c:c02::22b])
+        by mx.google.com with ESMTPS id f20si25053868vcs.67.2013.11.29.08.44.42
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 29 Nov 2013 08:44:42 -0800 (PST)
+Received: by mail-vb0-f43.google.com with SMTP id q12so6834276vbe.16
+        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 08:44:42 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131128195039.GX4137@linux.vnet.ibm.com>
+In-Reply-To: <20131129161711.GG31000@mudshark.cambridge.arm.com>
+References: <CA+55aFyjisiM1eC53STpcKLky84n8JRz3Aagp-CQd_+3AOJhow@mail.gmail.com>
+	<20131126225136.GG4137@linux.vnet.ibm.com>
+	<20131127101613.GC9032@mudshark.cambridge.arm.com>
+	<20131127171143.GN4137@linux.vnet.ibm.com>
+	<20131128114058.GC21354@mudshark.cambridge.arm.com>
+	<20131128173853.GV4137@linux.vnet.ibm.com>
+	<20131128180318.GE16203@mudshark.cambridge.arm.com>
+	<20131128182712.GW4137@linux.vnet.ibm.com>
+	<20131128185341.GG16203@mudshark.cambridge.arm.com>
+	<20131128195039.GX4137@linux.vnet.ibm.com>
+	<20131129161711.GG31000@mudshark.cambridge.arm.com>
+Date: Fri, 29 Nov 2013 08:44:41 -0800
+Message-ID: <CA+55aFwHgnH4h0YwybThQjvicFCVbGbwaAy3Fw0b738gJMtqBA@mail.gmail.com>
+Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: multipart/alternative; boundary=001a11c3b1b0ff437704ec538b9e
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Arnd Bergmann <arnd@arndb.de>, "Figo. zhang" <figo1802@gmail.com>, Aswin Chandramouleeswaran <aswin@hp.com>, Rik van Riel <riel@redhat.com>, Waiman Long <waiman.long@hp.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>, George Spelvin <linux@horizon.com>, Tim Chen <tim.c.chen@linux.intel.com>, Michel Lespinasse <walken@google.com>, Ingo Molnar <mingo@elte.hu>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Hurley <peter@hurleysoftware.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Alex Shi <alex.shi@linaro.org>, Andrea Arcangeli <aarcange@redhat.com>, Scott J Norton <scott.norton@hp.com>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <peterz@infradead.org>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>
 
-On Thu, Nov 28, 2013 at 07:50:40PM +0000, Paul E. McKenney wrote:
-> On Thu, Nov 28, 2013 at 06:53:41PM +0000, Will Deacon wrote:
-> > Ok, so that then means that:
-> > 
-> > 	mb__before_spinlock();
-> > 	spin_lock();
-> > 
-> > on ARM64 expands to:
-> > 
-> > 	dmb	ish
-> > 	ldaxr	...
-> > 
-> > so there's a redundant half-barrier there. If we want to get rid of that, we
-> > need mb__before_spinlock() to set a flag, then we could conditionalise
-> > ldaxr/ldxr but it's really horrible and you have to deal with interrupts
-> > etc. so in reality we just end up having extra barriers.
-> 
-> Given that there was just a dmb, how much does the ish &c really hurt?
-> Would the performance difference be measurable at the system level?
+--001a11c3b1b0ff437704ec538b9e
+Content-Type: text/plain; charset=UTF-8
 
-There's no definitive answer, as it depends heavily on a combination of the
-microarchitecture and specific platform implementation. To get some sort of
-idea, I tried adding a dmb to the start of spin_unlock on ARMv7 and I saw a
-3% performance hit in hackbench on my dual-cluster board.
+On Nov 29, 2013 8:18 AM, "Will Deacon" <will.deacon@arm.com> wrote:
+>
+>  To get some sort of
+> idea, I tried adding a dmb to the start of spin_unlock on ARMv7 and I saw
+a
+> 3% performance hit in hackbench on my dual-cluster board.
 
-Whether or not that's a big deal, I'm not sure, especially given that this
-should be rare.
+Don't do a dmb. Just do a dummy release. You just said that on arm64 a
+unlock+lock is a memory barrier, so just make the mb__before_spinlock() be
+a dummy store with release to the stack..
 
-> > Or we have separate a spin_lock_mb() function.
-> 
-> And mutex_lock_mb().  And spin_lock_irqsave_mb().  And spin_lock_irq_mb().
-> And...
+That should be noticeably cheaper than a full dmb.
 
-Ok, point taken.
+       Linus
 
-> Admittedly this is not yet a problem given the current very low usage
-> of smp_mb__before_spinlock(), but the potential for API explosion is
-> non-trivial.
-> 
-> That said, if the effect on ARM64 is measurable at the system level, I
-> won't stand in the way of the additional APIs.
-> 
-> > > o	mb_after_spinlock():
-> > > 
-> > > 	o	Must appear immediatly after a lock acquisition.
-> > > 	o	Upgrades an unlock+lock pair to a full barrier.
-> > > 	o	Emits a no-op on ARM64, as in "do { } while (0)".
-> > > 	o	Might need a separate flavor for queued locks on
-> > > 		some platforms, but no sign of that yet.
-> > 
-> > Ok, so mb__after_spinlock() doesn't imply a full barrier but
-> > mb__before_spinlock() does? I think people will get that wrong :)
-> 
-> As I said earlier in the thread, I am open to better names.
-> 
-> How about smp_mb__after_spin_unlock_lock_pair()?  That said, I am sure that
-> I could come up with something longer given enough time.  ;-)
+--001a11c3b1b0ff437704ec538b9e
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-Ha! Well, I think the principles are sound, but the naming is key to making
-sure that this interface is used correctly.
+<p dir=3D"ltr"><br>
+On Nov 29, 2013 8:18 AM, &quot;Will Deacon&quot; &lt;<a href=3D"mailto:will=
+.deacon@arm.com">will.deacon@arm.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt;=C2=A0 To get some sort of<br>
+&gt; idea, I tried adding a dmb to the start of spin_unlock on ARMv7 and I =
+saw a<br>
+&gt; 3% performance hit in hackbench on my dual-cluster board.</p>
+<p dir=3D"ltr">Don&#39;t do a dmb. Just do a dummy release. You just said t=
+hat on arm64 a unlock+lock is a memory barrier, so just make the mb__before=
+_spinlock() be a dummy store with release to the stack..</p>
+<p dir=3D"ltr">That should be noticeably cheaper than a full dmb. </p>
+<p dir=3D"ltr">=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 Linus</p>
 
-Will
+--001a11c3b1b0ff437704ec538b9e--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
