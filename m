@@ -1,76 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vb0-f52.google.com (mail-vb0-f52.google.com [209.85.212.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A4486B0035
-	for <linux-mm@kvack.org>; Fri, 29 Nov 2013 11:44:43 -0500 (EST)
-Received: by mail-vb0-f52.google.com with SMTP id f13so6953873vbg.11
-        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 08:44:43 -0800 (PST)
-Received: from mail-vb0-x22b.google.com (mail-vb0-x22b.google.com [2607:f8b0:400c:c02::22b])
-        by mx.google.com with ESMTPS id f20si25053868vcs.67.2013.11.29.08.44.42
+Received: from mail-yh0-f51.google.com (mail-yh0-f51.google.com [209.85.213.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A1066B0035
+	for <linux-mm@kvack.org>; Fri, 29 Nov 2013 11:50:59 -0500 (EST)
+Received: by mail-yh0-f51.google.com with SMTP id c41so5364325yho.38
+        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 08:50:59 -0800 (PST)
+Received: from comal.ext.ti.com (comal.ext.ti.com. [198.47.26.152])
+        by mx.google.com with ESMTPS id v3si3086573yhd.163.2013.11.29.08.50.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 29 Nov 2013 08:44:42 -0800 (PST)
-Received: by mail-vb0-f43.google.com with SMTP id q12so6834276vbe.16
-        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 08:44:42 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 29 Nov 2013 08:50:58 -0800 (PST)
+Message-ID: <5298C5C2.60008@ti.com>
+Date: Fri, 29 Nov 2013 11:50:10 -0500
+From: Santosh Shilimkar <santosh.shilimkar@ti.com>
 MIME-Version: 1.0
-In-Reply-To: <20131129161711.GG31000@mudshark.cambridge.arm.com>
-References: <CA+55aFyjisiM1eC53STpcKLky84n8JRz3Aagp-CQd_+3AOJhow@mail.gmail.com>
-	<20131126225136.GG4137@linux.vnet.ibm.com>
-	<20131127101613.GC9032@mudshark.cambridge.arm.com>
-	<20131127171143.GN4137@linux.vnet.ibm.com>
-	<20131128114058.GC21354@mudshark.cambridge.arm.com>
-	<20131128173853.GV4137@linux.vnet.ibm.com>
-	<20131128180318.GE16203@mudshark.cambridge.arm.com>
-	<20131128182712.GW4137@linux.vnet.ibm.com>
-	<20131128185341.GG16203@mudshark.cambridge.arm.com>
-	<20131128195039.GX4137@linux.vnet.ibm.com>
-	<20131129161711.GG31000@mudshark.cambridge.arm.com>
-Date: Fri, 29 Nov 2013 08:44:41 -0800
-Message-ID: <CA+55aFwHgnH4h0YwybThQjvicFCVbGbwaAy3Fw0b738gJMtqBA@mail.gmail.com>
-Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: multipart/alternative; boundary=001a11c3b1b0ff437704ec538b9e
+Subject: Re: [PATCH 00/24] mm: Use memblock interface instead of bootmem
+References: <1383954120-24368-1-git-send-email-santosh.shilimkar@ti.com>
+In-Reply-To: <1383954120-24368-1-git-send-email-santosh.shilimkar@ti.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, "Figo. zhang" <figo1802@gmail.com>, Aswin Chandramouleeswaran <aswin@hp.com>, Rik van Riel <riel@redhat.com>, Waiman Long <waiman.long@hp.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>, George Spelvin <linux@horizon.com>, Tim Chen <tim.c.chen@linux.intel.com>, Michel Lespinasse <walken@google.com>, Ingo Molnar <mingo@elte.hu>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Hurley <peter@hurleysoftware.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Alex Shi <alex.shi@linaro.org>, Andrea Arcangeli <aarcange@redhat.com>, Scott J Norton <scott.norton@hp.com>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <peterz@infradead.org>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>
+To: tj@kernel.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Santosh Shilimkar <santosh.shilimkar@ti.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Yinghai Lu <yinghai@kernel.org>, "H.
+ Peter Anvin" <hpa@zytor.com>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Nicolas Pitre <nicolas.pitre@linaro.org>, Olof Johansson <olof@lixom.net>
 
---001a11c3b1b0ff437704ec538b9e
-Content-Type: text/plain; charset=UTF-8
+Tejun, Andrew,
 
-On Nov 29, 2013 8:18 AM, "Will Deacon" <will.deacon@arm.com> wrote:
->
->  To get some sort of
-> idea, I tried adding a dmb to the start of spin_unlock on ARMv7 and I saw
-a
-> 3% performance hit in hackbench on my dual-cluster board.
+On Friday 08 November 2013 06:41 PM, Santosh Shilimkar wrote:
+> Tejun and others,
+> 
+> Following up with the earlier RFC [1] comments, here is the updated
+> patch series based on the discussion. This series is the last bottleneck
+> now for me to enable the coherency on keystone ARM LPAE architecture on which
+> the physical memory starts after 4BG. I would like to get these patches
+> in next merge window(3.14), so any help in terms of testing/comments is
+> appreciated.
+> 
+Now since the 3.13-rc1 is out, it will be best to apply these patches 
+on memblock tree so that they start appearing in next to catch any
+regressions, issues etc. It will give us some time to fix any issues
+arises from next.
 
-Don't do a dmb. Just do a dummy release. You just said that on arm64 a
-unlock+lock is a memory barrier, so just make the mb__before_spinlock() be
-a dummy store with release to the stack..
+For convenience, I have re-based the series on top of 3.13-rc1 and
+pushed it on below tree.
 
-That should be noticeably cheaper than a full dmb.
+git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone.git
+for_3.14/memblock
 
-       Linus
+web-url:
+https://git.kernel.org/cgit/linux/kernel/git/ssantosh/linux-keystone.git/log/?h=for_3.14/memblock
 
---001a11c3b1b0ff437704ec538b9e
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Can you please pull these in you tree and apply against your
+next branch ?
 
-<p dir=3D"ltr"><br>
-On Nov 29, 2013 8:18 AM, &quot;Will Deacon&quot; &lt;<a href=3D"mailto:will=
-.deacon@arm.com">will.deacon@arm.com</a>&gt; wrote:<br>
-&gt;<br>
-&gt;=C2=A0 To get some sort of<br>
-&gt; idea, I tried adding a dmb to the start of spin_unlock on ARMv7 and I =
-saw a<br>
-&gt; 3% performance hit in hackbench on my dual-cluster board.</p>
-<p dir=3D"ltr">Don&#39;t do a dmb. Just do a dummy release. You just said t=
-hat on arm64 a unlock+lock is a memory barrier, so just make the mb__before=
-_spinlock() be a dummy store with release to the stack..</p>
-<p dir=3D"ltr">That should be noticeably cheaper than a full dmb. </p>
-<p dir=3D"ltr">=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 Linus</p>
+Regards,
+Santosh		 
 
---001a11c3b1b0ff437704ec538b9e--
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
