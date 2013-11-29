@@ -1,71 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 42D976B0036
-	for <linux-mm@kvack.org>; Fri, 29 Nov 2013 04:45:52 -0500 (EST)
-Received: by mail-we0-f179.google.com with SMTP id q59so8964112wes.24
-        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 01:45:51 -0800 (PST)
-Received: from mail-ea0-x236.google.com (mail-ea0-x236.google.com [2a00:1450:4013:c01::236])
-        by mx.google.com with ESMTPS id h8si13942074wix.18.2013.11.29.01.45.51
+Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 05B846B0035
+	for <linux-mm@kvack.org>; Fri, 29 Nov 2013 05:09:34 -0500 (EST)
+Received: by mail-la0-f49.google.com with SMTP id er20so6503506lab.8
+        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 02:09:33 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id ji2si22165971lbc.126.2013.11.29.02.09.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 29 Nov 2013 01:45:51 -0800 (PST)
-Received: by mail-ea0-f182.google.com with SMTP id o10so8788853eaj.41
-        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 01:45:51 -0800 (PST)
-Date: Fri, 29 Nov 2013 10:45:49 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: make memcg_update_cache_sizes() static
-Message-ID: <20131129094549.GE25893@dhcp22.suse.cz>
-References: <1385567162-14973-1-git-send-email-vdavydov@parallels.com>
- <1385567162-14973-2-git-send-email-vdavydov@parallels.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 29 Nov 2013 02:09:33 -0800 (PST)
+Message-ID: <529867CE.4040004@parallels.com>
+Date: Fri, 29 Nov 2013 14:09:18 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1385567162-14973-2-git-send-email-vdavydov@parallels.com>
+Subject: Re: [PATCH] memcg: fix kmem_account_flags check in memcg_can_account_kmem()
+References: <1385567162-14973-1-git-send-email-vdavydov@parallels.com> <20131129094502.GD25893@dhcp22.suse.cz>
+In-Reply-To: <20131129094502.GD25893@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
+To: Michal Hocko <mhocko@suse.cz>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Wed 27-11-13 19:46:02, Vladimir Davydov wrote:
-> This function is not used outside of memcontrol.c so make it static.
-> 
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: Balbir Singh <bsingharora@gmail.com>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On 11/29/2013 01:45 PM, Michal Hocko wrote:
+> On Wed 27-11-13 19:46:01, Vladimir Davydov wrote:
+>> We should start kmem accounting for a memory cgroup only after both its
+>> kmem limit is set (KMEM_ACCOUNTED_ACTIVE) and related call sites are
+>> patched (KMEM_ACCOUNTED_ACTIVATED).
+> This should be vice-versa, no? ACTIVE is set after
+> static_key_slow_inc(&memcg_kmem_enabled_key) AFAICS.
+>
+>> Currently memcg_can_account_kmem() allows kmem accounting even if only
+>> one of the conditions is true.
+>> Fix it.
+> It would be nice to describe, what is the actual problem here. I assume
+> this is a charge vs. enable race. Let me try
+>
+> So we have KMEM_ACCOUNTED_ACTIVATED (set by memcg_update_cache_sizes)
+> but the static key is not enabled yet (so KMEM_ACCOUNTED_ACTIVE is not
+> set yet). memcg_can_account_kmem is called from 2 contexts during charge
+> 	- memcg_kmem_get_cache via __memcg_kmem_get_cache
+> 	- memcg_kmem_newpage_charge via __memcg_kmem_newpage_charge
+>
+> both of them start by checking memcg_kmem_enabled which is our
+> static key before memcg_can_account_kmem. This would suggest that
+> static_key+ACTIVE check memcg_can_account_kmem is sufficient. No?
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Yes, I guess you're perfectly right and we don't need the ACTIVATED bit 
+at all. I'll look at this deeper and send a patch removing it if it 
+doesn't break something.
 
-> ---
->  mm/memcontrol.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 40efb9d..b20b915 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3084,7 +3084,7 @@ int memcg_cache_id(struct mem_cgroup *memcg)
->   * But when we create a new cache, we can call this as well if its parent
->   * is kmem-limited. That will have to hold set_limit_mutex as well.
->   */
-> -int memcg_update_cache_sizes(struct mem_cgroup *memcg)
-> +static int memcg_update_cache_sizes(struct mem_cgroup *memcg)
->  {
->  	int num, ret;
->  
-> -- 
-> 1.7.10.4
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
