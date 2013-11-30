@@ -1,90 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f52.google.com (mail-yh0-f52.google.com [209.85.213.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B0F846B0035
-	for <linux-mm@kvack.org>; Fri, 29 Nov 2013 19:00:21 -0500 (EST)
-Received: by mail-yh0-f52.google.com with SMTP id i72so7152786yha.11
-        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 16:00:21 -0800 (PST)
-Received: from mail-yh0-x233.google.com (mail-yh0-x233.google.com [2607:f8b0:4002:c01::233])
-        by mx.google.com with ESMTPS id x27si37953868yhk.136.2013.11.29.16.00.15
+Received: from mail-yh0-f45.google.com (mail-yh0-f45.google.com [209.85.213.45])
+	by kanga.kvack.org (Postfix) with ESMTP id B2C546B0035
+	for <linux-mm@kvack.org>; Fri, 29 Nov 2013 19:05:07 -0500 (EST)
+Received: by mail-yh0-f45.google.com with SMTP id v1so6207947yhn.32
+        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 16:05:07 -0800 (PST)
+Received: from mail-yh0-x231.google.com (mail-yh0-x231.google.com [2607:f8b0:4002:c01::231])
+        by mx.google.com with ESMTPS id y62si37861744yhc.169.2013.11.29.16.05.06
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 29 Nov 2013 16:00:15 -0800 (PST)
-Received: by mail-yh0-f51.google.com with SMTP id c41so5573160yho.24
-        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 16:00:15 -0800 (PST)
-Date: Fri, 29 Nov 2013 16:00:09 -0800 (PST)
+        Fri, 29 Nov 2013 16:05:06 -0800 (PST)
+Received: by mail-yh0-f49.google.com with SMTP id z20so7001178yhz.22
+        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 16:05:06 -0800 (PST)
+Date: Fri, 29 Nov 2013 16:05:04 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
 Subject: Re: [merged] mm-memcg-handle-non-error-oom-situations-more-gracefully.patch
  removed from -mm tree
-In-Reply-To: <20131128035218.GM3556@cmpxchg.org>
-Message-ID: <alpine.DEB.2.02.1311291546370.22413@chino.kir.corp.google.com>
+In-Reply-To: <20131128100213.GE2761@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.02.1311291600290.22413@chino.kir.corp.google.com>
 References: <526028bd.k5qPj2+MDOK1o6ii%akpm@linux-foundation.org> <alpine.DEB.2.02.1311271453270.13682@chino.kir.corp.google.com> <20131127233353.GH3556@cmpxchg.org> <alpine.DEB.2.02.1311271622330.10617@chino.kir.corp.google.com> <20131128021809.GI3556@cmpxchg.org>
- <alpine.DEB.2.02.1311271826001.5120@chino.kir.corp.google.com> <20131128031313.GK3556@cmpxchg.org> <alpine.DEB.2.02.1311271914460.5120@chino.kir.corp.google.com> <20131128035218.GM3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311271826001.5120@chino.kir.corp.google.com> <20131128031313.GK3556@cmpxchg.org> <alpine.DEB.2.02.1311271914460.5120@chino.kir.corp.google.com> <20131128100213.GE2761@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, azurit@pobox.sk, mm-commits@vger.kernel.org, stable@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, azurit@pobox.sk, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 27 Nov 2013, Johannes Weiner wrote:
+On Thu, 28 Nov 2013, Michal Hocko wrote:
 
-> > None that I am currently aware of, I'll continue to try them out.  I'd 
-> > suggest just dropping the stable@kernel.org from the whole series though 
-> > unless there is another report of such a problem that people are running 
-> > into.
+> > None that I am currently aware of,
 > 
-> The series has long been merged, how do we drop stable@kernel.org from
-> it?
+> Are you saing that scenarios described in 3812c8c8f395 (mm: memcg: do not
+> trap chargers with full callstack on OOM) are not real or that _you_
+> haven't seen an issue like that?
+> 
+> The later doesn't seem to be so relevant as we had at least one user who
+> has seen those in the real life.
 > 
 
-You said you have informed stable to not merge these patches until further 
-notice, I'd suggest simply avoid ever merging the whole series into a 
-stable kernel since the problem isn't serious enough.  Marking changes 
-that do "goto nomem" seem fine to mark for stable, though.
+I said I'm not currently aware of any additional problems with the 
+patchset, but since Johannes said the entire series wasn't meant for that 
+merge window, I asked if it was still being worked on.
 
-> > We've had this patch internally since we started using memcg, it has 
-> > avoided some unnecessary oom killing.
+> > You don't think something like this is helpful after scanning a memcg will 
+> > a large number of processes?
 > 
-> Do you have quantified data that OOM kills are reduced over a longer
-> sampling period?  How many kills are skipped?  How many of them are
-> deferred temporarily but the VM ended up having to kill something
-> anyway?
+> It looks as a one-shot workaround for short lived processes to me.
 
-On the scale that we run memcg, we would see it daily in automated testing 
-primarily because we panic the machine for memcg oom conditions where 
-there are no killable processes.  It would typically manifest by two 
-processes that are allocating memory in a memcg; one is oom killed, is 
-allowed to allocate, handles its SIGKILL, exits and frees its memory and 
-the second process which is oom disabled races with the uncharge and is 
-oom disabled so the machine panics.
-
-The upstream kernel of course doesn't panic in such a condition but if the 
-same scenario were to have happened, the second process would be 
-unnecessarily oom killed because it raced with the uncharge of the first 
-victim and it had exited before the scan of processes in the memcg oom 
-killer could detect it and defer.  So this patch definitely does prevent 
-unnecessary oom killing when run at such a large scale that we do.
-
-I'll send a formal patch.
-
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -1836,6 +1836,13 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
-> >  	if (!chosen)
-> >  		return;
-> >  	points = chosen_points * 1000 / totalpages;
-> > +
-> > +	/* One last chance to see if we really need to kill something */
-> > +	if (mem_cgroup_margin(memcg) >= (1 << order)) {
-> > +		put_task_struct(chosen);
-> > +		return;
-> > +	}
-> > +
-> >  	oom_kill_process(chosen, gfp_mask, order, points, totalpages, memcg,
-> >  			 NULL, "Memory cgroup out of memory");
-> >  }
-> 
+It has nothing to do with how long a process has been running, both racing 
+processes could have been running for years.  It's obvious that even this 
+patch before calling oom_kill_process() does not catch a racing process 
+that has already freed its memory and is exiting but it makes the 
+liklihood significantly less in testing at scale.  It's simply better to 
+avoid unnecessary oom killing at anytime possible and this is not a 
+hotpath.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
