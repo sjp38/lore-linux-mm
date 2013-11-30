@@ -1,115 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id A98686B0035
-	for <linux-mm@kvack.org>; Sat, 30 Nov 2013 06:42:25 -0500 (EST)
-Received: by mail-wi0-f180.google.com with SMTP id hm4so2969347wib.13
-        for <linux-mm@kvack.org>; Sat, 30 Nov 2013 03:42:24 -0800 (PST)
-Received: from smtp2.it.da.ut.ee (smtp2.it.da.ut.ee. [2001:bb8:2002:500:20f:1fff:fe04:1bbb])
-        by mx.google.com with ESMTP id en5si8580419wib.10.2013.11.30.03.42.24
-        for <linux-mm@kvack.org>;
-        Sat, 30 Nov 2013 03:42:24 -0800 (PST)
-Date: Sat, 30 Nov 2013 13:42:23 +0200 (EET)
-From: Meelis Roos <mroos@linux.ee>
-Subject: Slab BUG with DEBUG_* options
-Message-ID: <alpine.SOC.1.00.1311300125490.6363@math.ut.ee>
+Received: from mail-bk0-f46.google.com (mail-bk0-f46.google.com [209.85.214.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 10CFD6B0035
+	for <linux-mm@kvack.org>; Sat, 30 Nov 2013 10:55:51 -0500 (EST)
+Received: by mail-bk0-f46.google.com with SMTP id u15so4678253bkz.19
+        for <linux-mm@kvack.org>; Sat, 30 Nov 2013 07:55:51 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id j3si16849119bki.133.2013.11.30.07.55.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sat, 30 Nov 2013 07:55:50 -0800 (PST)
+Date: Sat, 30 Nov 2013 10:55:42 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [merged]
+ mm-memcg-handle-non-error-oom-situations-more-gracefully.patch removed from
+ -mm tree
+Message-ID: <20131130155542.GO3556@cmpxchg.org>
+References: <20131127233353.GH3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311271622330.10617@chino.kir.corp.google.com>
+ <20131128021809.GI3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311271826001.5120@chino.kir.corp.google.com>
+ <20131128031313.GK3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311271914460.5120@chino.kir.corp.google.com>
+ <20131128035218.GM3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311291546370.22413@chino.kir.corp.google.com>
+ <20131130033536.GL22729@cmpxchg.org>
+ <alpine.DEB.2.02.1311300226070.29602@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1311300226070.29602@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>
-Cc: Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, azurit@pobox.sk, mm-commits@vger.kernel.org, stable@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-I am debugging a reboot problem on Sun Ultra 5 (sparc64) with 512M RAM 
-and turned on DEBUG_PAGEALLOC DEBUG_SLAB and DEBUG_SLAB_LEAK (and most 
-other debug options) and got the following BUG and hang on startup. This 
-happened originally with 3.11-rc2-00058 where my bisection of 
-another problem lead, but I retested 3.12 to have the same BUG in the 
-same place.
+On Sat, Nov 30, 2013 at 02:32:43AM -0800, David Rientjes wrote:
+> On Fri, 29 Nov 2013, Johannes Weiner wrote:
+> 
+> > > You said you have informed stable to not merge these patches until further 
+> > > notice, I'd suggest simply avoid ever merging the whole series into a 
+> > > stable kernel since the problem isn't serious enough.  Marking changes 
+> > > that do "goto nomem" seem fine to mark for stable, though.
+> > 
+> > These are followup fixes for the series that is upstream but didn't go
+> > to stable.  I truly have no idea what you are talking about.
+> > 
+> 
+> I'm responding to your comments[*] that indicate you were going to 
+> eventually be sending it to stable.
+> 
+> > > On the scale that we run memcg, we would see it daily in automated testing 
+> > > primarily because we panic the machine for memcg oom conditions where 
+> > > there are no killable processes.  It would typically manifest by two 
+> > > processes that are allocating memory in a memcg; one is oom killed, is 
+> > > allowed to allocate, handles its SIGKILL, exits and frees its memory and 
+> > > the second process which is oom disabled races with the uncharge and is 
+> > > oom disabled so the machine panics.
+> > 
+> > So why don't you implement proper synchronization instead of putting
+> > these random checks all over the map to make the race window just
+> > small enough to not matter most of the time?
+> > 
+> 
+> The oom killer can be quite expensive, so we have found that is 
+> advantageous after doing all that work that the memcg is still oom for 
+> the charge order before needlessly killing a process.  I am not suggesting 
+> that we add synchronization to the uncharge path for such a race, but 
+> merely a simple check as illustrated as due diligence.  I think a simple 
+> conditional in the oom killer to avoid needlessly killing a user job is 
+> beneficial and avoids questions from customers who have a kernel log 
+> showing an oom kill occurring in a memcg that is not oom.  We could even 
+> do the check in oom_kill_process() after dump_header() if you want to 
+> reduce any chance of that to avoid getting bug reports about such cases.
 
-kernel BUG at mm/slab.c:2391!
-              \|/ ____ \|/
-              "@'/ .. \`@"
-              /_| \__/ |_\
-                 \__U_/
-swapper(0): Kernel bad sw trap 5 [#1]
-CPU: 0 PID: 0 Comm: swapper Not tainted 3.11.0-rc2-00058-g20bafb3-dirty #127
-task: 00000000008ac468 ti: 000000000089c000 task.ti: 000000000089c000
-TSTATE: 0000004480e01606 TPC: 00000000004f57d4 TNPC: 00000000004f57d8 Y: 00000000    Not tainted
-TPC: <__kmem_cache_create+0x374/0x480>
-g0: 00000000000000f8 g1: 00000000008bb400 g2: 000000000002780b g3: 00000000008b5120
-g4: 00000000008ac468 g5: 0000000000000000 g6: 000000000089c000 g7: 0000000000000000
-o0: 0000000000845f08 o1: 0000000000000957 o2: ffffffffffffffe0 o3: 0000000000000000
-o4: 0000000000002004 o5: 0000000000000000 sp: 000000000089f301 ret_pc: 00000000004f57cc
-RPC: <__kmem_cache_create+0x36c/0x480>
-l0: fffff8001e812040 l1: fffff8001e819f80 l2: fffff8001e819fb8 l3: fffff8001e819fd8
-l4: 0000000000000001 l5: fffff8001e819fc8 l6: 0000000000845f08 l7: fffff8001e8300a0
-i0: fffff8001e831fa0 i1: 0000000080002800 i2: 0000000080000000 i3: 0000000000000034
-i4: 0000000000000000 i5: 0000000000002000 i6: 000000000089f3b1 i7: 0000000000907464
-I7: <create_boot_cache+0x4c/0x84>
-Call Trace:
- [0000000000907464] create_boot_cache+0x4c/0x84
- [00000000009074d0] create_kmalloc_cache+0x34/0x60
- [0000000000907540] create_kmalloc_caches+0x44/0x168
- [0000000000908dfc] kmem_cache_init+0x1d0/0x1e0
- [00000000008fc658] start_kernel+0x18c/0x370
- [0000000000761df4] tlb_fixup_done+0x88/0x94
- [0000000000000000]           (null)
-Disabling lock debugging due to kernel taint
-Caller[0000000000907464]: create_boot_cache+0x4c/0x84
-Caller[00000000009074d0]: create_kmalloc_cache+0x34/0x60
-Caller[0000000000907540]: create_kmalloc_caches+0x44/0x168
-Caller[0000000000908dfc]: kmem_cache_init+0x1d0/0x1e0
-Caller[00000000008fc658]: start_kernel+0x18c/0x370
-Caller[0000000000761df4]: tlb_fixup_done+0x88/0x94
-Caller[0000000000000000]:           (null)
-Instruction DUMP: 92102957  7ffccb35  90122308 <91d02005> 90100018  4009b371  920f20d0  ba922000  02480006 
-Kernel panic - not syncing: Attempted to kill the idle task!
-Press Stop-A (L1-A) to return to the boot prom
+I asked about quantified data of this last-minute check, you replied
+with a race condition between an OOM kill victim and a subsequent OOM
+kill invocation.
 
-The line shows that __kmem_cache_create gets a NULL from kmalloc_slab().
+> > If you are really bothered by this race, then please have OOM kill
+> > invocations wait for any outstanding TIF_MEMDIE tasks in the same
+> > context.
+> > 
+> 
+> The oom killer requires a tasklist scan, or an iteration over the set of 
+> processes attached to the memcg for the memcg case, to find a victim.  It 
+> already defers if it finds eligible threads with TIF_MEMDIE set.
 
-I instrumented the code and found the following:
+And now you say that this race does not really exist and repeat the
+same ramblings about last-minute checks to avoid unnecessary kills
+again.  And again without any supporting data that I already asked
+for.
 
-__kmem_cache_create: starting, size=248, flags=8192
-__kmem_cache_create: now flags=76800
-__kmem_cache_create: aligned size to 248 because of redzoning
-__kmem_cache_create: pagealloc debug, setting size to 8192
-__kmem_cache_create: aligned size to 8192
-__kmem_cache_create: num=1, slab_size=64
-__kmem_cache_create: starting, size=96, flags=8192
-__kmem_cache_create: now flags=76800
-__kmem_cache_create: aligned size to 96 because of redzoning
-__kmem_cache_create: pagealloc debug, setting size to 8192
-__kmem_cache_create: aligned size to 8192
-__kmem_cache_create: num=1, slab_size=64
-__kmem_cache_create: starting, size=192, flags=8192
-__kmem_cache_create: now flags=76800
-__kmem_cache_create: aligned size to 192 because of redzoning
-__kmem_cache_create: pagealloc debug, setting size to 8192
-__kmem_cache_create: aligned size to 8192
-__kmem_cache_create: num=1, slab_size=64
-__kmem_cache_create: starting, size=32, flags=8192
-__kmem_cache_create: now flags=76800
-__kmem_cache_create: aligned size to 32 because of redzoning
-__kmem_cache_create: aligned size to 32
-__kmem_cache_create: num=226, slab_size=960
-__kmem_cache_create: starting, size=64, flags=8192
-__kmem_cache_create: now flags=76800
-__kmem_cache_create: aligned size to 64 because of redzoning
-__kmem_cache_create: pagealloc debug, setting size to 8192
-__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=8192
-__kmem_cache_create: aligned size to 8192
-__kmem_cache_create: num=1, slab_size=64
-__kmem_cache_create: CFLGS_OFF_SLAB, size=8192, slab_size=52
-__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+The more I talk to you, the less sense this all makes.  Why do you
+insist we merge this patch when you have apparently no idea why and
+how it works, and can't demonstrate that it works in the first place?
 
-With slab size 64, it turns on CFLGS_OFF_SLAB and off slab allocation 
-with this size fails. I do not know slab internals so I can not tell if 
-this just happens because of the debug paths, or is it a real problem 
-without the debug options too.
-
--- 
-Meelis Roos (mroos@linux.ee)
+I only followed you around in circles because I'm afraid that my
+shutting up would be interpreted as agreement again and Andrew would
+merge this anyway.  But this is unsustainable, the burden of proof
+should be on you, not me.  I'm going to stop replying until you
+provide the information I asked for.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
