@@ -1,59 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f45.google.com (mail-yh0-f45.google.com [209.85.213.45])
-	by kanga.kvack.org (Postfix) with ESMTP id B2C546B0035
-	for <linux-mm@kvack.org>; Fri, 29 Nov 2013 19:05:07 -0500 (EST)
-Received: by mail-yh0-f45.google.com with SMTP id v1so6207947yhn.32
-        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 16:05:07 -0800 (PST)
-Received: from mail-yh0-x231.google.com (mail-yh0-x231.google.com [2607:f8b0:4002:c01::231])
-        by mx.google.com with ESMTPS id y62si37861744yhc.169.2013.11.29.16.05.06
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 29 Nov 2013 16:05:06 -0800 (PST)
-Received: by mail-yh0-f49.google.com with SMTP id z20so7001178yhz.22
-        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 16:05:06 -0800 (PST)
-Date: Fri, 29 Nov 2013 16:05:04 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [merged] mm-memcg-handle-non-error-oom-situations-more-gracefully.patch
- removed from -mm tree
-In-Reply-To: <20131128100213.GE2761@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.02.1311291600290.22413@chino.kir.corp.google.com>
-References: <526028bd.k5qPj2+MDOK1o6ii%akpm@linux-foundation.org> <alpine.DEB.2.02.1311271453270.13682@chino.kir.corp.google.com> <20131127233353.GH3556@cmpxchg.org> <alpine.DEB.2.02.1311271622330.10617@chino.kir.corp.google.com> <20131128021809.GI3556@cmpxchg.org>
- <alpine.DEB.2.02.1311271826001.5120@chino.kir.corp.google.com> <20131128031313.GK3556@cmpxchg.org> <alpine.DEB.2.02.1311271914460.5120@chino.kir.corp.google.com> <20131128100213.GE2761@dhcp22.suse.cz>
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id CC8836B0035
+	for <linux-mm@kvack.org>; Fri, 29 Nov 2013 19:50:08 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id z10so14520523pdj.2
+        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 16:50:08 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id dk5si41035505pbc.106.2013.11.29.16.50.06
+        for <linux-mm@kvack.org>;
+        Fri, 29 Nov 2013 16:50:07 -0800 (PST)
+Date: Fri, 29 Nov 2013 16:51:00 -0800
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [merged]
+ mm-memcg-handle-non-error-oom-situations-more-gracefully.patch removed from
+ -mm tree
+Message-ID: <20131130005100.GA8387@kroah.com>
+References: <526028bd.k5qPj2+MDOK1o6ii%akpm@linux-foundation.org>
+ <alpine.DEB.2.02.1311271453270.13682@chino.kir.corp.google.com>
+ <20131127233353.GH3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311271622330.10617@chino.kir.corp.google.com>
+ <20131128021809.GI3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311271826001.5120@chino.kir.corp.google.com>
+ <20131128031313.GK3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311271914460.5120@chino.kir.corp.google.com>
+ <20131128035218.GM3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311291546370.22413@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1311291546370.22413@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, azurit@pobox.sk, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, azurit@pobox.sk, mm-commits@vger.kernel.org, stable@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 28 Nov 2013, Michal Hocko wrote:
-
-> > None that I am currently aware of,
+On Fri, Nov 29, 2013 at 04:00:09PM -0800, David Rientjes wrote:
+> On Wed, 27 Nov 2013, Johannes Weiner wrote:
 > 
-> Are you saing that scenarios described in 3812c8c8f395 (mm: memcg: do not
-> trap chargers with full callstack on OOM) are not real or that _you_
-> haven't seen an issue like that?
+> > > None that I am currently aware of, I'll continue to try them out.  I'd 
+> > > suggest just dropping the stable@kernel.org from the whole series though 
+> > > unless there is another report of such a problem that people are running 
+> > > into.
+> > 
+> > The series has long been merged, how do we drop stable@kernel.org from
+> > it?
+> > 
 > 
-> The later doesn't seem to be so relevant as we had at least one user who
-> has seen those in the real life.
-> 
+> You said you have informed stable to not merge these patches until further 
+> notice, I'd suggest simply avoid ever merging the whole series into a 
+> stable kernel since the problem isn't serious enough.  Marking changes 
+> that do "goto nomem" seem fine to mark for stable, though.
 
-I said I'm not currently aware of any additional problems with the 
-patchset, but since Johannes said the entire series wasn't meant for that 
-merge window, I asked if it was still being worked on.
+I'm lost.  These patches are in 3.12, so how can they not be "in
+stable"?
 
-> > You don't think something like this is helpful after scanning a memcg will 
-> > a large number of processes?
-> 
-> It looks as a one-shot workaround for short lived processes to me.
+What exactly do you want me to do here?
 
-It has nothing to do with how long a process has been running, both racing 
-processes could have been running for years.  It's obvious that even this 
-patch before calling oom_kill_process() does not catch a racing process 
-that has already freed its memory and is exiting but it makes the 
-liklihood significantly less in testing at scale.  It's simply better to 
-avoid unnecessary oom killing at anytime possible and this is not a 
-hotpath.
+totally confused,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
