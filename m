@@ -1,68 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 536AF6B0035
-	for <linux-mm@kvack.org>; Sat, 30 Nov 2013 12:38:54 -0500 (EST)
-Received: by mail-qa0-f48.google.com with SMTP id w5so2883512qac.7
-        for <linux-mm@kvack.org>; Sat, 30 Nov 2013 09:38:54 -0800 (PST)
-Received: from e35.co.us.ibm.com (e35.co.us.ibm.com. [32.97.110.153])
-        by mx.google.com with ESMTPS id a4si11086786qar.172.2013.11.30.09.38.52
+Received: from mail-yh0-f54.google.com (mail-yh0-f54.google.com [209.85.213.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DEAF6B0035
+	for <linux-mm@kvack.org>; Sat, 30 Nov 2013 17:12:56 -0500 (EST)
+Received: by mail-yh0-f54.google.com with SMTP id z12so7636631yhz.41
+        for <linux-mm@kvack.org>; Sat, 30 Nov 2013 14:12:56 -0800 (PST)
+Received: from mail-yh0-x22b.google.com (mail-yh0-x22b.google.com [2607:f8b0:4002:c01::22b])
+        by mx.google.com with ESMTPS id y62si40989862yhc.219.2013.11.30.14.12.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 30 Nov 2013 09:38:53 -0800 (PST)
-Received: from /spool/local
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Sat, 30 Nov 2013 10:38:52 -0700
-Received: from b03cxnp08027.gho.boulder.ibm.com (b03cxnp08027.gho.boulder.ibm.com [9.17.130.19])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id B18241FF0021
-	for <linux-mm@kvack.org>; Sat, 30 Nov 2013 10:38:29 -0700 (MST)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by b03cxnp08027.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rAUFaxR341746476
-	for <linux-mm@kvack.org>; Sat, 30 Nov 2013 16:36:59 +0100
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id rAUHfkmN007016
-	for <linux-mm@kvack.org>; Sat, 30 Nov 2013 10:41:48 -0700
-Date: Sat, 30 Nov 2013 09:38:43 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
-Message-ID: <20131130173843.GZ4137@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20131127101613.GC9032@mudshark.cambridge.arm.com>
- <20131127171143.GN4137@linux.vnet.ibm.com>
- <20131128114058.GC21354@mudshark.cambridge.arm.com>
- <20131128173853.GV4137@linux.vnet.ibm.com>
- <20131128180318.GE16203@mudshark.cambridge.arm.com>
- <20131128182712.GW4137@linux.vnet.ibm.com>
- <20131128185341.GG16203@mudshark.cambridge.arm.com>
- <20131128195039.GX4137@linux.vnet.ibm.com>
- <20131129161711.GG31000@mudshark.cambridge.arm.com>
- <CA+55aFwHgnH4h0YwybThQjvicFCVbGbwaAy3Fw0b738gJMtqBA@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 30 Nov 2013 14:12:54 -0800 (PST)
+Received: by mail-yh0-f43.google.com with SMTP id a41so7190548yho.30
+        for <linux-mm@kvack.org>; Sat, 30 Nov 2013 14:12:54 -0800 (PST)
+Date: Sat, 30 Nov 2013 14:12:51 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [merged] mm-memcg-handle-non-error-oom-situations-more-gracefully.patch
+ removed from -mm tree
+In-Reply-To: <20131130155542.GO3556@cmpxchg.org>
+Message-ID: <alpine.DEB.2.02.1311301400100.18027@chino.kir.corp.google.com>
+References: <20131127233353.GH3556@cmpxchg.org> <alpine.DEB.2.02.1311271622330.10617@chino.kir.corp.google.com> <20131128021809.GI3556@cmpxchg.org> <alpine.DEB.2.02.1311271826001.5120@chino.kir.corp.google.com> <20131128031313.GK3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311271914460.5120@chino.kir.corp.google.com> <20131128035218.GM3556@cmpxchg.org> <alpine.DEB.2.02.1311291546370.22413@chino.kir.corp.google.com> <20131130033536.GL22729@cmpxchg.org> <alpine.DEB.2.02.1311300226070.29602@chino.kir.corp.google.com>
+ <20131130155542.GO3556@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFwHgnH4h0YwybThQjvicFCVbGbwaAy3Fw0b738gJMtqBA@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, "Figo. zhang" <figo1802@gmail.com>, Aswin Chandramouleeswaran <aswin@hp.com>, Rik van Riel <riel@redhat.com>, Waiman Long <waiman.long@hp.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>, George Spelvin <linux@horizon.com>, Tim Chen <tim.c.chen@linux.intel.com>, Michel Lespinasse <walken@google.com>, Ingo Molnar <mingo@elte.hu>, Peter Hurley <peter@hurleysoftware.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Alex Shi <alex.shi@linaro.org>, Andrea Arcangeli <aarcange@redhat.com>, Scott J Norton <scott.norton@hp.com>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <peterz@infradead.org>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, azurit@pobox.sk, mm-commits@vger.kernel.org, stable@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Nov 29, 2013 at 08:44:41AM -0800, Linus Torvalds wrote:
-> On Nov 29, 2013 8:18 AM, "Will Deacon" <will.deacon@arm.com> wrote:
-> >
-> >  To get some sort of
-> > idea, I tried adding a dmb to the start of spin_unlock on ARMv7 and I saw
-> a
-> > 3% performance hit in hackbench on my dual-cluster board.
+On Sat, 30 Nov 2013, Johannes Weiner wrote:
+
+> > The oom killer requires a tasklist scan, or an iteration over the set of 
+> > processes attached to the memcg for the memcg case, to find a victim.  It 
+> > already defers if it finds eligible threads with TIF_MEMDIE set.
 > 
-> Don't do a dmb. Just do a dummy release. You just said that on arm64 a
-> unlock+lock is a memory barrier, so just make the mb__before_spinlock() be
-> a dummy store with release to the stack..
+> And now you say that this race does not really exist and repeat the
+> same ramblings about last-minute checks to avoid unnecessary kills
+> again.  And again without any supporting data that I already asked
+> for.
 > 
-> That should be noticeably cheaper than a full dmb.
 
-Cute!  I like it!  ;-)
+The race does exist, perhaps you don't understand what the race is?  This 
+race occurs when process (A) declares oom and enters the oom killer, 
+meanwhile an already oom killed victim (B) frees its memory and exits, and 
+the process (A) oom kills another process even though the memcg is below 
+its limit because of process (B).
 
-							Thanx, Paul
+When doing something expensive in the kernel like oom killing, it usually 
+doesn't cause so much hassle when the suggestion is:
+
+	<declare an action is necessary>
+	<do something expensive>
+	<select an action>
+	if (!<action is still necessary>)
+		abort
+	<perform the action>
+
+That type of check is fairly straight forward and makes sense.  It 
+prevents unnecessary oom killing (although it can't guarantee it in all 
+conditions) and prevents customers from reporting oom kills when the log 
+shows there is memory available for their memcg.
+
+When using memcg on a large scale to enforce memory isolation for user 
+jobs, these types of scenarios happen often and there is no downside to 
+adding such a check.  The oom killer is not a hotpath, it's not 
+performance sensitive to the degree that we cannot add a simple 
+conditional that checks the current limit, it prevents unnecessary oom 
+kills, and prevents user confusion.
+
+Without more invasive synchronization that would touch hotpaths, this is 
+the best we can do: check if the oom kill is really necessary just before 
+issuing the kill.  Having the kernel actually kill a user process is a 
+serious matter and we should strive to ensure it is prevented whenever 
+possible.
+
+> The more I talk to you, the less sense this all makes.  Why do you
+> insist we merge this patch when you have apparently no idea why and
+> how it works, and can't demonstrate that it works in the first place?
+> 
+
+I'm not insisting anything, I don't make demands of others or maintainers 
+like you do to merge or not merge anything.  I also haven't even formally 
+proposed the patch with a changelog that would explain the motivation.
+
+> I only followed you around in circles because I'm afraid that my
+> shutting up would be interpreted as agreement again and Andrew would
+> merge this anyway.  But this is unsustainable, the burden of proof
+> should be on you, not me.  I'm going to stop replying until you
+> provide the information I asked for.
+> 
+
+Andrew can't merge a patch that hasn't been proposed for merge.
+
+Have a nice weekend.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
