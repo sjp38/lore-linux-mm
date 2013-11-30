@@ -1,70 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f49.google.com (mail-yh0-f49.google.com [209.85.213.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FDFE6B0035
-	for <linux-mm@kvack.org>; Fri, 29 Nov 2013 18:46:20 -0500 (EST)
-Received: by mail-yh0-f49.google.com with SMTP id z20so7103190yhz.8
-        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 15:46:20 -0800 (PST)
-Received: from mail-yh0-x235.google.com (mail-yh0-x235.google.com [2607:f8b0:4002:c01::235])
-        by mx.google.com with ESMTPS id r46si29821392yhm.297.2013.11.29.15.46.19
+Received: from mail-yh0-f52.google.com (mail-yh0-f52.google.com [209.85.213.52])
+	by kanga.kvack.org (Postfix) with ESMTP id B0F846B0035
+	for <linux-mm@kvack.org>; Fri, 29 Nov 2013 19:00:21 -0500 (EST)
+Received: by mail-yh0-f52.google.com with SMTP id i72so7152786yha.11
+        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 16:00:21 -0800 (PST)
+Received: from mail-yh0-x233.google.com (mail-yh0-x233.google.com [2607:f8b0:4002:c01::233])
+        by mx.google.com with ESMTPS id x27si37953868yhk.136.2013.11.29.16.00.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 29 Nov 2013 15:46:19 -0800 (PST)
-Received: by mail-yh0-f53.google.com with SMTP id b20so7199917yha.12
-        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 15:46:18 -0800 (PST)
-Date: Fri, 29 Nov 2013 15:46:16 -0800 (PST)
+        Fri, 29 Nov 2013 16:00:15 -0800 (PST)
+Received: by mail-yh0-f51.google.com with SMTP id c41so5573160yho.24
+        for <linux-mm@kvack.org>; Fri, 29 Nov 2013 16:00:15 -0800 (PST)
+Date: Fri, 29 Nov 2013 16:00:09 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm: memcg: do not declare OOM from __GFP_NOFAIL
- allocations
-In-Reply-To: <20131128102049.GF2761@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.02.1311291543400.22413@chino.kir.corp.google.com>
-References: <1385140676-5677-1-git-send-email-hannes@cmpxchg.org> <alpine.DEB.2.02.1311261658170.21003@chino.kir.corp.google.com> <alpine.DEB.2.02.1311261931210.5973@chino.kir.corp.google.com> <20131127163916.GB3556@cmpxchg.org>
- <alpine.DEB.2.02.1311271336220.9222@chino.kir.corp.google.com> <20131127225340.GE3556@cmpxchg.org> <alpine.DEB.2.02.1311271526080.22848@chino.kir.corp.google.com> <20131128102049.GF2761@dhcp22.suse.cz>
+Subject: Re: [merged] mm-memcg-handle-non-error-oom-situations-more-gracefully.patch
+ removed from -mm tree
+In-Reply-To: <20131128035218.GM3556@cmpxchg.org>
+Message-ID: <alpine.DEB.2.02.1311291546370.22413@chino.kir.corp.google.com>
+References: <526028bd.k5qPj2+MDOK1o6ii%akpm@linux-foundation.org> <alpine.DEB.2.02.1311271453270.13682@chino.kir.corp.google.com> <20131127233353.GH3556@cmpxchg.org> <alpine.DEB.2.02.1311271622330.10617@chino.kir.corp.google.com> <20131128021809.GI3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311271826001.5120@chino.kir.corp.google.com> <20131128031313.GK3556@cmpxchg.org> <alpine.DEB.2.02.1311271914460.5120@chino.kir.corp.google.com> <20131128035218.GM3556@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, azurit@pobox.sk, mm-commits@vger.kernel.org, stable@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 28 Nov 2013, Michal Hocko wrote:
+On Wed, 27 Nov 2013, Johannes Weiner wrote:
 
-> > Ok, so let's forget about GFP_KERNEL | __GFP_NOFAIL since anything doing 
-> > __GFP_FS should not be holding such locks, we have some of those in the 
-> > drivers code and that makes sense that they are doing GFP_KERNEL.
-> > 
-> > Focusing on the GFP_NOFS | __GFP_NOFAIL allocations in the filesystem 
-> > code, the kernel oom killer independent of memcg never gets called because 
-> > !__GFP_FS and they'll simply loop around the page allocator forever.
-> > 
-> > In the past, Andrew has expressed the desire to get rid of __GFP_NOFAIL 
-> > entirely since it's flawed when combined with GFP_NOFS (and GFP_KERNEL | 
-> > __GFP_NOFAIL could simply be reimplemented in the caller) because of the 
-> > reason you point out in addition to making it very difficult in the page 
-> > allocator to free memory independent of memcg.
-> > 
-> > So I'm wondering if we should just disable the oom killer in memcg for 
-> > __GFP_NOFAIL as you've done here, but not bypass to the root memcg and 
-> > just allow them to spin?  I think we should be focused on the fixing the 
-> > callers rather than breaking memcg isolation.
+> > None that I am currently aware of, I'll continue to try them out.  I'd 
+> > suggest just dropping the stable@kernel.org from the whole series though 
+> > unless there is another report of such a problem that people are running 
+> > into.
 > 
-> What if the callers simply cannot deal with the allocation failure?
-> 84235de394d97 (fs: buffer: move allocation failure loop into the
-> allocator) describes one such case when __getblk_slow tries desperately
-> to grow buffers relying on the reclaim to free something. As there might
-> be no reclaim going on we are screwed.
+> The series has long been merged, how do we drop stable@kernel.org from
+> it?
 > 
 
-My suggestion is to spin, not return NULL.  Bypassing to the root memcg 
-can lead to a system oom condition whereas if memcg weren't involved at 
-all the page allocator would just spin (because of !__GFP_FS).
+You said you have informed stable to not merge these patches until further 
+notice, I'd suggest simply avoid ever merging the whole series into a 
+stable kernel since the problem isn't serious enough.  Marking changes 
+that do "goto nomem" seem fine to mark for stable, though.
 
-> That being said, while I do agree with you that we should strive for
-> isolation as much as possible there are certain cases when this is
-> impossible to achieve without seeing much worse consequences. For now,
-> we hope that __GFP_NOFAIL is used very scarcely.
+> > We've had this patch internally since we started using memcg, it has 
+> > avoided some unnecessary oom killing.
+> 
+> Do you have quantified data that OOM kills are reduced over a longer
+> sampling period?  How many kills are skipped?  How many of them are
+> deferred temporarily but the VM ended up having to kill something
+> anyway?
 
-If that's true, why not bypass the per-zone min watermarks in the page 
-allocator as well to allow these allocations to succeed?
+On the scale that we run memcg, we would see it daily in automated testing 
+primarily because we panic the machine for memcg oom conditions where 
+there are no killable processes.  It would typically manifest by two 
+processes that are allocating memory in a memcg; one is oom killed, is 
+allowed to allocate, handles its SIGKILL, exits and frees its memory and 
+the second process which is oom disabled races with the uncharge and is 
+oom disabled so the machine panics.
+
+The upstream kernel of course doesn't panic in such a condition but if the 
+same scenario were to have happened, the second process would be 
+unnecessarily oom killed because it raced with the uncharge of the first 
+victim and it had exited before the scan of processes in the memcg oom 
+killer could detect it and defer.  So this patch definitely does prevent 
+unnecessary oom killing when run at such a large scale that we do.
+
+I'll send a formal patch.
+
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -1836,6 +1836,13 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+> >  	if (!chosen)
+> >  		return;
+> >  	points = chosen_points * 1000 / totalpages;
+> > +
+> > +	/* One last chance to see if we really need to kill something */
+> > +	if (mem_cgroup_margin(memcg) >= (1 << order)) {
+> > +		put_task_struct(chosen);
+> > +		return;
+> > +	}
+> > +
+> >  	oom_kill_process(chosen, gfp_mask, order, points, totalpages, memcg,
+> >  			 NULL, "Memory cgroup out of memory");
+> >  }
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
