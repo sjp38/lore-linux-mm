@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 3650D6B0078
+Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 63E456B007D
 	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 06:20:12 -0500 (EST)
-Received: by mail-la0-f47.google.com with SMTP id ep20so8054569lab.20
+Received: by mail-lb0-f171.google.com with SMTP id q8so8286078lbi.2
         for <linux-mm@kvack.org>; Mon, 02 Dec 2013 03:20:11 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id p10si19805051lag.136.2013.12.02.03.20.10
+        by mx.google.com with ESMTPS id d10si26056728lae.157.2013.12.02.03.20.10
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Dec 2013 03:20:10 -0800 (PST)
+        Mon, 02 Dec 2013 03:20:11 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH v12 13/18] memcg: per-memcg kmem shrinking
-Date: Mon, 2 Dec 2013 15:19:48 +0400
-Message-ID: <6a255c838dd290844d6ea437612e9671a88e6f31.1385974612.git.vdavydov@parallels.com>
+Subject: [PATCH v12 16/18] vmpressure: in-kernel notifications
+Date: Mon, 2 Dec 2013 15:19:51 +0400
+Message-ID: <c182f4056545ff83b97640432216494e76e37b8a.1385974612.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1385974612.git.vdavydov@parallels.com>
 References: <cover.1385974612.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -20,188 +20,170 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, vdavydov@parallels.com, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, vdavydov@parallels.com, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-If a memory cgroup's kmem limit is less than its user memory limit, we
-can run into a situation where our allocation fail, but freeing user
-pages will buy us nothing. In such scenarios we would like to call a
-specialized reclaimer that only frees kernel memory. This patch adds it.
-All the magic lies behind the previous patches that made slab shrinkers
-memcg-aware, this patch only employs the shrink_slab() facility to scan
-slab objects accounted to a specific memory cgroup, however, there is
-one thing that is worth noticing.
+From: Glauber Costa <glommer@openvz.org>
 
-The point is that since all memcg-aware shrinkers are FS-dependent, we
-have no option rather than failing all GFP_NOFS allocations when we are
-close to the kmem limit. The best thing we can do in such a situation is
-to spawn the reclaimer in a background process hoping next allocations
-will succeed.
+During the past weeks, it became clear to us that the shrinker interface
+we have right now works very well for some particular types of users,
+but not that well for others. The latter are usually people interested in
+one-shot notifications, that were forced to adapt themselves to the
+count+scan behavior of shrinkers. To do so, they had no choice than to
+greatly abuse the shrinker interface producing little monsters all over.
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
+During LSF/MM, one of the proposals that popped out during our session
+was to reuse Anton Voronstsov's vmpressure for this. They are designed
+for userspace consumption, but also provide a well-stablished,
+cgroup-aware entry point for notifications.
+
+This patch extends that to also support in-kernel users. Events that
+should be generated for in-kernel consumption will be marked as such,
+and for those, we will call a registered function instead of triggering
+an eventfd notification.
+
+Please note that due to my lack of understanding of each shrinker user,
+I will stay away from converting the actual users, you are all welcome
+to do so.
+
+Signed-off-by: Glauber Costa <glommer@openvz.org>
+Acked-by: Anton Vorontsov <anton@enomsg.org>
+Acked-by: Pekka Enberg <penberg@kernel.org>
+Reviewed-by: Greg Thelen <gthelen@google.com>
+Cc: Dave Chinner <dchinner@redhat.com>
+Cc: John Stultz <john.stultz@linaro.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Balbir Singh <bsingharora@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
 ---
- include/linux/swap.h |    2 ++
- mm/memcontrol.c      |   51 +++++++++++++++++++++++++++++++++++++++++++++++++-
- mm/vmscan.c          |   38 ++++++++++++++++++++++++++++++++++++-
- 3 files changed, 89 insertions(+), 2 deletions(-)
+ include/linux/vmpressure.h |    5 +++++
+ mm/vmpressure.c            |   53 +++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 55 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 46ba0c6..367a773 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -309,6 +309,8 @@ extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
- extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
- 						  gfp_t gfp_mask, bool noswap);
-+extern unsigned long try_to_free_mem_cgroup_kmem(struct mem_cgroup *mem,
-+						 gfp_t gfp_mask);
- extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
- 						gfp_t gfp_mask, bool noswap,
- 						struct zone *zone,
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index da06f91..3679acb 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -323,6 +323,8 @@ struct mem_cgroup {
- 	struct mutex slab_caches_mutex;
-         /* Index in the kmem_cache->memcg_params->memcg_caches array */
- 	int kmemcg_id;
-+	/* when kmem shrinkers cannot proceed due to context */
-+	struct work_struct kmem_shrink_work;
- #endif
+diff --git a/include/linux/vmpressure.h b/include/linux/vmpressure.h
+index 3f3788d..9102e53 100644
+--- a/include/linux/vmpressure.h
++++ b/include/linux/vmpressure.h
+@@ -19,6 +19,9 @@ struct vmpressure {
+ 	/* Have to grab the lock on events traversal or modifications. */
+ 	struct mutex events_lock;
  
- 	int last_scanned_node;
-@@ -3431,13 +3433,57 @@ static int mem_cgroup_slabinfo_read(struct cgroup_subsys_state *css,
++	/* False if only kernel users want to be notified, true otherwise. */
++	bool notify_userspace;
++
+ 	struct work_struct work;
+ };
+ 
+@@ -38,6 +41,8 @@ extern int vmpressure_register_event(struct cgroup_subsys_state *css,
+ 				     struct cftype *cft,
+ 				     struct eventfd_ctx *eventfd,
+ 				     const char *args);
++extern int vmpressure_register_kernel_event(struct cgroup_subsys_state *css,
++					    void (*fn)(void));
+ extern void vmpressure_unregister_event(struct cgroup_subsys_state *css,
+ 					struct cftype *cft,
+ 					struct eventfd_ctx *eventfd);
+diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+index e0f6283..730e7c1 100644
+--- a/mm/vmpressure.c
++++ b/mm/vmpressure.c
+@@ -130,8 +130,12 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
  }
- #endif
  
-+static void kmem_shrink_work_func(struct work_struct *w)
-+{
-+	struct mem_cgroup *memcg;
-+
-+	memcg = container_of(w, struct mem_cgroup, kmem_shrink_work);
-+	try_to_free_mem_cgroup_kmem(memcg, GFP_KERNEL);
-+}
-+
-+static int memcg_try_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
-+{
-+	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-+	struct mem_cgroup *mem_over_limit;
-+	struct res_counter *fail_res;
-+	int ret;
-+
-+	do {
-+		ret = res_counter_charge(&memcg->kmem, size, &fail_res);
-+		if (!ret)
-+			break;
-+
-+		mem_over_limit = mem_cgroup_from_res_counter(fail_res, kmem);
-+
-+		/*
-+		 * Now we are going to shrink kernel memory present in caches.
-+		 * If we cannot wait, we will have no option rather than fail
-+		 * the current allocation and make room in the background
-+		 * hoping the next one will succeed.
-+		 *
-+		 * If we are in FS context, then although we can wait, we
-+		 * cannot call the shrinkers, because most FS shrinkers will
-+		 * not run without __GFP_FS to avoid deadlock.
-+		 */
-+		if (!(gfp & __GFP_WAIT) || !(gfp & __GFP_FS)) {
-+			schedule_work(&mem_over_limit->kmem_shrink_work);
-+			break;
-+		}
-+
-+		if (!try_to_free_mem_cgroup_kmem(mem_over_limit, gfp))
-+			break;
-+	} while (--nr_retries > 0);
-+
-+	return ret;
-+}
-+
- static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
- {
- 	struct res_counter *fail_res;
- 	struct mem_cgroup *_memcg;
- 	int ret = 0;
- 
--	ret = res_counter_charge(&memcg->kmem, size, &fail_res);
-+	ret = memcg_try_charge_kmem(memcg, gfp, size);
- 	if (ret)
- 		return ret;
- 
-@@ -6289,6 +6335,7 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
- 	int ret;
- 
- 	INIT_LIST_HEAD(&memcg->memcg_slab_caches);
-+	INIT_WORK(&memcg->kmem_shrink_work, kmem_shrink_work_func);
- 	mutex_init(&memcg->slab_caches_mutex);
- 	memcg->kmemcg_id = -1;
- 	ret = memcg_propagate_kmem(memcg);
-@@ -6309,6 +6356,8 @@ static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
- 	if (!memcg_kmem_is_active(memcg))
- 		return;
- 
-+	cancel_work_sync(&memcg->kmem_shrink_work);
-+
- 	/*
- 	 * kmem charges can outlive the cgroup. In the case of slab
- 	 * pages, for instance, a page contain objects from various
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 04df967..10e6b2f 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2729,7 +2729,43 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 
- 	return nr_reclaimed;
- }
--#endif
-+
-+#ifdef CONFIG_MEMCG_KMEM
-+unsigned long try_to_free_mem_cgroup_kmem(struct mem_cgroup *memcg,
-+					  gfp_t gfp_mask)
-+{
-+	struct reclaim_state reclaim_state;
-+	struct shrink_control shrink = {
-+		.gfp_mask = gfp_mask,
-+		.target_mem_cgroup = memcg,
+ struct vmpressure_event {
+-	struct eventfd_ctx *efd;
++	union {
++		struct eventfd_ctx *efd;
++		void (*fn)(void);
 +	};
-+	int priority = DEF_PRIORITY;
-+	unsigned long nr_to_reclaim = SWAP_CLUSTER_MAX;
-+	unsigned long freed, total_freed = 0;
-+
-+	nodes_setall(shrink.nodes_to_scan);
-+
-+	lockdep_set_current_reclaim_state(sc.gfp_mask);
-+	reclaim_state.reclaimed_slab = 0;
-+	current->reclaim_state = &reclaim_state;
-+
-+	do {
-+		freed = shrink_slab(&shrink, 1000, 1000 << priority);
-+		if (!freed)
-+			congestion_wait(BLK_RW_ASYNC, HZ/10);
-+		total_freed += freed;
-+		if (current->reclaim_state->reclaimed_slab >= nr_to_reclaim)
-+			break;
-+	} while (--priority >= 0);
-+
-+	current->reclaim_state = NULL;
-+	lockdep_clear_current_reclaim_state();
-+
-+	return total_freed;
-+}
-+#endif /* CONFIG_MEMCG_KMEM */
-+
-+#endif /* CONFIG_MEMCG */
+ 	enum vmpressure_levels level;
++	bool kernel_event;
+ 	struct list_head node;
+ };
  
- static void age_active_anon(struct zone *zone, struct scan_control *sc)
- {
+@@ -147,12 +151,15 @@ static bool vmpressure_event(struct vmpressure *vmpr,
+ 	mutex_lock(&vmpr->events_lock);
+ 
+ 	list_for_each_entry(ev, &vmpr->events, node) {
+-		if (level >= ev->level) {
++		if (ev->kernel_event) {
++			ev->fn();
++		} else if (vmpr->notify_userspace && level >= ev->level) {
+ 			eventfd_signal(ev->efd, 1);
+ 			signalled = true;
+ 		}
+ 	}
+ 
++	vmpr->notify_userspace = false;
+ 	mutex_unlock(&vmpr->events_lock);
+ 
+ 	return signalled;
+@@ -222,7 +229,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
+ 	 * we account it too.
+ 	 */
+ 	if (!(gfp & (__GFP_HIGHMEM | __GFP_MOVABLE | __GFP_IO | __GFP_FS)))
+-		return;
++		goto schedule;
+ 
+ 	/*
+ 	 * If we got here with no pages scanned, then that is an indicator
+@@ -239,8 +246,15 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
+ 	vmpr->scanned += scanned;
+ 	vmpr->reclaimed += reclaimed;
+ 	scanned = vmpr->scanned;
++	/*
++	 * If we didn't reach this point, only kernel events will be triggered.
++	 * It is the job of the worker thread to clean this up once the
++	 * notifications are all delivered.
++	 */
++	vmpr->notify_userspace = true;
+ 	spin_unlock(&vmpr->sr_lock);
+ 
++schedule:
+ 	if (scanned < vmpressure_win)
+ 		return;
+ 	schedule_work(&vmpr->work);
+@@ -324,6 +338,39 @@ int vmpressure_register_event(struct cgroup_subsys_state *css,
+ }
+ 
+ /**
++ * vmpressure_register_kernel_event() - Register kernel-side notification
++ * @css:	css that is interested in vmpressure notifications
++ * @fn:		function to be called when pressure happens
++ *
++ * This function register in-kernel users interested in receiving notifications
++ * about pressure conditions. Pressure notifications will be triggered at the
++ * same time as userspace notifications (with no particular ordering relative
++ * to it).
++ *
++ * Pressure notifications are a alternative method to shrinkers and will serve
++ * well users that are interested in a one-shot notification, with a
++ * well-defined cgroup aware interface.
++ */
++int vmpressure_register_kernel_event(struct cgroup_subsys_state *css,
++				      void (*fn)(void))
++{
++	struct vmpressure *vmpr = css_to_vmpressure(css);
++	struct vmpressure_event *ev;
++
++	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
++	if (!ev)
++		return -ENOMEM;
++
++	ev->kernel_event = true;
++	ev->fn = fn;
++
++	mutex_lock(&vmpr->events_lock);
++	list_add(&ev->node, &vmpr->events);
++	mutex_unlock(&vmpr->events_lock);
++	return 0;
++}
++
++/**
+  * vmpressure_unregister_event() - Unbind eventfd from vmpressure
+  * @css:	css handle
+  * @cft:	cgroup control files handle
 -- 
 1.7.10.4
 
