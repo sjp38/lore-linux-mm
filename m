@@ -1,45 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f54.google.com (mail-qe0-f54.google.com [209.85.128.54])
-	by kanga.kvack.org (Postfix) with ESMTP id AC8F86B003D
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 15:10:22 -0500 (EST)
-Received: by mail-qe0-f54.google.com with SMTP id cy11so12423313qeb.27
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 12:10:22 -0800 (PST)
+Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F1DC6B0031
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 16:01:42 -0500 (EST)
+Received: by mail-ea0-f180.google.com with SMTP id f15so9614062eak.11
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 13:01:41 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id o8si19032212qey.81.2013.12.02.12.10.20
+        by mx.google.com with ESMTP id s42si737096eew.98.2013.12.02.13.01.40
         for <linux-mm@kvack.org>;
-        Mon, 02 Dec 2013 12:10:21 -0800 (PST)
-Date: Mon, 02 Dec 2013 15:10:06 -0500
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1386015006-hhbraep5-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1385624926-28883-10-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1385624926-28883-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1385624926-28883-10-git-send-email-iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 9/9] mm/rmap: use rmap_walk() in page_mkclean()
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
+        Mon, 02 Dec 2013 13:01:41 -0800 (PST)
+Message-ID: <529CF4ED.6040108@redhat.com>
+Date: Mon, 02 Dec 2013 16:00:29 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [patch 1/9] fs: cachefiles: use add_to_page_cache_lru()
+References: <1386012108-21006-1-git-send-email-hannes@cmpxchg.org> <1386012108-21006-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1386012108-21006-2-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Nov 28, 2013 at 04:48:46PM +0900, Joonsoo Kim wrote:
-> Now, we have an infrastructure in rmap_walk() to handle difference
-> from variants of rmap traversing functions.
+On 12/02/2013 02:21 PM, Johannes Weiner wrote:
+> This code used to have its own lru cache pagevec up until a0b8cab3
+> ("mm: remove lru parameter from __pagevec_lru_add and remove parts of
+> pagevec API").  Now it's just add_to_page_cache() followed by
+> lru_cache_add(), might as well use add_to_page_cache_lru() directly.
 > 
-> So, just use it in page_mkclean().
-> 
-> In this patch, I change following things.
-> 
-> 1. remove some variants of rmap traversing functions.
->     cf> page_mkclean_file
-> 2. mechanical change to use rmap_walk() in page_mkclean().
-> 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
