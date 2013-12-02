@@ -1,175 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A5746B003A
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 16:10:55 -0500 (EST)
-Received: by mail-qa0-f43.google.com with SMTP id ii20so4912966qab.2
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 13:10:55 -0800 (PST)
-Received: from mail-qe0-x230.google.com (mail-qe0-x230.google.com [2607:f8b0:400d:c02::230])
-        by mx.google.com with ESMTPS id k6si35836685qej.14.2013.12.02.13.10.54
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BCE66B0037
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 16:22:40 -0500 (EST)
+Received: by mail-pb0-f44.google.com with SMTP id rq2so19858787pbb.17
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 13:22:39 -0800 (PST)
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id qz9si533250pab.17.2013.12.02.13.22.38
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Dec 2013 13:10:54 -0800 (PST)
-Received: by mail-qe0-f48.google.com with SMTP id gc15so13844675qeb.21
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 13:10:54 -0800 (PST)
-From: William Roberts <bill.c.roberts@gmail.com>
-Subject: [PATCH 3/3] audit: Audit proc cmdline value
-Date: Mon,  2 Dec 2013 13:10:39 -0800
-Message-Id: <1386018639-18916-4-git-send-email-wroberts@tresys.com>
-In-Reply-To: <1386018639-18916-1-git-send-email-wroberts@tresys.com>
-References: <1386018639-18916-1-git-send-email-wroberts@tresys.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Dec 2013 13:22:38 -0800 (PST)
+Date: Mon, 2 Dec 2013 13:22:35 -0800
+From: Greg KH <greg@kroah.com>
+Subject: Re: netfilter: active obj WARN when cleaning up
+Message-ID: <20131202212235.GA1297@kroah.com>
+References: <20131127134015.GA6011@n2100.arm.linux.org.uk>
+ <alpine.DEB.2.02.1311271443580.30673@ionos.tec.linutronix.de>
+ <20131127233415.GB19270@kroah.com>
+ <00000142b4282aaf-913f5e4c-314c-4351-9d24-615e66928157-000000@email.amazonses.com>
+ <20131202164039.GA19937@kroah.com>
+ <00000142b4514eb5-2e8f675d-0ecc-423b-9906-58c5f383089b-000000@email.amazonses.com>
+ <20131202172615.GA4722@kroah.com>
+ <00000142b4aeca89-186fc179-92b8-492f-956c-38a7c196d187-000000@email.amazonses.com>
+ <20131202190814.GA2267@kroah.com>
+ <00000142b4d4360c-5755af87-b9b0-4847-b5fa-7a9dd13b49c5-000000@email.amazonses.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <00000142b4d4360c-5755af87-b9b0-4847-b5fa-7a9dd13b49c5-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-audit@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rgb@redhat.com, viro@zeniv.linux.org.uk
-Cc: sds@tycho.nsa.gov, William Roberts <wroberts@tresys.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Pablo Neira Ayuso <pablo@netfilter.org>, Sasha Levin <sasha.levin@oracle.com>, Patrick McHardy <kaber@trash.net>, kadlec@blackhole.kfki.hu, "David S. Miller" <davem@davemloft.net>, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-During an audit event, cache and print the value of the process's
-cmdline value (proc/<pid>/cmdline). This is useful in situations
-where processes are started via fork'd virtual machines where the
-comm field is incorrect. Often times, setting the comm field still
-is insufficient as the comm width is not very wide and most
-virtual machine "package names" do not fit. Also, during execution,
-many threads have thier comm field set as well. By tying it back to
-the global cmdline value for the process, audit records will be more
-complete in systems with these properties. An example of where this
-is useful and applicable is in the realm of Android.
+On Mon, Dec 02, 2013 at 07:41:15PM +0000, Christoph Lameter wrote:
+> On Mon, 2 Dec 2013, Greg KH wrote:
+> 
+> > No, the release callback is in the kobj_type, not the kobject itself.
+> 
+> Ahh... Ok. Patch follows:
+> 
+> 
+> Subject: slub: use sysfs'es release mechanism for kmem_cache
+> 
+> Sysfs has a release mechanism. Use that to release the
+> kmem_cache structure if CONFIG_SYSFS is enabled.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
 
-The cached cmdline is tied to the lifecycle of the audit_context
-structure and is built on demand.
+That looks good, if you fix the indentation issue :)
 
-Signed-off-by: William Roberts <wroberts@tresys.com>
----
- kernel/audit.h   |    1 +
- kernel/auditsc.c |   82 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 83 insertions(+)
+> 
+> Index: linux/include/linux/slub_def.h
+> ===================================================================
+> --- linux.orig/include/linux/slub_def.h	2013-12-02 13:31:07.395905824 -0600
+> +++ linux/include/linux/slub_def.h	2013-12-02 13:31:07.385906101 -0600
+> @@ -98,4 +98,8 @@ struct kmem_cache {
+>  	struct kmem_cache_node *node[MAX_NUMNODES];
+>  };
+> 
+> +#ifdef CONFIG_SYSFS
+> +#define SLAB_SUPPORTS_SYSFS
 
-diff --git a/kernel/audit.h b/kernel/audit.h
-index b779642..bd6211f 100644
---- a/kernel/audit.h
-+++ b/kernel/audit.h
-@@ -202,6 +202,7 @@ struct audit_context {
- 		} execve;
- 	};
- 	int fds[2];
-+	char *cmdline;
- 
- #if AUDIT_DEBUG
- 	int		    put_count;
-diff --git a/kernel/auditsc.c b/kernel/auditsc.c
-index 90594c9..bfb1698 100644
---- a/kernel/auditsc.c
-+++ b/kernel/auditsc.c
-@@ -842,6 +842,14 @@ static inline struct audit_context *audit_get_context(struct task_struct *tsk,
- 	return context;
- }
- 
-+static inline void audit_cmdline_free(struct audit_context *context)
-+{
-+	if (!context->cmdline)
-+		return;
-+	kfree(context->cmdline);
-+	context->cmdline = NULL;
-+}
-+
- static inline void audit_free_names(struct audit_context *context)
- {
- 	struct audit_names *n, *next;
-@@ -955,6 +963,7 @@ static inline void audit_free_context(struct audit_context *context)
- 	audit_free_aux(context);
- 	kfree(context->filterkey);
- 	kfree(context->sockaddr);
-+	audit_cmdline_free(context);
- 	kfree(context);
- }
- 
-@@ -1271,6 +1280,78 @@ static void show_special(struct audit_context *context, int *call_panic)
- 	audit_log_end(ab);
- }
- 
-+static char *audit_cmdline_get(struct audit_buffer *ab,
-+			       struct task_struct *task)
-+{
-+	int len;
-+	int res;
-+	char *buf;
-+	struct mm_struct *mm;
-+
-+	if (!ab || !task)
-+		return NULL;
-+
-+	mm = get_task_mm(task);
-+	if (!mm)
-+		return NULL;
-+
-+	len = get_cmdline_length(mm);
-+	if (!len)
-+		goto mm_err;
-+
-+	if (len > PATH_MAX)
-+		len = PATH_MAX;
-+
-+	buf = kmalloc(len, GFP_KERNEL);
-+	if (!buf)
-+		goto mm_err;
-+
-+	res = copy_cmdline(task, mm, buf, len);
-+	if (res <= 0)
-+		goto alloc_err;
-+
-+	mmput(mm);
-+	/*
-+	 * res is guarenteed not to be longer than
-+	 * than the buf as it was truncated to len
-+	 * in copy_cmdline()
-+	 */
-+	len = res;
-+
-+	/*
-+	 * Ensure NULL terminated as application
-+	 * could be using setproctitle(3)
-+	 */
-+	buf[len-1] = '\0';
-+	return buf;
-+
-+alloc_err:
-+	kfree(buf);
-+mm_err:
-+	mmput(mm);
-+	return NULL;
-+}
-+
-+static void audit_log_cmdline(struct audit_buffer *ab, struct task_struct *tsk,
-+			 struct audit_context *context)
-+{
-+	char *msg = "(null)";
-+	audit_log_format(ab, " cmdline=");
-+
-+	/* Already cached */
-+	if (context->cmdline) {
-+		msg = context->cmdline;
-+		goto out;
-+	}
-+	/* Not cached */
-+	context->cmdline = audit_cmdline_get(ab, tsk);
-+	if (!context->cmdline)
-+		goto out;
-+	msg = context->cmdline;
-+out:
-+	audit_log_untrustedstring(ab, msg);
-+}
-+
- static void audit_log_exit(struct audit_context *context, struct task_struct *tsk)
- {
- 	int i, call_panic = 0;
-@@ -1302,6 +1383,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
- 			 context->name_count);
- 
- 	audit_log_task_info(ab, tsk);
-+	audit_log_cmdline(ab, tsk, context);
- 	audit_log_key(ab, context->filterkey);
- 	audit_log_end(ab);
- 
--- 
-1.7.9.5
+Why even define this?  Why not just use CONFIG_SYSFS?
+
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
