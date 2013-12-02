@@ -1,143 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 196E16B0031
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 18:01:11 -0500 (EST)
-Received: by mail-pb0-f54.google.com with SMTP id un15so20164035pbc.27
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 15:01:10 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id sw1si49392001pbc.192.2013.12.02.15.01.09
-        for <linux-mm@kvack.org>;
-        Mon, 02 Dec 2013 15:01:09 -0800 (PST)
-Date: Mon, 2 Dec 2013 15:01:07 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 6/9] mm/rmap: use rmap_walk() in try_to_unmap()
-Message-Id: <20131202150107.7a814d0753356afc47b58b09@linux-foundation.org>
-In-Reply-To: <1385624926-28883-7-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1385624926-28883-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1385624926-28883-7-git-send-email-iamjoonsoo.kim@lge.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-ve0-f177.google.com (mail-ve0-f177.google.com [209.85.128.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 1240C6B0036
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 18:02:13 -0500 (EST)
+Received: by mail-ve0-f177.google.com with SMTP id db12so9341865veb.36
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 15:02:12 -0800 (PST)
+Received: from mail-yh0-x22d.google.com (mail-yh0-x22d.google.com [2607:f8b0:4002:c01::22d])
+        by mx.google.com with ESMTPS id gs7si30274745veb.91.2013.12.02.15.02.11
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 02 Dec 2013 15:02:12 -0800 (PST)
+Received: by mail-yh0-f45.google.com with SMTP id v1so8465153yhn.18
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 15:02:11 -0800 (PST)
+Date: Mon, 2 Dec 2013 15:02:09 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm: memcg: do not declare OOM from __GFP_NOFAIL
+ allocations
+In-Reply-To: <20131202132201.GC18838@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.02.1312021452510.13465@chino.kir.corp.google.com>
+References: <1385140676-5677-1-git-send-email-hannes@cmpxchg.org> <alpine.DEB.2.02.1311261658170.21003@chino.kir.corp.google.com> <alpine.DEB.2.02.1311261931210.5973@chino.kir.corp.google.com> <20131127163916.GB3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311271336220.9222@chino.kir.corp.google.com> <20131127225340.GE3556@cmpxchg.org> <alpine.DEB.2.02.1311271526080.22848@chino.kir.corp.google.com> <20131128102049.GF2761@dhcp22.suse.cz> <alpine.DEB.2.02.1311291543400.22413@chino.kir.corp.google.com>
+ <20131202132201.GC18838@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, 28 Nov 2013 16:48:43 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+On Mon, 2 Dec 2013, Michal Hocko wrote:
 
-> Now, we have an infrastructure in rmap_walk() to handle difference
-> from variants of rmap traversing functions.
+> > > What if the callers simply cannot deal with the allocation failure?
+> > > 84235de394d97 (fs: buffer: move allocation failure loop into the
+> > > allocator) describes one such case when __getblk_slow tries desperately
+> > > to grow buffers relying on the reclaim to free something. As there might
+> > > be no reclaim going on we are screwed.
+> > > 
+> > 
+> > My suggestion is to spin, not return NULL. 
 > 
-> So, just use it in try_to_unmap().
+> Spin on which level? The whole point of this change was to not spin for
+> ever because the caller might sit on top of other locks which might
+> prevent somebody else to die although it has been killed.
 > 
-> In this patch, I change following things.
+
+See my question about the non-memcg page allocator behavior below.
+
+> > Bypassing to the root memcg 
+> > can lead to a system oom condition whereas if memcg weren't involved at 
+> > all the page allocator would just spin (because of !__GFP_FS).
 > 
-> 1. enable rmap_walk() if !CONFIG_MIGRATION.
-> 2. mechanical change to use rmap_walk() in try_to_unmap().
+> I am confused now. The page allocation has already happened at the time
+> we are doing the charge. So the global OOM would have happened already.
 > 
-> ...
->
-> --- a/include/linux/rmap.h
-> +++ b/include/linux/rmap.h
-> @@ -190,7 +190,7 @@ int page_referenced_one(struct page *, struct vm_area_struct *,
->  
->  int try_to_unmap(struct page *, enum ttu_flags flags);
->  int try_to_unmap_one(struct page *, struct vm_area_struct *,
-> -			unsigned long address, enum ttu_flags flags);
-> +			unsigned long address, void *arg);
 
-This change is ugly and unchangelogged.
+That's precisely the point, the successful charges can allow additional 
+page allocations to occur and cause system oom conditions if you don't 
+have memcg isolation.  Some customers, including us, use memcg to ensure 
+that a set of processes cannot use more resources than allowed.  Any 
+bypass opens up the possibility of additional memory allocations that 
+cause the system to be oom and then we end up requiring a userspace oom 
+handler because our policy is complex enough that it cannot be effected 
+simply by /proc/pid/oom_score_adj.
 
-Also, "enum ttu_flags flags" was nice and meaningful, but "void *arg"
-conveys far less information.  A suitable way to address this
-shortcoming is to document `arg' at the try_to_unmap_one() definition
-site.  try_to_unmap_one() doesn't actually have any documentation at
-this stage - let's please fix that?
+I'm not quite sure how significant of a point this is, though, because it 
+depends on the caller doing the __GFP_NOFAIL allocations that allow the 
+bypass.  If you're doing
 
->
-> ...
->
-> @@ -1509,6 +1510,11 @@ bool is_vma_temporary_stack(struct vm_area_struct *vma)
->  	return false;
->  }
->  
-> +static int skip_vma_temporary_stack(struct vm_area_struct *vma, void *arg)
-> +{
-> +	return (int)is_vma_temporary_stack(vma);
-> +}
+	for (i = 0; i < 1 << 20; i++)
+		page[i] = alloc_page(GFP_NOFS | __GFP_NOFAIL);
 
-The (int) cast is unneeded - the compiler will turn a bool into an int.
+it can become significant, but I'm unsure of how much memory all callers 
+end up allocating in this context.
 
-Should this function (and rmap_walk_control.skip()) really be returning
-a bool?
+> > > That being said, while I do agree with you that we should strive for
+> > > isolation as much as possible there are certain cases when this is
+> > > impossible to achieve without seeing much worse consequences. For now,
+> > > we hope that __GFP_NOFAIL is used very scarcely.
+> > 
+> > If that's true, why not bypass the per-zone min watermarks in the page 
+> > allocator as well to allow these allocations to succeed?
+> 
+> Allocations are already done. We simply cannot charge that allocation
+> because we have reached the hard limit. And the said allocation might
+> prevent OOM action to proceed due to held locks.
 
-The name of this function is poor: "skip_foo" implies that the function
-will skip over a foo.  But that isn't what this function does.  Please
-choose something which accurately reflects the function's behavior.
+I'm referring to the generic non-memcg page allocator behavior.  Forget 
+memcg for a moment.  What is the behavior in the _page_allocator_ for 
+GFP_NOFS | __GFP_NOFAIL?  Do we spin forever if reclaim fails or do we 
+bypas the per-zone min watermarks to allow it to allocate because "it 
+needs to succeed, it may be holding filesystem locks"?
 
->  /**
->   * try_to_unmap_anon - unmap or unlock anonymous page using the object-based
->   * rmap method
-> @@ -1554,7 +1560,7 @@ static int try_to_unmap_anon(struct page *page, enum ttu_flags flags)
->  			continue;
->  
->  		address = vma_address(page, vma);
-> -		ret = try_to_unmap_one(page, vma, address, flags);
-> +		ret = try_to_unmap_one(page, vma, address, (void *)flags);
->  		if (ret != SWAP_AGAIN || !page_mapped(page))
->  			break;
->  	}
->
-> ...
->
->  /**
->   * try_to_unmap - try to remove all page table mappings to a page
->   * @page: the page to get unmapped
-> @@ -1630,16 +1641,30 @@ out:
->  int try_to_unmap(struct page *page, enum ttu_flags flags)
->  {
->  	int ret;
-> +	struct rmap_walk_control rwc;
->  
-> -	BUG_ON(!PageLocked(page));
->  	VM_BUG_ON(!PageHuge(page) && PageTransHuge(page));
->  
-> -	if (unlikely(PageKsm(page)))
-> -		ret = try_to_unmap_ksm(page, flags);
-> -	else if (PageAnon(page))
-> -		ret = try_to_unmap_anon(page, flags);
-> -	else
-> -		ret = try_to_unmap_file(page, flags);
-> +	memset(&rwc, 0, sizeof(rwc));
-> +	rwc.main = try_to_unmap_one;
-> +	rwc.arg = (void *)flags;
-> +	rwc.main_done = page_not_mapped;
-> +	rwc.file_nonlinear = try_to_unmap_nonlinear;
-> +	rwc.anon_lock = page_lock_anon_vma_read;
+It's already been acknowledged in this thread that no bypassing is done 
+in the page allocator and it just spins.  There's some handwaving saying 
+that since the entire system is oom that there is a greater chance that 
+memory will be freed by something else, but that's just handwaving and is 
+certainly no guaranteed.
 
-	struct rmap_walk_control rwc = {
-		...
-	};
-
-> +	/*
-> +	 * During exec, a temporary VMA is setup and later moved.
-> +	 * The VMA is moved under the anon_vma lock but not the
-> +	 * page tables leading to a race where migration cannot
-> +	 * find the migration ptes. Rather than increasing the
-> +	 * locking requirements of exec(), migration skips
-> +	 * temporary VMAs until after exec() completes.
-> +	 */
-> +	if (flags & TTU_MIGRATION && !PageKsm(page) && PageAnon(page))
-> +		rwc.vma_skip = skip_vma_temporary_stack;
-> +
-> +	ret = rmap_walk(page, &rwc);
-> +
->  	if (ret != SWAP_MLOCK && !page_mapped(page))
->  		ret = SWAP_SUCCESS;
->  	return ret;
->
-> ...
->
+So, my question again: why not bypass the per-zone min watermarks in the 
+page allocator?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
