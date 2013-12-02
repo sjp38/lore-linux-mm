@@ -1,40 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F1DC6B0031
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 16:01:42 -0500 (EST)
-Received: by mail-ea0-f180.google.com with SMTP id f15so9614062eak.11
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 13:01:41 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id s42si737096eew.98.2013.12.02.13.01.40
-        for <linux-mm@kvack.org>;
-        Mon, 02 Dec 2013 13:01:41 -0800 (PST)
-Message-ID: <529CF4ED.6040108@redhat.com>
-Date: Mon, 02 Dec 2013 16:00:29 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [patch 1/9] fs: cachefiles: use add_to_page_cache_lru()
-References: <1386012108-21006-1-git-send-email-hannes@cmpxchg.org> <1386012108-21006-2-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1386012108-21006-2-git-send-email-hannes@cmpxchg.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from mail-qe0-f44.google.com (mail-qe0-f44.google.com [209.85.128.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A3CC6B0037
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 16:10:47 -0500 (EST)
+Received: by mail-qe0-f44.google.com with SMTP id nd7so13628196qeb.31
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 13:10:47 -0800 (PST)
+Received: from mail-qa0-x233.google.com (mail-qa0-x233.google.com [2607:f8b0:400d:c00::233])
+        by mx.google.com with ESMTPS id h17si34330489qej.41.2013.12.02.13.10.46
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 02 Dec 2013 13:10:46 -0800 (PST)
+Received: by mail-qa0-f51.google.com with SMTP id o15so4969682qap.3
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 13:10:46 -0800 (PST)
+From: William Roberts <bill.c.roberts@gmail.com>
+Subject: [PATCH] - auditing cmdline
+Date: Mon,  2 Dec 2013 13:10:36 -0800
+Message-Id: <1386018639-18916-1-git-send-email-wroberts@tresys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-audit@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rgb@redhat.com, viro@zeniv.linux.org.uk
+Cc: sds@tycho.nsa.gov
 
-On 12/02/2013 02:21 PM, Johannes Weiner wrote:
-> This code used to have its own lru cache pagevec up until a0b8cab3
-> ("mm: remove lru parameter from __pagevec_lru_add and remove parts of
-> pagevec API").  Now it's just add_to_page_cache() followed by
-> lru_cache_add(), might as well use add_to_page_cache_lru() directly.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+This patch series relates to work started on the audit mailing list.
+It eventually involved touching other modules, so I am trying to
+pull in those owners as well. In a nutshell I add new utility
+functions for accessing a processes cmdline value as displayed
+in proc/<self>/cmdline, and then refactor procfs to use the
+utility functions, and then add the ability to the audit subsystem
+to record this value.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Thanks for any feedback and help.
 
-
--- 
-All rights reversed
+[PATCH 1/3] mm: Create utility functions for accessing a tasks
+[PATCH 2/3] proc: Update get proc_pid_cmdline() to use mm.h helpers
+[PATCH 3/3] audit: Audit proc cmdline value
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
