@@ -1,56 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f173.google.com (mail-ve0-f173.google.com [209.85.128.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 2869A6B0036
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 17:51:42 -0500 (EST)
-Received: by mail-ve0-f173.google.com with SMTP id oz11so9275234veb.4
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 14:51:41 -0800 (PST)
-Received: from mail-yh0-x233.google.com (mail-yh0-x233.google.com [2607:f8b0:4002:c01::233])
-        by mx.google.com with ESMTPS id at4si30280671ved.37.2013.12.02.14.51.40
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Dec 2013 14:51:41 -0800 (PST)
-Received: by mail-yh0-f51.google.com with SMTP id c41so7951726yho.10
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 14:51:40 -0800 (PST)
-Date: Mon, 2 Dec 2013 14:51:38 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [merged] mm-memcg-handle-non-error-oom-situations-more-gracefully.patch
- removed from -mm tree
-In-Reply-To: <20131202131238.GB18838@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.02.1312021443590.13465@chino.kir.corp.google.com>
-References: <526028bd.k5qPj2+MDOK1o6ii%akpm@linux-foundation.org> <alpine.DEB.2.02.1311271453270.13682@chino.kir.corp.google.com> <20131127233353.GH3556@cmpxchg.org> <alpine.DEB.2.02.1311271622330.10617@chino.kir.corp.google.com> <20131128021809.GI3556@cmpxchg.org>
- <alpine.DEB.2.02.1311271826001.5120@chino.kir.corp.google.com> <20131128031313.GK3556@cmpxchg.org> <alpine.DEB.2.02.1311271914460.5120@chino.kir.corp.google.com> <20131128100213.GE2761@dhcp22.suse.cz> <alpine.DEB.2.02.1311291600290.22413@chino.kir.corp.google.com>
- <20131202131238.GB18838@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 747A36B0031
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 17:53:02 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id z10so19103391pdj.16
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 14:53:02 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id qu5si36722701pbc.240.2013.12.02.14.53.00
+        for <linux-mm@kvack.org>;
+        Mon, 02 Dec 2013 14:53:01 -0800 (PST)
+Date: Mon, 2 Dec 2013 14:52:58 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 4/9] mm/rmap: make rmap_walk to get the
+ rmap_walk_control argument
+Message-Id: <20131202145258.9f14767c1190c068becece0d@linux-foundation.org>
+In-Reply-To: <1385624926-28883-5-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1385624926-28883-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<1385624926-28883-5-git-send-email-iamjoonsoo.kim@lge.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, azurit@pobox.sk, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
 
-On Mon, 2 Dec 2013, Michal Hocko wrote:
+On Thu, 28 Nov 2013 16:48:41 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 
-> I guess we need to know how much is significantly less.
-> oom_scan_process_thread already aborts on exiting tasks so we do not
-> kill anything and then the charge (whole page fault actually) is retried
-> when we check for the OOM again so my intuition would say that we gave
-> the exiting task quite a lot of time.
+> In each rmap traverse case, there is some difference so that we need
+> function pointers and arguments to them in order to handle these
+> difference properly.
 > 
+> For this purpose, struct rmap_walk_control is introduced in this patch,
+> and will be extended in following patch. Introducing and extending are
+> separate, because it clarify changes.
+> 
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -198,7 +198,12 @@ out:
+>   */
+>  static void remove_migration_ptes(struct page *old, struct page *new)
+>  {
+> -	rmap_walk(new, remove_migration_pte, old);
+> +	struct rmap_walk_control rwc;
+> +
+> +	memset(&rwc, 0, sizeof(rwc));
+> +	rwc.main = remove_migration_pte;
+> +	rwc.arg = old;
+> +	rmap_walk(new, &rwc);
+>  }
 
-That isn't the race, though.  The race occurs when the oom killed process 
-exits prior to the process iteration so it's not detected and yet its 
-memory has already been freed and the memcg is no longer oom.  In other 
-words, a process that has called mem_cgroup_oom_synchronize() at the same 
-time that an oom killed process has freed its memory.  The result is an 
-unnecessary oom killing and erroneous spam in the kernel log.
+It is much neater to do
 
-We all agree that this race cannot be completely closed (at least without 
-synchronization in the uncharge path that we obviously don't want to add).  
-We don't know if an oom killed process, or any process, will free its 
-memory immediately after the kernel sends the SIGKILL.  However, there's 
-absolutely no reason to not have a final check immediately before sending 
-the SIGKILL to prevent that unnecessary oom kill.
+	struct rmap_walk_control rwc = {
+		.main = remove_migration_pte,
+		.arg = old,
+	};
 
-I'm going to send the patch for review.
+which will zero out all remaining fields as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
