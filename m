@@ -1,286 +1,477 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f48.google.com (mail-bk0-f48.google.com [209.85.214.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 796BC6B003C
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 14:22:43 -0500 (EST)
-Received: by mail-bk0-f48.google.com with SMTP id v10so5546661bkz.21
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 11:22:42 -0800 (PST)
+Received: from mail-bk0-f53.google.com (mail-bk0-f53.google.com [209.85.214.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 568AE6B003C
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 14:22:45 -0500 (EST)
+Received: by mail-bk0-f53.google.com with SMTP id na10so5538472bkb.26
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 11:22:44 -0800 (PST)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id t8si19715491bkp.214.2013.12.02.11.22.42
+        by mx.google.com with ESMTPS id ti7si2931190bkb.203.2013.12.02.11.22.44
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Dec 2013 11:22:42 -0800 (PST)
+        Mon, 02 Dec 2013 11:22:44 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 0/9] mm: thrash detection-based file cache sizing v7
-Date: Mon,  2 Dec 2013 14:21:39 -0500
-Message-Id: <1386012108-21006-1-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 8/9] lib: radix_tree: tree node interface
+Date: Mon,  2 Dec 2013 14:21:47 -0500
+Message-Id: <1386012108-21006-9-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1386012108-21006-1-git-send-email-hannes@cmpxchg.org>
+References: <1386012108-21006-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-	Changes in this revision
+Make struct radix_tree_node part of the public interface and provide
+API functions to create, look up, and delete whole nodes.  Refactor
+the existing insert, look up, delete functions on top of these new
+node primitives.
 
-o truncate_inode_pages_final(): instead of cluttering inode teardown
-  code with VM synchronization, provide a dedicated final truncate
-  function to take care of this and convert all filesystems over.
-  Suggested by Dave Chinner.  [ Dave, I did not add the AS_EXITING
-  check to the inode sanity checks after all simply because a couple
-  filesystems don't use pagecache and they would have no reason to
-  call truncate_inode_pages() so we probably shouldn't make them for
-  debugging purposes.  A race from not using it when you should will
-  trigger BUG_ON(inode->i_data.nrshadows) in evict(), should do it. ]
+This will allow the VM to track and garbage collect page cache radix
+tree nodes.
 
-o Unlocked setting of AS_EXITING: in a lot of cases, no truncation is
-  at all necessary.  With ordered updates to mapping->nrpages and
-  mapping->nrshadows these cases can be reliably detected and we can
-  avoid the IRQ-safe mapping->tree_lock on empty inodes.  Suggested by
-  Dave Chinner.
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ include/linux/radix-tree.h |  34 ++++++
+ lib/radix-tree.c           | 261 +++++++++++++++++++++++++--------------------
+ 2 files changed, 180 insertions(+), 115 deletions(-)
 
-o Ditched lockdep workarounds. there is no other technical reason to
-  make the lru_lock IRQ-safe.  Suggested by Dave Chinner.
-
-o Shorten lru_lock hold time: take radix tree nodes off the LRU
-  completely before reclaiming them.  Suggested by Dave Chinner.
-
-o Document radix tree node lifetime management during node reclaim.
-  Suggested by Andrew Morton.
-
-o Naming and typo fixes.  Suggested by Andrew Morton and Ryan Mallon.
-
-o Clarified changelogs.  Suggested by Andrew Morton.
-
-	Summary
-
-The VM maintains cached filesystem pages on two types of lists.  One
-list holds the pages recently faulted into the cache, the other list
-holds pages that have been referenced repeatedly on that first list.
-The idea is to prefer reclaiming young pages over those that have
-shown to benefit from caching in the past.  We call the recently used
-list "inactive list" and the frequently used list "active list".
-    
-Currently, the VM aims for a 1:1 ratio between the lists, which is the
-"perfect" trade-off between the ability to *protect* frequently used
-pages and the ability to *detect* frequently used pages.  This means
-that working set changes bigger than half of cache memory go
-undetected and thrash indefinitely, whereas working sets bigger than
-half of cache memory are unprotected against used-once streams that
-don't even need caching.
-
-This happens on file servers and media streaming servers, where the
-popular files and file sections change over time.  Even though the
-individual files might be smaller than half of memory, concurrent
-access to many of them may still result in their inter-reference
-distance being greater than half of memory.  It's also been reported
-as a problem on database workloads that switch back and forth between
-tables that are bigger than half of memory.  In these cases the VM
-never recognizes the new working set and will for the remainder of the
-workload thrash disk data which could easily live in memory.
-    
-Historically, every reclaim scan of the inactive list also took a
-smaller number of pages from the tail of the active list and moved
-them to the head of the inactive list.  This model gave established
-working sets more gracetime in the face of temporary use-once streams,
-but ultimately was not significantly better than a FIFO policy and
-still thrashed cache based on eviction speed, rather than actual
-demand for cache.
-    
-This series solves the problem by maintaining a history of pages
-evicted from the inactive list, enabling the VM to detect frequently
-used pages regardless of inactive list size and facilitate working set
-transitions.
-
-	Tests
-
-The reported database workload is easily demonstrated on a 8G machine
-with two filesets a 6G.  This fio workload operates on one set first,
-then switches to the other.  The VM should obviously always cache the
-set that the workload is currently using.
-
-unpatched:
-db1: READ: io=98304MB, aggrb=885559KB/s, minb=885559KB/s, maxb=885559KB/s, mint= 113672msec, maxt= 113672msec
-db2: READ: io=98304MB, aggrb= 66169KB/s, minb= 66169KB/s, maxb= 66169KB/s, mint=1521302msec, maxt=1521302msec
-sdb: ios=835750/4, merge=2/1, ticks=4659739/60016, in_queue=4719203, util=98.92%
-
-real    27m15.541s
-user    0m19.059s
-sys     0m51.459s
-
-patched:
-db1: READ: io=98304MB, aggrb=877783KB/s, minb=877783KB/s, maxb=877783KB/s, mint=114679msec, maxt=114679msec
-db2: READ: io=98304MB, aggrb=397449KB/s, minb=397449KB/s, maxb=397449KB/s, mint=253273msec, maxt=253273msec
-sdb: ios=170587/4, merge=2/1, ticks=954910/61123, in_queue=1015923, util=90.40%
-
-real    6m8.630s
-user    0m14.714s
-sys     0m31.233s
-
-As can be seen, the unpatched kernel simply never adapts to the
-workingset change and db2 is stuck indefinitely with secondary storage
-speed.  The patched kernel needs 2-3 iterations over db2 before it
-replaces db1 and reaches full memory speed.  Given the unbounded
-negative affect of the existing VM behavior, these patches should be
-considered correctness fixes rather than performance optimizations.
-
-Another test resembles a fileserver or streaming server workload,
-where data in excess of memory size is accessed at different
-frequencies.  There is very hot data accessed at a high frequency.
-Machines should be fitted so that the hot set of such a workload can
-be fully cached or all bets are off.  Then there is a very big
-(compared to available memory) set of data that is used-once or at a
-very low frequency; this is what drives the inactive list and does not
-really benefit from caching.  Lastly, there is a big set of warm data
-in between that is accessed at medium frequencies and benefits from
-caching the pages between the first and last streamer of each burst.
-
-unpatched:
- hot: READ: io=128000MB, aggrb=160693KB/s, minb=160693KB/s, maxb=160693KB/s, mint=815665msec, maxt=815665msec
-warm: READ: io= 81920MB, aggrb=109853KB/s, minb= 27463KB/s, maxb= 29244KB/s, mint=717110msec, maxt=763617msec
-cold: READ: io= 30720MB, aggrb= 35245KB/s, minb= 35245KB/s, maxb= 35245KB/s, mint=892530msec, maxt=892530msec
- sdb: ios=797960/4, merge=11763/1, ticks=4307910/796, in_queue=4308380, util=100.00%
-
-patched:
- hot: READ: io=128000MB, aggrb=160678KB/s, minb=160678KB/s, maxb=160678KB/s, mint=815740msec, maxt=815740msec
-warm: READ: io= 81920MB, aggrb=147747KB/s, minb= 36936KB/s, maxb= 40960KB/s, mint=512000msec, maxt=567767msec
-cold: READ: io= 30720MB, aggrb= 40960KB/s, minb= 40960KB/s, maxb= 40960KB/s, mint=768000msec, maxt=768000msec
- sdb: ios=596514/4, merge=9341/1, ticks=2395362/997, in_queue=2396484, util=79.18%
-
-In both kernels, the hot set is propagated to the active list and then
-served from cache.
-
-In both kernels, the beginning of the warm set is propagated to the
-active list as well, but in the unpatched case the active list
-eventually takes up half of memory and no new pages from the warm set
-get activated, despite repeated access, and despite most of the active
-list soon being stale.  The patched kernel on the other hand detects
-the thrashing and manages to keep this cache window rolling through
-the data set.  This frees up enough IO bandwidth that the cold set is
-served at full speed as well and disk utilization even drops by 20%.
-
-For reference, this same test was performed with the traditional
-demotion mechanism, where deactivation is coupled to inactive list
-reclaim.  However, this had the same outcome as the unpatched kernel:
-while the warm set does indeed get activated continuously, it is
-forced out of the active list by inactive list pressure, which is
-dictated primarily by the unrelated cold set.  The warm set is evicted
-before subsequent streamers can benefit from it, even though there
-would be enough space available to cache the pages of interest.
-
-	Costs
-
-Page reclaim used to shrink the radix trees but now the tree nodes are
-reused for shadow entries, where the cost depends heavily on the page
-cache access patterns.  However, with workloads that maintain spatial
-or temporal locality, the shadow entries are either refaulted quickly
-or reclaimed along with the inode object itself.  Workloads that will
-experience a memory cost increase are those that don't really benefit
-from caching in the first place.
-
-A more predictable alternative would be a fixed-cost separate pool of
-shadow entries, but this would incur relatively higher memory cost for
-well-behaved workloads at the benefit of cornercases.  It would also
-make the shadow entry lookup more costly compared to storing them
-directly in the cache structure.
-
-	Future
-
-Right now we have a fixed ratio (50:50) between inactive and active
-list but we already have complaints about working sets exceeding half
-of memory being pushed out of the cache by simple streaming in the
-background.  Ultimately, we want to adjust this ratio and allow for a
-much smaller inactive list.  These patches are an essential step in
-this direction because they decouple the VMs ability to detect working
-set changes from the inactive list size.  This would allow us to base
-the inactive list size on the combined readahead window size for
-example and potentially protect a much bigger working set.
-
-Another possibility of having thrashing information would be to
-revisit the idea of local reclaim in the form of zero-config memory
-control groups.  Instead of having allocating tasks go straight to
-global reclaim, they could try to reclaim the pages in the memcg they
-are part of first as long as the group is not thrashing.  This would
-allow a user to drop e.g. a back-up job in an otherwise unconfigured
-memcg and it would only inflate (and possibly do global reclaim) until
-it has enough memory to do proper readahead.  But once it reaches that
-point and stops thrashing it would just recycle its own used-once
-pages without kicking out the cache of any other tasks in the system
-more than necessary.
-
-To simplify the merging process, this patch set is implementing thrash
-detection on a global per-zone level only for now, but the design is
-such that it can be extended to memory cgroups as well.  All we need
-to do is store the unique cgroup ID along the node and zone identifier
-inside the eviction cookie to identify the lruvec.
-
- Documentation/filesystems/porting               |   6 +-
- drivers/staging/lustre/lustre/llite/llite_lib.c |   2 +-
- fs/9p/vfs_inode.c                               |   2 +-
- fs/affs/inode.c                                 |   2 +-
- fs/afs/inode.c                                  |   2 +-
- fs/bfs/inode.c                                  |   2 +-
- fs/block_dev.c                                  |   4 +-
- fs/btrfs/compression.c                          |   2 +-
- fs/btrfs/inode.c                                |   2 +-
- fs/cachefiles/rdwr.c                            |  33 +-
- fs/cifs/cifsfs.c                                |   2 +-
- fs/coda/inode.c                                 |   2 +-
- fs/ecryptfs/super.c                             |   2 +-
- fs/exofs/inode.c                                |   2 +-
- fs/ext2/inode.c                                 |   2 +-
- fs/ext3/inode.c                                 |   2 +-
- fs/ext4/inode.c                                 |   4 +-
- fs/f2fs/inode.c                                 |   2 +-
- fs/fat/inode.c                                  |   2 +-
- fs/freevxfs/vxfs_inode.c                        |   2 +-
- fs/fuse/inode.c                                 |   2 +-
- fs/gfs2/super.c                                 |   2 +-
- fs/hfs/inode.c                                  |   2 +-
- fs/hfsplus/super.c                              |   2 +-
- fs/hostfs/hostfs_kern.c                         |   2 +-
- fs/hpfs/inode.c                                 |   2 +-
- fs/inode.c                                      |   4 +-
- fs/jffs2/fs.c                                   |   2 +-
- fs/jfs/inode.c                                  |   4 +-
- fs/logfs/readwrite.c                            |   2 +-
- fs/minix/inode.c                                |   2 +-
- fs/ncpfs/inode.c                                |   2 +-
- fs/nfs/blocklayout/blocklayout.c                |   2 +-
- fs/nfs/inode.c                                  |   2 +-
- fs/nfs/nfs4super.c                              |   2 +-
- fs/nilfs2/inode.c                               |   6 +-
- fs/ntfs/inode.c                                 |   2 +-
- fs/ocfs2/inode.c                                |   4 +-
- fs/omfs/inode.c                                 |   2 +-
- fs/proc/inode.c                                 |   2 +-
- fs/reiserfs/inode.c                             |   2 +-
- fs/sysfs/inode.c                                |   2 +-
- fs/sysv/inode.c                                 |   2 +-
- fs/ubifs/super.c                                |   2 +-
- fs/udf/inode.c                                  |   4 +-
- fs/ufs/inode.c                                  |   2 +-
- fs/xfs/xfs_super.c                              |   2 +-
- include/linux/fs.h                              |   1 +
- include/linux/list_lru.h                        |  21 ++
- include/linux/mm.h                              |   9 +
- include/linux/mmzone.h                          |   6 +
- include/linux/pagemap.h                         |  33 +-
- include/linux/pagevec.h                         |   3 +
- include/linux/radix-tree.h                      |  55 ++-
- include/linux/shmem_fs.h                        |   1 +
- include/linux/swap.h                            |   6 +
- include/linux/vm_event_item.h                   |   1 +
- lib/radix-tree.c                                | 383 ++++++++++----------
- mm/Makefile                                     |   2 +-
- mm/filemap.c                                    | 403 +++++++++++++++++++---
- mm/list_lru.c                                   |  26 ++
- mm/mincore.c                                    |  20 +-
- mm/readahead.c                                  |   6 +-
- mm/shmem.c                                      | 122 ++-----
- mm/swap.c                                       |  49 +++
- mm/truncate.c                                   | 141 +++++++-
- mm/vmscan.c                                     |  24 +-
- mm/vmstat.c                                     |   3 +
- mm/workingset.c                                 | 371 ++++++++++++++++++++
- 69 files changed, 1383 insertions(+), 448 deletions(-)
+diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+index e8be53e..13636c4 100644
+--- a/include/linux/radix-tree.h
++++ b/include/linux/radix-tree.h
+@@ -60,6 +60,33 @@ static inline int radix_tree_is_indirect_ptr(void *ptr)
+ 
+ #define RADIX_TREE_MAX_TAGS 3
+ 
++#ifdef __KERNEL__
++#define RADIX_TREE_MAP_SHIFT	(CONFIG_BASE_SMALL ? 4 : 6)
++#else
++#define RADIX_TREE_MAP_SHIFT	3	/* For more stressful testing */
++#endif
++
++#define RADIX_TREE_MAP_SIZE	(1UL << RADIX_TREE_MAP_SHIFT)
++#define RADIX_TREE_MAP_MASK	(RADIX_TREE_MAP_SIZE-1)
++
++#define RADIX_TREE_TAG_LONGS	\
++	((RADIX_TREE_MAP_SIZE + BITS_PER_LONG - 1) / BITS_PER_LONG)
++
++struct radix_tree_node {
++	unsigned int	height;		/* Height from the bottom */
++	unsigned int	count;
++	union {
++		struct radix_tree_node *parent;	/* Used when ascending tree */
++		struct rcu_head	rcu_head;	/* Used when freeing node */
++	};
++	void __rcu	*slots[RADIX_TREE_MAP_SIZE];
++	unsigned long	tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS];
++};
++
++#define RADIX_TREE_INDEX_BITS  (8 /* CHAR_BIT */ * sizeof(unsigned long))
++#define RADIX_TREE_MAX_PATH (DIV_ROUND_UP(RADIX_TREE_INDEX_BITS, \
++					  RADIX_TREE_MAP_SHIFT))
++
+ /* root tags are stored in gfp_mask, shifted by __GFP_BITS_SHIFT */
+ struct radix_tree_root {
+ 	unsigned int		height;
+@@ -101,6 +128,7 @@ do {									\
+  *   concurrently with other readers.
+  *
+  * The notable exceptions to this rule are the following functions:
++ * __radix_tree_lookup
+  * radix_tree_lookup
+  * radix_tree_lookup_slot
+  * radix_tree_tag_get
+@@ -216,9 +244,15 @@ static inline void radix_tree_replace_slot(void **pslot, void *item)
+ 	rcu_assign_pointer(*pslot, item);
+ }
+ 
++int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
++			struct radix_tree_node **nodep, void ***slotp);
+ int radix_tree_insert(struct radix_tree_root *, unsigned long, void *);
++void *__radix_tree_lookup(struct radix_tree_root *root, unsigned long index,
++			  struct radix_tree_node **nodep, void ***slotp);
+ void *radix_tree_lookup(struct radix_tree_root *, unsigned long);
+ void **radix_tree_lookup_slot(struct radix_tree_root *, unsigned long);
++bool __radix_tree_delete_node(struct radix_tree_root *root, unsigned long index,
++			      struct radix_tree_node *node);
+ void *radix_tree_delete_item(struct radix_tree_root *, unsigned long, void *);
+ void *radix_tree_delete(struct radix_tree_root *, unsigned long);
+ unsigned int
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index e8adb5d..e601c56 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -35,33 +35,6 @@
+ #include <linux/hardirq.h>		/* in_interrupt() */
+ 
+ 
+-#ifdef __KERNEL__
+-#define RADIX_TREE_MAP_SHIFT	(CONFIG_BASE_SMALL ? 4 : 6)
+-#else
+-#define RADIX_TREE_MAP_SHIFT	3	/* For more stressful testing */
+-#endif
+-
+-#define RADIX_TREE_MAP_SIZE	(1UL << RADIX_TREE_MAP_SHIFT)
+-#define RADIX_TREE_MAP_MASK	(RADIX_TREE_MAP_SIZE-1)
+-
+-#define RADIX_TREE_TAG_LONGS	\
+-	((RADIX_TREE_MAP_SIZE + BITS_PER_LONG - 1) / BITS_PER_LONG)
+-
+-struct radix_tree_node {
+-	unsigned int	height;		/* Height from the bottom */
+-	unsigned int	count;
+-	union {
+-		struct radix_tree_node *parent;	/* Used when ascending tree */
+-		struct rcu_head	rcu_head;	/* Used when freeing node */
+-	};
+-	void __rcu	*slots[RADIX_TREE_MAP_SIZE];
+-	unsigned long	tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS];
+-};
+-
+-#define RADIX_TREE_INDEX_BITS  (8 /* CHAR_BIT */ * sizeof(unsigned long))
+-#define RADIX_TREE_MAX_PATH (DIV_ROUND_UP(RADIX_TREE_INDEX_BITS, \
+-					  RADIX_TREE_MAP_SHIFT))
+-
+ /*
+  * The height_to_maxindex array needs to be one deeper than the maximum
+  * path as height 0 holds only 1 entry.
+@@ -387,23 +360,28 @@ out:
+ }
+ 
+ /**
+- *	radix_tree_insert    -    insert into a radix tree
++ *	__radix_tree_create	-	create a slot in a radix tree
+  *	@root:		radix tree root
+  *	@index:		index key
+- *	@item:		item to insert
++ *	@nodep:		returns node
++ *	@slotp:		returns slot
+  *
+- *	Insert an item into the radix tree at position @index.
++ *	Create, if necessary, and return the node and slot for an item
++ *	at position @index in the radix tree @root.
++ *
++ *	Until there is more than one item in the tree, no nodes are
++ *	allocated and @root->rnode is used as a direct slot instead of
++ *	pointing to a node, in which case *@nodep will be NULL.
++ *
++ *	Returns -ENOMEM, or 0 for success.
+  */
+-int radix_tree_insert(struct radix_tree_root *root,
+-			unsigned long index, void *item)
++int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
++			struct radix_tree_node **nodep, void ***slotp)
+ {
+ 	struct radix_tree_node *node = NULL, *slot;
+-	unsigned int height, shift;
+-	int offset;
++	unsigned int height, shift, offset;
+ 	int error;
+ 
+-	BUG_ON(radix_tree_is_indirect_ptr(item));
+-
+ 	/* Make sure the tree is high enough.  */
+ 	if (index > radix_tree_maxindex(root->height)) {
+ 		error = radix_tree_extend(root, index);
+@@ -439,16 +417,40 @@ int radix_tree_insert(struct radix_tree_root *root,
+ 		height--;
+ 	}
+ 
+-	if (slot != NULL)
++	if (nodep)
++		*nodep = node;
++	if (slotp)
++		*slotp = node ? node->slots + offset : (void **)&root->rnode;
++	return 0;
++}
++
++/**
++ *	radix_tree_insert    -    insert into a radix tree
++ *	@root:		radix tree root
++ *	@index:		index key
++ *	@item:		item to insert
++ *
++ *	Insert an item into the radix tree at position @index.
++ */
++int radix_tree_insert(struct radix_tree_root *root,
++			unsigned long index, void *item)
++{
++	struct radix_tree_node *node;
++	void **slot;
++	int error;
++
++	BUG_ON(radix_tree_is_indirect_ptr(item));
++
++	error = __radix_tree_create(root, index, &node, &slot);
++	if (*slot != NULL)
+ 		return -EEXIST;
++	rcu_assign_pointer(*slot, item);
+ 
+ 	if (node) {
+ 		node->count++;
+-		rcu_assign_pointer(node->slots[offset], item);
+-		BUG_ON(tag_get(node, 0, offset));
+-		BUG_ON(tag_get(node, 1, offset));
++		BUG_ON(tag_get(node, 0, index & RADIX_TREE_MAP_MASK));
++		BUG_ON(tag_get(node, 1, index & RADIX_TREE_MAP_MASK));
+ 	} else {
+-		rcu_assign_pointer(root->rnode, item);
+ 		BUG_ON(root_tag_get(root, 0));
+ 		BUG_ON(root_tag_get(root, 1));
+ 	}
+@@ -457,15 +459,26 @@ int radix_tree_insert(struct radix_tree_root *root,
+ }
+ EXPORT_SYMBOL(radix_tree_insert);
+ 
+-/*
+- * is_slot == 1 : search for the slot.
+- * is_slot == 0 : search for the node.
++/**
++ *	__radix_tree_lookup	-	lookup an item in a radix tree
++ *	@root:		radix tree root
++ *	@index:		index key
++ *	@nodep:		returns node
++ *	@slotp:		returns slot
++ *
++ *	Lookup and return the item at position @index in the radix
++ *	tree @root.
++ *
++ *	Until there is more than one item in the tree, no nodes are
++ *	allocated and @root->rnode is used as a direct slot instead of
++ *	pointing to a node, in which case *@nodep will be NULL.
+  */
+-static void *radix_tree_lookup_element(struct radix_tree_root *root,
+-				unsigned long index, int is_slot)
++void *__radix_tree_lookup(struct radix_tree_root *root, unsigned long index,
++			  struct radix_tree_node **nodep, void ***slotp)
+ {
++	struct radix_tree_node *node, *parent;
+ 	unsigned int height, shift;
+-	struct radix_tree_node *node, **slot;
++	void **slot;
+ 
+ 	node = rcu_dereference_raw(root->rnode);
+ 	if (node == NULL)
+@@ -474,7 +487,12 @@ static void *radix_tree_lookup_element(struct radix_tree_root *root,
+ 	if (!radix_tree_is_indirect_ptr(node)) {
+ 		if (index > 0)
+ 			return NULL;
+-		return is_slot ? (void *)&root->rnode : node;
++
++		if (nodep)
++			*nodep = NULL;
++		if (slotp)
++			*slotp = (void **)&root->rnode;
++		return node;
+ 	}
+ 	node = indirect_to_ptr(node);
+ 
+@@ -485,8 +503,8 @@ static void *radix_tree_lookup_element(struct radix_tree_root *root,
+ 	shift = (height-1) * RADIX_TREE_MAP_SHIFT;
+ 
+ 	do {
+-		slot = (struct radix_tree_node **)
+-			(node->slots + ((index>>shift) & RADIX_TREE_MAP_MASK));
++		parent = node;
++		slot = node->slots + ((index >> shift) & RADIX_TREE_MAP_MASK);
+ 		node = rcu_dereference_raw(*slot);
+ 		if (node == NULL)
+ 			return NULL;
+@@ -495,7 +513,11 @@ static void *radix_tree_lookup_element(struct radix_tree_root *root,
+ 		height--;
+ 	} while (height > 0);
+ 
+-	return is_slot ? (void *)slot : indirect_to_ptr(node);
++	if (nodep)
++		*nodep = parent;
++	if (slotp)
++		*slotp = slot;
++	return node;
+ }
+ 
+ /**
+@@ -513,7 +535,11 @@ static void *radix_tree_lookup_element(struct radix_tree_root *root,
+  */
+ void **radix_tree_lookup_slot(struct radix_tree_root *root, unsigned long index)
+ {
+-	return (void **)radix_tree_lookup_element(root, index, 1);
++	void **slot;
++
++	if (!__radix_tree_lookup(root, index, NULL, &slot))
++		return NULL;
++	return slot;
+ }
+ EXPORT_SYMBOL(radix_tree_lookup_slot);
+ 
+@@ -531,7 +557,7 @@ EXPORT_SYMBOL(radix_tree_lookup_slot);
+  */
+ void *radix_tree_lookup(struct radix_tree_root *root, unsigned long index)
+ {
+-	return radix_tree_lookup_element(root, index, 0);
++	return __radix_tree_lookup(root, index, NULL, NULL);
+ }
+ EXPORT_SYMBOL(radix_tree_lookup);
+ 
+@@ -1260,6 +1286,56 @@ static inline void radix_tree_shrink(struct radix_tree_root *root)
+ }
+ 
+ /**
++ *	__radix_tree_delete_node    -    try to free node after clearing a slot
++ *	@root:		radix tree root
++ *	@index:		index key
++ *	@node:		node containing @index
++ *
++ *	After clearing the slot at @index in @node from radix tree
++ *	rooted at @root, call this function to attempt freeing the
++ *	node and shrinking the tree.
++ *
++ *	Returns %true if @node was freed, %false otherwise.
++ */
++bool __radix_tree_delete_node(struct radix_tree_root *root, unsigned long index,
++			      struct radix_tree_node *node)
++{
++	bool deleted = false;
++
++	do {
++		struct radix_tree_node *parent;
++
++		if (node->count) {
++			if (node == indirect_to_ptr(root->rnode)) {
++				radix_tree_shrink(root);
++				if (root->height == 0)
++					deleted = true;
++			}
++			return deleted;
++		}
++
++		parent = node->parent;
++		if (parent) {
++			index >>= RADIX_TREE_MAP_SHIFT;
++
++			parent->slots[index & RADIX_TREE_MAP_MASK] = NULL;
++			parent->count--;
++		} else {
++			root_tag_clear_all(root);
++			root->height = 0;
++			root->rnode = NULL;
++		}
++
++		radix_tree_node_free(node);
++		deleted = true;
++
++		node = parent;
++	} while (node);
++
++	return deleted;
++}
++
++/**
+  *	radix_tree_delete_item    -    delete an item from a radix tree
+  *	@root:		radix tree root
+  *	@index:		index key
+@@ -1273,43 +1349,26 @@ static inline void radix_tree_shrink(struct radix_tree_root *root)
+ void *radix_tree_delete_item(struct radix_tree_root *root,
+ 			     unsigned long index, void *item)
+ {
+-	struct radix_tree_node *node = NULL;
+-	struct radix_tree_node *slot = NULL;
+-	struct radix_tree_node *to_free;
+-	unsigned int height, shift;
++	struct radix_tree_node *node;
++	unsigned int offset;
++	void **slot;
++	void *entry;
+ 	int tag;
+-	int uninitialized_var(offset);
+ 
+-	height = root->height;
+-	if (index > radix_tree_maxindex(height))
+-		goto out;
++	entry = __radix_tree_lookup(root, index, &node, &slot);
++	if (!entry)
++		return NULL;
+ 
+-	slot = root->rnode;
+-	if (height == 0) {
++	if (item && entry != item)
++		return NULL;
++
++	if (!node) {
+ 		root_tag_clear_all(root);
+ 		root->rnode = NULL;
+-		goto out;
++		return entry;
+ 	}
+-	slot = indirect_to_ptr(slot);
+-	shift = height * RADIX_TREE_MAP_SHIFT;
+-
+-	do {
+-		if (slot == NULL)
+-			goto out;
+-
+-		shift -= RADIX_TREE_MAP_SHIFT;
+-		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
+-		node = slot;
+-		slot = slot->slots[offset];
+-	} while (shift);
+-
+-	if (slot == NULL)
+-		goto out;
+ 
+-	if (item && slot != item) {
+-		slot = NULL;
+-		goto out;
+-	}
++	offset = index & RADIX_TREE_MAP_MASK;
+ 
+ 	/*
+ 	 * Clear all tags associated with the item to be deleted.
+@@ -1320,40 +1379,12 @@ void *radix_tree_delete_item(struct radix_tree_root *root,
+ 			radix_tree_tag_clear(root, index, tag);
+ 	}
+ 
+-	to_free = NULL;
+-	/* Now free the nodes we do not need anymore */
+-	while (node) {
+-		node->slots[offset] = NULL;
+-		node->count--;
+-		/*
+-		 * Queue the node for deferred freeing after the
+-		 * last reference to it disappears (set NULL, above).
+-		 */
+-		if (to_free)
+-			radix_tree_node_free(to_free);
+-
+-		if (node->count) {
+-			if (node == indirect_to_ptr(root->rnode))
+-				radix_tree_shrink(root);
+-			goto out;
+-		}
+-
+-		/* Node with zero slots in use so free it */
+-		to_free = node;
+-
+-		index >>= RADIX_TREE_MAP_SHIFT;
+-		offset = index & RADIX_TREE_MAP_MASK;
+-		node = node->parent;
+-	}
++	node->slots[offset] = NULL;
++	node->count--;
+ 
+-	root_tag_clear_all(root);
+-	root->height = 0;
+-	root->rnode = NULL;
+-	if (to_free)
+-		radix_tree_node_free(to_free);
++	__radix_tree_delete_node(root, index, node);
+ 
+-out:
+-	return slot;
++	return entry;
+ }
+ EXPORT_SYMBOL(radix_tree_delete_item);
+ 
+-- 
+1.8.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
