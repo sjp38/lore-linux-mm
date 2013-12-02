@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D8366B0068
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 06:20:01 -0500 (EST)
-Received: by mail-la0-f50.google.com with SMTP id el20so8381045lab.9
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 03:20:00 -0800 (PST)
+Received: from mail-la0-f46.google.com (mail-la0-f46.google.com [209.85.215.46])
+	by kanga.kvack.org (Postfix) with ESMTP id B7F596B0069
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 06:20:02 -0500 (EST)
+Received: by mail-la0-f46.google.com with SMTP id eh20so8176582lab.33
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 03:20:02 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id d9si14152791lad.120.2013.12.02.03.20.00
+        by mx.google.com with ESMTPS id 9si26419732lal.147.2013.12.02.03.20.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Dec 2013 03:20:00 -0800 (PST)
+        Mon, 02 Dec 2013 03:20:01 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH v12 08/18] vmscan: do_try_to_free_pages(): remove shrink_control argument
-Date: Mon, 2 Dec 2013 15:19:43 +0400
-Message-ID: <cf461ed10d3e9ed7100ae38ec2e3a9011b90cd05.1385974612.git.vdavydov@parallels.com>
+Subject: [PATCH v12 01/18] memcg: make cache index determination more robust
+Date: Mon, 2 Dec 2013 15:19:36 +0400
+Message-ID: <a35230f1d3fd31dfadfdf34f49c643cba3c75904.1385974612.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1385974612.git.vdavydov@parallels.com>
 References: <cover.1385974612.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -20,152 +20,53 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, vdavydov@parallels.com, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, vdavydov@parallels.com, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-There is no need passing on a shrink_control struct from
-try_to_free_pages() and friends to do_try_to_free_pages() and then to
-shrink_zones(), because it is only used in shrink_zones() and the only
-fields initialized on the top level is gfp_mask, which always equals to
-scan_control.gfp_mask known to shrink_zones(). So let's move
-shrink_control initialization to shrink_zones().
+From: Glauber Costa <glommer@openvz.org>
 
+I caught myself doing something like the following outside memcg core:
+
+	memcg_id = -1;
+	if (memcg && memcg_kmem_is_active(memcg))
+		memcg_id = memcg_cache_id(memcg);
+
+to be able to handle all possible memcgs in a sane manner. In particular, the
+root cache will have kmemcg_id = -1 (just because we don't call memcg_kmem_init
+to the root cache since it is not limitable). We have always coped with that by
+making sure we sanitize which cache is passed to memcg_cache_id. Although this
+example is given for root, what we really need to know is whether or not a
+cache is kmem active.
+
+But outside the memcg core testing for root, for instance, is not trivial since
+we don't export mem_cgroup_is_root. I ended up realizing that this tests really
+belong inside memcg_cache_id. This patch moves a similar but stronger test
+inside memcg_cache_id and make sure it always return a meaningful value.
+
+Signed-off-by: Glauber Costa <glommer@openvz.org>
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>
+Cc: Balbir Singh <bsingharora@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/vmscan.c |   32 ++++++++++++--------------------
- 1 file changed, 12 insertions(+), 20 deletions(-)
+ mm/memcontrol.c |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index ba1ad6e..7601b95 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2274,8 +2274,7 @@ static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
-  * further reclaim.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index f1a0ae6..02b5176 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3073,7 +3073,9 @@ void memcg_cache_list_add(struct mem_cgroup *memcg, struct kmem_cache *cachep)
   */
- static bool shrink_zones(struct zonelist *zonelist,
--			 struct scan_control *sc,
--			 struct shrink_control *shrink)
-+			 struct scan_control *sc)
+ int memcg_cache_id(struct mem_cgroup *memcg)
  {
- 	struct zoneref *z;
- 	struct zone *zone;
-@@ -2284,6 +2283,9 @@ static bool shrink_zones(struct zonelist *zonelist,
- 	unsigned long lru_pages = 0;
- 	bool aborted_reclaim = false;
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
-+	struct shrink_control shrink = {
-+		.gfp_mask = sc->gfp_mask,
-+	};
+-	return memcg ? memcg->kmemcg_id : -1;
++	if (!memcg || !memcg_can_account_kmem(memcg))
++		return -1;
++	return memcg->kmemcg_id;
+ }
  
- 	/*
- 	 * If the number of buffer_heads in the machine exceeds the maximum
-@@ -2293,7 +2295,7 @@ static bool shrink_zones(struct zonelist *zonelist,
- 	if (buffer_heads_over_limit)
- 		sc->gfp_mask |= __GFP_HIGHMEM;
- 
--	nodes_clear(shrink->nodes_to_scan);
-+	nodes_clear(shrink.nodes_to_scan);
- 
- 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
- 					gfp_zone(sc->gfp_mask), sc->nodemask) {
-@@ -2308,7 +2310,7 @@ static bool shrink_zones(struct zonelist *zonelist,
- 				continue;
- 
- 			lru_pages += zone_reclaimable_pages(zone);
--			node_set(zone_to_nid(zone), shrink->nodes_to_scan);
-+			node_set(zone_to_nid(zone), shrink.nodes_to_scan);
- 
- 			if (sc->priority != DEF_PRIORITY &&
- 			    !zone_reclaimable(zone))
-@@ -2353,7 +2355,7 @@ static bool shrink_zones(struct zonelist *zonelist,
- 	 * LRU pages over slab pages.
- 	 */
- 	if (global_reclaim(sc)) {
--		shrink_slab(shrink, sc->nr_scanned, lru_pages);
-+		shrink_slab(&shrink, sc->nr_scanned, lru_pages);
- 		if (reclaim_state) {
- 			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
- 			reclaim_state->reclaimed_slab = 0;
-@@ -2400,8 +2402,7 @@ static bool all_unreclaimable(struct zonelist *zonelist,
-  * 		else, the number of pages reclaimed
-  */
- static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
--					struct scan_control *sc,
--					struct shrink_control *shrink)
-+					  struct scan_control *sc)
- {
- 	unsigned long total_scanned = 0;
- 	unsigned long writeback_threshold;
-@@ -2416,7 +2417,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
- 				sc->priority);
- 		sc->nr_scanned = 0;
--		aborted_reclaim = shrink_zones(zonelist, sc, shrink);
-+		aborted_reclaim = shrink_zones(zonelist, sc);
- 
- 		total_scanned += sc->nr_scanned;
- 		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
-@@ -2579,9 +2580,6 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- 		.target_mem_cgroup = NULL,
- 		.nodemask = nodemask,
- 	};
--	struct shrink_control shrink = {
--		.gfp_mask = sc.gfp_mask,
--	};
- 
- 	/*
- 	 * Do not enter reclaim if fatal signal was delivered while throttled.
-@@ -2595,7 +2593,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- 				sc.may_writepage,
- 				gfp_mask);
- 
--	nr_reclaimed = do_try_to_free_pages(zonelist, &sc, &shrink);
-+	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
- 
- 	trace_mm_vmscan_direct_reclaim_end(nr_reclaimed);
- 
-@@ -2662,9 +2660,6 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 		.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
- 				(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK),
- 	};
--	struct shrink_control shrink = {
--		.gfp_mask = sc.gfp_mask,
--	};
- 
- 	/*
- 	 * Unlike direct reclaim via alloc_pages(), memcg's reclaim doesn't
-@@ -2679,7 +2674,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 					    sc.may_writepage,
- 					    sc.gfp_mask);
- 
--	nr_reclaimed = do_try_to_free_pages(zonelist, &sc, &shrink);
-+	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
- 
- 	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
- 
-@@ -3335,9 +3330,6 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
- 		.order = 0,
- 		.priority = DEF_PRIORITY,
- 	};
--	struct shrink_control shrink = {
--		.gfp_mask = sc.gfp_mask,
--	};
- 	struct zonelist *zonelist = node_zonelist(numa_node_id(), sc.gfp_mask);
- 	struct task_struct *p = current;
- 	unsigned long nr_reclaimed;
-@@ -3347,7 +3339,7 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
- 	reclaim_state.reclaimed_slab = 0;
- 	p->reclaim_state = &reclaim_state;
- 
--	nr_reclaimed = do_try_to_free_pages(zonelist, &sc, &shrink);
-+	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
- 
- 	p->reclaim_state = NULL;
- 	lockdep_clear_current_reclaim_state();
+ /*
 -- 
 1.7.10.4
 
