@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B0DE6B0062
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D8366B0068
 	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 06:20:01 -0500 (EST)
-Received: by mail-lb0-f173.google.com with SMTP id u14so8240662lbd.4
+Received: by mail-la0-f50.google.com with SMTP id el20so8381045lab.9
         for <linux-mm@kvack.org>; Mon, 02 Dec 2013 03:20:00 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id a4si23960114laf.113.2013.12.02.03.19.59
+        by mx.google.com with ESMTPS id d9si14152791lad.120.2013.12.02.03.20.00
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Dec 2013 03:19:59 -0800 (PST)
+        Mon, 02 Dec 2013 03:20:00 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH v12 06/18] vmscan: rename shrink_slab() args to make it more generic
-Date: Mon, 2 Dec 2013 15:19:41 +0400
-Message-ID: <6fbe648a707331e0716cc7a4fc6366ca83a97f6a.1385974612.git.vdavydov@parallels.com>
+Subject: [PATCH v12 08/18] vmscan: do_try_to_free_pages(): remove shrink_control argument
+Date: Mon, 2 Dec 2013 15:19:43 +0400
+Message-ID: <cf461ed10d3e9ed7100ae38ec2e3a9011b90cd05.1385974612.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1385974612.git.vdavydov@parallels.com>
 References: <cover.1385974612.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,18 +22,12 @@ List-ID: <linux-mm.kvack.org>
 To: hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, vdavydov@parallels.com, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-Currently in addition to a shrink_control struct shrink_slab() takes two
-arguments, nr_pages_scanned and lru_pages, which are used for balancing
-slab reclaim versus page reclaim - roughly speaking, shrink_slab() will
-try to scan nr_pages_scanned/lru_pages fraction of all slab objects.
-However, shrink_slab() is not always called after page cache reclaim.
-For example, drop_slab() uses shrink_slab() to drop as many slab objects
-as possible and thus has to pass phony values 1000/1000 to it, which do
-not make sense for nr_pages_scanned/lru_pages. Moreover, as soon as
-kmemcg reclaim is introduced, we will have to make up phony values for
-nr_pages_scanned and lru_pages again when doing kmem-only reclaim for a
-memory cgroup, which is possible if the cgroup has its kmem limit less
-than the total memory limit.
+There is no need passing on a shrink_control struct from
+try_to_free_pages() and friends to do_try_to_free_pages() and then to
+shrink_zones(), because it is only used in shrink_zones() and the only
+fields initialized on the top level is gfp_mask, which always equals to
+scan_control.gfp_mask known to shrink_zones(). So let's move
+shrink_control initialization to shrink_zones().
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
@@ -42,156 +36,136 @@ Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mgorman@suse.de>
 Cc: Rik van Riel <riel@redhat.com>
 ---
- include/linux/mm.h            |    3 +--
- include/trace/events/vmscan.h |   20 ++++++++++----------
- mm/vmscan.c                   |   26 +++++++++++++-------------
- 3 files changed, 24 insertions(+), 25 deletions(-)
+ mm/vmscan.c |   32 ++++++++++++--------------------
+ 1 file changed, 12 insertions(+), 20 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 1cedd00..71c7f50 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1926,8 +1926,7 @@ int drop_caches_sysctl_handler(struct ctl_table *, int,
- #endif
- 
- unsigned long shrink_slab(struct shrink_control *shrink,
--			  unsigned long nr_pages_scanned,
--			  unsigned long lru_pages);
-+			  unsigned long fraction, unsigned long denominator);
- 
- #ifndef CONFIG_MMU
- #define randomize_va_space 0
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index 132a985..6bed4ab 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -181,11 +181,11 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_softlimit_re
- 
- TRACE_EVENT(mm_shrink_slab_start,
- 	TP_PROTO(struct shrinker *shr, struct shrink_control *sc,
--		long nr_objects_to_shrink, unsigned long pgs_scanned,
--		unsigned long lru_pgs, unsigned long cache_items,
-+		long nr_objects_to_shrink, unsigned long frac,
-+		unsigned long denom, unsigned long cache_items,
- 		unsigned long long delta, unsigned long total_scan),
- 
--	TP_ARGS(shr, sc, nr_objects_to_shrink, pgs_scanned, lru_pgs,
-+	TP_ARGS(shr, sc, nr_objects_to_shrink, frac, denom,
- 		cache_items, delta, total_scan),
- 
- 	TP_STRUCT__entry(
-@@ -193,8 +193,8 @@ TRACE_EVENT(mm_shrink_slab_start,
- 		__field(void *, shrink)
- 		__field(long, nr_objects_to_shrink)
- 		__field(gfp_t, gfp_flags)
--		__field(unsigned long, pgs_scanned)
--		__field(unsigned long, lru_pgs)
-+		__field(unsigned long, frac)
-+		__field(unsigned long, denom)
- 		__field(unsigned long, cache_items)
- 		__field(unsigned long long, delta)
- 		__field(unsigned long, total_scan)
-@@ -205,20 +205,20 @@ TRACE_EVENT(mm_shrink_slab_start,
- 		__entry->shrink = shr->scan_objects;
- 		__entry->nr_objects_to_shrink = nr_objects_to_shrink;
- 		__entry->gfp_flags = sc->gfp_mask;
--		__entry->pgs_scanned = pgs_scanned;
--		__entry->lru_pgs = lru_pgs;
-+		__entry->frac = frac;
-+		__entry->denom = denom;
- 		__entry->cache_items = cache_items;
- 		__entry->delta = delta;
- 		__entry->total_scan = total_scan;
- 	),
- 
--	TP_printk("%pF %p: objects to shrink %ld gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
-+	TP_printk("%pF %p: objects to shrink %ld gfp_flags %s frac %ld denom %ld cache items %ld delta %lld total_scan %ld",
- 		__entry->shrink,
- 		__entry->shr,
- 		__entry->nr_objects_to_shrink,
- 		show_gfp_flags(__entry->gfp_flags),
--		__entry->pgs_scanned,
--		__entry->lru_pgs,
-+		__entry->frac,
-+		__entry->denom,
- 		__entry->cache_items,
- 		__entry->delta,
- 		__entry->total_scan)
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index eea668d..6946997 100644
+index ba1ad6e..7601b95 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -219,7 +219,7 @@ EXPORT_SYMBOL(unregister_shrinker);
- 
- static unsigned long
- shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
--		 unsigned long nr_pages_scanned, unsigned long lru_pages)
-+		 unsigned long fraction, unsigned long denominator)
- {
- 	unsigned long freed = 0;
- 	unsigned long long delta;
-@@ -243,9 +243,9 @@ shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
- 	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
- 
- 	total_scan = nr;
--	delta = (4 * nr_pages_scanned) / shrinker->seeks;
-+	delta = (4 * fraction) / shrinker->seeks;
- 	delta *= max_pass;
--	do_div(delta, lru_pages + 1);
-+	do_div(delta, denominator + 1);
- 	total_scan += delta;
- 	if (total_scan < 0) {
- 		printk(KERN_ERR
-@@ -278,7 +278,7 @@ shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
- 		total_scan = max_pass * 2;
- 
- 	trace_mm_shrink_slab_start(shrinker, shrinkctl, nr,
--				nr_pages_scanned, lru_pages,
-+				fraction, denominator,
- 				max_pass, delta, total_scan);
- 
- 	while (total_scan >= batch_size) {
-@@ -322,23 +322,23 @@ shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
-  * If the vm encountered mapped pages on the LRU it increase the pressure on
-  * slab to avoid swapping.
-  *
-- * We do weird things to avoid (scanned*seeks*entries) overflowing 32 bits.
-+ * We do weird things to avoid (fraction*seeks*entries) overflowing 32 bits.
-  *
-- * `lru_pages' represents the number of on-LRU pages in all the zones which
-- * are eligible for the caller's allocation attempt.  It is used for balancing
-- * slab reclaim versus page reclaim.
-+ * `fraction' and `denominator' are used for balancing slab reclaim versus page
-+ * reclaim. To scan slab objects proportionally to page cache, pass the number
-+ * of pages scanned and the total number of on-LRU pages in all the zones which
-+ * are eligible for the caller's allocation attempt respectively.
-  *
-  * Returns the number of slab objects which we shrunk.
+@@ -2274,8 +2274,7 @@ static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
+  * further reclaim.
   */
- unsigned long shrink_slab(struct shrink_control *shrinkctl,
--			  unsigned long nr_pages_scanned,
--			  unsigned long lru_pages)
-+			  unsigned long fraction, unsigned long denominator)
+ static bool shrink_zones(struct zonelist *zonelist,
+-			 struct scan_control *sc,
+-			 struct shrink_control *shrink)
++			 struct scan_control *sc)
  {
- 	struct shrinker *shrinker;
- 	unsigned long freed = 0;
+ 	struct zoneref *z;
+ 	struct zone *zone;
+@@ -2284,6 +2283,9 @@ static bool shrink_zones(struct zonelist *zonelist,
+ 	unsigned long lru_pages = 0;
+ 	bool aborted_reclaim = false;
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
++	struct shrink_control shrink = {
++		.gfp_mask = sc->gfp_mask,
++	};
  
--	if (nr_pages_scanned == 0)
--		nr_pages_scanned = SWAP_CLUSTER_MAX;
-+	if (fraction == 0)
-+		fraction = SWAP_CLUSTER_MAX;
+ 	/*
+ 	 * If the number of buffer_heads in the machine exceeds the maximum
+@@ -2293,7 +2295,7 @@ static bool shrink_zones(struct zonelist *zonelist,
+ 	if (buffer_heads_over_limit)
+ 		sc->gfp_mask |= __GFP_HIGHMEM;
  
- 	if (!down_read_trylock(&shrinker_rwsem)) {
- 		/*
-@@ -361,7 +361,7 @@ unsigned long shrink_slab(struct shrink_control *shrinkctl,
- 				break;
+-	nodes_clear(shrink->nodes_to_scan);
++	nodes_clear(shrink.nodes_to_scan);
  
- 			freed += shrink_slab_node(shrinkctl, shrinker,
--				 nr_pages_scanned, lru_pages);
-+						  fraction, denominator);
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+ 					gfp_zone(sc->gfp_mask), sc->nodemask) {
+@@ -2308,7 +2310,7 @@ static bool shrink_zones(struct zonelist *zonelist,
+ 				continue;
  
- 		}
- 	}
+ 			lru_pages += zone_reclaimable_pages(zone);
+-			node_set(zone_to_nid(zone), shrink->nodes_to_scan);
++			node_set(zone_to_nid(zone), shrink.nodes_to_scan);
+ 
+ 			if (sc->priority != DEF_PRIORITY &&
+ 			    !zone_reclaimable(zone))
+@@ -2353,7 +2355,7 @@ static bool shrink_zones(struct zonelist *zonelist,
+ 	 * LRU pages over slab pages.
+ 	 */
+ 	if (global_reclaim(sc)) {
+-		shrink_slab(shrink, sc->nr_scanned, lru_pages);
++		shrink_slab(&shrink, sc->nr_scanned, lru_pages);
+ 		if (reclaim_state) {
+ 			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+ 			reclaim_state->reclaimed_slab = 0;
+@@ -2400,8 +2402,7 @@ static bool all_unreclaimable(struct zonelist *zonelist,
+  * 		else, the number of pages reclaimed
+  */
+ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+-					struct scan_control *sc,
+-					struct shrink_control *shrink)
++					  struct scan_control *sc)
+ {
+ 	unsigned long total_scanned = 0;
+ 	unsigned long writeback_threshold;
+@@ -2416,7 +2417,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
+ 				sc->priority);
+ 		sc->nr_scanned = 0;
+-		aborted_reclaim = shrink_zones(zonelist, sc, shrink);
++		aborted_reclaim = shrink_zones(zonelist, sc);
+ 
+ 		total_scanned += sc->nr_scanned;
+ 		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
+@@ -2579,9 +2580,6 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 		.target_mem_cgroup = NULL,
+ 		.nodemask = nodemask,
+ 	};
+-	struct shrink_control shrink = {
+-		.gfp_mask = sc.gfp_mask,
+-	};
+ 
+ 	/*
+ 	 * Do not enter reclaim if fatal signal was delivered while throttled.
+@@ -2595,7 +2593,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 				sc.may_writepage,
+ 				gfp_mask);
+ 
+-	nr_reclaimed = do_try_to_free_pages(zonelist, &sc, &shrink);
++	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+ 
+ 	trace_mm_vmscan_direct_reclaim_end(nr_reclaimed);
+ 
+@@ -2662,9 +2660,6 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 		.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+ 				(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK),
+ 	};
+-	struct shrink_control shrink = {
+-		.gfp_mask = sc.gfp_mask,
+-	};
+ 
+ 	/*
+ 	 * Unlike direct reclaim via alloc_pages(), memcg's reclaim doesn't
+@@ -2679,7 +2674,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 					    sc.may_writepage,
+ 					    sc.gfp_mask);
+ 
+-	nr_reclaimed = do_try_to_free_pages(zonelist, &sc, &shrink);
++	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+ 
+ 	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
+ 
+@@ -3335,9 +3330,6 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
+ 		.order = 0,
+ 		.priority = DEF_PRIORITY,
+ 	};
+-	struct shrink_control shrink = {
+-		.gfp_mask = sc.gfp_mask,
+-	};
+ 	struct zonelist *zonelist = node_zonelist(numa_node_id(), sc.gfp_mask);
+ 	struct task_struct *p = current;
+ 	unsigned long nr_reclaimed;
+@@ -3347,7 +3339,7 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
+ 	reclaim_state.reclaimed_slab = 0;
+ 	p->reclaim_state = &reclaim_state;
+ 
+-	nr_reclaimed = do_try_to_free_pages(zonelist, &sc, &shrink);
++	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+ 
+ 	p->reclaim_state = NULL;
+ 	lockdep_clear_current_reclaim_state();
 -- 
 1.7.10.4
 
