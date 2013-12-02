@@ -1,336 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 05FBE6B0082
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 06:20:16 -0500 (EST)
-Received: by mail-la0-f44.google.com with SMTP id ep20so8290829lab.3
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 03:20:16 -0800 (PST)
+Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
+	by kanga.kvack.org (Postfix) with ESMTP id A56C16B00A0
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 06:22:20 -0500 (EST)
+Received: by mail-lb0-f182.google.com with SMTP id u14so8482062lbd.13
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 03:22:19 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id d9si14157321lad.135.2013.12.02.03.20.15
+        by mx.google.com with ESMTPS id du3si17584550lbc.16.2013.12.02.03.22.19
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Dec 2013 03:20:15 -0800 (PST)
+        Mon, 02 Dec 2013 03:22:19 -0800 (PST)
+Message-ID: <529C6D6A.3060307@parallels.com>
+Date: Mon, 2 Dec 2013 15:22:18 +0400
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH v12 12/18] fs: make icache, dcache shrinkers memcg-aware
-Date: Mon, 2 Dec 2013 15:19:47 +0400
-Message-ID: <8e7582ad42f35cd9a9ea274bd203e2423b944b62.1385974612.git.vdavydov@parallels.com>
-In-Reply-To: <cover.1385974612.git.vdavydov@parallels.com>
-References: <cover.1385974612.git.vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH v12 00/18] kmemcg shrinkers
+References: <cover.1385974612.git.vdavydov@parallels.com>
+In-Reply-To: <cover.1385974612.git.vdavydov@parallels.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, vdavydov@parallels.com, Al Viro <viro@zeniv.linux.org.uk>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: hannes@cmpxchg.org
+Cc: Vladimir Davydov <vdavydov@parallels.com>, mhocko@suse.cz, dchinner@redhat.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org
 
-Using the per-memcg LRU infrastructure introduced by previous patches,
-this patch makes dcache and icache shrinkers memcg-aware. To achieve
-that, it converts s_dentry_lru and s_inode_lru from list_lru to
-memcg_list_lru and restricts the reclaim to per-memcg parts of the lists
-in case of memcg pressure.
+Hi, Johannes
 
-Other FS objects are currently ignored and only reclaimed on global
-pressure, because their shrinkers are heavily FS-specific and can't be
-converted to be memcg-aware so easily. However, we can pass on target
-memcg to the FS layer and let it decide if per-memcg objects should be
-reclaimed.
+I tried to fix the patchset according to your comments, but there were a 
+couple of places that after a bit of thinking I found impossible to 
+amend exactly the way you proposed. Here they go:
 
-Note that with this patch applied we lose global LRU order, but it does
-not appear to be a critical drawback, because global pressure should try
-to balance the amount reclaimed from all memcgs. On the other hand,
-preserving global LRU order would require an extra list_head added to
-each dentry and inode, which seems to be too costly.
+>> +static unsigned long
+>> +zone_nr_reclaimable_pages(struct scan_control *sc, struct zone *zone)
+>> +{
+>> +	if (global_reclaim(sc))
+>> +		return zone_reclaimable_pages(zone);
+>> +	return memcg_zone_reclaimable_pages(sc->target_mem_cgroup, zone);
+>> +}
+> So we have zone_reclaimable_pages() and zone_nr_reclaimable_pages()
+> with completely different signatures and usecases.  Not good.
+>
+> The intersection between a zone and a memcg is called an lruvec,
+> please use that.  Look up an lruvec as early as possible, then
+> implement lruvec_reclaimable_pages() etc. for use during reclaim.
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Dave Chinner <dchinner@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
-Cc: Balbir Singh <bsingharora@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- fs/dcache.c        |   25 +++++++++++++++----------
- fs/inode.c         |   16 ++++++++++------
- fs/internal.h      |    9 +++++----
- fs/super.c         |   43 +++++++++++++++++++++++++------------------
- include/linux/fs.h |    4 ++--
- 5 files changed, 57 insertions(+), 40 deletions(-)
+We iterate over lruvecs in shrink_zone() so AFAIU I should have put the 
+lru_pages counting there. However, we're not guaranteed to iterate over 
+all lruvecs eligible for current allocations if the zone is being shrunk 
+concurrently. One way to fix this would be rewriting memcg iteration 
+interface to always iterate over all memcgs returning in a flag in the 
+cookie if the current memcg should be reclaimed, but I found this 
+somewhat obfuscating and preferred simply fix the function name.
 
-diff --git a/fs/dcache.c b/fs/dcache.c
-index 4bdb300..e8499db 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -343,18 +343,24 @@ static void dentry_unlink_inode(struct dentry * dentry)
- #define D_FLAG_VERIFY(dentry,x) WARN_ON_ONCE(((dentry)->d_flags & (DCACHE_LRU_LIST | DCACHE_SHRINK_LIST)) != (x))
- static void d_lru_add(struct dentry *dentry)
- {
-+	struct list_lru *lru =
-+		mem_cgroup_kmem_list_lru(&dentry->d_sb->s_dentry_lru, dentry);
-+
- 	D_FLAG_VERIFY(dentry, 0);
- 	dentry->d_flags |= DCACHE_LRU_LIST;
- 	this_cpu_inc(nr_dentry_unused);
--	WARN_ON_ONCE(!list_lru_add(&dentry->d_sb->s_dentry_lru, &dentry->d_lru));
-+	WARN_ON_ONCE(!list_lru_add(lru, &dentry->d_lru));
- }
- 
- static void d_lru_del(struct dentry *dentry)
- {
-+	struct list_lru *lru =
-+		mem_cgroup_kmem_list_lru(&dentry->d_sb->s_dentry_lru, dentry);
-+
- 	D_FLAG_VERIFY(dentry, DCACHE_LRU_LIST);
- 	dentry->d_flags &= ~DCACHE_LRU_LIST;
- 	this_cpu_dec(nr_dentry_unused);
--	WARN_ON_ONCE(!list_lru_del(&dentry->d_sb->s_dentry_lru, &dentry->d_lru));
-+	WARN_ON_ONCE(!list_lru_del(lru, &dentry->d_lru));
- }
- 
- static void d_shrink_del(struct dentry *dentry)
-@@ -970,9 +976,9 @@ dentry_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
- }
- 
- /**
-- * prune_dcache_sb - shrink the dcache
-- * @sb: superblock
-- * @nr_to_scan : number of entries to try to free
-+ * prune_dcache_lru - shrink the dcache
-+ * @lru: dentry lru list
-+ * @nr_to_scan: number of entries to try to free
-  * @nid: which node to scan for freeable entities
-  *
-  * Attempt to shrink the superblock dcache LRU by @nr_to_scan entries. This is
-@@ -982,14 +988,13 @@ dentry_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
-  * This function may fail to free any resources if all the dentries are in
-  * use.
-  */
--long prune_dcache_sb(struct super_block *sb, unsigned long nr_to_scan,
--		     int nid)
-+long prune_dcache_lru(struct list_lru *lru, unsigned long nr_to_scan, int nid)
- {
- 	LIST_HEAD(dispose);
- 	long freed;
- 
--	freed = list_lru_walk_node(&sb->s_dentry_lru, nid, dentry_lru_isolate,
--				       &dispose, &nr_to_scan);
-+	freed = list_lru_walk_node(lru, nid, dentry_lru_isolate,
-+				   &dispose, &nr_to_scan);
- 	shrink_dentry_list(&dispose);
- 	return freed;
- }
-@@ -1029,7 +1034,7 @@ void shrink_dcache_sb(struct super_block *sb)
- 	do {
- 		LIST_HEAD(dispose);
- 
--		freed = list_lru_walk(&sb->s_dentry_lru,
-+		freed = memcg_list_lru_walk_all(&sb->s_dentry_lru,
- 			dentry_lru_isolate_shrink, &dispose, UINT_MAX);
- 
- 		this_cpu_sub(nr_dentry_unused, freed);
-diff --git a/fs/inode.c b/fs/inode.c
-index 4bcdad3..f06a963 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -402,7 +402,10 @@ EXPORT_SYMBOL(ihold);
- 
- static void inode_lru_list_add(struct inode *inode)
- {
--	if (list_lru_add(&inode->i_sb->s_inode_lru, &inode->i_lru))
-+	struct list_lru *lru =
-+		mem_cgroup_kmem_list_lru(&inode->i_sb->s_inode_lru, inode);
-+
-+	if (list_lru_add(lru, &inode->i_lru))
- 		this_cpu_inc(nr_unused);
- }
- 
-@@ -421,8 +424,10 @@ void inode_add_lru(struct inode *inode)
- 
- static void inode_lru_list_del(struct inode *inode)
- {
-+	struct list_lru *lru =
-+		mem_cgroup_kmem_list_lru(&inode->i_sb->s_inode_lru, inode);
- 
--	if (list_lru_del(&inode->i_sb->s_inode_lru, &inode->i_lru))
-+	if (list_lru_del(lru, &inode->i_lru))
- 		this_cpu_dec(nr_unused);
- }
- 
-@@ -748,14 +753,13 @@ inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
-  * to trim from the LRU. Inodes to be freed are moved to a temporary list and
-  * then are freed outside inode_lock by dispose_list().
-  */
--long prune_icache_sb(struct super_block *sb, unsigned long nr_to_scan,
--		     int nid)
-+long prune_icache_lru(struct list_lru *lru, unsigned long nr_to_scan, int nid)
- {
- 	LIST_HEAD(freeable);
- 	long freed;
- 
--	freed = list_lru_walk_node(&sb->s_inode_lru, nid, inode_lru_isolate,
--				       &freeable, &nr_to_scan);
-+	freed = list_lru_walk_node(lru, nid, inode_lru_isolate,
-+				   &freeable, &nr_to_scan);
- 	dispose_list(&freeable);
- 	return freed;
- }
-diff --git a/fs/internal.h b/fs/internal.h
-index 4657424..5d977f3 100644
---- a/fs/internal.h
-+++ b/fs/internal.h
-@@ -14,6 +14,7 @@ struct file_system_type;
- struct linux_binprm;
- struct path;
- struct mount;
-+struct list_lru;
- 
- /*
-  * block_dev.c
-@@ -107,8 +108,8 @@ extern int open_check_o_direct(struct file *f);
-  * inode.c
-  */
- extern spinlock_t inode_sb_list_lock;
--extern long prune_icache_sb(struct super_block *sb, unsigned long nr_to_scan,
--			    int nid);
-+extern long prune_icache_lru(struct list_lru *lru,
-+			     unsigned long nr_to_scan, int nid);
- extern void inode_add_lru(struct inode *inode);
- 
- /*
-@@ -125,8 +126,8 @@ extern int invalidate_inodes(struct super_block *, bool);
-  */
- extern struct dentry *__d_alloc(struct super_block *, const struct qstr *);
- extern int d_set_mounted(struct dentry *dentry);
--extern long prune_dcache_sb(struct super_block *sb, unsigned long nr_to_scan,
--			    int nid);
-+extern long prune_dcache_lru(struct list_lru *lru,
-+			     unsigned long nr_to_scan, int nid);
- 
- /*
-  * read_write.c
-diff --git a/fs/super.c b/fs/super.c
-index cece164..b198da4 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -57,6 +57,8 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
- 				      struct shrink_control *sc)
- {
- 	struct super_block *sb;
-+	struct list_lru *inode_lru;
-+	struct list_lru *dentry_lru;
- 	long	fs_objects = 0;
- 	long	total_objects;
- 	long	freed = 0;
-@@ -75,11 +77,14 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
- 	if (!grab_super_passive(sb))
- 		return SHRINK_STOP;
- 
--	if (sb->s_op->nr_cached_objects)
-+	if (sb->s_op->nr_cached_objects && !sc->memcg)
- 		fs_objects = sb->s_op->nr_cached_objects(sb, sc->nid);
- 
--	inodes = list_lru_count_node(&sb->s_inode_lru, sc->nid);
--	dentries = list_lru_count_node(&sb->s_dentry_lru, sc->nid);
-+	inode_lru = mem_cgroup_list_lru(&sb->s_inode_lru, sc->memcg);
-+	dentry_lru = mem_cgroup_list_lru(&sb->s_dentry_lru, sc->memcg);
-+
-+	inodes = list_lru_count_node(inode_lru, sc->nid);
-+	dentries = list_lru_count_node(dentry_lru, sc->nid);
- 	total_objects = dentries + inodes + fs_objects + 1;
- 
- 	/* proportion the scan between the caches */
-@@ -90,8 +95,8 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
- 	 * prune the dcache first as the icache is pinned by it, then
- 	 * prune the icache, followed by the filesystem specific caches
- 	 */
--	freed = prune_dcache_sb(sb, dentries, sc->nid);
--	freed += prune_icache_sb(sb, inodes, sc->nid);
-+	freed = prune_dcache_lru(dentry_lru, dentries, sc->nid);
-+	freed += prune_icache_lru(inode_lru, inodes, sc->nid);
- 
- 	if (fs_objects) {
- 		fs_objects = mult_frac(sc->nr_to_scan, fs_objects,
-@@ -108,6 +113,8 @@ static unsigned long super_cache_count(struct shrinker *shrink,
- 				       struct shrink_control *sc)
- {
- 	struct super_block *sb;
-+	struct list_lru *inode_lru;
-+	struct list_lru *dentry_lru;
- 	long	total_objects = 0;
- 
- 	sb = container_of(shrink, struct super_block, s_shrink);
-@@ -115,14 +122,14 @@ static unsigned long super_cache_count(struct shrinker *shrink,
- 	if (!grab_super_passive(sb))
- 		return 0;
- 
--	if (sb->s_op && sb->s_op->nr_cached_objects)
--		total_objects = sb->s_op->nr_cached_objects(sb,
--						 sc->nid);
-+	if (sb->s_op && sb->s_op->nr_cached_objects && !sc->memcg)
-+		total_objects = sb->s_op->nr_cached_objects(sb, sc->nid);
-+
-+	inode_lru = mem_cgroup_list_lru(&sb->s_inode_lru, sc->memcg);
-+	dentry_lru = mem_cgroup_list_lru(&sb->s_dentry_lru, sc->memcg);
- 
--	total_objects += list_lru_count_node(&sb->s_dentry_lru,
--						 sc->nid);
--	total_objects += list_lru_count_node(&sb->s_inode_lru,
--						 sc->nid);
-+	total_objects += list_lru_count_node(dentry_lru, sc->nid);
-+	total_objects += list_lru_count_node(inode_lru, sc->nid);
- 
- 	total_objects = vfs_pressure_ratio(total_objects);
- 	drop_super(sb);
-@@ -138,8 +145,8 @@ static unsigned long super_cache_count(struct shrinker *shrink,
- static void destroy_super(struct super_block *s)
- {
- 	int i;
--	list_lru_destroy(&s->s_dentry_lru);
--	list_lru_destroy(&s->s_inode_lru);
-+	memcg_list_lru_destroy(&s->s_dentry_lru);
-+	memcg_list_lru_destroy(&s->s_inode_lru);
- 	for (i = 0; i < SB_FREEZE_LEVELS; i++)
- 		percpu_counter_destroy(&s->s_writers.counter[i]);
- 	security_sb_free(s);
-@@ -183,10 +190,10 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
- 	INIT_HLIST_BL_HEAD(&s->s_anon);
- 	INIT_LIST_HEAD(&s->s_inodes);
- 
--	if (list_lru_init(&s->s_dentry_lru))
-+	if (memcg_list_lru_init(&s->s_dentry_lru))
- 		goto fail;
--	if (list_lru_init(&s->s_inode_lru)) {
--		list_lru_destroy(&s->s_dentry_lru);
-+	if (memcg_list_lru_init(&s->s_inode_lru)) {
-+		memcg_list_lru_destroy(&s->s_dentry_lru);
- 		goto fail;
- 	}
- 
-@@ -225,7 +232,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
- 	s->s_shrink.scan_objects = super_cache_scan;
- 	s->s_shrink.count_objects = super_cache_count;
- 	s->s_shrink.batch = 1024;
--	s->s_shrink.flags = SHRINKER_NUMA_AWARE;
-+	s->s_shrink.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE;
- 	return s;
- 
- fail:
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 121f11f..8256a7e 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1322,8 +1322,8 @@ struct super_block {
- 	 * Keep the lru lists last in the structure so they always sit on their
- 	 * own individual cachelines.
- 	 */
--	struct list_lru		s_dentry_lru ____cacheline_aligned_in_smp;
--	struct list_lru		s_inode_lru ____cacheline_aligned_in_smp;
-+	struct memcg_list_lru s_dentry_lru ____cacheline_aligned_in_smp;
-+	struct memcg_list_lru s_inode_lru ____cacheline_aligned_in_smp;
- 	struct rcu_head		rcu;
- };
- 
--- 
-1.7.10.4
+> -		for_each_node_mask(shrinkctl->nid, shrinkctl->nodes_to_scan) {
+> -			if (!node_online(shrinkctl->nid))
+> -				continue;
+> -
+> -			if (!(shrinker->flags & SHRINKER_NUMA_AWARE) &&
+> -			    (shrinkctl->nid != 0))
+> +			if (!memcg || memcg_kmem_is_active(memcg))
+> +				freed += shrink_slab_one(shrinkctl, shrinker,
+> +					 nr_pages_scanned, lru_pages);
+> +			/*
+> +			 * For non-memcg aware shrinkers, we will arrive here
+> +			 * at first pass because we need to scan the root
+> +			 * memcg.  We need to bail out, since exactly because
+> +			 * they are not memcg aware, instead of noticing they
+> +			 * have nothing to shrink, they will just shrink again,
+> +			 * and deplete too many objects.
+> +			 */
+> I actually found the code easier to understand without this comment.
+>
+>> +			if (!(shrinker->flags & SHRINKER_MEMCG_AWARE))
+>>   				break;
+>> +			shrinkctl->target_mem_cgroup =
+>> +				mem_cgroup_iter(root, memcg, NULL);
+> The target memcg is always the same, don't change this.  Look at the
+> lru scan code for reference.  Iterate zones (nodes in this case)
+> first, then iterate the memcgs in each zone (node), look up the lruvec
+> and then call shrink_slab_lruvec(lruvec, ...).
+
+They are somewhat different: shrink_zone() calls shrink_lruvec() for 
+each memcg's lruvec, but for shrink_slab() we don't have lruvecs. We do 
+have memcg_list_lru though, but it's up to the shrinker to use it. In 
+other words, in contrast to page cache reclaim, kmem shrinkers are 
+opaque to vmscan.
+
+Anyway, I can't help agreeing with you that changing target_mem_cgroup 
+while iterating over memcgs looks ugly. So I rewrote it a bit to 
+resemble the way per-node shrinking is implemented. For per-node 
+shrinking we have shrink_control::nodemask, which is set by the 
+shrink_slab() caller, and shrink_control::nid, which is initialized by 
+shrink_slab() while iterating over online NUMA nodes and actually used 
+by the shrinker. Similarly, for memory cgroups I added two fields to the 
+shrink_control struct, target_mem_cgroup and memcg, the former is set by 
+the shrink_slab() caller and specifies the memory cgroup tree to scan, 
+and the latter is used as the iterator by shrink_slab() and as the 
+target memcg by a particular memcg-aware shrinker.
+
+I would appreciate if you could look at the new version and share your 
+attitude toward it.
+
+Thank you.
+
+On 12/02/2013 03:19 PM, Vladimir Davydov wrote:
+> Hi,
+>
+> This is the 12th iteration of Glauber Costa's patchset implementing targeted
+> shrinking for memory cgroups when kmem limits are present. So far, we've been
+> accounting kernel objects but failing allocations when short of memory. This is
+> because our only option would be to call the global shrinker, depleting objects
+> from all caches and breaking isolation.
+>
+> The main idea is to make LRU lists used by FS slab shrinkers per-memcg. When
+> adding or removing an element from from the LRU, we use the page information to
+> figure out which memory cgroup it belongs to and relay it to the appropriate
+> list. This allows scanning kmem objects accounted to different memory cgroups
+> independently.
+>
+> The patchset is based on top of Linux 3.13-rc2 and organized as follows:
+>
+>   * patches 1-8 are for cleanup/preparation;
+>   * patch 9 introduces infrastructure for memcg-aware shrinkers;
+>   * patches 10 and 11 implement the per-memcg LRU list structure;
+>   * patch 12 uses per-memcg LRU lists to make dcache and icache shrinkers
+>     memcg-aware;
+>   * patch 13 implements kmem-only shrinking;
+>   * patches 14-18 issue kmem shrinking on limit resize, global pressure.
+>
+> Known issues:
+>
+>   * Since FS shrinkers can't be executed on __GFP_FS allocations, such
+>     allocations will fail if memcg kmem limit is less than the user limit and
+>     the memcg kmem usage is close to its limit. Glauber proposed to schedule a
+>     worker which would shrink kmem in the background on such allocations.
+>     However, this approach does not eliminate failures completely, it just makes
+>     them rarer. I'm thinking on implementing soft limits for memcg kmem so that
+>     striking the soft limit will trigger the reclaimer, but won't fail the
+>     allocation. I would appreciate any other proposals on how this can be fixed.
+>
+>   * Only dcache and icache are reclaimed on memcg pressure. Other FS objects are
+>     left for global pressure only. However, it should not be a serious problem
+>     to make them reclaimable too by passing on memcg to the FS-layer and letting
+>     each FS decide if its internal objects are shrinkable on memcg pressure.
+>
+> Changelog:
+>
+> Changes in v12:
+>   * Do not prune all slabs on kmem-only pressure.
+>   * Count all on-LRU pages eligible for reclaim to pass to shrink_slab().
+>   * Fix isolation issue due to using shrinker->nr_deferred on memcg pressure.
+>   * Add comments to memcg_list_lru functions.
+>   * Code cleanup/refactoring.
+>
+> Changes in v11:
+>   * Rework per-memcg list_lru infrastructure.
+>
+> Glauber Costa (7):
+>    memcg: make cache index determination more robust
+>    memcg: consolidate callers of memcg_cache_id
+>    memcg: move initialization to memcg creation
+>    memcg: allow kmem limit to be resized down
+>    vmpressure: in-kernel notifications
+>    memcg: reap dead memcgs upon global memory pressure
+>    memcg: flush memcg items upon memcg destruction
+>
+> Vladimir Davydov (11):
+>    memcg: move several kmemcg functions upper
+>    fs: do not use destroy_super() in alloc_super() fail path
+>    vmscan: rename shrink_slab() args to make it more generic
+>    vmscan: move call to shrink_slab() to shrink_zones()
+>    vmscan: do_try_to_free_pages(): remove shrink_control argument
+>    vmscan: shrink slab on memcg pressure
+>    memcg,list_lru: add per-memcg LRU list infrastructure
+>    memcg,list_lru: add function walking over all lists of a per-memcg
+>      LRU
+>    fs: make icache, dcache shrinkers memcg-aware
+>    memcg: per-memcg kmem shrinking
+>    vmscan: take at least one pass with shrinkers
+>
+>   fs/dcache.c                   |   25 +-
+>   fs/inode.c                    |   16 +-
+>   fs/internal.h                 |    9 +-
+>   fs/super.c                    |   48 ++-
+>   include/linux/fs.h            |    4 +-
+>   include/linux/list_lru.h      |   83 +++++
+>   include/linux/memcontrol.h    |   22 ++
+>   include/linux/mm.h            |    3 +-
+>   include/linux/shrinker.h      |   10 +-
+>   include/linux/swap.h          |    2 +
+>   include/linux/vmpressure.h    |    5 +
+>   include/trace/events/vmscan.h |   20 +-
+>   mm/memcontrol.c               |  728 ++++++++++++++++++++++++++++++++++++-----
+>   mm/vmpressure.c               |   53 ++-
+>   mm/vmscan.c                   |  249 +++++++++-----
+>   15 files changed, 1054 insertions(+), 223 deletions(-)
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
