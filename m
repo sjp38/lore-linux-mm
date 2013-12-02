@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f54.google.com (mail-bk0-f54.google.com [209.85.214.54])
-	by kanga.kvack.org (Postfix) with ESMTP id BFE7A6B0036
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 14:22:41 -0500 (EST)
-Received: by mail-bk0-f54.google.com with SMTP id v16so5567953bkz.41
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 11:22:41 -0800 (PST)
+Received: from mail-bk0-f43.google.com (mail-bk0-f43.google.com [209.85.214.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 04E1F6B0038
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 14:22:42 -0500 (EST)
+Received: by mail-bk0-f43.google.com with SMTP id mz12so5646131bkb.30
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 11:22:42 -0800 (PST)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id ti7si304863bkb.115.2013.12.02.11.22.40
+        by mx.google.com with ESMTPS id mc8si304731bkb.216.2013.12.02.11.22.42
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Dec 2013 11:22:40 -0800 (PST)
+        Mon, 02 Dec 2013 11:22:42 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 1/9] fs: cachefiles: use add_to_page_cache_lru()
-Date: Mon,  2 Dec 2013 14:21:40 -0500
-Message-Id: <1386012108-21006-2-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 4/9] mm: filemap: move radix tree hole searching here
+Date: Mon,  2 Dec 2013 14:21:43 -0500
+Message-Id: <1386012108-21006-5-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1386012108-21006-1-git-send-email-hannes@cmpxchg.org>
 References: <1386012108-21006-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,119 +20,268 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-This code used to have its own lru cache pagevec up until a0b8cab3
-("mm: remove lru parameter from __pagevec_lru_add and remove parts of
-pagevec API").  Now it's just add_to_page_cache() followed by
-lru_cache_add(), might as well use add_to_page_cache_lru() directly.
+The radix tree hole searching code is only used for page cache, for
+example the readahead code trying to get a a picture of the area
+surrounding a fault.
+
+It sufficed to rely on the radix tree definition of holes, which is
+"empty tree slot".  But this is about to change, though, as shadow
+page descriptors will be stored in the page cache after the actual
+pages get evicted from memory.
+
+Move the functions over to mm/filemap.c and make them native page
+cache operations, where they can later be adapted to handle the new
+definition of "page cache hole".
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- fs/cachefiles/rdwr.c | 33 +++++++++++++--------------------
- 1 file changed, 13 insertions(+), 20 deletions(-)
+ fs/nfs/blocklayout/blocklayout.c |  2 +-
+ include/linux/pagemap.h          |  5 +++
+ include/linux/radix-tree.h       |  4 ---
+ lib/radix-tree.c                 | 75 ---------------------------------------
+ mm/filemap.c                     | 76 ++++++++++++++++++++++++++++++++++++++++
+ mm/readahead.c                   |  4 +--
+ 6 files changed, 84 insertions(+), 82 deletions(-)
 
-diff --git a/fs/cachefiles/rdwr.c b/fs/cachefiles/rdwr.c
-index ebaff36..4b1fb5c 100644
---- a/fs/cachefiles/rdwr.c
-+++ b/fs/cachefiles/rdwr.c
-@@ -265,24 +265,22 @@ static int cachefiles_read_backing_file_one(struct cachefiles_object *object,
- 				goto nomem_monitor;
- 		}
- 
--		ret = add_to_page_cache(newpage, bmapping,
--					netpage->index, cachefiles_gfp);
-+		ret = add_to_page_cache_lru(newpage, bmapping,
-+					    netpage->index, cachefiles_gfp);
- 		if (ret == 0)
- 			goto installed_new_backing_page;
- 		if (ret != -EEXIST)
- 			goto nomem_page;
+diff --git a/fs/nfs/blocklayout/blocklayout.c b/fs/nfs/blocklayout/blocklayout.c
+index e242bbf..fdb74cb 100644
+--- a/fs/nfs/blocklayout/blocklayout.c
++++ b/fs/nfs/blocklayout/blocklayout.c
+@@ -1220,7 +1220,7 @@ static u64 pnfs_num_cont_bytes(struct inode *inode, pgoff_t idx)
+ 	end = DIV_ROUND_UP(i_size_read(inode), PAGE_CACHE_SIZE);
+ 	if (end != NFS_I(inode)->npages) {
+ 		rcu_read_lock();
+-		end = radix_tree_next_hole(&mapping->page_tree, idx + 1, ULONG_MAX);
++		end = page_cache_next_hole(mapping, idx + 1, ULONG_MAX);
+ 		rcu_read_unlock();
  	}
  
--	/* we've installed a new backing page, so now we need to add it
--	 * to the LRU list and start it reading */
-+	/* we've installed a new backing page, so now we need to start
-+	 * it reading */
- installed_new_backing_page:
- 	_debug("- new %p", newpage);
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index e3dea75..c73130c 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -243,6 +243,11 @@ static inline struct page *page_cache_alloc_readahead(struct address_space *x)
  
- 	backpage = newpage;
- 	newpage = NULL;
+ typedef int filler_t(void *, struct page *);
  
--	lru_cache_add_file(backpage);
++pgoff_t page_cache_next_hole(struct address_space *mapping,
++			     pgoff_t index, unsigned long max_scan);
++pgoff_t page_cache_prev_hole(struct address_space *mapping,
++			     pgoff_t index, unsigned long max_scan);
++
+ extern struct page * find_get_page(struct address_space *mapping,
+ 				pgoff_t index);
+ extern struct page * find_lock_page(struct address_space *mapping,
+diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+index 1bf0a9c..e8be53e 100644
+--- a/include/linux/radix-tree.h
++++ b/include/linux/radix-tree.h
+@@ -227,10 +227,6 @@ radix_tree_gang_lookup(struct radix_tree_root *root, void **results,
+ unsigned int radix_tree_gang_lookup_slot(struct radix_tree_root *root,
+ 			void ***results, unsigned long *indices,
+ 			unsigned long first_index, unsigned int max_items);
+-unsigned long radix_tree_next_hole(struct radix_tree_root *root,
+-				unsigned long index, unsigned long max_scan);
+-unsigned long radix_tree_prev_hole(struct radix_tree_root *root,
+-				unsigned long index, unsigned long max_scan);
+ int radix_tree_preload(gfp_t gfp_mask);
+ int radix_tree_maybe_preload(gfp_t gfp_mask);
+ void radix_tree_init(void);
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index f442e32..e8adb5d 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -946,81 +946,6 @@ next:
+ }
+ EXPORT_SYMBOL(radix_tree_range_tag_if_tagged);
+ 
 -
- read_backing_page:
- 	ret = bmapping->a_ops->readpage(NULL, backpage);
- 	if (ret < 0)
-@@ -510,24 +508,23 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
- 					goto nomem;
- 			}
- 
--			ret = add_to_page_cache(newpage, bmapping,
--						netpage->index, cachefiles_gfp);
-+			ret = add_to_page_cache_lru(newpage, bmapping,
-+						    netpage->index,
-+						    cachefiles_gfp);
- 			if (ret == 0)
- 				goto installed_new_backing_page;
- 			if (ret != -EEXIST)
- 				goto nomem;
- 		}
- 
--		/* we've installed a new backing page, so now we need to add it
--		 * to the LRU list and start it reading */
-+		/* we've installed a new backing page, so now we need
-+		 * to start it reading */
- 	installed_new_backing_page:
- 		_debug("- new %p", newpage);
- 
- 		backpage = newpage;
- 		newpage = NULL;
- 
--		lru_cache_add_file(backpage);
+-/**
+- *	radix_tree_next_hole    -    find the next hole (not-present entry)
+- *	@root:		tree root
+- *	@index:		index key
+- *	@max_scan:	maximum range to search
+- *
+- *	Search the set [index, min(index+max_scan-1, MAX_INDEX)] for the lowest
+- *	indexed hole.
+- *
+- *	Returns: the index of the hole if found, otherwise returns an index
+- *	outside of the set specified (in which case 'return - index >= max_scan'
+- *	will be true). In rare cases of index wrap-around, 0 will be returned.
+- *
+- *	radix_tree_next_hole may be called under rcu_read_lock. However, like
+- *	radix_tree_gang_lookup, this will not atomically search a snapshot of
+- *	the tree at a single point in time. For example, if a hole is created
+- *	at index 5, then subsequently a hole is created at index 10,
+- *	radix_tree_next_hole covering both indexes may return 10 if called
+- *	under rcu_read_lock.
+- */
+-unsigned long radix_tree_next_hole(struct radix_tree_root *root,
+-				unsigned long index, unsigned long max_scan)
+-{
+-	unsigned long i;
 -
- 	reread_backing_page:
- 		ret = bmapping->a_ops->readpage(NULL, backpage);
- 		if (ret < 0)
-@@ -538,8 +535,8 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
- 	monitor_backing_page:
- 		_debug("- monitor add");
- 
--		ret = add_to_page_cache(netpage, op->mapping, netpage->index,
--					cachefiles_gfp);
-+		ret = add_to_page_cache_lru(netpage, op->mapping,
-+					    netpage->index, cachefiles_gfp);
- 		if (ret < 0) {
- 			if (ret == -EEXIST) {
- 				page_cache_release(netpage);
-@@ -549,8 +546,6 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
- 			goto nomem;
- 		}
- 
--		lru_cache_add_file(netpage);
+-	for (i = 0; i < max_scan; i++) {
+-		if (!radix_tree_lookup(root, index))
+-			break;
+-		index++;
+-		if (index == 0)
+-			break;
+-	}
 -
- 		/* install a monitor */
- 		page_cache_get(netpage);
- 		monitor->netfs_page = netpage;
-@@ -613,8 +608,8 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
- 	backing_page_already_uptodate:
- 		_debug("- uptodate");
- 
--		ret = add_to_page_cache(netpage, op->mapping, netpage->index,
--					cachefiles_gfp);
-+		ret = add_to_page_cache_lru(netpage, op->mapping,
-+					    netpage->index, cachefiles_gfp);
- 		if (ret < 0) {
- 			if (ret == -EEXIST) {
- 				page_cache_release(netpage);
-@@ -631,8 +626,6 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
- 
- 		fscache_mark_page_cached(op, netpage);
- 
--		lru_cache_add_file(netpage);
+-	return index;
+-}
+-EXPORT_SYMBOL(radix_tree_next_hole);
 -
- 		/* the netpage is unlocked and marked up to date here */
- 		fscache_end_io(op, netpage, 0);
- 		page_cache_release(netpage);
+-/**
+- *	radix_tree_prev_hole    -    find the prev hole (not-present entry)
+- *	@root:		tree root
+- *	@index:		index key
+- *	@max_scan:	maximum range to search
+- *
+- *	Search backwards in the range [max(index-max_scan+1, 0), index]
+- *	for the first hole.
+- *
+- *	Returns: the index of the hole if found, otherwise returns an index
+- *	outside of the set specified (in which case 'index - return >= max_scan'
+- *	will be true). In rare cases of wrap-around, ULONG_MAX will be returned.
+- *
+- *	radix_tree_next_hole may be called under rcu_read_lock. However, like
+- *	radix_tree_gang_lookup, this will not atomically search a snapshot of
+- *	the tree at a single point in time. For example, if a hole is created
+- *	at index 10, then subsequently a hole is created at index 5,
+- *	radix_tree_prev_hole covering both indexes may return 5 if called under
+- *	rcu_read_lock.
+- */
+-unsigned long radix_tree_prev_hole(struct radix_tree_root *root,
+-				   unsigned long index, unsigned long max_scan)
+-{
+-	unsigned long i;
+-
+-	for (i = 0; i < max_scan; i++) {
+-		if (!radix_tree_lookup(root, index))
+-			break;
+-		index--;
+-		if (index == ULONG_MAX)
+-			break;
+-	}
+-
+-	return index;
+-}
+-EXPORT_SYMBOL(radix_tree_prev_hole);
+-
+ /**
+  *	radix_tree_gang_lookup - perform multiple lookup on a radix tree
+  *	@root:		radix tree root
+diff --git a/mm/filemap.c b/mm/filemap.c
+index ae4846f..0746b7a 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -686,6 +686,82 @@ int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
+ }
+ 
+ /**
++ * page_cache_next_hole - find the next hole (not-present entry)
++ * @mapping: mapping
++ * @index: index
++ * @max_scan: maximum range to search
++ *
++ * Search the set [index, min(index+max_scan-1, MAX_INDEX)] for the
++ * lowest indexed hole.
++ *
++ * Returns: the index of the hole if found, otherwise returns an index
++ * outside of the set specified (in which case 'return - index >=
++ * max_scan' will be true). In rare cases of index wrap-around, 0 will
++ * be returned.
++ *
++ * page_cache_next_hole may be called under rcu_read_lock. However,
++ * like radix_tree_gang_lookup, this will not atomically search a
++ * snapshot of the tree at a single point in time. For example, if a
++ * hole is created at index 5, then subsequently a hole is created at
++ * index 10, page_cache_next_hole covering both indexes may return 10
++ * if called under rcu_read_lock.
++ */
++pgoff_t page_cache_next_hole(struct address_space *mapping,
++			     pgoff_t index, unsigned long max_scan)
++{
++	unsigned long i;
++
++	for (i = 0; i < max_scan; i++) {
++		if (!radix_tree_lookup(&mapping->page_tree, index))
++			break;
++		index++;
++		if (index == 0)
++			break;
++	}
++
++	return index;
++}
++EXPORT_SYMBOL(page_cache_next_hole);
++
++/**
++ * page_cache_prev_hole - find the prev hole (not-present entry)
++ * @mapping: mapping
++ * @index: index
++ * @max_scan: maximum range to search
++ *
++ * Search backwards in the range [max(index-max_scan+1, 0), index] for
++ * the first hole.
++ *
++ * Returns: the index of the hole if found, otherwise returns an index
++ * outside of the set specified (in which case 'index - return >=
++ * max_scan' will be true). In rare cases of wrap-around, ULONG_MAX
++ * will be returned.
++ *
++ * page_cache_prev_hole may be called under rcu_read_lock. However,
++ * like radix_tree_gang_lookup, this will not atomically search a
++ * snapshot of the tree at a single point in time. For example, if a
++ * hole is created at index 10, then subsequently a hole is created at
++ * index 5, page_cache_prev_hole covering both indexes may return 5 if
++ * called under rcu_read_lock.
++ */
++pgoff_t page_cache_prev_hole(struct address_space *mapping,
++			     pgoff_t index, unsigned long max_scan)
++{
++	unsigned long i;
++
++	for (i = 0; i < max_scan; i++) {
++		if (!radix_tree_lookup(&mapping->page_tree, index))
++			break;
++		index--;
++		if (index == ULONG_MAX)
++			break;
++	}
++
++	return index;
++}
++EXPORT_SYMBOL(page_cache_prev_hole);
++
++/**
+  * find_get_page - find and get a page reference
+  * @mapping: the address_space to search
+  * @offset: the page index
+diff --git a/mm/readahead.c b/mm/readahead.c
+index e4ed041..9eeeeda 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -351,7 +351,7 @@ static pgoff_t count_history_pages(struct address_space *mapping,
+ 	pgoff_t head;
+ 
+ 	rcu_read_lock();
+-	head = radix_tree_prev_hole(&mapping->page_tree, offset - 1, max);
++	head = page_cache_prev_hole(mapping, offset - 1, max);
+ 	rcu_read_unlock();
+ 
+ 	return offset - 1 - head;
+@@ -430,7 +430,7 @@ ondemand_readahead(struct address_space *mapping,
+ 		pgoff_t start;
+ 
+ 		rcu_read_lock();
+-		start = radix_tree_next_hole(&mapping->page_tree, offset+1,max);
++		start = page_cache_next_hole(mapping, offset + 1, max);
+ 		rcu_read_unlock();
+ 
+ 		if (!start || start - offset > max)
 -- 
 1.8.4.2
 
