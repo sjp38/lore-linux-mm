@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f53.google.com (mail-bk0-f53.google.com [209.85.214.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 568AE6B003C
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 14:22:45 -0500 (EST)
-Received: by mail-bk0-f53.google.com with SMTP id na10so5538472bkb.26
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 11:22:44 -0800 (PST)
+Received: from mail-bk0-f44.google.com (mail-bk0-f44.google.com [209.85.214.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B35F6B003D
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 14:22:46 -0500 (EST)
+Received: by mail-bk0-f44.google.com with SMTP id d7so5648063bkh.31
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 11:22:46 -0800 (PST)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id ti7si2931190bkb.203.2013.12.02.11.22.44
+        by mx.google.com with ESMTPS id qk9si305164bkb.59.2013.12.02.11.22.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Dec 2013 11:22:44 -0800 (PST)
+        Mon, 02 Dec 2013 11:22:45 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 8/9] lib: radix_tree: tree node interface
-Date: Mon,  2 Dec 2013 14:21:47 -0500
-Message-Id: <1386012108-21006-9-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 5/9] mm + fs: prepare for non-page entries in page cache radix trees
+Date: Mon,  2 Dec 2013 14:21:44 -0500
+Message-Id: <1386012108-21006-6-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1386012108-21006-1-git-send-email-hannes@cmpxchg.org>
 References: <1386012108-21006-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,456 +20,892 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Make struct radix_tree_node part of the public interface and provide
-API functions to create, look up, and delete whole nodes.  Refactor
-the existing insert, look up, delete functions on top of these new
-node primitives.
+shmem mappings already contain exceptional entries where swap slot
+information is remembered.
 
-This will allow the VM to track and garbage collect page cache radix
-tree nodes.
+To be able to store eviction information for regular page cache,
+prepare every site dealing with the radix trees directly to handle
+entries other than pages.
+
+The common lookup functions will filter out non-page entries and
+return NULL for page cache holes, just as before.  But provide a raw
+version of the API which returns non-page entries as well, and switch
+shmem over to use it.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- include/linux/radix-tree.h |  34 ++++++
- lib/radix-tree.c           | 261 +++++++++++++++++++++++++--------------------
- 2 files changed, 180 insertions(+), 115 deletions(-)
+ fs/btrfs/compression.c   |   2 +-
+ include/linux/mm.h       |   8 ++
+ include/linux/pagemap.h  |  15 ++--
+ include/linux/pagevec.h  |   3 +
+ include/linux/shmem_fs.h |   1 +
+ mm/filemap.c             | 196 +++++++++++++++++++++++++++++++++++++++++------
+ mm/mincore.c             |  20 +++--
+ mm/readahead.c           |   2 +-
+ mm/shmem.c               |  97 +++++------------------
+ mm/swap.c                |  47 ++++++++++++
+ mm/truncate.c            |  73 ++++++++++++++----
+ 11 files changed, 336 insertions(+), 128 deletions(-)
 
-diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index e8be53e..13636c4 100644
---- a/include/linux/radix-tree.h
-+++ b/include/linux/radix-tree.h
-@@ -60,6 +60,33 @@ static inline int radix_tree_is_indirect_ptr(void *ptr)
+diff --git a/fs/btrfs/compression.c b/fs/btrfs/compression.c
+index 6aad98c..c883165 100644
+--- a/fs/btrfs/compression.c
++++ b/fs/btrfs/compression.c
+@@ -474,7 +474,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
+ 		rcu_read_lock();
+ 		page = radix_tree_lookup(&mapping->page_tree, pg_index);
+ 		rcu_read_unlock();
+-		if (page) {
++		if (page && !radix_tree_exceptional_entry(page)) {
+ 			misses++;
+ 			if (misses > 4)
+ 				break;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 8b6e55e..c09ef3a 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -906,6 +906,14 @@ extern void show_free_areas(unsigned int flags);
+ extern bool skip_free_areas_node(unsigned int flags, int nid);
  
- #define RADIX_TREE_MAX_TAGS 3
- 
-+#ifdef __KERNEL__
-+#define RADIX_TREE_MAP_SHIFT	(CONFIG_BASE_SMALL ? 4 : 6)
+ int shmem_zero_setup(struct vm_area_struct *);
++#ifdef CONFIG_SHMEM
++bool shmem_mapping(struct address_space *mapping);
 +#else
-+#define RADIX_TREE_MAP_SHIFT	3	/* For more stressful testing */
-+#endif
-+
-+#define RADIX_TREE_MAP_SIZE	(1UL << RADIX_TREE_MAP_SHIFT)
-+#define RADIX_TREE_MAP_MASK	(RADIX_TREE_MAP_SIZE-1)
-+
-+#define RADIX_TREE_TAG_LONGS	\
-+	((RADIX_TREE_MAP_SIZE + BITS_PER_LONG - 1) / BITS_PER_LONG)
-+
-+struct radix_tree_node {
-+	unsigned int	height;		/* Height from the bottom */
-+	unsigned int	count;
-+	union {
-+		struct radix_tree_node *parent;	/* Used when ascending tree */
-+		struct rcu_head	rcu_head;	/* Used when freeing node */
-+	};
-+	void __rcu	*slots[RADIX_TREE_MAP_SIZE];
-+	unsigned long	tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS];
-+};
-+
-+#define RADIX_TREE_INDEX_BITS  (8 /* CHAR_BIT */ * sizeof(unsigned long))
-+#define RADIX_TREE_MAX_PATH (DIV_ROUND_UP(RADIX_TREE_INDEX_BITS, \
-+					  RADIX_TREE_MAP_SHIFT))
-+
- /* root tags are stored in gfp_mask, shifted by __GFP_BITS_SHIFT */
- struct radix_tree_root {
- 	unsigned int		height;
-@@ -101,6 +128,7 @@ do {									\
-  *   concurrently with other readers.
-  *
-  * The notable exceptions to this rule are the following functions:
-+ * __radix_tree_lookup
-  * radix_tree_lookup
-  * radix_tree_lookup_slot
-  * radix_tree_tag_get
-@@ -216,9 +244,15 @@ static inline void radix_tree_replace_slot(void **pslot, void *item)
- 	rcu_assign_pointer(*pslot, item);
- }
- 
-+int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
-+			struct radix_tree_node **nodep, void ***slotp);
- int radix_tree_insert(struct radix_tree_root *, unsigned long, void *);
-+void *__radix_tree_lookup(struct radix_tree_root *root, unsigned long index,
-+			  struct radix_tree_node **nodep, void ***slotp);
- void *radix_tree_lookup(struct radix_tree_root *, unsigned long);
- void **radix_tree_lookup_slot(struct radix_tree_root *, unsigned long);
-+bool __radix_tree_delete_node(struct radix_tree_root *root, unsigned long index,
-+			      struct radix_tree_node *node);
- void *radix_tree_delete_item(struct radix_tree_root *, unsigned long, void *);
- void *radix_tree_delete(struct radix_tree_root *, unsigned long);
- unsigned int
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index e8adb5d..e601c56 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -35,33 +35,6 @@
- #include <linux/hardirq.h>		/* in_interrupt() */
- 
- 
--#ifdef __KERNEL__
--#define RADIX_TREE_MAP_SHIFT	(CONFIG_BASE_SMALL ? 4 : 6)
--#else
--#define RADIX_TREE_MAP_SHIFT	3	/* For more stressful testing */
--#endif
--
--#define RADIX_TREE_MAP_SIZE	(1UL << RADIX_TREE_MAP_SHIFT)
--#define RADIX_TREE_MAP_MASK	(RADIX_TREE_MAP_SIZE-1)
--
--#define RADIX_TREE_TAG_LONGS	\
--	((RADIX_TREE_MAP_SIZE + BITS_PER_LONG - 1) / BITS_PER_LONG)
--
--struct radix_tree_node {
--	unsigned int	height;		/* Height from the bottom */
--	unsigned int	count;
--	union {
--		struct radix_tree_node *parent;	/* Used when ascending tree */
--		struct rcu_head	rcu_head;	/* Used when freeing node */
--	};
--	void __rcu	*slots[RADIX_TREE_MAP_SIZE];
--	unsigned long	tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS];
--};
--
--#define RADIX_TREE_INDEX_BITS  (8 /* CHAR_BIT */ * sizeof(unsigned long))
--#define RADIX_TREE_MAX_PATH (DIV_ROUND_UP(RADIX_TREE_INDEX_BITS, \
--					  RADIX_TREE_MAP_SHIFT))
--
- /*
-  * The height_to_maxindex array needs to be one deeper than the maximum
-  * path as height 0 holds only 1 entry.
-@@ -387,23 +360,28 @@ out:
- }
- 
- /**
-- *	radix_tree_insert    -    insert into a radix tree
-+ *	__radix_tree_create	-	create a slot in a radix tree
-  *	@root:		radix tree root
-  *	@index:		index key
-- *	@item:		item to insert
-+ *	@nodep:		returns node
-+ *	@slotp:		returns slot
-  *
-- *	Insert an item into the radix tree at position @index.
-+ *	Create, if necessary, and return the node and slot for an item
-+ *	at position @index in the radix tree @root.
-+ *
-+ *	Until there is more than one item in the tree, no nodes are
-+ *	allocated and @root->rnode is used as a direct slot instead of
-+ *	pointing to a node, in which case *@nodep will be NULL.
-+ *
-+ *	Returns -ENOMEM, or 0 for success.
-  */
--int radix_tree_insert(struct radix_tree_root *root,
--			unsigned long index, void *item)
-+int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
-+			struct radix_tree_node **nodep, void ***slotp)
- {
- 	struct radix_tree_node *node = NULL, *slot;
--	unsigned int height, shift;
--	int offset;
-+	unsigned int height, shift, offset;
- 	int error;
- 
--	BUG_ON(radix_tree_is_indirect_ptr(item));
--
- 	/* Make sure the tree is high enough.  */
- 	if (index > radix_tree_maxindex(root->height)) {
- 		error = radix_tree_extend(root, index);
-@@ -439,16 +417,40 @@ int radix_tree_insert(struct radix_tree_root *root,
- 		height--;
- 	}
- 
--	if (slot != NULL)
-+	if (nodep)
-+		*nodep = node;
-+	if (slotp)
-+		*slotp = node ? node->slots + offset : (void **)&root->rnode;
-+	return 0;
-+}
-+
-+/**
-+ *	radix_tree_insert    -    insert into a radix tree
-+ *	@root:		radix tree root
-+ *	@index:		index key
-+ *	@item:		item to insert
-+ *
-+ *	Insert an item into the radix tree at position @index.
-+ */
-+int radix_tree_insert(struct radix_tree_root *root,
-+			unsigned long index, void *item)
++static inline bool shmem_mapping(struct address_space *mapping)
 +{
-+	struct radix_tree_node *node;
++	return false;
++}
++#endif
+ 
+ extern int can_do_mlock(void);
+ extern int user_shm_lock(size_t, struct user_struct *);
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index c73130c..b6854b7 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -248,12 +248,15 @@ pgoff_t page_cache_next_hole(struct address_space *mapping,
+ pgoff_t page_cache_prev_hole(struct address_space *mapping,
+ 			     pgoff_t index, unsigned long max_scan);
+ 
+-extern struct page * find_get_page(struct address_space *mapping,
+-				pgoff_t index);
+-extern struct page * find_lock_page(struct address_space *mapping,
+-				pgoff_t index);
+-extern struct page * find_or_create_page(struct address_space *mapping,
+-				pgoff_t index, gfp_t gfp_mask);
++struct page *__find_get_page(struct address_space *mapping, pgoff_t offset);
++struct page *find_get_page(struct address_space *mapping, pgoff_t offset);
++struct page *__find_lock_page(struct address_space *mapping, pgoff_t offset);
++struct page *find_lock_page(struct address_space *mapping, pgoff_t offset);
++struct page *find_or_create_page(struct address_space *mapping, pgoff_t index,
++				 gfp_t gfp_mask);
++unsigned __find_get_pages(struct address_space *mapping, pgoff_t start,
++			  unsigned int nr_pages, struct page **pages,
++			  pgoff_t *indices);
+ unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
+ 			unsigned int nr_pages, struct page **pages);
+ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t start,
+diff --git a/include/linux/pagevec.h b/include/linux/pagevec.h
+index e4dbfab..3c6b8b1 100644
+--- a/include/linux/pagevec.h
++++ b/include/linux/pagevec.h
+@@ -22,6 +22,9 @@ struct pagevec {
+ 
+ void __pagevec_release(struct pagevec *pvec);
+ void __pagevec_lru_add(struct pagevec *pvec);
++unsigned __pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
++			  pgoff_t start, unsigned nr_pages, pgoff_t *indices);
++void pagevec_remove_exceptionals(struct pagevec *pvec);
+ unsigned pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
+ 		pgoff_t start, unsigned nr_pages);
+ unsigned pagevec_lookup_tag(struct pagevec *pvec,
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index 30aa0dc..deb4960 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -49,6 +49,7 @@ extern struct file *shmem_file_setup(const char *name,
+ 					loff_t size, unsigned long flags);
+ extern int shmem_zero_setup(struct vm_area_struct *);
+ extern int shmem_lock(struct file *file, int lock, struct user_struct *user);
++extern bool shmem_mapping(struct address_space *mapping);
+ extern void shmem_unlock_mapping(struct address_space *mapping);
+ extern struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
+ 					pgoff_t index, gfp_t gfp_mask);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 0746b7a..23eb3be 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -446,6 +446,29 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
+ }
+ EXPORT_SYMBOL_GPL(replace_page_cache_page);
+ 
++static int page_cache_tree_insert(struct address_space *mapping,
++				  struct page *page)
++{
 +	void **slot;
 +	int error;
 +
-+	BUG_ON(radix_tree_is_indirect_ptr(item));
++	slot = radix_tree_lookup_slot(&mapping->page_tree, page->index);
++	if (slot) {
++		void *p;
 +
-+	error = __radix_tree_create(root, index, &node, &slot);
-+	if (*slot != NULL)
- 		return -EEXIST;
-+	rcu_assign_pointer(*slot, item);
++		p = radix_tree_deref_slot_protected(slot, &mapping->tree_lock);
++		if (!radix_tree_exceptional_entry(p))
++			return -EEXIST;
++		radix_tree_replace_slot(slot, page);
++		mapping->nrpages++;
++		return 0;
++	}
++	error = radix_tree_insert(&mapping->page_tree, page->index, page);
++	if (!error)
++		mapping->nrpages++;
++	return error;
++}
++
+ /**
+  * add_to_page_cache_locked - add a locked page to the pagecache
+  * @page:	page to add
+@@ -480,11 +503,10 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+ 	page->index = offset;
  
- 	if (node) {
- 		node->count++;
--		rcu_assign_pointer(node->slots[offset], item);
--		BUG_ON(tag_get(node, 0, offset));
--		BUG_ON(tag_get(node, 1, offset));
-+		BUG_ON(tag_get(node, 0, index & RADIX_TREE_MAP_MASK));
-+		BUG_ON(tag_get(node, 1, index & RADIX_TREE_MAP_MASK));
- 	} else {
--		rcu_assign_pointer(root->rnode, item);
- 		BUG_ON(root_tag_get(root, 0));
- 		BUG_ON(root_tag_get(root, 1));
- 	}
-@@ -457,15 +459,26 @@ int radix_tree_insert(struct radix_tree_root *root,
+ 	spin_lock_irq(&mapping->tree_lock);
+-	error = radix_tree_insert(&mapping->page_tree, offset, page);
++	error = page_cache_tree_insert(mapping, page);
+ 	radix_tree_preload_end();
+ 	if (unlikely(error))
+ 		goto err_insert;
+-	mapping->nrpages++;
+ 	__inc_zone_page_state(page, NR_FILE_PAGES);
+ 	spin_unlock_irq(&mapping->tree_lock);
+ 	trace_mm_filemap_add_to_page_cache(page);
+@@ -712,7 +734,10 @@ pgoff_t page_cache_next_hole(struct address_space *mapping,
+ 	unsigned long i;
+ 
+ 	for (i = 0; i < max_scan; i++) {
+-		if (!radix_tree_lookup(&mapping->page_tree, index))
++		struct page *page;
++
++		page = radix_tree_lookup(&mapping->page_tree, index);
++		if (!page || radix_tree_exceptional_entry(page))
+ 			break;
+ 		index++;
+ 		if (index == 0)
+@@ -750,7 +775,10 @@ pgoff_t page_cache_prev_hole(struct address_space *mapping,
+ 	unsigned long i;
+ 
+ 	for (i = 0; i < max_scan; i++) {
+-		if (!radix_tree_lookup(&mapping->page_tree, index))
++		struct page *page;
++
++		page = radix_tree_lookup(&mapping->page_tree, index);
++		if (!page || radix_tree_exceptional_entry(page))
+ 			break;
+ 		index--;
+ 		if (index == ULONG_MAX)
+@@ -762,14 +790,19 @@ pgoff_t page_cache_prev_hole(struct address_space *mapping,
+ EXPORT_SYMBOL(page_cache_prev_hole);
+ 
+ /**
+- * find_get_page - find and get a page reference
++ * __find_get_page - find and get a page reference
+  * @mapping: the address_space to search
+  * @offset: the page index
+  *
+- * Is there a pagecache struct page at the given (mapping, offset) tuple?
+- * If yes, increment its refcount and return it; if no, return NULL.
++ * Looks up the page cache slot at @mapping & @offset.  If there is a
++ * page cache page, it is returned with an increased refcount.
++ *
++ * If the slot holds a shadow entry of a previously evicted page, it
++ * is returned.
++ *
++ * Otherwise, %NULL is returned.
+  */
+-struct page *find_get_page(struct address_space *mapping, pgoff_t offset)
++struct page *__find_get_page(struct address_space *mapping, pgoff_t offset)
+ {
+ 	void **pagep;
+ 	struct page *page;
+@@ -810,24 +843,49 @@ out:
+ 
+ 	return page;
  }
- EXPORT_SYMBOL(radix_tree_insert);
- 
--/*
-- * is_slot == 1 : search for the slot.
-- * is_slot == 0 : search for the node.
++EXPORT_SYMBOL(__find_get_page);
++
 +/**
-+ *	__radix_tree_lookup	-	lookup an item in a radix tree
-+ *	@root:		radix tree root
-+ *	@index:		index key
-+ *	@nodep:		returns node
-+ *	@slotp:		returns slot
++ * find_get_page - find and get a page reference
++ * @mapping: the address_space to search
++ * @offset: the page index
 + *
-+ *	Lookup and return the item at position @index in the radix
-+ *	tree @root.
++ * Looks up the page cache slot at @mapping & @offset.  If there is a
++ * page cache page, it is returned with an increased refcount.
 + *
-+ *	Until there is more than one item in the tree, no nodes are
-+ *	allocated and @root->rnode is used as a direct slot instead of
-+ *	pointing to a node, in which case *@nodep will be NULL.
-  */
--static void *radix_tree_lookup_element(struct radix_tree_root *root,
--				unsigned long index, int is_slot)
-+void *__radix_tree_lookup(struct radix_tree_root *root, unsigned long index,
-+			  struct radix_tree_node **nodep, void ***slotp)
- {
-+	struct radix_tree_node *node, *parent;
- 	unsigned int height, shift;
--	struct radix_tree_node *node, **slot;
-+	void **slot;
- 
- 	node = rcu_dereference_raw(root->rnode);
- 	if (node == NULL)
-@@ -474,7 +487,12 @@ static void *radix_tree_lookup_element(struct radix_tree_root *root,
- 	if (!radix_tree_is_indirect_ptr(node)) {
- 		if (index > 0)
- 			return NULL;
--		return is_slot ? (void *)&root->rnode : node;
-+
-+		if (nodep)
-+			*nodep = NULL;
-+		if (slotp)
-+			*slotp = (void **)&root->rnode;
-+		return node;
- 	}
- 	node = indirect_to_ptr(node);
- 
-@@ -485,8 +503,8 @@ static void *radix_tree_lookup_element(struct radix_tree_root *root,
- 	shift = (height-1) * RADIX_TREE_MAP_SHIFT;
- 
- 	do {
--		slot = (struct radix_tree_node **)
--			(node->slots + ((index>>shift) & RADIX_TREE_MAP_MASK));
-+		parent = node;
-+		slot = node->slots + ((index >> shift) & RADIX_TREE_MAP_MASK);
- 		node = rcu_dereference_raw(*slot);
- 		if (node == NULL)
- 			return NULL;
-@@ -495,7 +513,11 @@ static void *radix_tree_lookup_element(struct radix_tree_root *root,
- 		height--;
- 	} while (height > 0);
- 
--	return is_slot ? (void *)slot : indirect_to_ptr(node);
-+	if (nodep)
-+		*nodep = parent;
-+	if (slotp)
-+		*slotp = slot;
-+	return node;
- }
- 
- /**
-@@ -513,7 +535,11 @@ static void *radix_tree_lookup_element(struct radix_tree_root *root,
-  */
- void **radix_tree_lookup_slot(struct radix_tree_root *root, unsigned long index)
- {
--	return (void **)radix_tree_lookup_element(root, index, 1);
-+	void **slot;
-+
-+	if (!__radix_tree_lookup(root, index, NULL, &slot))
-+		return NULL;
-+	return slot;
- }
- EXPORT_SYMBOL(radix_tree_lookup_slot);
- 
-@@ -531,7 +557,7 @@ EXPORT_SYMBOL(radix_tree_lookup_slot);
-  */
- void *radix_tree_lookup(struct radix_tree_root *root, unsigned long index)
- {
--	return radix_tree_lookup_element(root, index, 0);
-+	return __radix_tree_lookup(root, index, NULL, NULL);
- }
- EXPORT_SYMBOL(radix_tree_lookup);
- 
-@@ -1260,6 +1286,56 @@ static inline void radix_tree_shrink(struct radix_tree_root *root)
- }
- 
- /**
-+ *	__radix_tree_delete_node    -    try to free node after clearing a slot
-+ *	@root:		radix tree root
-+ *	@index:		index key
-+ *	@node:		node containing @index
-+ *
-+ *	After clearing the slot at @index in @node from radix tree
-+ *	rooted at @root, call this function to attempt freeing the
-+ *	node and shrinking the tree.
-+ *
-+ *	Returns %true if @node was freed, %false otherwise.
++ * Otherwise, %NULL is returned.
 + */
-+bool __radix_tree_delete_node(struct radix_tree_root *root, unsigned long index,
-+			      struct radix_tree_node *node)
++struct page *find_get_page(struct address_space *mapping, pgoff_t offset)
 +{
-+	bool deleted = false;
++	struct page *page = __find_get_page(mapping, offset);
 +
-+	do {
-+		struct radix_tree_node *parent;
++	if (radix_tree_exceptional_entry(page))
++		page = NULL;
++	return page;
++}
+ EXPORT_SYMBOL(find_get_page);
+ 
+ /**
+- * find_lock_page - locate, pin and lock a pagecache page
++ * __find_lock_page - locate, pin and lock a pagecache page
+  * @mapping: the address_space to search
+  * @offset: the page index
+  *
+- * Locates the desired pagecache page, locks it, increments its reference
+- * count and returns its address.
++ * Looks up the page cache slot at @mapping & @offset.  If there is a
++ * page cache page, it is returned locked and with an increased
++ * refcount.
++ *
++ * If the slot holds a shadow entry of a previously evicted page, it
++ * is returned.
++ *
++ * Otherwise, %NULL is returned.
+  *
+- * Returns zero if the page was not present. find_lock_page() may sleep.
++ * __find_lock_page() may sleep.
+  */
+-struct page *find_lock_page(struct address_space *mapping, pgoff_t offset)
++struct page *__find_lock_page(struct address_space *mapping, pgoff_t offset)
+ {
+ 	struct page *page;
+-
+ repeat:
+-	page = find_get_page(mapping, offset);
++	page = __find_get_page(mapping, offset);
+ 	if (page && !radix_tree_exception(page)) {
+ 		lock_page(page);
+ 		/* Has the page been truncated? */
+@@ -840,6 +898,29 @@ repeat:
+ 	}
+ 	return page;
+ }
++EXPORT_SYMBOL(__find_lock_page);
 +
-+		if (node->count) {
-+			if (node == indirect_to_ptr(root->rnode)) {
-+				radix_tree_shrink(root);
-+				if (root->height == 0)
-+					deleted = true;
-+			}
-+			return deleted;
++/**
++ * find_lock_page - locate, pin and lock a pagecache page
++ * @mapping: the address_space to search
++ * @offset: the page index
++ *
++ * Looks up the page cache slot at @mapping & @offset.  If there is a
++ * page cache page, it is returned locked and with an increased
++ * refcount.
++ *
++ * Otherwise, %NULL is returned.
++ *
++ * find_lock_page() may sleep.
++ */
++struct page *find_lock_page(struct address_space *mapping, pgoff_t offset)
++{
++	struct page *page = __find_lock_page(mapping, offset);
++
++	if (radix_tree_exceptional_entry(page))
++		page = NULL;
++	return page;
++}
+ EXPORT_SYMBOL(find_lock_page);
+ 
+ /**
+@@ -848,16 +929,18 @@ EXPORT_SYMBOL(find_lock_page);
+  * @index: the page's index into the mapping
+  * @gfp_mask: page allocation mode
+  *
+- * Locates a page in the pagecache.  If the page is not present, a new page
+- * is allocated using @gfp_mask and is added to the pagecache and to the VM's
+- * LRU list.  The returned page is locked and has its reference count
+- * incremented.
++ * Looks up the page cache slot at @mapping & @offset.  If there is a
++ * page cache page, it is returned locked and with an increased
++ * refcount.
+  *
+- * find_or_create_page() may sleep, even if @gfp_flags specifies an atomic
+- * allocation!
++ * If the page is not present, a new page is allocated using @gfp_mask
++ * and added to the page cache and the VM's LRU list.  The page is
++ * returned locked and with an increased refcount.
+  *
+- * find_or_create_page() returns the desired page's address, or zero on
+- * memory exhaustion.
++ * On memory exhaustion, %NULL is returned.
++ *
++ * find_or_create_page() may sleep, even if @gfp_flags specifies an
++ * atomic allocation!
+  */
+ struct page *find_or_create_page(struct address_space *mapping,
+ 		pgoff_t index, gfp_t gfp_mask)
+@@ -890,6 +973,73 @@ repeat:
+ EXPORT_SYMBOL(find_or_create_page);
+ 
+ /**
++ * __find_get_pages - gang pagecache lookup
++ * @mapping:	The address_space to search
++ * @start:	The starting page index
++ * @nr_pages:	The maximum number of pages
++ * @pages:	Where the resulting pages are placed
++ *
++ * __find_get_pages() will search for and return a group of up to
++ * @nr_pages pages in the mapping.  The pages are placed at @pages.
++ * __find_get_pages() takes a reference against the returned pages.
++ *
++ * The search returns a group of mapping-contiguous pages with ascending
++ * indexes.  There may be holes in the indices due to not-present pages.
++ *
++ * Any shadow entries of evicted pages are included in the returned
++ * array.
++ *
++ * __find_get_pages() returns the number of pages and shadow entries
++ * which were found.
++ */
++unsigned __find_get_pages(struct address_space *mapping,
++			  pgoff_t start, unsigned int nr_pages,
++			  struct page **pages, pgoff_t *indices)
++{
++	void **slot;
++	unsigned int ret = 0;
++	struct radix_tree_iter iter;
++
++	if (!nr_pages)
++		return 0;
++
++	rcu_read_lock();
++restart:
++	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
++		struct page *page;
++repeat:
++		page = radix_tree_deref_slot(slot);
++		if (unlikely(!page))
++			continue;
++		if (radix_tree_exception(page)) {
++			if (radix_tree_deref_retry(page))
++				goto restart;
++			/*
++			 * Otherwise, we must be storing a swap entry
++			 * here as an exceptional entry: so return it
++			 * without attempting to raise page count.
++			 */
++			goto export;
 +		}
++		if (!page_cache_get_speculative(page))
++			goto repeat;
 +
-+		parent = node->parent;
-+		if (parent) {
-+			index >>= RADIX_TREE_MAP_SHIFT;
-+
-+			parent->slots[index & RADIX_TREE_MAP_MASK] = NULL;
-+			parent->count--;
-+		} else {
-+			root_tag_clear_all(root);
-+			root->height = 0;
-+			root->rnode = NULL;
++		/* Has the page moved? */
++		if (unlikely(page != *slot)) {
++			page_cache_release(page);
++			goto repeat;
 +		}
-+
-+		radix_tree_node_free(node);
-+		deleted = true;
-+
-+		node = parent;
-+	} while (node);
-+
-+	return deleted;
++export:
++		indices[ret] = iter.index;
++		pages[ret] = page;
++		if (++ret == nr_pages)
++			break;
++	}
++	rcu_read_unlock();
++	return ret;
 +}
 +
 +/**
-  *	radix_tree_delete_item    -    delete an item from a radix tree
-  *	@root:		radix tree root
-  *	@index:		index key
-@@ -1273,43 +1349,26 @@ static inline void radix_tree_shrink(struct radix_tree_root *root)
- void *radix_tree_delete_item(struct radix_tree_root *root,
- 			     unsigned long index, void *item)
- {
--	struct radix_tree_node *node = NULL;
--	struct radix_tree_node *slot = NULL;
--	struct radix_tree_node *to_free;
--	unsigned int height, shift;
-+	struct radix_tree_node *node;
-+	unsigned int offset;
-+	void **slot;
-+	void *entry;
- 	int tag;
--	int uninitialized_var(offset);
- 
--	height = root->height;
--	if (index > radix_tree_maxindex(height))
--		goto out;
-+	entry = __radix_tree_lookup(root, index, &node, &slot);
-+	if (!entry)
-+		return NULL;
- 
--	slot = root->rnode;
--	if (height == 0) {
-+	if (item && entry != item)
-+		return NULL;
-+
-+	if (!node) {
- 		root_tag_clear_all(root);
- 		root->rnode = NULL;
--		goto out;
-+		return entry;
- 	}
--	slot = indirect_to_ptr(slot);
--	shift = height * RADIX_TREE_MAP_SHIFT;
--
--	do {
--		if (slot == NULL)
--			goto out;
--
--		shift -= RADIX_TREE_MAP_SHIFT;
--		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
--		node = slot;
--		slot = slot->slots[offset];
--	} while (shift);
--
--	if (slot == NULL)
--		goto out;
- 
--	if (item && slot != item) {
--		slot = NULL;
--		goto out;
+  * find_get_pages - gang pagecache lookup
+  * @mapping:	The address_space to search
+  * @start:	The starting page index
+diff --git a/mm/mincore.c b/mm/mincore.c
+index da2be56..ad411ec 100644
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -70,13 +70,21 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
+ 	 * any other file mapping (ie. marked !present and faulted in with
+ 	 * tmpfs's .fault). So swapped out tmpfs mappings are tested here.
+ 	 */
+-	page = find_get_page(mapping, pgoff);
+ #ifdef CONFIG_SWAP
+-	/* shmem/tmpfs may return swap: account for swapcache page too. */
+-	if (radix_tree_exceptional_entry(page)) {
+-		swp_entry_t swap = radix_to_swp_entry(page);
+-		page = find_get_page(swap_address_space(swap), swap.val);
 -	}
-+	offset = index & RADIX_TREE_MAP_MASK;
++	if (shmem_mapping(mapping)) {
++		page = __find_get_page(mapping, pgoff);
++		/*
++		 * shmem/tmpfs may return swap: account for swapcache
++		 * page too.
++		 */
++		if (radix_tree_exceptional_entry(page)) {
++			swp_entry_t swp = radix_to_swp_entry(page);
++			page = find_get_page(swap_address_space(swp), swp.val);
++		}
++	} else
++		page = find_get_page(mapping, pgoff);
++#else
++	page = find_get_page(mapping, pgoff);
+ #endif
+ 	if (page) {
+ 		present = PageUptodate(page);
+diff --git a/mm/readahead.c b/mm/readahead.c
+index 9eeeeda..912c003 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -179,7 +179,7 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
+ 		rcu_read_lock();
+ 		page = radix_tree_lookup(&mapping->page_tree, page_offset);
+ 		rcu_read_unlock();
+-		if (page)
++		if (page && !radix_tree_exceptional_entry(page))
+ 			continue;
  
- 	/*
- 	 * Clear all tags associated with the item to be deleted.
-@@ -1320,40 +1379,12 @@ void *radix_tree_delete_item(struct radix_tree_root *root,
- 			radix_tree_tag_clear(root, index, tag);
- 	}
- 
--	to_free = NULL;
--	/* Now free the nodes we do not need anymore */
--	while (node) {
--		node->slots[offset] = NULL;
--		node->count--;
--		/*
--		 * Queue the node for deferred freeing after the
--		 * last reference to it disappears (set NULL, above).
--		 */
--		if (to_free)
--			radix_tree_node_free(to_free);
--
--		if (node->count) {
--			if (node == indirect_to_ptr(root->rnode))
--				radix_tree_shrink(root);
--			goto out;
--		}
--
--		/* Node with zero slots in use so free it */
--		to_free = node;
--
--		index >>= RADIX_TREE_MAP_SHIFT;
--		offset = index & RADIX_TREE_MAP_MASK;
--		node = node->parent;
--	}
-+	node->slots[offset] = NULL;
-+	node->count--;
- 
--	root_tag_clear_all(root);
--	root->height = 0;
--	root->rnode = NULL;
--	if (to_free)
--		radix_tree_node_free(to_free);
-+	__radix_tree_delete_node(root, index, node);
- 
--out:
--	return slot;
-+	return entry;
+ 		page = page_cache_alloc_readahead(mapping);
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 7c67249..1f4b65f 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -329,56 +329,6 @@ static void shmem_delete_from_page_cache(struct page *page, void *radswap)
  }
- EXPORT_SYMBOL(radix_tree_delete_item);
  
+ /*
+- * Like find_get_pages, but collecting swap entries as well as pages.
+- */
+-static unsigned shmem_find_get_pages_and_swap(struct address_space *mapping,
+-					pgoff_t start, unsigned int nr_pages,
+-					struct page **pages, pgoff_t *indices)
+-{
+-	void **slot;
+-	unsigned int ret = 0;
+-	struct radix_tree_iter iter;
+-
+-	if (!nr_pages)
+-		return 0;
+-
+-	rcu_read_lock();
+-restart:
+-	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
+-		struct page *page;
+-repeat:
+-		page = radix_tree_deref_slot(slot);
+-		if (unlikely(!page))
+-			continue;
+-		if (radix_tree_exception(page)) {
+-			if (radix_tree_deref_retry(page))
+-				goto restart;
+-			/*
+-			 * Otherwise, we must be storing a swap entry
+-			 * here as an exceptional entry: so return it
+-			 * without attempting to raise page count.
+-			 */
+-			goto export;
+-		}
+-		if (!page_cache_get_speculative(page))
+-			goto repeat;
+-
+-		/* Has the page moved? */
+-		if (unlikely(page != *slot)) {
+-			page_cache_release(page);
+-			goto repeat;
+-		}
+-export:
+-		indices[ret] = iter.index;
+-		pages[ret] = page;
+-		if (++ret == nr_pages)
+-			break;
+-	}
+-	rcu_read_unlock();
+-	return ret;
+-}
+-
+-/*
+  * Remove swap entry from radix tree, free the swap and its page cache.
+  */
+ static int shmem_free_swap(struct address_space *mapping,
+@@ -396,21 +346,6 @@ static int shmem_free_swap(struct address_space *mapping,
+ }
+ 
+ /*
+- * Pagevec may contain swap entries, so shuffle up pages before releasing.
+- */
+-static void shmem_deswap_pagevec(struct pagevec *pvec)
+-{
+-	int i, j;
+-
+-	for (i = 0, j = 0; i < pagevec_count(pvec); i++) {
+-		struct page *page = pvec->pages[i];
+-		if (!radix_tree_exceptional_entry(page))
+-			pvec->pages[j++] = page;
+-	}
+-	pvec->nr = j;
+-}
+-
+-/*
+  * SysV IPC SHM_UNLOCK restore Unevictable pages to their evictable lists.
+  */
+ void shmem_unlock_mapping(struct address_space *mapping)
+@@ -428,12 +363,12 @@ void shmem_unlock_mapping(struct address_space *mapping)
+ 		 * Avoid pagevec_lookup(): find_get_pages() returns 0 as if it
+ 		 * has finished, if it hits a row of PAGEVEC_SIZE swap entries.
+ 		 */
+-		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
++		pvec.nr = __find_get_pages(mapping, index,
+ 					PAGEVEC_SIZE, pvec.pages, indices);
+ 		if (!pvec.nr)
+ 			break;
+ 		index = indices[pvec.nr - 1] + 1;
+-		shmem_deswap_pagevec(&pvec);
++		pagevec_remove_exceptionals(&pvec);
+ 		check_move_unevictable_pages(pvec.pages, pvec.nr);
+ 		pagevec_release(&pvec);
+ 		cond_resched();
+@@ -465,9 +400,9 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 	pagevec_init(&pvec, 0);
+ 	index = start;
+ 	while (index < end) {
+-		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
+-				min(end - index, (pgoff_t)PAGEVEC_SIZE),
+-							pvec.pages, indices);
++		pvec.nr = __find_get_pages(mapping, index,
++			min(end - index, (pgoff_t)PAGEVEC_SIZE),
++			pvec.pages, indices);
+ 		if (!pvec.nr)
+ 			break;
+ 		mem_cgroup_uncharge_start();
+@@ -496,7 +431,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 			}
+ 			unlock_page(page);
+ 		}
+-		shmem_deswap_pagevec(&pvec);
++		pagevec_remove_exceptionals(&pvec);
+ 		pagevec_release(&pvec);
+ 		mem_cgroup_uncharge_end();
+ 		cond_resched();
+@@ -534,9 +469,10 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 	index = start;
+ 	for ( ; ; ) {
+ 		cond_resched();
+-		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
++
++		pvec.nr = __find_get_pages(mapping, index,
+ 				min(end - index, (pgoff_t)PAGEVEC_SIZE),
+-							pvec.pages, indices);
++				pvec.pages, indices);
+ 		if (!pvec.nr) {
+ 			if (index == start || unfalloc)
+ 				break;
+@@ -544,7 +480,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 			continue;
+ 		}
+ 		if ((index == start || unfalloc) && indices[0] >= end) {
+-			shmem_deswap_pagevec(&pvec);
++			pagevec_remove_exceptionals(&pvec);
+ 			pagevec_release(&pvec);
+ 			break;
+ 		}
+@@ -573,7 +509,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 			}
+ 			unlock_page(page);
+ 		}
+-		shmem_deswap_pagevec(&pvec);
++		pagevec_remove_exceptionals(&pvec);
+ 		pagevec_release(&pvec);
+ 		mem_cgroup_uncharge_end();
+ 		index++;
+@@ -1081,7 +1017,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 		return -EFBIG;
+ repeat:
+ 	swap.val = 0;
+-	page = find_lock_page(mapping, index);
++	page = __find_lock_page(mapping, index);
+ 	if (radix_tree_exceptional_entry(page)) {
+ 		swap = radix_to_swp_entry(page);
+ 		page = NULL;
+@@ -1418,6 +1354,11 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
+ 	return inode;
+ }
+ 
++bool shmem_mapping(struct address_space *mapping)
++{
++	return mapping->backing_dev_info == &shmem_backing_dev_info;
++}
++
+ #ifdef CONFIG_TMPFS
+ static const struct inode_operations shmem_symlink_inode_operations;
+ static const struct inode_operations shmem_short_symlink_operations;
+@@ -1730,7 +1671,7 @@ static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
+ 	pagevec_init(&pvec, 0);
+ 	pvec.nr = 1;		/* start small: we may be there already */
+ 	while (!done) {
+-		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
++		pvec.nr = __find_get_pages(mapping, index,
+ 					pvec.nr, pvec.pages, indices);
+ 		if (!pvec.nr) {
+ 			if (whence == SEEK_DATA)
+@@ -1757,7 +1698,7 @@ static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
+ 				break;
+ 			}
+ 		}
+-		shmem_deswap_pagevec(&pvec);
++		pagevec_remove_exceptionals(&pvec);
+ 		pagevec_release(&pvec);
+ 		pvec.nr = PAGEVEC_SIZE;
+ 		cond_resched();
+diff --git a/mm/swap.c b/mm/swap.c
+index 759c3ca..f624e5b 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -894,6 +894,53 @@ EXPORT_SYMBOL(__pagevec_lru_add);
+ 
+ /**
+  * pagevec_lookup - gang pagecache lookup
++ * @pvec:	Where the resulting entries are placed
++ * @mapping:	The address_space to search
++ * @start:	The starting entry index
++ * @nr_pages:	The maximum number of entries
++ *
++ * pagevec_lookup() will search for and return a group of up to
++ * @nr_pages pages and shadow entries in the mapping.  All entries are
++ * placed in @pvec.  pagevec_lookup() takes a reference against actual
++ * pages in @pvec.
++ *
++ * The search returns a group of mapping-contiguous entries with
++ * ascending indexes.  There may be holes in the indices due to
++ * not-present entries.
++ *
++ * pagevec_lookup() returns the number of entries which were found.
++ */
++unsigned __pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
++			  pgoff_t start, unsigned nr_pages, pgoff_t *indices)
++{
++	pvec->nr = __find_get_pages(mapping, start, nr_pages,
++				    pvec->pages, indices);
++	return pagevec_count(pvec);
++}
++
++/**
++ * pagevec_remove_exceptionals - pagevec exceptionals pruning
++ * @pvec:	The pagevec to prune
++ *
++ * __pagevec_lookup() fills both pages and exceptional radix tree
++ * entries into the pagevec.  This function prunes all exceptionals
++ * from @pvec without leaving holes, so that it can be passed on to
++ * other pagevec operations.
++ */
++void pagevec_remove_exceptionals(struct pagevec *pvec)
++{
++	int i, j;
++
++	for (i = 0, j = 0; i < pagevec_count(pvec); i++) {
++		struct page *page = pvec->pages[i];
++		if (!radix_tree_exceptional_entry(page))
++			pvec->pages[j++] = page;
++	}
++	pvec->nr = j;
++}
++
++/**
++ * pagevec_lookup - gang pagecache lookup
+  * @pvec:	Where the resulting pages are placed
+  * @mapping:	The address_space to search
+  * @start:	The starting page index
+diff --git a/mm/truncate.c b/mm/truncate.c
+index 353b683..b0f4d4b 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -22,6 +22,22 @@
+ #include <linux/cleancache.h>
+ #include "internal.h"
+ 
++static void clear_exceptional_entry(struct address_space *mapping,
++				    pgoff_t index, void *entry)
++{
++	/* Handled by shmem itself */
++	if (shmem_mapping(mapping))
++		return;
++
++	spin_lock_irq(&mapping->tree_lock);
++	/*
++	 * Regular page slots are stabilized by the page lock even
++	 * without the tree itself locked.  These unlocked entries
++	 * need verification under the tree lock.
++	 */
++	radix_tree_delete_item(&mapping->page_tree, index, entry);
++	spin_unlock_irq(&mapping->tree_lock);
++}
+ 
+ /**
+  * do_invalidatepage - invalidate part or all of a page
+@@ -208,6 +224,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 	unsigned int	partial_start;	/* inclusive */
+ 	unsigned int	partial_end;	/* exclusive */
+ 	struct pagevec	pvec;
++	pgoff_t		indices[PAGEVEC_SIZE];
+ 	pgoff_t		index;
+ 	int		i;
+ 
+@@ -238,17 +255,23 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 
+ 	pagevec_init(&pvec, 0);
+ 	index = start;
+-	while (index < end && pagevec_lookup(&pvec, mapping, index,
+-			min(end - index, (pgoff_t)PAGEVEC_SIZE))) {
++	while (index < end && __pagevec_lookup(&pvec, mapping, index,
++			min(end - index, (pgoff_t)PAGEVEC_SIZE),
++			indices)) {
+ 		mem_cgroup_uncharge_start();
+ 		for (i = 0; i < pagevec_count(&pvec); i++) {
+ 			struct page *page = pvec.pages[i];
+ 
+ 			/* We rely upon deletion not changing page->index */
+-			index = page->index;
++			index = indices[i];
+ 			if (index >= end)
+ 				break;
+ 
++			if (radix_tree_exceptional_entry(page)) {
++				clear_exceptional_entry(mapping, index, page);
++				continue;
++			}
++
+ 			if (!trylock_page(page))
+ 				continue;
+ 			WARN_ON(page->index != index);
+@@ -259,6 +282,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			truncate_inode_page(mapping, page);
+ 			unlock_page(page);
+ 		}
++		pagevec_remove_exceptionals(&pvec);
+ 		pagevec_release(&pvec);
+ 		mem_cgroup_uncharge_end();
+ 		cond_resched();
+@@ -307,14 +331,15 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 	index = start;
+ 	for ( ; ; ) {
+ 		cond_resched();
+-		if (!pagevec_lookup(&pvec, mapping, index,
+-			min(end - index, (pgoff_t)PAGEVEC_SIZE))) {
++		if (!__pagevec_lookup(&pvec, mapping, index,
++			min(end - index, (pgoff_t)PAGEVEC_SIZE),
++			indices)) {
+ 			if (index == start)
+ 				break;
+ 			index = start;
+ 			continue;
+ 		}
+-		if (index == start && pvec.pages[0]->index >= end) {
++		if (index == start && indices[0] >= end) {
+ 			pagevec_release(&pvec);
+ 			break;
+ 		}
+@@ -323,16 +348,22 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			struct page *page = pvec.pages[i];
+ 
+ 			/* We rely upon deletion not changing page->index */
+-			index = page->index;
++			index = indices[i];
+ 			if (index >= end)
+ 				break;
+ 
++			if (radix_tree_exceptional_entry(page)) {
++				clear_exceptional_entry(mapping, index, page);
++				continue;
++			}
++
+ 			lock_page(page);
+ 			WARN_ON(page->index != index);
+ 			wait_on_page_writeback(page);
+ 			truncate_inode_page(mapping, page);
+ 			unlock_page(page);
+ 		}
++		pagevec_remove_exceptionals(&pvec);
+ 		pagevec_release(&pvec);
+ 		mem_cgroup_uncharge_end();
+ 		index++;
+@@ -375,6 +406,7 @@ EXPORT_SYMBOL(truncate_inode_pages);
+ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+ 		pgoff_t start, pgoff_t end)
+ {
++	pgoff_t indices[PAGEVEC_SIZE];
+ 	struct pagevec pvec;
+ 	pgoff_t index = start;
+ 	unsigned long ret;
+@@ -390,17 +422,23 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+ 	 */
+ 
+ 	pagevec_init(&pvec, 0);
+-	while (index <= end && pagevec_lookup(&pvec, mapping, index,
+-			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
++	while (index <= end && __pagevec_lookup(&pvec, mapping, index,
++			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1,
++			indices)) {
+ 		mem_cgroup_uncharge_start();
+ 		for (i = 0; i < pagevec_count(&pvec); i++) {
+ 			struct page *page = pvec.pages[i];
+ 
+ 			/* We rely upon deletion not changing page->index */
+-			index = page->index;
++			index = indices[i];
+ 			if (index > end)
+ 				break;
+ 
++			if (radix_tree_exceptional_entry(page)) {
++				clear_exceptional_entry(mapping, index, page);
++				continue;
++			}
++
+ 			if (!trylock_page(page))
+ 				continue;
+ 			WARN_ON(page->index != index);
+@@ -414,6 +452,7 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+ 				deactivate_page(page);
+ 			count += ret;
+ 		}
++		pagevec_remove_exceptionals(&pvec);
+ 		pagevec_release(&pvec);
+ 		mem_cgroup_uncharge_end();
+ 		cond_resched();
+@@ -481,6 +520,7 @@ static int do_launder_page(struct address_space *mapping, struct page *page)
+ int invalidate_inode_pages2_range(struct address_space *mapping,
+ 				  pgoff_t start, pgoff_t end)
+ {
++	pgoff_t indices[PAGEVEC_SIZE];
+ 	struct pagevec pvec;
+ 	pgoff_t index;
+ 	int i;
+@@ -491,17 +531,23 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
+ 	cleancache_invalidate_inode(mapping);
+ 	pagevec_init(&pvec, 0);
+ 	index = start;
+-	while (index <= end && pagevec_lookup(&pvec, mapping, index,
+-			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
++	while (index <= end && __pagevec_lookup(&pvec, mapping, index,
++			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1,
++			indices)) {
+ 		mem_cgroup_uncharge_start();
+ 		for (i = 0; i < pagevec_count(&pvec); i++) {
+ 			struct page *page = pvec.pages[i];
+ 
+ 			/* We rely upon deletion not changing page->index */
+-			index = page->index;
++			index = indices[i];
+ 			if (index > end)
+ 				break;
+ 
++			if (radix_tree_exceptional_entry(page)) {
++				clear_exceptional_entry(mapping, index, page);
++				continue;
++			}
++
+ 			lock_page(page);
+ 			WARN_ON(page->index != index);
+ 			if (page->mapping != mapping) {
+@@ -539,6 +585,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
+ 				ret = ret2;
+ 			unlock_page(page);
+ 		}
++		pagevec_remove_exceptionals(&pvec);
+ 		pagevec_release(&pvec);
+ 		mem_cgroup_uncharge_end();
+ 		cond_resched();
 -- 
 1.8.4.2
 
