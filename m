@@ -1,21 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f49.google.com (mail-yh0-f49.google.com [209.85.213.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 105F96B0037
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 15:09:18 -0500 (EST)
-Received: by mail-yh0-f49.google.com with SMTP id z20so9239279yhz.36
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 12:09:17 -0800 (PST)
+Received: from mail-qe0-f43.google.com (mail-qe0-f43.google.com [209.85.128.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 72D0C6B0037
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 15:09:35 -0500 (EST)
+Received: by mail-qe0-f43.google.com with SMTP id 2so14124444qeb.30
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 12:09:35 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id a4si17572766qar.172.2013.12.02.12.09.16
+        by mx.google.com with ESMTP id y5si485109qat.137.2013.12.02.12.09.32
         for <linux-mm@kvack.org>;
-        Mon, 02 Dec 2013 12:09:17 -0800 (PST)
-Date: Mon, 02 Dec 2013 15:09:10 -0500
+        Mon, 02 Dec 2013 12:09:34 -0800 (PST)
+Date: Mon, 02 Dec 2013 15:09:24 -0500
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1386014950-gms49gpt-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1385624926-28883-3-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <1386014964-wqgf1m0u-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1385624926-28883-4-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1385624926-28883-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1385624926-28883-3-git-send-email-iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 2/9] mm/rmap: factor nonlinear handling out of
- try_to_unmap_file()
+ <1385624926-28883-4-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 3/9] mm/rmap: factor lock function out of rmap_walk_anon()
 Mime-Version: 1.0
 Content-Type: text/plain;
  charset=iso-2022-jp
@@ -26,15 +25,15 @@ List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
 
-On Thu, Nov 28, 2013 at 04:48:39PM +0900, Joonsoo Kim wrote:
-> To merge all kinds of rmap traverse functions, try_to_unmap(),
-> try_to_munlock(), page_referenced() and page_mkclean(), we need to
-> extract common parts and separate out non-common parts.
+On Thu, Nov 28, 2013 at 04:48:40PM +0900, Joonsoo Kim wrote:
+> When we traverse anon_vma, we need to take a read-side anon_lock.
+> But there is subtle difference in the situation so that we can't use
+> same method to take a lock in each cases. Therefore, we need to make
+> rmap_walk_anon() taking difference lock function.
 > 
-> Nonlinear handling is handled just in try_to_unmap_file() and other
-> rmap traverse functions doesn't care of it. Therfore it is better
-> to factor nonlinear handling out of try_to_unmap_file() in order to
-> merge all kinds of rmap traverse functions easily.
+> This patch is the first step, factoring lock function for anon_lock out
+> of rmap_walk_anon(). It will be used in case of removing migration entry
+> and in default of rmap_walk_anon().
 > 
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
