@@ -1,53 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 431186B003C
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 03:47:30 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id jt11so18570546pbb.28
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 00:47:29 -0800 (PST)
-Received: from LGEMRELSE6Q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id pj7si14074286pbc.99.2013.12.02.00.47.27
-        for <linux-mm@kvack.org>;
-        Mon, 02 Dec 2013 00:47:29 -0800 (PST)
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v3 5/5] slab: make more slab management structure off the slab
-Date: Mon,  2 Dec 2013 17:49:43 +0900
-Message-Id: <1385974183-31423-6-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1385974183-31423-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1385974183-31423-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CF116B005A
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 06:19:56 -0500 (EST)
+Received: by mail-la0-f48.google.com with SMTP id n7so8193952lam.35
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 03:19:55 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id 6si20083532lby.52.2013.12.02.03.19.54
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 02 Dec 2013 03:19:55 -0800 (PST)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH v12 00/18] kmemcg shrinkers
+Date: Mon, 2 Dec 2013 15:19:35 +0400
+Message-ID: <cover.1385974612.git.vdavydov@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, vdavydov@parallels.com
 
-Now, the size of the freelist for the slab management diminish,
-so that the on-slab management structure can waste large space
-if the object of the slab is large.
+Hi,
 
-Consider a 128 byte sized slab. If on-slab is used, 31 objects can be
-in the slab. The size of the freelist for this case would be 31 bytes
-so that 97 bytes, that is, more than 75% of object size, are wasted.
+This is the 12th iteration of Glauber Costa's patchset implementing targeted
+shrinking for memory cgroups when kmem limits are present. So far, we've been
+accounting kernel objects but failing allocations when short of memory. This is
+because our only option would be to call the global shrinker, depleting objects
+from all caches and breaking isolation.
 
-In a 64 byte sized slab case, no space is wasted if we use on-slab.
-So set off-slab determining constraint to 128 bytes.
+The main idea is to make LRU lists used by FS slab shrinkers per-memcg. When
+adding or removing an element from from the LRU, we use the page information to
+figure out which memory cgroup it belongs to and relay it to the appropriate
+list. This allows scanning kmem objects accounted to different memory cgroups
+independently.
 
-Acked-by: Christoph Lameter <cl@linux.com>
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+The patchset is based on top of Linux 3.13-rc2 and organized as follows:
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 7fab788..1a7f19d 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2264,7 +2264,7 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
- 	 * it too early on. Always use on-slab management when
- 	 * SLAB_NOLEAKTRACE to avoid recursive calls into kmemleak)
- 	 */
--	if ((size >= (PAGE_SIZE >> 3)) && !slab_early_init &&
-+	if ((size >= (PAGE_SIZE >> 5)) && !slab_early_init &&
- 	    !(flags & SLAB_NOLEAKTRACE))
- 		/*
- 		 * Size is large, assume best to place the slab management obj
+ * patches 1-8 are for cleanup/preparation;
+ * patch 9 introduces infrastructure for memcg-aware shrinkers;
+ * patches 10 and 11 implement the per-memcg LRU list structure;
+ * patch 12 uses per-memcg LRU lists to make dcache and icache shrinkers
+   memcg-aware;
+ * patch 13 implements kmem-only shrinking;
+ * patches 14-18 issue kmem shrinking on limit resize, global pressure.
+
+Known issues:
+
+ * Since FS shrinkers can't be executed on __GFP_FS allocations, such
+   allocations will fail if memcg kmem limit is less than the user limit and
+   the memcg kmem usage is close to its limit. Glauber proposed to schedule a
+   worker which would shrink kmem in the background on such allocations.
+   However, this approach does not eliminate failures completely, it just makes
+   them rarer. I'm thinking on implementing soft limits for memcg kmem so that
+   striking the soft limit will trigger the reclaimer, but won't fail the
+   allocation. I would appreciate any other proposals on how this can be fixed.
+
+ * Only dcache and icache are reclaimed on memcg pressure. Other FS objects are
+   left for global pressure only. However, it should not be a serious problem
+   to make them reclaimable too by passing on memcg to the FS-layer and letting
+   each FS decide if its internal objects are shrinkable on memcg pressure.
+
+Changelog:
+
+Changes in v12:
+ * Do not prune all slabs on kmem-only pressure.
+ * Count all on-LRU pages eligible for reclaim to pass to shrink_slab().
+ * Fix isolation issue due to using shrinker->nr_deferred on memcg pressure.
+ * Add comments to memcg_list_lru functions.
+ * Code cleanup/refactoring.
+
+Changes in v11:
+ * Rework per-memcg list_lru infrastructure.
+
+Glauber Costa (7):
+  memcg: make cache index determination more robust
+  memcg: consolidate callers of memcg_cache_id
+  memcg: move initialization to memcg creation
+  memcg: allow kmem limit to be resized down
+  vmpressure: in-kernel notifications
+  memcg: reap dead memcgs upon global memory pressure
+  memcg: flush memcg items upon memcg destruction
+
+Vladimir Davydov (11):
+  memcg: move several kmemcg functions upper
+  fs: do not use destroy_super() in alloc_super() fail path
+  vmscan: rename shrink_slab() args to make it more generic
+  vmscan: move call to shrink_slab() to shrink_zones()
+  vmscan: do_try_to_free_pages(): remove shrink_control argument
+  vmscan: shrink slab on memcg pressure
+  memcg,list_lru: add per-memcg LRU list infrastructure
+  memcg,list_lru: add function walking over all lists of a per-memcg
+    LRU
+  fs: make icache, dcache shrinkers memcg-aware
+  memcg: per-memcg kmem shrinking
+  vmscan: take at least one pass with shrinkers
+
+ fs/dcache.c                   |   25 +-
+ fs/inode.c                    |   16 +-
+ fs/internal.h                 |    9 +-
+ fs/super.c                    |   48 ++-
+ include/linux/fs.h            |    4 +-
+ include/linux/list_lru.h      |   83 +++++
+ include/linux/memcontrol.h    |   22 ++
+ include/linux/mm.h            |    3 +-
+ include/linux/shrinker.h      |   10 +-
+ include/linux/swap.h          |    2 +
+ include/linux/vmpressure.h    |    5 +
+ include/trace/events/vmscan.h |   20 +-
+ mm/memcontrol.c               |  728 ++++++++++++++++++++++++++++++++++++-----
+ mm/vmpressure.c               |   53 ++-
+ mm/vmscan.c                   |  249 +++++++++-----
+ 15 files changed, 1054 insertions(+), 223 deletions(-)
+
 -- 
-1.7.9.5
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
