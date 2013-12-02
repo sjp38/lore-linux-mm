@@ -1,126 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f41.google.com (mail-yh0-f41.google.com [209.85.213.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C7136B0035
-	for <linux-mm@kvack.org>; Sat, 30 Nov 2013 17:31:52 -0500 (EST)
-Received: by mail-yh0-f41.google.com with SMTP id f11so7734655yha.0
-        for <linux-mm@kvack.org>; Sat, 30 Nov 2013 14:31:51 -0800 (PST)
-Received: from mail-yh0-x235.google.com (mail-yh0-x235.google.com [2607:f8b0:4002:c01::235])
-        by mx.google.com with ESMTPS id s25si9813954yhg.116.2013.11.30.14.31.50
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 30 Nov 2013 14:31:51 -0800 (PST)
-Received: by mail-yh0-f53.google.com with SMTP id b20so7560839yha.26
-        for <linux-mm@kvack.org>; Sat, 30 Nov 2013 14:31:50 -0800 (PST)
-Date: Sat, 30 Nov 2013 14:31:48 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Slab BUG with DEBUG_* options
-In-Reply-To: <alpine.SOC.1.00.1311300125490.6363@math.ut.ee>
-Message-ID: <alpine.DEB.2.02.1311301428390.18027@chino.kir.corp.google.com>
-References: <alpine.SOC.1.00.1311300125490.6363@math.ut.ee>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A27A6B0031
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 03:47:26 -0500 (EST)
+Received: by mail-pb0-f45.google.com with SMTP id rp16so18379532pbb.4
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 00:47:25 -0800 (PST)
+Received: from LGEMRELSE6Q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id d5si19553623pac.57.2013.12.02.00.47.23
+        for <linux-mm@kvack.org>;
+        Mon, 02 Dec 2013 00:47:24 -0800 (PST)
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: [PATCH v3 0/5] slab: implement byte sized indexes for the freelist of a slab
+Date: Mon,  2 Dec 2013 17:49:38 +0900
+Message-Id: <1385974183-31423-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Meelis Roos <mroos@linux.ee>
-Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Sat, 30 Nov 2013, Meelis Roos wrote:
+This patchset implements byte sized indexes for the freelist of a slab.
 
-> I am debugging a reboot problem on Sun Ultra 5 (sparc64) with 512M RAM 
-> and turned on DEBUG_PAGEALLOC DEBUG_SLAB and DEBUG_SLAB_LEAK (and most 
-> other debug options) and got the following BUG and hang on startup. This 
-> happened originally with 3.11-rc2-00058 where my bisection of 
-> another problem lead, but I retested 3.12 to have the same BUG in the 
-> same place.
-> 
-> kernel BUG at mm/slab.c:2391!
->               \|/ ____ \|/
->               "@'/ .. \`@"
->               /_| \__/ |_\
->                  \__U_/
-> swapper(0): Kernel bad sw trap 5 [#1]
-> CPU: 0 PID: 0 Comm: swapper Not tainted 3.11.0-rc2-00058-g20bafb3-dirty #127
-> task: 00000000008ac468 ti: 000000000089c000 task.ti: 000000000089c000
-> TSTATE: 0000004480e01606 TPC: 00000000004f57d4 TNPC: 00000000004f57d8 Y: 00000000    Not tainted
-> TPC: <__kmem_cache_create+0x374/0x480>
-> g0: 00000000000000f8 g1: 00000000008bb400 g2: 000000000002780b g3: 00000000008b5120
-> g4: 00000000008ac468 g5: 0000000000000000 g6: 000000000089c000 g7: 0000000000000000
-> o0: 0000000000845f08 o1: 0000000000000957 o2: ffffffffffffffe0 o3: 0000000000000000
-> o4: 0000000000002004 o5: 0000000000000000 sp: 000000000089f301 ret_pc: 00000000004f57cc
-> RPC: <__kmem_cache_create+0x36c/0x480>
-> l0: fffff8001e812040 l1: fffff8001e819f80 l2: fffff8001e819fb8 l3: fffff8001e819fd8
-> l4: 0000000000000001 l5: fffff8001e819fc8 l6: 0000000000845f08 l7: fffff8001e8300a0
-> i0: fffff8001e831fa0 i1: 0000000080002800 i2: 0000000080000000 i3: 0000000000000034
-> i4: 0000000000000000 i5: 0000000000002000 i6: 000000000089f3b1 i7: 0000000000907464
-> I7: <create_boot_cache+0x4c/0x84>
-> Call Trace:
->  [0000000000907464] create_boot_cache+0x4c/0x84
->  [00000000009074d0] create_kmalloc_cache+0x34/0x60
->  [0000000000907540] create_kmalloc_caches+0x44/0x168
->  [0000000000908dfc] kmem_cache_init+0x1d0/0x1e0
->  [00000000008fc658] start_kernel+0x18c/0x370
->  [0000000000761df4] tlb_fixup_done+0x88/0x94
->  [0000000000000000]           (null)
-> Disabling lock debugging due to kernel taint
-> Caller[0000000000907464]: create_boot_cache+0x4c/0x84
-> Caller[00000000009074d0]: create_kmalloc_cache+0x34/0x60
-> Caller[0000000000907540]: create_kmalloc_caches+0x44/0x168
-> Caller[0000000000908dfc]: kmem_cache_init+0x1d0/0x1e0
-> Caller[00000000008fc658]: start_kernel+0x18c/0x370
-> Caller[0000000000761df4]: tlb_fixup_done+0x88/0x94
-> Caller[0000000000000000]:           (null)
-> Instruction DUMP: 92102957  7ffccb35  90122308 <91d02005> 90100018  4009b371  920f20d0  ba922000  02480006 
-> Kernel panic - not syncing: Attempted to kill the idle task!
-> Press Stop-A (L1-A) to return to the boot prom
-> 
-> The line shows that __kmem_cache_create gets a NULL from kmalloc_slab().
-> 
-> I instrumented the code and found the following:
-> 
-> __kmem_cache_create: starting, size=248, flags=8192
-> __kmem_cache_create: now flags=76800
-> __kmem_cache_create: aligned size to 248 because of redzoning
-> __kmem_cache_create: pagealloc debug, setting size to 8192
-> __kmem_cache_create: aligned size to 8192
-> __kmem_cache_create: num=1, slab_size=64
-> __kmem_cache_create: starting, size=96, flags=8192
-> __kmem_cache_create: now flags=76800
-> __kmem_cache_create: aligned size to 96 because of redzoning
-> __kmem_cache_create: pagealloc debug, setting size to 8192
-> __kmem_cache_create: aligned size to 8192
-> __kmem_cache_create: num=1, slab_size=64
-> __kmem_cache_create: starting, size=192, flags=8192
-> __kmem_cache_create: now flags=76800
-> __kmem_cache_create: aligned size to 192 because of redzoning
-> __kmem_cache_create: pagealloc debug, setting size to 8192
-> __kmem_cache_create: aligned size to 8192
-> __kmem_cache_create: num=1, slab_size=64
-> __kmem_cache_create: starting, size=32, flags=8192
-> __kmem_cache_create: now flags=76800
-> __kmem_cache_create: aligned size to 32 because of redzoning
-> __kmem_cache_create: aligned size to 32
-> __kmem_cache_create: num=226, slab_size=960
-> __kmem_cache_create: starting, size=64, flags=8192
-> __kmem_cache_create: now flags=76800
-> __kmem_cache_create: aligned size to 64 because of redzoning
-> __kmem_cache_create: pagealloc debug, setting size to 8192
-> __kmem_cache_create: turning on CFLGS_OFF_SLAB, size=8192
-> __kmem_cache_create: aligned size to 8192
-> __kmem_cache_create: num=1, slab_size=64
-> __kmem_cache_create: CFLGS_OFF_SLAB, size=8192, slab_size=52
-> __kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
-> 
-> With slab size 64, it turns on CFLGS_OFF_SLAB and off slab allocation 
-> with this size fails. I do not know slab internals so I can not tell if 
-> this just happens because of the debug paths, or is it a real problem 
-> without the debug options too.
-> 
+Currently, the freelist of a slab consist of unsigned int sized indexes.
+Most of slabs have less number of objects than 256, so much space is wasted.
+To reduce this overhead, this patchset implements byte sized indexes for
+the freelist of a slab. With it, we can save 3 bytes for each objects.
 
-Sounds like a problem with create_kmalloc_caches(), what are the values 
-for KMALLOC_SHIFT_LOW and KMALLOC_SHIFT_HIGH?
+Below is some numbers of 'cat /proc/slabinfo'.
 
-It's interesting you report this as starting with 3.11-rc2 because this 
-changed in 3.9, what kernels were tested before 3.11-rc2 if any?
+* Before *
+kmalloc-512          525    640    512    8    1 : tunables   54   27    0 : slabdata     80     80      0
+kmalloc-256          210    210    256   15    1 : tunables  120   60    0 : slabdata     14     14      0
+kmalloc-192         1016   1040    192   20    1 : tunables  120   60    0 : slabdata     52     52      0
+kmalloc-96           560    620    128   31    1 : tunables  120   60    0 : slabdata     20     20      0
+kmalloc-64          2148   2280     64   60    1 : tunables  120   60    0 : slabdata     38     38      0
+kmalloc-128          647    682    128   31    1 : tunables  120   60    0 : slabdata     22     22      0
+kmalloc-32         11360  11413     32  113    1 : tunables  120   60    0 : slabdata    101    101      0
+kmem_cache           197    200    192   20    1 : tunables  120   60    0 : slabdata     10     10      0
+
+* After *
+kmalloc-512          521    648    512    8    1 : tunables   54   27    0 : slabdata     81     81      0
+kmalloc-256          208    208    256   16    1 : tunables  120   60    0 : slabdata     13     13      0
+kmalloc-192         1029   1029    192   21    1 : tunables  120   60    0 : slabdata     49     49      0
+kmalloc-96           529    589    128   31    1 : tunables  120   60    0 : slabdata     19     19      0
+kmalloc-64          2142   2142     64   63    1 : tunables  120   60    0 : slabdata     34     34      0
+kmalloc-128          660    682    128   31    1 : tunables  120   60    0 : slabdata     22     22      0
+kmalloc-32         11716  11780     32  124    1 : tunables  120   60    0 : slabdata     95     95      0
+kmem_cache           197    210    192   21    1 : tunables  120   60    0 : slabdata     10     10      0
+
+kmem_caches consisting of objects less than or equal to 256 byte have
+one or more objects than before. In the case of kmalloc-32, we have 11 more
+objects, so 352 bytes (11 * 32) are saved and this is roughly 9% saving of
+memory. Of couse, this percentage decreases as the number of objects
+in a slab decreases.
+
+Here are the performance results on my 4 cpus machine.
+
+* Before *
+
+ Performance counter stats for 'perf bench sched messaging -g 50 -l 1000' (10 runs):
+
+       229,945,138 cache-misses                                                  ( +-  0.23% )
+
+      11.627897174 seconds time elapsed                                          ( +-  0.14% )
+
+* After *
+
+ Performance counter stats for 'perf bench sched messaging -g 50 -l 1000' (10 runs):
+
+       218,640,472 cache-misses                                                  ( +-  0.42% )
+
+      11.504999837 seconds time elapsed                                          ( +-  0.21% )
+
+cache-misses are reduced by this patchset, roughly 5%.
+And elapsed times are improved by 1%.
+
+This patchset comes from a Christoph's idea.
+https://lkml.org/lkml/2013/8/23/315
+
+Patches are on top of v3.13-rc1.
+
+Thanks.
+
+Joonsoo Kim (5):
+  slab: factor out calculate nr objects in cache_estimate
+  slab: introduce helper functions to get/set free object
+  slab: restrict the number of objects in a slab
+  slab: introduce byte sized index for the freelist of a slab
+  slab: make more slab management structure off the slab
+
+ include/linux/slab.h |   11 ++++++
+ mm/slab.c            |   97 +++++++++++++++++++++++++++++++++-----------------
+ 2 files changed, 76 insertions(+), 32 deletions(-)
+
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
