@@ -1,72 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C7856B0031
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 17:22:13 -0500 (EST)
-Received: by mail-pb0-f45.google.com with SMTP id rp16so20009712pbb.32
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 14:22:12 -0800 (PST)
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id am2si49242065pad.270.2013.12.02.14.22.10
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Dec 2013 14:22:11 -0800 (PST)
-Date: Mon, 2 Dec 2013 14:22:08 -0800
-From: Greg KH <greg@kroah.com>
-Subject: Re: netfilter: active obj WARN when cleaning up
-Message-ID: <20131202222208.GB13034@kroah.com>
-References: <20131127233415.GB19270@kroah.com>
- <00000142b4282aaf-913f5e4c-314c-4351-9d24-615e66928157-000000@email.amazonses.com>
- <20131202164039.GA19937@kroah.com>
- <00000142b4514eb5-2e8f675d-0ecc-423b-9906-58c5f383089b-000000@email.amazonses.com>
- <20131202172615.GA4722@kroah.com>
- <00000142b4aeca89-186fc179-92b8-492f-956c-38a7c196d187-000000@email.amazonses.com>
- <20131202190814.GA2267@kroah.com>
- <00000142b4d4360c-5755af87-b9b0-4847-b5fa-7a9dd13b49c5-000000@email.amazonses.com>
- <20131202212235.GA1297@kroah.com>
- <00000142b54f6694-c51e81b1-f1a2-483b-a1ce-a2d4cb6b155c-000000@email.amazonses.com>
+Received: from mail-we0-f178.google.com (mail-we0-f178.google.com [74.125.82.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 73B236B0031
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 17:25:18 -0500 (EST)
+Received: by mail-we0-f178.google.com with SMTP id u57so7114426wes.9
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 14:25:17 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id kb10si29956410wjc.152.2013.12.02.14.25.17
+        for <linux-mm@kvack.org>;
+        Mon, 02 Dec 2013 14:25:17 -0800 (PST)
+Message-ID: <529D0896.2090707@redhat.com>
+Date: Mon, 02 Dec 2013 17:24:22 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <00000142b54f6694-c51e81b1-f1a2-483b-a1ce-a2d4cb6b155c-000000@email.amazonses.com>
+Subject: Re: [patch 2/9] lib: radix-tree: radix_tree_delete_item()
+References: <1386012108-21006-1-git-send-email-hannes@cmpxchg.org> <1386012108-21006-3-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1386012108-21006-3-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Pablo Neira Ayuso <pablo@netfilter.org>, Sasha Levin <sasha.levin@oracle.com>, Patrick McHardy <kaber@trash.net>, kadlec@blackhole.kfki.hu, "David S. Miller" <davem@davemloft.net>, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Dec 02, 2013 at 09:55:49PM +0000, Christoph Lameter wrote:
-> On Mon, 2 Dec 2013, Greg KH wrote:
+On 12/02/2013 02:21 PM, Johannes Weiner wrote:
+> Provide a function that does not just delete an entry at a given
+> index, but also allows passing in an expected item.  Delete only if
+> that item is still located at the specified index.
 > 
-> > > Signed-off-by: Christoph Lameter <cl@linux.com>
-> >
-> > That looks good, if you fix the indentation issue :)
+> This is handy when lockless tree traversals want to delete entries as
+> well because they don't have to do an second, locked lookup to verify
+> the slot has not changed under them before deleting the entry.
 > 
-> Huh?
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Reviewed-by: Minchan Kim <minchan@kernel.org>
 
-Your release function had 2 tabs for the lines, not one.
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-> > > Index: linux/include/linux/slub_def.h
-> > > ===================================================================
-> > > --- linux.orig/include/linux/slub_def.h	2013-12-02 13:31:07.395905824 -0600
-> > > +++ linux/include/linux/slub_def.h	2013-12-02 13:31:07.385906101 -0600
-> > > @@ -98,4 +98,8 @@ struct kmem_cache {
-> > >  	struct kmem_cache_node *node[MAX_NUMNODES];
-> > >  };
-> > >
-> > > +#ifdef CONFIG_SYSFS
-> > > +#define SLAB_SUPPORTS_SYSFS
-> >
-> > Why even define this?  Why not just use CONFIG_SYSFS?
-> 
-> Because not all slab allocators currently support SYSFS and there is the
-> need to have different code now in slab_common.c depending on the
-> configuration of the allocator.
-
-But you are defining something that you only ever check once, why not
-just use CONFIG_SYSFS instead as it makes more sense, not the other way
-around.
-
-thanks,
-
-greg k-h
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
