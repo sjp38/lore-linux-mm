@@ -1,70 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f176.google.com (mail-qc0-f176.google.com [209.85.216.176])
-	by kanga.kvack.org (Postfix) with ESMTP id BDD466B0031
-	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 04:00:48 -0500 (EST)
-Received: by mail-qc0-f176.google.com with SMTP id i8so1764771qcq.21
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 01:00:48 -0800 (PST)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [2001:44b8:8060:ff02:300:1:2:6])
-        by mx.google.com with ESMTP id t9si34962317qed.49.2013.12.03.01.00.46
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 85F896B003A
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 04:17:37 -0500 (EST)
+Received: by mail-we0-f180.google.com with SMTP id t61so7467565wes.39
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 01:17:36 -0800 (PST)
+Received: from smtp2.it.da.ut.ee (smtp2.it.da.ut.ee. [2001:bb8:2002:500:20f:1fff:fe04:1bbb])
+        by mx.google.com with ESMTP id i10si532119wix.57.2013.12.03.01.17.36
         for <linux-mm@kvack.org>;
-        Tue, 03 Dec 2013 01:00:47 -0800 (PST)
-Date: Tue, 3 Dec 2013 20:00:41 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v12 05/18] fs: do not use destroy_super() in
- alloc_super() fail path
-Message-ID: <20131203090041.GB8803@dastard>
-References: <cover.1385974612.git.vdavydov@parallels.com>
- <af90b79aebe9cd9f6e1d35513f2618f4e9888e9b.1385974612.git.vdavydov@parallels.com>
+        Tue, 03 Dec 2013 01:17:36 -0800 (PST)
+Date: Tue, 3 Dec 2013 11:17:35 +0200 (EET)
+From: Meelis Roos <mroos@linux.ee>
+Subject: Re: Slab BUG with DEBUG_* options
+In-Reply-To: <alpine.DEB.2.02.1311301428390.18027@chino.kir.corp.google.com>
+Message-ID: <alpine.SOC.1.00.1312031116150.3485@math.ut.ee>
+References: <alpine.SOC.1.00.1311300125490.6363@math.ut.ee> <alpine.DEB.2.02.1311301428390.18027@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <af90b79aebe9cd9f6e1d35513f2618f4e9888e9b.1385974612.git.vdavydov@parallels.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, Al Viro <viro@zeniv.linux.org.uk>
+To: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, Dec 02, 2013 at 03:19:40PM +0400, Vladimir Davydov wrote:
-> Using destroy_super() in alloc_super() fail path is bad, because:
+> > I am debugging a reboot problem on Sun Ultra 5 (sparc64) with 512M RAM 
+> > and turned on DEBUG_PAGEALLOC DEBUG_SLAB and DEBUG_SLAB_LEAK (and most 
+> > other debug options) and got the following BUG and hang on startup. This 
+> > happened originally with 3.11-rc2-00058 where my bisection of 
+> > another problem lead, but I retested 3.12 to have the same BUG in the 
+> > same place.
+> > 
+> > kernel BUG at mm/slab.c:2391!
+[...
+
+> > The line shows that __kmem_cache_create gets a NULL from kmalloc_slab().
+> > 
+> > I instrumented the code and found the following:
+> > 
+> > __kmem_cache_create: starting, size=248, flags=8192
+> > __kmem_cache_create: now flags=76800
+> > __kmem_cache_create: aligned size to 248 because of redzoning
+> > __kmem_cache_create: pagealloc debug, setting size to 8192
+> > __kmem_cache_create: aligned size to 8192
+> > __kmem_cache_create: num=1, slab_size=64
+> > __kmem_cache_create: starting, size=96, flags=8192
+> > __kmem_cache_create: now flags=76800
+> > __kmem_cache_create: aligned size to 96 because of redzoning
+> > __kmem_cache_create: pagealloc debug, setting size to 8192
+> > __kmem_cache_create: aligned size to 8192
+> > __kmem_cache_create: num=1, slab_size=64
+> > __kmem_cache_create: starting, size=192, flags=8192
+> > __kmem_cache_create: now flags=76800
+> > __kmem_cache_create: aligned size to 192 because of redzoning
+> > __kmem_cache_create: pagealloc debug, setting size to 8192
+> > __kmem_cache_create: aligned size to 8192
+> > __kmem_cache_create: num=1, slab_size=64
+> > __kmem_cache_create: starting, size=32, flags=8192
+> > __kmem_cache_create: now flags=76800
+> > __kmem_cache_create: aligned size to 32 because of redzoning
+> > __kmem_cache_create: aligned size to 32
+> > __kmem_cache_create: num=226, slab_size=960
+> > __kmem_cache_create: starting, size=64, flags=8192
+> > __kmem_cache_create: now flags=76800
+> > __kmem_cache_create: aligned size to 64 because of redzoning
+> > __kmem_cache_create: pagealloc debug, setting size to 8192
+> > __kmem_cache_create: turning on CFLGS_OFF_SLAB, size=8192
+> > __kmem_cache_create: aligned size to 8192
+> > __kmem_cache_create: num=1, slab_size=64
+> > __kmem_cache_create: CFLGS_OFF_SLAB, size=8192, slab_size=52
+> > __kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+> > 
+> > With slab size 64, it turns on CFLGS_OFF_SLAB and off slab allocation 
+> > with this size fails. I do not know slab internals so I can not tell if 
+> > this just happens because of the debug paths, or is it a real problem 
+> > without the debug options too.
+> > 
 > 
-> * It will trigger WARN_ON(!list_empty(&s->s_mounts)) since s_mounts is
->   initialized after several 'goto fail's.
+> Sounds like a problem with create_kmalloc_caches(), what are the values 
+> for KMALLOC_SHIFT_LOW and KMALLOC_SHIFT_HIGH?
 
-So let's fix that.
+KMALLOC_SHIFT_LOW=5, KMALLOC_SHIFT_HIGH=23
+ 
+> It's interesting you report this as starting with 3.11-rc2 because this 
+> changed in 3.9, what kernels were tested before 3.11-rc2 if any?
 
-> * It will call kfree_rcu() to free the super block although kfree() is
->   obviously enough there.
-> * The list_lru structure was initially implemented without the ability
->   to destroy an uninitialized object in mind.
-> 
-> I'm going to replace the conventional list_lru with per-memcg lru to
-> implement per-memcg slab reclaim. This new structure will fail
-> destruction of objects that haven't been properly initialized so let's
-> inline appropriate snippets from destroy_super() to alloc_super() fail
-> path instead of using the whole function there.
+No other kernels were tested with slab debug - but all relsese kernels 
+and most rc-s starting with rc2 or rc3 eacg time were tested without 
+slab debug.
 
-You're basically undoing the change made in commit 7eb5e88 ("uninline
-destroy_super(), consolidate alloc_super()") which was done less
-than a month ago. :/
-
-The code as it stands works just fine - the list-lru structures in
-the superblock are actually initialised (to zeros) - and so calling
-list_lru_destroy() on it works just fine in that state as the
-pointers that are freed are NULL. Yes, unexpected, but perfectly
-valid code.
-
-I haven't looked at the internals of the list_lru changes you've
-made yet, but it surprises me that we can't handle this case
-internally to list_lru_destroy().
-
-Al, your call on inlining destroy_super() in alloc_super() again....
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+Meelis Roos (mroos@linux.ee)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
