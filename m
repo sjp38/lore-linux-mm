@@ -1,172 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 33E176B0031
-	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 17:15:02 -0500 (EST)
-Received: by mail-pb0-f52.google.com with SMTP id uo5so21970044pbc.39
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 14:15:01 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id qx4si9438982pbc.45.2013.12.03.14.15.00
-        for <linux-mm@kvack.org>;
-        Tue, 03 Dec 2013 14:15:00 -0800 (PST)
-Date: Tue, 3 Dec 2013 14:14:58 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5] mm: add overcommit_kbytes sysctl variable
-Message-Id: <20131203141458.5e0980df43c7a248578b3e72@linux-foundation.org>
-In-Reply-To: <529DDDAF.1000202@redhat.com>
-References: <1382101019-23563-1-git-send-email-jmarchan@redhat.com>
-	<1382101019-23563-2-git-send-email-jmarchan@redhat.com>
-	<529DDDAF.1000202@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-bk0-f54.google.com (mail-bk0-f54.google.com [209.85.214.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 478D96B0031
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 17:25:21 -0500 (EST)
+Received: by mail-bk0-f54.google.com with SMTP id v16so6247175bkz.41
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 14:25:20 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id kw6si21674613bkb.159.2013.12.03.14.25.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 03 Dec 2013 14:25:20 -0800 (PST)
+Date: Tue, 3 Dec 2013 17:25:11 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch] mm: memcg: do not declare OOM from __GFP_NOFAIL
+ allocations
+Message-ID: <20131203222511.GU3556@cmpxchg.org>
+References: <alpine.DEB.2.02.1311261658170.21003@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1311261931210.5973@chino.kir.corp.google.com>
+ <20131127163916.GB3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311271336220.9222@chino.kir.corp.google.com>
+ <20131127225340.GE3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311271526080.22848@chino.kir.corp.google.com>
+ <20131128102049.GF2761@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1311291543400.22413@chino.kir.corp.google.com>
+ <20131202132201.GC18838@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312021452510.13465@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1312021452510.13465@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com
+To: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, 03 Dec 2013 14:33:35 +0100 Jerome Marchand <jmarchan@redhat.com> wrote:
-
+On Mon, Dec 02, 2013 at 03:02:09PM -0800, David Rientjes wrote:
+> On Mon, 2 Dec 2013, Michal Hocko wrote:
 > 
-> Changes since v4:
->  - revert to my initial overcommit_kbytes design as it is more
->  consistent with current *_ratio/*_bytes implementation for other
->  variables.
+> > > > What if the callers simply cannot deal with the allocation failure?
+> > > > 84235de394d97 (fs: buffer: move allocation failure loop into the
+> > > > allocator) describes one such case when __getblk_slow tries desperately
+> > > > to grow buffers relying on the reclaim to free something. As there might
+> > > > be no reclaim going on we are screwed.
+> > > > 
+> > > 
+> > > My suggestion is to spin, not return NULL. 
+> > 
+> > Spin on which level? The whole point of this change was to not spin for
+> > ever because the caller might sit on top of other locks which might
+> > prevent somebody else to die although it has been killed.
 > 
-> Some applications that run on HPC clusters are designed around the
-> availability of RAM and the overcommit ratio is fine tuned to get the
-> maximum usage of memory without swapping. With growing memory, the
-> 1%-of-all-RAM grain provided by overcommit_ratio has become too coarse
-> for these workload (on a 2TB machine it represents no less than
-> 20GB).
+> See my question about the non-memcg page allocator behavior below.
+
+No, please answer the question.
+
+> > > Bypassing to the root memcg 
+> > > can lead to a system oom condition whereas if memcg weren't involved at 
+> > > all the page allocator would just spin (because of !__GFP_FS).
+> > 
+> > I am confused now. The page allocation has already happened at the time
+> > we are doing the charge. So the global OOM would have happened already.
+> > 
 > 
-> This patch adds the new overcommit_kbytes sysctl variable that allow a
-> much finer grain.
+> That's precisely the point, the successful charges can allow additional 
+> page allocations to occur and cause system oom conditions if you don't 
+> have memcg isolation.  Some customers, including us, use memcg to ensure 
+> that a set of processes cannot use more resources than allowed.  Any 
+> bypass opens up the possibility of additional memory allocations that 
+> cause the system to be oom and then we end up requiring a userspace oom 
+> handler because our policy is complex enough that it cannot be effected 
+> simply by /proc/pid/oom_score_adj.
+> 
+> I'm not quite sure how significant of a point this is, though, because it 
+> depends on the caller doing the __GFP_NOFAIL allocations that allow the 
+> bypass.  If you're doing
+> 
+> 	for (i = 0; i < 1 << 20; i++)
+> 		page[i] = alloc_page(GFP_NOFS | __GFP_NOFAIL);
 
-Seems OK to me.
+Hyperbole serves no one.
 
-> --- a/Documentation/sysctl/vm.txt
-> +++ b/Documentation/sysctl/vm.txt
-> @@ -574,6 +575,17 @@ The default value is 0.
->  
->  ==============================================================
->  
-> +overcommit_kbytes:
-> +
-> +When overcommit_memory is set to 2, the committed address space is not
-> +permitted to exceed swap plus this amount of physical RAM. See below.
-> +
-> +Note: overcommit_kbytes is the counterpart of overcommit_ratio. Only one
-> +of them may be specified at a time. Setting one disable the other (which
+> it can become significant, but I'm unsure of how much memory all callers 
+> end up allocating in this context.
+>
+> > > > That being said, while I do agree with you that we should strive for
+> > > > isolation as much as possible there are certain cases when this is
+> > > > impossible to achieve without seeing much worse consequences. For now,
+> > > > we hope that __GFP_NOFAIL is used very scarcely.
+> > > 
+> > > If that's true, why not bypass the per-zone min watermarks in the page 
+> > > allocator as well to allow these allocations to succeed?
+> > 
+> > Allocations are already done. We simply cannot charge that allocation
+> > because we have reached the hard limit. And the said allocation might
+> > prevent OOM action to proceed due to held locks.
+> 
+> I'm referring to the generic non-memcg page allocator behavior.  Forget 
+> memcg for a moment.  What is the behavior in the _page_allocator_ for 
+> GFP_NOFS | __GFP_NOFAIL?  Do we spin forever if reclaim fails or do we 
+> bypas the per-zone min watermarks to allow it to allocate because "it 
+> needs to succeed, it may be holding filesystem locks"?
+> 
+> It's already been acknowledged in this thread that no bypassing is done 
+> in the page allocator and it just spins.  There's some handwaving saying 
+> that since the entire system is oom that there is a greater chance that 
+> memory will be freed by something else, but that's just handwaving and is 
+> certainly no guaranteed.
 
+Do you have another explanation of why this deadlock is not triggering
+in the global case?  It's pretty obvious that there is a deadlock that
+can not be resolved unless some unrelated task intervenes, just read
+__alloc_pages_slowpath().
 
---- a/Documentation/sysctl/vm.txt~mm-add-overcommit_kbytes-sysctl-variable-fix
-+++ a/Documentation/sysctl/vm.txt
-@@ -581,7 +581,7 @@ When overcommit_memory is set to 2, the
- permitted to exceed swap plus this amount of physical RAM. See below.
- 
- Note: overcommit_kbytes is the counterpart of overcommit_ratio. Only one
--of them may be specified at a time. Setting one disable the other (which
-+of them may be specified at a time. Setting one disables the other (which
- then appears as 0 when read).
- 
- ==============================================================
+But we had a concrete bug report for memcg where there was no other
+task to intervene.  One was stuck in the OOM killer waiting for the
+victim to exit, the victim was stuck on locks that the killer held.
 
+> So, my question again: why not bypass the per-zone min watermarks in the 
+> page allocator?
 
-
-Please do use checkpatch.
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm-add-overcommit_kbytes-sysctl-variable-checkpatch-fixes
-
-WARNING: Non-standard signature: Signed-of-by:
-#13: 
-Signed-of-by: Jerome Marchand <jmarchan@redhat.com>
-
-WARNING: externs should be avoided in .c files
-#115: FILE: kernel/sysctl.c:100:
-+extern unsigned long sysctl_overcommit_kbytes;
-
-ERROR: do not initialise globals to 0 or NULL
-#142: FILE: mm/mmap.c:89:
-+unsigned long sysctl_overcommit_kbytes __read_mostly = 0;
-
-ERROR: do not initialise globals to 0 or NULL
-#184: FILE: mm/nommu.c:63:
-+unsigned long sysctl_overcommit_kbytes __read_mostly = 0;
-
-total: 2 errors, 2 warnings, 145 lines checked
-
-./patches/mm-add-overcommit_kbytes-sysctl-variable.patch has style problems, please review.
-
-If any of these errors are false positives, please report
-them to the maintainer, see CHECKPATCH in MAINTAINERS.
-
-Please run checkpatch prior to sending patches
-
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Jerome Marchand <jmarchan@redhat.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- include/linux/mm.h |    4 ++++
- kernel/sysctl.c    |    3 ---
- mm/mmap.c          |    2 +-
- mm/nommu.c         |    2 +-
- 4 files changed, 6 insertions(+), 5 deletions(-)
-
-diff -puN include/linux/mm.h~mm-add-overcommit_kbytes-sysctl-variable-checkpatch-fixes include/linux/mm.h
---- a/include/linux/mm.h~mm-add-overcommit_kbytes-sysctl-variable-checkpatch-fixes
-+++ a/include/linux/mm.h
-@@ -57,6 +57,10 @@ extern int sysctl_legacy_va_layout;
- extern unsigned long sysctl_user_reserve_kbytes;
- extern unsigned long sysctl_admin_reserve_kbytes;
- 
-+extern int sysctl_overcommit_memory;
-+extern int sysctl_overcommit_ratio;
-+extern unsigned long sysctl_overcommit_kbytes;
-+
- extern int overcommit_ratio_handler(struct ctl_table *, int, void __user *,
- 				    size_t *, loff_t *);
- extern int overcommit_kbytes_handler(struct ctl_table *, int, void __user *,
-diff -puN kernel/sysctl.c~mm-add-overcommit_kbytes-sysctl-variable-checkpatch-fixes kernel/sysctl.c
---- a/kernel/sysctl.c~mm-add-overcommit_kbytes-sysctl-variable-checkpatch-fixes
-+++ a/kernel/sysctl.c
-@@ -95,9 +95,6 @@
- #if defined(CONFIG_SYSCTL)
- 
- /* External variables not in a header file. */
--extern int sysctl_overcommit_memory;
--extern int sysctl_overcommit_ratio;
--extern unsigned long sysctl_overcommit_kbytes;
- extern int max_threads;
- extern int suid_dumpable;
- #ifdef CONFIG_COREDUMP
-diff -puN mm/mmap.c~mm-add-overcommit_kbytes-sysctl-variable-checkpatch-fixes mm/mmap.c
---- a/mm/mmap.c~mm-add-overcommit_kbytes-sysctl-variable-checkpatch-fixes
-+++ a/mm/mmap.c
-@@ -86,7 +86,7 @@ EXPORT_SYMBOL(vm_get_page_prot);
- 
- int sysctl_overcommit_memory __read_mostly = OVERCOMMIT_GUESS;  /* heuristic overcommit */
- int sysctl_overcommit_ratio __read_mostly = 50;	/* default is 50% */
--unsigned long sysctl_overcommit_kbytes __read_mostly = 0;
-+unsigned long sysctl_overcommit_kbytes __read_mostly;
- int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
- unsigned long sysctl_user_reserve_kbytes __read_mostly = 1UL << 17; /* 128MB */
- unsigned long sysctl_admin_reserve_kbytes __read_mostly = 1UL << 13; /* 8MB */
-diff -puN mm/nommu.c~mm-add-overcommit_kbytes-sysctl-variable-checkpatch-fixes mm/nommu.c
---- a/mm/nommu.c~mm-add-overcommit_kbytes-sysctl-variable-checkpatch-fixes
-+++ a/mm/nommu.c
-@@ -60,7 +60,7 @@ unsigned long highest_memmap_pfn;
- struct percpu_counter vm_committed_as;
- int sysctl_overcommit_memory = OVERCOMMIT_GUESS; /* heuristic overcommit */
- int sysctl_overcommit_ratio = 50; /* default is 50% */
--unsigned long sysctl_overcommit_kbytes __read_mostly = 0;
-+unsigned long sysctl_overcommit_kbytes __read_mostly;
- int sysctl_max_map_count = DEFAULT_MAX_MAP_COUNT;
- int sysctl_nr_trim_pages = CONFIG_NOMMU_INITIAL_TRIM_EXCESS;
- unsigned long sysctl_user_reserve_kbytes __read_mostly = 1UL << 17; /* 128MB */
-_
+I don't even know what your argument is supposed to be.  The fact that
+we don't do it in the page allocator means that there can't be a bug
+in memcg?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
