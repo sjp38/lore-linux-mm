@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f170.google.com (mail-ea0-f170.google.com [209.85.215.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 921CF6B0037
-	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 03:52:04 -0500 (EST)
-Received: by mail-ea0-f170.google.com with SMTP id k10so9848803eaj.29
+Received: from mail-ea0-f172.google.com (mail-ea0-f172.google.com [209.85.215.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 671B26B0038
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 03:52:05 -0500 (EST)
+Received: by mail-ea0-f172.google.com with SMTP id q10so9687883ead.17
         for <linux-mm@kvack.org>; Tue, 03 Dec 2013 00:52:04 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id e2si2223501eeg.177.2013.12.03.00.52.03
+        by mx.google.com with ESMTP id o46si2255541eef.86.2013.12.03.00.52.04
         for <linux-mm@kvack.org>;
-        Tue, 03 Dec 2013 00:52:03 -0800 (PST)
+        Tue, 03 Dec 2013 00:52:04 -0800 (PST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 01/15] mm: numa: Do not batch handle PMD pages
-Date: Tue,  3 Dec 2013 08:51:48 +0000
-Message-Id: <1386060721-3794-2-git-send-email-mgorman@suse.de>
+Subject: [PATCH 02/15] mm: hugetlbfs: fix hugetlbfs optimization
+Date: Tue,  3 Dec 2013 08:51:49 +0000
+Message-Id: <1386060721-3794-3-git-send-email-mgorman@suse.de>
 In-Reply-To: <1386060721-3794-1-git-send-email-mgorman@suse.de>
 References: <1386060721-3794-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -19,237 +19,318 @@ List-ID: <linux-mm.kvack.org>
 To: Alex Thorlton <athorlton@sgi.com>
 Cc: Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-With the THP migration races closed it is still possible to occasionally
-see corruption. The problem is related to handling PMD pages in batch.
-When a page fault is handled it can be assumed that the page being
-faulted will also be flushed from the TLB. The same flushing does not
-happen when handling PMD pages in batch. Fixing is straight forward but
-there are a number of reasons not to
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-1. Multiple TLB flushes may have to be sent depending on what pages get
-   migrated
-2. The handling of PMDs in batch means that faults get accounted to
-   the task that is handling the fault. While care is taken to only
-   mark PMDs where the last CPU and PID match it can still have problems
-   due to PID truncation when matching PIDs.
-3. Batching on the PMD level may reduce faults but setting pmd_numa
-   requires taking a heavy lock that can contend with THP migration
-   and handling the fault requires the release/acquisition of the PTL
-   for every page migrated. It's still pretty heavy.
+commit 27c73ae759774e63313c1fbfeb17ba076cea64c5 upstream.
 
-PMD batch handling is not something that people ever have been happy
-with. This patch removes it and later patches will deal with the
-additional fault overhead using more installigent migrate rate adaption.
+Commit 7cb2ef56e6a8 ("mm: fix aio performance regression for database
+caused by THP") can cause dereference of a dangling pointer if
+split_huge_page runs during PageHuge() if there are updates to the
+tail_page->private field.
 
+Also it is repeating compound_head twice for hugetlbfs and it is running
+compound_head+compound_trans_head for THP when a single one is needed in
+both cases.
+
+The new code within the PageSlab() check doesn't need to verify that the
+THP page size is never bigger than the smallest hugetlbfs page size, to
+avoid memory corruption.
+
+A longstanding theoretical race condition was found while fixing the
+above (see the change right after the skip_unlock label, that is
+relevant for the compound_lock path too).
+
+By re-establishing the _mapcount tail refcounting for all compound
+pages, this also fixes the below problem:
+
+  echo 0 >/sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
+
+  BUG: Bad page state in process bash  pfn:59a01
+  page:ffffea000139b038 count:0 mapcount:10 mapping:          (null) index:0x0
+  page flags: 0x1c00000000008000(tail)
+  Modules linked in:
+  CPU: 6 PID: 2018 Comm: bash Not tainted 3.12.0+ #25
+  Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+  Call Trace:
+    dump_stack+0x55/0x76
+    bad_page+0xd5/0x130
+    free_pages_prepare+0x213/0x280
+    __free_pages+0x36/0x80
+    update_and_free_page+0xc1/0xd0
+    free_pool_huge_page+0xc2/0xe0
+    set_max_huge_pages.part.58+0x14c/0x220
+    nr_hugepages_store_common.isra.60+0xd0/0xf0
+    nr_hugepages_store+0x13/0x20
+    kobj_attr_store+0xf/0x20
+    sysfs_write_file+0x189/0x1e0
+    vfs_write+0xc5/0x1f0
+    SyS_write+0x55/0xb0
+    system_call_fastpath+0x16/0x1b
+
+Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Tested-by: Khalid Aziz <khalid.aziz@oracle.com>
+Cc: Pravin Shelar <pshelar@nicira.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Ben Hutchings <bhutchings@solarflare.com>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Johannes Weiner <jweiner@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Andi Kleen <andi@firstfloor.org>
+Cc: Minchan Kim <minchan@kernel.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Signed-off-by: Peter Zijlstra <peterz@infradead.org>
-Link: http://lkml.kernel.org/r/1381141781-10992-48-git-send-email-mgorman@suse.de
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- mm/memory.c   | 91 ++---------------------------------------------------------
- mm/mprotect.c | 40 ++------------------------
- 2 files changed, 5 insertions(+), 126 deletions(-)
+ include/linux/hugetlb.h |   6 ++
+ mm/hugetlb.c            |  17 ++++++
+ mm/swap.c               | 143 ++++++++++++++++++++++++++++--------------------
+ 3 files changed, 106 insertions(+), 60 deletions(-)
 
-diff --git a/mm/memory.c b/mm/memory.c
-index d176154..f453384 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3586,93 +3586,6 @@ out:
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 0393270..6125579 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -31,6 +31,7 @@ struct hugepage_subpool *hugepage_new_subpool(long nr_blocks);
+ void hugepage_put_subpool(struct hugepage_subpool *spool);
+ 
+ int PageHuge(struct page *page);
++int PageHeadHuge(struct page *page_head);
+ 
+ void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
+ int hugetlb_sysctl_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+@@ -104,6 +105,11 @@ static inline int PageHuge(struct page *page)
  	return 0;
  }
  
--/* NUMA hinting page fault entry point for regular pmds */
--#ifdef CONFIG_NUMA_BALANCING
--static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
--		     unsigned long addr, pmd_t *pmdp)
--{
--	pmd_t pmd;
--	pte_t *pte, *orig_pte;
--	unsigned long _addr = addr & PMD_MASK;
--	unsigned long offset;
--	spinlock_t *ptl;
--	bool numa = false;
--
--	spin_lock(&mm->page_table_lock);
--	pmd = *pmdp;
--	if (pmd_numa(pmd)) {
--		set_pmd_at(mm, _addr, pmdp, pmd_mknonnuma(pmd));
--		numa = true;
--	}
--	spin_unlock(&mm->page_table_lock);
--
--	if (!numa)
--		return 0;
--
--	/* we're in a page fault so some vma must be in the range */
--	BUG_ON(!vma);
--	BUG_ON(vma->vm_start >= _addr + PMD_SIZE);
--	offset = max(_addr, vma->vm_start) & ~PMD_MASK;
--	VM_BUG_ON(offset >= PMD_SIZE);
--	orig_pte = pte = pte_offset_map_lock(mm, pmdp, _addr, &ptl);
--	pte += offset >> PAGE_SHIFT;
--	for (addr = _addr + offset; addr < _addr + PMD_SIZE; pte++, addr += PAGE_SIZE) {
--		pte_t pteval = *pte;
--		struct page *page;
--		int page_nid = -1;
--		int target_nid;
--		bool migrated = false;
--
--		if (!pte_present(pteval))
--			continue;
--		if (!pte_numa(pteval))
--			continue;
--		if (addr >= vma->vm_end) {
--			vma = find_vma(mm, addr);
--			/* there's a pte present so there must be a vma */
--			BUG_ON(!vma);
--			BUG_ON(addr < vma->vm_start);
--		}
--		if (pte_numa(pteval)) {
--			pteval = pte_mknonnuma(pteval);
--			set_pte_at(mm, addr, pte, pteval);
--		}
--		page = vm_normal_page(vma, addr, pteval);
--		if (unlikely(!page))
--			continue;
--		/* only check non-shared pages */
--		if (unlikely(page_mapcount(page) != 1))
--			continue;
--
--		page_nid = page_to_nid(page);
--		target_nid = numa_migrate_prep(page, vma, addr, page_nid);
--		pte_unmap_unlock(pte, ptl);
--		if (target_nid != -1) {
--			migrated = migrate_misplaced_page(page, target_nid);
--			if (migrated)
--				page_nid = target_nid;
--		} else {
--			put_page(page);
--		}
--
--		if (page_nid != -1)
--			task_numa_fault(page_nid, 1, migrated);
--
--		pte = pte_offset_map_lock(mm, pmdp, addr, &ptl);
--	}
--	pte_unmap_unlock(orig_pte, ptl);
--
--	return 0;
--}
--#else
--static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
--		     unsigned long addr, pmd_t *pmdp)
--{
--	BUG();
--	return 0;
--}
--#endif /* CONFIG_NUMA_BALANCING */
--
- /*
-  * These routines also need to handle stuff like marking pages dirty
-  * and/or accessed for architectures that don't do it in hardware (most
-@@ -3811,8 +3724,8 @@ retry:
- 		}
- 	}
- 
--	if (pmd_numa(*pmd))
--		return do_pmd_numa_page(mm, vma, address, pmd);
-+	/* THP should already have been handled */
-+	BUG_ON(pmd_numa(*pmd));
- 
- 	/*
- 	 * Use __pte_alloc instead of pte_alloc_map, because we can't
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 412ba2b..18f1117 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -37,14 +37,12 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
- 
- static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 		unsigned long addr, unsigned long end, pgprot_t newprot,
--		int dirty_accountable, int prot_numa, bool *ret_all_same_node)
-+		int dirty_accountable, int prot_numa)
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	pte_t *pte, oldpte;
- 	spinlock_t *ptl;
- 	unsigned long pages = 0;
--	bool all_same_node = true;
--	int last_nid = -1;
- 
- 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
- 	arch_enter_lazy_mmu_mode();
-@@ -63,12 +61,6 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 
- 				page = vm_normal_page(vma, addr, oldpte);
- 				if (page) {
--					int this_nid = page_to_nid(page);
--					if (last_nid == -1)
--						last_nid = this_nid;
--					if (last_nid != this_nid)
--						all_same_node = false;
--
- 					/* only check non-shared pages */
- 					if (!pte_numa(oldpte) &&
- 					    page_mapcount(page) == 1) {
-@@ -111,26 +103,9 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 	arch_leave_lazy_mmu_mode();
- 	pte_unmap_unlock(pte - 1, ptl);
- 
--	*ret_all_same_node = all_same_node;
- 	return pages;
- }
- 
--#ifdef CONFIG_NUMA_BALANCING
--static inline void change_pmd_protnuma(struct mm_struct *mm, unsigned long addr,
--				       pmd_t *pmd)
--{
--	spin_lock(&mm->page_table_lock);
--	set_pmd_at(mm, addr & PMD_MASK, pmd, pmd_mknuma(*pmd));
--	spin_unlock(&mm->page_table_lock);
--}
--#else
--static inline void change_pmd_protnuma(struct mm_struct *mm, unsigned long addr,
--				       pmd_t *pmd)
--{
--	BUG();
--}
--#endif /* CONFIG_NUMA_BALANCING */
--
- static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
- 		pud_t *pud, unsigned long addr, unsigned long end,
- 		pgprot_t newprot, int dirty_accountable, int prot_numa)
-@@ -138,7 +113,6 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
- 	pmd_t *pmd;
- 	unsigned long next;
- 	unsigned long pages = 0;
--	bool all_same_node;
- 
- 	pmd = pmd_offset(pud, addr);
- 	do {
-@@ -156,16 +130,8 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
- 		pages += change_pte_range(vma, pmd, addr, next, newprot,
--				 dirty_accountable, prot_numa, &all_same_node);
--
--		/*
--		 * If we are changing protections for NUMA hinting faults then
--		 * set pmd_numa if the examined pages were all on the same
--		 * node. This allows a regular PMD to be handled as one fault
--		 * and effectively batches the taking of the PTL
--		 */
--		if (prot_numa && all_same_node)
--			change_pmd_protnuma(vma->vm_mm, addr, pmd);
-+				 dirty_accountable, prot_numa);
++static inline int PageHeadHuge(struct page *page_head)
++{
++	return 0;
++}
 +
- 	} while (pmd++, addr = next, addr != end);
+ static inline void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
+ {
+ }
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 0b7656e..f0a4ca4 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -736,6 +736,23 @@ int PageHuge(struct page *page)
+ }
+ EXPORT_SYMBOL_GPL(PageHuge);
  
- 	return pages;
++/*
++ * PageHeadHuge() only returns true for hugetlbfs head page, but not for
++ * normal or transparent huge pages.
++ */
++int PageHeadHuge(struct page *page_head)
++{
++	compound_page_dtor *dtor;
++
++	if (!PageHead(page_head))
++		return 0;
++
++	dtor = get_compound_page_dtor(page_head);
++
++	return dtor == free_huge_page;
++}
++EXPORT_SYMBOL_GPL(PageHeadHuge);
++
+ pgoff_t __basepage_index(struct page *page)
+ {
+ 	struct page *page_head = compound_head(page);
+diff --git a/mm/swap.c b/mm/swap.c
+index 759c3ca..0c8f7a4 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -82,19 +82,6 @@ static void __put_compound_page(struct page *page)
+ 
+ static void put_compound_page(struct page *page)
+ {
+-	/*
+-	 * hugetlbfs pages cannot be split from under us.  If this is a
+-	 * hugetlbfs page, check refcount on head page and release the page if
+-	 * the refcount becomes zero.
+-	 */
+-	if (PageHuge(page)) {
+-		page = compound_head(page);
+-		if (put_page_testzero(page))
+-			__put_compound_page(page);
+-
+-		return;
+-	}
+-
+ 	if (unlikely(PageTail(page))) {
+ 		/* __split_huge_page_refcount can run under us */
+ 		struct page *page_head = compound_trans_head(page);
+@@ -111,14 +98,31 @@ static void put_compound_page(struct page *page)
+ 			 * still hot on arches that do not support
+ 			 * this_cpu_cmpxchg_double().
+ 			 */
+-			if (PageSlab(page_head)) {
+-				if (PageTail(page)) {
++			if (PageSlab(page_head) || PageHeadHuge(page_head)) {
++				if (likely(PageTail(page))) {
++					/*
++					 * __split_huge_page_refcount
++					 * cannot race here.
++					 */
++					VM_BUG_ON(!PageHead(page_head));
++					atomic_dec(&page->_mapcount);
+ 					if (put_page_testzero(page_head))
+ 						VM_BUG_ON(1);
+-
+-					atomic_dec(&page->_mapcount);
+-					goto skip_lock_tail;
++					if (put_page_testzero(page_head))
++						__put_compound_page(page_head);
++					return;
+ 				} else
++					/*
++					 * __split_huge_page_refcount
++					 * run before us, "page" was a
++					 * THP tail. The split
++					 * page_head has been freed
++					 * and reallocated as slab or
++					 * hugetlbfs page of smaller
++					 * order (only possible if
++					 * reallocated as slab on
++					 * x86).
++					 */
+ 					goto skip_lock;
+ 			}
+ 			/*
+@@ -132,8 +136,27 @@ static void put_compound_page(struct page *page)
+ 				/* __split_huge_page_refcount run before us */
+ 				compound_unlock_irqrestore(page_head, flags);
+ skip_lock:
+-				if (put_page_testzero(page_head))
+-					__put_single_page(page_head);
++				if (put_page_testzero(page_head)) {
++					/*
++					 * The head page may have been
++					 * freed and reallocated as a
++					 * compound page of smaller
++					 * order and then freed again.
++					 * All we know is that it
++					 * cannot have become: a THP
++					 * page, a compound page of
++					 * higher order, a tail page.
++					 * That is because we still
++					 * hold the refcount of the
++					 * split THP tail and
++					 * page_head was the THP head
++					 * before the split.
++					 */
++					if (PageHead(page_head))
++						__put_compound_page(page_head);
++					else
++						__put_single_page(page_head);
++				}
+ out_put_single:
+ 				if (put_page_testzero(page))
+ 					__put_single_page(page);
+@@ -155,7 +178,6 @@ out_put_single:
+ 			VM_BUG_ON(atomic_read(&page->_count) != 0);
+ 			compound_unlock_irqrestore(page_head, flags);
+ 
+-skip_lock_tail:
+ 			if (put_page_testzero(page_head)) {
+ 				if (PageHead(page_head))
+ 					__put_compound_page(page_head);
+@@ -198,51 +220,52 @@ bool __get_page_tail(struct page *page)
+ 	 * proper PT lock that already serializes against
+ 	 * split_huge_page().
+ 	 */
++	unsigned long flags;
+ 	bool got = false;
+-	struct page *page_head;
+-
+-	/*
+-	 * If this is a hugetlbfs page it cannot be split under us.  Simply
+-	 * increment refcount for the head page.
+-	 */
+-	if (PageHuge(page)) {
+-		page_head = compound_head(page);
+-		atomic_inc(&page_head->_count);
+-		got = true;
+-	} else {
+-		unsigned long flags;
++	struct page *page_head = compound_trans_head(page);
+ 
+-		page_head = compound_trans_head(page);
+-		if (likely(page != page_head &&
+-					get_page_unless_zero(page_head))) {
+-
+-			/* Ref to put_compound_page() comment. */
+-			if (PageSlab(page_head)) {
+-				if (likely(PageTail(page))) {
+-					__get_page_tail_foll(page, false);
+-					return true;
+-				} else {
+-					put_page(page_head);
+-					return false;
+-				}
+-			}
+-
+-			/*
+-			 * page_head wasn't a dangling pointer but it
+-			 * may not be a head page anymore by the time
+-			 * we obtain the lock. That is ok as long as it
+-			 * can't be freed from under us.
+-			 */
+-			flags = compound_lock_irqsave(page_head);
+-			/* here __split_huge_page_refcount won't run anymore */
++	if (likely(page != page_head && get_page_unless_zero(page_head))) {
++		/* Ref to put_compound_page() comment. */
++		if (PageSlab(page_head) || PageHeadHuge(page_head)) {
+ 			if (likely(PageTail(page))) {
++				/*
++				 * This is a hugetlbfs page or a slab
++				 * page. __split_huge_page_refcount
++				 * cannot race here.
++				 */
++				VM_BUG_ON(!PageHead(page_head));
+ 				__get_page_tail_foll(page, false);
+-				got = true;
+-			}
+-			compound_unlock_irqrestore(page_head, flags);
+-			if (unlikely(!got))
++				return true;
++			} else {
++				/*
++				 * __split_huge_page_refcount run
++				 * before us, "page" was a THP
++				 * tail. The split page_head has been
++				 * freed and reallocated as slab or
++				 * hugetlbfs page of smaller order
++				 * (only possible if reallocated as
++				 * slab on x86).
++				 */
+ 				put_page(page_head);
++				return false;
++			}
++		}
++
++		/*
++		 * page_head wasn't a dangling pointer but it
++		 * may not be a head page anymore by the time
++		 * we obtain the lock. That is ok as long as it
++		 * can't be freed from under us.
++		 */
++		flags = compound_lock_irqsave(page_head);
++		/* here __split_huge_page_refcount won't run anymore */
++		if (likely(PageTail(page))) {
++			__get_page_tail_foll(page, false);
++			got = true;
+ 		}
++		compound_unlock_irqrestore(page_head, flags);
++		if (unlikely(!got))
++			put_page(page_head);
+ 	}
+ 	return got;
+ }
 -- 
 1.8.4
 
