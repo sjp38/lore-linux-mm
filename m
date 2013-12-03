@@ -1,67 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 30C296B0080
-	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 18:44:31 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id y13so20960298pdi.5
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 15:44:30 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id wh6si25001273pac.161.2013.12.03.15.44.29
+Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
+	by kanga.kvack.org (Postfix) with ESMTP id B15CE6B0082
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 18:46:41 -0500 (EST)
+Received: by mail-ee0-f53.google.com with SMTP id b57so1900054eek.26
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 15:46:41 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTP id o46si4687415eef.107.2013.12.03.15.46.40
         for <linux-mm@kvack.org>;
-        Tue, 03 Dec 2013 15:44:29 -0800 (PST)
-Date: Tue, 3 Dec 2013 15:44:26 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH RESEND part2 v2 6/8] acpi, numa, mem_hotplug: Mark all
- nodes the kernel resides un-hotpluggable
-Message-Id: <20131203154426.2b86261ac306d2de4a88024e@linux-foundation.org>
-In-Reply-To: <529D41BD.5090604@cn.fujitsu.com>
-References: <529D3FC0.6000403@cn.fujitsu.com>
-	<529D41BD.5090604@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 03 Dec 2013 15:46:40 -0800 (PST)
+Date: Tue, 3 Dec 2013 23:46:37 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 14/15] mm: numa: Flush TLB if NUMA hinting faults race
+ with PTE scan update
+Message-ID: <20131203234637.GS11295@suse.de>
+References: <1386060721-3794-1-git-send-email-mgorman@suse.de>
+ <1386060721-3794-15-git-send-email-mgorman@suse.de>
+ <529E641A.7040804@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <529E641A.7040804@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Cc: Tejun Heo <tj@kernel.org>, "Rafael J . Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Chen Tang <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Alex Thorlton <athorlton@sgi.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 03 Dec 2013 10:28:13 +0800 Zhang Yanfei <zhangyanfei@cn.fujitsu.com> wrote:
-
-> From: Tang Chen <tangchen@cn.fujitsu.com>
+On Tue, Dec 03, 2013 at 06:07:06PM -0500, Rik van Riel wrote:
+> On 12/03/2013 03:52 AM, Mel Gorman wrote:
+> > NUMA PTE updates and NUMA PTE hinting faults can race against each other. The
+> > setting of the NUMA bit defers the TLB flush to reduce overhead. NUMA
+> > hinting faults do not flush the TLB as X86 at least does not cache TLB
+> > entries for !present PTEs. However, in the event that the two race a NUMA
+> > hinting fault may return with the TLB in an inconsistent state between
+> > different processors. This patch detects potential for races between the
+> > NUMA PTE scanner and fault handler and will flush the TLB for the affected
+> > range if there is a race.
+> > 
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
 > 
-> At very early time, the kernel have to use some memory such as
-> loading the kernel image. We cannot prevent this anyway. So any
-> node the kernel resides in should be un-hotpluggable.
+> > diff --git a/mm/migrate.c b/mm/migrate.c
+> > index 5dfd552..ccc814b 100644
+> > --- a/mm/migrate.c
+> > +++ b/mm/migrate.c
+> > @@ -1662,6 +1662,39 @@ void wait_migrate_huge_page(struct anon_vma *anon_vma, pmd_t *pmd)
+> >  	smp_rmb();
+> >  }
+> >  
+> > +unsigned long numa_fault_prepare(struct mm_struct *mm)
+> > +{
+> > +	/* Paired with task_numa_work */
+> > +	smp_rmb();
+> > +	return mm->numa_next_reset;
+> > +}
 > 
-> @@ -555,6 +563,30 @@ static void __init numa_init_array(void)
->  	}
->  }
->  
-> +static void __init numa_clear_kernel_node_hotplug(void)
-> +{
-> +	int i, nid;
-> +	nodemask_t numa_kernel_nodes;
-> +	unsigned long start, end;
-> +	struct memblock_type *type = &memblock.reserved;
-> +
-> +	/* Mark all kernel nodes. */
-> +	for (i = 0; i < type->cnt; i++)
-> +		node_set(type->regions[i].nid, numa_kernel_nodes);
-> +
-> +	/* Clear MEMBLOCK_HOTPLUG flag for memory in kernel nodes. */
-> +	for (i = 0; i < numa_meminfo.nr_blks; i++) {
-> +		nid = numa_meminfo.blk[i].nid;
-> +		if (!node_isset(nid, numa_kernel_nodes))
-> +			continue;
-> +
-> +		start = numa_meminfo.blk[i].start;
-> +		end = numa_meminfo.blk[i].end;
-> +
-> +		memblock_clear_hotplug(start, end - start);
-> +	}
-> +}
+> The patch that introduces mm->numa_next_reset, and the
+> patch that increments it, seem to be missing from your
+> series...
+> 
 
-Shouldn't numa_kernel_nodes be initialized?
+Damn. s/numa_next_reset/numa_next_scan/ in that patch
 
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
