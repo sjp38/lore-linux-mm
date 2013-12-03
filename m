@@ -1,242 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 4ECB56B0031
-	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 07:16:28 -0500 (EST)
-Received: by mail-la0-f47.google.com with SMTP id ep20so8852869lab.6
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 04:16:27 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id du3si18751189lbc.121.2013.12.03.04.16.26
+Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
+	by kanga.kvack.org (Postfix) with ESMTP id CD8CC6B0031
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 07:25:10 -0500 (EST)
+Received: by mail-we0-f170.google.com with SMTP id w61so13579298wes.15
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 04:25:10 -0800 (PST)
+Received: from mail-wg0-x231.google.com (mail-wg0-x231.google.com [2a00:1450:400c:c00::231])
+        by mx.google.com with ESMTPS id gh10si783451wic.64.2013.12.03.04.25.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 03 Dec 2013 04:16:26 -0800 (PST)
-Message-ID: <529DCB7D.10205@parallels.com>
-Date: Tue, 3 Dec 2013 16:15:57 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 03 Dec 2013 04:25:09 -0800 (PST)
+Received: by mail-wg0-f49.google.com with SMTP id x12so13159220wgg.28
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 04:25:09 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH v12 09/18] vmscan: shrink slab on memcg pressure
-References: <cover.1385974612.git.vdavydov@parallels.com> <be01fd9afeedb7d5c7979347f4d6ddaf67c9082d.1385974612.git.vdavydov@parallels.com> <20131203104849.GD8803@dastard>
-In-Reply-To: <20131203104849.GD8803@dastard>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <529DC632.9010107@iki.fi>
+References: <alpine.SOC.1.00.1311300125490.6363@math.ut.ee>
+	<529DC632.9010107@iki.fi>
+Date: Tue, 3 Dec 2013 21:25:09 +0900
+Message-ID: <CAAmzW4N=2--OuOFVEME3FJa7uFCkVEYJp=9DbSBVOPjiXnLxcg@mail.gmail.com>
+Subject: Re: Slab BUG with DEBUG_* options
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Pekka Enberg <penberg@iki.fi>
+Cc: Meelis Roos <mroos@linux.ee>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Linux Kernel list <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On 12/03/2013 02:48 PM, Dave Chinner wrote:
->> @@ -236,11 +236,17 @@ shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
->>  		return 0;
->>  
->>  	/*
->> -	 * copy the current shrinker scan count into a local variable
->> -	 * and zero it so that other concurrent shrinker invocations
->> -	 * don't also do this scanning work.
->> +	 * Do not touch global counter of deferred objects on memcg pressure to
->> +	 * avoid isolation issues. Ideally the counter should be per-memcg.
->>  	 */
->> -	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
->> +	if (!shrinkctl->target_mem_cgroup) {
->> +		/*
->> +		 * copy the current shrinker scan count into a local variable
->> +		 * and zero it so that other concurrent shrinker invocations
->> +		 * don't also do this scanning work.
->> +		 */
->> +		nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
->> +	}
-> That's ugly. Effectively it means that memcg reclaim is going to be
-> completely ineffective when large numbers of allocations and hence
-> reclaim attempts are done under GFP_NOFS context.
+2013/12/3 Pekka Enberg <penberg@iki.fi>:
+> On 11/30/2013 01:42 PM, Meelis Roos wrote:
+>>
+>> I am debugging a reboot problem on Sun Ultra 5 (sparc64) with 512M RAM
+>> and turned on DEBUG_PAGEALLOC DEBUG_SLAB and DEBUG_SLAB_LEAK (and most
+>> other debug options) and got the following BUG and hang on startup. This
+>> happened originally with 3.11-rc2-00058 where my bisection of
+>> another problem lead, but I retested 3.12 to have the same BUG in the
+>> same place.
+>>
+>> kernel BUG at mm/slab.c:2391!
+>>                \|/ ____ \|/
+>>                "@'/ .. \`@"
+>>                /_| \__/ |_\
+>>                   \__U_/
+>> swapper(0): Kernel bad sw trap 5 [#1]
+>> CPU: 0 PID: 0 Comm: swapper Not tainted 3.11.0-rc2-00058-g20bafb3-dirty
+>> #127
+>> task: 00000000008ac468 ti: 000000000089c000 task.ti: 000000000089c000
+>> TSTATE: 0000004480e01606 TPC: 00000000004f57d4 TNPC: 00000000004f57d8 Y:
+>> 00000000    Not tainted
+>> TPC: <__kmem_cache_create+0x374/0x480>
+>> g0: 00000000000000f8 g1: 00000000008bb400 g2: 000000000002780b g3:
+>> 00000000008b5120
+>> g4: 00000000008ac468 g5: 0000000000000000 g6: 000000000089c000 g7:
+>> 0000000000000000
+>> o0: 0000000000845f08 o1: 0000000000000957 o2: ffffffffffffffe0 o3:
+>> 0000000000000000
+>> o4: 0000000000002004 o5: 0000000000000000 sp: 000000000089f301 ret_pc:
+>> 00000000004f57cc
+>> RPC: <__kmem_cache_create+0x36c/0x480>
+>> l0: fffff8001e812040 l1: fffff8001e819f80 l2: fffff8001e819fb8 l3:
+>> fffff8001e819fd8
+>> l4: 0000000000000001 l5: fffff8001e819fc8 l6: 0000000000845f08 l7:
+>> fffff8001e8300a0
+>> i0: fffff8001e831fa0 i1: 0000000080002800 i2: 0000000080000000 i3:
+>> 0000000000000034
+>> i4: 0000000000000000 i5: 0000000000002000 i6: 000000000089f3b1 i7:
+>> 0000000000907464
+>> I7: <create_boot_cache+0x4c/0x84>
+>> Call Trace:
+>>   [0000000000907464] create_boot_cache+0x4c/0x84
+>>   [00000000009074d0] create_kmalloc_cache+0x34/0x60
+>>   [0000000000907540] create_kmalloc_caches+0x44/0x168
+>>   [0000000000908dfc] kmem_cache_init+0x1d0/0x1e0
+>>   [00000000008fc658] start_kernel+0x18c/0x370
+>>   [0000000000761df4] tlb_fixup_done+0x88/0x94
+>>   [0000000000000000]           (null)
+>> Disabling lock debugging due to kernel taint
+>> Caller[0000000000907464]: create_boot_cache+0x4c/0x84
+>> Caller[00000000009074d0]: create_kmalloc_cache+0x34/0x60
+>> Caller[0000000000907540]: create_kmalloc_caches+0x44/0x168
+>> Caller[0000000000908dfc]: kmem_cache_init+0x1d0/0x1e0
+>> Caller[00000000008fc658]: start_kernel+0x18c/0x370
+>> Caller[0000000000761df4]: tlb_fixup_done+0x88/0x94
+>> Caller[0000000000000000]:           (null)
+>> Instruction DUMP: 92102957  7ffccb35  90122308 <91d02005> 90100018
+>> 4009b371  920f20d0  ba922000  02480006
+>> Kernel panic - not syncing: Attempted to kill the idle task!
+>> Press Stop-A (L1-A) to return to the boot prom
+>>
+>> The line shows that __kmem_cache_create gets a NULL from kmalloc_slab().
+>>
+>> I instrumented the code and found the following:
+>>
+>> __kmem_cache_create: starting, size=248, flags=8192
+>> __kmem_cache_create: now flags=76800
+>> __kmem_cache_create: aligned size to 248 because of redzoning
+>> __kmem_cache_create: pagealloc debug, setting size to 8192
+>> __kmem_cache_create: aligned size to 8192
+>> __kmem_cache_create: num=1, slab_size=64
+>> __kmem_cache_create: starting, size=96, flags=8192
+>> __kmem_cache_create: now flags=76800
+>> __kmem_cache_create: aligned size to 96 because of redzoning
+>> __kmem_cache_create: pagealloc debug, setting size to 8192
+>> __kmem_cache_create: aligned size to 8192
+>> __kmem_cache_create: num=1, slab_size=64
+>> __kmem_cache_create: starting, size=192, flags=8192
+>> __kmem_cache_create: now flags=76800
+>> __kmem_cache_create: aligned size to 192 because of redzoning
+>> __kmem_cache_create: pagealloc debug, setting size to 8192
+>> __kmem_cache_create: aligned size to 8192
+>> __kmem_cache_create: num=1, slab_size=64
+>> __kmem_cache_create: starting, size=32, flags=8192
+>> __kmem_cache_create: now flags=76800
+>> __kmem_cache_create: aligned size to 32 because of redzoning
+>> __kmem_cache_create: aligned size to 32
+>> __kmem_cache_create: num=226, slab_size=960
+>> __kmem_cache_create: starting, size=64, flags=8192
+>> __kmem_cache_create: now flags=76800
+>> __kmem_cache_create: aligned size to 64 because of redzoning
+>> __kmem_cache_create: pagealloc debug, setting size to 8192
+>> __kmem_cache_create: turning on CFLGS_OFF_SLAB, size=8192
+>> __kmem_cache_create: aligned size to 8192
+>> __kmem_cache_create: num=1, slab_size=64
+>> __kmem_cache_create: CFLGS_OFF_SLAB, size=8192, slab_size=52
+>> __kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+>>
+>> With slab size 64, it turns on CFLGS_OFF_SLAB and off slab allocation
+>> with this size fails. I do not know slab internals so I can not tell if
+>> this just happens because of the debug paths, or is it a real problem
+>> without the debug options too.
+>>
 >
-> The only thing that keeps filesystem caches in balance when there is
-> lots of filesystem work going on (i.e. lots of GFP_NOFS allocations)
-> is the deferal of reclaim work to a context that can do something
-> about it.
+> There was a rather large change to mm/slab.c that changed it to use 'struct
+> page' like SLUB. Perhaps slab debugging was broken in the process. Joonsoo,
+> does the problem Meelis describes ring a bell?
 
-Imagine the situation: a memcg issues a GFP_NOFS allocation and goes to
-shrink_slab() where it defers them to the global counter; then another
-memcg issues a GFP_KERNEL allocation, also goes to shrink_slab() where
-it sees a huge number of deferred objects and starts shrinking them,
-which is not good IMHO. I understand that nr_deferred is necessary, but
-I think it should be per-memcg. What do you think about moving it to
-list_lru?
+Hello, Pekka.
 
->>  	total_scan = nr;
->>  	delta = (4 * fraction) / shrinker->seeks;
->> @@ -296,21 +302,46 @@ shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
->>  		cond_resched();
->>  	}
->>  
->> -	/*
->> -	 * move the unused scan count back into the shrinker in a
->> -	 * manner that handles concurrent updates. If we exhausted the
->> -	 * scan, there is no need to do an update.
->> -	 */
->> -	if (total_scan > 0)
->> -		new_nr = atomic_long_add_return(total_scan,
->> +	if (!shrinkctl->target_mem_cgroup) {
->> +		/*
->> +		 * move the unused scan count back into the shrinker in a
->> +		 * manner that handles concurrent updates. If we exhausted the
->> +		 * scan, there is no need to do an update.
->> +		 */
->> +		if (total_scan > 0)
->> +			new_nr = atomic_long_add_return(total_scan,
->>  						&shrinker->nr_deferred[nid]);
->> -	else
->> -		new_nr = atomic_long_read(&shrinker->nr_deferred[nid]);
->> +		else
->> +			new_nr = atomic_long_read(&shrinker->nr_deferred[nid]);
->> +	}
-> So, if the memcg can't make progress, why wouldn't you defer the
-> work to the global scan? Or can't a global scan trim memcg LRUs?
-> And if it can't, then isn't that a major design flaw? Why not just
-> allow kswapd to walk memcg LRUs in the background?
->
-> /me just looked at patch 13
->
-> Yeah, this goes some way to explaining why something like patch 13
-> is necessary - slab shrinkers are not keeping up with page cache
-> reclaim because of GFP_NOFS allocations, and so the page cache
-> empties only leaving slab caches to be trimmed....
->
->
->> +static unsigned long
->> +shrink_slab_memcg(struct shrink_control *shrinkctl, struct shrinker *shrinker,
->> +		  unsigned long fraction, unsigned long denominator)
-> what's this function got to do with memcgs? Why did you rename it
-> from the self explanitory shrink_slab_one() name that Glauber gave
-> it?
-
-When I sent the previous version, Johannes Weiner disliked the name that
-was why I renamed it, now you don't like the new name and ask for the
-old one :-) But why do you think that shrink_slab_one() is
-self-explanatory while shrink_slab_memcg() is not? I mean
-shrink_slab_memcg() means "shrink slab accounted to a memcg" just like
-shrink_slab_node() means "shrink slab on the node" while seeing
-shrink_slab_one() I would ask "one what?".
-
->> +{
->> +	unsigned long freed = 0;
->> +
->> +	if (shrinkctl->memcg && !memcg_kmem_is_active(shrinkctl->memcg))
->> +		return 0;
-> Why here? why not check that in the caller where memcg's are being
-> iterated?
-
-No problem, I'll move it.
-
->> +
->> +	for_each_node_mask(shrinkctl->nid, shrinkctl->nodes_to_scan) {
->> +		if (!node_online(shrinkctl->nid))
->> +			continue;
->> +
->> +		if (!(shrinker->flags & SHRINKER_NUMA_AWARE) &&
->> +		    (shrinkctl->nid != 0))
->> +			break;
-> Hmmm - this looks broken. Nothing guarantees that node 0 in
-> shrinkctl->nodes_to_scan is ever set, so non-numa aware shrinkers
-> will do nothing when the first node in the mask is not set. For non-numa
-> aware shrinkers, the shrinker should always be called once with a
-> node id of 0.
-
-That's how it operates now - this patch simply moved this piece from
-shrink_slab(). I'll fix this.
-
-> That's what earlier versions of the numa aware shrinker patch set
-> did, and it seems to have been lost along the way.  Yeah, there's
-> the last version from Glauber's tree that I saw:
->
-> static unsigned long
-> shrink_slab_one(struct shrink_control *shrinkctl, struct shrinker *shrinker,
->                unsigned long nr_pages_scanned, unsigned long lru_pages)
-> {
->        unsigned long freed = 0;
->
->        if (!(shrinker->flags & SHRINKER_NUMA_AWARE)) {
->                shrinkctl->nid = 0;
->
->                return shrink_slab_node(shrinkctl, shrinker,
->                         nr_pages_scanned, lru_pages,
->                         &shrinker->nr_deferred);
->        }
->
->        for_each_node_mask(shrinkctl->nid, shrinkctl->nodes_to_scan)
->
->                if (!node_online(shrinkctl->nid))
->                        continue;
->
->                freed += shrink_slab_node(shrinkctl, shrinker,
->                         nr_pages_scanned, lru_pages,
-> 			 &shrinker->nr_deferred_node[shrinkctl->nid]);
->        }
->
->        return freed;
-> }
->
-> So, that's likely to be another reason that all the non-numa slab
-> caches are not being shrunk appropriately and need to be hit with a
-> bit hammer...
->
->> @@ -352,18 +383,23 @@ unsigned long shrink_slab(struct shrink_control *shrinkctl,
->>  	}
->>  
->>  	list_for_each_entry(shrinker, &shrinker_list, list) {
->> -		for_each_node_mask(shrinkctl->nid, shrinkctl->nodes_to_scan) {
->> -			if (!node_online(shrinkctl->nid))
->> -				continue;
->> -
->> -			if (!(shrinker->flags & SHRINKER_NUMA_AWARE) &&
->> -			    (shrinkctl->nid != 0))
->> +		shrinkctl->memcg = shrinkctl->target_mem_cgroup;
->> +		do {
->> +			if (!(shrinker->flags & SHRINKER_MEMCG_AWARE) &&
->> +			    (shrinkctl->memcg != NULL)) {
->> +				mem_cgroup_iter_break(
->> +						shrinkctl->target_mem_cgroup,
->> +						shrinkctl->memcg);
->>  				break;
->> +			}
->>  
->> -			freed += shrink_slab_node(shrinkctl, shrinker,
->> -						  fraction, denominator);
->> +			freed += shrink_slab_memcg(shrinkctl, shrinker,
->> +						   fraction, denominator);
->> +			shrinkctl->memcg = mem_cgroup_iter(
->> +						shrinkctl->target_mem_cgroup,
->> +						shrinkctl->memcg, NULL);
->> +		} while (shrinkctl->memcg);
-> Glauber's tree also had a bunch of comments explaining what was
-> going on here. I've got no idea what the hell this code is doing,
-> and why the hell we are iterating memcgs here and how and why the
-> normal, non-memcg scan and shrinkers still worked.
-
-I found this code straightforward, just like the shrink_zone(), which
-also lacks comments, but I admit I was wrong and I'll try to improve.
-
-> This is now just a bunch of memcg gobbledegook with no explanations
-> to tell us what it is supposed to be doing. Comments are important -
-> you might not think they are necessary, but seeing comments like
-> this:
->
-> +               /*
-> +                * In a hierarchical chain, it might be that not all memcgs are
-> +                * kmem active. kmemcg design mandates that when one memcg is
-> +                * active, its children will be active as well. But it is
-> +                * perfectly possible that its parent is not.
-> +                *
-> +                * We also need to make sure we scan at least once, for the
-> +                * global case. So if we don't have a target memcg (saved in
-> +                * root), we proceed normally and expect to break in the next
-> +                * round.
-> +                */
->
-> in Glauber's tree helped an awful lot to explain the mess that the
-> memcg stuff was making of the code...
->
-> I'm liking this patch set less and less as I work my way through
-> it...
-
-Will try to improve.
+No. He report that BUG() is triggered on v3.11-rc2 and v3.12.
+And my recent change is merged into v3.13-rc1 as you know. :)
 
 Thanks.
 
