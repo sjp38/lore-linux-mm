@@ -1,90 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AD4C6B0062
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 21:06:09 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id w10so19347009pde.34
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 18:06:08 -0800 (PST)
-Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
-        by mx.google.com with ESMTP id xa2si49628983pab.345.2013.12.02.18.06.06
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id BD09B6B0069
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 21:10:44 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id hz1so2236323pad.12
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 18:10:44 -0800 (PST)
+Received: from LGEMRELSE7Q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id tr4si21337201pab.208.2013.12.02.18.10.42
         for <linux-mm@kvack.org>;
-        Mon, 02 Dec 2013 18:06:08 -0800 (PST)
-Date: Tue, 3 Dec 2013 11:08:32 +0900
+        Mon, 02 Dec 2013 18:10:43 -0800 (PST)
+Date: Tue, 3 Dec 2013 11:13:08 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 6/9] mm/rmap: use rmap_walk() in try_to_unmap()
-Message-ID: <20131203020832.GD31168@lge.com>
-References: <1385624926-28883-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1385624926-28883-7-git-send-email-iamjoonsoo.kim@lge.com>
- <20131202150107.7a814d0753356afc47b58b09@linux-foundation.org>
+Subject: Re: [PATCH v3 5/5] slab: make more slab management structure off the
+ slab
+Message-ID: <20131203021308.GE31168@lge.com>
+References: <1385974183-31423-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1385974183-31423-6-git-send-email-iamjoonsoo.kim@lge.com>
+ <00000142b3d18433-eacdc401-434f-42e1-8988-686bd15a3e20-000000@email.amazonses.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131202150107.7a814d0753356afc47b58b09@linux-foundation.org>
+In-Reply-To: <00000142b3d18433-eacdc401-434f-42e1-8988-686bd15a3e20-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Dec 02, 2013 at 03:01:07PM -0800, Andrew Morton wrote:
-> On Thu, 28 Nov 2013 16:48:43 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+On Mon, Dec 02, 2013 at 02:58:41PM +0000, Christoph Lameter wrote:
+> On Mon, 2 Dec 2013, Joonsoo Kim wrote:
 > 
-> > Now, we have an infrastructure in rmap_walk() to handle difference
-> > from variants of rmap traversing functions.
-> > 
-> > So, just use it in try_to_unmap().
-> > 
-> > In this patch, I change following things.
-> > 
-> > 1. enable rmap_walk() if !CONFIG_MIGRATION.
-> > 2. mechanical change to use rmap_walk() in try_to_unmap().
-> > 
-> > ...
-> >
-> > --- a/include/linux/rmap.h
-> > +++ b/include/linux/rmap.h
-> > @@ -190,7 +190,7 @@ int page_referenced_one(struct page *, struct vm_area_struct *,
-> >  
-> >  int try_to_unmap(struct page *, enum ttu_flags flags);
-> >  int try_to_unmap_one(struct page *, struct vm_area_struct *,
-> > -			unsigned long address, enum ttu_flags flags);
-> > +			unsigned long address, void *arg);
+> > Now, the size of the freelist for the slab management diminish,
+> > so that the on-slab management structure can waste large space
+> > if the object of the slab is large.
 > 
-> This change is ugly and unchangelogged.
+> Hmmm.. That is confusing to me. "Since the size of the freelist has shrunk
+> significantly we have to adjust the heuristic for making the on/off slab
+> placement decision"?
 > 
-> Also, "enum ttu_flags flags" was nice and meaningful, but "void *arg"
-> conveys far less information.  A suitable way to address this
-> shortcoming is to document `arg' at the try_to_unmap_one() definition
-> site.  try_to_unmap_one() doesn't actually have any documentation at
-> this stage - let's please fix that?
+> Make this clearer.
 
-Okay. I will add some comments.
-
-> >
-> > ...
-> >
-> > @@ -1509,6 +1510,11 @@ bool is_vma_temporary_stack(struct vm_area_struct *vma)
-> >  	return false;
-> >  }
-> >  
-> > +static int skip_vma_temporary_stack(struct vm_area_struct *vma, void *arg)
-> > +{
-> > +	return (int)is_vma_temporary_stack(vma);
-> > +}
-> 
-> The (int) cast is unneeded - the compiler will turn a bool into an int.
-> 
-> Should this function (and rmap_walk_control.skip()) really be returning
-> a bool?
-
-Okay. Will do.
-
-> 
-> The name of this function is poor: "skip_foo" implies that the function
-> will skip over a foo.  But that isn't what this function does.  Please
-> choose something which accurately reflects the function's behavior.
-
-Okay.
+Yes. your understanding is right.
+I will replace above line with yours.
 
 Thanks.
+
+> 
+> Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
