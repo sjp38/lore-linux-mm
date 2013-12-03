@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f48.google.com (mail-qe0-f48.google.com [209.85.128.48])
-	by kanga.kvack.org (Postfix) with ESMTP id E9E1B6B0074
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 21:28:48 -0500 (EST)
-Received: by mail-qe0-f48.google.com with SMTP id gc15so14386209qeb.7
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 18:28:48 -0800 (PST)
-Received: from arroyo.ext.ti.com (arroyo.ext.ti.com. [192.94.94.40])
-        by mx.google.com with ESMTPS id a4si18729002qar.12.2013.12.02.18.28.47
+Received: from mail-qe0-f44.google.com (mail-qe0-f44.google.com [209.85.128.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 60F6D6B0078
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 21:28:49 -0500 (EST)
+Received: by mail-qe0-f44.google.com with SMTP id nd7so13940402qeb.31
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 18:28:49 -0800 (PST)
+Received: from bear.ext.ti.com (bear.ext.ti.com. [192.94.94.41])
+        by mx.google.com with ESMTPS id v3si777621qap.180.2013.12.02.18.28.48
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
         Mon, 02 Dec 2013 18:28:48 -0800 (PST)
 From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [PATCH v2 03/23] mm/bootmem: remove duplicated declaration of __free_pages_bootmem()
-Date: Mon, 2 Dec 2013 21:27:18 -0500
-Message-ID: <1386037658-3161-4-git-send-email-santosh.shilimkar@ti.com>
+Subject: [PATCH v2 04/23] mm/memory_hotplug: remove unnecessary inclusion of bootmem.h
+Date: Mon, 2 Dec 2013 21:27:19 -0500
+Message-ID: <1386037658-3161-5-git-send-email-santosh.shilimkar@ti.com>
 In-Reply-To: <1386037658-3161-1-git-send-email-santosh.shilimkar@ti.com>
 References: <1386037658-3161-1-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
@@ -24,8 +24,7 @@ Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Grygorii Strashko 
 
 From: Grygorii Strashko <grygorii.strashko@ti.com>
 
-The __free_pages_bootmem is used internally by MM core and
-already defined in internal.h. So, remove duplicated declaration.
+Clean-up to remove depedency with bootmem headers.
 
 Cc: Yinghai Lu <yinghai@kernel.org>
 Cc: Tejun Heo <tj@kernel.org>
@@ -33,21 +32,21 @@ Cc: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
 Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 ---
- include/linux/bootmem.h |    1 -
+ mm/memory_hotplug.c |    1 -
  1 file changed, 1 deletion(-)
 
-diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
-index f1f07d3..55d52fb 100644
---- a/include/linux/bootmem.h
-+++ b/include/linux/bootmem.h
-@@ -52,7 +52,6 @@ extern void free_bootmem_node(pg_data_t *pgdat,
- 			      unsigned long size);
- extern void free_bootmem(unsigned long physaddr, unsigned long size);
- extern void free_bootmem_late(unsigned long physaddr, unsigned long size);
--extern void __free_pages_bootmem(struct page *page, unsigned int order);
- 
- /*
-  * Flags for reserve_bootmem (also if CONFIG_HAVE_ARCH_BOOTMEM_NODE,
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 489f235..cf1736d 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -9,7 +9,6 @@
+ #include <linux/swap.h>
+ #include <linux/interrupt.h>
+ #include <linux/pagemap.h>
+-#include <linux/bootmem.h>
+ #include <linux/compiler.h>
+ #include <linux/export.h>
+ #include <linux/pagevec.h>
 -- 
 1.7.9.5
 
