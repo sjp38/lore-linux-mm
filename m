@@ -1,100 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f42.google.com (mail-qe0-f42.google.com [209.85.128.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C8D06B003B
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 19:48:53 -0500 (EST)
-Received: by mail-qe0-f42.google.com with SMTP id b4so13512525qen.29
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 16:48:53 -0800 (PST)
-Received: from devils.ext.ti.com (devils.ext.ti.com. [198.47.26.153])
-        by mx.google.com with ESMTPS id u8si14781632qab.119.2013.12.02.16.48.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Dec 2013 16:48:52 -0800 (PST)
-Message-ID: <529D2A6F.5050607@ti.com>
-Date: Mon, 2 Dec 2013 19:48:47 -0500
-From: Santosh Shilimkar <santosh.shilimkar@ti.com>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C3FC6B003D
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 20:59:18 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so2229750pab.29
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 17:59:17 -0800 (PST)
+Received: from LGEMRELSE6Q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id sl10si20649124pab.99.2013.12.02.17.59.15
+        for <linux-mm@kvack.org>;
+        Mon, 02 Dec 2013 17:59:16 -0800 (PST)
+Date: Tue, 3 Dec 2013 11:01:41 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 1/9] mm/rmap: recompute pgoff for huge page
+Message-ID: <20131203020141.GA31168@lge.com>
+References: <1385624926-28883-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1385624926-28883-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <20131202144434.2afc2b5bb69f2b4b45608e4e@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 09/24] mm/memblock: Add memblock memory allocation apis
-References: <1383954120-24368-1-git-send-email-santosh.shilimkar@ti.com> <1383954120-24368-10-git-send-email-santosh.shilimkar@ti.com> <20131202163136.f31f39c5940c0ba6d20f4a00@linux-foundation.org>
-In-Reply-To: <20131202163136.f31f39c5940c0ba6d20f4a00@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131202144434.2afc2b5bb69f2b4b45608e4e@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: tj@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Yinghai Lu <yinghai@kernel.org>, Grygorii Strashko <grygorii.strashko@ti.com>
+Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Monday 02 December 2013 07:31 PM, Andrew Morton wrote:
-> On Fri, 8 Nov 2013 18:41:45 -0500 Santosh Shilimkar <santosh.shilimkar@ti.com> wrote:
+On Mon, Dec 02, 2013 at 02:44:34PM -0800, Andrew Morton wrote:
+> On Thu, 28 Nov 2013 16:48:38 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 > 
->> Introduce memblock memory allocation APIs which allow to support
->> PAE or LPAE extension on 32 bits archs where the physical memory start
->> address can be beyond 4GB. In such cases, existing bootmem APIs which
->> operate on 32 bit addresses won't work and needs memblock layer which
->> operates on 64 bit addresses.
->>
->> So we add equivalent APIs so that we can replace usage of bootmem
->> with memblock interfaces. Architectures already converted to NO_BOOTMEM
->> use these new interfaces and other which still uses bootmem, these new
->> APIs just fallback to exiting bootmem APIs. So no functional change as
->> such.
->>
->> In long run, once all the achitectures moves to NO_BOOTMEM, we can get rid of
->> bootmem layer completely. This is one step to remove the core code dependency
->> with bootmem and also gives path for architectures to move away from bootmem.
->>
->> The proposed interface will became active if both CONFIG_HAVE_MEMBLOCK
->> and CONFIG_NO_BOOTMEM are specified by arch. In case !CONFIG_NO_BOOTMEM,
->> the memblock() wrappers will fallback to the existing bootmem apis so
->> that arch's not converted to NO_BOOTMEM continue to work as is.
->>
->> The meaning of MEMBLOCK_ALLOC_ACCESSIBLE and MEMBLOCK_ALLOC_ANYWHERE is
->> kept same.
->>
->> ...
->>
->> +static void * __init _memblock_virt_alloc_try_nid_nopanic(
->> +				phys_addr_t size, phys_addr_t align,
->> +				phys_addr_t from, phys_addr_t max_addr,
->> +				int nid)
->> +{
->> +	phys_addr_t alloc;
->> +	void *ptr;
->> +
->> +	if (WARN_ON_ONCE(slab_is_available())) {
->> +		if (nid == MAX_NUMNODES)
->> +			return kzalloc(size, GFP_NOWAIT);
->> +		else
->> +			return kzalloc_node(size, GFP_NOWAIT, nid);
->> +	}
+> > We have to recompute pgoff if the given page is huge, since result based
+> > on HPAGE_SIZE is not approapriate for scanning the vma interval tree, as
+> > shown by commit 36e4f20af833 ("hugetlb: do not use vma_hugecache_offset()
+> > for vma_prio_tree_foreach") and commit 369a713e ("rmap: recompute pgoff
+> > for unmapping huge page").
+> > 
+> > ...
+> >
+> > --- a/mm/rmap.c
+> > +++ b/mm/rmap.c
+> > @@ -1714,6 +1714,10 @@ static int rmap_walk_file(struct page *page, int (*rmap_one)(struct page *,
+> >  
+> >  	if (!mapping)
+> >  		return ret;
+> > +
+> > +	if (PageHuge(page))
+> > +		pgoff = page->index << compound_order(page);
+> > +
+> >  	mutex_lock(&mapping->i_mmap_mutex);
+> >  	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
+> >  		unsigned long address = vma_address(page, vma);
 > 
-> The use of MAX_NUMNODES is a bit unconventional here.  I *think* we
-> generally use NUMA_NO_NODE to indicate "don't care".  I Also *think*
-> that if this code did s/MAX_NUMNODES/NUMA_NO_NODE/g then the above
-> simply becomes
+> a)  Can't we just do this?
 > 
-> 	return kzalloc_node(size, GFP_NOWAIT, nid);
+> --- a/mm/rmap.c~mm-rmap-recompute-pgoff-for-huge-page-fix
+> +++ a/mm/rmap.c
+> @@ -1708,16 +1708,13 @@ static int rmap_walk_file(struct page *p
+>  		struct vm_area_struct *, unsigned long, void *), void *arg)
+>  {
+>  	struct address_space *mapping = page->mapping;
+> -	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+> +	pgoff_t pgoff = page->index << compound_order(page);
+>  	struct vm_area_struct *vma;
+>  	int ret = SWAP_AGAIN;
+>  
+>  	if (!mapping)
+>  		return ret;
+>  
+> -	if (PageHuge(page))
+> -		pgoff = page->index << compound_order(page);
+> -
+>  	mutex_lock(&mapping->i_mmap_mutex);
+>  	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
+>  		unsigned long address = vma_address(page, vma);
 > 
-> and kzalloc_node() handles NUMA_NO_NODE appropriately.
-> 
-> I *think* ;)  Please check all this.
-> 
-I guess same comment was given by Tejun as well. We didn't
-address that in this series mainly because when NO_BOOTMEM
-are not enabled, all calls of the new APIs will
-be redirected to bootmem  where MAX_NUMNODES is used.
+> compound_order() does the right thing for all styles of page, yes?
 
-Also, memblock core APIs __next_free_mem_range_rev() and
-__next_free_mem_range() would need to be updated, and as result
-we will need to re-check/update all direct calls of
-memblock_alloc_xxx() APIs (including nobootmem).
+Yes. I will change.
 
-So to keep behavior consistent with and without NO_BOOTMEM, we
-used MAX_NUMNODES. Once we get a stage where we can remove
-the bootmem.c, it should be easy to update the code
-to use NUMA_NO_NODE without too much churn.
+> 
+> b) If that PageHuge() test you added the correct thing to use?
+> 
+> /*
+>  * PageHuge() only returns true for hugetlbfs pages, but not for normal or
+>  * transparent huge pages.  See the PageTransHuge() documentation for more
+>  * details.
+>  */
+> 
+>    Obviously we won't be encountering transparent huge pages here,
+>    but what's the best future-safe approach?
 
-Regards,
-Santosh
+compound_order() also works for transparent huge pages, so it may be safe way.
+
+> I hate that PageHuge() oddity with a passion!  Maybe it would be better
+> if it was called PageHugetlbfs.
+
+I also think that PageHuge() is odd name.
+It has only 50 call sites. Let's change it :)
+
+Thanks.
+
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
