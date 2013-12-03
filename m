@@ -1,63 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 0345B6B0085
-	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 18:48:15 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id p10so21185404pdj.12
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 15:48:15 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id tt8si13695970pbc.138.2013.12.03.15.48.14
-        for <linux-mm@kvack.org>;
-        Tue, 03 Dec 2013 15:48:14 -0800 (PST)
-Date: Tue, 3 Dec 2013 15:48:11 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH RESEND part2 v2 0/8] Arrange hotpluggable memory as
- ZONE_MOVABLE
-Message-Id: <20131203154811.90113f91ddd23413dd92b768@linux-foundation.org>
-In-Reply-To: <529D3FC0.6000403@cn.fujitsu.com>
-References: <529D3FC0.6000403@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-yh0-f51.google.com (mail-yh0-f51.google.com [209.85.213.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F3F36B0088
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 18:50:46 -0500 (EST)
+Received: by mail-yh0-f51.google.com with SMTP id c41so9197448yho.24
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 15:50:46 -0800 (PST)
+Received: from mail-yh0-x22b.google.com (mail-yh0-x22b.google.com [2607:f8b0:4002:c01::22b])
+        by mx.google.com with ESMTPS id z48si1013819yha.231.2013.12.03.15.50.44
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 03 Dec 2013 15:50:44 -0800 (PST)
+Received: by mail-yh0-f43.google.com with SMTP id a41so10251692yho.16
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 15:50:44 -0800 (PST)
+Date: Tue, 3 Dec 2013 15:50:41 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
+ access to memory reserves
+In-Reply-To: <20131203120454.GA12758@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.02.1312031544530.5946@chino.kir.corp.google.com>
+References: <20131114032508.GL707@cmpxchg.org> <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com> <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com> <20131118154115.GA3556@cmpxchg.org> <20131118165110.GE32623@dhcp22.suse.cz>
+ <20131122165100.GN3556@cmpxchg.org> <alpine.DEB.2.02.1311261648570.21003@chino.kir.corp.google.com> <20131127163435.GA3556@cmpxchg.org> <20131202200221.GC5524@dhcp22.suse.cz> <20131202212500.GN22729@cmpxchg.org> <20131203120454.GA12758@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Cc: Tejun Heo <tj@kernel.org>, "Rafael J . Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Chen Tang <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Tue, 03 Dec 2013 10:19:44 +0800 Zhang Yanfei <zhangyanfei@cn.fujitsu.com> wrote:
+On Tue, 3 Dec 2013, Michal Hocko wrote:
 
-> The current Linux cannot migrate pages used by the kerenl because
-> of the kernel direct mapping. In Linux kernel space, va = pa + PAGE_OFFSET.
-> When the pa is changed, we cannot simply update the pagetable and
-> keep the va unmodified. So the kernel pages are not migratable.
-> 
-> There are also some other issues will cause the kernel pages not migratable.
-> For example, the physical address may be cached somewhere and will be used.
-> It is not to update all the caches.
-> 
-> When doing memory hotplug in Linux, we first migrate all the pages in one
-> memory device somewhere else, and then remove the device. But if pages are
-> used by the kernel, they are not migratable. As a result, memory used by
-> the kernel cannot be hot-removed.
-> 
-> Modifying the kernel direct mapping mechanism is too difficult to do. And
-> it may cause the kernel performance down and unstable. So we use the following
-> way to do memory hotplug.
-> 
-> 
-> [What we are doing]
-> 
-> In Linux, memory in one numa node is divided into several zones. One of the
-> zones is ZONE_MOVABLE, which the kernel won't use.
-> 
-> In order to implement memory hotplug in Linux, we are going to arrange all
-> hotpluggable memory in ZONE_MOVABLE so that the kernel won't use these memory.
+> OK, as it seems that the notification part is too controversial, how
+> would you like the following? It reverts the notification part and still
+> solves the fault on exit path. I will prepare the full patch with the
+> changelog if this looks reasonable:
 
-How does the user enable this?  I didn't spot a Kconfig variable which
-enables it.  Is there a boot option?
+Um, no, that's not satisfactory because it obviously does the check after 
+mem_cgroup_oom_notify().  There is absolutely no reason why userspace 
+should be woken up when current simply needs access to memory reserves to 
+exit.  You can already get such notification by memory thresholds at the 
+memcg limit.
 
-Or is it always enabled?  If so, that seems incautious - if it breaks
-in horrid ways we want people to be able to go back to the usual
-behavior.
+I'll repeat: Section 10 of Documentation/cgroups/memory.txt specifies what 
+userspace should do when waking up; one of those options is not "check if 
+the memcg is still actually oom in a short period of time once a charging 
+task with a pending SIGKILL or in the exit path has been able to exit."  
+Users of this interface typically also disable the memcg oom killer 
+through the same file, it's ludicrous to put the responsibility on 
+userspace to determine if the wakeup is actionable and requires it to 
+intervene in one of the methods listed in section 10.
+
+> ---
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 28c9221b74ea..f44fe7e65a98 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1783,6 +1783,16 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  	unsigned int points = 0;
+>  	struct task_struct *chosen = NULL;
+>  
+> +	/*
+> +	 * If current has a pending SIGKILL or is exiting, then automatically
+> +	 * select it.  The goal is to allow it to allocate so that it may
+> +	 * quickly exit and free its memory.
+> +	 */
+> +	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
+> +		set_thread_flag(TIF_MEMDIE);
+> +		goto cleanup;
+> +	}
+> +
+>  	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, order, NULL);
+>  	totalpages = mem_cgroup_get_limit(memcg) >> PAGE_SHIFT ? : 1;
+>  	for_each_mem_cgroup_tree(iter, memcg) {
+> @@ -2233,16 +2243,6 @@ bool mem_cgroup_oom_synchronize(bool handle)
+>  	if (!handle)
+>  		goto cleanup;
+>  
+> -	/*
+> -	 * If current has a pending SIGKILL or is exiting, then automatically
+> -	 * select it.  The goal is to allow it to allocate so that it may
+> -	 * quickly exit and free its memory.
+> -	 */
+> -	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
+> -		set_thread_flag(TIF_MEMDIE);
+> -		goto cleanup;
+> -	}
+> -
+>  	owait.memcg = memcg;
+>  	owait.wait.flags = 0;
+>  	owait.wait.func = memcg_oom_wake_function;
+> @@ -2266,6 +2266,13 @@ bool mem_cgroup_oom_synchronize(bool handle)
+>  		schedule();
+>  		mem_cgroup_unmark_under_oom(memcg);
+>  		finish_wait(&memcg_oom_waitq, &owait.wait);
+> +
+> +		/* Userspace OOM handler cannot set TIF_MEMDIE to a target */
+> +		if (memcg->oom_kill_disable) {
+> +			if ((fatal_signal_pending(current) ||
+> +						current->flags & PF_EXITING))
+> +				set_thread_flag(TIF_MEMDIE);
+> +		}
+>  	}
+>  
+>  	if (locked) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
