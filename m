@@ -1,74 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f43.google.com (mail-yh0-f43.google.com [209.85.213.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 39BC76B0099
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 21:29:13 -0500 (EST)
-Received: by mail-yh0-f43.google.com with SMTP id a41so9055101yho.2
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 18:29:13 -0800 (PST)
-Received: from devils.ext.ti.com (devils.ext.ti.com. [198.47.26.153])
-        by mx.google.com with ESMTPS id v1si48851846yhg.251.2013.12.02.18.29.11
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Dec 2013 18:29:12 -0800 (PST)
-From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [PATCH v2 23/23] mm/ARM: OMAP: Use memblock apis for early memory allocations
-Date: Mon, 2 Dec 2013 21:27:38 -0500
-Message-ID: <1386037658-3161-24-git-send-email-santosh.shilimkar@ti.com>
-In-Reply-To: <1386037658-3161-1-git-send-email-santosh.shilimkar@ti.com>
-References: <1386037658-3161-1-git-send-email-santosh.shilimkar@ti.com>
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AD566B006E
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 21:31:15 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id up15so20151960pbc.24
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 18:31:14 -0800 (PST)
+Received: from song.cn.fujitsu.com ([222.73.24.84])
+        by mx.google.com with ESMTP id qx4si6591132pbc.195.2013.12.02.18.31.11
+        for <linux-mm@kvack.org>;
+        Mon, 02 Dec 2013 18:31:13 -0800 (PST)
+Message-ID: <529D41BD.5090604@cn.fujitsu.com>
+Date: Tue, 03 Dec 2013 10:28:13 +0800
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: [PATCH RESEND part2 v2 6/8] acpi, numa, mem_hotplug: Mark all nodes
+ the kernel resides un-hotpluggable
+References: <529D3FC0.6000403@cn.fujitsu.com>
+In-Reply-To: <529D3FC0.6000403@cn.fujitsu.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Santosh Shilimkar <santosh.shilimkar@ti.com>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Paul Walmsley <paul@pwsan.com>, Tony Lindgren <tony@atomide.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>
+Cc: "Rafael J . Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Chen Tang <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>
 
-Switch to memblock interfaces for early memory allocator instead of
-bootmem allocator. No functional change in beahvior than what it is
-in current code from bootmem users points of view.
+From: Tang Chen <tangchen@cn.fujitsu.com>
 
-Archs already converted to NO_BOOTMEM now directly use memblock
-interfaces instead of bootmem wrappers build on top of memblock. And the
-archs which still uses bootmem, these new apis just fallback to exiting
-bootmem APIs.
+At very early time, the kernel have to use some memory such as
+loading the kernel image. We cannot prevent this anyway. So any
+node the kernel resides in should be un-hotpluggable.
 
-Cc: Yinghai Lu <yinghai@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Paul Walmsley <paul@pwsan.com>
-Cc: Tony Lindgren <tony@atomide.com>
-Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- arch/arm/mach-omap2/omap_hwmod.c |    8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ arch/x86/mm/numa.c |   44 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 44 insertions(+), 0 deletions(-)
 
-diff --git a/arch/arm/mach-omap2/omap_hwmod.c b/arch/arm/mach-omap2/omap_hwmod.c
-index e3f0eca..92d11e2 100644
---- a/arch/arm/mach-omap2/omap_hwmod.c
-+++ b/arch/arm/mach-omap2/omap_hwmod.c
-@@ -2695,9 +2695,7 @@ static int __init _alloc_links(struct omap_hwmod_link **ml,
- 	sz = sizeof(struct omap_hwmod_link) * LINKS_PER_OCP_IF;
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index 408c02d..f26b16f 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -494,6 +494,14 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
+ 		struct numa_memblk *mb = &mi->blk[i];
+ 		memblock_set_node(mb->start, mb->end - mb->start,
+ 				  &memblock.memory, mb->nid);
++
++		/*
++		 * At this time, all memory regions reserved by memblock are
++		 * used by the kernel. Set the nid in memblock.reserved will
++		 * mark out all the nodes the kernel resides in.
++		 */
++		memblock_set_node(mb->start, mb->end - mb->start,
++				  &memblock.reserved, mb->nid);
+ 	}
  
- 	*sl = NULL;
--	*ml = alloc_bootmem(sz);
--
--	memset(*ml, 0, sz);
-+	*ml = memblock_virt_alloc(sz);
+ 	/*
+@@ -555,6 +563,30 @@ static void __init numa_init_array(void)
+ 	}
+ }
  
- 	*sl = (void *)(*ml) + sizeof(struct omap_hwmod_link);
- 
-@@ -2816,9 +2814,7 @@ static int __init _alloc_linkspace(struct omap_hwmod_ocp_if **ois)
- 	pr_debug("omap_hwmod: %s: allocating %d byte linkspace (%d links)\n",
- 		 __func__, sz, max_ls);
- 
--	linkspace = alloc_bootmem(sz);
--
--	memset(linkspace, 0, sz);
-+	linkspace = memblock_virt_alloc(sz);
- 
++static void __init numa_clear_kernel_node_hotplug(void)
++{
++	int i, nid;
++	nodemask_t numa_kernel_nodes;
++	unsigned long start, end;
++	struct memblock_type *type = &memblock.reserved;
++
++	/* Mark all kernel nodes. */
++	for (i = 0; i < type->cnt; i++)
++		node_set(type->regions[i].nid, numa_kernel_nodes);
++
++	/* Clear MEMBLOCK_HOTPLUG flag for memory in kernel nodes. */
++	for (i = 0; i < numa_meminfo.nr_blks; i++) {
++		nid = numa_meminfo.blk[i].nid;
++		if (!node_isset(nid, numa_kernel_nodes))
++			continue;
++
++		start = numa_meminfo.blk[i].start;
++		end = numa_meminfo.blk[i].end;
++
++		memblock_clear_hotplug(start, end - start);
++	}
++}
++
+ static int __init numa_init(int (*init_func)(void))
+ {
+ 	int i;
+@@ -569,6 +601,8 @@ static int __init numa_init(int (*init_func)(void))
+ 	memset(&numa_meminfo, 0, sizeof(numa_meminfo));
+ 	WARN_ON(memblock_set_node(0, ULLONG_MAX, &memblock.memory,
+ 				  MAX_NUMNODES));
++	WARN_ON(memblock_set_node(0, ULLONG_MAX, &memblock.reserved,
++				  MAX_NUMNODES));
+ 	/* In case that parsing SRAT failed. */
+ 	WARN_ON(memblock_clear_hotplug(0, ULLONG_MAX));
+ 	numa_reset_distance();
+@@ -606,6 +640,16 @@ static int __init numa_init(int (*init_func)(void))
+ 			numa_clear_node(i);
+ 	}
+ 	numa_init_array();
++
++	/*
++	 * At very early time, the kernel have to use some memory such as
++	 * loading the kernel image. We cannot prevent this anyway. So any
++	 * node the kernel resides in should be un-hotpluggable.
++	 *
++	 * And when we come here, numa_init() won't fail.
++	 */
++	numa_clear_kernel_node_hotplug();
++
  	return 0;
  }
+ 
 -- 
-1.7.9.5
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
