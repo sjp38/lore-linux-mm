@@ -1,130 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-	by kanga.kvack.org (Postfix) with ESMTP id E80F86B006E
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 21:22:50 -0500 (EST)
-Received: by mail-pb0-f43.google.com with SMTP id rq2so20229208pbb.16
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 18:22:50 -0800 (PST)
-Received: from song.cn.fujitsu.com ([222.73.24.84])
-        by mx.google.com with ESMTP id bc2si49644417pad.303.2013.12.02.18.22.47
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 45B1A6B0070
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 21:23:15 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id p10so19140537pdj.26
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 18:23:14 -0800 (PST)
+Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
+        by mx.google.com with ESMTP id n5si9513842pac.69.2013.12.02.18.23.12
         for <linux-mm@kvack.org>;
-        Mon, 02 Dec 2013 18:22:49 -0800 (PST)
-Message-ID: <529D3FC0.6000403@cn.fujitsu.com>
-Date: Tue, 03 Dec 2013 10:19:44 +0800
-From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+        Mon, 02 Dec 2013 18:23:14 -0800 (PST)
+Date: Tue, 3 Dec 2013 11:25:39 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v3 4/5] slab: introduce byte sized index for the freelist
+ of a slab
+Message-ID: <20131203022539.GF31168@lge.com>
+References: <1385974183-31423-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1385974183-31423-5-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
-Subject: [PATCH RESEND part2 v2 0/8] Arrange hotpluggable memory as ZONE_MOVABLE
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1385974183-31423-5-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>
-Cc: "Rafael J . Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Chen Tang <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-[Problem]
+On Mon, Dec 02, 2013 at 05:49:42PM +0900, Joonsoo Kim wrote:
+> Currently, the freelist of a slab consist of unsigned int sized indexes.
+> Since most of slabs have less number of objects than 256, large sized
+> indexes is needless. For example, consider the minimum kmalloc slab. It's
+> object size is 32 byte and it would consist of one page, so 256 indexes
+> through byte sized index are enough to contain all possible indexes.
+> 
+> There can be some slabs whose object size is 8 byte. We cannot handle
+> this case with byte sized index, so we need to restrict minimum
+> object size. Since these slabs are not major, wasted memory from these
+> slabs would be negligible.
+> 
+> Some architectures' page size isn't 4096 bytes and rather larger than
+> 4096 bytes (One example is 64KB page size on PPC or IA64) so that
+> byte sized index doesn't fit to them. In this case, we will use
+> two bytes sized index.
+> 
+> Below is some number for this patch.
+> 
+> * Before *
+> kmalloc-512          525    640    512    8    1 : tunables   54   27    0 : slabdata     80     80      0
+> kmalloc-256          210    210    256   15    1 : tunables  120   60    0 : slabdata     14     14      0
+> kmalloc-192         1016   1040    192   20    1 : tunables  120   60    0 : slabdata     52     52      0
+> kmalloc-96           560    620    128   31    1 : tunables  120   60    0 : slabdata     20     20      0
+> kmalloc-64          2148   2280     64   60    1 : tunables  120   60    0 : slabdata     38     38      0
+> kmalloc-128          647    682    128   31    1 : tunables  120   60    0 : slabdata     22     22      0
+> kmalloc-32         11360  11413     32  113    1 : tunables  120   60    0 : slabdata    101    101      0
+> kmem_cache           197    200    192   20    1 : tunables  120   60    0 : slabdata     10     10      0
+> 
+> * After *
+> kmalloc-512          521    648    512    8    1 : tunables   54   27    0 : slabdata     81     81      0
+> kmalloc-256          208    208    256   16    1 : tunables  120   60    0 : slabdata     13     13      0
+> kmalloc-192         1029   1029    192   21    1 : tunables  120   60    0 : slabdata     49     49      0
+> kmalloc-96           529    589    128   31    1 : tunables  120   60    0 : slabdata     19     19      0
+> kmalloc-64          2142   2142     64   63    1 : tunables  120   60    0 : slabdata     34     34      0
+> kmalloc-128          660    682    128   31    1 : tunables  120   60    0 : slabdata     22     22      0
+> kmalloc-32         11716  11780     32  124    1 : tunables  120   60    0 : slabdata     95     95      0
+> kmem_cache           197    210    192   21    1 : tunables  120   60    0 : slabdata     10     10      0
+> 
+> kmem_caches consisting of objects less than or equal to 256 byte have
+> one or more objects than before. In the case of kmalloc-32, we have 11 more
+> objects, so 352 bytes (11 * 32) are saved and this is roughly 9% saving of
+> memory. Of couse, this percentage decreases as the number of objects
+> in a slab decreases.
+> 
+> Here are the performance results on my 4 cpus machine.
+> 
+> * Before *
+> 
+>  Performance counter stats for 'perf bench sched messaging -g 50 -l 1000' (10 runs):
+> 
+>        229,945,138 cache-misses                                                  ( +-  0.23% )
+> 
+>       11.627897174 seconds time elapsed                                          ( +-  0.14% )
+> 
+> * After *
+> 
+>  Performance counter stats for 'perf bench sched messaging -g 50 -l 1000' (10 runs):
+> 
+>        218,640,472 cache-misses                                                  ( +-  0.42% )
+> 
+>       11.504999837 seconds time elapsed                                          ( +-  0.21% )
+> 
+> cache-misses are reduced by this patchset, roughly 5%.
+> And elapsed times are improved by 1%.
+> 
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> 
 
-The current Linux cannot migrate pages used by the kerenl because
-of the kernel direct mapping. In Linux kernel space, va = pa + PAGE_OFFSET.
-When the pa is changed, we cannot simply update the pagetable and
-keep the va unmodified. So the kernel pages are not migratable.
+Hello, Christoph.
 
-There are also some other issues will cause the kernel pages not migratable.
-For example, the physical address may be cached somewhere and will be used.
-It is not to update all the caches.
+Can I get your ACK for this patch?
 
-When doing memory hotplug in Linux, we first migrate all the pages in one
-memory device somewhere else, and then remove the device. But if pages are
-used by the kernel, they are not migratable. As a result, memory used by
-the kernel cannot be hot-removed.
-
-Modifying the kernel direct mapping mechanism is too difficult to do. And
-it may cause the kernel performance down and unstable. So we use the following
-way to do memory hotplug.
-
-
-[What we are doing]
-
-In Linux, memory in one numa node is divided into several zones. One of the
-zones is ZONE_MOVABLE, which the kernel won't use.
-
-In order to implement memory hotplug in Linux, we are going to arrange all
-hotpluggable memory in ZONE_MOVABLE so that the kernel won't use these memory.
-
-To do this, we need ACPI's help.
-
-
-[How we do this]
-
-In ACPI, SRAT(System Resource Affinity Table) contains NUMA info. The memory
-affinities in SRAT record every memory range in the system, and also, flags
-specifying if the memory range is hotpluggable.
-(Please refer to ACPI spec 5.0 5.2.16)
-
-With the help of SRAT, we have to do the following two things to achieve our
-goal:
-
-1. When doing memory hot-add, allow the users arranging hotpluggable as
-   ZONE_MOVABLE.
-   (This has been done by the MOVABLE_NODE functionality in Linux.)
-
-2. when the system is booting, prevent bootmem allocator from allocating
-   hotpluggable memory for the kernel before the memory initialization
-   finishes.
-   (This is what we are going to do. See below.)
-
-
-[About this patch-set]
-
-In previous part's patches, we have made the kernel allocate memory near
-kernel image before SRAT parsed to avoid allocating hotpluggable memory
-for kernel. So this patch-set does the following things:
-
-1. Improve memblock to support flags, which are used to indicate different 
-   memory type.
-
-2. Mark all hotpluggable memory in memblock.memory[].
-
-3. Make the default memblock allocator skip hotpluggable memory.
-
-4. Improve "movable_node" boot option to have higher priority of movablecore
-   and kernelcore boot option.
-
-Change log v1 -> v2:
-1. Rebase this part on the v7 version of part1
-2. Fix bug: If movable_node boot option not specified, memblock still
-   checks hotpluggable memory when allocating memory. 
-
-Tang Chen (7):
-  memblock, numa: Introduce flag into memblock
-  memblock, mem_hotplug: Introduce MEMBLOCK_HOTPLUG flag to mark
-    hotpluggable regions
-  memblock: Make memblock_set_node() support different memblock_type
-  acpi, numa, mem_hotplug: Mark hotpluggable memory in memblock
-  acpi, numa, mem_hotplug: Mark all nodes the kernel resides
-    un-hotpluggable
-  memblock, mem_hotplug: Make memblock skip hotpluggable regions if
-    needed
-  x86, numa, acpi, memory-hotplug: Make movable_node have higher
-    priority
-
-Yasuaki Ishimatsu (1):
-  x86: get pg_data_t's memory from other node
-
- arch/metag/mm/init.c      |    3 +-
- arch/metag/mm/numa.c      |    3 +-
- arch/microblaze/mm/init.c |    3 +-
- arch/powerpc/mm/mem.c     |    2 +-
- arch/powerpc/mm/numa.c    |    8 ++-
- arch/sh/kernel/setup.c    |    4 +-
- arch/sparc/mm/init_64.c   |    5 +-
- arch/x86/mm/init_32.c     |    2 +-
- arch/x86/mm/init_64.c     |    2 +-
- arch/x86/mm/numa.c        |   63 +++++++++++++++++++++--
- arch/x86/mm/srat.c        |    5 ++
- include/linux/memblock.h  |   39 ++++++++++++++-
- mm/memblock.c             |  123 ++++++++++++++++++++++++++++++++++++++-------
- mm/memory_hotplug.c       |    1 +
- mm/page_alloc.c           |   28 ++++++++++-
- 15 files changed, 252 insertions(+), 39 deletions(-)
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
