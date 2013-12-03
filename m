@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 57DD66B0075
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 21:33:02 -0500 (EST)
-Received: by mail-pd0-f171.google.com with SMTP id z10so19348701pdj.30
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 18:33:01 -0800 (PST)
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 278046B0031
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 21:48:34 -0500 (EST)
+Received: by mail-pd0-f173.google.com with SMTP id p10so19338914pdj.18
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 18:48:33 -0800 (PST)
 Received: from song.cn.fujitsu.com ([222.73.24.84])
-        by mx.google.com with ESMTP id tt8si10662700pbc.198.2013.12.02.18.32.59
+        by mx.google.com with ESMTP id f4si21620648pbm.145.2013.12.02.18.48.30
         for <linux-mm@kvack.org>;
-        Mon, 02 Dec 2013 18:33:00 -0800 (PST)
-Message-ID: <529D423F.3030200@cn.fujitsu.com>
-Date: Tue, 03 Dec 2013 10:30:23 +0800
+        Mon, 02 Dec 2013 18:48:32 -0800 (PST)
+Message-ID: <529D45E0.6000300@cn.fujitsu.com>
+Date: Tue, 03 Dec 2013 10:45:52 +0800
 From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH RESEND part2 v2 8/8] x86, numa, acpi, memory-hotplug: Make
- movable_node have higher priority
+Subject: Re: [PATCH RESEND part2 v2 0/8] Arrange hotpluggable memory as ZONE_MOVABLE
 References: <529D3FC0.6000403@cn.fujitsu.com>
 In-Reply-To: <529D3FC0.6000403@cn.fujitsu.com>
 Content-Transfer-Encoding: 7bit
@@ -23,83 +22,135 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>
 Cc: "Rafael J . Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Chen Tang <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>
 
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Hello Andrew
+CC: tejun
 
-If users specify the original movablecore=nn@ss boot option, the kernel will
-arrange [ss, ss+nn) as ZONE_MOVABLE. The kernelcore=nn@ss boot option is similar
-except it specifies ZONE_NORMAL ranges.
+Now since the 3.13-rc2 is out, It will be appreciated that you take these
+patches into -mm tree so that they start appearing in next to catch any
+regressions, issues etc. It will give us some time to fix any issues
+arises from next.
 
-Now, if users specify "movable_node" in kernel commandline, the kernel will
-arrange hotpluggable memory in SRAT as ZONE_MOVABLE. And if users do this, all
-the other movablecore=nn@ss and kernelcore=nn@ss options should be ignored.
+This is only the remaining part of the memory-hotplug work and the first part
+has been merged in 3.12 so we hope this part will catch v3.13 to make
+the functionality work asap.
 
-For those who don't want this, just specify nothing. The kernel will act as
-before.
+I tested these patches on top of 3.13-rc2 and it works well.
 
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
----
- mm/page_alloc.c |   28 ++++++++++++++++++++++++++--
- 1 files changed, 26 insertions(+), 2 deletions(-)
+Thank you very much!
+Zhang
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index dd886fa..768ea0e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5021,9 +5021,33 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 	nodemask_t saved_node_state = node_states[N_MEMORY];
- 	unsigned long totalpages = early_calculate_totalpages();
- 	int usable_nodes = nodes_weight(node_states[N_MEMORY]);
-+	struct memblock_type *type = &memblock.memory;
-+
-+	/* Need to find movable_zone earlier when movable_node is specified. */
-+	find_usable_zone_for_movable();
-+
-+	/*
-+	 * If movable_node is specified, ignore kernelcore and movablecore
-+	 * options.
-+	 */
-+	if (movable_node_is_enabled()) {
-+		for (i = 0; i < type->cnt; i++) {
-+			if (!memblock_is_hotpluggable(&type->regions[i]))
-+				continue;
-+
-+			nid = type->regions[i].nid;
-+
-+			usable_startpfn = PFN_DOWN(type->regions[i].base);
-+			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
-+				min(usable_startpfn, zone_movable_pfn[nid]) :
-+				usable_startpfn;
-+		}
-+
-+		goto out2;
-+	}
- 
- 	/*
--	 * If movablecore was specified, calculate what size of
-+	 * If movablecore=nn[KMG] was specified, calculate what size of
- 	 * kernelcore that corresponds so that memory usable for
- 	 * any allocation type is evenly spread. If both kernelcore
- 	 * and movablecore are specified, then the value of kernelcore
-@@ -5049,7 +5073,6 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 		goto out;
- 
- 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
--	find_usable_zone_for_movable();
- 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
- 
- restart:
-@@ -5140,6 +5163,7 @@ restart:
- 	if (usable_nodes && required_kernelcore > usable_nodes)
- 		goto restart;
- 
-+out2:
- 	/* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
- 	for (nid = 0; nid < MAX_NUMNODES; nid++)
- 		zone_movable_pfn[nid] =
+On 12/03/2013 10:19 AM, Zhang Yanfei wrote:
+> [Problem]
+> 
+> The current Linux cannot migrate pages used by the kerenl because
+> of the kernel direct mapping. In Linux kernel space, va = pa + PAGE_OFFSET.
+> When the pa is changed, we cannot simply update the pagetable and
+> keep the va unmodified. So the kernel pages are not migratable.
+> 
+> There are also some other issues will cause the kernel pages not migratable.
+> For example, the physical address may be cached somewhere and will be used.
+> It is not to update all the caches.
+> 
+> When doing memory hotplug in Linux, we first migrate all the pages in one
+> memory device somewhere else, and then remove the device. But if pages are
+> used by the kernel, they are not migratable. As a result, memory used by
+> the kernel cannot be hot-removed.
+> 
+> Modifying the kernel direct mapping mechanism is too difficult to do. And
+> it may cause the kernel performance down and unstable. So we use the following
+> way to do memory hotplug.
+> 
+> 
+> [What we are doing]
+> 
+> In Linux, memory in one numa node is divided into several zones. One of the
+> zones is ZONE_MOVABLE, which the kernel won't use.
+> 
+> In order to implement memory hotplug in Linux, we are going to arrange all
+> hotpluggable memory in ZONE_MOVABLE so that the kernel won't use these memory.
+> 
+> To do this, we need ACPI's help.
+> 
+> 
+> [How we do this]
+> 
+> In ACPI, SRAT(System Resource Affinity Table) contains NUMA info. The memory
+> affinities in SRAT record every memory range in the system, and also, flags
+> specifying if the memory range is hotpluggable.
+> (Please refer to ACPI spec 5.0 5.2.16)
+> 
+> With the help of SRAT, we have to do the following two things to achieve our
+> goal:
+> 
+> 1. When doing memory hot-add, allow the users arranging hotpluggable as
+>    ZONE_MOVABLE.
+>    (This has been done by the MOVABLE_NODE functionality in Linux.)
+> 
+> 2. when the system is booting, prevent bootmem allocator from allocating
+>    hotpluggable memory for the kernel before the memory initialization
+>    finishes.
+>    (This is what we are going to do. See below.)
+> 
+> 
+> [About this patch-set]
+> 
+> In previous part's patches, we have made the kernel allocate memory near
+> kernel image before SRAT parsed to avoid allocating hotpluggable memory
+> for kernel. So this patch-set does the following things:
+> 
+> 1. Improve memblock to support flags, which are used to indicate different 
+>    memory type.
+> 
+> 2. Mark all hotpluggable memory in memblock.memory[].
+> 
+> 3. Make the default memblock allocator skip hotpluggable memory.
+> 
+> 4. Improve "movable_node" boot option to have higher priority of movablecore
+>    and kernelcore boot option.
+> 
+> Change log v1 -> v2:
+> 1. Rebase this part on the v7 version of part1
+> 2. Fix bug: If movable_node boot option not specified, memblock still
+>    checks hotpluggable memory when allocating memory. 
+> 
+> Tang Chen (7):
+>   memblock, numa: Introduce flag into memblock
+>   memblock, mem_hotplug: Introduce MEMBLOCK_HOTPLUG flag to mark
+>     hotpluggable regions
+>   memblock: Make memblock_set_node() support different memblock_type
+>   acpi, numa, mem_hotplug: Mark hotpluggable memory in memblock
+>   acpi, numa, mem_hotplug: Mark all nodes the kernel resides
+>     un-hotpluggable
+>   memblock, mem_hotplug: Make memblock skip hotpluggable regions if
+>     needed
+>   x86, numa, acpi, memory-hotplug: Make movable_node have higher
+>     priority
+> 
+> Yasuaki Ishimatsu (1):
+>   x86: get pg_data_t's memory from other node
+> 
+>  arch/metag/mm/init.c      |    3 +-
+>  arch/metag/mm/numa.c      |    3 +-
+>  arch/microblaze/mm/init.c |    3 +-
+>  arch/powerpc/mm/mem.c     |    2 +-
+>  arch/powerpc/mm/numa.c    |    8 ++-
+>  arch/sh/kernel/setup.c    |    4 +-
+>  arch/sparc/mm/init_64.c   |    5 +-
+>  arch/x86/mm/init_32.c     |    2 +-
+>  arch/x86/mm/init_64.c     |    2 +-
+>  arch/x86/mm/numa.c        |   63 +++++++++++++++++++++--
+>  arch/x86/mm/srat.c        |    5 ++
+>  include/linux/memblock.h  |   39 ++++++++++++++-
+>  mm/memblock.c             |  123 ++++++++++++++++++++++++++++++++++++++-------
+>  mm/memory_hotplug.c       |    1 +
+>  mm/page_alloc.c           |   28 ++++++++++-
+>  15 files changed, 252 insertions(+), 39 deletions(-)
+> 
+
+
 -- 
-1.7.1
+Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
