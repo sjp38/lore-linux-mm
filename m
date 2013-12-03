@@ -1,81 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f41.google.com (mail-qe0-f41.google.com [209.85.128.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 0827E6B0031
-	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 15:25:23 -0500 (EST)
-Received: by mail-qe0-f41.google.com with SMTP id gh4so12896536qeb.28
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 12:25:22 -0800 (PST)
-Received: from a9-46.smtp-out.amazonses.com (a9-46.smtp-out.amazonses.com. [54.240.9.46])
-        by mx.google.com with ESMTP id k3si37175669qao.154.2013.12.03.12.25.19
+Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D81E6B0031
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 15:33:13 -0500 (EST)
+Received: by mail-we0-f171.google.com with SMTP id q58so14260547wes.30
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 12:33:12 -0800 (PST)
+Received: from smtp2.it.da.ut.ee (smtp2.it.da.ut.ee. [2001:bb8:2002:500:20f:1fff:fe04:1bbb])
+        by mx.google.com with ESMTP id wd4si16952805wjc.61.2013.12.03.12.33.12
         for <linux-mm@kvack.org>;
-        Tue, 03 Dec 2013 12:25:21 -0800 (PST)
-Date: Tue, 3 Dec 2013 20:25:18 +0000
-From: Christoph Lameter <cl@linux.com>
+        Tue, 03 Dec 2013 12:33:12 -0800 (PST)
+Date: Tue, 3 Dec 2013 22:33:11 +0200 (EET)
+From: Meelis Roos <mroos@linux.ee>
 Subject: Re: Slab BUG with DEBUG_* options
-In-Reply-To: <alpine.DEB.2.02.1312030930450.4115@gentwo.org>
-Message-ID: <00000142ba22e43b-99d8d7cb-9ecd-4f18-9609-8805270843d4-000000@email.amazonses.com>
-References: <alpine.SOC.1.00.1311300125490.6363@math.ut.ee> <alpine.DEB.2.02.1312030930450.4115@gentwo.org>
+In-Reply-To: <00000142b923d9de-2c71e0b6-7443-46c0-bbde-93a81b50ed37-000000@email.amazonses.com>
+Message-ID: <alpine.SOC.1.00.1312032232210.25191@math.ut.ee>
+References: <alpine.SOC.1.00.1311300125490.6363@math.ut.ee> <00000142b923d9de-2c71e0b6-7443-46c0-bbde-93a81b50ed37-000000@email.amazonses.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Meelis Roos <mroos@linux.ee>
+To: Christoph Lameter <cl@linux.com>
 Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
 
-On Tue, 3 Dec 2013, Christoph Lameter wrote:
+> > I am debugging a reboot problem on Sun Ultra 5 (sparc64) with 512M RAM
+> > and turned on DEBUG_PAGEALLOC DEBUG_SLAB and DEBUG_SLAB_LEAK (and most
+> > other debug options) and got the following BUG and hang on startup. This
+> > happened originally with 3.11-rc2-00058 where my bisection of
+> > another problem lead, but I retested 3.12 to have the same BUG in the
+> > same place.
+> 
+> Hmmm. With CONFIG_DEBUG_PAGEALLOC *and* DEBUG_SLAB you would get a pretty
+> strange configuration with massive sizes of slabs.
+> 
+> > kernel BUG at mm/slab.c:2391!
+> 
+> Ok so this means that we are trying to create a cache with off slab
+> management during bootstrap which should not happen.
+[...]
+> We should not be switching on CFLGS_OFF_SLAB here because the
+> kmalloc array does not contain the necessary entries yet.
+> 
+> Does this fix it? We may need a more sophisticated fix from someone who
+> knows how handle CONFIG_DEBUG_PAGEALLOC.
 
-> Subject: slab: Do not use off slab metadata for CONFIG_DEBUG_PAGEALLOC
->
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+No:
 
-The patch fails here at the largest slab which requires off slab
-management because otherwise the order becomes too high.
+Kernel panic - not syncing: Creation of kmalloc slab (null) size=8388608 
+failed. Reason -7
 
-The fundamental problem is that debugging increases the size of the slab
-significantly so that even small slabs require slab management. But
-the kmalloc slabs used for the sizes required for management objects have not
-been created yet.
+CPU: 0 PID: 0 Comm: swapper Not tainted 3.11.0-rc2-00058-g20bafb3-dirty 
+#134
+Call Trace:
+ [000000000076416c] panic+0xb4/0x22c
+ [0000000000907488] create_boot_cache+0x70/0x84
+ [00000000009074d0] create_kmalloc_cache+0x34/0x60
+ [0000000000907540] create_kmalloc_caches+0x44/0x168
+ [0000000000908dfc] kmem_cache_init+0x1d0/0x1e0
+ [00000000008fc658] start_kernel+0x18c/0x370
+ [0000000000761db4] tlb_fixup_done+0x88/0x94
+ [0000000000000000]           (null)
 
-Slab bootstrap relies on smaller slabs not requiring slab management
-slabs. Once it gets to larger sizes then smaller slab management objects
-may be allocated.
+Am I just running out of memory perhaps?
 
-However, in this case the slab sizes are required for management at early
-boot after slab_early_init has been set to 0 are not available.
+Will try the other patch soon.
 
-If the slab management sizes required match other slab caches sizes that
-were already created at boot then bootstrap will succeed regardless.
-
-I have another patch here (that I cannot test since I cannot run sparc
-code) that simply changes the determination for switching slab management
-to base the decision not on the final size of the slab (which is always
-large in the debugging cases here) but on the initial object size. For
-small objects < PAGESIZE/8 this should avoid the use of slab management
-even in the debugging case.
-
-Subject: slab: Do not use slab management for slabs with smaller objects
-
-Use the object size to make the off slab decision instead of the final
-size of the slab objects (which is large in case of
-CONFIG_PAGEALLOC_DEBUG).
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-Index: linux/mm/slab.c
-===================================================================
---- linux.orig/mm/slab.c	2013-12-03 10:48:42.625823157 -0600
-+++ linux/mm/slab.c	2013-12-03 10:49:06.755152653 -0600
-@@ -2243,8 +2243,8 @@ __kmem_cache_create (struct kmem_cache *
- 	 * it too early on. Always use on-slab management when
- 	 * SLAB_NOLEAKTRACE to avoid recursive calls into kmemleak)
- 	 */
--	if ((size >= (PAGE_SIZE >> 3)) && !slab_early_init &&
--	    !(flags & SLAB_NOLEAKTRACE))
-+	if ((cachep->size >= (PAGE_SIZE >> 3)) && !slab_early_init &&
-+	    !(flags & SLAB_NOLEAKTRACE) )
- 		/*
- 		 * Size is large, assume best to place the slab management obj
- 		 * off-slab (should allow better packing of objs).
-
+-- 
+Meelis Roos (mroos@linux.ee)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
