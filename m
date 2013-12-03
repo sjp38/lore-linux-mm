@@ -1,46 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vb0-f51.google.com (mail-vb0-f51.google.com [209.85.212.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 743BC6B0031
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 18:09:47 -0500 (EST)
-Received: by mail-vb0-f51.google.com with SMTP id m10so8904246vbh.24
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 15:09:47 -0800 (PST)
-Received: from mail-yh0-x235.google.com (mail-yh0-x235.google.com [2607:f8b0:4002:c01::235])
-        by mx.google.com with ESMTPS id vi1si29422914vcb.94.2013.12.02.15.09.46
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Dec 2013 15:09:46 -0800 (PST)
-Received: by mail-yh0-f53.google.com with SMTP id b20so9555372yha.12
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 15:09:46 -0800 (PST)
-Date: Mon, 2 Dec 2013 15:09:43 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: user defined OOM policies
-In-Reply-To: <20131128114214.GJ2761@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.02.1312021508060.13465@chino.kir.corp.google.com>
-References: <20131119131400.GC20655@dhcp22.suse.cz> <20131119134007.GD20655@dhcp22.suse.cz> <alpine.DEB.2.02.1311192352070.20752@chino.kir.corp.google.com> <20131120152251.GA18809@dhcp22.suse.cz> <CAA25o9S5EQBvyk=HP3obdCaXKjoUVtzeb4QsNmoLMq6NnOYifA@mail.gmail.com>
- <alpine.DEB.2.02.1311201933420.7167@chino.kir.corp.google.com> <CAA25o9Q64eK5LHhrRyVn73kFz=Z7Jji=rYWS=9jWL_4y9ZGbQA@mail.gmail.com> <alpine.DEB.2.02.1311251717370.27270@chino.kir.corp.google.com> <20131128114214.GJ2761@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 1358C6B0031
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 19:31:39 -0500 (EST)
+Received: by mail-pa0-f52.google.com with SMTP id ld10so2103964pab.25
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 16:31:39 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id am2si49517061pad.183.2013.12.02.16.31.38
+        for <linux-mm@kvack.org>;
+        Mon, 02 Dec 2013 16:31:38 -0800 (PST)
+Date: Mon, 2 Dec 2013 16:31:36 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 09/24] mm/memblock: Add memblock memory allocation apis
+Message-Id: <20131202163136.f31f39c5940c0ba6d20f4a00@linux-foundation.org>
+In-Reply-To: <1383954120-24368-10-git-send-email-santosh.shilimkar@ti.com>
+References: <1383954120-24368-1-git-send-email-santosh.shilimkar@ti.com>
+	<1383954120-24368-10-git-send-email-santosh.shilimkar@ti.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Joern Engel <joern@logfs.org>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>
+To: Santosh Shilimkar <santosh.shilimkar@ti.com>
+Cc: tj@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Yinghai Lu <yinghai@kernel.org>, Grygorii Strashko <grygorii.strashko@ti.com>
 
-On Thu, 28 Nov 2013, Michal Hocko wrote:
+On Fri, 8 Nov 2013 18:41:45 -0500 Santosh Shilimkar <santosh.shilimkar@ti.com> wrote:
 
-> > We already have hooks in the kernel oom killer, things like 
-> > /proc/sys/vm/oom_kill_allocating_task
+> Introduce memblock memory allocation APIs which allow to support
+> PAE or LPAE extension on 32 bits archs where the physical memory start
+> address can be beyond 4GB. In such cases, existing bootmem APIs which
+> operate on 32 bit addresses won't work and needs memblock layer which
+> operates on 64 bit addresses.
 > 
-> How would you implement oom_kill_allocating_task in userspace? You do
-> not have any context on who is currently allocating or would you rely on
-> reading /proc/*/stack to grep for allocation functions?
+> So we add equivalent APIs so that we can replace usage of bootmem
+> with memblock interfaces. Architectures already converted to NO_BOOTMEM
+> use these new interfaces and other which still uses bootmem, these new
+> APIs just fallback to exiting bootmem APIs. So no functional change as
+> such.
 > 
+> In long run, once all the achitectures moves to NO_BOOTMEM, we can get rid of
+> bootmem layer completely. This is one step to remove the core code dependency
+> with bootmem and also gives path for architectures to move away from bootmem.
+> 
+> The proposed interface will became active if both CONFIG_HAVE_MEMBLOCK
+> and CONFIG_NO_BOOTMEM are specified by arch. In case !CONFIG_NO_BOOTMEM,
+> the memblock() wrappers will fallback to the existing bootmem apis so
+> that arch's not converted to NO_BOOTMEM continue to work as is.
+> 
+> The meaning of MEMBLOCK_ALLOC_ACCESSIBLE and MEMBLOCK_ALLOC_ANYWHERE is
+> kept same.
+> 
+> ...
+>
+> +static void * __init _memblock_virt_alloc_try_nid_nopanic(
+> +				phys_addr_t size, phys_addr_t align,
+> +				phys_addr_t from, phys_addr_t max_addr,
+> +				int nid)
+> +{
+> +	phys_addr_t alloc;
+> +	void *ptr;
+> +
+> +	if (WARN_ON_ONCE(slab_is_available())) {
+> +		if (nid == MAX_NUMNODES)
+> +			return kzalloc(size, GFP_NOWAIT);
+> +		else
+> +			return kzalloc_node(size, GFP_NOWAIT, nid);
+> +	}
 
-Not the exact behavior, sorry.  I implemented oom_kill_allocating_task at 
-the request for SGI that simply wanted to avoid the lengthy tasklist scan, 
-they don't actually care what is killed as long as something is killed.  
-The actual allocating task is difficult to predict, especially in system 
-oom conditions, and their motivation was to make it as quickly as 
-possible.  Userspace could certainly kill a random eligible process :)
+The use of MAX_NUMNODES is a bit unconventional here.  I *think* we
+generally use NUMA_NO_NODE to indicate "don't care".  I Also *think*
+that if this code did s/MAX_NUMNODES/NUMA_NO_NODE/g then the above
+simply becomes
+
+	return kzalloc_node(size, GFP_NOWAIT, nid);
+
+and kzalloc_node() handles NUMA_NO_NODE appropriately.
+
+I *think* ;)  Please check all this.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
