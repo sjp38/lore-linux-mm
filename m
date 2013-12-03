@@ -1,46 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id B90296B0031
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 23:59:47 -0500 (EST)
-Received: by mail-pd0-f173.google.com with SMTP id p10so19533941pdj.32
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 20:59:47 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id nu5si10276770pbc.268.2013.12.02.20.59.45
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Dec 2013 20:59:46 -0800 (PST)
-Message-ID: <529D653F.3090401@codeaurora.org>
-Date: Mon, 02 Dec 2013 20:59:43 -0800
-From: Laura Abbott <lauraa@codeaurora.org>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id A895E6B0031
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 03:46:36 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id cc10so6129962wib.4
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 00:46:36 -0800 (PST)
+Received: from smtp2.it.da.ut.ee (smtp2.it.da.ut.ee. [2001:bb8:2002:500:20f:1fff:fe04:1bbb])
+        by mx.google.com with ESMTP id bo12si491965wib.66.2013.12.03.00.46.35
+        for <linux-mm@kvack.org>;
+        Tue, 03 Dec 2013 00:46:35 -0800 (PST)
+Date: Tue, 3 Dec 2013 10:46:35 +0200 (EET)
+From: Meelis Roos <mroos@linux.ee>
+Subject: Re: Slab BUG with DEBUG_* options
+In-Reply-To: <00000142b4b122b4-377a8c1e-32e1-401e-a9c0-caa7e8ade31c-000000@email.amazonses.com>
+Message-ID: <alpine.SOC.1.00.1312031045510.3485@math.ut.ee>
+References: <alpine.SOC.1.00.1311300125490.6363@math.ut.ee> <alpine.DEB.2.02.1311301428390.18027@chino.kir.corp.google.com> <00000142b4b122b4-377a8c1e-32e1-401e-a9c0-caa7e8ade31c-000000@email.amazonses.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 3/4] mm/vmalloc.c: Allow lowmem to be tracked in vmalloc
-References: <1384212412-21236-1-git-send-email-lauraa@codeaurora.org>	<1384212412-21236-4-git-send-email-lauraa@codeaurora.org>	<52850C37.1080506@sr71.net>	<5285A896.3030204@codeaurora.org> <20131126144541.6b16979b77f927f6d945ab60@linux-foundation.org>
-In-Reply-To: <20131126144541.6b16979b77f927f6d945ab60@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave@sr71.net>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Neeti Desai <neetid@codeaurora.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On 11/26/2013 2:45 PM, Andrew Morton wrote:
-> So yes, it would be prudent to be worried about is_vmalloc_addr()
-> performance at the outset.
->
-> Couldn't is_vmalloc_addr() just be done with a plain old bitmap?  It
-> would consume 128kbytes to manage a 4G address space, and 1/8th of a meg
-> isn't much.
->
+> Does this patch from 3.13 fix it?
+> 
+> commit c6f58d9b362b45c52afebe4342c9137d0dabe47f
+> Author: Christoph Lameter <cl@linux.com>
+> Date:   Thu Nov 7 16:29:15 2013 +0000
+> 
+>     slub: Handle NULL parameter in kmem_cache_flags
 
-Yes, I came to the same conclusion after realizing I needed something 
-similar to fix up proc/kcore.c . I plan to go with the bitmap for the 
-next patch version.
-
-Laura
+I do not think so - it is for slub but this machine uses slab.
 
 -- 
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
+Meelis Roos (mroos@linux.ee)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
