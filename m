@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 27ED06B003D
+Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
+	by kanga.kvack.org (Postfix) with ESMTP id DFE366B0055
 	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 03:52:11 -0500 (EST)
-Received: by mail-ee0-f48.google.com with SMTP id e49so1268967eek.21
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 00:52:10 -0800 (PST)
+Received: by mail-ee0-f45.google.com with SMTP id d49so1251714eek.4
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 00:52:11 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id s42si2252041eew.98.2013.12.03.00.52.10
+        by mx.google.com with ESMTP id l44si2237100eem.145.2013.12.03.00.52.11
         for <linux-mm@kvack.org>;
-        Tue, 03 Dec 2013 00:52:10 -0800 (PST)
+        Tue, 03 Dec 2013 00:52:11 -0800 (PST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 09/15] mm: numa: Ensure anon_vma is locked to prevent parallel THP splits
-Date: Tue,  3 Dec 2013 08:51:56 +0000
-Message-Id: <1386060721-3794-10-git-send-email-mgorman@suse.de>
+Subject: [PATCH 10/15] mm: numa: Avoid unnecessary work on the failure path
+Date: Tue,  3 Dec 2013 08:51:57 +0000
+Message-Id: <1386060721-3794-11-git-send-email-mgorman@suse.de>
 In-Reply-To: <1386060721-3794-1-git-send-email-mgorman@suse.de>
 References: <1386060721-3794-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -19,34 +19,36 @@ List-ID: <linux-mm.kvack.org>
 To: Alex Thorlton <athorlton@sgi.com>
 Cc: Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-The anon_vma lock prevents parallel THP splits and any associated complexity
-that arises when handling splits during THP migration. This patch checks
-if the lock was successfully acquired and bails from THP migration if it
-failed for any reason.
+If a PMD changes during a THP migration then migration aborts but the
+failure path is doing more work than is necessary.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/huge_memory.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+ mm/migrate.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index d6c3bf4..98b6a79 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1342,6 +1342,13 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		goto out_unlock;
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 3a87511..e429206 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1774,7 +1774,8 @@ fail_putback:
+ 		putback_lru_page(page);
+ 		mod_zone_page_state(page_zone(page),
+ 			 NR_ISOLATED_ANON + page_lru, -HPAGE_PMD_NR);
+-		goto out_fail;
++
++		goto out_unlock;
  	}
  
-+	/* Bail if we fail to protect against THP splits for any reason */
-+	if (unlikely(!anon_vma)) {
-+		put_page(page);
-+		page_nid = -1;
-+		goto clear_pmdnuma;
-+	}
-+
  	/*
- 	 * Migrate the THP to the requested node, returns with page unlocked
- 	 * and pmd_numa cleared.
+@@ -1848,6 +1849,7 @@ out_dropref:
+ 	}
+ 	spin_unlock(&mm->page_table_lock);
+ 
++out_unlock:
+ 	unlock_page(page);
+ 	put_page(page);
+ 	return 0;
 -- 
 1.8.4
 
