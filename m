@@ -1,142 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
-	by kanga.kvack.org (Postfix) with ESMTP id CD8CC6B0031
-	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 07:25:10 -0500 (EST)
-Received: by mail-we0-f170.google.com with SMTP id w61so13579298wes.15
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 04:25:10 -0800 (PST)
-Received: from mail-wg0-x231.google.com (mail-wg0-x231.google.com [2a00:1450:400c:c00::231])
-        by mx.google.com with ESMTPS id gh10si783451wic.64.2013.12.03.04.25.09
+Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 55DD66B0031
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 07:29:23 -0500 (EST)
+Received: by mail-la0-f52.google.com with SMTP id y1so7052703lam.39
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 04:29:22 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id dw4si13630234lbc.80.2013.12.03.04.29.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 03 Dec 2013 04:25:09 -0800 (PST)
-Received: by mail-wg0-f49.google.com with SMTP id x12so13159220wgg.28
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 04:25:09 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 03 Dec 2013 04:29:21 -0800 (PST)
+Message-ID: <529DCE9A.8000802@parallels.com>
+Date: Tue, 3 Dec 2013 16:29:14 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <529DC632.9010107@iki.fi>
-References: <alpine.SOC.1.00.1311300125490.6363@math.ut.ee>
-	<529DC632.9010107@iki.fi>
-Date: Tue, 3 Dec 2013 21:25:09 +0900
-Message-ID: <CAAmzW4N=2--OuOFVEME3FJa7uFCkVEYJp=9DbSBVOPjiXnLxcg@mail.gmail.com>
-Subject: Re: Slab BUG with DEBUG_* options
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v12 10/18] memcg,list_lru: add per-memcg LRU list infrastructure
+References: <cover.1385974612.git.vdavydov@parallels.com> <73d7942f31ac80dfa53bbdd0f957ce5e9a301958.1385974612.git.vdavydov@parallels.com> <20131203111808.GE8803@dastard>
+In-Reply-To: <20131203111808.GE8803@dastard>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@iki.fi>
-Cc: Meelis Roos <mroos@linux.ee>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Linux Kernel list <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, Al Viro <viro@zeniv.linux.org.uk>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-2013/12/3 Pekka Enberg <penberg@iki.fi>:
-> On 11/30/2013 01:42 PM, Meelis Roos wrote:
+On 12/03/2013 03:18 PM, Dave Chinner wrote:
+> On Mon, Dec 02, 2013 at 03:19:45PM +0400, Vladimir Davydov wrote:
+>> FS-shrinkers, which shrink dcaches and icaches, keep dentries and inodes
+>> in list_lru structures in order to evict least recently used objects.
+>> With per-memcg kmem shrinking infrastructure introduced, we have to make
+>> those LRU lists per-memcg in order to allow shrinking FS caches that
+>> belong to different memory cgroups independently.
 >>
->> I am debugging a reboot problem on Sun Ultra 5 (sparc64) with 512M RAM
->> and turned on DEBUG_PAGEALLOC DEBUG_SLAB and DEBUG_SLAB_LEAK (and most
->> other debug options) and got the following BUG and hang on startup. This
->> happened originally with 3.11-rc2-00058 where my bisection of
->> another problem lead, but I retested 3.12 to have the same BUG in the
->> same place.
->>
->> kernel BUG at mm/slab.c:2391!
->>                \|/ ____ \|/
->>                "@'/ .. \`@"
->>                /_| \__/ |_\
->>                   \__U_/
->> swapper(0): Kernel bad sw trap 5 [#1]
->> CPU: 0 PID: 0 Comm: swapper Not tainted 3.11.0-rc2-00058-g20bafb3-dirty
->> #127
->> task: 00000000008ac468 ti: 000000000089c000 task.ti: 000000000089c000
->> TSTATE: 0000004480e01606 TPC: 00000000004f57d4 TNPC: 00000000004f57d8 Y:
->> 00000000    Not tainted
->> TPC: <__kmem_cache_create+0x374/0x480>
->> g0: 00000000000000f8 g1: 00000000008bb400 g2: 000000000002780b g3:
->> 00000000008b5120
->> g4: 00000000008ac468 g5: 0000000000000000 g6: 000000000089c000 g7:
->> 0000000000000000
->> o0: 0000000000845f08 o1: 0000000000000957 o2: ffffffffffffffe0 o3:
->> 0000000000000000
->> o4: 0000000000002004 o5: 0000000000000000 sp: 000000000089f301 ret_pc:
->> 00000000004f57cc
->> RPC: <__kmem_cache_create+0x36c/0x480>
->> l0: fffff8001e812040 l1: fffff8001e819f80 l2: fffff8001e819fb8 l3:
->> fffff8001e819fd8
->> l4: 0000000000000001 l5: fffff8001e819fc8 l6: 0000000000845f08 l7:
->> fffff8001e8300a0
->> i0: fffff8001e831fa0 i1: 0000000080002800 i2: 0000000080000000 i3:
->> 0000000000000034
->> i4: 0000000000000000 i5: 0000000000002000 i6: 000000000089f3b1 i7:
->> 0000000000907464
->> I7: <create_boot_cache+0x4c/0x84>
->> Call Trace:
->>   [0000000000907464] create_boot_cache+0x4c/0x84
->>   [00000000009074d0] create_kmalloc_cache+0x34/0x60
->>   [0000000000907540] create_kmalloc_caches+0x44/0x168
->>   [0000000000908dfc] kmem_cache_init+0x1d0/0x1e0
->>   [00000000008fc658] start_kernel+0x18c/0x370
->>   [0000000000761df4] tlb_fixup_done+0x88/0x94
->>   [0000000000000000]           (null)
->> Disabling lock debugging due to kernel taint
->> Caller[0000000000907464]: create_boot_cache+0x4c/0x84
->> Caller[00000000009074d0]: create_kmalloc_cache+0x34/0x60
->> Caller[0000000000907540]: create_kmalloc_caches+0x44/0x168
->> Caller[0000000000908dfc]: kmem_cache_init+0x1d0/0x1e0
->> Caller[00000000008fc658]: start_kernel+0x18c/0x370
->> Caller[0000000000761df4]: tlb_fixup_done+0x88/0x94
->> Caller[0000000000000000]:           (null)
->> Instruction DUMP: 92102957  7ffccb35  90122308 <91d02005> 90100018
->> 4009b371  920f20d0  ba922000  02480006
->> Kernel panic - not syncing: Attempted to kill the idle task!
->> Press Stop-A (L1-A) to return to the boot prom
->>
->> The line shows that __kmem_cache_create gets a NULL from kmalloc_slab().
->>
->> I instrumented the code and found the following:
->>
->> __kmem_cache_create: starting, size=248, flags=8192
->> __kmem_cache_create: now flags=76800
->> __kmem_cache_create: aligned size to 248 because of redzoning
->> __kmem_cache_create: pagealloc debug, setting size to 8192
->> __kmem_cache_create: aligned size to 8192
->> __kmem_cache_create: num=1, slab_size=64
->> __kmem_cache_create: starting, size=96, flags=8192
->> __kmem_cache_create: now flags=76800
->> __kmem_cache_create: aligned size to 96 because of redzoning
->> __kmem_cache_create: pagealloc debug, setting size to 8192
->> __kmem_cache_create: aligned size to 8192
->> __kmem_cache_create: num=1, slab_size=64
->> __kmem_cache_create: starting, size=192, flags=8192
->> __kmem_cache_create: now flags=76800
->> __kmem_cache_create: aligned size to 192 because of redzoning
->> __kmem_cache_create: pagealloc debug, setting size to 8192
->> __kmem_cache_create: aligned size to 8192
->> __kmem_cache_create: num=1, slab_size=64
->> __kmem_cache_create: starting, size=32, flags=8192
->> __kmem_cache_create: now flags=76800
->> __kmem_cache_create: aligned size to 32 because of redzoning
->> __kmem_cache_create: aligned size to 32
->> __kmem_cache_create: num=226, slab_size=960
->> __kmem_cache_create: starting, size=64, flags=8192
->> __kmem_cache_create: now flags=76800
->> __kmem_cache_create: aligned size to 64 because of redzoning
->> __kmem_cache_create: pagealloc debug, setting size to 8192
->> __kmem_cache_create: turning on CFLGS_OFF_SLAB, size=8192
->> __kmem_cache_create: aligned size to 8192
->> __kmem_cache_create: num=1, slab_size=64
->> __kmem_cache_create: CFLGS_OFF_SLAB, size=8192, slab_size=52
->> __kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
->>
->> With slab size 64, it turns on CFLGS_OFF_SLAB and off slab allocation
->> with this size fails. I do not know slab internals so I can not tell if
->> this just happens because of the debug paths, or is it a real problem
->> without the debug options too.
->>
+>> This patch addresses the issue by introducing struct memcg_list_lru.
+>> This struct aggregates list_lru objects for each kmem-active memcg, and
+>> keeps it uptodate whenever a memcg is created or destroyed. Its
+>> interface is very simple: it only allows to get the pointer to the
+>> appropriate list_lru object from a memcg or a kmem ptr, which should be
+>> further operated with conventional list_lru methods.
+> Basically The idea was that the memcg LRUs hide entirely behind the
+> generic list_lru interface so that any cache that used the list_lru
+> insfrastructure got memcg capabilities for free. memcg's to shrink
+> were to be passed through the shrinker control shrinkers to the list
+> LRU code, and it then did all the "which lru are we using" logic
+> internally.
 >
-> There was a rather large change to mm/slab.c that changed it to use 'struct
-> page' like SLUB. Perhaps slab debugging was broken in the process. Joonsoo,
-> does the problem Meelis describes ring a bell?
+> What you've done is driven all the "which LRU are we using" logic
+> into every single caller location. i.e. you've just broken the
+> underlying design principle that Glauber and I had worked towards
+> with this code - that memcg aware LRUs should be completely
+> transparent to list_lru users. Just like NUMA awareness came for
+> free with the list_lru code, so should memcg awareness....
+>
+>> +/*
+>> + * The following structure can be used to reclaim kmem objects accounted to
+>> + * different memory cgroups independently. It aggregates a set of list_lru
+>> + * objects, one for each kmem-enabled memcg, and provides the method to get
+>> + * the lru corresponding to a memcg.
+>> + */
+>> +struct memcg_list_lru {
+>> +	struct list_lru global_lru;
+>> +
+>> +#ifdef CONFIG_MEMCG_KMEM
+>> +	struct list_lru **memcg_lrus;	/* rcu-protected array of per-memcg
+>> +					   lrus, indexed by memcg_cache_id() */
+>> +
+>> +	struct list_head list;		/* list of all memcg-aware lrus */
+>> +
+>> +	/*
+>> +	 * The memcg_lrus array is rcu protected, so we can only free it after
+>> +	 * a call to synchronize_rcu(). To avoid multiple calls to
+>> +	 * synchronize_rcu() when many lrus get updated at the same time, which
+>> +	 * is a typical scenario, we will store the pointer to the previous
+>> +	 * version of the array in the old_lrus variable for each lru, and then
+>> +	 * free them all at once after a single call to synchronize_rcu().
+>> +	 */
+>> +	void *old_lrus;
+>> +#endif
+>> +};
+> Really, this should be embedded in the struct list_lru, not wrapping
+> around the outside. I don't see any changelog to tell me why you
+> changed the code from what was last in Glauber's tree, so can you
+> explain why exposing all this memcg stuff to everyone is a good
+> idea?
 
-Hello, Pekka.
+I preferred to move from list_lru to memcg_list_lru, because the
+connection between list_lru and memcgs' turned memcontrol.c and
+list_lru.c into a monolithic structure. When I read comments to the last
+version of this patchset submitted by Glauber (v10), I found that Andrew
+Morton disliked it, that was why I tried to "fix" it the way you observe
+in this patch. Besides, I though that the list_lru may be used w/o memcgs.
 
-No. He report that BUG() is triggered on v3.11-rc2 and v3.12.
-And my recent change is merged into v3.13-rc1 as you know. :)
+I didn't participate in the previous discussion so I don't know all your
+plans on it :-( If you think it's unacceptable, I'll try to find another
+way around.
 
 Thanks.
 
