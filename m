@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id B64D26B0073
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 21:32:59 -0500 (EST)
-Received: by mail-pb0-f46.google.com with SMTP id md12so20291992pbc.19
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 18:32:59 -0800 (PST)
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 57DD66B0075
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 21:33:02 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id z10so19348701pdj.30
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 18:33:01 -0800 (PST)
 Received: from song.cn.fujitsu.com ([222.73.24.84])
-        by mx.google.com with ESMTP id tt8si10662700pbc.198.2013.12.02.18.32.56
+        by mx.google.com with ESMTP id tt8si10662700pbc.198.2013.12.02.18.32.59
         for <linux-mm@kvack.org>;
-        Mon, 02 Dec 2013 18:32:58 -0800 (PST)
-Message-ID: <529D420D.7060503@cn.fujitsu.com>
-Date: Tue, 03 Dec 2013 10:29:33 +0800
+        Mon, 02 Dec 2013 18:33:00 -0800 (PST)
+Message-ID: <529D423F.3030200@cn.fujitsu.com>
+Date: Tue, 03 Dec 2013 10:30:23 +0800
 From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH RESEND part2 v2 7/8] memblock, mem_hotplug: Make memblock
- skip hotpluggable regions if needed
+Subject: [PATCH RESEND part2 v2 8/8] x86, numa, acpi, memory-hotplug: Make
+ movable_node have higher priority
 References: <529D3FC0.6000403@cn.fujitsu.com>
 In-Reply-To: <529D3FC0.6000403@cn.fujitsu.com>
 Content-Transfer-Encoding: 7bit
@@ -25,113 +25,79 @@ Cc: "Rafael J . Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Glei
 
 From: Tang Chen <tangchen@cn.fujitsu.com>
 
-Linux kernel cannot migrate pages used by the kernel. As a result, hotpluggable
-memory used by the kernel won't be able to be hot-removed. To solve this
-problem, the basic idea is to prevent memblock from allocating hotpluggable
-memory for the kernel at early time, and arrange all hotpluggable memory in
-ACPI SRAT(System Resource Affinity Table) as ZONE_MOVABLE when initializing
-zones.
+If users specify the original movablecore=nn@ss boot option, the kernel will
+arrange [ss, ss+nn) as ZONE_MOVABLE. The kernelcore=nn@ss boot option is similar
+except it specifies ZONE_NORMAL ranges.
 
-In the previous patches, we have marked hotpluggable memory regions with
-MEMBLOCK_HOTPLUG flag in memblock.memory.
+Now, if users specify "movable_node" in kernel commandline, the kernel will
+arrange hotpluggable memory in SRAT as ZONE_MOVABLE. And if users do this, all
+the other movablecore=nn@ss and kernelcore=nn@ss options should be ignored.
 
-In this patch, we make memblock skip these hotpluggable memory regions in
-the default top-down allocation function if movable_node boot option is
-specified.
+For those who don't want this, just specify nothing. The kernel will act as
+before.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- include/linux/memblock.h |   18 ++++++++++++++++++
- mm/memblock.c            |   12 ++++++++++++
- mm/memory_hotplug.c      |    1 +
- 3 files changed, 31 insertions(+), 0 deletions(-)
+ mm/page_alloc.c |   28 ++++++++++++++++++++++++++--
+ 1 files changed, 26 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 97480d3..bfc1dba 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -47,6 +47,10 @@ struct memblock {
- 
- extern struct memblock memblock;
- extern int memblock_debug;
-+#ifdef CONFIG_MOVABLE_NODE
-+/* If movable_node boot option specified */
-+extern bool movable_node_enabled;
-+#endif /* CONFIG_MOVABLE_NODE */
- 
- #define memblock_dbg(fmt, ...) \
- 	if (memblock_debug) printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
-@@ -65,6 +69,20 @@ int memblock_reserve(phys_addr_t base, phys_addr_t size);
- void memblock_trim_memory(phys_addr_t align);
- int memblock_mark_hotplug(phys_addr_t base, phys_addr_t size);
- int memblock_clear_hotplug(phys_addr_t base, phys_addr_t size);
-+#ifdef CONFIG_MOVABLE_NODE
-+static inline bool memblock_is_hotpluggable(struct memblock_region *m)
-+{
-+	return m->flags & MEMBLOCK_HOTPLUG;
-+}
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index dd886fa..768ea0e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5021,9 +5021,33 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+ 	nodemask_t saved_node_state = node_states[N_MEMORY];
+ 	unsigned long totalpages = early_calculate_totalpages();
+ 	int usable_nodes = nodes_weight(node_states[N_MEMORY]);
++	struct memblock_type *type = &memblock.memory;
 +
-+static inline bool movable_node_is_enabled(void)
-+{
-+	return movable_node_enabled;
-+}
-+#else
-+static inline bool memblock_is_hotpluggable(struct memblock_region *m){ return false; }
-+static inline bool movable_node_is_enabled(void) { return false; }
-+#endif
- 
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- int memblock_search_pfn_nid(unsigned long pfn, unsigned long *start_pfn,
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 7de9c76..7f69012 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -39,6 +39,9 @@ struct memblock memblock __initdata_memblock = {
- };
- 
- int memblock_debug __initdata_memblock;
-+#ifdef CONFIG_MOVABLE_NODE
-+bool movable_node_enabled __initdata_memblock = false;
-+#endif
- static int memblock_can_resize __initdata_memblock;
- static int memblock_memory_in_slab __initdata_memblock = 0;
- static int memblock_reserved_in_slab __initdata_memblock = 0;
-@@ -819,6 +822,11 @@ void __init_memblock __next_free_mem_range(u64 *idx, int nid,
-  * @out_nid: ptr to int for nid of the range, can be %NULL
-  *
-  * Reverse of __next_free_mem_range().
-+ *
-+ * Linux kernel cannot migrate pages used by itself. Memory hotplug users won't
-+ * be able to hot-remove hotpluggable memory used by the kernel. So this
-+ * function skip hotpluggable regions if needed when allocating memory for the
-+ * kernel.
-  */
- void __init_memblock __next_free_mem_range_rev(u64 *idx, int nid,
- 					   phys_addr_t *out_start,
-@@ -843,6 +851,10 @@ void __init_memblock __next_free_mem_range_rev(u64 *idx, int nid,
- 		if (nid != MAX_NUMNODES && nid != memblock_get_region_node(m))
- 			continue;
- 
-+		/* skip hotpluggable memory regions if needed */
-+		if (movable_node_is_enabled() && memblock_is_hotpluggable(m))
-+			continue;
++	/* Need to find movable_zone earlier when movable_node is specified. */
++	find_usable_zone_for_movable();
 +
- 		/* scan areas before each reservation for intersection */
- 		for ( ; ri >= 0; ri--) {
- 			struct memblock_region *r = &rsv->regions[ri];
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 8c91d0a..729a2d8 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1436,6 +1436,7 @@ static int __init cmdline_parse_movable_node(char *p)
- 	 * the kernel away from hotpluggable memory.
- 	 */
- 	memblock_set_bottom_up(true);
-+	movable_node_enabled = true;
- #else
- 	pr_warn("movable_node option not supported\n");
- #endif
++	/*
++	 * If movable_node is specified, ignore kernelcore and movablecore
++	 * options.
++	 */
++	if (movable_node_is_enabled()) {
++		for (i = 0; i < type->cnt; i++) {
++			if (!memblock_is_hotpluggable(&type->regions[i]))
++				continue;
++
++			nid = type->regions[i].nid;
++
++			usable_startpfn = PFN_DOWN(type->regions[i].base);
++			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
++				min(usable_startpfn, zone_movable_pfn[nid]) :
++				usable_startpfn;
++		}
++
++		goto out2;
++	}
+ 
+ 	/*
+-	 * If movablecore was specified, calculate what size of
++	 * If movablecore=nn[KMG] was specified, calculate what size of
+ 	 * kernelcore that corresponds so that memory usable for
+ 	 * any allocation type is evenly spread. If both kernelcore
+ 	 * and movablecore are specified, then the value of kernelcore
+@@ -5049,7 +5073,6 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+ 		goto out;
+ 
+ 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
+-	find_usable_zone_for_movable();
+ 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
+ 
+ restart:
+@@ -5140,6 +5163,7 @@ restart:
+ 	if (usable_nodes && required_kernelcore > usable_nodes)
+ 		goto restart;
+ 
++out2:
+ 	/* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
+ 	for (nid = 0; nid < MAX_NUMNODES; nid++)
+ 		zone_movable_pfn[nid] =
 -- 
 1.7.1
 
