@@ -1,95 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
-	by kanga.kvack.org (Postfix) with ESMTP id CA2336B003A
-	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 04:23:04 -0500 (EST)
-Received: by mail-la0-f44.google.com with SMTP id ep20so9047825lab.31
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 01:23:04 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id 6si21078963lby.112.2013.12.03.01.23.03
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 03 Dec 2013 01:23:03 -0800 (PST)
-Message-ID: <529DA2F5.1040602@parallels.com>
-Date: Tue, 3 Dec 2013 13:23:01 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
+Received: from mail-qa0-f44.google.com (mail-qa0-f44.google.com [209.85.216.44])
+	by kanga.kvack.org (Postfix) with ESMTP id E12E66B0031
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 04:33:28 -0500 (EST)
+Received: by mail-qa0-f44.google.com with SMTP id i13so5376679qae.17
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 01:33:28 -0800 (PST)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [2001:44b8:8060:ff02:300:1:2:6])
+        by mx.google.com with ESMTP id s9si34572622qas.115.2013.12.03.01.33.26
+        for <linux-mm@kvack.org>;
+        Tue, 03 Dec 2013 01:33:28 -0800 (PST)
+Date: Tue, 3 Dec 2013 20:33:23 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v12 06/18] vmscan: rename shrink_slab() args to make it
+ more generic
+Message-ID: <20131203093323.GC8803@dastard>
+References: <cover.1385974612.git.vdavydov@parallels.com>
+ <6fbe648a707331e0716cc7a4fc6366ca83a97f6a.1385974612.git.vdavydov@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v12 05/18] fs: do not use destroy_super() in alloc_super()
- fail path
-References: <cover.1385974612.git.vdavydov@parallels.com> <af90b79aebe9cd9f6e1d35513f2618f4e9888e9b.1385974612.git.vdavydov@parallels.com> <20131203090041.GB8803@dastard>
-In-Reply-To: <20131203090041.GB8803@dastard>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6fbe648a707331e0716cc7a4fc6366ca83a97f6a.1385974612.git.vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, Al Viro <viro@zeniv.linux.org.uk>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-On 12/03/2013 01:00 PM, Dave Chinner wrote:
-> On Mon, Dec 02, 2013 at 03:19:40PM +0400, Vladimir Davydov wrote:
->> Using destroy_super() in alloc_super() fail path is bad, because:
->>
->> * It will trigger WARN_ON(!list_empty(&s->s_mounts)) since s_mounts is
->>   initialized after several 'goto fail's.
-> So let's fix that.
->
->> * It will call kfree_rcu() to free the super block although kfree() is
->>   obviously enough there.
->> * The list_lru structure was initially implemented without the ability
->>   to destroy an uninitialized object in mind.
->>
->> I'm going to replace the conventional list_lru with per-memcg lru to
->> implement per-memcg slab reclaim. This new structure will fail
->> destruction of objects that haven't been properly initialized so let's
->> inline appropriate snippets from destroy_super() to alloc_super() fail
->> path instead of using the whole function there.
-> You're basically undoing the change made in commit 7eb5e88 ("uninline
-> destroy_super(), consolidate alloc_super()") which was done less
-> than a month ago. :/
->
-> The code as it stands works just fine - the list-lru structures in
-> the superblock are actually initialised (to zeros) - and so calling
-> list_lru_destroy() on it works just fine in that state as the
-> pointers that are freed are NULL. Yes, unexpected, but perfectly
-> valid code.
->
-> I haven't looked at the internals of the list_lru changes you've
-> made yet, but it surprises me that we can't handle this case
-> internally to list_lru_destroy().
+On Mon, Dec 02, 2013 at 03:19:41PM +0400, Vladimir Davydov wrote:
+> Currently in addition to a shrink_control struct shrink_slab() takes two
+> arguments, nr_pages_scanned and lru_pages, which are used for balancing
+> slab reclaim versus page reclaim - roughly speaking, shrink_slab() will
+> try to scan nr_pages_scanned/lru_pages fraction of all slab objects.
 
-Actually, I'm not going to modify the list_lru structure, because I
-think it's good as it is. I'd like to substitute it with a new
-structure, memcg_list_lru, only in those places where this functionality
-(per-memcg scanning) is really needed. This new structure would look
-like this:
+Yes, that is it's primary purpose, and the variables explain that
+clearly. i.e. it passes a quantity of work to be done, and a value
+to relate that to the overall size of the cache that the work was
+one on. i.e. they tell us that shrink_slab is trying to stay in
+balance with the amount of work that page cache reclaim has just
+done.
 
-struct memcg_list_lru {
-    struct list_lru global_lru;
-    struct list_lru **memcg_lrus;
-    struct list_head list;
-    void *old_lrus;
-}
+> However, shrink_slab() is not always called after page cache reclaim.
+> For example, drop_slab() uses shrink_slab() to drop as many slab objects
+> as possible and thus has to pass phony values 1000/1000 to it, which do
+> not make sense for nr_pages_scanned/lru_pages. Moreover, as soon as
 
-Since old_lrus and memcg_lrus can be NULL under normal operation, in
-memcg_list_lru_destroy() I'd have to check either the list or the
-global_lru field, i.e. it would look like:
+Yup, but that's not the primary purpose of the code, and doesn't
+require balancing against page cache reclaim. hence the numbers that
+are passed in are just there to make the shrinkers iterate
+efficiently but without doing too much work in a single scan. i.e.
+reclaim in chunks across all caches, rather than try to completely
+remove a single cache at a time....
 
-if (!list.next)
-    /* has not been initialized */
-    return;
+And the reason that this is done? because caches have reclaim
+relationships that mean some shrinkers can't make progress until
+other shrinkers do their work. Hence to effective free all memory,
+we have to iterate repeatedly across all caches. That's what
+drop_slab() does.
+o
+> kmemcg reclaim is introduced, we will have to make up phony values for
+> nr_pages_scanned and lru_pages again when doing kmem-only reclaim for a
+> memory cgroup, which is possible if the cgroup has its kmem limit less
+> than the total memory limit.
 
-or
+I'm missing something here - why would memcg reclaim require
+passing phony values? How are you going to keep slab caches in
+balance with memory pressure generated by the page cache?
 
-if (!global_lru.node)
-    /* has not been initialized */
-    return;
+And, FWIW:
 
-I find both of these checks ugly :-(
+>  unsigned long shrink_slab(struct shrink_control *shrink,
+> -			  unsigned long nr_pages_scanned,
+> -			  unsigned long lru_pages);
+> +			  unsigned long fraction, unsigned long denominator);
 
-Personally, I think that's calling destroy() w/o init() is OK only for
-simple structures where destroy/init are inline functions or macros,
-otherwise one can forget to "fix" destroy() after it extends a structure.
+I'm not sure what "fraction" means in this case. A fraction is made
+up of a numerator and denominator, but:
 
-Thanks.
+> @@ -243,9 +243,9 @@ shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
+>  	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
+>  
+>  	total_scan = nr;
+> -	delta = (4 * nr_pages_scanned) / shrinker->seeks;
+> +	delta = (4 * fraction) / shrinker->seeks;
+
+ (4 * nr_pages_scanned) is a dividend, while:
+
+>  	delta *= max_pass;
+> -	do_div(delta, lru_pages + 1);
+> +	do_div(delta, denominator + 1);
+
+(lru_pages + 1) is a divisor.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
