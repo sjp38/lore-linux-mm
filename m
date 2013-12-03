@@ -1,288 +1,286 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 44A926B0036
-	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 16:00:13 -0500 (EST)
-Received: by mail-wi0-f173.google.com with SMTP id hn9so2866252wib.12
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 13:00:12 -0800 (PST)
-Received: from mail-ea0-x229.google.com (mail-ea0-x229.google.com [2a00:1450:4013:c01::229])
-        by mx.google.com with ESMTPS id bi9si31623537wjc.121.2013.12.03.13.00.12
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 03 Dec 2013 13:00:12 -0800 (PST)
-Received: by mail-ea0-f169.google.com with SMTP id l9so10413624eaj.0
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 13:00:12 -0800 (PST)
-Date: Tue, 3 Dec 2013 22:00:09 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-Message-ID: <20131203210009.GA3764@dhcp22.suse.cz>
-References: <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com>
- <20131118154115.GA3556@cmpxchg.org>
- <20131118165110.GE32623@dhcp22.suse.cz>
- <20131122165100.GN3556@cmpxchg.org>
- <alpine.DEB.2.02.1311261648570.21003@chino.kir.corp.google.com>
- <20131127163435.GA3556@cmpxchg.org>
- <20131202200221.GC5524@dhcp22.suse.cz>
- <20131202212500.GN22729@cmpxchg.org>
- <20131203120454.GA12758@dhcp22.suse.cz>
- <20131203201713.GR3556@cmpxchg.org>
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id AA1A26B0031
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 16:18:25 -0500 (EST)
+Received: by mail-wg0-f46.google.com with SMTP id m15so14145320wgh.25
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 13:18:24 -0800 (PST)
+Received: from smtp1.it.da.ut.ee (mailhost6-1.ut.ee. [2001:bb8:2002:500::46])
+        by mx.google.com with ESMTP id bb9si31640600wjb.139.2013.12.03.13.18.24
+        for <linux-mm@kvack.org>;
+        Tue, 03 Dec 2013 13:18:24 -0800 (PST)
+Date: Tue, 3 Dec 2013 23:18:23 +0200 (EET)
+From: Meelis Roos <mroos@linux.ee>
+Subject: Re: Slab BUG with DEBUG_* options
+In-Reply-To: <00000142ba22e43b-99d8d7cb-9ecd-4f18-9609-8805270843d4-000000@email.amazonses.com>
+Message-ID: <alpine.SOC.1.00.1312032314040.25191@math.ut.ee>
+References: <alpine.SOC.1.00.1311300125490.6363@math.ut.ee> <alpine.DEB.2.02.1312030930450.4115@gentwo.org> <00000142ba22e43b-99d8d7cb-9ecd-4f18-9609-8805270843d4-000000@email.amazonses.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131203201713.GR3556@cmpxchg.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
 
-On Tue 03-12-13 15:17:13, Johannes Weiner wrote:
-> On Tue, Dec 03, 2013 at 01:04:54PM +0100, Michal Hocko wrote:
-> > On Mon 02-12-13 16:25:00, Johannes Weiner wrote:
-> > > On Mon, Dec 02, 2013 at 09:02:21PM +0100, Michal Hocko wrote:
-> > [...]
-> > > > But we are not talking just about races here. What if the OOM is a
-> > > > result of an OOM action itself. E.g. a killed task faults a memory in
-> > > > while exiting and it hasn't freed its memory yet. Should we notify in
-> > > > such a case? What would an userspace OOM handler do (the in-kernel
-> > > > implementation has an advantage because it can check the tasks flags)?
-> > > 
-> > > We don't notify in such a case.  Every charge from a TIF_MEMDIE or
-> > > exiting task is bypassing the limit immediately.  Not even reclaim.
-> > 
-> > Not really. Assume a memcg is under OOM. A task is killed by
-> > userspace so we get into signal delivery code which clears
-> > fatal_signal_pending and the code goes on to exit but then it faults in.
-> > __mem_cgroup_try_charge will not see signal pending and TIF_MEMDIE is
-> > not set yet. OOM is still not resolved so we are back to square one.
+> I have another patch here (that I cannot test since I cannot run sparc
+> code) that simply changes the determination for switching slab management
+> to base the decision not on the final size of the slab (which is always
+> large in the debugging cases here) but on the initial object size. For
+> small objects < PAGESIZE/8 this should avoid the use of slab management
+> even in the debugging case.
 > 
-> Ah, that's a completely separate problem, though.  One issue I have
-> with these checks is that I never know which one are shortcuts and
-> micro optimizations and which one are functionally necessary.
-
-That is why I asked for the changelog update to mention the fix as well
-(https://lkml.org/lkml/2013/11/18/161 resp.
-https://lkml.org/lkml/2013/11/18/142)
-
-> > > > > So again, I don't see this patch is doing anything but blur the
-> > > > > current line and make notification less predictable. And, as someone
-> > > > > else in this thread already said, it's a uservisible change in
-> > > > > behavior and would break known tuning usecases.
-> > > > 
-> > > > I would like to understand how would such a tuning usecase work and how
-> > > > it would break with this change.
-> > > 
-> > > I would do test runs and with every run increase the size of the
-> > > workload until I get OOM notifications to know when the kernel has
-> > > been pushed beyond its limits and available memory + reclaim
-> > > capability can't keep up with the workload anymore.
-> > > 
-> > > Not informing me just because due to timing variance a random process
-> > > exits in the last moment would be flat out lying.  The machine is OOM.
-> > > Many reclaim cycles failing is a good predictor.  Last minute exit of
-> > > random task is not, it's happenstance and I don't want to rely on a
-> > > fluke like this to size my workload.
-> > 
-> > Such a metric would be inherently racy for the same reason. You simply
-> > cannot rely on not seeing OOMs because an exiting task managed to leave
-> > in time (after MEM_CGROUP_RECLAIM_RETRIES direct reclaim loops and
-> > before mem_cgroup_oom). Difference between in time and little bit too
-> > late is just too fragile to be useful IMO.
+> Subject: slab: Do not use slab management for slabs with smaller objects
 > 
-> Are we saying the same thing?  Or did I misunderstand you?
+> Use the object size to make the off slab decision instead of the final
+> size of the slab objects (which is large in case of
+> CONFIG_PAGEALLOC_DEBUG).
 
-yes we are and my point was that using such a metric doesn't make much
-sense. So arguing with reliability and possible regressions is a bit
-over-reaction. I was backing this patch because it has moved the check
-to a more appropriate place where it actually solves also another issue.
+Tested it. seems to hang after switching to another console. Before 
+that, slabs are initialized successfully, I verified it with my previous 
+debug printk sprinkle patch. Many allocations are still off slab - is 
+that OK?
 
-I was probably not clear enough about that.
-
-> > > > Consider the above example. You would get 2 notification for the very
-> > > > same OOM condition.
-> > > > On the other hand if the encountered exiting task was just a race then
-> > > > we have two options basically. Either there are more tasks racing (and
-> > > > not all of them are exiting) or there is only one (all are exiting).
-> > > > We will not loose any notification in the first case because the flags
-> > > > are checked before mem_cgroup_oom_trylock and so one of tasks would lock
-> > > > and notify.
-> > > > The second case is more interesting. Userspace won't get notification
-> > > > but we also know that no action is required as the OOM will be resolved
-> > > > by itself. And now we should consider whether notification would do more
-> > > > good than harm. The tuning usecase would loose one event. Would such a
-> > > > rare situation skew the statistics so much? On the other hand a real OOM
-> > > > killer would do something which means something will be killed. I find
-> > > > the later much worse.
-> > > 
-> > > We already check in various places (sigh) for whether reclaim and
-> > > killing is still necessary.  What is the end game here?  An endless
-> > > loop right before the kill where we check if the kill is still
-> > > necessary?
-> > 
-> > The patch as is doesn't cover all the cases and ideally we should check
-> > that for OOM_SCAN_ABORT and later in oom_kill_process because they can
-> > back out as well if we want to have only-on-action notification. Such a
-> > solution would be too messy though.
-> 
-> There is never an only-on-action notification and there is no check to
-> cover all cases.  This is the fallacy I'm trying to point out.  All we
-> can do is pick a fairly predictable line and stick to it.
-
-Yes, nothing will be 100% but drawing the line at the place where the
-kernel is going to _do_ something sounds like a quite a clear cut to
-me and a reasonable semantic. That something might be either killing
-something or putting somebody to sleep and wait for the userspace. That
-would be an ideal semantic IMHO. The code doesn't allow us to do so now
-unfortunately (without too much refactoring).
-
-> > But as I've said. The primary reason I liked this change is because it
-> > solves the above mentioned OOM during exit issue and it also prevents
-> > from a pointless notification. I am perfectly fine with moving the
-> > check+set TIF_MEMDIE down so solve only the issue #1 and do not mess
-> > with notifications.
-> 
-> The notification is not pointless, we are OOM at the time we make the
-> decision.
-
-We have clearly different opinions here. I do not consider temporal
-OOM conditions as significant enough. As the OOM itself is really hard
-to define and to be _agreed_ on I think we should be as practical as
-possible and provide the oom notification interface as comfortable
-to users as possible. And then we should balance cons and pros of
-notifying. I am still convinced that notifying less is better in general
-because I see OOM killer use cases.
-
-> > > You're not fixing this problem, so why make the notifications less
-> > > reliable?
-> > 
-> > I am still not seeing why it is less reliable. The notification is
-> > inherently racy so you cannot rely on any simple metrics based on their
-> > count (at least not in general).
-> 
-> It should be based on reclaim failing, which is more predictable and
-> reproducible across multiple runs.  Anything else is just random
-> coincidence, I can't fathom why you think that it's at all meaningful.
-
-If you are interested in reclaim failing then failcnt is a much better
-metric for you. That's all that I am saying.
- 
-> You could do one more reclaim cycle and a charge attempt, or even just
-> add an msleep() between the last reclaim cycle and the last charge
-> attempt for exactly the same outcome.
-> 
-> > > > So all in all. I do agree with you that this path will never be race
-> > > > free and without pointless OOM actions. I also agree that drawing the
-> > > > line is hard. But I am more inclined to prevent from notification when
-> > > > we already know that _no action_ is required because IMHO the vast
-> > > > majority of oom listeners are there to _do_ an action which is mostly
-> > > > deadly.
-> > > 
-> > > If you want to push the machine so hard that active measures like
-> > > reclaim can't keep up and you rely on stupid timing like this to save
-> > > your sorry butt, then you'll just have to live with the
-> > > unpredictability of it.  You're going to eat kills that might have
-> > > been avoided last minute either way.  It's no excuse to plaster the MM
-> > > with TIF_MEMDIE checks and last-minute cgroup margin checks in the
-> > > weirdest locations.
-> > 
-> > Yes I do not agree with putting TIF_MEMDIE checks all over the place and
-> > we should reduce their number to minimum. It is fair to say that the
-> > patch didn't add a new check. It just has moved it to cover both
-> > in-kernel and user space oom paths. That was a bonus I liked. To be
-> > honest I do not see the notification side effect as a big deal as those
-> > are racy anyway and I would rather see fewer of them than more
-> > (especially when it is clear that nothing is to be done).
-> 
-> I don't know why we have this check there in the first place, it
-> should be part of the OOM victim selection process and not a hacky
-> shortcut in memcg.  It's a blatant layering violation for no obvious
-> reason.
-
-My understanding is that it tries to expedite the process. Scanning
-tasks might be quite expensive. Sure, you would find a task and abort
-scanning as well but that might be after zillions of tasks scanned.
-
-> > > Again, how likely is it anyway that the kill was truly skipped and not
-> > > just deferred?  Reclaim failing is a good indicator that you're in
-> > > trouble, a random task exiting in an ongoing workload does not say
-> > > much.  The machine could still be in trouble, so you just deferred the
-> > > inevitable, you didn't really avoid a kill.
-> > > 
-> > > At this point we are talking about OOM kill frequency and statistical
-> > > probability during apparently normal operations.  The OOM killer was
-> > > never written for that, it was supposed to be a last minute resort
-> > > that should not occur during normal operations and only if all SANE
-> > > measures to avoid it have failed.  99% of all users have no interest
-> > > in these micro-optimizations and we shouldn't clutter the code and
-> > > have unpredictable behavior without even a trace of data to show that
-> > > this is anything more than a placebo measure for one use case.
-> > 
-> > OK, as it seems that the notification part is too controversial, how
-> > would you like the following? It reverts the notification part and still
-> > solves the fault on exit path. I will prepare the full patch with the
-> > changelog if this looks reasonable:
-> > ---
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 28c9221b74ea..f44fe7e65a98 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -1783,6 +1783,16 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
-> >  	unsigned int points = 0;
-> >  	struct task_struct *chosen = NULL;
-> >  
-> > +	/*
-> > +	 * If current has a pending SIGKILL or is exiting, then automatically
-> > +	 * select it.  The goal is to allow it to allocate so that it may
-> > +	 * quickly exit and free its memory.
-> > +	 */
-> > +	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
-> > +		set_thread_flag(TIF_MEMDIE);
-> > +		goto cleanup;
-> 
-> 		return;
-> 
-> Anyway, I wish this would not be here at all and part of the thread
-> scanner.  As David said, this is a very cold path, why the shortcut?
-
-Right. I would rather go and drop the original patch as we couldn't find
-an agreement so the partial revert wouldn't be needed. This was just an
-illustration.
-
-> > @@ -2233,16 +2243,6 @@ bool mem_cgroup_oom_synchronize(bool handle)
-> >  	if (!handle)
-> >  		goto cleanup;
-> >  
-> > -	/*
-> > -	 * If current has a pending SIGKILL or is exiting, then automatically
-> > -	 * select it.  The goal is to allow it to allocate so that it may
-> > -	 * quickly exit and free its memory.
-> > -	 */
-> > -	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
-> > -		set_thread_flag(TIF_MEMDIE);
-> > -		goto cleanup;
-> > -	}
-> > -
-> >  	owait.memcg = memcg;
-> >  	owait.wait.flags = 0;
-> >  	owait.wait.func = memcg_oom_wake_function;
-> > @@ -2266,6 +2266,13 @@ bool mem_cgroup_oom_synchronize(bool handle)
-> >  		schedule();
-> >  		mem_cgroup_unmark_under_oom(memcg);
-> >  		finish_wait(&memcg_oom_waitq, &owait.wait);
-> > +
-> > +		/* Userspace OOM handler cannot set TIF_MEMDIE to a target */
-> > +		if (memcg->oom_kill_disable) {
-> > +			if ((fatal_signal_pending(current) ||
-> > +						current->flags & PF_EXITING))
-> > +				set_thread_flag(TIF_MEMDIE);
-> > +		}
-> 
-> This is an entirely different change that I think makes sense.
-
-OK, I will post the full patch after we settle with this one finally.
+Memory: 493968K/523456K available (3521K kernel code, 343K rwdata, 1176K rodata, 264K init, 9803K bss, 29488K reserved)
+__kmem_cache_create: starting, size=248, flags=8192
+__kmem_cache_create: now flags=76800
+__kmem_cache_create: aligned size to 248 because of redzoning
+__kmem_cache_create: pagealloc debug, setting size to 8192
+__kmem_cache_create: aligned size to 8192
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: starting, size=96, flags=8192
+__kmem_cache_create: now flags=76800
+__kmem_cache_create: aligned size to 96 because of redzoning
+__kmem_cache_create: pagealloc debug, setting size to 8192
+__kmem_cache_create: aligned size to 8192
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: starting, size=192, flags=8192
+__kmem_cache_create: now flags=76800
+__kmem_cache_create: aligned size to 192 because of redzoning
+__kmem_cache_create: pagealloc debug, setting size to 8192
+__kmem_cache_create: aligned size to 8192
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: starting, size=32, flags=8192
+__kmem_cache_create: now flags=76800
+__kmem_cache_create: aligned size to 32 because of redzoning
+__kmem_cache_create: aligned size to 32
+__kmem_cache_create: num=226, slab_size=960
+__kmem_cache_create: starting, size=64, flags=8192
+__kmem_cache_create: now flags=76800
+__kmem_cache_create: aligned size to 64 because of redzoning
+__kmem_cache_create: pagealloc debug, setting size to 8192
+__kmem_cache_create: aligned size to 8192
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: starting, size=128, flags=8192
+__kmem_cache_create: now flags=76800
+__kmem_cache_create: aligned size to 128 because of redzoning
+__kmem_cache_create: pagealloc debug, setting size to 8192
+__kmem_cache_create: aligned size to 8192
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: starting, size=256, flags=8192
+__kmem_cache_create: now flags=76800
+__kmem_cache_create: aligned size to 256 because of redzoning
+__kmem_cache_create: pagealloc debug, setting size to 8192
+__kmem_cache_create: aligned size to 8192
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: starting, size=512, flags=8192
+__kmem_cache_create: now flags=76800
+__kmem_cache_create: aligned size to 512 because of redzoning
+__kmem_cache_create: pagealloc debug, setting size to 8192
+__kmem_cache_create: aligned size to 8192
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: starting, size=1024, flags=8192
+__kmem_cache_create: now flags=76800
+__kmem_cache_create: aligned size to 1024 because of redzoning
+__kmem_cache_create: pagealloc debug, setting size to 8192
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=8192
+__kmem_cache_create: aligned size to 8192
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: CFLGS_OFF_SLAB, size=8192, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=2048, flags=8192
+__kmem_cache_create: now flags=76800
+__kmem_cache_create: aligned size to 2048 because of redzoning
+__kmem_cache_create: pagealloc debug, setting size to 8192
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=8192
+__kmem_cache_create: aligned size to 8192
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: CFLGS_OFF_SLAB, size=8192, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=4096, flags=8192
+__kmem_cache_create: now flags=10240
+__kmem_cache_create: pagealloc debug, setting size to 8192
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=8192
+__kmem_cache_create: aligned size to 8192
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: CFLGS_OFF_SLAB, size=8192, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=8192, flags=8192
+__kmem_cache_create: now flags=10240
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=8192
+__kmem_cache_create: aligned size to 8192
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: CFLGS_OFF_SLAB, size=8192, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=16384, flags=8192
+__kmem_cache_create: now flags=10240
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=16384
+__kmem_cache_create: aligned size to 16384
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: CFLGS_OFF_SLAB, size=16384, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=32768, flags=8192
+__kmem_cache_create: now flags=10240
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=32768
+__kmem_cache_create: aligned size to 32768
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: CFLGS_OFF_SLAB, size=32768, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=65536, flags=8192
+__kmem_cache_create: now flags=10240
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=65536
+__kmem_cache_create: aligned size to 65536
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: CFLGS_OFF_SLAB, size=65536, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=131072, flags=8192
+__kmem_cache_create: now flags=10240
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=131072
+__kmem_cache_create: aligned size to 131072
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: CFLGS_OFF_SLAB, size=131072, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=262144, flags=8192
+__kmem_cache_create: now flags=10240
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=262144
+__kmem_cache_create: aligned size to 262144
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: CFLGS_OFF_SLAB, size=262144, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=524288, flags=8192
+__kmem_cache_create: now flags=10240
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=524288
+__kmem_cache_create: aligned size to 524288
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: CFLGS_OFF_SLAB, size=524288, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=1048576, flags=8192
+__kmem_cache_create: now flags=10240
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=1048576
+__kmem_cache_create: aligned size to 1048576
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: CFLGS_OFF_SLAB, size=1048576, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=2097152, flags=8192
+__kmem_cache_create: now flags=10240
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=2097152
+__kmem_cache_create: aligned size to 2097152
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: CFLGS_OFF_SLAB, size=2097152, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=4194304, flags=8192
+__kmem_cache_create: now flags=10240
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=4194304
+__kmem_cache_create: aligned size to 4194304
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: CFLGS_OFF_SLAB, size=4194304, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=8388608, flags=8192
+__kmem_cache_create: now flags=10240
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=8388608
+__kmem_cache_create: aligned size to 8388608
+__kmem_cache_create: num=1, slab_size=64
+__kmem_cache_create: CFLGS_OFF_SLAB, size=8388608, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=8192, flags=0
+__kmem_cache_create: now flags=2048
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=8192
+__kmem_cache_create: aligned size to 8192
+__kmem_cache_create: num=1, slab_size=8192
+__kmem_cache_create: CFLGS_OFF_SLAB, size=8192, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=8192, flags=0
+__kmem_cache_create: now flags=2048
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=8192
+__kmem_cache_create: aligned size to 8192
+__kmem_cache_create: num=1, slab_size=8192
+__kmem_cache_create: CFLGS_OFF_SLAB, size=8192, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=16384, flags=0
+__kmem_cache_create: now flags=2048
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=16384
+__kmem_cache_create: aligned size to 16384
+__kmem_cache_create: num=1, slab_size=16384
+__kmem_cache_create: CFLGS_OFF_SLAB, size=16384, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=32768, flags=0
+__kmem_cache_create: now flags=2048
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=32768
+__kmem_cache_create: aligned size to 32768
+__kmem_cache_create: num=1, slab_size=32768
+__kmem_cache_create: CFLGS_OFF_SLAB, size=32768, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=65536, flags=0
+__kmem_cache_create: now flags=2048
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=65536
+__kmem_cache_create: aligned size to 65536
+__kmem_cache_create: num=1, slab_size=65536
+__kmem_cache_create: CFLGS_OFF_SLAB, size=65536, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=131072, flags=0
+__kmem_cache_create: now flags=2048
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=131072
+__kmem_cache_create: aligned size to 131072
+__kmem_cache_create: num=1, slab_size=131072
+__kmem_cache_create: CFLGS_OFF_SLAB, size=131072, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=262144, flags=0
+__kmem_cache_create: now flags=2048
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=262144
+__kmem_cache_create: aligned size to 262144
+__kmem_cache_create: num=1, slab_size=262144
+__kmem_cache_create: CFLGS_OFF_SLAB, size=262144, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=524288, flags=0
+__kmem_cache_create: now flags=2048
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=524288
+__kmem_cache_create: aligned size to 524288
+__kmem_cache_create: num=1, slab_size=524288
+__kmem_cache_create: CFLGS_OFF_SLAB, size=524288, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=1048576, flags=0
+__kmem_cache_create: now flags=2048
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=1048576
+__kmem_cache_create: aligned size to 1048576
+__kmem_cache_create: num=1, slab_size=1048576
+__kmem_cache_create: CFLGS_OFF_SLAB, size=1048576, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=2112, flags=262144
+__kmem_cache_create: now flags=330752
+__kmem_cache_create: aligned size to 2112 because of redzoning
+__kmem_cache_create: aligned size to 2128 because of redzoning, take 2
+__kmem_cache_create: increased size to 2136 because user store and redzoning
+__kmem_cache_create: pagealloc debug, setting size to 8192
+__kmem_cache_create: turning on CFLGS_OFF_SLAB, size=8192
+__kmem_cache_create: aligned size to 8192
+__kmem_cache_create: num=1, slab_size=56
+__kmem_cache_create: CFLGS_OFF_SLAB, size=8192, slab_size=52
+__kmem_cache_create: CFLGS_OFF_SLAB, allocating slab 52
+__kmem_cache_create: starting, size=560, flags=393216
+__kmem_cache_create: now flags=461824
+__kmem_cache_create: aligned size to 560 because of redzoning
+__kmem_cache_create: aligned size to 576 because of redzoning, take 2
+__kmem_cache_create: increased size to 584 because user store and redzoning
+__kmem_cache_create: pagealloc debug, setting size to 8192
+__kmem_cache_create: aligned size to 8192
+__kmem_cache_create: num=1, slab_size=56
+NR_IRQS:255
+kmemleak: Kernel memory leak detector disabled
+clocksource: mult[2c71c72] shift[24]
+clockevent: mult[5c28f5c3] shift[32]
+Console: colour dummy device 80x25
+console [tty0] enabled, bootconsole disabled
 
 -- 
-Michal Hocko
-SUSE Labs
+Meelis Roos (mroos@linux.ee)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
