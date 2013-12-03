@@ -1,218 +1,244 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 8182B6B0031
-	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 07:05:00 -0500 (EST)
-Received: by mail-ee0-f42.google.com with SMTP id e53so419931eek.15
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 04:05:00 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id h45si2733198eeo.235.2013.12.03.04.04.56
-        for <linux-mm@kvack.org>;
-        Tue, 03 Dec 2013 04:04:56 -0800 (PST)
-Date: Tue, 3 Dec 2013 13:04:54 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-Message-ID: <20131203120454.GA12758@dhcp22.suse.cz>
-References: <20131114032508.GL707@cmpxchg.org>
- <alpine.DEB.2.02.1311141447160.21413@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com>
- <20131118154115.GA3556@cmpxchg.org>
- <20131118165110.GE32623@dhcp22.suse.cz>
- <20131122165100.GN3556@cmpxchg.org>
- <alpine.DEB.2.02.1311261648570.21003@chino.kir.corp.google.com>
- <20131127163435.GA3556@cmpxchg.org>
- <20131202200221.GC5524@dhcp22.suse.cz>
- <20131202212500.GN22729@cmpxchg.org>
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 4ECB56B0031
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 07:16:28 -0500 (EST)
+Received: by mail-la0-f47.google.com with SMTP id ep20so8852869lab.6
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 04:16:27 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id du3si18751189lbc.121.2013.12.03.04.16.26
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 03 Dec 2013 04:16:26 -0800 (PST)
+Message-ID: <529DCB7D.10205@parallels.com>
+Date: Tue, 3 Dec 2013 16:15:57 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131202212500.GN22729@cmpxchg.org>
+Subject: Re: [PATCH v12 09/18] vmscan: shrink slab on memcg pressure
+References: <cover.1385974612.git.vdavydov@parallels.com> <be01fd9afeedb7d5c7979347f4d6ddaf67c9082d.1385974612.git.vdavydov@parallels.com> <20131203104849.GD8803@dastard>
+In-Reply-To: <20131203104849.GD8803@dastard>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Mon 02-12-13 16:25:00, Johannes Weiner wrote:
-> On Mon, Dec 02, 2013 at 09:02:21PM +0100, Michal Hocko wrote:
-[...]
-> > But we are not talking just about races here. What if the OOM is a
-> > result of an OOM action itself. E.g. a killed task faults a memory in
-> > while exiting and it hasn't freed its memory yet. Should we notify in
-> > such a case? What would an userspace OOM handler do (the in-kernel
-> > implementation has an advantage because it can check the tasks flags)?
-> 
-> We don't notify in such a case.  Every charge from a TIF_MEMDIE or
-> exiting task is bypassing the limit immediately.  Not even reclaim.
+On 12/03/2013 02:48 PM, Dave Chinner wrote:
+>> @@ -236,11 +236,17 @@ shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
+>>  		return 0;
+>>  
+>>  	/*
+>> -	 * copy the current shrinker scan count into a local variable
+>> -	 * and zero it so that other concurrent shrinker invocations
+>> -	 * don't also do this scanning work.
+>> +	 * Do not touch global counter of deferred objects on memcg pressure to
+>> +	 * avoid isolation issues. Ideally the counter should be per-memcg.
+>>  	 */
+>> -	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
+>> +	if (!shrinkctl->target_mem_cgroup) {
+>> +		/*
+>> +		 * copy the current shrinker scan count into a local variable
+>> +		 * and zero it so that other concurrent shrinker invocations
+>> +		 * don't also do this scanning work.
+>> +		 */
+>> +		nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
+>> +	}
+> That's ugly. Effectively it means that memcg reclaim is going to be
+> completely ineffective when large numbers of allocations and hence
+> reclaim attempts are done under GFP_NOFS context.
+>
+> The only thing that keeps filesystem caches in balance when there is
+> lots of filesystem work going on (i.e. lots of GFP_NOFS allocations)
+> is the deferal of reclaim work to a context that can do something
+> about it.
 
-Not really. Assume a memcg is under OOM. A task is killed by
-userspace so we get into signal delivery code which clears
-fatal_signal_pending and the code goes on to exit but then it faults in.
-__mem_cgroup_try_charge will not see signal pending and TIF_MEMDIE is
-not set yet. OOM is still not resolved so we are back to square one.
- 
-> > > So again, I don't see this patch is doing anything but blur the
-> > > current line and make notification less predictable. And, as someone
-> > > else in this thread already said, it's a uservisible change in
-> > > behavior and would break known tuning usecases.
-> > 
-> > I would like to understand how would such a tuning usecase work and how
-> > it would break with this change.
-> 
-> I would do test runs and with every run increase the size of the
-> workload until I get OOM notifications to know when the kernel has
-> been pushed beyond its limits and available memory + reclaim
-> capability can't keep up with the workload anymore.
-> 
-> Not informing me just because due to timing variance a random process
-> exits in the last moment would be flat out lying.  The machine is OOM.
-> Many reclaim cycles failing is a good predictor.  Last minute exit of
-> random task is not, it's happenstance and I don't want to rely on a
-> fluke like this to size my workload.
+Imagine the situation: a memcg issues a GFP_NOFS allocation and goes to
+shrink_slab() where it defers them to the global counter; then another
+memcg issues a GFP_KERNEL allocation, also goes to shrink_slab() where
+it sees a huge number of deferred objects and starts shrinking them,
+which is not good IMHO. I understand that nr_deferred is necessary, but
+I think it should be per-memcg. What do you think about moving it to
+list_lru?
 
-Such a metric would be inherently racy for the same reason. You simply
-cannot rely on not seeing OOMs because an exiting task managed to leave
-in time (after MEM_CGROUP_RECLAIM_RETRIES direct reclaim loops and
-before mem_cgroup_oom). Difference between in time and little bit too
-late is just too fragile to be useful IMO.
+>>  	total_scan = nr;
+>>  	delta = (4 * fraction) / shrinker->seeks;
+>> @@ -296,21 +302,46 @@ shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
+>>  		cond_resched();
+>>  	}
+>>  
+>> -	/*
+>> -	 * move the unused scan count back into the shrinker in a
+>> -	 * manner that handles concurrent updates. If we exhausted the
+>> -	 * scan, there is no need to do an update.
+>> -	 */
+>> -	if (total_scan > 0)
+>> -		new_nr = atomic_long_add_return(total_scan,
+>> +	if (!shrinkctl->target_mem_cgroup) {
+>> +		/*
+>> +		 * move the unused scan count back into the shrinker in a
+>> +		 * manner that handles concurrent updates. If we exhausted the
+>> +		 * scan, there is no need to do an update.
+>> +		 */
+>> +		if (total_scan > 0)
+>> +			new_nr = atomic_long_add_return(total_scan,
+>>  						&shrinker->nr_deferred[nid]);
+>> -	else
+>> -		new_nr = atomic_long_read(&shrinker->nr_deferred[nid]);
+>> +		else
+>> +			new_nr = atomic_long_read(&shrinker->nr_deferred[nid]);
+>> +	}
+> So, if the memcg can't make progress, why wouldn't you defer the
+> work to the global scan? Or can't a global scan trim memcg LRUs?
+> And if it can't, then isn't that a major design flaw? Why not just
+> allow kswapd to walk memcg LRUs in the background?
+>
+> /me just looked at patch 13
+>
+> Yeah, this goes some way to explaining why something like patch 13
+> is necessary - slab shrinkers are not keeping up with page cache
+> reclaim because of GFP_NOFS allocations, and so the page cache
+> empties only leaving slab caches to be trimmed....
+>
+>
+>> +static unsigned long
+>> +shrink_slab_memcg(struct shrink_control *shrinkctl, struct shrinker *shrinker,
+>> +		  unsigned long fraction, unsigned long denominator)
+> what's this function got to do with memcgs? Why did you rename it
+> from the self explanitory shrink_slab_one() name that Glauber gave
+> it?
 
-> > Consider the above example. You would get 2 notification for the very
-> > same OOM condition.
-> > On the other hand if the encountered exiting task was just a race then
-> > we have two options basically. Either there are more tasks racing (and
-> > not all of them are exiting) or there is only one (all are exiting).
-> > We will not loose any notification in the first case because the flags
-> > are checked before mem_cgroup_oom_trylock and so one of tasks would lock
-> > and notify.
-> > The second case is more interesting. Userspace won't get notification
-> > but we also know that no action is required as the OOM will be resolved
-> > by itself. And now we should consider whether notification would do more
-> > good than harm. The tuning usecase would loose one event. Would such a
-> > rare situation skew the statistics so much? On the other hand a real OOM
-> > killer would do something which means something will be killed. I find
-> > the later much worse.
-> 
-> We already check in various places (sigh) for whether reclaim and
-> killing is still necessary.  What is the end game here?  An endless
-> loop right before the kill where we check if the kill is still
-> necessary?
+When I sent the previous version, Johannes Weiner disliked the name that
+was why I renamed it, now you don't like the new name and ask for the
+old one :-) But why do you think that shrink_slab_one() is
+self-explanatory while shrink_slab_memcg() is not? I mean
+shrink_slab_memcg() means "shrink slab accounted to a memcg" just like
+shrink_slab_node() means "shrink slab on the node" while seeing
+shrink_slab_one() I would ask "one what?".
 
-The patch as is doesn't cover all the cases and ideally we should check
-that for OOM_SCAN_ABORT and later in oom_kill_process because they can
-back out as well if we want to have only-on-action notification. Such a
-solution would be too messy though.
+>> +{
+>> +	unsigned long freed = 0;
+>> +
+>> +	if (shrinkctl->memcg && !memcg_kmem_is_active(shrinkctl->memcg))
+>> +		return 0;
+> Why here? why not check that in the caller where memcg's are being
+> iterated?
 
-But as I've said. The primary reason I liked this change is because it
-solves the above mentioned OOM during exit issue and it also prevents
-from a pointless notification. I am perfectly fine with moving the
-check+set TIF_MEMDIE down so solve only the issue #1 and do not mess
-with notifications.
+No problem, I'll move it.
 
-> You're not fixing this problem, so why make the notifications less
-> reliable?
+>> +
+>> +	for_each_node_mask(shrinkctl->nid, shrinkctl->nodes_to_scan) {
+>> +		if (!node_online(shrinkctl->nid))
+>> +			continue;
+>> +
+>> +		if (!(shrinker->flags & SHRINKER_NUMA_AWARE) &&
+>> +		    (shrinkctl->nid != 0))
+>> +			break;
+> Hmmm - this looks broken. Nothing guarantees that node 0 in
+> shrinkctl->nodes_to_scan is ever set, so non-numa aware shrinkers
+> will do nothing when the first node in the mask is not set. For non-numa
+> aware shrinkers, the shrinker should always be called once with a
+> node id of 0.
 
-I am still not seeing why it is less reliable. The notification is
-inherently racy so you cannot rely on any simple metrics based on their
-count (at least not in general).
+That's how it operates now - this patch simply moved this piece from
+shrink_slab(). I'll fix this.
 
-> > So all in all. I do agree with you that this path will never be race
-> > free and without pointless OOM actions. I also agree that drawing the
-> > line is hard. But I am more inclined to prevent from notification when
-> > we already know that _no action_ is required because IMHO the vast
-> > majority of oom listeners are there to _do_ an action which is mostly
-> > deadly.
-> 
-> If you want to push the machine so hard that active measures like
-> reclaim can't keep up and you rely on stupid timing like this to save
-> your sorry butt, then you'll just have to live with the
-> unpredictability of it.  You're going to eat kills that might have
-> been avoided last minute either way.  It's no excuse to plaster the MM
-> with TIF_MEMDIE checks and last-minute cgroup margin checks in the
-> weirdest locations.
+> That's what earlier versions of the numa aware shrinker patch set
+> did, and it seems to have been lost along the way.  Yeah, there's
+> the last version from Glauber's tree that I saw:
+>
+> static unsigned long
+> shrink_slab_one(struct shrink_control *shrinkctl, struct shrinker *shrinker,
+>                unsigned long nr_pages_scanned, unsigned long lru_pages)
+> {
+>        unsigned long freed = 0;
+>
+>        if (!(shrinker->flags & SHRINKER_NUMA_AWARE)) {
+>                shrinkctl->nid = 0;
+>
+>                return shrink_slab_node(shrinkctl, shrinker,
+>                         nr_pages_scanned, lru_pages,
+>                         &shrinker->nr_deferred);
+>        }
+>
+>        for_each_node_mask(shrinkctl->nid, shrinkctl->nodes_to_scan)
+>
+>                if (!node_online(shrinkctl->nid))
+>                        continue;
+>
+>                freed += shrink_slab_node(shrinkctl, shrinker,
+>                         nr_pages_scanned, lru_pages,
+> 			 &shrinker->nr_deferred_node[shrinkctl->nid]);
+>        }
+>
+>        return freed;
+> }
+>
+> So, that's likely to be another reason that all the non-numa slab
+> caches are not being shrunk appropriately and need to be hit with a
+> bit hammer...
+>
+>> @@ -352,18 +383,23 @@ unsigned long shrink_slab(struct shrink_control *shrinkctl,
+>>  	}
+>>  
+>>  	list_for_each_entry(shrinker, &shrinker_list, list) {
+>> -		for_each_node_mask(shrinkctl->nid, shrinkctl->nodes_to_scan) {
+>> -			if (!node_online(shrinkctl->nid))
+>> -				continue;
+>> -
+>> -			if (!(shrinker->flags & SHRINKER_NUMA_AWARE) &&
+>> -			    (shrinkctl->nid != 0))
+>> +		shrinkctl->memcg = shrinkctl->target_mem_cgroup;
+>> +		do {
+>> +			if (!(shrinker->flags & SHRINKER_MEMCG_AWARE) &&
+>> +			    (shrinkctl->memcg != NULL)) {
+>> +				mem_cgroup_iter_break(
+>> +						shrinkctl->target_mem_cgroup,
+>> +						shrinkctl->memcg);
+>>  				break;
+>> +			}
+>>  
+>> -			freed += shrink_slab_node(shrinkctl, shrinker,
+>> -						  fraction, denominator);
+>> +			freed += shrink_slab_memcg(shrinkctl, shrinker,
+>> +						   fraction, denominator);
+>> +			shrinkctl->memcg = mem_cgroup_iter(
+>> +						shrinkctl->target_mem_cgroup,
+>> +						shrinkctl->memcg, NULL);
+>> +		} while (shrinkctl->memcg);
+> Glauber's tree also had a bunch of comments explaining what was
+> going on here. I've got no idea what the hell this code is doing,
+> and why the hell we are iterating memcgs here and how and why the
+> normal, non-memcg scan and shrinkers still worked.
 
-Yes I do not agree with putting TIF_MEMDIE checks all over the place and
-we should reduce their number to minimum. It is fair to say that the
-patch didn't add a new check. It just has moved it to cover both
-in-kernel and user space oom paths. That was a bonus I liked. To be
-honest I do not see the notification side effect as a big deal as those
-are racy anyway and I would rather see fewer of them than more
-(especially when it is clear that nothing is to be done).
+I found this code straightforward, just like the shrink_zone(), which
+also lacks comments, but I admit I was wrong and I'll try to improve.
 
-> Again, how likely is it anyway that the kill was truly skipped and not
-> just deferred?  Reclaim failing is a good indicator that you're in
-> trouble, a random task exiting in an ongoing workload does not say
-> much.  The machine could still be in trouble, so you just deferred the
-> inevitable, you didn't really avoid a kill.
-> 
-> At this point we are talking about OOM kill frequency and statistical
-> probability during apparently normal operations.  The OOM killer was
-> never written for that, it was supposed to be a last minute resort
-> that should not occur during normal operations and only if all SANE
-> measures to avoid it have failed.  99% of all users have no interest
-> in these micro-optimizations and we shouldn't clutter the code and
-> have unpredictable behavior without even a trace of data to show that
-> this is anything more than a placebo measure for one use case.
+> This is now just a bunch of memcg gobbledegook with no explanations
+> to tell us what it is supposed to be doing. Comments are important -
+> you might not think they are necessary, but seeing comments like
+> this:
+>
+> +               /*
+> +                * In a hierarchical chain, it might be that not all memcgs are
+> +                * kmem active. kmemcg design mandates that when one memcg is
+> +                * active, its children will be active as well. But it is
+> +                * perfectly possible that its parent is not.
+> +                *
+> +                * We also need to make sure we scan at least once, for the
+> +                * global case. So if we don't have a target memcg (saved in
+> +                * root), we proceed normally and expect to break in the next
+> +                * round.
+> +                */
+>
+> in Glauber's tree helped an awful lot to explain the mess that the
+> memcg stuff was making of the code...
+>
+> I'm liking this patch set less and less as I work my way through
+> it...
 
-OK, as it seems that the notification part is too controversial, how
-would you like the following? It reverts the notification part and still
-solves the fault on exit path. I will prepare the full patch with the
-changelog if this looks reasonable:
----
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 28c9221b74ea..f44fe7e65a98 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1783,6 +1783,16 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	unsigned int points = 0;
- 	struct task_struct *chosen = NULL;
- 
-+	/*
-+	 * If current has a pending SIGKILL or is exiting, then automatically
-+	 * select it.  The goal is to allow it to allocate so that it may
-+	 * quickly exit and free its memory.
-+	 */
-+	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
-+		set_thread_flag(TIF_MEMDIE);
-+		goto cleanup;
-+	}
-+
- 	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, order, NULL);
- 	totalpages = mem_cgroup_get_limit(memcg) >> PAGE_SHIFT ? : 1;
- 	for_each_mem_cgroup_tree(iter, memcg) {
-@@ -2233,16 +2243,6 @@ bool mem_cgroup_oom_synchronize(bool handle)
- 	if (!handle)
- 		goto cleanup;
- 
--	/*
--	 * If current has a pending SIGKILL or is exiting, then automatically
--	 * select it.  The goal is to allow it to allocate so that it may
--	 * quickly exit and free its memory.
--	 */
--	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
--		set_thread_flag(TIF_MEMDIE);
--		goto cleanup;
--	}
--
- 	owait.memcg = memcg;
- 	owait.wait.flags = 0;
- 	owait.wait.func = memcg_oom_wake_function;
-@@ -2266,6 +2266,13 @@ bool mem_cgroup_oom_synchronize(bool handle)
- 		schedule();
- 		mem_cgroup_unmark_under_oom(memcg);
- 		finish_wait(&memcg_oom_waitq, &owait.wait);
-+
-+		/* Userspace OOM handler cannot set TIF_MEMDIE to a target */
-+		if (memcg->oom_kill_disable) {
-+			if ((fatal_signal_pending(current) ||
-+						current->flags & PF_EXITING))
-+				set_thread_flag(TIF_MEMDIE);
-+		}
- 	}
- 
- 	if (locked) {
+Will try to improve.
 
--- 
-Michal Hocko
-SUSE Labs
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
