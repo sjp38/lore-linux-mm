@@ -1,49 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C9A56B007B
-	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 18:41:42 -0500 (EST)
-Received: by mail-qa0-f53.google.com with SMTP id j5so6142768qaq.5
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 15:41:41 -0800 (PST)
-Received: from mail-yh0-x236.google.com (mail-yh0-x236.google.com [2607:f8b0:4002:c01::236])
-        by mx.google.com with ESMTPS id 4si18855066qeq.131.2013.12.03.15.41.41
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 03 Dec 2013 15:41:41 -0800 (PST)
-Received: by mail-yh0-f54.google.com with SMTP id z12so10710858yhz.41
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 15:41:41 -0800 (PST)
-Date: Tue, 3 Dec 2013 15:41:38 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm, show_mem: Remove SHOW_MEM_FILTER_PAGE_COUNT
-In-Reply-To: <20131203145721.GQ11295@suse.de>
-Message-ID: <alpine.DEB.2.02.1312031541240.5946@chino.kir.corp.google.com>
-References: <20131016104228.GM11028@suse.de> <alpine.DEB.2.02.1310161809470.12062@chino.kir.corp.google.com> <20131203145721.GQ11295@suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 30C296B0080
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 18:44:31 -0500 (EST)
+Received: by mail-pd0-f174.google.com with SMTP id y13so20960298pdi.5
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 15:44:30 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id wh6si25001273pac.161.2013.12.03.15.44.29
+        for <linux-mm@kvack.org>;
+        Tue, 03 Dec 2013 15:44:29 -0800 (PST)
+Date: Tue, 3 Dec 2013 15:44:26 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH RESEND part2 v2 6/8] acpi, numa, mem_hotplug: Mark all
+ nodes the kernel resides un-hotpluggable
+Message-Id: <20131203154426.2b86261ac306d2de4a88024e@linux-foundation.org>
+In-Reply-To: <529D41BD.5090604@cn.fujitsu.com>
+References: <529D3FC0.6000403@cn.fujitsu.com>
+	<529D41BD.5090604@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Russell King <linux@arm.linux.org.uk>, James Bottomley <jejb@parisc-linux.org>, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linux-parisc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Cc: Tejun Heo <tj@kernel.org>, "Rafael J . Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Chen Tang <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>
 
-On Tue, 3 Dec 2013, Mel Gorman wrote:
+On Tue, 03 Dec 2013 10:28:13 +0800 Zhang Yanfei <zhangyanfei@cn.fujitsu.com> wrote:
 
-> Commit 4b59e6c4 (mm, show_mem: suppress page counts in non-blockable
-> contexts) introduced SHOW_MEM_FILTER_PAGE_COUNT to suppress PFN walks
-> on large memory machines. Commit c78e9363 (mm: do not walk all of system
-> memory during show_mem) avoided a PFN walk in the generic show_mem helper
-> which removes the requirement for SHOW_MEM_FILTER_PAGE_COUNT in that case.
+> From: Tang Chen <tangchen@cn.fujitsu.com>
 > 
-> This patch removes PFN walkers from the arch-specific implementations that
-> report on a per-node or per-zone granularity. ARM and unicore32 still do
-> a PFN walk as they report memory usage on each bank which is a much finer
-> granularity where the debugging information may still be of use. As the
-> remaining arches doing PFN walks have relatively small amounts of memory,
-> this patch simply removes SHOW_MEM_FILTER_PAGE_COUNT.
+> At very early time, the kernel have to use some memory such as
+> loading the kernel image. We cannot prevent this anyway. So any
+> node the kernel resides in should be un-hotpluggable.
 > 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> @@ -555,6 +563,30 @@ static void __init numa_init_array(void)
+>  	}
+>  }
+>  
+> +static void __init numa_clear_kernel_node_hotplug(void)
+> +{
+> +	int i, nid;
+> +	nodemask_t numa_kernel_nodes;
+> +	unsigned long start, end;
+> +	struct memblock_type *type = &memblock.reserved;
+> +
+> +	/* Mark all kernel nodes. */
+> +	for (i = 0; i < type->cnt; i++)
+> +		node_set(type->regions[i].nid, numa_kernel_nodes);
+> +
+> +	/* Clear MEMBLOCK_HOTPLUG flag for memory in kernel nodes. */
+> +	for (i = 0; i < numa_meminfo.nr_blks; i++) {
+> +		nid = numa_meminfo.blk[i].nid;
+> +		if (!node_isset(nid, numa_kernel_nodes))
+> +			continue;
+> +
+> +		start = numa_meminfo.blk[i].start;
+> +		end = numa_meminfo.blk[i].end;
+> +
+> +		memblock_clear_hotplug(start, end - start);
+> +	}
+> +}
 
-Acked-by: David Rientjes <rientjes@google.com>
+Shouldn't numa_kernel_nodes be initialized?
 
-Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
