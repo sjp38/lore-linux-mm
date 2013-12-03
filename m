@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f173.google.com (mail-ea0-f173.google.com [209.85.215.173])
-	by kanga.kvack.org (Postfix) with ESMTP id C03256B0055
-	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 03:52:12 -0500 (EST)
-Received: by mail-ea0-f173.google.com with SMTP id g15so9807328eak.18
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 00:52:12 -0800 (PST)
+Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 983226B005A
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 03:52:13 -0500 (EST)
+Received: by mail-ee0-f54.google.com with SMTP id e51so1292204eek.27
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 00:52:13 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id s42si2229757eew.161.2013.12.03.00.52.12
+        by mx.google.com with ESMTP id p46si2227544eem.168.2013.12.03.00.52.12
         for <linux-mm@kvack.org>;
         Tue, 03 Dec 2013 00:52:12 -0800 (PST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 11/15] sched: numa: Skip inaccessible VMAs
-Date: Tue,  3 Dec 2013 08:51:58 +0000
-Message-Id: <1386060721-3794-12-git-send-email-mgorman@suse.de>
+Subject: [PATCH 12/15] Clear numa on mprotect
+Date: Tue,  3 Dec 2013 08:51:59 +0000
+Message-Id: <1386060721-3794-13-git-send-email-mgorman@suse.de>
 In-Reply-To: <1386060721-3794-1-git-send-email-mgorman@suse.de>
 References: <1386060721-3794-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -19,31 +19,37 @@ List-ID: <linux-mm.kvack.org>
 To: Alex Thorlton <athorlton@sgi.com>
 Cc: Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Inaccessible VMA should not be trapping NUMA hint faults. Skip them.
-
-Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- kernel/sched/fair.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+ mm/huge_memory.c | 2 ++
+ mm/mprotect.c    | 2 ++
+ 2 files changed, 4 insertions(+)
 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 7c70201..40d8ea3 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -970,6 +970,13 @@ void task_numa_work(struct callback_head *work)
- 		if (!vma_migratable(vma))
- 			continue;
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 98b6a79..fa277fa 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1484,6 +1484,8 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
  
-+		/*
-+		 * Skip inaccessible VMAs to avoid any confusion between
-+		 * PROT_NONE and NUMA hinting ptes
-+		 */
-+		if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
-+			continue;
-+
- 		/* Skip small VMAs. They are not likely to be of relevance */
- 		if (vma->vm_end - vma->vm_start < HPAGE_SIZE)
- 			continue;
+ 		if (!prot_numa) {
+ 			entry = pmdp_get_and_clear(mm, addr, pmd);
++			if (pmd_numa(entry))
++				entry = pmd_mknonnuma(entry);
+ 			entry = pmd_modify(entry, newprot);
+ 			BUG_ON(pmd_write(entry));
+ 			set_pmd_at(mm, addr, pmd, entry);
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index c53e332..510f138 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -54,6 +54,8 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 
+ 			if (!prot_numa) {
+ 				ptent = ptep_modify_prot_start(mm, addr, pte);
++				if (pte_numa(ptent))
++					ptent = pte_mknonnuma(ptent);
+ 				ptent = pte_modify(ptent, newprot);
+ 				updated = true;
+ 			} else {
 -- 
 1.8.4
 
