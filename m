@@ -1,71 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E1E656B005A
-	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 21:03:16 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id kl14so2198652pab.5
-        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 18:03:16 -0800 (PST)
-Received: from LGEAMRELO01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id ts1si12624028pbc.80.2013.12.02.18.03.14
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AD4C6B0062
+	for <linux-mm@kvack.org>; Mon,  2 Dec 2013 21:06:09 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id w10so19347009pde.34
+        for <linux-mm@kvack.org>; Mon, 02 Dec 2013 18:06:08 -0800 (PST)
+Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
+        by mx.google.com with ESMTP id xa2si49628983pab.345.2013.12.02.18.06.06
         for <linux-mm@kvack.org>;
-        Mon, 02 Dec 2013 18:03:15 -0800 (PST)
-Date: Tue, 3 Dec 2013 11:05:40 +0900
+        Mon, 02 Dec 2013 18:06:08 -0800 (PST)
+Date: Tue, 3 Dec 2013 11:08:32 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 5/9] mm/rmap: extend rmap_walk_xxx() to cope with
- different cases
-Message-ID: <20131203020540.GC31168@lge.com>
+Subject: Re: [PATCH 6/9] mm/rmap: use rmap_walk() in try_to_unmap()
+Message-ID: <20131203020832.GD31168@lge.com>
 References: <1385624926-28883-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1385624926-28883-6-git-send-email-iamjoonsoo.kim@lge.com>
- <1386014982-lfutnpr2-mutt-n-horiguchi@ah.jp.nec.com>
+ <1385624926-28883-7-git-send-email-iamjoonsoo.kim@lge.com>
+ <20131202150107.7a814d0753356afc47b58b09@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1386014982-lfutnpr2-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20131202150107.7a814d0753356afc47b58b09@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Dec 02, 2013 at 03:09:42PM -0500, Naoya Horiguchi wrote:
-> > diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-> > index 0f65686..58624b4 100644
+On Mon, Dec 02, 2013 at 03:01:07PM -0800, Andrew Morton wrote:
+> On Thu, 28 Nov 2013 16:48:43 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> 
+> > Now, we have an infrastructure in rmap_walk() to handle difference
+> > from variants of rmap traversing functions.
+> > 
+> > So, just use it in try_to_unmap().
+> > 
+> > In this patch, I change following things.
+> > 
+> > 1. enable rmap_walk() if !CONFIG_MIGRATION.
+> > 2. mechanical change to use rmap_walk() in try_to_unmap().
+> > 
+> > ...
+> >
 > > --- a/include/linux/rmap.h
 > > +++ b/include/linux/rmap.h
-> > @@ -239,6 +239,12 @@ struct rmap_walk_control {
-> >  	int (*main)(struct page *, struct vm_area_struct *,
-> >  					unsigned long, void *);
-> >  	void *arg;	/* argument to main function */
-> > +	int (*main_done)(struct page *page);	/* check exit condition */
-> > +	int (*file_nonlinear)(struct page *, struct address_space *,
-> > +					struct vm_area_struct *vma);
-> > +	struct anon_vma *(*anon_lock)(struct page *);
-> > +	int (*vma_skip)(struct vm_area_struct *, void *);
+> > @@ -190,7 +190,7 @@ int page_referenced_one(struct page *, struct vm_area_struct *,
+> >  
+> >  int try_to_unmap(struct page *, enum ttu_flags flags);
+> >  int try_to_unmap_one(struct page *, struct vm_area_struct *,
+> > -			unsigned long address, enum ttu_flags flags);
+> > +			unsigned long address, void *arg);
 > 
-> Can you add some comments about how these callbacks work and when it
-> should be set to for future users?  For example, anon_lock() are
-> used to override the default behavior and it's not trivial.
+> This change is ugly and unchangelogged.
+> 
+> Also, "enum ttu_flags flags" was nice and meaningful, but "void *arg"
+> conveys far less information.  A suitable way to address this
+> shortcoming is to document `arg' at the try_to_unmap_one() definition
+> site.  try_to_unmap_one() doesn't actually have any documentation at
+> this stage - let's please fix that?
 
-Okay. I will add.
+Okay. I will add some comments.
+
+> >
+> > ...
+> >
+> > @@ -1509,6 +1510,11 @@ bool is_vma_temporary_stack(struct vm_area_struct *vma)
+> >  	return false;
+> >  }
+> >  
+> > +static int skip_vma_temporary_stack(struct vm_area_struct *vma, void *arg)
+> > +{
+> > +	return (int)is_vma_temporary_stack(vma);
+> > +}
+> 
+> The (int) cast is unneeded - the compiler will turn a bool into an int.
+> 
+> Should this function (and rmap_walk_control.skip()) really be returning
+> a bool?
+
+Okay. Will do.
 
 > 
-> > +	void *skip_arg;	/* argument to vma_skip function */
-> 
-> I think that it's better to move this field into the structure pointed
-> to by arg (which can be defined by each caller in its own way) and pass
-> arg to *vma_skip().
+> The name of this function is poor: "skip_foo" implies that the function
+> will skip over a foo.  But that isn't what this function does.  Please
+> choose something which accurately reflects the function's behavior.
 
-Will do.
+Okay.
 
 Thanks.
-
-> 
-> Thanks,
-> Naoya Horiguchi
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
