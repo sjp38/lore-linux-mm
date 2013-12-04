@@ -1,164 +1,269 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 39A456B0031
-	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 21:12:27 -0500 (EST)
-Received: by mail-pb0-f50.google.com with SMTP id rr13so22225091pbb.23
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 18:12:26 -0800 (PST)
-Received: from song.cn.fujitsu.com ([222.73.24.84])
-        by mx.google.com with ESMTP id zi8si1099627pac.301.2013.12.03.18.12.23
-        for <linux-mm@kvack.org>;
-        Tue, 03 Dec 2013 18:12:25 -0800 (PST)
-Message-ID: <529E8EE1.4040009@cn.fujitsu.com>
-Date: Wed, 04 Dec 2013 10:09:37 +0800
-From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Received: from mail-yh0-f47.google.com (mail-yh0-f47.google.com [209.85.213.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 77ACC6B0031
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 21:31:11 -0500 (EST)
+Received: by mail-yh0-f47.google.com with SMTP id 29so10788519yhl.6
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 18:31:11 -0800 (PST)
+Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com [2607:f8b0:400e:c02::229])
+        by mx.google.com with ESMTPS id n44si5996877yhn.190.2013.12.03.18.31.09
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 03 Dec 2013 18:31:10 -0800 (PST)
+Received: by mail-pd0-f169.google.com with SMTP id v10so21490722pde.0
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 18:31:09 -0800 (PST)
 MIME-Version: 1.0
-Subject: [PATCH update part2 v2 6/8] acpi, numa, mem_hotplug: Mark all nodes
- the kernel resides un-hotpluggable
-References: <529D3FC0.6000403@cn.fujitsu.com> <529D41BD.5090604@cn.fujitsu.com> <20131203154426.2b86261ac306d2de4a88024e@linux-foundation.org>
-In-Reply-To: <20131203154426.2b86261ac306d2de4a88024e@linux-foundation.org>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+From: Florian Fainelli <f.fainelli@gmail.com>
+Date: Tue, 3 Dec 2013 18:30:28 -0800
+Message-ID: <CAGVrzcZidrUV93x9t_BwPaDuzgxs-88HoF-HUDRrSEYcfJB_rw@mail.gmail.com>
+Subject: high kswapd CPU usage when executing binaries from NFS w/ CMA and COMPACTION
+Content-Type: multipart/mixed; boundary=e89a8ff1c68aa7f43304ecac3470
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, "Rafael J . Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Chen Tang <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, mgorman@suse.de, mhocko@suse.cz, hannes@cmpxchg.org, riel@redhat.com, linux-mm@kvack.org, m.szyprowski@samsung.com, marc.ceeeee@gmail.com
 
-On 12/04/2013 07:44 AM, Andrew Morton wrote:
-> On Tue, 03 Dec 2013 10:28:13 +0800 Zhang Yanfei <zhangyanfei@cn.fujitsu.com> wrote:
-> 
->> From: Tang Chen <tangchen@cn.fujitsu.com>
->>
->> At very early time, the kernel have to use some memory such as
->> loading the kernel image. We cannot prevent this anyway. So any
->> node the kernel resides in should be un-hotpluggable.
->>
->> @@ -555,6 +563,30 @@ static void __init numa_init_array(void)
->>  	}
->>  }
->>  
->> +static void __init numa_clear_kernel_node_hotplug(void)
->> +{
->> +	int i, nid;
->> +	nodemask_t numa_kernel_nodes;
->> +	unsigned long start, end;
->> +	struct memblock_type *type = &memblock.reserved;
->> +
->> +	/* Mark all kernel nodes. */
->> +	for (i = 0; i < type->cnt; i++)
->> +		node_set(type->regions[i].nid, numa_kernel_nodes);
->> +
->> +	/* Clear MEMBLOCK_HOTPLUG flag for memory in kernel nodes. */
->> +	for (i = 0; i < numa_meminfo.nr_blks; i++) {
->> +		nid = numa_meminfo.blk[i].nid;
->> +		if (!node_isset(nid, numa_kernel_nodes))
->> +			continue;
->> +
->> +		start = numa_meminfo.blk[i].start;
->> +		end = numa_meminfo.blk[i].end;
->> +
->> +		memblock_clear_hotplug(start, end - start);
->> +	}
->> +}
-> 
-> Shouldn't numa_kernel_nodes be initialized?
-> 
+--e89a8ff1c68aa7f43304ecac3470
+Content-Type: text/plain; charset=UTF-8
 
-Ah, sorry for the mistake. Please use the updated patch below:
+Hi all,
 
---------------------------------------------------
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Date: Wed, 4 Dec 2013 09:37:26 +0800
-Subject: [PATCH 6/8] acpi, numa, mem_hotplug: Mark all nodes the kernel resides un-hotpluggable
+I am experiencing high kswapd CPU usage on an ARMv7 system running
+3.8.13 when executing relatively large binaries from NFS. When this
+happens kswapd consumes around 55-60% CPU usage and the applications
+takes a huge time to load.
 
-At very early time, the kernel have to use some memory such as
-loading the kernel image. We cannot prevent this anyway. So any
-node the kernel resides in should be un-hotpluggable.
+My system has both CONFIG_CMA and CONFIG_COMPACTION enabled and
+turning off CONFIG_COMPACTION does seem to make things slightly better
+since kswapd does not take much CPU usage if at all and the
+application loads with its expected loading time.
 
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
----
- arch/x86/mm/numa.c |   45 +++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 45 insertions(+), 0 deletions(-)
+Attached are the contents of /proc/zoneinfo, vmstat and meminfo when
+the system works correctly and their counterparts when the system is
+busy in kswapd.
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 408c02d..43eb7d4 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -494,6 +494,14 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
- 		struct numa_memblk *mb = &mi->blk[i];
- 		memblock_set_node(mb->start, mb->end - mb->start,
- 				  &memblock.memory, mb->nid);
-+
-+		/*
-+		 * At this time, all memory regions reserved by memblock are
-+		 * used by the kernel. Set the nid in memblock.reserved will
-+		 * mark out all the nodes the kernel resides in.
-+		 */
-+		memblock_set_node(mb->start, mb->end - mb->start,
-+				  &memblock.reserved, mb->nid);
- 	}
- 
- 	/*
-@@ -555,6 +563,31 @@ static void __init numa_init_array(void)
- 	}
- }
- 
-+static void __init numa_clear_kernel_node_hotplug(void)
-+{
-+	int i, nid;
-+	nodemask_t numa_kernel_nodes;
-+	unsigned long start, end;
-+	struct memblock_type *type = &memblock.reserved;
-+
-+	nodes_clear(numa_kernel_nodes);
-+	/* Mark all kernel nodes. */
-+	for (i = 0; i < type->cnt; i++)
-+		node_set(type->regions[i].nid, numa_kernel_nodes);
-+
-+	/* Clear MEMBLOCK_HOTPLUG flag for memory in kernel nodes. */
-+	for (i = 0; i < numa_meminfo.nr_blks; i++) {
-+		nid = numa_meminfo.blk[i].nid;
-+		if (!node_isset(nid, numa_kernel_nodes))
-+			continue;
-+
-+		start = numa_meminfo.blk[i].start;
-+		end = numa_meminfo.blk[i].end;
-+
-+		memblock_clear_hotplug(start, end - start);
-+	}
-+}
-+
- static int __init numa_init(int (*init_func)(void))
- {
- 	int i;
-@@ -569,6 +602,8 @@ static int __init numa_init(int (*init_func)(void))
- 	memset(&numa_meminfo, 0, sizeof(numa_meminfo));
- 	WARN_ON(memblock_set_node(0, ULLONG_MAX, &memblock.memory,
- 				  MAX_NUMNODES));
-+	WARN_ON(memblock_set_node(0, ULLONG_MAX, &memblock.reserved,
-+				  MAX_NUMNODES));
- 	/* In case that parsing SRAT failed. */
- 	WARN_ON(memblock_clear_hotplug(0, ULLONG_MAX));
- 	numa_reset_distance();
-@@ -606,6 +641,16 @@ static int __init numa_init(int (*init_func)(void))
- 			numa_clear_node(i);
- 	}
- 	numa_init_array();
-+
-+	/*
-+	 * At very early time, the kernel have to use some memory such as
-+	 * loading the kernel image. We cannot prevent this anyway. So any
-+	 * node the kernel resides in should be un-hotpluggable.
-+	 *
-+	 * And when we come here, numa_init() won't fail.
-+	 */
-+	numa_clear_kernel_node_hotplug();
-+
- 	return 0;
- }
- 
+Any pointers to patches I should eventually backport or try would be
+much appreciated!
+
+Thanks!
 -- 
-1.7.1
+Florian
+
+--e89a8ff1c68aa7f43304ecac3470
+Content-Type: application/octet-stream; name=meminfo-working
+Content-Disposition: attachment; filename=meminfo-working
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_hory92zn0
+
+TWVtVG90YWw6ICAgICAgICAxMDMyNDYwIGtCCk1lbUZyZWU6ICAgICAgICAgIDExNTMzMiBrQgpC
+dWZmZXJzOiAgICAgICAgICAgICAgIDAga0IKQ2FjaGVkOiAgICAgICAgICAgMjA2MjYwIGtCClN3
+YXBDYWNoZWQ6ICAgICAgICAgICAgMCBrQgpBY3RpdmU6ICAgICAgICAgICAxMjY2MTYga0IKSW5h
+Y3RpdmU6ICAgICAgICAgMTY3NTY0IGtCCkFjdGl2ZShhbm9uKTogICAgICA5NTQ0MCBrQgpJbmFj
+dGl2ZShhbm9uKTogICAgMjQ1NTIga0IKQWN0aXZlKGZpbGUpOiAgICAgIDMxMTc2IGtCCkluYWN0
+aXZlKGZpbGUpOiAgIDE0MzAxMiBrQgpVbmV2aWN0YWJsZTogICAgICAgIDczOTIga0IKTWxvY2tl
+ZDogICAgICAgICAgICAgICAwIGtCCkhpZ2hUb3RhbDogICAgICAgIDI3MDMzNiBrQgpIaWdoRnJl
+ZTogICAgICAgICAgIDExNjQga0IKTG93VG90YWw6ICAgICAgICAgNzYyMTI0IGtCCkxvd0ZyZWU6
+ICAgICAgICAgIDExNDE2OCBrQgpTd2FwVG90YWw6ICAgICAgICAgICAgIDAga0IKU3dhcEZyZWU6
+ICAgICAgICAgICAgICAwIGtCCkRpcnR5OiAgICAgICAgICAgICAgICAgMCBrQgpXcml0ZWJhY2s6
+ICAgICAgICAgICAgIDAga0IKQW5vblBhZ2VzOiAgICAgICAgIDk1MjcyIGtCCk1hcHBlZDogICAg
+ICAgICAgICA3NjI0OCBrQgpTaG1lbTogICAgICAgICAgICAgMjQ2ODAga0IKU2xhYjogICAgICAg
+ICAgICAgICA2ODc2IGtCClNSZWNsYWltYWJsZTogICAgICAgMTkxMiBrQgpTVW5yZWNsYWltOiAg
+ICAgICAgIDQ5NjQga0IKS2VybmVsU3RhY2s6ICAgICAgICAzMDI0IGtCClBhZ2VUYWJsZXM6ICAg
+ICAgICAgNTk3MiBrQgpORlNfVW5zdGFibGU6ICAgICAgICAgIDAga0IKQm91bmNlOiAgICAgICAg
+ICAgICAgICAwIGtCCldyaXRlYmFja1RtcDogICAgICAgICAgMCBrQgpDb21taXRMaW1pdDogICAg
+ICA1MTYyMjgga0IKQ29tbWl0dGVkX0FTOiAgICAgODU3MDI4IGtCClZtYWxsb2NUb3RhbDogICAg
+IDI0NTc2MCBrQgpWbWFsbG9jVXNlZDogICAgICAgMzU0MTYga0IKVm1hbGxvY0NodW5rOiAgICAg
+MTkzNzUyIGtCCg==
+--e89a8ff1c68aa7f43304ecac3470
+Content-Type: application/octet-stream; name=vmstat-working
+Content-Disposition: attachment; filename=vmstat-working
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_hory930d1
+
+bnJfZnJlZV9wYWdlcyAyODg4Ngpucl9pbmFjdGl2ZV9hbm9uIDYxMzgKbnJfYWN0aXZlX2Fub24g
+MjM4NjgKbnJfaW5hY3RpdmVfZmlsZSAzNTc1Mwpucl9hY3RpdmVfZmlsZSA3Nzk0Cm5yX3VuZXZp
+Y3RhYmxlIDE4NDgKbnJfbWxvY2sgMApucl9hbm9uX3BhZ2VzIDIzODQyCm5yX21hcHBlZCAxOTA2
+Mgpucl9maWxlX3BhZ2VzIDUxNTY1Cm5yX2RpcnR5IDAKbnJfd3JpdGViYWNrIDAKbnJfc2xhYl9y
+ZWNsYWltYWJsZSA0NzgKbnJfc2xhYl91bnJlY2xhaW1hYmxlIDEyNTAKbnJfcGFnZV90YWJsZV9w
+YWdlcyAxNDkzCm5yX2tlcm5lbF9zdGFjayAzNzgKbnJfdW5zdGFibGUgMApucl9ib3VuY2UgMApu
+cl92bXNjYW5fd3JpdGUgMQpucl92bXNjYW5faW1tZWRpYXRlX3JlY2xhaW0gMApucl93cml0ZWJh
+Y2tfdGVtcCAwCm5yX2lzb2xhdGVkX2Fub24gMApucl9pc29sYXRlZF9maWxlIDAKbnJfc2htZW0g
+NjE3MApucl9kaXJ0aWVkIDYKbnJfd3JpdHRlbiA2Cm5yX2Fub25fdHJhbnNwYXJlbnRfaHVnZXBh
+Z2VzIDAKbnJfZnJlZV9jbWEgMjUxODYKbnJfZGlydHlfdGhyZXNob2xkIDExNzY5Cm5yX2RpcnR5
+X2JhY2tncm91bmRfdGhyZXNob2xkIDU4ODQKcGdwZ2luIDAKcGdwZ291dCAwCnBzd3BpbiAwCnBz
+d3BvdXQgMApwZ2FsbG9jX25vcm1hbCA2NjM4MjQKcGdhbGxvY19oaWdoIDI1OTExNQpwZ2FsbG9j
+X21vdmFibGUgMApwZ2ZyZWUgMTEwNTU3MgpwZ2FjdGl2YXRlIDI1OTE5CnBnZGVhY3RpdmF0ZSAx
+Njk3MgpwZ2ZhdWx0IDI3NTYxMwpwZ21hamZhdWx0IDU3NQpwZ3JlZmlsbF9ub3JtYWwgMApwZ3Jl
+ZmlsbF9oaWdoIDIzMTkxCnBncmVmaWxsX21vdmFibGUgMApwZ3N0ZWFsX2tzd2FwZF9ub3JtYWwg
+NTY5MzEKcGdzdGVhbF9rc3dhcGRfaGlnaCAxNTk3NTAKcGdzdGVhbF9rc3dhcGRfbW92YWJsZSAw
+CnBnc3RlYWxfZGlyZWN0X25vcm1hbCAwCnBnc3RlYWxfZGlyZWN0X2hpZ2ggMApwZ3N0ZWFsX2Rp
+cmVjdF9tb3ZhYmxlIDAKcGdzY2FuX2tzd2FwZF9ub3JtYWwgNjQzNDkKcGdzY2FuX2tzd2FwZF9o
+aWdoIDM3NDIzOQpwZ3NjYW5fa3N3YXBkX21vdmFibGUgMApwZ3NjYW5fZGlyZWN0X25vcm1hbCAw
+CnBnc2Nhbl9kaXJlY3RfaGlnaCAwCnBnc2Nhbl9kaXJlY3RfbW92YWJsZSAwCnBnc2Nhbl9kaXJl
+Y3RfdGhyb3R0bGUgMApwZ2lub2Rlc3RlYWwgMApzbGFic19zY2FubmVkIDEyOAprc3dhcGRfaW5v
+ZGVzdGVhbCAwCmtzd2FwZF9sb3dfd21hcmtfaGl0X3F1aWNrbHkgNDUKa3N3YXBkX2hpZ2hfd21h
+cmtfaGl0X3F1aWNrbHkgOAprc3dhcGRfc2tpcF9jb25nZXN0aW9uX3dhaXQgNTcxOQpwYWdlb3V0
+cnVuIDQ1NzAKYWxsb2NzdGFsbCAwCnBncm90YXRlZCAxCnBnbWlncmF0ZV9zdWNjZXNzIDM4Mgpw
+Z21pZ3JhdGVfZmFpbCAwCnVuZXZpY3RhYmxlX3Bnc19jdWxsZWQgMTg0OAp1bmV2aWN0YWJsZV9w
+Z3Nfc2Nhbm5lZCAwCnVuZXZpY3RhYmxlX3Bnc19yZXNjdWVkIDAKdW5ldmljdGFibGVfcGdzX21s
+b2NrZWQgMAp1bmV2aWN0YWJsZV9wZ3NfbXVubG9ja2VkIDAKdW5ldmljdGFibGVfcGdzX2NsZWFy
+ZWQgMAp1bmV2aWN0YWJsZV9wZ3Nfc3RyYW5kZWQgMAo=
+--e89a8ff1c68aa7f43304ecac3470
+Content-Type: application/octet-stream; name=zoneinfo-working
+Content-Disposition: attachment; filename=zoneinfo-working
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_hory930m2
+
+Tm9kZSAwLCB6b25lICAgTm9ybWFsCiAgcGFnZXMgZnJlZSAgICAgMjcwOTkKICAgICAgICBtaW4g
+ICAgICA4NzgKICAgICAgICBsb3cgICAgICAxMDk3CiAgICAgICAgaGlnaCAgICAgMTMxNwogICAg
+ICAgIHNjYW5uZWQgIDAKICAgICAgICBzcGFubmVkICAxOTQ1NjAKICAgICAgICBwcmVzZW50ICAx
+OTMwNDAKICAgICAgICBtYW5hZ2VkICA1NTc1NgogICAgbnJfZnJlZV9wYWdlcyAyNzA5OQogICAg
+bnJfaW5hY3RpdmVfYW5vbiAyNzcxCiAgICBucl9hY3RpdmVfYW5vbiAxMjA1OQogICAgbnJfaW5h
+Y3RpdmVfZmlsZSAyODk2NQogICAgbnJfYWN0aXZlX2ZpbGUgNjY4OAogICAgbnJfdW5ldmljdGFi
+bGUgNQogICAgbnJfbWxvY2sgICAgIDAKICAgIG5yX2Fub25fcGFnZXMgMTIwNTQKICAgIG5yX21h
+cHBlZCAgICAxNDM3NAogICAgbnJfZmlsZV9wYWdlcyAzODQ0NQogICAgbnJfZGlydHkgICAgIDAK
+ICAgIG5yX3dyaXRlYmFjayAwCiAgICBucl9zbGFiX3JlY2xhaW1hYmxlIDQ4MQogICAgbnJfc2xh
+Yl91bnJlY2xhaW1hYmxlIDE0MDEKICAgIG5yX3BhZ2VfdGFibGVfcGFnZXMgMTQ4OAogICAgbnJf
+a2VybmVsX3N0YWNrIDM4MAogICAgbnJfdW5zdGFibGUgIDAKICAgIG5yX2JvdW5jZSAgICAwCiAg
+ICBucl92bXNjYW5fd3JpdGUgMAogICAgbnJfdm1zY2FuX2ltbWVkaWF0ZV9yZWNsYWltIDAKICAg
+IG5yX3dyaXRlYmFja190ZW1wIDAKICAgIG5yX2lzb2xhdGVkX2Fub24gMAogICAgbnJfaXNvbGF0
+ZWRfZmlsZSAwCiAgICBucl9zaG1lbSAgICAgMjc4NwogICAgbnJfZGlydGllZCAgIDAKICAgIG5y
+X3dyaXR0ZW4gICAwCiAgICBucl9hbm9uX3RyYW5zcGFyZW50X2h1Z2VwYWdlcyAwCiAgICBucl9m
+cmVlX2NtYSAgMjUxMzkKICAgICAgICBwcm90ZWN0aW9uOiAoMCwgMjA5NSwgMjA5NSkKICBwYWdl
+c2V0cwogICAgY3B1OiAwCiAgICAgICAgICAgICAgY291bnQ6IDE1MgogICAgICAgICAgICAgIGhp
+Z2g6ICAxODYKICAgICAgICAgICAgICBiYXRjaDogMzEKICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDE2
+CiAgICBjcHU6IDEKICAgICAgICAgICAgICBjb3VudDogMTc3CiAgICAgICAgICAgICAgaGlnaDog
+IDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogMTYKICBh
+bGxfdW5yZWNsYWltYWJsZTogMAogIHN0YXJ0X3BmbjogICAgICAgICAwCiAgaW5hY3RpdmVfcmF0
+aW86ICAgIDEKTm9kZSAwLCB6b25lICBIaWdoTWVtCiAgcGFnZXMgZnJlZSAgICAgMTg2CiAgICAg
+ICAgbWluICAgICAgNjUKICAgICAgICBsb3cgICAgICAxNDEKICAgICAgICBoaWdoICAgICAyMTcK
+ICAgICAgICBzY2FubmVkICAyCiAgICAgICAgc3Bhbm5lZCAgNjc1ODQKICAgICAgICBwcmVzZW50
+ICA2NzA1NgogICAgICAgIG1hbmFnZWQgIDY3NTg0CiAgICBucl9mcmVlX3BhZ2VzIDE4NgogICAg
+bnJfaW5hY3RpdmVfYW5vbiAzMTM5CiAgICBucl9hY3RpdmVfYW5vbiAxMDU2MAogICAgbnJfaW5h
+Y3RpdmVfZmlsZSA5OTM1CiAgICBucl9hY3RpdmVfZmlsZSA3OTYKICAgIG5yX3VuZXZpY3RhYmxl
+IDE4NDIKICAgIG5yX21sb2NrICAgICAwCiAgICBucl9hbm9uX3BhZ2VzIDEwNTM3CiAgICBucl9t
+YXBwZWQgICAgNDU2MAogICAgbnJfZmlsZV9wYWdlcyAxNTczNgogICAgbnJfZGlydHkgICAgIDAK
+ICAgIG5yX3dyaXRlYmFjayAwCiAgICBucl9zbGFiX3JlY2xhaW1hYmxlIDAKICAgIG5yX3NsYWJf
+dW5yZWNsYWltYWJsZSAwCiAgICBucl9wYWdlX3RhYmxlX3BhZ2VzIDAKICAgIG5yX2tlcm5lbF9z
+dGFjayAwCiAgICBucl91bnN0YWJsZSAgMAogICAgbnJfYm91bmNlICAgIDAKICAgIG5yX3Ztc2Nh
+bl93cml0ZSAxCiAgICBucl92bXNjYW5faW1tZWRpYXRlX3JlY2xhaW0gMAogICAgbnJfd3JpdGVi
+YWNrX3RlbXAgMAogICAgbnJfaXNvbGF0ZWRfYW5vbiAwCiAgICBucl9pc29sYXRlZF9maWxlIDAK
+ICAgIG5yX3NobWVtICAgICAzMTYzCiAgICBucl9kaXJ0aWVkICAgMgogICAgbnJfd3JpdHRlbiAg
+IDIKICAgIG5yX2Fub25fdHJhbnNwYXJlbnRfaHVnZXBhZ2VzIDAKICAgIG5yX2ZyZWVfY21hICAx
+OTYKICAgICAgICBwcm90ZWN0aW9uOiAoMCwgMCwgMCkKICBwYWdlc2V0cwogICAgY3B1OiAwCiAg
+ICAgICAgICAgICAgY291bnQ6IDE1CiAgICAgICAgICAgICAgaGlnaDogIDkwCiAgICAgICAgICAg
+ICAgYmF0Y2g6IDE1CiAgdm0gc3RhdHMgdGhyZXNob2xkOiAxMgogICAgY3B1OiAxCiAgICAgICAg
+ICAgICAgY291bnQ6IDcwCiAgICAgICAgICAgICAgaGlnaDogIDkwCiAgICAgICAgICAgICAgYmF0
+Y2g6IDE1CiAgdm0gc3RhdHMgdGhyZXNob2xkOiAxMgogIGFsbF91bnJlY2xhaW1hYmxlOiAwCiAg
+c3RhcnRfcGZuOiAgICAgICAgIDE5NDU2MAogIGluYWN0aXZlX3JhdGlvOiAgICAxCg==
+--e89a8ff1c68aa7f43304ecac3470
+Content-Type: application/octet-stream; name=meminfo-bogus
+Content-Disposition: attachment; filename=meminfo-bogus
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_horyetye3
+
+TWVtVG90YWw6ICAgICAgICAxMDMyNDUyIGtCCk1lbUZyZWU6ICAgICAgICAgIDIwMzYxMiBrQgpC
+dWZmZXJzOiAgICAgICAgICAgICAgIDAga0IKQ2FjaGVkOiAgICAgICAgICAgMTk1NDY4IGtCClN3
+YXBDYWNoZWQ6ICAgICAgICAgICAgMCBrQgpBY3RpdmU6ICAgICAgICAgICAgMjM1NzYga0IKSW5h
+Y3RpdmU6ICAgICAgICAgMTgzNjEyIGtCCkFjdGl2ZShhbm9uKTogICAgICAxOTE5NiBrQgpJbmFj
+dGl2ZShhbm9uKTogICAgICAgMTIga0IKQWN0aXZlKGZpbGUpOiAgICAgICA0MzgwIGtCCkluYWN0
+aXZlKGZpbGUpOiAgIDE4MzYwMCBrQgpVbmV2aWN0YWJsZTogICAgICAgIDczODAga0IKTWxvY2tl
+ZDogICAgICAgICAgICAgICAwIGtCCkhpZ2hUb3RhbDogICAgICAgIDI3MDMzNiBrQgpIaWdoRnJl
+ZTogICAgICAgICAgNzY1MjQga0IKTG93VG90YWw6ICAgICAgICAgNzYyMTE2IGtCCkxvd0ZyZWU6
+ICAgICAgICAgIDEyNzA4OCBrQgpTd2FwVG90YWw6ICAgICAgICAgICAgIDAga0IKU3dhcEZyZWU6
+ICAgICAgICAgICAgICAwIGtCCkRpcnR5OiAgICAgICAgICAgICAgICAgMCBrQgpXcml0ZWJhY2s6
+ICAgICAgICAgICAgIDAga0IKQW5vblBhZ2VzOiAgICAgICAgIDE5MTg4IGtCCk1hcHBlZDogICAg
+ICAgICAgICAyOTE4NCBrQgpTaG1lbTogICAgICAgICAgICAgICAgMjAga0IKU2xhYjogICAgICAg
+ICAgICAgICA3MzgwIGtCClNSZWNsYWltYWJsZTogICAgICAgMTY5MiBrQgpTVW5yZWNsYWltOiAg
+ICAgICAgIDU2ODgga0IKS2VybmVsU3RhY2s6ICAgICAgICAyNzA0IGtCClBhZ2VUYWJsZXM6ICAg
+ICAgICAgNDgzMiBrQgpORlNfVW5zdGFibGU6ICAgICAgICAgIDAga0IKQm91bmNlOiAgICAgICAg
+ICAgICAgICAwIGtCCldyaXRlYmFja1RtcDogICAgICAgICAgMCBrQgpDb21taXRMaW1pdDogICAg
+ICA1MTYyMjQga0IKQ29tbWl0dGVkX0FTOiAgICAgNDU5MzA0IGtCClZtYWxsb2NUb3RhbDogICAg
+IDI0NTc2MCBrQgpWbWFsbG9jVXNlZDogICAgICAgMzU0MTYga0IKVm1hbGxvY0NodW5rOiAgICAg
+MTkzNzUyIGtCCg==
+--e89a8ff1c68aa7f43304ecac3470
+Content-Type: application/octet-stream; name=vmstat-bogus
+Content-Disposition: attachment; filename=vmstat-bogus
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_horyetyp4
+
+bnJfZnJlZV9wYWdlcyA0NzU4OQpucl9pbmFjdGl2ZV9hbm9uIDMKbnJfYWN0aXZlX2Fub24gNDgx
+Mwpucl9pbmFjdGl2ZV9maWxlIDQ4NTU0Cm5yX2FjdGl2ZV9maWxlIDE0ODIKbnJfdW5ldmljdGFi
+bGUgMTg0NQpucl9tbG9jayAwCm5yX2Fub25fcGFnZXMgNDgxNwpucl9tYXBwZWQgNzY0Mgpucl9m
+aWxlX3BhZ2VzIDUxOTI5Cm5yX2RpcnR5IDAKbnJfd3JpdGViYWNrIDAKbnJfc2xhYl9yZWNsYWlt
+YWJsZSA0MjMKbnJfc2xhYl91bnJlY2xhaW1hYmxlIDE1MDYKbnJfcGFnZV90YWJsZV9wYWdlcyAx
+MjA4Cm5yX2tlcm5lbF9zdGFjayAzMzgKbnJfdW5zdGFibGUgMApucl9ib3VuY2UgMApucl92bXNj
+YW5fd3JpdGUgMApucl92bXNjYW5faW1tZWRpYXRlX3JlY2xhaW0gMApucl93cml0ZWJhY2tfdGVt
+cCAwCm5yX2lzb2xhdGVkX2Fub24gMApucl9pc29sYXRlZF9maWxlIDMyCm5yX3NobWVtIDUKbnJf
+ZGlydGllZCAyCm5yX3dyaXR0ZW4gMgpucl9hbm9uX3RyYW5zcGFyZW50X2h1Z2VwYWdlcyAwCm5y
+X2ZyZWVfY21hIDQwMjkwCm5yX2RpcnR5X3RocmVzaG9sZCAxNDMzNApucl9kaXJ0eV9iYWNrZ3Jv
+dW5kX3RocmVzaG9sZCA3MTY3CnBncGdpbiAwCnBncGdvdXQgMApwc3dwaW4gMApwc3dwb3V0IDAK
+cGdhbGxvY19ub3JtYWwgMjA1NzI2NwpwZ2FsbG9jX2hpZ2ggMTAzNDczMwpwZ2FsbG9jX21vdmFi
+bGUgMApwZ2ZyZWUgMzI5MzMyNwpwZ2FjdGl2YXRlIDEwNDk4CnBnZGVhY3RpdmF0ZSA5MDAxCnBn
+ZmF1bHQgMTIxMTc0CnBnbWFqZmF1bHQgMTYxMQpwZ3JlZmlsbF9ub3JtYWwgMApwZ3JlZmlsbF9o
+aWdoIDE5MDE3CnBncmVmaWxsX21vdmFibGUgMApwZ3N0ZWFsX2tzd2FwZF9ub3JtYWwgOTA1Ngpw
+Z3N0ZWFsX2tzd2FwZF9oaWdoIDk4ODI3OQpwZ3N0ZWFsX2tzd2FwZF9tb3ZhYmxlIDAKcGdzdGVh
+bF9kaXJlY3Rfbm9ybWFsIDAKcGdzdGVhbF9kaXJlY3RfaGlnaCAwCnBnc3RlYWxfZGlyZWN0X21v
+dmFibGUgMApwZ3NjYW5fa3N3YXBkX25vcm1hbCAxMDA4MQpwZ3NjYW5fa3N3YXBkX2hpZ2ggODIy
+NzU0MApwZ3NjYW5fa3N3YXBkX21vdmFibGUgMApwZ3NjYW5fZGlyZWN0X25vcm1hbCAwCnBnc2Nh
+bl9kaXJlY3RfaGlnaCAwCnBnc2Nhbl9kaXJlY3RfbW92YWJsZSAwCnBnc2Nhbl9kaXJlY3RfdGhy
+b3R0bGUgMApwZ2lub2Rlc3RlYWwgMApzbGFic19zY2FubmVkIDEyOAprc3dhcGRfaW5vZGVzdGVh
+bCAwCmtzd2FwZF9sb3dfd21hcmtfaGl0X3F1aWNrbHkgMzcwNQprc3dhcGRfaGlnaF93bWFya19o
+aXRfcXVpY2tseSA0NDkKa3N3YXBkX3NraXBfY29uZ2VzdGlvbl93YWl0IDc5MzUKcGFnZW91dHJ1
+biAxMzE3MAphbGxvY3N0YWxsIDAKcGdyb3RhdGVkIDEKcGdtaWdyYXRlX3N1Y2Nlc3MgMjgzCnBn
+bWlncmF0ZV9mYWlsIDAKY29tcGFjdF9taWdyYXRlX3NjYW5uZWQgMTQ4NzIzCmNvbXBhY3RfZnJl
+ZV9zY2FubmVkIDE2MQpjb21wYWN0X2lzb2xhdGVkIDE2NTgzMwpjb21wYWN0X3N0YWxsIDAKY29t
+cGFjdF9mYWlsIDAKY29tcGFjdF9zdWNjZXNzIDAKdW5ldmljdGFibGVfcGdzX2N1bGxlZCAxODQ1
+CnVuZXZpY3RhYmxlX3Bnc19zY2FubmVkIDAKdW5ldmljdGFibGVfcGdzX3Jlc2N1ZWQgMAp1bmV2
+aWN0YWJsZV9wZ3NfbWxvY2tlZCAwCnVuZXZpY3RhYmxlX3Bnc19tdW5sb2NrZWQgMAp1bmV2aWN0
+YWJsZV9wZ3NfY2xlYXJlZCAwCnVuZXZpY3RhYmxlX3Bnc19zdHJhbmRlZCAwCg==
+--e89a8ff1c68aa7f43304ecac3470
+Content-Type: application/octet-stream; name=zoneinfo-bogus
+Content-Disposition: attachment; filename=zoneinfo-bogus
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_horyetz15
+
+Tm9kZSAwLCB6b25lICAgTm9ybWFsCiAgcGFnZXMgZnJlZSAgICAgMzE4MTMKICAgICAgICBtaW4g
+ICAgICA4NzgKICAgICAgICBsb3cgICAgICAxMDk3CiAgICAgICAgaGlnaCAgICAgMTMxNwogICAg
+ICAgIHNjYW5uZWQgIDAKICAgICAgICBzcGFubmVkICAxOTQ1NjAKICAgICAgICBwcmVzZW50ICAx
+OTMwNDAKICAgICAgICBtYW5hZ2VkICA1NTc1NAogICAgbnJfZnJlZV9wYWdlcyAzMTgxMwogICAg
+bnJfaW5hY3RpdmVfYW5vbiAwCiAgICBucl9hY3RpdmVfYW5vbiAyNzgyCiAgICBucl9pbmFjdGl2
+ZV9maWxlIDQyNTI5CiAgICBucl9hY3RpdmVfZmlsZSAxMDQzCiAgICBucl91bmV2aWN0YWJsZSAz
+CiAgICBucl9tbG9jayAgICAgMAogICAgbnJfYW5vbl9wYWdlcyAyNzgxCiAgICBucl9tYXBwZWQg
+ICAgNjYyMQogICAgbnJfZmlsZV9wYWdlcyA0MzU3NgogICAgbnJfZGlydHkgICAgIDAKICAgIG5y
+X3dyaXRlYmFjayAwCiAgICBucl9zbGFiX3JlY2xhaW1hYmxlIDQyMwogICAgbnJfc2xhYl91bnJl
+Y2xhaW1hYmxlIDEzOTkKICAgIG5yX3BhZ2VfdGFibGVfcGFnZXMgMTIwOAogICAgbnJfa2VybmVs
+X3N0YWNrIDMzNwogICAgbnJfdW5zdGFibGUgIDAKICAgIG5yX2JvdW5jZSAgICAwCiAgICBucl92
+bXNjYW5fd3JpdGUgMAogICAgbnJfdm1zY2FuX2ltbWVkaWF0ZV9yZWNsYWltIDAKICAgIG5yX3dy
+aXRlYmFja190ZW1wIDAKICAgIG5yX2lzb2xhdGVkX2Fub24gMAogICAgbnJfaXNvbGF0ZWRfZmls
+ZSAwCiAgICBucl9zaG1lbSAgICAgMQogICAgbnJfZGlydGllZCAgIDAKICAgIG5yX3dyaXR0ZW4g
+ICAwCiAgICBucl9hbm9uX3RyYW5zcGFyZW50X2h1Z2VwYWdlcyAwCiAgICBucl9mcmVlX2NtYSAg
+MjQyNTEKICAgICAgICBwcm90ZWN0aW9uOiAoMCwgMjA5NSwgMjA5NSkKICBwYWdlc2V0cwogICAg
+Y3B1OiAwCiAgICAgICAgICAgICAgY291bnQ6IDM0CiAgICAgICAgICAgICAgaGlnaDogIDE4Ngog
+ICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogMTYKICAgIGNwdTog
+MQogICAgICAgICAgICAgIGNvdW50OiAxNjgKICAgICAgICAgICAgICBoaWdoOiAgMTg2CiAgICAg
+ICAgICAgICAgYmF0Y2g6IDMxCiAgdm0gc3RhdHMgdGhyZXNob2xkOiAxNgogIGFsbF91bnJlY2xh
+aW1hYmxlOiAwCiAgc3RhcnRfcGZuOiAgICAgICAgIDAKICBpbmFjdGl2ZV9yYXRpbzogICAgMQpO
+b2RlIDAsIHpvbmUgIEhpZ2hNZW0KICBwYWdlcyBmcmVlICAgICAyMDc5OQogICAgICAgIG1pbiAg
+ICAgIDY1CiAgICAgICAgbG93ICAgICAgMTQxCiAgICAgICAgaGlnaCAgICAgMjE3CiAgICAgICAg
+c2Nhbm5lZCAgMAogICAgICAgIHNwYW5uZWQgIDY3NTg0CiAgICAgICAgcHJlc2VudCAgNjcwNTYK
+ICAgICAgICBtYW5hZ2VkICA2NzU4NAogICAgbnJfZnJlZV9wYWdlcyAyMDc5OQogICAgbnJfaW5h
+Y3RpdmVfYW5vbiAzCiAgICBucl9hY3RpdmVfYW5vbiAyMDI3CiAgICBucl9pbmFjdGl2ZV9maWxl
+IDEyMzMKICAgIG5yX2FjdGl2ZV9maWxlIDU0NQogICAgbnJfdW5ldmljdGFibGUgMTg0MgogICAg
+bnJfbWxvY2sgICAgIDAKICAgIG5yX2Fub25fcGFnZXMgMjAzMgogICAgbnJfbWFwcGVkICAgIDEx
+MzEKICAgIG5yX2ZpbGVfcGFnZXMgMzY0MQogICAgbnJfZGlydHkgICAgIDAKICAgIG5yX3dyaXRl
+YmFjayAwCiAgICBucl9zbGFiX3JlY2xhaW1hYmxlIDAKICAgIG5yX3NsYWJfdW5yZWNsYWltYWJs
+ZSAwCiAgICBucl9wYWdlX3RhYmxlX3BhZ2VzIDAKICAgIG5yX2tlcm5lbF9zdGFjayAwCiAgICBu
+cl91bnN0YWJsZSAgMAogICAgbnJfYm91bmNlICAgIDAKICAgIG5yX3Ztc2Nhbl93cml0ZSAwCiAg
+ICBucl92bXNjYW5faW1tZWRpYXRlX3JlY2xhaW0gMAogICAgbnJfd3JpdGViYWNrX3RlbXAgMAog
+ICAgbnJfaXNvbGF0ZWRfYW5vbiAwCiAgICBucl9pc29sYXRlZF9maWxlIDAKICAgIG5yX3NobWVt
+ICAgICA0CiAgICBucl9kaXJ0aWVkICAgMAogICAgbnJfd3JpdHRlbiAgIDAKICAgIG5yX2Fub25f
+dHJhbnNwYXJlbnRfaHVnZXBhZ2VzIDAKICAgIG5yX2ZyZWVfY21hICAyMDcwMwogICAgICAgIHBy
+b3RlY3Rpb246ICgwLCAwLCAwKQogIHBhZ2VzZXRzCiAgICBjcHU6IDAKICAgICAgICAgICAgICBj
+b3VudDogNzMKICAgICAgICAgICAgICBoaWdoOiAgOTAKICAgICAgICAgICAgICBiYXRjaDogMTUK
+ICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDEyCiAgICBjcHU6IDEKICAgICAgICAgICAgICBjb3VudDog
+NwogICAgICAgICAgICAgIGhpZ2g6ICA5MAogICAgICAgICAgICAgIGJhdGNoOiAxNQogIHZtIHN0
+YXRzIHRocmVzaG9sZDogMTIKICBhbGxfdW5yZWNsYWltYWJsZTogMAogIHN0YXJ0X3BmbjogICAg
+ICAgICAxOTQ1NjAKICBpbmFjdGl2ZV9yYXRpbzogICAgMQo=
+--e89a8ff1c68aa7f43304ecac3470--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
