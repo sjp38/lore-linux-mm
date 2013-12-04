@@ -1,128 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D2296B005A
-	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 16:48:41 -0500 (EST)
-Received: by mail-pb0-f52.google.com with SMTP id uo5so24465842pbc.11
-        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 13:48:41 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id ts1si18744015pbc.170.2013.12.04.13.48.39
-        for <linux-mm@kvack.org>;
-        Wed, 04 Dec 2013 13:48:40 -0800 (PST)
-Date: Wed, 4 Dec 2013 13:48:38 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH RFC] mm readahead: Fix the readahead fail in case of
- empty numa node
-Message-Id: <20131204134838.a048880a1db9e9acd14a39e4@linux-foundation.org>
-In-Reply-To: <529EF0FB.2050808@linux.vnet.ibm.com>
-References: <1386066977-17368-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
-	<20131203143841.11b71e387dc1db3a8ab0974c@linux-foundation.org>
-	<529EE811.5050306@linux.vnet.ibm.com>
-	<20131204004125.a06f7dfc.akpm@linux-foundation.org>
-	<529EF0FB.2050808@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-qe0-f46.google.com (mail-qe0-f46.google.com [209.85.128.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D9FA6B0062
+	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 17:07:51 -0500 (EST)
+Received: by mail-qe0-f46.google.com with SMTP id a11so16246428qen.5
+        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 14:07:51 -0800 (PST)
+Received: from e34.co.us.ibm.com (e34.co.us.ibm.com. [32.97.110.152])
+        by mx.google.com with ESMTPS id r7si28798672qcz.61.2013.12.04.14.07.49
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 04 Dec 2013 14:07:50 -0800 (PST)
+Received: from /spool/local
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Wed, 4 Dec 2013 15:07:49 -0700
+Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 2547BC40003
+	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 15:07:26 -0700 (MST)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by b03cxnp08025.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB4K5tIn6619612
+	for <linux-mm@kvack.org>; Wed, 4 Dec 2013 21:05:55 +0100
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id rB4MAj0Q013293
+	for <linux-mm@kvack.org>; Wed, 4 Dec 2013 15:10:47 -0700
+Date: Wed, 4 Dec 2013 14:07:44 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
+Message-ID: <20131204220744.GG15492@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <cover.1384885312.git.tim.c.chen@linux.intel.com>
+ <1384911463.11046.454.camel@schen9-DESK>
+ <20131120153123.GF4138@linux.vnet.ibm.com>
+ <20131120154643.GG19352@mudshark.cambridge.arm.com>
+ <20131120171400.GI4138@linux.vnet.ibm.com>
+ <20131121110308.GC10022@twins.programming.kicks-ass.net>
+ <20131121125616.GI3694@twins.programming.kicks-ass.net>
+ <20131121132041.GS4138@linux.vnet.ibm.com>
+ <20131121172558.GA27927@linux.vnet.ibm.com>
+ <20131204212613.GA21717@two.firstfloor.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131204212613.GA21717@two.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Wed, 04 Dec 2013 14:38:11 +0530 Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com> wrote:
-
-> On 12/04/2013 02:11 PM, Andrew Morton wrote:
-> > On Wed, 04 Dec 2013 14:00:09 +0530 Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com> wrote:
-> >
-> >> Unfaortunately, from my search, I saw that the code belonged to pre git
-> >> time, so could not get much information on that.
-> >
-> > Here: https://lkml.org/lkml/2004/8/20/242
-> >
-> > It seems it was done as a rather thoughtless performance optimisation.
-> > I'd say it's time to reimplement max_sane_readahead() from scratch.
-> >
+On Wed, Dec 04, 2013 at 10:26:13PM +0100, Andi Kleen wrote:
+> > Let's apply the Intel manual to the earlier example:
+> > 
+> > 	CPU 0		CPU 1			CPU 2
+> > 	-----		-----			-----
+> > 	x = 1;		r1 = SLA(lock);		y = 1;
+> > 	SSR(lock, 1);	r2 = y;			smp_mb();
+> > 						r3 = x;
+> > 
+> > 	assert(!(r1 == 1 && r2 == 0 && r3 == 0));
 > 
-> Ok. Thanks for the link. I think after that,
-> Here it was changed to pernode:
-> https://lkml.org/lkml/2004/8/21/9 to avoid iteration all over.
+> Hi Paul,
 > 
-> do you think above patch (+comments) with some sanitized nr (thus
-> avoiding iteration over nodes in remote numa readahead case) does look
-> better?
-> or should we iterate all memory.
+> We discussed this example with CPU architects and they
+> agreed that it is valid to rely on (r1 == 1 && r2 == 0 && r3 == 0)
+> never happening.
+> 
+> So the MCS code is good without additional barriers.
 
-I dunno, the whole thing smells of arbitrary woolly thinking to me. 
-Going back further in time..
+Good to hear!!!  Thank you, Andi!
 
-: commit f76d03dc9fcff7ac88e2d23c5814fd0f50c59bb6
-: Author:     akpm <akpm>
-: AuthorDate: Sun Dec 15 03:18:58 2002 +0000
-: Commit:     akpm <akpm>
-: CommitDate: Sun Dec 15 03:18:58 2002 +0000
-: 
-:     [PATCH] madvise_willneed() maximum readahead checking
-:     
-:     madvise_willneed() currently has a very strange check on how much readahead
-:     it is prepared to do.
-:     
-:       It is based on the user's rss limit.  But this is usually enormous, and
-:       the user isn't necessarily going to map all that memory at the same time
-:       anyway.
-:     
-:       And the logic is wrong - it is comparing rss (which is in bytes) with
-:       `end - start', which is in pages.
-:     
-:       And it returns -EIO on error, which is not mentioned in the Open Group
-:       spec and doesn't make sense.
-:     
-:     
-:     This patch takes it all out and applies the same upper limit as is used in
-:     sys_readahead() - half the inactive list.
-: 
-: +/*
-: + * Given a desired number of PAGE_CACHE_SIZE readahead pages, return a
-: + * sensible upper limit.
-: + */
-: +unsigned long max_sane_readahead(unsigned long nr)
-: +{
-: +       unsigned long active;
-: +       unsigned long inactive;
-: +
-: +       get_zone_counts(&active, &inactive);
-: +       return min(nr, inactive / 2);
-: +}
-
-And one would need to go back further still to understand the rationale
-for the sys_readahead() decision and that even predates the BK repo.
-
-iirc the thinking was that we need _some_ limit on readahead size so
-the user can't go and do ridiculously large amounts of readahead via
-sys_readahead().  But that doesn't make a lot of sense because the user
-could do the same thing with plain old read().
-
-So for argument's sake I'm thinking we just kill it altogether and
-permit arbitrarily large readahead:
-
---- a/mm/readahead.c~a
-+++ a/mm/readahead.c
-@@ -238,13 +238,12 @@ int force_page_cache_readahead(struct ad
- }
- 
- /*
-- * Given a desired number of PAGE_CACHE_SIZE readahead pages, return a
-- * sensible upper limit.
-+ * max_sane_readahead() is disabled.  It can later be removed altogether, but
-+ * let's keep a skeleton in place for now, in case disabling was the wrong call.
-  */
- unsigned long max_sane_readahead(unsigned long nr)
- {
--	return min(nr, (node_page_state(numa_node_id(), NR_INACTIVE_FILE)
--		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
-+	return nr;
- }
- 
- /*
-
-Can anyone see a problem with this?
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
