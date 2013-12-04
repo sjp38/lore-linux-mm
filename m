@@ -1,67 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id DE2576B003D
-	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 16:14:10 -0500 (EST)
-Received: by mail-pb0-f45.google.com with SMTP id rp16so24287711pbb.4
-        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 13:14:10 -0800 (PST)
-Received: from g4t0017.houston.hp.com (g4t0017.houston.hp.com. [15.201.24.20])
-        by mx.google.com with ESMTPS id qx4si12589314pbc.45.2013.12.04.13.14.08
+Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E1F16B004D
+	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 16:26:15 -0500 (EST)
+Received: by mail-ea0-f180.google.com with SMTP id f15so11040817eak.11
+        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 13:26:14 -0800 (PST)
+Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
+        by mx.google.com with ESMTPS id i1si8346178eev.89.2013.12.04.13.26.14
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 04 Dec 2013 13:14:09 -0800 (PST)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH] mm, x86: Skip NUMA_NO_NODE while parsing SLIT
-Date: Wed,  4 Dec 2013 14:09:08 -0700
-Message-Id: <1386191348-4696-1-git-send-email-toshi.kani@hp.com>
+        Wed, 04 Dec 2013 13:26:14 -0800 (PST)
+Date: Wed, 4 Dec 2013 22:26:13 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
+Message-ID: <20131204212613.GA21717@two.firstfloor.org>
+References: <cover.1384885312.git.tim.c.chen@linux.intel.com>
+ <1384911463.11046.454.camel@schen9-DESK>
+ <20131120153123.GF4138@linux.vnet.ibm.com>
+ <20131120154643.GG19352@mudshark.cambridge.arm.com>
+ <20131120171400.GI4138@linux.vnet.ibm.com>
+ <20131121110308.GC10022@twins.programming.kicks-ass.net>
+ <20131121125616.GI3694@twins.programming.kicks-ass.net>
+ <20131121132041.GS4138@linux.vnet.ibm.com>
+ <20131121172558.GA27927@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131121172558.GA27927@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mingo@kernel.org, hpa@zytor.com, tglx@linutronix.de
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, Toshi Kani <toshi.kani@hp.com>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-When ACPI SLIT table has an I/O locality (i.e. a locality unique
-to an I/O device), numa_set_distance() emits the warning message
-below.
+> Let's apply the Intel manual to the earlier example:
+> 
+> 	CPU 0		CPU 1			CPU 2
+> 	-----		-----			-----
+> 	x = 1;		r1 = SLA(lock);		y = 1;
+> 	SSR(lock, 1);	r2 = y;			smp_mb();
+> 						r3 = x;
+> 
+> 	assert(!(r1 == 1 && r2 == 0 && r3 == 0));
 
- NUMA: Warning: node ids are out of bound, from=-1 to=-1 distance=10
+Hi Paul,
 
-acpi_numa_slit_init() calls numa_set_distance() with pxm_to_node(),
-which assumes that all localities have been parsed with SRAT previously.
-SRAT does not list I/O localities, where as SLIT lists all localities
-including I/Os.  Hence, pxm_to_node() returns NUMA_NO_NODE (-1) for
-an I/O locality.  I/O localities are not supported and are ignored
-today, but emitting such warning message leads unnecessary confusion.
+We discussed this example with CPU architects and they
+agreed that it is valid to rely on (r1 == 1 && r2 == 0 && r3 == 0)
+never happening.
 
-Change acpi_numa_slit_init() to avoid calling numa_set_distance()
-with NUMA_NO_NODE.
+So the MCS code is good without additional barriers.
 
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
----
- arch/x86/mm/srat.c |   10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+-Andi
 
-diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
-index 266ca91..29a2ced 100644
---- a/arch/x86/mm/srat.c
-+++ b/arch/x86/mm/srat.c
-@@ -47,10 +47,16 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
- {
- 	int i, j;
- 
--	for (i = 0; i < slit->locality_count; i++)
--		for (j = 0; j < slit->locality_count; j++)
-+	for (i = 0; i < slit->locality_count; i++) {
-+		if (pxm_to_node(i) == NUMA_NO_NODE)
-+			continue;
-+		for (j = 0; j < slit->locality_count; j++) {
-+			if (pxm_to_node(j) == NUMA_NO_NODE)
-+				continue;
- 			numa_set_distance(pxm_to_node(i), pxm_to_node(j),
- 				slit->entry[slit->locality_count * i + j]);
-+		}
-+	}
- }
- 
- /* Callback for Proximity Domain -> x2APIC mapping */
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
