@@ -1,118 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id B67226B0031
-	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 20:49:51 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id rq2so22338283pbb.31
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 17:49:51 -0800 (PST)
-Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
-        by mx.google.com with ESMTP id sl10si24002227pab.41.2013.12.03.17.49.49
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id ADA436B0031
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 21:06:25 -0500 (EST)
+Received: by mail-pd0-f172.google.com with SMTP id g10so21344256pdj.31
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 18:06:25 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id ws5si53063563pab.64.2013.12.03.18.06.23
         for <linux-mm@kvack.org>;
-        Tue, 03 Dec 2013 17:49:50 -0800 (PST)
-Date: Wed, 4 Dec 2013 10:52:18 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+        Tue, 03 Dec 2013 18:06:24 -0800 (PST)
+Date: Tue, 3 Dec 2013 18:07:17 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [patch 2/2] fs: buffer: move allocation failure loop into the
  allocator
-Message-ID: <20131204015218.GA19709@lge.com>
+Message-Id: <20131203180717.94c013d1.akpm@linux-foundation.org>
+In-Reply-To: <20131204015218.GA19709@lge.com>
 References: <1381265890-11333-1-git-send-email-hannes@cmpxchg.org>
- <1381265890-11333-2-git-send-email-hannes@cmpxchg.org>
- <20131203165910.54d6b4724a1f3e329af52ac6@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131203165910.54d6b4724a1f3e329af52ac6@linux-foundation.org>
+	<1381265890-11333-2-git-send-email-hannes@cmpxchg.org>
+	<20131203165910.54d6b4724a1f3e329af52ac6@linux-foundation.org>
+	<20131204015218.GA19709@lge.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, azurIt <azurit@pobox.sk>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Christian Casteyde <casteyde.christian@free.fr>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
 
-On Tue, Dec 03, 2013 at 04:59:10PM -0800, Andrew Morton wrote:
-> On Tue,  8 Oct 2013 16:58:10 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
-> 
-> > Buffer allocation has a very crude indefinite loop around waking the
-> > flusher threads and performing global NOFS direct reclaim because it
-> > can not handle allocation failures.
-> > 
-> > The most immediate problem with this is that the allocation may fail
-> > due to a memory cgroup limit, where flushers + direct reclaim might
-> > not make any progress towards resolving the situation at all.  Because
-> > unlike the global case, a memory cgroup may not have any cache at all,
-> > only anonymous pages but no swap.  This situation will lead to a
-> > reclaim livelock with insane IO from waking the flushers and thrashing
-> > unrelated filesystem cache in a tight loop.
-> > 
-> > Use __GFP_NOFAIL allocations for buffers for now.  This makes sure
-> > that any looping happens in the page allocator, which knows how to
-> > orchestrate kswapd, direct reclaim, and the flushers sensibly.  It
-> > also allows memory cgroups to detect allocations that can't handle
-> > failure and will allow them to ultimately bypass the limit if reclaim
-> > can not make progress.
-> 
-> Problem.
-> 
-> > --- a/fs/buffer.c
-> > +++ b/fs/buffer.c
-> > @@ -1005,9 +1005,19 @@ grow_dev_page(struct block_device *bdev, sector_t block,
-> >  	struct buffer_head *bh;
-> >  	sector_t end_block;
-> >  	int ret = 0;		/* Will call free_more_memory() */
-> > +	gfp_t gfp_mask;
-> >  
-> > -	page = find_or_create_page(inode->i_mapping, index,
-> > -		(mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS)|__GFP_MOVABLE);
-> > +	gfp_mask = mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS;
-> > +	gfp_mask |= __GFP_MOVABLE;
+On Wed, 4 Dec 2013 10:52:18 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+
+> SLUB already try to allocate high order page with clearing __GFP_NOFAIL.
+> But, when allocating shadow page for kmemcheck, it missed clearing
+> the flag. This trigger WARN_ON_ONCE() reported by Christian Casteyde.
 > 
 > https://bugzilla.kernel.org/show_bug.cgi?id=65991
 > 
-> WARNING: CPU: 0 PID: 1 at mm/page_alloc.c:1539 get_page_from_freelist+0x8a9/0x8c0()
-> Modules linked in:
-> CPU: 0 PID: 1 Comm: swapper/0 Not tainted 3.13.0-rc1 #42
-> Hardware name: Acer Aspire 7750G/JE70_HR, BIOS V1.07 03/02/2011
->  0000000000000009 ffff8801c6121650 ffffffff81898d39 0000000000000000
->  ffff8801c6121688 ffffffff8107dc43 0000000000000002 0000000000000001
->  0000000000284850 0000000000000000 ffff8801cec04680 ffff8801c6121698
-> Call Trace:
->  [<ffffffff81898d39>] dump_stack+0x4e/0x7a
->  [<ffffffff8107dc43>] warn_slowpath_common+0x73/0x90
->  [<ffffffff8107dd15>] warn_slowpath_null+0x15/0x20
->  [<ffffffff81116f69>] get_page_from_freelist+0x8a9/0x8c0
->  [<ffffffff81330cdd>] ? trace_hardirqs_off_thunk+0x3a/0x3c
->  [<ffffffff81117070>] __alloc_pages_nodemask+0xf0/0x770
->  [<ffffffff81330cdd>] ? trace_hardirqs_off_thunk+0x3a/0x3c
->  [<ffffffff81156823>] kmemcheck_alloc_shadow+0x53/0xf0
->  [<ffffffff81152495>] new_slab+0x345/0x3e0
->  [<ffffffff81897712>] __slab_alloc.isra.57+0x215/0x535
->  [<ffffffff81328030>] ? __radix_tree_preload+0x60/0xf0
->  [<ffffffff811545c8>] kmem_cache_alloc+0x118/0x150
->  [<ffffffff81328030>] ? __radix_tree_preload+0x60/0xf0
->  [<ffffffff81328030>] __radix_tree_preload+0x60/0xf0
->  [<ffffffff81328125>] radix_tree_maybe_preload+0x25/0x30
->  [<ffffffff8110faf7>] add_to_page_cache_locked+0x37/0x100
->  [<ffffffff8110fbd5>] add_to_page_cache_lru+0x15/0x40
->  [<ffffffff8110ff37>] find_or_create_page+0x57/0x90
->  [<ffffffff8118e630>] __getblk+0xf0/0x2f0
+> This patch fix this situation by using same allocation flag as original
+> allocation.
 > 
-> That __GFP_NOFAIL is getting down into
-> radix_tree_preload->kmem_cache_alloc() and I expect that in its
-> boundless stupidity, slab has decided to inappropriately go and use an
-> unnecessarily massive page size for radix_tree_node_cachep's underlying
-> memory allocations.  So we end up using GFP_NOFAIL for an order=2 (or
-> more) allocation, which is unacceptably risky, methinks.
+> Reported-by: Christian Casteyde <casteyde.christian@free.fr>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
-> I really really wish slab wouldn't do this.  The benefit is surely very
-> small and these unnecessary higher-order allocations are quite abusive
-> of the page allocator.
-> 
-> Can we please make slab stop doing this?
-> 
-> radix_tree_nodes are 560 bytes and the kernel often allocates them in
-> times of extreme memory stress.  We really really want them to be
-> backed by order=0 pages.
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 545a170..3dd28b1 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1335,11 +1335,12 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+>  	page = alloc_slab_page(alloc_gfp, node, oo);
+>  	if (unlikely(!page)) {
+>  		oo = s->min;
 
-Hello, Andrew.
+What is the value of s->min?  Please tell me it's zero.
 
-Following patch would fix this problem.
+> +		alloc_gfp = flags;
+>  		/*
+>  		 * Allocation may have failed due to fragmentation.
+>  		 * Try a lower order alloc if possible
+>  		 */
+> -		page = alloc_slab_page(flags, node, oo);
+> +		page = alloc_slab_page(alloc_gfp, node, oo);
+>  
+>  		if (page)
+>  			stat(s, ORDER_FALLBACK);
 
-Thanks.
+This change doesn't actually do anything.
 
--------------------8<------------------------
+> @@ -1349,7 +1350,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+>  		&& !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
+>  		int pages = 1 << oo_order(oo);
+>  
+> -		kmemcheck_alloc_shadow(page, oo_order(oo), flags, node);
+> +		kmemcheck_alloc_shadow(page, oo_order(oo), alloc_gfp, node);
+
+That seems reasonable, assuming kmemcheck can handle the allocation
+failure.
+
+
+Still I dislike this practice of using unnecessarily large allocations.
+What does it gain us?  Slightly improved object packing density. 
+Anything else?
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
