@@ -1,54 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f51.google.com (mail-bk0-f51.google.com [209.85.214.51])
-	by kanga.kvack.org (Postfix) with ESMTP id ECEE66B006E
-	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 17:29:51 -0500 (EST)
-Received: by mail-bk0-f51.google.com with SMTP id 6so6819592bkj.38
-        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 14:29:51 -0800 (PST)
-Date: Wed, 4 Dec 2013 17:29:43 -0500
+Received: from mail-bk0-f42.google.com (mail-bk0-f42.google.com [209.85.214.42])
+	by kanga.kvack.org (Postfix) with ESMTP id CD5466B0031
+	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 17:45:26 -0500 (EST)
+Received: by mail-bk0-f42.google.com with SMTP id w11so6959359bkz.1
+        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 14:45:26 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id f2si23505405bko.208.2013.12.04.14.45.25
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 04 Dec 2013 14:45:25 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: 2e685cad5790 build warning
-Message-ID: <20131204222943.GC21724@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
+Subject: [patch 0/2] mm: memcg: 3.13 fixes
+Date: Wed,  4 Dec 2013 17:45:12 -0500
+Message-Id: <1386197114-5317-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Glauber Costa <glommer@gmail.com>, netdev@vger.kernel.org, linux-mm@kvack.org, linux-kernel@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hi Eric,
+Hi,
 
-commit 2e685cad57906e19add7189b5ff49dfb6aaa21d3
-Author: Eric W. Biederman <ebiederm@xmission.com>
-Date:   Sat Oct 19 16:26:19 2013 -0700
+here are two memcg fixes for 3.13.
 
-    tcp_memcontrol: Kill struct tcp_memcontrol
-    
-    Replace the pointers in struct cg_proto with actual data fields and kill
-    struct tcp_memcontrol as it is not fully redundant.
-    
-    This removes a confusing, unnecessary layer of abstraction.
-    
-    Signed-off-by: "Eric W. Biederman" <ebiederm@xmission.com>
-    Signed-off-by: David S. Miller <davem@davemloft.net>
+The race condition in #1 is really long standing AFAICS, I just tagged
+stable and will backport and evaluate this for any tree that sends me
+a notice.
 
-triggers a build warning because it removed the only reference to a
-function but not the function itself:
+#2 changes what happens during a charge attempt between a task
+entering memcg OOM and actually executing the kill.  I had these
+charges bypass the limit in the hope that this would expedite the
+kill, but there is no real evidence for it and David was worried about
+an unecessary breach of isolation.  This was introduced in 3.12.
 
-linux/net/ipv4/tcp_memcontrol.c:9:13: warning: a??memcg_tcp_enter_memory_pressurea?? defined but not used [-Wunused-function]
- static void memcg_tcp_enter_memory_pressure(struct sock *sk)
-
-I can not see from the changelog why this function is no longer used,
-or who is supposed to now set cg_proto->memory_pressure which you
-still initialize etc.  Either way, the current state does not seem to
-make much sense.  The author would be the best person to double check
-such changes, but he wasn't copied on your patch, so I copied him now.
-
-Apologies if this has been brought up before, I could not find any
-reference on LKML of either this patch or a report of this warning.
-
-Thanks!
+ mm/memcontrol.c | 38 +++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 37 insertions(+), 1 deletion(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
