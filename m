@@ -1,77 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id B28736B003B
-	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 11:02:16 -0500 (EST)
-Received: by mail-wg0-f54.google.com with SMTP id n12so13944099wgh.21
-        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 08:02:16 -0800 (PST)
-Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com [2a00:1450:400c:c05::22c])
-        by mx.google.com with ESMTPS id 5si32999864wjs.75.2013.12.04.08.02.15
+Received: from mail-qe0-f45.google.com (mail-qe0-f45.google.com [209.85.128.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 379AE6B003D
+	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 11:07:35 -0500 (EST)
+Received: by mail-qe0-f45.google.com with SMTP id 6so16386701qea.18
+        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 08:07:35 -0800 (PST)
+Received: from mail-qa0-x232.google.com (mail-qa0-x232.google.com [2607:f8b0:400d:c00::232])
+        by mx.google.com with ESMTPS id d5si28419382qcj.107.2013.12.04.08.07.33
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 04 Dec 2013 08:02:15 -0800 (PST)
-Received: by mail-wi0-f172.google.com with SMTP id en1so8445593wid.11
-        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 08:02:15 -0800 (PST)
+        Wed, 04 Dec 2013 08:07:33 -0800 (PST)
+Received: by mail-qa0-f50.google.com with SMTP id i13so6848521qae.9
+        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 08:07:33 -0800 (PST)
+Date: Wed, 4 Dec 2013 11:07:30 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v2 08/23] mm/memblock: Add memblock memory allocation apis
+Message-ID: <20131204160730.GQ3158@htj.dyndns.org>
+References: <1386037658-3161-1-git-send-email-santosh.shilimkar@ti.com>
+ <1386037658-3161-9-git-send-email-santosh.shilimkar@ti.com>
+ <20131203232445.GX8277@htj.dyndns.org>
+ <529F5047.50309@ti.com>
 MIME-Version: 1.0
-In-Reply-To: <00000142be2f1de0-764bb035-adbc-4367-b2b4-bf05498510a6-000000@email.amazonses.com>
-References: <1381265890-11333-1-git-send-email-hannes@cmpxchg.org>
-	<1381265890-11333-2-git-send-email-hannes@cmpxchg.org>
-	<20131203165910.54d6b4724a1f3e329af52ac6@linux-foundation.org>
-	<20131204015218.GA19709@lge.com>
-	<20131203180717.94c013d1.akpm@linux-foundation.org>
-	<00000142be2f1de0-764bb035-adbc-4367-b2b4-bf05498510a6-000000@email.amazonses.com>
-Date: Thu, 5 Dec 2013 01:02:15 +0900
-Message-ID: <CAAmzW4PwLhMd61ksOktdg=rkj0xHsSGt2Wm_za2Adjh4+tss-g@mail.gmail.com>
-Subject: Re: [patch 2/2] fs: buffer: move allocation failure loop into the allocator
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <529F5047.50309@ti.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, azurIt <azurit@pobox.sk>, Linux Memory Management List <linux-mm@kvack.org>, cgroups@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Christian Casteyde <casteyde.christian@free.fr>, Pekka Enberg <penberg@kernel.org>
+To: Santosh Shilimkar <santosh.shilimkar@ti.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Grygorii Strashko <grygorii.strashko@ti.com>
 
-2013/12/5 Christoph Lameter <cl@linux.com>:
-> On Tue, 3 Dec 2013, Andrew Morton wrote:
->
->> >     page = alloc_slab_page(alloc_gfp, node, oo);
->> >     if (unlikely(!page)) {
->> >             oo = s->min;
->>
->> What is the value of s->min?  Please tell me it's zero.
->
-> It usually is.
->
->> > @@ -1349,7 +1350,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
->> >             && !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
->> >             int pages = 1 << oo_order(oo);
->> >
->> > -           kmemcheck_alloc_shadow(page, oo_order(oo), flags, node);
->> > +           kmemcheck_alloc_shadow(page, oo_order(oo), alloc_gfp, node);
->>
->> That seems reasonable, assuming kmemcheck can handle the allocation
->> failure.
->>
->>
->> Still I dislike this practice of using unnecessarily large allocations.
->> What does it gain us?  Slightly improved object packing density.
->> Anything else?
->
-> The fastpath for slub works only within the bounds of a single slab page.
-> Therefore a larger frame increases the number of allocation possible from
-> the fastpath without having to use the slowpath and also reduces the
-> management overhead in the partial lists.
+Hello,
 
-Hello Christoph.
+On Wed, Dec 04, 2013 at 10:54:47AM -0500, Santosh Shilimkar wrote:
+> Well as you know there are architectures still using bootmem even after
+> this series. Changing MAX_NUMNODES to NUMA_NO_NODE is too invasive and
+> actually should be done in a separate series. As commented, the best
+> time to do that would be when all remaining architectures moves to
+> memblock.
+> 
+> Just to give you perspective, look at the patch end of the email which
+> Grygorrii cooked up. It doesn't cover all the users of MAX_NUMNODES
+> and we are bot even sure whether the change is correct and its
+> impact on the code which we can't even tests. I would really want to
+> avoid touching all the architectures and keep the scope of the series
+> to core code as we aligned initially.
+> 
+> May be you have better idea to handle this change so do
+> let us know how to proceed with it. With such a invasive change the
+> $subject series can easily get into circles again :-(
 
-Now we have cpu partial slabs facility, so I think that slowpath isn't really
-slow. And it doesn't much increase the management overhead in the node
-partial lists, because of cpu partial slabs.
-
-And larger frame may cause more slab_lock contention or cmpxchg contention
-if there are parallel freeings.
-
-But, I don't know which one is better. Is larger frame still better? :)
+But we don't have to use MAX_NUMNODES for the new interface, no?  Or
+do you think that it'd be more confusing because it ends up mixing the
+two?  It kinda really bothers me this patchset is expanding the usage
+of the wrong constant with only very far-out plan to fix that.  All
+archs converting to nobootmem will take a *long* time, that is, if
+that happens at all.  I don't really care about the order of things
+happening but "this is gonna be fixed when everyone moves off
+MAX_NUMNODES" really isn't good enough.
 
 Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
