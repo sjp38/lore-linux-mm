@@ -1,86 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f41.google.com (mail-bk0-f41.google.com [209.85.214.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 21A8D6B0031
-	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 04:53:09 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id v15so6613362bkz.28
-        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 01:53:08 -0800 (PST)
-Received: from mail-bk0-x233.google.com (mail-bk0-x233.google.com [2a00:1450:4008:c01::233])
-        by mx.google.com with ESMTPS id cu8si7965843bkc.80.2013.12.04.01.53.07
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 04 Dec 2013 01:53:07 -0800 (PST)
-Received: by mail-bk0-f51.google.com with SMTP id 6so6464516bkj.38
-        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 01:53:07 -0800 (PST)
-Date: Wed, 4 Dec 2013 10:53:04 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH RESEND part2 v2 0/8] Arrange hotpluggable memory as
- ZONE_MOVABLE
-Message-ID: <20131204095304.GA2308@gmail.com>
-References: <529D3FC0.6000403@cn.fujitsu.com>
- <20131203154811.90113f91ddd23413dd92b768@linux-foundation.org>
- <529E7114.9060107@gmail.com>
+Received: from mail-ea0-f176.google.com (mail-ea0-f176.google.com [209.85.215.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FEE86B0037
+	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 06:13:22 -0500 (EST)
+Received: by mail-ea0-f176.google.com with SMTP id h14so10578679eaj.21
+        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 03:13:21 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTP id j47si6372107eeo.200.2013.12.04.03.13.20
+        for <linux-mm@kvack.org>;
+        Wed, 04 Dec 2013 03:13:20 -0800 (PST)
+Date: Wed, 4 Dec 2013 12:13:18 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
+ access to memory reserves
+Message-ID: <20131204111318.GE8410@dhcp22.suse.cz>
+References: <alpine.DEB.2.02.1311141525440.30112@chino.kir.corp.google.com>
+ <20131118154115.GA3556@cmpxchg.org>
+ <20131118165110.GE32623@dhcp22.suse.cz>
+ <20131122165100.GN3556@cmpxchg.org>
+ <alpine.DEB.2.02.1311261648570.21003@chino.kir.corp.google.com>
+ <20131127163435.GA3556@cmpxchg.org>
+ <20131202200221.GC5524@dhcp22.suse.cz>
+ <20131202212500.GN22729@cmpxchg.org>
+ <20131203120454.GA12758@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312031544530.5946@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <529E7114.9060107@gmail.com>
+In-Reply-To: <alpine.DEB.2.02.1312031544530.5946@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, "Rafael J . Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Chen Tang <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-
-* Zhang Yanfei <zhangyanfei.yes@gmail.com> wrote:
-
-> Hello Andrew
+On Tue 03-12-13 15:50:41, David Rientjes wrote:
+> On Tue, 3 Dec 2013, Michal Hocko wrote:
 > 
-> On 12/04/2013 07:48 AM, Andrew Morton wrote:
-> > On Tue, 03 Dec 2013 10:19:44 +0800 Zhang Yanfei <zhangyanfei@cn.fujitsu.com> wrote:
-> > 
-> >> The current Linux cannot migrate pages used by the kerenl because
-> >> of the kernel direct mapping. In Linux kernel space, va = pa + PAGE_OFFSET.
-> >> When the pa is changed, we cannot simply update the pagetable and
-> >> keep the va unmodified. So the kernel pages are not migratable.
-> >>
-> >> There are also some other issues will cause the kernel pages not migratable.
-> >> For example, the physical address may be cached somewhere and will be used.
-> >> It is not to update all the caches.
-> >>
-> >> When doing memory hotplug in Linux, we first migrate all the pages in one
-> >> memory device somewhere else, and then remove the device. But if pages are
-> >> used by the kernel, they are not migratable. As a result, memory used by
-> >> the kernel cannot be hot-removed.
-> >>
-> >> Modifying the kernel direct mapping mechanism is too difficult to do. And
-> >> it may cause the kernel performance down and unstable. So we use the following
-> >> way to do memory hotplug.
-> >>
-> >>
-> >> [What we are doing]
-> >>
-> >> In Linux, memory in one numa node is divided into several zones. One of the
-> >> zones is ZONE_MOVABLE, which the kernel won't use.
-> >>
-> >> In order to implement memory hotplug in Linux, we are going to arrange all
-> >> hotpluggable memory in ZONE_MOVABLE so that the kernel won't use these memory.
-> > 
-> > How does the user enable this?  I didn't spot a Kconfig variable which
-> > enables it.  Is there a boot option?
+> > OK, as it seems that the notification part is too controversial, how
+> > would you like the following? It reverts the notification part and still
+> > solves the fault on exit path. I will prepare the full patch with the
+> > changelog if this looks reasonable:
 > 
-> Yeah, there is a Kconfig variable "MOVABLE_NODE" and a boot option "movable_node"
+> Um, no, that's not satisfactory because it obviously does the check after 
+> mem_cgroup_oom_notify().  There is absolutely no reason why userspace 
+> should be woken up when current simply needs access to memory reserves to 
+> exit. 
+
+Let me repeat, that the only reason I liked the patch was that it solves
+the fault during exit with oom disabled issue which I am really worried
+about.
+A nice side effect was that it moves the TIF_MEMDIE logic into a common
+place. It seems that you are selling the side effect as a primary
+feature.
+Johannes is obviously against such a change for the reasons I won't
+repeat here again. It is true that such a change wouldn't give us the
+"notify only when an action is taken" semantic because oom path might
+bail out few more times before killing anything.  Until we have that,
+or agree what is the actual semantic that makes the most sense let's
+backout with this and fix the actual bug which is real and drop the
+tweak that just it only half way.
+
+> You can already get such notification by memory thresholds at the 
+> memcg limit.
 > 
-> mm/Kconfig
-> 
-> config MOVABLE_NODE
+> I'll repeat: Section 10 of Documentation/cgroups/memory.txt specifies what 
+> userspace should do when waking up; one of those options is not "check if 
+> the memcg is still actually oom in a short period of time once a charging 
+> task with a pending SIGKILL or in the exit path has been able to exit."
+> Users of this interface typically also disable the memcg oom killer 
+> through the same file, it's ludicrous to put the responsibility on 
+> userspace to determine if the wakeup is actionable and requires it to 
+> intervene in one of the methods listed in section 10.
 
-Some bikeshedding: I suspect 'movable nodes' is the right idiom to use 
-here, unless the feature is restricted to a single node only.
-
-So the option should be 'CONFIG_MOVABLE_NODES=y' and 
-'movable_nodes=...'.
-
-Thanks,
-
-	Ingo
+David, you would need to show us that such a condition happens in real
+loads often enough that such a tweak is worth it. Repeating that a race
+exists doesn't help, because yeah it does and it will after your patch
+as well. So show us that it happens considerably less often with this
+check.
+ 
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
