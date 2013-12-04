@@ -1,102 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 469196B0031
-	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 01:31:58 -0500 (EST)
-Received: by mail-lb0-f175.google.com with SMTP id x18so9064031lbi.6
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 22:31:57 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id h4si22720623lam.146.2013.12.03.22.31.56
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 34A986B0031
+	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 03:22:24 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id v10so21927847pde.13
+        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 00:22:23 -0800 (PST)
+Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com. [202.81.31.146])
+        by mx.google.com with ESMTPS id it5si54073233pbc.95.2013.12.04.00.22.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 03 Dec 2013 22:31:56 -0800 (PST)
-Message-ID: <529ECC44.8040508@parallels.com>
-Date: Wed, 4 Dec 2013 10:31:32 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
+        Wed, 04 Dec 2013 00:22:22 -0800 (PST)
+Received: from /spool/local
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <raghavendra.kt@linux.vnet.ibm.com>;
+	Wed, 4 Dec 2013 18:22:18 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id D52A62BB0057
+	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 19:22:14 +1100 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB4846xU60752112
+	for <linux-mm@kvack.org>; Wed, 4 Dec 2013 19:04:11 +1100
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rB48M9eu017784
+	for <linux-mm@kvack.org>; Wed, 4 Dec 2013 19:22:09 +1100
+Message-ID: <529EE811.5050306@linux.vnet.ibm.com>
+Date: Wed, 04 Dec 2013 14:00:09 +0530
+From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v12 09/18] vmscan: shrink slab on memcg pressure
-References: <cover.1385974612.git.vdavydov@parallels.com> <be01fd9afeedb7d5c7979347f4d6ddaf67c9082d.1385974612.git.vdavydov@parallels.com> <20131203104849.GD8803@dastard> <529DCB7D.10205@parallels.com> <20131204045147.GN10988@dastard>
-In-Reply-To: <20131204045147.GN10988@dastard>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH RFC] mm readahead: Fix the readahead fail in case of empty
+ numa node
+References: <1386066977-17368-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com> <20131203143841.11b71e387dc1db3a8ab0974c@linux-foundation.org>
+In-Reply-To: <20131203143841.11b71e387dc1db3a8ab0974c@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 12/04/2013 08:51 AM, Dave Chinner wrote:
-> On Tue, Dec 03, 2013 at 04:15:57PM +0400, Vladimir Davydov wrote:
->> On 12/03/2013 02:48 PM, Dave Chinner wrote:
->>>> @@ -236,11 +236,17 @@ shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
->>>>  		return 0;
->>>>  
->>>>  	/*
->>>> -	 * copy the current shrinker scan count into a local variable
->>>> -	 * and zero it so that other concurrent shrinker invocations
->>>> -	 * don't also do this scanning work.
->>>> +	 * Do not touch global counter of deferred objects on memcg pressure to
->>>> +	 * avoid isolation issues. Ideally the counter should be per-memcg.
->>>>  	 */
->>>> -	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
->>>> +	if (!shrinkctl->target_mem_cgroup) {
->>>> +		/*
->>>> +		 * copy the current shrinker scan count into a local variable
->>>> +		 * and zero it so that other concurrent shrinker invocations
->>>> +		 * don't also do this scanning work.
->>>> +		 */
->>>> +		nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
->>>> +	}
->>> That's ugly. Effectively it means that memcg reclaim is going to be
->>> completely ineffective when large numbers of allocations and hence
->>> reclaim attempts are done under GFP_NOFS context.
->>>
->>> The only thing that keeps filesystem caches in balance when there is
->>> lots of filesystem work going on (i.e. lots of GFP_NOFS allocations)
->>> is the deferal of reclaim work to a context that can do something
->>> about it.
->> Imagine the situation: a memcg issues a GFP_NOFS allocation and goes to
->> shrink_slab() where it defers them to the global counter; then another
->> memcg issues a GFP_KERNEL allocation, also goes to shrink_slab() where
->> it sees a huge number of deferred objects and starts shrinking them,
->> which is not good IMHO.
-> That's exactly what the deferred mechanism is for - we know we have
-> to do the work, but we can't do it right now so let someone else do
-> it who can.
+
+Thank you Andrew.
+
+On 12/04/2013 04:08 AM, Andrew Morton wrote:
+> On Tue,  3 Dec 2013 16:06:17 +0530 Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com> wrote:
 >
-> In most cases, deferral is handled by kswapd, because when a
-> filesystem workload is causing memory pressure then most allocations
-> are done in GFP_NOFS conditions. Hence the only memory reclaim that
-> can make progress here is kswapd.
+>> On a cpu with an empty numa node,
 >
-> Right now, you aren't deferring any of this memory pressure to some
-> other agent, so it just does not get done. That's a massive problem
-> - it's a design flaw - and instead I see lots of crazy hacks being
-> added to do stuff that should simply be deferred to kswapd like is
-> done for global memory pressure.
+> This makes no sense - numa nodes don't reside on CPUs.
 >
-> Hell, kswapd shoul dbe allowed to walk memcg LRU lists and trim
-> them, just like it does for the global lists. We only need a single
-> "deferred work" counter per node for that - just let kswapd
-> proportion the deferred work over the per-node LRU and the
-> memcgs....
+> I think you mean "on a CPU which resides on a memoryless NUMA node"?
 
-Seems I misunderstand :-(
+You are right. I was not precise there.
+I had this example in mind while talking.
 
-Let me try. You mean we have the only nr_deferred counter per-node, and
-kswapd scans
+IBM P730
+----------------------------------
+# numactl -H
+available: 2 nodes (0-1)
+node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 
+23 24 25 26 27 28 29 30 31
+node 0 size: 0 MB
+node 0 free: 0 MB
+node 1 cpus:
+node 1 size: 12288 MB
+node 1 free: 10440 MB
+node distances:
+node   0   1
+0:  10  40
+1:  40  10
 
-nr_deferred*memcg_kmem_size/total_kmem_size
+>
+>> readahead fails because max_sane_readahead
+>> returns zero. The reason is we look into number of inactive + free pages
+>> available on the current node.
+>>
+>> The following patch tries to fix the behaviour by checking for potential
+>> empty numa node cases.
+>> The rationale for the patch is, readahead may be worth doing on a remote
+>> node instead of incuring costly disk faults later.
+>>
+>> I still feel we may have to sanitize the nr below, (for e.g., nr/8)
+>> to avoid serious consequences of malicious application trying to do
+>> a big readahead on a empty numa node causing unnecessary load on remote nodes.
+>> ( or it may even be that current behaviour is right in not going ahead with
+>> readahead to avoid the memory load on remote nodes).
+>>
+>
+> I don't recall the rationale for the current code and of course we
+> didn't document it.  It might be in the changelogs somewhere - could
+> you please do the git digging and see if you can find out?
 
-objects in each memcg, right?
+Unfaortunately, from my search, I saw that the code belonged to pre git
+time, so could not get much information on that.
 
-Then if there were a lot of objects deferred on memcg (not global)
-pressure due to a memcg issuing a lot of GFP_NOFS allocations, kswapd
-will reclaim objects from all, even unlimited, memcgs. This looks like
-an isolation issue :-/
+>
+> I don't immediately see why readahead into a different node is
+> considered a bad thing.
+>
 
-Currently we have a per-node nr_deferred counter for each shrinker. If
-we add per-memcg reclaim, we have to make it per-memcg per-node, don't we?
+Ok.
 
-Thanks.
+>> --- a/mm/readahead.c
+>> +++ b/mm/readahead.c
+>> @@ -243,8 +243,11 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
+>>    */
+>>   unsigned long max_sane_readahead(unsigned long nr)
+>>   {
+>> -	return min(nr, (node_page_state(numa_node_id(), NR_INACTIVE_FILE)
+>> -		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
+>> +	unsigned long numa_free_page;
+>> +	numa_free_page = (node_page_state(numa_node_id(), NR_INACTIVE_FILE)
+>> +			   + node_page_state(numa_node_id(), NR_FREE_PAGES));
+>> +
+>> +	return numa_free_page ? min(nr, numa_free_page / 2) : nr;
+>
+> Well even if this CPU's node has very little pagecache at all, what's
+> wrong with permitting readahead?  We don't know that the new pagecache
+> will be allocated exclusively from this CPU's node anyway.  All very
+> odd.
+>
+
+true we do not know from where it gets allocated and also I completely 
+agree that I could not think why we  should not think
+of entire memory rather than sticking our decision to one node.
+
+Or is this  one of proactive case to stop worsening situation when 
+system is really short of memory?
+
+Do let me know if you have any idea to handle 'little cache case'
+or do you think the current one is simple enough for now to live with.
+
+> Whatever we do, we should leave behind some good code comments which
+> explain the rationale(s), please.  Right now it's rather opaque.
+>
+
+Yes. For the current code may be we have to have comment some thing
+like ?
+
+/*
+  * Sanitize readahead when we have less memory on the current node.
+  * We do not want to load remote memory with readahead case.
+  */
+
+and if this patch is okay then some thing like.
+
+/*
+  * Sanitized readahead onto remote memory is better than no readahead
+  * when local numa node does not have memory. If local numa has less
+  * memory we trim readahead size depending on potential free memory
+  * available.
+  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
