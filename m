@@ -1,127 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FCAC6B0037
-	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 09:52:01 -0500 (EST)
-Received: by mail-ee0-f45.google.com with SMTP id d49so2453194eek.18
-        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 06:52:01 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id l44si7158508eem.82.2013.12.04.06.52.00
-        for <linux-mm@kvack.org>;
-        Wed, 04 Dec 2013 06:52:00 -0800 (PST)
-Message-ID: <529F418D.3070108@suse.cz>
-Date: Wed, 04 Dec 2013 15:51:57 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-yh0-f42.google.com (mail-yh0-f42.google.com [209.85.213.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 114BE6B0037
+	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 09:56:42 -0500 (EST)
+Received: by mail-yh0-f42.google.com with SMTP id z6so11518602yhz.15
+        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 06:56:41 -0800 (PST)
+Received: from devils.ext.ti.com (devils.ext.ti.com. [198.47.26.153])
+        by mx.google.com with ESMTPS id o28si7819652yhd.41.2013.12.04.06.56.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 04 Dec 2013 06:56:41 -0800 (PST)
+Message-ID: <529F429D.2020207@ti.com>
+Date: Wed, 4 Dec 2013 09:56:29 -0500
+From: Santosh Shilimkar <santosh.shilimkar@ti.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: compaction: Trace compaction begin and end
-References: <1385389570-11393-1-git-send-email-vbabka@suse.cz> <20131204143045.GZ11295@suse.de>
-In-Reply-To: <20131204143045.GZ11295@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Subject: Re: [PATCH v2 00/23] mm: Use memblock interface instead of bootmem
+References: <1386037658-3161-1-git-send-email-santosh.shilimkar@ti.com> <20131203224836.GR8277@htj.dyndns.org>
+In-Reply-To: <20131203224836.GR8277@htj.dyndns.org>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>
 
-On 12/04/2013 03:30 PM, Mel Gorman wrote:
-> This patch adds two tracepoints for compaction begin and end of a zone. Using
-> this it is possible to calculate how much time a workload is spending
-> within compaction and potentially debug problems related to cached pfns
-> for scanning.
+On Tuesday 03 December 2013 05:48 PM, Tejun Heo wrote:
+> FYI, the series is missing the first patch.
+> 
+Patch at least made it to the list [1]. Not sure why
+you didn't get it but it has your ack ;)
 
-I guess for debugging pfns it would be also useful to print their values 
-also in mm_compaction_end.
+Regards,
+Santosh
 
-> In combination with the direct reclaim and slab trace points
-> it should be possible to estimate most allocation-related overhead for
-> a workload.
->
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->   include/trace/events/compaction.h | 42 +++++++++++++++++++++++++++++++++++++++
->   mm/compaction.c                   |  4 ++++
->   2 files changed, 46 insertions(+)
->
-> diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
-> index fde1b3e..f4e115a 100644
-> --- a/include/trace/events/compaction.h
-> +++ b/include/trace/events/compaction.h
-> @@ -67,6 +67,48 @@ TRACE_EVENT(mm_compaction_migratepages,
->   		__entry->nr_failed)
->   );
->
-> +TRACE_EVENT(mm_compaction_begin,
-> +	TP_PROTO(unsigned long zone_start, unsigned long migrate_start,
-> +		unsigned long zone_end, unsigned long free_start),
-> +
-> +	TP_ARGS(zone_start, migrate_start, zone_end, free_start),
-
-IMHO a better order would be:
-  zone_start, migrate_start, free_start, zone_end
-(well especially in the TP_printk part anyway).
-
-> +
-> +	TP_STRUCT__entry(
-> +		__field(unsigned long, zone_start)
-> +		__field(unsigned long, migrate_start)
-> +		__field(unsigned long, zone_end)
-> +		__field(unsigned long, free_start)
-> +	),
-> +
-> +	TP_fast_assign(
-> +		__entry->zone_start = zone_start;
-> +		__entry->migrate_start = migrate_start;
-> +		__entry->zone_end = zone_end;
-> +		__entry->free_start = free_start;
-> +	),
-> +
-> +	TP_printk("zone_start=%lu migrate_start=%lu zone_end=%lu free_start=%lu",
-> +		__entry->zone_start,
-> +		__entry->migrate_start,
-> +		__entry->zone_end,
-> +		__entry->free_start)
-> +);
-> +
-> +TRACE_EVENT(mm_compaction_end,
-> +	TP_PROTO(int status),
-> +
-> +	TP_ARGS(status),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(int, status)
-> +	),
-> +
-> +	TP_fast_assign(
-> +		__entry->status = status;
-> +	),
-> +
-> +	TP_printk("status=%d", __entry->status)
-> +);
->
->   #endif /* _TRACE_COMPACTION_H */
->
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index c437893..78ff866 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -960,6 +960,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
->   	if (compaction_restarting(zone, cc->order) && !current_is_kswapd())
->   		__reset_isolation_suitable(zone);
->
-> +	trace_mm_compaction_begin(start_pfn, cc->migrate_pfn, end_pfn, cc->free_pfn);
-> +
->   	migrate_prep_local();
->
->   	while ((ret = compact_finished(zone, cc)) == COMPACT_CONTINUE) {
-> @@ -1005,6 +1007,8 @@ out:
->   	cc->nr_freepages -= release_freepages(&cc->freepages);
->   	VM_BUG_ON(cc->nr_freepages != 0);
->
-> +	trace_mm_compaction_end(ret);
-> +
->   	return ret;
->   }
->
->
+[1] https://lkml.org/lkml/2013/12/2/999
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
