@@ -1,62 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id DBC4F6B0031
-	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 11:59:16 -0500 (EST)
-Received: by mail-ie0-f177.google.com with SMTP id tp5so26054564ieb.8
-        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 08:59:16 -0800 (PST)
-Received: from relay.sgi.com (relay3.sgi.com. [192.48.152.1])
-        by mx.google.com with ESMTP id nh2si9989317icc.143.2013.12.04.08.59.15
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E73C16B0031
+	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 14:03:25 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id z10so22988339pdj.30
+        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 11:03:25 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id pj7si22272206pbc.339.2013.12.04.11.03.23
         for <linux-mm@kvack.org>;
-        Wed, 04 Dec 2013 08:59:15 -0800 (PST)
-Date: Wed, 4 Dec 2013 10:59:18 -0600
-From: Alex Thorlton <athorlton@sgi.com>
-Subject: Re: [PATCH 03/15] mm: thp: give transparent hugepage code a separate
- copy_page
-Message-ID: <20131204165918.GA13191@sgi.com>
-References: <1386060721-3794-1-git-send-email-mgorman@suse.de>
- <1386060721-3794-4-git-send-email-mgorman@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1386060721-3794-4-git-send-email-mgorman@suse.de>
+        Wed, 04 Dec 2013 11:03:24 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] thp: move preallocated PTE page table on move_huge_pmd()
+Date: Wed,  4 Dec 2013 21:03:06 +0200
+Message-Id: <1386183786-9400-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Andrey Wagin <avagin@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-> -void copy_huge_page(struct page *dst, struct page *src)
-> -{
-> -	int i;
-> -	struct hstate *h = page_hstate(src);
-> -
-> -	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
+Andrey Wagin reported crash on VM_BUG_ON() in pgtable_pmd_page_dtor()
+with fallowing backtrace:
 
-With CONFIG_HUGETLB_PAGE=n, the kernel fails to build, throwing this
-error:
+  [<ffffffff8119427f>] free_pgd_range+0x2bf/0x410
+  [<ffffffff8119449e>] free_pgtables+0xce/0x120
+  [<ffffffff8119b900>] unmap_region+0xe0/0x120
+  [<ffffffff811a0036>] ? move_page_tables+0x526/0x6b0
+  [<ffffffff8119d6a9>] do_munmap+0x249/0x360
+  [<ffffffff811a0304>] move_vma+0x144/0x270
+  [<ffffffff811a07e9>] SyS_mremap+0x3b9/0x510
+  [<ffffffff8172d512>] system_call_fastpath+0x16/0x1b
 
-mm/migrate.c: In function a??copy_huge_pagea??:
-mm/migrate.c:473: error: implicit declaration of function a??page_hstatea??
+The crash can be reproduce with this test case:
 
-I got it to build by sticking the following into hugetlb.h:
+  #define _GNU_SOURCE
+  #include <sys/mman.h>
+  #include <stdio.h>
+  #include <unistd.h>
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 4694afc..fd76912 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -403,6 +403,7 @@ struct hstate {};
- #define hstate_sizelog(s) NULL
- #define hstate_vma(v) NULL
- #define hstate_inode(i) NULL
-+#define page_hstate(p) NULL
- #define huge_page_size(h) PAGE_SIZE
- #define huge_page_mask(h) PAGE_MASK
- #define vma_kernel_pagesize(v) PAGE_SIZE
+  #define MB (1024 * 1024UL)
+  #define GB (1024 * MB)
 
-I figure that the #define I stuck in isn't actually solving the real
-problem, but it got things working again.
+  int main(int argc, char **argv)
+  {
+	char *p;
+	int i;
 
-- Alex
+	p = mmap((void *) GB, 10 * MB, PROT_READ | PROT_WRITE,
+			MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+	for (i = 0; i < 10 * MB; i += 4096)
+		p[i] = 1;
+	mremap(p, 10 * MB, 10 * MB, MREMAP_FIXED | MREMAP_MAYMOVE, 2 * GB);
+	return 0;
+  }
+
+Due to split PMD lock, we now store preallocated PTE tables for THP
+pages per-PMD table.  It means we need to move them to other PMD table
+if huge PMD moved there.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reported-by: Andrey Vagin <avagin@openvz.org>
+---
+ mm/huge_memory.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index bccd5a628ea6..33a5dc492810 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1481,8 +1481,18 @@ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
+ 		pmd = pmdp_get_and_clear(mm, old_addr, old_pmd);
+ 		VM_BUG_ON(!pmd_none(*new_pmd));
+ 		set_pmd_at(mm, new_addr, new_pmd, pmd_mksoft_dirty(pmd));
+-		if (new_ptl != old_ptl)
++		if (new_ptl != old_ptl) {
++			pgtable_t pgtable;
++
++			/*
++			 * Move preallocated PTE page table if new_pmd is on
++			 * different PMD page table.
++			 */
++			pgtable = pgtable_trans_huge_withdraw(mm, old_pmd);
++			pgtable_trans_huge_deposit(mm, new_pmd, pgtable);
++
+ 			spin_unlock(new_ptl);
++		}
+ 		spin_unlock(old_ptl);
+ 	}
+ out:
+-- 
+1.8.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
