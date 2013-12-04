@@ -1,43 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 531D16B0037
-	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 03:40:31 -0500 (EST)
-Received: by mail-pd0-f176.google.com with SMTP id w10so21897623pde.35
-        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 00:40:31 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id eb3si2124564pbc.206.2013.12.04.00.40.29
-        for <linux-mm@kvack.org>;
-        Wed, 04 Dec 2013 00:40:30 -0800 (PST)
-Date: Wed, 4 Dec 2013 00:41:25 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH RFC] mm readahead: Fix the readahead fail in case of
- empty numa node
-Message-Id: <20131204004125.a06f7dfc.akpm@linux-foundation.org>
-In-Reply-To: <529EE811.5050306@linux.vnet.ibm.com>
-References: <1386066977-17368-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
-	<20131203143841.11b71e387dc1db3a8ab0974c@linux-foundation.org>
-	<529EE811.5050306@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-bk0-f41.google.com (mail-bk0-f41.google.com [209.85.214.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 21A8D6B0031
+	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 04:53:09 -0500 (EST)
+Received: by mail-bk0-f41.google.com with SMTP id v15so6613362bkz.28
+        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 01:53:08 -0800 (PST)
+Received: from mail-bk0-x233.google.com (mail-bk0-x233.google.com [2a00:1450:4008:c01::233])
+        by mx.google.com with ESMTPS id cu8si7965843bkc.80.2013.12.04.01.53.07
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 04 Dec 2013 01:53:07 -0800 (PST)
+Received: by mail-bk0-f51.google.com with SMTP id 6so6464516bkj.38
+        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 01:53:07 -0800 (PST)
+Date: Wed, 4 Dec 2013 10:53:04 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH RESEND part2 v2 0/8] Arrange hotpluggable memory as
+ ZONE_MOVABLE
+Message-ID: <20131204095304.GA2308@gmail.com>
+References: <529D3FC0.6000403@cn.fujitsu.com>
+ <20131203154811.90113f91ddd23413dd92b768@linux-foundation.org>
+ <529E7114.9060107@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <529E7114.9060107@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, "Rafael J . Wysocki" <rjw@sisk.pl>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Chen Tang <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>
 
-On Wed, 04 Dec 2013 14:00:09 +0530 Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com> wrote:
 
-> > I don't recall the rationale for the current code and of course we
-> > didn't document it.  It might be in the changelogs somewhere - could
-> > you please do the git digging and see if you can find out?
+* Zhang Yanfei <zhangyanfei.yes@gmail.com> wrote:
+
+> Hello Andrew
 > 
-> Unfaortunately, from my search, I saw that the code belonged to pre git
-> time, so could not get much information on that.
+> On 12/04/2013 07:48 AM, Andrew Morton wrote:
+> > On Tue, 03 Dec 2013 10:19:44 +0800 Zhang Yanfei <zhangyanfei@cn.fujitsu.com> wrote:
+> > 
+> >> The current Linux cannot migrate pages used by the kerenl because
+> >> of the kernel direct mapping. In Linux kernel space, va = pa + PAGE_OFFSET.
+> >> When the pa is changed, we cannot simply update the pagetable and
+> >> keep the va unmodified. So the kernel pages are not migratable.
+> >>
+> >> There are also some other issues will cause the kernel pages not migratable.
+> >> For example, the physical address may be cached somewhere and will be used.
+> >> It is not to update all the caches.
+> >>
+> >> When doing memory hotplug in Linux, we first migrate all the pages in one
+> >> memory device somewhere else, and then remove the device. But if pages are
+> >> used by the kernel, they are not migratable. As a result, memory used by
+> >> the kernel cannot be hot-removed.
+> >>
+> >> Modifying the kernel direct mapping mechanism is too difficult to do. And
+> >> it may cause the kernel performance down and unstable. So we use the following
+> >> way to do memory hotplug.
+> >>
+> >>
+> >> [What we are doing]
+> >>
+> >> In Linux, memory in one numa node is divided into several zones. One of the
+> >> zones is ZONE_MOVABLE, which the kernel won't use.
+> >>
+> >> In order to implement memory hotplug in Linux, we are going to arrange all
+> >> hotpluggable memory in ZONE_MOVABLE so that the kernel won't use these memory.
+> > 
+> > How does the user enable this?  I didn't spot a Kconfig variable which
+> > enables it.  Is there a boot option?
+> 
+> Yeah, there is a Kconfig variable "MOVABLE_NODE" and a boot option "movable_node"
+> 
+> mm/Kconfig
+> 
+> config MOVABLE_NODE
 
-Here: https://lkml.org/lkml/2004/8/20/242
+Some bikeshedding: I suspect 'movable nodes' is the right idiom to use 
+here, unless the feature is restricted to a single node only.
 
-It seems it was done as a rather thoughtless performance optimisation. 
-I'd say it's time to reimplement max_sane_readahead() from scratch.
+So the option should be 'CONFIG_MOVABLE_NODES=y' and 
+'movable_nodes=...'.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
