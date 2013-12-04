@@ -1,73 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f46.google.com (mail-qe0-f46.google.com [209.85.128.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D9FA6B0062
-	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 17:07:51 -0500 (EST)
-Received: by mail-qe0-f46.google.com with SMTP id a11so16246428qen.5
-        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 14:07:51 -0800 (PST)
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com. [32.97.110.152])
-        by mx.google.com with ESMTPS id r7si28798672qcz.61.2013.12.04.14.07.49
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 04 Dec 2013 14:07:50 -0800 (PST)
-Received: from /spool/local
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Wed, 4 Dec 2013 15:07:49 -0700
-Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 2547BC40003
-	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 15:07:26 -0700 (MST)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by b03cxnp08025.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB4K5tIn6619612
-	for <linux-mm@kvack.org>; Wed, 4 Dec 2013 21:05:55 +0100
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id rB4MAj0Q013293
-	for <linux-mm@kvack.org>; Wed, 4 Dec 2013 15:10:47 -0700
-Date: Wed, 4 Dec 2013 14:07:44 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH v6 4/5] MCS Lock: Barrier corrections
-Message-ID: <20131204220744.GG15492@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <cover.1384885312.git.tim.c.chen@linux.intel.com>
- <1384911463.11046.454.camel@schen9-DESK>
- <20131120153123.GF4138@linux.vnet.ibm.com>
- <20131120154643.GG19352@mudshark.cambridge.arm.com>
- <20131120171400.GI4138@linux.vnet.ibm.com>
- <20131121110308.GC10022@twins.programming.kicks-ass.net>
- <20131121125616.GI3694@twins.programming.kicks-ass.net>
- <20131121132041.GS4138@linux.vnet.ibm.com>
- <20131121172558.GA27927@linux.vnet.ibm.com>
- <20131204212613.GA21717@two.firstfloor.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail-ea0-f171.google.com (mail-ea0-f171.google.com [209.85.215.171])
+	by kanga.kvack.org (Postfix) with ESMTP id C0F2F6B0069
+	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 17:11:24 -0500 (EST)
+Received: by mail-ea0-f171.google.com with SMTP id h10so10908906eak.2
+        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 14:11:24 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id w6si8421003eeg.174.2013.12.04.14.11.23
+        for <linux-mm@kvack.org>;
+        Wed, 04 Dec 2013 14:11:23 -0800 (PST)
+Date: Wed, 04 Dec 2013 17:11:17 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1386195077-yqe6395x-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1386183786-9400-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1386183786-9400-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH] thp: move preallocated PTE page table on move_huge_pmd()
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20131204212613.GA21717@two.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Wagin <avagin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Dec 04, 2013 at 10:26:13PM +0100, Andi Kleen wrote:
-> > Let's apply the Intel manual to the earlier example:
-> > 
-> > 	CPU 0		CPU 1			CPU 2
-> > 	-----		-----			-----
-> > 	x = 1;		r1 = SLA(lock);		y = 1;
-> > 	SSR(lock, 1);	r2 = y;			smp_mb();
-> > 						r3 = x;
-> > 
-> > 	assert(!(r1 == 1 && r2 == 0 && r3 == 0));
+On Wed, Dec 04, 2013 at 09:03:06PM +0200, Kirill A. Shutemov wrote:
+> Andrey Wagin reported crash on VM_BUG_ON() in pgtable_pmd_page_dtor()
+> with fallowing backtrace:
 > 
-> Hi Paul,
+>   [<ffffffff8119427f>] free_pgd_range+0x2bf/0x410
+>   [<ffffffff8119449e>] free_pgtables+0xce/0x120
+>   [<ffffffff8119b900>] unmap_region+0xe0/0x120
+>   [<ffffffff811a0036>] ? move_page_tables+0x526/0x6b0
+>   [<ffffffff8119d6a9>] do_munmap+0x249/0x360
+>   [<ffffffff811a0304>] move_vma+0x144/0x270
+>   [<ffffffff811a07e9>] SyS_mremap+0x3b9/0x510
+>   [<ffffffff8172d512>] system_call_fastpath+0x16/0x1b
 > 
-> We discussed this example with CPU architects and they
-> agreed that it is valid to rely on (r1 == 1 && r2 == 0 && r3 == 0)
-> never happening.
+> The crash can be reproduce with this test case:
 > 
-> So the MCS code is good without additional barriers.
+>   #define _GNU_SOURCE
+>   #include <sys/mman.h>
+>   #include <stdio.h>
+>   #include <unistd.h>
+> 
+>   #define MB (1024 * 1024UL)
+>   #define GB (1024 * MB)
+> 
+>   int main(int argc, char **argv)
+>   {
+> 	char *p;
+> 	int i;
+> 
+> 	p = mmap((void *) GB, 10 * MB, PROT_READ | PROT_WRITE,
+> 			MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+> 	for (i = 0; i < 10 * MB; i += 4096)
+> 		p[i] = 1;
+> 	mremap(p, 10 * MB, 10 * MB, MREMAP_FIXED | MREMAP_MAYMOVE, 2 * GB);
+> 	return 0;
+>   }
+> 
+> Due to split PMD lock, we now store preallocated PTE tables for THP
+> pages per-PMD table.  It means we need to move them to other PMD table
+> if huge PMD moved there.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Reported-by: Andrey Vagin <avagin@openvz.org>
 
-Good to hear!!!  Thank you, Andi!
+looks good to me.
 
-							Thanx, Paul
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+
+> ---
+>  mm/huge_memory.c | 12 +++++++++++-
+>  1 file changed, 11 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index bccd5a628ea6..33a5dc492810 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -1481,8 +1481,18 @@ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
+>  		pmd = pmdp_get_and_clear(mm, old_addr, old_pmd);
+>  		VM_BUG_ON(!pmd_none(*new_pmd));
+>  		set_pmd_at(mm, new_addr, new_pmd, pmd_mksoft_dirty(pmd));
+> -		if (new_ptl != old_ptl)
+> +		if (new_ptl != old_ptl) {
+> +			pgtable_t pgtable;
+> +
+> +			/*
+> +			 * Move preallocated PTE page table if new_pmd is on
+> +			 * different PMD page table.
+> +			 */
+> +			pgtable = pgtable_trans_huge_withdraw(mm, old_pmd);
+> +			pgtable_trans_huge_deposit(mm, new_pmd, pgtable);
+> +
+>  			spin_unlock(new_ptl);
+> +		}
+>  		spin_unlock(old_ptl);
+>  	}
+>  out:
+> -- 
+> 1.8.4.4
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
