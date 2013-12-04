@@ -1,57 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f50.google.com (mail-bk0-f50.google.com [209.85.214.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 36E5B6B004D
-	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 17:45:37 -0500 (EST)
-Received: by mail-bk0-f50.google.com with SMTP id e11so6938092bkh.9
-        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 14:45:36 -0800 (PST)
+Received: from mail-bk0-f53.google.com (mail-bk0-f53.google.com [209.85.214.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B8576B0031
+	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 17:47:25 -0500 (EST)
+Received: by mail-bk0-f53.google.com with SMTP id na10so6796120bkb.40
+        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 14:47:24 -0800 (PST)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id yv6si22837561bkb.169.2013.12.04.14.45.36
+        by mx.google.com with ESMTPS id rk5si23513338bkb.79.2013.12.04.14.47.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 04 Dec 2013 14:45:36 -0800 (PST)
+        Wed, 04 Dec 2013 14:47:24 -0800 (PST)
+Date: Wed, 4 Dec 2013 17:47:15 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 2/2] mm: memcg: do not allow task about to OOM kill to bypass the limit
-Date: Wed,  4 Dec 2013 17:45:14 -0500
-Message-Id: <1386197114-5317-3-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1386197114-5317-1-git-send-email-hannes@cmpxchg.org>
-References: <1386197114-5317-1-git-send-email-hannes@cmpxchg.org>
+Subject: Re: 2e685cad5790 build warning
+Message-ID: <20131204224715.GD21724@cmpxchg.org>
+References: <20131204222943.GC21724@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20131204222943.GC21724@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Glauber Costa <glommer@gmail.com>, netdev@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-4942642080ea ("mm: memcg: handle non-error OOM situations more
-gracefully") allowed tasks that already entered a memcg OOM condition
-to bypass the memcg limit on subsequent allocation attempts hoping
-this would expedite finishing the page fault and executing the kill.
+[ botched linux-kernel address in the first try ]
 
-David Rientjes is worried that this breaks memcg isolation guarantees
-and since there is no evidence that the bypass actually speeds up
-fault processing just change it so that these subsequent charge
-attempts fail outright.  The notable exception being __GFP_NOFAIL
-charges which are required to bypass the limit regardless.
-
-Reported-by: David Rientjes <rientjes@google.com>
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/memcontrol.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index f6a63f5b3827..bf5e89457149 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2694,7 +2694,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- 		goto bypass;
- 
- 	if (unlikely(task_in_memcg_oom(current)))
--		goto bypass;
-+		goto nomem;
- 
- 	if (gfp_mask & __GFP_NOFAIL)
- 		oom = false;
--- 
-1.8.4.2
+On Wed, Dec 04, 2013 at 05:29:43PM -0500, Johannes Weiner wrote:
+> Hi Eric,
+> 
+> commit 2e685cad57906e19add7189b5ff49dfb6aaa21d3
+> Author: Eric W. Biederman <ebiederm@xmission.com>
+> Date:   Sat Oct 19 16:26:19 2013 -0700
+> 
+>     tcp_memcontrol: Kill struct tcp_memcontrol
+>     
+>     Replace the pointers in struct cg_proto with actual data fields and kill
+>     struct tcp_memcontrol as it is not fully redundant.
+>     
+>     This removes a confusing, unnecessary layer of abstraction.
+>     
+>     Signed-off-by: "Eric W. Biederman" <ebiederm@xmission.com>
+>     Signed-off-by: David S. Miller <davem@davemloft.net>
+> 
+> triggers a build warning because it removed the only reference to a
+> function but not the function itself:
+> 
+> linux/net/ipv4/tcp_memcontrol.c:9:13: warning: a??memcg_tcp_enter_memory_pressurea?? defined but not used [-Wunused-function]
+>  static void memcg_tcp_enter_memory_pressure(struct sock *sk)
+> 
+> I can not see from the changelog why this function is no longer used,
+> or who is supposed to now set cg_proto->memory_pressure which you
+> still initialize etc.  Either way, the current state does not seem to
+> make much sense.  The author would be the best person to double check
+> such changes, but he wasn't copied on your patch, so I copied him now.
+> 
+> Apologies if this has been brought up before, I could not find any
+> reference on LKML of either this patch or a report of this warning.
+> 
+> Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
