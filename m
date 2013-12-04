@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 80B316B0031
-	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 10:21:22 -0500 (EST)
-Received: by mail-qa0-f54.google.com with SMTP id f11so6741025qae.6
-        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 07:21:22 -0800 (PST)
-Received: from b232-131.smtp-out.amazonses.com (b232-131.smtp-out.amazonses.com. [199.127.232.131])
-        by mx.google.com with ESMTP id r5si4092258qar.147.2013.12.04.07.21.20
+Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
+	by kanga.kvack.org (Postfix) with ESMTP id E5C816B0037
+	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 10:24:54 -0500 (EST)
+Received: by mail-qc0-f169.google.com with SMTP id r5so3570294qcx.14
+        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 07:24:54 -0800 (PST)
+Received: from a9-111.smtp-out.amazonses.com (a9-111.smtp-out.amazonses.com. [54.240.9.111])
+        by mx.google.com with ESMTP id hj7si18632585qeb.116.2013.12.04.07.24.53
         for <linux-mm@kvack.org>;
-        Wed, 04 Dec 2013 07:21:21 -0800 (PST)
-Date: Wed, 4 Dec 2013 15:21:19 +0000
+        Wed, 04 Dec 2013 07:24:53 -0800 (PST)
+Date: Wed, 4 Dec 2013 15:24:52 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [patch 2/8] mm, mempolicy: rename slab_node for clarity
-In-Reply-To: <alpine.DEB.2.02.1312032117330.29733@chino.kir.corp.google.com>
-Message-ID: <00000142be32f445-c4b31577-3ad8-42c4-bfd5-6387662ffa70-000000@email.amazonses.com>
+Subject: Re: [patch 3/8] mm, mempolicy: remove per-process flag
+In-Reply-To: <alpine.DEB.2.02.1312032117490.29733@chino.kir.corp.google.com>
+Message-ID: <00000142be3633ba-2a459537-58fb-444b-a99f-33ff5e5b2aed-000000@email.amazonses.com>
 References: <20131119131400.GC20655@dhcp22.suse.cz> <20131119134007.GD20655@dhcp22.suse.cz> <alpine.DEB.2.02.1311192352070.20752@chino.kir.corp.google.com> <20131120152251.GA18809@dhcp22.suse.cz> <alpine.DEB.2.02.1311201917520.7167@chino.kir.corp.google.com>
- <20131128115458.GK2761@dhcp22.suse.cz> <alpine.DEB.2.02.1312021504170.13465@chino.kir.corp.google.com> <alpine.DEB.2.02.1312032116440.29733@chino.kir.corp.google.com> <alpine.DEB.2.02.1312032117330.29733@chino.kir.corp.google.com>
+ <20131128115458.GK2761@dhcp22.suse.cz> <alpine.DEB.2.02.1312021504170.13465@chino.kir.corp.google.com> <alpine.DEB.2.02.1312032116440.29733@chino.kir.corp.google.com> <alpine.DEB.2.02.1312032117490.29733@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -24,11 +24,17 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KA
 
 On Tue, 3 Dec 2013, David Rientjes wrote:
 
-> slab_node() is actually a mempolicy function, so rename it to
-> mempolicy_slab_node() to make it clearer that it used for processes with
-> mempolicies.
+> PF_MEMPOLICY is an unnecessary optimization for CONFIG_SLAB users.
+> There's no significant performance degradation to checking
+> current->mempolicy rather than current->flags & PF_MEMPOLICY in the
+> allocation path, especially since this is considered unlikely().
 
-Acked-by: Christoph Lameter <cl@linux.com>
+The use of current->mempolicy increase the cache footprint since its in a
+rarely used cacheline. This performance issue would occur when memory
+policies are not used since that cacheline would then have to be touched
+regardless of memory policies be in effect or not. PF_MEMPOLICY was used
+to avoid touching the cacheline.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
