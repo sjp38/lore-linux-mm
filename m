@@ -1,132 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f48.google.com (mail-bk0-f48.google.com [209.85.214.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AF6C6B0031
-	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 22:01:15 -0500 (EST)
-Received: by mail-bk0-f48.google.com with SMTP id v10so6304007bkz.21
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 19:01:14 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id pr4si5748066bkb.50.2013.12.03.19.01.13
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F7A96B0031
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 22:13:15 -0500 (EST)
+Received: by mail-pd0-f179.google.com with SMTP id r10so21629327pdi.10
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 19:13:15 -0800 (PST)
+Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com. [202.81.31.146])
+        by mx.google.com with ESMTPS id bc2si53155937pad.71.2013.12.03.19.13.13
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 03 Dec 2013 19:01:14 -0800 (PST)
-Date: Tue, 3 Dec 2013 22:01:01 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm: memcg: do not declare OOM from __GFP_NOFAIL
- allocations
-Message-ID: <20131204030101.GV3556@cmpxchg.org>
-References: <20131127163916.GB3556@cmpxchg.org>
- <alpine.DEB.2.02.1311271336220.9222@chino.kir.corp.google.com>
- <20131127225340.GE3556@cmpxchg.org>
- <alpine.DEB.2.02.1311271526080.22848@chino.kir.corp.google.com>
- <20131128102049.GF2761@dhcp22.suse.cz>
- <alpine.DEB.2.02.1311291543400.22413@chino.kir.corp.google.com>
- <20131202132201.GC18838@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312021452510.13465@chino.kir.corp.google.com>
- <20131203222511.GU3556@cmpxchg.org>
- <alpine.DEB.2.02.1312031531510.5946@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1312031531510.5946@chino.kir.corp.google.com>
+        Tue, 03 Dec 2013 19:13:14 -0800 (PST)
+Received: from /spool/local
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <benh@au1.ibm.com>;
+	Wed, 4 Dec 2013 13:13:09 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 673482CE8055
+	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 14:13:06 +1100 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB42spqJ9175328
+	for <linux-mm@kvack.org>; Wed, 4 Dec 2013 13:54:53 +1100
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rB43D3vr002675
+	for <linux-mm@kvack.org>; Wed, 4 Dec 2013 14:13:03 +1100
+Message-ID: <1386126782.16703.137.camel@pasglop>
+Subject: Re: [PATCH -V2 3/5] mm: Move change_prot_numa outside
+ CONFIG_ARCH_USES_NUMA_PROT_NONE
+From: Benjamin Herrenschmidt <benh@au1.ibm.com>
+Date: Wed, 04 Dec 2013 14:13:02 +1100
+In-Reply-To: <1384766893-10189-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: 
+	<1384766893-10189-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	 <1384766893-10189-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: paulus@samba.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-On Tue, Dec 03, 2013 at 03:40:13PM -0800, David Rientjes wrote:
-> On Tue, 3 Dec 2013, Johannes Weiner wrote:
+On Mon, 2013-11-18 at 14:58 +0530, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 > 
-> > > > Spin on which level? The whole point of this change was to not spin for
-> > > > ever because the caller might sit on top of other locks which might
-> > > > prevent somebody else to die although it has been killed.
-> > > 
-> > > See my question about the non-memcg page allocator behavior below.
-> > 
-> > No, please answer the question.
-> > 
+> change_prot_numa should work even if _PAGE_NUMA != _PAGE_PROTNONE.
+> On archs like ppc64 that don't use _PAGE_PROTNONE and also have
+> a separate page table outside linux pagetable, we just need to
+> make sure that when calling change_prot_numa we flush the
+> hardware page table entry so that next page access  result in a numa
+> fault.
+
+That patch doesn't look right...
+
+You are essentially making change_prot_numa() do whatever it does (which
+I don't completely understand) *for all architectures* now, whether they
+have CONFIG_ARCH_USES_NUMA_PROT_NONE or not ... So because you want that
+behaviour on powerpc book3s64, you change everybody.
+
+Is that correct ?
+
+Also what exactly is that doing, can you explain ? From what I can see,
+it calls back into the core of mprotect to change the protection to
+vma->vm_page_prot, which I would have expected is already the protection
+there, with the added "prot_numa" flag passed down.
+
+Your changeset comment says "On archs like ppc64 [...] we just need to
+make sure that when calling change_prot_numa we flush the
+hardware page table entry so that next page access  result in a numa
+fault."
+
+But change_prot_numa() does a lot more than that ... it does
+pte_mknuma(), do we need it ? I assume we do or we wouldn't have added
+that PTE bit to begin with...
+
+Now it *might* be allright and it might be that no other architecture
+cares anyway etc... but I need at least some mm folks to ack on that
+patch before I can take it because it *will* change behaviour of other
+architectures.
+
+Cheers,
+Ben.
+
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+>  include/linux/mm.h | 3 ---
+>  mm/mempolicy.c     | 9 ---------
+>  2 files changed, 12 deletions(-)
 > 
-> The question would be answered below, by having consistency in allocation 
-> and charging paths between both the page allocator and memcg.
-> 
-> > > I'm not quite sure how significant of a point this is, though, because it 
-> > > depends on the caller doing the __GFP_NOFAIL allocations that allow the 
-> > > bypass.  If you're doing
-> > > 
-> > > 	for (i = 0; i < 1 << 20; i++)
-> > > 		page[i] = alloc_page(GFP_NOFS | __GFP_NOFAIL);
-> > 
-> > Hyperbole serves no one.
-> > 
-> 
-> Since this bypasses all charges to the root memcg in oom conditions as a 
-> result of your patch, how do you ensure the "leakage" is contained to a 
-> small amount of memory?  Are we currently just trusting the users of 
-> __GFP_NOFAIL that they aren't allocating a large amount of memory?
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 0548eb201e05..51794c1a1d7e 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1851,11 +1851,8 @@ static inline pgprot_t vm_get_page_prot(unsigned long vm_flags)
+>  }
+>  #endif
+>  
+> -#ifdef CONFIG_ARCH_USES_NUMA_PROT_NONE
+>  unsigned long change_prot_numa(struct vm_area_struct *vma,
+>  			unsigned long start, unsigned long end);
+> -#endif
+> -
+>  struct vm_area_struct *find_extend_vma(struct mm_struct *, unsigned long addr);
+>  int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
+>  			unsigned long pfn, unsigned long size, pgprot_t);
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index c4403cdf3433..cae10af4fdc4 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -613,7 +613,6 @@ static inline int queue_pages_pgd_range(struct vm_area_struct *vma,
+>  	return 0;
+>  }
+>  
+> -#ifdef CONFIG_ARCH_USES_NUMA_PROT_NONE
+>  /*
+>   * This is used to mark a range of virtual addresses to be inaccessible.
+>   * These are later cleared by a NUMA hinting fault. Depending on these
+> @@ -627,7 +626,6 @@ unsigned long change_prot_numa(struct vm_area_struct *vma,
+>  			unsigned long addr, unsigned long end)
+>  {
+>  	int nr_updated;
+> -	BUILD_BUG_ON(_PAGE_NUMA != _PAGE_PROTNONE);
+>  
+>  	nr_updated = change_protection(vma, addr, end, vma->vm_page_prot, 0, 1);
+>  	if (nr_updated)
+> @@ -635,13 +633,6 @@ unsigned long change_prot_numa(struct vm_area_struct *vma,
+>  
+>  	return nr_updated;
+>  }
+> -#else
+> -static unsigned long change_prot_numa(struct vm_area_struct *vma,
+> -			unsigned long addr, unsigned long end)
+> -{
+> -	return 0;
+> -}
+> -#endif /* CONFIG_ARCH_USES_NUMA_PROT_NONE */
+>  
+>  /*
+>   * Walk through page tables and collect pages to be migrated.
 
-Yes, as answered in my first reply to you:
-
----
-
-> Ah, this is because of 3168ecbe1c04 ("mm: memcg: use proper memcg in limit 
-> bypass") which just bypasses all of these allocations and charges the root 
-> memcg.  So if allocations want to bypass memcg isolation they just have to 
-> be __GFP_NOFAIL?
-
-I don't think we have another option.
-
----
-
-Is there a specific reason you keep repeating the same questions?
-
-> > > I'm referring to the generic non-memcg page allocator behavior.  Forget 
-> > > memcg for a moment.  What is the behavior in the _page_allocator_ for 
-> > > GFP_NOFS | __GFP_NOFAIL?  Do we spin forever if reclaim fails or do we 
-> > > bypas the per-zone min watermarks to allow it to allocate because "it 
-> > > needs to succeed, it may be holding filesystem locks"?
-> > > 
-> > > It's already been acknowledged in this thread that no bypassing is done 
-> > > in the page allocator and it just spins.  There's some handwaving saying 
-> > > that since the entire system is oom that there is a greater chance that 
-> > > memory will be freed by something else, but that's just handwaving and is 
-> > > certainly no guaranteed.
-> > 
-> > Do you have another explanation of why this deadlock is not triggering
-> > in the global case?  It's pretty obvious that there is a deadlock that
-> > can not be resolved unless some unrelated task intervenes, just read
-> > __alloc_pages_slowpath().
-> > 
-> > But we had a concrete bug report for memcg where there was no other
-> > task to intervene.  One was stuck in the OOM killer waiting for the
-> > victim to exit, the victim was stuck on locks that the killer held.
-> > 
-> 
-> I believe the page allocator would be susceptible to the same deadlock if 
-> nothing else on the system can reclaim memory and that belief comes from 
-> code inspection that shows __GFP_NOFAIL is not guaranteed to ever succeed 
-> in the page allocator as their charges now are (with your patch) in memcg.  
-> I do not have an example of such an incident.
-
-Me neither.
-
-> > > So, my question again: why not bypass the per-zone min watermarks in the 
-> > > page allocator?
-> > 
-> > I don't even know what your argument is supposed to be.  The fact that
-> > we don't do it in the page allocator means that there can't be a bug
-> > in memcg?
-> > 
-> 
-> I'm asking if we should allow GFP_NOFS | __GFP_NOFAIL allocations in the 
-> page allocator to bypass per-zone min watermarks after reclaim has failed 
-> since the oom killer cannot be called in such a context so that the page 
-> allocator is not susceptible to the same deadlock without a complete 
-> depletion of memory reserves?
-
-Yes, I think so.
-
-> It's not an argument, it's a question.  Relax.
-
-Right.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
