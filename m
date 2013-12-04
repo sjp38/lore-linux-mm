@@ -1,174 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 43C816B003A
-	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 00:37:14 -0500 (EST)
-Received: by mail-pd0-f169.google.com with SMTP id v10so21681655pde.14
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 21:37:13 -0800 (PST)
-Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com. [122.248.162.2])
-        by mx.google.com with ESMTPS id tt8si14493983pbc.18.2013.12.03.21.37.11
+Received: from mail-bk0-f53.google.com (mail-bk0-f53.google.com [209.85.214.53])
+	by kanga.kvack.org (Postfix) with ESMTP id ECBB36B005A
+	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 00:46:02 -0500 (EST)
+Received: by mail-bk0-f53.google.com with SMTP id na10so6465447bkb.12
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 21:46:02 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id cl3si18101954bkc.178.2013.12.03.21.46.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 03 Dec 2013 21:37:12 -0800 (PST)
-Received: from /spool/local
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 4 Dec 2013 11:07:09 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 309C9E0056
-	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 11:09:19 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB45b2eZ3604772
-	for <linux-mm@kvack.org>; Wed, 4 Dec 2013 11:07:02 +0530
-Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rB45b5qZ000553
-	for <linux-mm@kvack.org>; Wed, 4 Dec 2013 11:07:06 +0530
-Date: Wed, 4 Dec 2013 13:37:04 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 19/63] sched: Track NUMA hinting faults on per-node basis
-Message-ID: <529ebf88.28e9440a.54f2.fffff6aaSMTPIN_ADDED_BROKEN@mx.google.com>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1381141781-10992-1-git-send-email-mgorman@suse.de>
- <1381141781-10992-20-git-send-email-mgorman@suse.de>
- <529ebe8c.a19e420a.72bb.ffff9a55SMTPIN_ADDED_BROKEN@mx.google.com>
+        Tue, 03 Dec 2013 21:46:01 -0800 (PST)
+Date: Wed, 4 Dec 2013 00:45:33 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 7/8] mm, memcg: allow processes handling oom
+ notifications to access reserves
+Message-ID: <20131204054533.GZ3556@cmpxchg.org>
+References: <20131119131400.GC20655@dhcp22.suse.cz>
+ <20131119134007.GD20655@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1311192352070.20752@chino.kir.corp.google.com>
+ <20131120152251.GA18809@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1311201917520.7167@chino.kir.corp.google.com>
+ <20131128115458.GK2761@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312021504170.13465@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1312032116440.29733@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1312032118570.29733@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <529ebe8c.a19e420a.72bb.ffff9a55SMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <alpine.DEB.2.02.1312032118570.29733@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Wed, Dec 04, 2013 at 01:32:42PM +0800, Wanpeng Li wrote:
->On Mon, Oct 07, 2013 at 11:28:57AM +0100, Mel Gorman wrote:
->>This patch tracks what nodes numa hinting faults were incurred on.
->>This information is later used to schedule a task on the node storing
->>the pages most frequently faulted by the task.
->>
->>Signed-off-by: Mel Gorman <mgorman@suse.de>
->>---
->> include/linux/sched.h |  2 ++
->> kernel/sched/core.c   |  3 +++
->> kernel/sched/fair.c   | 11 ++++++++++-
->> kernel/sched/sched.h  | 12 ++++++++++++
->> 4 files changed, 27 insertions(+), 1 deletion(-)
->>
->>diff --git a/include/linux/sched.h b/include/linux/sched.h
->>index a8095ad..8828e40 100644
->>--- a/include/linux/sched.h
->>+++ b/include/linux/sched.h
->>@@ -1332,6 +1332,8 @@ struct task_struct {
->> 	unsigned int numa_scan_period_max;
->> 	u64 node_stamp;			/* migration stamp  */
->> 	struct callback_head numa_work;
->>+
->>+	unsigned long *numa_faults;
->> #endif /* CONFIG_NUMA_BALANCING */
->>
->> 	struct rcu_head rcu;
->>diff --git a/kernel/sched/core.c b/kernel/sched/core.c
->>index 681945e..aad2e02 100644
->>--- a/kernel/sched/core.c
->>+++ b/kernel/sched/core.c
->>@@ -1629,6 +1629,7 @@ static void __sched_fork(struct task_struct *p)
->> 	p->numa_migrate_seq = p->mm ? p->mm->numa_scan_seq - 1 : 0;
->> 	p->numa_scan_period = sysctl_numa_balancing_scan_delay;
->> 	p->numa_work.next = &p->numa_work;
->>+	p->numa_faults = NULL;
->> #endif /* CONFIG_NUMA_BALANCING */
->>
->> 	cpu_hotplug_init_task(p);
->>@@ -1892,6 +1893,8 @@ static void finish_task_switch(struct rq *rq, struct task_struct *prev)
->> 	if (mm)
->> 		mmdrop(mm);
->> 	if (unlikely(prev_state == TASK_DEAD)) {
->>+		task_numa_free(prev);
->
->Function task_numa_free() depends on patch 43/64.
+On Tue, Dec 03, 2013 at 09:20:17PM -0800, David Rientjes wrote:
+> Now that a per-process flag is available, define it for processes that
+> handle userspace oom notifications.  This is an optimization to avoid
+> mantaining a list of such processes attached to a memcg at any given time
+> and iterating it at charge time.
+> 
+> This flag gets set whenever a process has registered for an oom
+> notification and is cleared whenever it unregisters.
+> 
+> When memcg reclaim has failed to free any memory, it is necessary for
+> userspace oom handlers to be able to dip into reserves to pagefault text,
+> allocate kernel memory to read the "tasks" file, allocate heap, etc.
 
-Sorry, I miss it.
+The task handling the OOM of a memcg can obviously not be part of that
+same memcg.
 
->
->Regards,
->Wanpeng Li 
->
->>+
->> 		/*
->> 		 * Remove function-return probe instances associated with this
->> 		 * task and put them back on the free list.
->>diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
->>index 8cea7a2..df300d9 100644
->>--- a/kernel/sched/fair.c
->>+++ b/kernel/sched/fair.c
->>@@ -902,7 +902,14 @@ void task_numa_fault(int node, int pages, bool migrated)
->> 	if (!numabalancing_enabled)
->> 		return;
->>
->>-	/* FIXME: Allocate task-specific structure for placement policy here */
->>+	/* Allocate buffer to track faults on a per-node basis */
->>+	if (unlikely(!p->numa_faults)) {
->>+		int size = sizeof(*p->numa_faults) * nr_node_ids;
->>+
->>+		p->numa_faults = kzalloc(size, GFP_KERNEL|__GFP_NOWARN);
->>+		if (!p->numa_faults)
->>+			return;
->>+	}
->>
->> 	/*
->> 	 * If pages are properly placed (did not migrate) then scan slower.
->>@@ -918,6 +925,8 @@ void task_numa_fault(int node, int pages, bool migrated)
->> 	}
->>
->> 	task_numa_placement(p);
->>+
->>+	p->numa_faults[node] += pages;
->> }
->>
->> static void reset_ptenuma_scan(struct task_struct *p)
->>diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
->>index b3c5653..6a955f4 100644
->>--- a/kernel/sched/sched.h
->>+++ b/kernel/sched/sched.h
->>@@ -6,6 +6,7 @@
->> #include <linux/spinlock.h>
->> #include <linux/stop_machine.h>
->> #include <linux/tick.h>
->>+#include <linux/slab.h>
->>
->> #include "cpupri.h"
->> #include "cpuacct.h"
->>@@ -552,6 +553,17 @@ static inline u64 rq_clock_task(struct rq *rq)
->> 	return rq->clock_task;
->> }
->>
->>+#ifdef CONFIG_NUMA_BALANCING
->>+static inline void task_numa_free(struct task_struct *p)
->>+{
->>+	kfree(p->numa_faults);
->>+}
->>+#else /* CONFIG_NUMA_BALANCING */
->>+static inline void task_numa_free(struct task_struct *p)
->>+{
->>+}
->>+#endif /* CONFIG_NUMA_BALANCING */
->>+
->> #ifdef CONFIG_SMP
->>
->> #define rcu_dereference_check_sched_domain(p) \
->>-- 
->>1.8.4
->>
->>--
->>To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>the body to majordomo@kvack.org.  For more info on Linux MM,
->>see: http://www.linux-mm.org/ .
->>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I've said this many times in the past, but here is the most recent
+thread from Tejun, me, and Li on this topic:
+
+---
+
+On Tue, 3 Dec 2013 at 15:35:48 +0800, Li Zefan wrote:
+> On Mon, 2 Dec 2013 at 11:44:06 -0500, Johannes Weiner wrote:
+> > On Fri, Nov 29, 2013 at 03:05:25PM -0500, Tejun Heo wrote:
+> > > Whoa, so we support oom handler inside the memcg that it handles?
+> > > Does that work reliably?  Changing the above detail in this patch
+> > > isn't difficult (and we'll later need to update kernfs too) but
+> > > supporting such setup properly would be a *lot* of commitment and I'm
+> > > very doubtful we'd be able to achieve that by just carefully avoiding
+> > > memory allocation in the operations that usreland oom handler uses -
+> > > that set is destined to expand over time, extremely fragile and will
+> > > be hellish to maintain.
+> > > 
+> > > So, I'm not at all excited about commiting to this guarantee.  This
+> > > one is an easy one but it looks like the first step onto dizzying
+> > > slippery slope.
+> > > 
+> > > Am I misunderstanding something here?  Are you and Johannes firm on
+> > > supporting this?
+> >
+> > Handling a memcg OOM from userspace running inside that OOM memcg is
+> > completely crazy.  I mean, think about this for just two seconds...
+> > Really?
+> >
+> > I get that people are doing it right now, and if you can get away with
+> > it for now, good for you.  But you have to be aware how crazy this is
+> > and if it breaks you get to keep the pieces and we are not going to
+> > accomodate this in the kernel.  Fix your crazy userspace.
+> 
+> +1
+
+---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
