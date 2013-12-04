@@ -1,128 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id DAC456B00A3
-	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 19:10:25 -0500 (EST)
-Received: by mail-pd0-f171.google.com with SMTP id z10so21114720pdj.2
-        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 16:10:25 -0800 (PST)
-Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
-        by mx.google.com with ESMTP id f4si24656522pbm.175.2013.12.03.16.10.23
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 11A4A6B00AC
+	for <linux-mm@kvack.org>; Tue,  3 Dec 2013 19:59:13 -0500 (EST)
+Received: by mail-pd0-f173.google.com with SMTP id p10so21217853pdj.18
+        for <linux-mm@kvack.org>; Tue, 03 Dec 2013 16:59:13 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id bo6si30667650pab.85.2013.12.03.16.59.11
         for <linux-mm@kvack.org>;
-        Tue, 03 Dec 2013 16:10:24 -0800 (PST)
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v2 9/9] mm/rmap: use rmap_walk() in page_mkclean()
-Date: Wed,  4 Dec 2013 09:12:20 +0900
-Message-Id: <1386115940-21425-10-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1386115940-21425-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1386115940-21425-1-git-send-email-iamjoonsoo.kim@lge.com>
+        Tue, 03 Dec 2013 16:59:12 -0800 (PST)
+Date: Tue, 3 Dec 2013 16:59:10 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 2/2] fs: buffer: move allocation failure loop into the
+ allocator
+Message-Id: <20131203165910.54d6b4724a1f3e329af52ac6@linux-foundation.org>
+In-Reply-To: <1381265890-11333-2-git-send-email-hannes@cmpxchg.org>
+References: <1381265890-11333-1-git-send-email-hannes@cmpxchg.org>
+	<1381265890-11333-2-git-send-email-hannes@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>, azurIt <azurit@pobox.sk>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Christian Casteyde <casteyde.christian@free.fr>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
 
-Now, we have an infrastructure in rmap_walk() to handle difference
-from variants of rmap traversing functions.
+On Tue,  8 Oct 2013 16:58:10 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-So, just use it in page_mkclean().
+> Buffer allocation has a very crude indefinite loop around waking the
+> flusher threads and performing global NOFS direct reclaim because it
+> can not handle allocation failures.
+> 
+> The most immediate problem with this is that the allocation may fail
+> due to a memory cgroup limit, where flushers + direct reclaim might
+> not make any progress towards resolving the situation at all.  Because
+> unlike the global case, a memory cgroup may not have any cache at all,
+> only anonymous pages but no swap.  This situation will lead to a
+> reclaim livelock with insane IO from waking the flushers and thrashing
+> unrelated filesystem cache in a tight loop.
+> 
+> Use __GFP_NOFAIL allocations for buffers for now.  This makes sure
+> that any looping happens in the page allocator, which knows how to
+> orchestrate kswapd, direct reclaim, and the flushers sensibly.  It
+> also allows memory cgroups to detect allocations that can't handle
+> failure and will allow them to ultimately bypass the limit if reclaim
+> can not make progress.
 
-In this patch, I change following things.
+Problem.
 
-1. remove some variants of rmap traversing functions.
-    cf> page_mkclean_file
-2. mechanical change to use rmap_walk() in page_mkclean().
+> --- a/fs/buffer.c
+> +++ b/fs/buffer.c
+> @@ -1005,9 +1005,19 @@ grow_dev_page(struct block_device *bdev, sector_t block,
+>  	struct buffer_head *bh;
+>  	sector_t end_block;
+>  	int ret = 0;		/* Will call free_more_memory() */
+> +	gfp_t gfp_mask;
+>  
+> -	page = find_or_create_page(inode->i_mapping, index,
+> -		(mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS)|__GFP_MOVABLE);
+> +	gfp_mask = mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS;
+> +	gfp_mask |= __GFP_MOVABLE;
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+https://bugzilla.kernel.org/show_bug.cgi?id=65991
 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 7944d4b..d792e71 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -808,12 +808,13 @@ int page_referenced(struct page *page,
- }
- 
- static int page_mkclean_one(struct page *page, struct vm_area_struct *vma,
--			    unsigned long address)
-+			    unsigned long address, void *arg)
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	pte_t *pte;
- 	spinlock_t *ptl;
- 	int ret = 0;
-+	int *cleaned = arg;
- 
- 	pte = page_check_address(page, mm, address, &ptl, 1);
- 	if (!pte)
-@@ -832,44 +833,44 @@ static int page_mkclean_one(struct page *page, struct vm_area_struct *vma,
- 
- 	pte_unmap_unlock(pte, ptl);
- 
--	if (ret)
-+	if (ret) {
- 		mmu_notifier_invalidate_page(mm, address);
-+		(*cleaned)++;
-+	}
- out:
--	return ret;
-+	return SWAP_AGAIN;
- }
- 
--static int page_mkclean_file(struct address_space *mapping, struct page *page)
-+static bool invalid_mkclean_vma(struct vm_area_struct *vma, void *arg)
- {
--	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
--	struct vm_area_struct *vma;
--	int ret = 0;
--
--	BUG_ON(PageAnon(page));
-+	if (vma->vm_flags & VM_SHARED)
-+		return 0;
- 
--	mutex_lock(&mapping->i_mmap_mutex);
--	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
--		if (vma->vm_flags & VM_SHARED) {
--			unsigned long address = vma_address(page, vma);
--			ret += page_mkclean_one(page, vma, address);
--		}
--	}
--	mutex_unlock(&mapping->i_mmap_mutex);
--	return ret;
-+	return 1;
- }
- 
- int page_mkclean(struct page *page)
- {
--	int ret = 0;
-+	int cleaned = 0;
-+	struct address_space *mapping;
-+	struct rmap_walk_control rwc = {
-+		.arg = (void *)&cleaned,
-+		.rmap_one = page_mkclean_one,
-+		.invalid_vma = invalid_mkclean_vma,
-+	};
- 
- 	BUG_ON(!PageLocked(page));
- 
--	if (page_mapped(page)) {
--		struct address_space *mapping = page_mapping(page);
--		if (mapping)
--			ret = page_mkclean_file(mapping, page);
--	}
-+	if (!page_mapped(page))
-+		return 0;
- 
--	return ret;
-+	mapping = page_mapping(page);
-+	if (!mapping)
-+		return 0;
-+
-+	rmap_walk(page, &rwc);
-+
-+	return cleaned;
- }
- EXPORT_SYMBOL_GPL(page_mkclean);
- 
--- 
-1.7.9.5
+WARNING: CPU: 0 PID: 1 at mm/page_alloc.c:1539 get_page_from_freelist+0x8a9/0x8c0()
+Modules linked in:
+CPU: 0 PID: 1 Comm: swapper/0 Not tainted 3.13.0-rc1 #42
+Hardware name: Acer Aspire 7750G/JE70_HR, BIOS V1.07 03/02/2011
+ 0000000000000009 ffff8801c6121650 ffffffff81898d39 0000000000000000
+ ffff8801c6121688 ffffffff8107dc43 0000000000000002 0000000000000001
+ 0000000000284850 0000000000000000 ffff8801cec04680 ffff8801c6121698
+Call Trace:
+ [<ffffffff81898d39>] dump_stack+0x4e/0x7a
+ [<ffffffff8107dc43>] warn_slowpath_common+0x73/0x90
+ [<ffffffff8107dd15>] warn_slowpath_null+0x15/0x20
+ [<ffffffff81116f69>] get_page_from_freelist+0x8a9/0x8c0
+ [<ffffffff81330cdd>] ? trace_hardirqs_off_thunk+0x3a/0x3c
+ [<ffffffff81117070>] __alloc_pages_nodemask+0xf0/0x770
+ [<ffffffff81330cdd>] ? trace_hardirqs_off_thunk+0x3a/0x3c
+ [<ffffffff81156823>] kmemcheck_alloc_shadow+0x53/0xf0
+ [<ffffffff81152495>] new_slab+0x345/0x3e0
+ [<ffffffff81897712>] __slab_alloc.isra.57+0x215/0x535
+ [<ffffffff81328030>] ? __radix_tree_preload+0x60/0xf0
+ [<ffffffff811545c8>] kmem_cache_alloc+0x118/0x150
+ [<ffffffff81328030>] ? __radix_tree_preload+0x60/0xf0
+ [<ffffffff81328030>] __radix_tree_preload+0x60/0xf0
+ [<ffffffff81328125>] radix_tree_maybe_preload+0x25/0x30
+ [<ffffffff8110faf7>] add_to_page_cache_locked+0x37/0x100
+ [<ffffffff8110fbd5>] add_to_page_cache_lru+0x15/0x40
+ [<ffffffff8110ff37>] find_or_create_page+0x57/0x90
+ [<ffffffff8118e630>] __getblk+0xf0/0x2f0
+
+That __GFP_NOFAIL is getting down into
+radix_tree_preload->kmem_cache_alloc() and I expect that in its
+boundless stupidity, slab has decided to inappropriately go and use an
+unnecessarily massive page size for radix_tree_node_cachep's underlying
+memory allocations.  So we end up using GFP_NOFAIL for an order=2 (or
+more) allocation, which is unacceptably risky, methinks.
+
+I really really wish slab wouldn't do this.  The benefit is surely very
+small and these unnecessary higher-order allocations are quite abusive
+of the page allocator.
+
+Can we please make slab stop doing this?
+
+radix_tree_nodes are 560 bytes and the kernel often allocates them in
+times of extreme memory stress.  We really really want them to be
+backed by order=0 pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
