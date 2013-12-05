@@ -1,60 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id F1BE56B0039
-	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 13:32:10 -0500 (EST)
-Received: by mail-pd0-f176.google.com with SMTP id w10so25039117pde.21
-        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 10:32:10 -0800 (PST)
-Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com. [202.81.31.146])
-        by mx.google.com with ESMTPS id ob10si58788272pbb.307.2013.12.05.10.32.08
+Received: from mail-yh0-f46.google.com (mail-yh0-f46.google.com [209.85.213.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 3140A6B0035
+	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 13:48:27 -0500 (EST)
+Received: by mail-yh0-f46.google.com with SMTP id l109so12870835yhq.19
+        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 10:48:26 -0800 (PST)
+Received: from bear.ext.ti.com (bear.ext.ti.com. [192.94.94.41])
+        by mx.google.com with ESMTPS id s26si31464289yho.89.2013.12.05.10.48.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 05 Dec 2013 10:32:09 -0800 (PST)
-Received: from /spool/local
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 5 Dec 2013 22:43:20 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 186712CE825A
-	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 22:10:41 +1100 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB5BAKmO10027348
-	for <linux-mm@kvack.org>; Thu, 5 Dec 2013 22:10:28 +1100
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rB5BAWX0008104
-	for <linux-mm@kvack.org>; Thu, 5 Dec 2013 22:10:32 +1100
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH 1/2] sched/numa: fix set cpupid on page migration twice
-Date: Thu,  5 Dec 2013 19:10:16 +0800
-Message-Id: <1386241817-5051-1-git-send-email-liwanp@linux.vnet.ibm.com>
+        Thu, 05 Dec 2013 10:48:26 -0800 (PST)
+From: "Strashko, Grygorii" <grygorii.strashko@ti.com>
+Subject: RE: [PATCH v2 08/23] mm/memblock: Add memblock memory allocation
+ apis
+Date: Thu, 5 Dec 2013 18:48:21 +0000
+Message-ID: <902E09E6452B0E43903E4F2D568737AB097B26B2@DNCE04.ent.ti.com>
+References: <1386037658-3161-1-git-send-email-santosh.shilimkar@ti.com>
+ <1386037658-3161-9-git-send-email-santosh.shilimkar@ti.com>
+ <20131203232445.GX8277@htj.dyndns.org>
+ <52A0AB34.2030703@ti.com>,<20131205165325.GA24062@mtj.dyndns.org>
+In-Reply-To: <20131205165325.GA24062@mtj.dyndns.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: "Shilimkar, Santosh" <santosh.shilimkar@ti.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-commit 7851a45cd3 (mm: numa: Copy cpupid on page migration) copy over 
-the cpupid at page migration time, there is unnecessary to set it again 
-in migrate_misplaced_transhuge_page, this patch fix it.
-
-Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
----
- mm/migrate.c |    2 --
- 1 files changed, 0 insertions(+), 2 deletions(-)
-
-diff --git a/mm/migrate.c b/mm/migrate.c
-index bb94004..fdb70f7 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1736,8 +1736,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	if (!new_page)
- 		goto out_fail;
- 
--	page_cpupid_xchg_last(new_page, page_cpupid_last(page));
--
- 	isolated = numamigrate_isolate_page(pgdat, page);
- 	if (!isolated) {
- 		put_page(new_page);
--- 
-1.7.7.6
+Hi Tejun,=0A=
+=0A=
+>On Thu, Dec 05, 2013 at 06:35:00PM +0200, Grygorii Strashko wrote:=0A=
+>> >> +#define memblock_virt_alloc_align(x, align) \=0A=
+>> >> +  memblock_virt_alloc_try_nid(x, align, BOOTMEM_LOW_LIMIT, \=0A=
+>> >> +                               BOOTMEM_ALLOC_ACCESSIBLE, MAX_NUMNODE=
+S)=0A=
+>> >=0A=
+>> > Also, do we really need this align variant separate when the caller=0A=
+>> > can simply specify 0 for the default?=0A=
+>>=0A=
+>> Unfortunately Yes.=0A=
+>> We need it to keep compatibility with bootmem/nobootmem=0A=
+>> which don't handle 0 as default align value.=0A=
+>=0A=
+>Hmm... why wouldn't just interpreting 0 to SMP_CACHE_BYTES in the=0A=
+>memblock_virt*() function work?=0A=
+>=0A=
+=0A=
+Problem is not with memblock_virt*(). The issue will happen in case if=0A=
+memblock or nobootmem are disabled in below code (memblock_virt*() is disab=
+led).=0A=
+=0A=
++/* Fall back to all the existing bootmem APIs */=0A=
++#define memblock_virt_alloc(x) \=0A=
++       __alloc_bootmem(x, SMP_CACHE_BYTES, BOOTMEM_LOW_LIMIT)=0A=
+=0A=
+which will be transformed to =0A=
++/* Fall back to all the existing bootmem APIs */=0A=
++#define memblock_virt_alloc(x, align) \=0A=
++       __alloc_bootmem(x, align, BOOTMEM_LOW_LIMIT)=0A=
+=0A=
+and used as=0A=
+=0A=
+memblock_virt_alloc(size, 0);=0A=
+=0A=
+so, by default bootmem code will use 0 as default alignment and not SMP_CAC=
+HE_BYTES=0A=
+and that is wrong.=0A=
+=0A=
+Regards,=0A=
+-grygorii=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
