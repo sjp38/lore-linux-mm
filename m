@@ -1,102 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B6296B0031
-	for <linux-mm@kvack.org>; Wed,  4 Dec 2013 23:12:18 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id r10so24006317pdi.10
-        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 20:12:17 -0800 (PST)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <20131204222943.GC21724@cmpxchg.org>
-	<20131204.175028.1602944177771517327.davem@davemloft.net>
-Date: Wed, 04 Dec 2013 20:12:04 -0800
-In-Reply-To: <20131204.175028.1602944177771517327.davem@davemloft.net> (David
-	Miller's message of "Wed, 04 Dec 2013 17:50:28 -0500 (EST)")
-Message-ID: <87mwkg542z.fsf_-_@xmission.com>
+Received: from mail-yh0-f52.google.com (mail-yh0-f52.google.com [209.85.213.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 989126B0031
+	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 00:01:30 -0500 (EST)
+Received: by mail-yh0-f52.google.com with SMTP id i72so12000310yha.25
+        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 21:01:30 -0800 (PST)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [2001:44b8:8060:ff02:300:1:2:7])
+        by mx.google.com with ESMTP id u45si48887802yhc.278.2013.12.04.21.01.28
+        for <linux-mm@kvack.org>;
+        Wed, 04 Dec 2013 21:01:29 -0800 (PST)
+Date: Thu, 5 Dec 2013 16:01:18 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v12 09/18] vmscan: shrink slab on memcg pressure
+Message-ID: <20131205050118.GM8803@dastard>
+References: <cover.1385974612.git.vdavydov@parallels.com>
+ <be01fd9afeedb7d5c7979347f4d6ddaf67c9082d.1385974612.git.vdavydov@parallels.com>
+ <20131203104849.GD8803@dastard>
+ <529DCB7D.10205@parallels.com>
+ <20131204045147.GN10988@dastard>
+ <529ECC44.8040508@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-Subject: [PATCH] tcp_memcontrol: Cleanup/fix cg_proto->memory_pressure handling.
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <529ECC44.8040508@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: hannes@cmpxchg.org, glommer@gmail.com, netdev@vger.kernel.org, linux-mm@kvack.org, linux-kernel@kvack.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
+On Wed, Dec 04, 2013 at 10:31:32AM +0400, Vladimir Davydov wrote:
+> On 12/04/2013 08:51 AM, Dave Chinner wrote:
+> > On Tue, Dec 03, 2013 at 04:15:57PM +0400, Vladimir Davydov wrote:
+> >> On 12/03/2013 02:48 PM, Dave Chinner wrote:
+> >>>> @@ -236,11 +236,17 @@ shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
+> >>>>  		return 0;
+> >>>>  
+> >>>>  	/*
+> >>>> -	 * copy the current shrinker scan count into a local variable
+> >>>> -	 * and zero it so that other concurrent shrinker invocations
+> >>>> -	 * don't also do this scanning work.
+> >>>> +	 * Do not touch global counter of deferred objects on memcg pressure to
+> >>>> +	 * avoid isolation issues. Ideally the counter should be per-memcg.
+> >>>>  	 */
+> >>>> -	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
+> >>>> +	if (!shrinkctl->target_mem_cgroup) {
+> >>>> +		/*
+> >>>> +		 * copy the current shrinker scan count into a local variable
+> >>>> +		 * and zero it so that other concurrent shrinker invocations
+> >>>> +		 * don't also do this scanning work.
+> >>>> +		 */
+> >>>> +		nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
+> >>>> +	}
+> >>> That's ugly. Effectively it means that memcg reclaim is going to be
+> >>> completely ineffective when large numbers of allocations and hence
+> >>> reclaim attempts are done under GFP_NOFS context.
+> >>>
+> >>> The only thing that keeps filesystem caches in balance when there is
+> >>> lots of filesystem work going on (i.e. lots of GFP_NOFS allocations)
+> >>> is the deferal of reclaim work to a context that can do something
+> >>> about it.
+> >> Imagine the situation: a memcg issues a GFP_NOFS allocation and goes to
+> >> shrink_slab() where it defers them to the global counter; then another
+> >> memcg issues a GFP_KERNEL allocation, also goes to shrink_slab() where
+> >> it sees a huge number of deferred objects and starts shrinking them,
+> >> which is not good IMHO.
+> > That's exactly what the deferred mechanism is for - we know we have
+> > to do the work, but we can't do it right now so let someone else do
+> > it who can.
+> >
+> > In most cases, deferral is handled by kswapd, because when a
+> > filesystem workload is causing memory pressure then most allocations
+> > are done in GFP_NOFS conditions. Hence the only memory reclaim that
+> > can make progress here is kswapd.
+> >
+> > Right now, you aren't deferring any of this memory pressure to some
+> > other agent, so it just does not get done. That's a massive problem
+> > - it's a design flaw - and instead I see lots of crazy hacks being
+> > added to do stuff that should simply be deferred to kswapd like is
+> > done for global memory pressure.
+> >
+> > Hell, kswapd shoul dbe allowed to walk memcg LRU lists and trim
+> > them, just like it does for the global lists. We only need a single
+> > "deferred work" counter per node for that - just let kswapd
+> > proportion the deferred work over the per-node LRU and the
+> > memcgs....
+> 
+> Seems I misunderstand :-(
+> 
+> Let me try. You mean we have the only nr_deferred counter per-node, and
+> kswapd scans
+> 
+> nr_deferred*memcg_kmem_size/total_kmem_size
+> 
+> objects in each memcg, right?
+> 
+> Then if there were a lot of objects deferred on memcg (not global)
+> pressure due to a memcg issuing a lot of GFP_NOFS allocations, kswapd
+> will reclaim objects from all, even unlimited, memcgs. This looks like
+> an isolation issue :-/
 
-kill memcg_tcp_enter_memory_pressure.  The only function of
-memcg_tcp_enter_memory_pressure was to reduce deal with the
-unnecessary abstraction that was tcp_memcontrol.  Now that struct
-tcp_memcontrol is gone remove this unnecessary function, the
-unnecessary function pointer, and modify sk_enter_memory_pressure to
-set this field directly, just as sk_leave_memory_pressure cleas this
-field directly.
+Which, when you are running out of memory, is a much less of an
+issue than not being able to make progress reclaiming memory.
 
-This fixes a small bug I intruduced when killing struct tcp_memcontrol
-that caused memcg_tcp_enter_memory_pressure to never be called and
-thus failed to ever set cg_proto->memory_pressure.
+Besides, the "isolation" argument runs both ways. e.g. when there
+isn't memory available, it's entirely possible it's because there is
+actually no free memory, not because we've hit a memcg limit. e.g.
+all the memory has been consumed by an unlimited memcg, and we need to
+reclaim from it so this memcg can make progress.
 
-Remove the cg_proto enter_memory_pressure function as it now serves
-no useful purpose.
+In those situations we need to reclaim from everyone, not
+just the memcg that can't find free memory to allocate....
 
-Don't test cg_proto->memory_presser in sk_leave_memory_pressure before
-clearing it.  The test was originally there to ensure that the pointer
-was non-NULL.  Now that cg_proto is not a pointer the pointer does not
-matter.
+> Currently we have a per-node nr_deferred counter for each shrinker. If
+> we add per-memcg reclaim, we have to make it per-memcg per-node, don't we?
 
-Signed-off-by: "Eric W. Biederman" <ebiederm@xmission.com>
----
- include/net/sock.h        |    6 ++----
- net/ipv4/tcp_memcontrol.c |    7 -------
- 2 files changed, 2 insertions(+), 11 deletions(-)
+Think about what you just said for a moment. We have how many memcg
+shrinkers?  And we can support how many nodes? And we can support
+how many memcgs? And when we multiply that all together, how much
+memory do we need to track that?
 
-diff --git a/include/net/sock.h b/include/net/sock.h
-index e3a18ff0c38b..2ef3c3eca47a 100644
---- a/include/net/sock.h
-+++ b/include/net/sock.h
-@@ -1035,7 +1035,6 @@ enum cg_proto_flags {
- };
- 
- struct cg_proto {
--	void			(*enter_memory_pressure)(struct sock *sk);
- 	struct res_counter	memory_allocated;	/* Current allocated memory. */
- 	struct percpu_counter	sockets_allocated;	/* Current number of sockets. */
- 	int			memory_pressure;
-@@ -1155,8 +1154,7 @@ static inline void sk_leave_memory_pressure(struct sock *sk)
- 		struct proto *prot = sk->sk_prot;
- 
- 		for (; cg_proto; cg_proto = parent_cg_proto(prot, cg_proto))
--			if (cg_proto->memory_pressure)
--				cg_proto->memory_pressure = 0;
-+			cg_proto->memory_pressure = 0;
- 	}
- 
- }
-@@ -1171,7 +1169,7 @@ static inline void sk_enter_memory_pressure(struct sock *sk)
- 		struct proto *prot = sk->sk_prot;
- 
- 		for (; cg_proto; cg_proto = parent_cg_proto(prot, cg_proto))
--			cg_proto->enter_memory_pressure(sk);
-+			cg_proto->memory_pressure = 1;
- 	}
- 
- 	sk->sk_prot->enter_memory_pressure(sk);
-diff --git a/net/ipv4/tcp_memcontrol.c b/net/ipv4/tcp_memcontrol.c
-index 03e9154f7e68..2c39f8f0dddf 100644
---- a/net/ipv4/tcp_memcontrol.c
-+++ b/net/ipv4/tcp_memcontrol.c
-@@ -6,13 +6,6 @@
- #include <linux/memcontrol.h>
- #include <linux/module.h>
- 
--static void memcg_tcp_enter_memory_pressure(struct sock *sk)
--{
--	if (sk->sk_cgrp->memory_pressure)
--		sk->sk_cgrp->memory_pressure = 1;
--}
--EXPORT_SYMBOL(memcg_tcp_enter_memory_pressure);
--
- int tcp_init_cgroup(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
- {
- 	/*
+Cheers,
+
+Dave.
 -- 
-1.7.5.4
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
