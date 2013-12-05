@@ -1,120 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f177.google.com (mail-ea0-f177.google.com [209.85.215.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 935686B003B
-	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 04:07:45 -0500 (EST)
-Received: by mail-ea0-f177.google.com with SMTP id n15so11120127ead.36
-        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 01:07:45 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id l44si9958362eem.145.2013.12.05.01.07.44
-        for <linux-mm@kvack.org>;
-        Thu, 05 Dec 2013 01:07:44 -0800 (PST)
-Date: Thu, 5 Dec 2013 09:07:42 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: compaction: Trace compaction begin and end v2
-Message-ID: <20131205090742.GG11295@suse.de>
-References: <1385389570-11393-1-git-send-email-vbabka@suse.cz>
- <20131204143045.GZ11295@suse.de>
- <529F418D.3070108@suse.cz>
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id D51156B0031
+	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 05:26:50 -0500 (EST)
+Received: by mail-pd0-f174.google.com with SMTP id y13so24335738pdi.19
+        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 02:26:50 -0800 (PST)
+Received: from fgwmail6.fujitsu.co.jp (fgwmail6.fujitsu.co.jp. [192.51.44.36])
+        by mx.google.com with ESMTPS id hb3si57547458pac.239.2013.12.05.02.26.48
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 05 Dec 2013 02:26:49 -0800 (PST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 3BC723EE0BB
+	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 19:26:47 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B84A45DEB7
+	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 19:26:47 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.nic.fujitsu.com [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 128AC45DD77
+	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 19:26:47 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 01C02E08002
+	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 19:26:47 +0900 (JST)
+Received: from g01jpfmpwkw02.exch.g01.fujitsu.local (g01jpfmpwkw02.exch.g01.fujitsu.local [10.0.193.56])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A68F41DB8038
+	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 19:26:46 +0900 (JST)
+Message-ID: <52A054A0.6060108@jp.fujitsu.com>
+Date: Thu, 5 Dec 2013 19:25:36 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <529F418D.3070108@suse.cz>
+Subject: Re: [PATCH] mm, x86: Skip NUMA_NO_NODE while parsing SLIT
+References: <1386191348-4696-1-git-send-email-toshi.kani@hp.com>
+In-Reply-To: <1386191348-4696-1-git-send-email-toshi.kani@hp.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, mingo@kernel.org, hpa@zytor.com, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org
 
-Changelog since V1
-o Print output parameters in pfn order			(vbabka)
+(2013/12/05 6:09), Toshi Kani wrote:
+> When ACPI SLIT table has an I/O locality (i.e. a locality unique
+> to an I/O device), numa_set_distance() emits the warning message
+> below.
+> 
+>   NUMA: Warning: node ids are out of bound, from=-1 to=-1 distance=10
+> 
+> acpi_numa_slit_init() calls numa_set_distance() with pxm_to_node(),
+> which assumes that all localities have been parsed with SRAT previously.
+> SRAT does not list I/O localities, where as SLIT lists all localities
 
-This patch adds two tracepoints for compaction begin and end of a zone. Using
-this it is possible to calculate how much time a workload is spending
-within compaction and potentially debug problems related to cached pfns
-for scanning. In combination with the direct reclaim and slab trace points
-it should be possible to estimate most allocation-related overhead for
-a workload.
+> including I/Os.  Hence, pxm_to_node() returns NUMA_NO_NODE (-1) for
+> an I/O locality.  I/O localities are not supported and are ignored
+> today, but emitting such warning message leads unnecessary confusion.
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- include/trace/events/compaction.h | 42 +++++++++++++++++++++++++++++++++++++++
- mm/compaction.c                   |  4 ++++
- 2 files changed, 46 insertions(+)
+In this case, the warning message should not be shown. But if SLIT table
+is really broken, the message should be shown. Your patch seems to not care
+for second case.
 
-diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
-index fde1b3e..06f544e 100644
---- a/include/trace/events/compaction.h
-+++ b/include/trace/events/compaction.h
-@@ -67,6 +67,48 @@ TRACE_EVENT(mm_compaction_migratepages,
- 		__entry->nr_failed)
- );
- 
-+TRACE_EVENT(mm_compaction_begin,
-+	TP_PROTO(unsigned long zone_start, unsigned long migrate_start,
-+		unsigned long free_start, unsigned long zone_end),
-+
-+	TP_ARGS(zone_start, migrate_start, free_start, zone_end),
-+
-+	TP_STRUCT__entry(
-+		__field(unsigned long, zone_start)
-+		__field(unsigned long, migrate_start)
-+		__field(unsigned long, free_start)
-+		__field(unsigned long, zone_end)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->zone_start = zone_start;
-+		__entry->migrate_start = migrate_start;
-+		__entry->free_start = free_start;
-+		__entry->zone_end = zone_end;
-+	),
-+
-+	TP_printk("zone_start=%lu migrate_start=%lu free_start=%lu zone_end=%lu",
-+		__entry->zone_start,
-+		__entry->migrate_start,
-+		__entry->free_start,
-+		__entry->zone_end)
-+);
-+
-+TRACE_EVENT(mm_compaction_end,
-+	TP_PROTO(int status),
-+
-+	TP_ARGS(status),
-+
-+	TP_STRUCT__entry(
-+		__field(int, status)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->status = status;
-+	),
-+
-+	TP_printk("status=%d", __entry->status)
-+);
- 
- #endif /* _TRACE_COMPACTION_H */
- 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 805165b..bb50fd3 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -966,6 +966,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 	if (compaction_restarting(zone, cc->order) && !current_is_kswapd())
- 		__reset_isolation_suitable(zone);
- 
-+	trace_mm_compaction_begin(start_pfn, cc->migrate_pfn, cc->free_pfn, end_pfn);
-+
- 	migrate_prep_local();
- 
- 	while ((ret = compact_finished(zone, cc)) == COMPACT_CONTINUE) {
-@@ -1011,6 +1013,8 @@ out:
- 	cc->nr_freepages -= release_freepages(&cc->freepages);
- 	VM_BUG_ON(cc->nr_freepages != 0);
- 
-+	trace_mm_compaction_end(ret);
-+
- 	return ret;
- }
- 
+Thanks,
+Yasuaki Ishimatsu
+
+
+> 
+> Change acpi_numa_slit_init() to avoid calling numa_set_distance()
+> with NUMA_NO_NODE.
+> 
+> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+> ---
+>   arch/x86/mm/srat.c |   10 ++++++++--
+>   1 file changed, 8 insertions(+), 2 deletions(-)
+> 
+> diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
+> index 266ca91..29a2ced 100644
+> --- a/arch/x86/mm/srat.c
+> +++ b/arch/x86/mm/srat.c
+> @@ -47,10 +47,16 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
+>   {
+>   	int i, j;
+>   
+> -	for (i = 0; i < slit->locality_count; i++)
+> -		for (j = 0; j < slit->locality_count; j++)
+> +	for (i = 0; i < slit->locality_count; i++) {
+> +		if (pxm_to_node(i) == NUMA_NO_NODE)
+> +			continue;
+> +		for (j = 0; j < slit->locality_count; j++) {
+> +			if (pxm_to_node(j) == NUMA_NO_NODE)
+> +				continue;
+>   			numa_set_distance(pxm_to_node(i), pxm_to_node(j),
+>   				slit->entry[slit->locality_count * i + j]);
+> +		}
+> +	}
+>   }
+>   
+>   /* Callback for Proximity Domain -> x2APIC mapping */
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
