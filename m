@@ -1,61 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f52.google.com (mail-yh0-f52.google.com [209.85.213.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 253CB6B0036
-	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 13:28:06 -0500 (EST)
-Received: by mail-yh0-f52.google.com with SMTP id i72so12835993yha.39
-        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 10:28:05 -0800 (PST)
-Received: from mail-pd0-x22f.google.com (mail-pd0-x22f.google.com [2607:f8b0:400e:c02::22f])
-        by mx.google.com with ESMTPS id z48si7785691yha.6.2013.12.05.10.28.04
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id F1BE56B0039
+	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 13:32:10 -0500 (EST)
+Received: by mail-pd0-f176.google.com with SMTP id w10so25039117pde.21
+        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 10:32:10 -0800 (PST)
+Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com. [202.81.31.146])
+        by mx.google.com with ESMTPS id ob10si58788272pbb.307.2013.12.05.10.32.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 05 Dec 2013 10:28:05 -0800 (PST)
-Received: by mail-pd0-f175.google.com with SMTP id w10so24959537pde.6
-        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 10:28:04 -0800 (PST)
-MIME-Version: 1.0
-Reply-To: sima.baymani@gmail.com
-In-Reply-To: <alpine.DEB.2.02.1312041558280.6329@chino.kir.corp.google.com>
-References: <CAL8k4FwmVmCq8jPWNoRXKPtnSdRc3pwaMCE+AZoq_VoZphpR_A@mail.gmail.com>
-	<alpine.DEB.2.02.1312041558280.6329@chino.kir.corp.google.com>
-Date: Thu, 5 Dec 2013 19:28:03 +0100
-Message-ID: <CAL8k4FzPYZ1Ar1w2rbR7_UWzvvCKRqXMWwJLLFNBNg=VRS3riQ@mail.gmail.com>
-Subject: Re: linux-next: Tree for Dec 3 (mm/Kconfig)
-From: Sima Baymani <sima.baymani@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 05 Dec 2013 10:32:09 -0800 (PST)
+Received: from /spool/local
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Thu, 5 Dec 2013 22:43:20 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 186712CE825A
+	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 22:10:41 +1100 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB5BAKmO10027348
+	for <linux-mm@kvack.org>; Thu, 5 Dec 2013 22:10:28 +1100
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rB5BAWX0008104
+	for <linux-mm@kvack.org>; Thu, 5 Dec 2013 22:10:32 +1100
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 1/2] sched/numa: fix set cpupid on page migration twice
+Date: Thu,  5 Dec 2013 19:10:16 +0800
+Message-Id: <1386241817-5051-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: sfr@canb.auug.org.au, linux-next@vger.kernel.org, tangchen@cn.fujitsu.com, akpm@linux-foundation.org, linux-mm@kvack.org, aquini@redhat.com, linux-kernel@vger.kernel.org, gang.chen@asianux.com, aneesh.kumar@linux.vnet.ibm.com, isimatu.yasuaki@jp.fujitsu.com, kirill.shutemov@linux.intel.com, sjenning@linux.vnet.ibm.com, darrick.wong@oracle.com
+To: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Thu, Dec 5, 2013 at 1:00 AM, David Rientjes <rientjes@google.com> wrote:
-> On Wed, 4 Dec 2013, Sima Baymani wrote:
->
->> When generating randconfig, got following warning:
->>
->> warning: (HWPOISON_INJECT && MEM_SOFT_DIRTY) selects PROC_PAGE_MONITOR
->> which has unmet direct dependencies (PROC_FS && MMU)
->>
->> I would have liked to form a patch for it, but not sure whether to
->> simply add PROC_FS && MMU as dependencies for HWPOISON_INJECT and
->> MEM_SOFT_DIRTY, or if some other fix would be more suitable?
->>
->
-> CONFIG_HWPOISON_INJECT is unrelated, it already depends on CONFIG_PROC_FS.
->
-> CONFIG_PROC_PAGE_MONITOR is obviously only useful for CONFIG_PROC_FS, so
-> the correct fix would be to make CONFIG_MEM_SOFT_DIRTY depend on
-> CONFIG_PROC_FS.
->
-> Want to try sending a patch?
+commit 7851a45cd3 (mm: numa: Copy cpupid on page migration) copy over 
+the cpupid at page migration time, there is unnecessary to set it again 
+in migrate_misplaced_transhuge_page, this patch fix it.
 
-You bet!
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+---
+ mm/migrate.c |    2 --
+ 1 files changed, 0 insertions(+), 2 deletions(-)
 
-However, I have the slightest confusion:
-I tested what you suggested by running "make oldconfig", and it does
-eliminate the error. However, I can't figure out why it's enough with
-adding the dependency for PROC_FS in MEM_SOFT_DIRTY, if
-PROC_PAGE_MONITOR depends on both?
-
--Sima
+diff --git a/mm/migrate.c b/mm/migrate.c
+index bb94004..fdb70f7 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1736,8 +1736,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 	if (!new_page)
+ 		goto out_fail;
+ 
+-	page_cpupid_xchg_last(new_page, page_cpupid_last(page));
+-
+ 	isolated = numamigrate_isolate_page(pgdat, page);
+ 	if (!isolated) {
+ 		put_page(new_page);
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
