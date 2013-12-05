@@ -1,70 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
-	by kanga.kvack.org (Postfix) with ESMTP id E97466B0035
-	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 08:14:45 -0500 (EST)
-Received: by mail-ea0-f180.google.com with SMTP id f15so11350555eak.39
-        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 05:14:45 -0800 (PST)
+Received: from mail-ea0-f174.google.com (mail-ea0-f174.google.com [209.85.215.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B7406B0031
+	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 08:35:40 -0500 (EST)
+Received: by mail-ea0-f174.google.com with SMTP id b10so11203791eae.19
+        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 05:35:39 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id m49si10823025eeg.31.2013.12.05.05.14.45
+        by mx.google.com with ESMTP id w6si10838469eeg.237.2013.12.05.05.35.39
         for <linux-mm@kvack.org>;
-        Thu, 05 Dec 2013 05:14:45 -0800 (PST)
-Date: Thu, 5 Dec 2013 14:14:44 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 2/2] mm: memcg: do not allow task about to OOM kill to
- bypass the limit
-Message-ID: <20131205131444.GC16711@dhcp22.suse.cz>
-References: <1386197114-5317-1-git-send-email-hannes@cmpxchg.org>
- <1386197114-5317-3-git-send-email-hannes@cmpxchg.org>
+        Thu, 05 Dec 2013 05:35:39 -0800 (PST)
+Date: Thu, 5 Dec 2013 13:35:36 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 03/15] mm: thp: give transparent hugepage code a separate
+ copy_page
+Message-ID: <20131205133536.GH11295@suse.de>
+References: <1386060721-3794-1-git-send-email-mgorman@suse.de>
+ <1386060721-3794-4-git-send-email-mgorman@suse.de>
+ <20131204165918.GA13191@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1386197114-5317-3-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <20131204165918.GA13191@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Alex Thorlton <athorlton@sgi.com>
+Cc: Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 04-12-13 17:45:14, Johannes Weiner wrote:
-> 4942642080ea ("mm: memcg: handle non-error OOM situations more
-> gracefully") allowed tasks that already entered a memcg OOM condition
-> to bypass the memcg limit on subsequent allocation attempts hoping
-> this would expedite finishing the page fault and executing the kill.
+On Wed, Dec 04, 2013 at 10:59:18AM -0600, Alex Thorlton wrote:
+> > -void copy_huge_page(struct page *dst, struct page *src)
+> > -{
+> > -	int i;
+> > -	struct hstate *h = page_hstate(src);
+> > -
+> > -	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
 > 
-> David Rientjes is worried that this breaks memcg isolation guarantees
-> and since there is no evidence that the bypass actually speeds up
-> fault processing just change it so that these subsequent charge
-> attempts fail outright.  The notable exception being __GFP_NOFAIL
-> charges which are required to bypass the limit regardless.
+> With CONFIG_HUGETLB_PAGE=n, the kernel fails to build, throwing this
+> error:
 > 
-> Reported-by: David Rientjes <rientjes@google.com>
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> mm/migrate.c: In function ???copy_huge_page???:
+> mm/migrate.c:473: error: implicit declaration of function ???page_hstate???
+> 
+> I got it to build by sticking the following into hugetlb.h:
+> 
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 4694afc..fd76912 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -403,6 +403,7 @@ struct hstate {};
+>  #define hstate_sizelog(s) NULL
+>  #define hstate_vma(v) NULL
+>  #define hstate_inode(i) NULL
+> +#define page_hstate(p) NULL
+>  #define huge_page_size(h) PAGE_SIZE
+>  #define huge_page_mask(h) PAGE_MASK
+>  #define vma_kernel_pagesize(v) PAGE_SIZE
+> 
+> I figure that the #define I stuck in isn't actually solving the real
+> problem, but it got things working again.
+> 
 
-We want this in stable as well IMHO.
-Acked-by: Michal Hocko <mhocko@suse.cz>
+It's based on an upstream patch so I'll check if the problem is there as
+well and backport accordingly. This patch to unblock yourself is fine
+for now.
 
-> ---
->  mm/memcontrol.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index f6a63f5b3827..bf5e89457149 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2694,7 +2694,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
->  		goto bypass;
->  
->  	if (unlikely(task_in_memcg_oom(current)))
-> -		goto bypass;
-> +		goto nomem;
->  
->  	if (gfp_mask & __GFP_NOFAIL)
->  		oom = false;
-> -- 
-> 1.8.4.2
-> 
+Thanks.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
