@@ -1,129 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f52.google.com (mail-yh0-f52.google.com [209.85.213.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 989126B0031
-	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 00:01:30 -0500 (EST)
-Received: by mail-yh0-f52.google.com with SMTP id i72so12000310yha.25
-        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 21:01:30 -0800 (PST)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [2001:44b8:8060:ff02:300:1:2:7])
-        by mx.google.com with ESMTP id u45si48887802yhc.278.2013.12.04.21.01.28
-        for <linux-mm@kvack.org>;
-        Wed, 04 Dec 2013 21:01:29 -0800 (PST)
-Date: Thu, 5 Dec 2013 16:01:18 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v12 09/18] vmscan: shrink slab on memcg pressure
-Message-ID: <20131205050118.GM8803@dastard>
-References: <cover.1385974612.git.vdavydov@parallels.com>
- <be01fd9afeedb7d5c7979347f4d6ddaf67c9082d.1385974612.git.vdavydov@parallels.com>
- <20131203104849.GD8803@dastard>
- <529DCB7D.10205@parallels.com>
- <20131204045147.GN10988@dastard>
- <529ECC44.8040508@parallels.com>
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 199816B0031
+	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 00:18:41 -0500 (EST)
+Received: by mail-pb0-f50.google.com with SMTP id rr13so25218792pbb.9
+        for <linux-mm@kvack.org>; Wed, 04 Dec 2013 21:18:40 -0800 (PST)
+Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com. [202.81.31.148])
+        by mx.google.com with ESMTPS id 8si48275888pbe.130.2013.12.04.21.18.37
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 04 Dec 2013 21:18:39 -0800 (PST)
+Received: from /spool/local
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 5 Dec 2013 15:18:35 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 9F1A93578054
+	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 16:18:33 +1100 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB550K1g65732732
+	for <linux-mm@kvack.org>; Thu, 5 Dec 2013 16:00:28 +1100
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rB55IPvX032651
+	for <linux-mm@kvack.org>; Thu, 5 Dec 2013 16:18:25 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V2 3/5] mm: Move change_prot_numa outside CONFIG_ARCH_USES_NUMA_PROT_NONE
+In-Reply-To: <1386126782.16703.137.camel@pasglop>
+References: <1384766893-10189-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1384766893-10189-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1386126782.16703.137.camel@pasglop>
+Date: Thu, 05 Dec 2013 10:48:13 +0530
+Message-ID: <87a9gfri3u.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <529ECC44.8040508@parallels.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Benjamin Herrenschmidt <benh@au1.ibm.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
+Cc: paulus@samba.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-On Wed, Dec 04, 2013 at 10:31:32AM +0400, Vladimir Davydov wrote:
-> On 12/04/2013 08:51 AM, Dave Chinner wrote:
-> > On Tue, Dec 03, 2013 at 04:15:57PM +0400, Vladimir Davydov wrote:
-> >> On 12/03/2013 02:48 PM, Dave Chinner wrote:
-> >>>> @@ -236,11 +236,17 @@ shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
-> >>>>  		return 0;
-> >>>>  
-> >>>>  	/*
-> >>>> -	 * copy the current shrinker scan count into a local variable
-> >>>> -	 * and zero it so that other concurrent shrinker invocations
-> >>>> -	 * don't also do this scanning work.
-> >>>> +	 * Do not touch global counter of deferred objects on memcg pressure to
-> >>>> +	 * avoid isolation issues. Ideally the counter should be per-memcg.
-> >>>>  	 */
-> >>>> -	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
-> >>>> +	if (!shrinkctl->target_mem_cgroup) {
-> >>>> +		/*
-> >>>> +		 * copy the current shrinker scan count into a local variable
-> >>>> +		 * and zero it so that other concurrent shrinker invocations
-> >>>> +		 * don't also do this scanning work.
-> >>>> +		 */
-> >>>> +		nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
-> >>>> +	}
-> >>> That's ugly. Effectively it means that memcg reclaim is going to be
-> >>> completely ineffective when large numbers of allocations and hence
-> >>> reclaim attempts are done under GFP_NOFS context.
-> >>>
-> >>> The only thing that keeps filesystem caches in balance when there is
-> >>> lots of filesystem work going on (i.e. lots of GFP_NOFS allocations)
-> >>> is the deferal of reclaim work to a context that can do something
-> >>> about it.
-> >> Imagine the situation: a memcg issues a GFP_NOFS allocation and goes to
-> >> shrink_slab() where it defers them to the global counter; then another
-> >> memcg issues a GFP_KERNEL allocation, also goes to shrink_slab() where
-> >> it sees a huge number of deferred objects and starts shrinking them,
-> >> which is not good IMHO.
-> > That's exactly what the deferred mechanism is for - we know we have
-> > to do the work, but we can't do it right now so let someone else do
-> > it who can.
-> >
-> > In most cases, deferral is handled by kswapd, because when a
-> > filesystem workload is causing memory pressure then most allocations
-> > are done in GFP_NOFS conditions. Hence the only memory reclaim that
-> > can make progress here is kswapd.
-> >
-> > Right now, you aren't deferring any of this memory pressure to some
-> > other agent, so it just does not get done. That's a massive problem
-> > - it's a design flaw - and instead I see lots of crazy hacks being
-> > added to do stuff that should simply be deferred to kswapd like is
-> > done for global memory pressure.
-> >
-> > Hell, kswapd shoul dbe allowed to walk memcg LRU lists and trim
-> > them, just like it does for the global lists. We only need a single
-> > "deferred work" counter per node for that - just let kswapd
-> > proportion the deferred work over the per-node LRU and the
-> > memcgs....
-> 
-> Seems I misunderstand :-(
-> 
-> Let me try. You mean we have the only nr_deferred counter per-node, and
-> kswapd scans
-> 
-> nr_deferred*memcg_kmem_size/total_kmem_size
-> 
-> objects in each memcg, right?
-> 
-> Then if there were a lot of objects deferred on memcg (not global)
-> pressure due to a memcg issuing a lot of GFP_NOFS allocations, kswapd
-> will reclaim objects from all, even unlimited, memcgs. This looks like
-> an isolation issue :-/
 
-Which, when you are running out of memory, is a much less of an
-issue than not being able to make progress reclaiming memory.
+Adding Mel and Rik to cc:
 
-Besides, the "isolation" argument runs both ways. e.g. when there
-isn't memory available, it's entirely possible it's because there is
-actually no free memory, not because we've hit a memcg limit. e.g.
-all the memory has been consumed by an unlimited memcg, and we need to
-reclaim from it so this memcg can make progress.
+Benjamin Herrenschmidt <benh@au1.ibm.com> writes:
 
-In those situations we need to reclaim from everyone, not
-just the memcg that can't find free memory to allocate....
+> On Mon, 2013-11-18 at 14:58 +0530, Aneesh Kumar K.V wrote:
+>> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> 
+>> change_prot_numa should work even if _PAGE_NUMA != _PAGE_PROTNONE.
+>> On archs like ppc64 that don't use _PAGE_PROTNONE and also have
+>> a separate page table outside linux pagetable, we just need to
+>> make sure that when calling change_prot_numa we flush the
+>> hardware page table entry so that next page access  result in a numa
+>> fault.
+>
+> That patch doesn't look right...
+>
+> You are essentially making change_prot_numa() do whatever it does (which
+> I don't completely understand) *for all architectures* now, whether they
+> have CONFIG_ARCH_USES_NUMA_PROT_NONE or not ... So because you want that
+> behaviour on powerpc book3s64, you change everybody.
+>
+> Is that correct ?
 
-> Currently we have a per-node nr_deferred counter for each shrinker. If
-> we add per-memcg reclaim, we have to make it per-memcg per-node, don't we?
 
-Think about what you just said for a moment. We have how many memcg
-shrinkers?  And we can support how many nodes? And we can support
-how many memcgs? And when we multiply that all together, how much
-memory do we need to track that?
+Yes. 
 
-Cheers,
+>
+> Also what exactly is that doing, can you explain ? From what I can see,
+> it calls back into the core of mprotect to change the protection to
+> vma->vm_page_prot, which I would have expected is already the protection
+> there, with the added "prot_numa" flag passed down.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+it set the _PAGE_NUMA bit. Now we also want to make sure that when
+we set _PAGE_NUMA, we would get a pagefault on that so that we can track
+that fault as a numa fault. To ensure that, we had the below BUILD_BUG
+
+	BUILD_BUG_ON(_PAGE_NUMA != _PAGE_PROTNONE);
+        
+
+But other than that the function doesn't really have any dependency on
+_PAGE_PROTNONE. The only requirement is when we set _PAGE_NUMA, the
+architecture should do enough to ensure that we get a page fault. Now on
+ppc64 we does that by clearlying hpte entry and also clearing
+_PAGE_PRESENT. Since we have _PAGE_PRESENT cleared hash_page will return
+1 and we get to page fault handler.
+
+>
+> Your changeset comment says "On archs like ppc64 [...] we just need to
+> make sure that when calling change_prot_numa we flush the
+> hardware page table entry so that next page access  result in a numa
+> fault."
+>
+> But change_prot_numa() does a lot more than that ... it does
+> pte_mknuma(), do we need it ? I assume we do or we wouldn't have added
+> that PTE bit to begin with...
+>
+> Now it *might* be allright and it might be that no other architecture
+> cares anyway etc... but I need at least some mm folks to ack on that
+> patch before I can take it because it *will* change behaviour of other
+> architectures.
+>
+
+Ok, I can move the changes below #ifdef CONFIG_NUMA_BALANCING ? We call
+change_prot_numa from task_numa_work and queue_pages_range(). The later
+may be an issue. So doing the below will help ?
+
+-#ifdef CONFIG_ARCH_USES_NUMA_PROT_NONE
++#ifdef CONFIG_NUMA_BALANCING
+
+
+-aneesh
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
