@@ -1,110 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f49.google.com (mail-yh0-f49.google.com [209.85.213.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 63E716B0035
-	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 16:19:32 -0500 (EST)
-Received: by mail-yh0-f49.google.com with SMTP id z20so12832515yhz.22
-        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 13:19:32 -0800 (PST)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:4])
-        by mx.google.com with ESMTP id q18si40260321qeu.6.2013.12.05.13.19.30
-        for <linux-mm@kvack.org>;
-        Thu, 05 Dec 2013 13:19:31 -0800 (PST)
-Date: Fri, 6 Dec 2013 08:19:26 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v12 10/18] memcg,list_lru: add per-memcg LRU list
- infrastructure
-Message-ID: <20131205211926.GO10988@dastard>
-References: <cover.1385974612.git.vdavydov@parallels.com>
- <73d7942f31ac80dfa53bbdd0f957ce5e9a301958.1385974612.git.vdavydov@parallels.com>
- <20131203111808.GE8803@dastard>
- <529DCE9A.8000802@parallels.com>
+Received: from mail-yh0-f51.google.com (mail-yh0-f51.google.com [209.85.213.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 08C7B6B0035
+	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 18:12:22 -0500 (EST)
+Received: by mail-yh0-f51.google.com with SMTP id c41so11677236yho.10
+        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 15:12:22 -0800 (PST)
+Received: from mail-yh0-x22d.google.com (mail-yh0-x22d.google.com [2607:f8b0:4002:c01::22d])
+        by mx.google.com with ESMTPS id m9si16714674yha.273.2013.12.05.15.12.21
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 05 Dec 2013 15:12:22 -0800 (PST)
+Received: by mail-yh0-f45.google.com with SMTP id v1so12164918yhn.18
+        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 15:12:21 -0800 (PST)
+Date: Thu, 5 Dec 2013 15:12:18 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: Add missing dependency in Kconfig
+In-Reply-To: <20131205193050.GA13476@lovelace>
+Message-ID: <alpine.DEB.2.02.1312051512050.7717@chino.kir.corp.google.com>
+References: <20131205193050.GA13476@lovelace>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <529DCE9A.8000802@parallels.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, Al Viro <viro@zeniv.linux.org.uk>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Sima Baymani <sima.baymani@gmail.com>
+Cc: linux-mm@kvack.org, tangchen@cn.fujitsu.com, akpm@linux-foundation.org, aquini@redhat.com, linux-kernel@vger.kernel.org, gang.chen@asianux.com, aneesh.kumar@linux.vnet.ibm.com, isimatu.yasuaki@jp.fujitsu.com, kirill.shutemov@linux.intel.com, sjenning@linux.vnet.ibm.com, darrick.wong@oracle.com
 
-On Tue, Dec 03, 2013 at 04:29:14PM +0400, Vladimir Davydov wrote:
-> On 12/03/2013 03:18 PM, Dave Chinner wrote:
-> > On Mon, Dec 02, 2013 at 03:19:45PM +0400, Vladimir Davydov wrote:
-> >> FS-shrinkers, which shrink dcaches and icaches, keep dentries and inodes
-> >> in list_lru structures in order to evict least recently used objects.
-> >> With per-memcg kmem shrinking infrastructure introduced, we have to make
-> >> those LRU lists per-memcg in order to allow shrinking FS caches that
-> >> belong to different memory cgroups independently.
-> >>
-> >> This patch addresses the issue by introducing struct memcg_list_lru.
-> >> This struct aggregates list_lru objects for each kmem-active memcg, and
-> >> keeps it uptodate whenever a memcg is created or destroyed. Its
-> >> interface is very simple: it only allows to get the pointer to the
-> >> appropriate list_lru object from a memcg or a kmem ptr, which should be
-> >> further operated with conventional list_lru methods.
-> > Basically The idea was that the memcg LRUs hide entirely behind the
-> > generic list_lru interface so that any cache that used the list_lru
-> > insfrastructure got memcg capabilities for free. memcg's to shrink
-> > were to be passed through the shrinker control shrinkers to the list
-> > LRU code, and it then did all the "which lru are we using" logic
-> > internally.
-> >
-> > What you've done is driven all the "which LRU are we using" logic
-> > into every single caller location. i.e. you've just broken the
-> > underlying design principle that Glauber and I had worked towards
-> > with this code - that memcg aware LRUs should be completely
-> > transparent to list_lru users. Just like NUMA awareness came for
-> > free with the list_lru code, so should memcg awareness....
-> >
-> >> +/*
-> >> + * The following structure can be used to reclaim kmem objects accounted to
-> >> + * different memory cgroups independently. It aggregates a set of list_lru
-> >> + * objects, one for each kmem-enabled memcg, and provides the method to get
-> >> + * the lru corresponding to a memcg.
-> >> + */
-> >> +struct memcg_list_lru {
-> >> +	struct list_lru global_lru;
-> >> +
-> >> +#ifdef CONFIG_MEMCG_KMEM
-> >> +	struct list_lru **memcg_lrus;	/* rcu-protected array of per-memcg
-> >> +					   lrus, indexed by memcg_cache_id() */
-> >> +
-> >> +	struct list_head list;		/* list of all memcg-aware lrus */
-> >> +
-> >> +	/*
-> >> +	 * The memcg_lrus array is rcu protected, so we can only free it after
-> >> +	 * a call to synchronize_rcu(). To avoid multiple calls to
-> >> +	 * synchronize_rcu() when many lrus get updated at the same time, which
-> >> +	 * is a typical scenario, we will store the pointer to the previous
-> >> +	 * version of the array in the old_lrus variable for each lru, and then
-> >> +	 * free them all at once after a single call to synchronize_rcu().
-> >> +	 */
-> >> +	void *old_lrus;
-> >> +#endif
-> >> +};
-> > Really, this should be embedded in the struct list_lru, not wrapping
-> > around the outside. I don't see any changelog to tell me why you
-> > changed the code from what was last in Glauber's tree, so can you
-> > explain why exposing all this memcg stuff to everyone is a good
-> > idea?
+On Thu, 5 Dec 2013, Sima Baymani wrote:
+
+> Eliminate the following (rand)config warning by adding missing PROC_FS
+> dependency:
+> warning: (HWPOISON_INJECT && MEM_SOFT_DIRTY) selects PROC_PAGE_MONITOR
+> which has unmet direct dependencies (PROC_FS && MMU)
 > 
-> I preferred to move from list_lru to memcg_list_lru, because the
-> connection between list_lru and memcgs' turned memcontrol.c and
-> list_lru.c into a monolithic structure. When I read comments to the last
-> version of this patchset submitted by Glauber (v10), I found that Andrew
-> Morton disliked it, that was why I tried to "fix" it the way you observe
-> in this patch. Besides, I though that the list_lru may be used w/o memcgs.
+> Suggested-by: David Rientjes <rientjes@google.com>
+> Signed-off-by: Sima Baymani <sima.baymani@gmail.com>
 
-Yes, the list_lru can be used without memcgs. That's the point
-of having a generic list_lru API - we are able to add more
-fucntionality to the list_lru implemenation without needing to
-change all the users of the API.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
