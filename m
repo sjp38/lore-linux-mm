@@ -1,53 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
-	by kanga.kvack.org (Postfix) with ESMTP id C86D16B0037
-	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 18:35:35 -0500 (EST)
-Received: by mail-qa0-f48.google.com with SMTP id w5so68762qac.14
-        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 15:35:35 -0800 (PST)
-Received: from mail-yh0-x22c.google.com (mail-yh0-x22c.google.com [2607:f8b0:4002:c01::22c])
-        by mx.google.com with ESMTPS id t1si502905qai.12.2013.12.05.15.35.34
+Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 34D016B0035
+	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 18:50:04 -0500 (EST)
+Received: by mail-qc0-f174.google.com with SMTP id n7so4154926qcx.5
+        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 15:50:04 -0800 (PST)
+Received: from mail-yh0-x231.google.com (mail-yh0-x231.google.com [2607:f8b0:4002:c01::231])
+        by mx.google.com with ESMTPS id s9si45692205qak.129.2013.12.05.15.50.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 05 Dec 2013 15:35:34 -0800 (PST)
-Received: by mail-yh0-f44.google.com with SMTP id f64so13339609yha.31
-        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 15:35:34 -0800 (PST)
-Date: Thu, 5 Dec 2013 15:35:30 -0800 (PST)
+        Thu, 05 Dec 2013 15:50:02 -0800 (PST)
+Received: by mail-yh0-f49.google.com with SMTP id z20so13111498yhz.8
+        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 15:50:01 -0800 (PST)
+Date: Thu, 5 Dec 2013 15:49:57 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] Fix race between oom kill and task exit
-In-Reply-To: <20131205172931.GA26018@redhat.com>
-Message-ID: <alpine.DEB.2.02.1312051531330.7717@chino.kir.corp.google.com>
-References: <3917C05D9F83184EAA45CE249FF1B1DD0253093A@SHSMSX103.ccr.corp.intel.com> <20131128063505.GN3556@cmpxchg.org> <CAJ75kXZXxCMgf8=pghUWf=W9EKf3Z4nzKKy=CAn+7keVF_DCRA@mail.gmail.com> <20131128120018.GL2761@dhcp22.suse.cz> <20131128183830.GD20740@redhat.com>
- <20131202141203.GA31402@redhat.com> <alpine.DEB.2.02.1312041655370.13608@chino.kir.corp.google.com> <20131205172931.GA26018@redhat.com>
+Subject: Re: [patch 7/8] mm, memcg: allow processes handling oom notifications
+ to access reserves
+In-Reply-To: <20131205025026.GA26777@htj.dyndns.org>
+Message-ID: <alpine.DEB.2.02.1312051537550.7717@chino.kir.corp.google.com>
+References: <20131119134007.GD20655@dhcp22.suse.cz> <alpine.DEB.2.02.1311192352070.20752@chino.kir.corp.google.com> <20131120152251.GA18809@dhcp22.suse.cz> <alpine.DEB.2.02.1311201917520.7167@chino.kir.corp.google.com> <20131128115458.GK2761@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312021504170.13465@chino.kir.corp.google.com> <alpine.DEB.2.02.1312032116440.29733@chino.kir.corp.google.com> <alpine.DEB.2.02.1312032118570.29733@chino.kir.corp.google.com> <20131204054533.GZ3556@cmpxchg.org>
+ <alpine.DEB.2.02.1312041742560.20115@chino.kir.corp.google.com> <20131205025026.GA26777@htj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, William Dauchy <wdauchy@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Ma, Xindong" <xindong.ma@intel.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, gregkh@linuxfoundation.org, "Tu, Xiaobing" <xiaobing.tu@intel.com>, azurIt <azurit@pobox.sk>, Sameer Nanda <snanda@chromium.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Li Zefan <lizefan@huawei.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Thu, 5 Dec 2013, Oleg Nesterov wrote:
+On Wed, 4 Dec 2013, Tejun Heo wrote:
 
-> > > OK, I am going to send the initial fixes today. This means (I hope)
-> > > that we do not need this or Sameer's "[PATCH] mm, oom: Fix race when
-> > > selecting process to kill".
-> >
-> > Your v2 series looks good and I suspect anybody trying them doesn't have
-> > additional reports of the infinite loop?  Should they be marked for
-> > stable?
-> 
-> Unlikely...
-> 
-> I think the patch from Sameer makes more sense for stable as a temporary
-> (and obviously incomplete) fix.
+> Hello,
 > 
 
-There's a problem because none of this is currently even in linux-next.  I 
-think we could make a case for getting Sameer's patch at 
-http://marc.info/?l=linux-kernel&m=138436313021133 to be merged for 
-stable, but then we'd have to revert it in linux-next before merging your 
-series at http://marc.info/?l=linux-kernel&m=138616217925981.  All of the 
-issues you present in that series seem to be stable material, so why not 
-just go ahead with your series and mark it for stable for 3.13?
+Tejun, how are you?
+
+> Umm.. without delving into details, aren't you basically creating a
+> memory cgroup inside a memory cgroup?  Doesn't sound like a
+> particularly well thought-out plan to me.
+> 
+
+I agree that we wouldn't need such support if we are only addressing memcg 
+oom conditions.  We could do things like A/memory.limit_in_bytes == 128M 
+and A/b/memory.limit_in_bytes == 126MB and then attach the process waiting 
+on A/b/memory.oom_control to A and that would work perfect.
+
+However, we also need to discuss system oom handling.  We have an interest 
+in being able to allow userspace to handle system oom conditions since the 
+policy will differ depending on machine and we can't encode every possible 
+mechanism into the kernel.  For example, on system oom we want to kill a 
+process from the lowest priority top-level memcg.  We lack that ability 
+entirely in the kernel and since the sum of our top-level memcgs 
+memory.limit_in_bytes exceeds the amount of present RAM, we run into these 
+oom conditions a _lot_.
+
+So the first step, in my opinion, is to add a system oom notification on 
+the root memcg's memory.oom_control which currently allows registering an 
+eventfd() notification but never actually triggers.  I did that in a patch 
+and it is was merged into -mm but was pulled out for later discussion.
+
+Then, we need to ensure that the userspace that is registered to handle 
+such events and that is difficult to do when the system is oom.  The 
+proposal is to allow such processes, now marked as PF_OOM_HANDLER, to be 
+able to access pre-defined per-zone memory reserves in the page allocator.  
+The only special handling for PF_OOM_HANDLER in the page allocator itself 
+would be under such oom conditions (memcg oom conditions have no problem 
+allocating the memory, only charging it).  The amount of reserves would be 
+defined as memory.oom_reserve_in_bytes from within the root memcg as 
+defined by this patch, i.e. allow this amount of memory to be allocated in 
+the page allocator for PF_OOM_HANDLER below the per-zone min watermarks.
+
+This, I believe, is the cleanest interface for users who choose to use a 
+non-default policy by setting memory.oom_reserve_in_bytes and constrains 
+all of the code to memcg which you have to configure for such support.
+
+The system oom condition is not addressed in this patch series, although 
+the PF_OOM_HANDLER bit can be used for that purpose.  I didn't post that 
+patch because the notification on the root memcg's memory.oom_control in 
+such conditions is currently being debated, so we need to solve that issue 
+first.
+
+Your opinions and suggestions are more than helpful, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
