@@ -1,72 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f174.google.com (mail-ea0-f174.google.com [209.85.215.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B7406B0031
-	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 08:35:40 -0500 (EST)
-Received: by mail-ea0-f174.google.com with SMTP id b10so11203791eae.19
-        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 05:35:39 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id w6si10838469eeg.237.2013.12.05.05.35.39
+Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C36A6B0031
+	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 09:39:49 -0500 (EST)
+Received: by mail-ee0-f49.google.com with SMTP id c41so3155219eek.36
+        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 06:39:48 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id h45si11102950eeo.172.2013.12.05.06.39.47
         for <linux-mm@kvack.org>;
-        Thu, 05 Dec 2013 05:35:39 -0800 (PST)
-Date: Thu, 5 Dec 2013 13:35:36 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 03/15] mm: thp: give transparent hugepage code a separate
- copy_page
-Message-ID: <20131205133536.GH11295@suse.de>
-References: <1386060721-3794-1-git-send-email-mgorman@suse.de>
- <1386060721-3794-4-git-send-email-mgorman@suse.de>
- <20131204165918.GA13191@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+        Thu, 05 Dec 2013 06:39:47 -0800 (PST)
+Date: Thu, 05 Dec 2013 09:39:30 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1386254370-ui1ehq60-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <52A03EE4.6030609@huawei.com>
+References: <52A03EE4.6030609@huawei.com>
+Subject: Re: [PATCH] mm: do_mincore() cleanup
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20131204165918.GA13191@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Thorlton <athorlton@sgi.com>
-Cc: Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Jianguo Wu <wujianguo@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, qiuxishi <qiuxishi@huawei.com>
 
-On Wed, Dec 04, 2013 at 10:59:18AM -0600, Alex Thorlton wrote:
-> > -void copy_huge_page(struct page *dst, struct page *src)
-> > -{
-> > -	int i;
-> > -	struct hstate *h = page_hstate(src);
-> > -
-> > -	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
+On Thu, Dec 05, 2013 at 04:52:52PM +0800, Jianguo Wu wrote:
+> Two cleanups:
+> 1. remove redundant codes for hugetlb pages.
+> 2. end = pmd_addr_end(addr, end) restricts [addr, end) within PMD_SIZE,
+>    this may increase do_mincore() calls, remove it.
 > 
-> With CONFIG_HUGETLB_PAGE=n, the kernel fails to build, throwing this
-> error:
-> 
-> mm/migrate.c: In function ???copy_huge_page???:
-> mm/migrate.c:473: error: implicit declaration of function ???page_hstate???
-> 
-> I got it to build by sticking the following into hugetlb.h:
-> 
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index 4694afc..fd76912 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -403,6 +403,7 @@ struct hstate {};
->  #define hstate_sizelog(s) NULL
->  #define hstate_vma(v) NULL
->  #define hstate_inode(i) NULL
-> +#define page_hstate(p) NULL
->  #define huge_page_size(h) PAGE_SIZE
->  #define huge_page_mask(h) PAGE_MASK
->  #define vma_kernel_pagesize(v) PAGE_SIZE
-> 
-> I figure that the #define I stuck in isn't actually solving the real
-> problem, but it got things working again.
-> 
+> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
 
-It's based on an upstream patch so I'll check if the problem is there as
-well and backport accordingly. This patch to unblock yourself is fine
-for now.
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Thanks.
+Thanks!
 
--- 
-Mel Gorman
-SUSE Labs
+Naoya
+
+> ---
+>  mm/mincore.c |    7 -------
+>  1 files changed, 0 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/mincore.c b/mm/mincore.c
+> index da2be56..1016233 100644
+> --- a/mm/mincore.c
+> +++ b/mm/mincore.c
+> @@ -225,13 +225,6 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
+>  
+>  	end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
+>  
+> -	if (is_vm_hugetlb_page(vma)) {
+> -		mincore_hugetlb_page_range(vma, addr, end, vec);
+> -		return (end - addr) >> PAGE_SHIFT;
+> -	}
+> -
+> -	end = pmd_addr_end(addr, end);
+> -
+>  	if (is_vm_hugetlb_page(vma))
+>  		mincore_hugetlb_page_range(vma, addr, end, vec);
+>  	else
+> -- 
+> 1.7.1
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
