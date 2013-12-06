@@ -1,86 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id BBA536B0035
-	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 20:19:52 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id p10so51826pdj.40
-        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 17:19:52 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id pk8si59630298pab.126.2013.12.05.17.19.44
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 05 Dec 2013 17:19:51 -0800 (PST)
-Message-ID: <52A1260B.2050007@huawei.com>
-Date: Fri, 6 Dec 2013 09:19:07 +0800
-From: Jianguo Wu <wujianguo@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: do_mincore() cleanup
-References: <52A03EE4.6030609@huawei.com> <1386254370-ui1ehq60-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1386254370-ui1ehq60-mutt-n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset="UTF-8"
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AEE56B0035
+	for <linux-mm@kvack.org>; Thu,  5 Dec 2013 21:01:27 -0500 (EST)
+Received: by mail-qc0-f180.google.com with SMTP id w7so38672qcr.25
+        for <linux-mm@kvack.org>; Thu, 05 Dec 2013 18:01:26 -0800 (PST)
+Date: Thu, 05 Dec 2013 21:01:22 -0500 (EST)
+Message-Id: <20131205.210122.1665109336067593941.davem@davemloft.net>
+Subject: Re: [PATCH] tcp_memcontrol: Cleanup/fix cg_proto->memory_pressure
+ handling.
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <87mwkg542z.fsf_-_@xmission.com>
+References: <20131204222943.GC21724@cmpxchg.org>
+	<20131204.175028.1602944177771517327.davem@davemloft.net>
+	<87mwkg542z.fsf_-_@xmission.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, qiuxishi <qiuxishi@huawei.com>
+To: ebiederm@xmission.com
+Cc: hannes@cmpxchg.org, glommer@gmail.com, netdev@vger.kernel.org, linux-mm@kvack.org, linux-kernel@kvack.org
 
-On 2013/12/5 22:39, Naoya Horiguchi wrote:
-
-> On Thu, Dec 05, 2013 at 04:52:52PM +0800, Jianguo Wu wrote:
->> Two cleanups:
->> 1. remove redundant codes for hugetlb pages.
->> 2. end = pmd_addr_end(addr, end) restricts [addr, end) within PMD_SIZE,
->>    this may increase do_mincore() calls, remove it.
->>
->> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
-> 
-> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-
-Hi Naoya, thanks for your review!
-
-Jianguo Wu
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: Wed, 04 Dec 2013 20:12:04 -0800
 
 > 
-> Thanks!
+> kill memcg_tcp_enter_memory_pressure.  The only function of
+> memcg_tcp_enter_memory_pressure was to reduce deal with the
+> unnecessary abstraction that was tcp_memcontrol.  Now that struct
+> tcp_memcontrol is gone remove this unnecessary function, the
+> unnecessary function pointer, and modify sk_enter_memory_pressure to
+> set this field directly, just as sk_leave_memory_pressure cleas this
+> field directly.
 > 
-> Naoya
+> This fixes a small bug I intruduced when killing struct tcp_memcontrol
+> that caused memcg_tcp_enter_memory_pressure to never be called and
+> thus failed to ever set cg_proto->memory_pressure.
 > 
->> ---
->>  mm/mincore.c |    7 -------
->>  1 files changed, 0 insertions(+), 7 deletions(-)
->>
->> diff --git a/mm/mincore.c b/mm/mincore.c
->> index da2be56..1016233 100644
->> --- a/mm/mincore.c
->> +++ b/mm/mincore.c
->> @@ -225,13 +225,6 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
->>  
->>  	end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
->>  
->> -	if (is_vm_hugetlb_page(vma)) {
->> -		mincore_hugetlb_page_range(vma, addr, end, vec);
->> -		return (end - addr) >> PAGE_SHIFT;
->> -	}
->> -
->> -	end = pmd_addr_end(addr, end);
->> -
->>  	if (is_vm_hugetlb_page(vma))
->>  		mincore_hugetlb_page_range(vma, addr, end, vec);
->>  	else
->> -- 
->> 1.7.1
->>
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>
+> Remove the cg_proto enter_memory_pressure function as it now serves
+> no useful purpose.
 > 
-> .
+> Don't test cg_proto->memory_presser in sk_leave_memory_pressure before
+> clearing it.  The test was originally there to ensure that the pointer
+> was non-NULL.  Now that cg_proto is not a pointer the pointer does not
+> matter.
 > 
+> Signed-off-by: "Eric W. Biederman" <ebiederm@xmission.com>
 
-
+Applied.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
