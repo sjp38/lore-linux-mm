@@ -1,36 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f44.google.com (mail-qa0-f44.google.com [209.85.216.44])
-	by kanga.kvack.org (Postfix) with ESMTP id EAAD66B0038
-	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 09:46:49 -0500 (EST)
-Received: by mail-qa0-f44.google.com with SMTP id i13so626012qae.10
-        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 06:46:49 -0800 (PST)
-Received: from a14-6.smtp-out.amazonses.com (a14-6.smtp-out.amazonses.com. [54.240.14.6])
-        by mx.google.com with ESMTP id b15si41146755qey.20.2013.12.06.06.46.48
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 762BE6B003A
+	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 09:52:09 -0500 (EST)
+Received: by mail-qc0-f172.google.com with SMTP id e16so526115qcx.17
+        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 06:52:09 -0800 (PST)
+Received: from a9-113.smtp-out.amazonses.com (a9-113.smtp-out.amazonses.com. [54.240.9.113])
+        by mx.google.com with ESMTP id i9si32286641qce.75.2013.12.06.06.52.08
         for <linux-mm@kvack.org>;
-        Fri, 06 Dec 2013 06:46:49 -0800 (PST)
-Date: Fri, 6 Dec 2013 14:46:47 +0000
+        Fri, 06 Dec 2013 06:52:08 -0800 (PST)
+Date: Fri, 6 Dec 2013 14:52:07 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [patch 3/8] mm, mempolicy: remove per-process flag
-In-Reply-To: <alpine.DEB.2.02.1312051550390.7717@chino.kir.corp.google.com>
-Message-ID: <00000142c8600e2a-1c73cb76-2ba9-4644-a714-1c8d43c48c23-000000@email.amazonses.com>
-References: <20131119131400.GC20655@dhcp22.suse.cz> <20131119134007.GD20655@dhcp22.suse.cz> <alpine.DEB.2.02.1311192352070.20752@chino.kir.corp.google.com> <20131120152251.GA18809@dhcp22.suse.cz> <alpine.DEB.2.02.1311201917520.7167@chino.kir.corp.google.com>
- <20131128115458.GK2761@dhcp22.suse.cz> <alpine.DEB.2.02.1312021504170.13465@chino.kir.corp.google.com> <alpine.DEB.2.02.1312032116440.29733@chino.kir.corp.google.com> <alpine.DEB.2.02.1312032117490.29733@chino.kir.corp.google.com>
- <00000142be3633ba-2a459537-58fb-444b-a99f-33ff5e5b2aed-000000@email.amazonses.com> <alpine.DEB.2.02.1312041651080.13608@chino.kir.corp.google.com> <00000142c426b81a-45e6815b-bde4-483c-975e-ce1eea42a753-000000@email.amazonses.com>
- <alpine.DEB.2.02.1312051550390.7717@chino.kir.corp.google.com>
+Subject: Re: [PATCH 1/4] mm/migrate: correct return value of
+ migrate_pages()
+In-Reply-To: <1386319310-28016-1-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <00000142c864eed3-5e3737e5-9262-418a-9341-60b712ae281e-000000@email.amazonses.com>
+References: <1386319310-28016-1-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Rafael Aquini <aquini@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Joonsoo Kim <js1304@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 5 Dec 2013, David Rientjes wrote:
+On Fri, 6 Dec 2013, Joonsoo Kim wrote:
 
-> We actually carry that in our production kernel and have updated it to
-> build on 3.11, I'll run it and netperf TCP_RR as well, thanks.
+> migrate_pages() should return number of pages not migrated or error code.
+> When unmap_and_move return -EAGAIN, outer loop is re-execution without
+> initialising nr_failed. This makes nr_failed over-counted.
+>
+> So this patch correct it by initialising nr_failed in outer loop.
 
-If you get around it then please post the updated version. Maybe we can
-get that merged at some point. Keeps floating around after all.
+Well nr_retry is the total number of attempts that got EGAIN. nr_failed is
+the total number of failed attempts. You are making nr_failed the number
+of pages of the list that have failed to migrated. That syncs with the
+description.
+
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 3747fcd..1f59ccc 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -1102,6 +1102,7 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+>
+>  	for(pass = 0; pass < 10 && retry; pass++) {
+>  		retry = 0;
+> +		nr_failed = 0;
+
+The initialization of nr_failed and retry earlier is then useless.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
