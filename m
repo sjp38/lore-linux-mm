@@ -1,81 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 363826B0072
-	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 10:39:42 -0500 (EST)
-Received: by mail-wg0-f47.google.com with SMTP id n12so800776wgh.2
-        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 07:39:41 -0800 (PST)
-Received: from mail-we0-x234.google.com (mail-we0-x234.google.com [2a00:1450:400c:c03::234])
-        by mx.google.com with ESMTPS id ep4si36809895wjd.163.2013.12.06.07.39.40
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 06 Dec 2013 07:39:40 -0800 (PST)
-Received: by mail-we0-f180.google.com with SMTP id t61so811604wes.39
-        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 07:39:39 -0800 (PST)
+Received: from mail-ea0-f169.google.com (mail-ea0-f169.google.com [209.85.215.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A8066B0078
+	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 10:52:12 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id l9so392842eaj.0
+        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 07:52:11 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id m44si9910725eeo.79.2013.12.06.07.52.10
+        for <linux-mm@kvack.org>;
+        Fri, 06 Dec 2013 07:52:11 -0800 (PST)
+Date: Fri, 6 Dec 2013 16:52:38 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH] Fix race between oom kill and task exit
+Message-ID: <20131206155238.GA6676@redhat.com>
+References: <3917C05D9F83184EAA45CE249FF1B1DD0253093A@SHSMSX103.ccr.corp.intel.com> <20131128063505.GN3556@cmpxchg.org> <CAJ75kXZXxCMgf8=pghUWf=W9EKf3Z4nzKKy=CAn+7keVF_DCRA@mail.gmail.com> <20131128120018.GL2761@dhcp22.suse.cz> <20131128183830.GD20740@redhat.com> <20131202141203.GA31402@redhat.com> <alpine.DEB.2.02.1312041655370.13608@chino.kir.corp.google.com> <20131205172931.GA26018@redhat.com> <alpine.DEB.2.02.1312051531330.7717@chino.kir.corp.google.com> <20131206151944.GC2674@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <A8856C6323EFE0459533E910625AB930347FDF@Exchange10.columbia.tresys.com>
-References: <1386018639-18916-1-git-send-email-wroberts@tresys.com>
-	<A8856C6323EFE0459533E910625AB930347FDF@Exchange10.columbia.tresys.com>
-Date: Fri, 6 Dec 2013 07:39:39 -0800
-Message-ID: <CAFftDdqtXvkF9wpcWv5kyeXSwR1_5FCSrhwRg9SsG5mPHfyEVw@mail.gmail.com>
-Subject: Re: [PATCH] - auditing cmdline
-From: William Roberts <bill.c.roberts@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131206151944.GC2674@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: William Roberts <WRoberts@tresys.com>
-Cc: "linux-audit@redhat.com" <linux-audit@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "rgb@redhat.com" <rgb@redhat.com>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "sds@tycho.nsa.gov" <sds@tycho.nsa.gov>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, William Dauchy <wdauchy@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Ma, Xindong" <xindong.ma@intel.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, gregkh@linuxfoundation.org, "Tu, Xiaobing" <xiaobing.tu@intel.com>, azurIt <azurit@pobox.sk>, Sameer Nanda <snanda@chromium.org>
 
-Sigh...I sent this back out from another emai address and got bounced
-from the lists... resending. Sorry for the cruft.
+On 12/06, Oleg Nesterov wrote:
+>
+> And this is risky. For example, 1/4 depends on (at least) another patch
+> I sent in preparation for this change, commit 81907739851
+> "kernel/fork.c:copy_process(): don't add the uninitialized
+> child to thread/task/pid lists", perhaps on something else.
 
-On Fri, Dec 6, 2013 at 7:34 AM, William Roberts <WRoberts@tresys.com> wrote=
-:
-> I sent out 3 patches on 12/2/2013. I didn't get any response. I thought I=
- added the right people based on get_maintainers script.
->
-> Can anyone comment on these or point me in the right direction?
->
-> RGB, Can you at least ACK the audit subsystem patch " audit: Audit proc c=
-mdline value"?
->
-> Thank you,
-> Bill
->
-> -----Original Message-----
-> From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On Behal=
-f Of William Roberts
-> Sent: Monday, December 02, 2013 1:11 PM
-> To: linux-audit@redhat.com; linux-mm@kvack.org; linux-kernel@vger.kernel.=
-org; rgb@redhat.com; viro@zeniv.linux.org.uk
-> Cc: sds@tycho.nsa.gov
-> Subject: [PATCH] - auditing cmdline
->
-> This patch series relates to work started on the audit mailing list.
-> It eventually involved touching other modules, so I am trying to pull in =
-those owners as well. In a nutshell I add new utility functions for accessi=
-ng a processes cmdline value as displayed in proc/<self>/cmdline, and then =
-refactor procfs to use the utility functions, and then add the ability to t=
-he audit subsystem to record this value.
->
-> Thanks for any feedback and help.
->
-> [PATCH 1/3] mm: Create utility functions for accessing a tasks
-> [PATCH 2/3] proc: Update get proc_pid_cmdline() to use mm.h helpers
-> [PATCH 3/3] audit: Audit proc cmdline value
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in the body to=
- majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+Hmm. not too much actually, I re-checked v3.10:kernel/copy_process.c.
+Yes, list_add(thread_node)) in copy_process() can add the new thread
+with the wrong pids, but somehow I forgot that list_add(thread_group)
+in v3.10 has the same problem, so this probably doesn't matter and
+we can safely backport this change.
 
+> So personally I'd prefer to simply send the workaround for stable.
 
+Yes, anyway, bacause I will sleep better ;)
 
---=20
-Respectfully,
+But OK, if you think it would be better to mark 1-4 series I sent
+for stable - I won't argue.
 
-William C Roberts
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
