@@ -1,69 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 27C6D6B0039
-	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 07:21:51 -0500 (EST)
-Received: by mail-qc0-f171.google.com with SMTP id c9so396028qcz.30
-        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 04:21:50 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id e10si420601qas.21.2013.12.06.04.21.49
-        for <linux-mm@kvack.org>;
-        Fri, 06 Dec 2013 04:21:50 -0800 (PST)
-Date: Fri, 6 Dec 2013 10:21:43 -0200
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [QUESTION] balloon page isolation needs LRU lock?
-Message-ID: <20131206122142.GC26883@localhost.localdomain>
-References: <20131206085331.GA24706@lge.com>
+Received: from mail-yh0-f50.google.com (mail-yh0-f50.google.com [209.85.213.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F4E16B0036
+	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 08:55:01 -0500 (EST)
+Received: by mail-yh0-f50.google.com with SMTP id b6so450646yha.9
+        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 05:55:01 -0800 (PST)
+Received: from comal.ext.ti.com (comal.ext.ti.com. [198.47.26.152])
+        by mx.google.com with ESMTPS id l5si11346842yhl.99.2013.12.06.05.54.59
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 06 Dec 2013 05:55:00 -0800 (PST)
+Message-ID: <52A1E4C2.6020004@ti.com>
+Date: Fri, 6 Dec 2013 16:52:50 +0200
+From: Grygorii Strashko <grygorii.strashko@ti.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131206085331.GA24706@lge.com>
+Subject: Re: [PATCH v2 08/23] mm/memblock: Add memblock memory allocation
+ apis
+References: <1386037658-3161-1-git-send-email-santosh.shilimkar@ti.com> <1386037658-3161-9-git-send-email-santosh.shilimkar@ti.com> <20131203232445.GX8277@htj.dyndns.org> <52A0AB34.2030703@ti.com>,<20131205165325.GA24062@mtj.dyndns.org> <902E09E6452B0E43903E4F2D568737AB097B26B2@DNCE04.ent.ti.com> <52A0E357.7090008@ti.com>
+In-Reply-To: <52A0E357.7090008@ti.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Santosh Shilimkar <santosh.shilimkar@ti.com>
+Cc: Tejun Heo <tj@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, Dec 06, 2013 at 05:53:31PM +0900, Joonsoo Kim wrote:
-> Hello, Rafael.
-> 
-> I looked at some compaction code and found that some oddity about
-> balloon compaction. In isolate_migratepages_range(), if we meet
-> !PageLRU(), we check whether this page is for balloon compaction.
-> In this case, code needs locked. Is the lock really needed? I can't find
-> any relationship between balloon compaction and LRU lock.
-> 
-> Second question is that in above case if we don't hold a lock, we
-> skip this page. I guess that if we meet balloon page repeatedly, there
-> is no change to run isolation. Am I missing?
-> 
-> Please let me know what I am missing.
-> 
-> Thanks in advance.
+On 12/05/2013 10:34 PM, Santosh Shilimkar wrote:
+> Grygorii,
+>
+> On Thursday 05 December 2013 01:48 PM, Strashko, Grygorii wrote:
+>> Hi Tejun,
+>>
+>>> On Thu, Dec 05, 2013 at 06:35:00PM +0200, Grygorii Strashko wrote:
+>>>>>> +#define memblock_virt_alloc_align(x, align) \
+>>>>>> +  memblock_virt_alloc_try_nid(x, align, BOOTMEM_LOW_LIMIT, \
+>>>>>> +                               BOOTMEM_ALLOC_ACCESSIBLE, MAX_NUMNODES)
+>>>>>
+>>>>> Also, do we really need this align variant separate when the caller
+>>>>> can simply specify 0 for the default?
+>>>>
+>>>> Unfortunately Yes.
+>>>> We need it to keep compatibility with bootmem/nobootmem
+>>>> which don't handle 0 as default align value.
+>>>
+>>> Hmm... why wouldn't just interpreting 0 to SMP_CACHE_BYTES in the
+>>> memblock_virt*() function work?
+>>>
+>>
+>> Problem is not with memblock_virt*(). The issue will happen in case if
+>> memblock or nobootmem are disabled in below code (memblock_virt*() is disabled).
+>>
+>> +/* Fall back to all the existing bootmem APIs */
+>> +#define memblock_virt_alloc(x) \
+>> +       __alloc_bootmem(x, SMP_CACHE_BYTES, BOOTMEM_LOW_LIMIT)
+>>
+>> which will be transformed to
+>> +/* Fall back to all the existing bootmem APIs */
+>> +#define memblock_virt_alloc(x, align) \
+>> +       __alloc_bootmem(x, align, BOOTMEM_LOW_LIMIT)
+>>
+>> and used as
+>>
+>> memblock_virt_alloc(size, 0);
+>>
+>> so, by default bootmem code will use 0 as default alignment and not SMP_CACHE_BYTES
+>> and that is wrong.
+>>
+> Looks like you didn't understood the suggestion completely.
+> The fall back inline will look like below .....
+>
+> static inline memblock_virt_alloc(x, align)
+> {
+> 	if (align == 0)
+> 		align = SMP_CACHE_BYTES
+> 	__alloc_bootmem(x, align, BOOTMEM_LOW_LIMIT);
+> }
+>
 
-Howdy Joonsoo, thanks for your question.
-
-The major reason I left the 'locked' case in place when isolating balloon pages
-was to keep consistency with the other isolation cases. Among all page types we
-isolate for compaction balloon pages are an exception as, you noticed, they're
-not on LRU lists. So, we (specially) fake balloon pages as LRU to isolate/compact them, 
-withouth having to sort to drastic surgeries into kernel code to implement
-exception cases for isolating/compacting balloon pages.
-
-As others pages we isolate for compaction are isolated while holding the
-zone->lru_lock, I left the same condition placed for balloon pages as a
-safeguard for consistency. If we hit a balloon page while scanning page blocks
-and we do not have the lru lock held, then the balloon page will be treated 
-by the scanning mechanism just as what it is: a !PageLRU() case, and life will
-go on as described by the algorithm.
-
-OTOH, there's no direct relationship between the balloon page and the LRU lock,
-other than this consistency one I aforementioned. I've never seen any major
-trouble on letting the lock requirement in place during my tests on workloads
-that mix balloon pages and compaction. However, if you're seeing any trouble and
-that lru lock requirement is acting as an overkill or playing a bad role on your
-tests, you can get rid of it easily, IMHO.
+I understand. thanks.
 
 Regards,
--- Rafael
+-grygorii
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
