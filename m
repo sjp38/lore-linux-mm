@@ -1,90 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 548AF6B005A
-	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 10:19:25 -0500 (EST)
-Received: by mail-wg0-f50.google.com with SMTP id a1so791861wgh.5
-        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 07:19:24 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id bh7si36796345wjb.21.2013.12.06.07.19.22
-        for <linux-mm@kvack.org>;
-        Fri, 06 Dec 2013 07:19:23 -0800 (PST)
-Date: Fri, 6 Dec 2013 16:19:44 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] Fix race between oom kill and task exit
-Message-ID: <20131206151944.GC2674@redhat.com>
-References: <3917C05D9F83184EAA45CE249FF1B1DD0253093A@SHSMSX103.ccr.corp.intel.com> <20131128063505.GN3556@cmpxchg.org> <CAJ75kXZXxCMgf8=pghUWf=W9EKf3Z4nzKKy=CAn+7keVF_DCRA@mail.gmail.com> <20131128120018.GL2761@dhcp22.suse.cz> <20131128183830.GD20740@redhat.com> <20131202141203.GA31402@redhat.com> <alpine.DEB.2.02.1312041655370.13608@chino.kir.corp.google.com> <20131205172931.GA26018@redhat.com> <alpine.DEB.2.02.1312051531330.7717@chino.kir.corp.google.com>
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+	by kanga.kvack.org (Postfix) with ESMTP id BFD946B006E
+	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 10:35:06 -0500 (EST)
+Received: by mail-qc0-f172.google.com with SMTP id e16so578028qcx.31
+        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 07:35:06 -0800 (PST)
+Received: from exchange10.columbia.tresys.com (exchange10.columbia.tresys.com. [216.30.191.171])
+        by mx.google.com with ESMTPS id ko6si65158861qeb.9.2013.12.06.07.35.05
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 06 Dec 2013 07:35:05 -0800 (PST)
+From: William Roberts <WRoberts@tresys.com>
+Subject: RE: [PATCH] - auditing cmdline
+Date: Fri, 6 Dec 2013 15:34:32 +0000
+Message-ID: <A8856C6323EFE0459533E910625AB930347FDF@Exchange10.columbia.tresys.com>
+References: <1386018639-18916-1-git-send-email-wroberts@tresys.com>
+In-Reply-To: <1386018639-18916-1-git-send-email-wroberts@tresys.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1312051531330.7717@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, William Dauchy <wdauchy@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Ma, Xindong" <xindong.ma@intel.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, gregkh@linuxfoundation.org, "Tu, Xiaobing" <xiaobing.tu@intel.com>, azurIt <azurit@pobox.sk>, Sameer Nanda <snanda@chromium.org>
+To: William Roberts <bill.c.roberts@gmail.com>, "linux-audit@redhat.com" <linux-audit@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "rgb@redhat.com" <rgb@redhat.com>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>
+Cc: "sds@tycho.nsa.gov" <sds@tycho.nsa.gov>
 
-On 12/05, David Rientjes wrote:
->
-> On Thu, 5 Dec 2013, Oleg Nesterov wrote:
->
-> > > Your v2 series looks good and I suspect anybody trying them doesn't have
-> > > additional reports of the infinite loop?  Should they be marked for
-> > > stable?
-> >
-> > Unlikely...
-> >
-> > I think the patch from Sameer makes more sense for stable as a temporary
-> > (and obviously incomplete) fix.
->
-> There's a problem because none of this is currently even in linux-next.  I
-> think we could make a case for getting Sameer's patch at
-> http://marc.info/?l=linux-kernel&m=138436313021133 to be merged for
-> stable,
+I sent out 3 patches on 12/2/2013. I didn't get any response. I thought I a=
+dded the right people based on get_maintainers script.
 
-Probably.
+Can anyone comment on these or point me in the right direction?
 
-Ah, I just noticed that this change
+RGB, Can you at least ACK the audit subsystem patch " audit: Audit proc cmd=
+line value"?
 
-	-	if (p->flags & PF_EXITING) {
-	+	if (p->flags & PF_EXITING || !pid_alive(p)) {
+Thank you,
+Bill
 
-is not needed. !pid_alive(p) obviously implies PF_EXITING.
+-----Original Message-----
+From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On Behalf =
+Of William Roberts
+Sent: Monday, December 02, 2013 1:11 PM
+To: linux-audit@redhat.com; linux-mm@kvack.org; linux-kernel@vger.kernel.or=
+g; rgb@redhat.com; viro@zeniv.linux.org.uk
+Cc: sds@tycho.nsa.gov
+Subject: [PATCH] - auditing cmdline
 
-> but then we'd have to revert it in linux-next
+This patch series relates to work started on the audit mailing list.
+It eventually involved touching other modules, so I am trying to pull in th=
+ose owners as well. In a nutshell I add new utility functions for accessing=
+ a processes cmdline value as displayed in proc/<self>/cmdline, and then re=
+factor procfs to use the utility functions, and then add the ability to the=
+ audit subsystem to record this value.
 
-Or perhaps Sameer can just send his fix to stable/gregkh.
+Thanks for any feedback and help.
 
-Just the changelog should clearly explain that this is the minimal
-workaround for stable. Once again it doesn't (and can't) fix all
-problems even in oom_kill_process() paths, but it helps anyway to
-avoid the easy-to-trigger hang.
+[PATCH 1/3] mm: Create utility functions for accessing a tasks
+[PATCH 2/3] proc: Update get proc_pid_cmdline() to use mm.h helpers
+[PATCH 3/3] audit: Audit proc cmdline value
 
-> before merging your
-> series at http://marc.info/?l=linux-kernel&m=138616217925981.
-
-Just in case, I won't mind to rediff my patches on top of Sameer's
-patch and then add git-revert patch.
-
-> All of the
-> issues you present in that series seem to be stable material, so why not
-> just go ahead with your series and mark it for stable for 3.13?
-
-OK... I can do this too.
-
-I do not really like this because it adds thread_head/node but doesn't
-remove the old ->thread_group. We will do this later, but obviously
-this is not the stable material.
-
-IOW, if we send this to stable, thread_head/node/for_each_thread will
-be only used by oom_kill.c.
-
-And this is risky. For example, 1/4 depends on (at least) another patch
-I sent in preparation for this change, commit 81907739851
-"kernel/fork.c:copy_process(): don't add the uninitialized
-child to thread/task/pid lists", perhaps on something else.
-
-So personally I'd prefer to simply send the workaround for stable.
-
-Oleg.
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in the body to m=
+ajordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
