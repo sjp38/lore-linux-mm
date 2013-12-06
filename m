@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 33BED6B005A
-	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 04:12:34 -0500 (EST)
-Received: by mail-pb0-f52.google.com with SMTP id uo5so723930pbc.39
-        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 01:12:33 -0800 (PST)
-Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com. [202.81.31.144])
-        by mx.google.com with ESMTPS id ob10si60777941pbb.67.2013.12.06.01.12.31
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id C20B86B005C
+	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 04:12:35 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id v10so693581pde.27
+        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 01:12:35 -0800 (PST)
+Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com. [122.248.162.3])
+        by mx.google.com with ESMTPS id pt8si60767545pac.76.2013.12.06.01.12.33
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 06 Dec 2013 01:12:32 -0800 (PST)
+        Fri, 06 Dec 2013 01:12:34 -0800 (PST)
 Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 6 Dec 2013 19:12:29 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id AB1632BB002D
-	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 20:12:27 +1100 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB68sCxv46792848
-	for <linux-mm@kvack.org>; Fri, 6 Dec 2013 19:54:12 +1100
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rB69CQoV006523
-	for <linux-mm@kvack.org>; Fri, 6 Dec 2013 20:12:27 +1100
+	Fri, 6 Dec 2013 14:42:31 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 3C102E0053
+	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 14:44:43 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB69CIO925493708
+	for <linux-mm@kvack.org>; Fri, 6 Dec 2013 14:42:19 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rB69CP8b019710
+	for <linux-mm@kvack.org>; Fri, 6 Dec 2013 14:42:25 +0530
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v2 5/6] sched/numa: make numamigrate_isolate_page static 
-Date: Fri,  6 Dec 2013 17:12:15 +0800
-Message-Id: <1386321136-27538-5-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v2 4/6] sched/numa: use wrapper function task_node to get node which task is on 
+Date: Fri,  6 Dec 2013 17:12:14 +0800
+Message-Id: <1386321136-27538-4-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1386321136-27538-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1386321136-27538-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -33,26 +33,35 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Make numamigrate_update_ratelimit static.
+Use wrapper function task_node to get node which task is on.
 
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/migrate.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ kernel/sched/fair.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index fdb70f7..7ad81e0 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1616,7 +1616,7 @@ bool numamigrate_update_ratelimit(pg_data_t *pgdat, unsigned long nr_pages)
- 	return rate_limited;
- }
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 56bcc0c..e0b1063 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -1216,7 +1216,7 @@ static int task_numa_migrate(struct task_struct *p)
+ 	 * elsewhere, so there is no point in (re)trying.
+ 	 */
+ 	if (unlikely(!sd)) {
+-		p->numa_preferred_nid = cpu_to_node(task_cpu(p));
++		p->numa_preferred_nid = task_node(p);
+ 		return -EINVAL;
+ 	}
  
--int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
-+static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
- {
- 	int page_lru;
+@@ -1283,7 +1283,7 @@ static void numa_migrate_preferred(struct task_struct *p)
+ 	p->numa_migrate_retry = jiffies + HZ;
  
+ 	/* Success if task is already running on preferred CPU */
+-	if (cpu_to_node(task_cpu(p)) == p->numa_preferred_nid)
++	if (task_node(p) == p->numa_preferred_nid)
+ 		return;
+ 
+ 	/* Otherwise, try migrate to a CPU on the preferred node */
 -- 
 1.7.7.6
 
