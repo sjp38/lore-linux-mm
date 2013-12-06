@@ -1,65 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 70C196B008A
-	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 13:32:16 -0500 (EST)
-Received: by mail-ee0-f51.google.com with SMTP id b15so461250eek.38
-        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 10:32:15 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id e2si15707216eeg.198.2013.12.06.10.32.15
+Received: from mail-qa0-f44.google.com (mail-qa0-f44.google.com [209.85.216.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 885C26B0092
+	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 13:37:39 -0500 (EST)
+Received: by mail-qa0-f44.google.com with SMTP id i13so825239qae.17
+        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 10:37:39 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id x7si3549663qat.121.2013.12.06.10.37.35
         for <linux-mm@kvack.org>;
-        Fri, 06 Dec 2013 10:32:15 -0800 (PST)
-Date: Fri, 6 Dec 2013 18:32:07 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 14/15] mm: numa: Flush TLB if NUMA hinting faults race
- with PTE scan update
-Message-ID: <20131206183207.GW11295@suse.de>
-References: <1386060721-3794-15-git-send-email-mgorman@suse.de>
- <529E641A.7040804@redhat.com>
- <20131203234637.GS11295@suse.de>
- <529F3D51.1090203@redhat.com>
- <20131204160741.GC11295@suse.de>
- <20131205104015.716ed0fe@annuminas.surriel.com>
- <20131205195446.GI11295@suse.de>
- <52A0DC7F.7050403@redhat.com>
- <20131206092400.GJ11295@suse.de>
- <20131206173843.GD3080@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+        Fri, 06 Dec 2013 10:37:37 -0800 (PST)
+Date: Fri, 06 Dec 2013 13:37:26 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1386355046-jja39cg0-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <52A1E248.1000204@suse.cz>
+References: <1386319310-28016-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <52A1E248.1000204@suse.cz>
+Subject: Re: [PATCH 1/4] mm/migrate: correct return value of migrate_pages()
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20131206173843.GD3080@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Thorlton <athorlton@sgi.com>
-Cc: t@sgi.com, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, hhuang@redhat.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Rafael Aquini <aquini@redhat.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <js1304@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Dec 06, 2013 at 11:38:43AM -0600, Alex Thorlton wrote:
-> On Fri, Dec 06, 2013 at 09:24:00AM +0000, Mel Gorman wrote:
-> > Good. So far I have not been seeing any problems with it at least.
+On Fri, Dec 06, 2013 at 03:42:16PM +0100, Vlastimil Babka wrote:
+> On 12/06/2013 09:41 AM, Joonsoo Kim wrote:
+> >migrate_pages() should return number of pages not migrated or error code.
+> >When unmap_and_move return -EAGAIN, outer loop is re-execution without
+> >initialising nr_failed. This makes nr_failed over-counted.
+> >
+> >So this patch correct it by initialising nr_failed in outer loop.
+> >
+> >Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >
+> >diff --git a/mm/migrate.c b/mm/migrate.c
+> >index 3747fcd..1f59ccc 100644
+> >--- a/mm/migrate.c
+> >+++ b/mm/migrate.c
+> >@@ -1102,6 +1102,7 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+> >
+> >  	for(pass = 0; pass < 10 && retry; pass++) {
+> >  		retry = 0;
+> >+		nr_failed = 0;
+> >
+> >  		list_for_each_entry_safe(page, page2, from, lru) {
+> >  			cond_resched();
+> >
 > 
-> I went through and tested all the different iterations of this patchset
-> last night, and have hit a few problems, but I *think* this has solved
-> the segfault problem.  I'm now hitting some rcu_sched stalls when
-> running my tests.
+> If I'm reading the code correctly, unmap_and_move() (and
+> unmap_and_move_huge_page() as well) deletes all pages from the
+> 'from' list, unless it fails with -EAGAIN. So the only pages you see
+> in subsequent passes are those that failed with -EAGAIN and those
+> are not counted as nr_failed. So there shouldn't be over-count, but
+> your patch could result in under-count.
 > 
+> Perhaps a comment somewhere would clarify this.
 
-Well that's news for the start of the weekend.
+I agree and suggest the one below.
+Joonsoo, feel free to append it to your series:)
 
-> Initially things were getting hung up on a lock in change_huge_pmd, so
-> I applied Kirill's patches to split up the PTL, which did manage to ease
-> the contention on that lock, but, now it appears that I'm hitting stalls
-> somewhere else.
-> 
+Thanks,
+Naoya Horiguchi
+---
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Date: Fri, 6 Dec 2013 13:08:15 -0500
+Subject: [PATCH] migrate: add comment about permanent failure path
 
-To check this, the next version of the series will be based on 3.13-rc2 which
-will include Kirill's patches. If the segfault is cleared up then at least
-that much will be in flight and in the process of being backported to 3.12.
-NUMA balancing in 3.12 is quite work intensive but the patches 3.13-rc2
-should substantially reduce that overhead. It'd be best to check them
-all in combination and seeing what falls out.
+Let's add a comment about where the failed page goes to, which makes
+code more readable.
 
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/migrate.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 661ff5f66591..c01caafa0a6f 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1118,7 +1118,12 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+ 				nr_succeeded++;
+ 				break;
+ 			default:
+-				/* Permanent failure */
++				/*
++				 * Permanent failure (-EBUSY, -ENOSYS, etc.):
++				 * unlike -EAGAIN case, the failed page is
++				 * removed from migration page list and not
++				 * retried in the next outer loop.
++				 */
+ 				nr_failed++;
+ 				break;
+ 			}
 -- 
-Mel Gorman
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
