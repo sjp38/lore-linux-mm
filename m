@@ -1,21 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
-	by kanga.kvack.org (Postfix) with ESMTP id DD0346B00A4
-	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 16:10:06 -0500 (EST)
-Received: by mail-we0-f177.google.com with SMTP id u56so1199733wes.8
-        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 13:10:06 -0800 (PST)
+Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A1FF6B00A6
+	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 16:20:22 -0500 (EST)
+Received: by mail-we0-f170.google.com with SMTP id w61so1251422wes.15
+        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 13:20:22 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id m6si2063394wia.29.2013.12.06.13.10.04
+        by mx.google.com with ESMTP id eo13si2066422wid.79.2013.12.06.13.20.21
         for <linux-mm@kvack.org>;
-        Fri, 06 Dec 2013 13:10:05 -0800 (PST)
-Date: Fri, 06 Dec 2013 16:09:36 -0500
+        Fri, 06 Dec 2013 13:20:22 -0800 (PST)
+Date: Fri, 06 Dec 2013 16:19:55 -0500
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1386364176-it8qfec-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1386321136-27538-4-git-send-email-liwanp@linux.vnet.ibm.com>
+Message-ID: <1386364795-hks9q1oj-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1386321136-27538-5-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1386321136-27538-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1386321136-27538-4-git-send-email-liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 4/6] sched/numa: use wrapper function task_node to get
- node which task is on
+ <1386321136-27538-5-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 5/6] sched/numa: make numamigrate_isolate_page static
 Mime-Version: 1.0
 Content-Type: text/plain;
  charset=iso-2022-jp
@@ -26,48 +25,34 @@ List-ID: <linux-mm.kvack.org>
 To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Dec 06, 2013 at 05:12:14PM +0800, Wanpeng Li wrote:
-> Use wrapper function task_node to get node which task is on.
-> 
-> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+On Fri, Dec 06, 2013 at 05:12:15PM +0800, Wanpeng Li wrote:
+> Make numamigrate_update_ratelimit static.
 
-Maybe we have another line to apply the same fix:
-
-./kernel/sched/debug.c:142:     SEQ_printf(m, " %d", cpu_to_node(task_cpu(p)));
-
-But anyway,
+Please change this function name, too :)
 
 Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
 Thanks,
 Naoya Horiguchi
 
+> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 > ---
->  kernel/sched/fair.c |    4 ++--
->  1 files changed, 2 insertions(+), 2 deletions(-)
+>  mm/migrate.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
-> diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-> index 56bcc0c..e0b1063 100644
-> --- a/kernel/sched/fair.c
-> +++ b/kernel/sched/fair.c
-> @@ -1216,7 +1216,7 @@ static int task_numa_migrate(struct task_struct *p)
->  	 * elsewhere, so there is no point in (re)trying.
->  	 */
->  	if (unlikely(!sd)) {
-> -		p->numa_preferred_nid = cpu_to_node(task_cpu(p));
-> +		p->numa_preferred_nid = task_node(p);
->  		return -EINVAL;
->  	}
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index fdb70f7..7ad81e0 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -1616,7 +1616,7 @@ bool numamigrate_update_ratelimit(pg_data_t *pgdat, unsigned long nr_pages)
+>  	return rate_limited;
+>  }
 >  
-> @@ -1283,7 +1283,7 @@ static void numa_migrate_preferred(struct task_struct *p)
->  	p->numa_migrate_retry = jiffies + HZ;
+> -int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
+> +static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
+>  {
+>  	int page_lru;
 >  
->  	/* Success if task is already running on preferred CPU */
-> -	if (cpu_to_node(task_cpu(p)) == p->numa_preferred_nid)
-> +	if (task_node(p) == p->numa_preferred_nid)
->  		return;
->  
->  	/* Otherwise, try migrate to a CPU on the preferred node */
 > -- 
 > 1.7.7.6
 > 
