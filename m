@@ -1,66 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B1546B0035
-	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 06:30:09 -0500 (EST)
-Received: by mail-ee0-f51.google.com with SMTP id b15so235569eek.10
-        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 03:30:08 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id w6si14380585eeg.132.2013.12.06.03.30.08
-        for <linux-mm@kvack.org>;
-        Fri, 06 Dec 2013 03:30:08 -0800 (PST)
-Date: Fri, 6 Dec 2013 11:30:03 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH -V3] mm: Move change_prot_numa outside
- CONFIG_ARCH_USES_NUMA_PROT_NONE
-Message-ID: <20131206113003.GP11295@suse.de>
-References: <1386268702-30806-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
+	by kanga.kvack.org (Postfix) with ESMTP id B67FD6B0037
+	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 06:46:44 -0500 (EST)
+Received: by mail-we0-f179.google.com with SMTP id q59so519953wes.38
+        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 03:46:43 -0800 (PST)
+Received: from mail-wg0-x232.google.com (mail-wg0-x232.google.com [2a00:1450:400c:c00::232])
+        by mx.google.com with ESMTPS id fy4si22604231wjc.33.2013.12.06.03.46.43
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 06 Dec 2013 03:46:43 -0800 (PST)
+Received: by mail-wg0-f50.google.com with SMTP id a1so523221wgh.29
+        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 03:46:43 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1386268702-30806-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <52A191D3.5050507@cn.fujitsu.com>
+References: <1386319310-28016-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<1386319310-28016-3-git-send-email-iamjoonsoo.kim@lge.com>
+	<52A191D3.5050507@cn.fujitsu.com>
+Date: Fri, 6 Dec 2013 20:46:43 +0900
+Message-ID: <CAAmzW4MXZyBA-RrVhL2QcFQfddBRoyROhO6xTYgQ0wJsMO6PmQ@mail.gmail.com>
+Subject: Re: [PATCH 3/4] mm/migrate: remove putback_lru_pages, fix comment on putback_movable_pages
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, riel@redhat.com, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Rafael Aquini <aquini@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Fri, Dec 06, 2013 at 12:08:22AM +0530, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> 
-> change_prot_numa should work even if _PAGE_NUMA != _PAGE_PROTNONE.
-> On archs like ppc64 that don't use _PAGE_PROTNONE and also have
-> a separate page table outside linux pagetable, we just need to
-> make sure that when calling change_prot_numa we flush the
-> hardware page table entry so that next page access  result in a numa
-> fault.
-> 
-> We still need to make sure we use the numa faulting logic only
-> when CONFIG_NUMA_BALANCING is set. This implies the migrate-on-fault
-> (Lazy migration) via mbind will only work if CONFIG_NUMA_BALANCING
-> is set.
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+2013/12/6 Zhang Yanfei <zhangyanfei@cn.fujitsu.com>:
+> Hello
+>
+> On 12/06/2013 04:41 PM, Joonsoo Kim wrote:
+>> Some part of putback_lru_pages() and putback_movable_pages() is
+>> duplicated, so it could confuse us what we should use.
+>> We can remove putback_lru_pages() since it is not really needed now.
+>> This makes us undestand and maintain the code more easily.
+>>
+>> And comment on putback_movable_pages() is stale now, so fix it.
+>>
+>> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>>
+>> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+>> index f5096b5..7782b74 100644
+>> --- a/include/linux/migrate.h
+>> +++ b/include/linux/migrate.h
+>> @@ -35,7 +35,6 @@ enum migrate_reason {
+>>
+>>  #ifdef CONFIG_MIGRATION
+>>
+>> -extern void putback_lru_pages(struct list_head *l);
+>>  extern void putback_movable_pages(struct list_head *l);
+>>  extern int migrate_page(struct address_space *,
+>>                       struct page *, struct page *, enum migrate_mode);
+>> @@ -59,7 +58,6 @@ extern int migrate_page_move_mapping(struct address_space *mapping,
+>>  #else
+>>
+>>  static inline void putback_lru_pages(struct list_head *l) {}
+>
+> If you want to remove the function, this should be removed, right?
 
-You're right on that there is no direct dependance on numa balancing and
-use of prot_none. The BUILD_BUG_ON was to flag very clearly that arches
-wanting to support automatic NUMA balancing must ensure such things as
+Hello, Zhang.
 
-o _PAGE_NUMA is defined
-o setting _PAGE_NUMA traps a fault and the fault can be uniquely
-  identified as being a numa hinting fault
-o that pte_present still returns true for pte_numa pages even though the
-  underlying present bit may be cleared. Otherwise operations like
-  following and copying ptes will get confused
-o shortly, arches will also need to avoid taking references on pte_numa
-  pages in get_user_pages to account for hinting faults properly
+Oop... It's my mistake. I will send v2.
+Thanks for finding this.
 
-I guess the _PAGE_NUMA parts will already be caught by other checks and
-the rest will fall out during testing so it's ok to remove.
-
-Acked-by: Mel Gorman <mgorman@suse.de>
-
--- 
-Mel Gorman
-SUSE Labs
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
