@@ -1,56 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f54.google.com (mail-yh0-f54.google.com [209.85.213.54])
-	by kanga.kvack.org (Postfix) with ESMTP id A33D66B00AC
-	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 17:51:42 -0500 (EST)
-Received: by mail-yh0-f54.google.com with SMTP id z12so1016126yhz.13
-        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 14:51:42 -0800 (PST)
-Received: from mail-pb0-x22f.google.com (mail-pb0-x22f.google.com [2607:f8b0:400e:c01::22f])
-        by mx.google.com with ESMTPS id r46si56671920yhm.122.2013.12.06.14.51.40
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 06 Dec 2013 14:51:41 -0800 (PST)
-Received: by mail-pb0-f47.google.com with SMTP id um1so1873450pbc.34
-        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 14:51:40 -0800 (PST)
+Received: from mail-qe0-f48.google.com (mail-qe0-f48.google.com [209.85.128.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 54A2D6B00AE
+	for <linux-mm@kvack.org>; Fri,  6 Dec 2013 19:25:46 -0500 (EST)
+Received: by mail-qe0-f48.google.com with SMTP id gc15so1123436qeb.7
+        for <linux-mm@kvack.org>; Fri, 06 Dec 2013 16:25:46 -0800 (PST)
+Received: from a10-51.smtp-out.amazonses.com (a10-51.smtp-out.amazonses.com. [54.240.10.51])
+        by mx.google.com with ESMTP id p3si85876qcp.56.2013.12.06.16.25.45
+        for <linux-mm@kvack.org>;
+        Fri, 06 Dec 2013 16:25:45 -0800 (PST)
+Date: Sat, 7 Dec 2013 00:25:44 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 14/15] mm: fix TLB flush race between migration, and
+ change_protection_range
+In-Reply-To: <52A23FD1.3040102@redhat.com>
+Message-ID: <00000142ca7218fe-a5566a24-0ef5-4545-8a98-d33116b7d703-000000@email.amazonses.com>
+References: <1386060721-3794-1-git-send-email-mgorman@suse.de> <1386060721-3794-15-git-send-email-mgorman@suse.de> <529E641A.7040804@redhat.com> <20131203234637.GS11295@suse.de> <529F3D51.1090203@redhat.com> <20131204160741.GC11295@suse.de>
+ <20131206141331.10880d2b@annuminas.surriel.com> <00000142c99cf5b0-69cc9987-aa36-4889-af6a-1a45032d0d13-000000@email.amazonses.com> <52A23FD1.3040102@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20131204130038.GY11295@suse.de>
-References: <CAGVrzcZidrUV93x9t_BwPaDuzgxs-88HoF-HUDRrSEYcfJB_rw@mail.gmail.com>
- <20131204130038.GY11295@suse.de>
-From: Florian Fainelli <f.fainelli@gmail.com>
-Date: Fri, 6 Dec 2013 14:51:00 -0800
-Message-ID: <CAGVrzcYMSVX=xkVqROjouvHpVup+jO00Wb66h2Wd=LFX47rDiw@mail.gmail.com>
-Subject: Re: high kswapd CPU usage when executing binaries from NFS w/ CMA and COMPACTION
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, mhocko <mhocko@suse.cz>, hannes <hannes@cmpxchg.org>, riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, "m.szyprowski" <m.szyprowski@samsung.com>, "marc.ceeeee" <marc.ceeeee@gmail.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, Alex Thorlton <athorlton@sgi.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-2013/12/4 Mel Gorman <mgorman@suse.de>:
-> On Tue, Dec 03, 2013 at 06:30:28PM -0800, Florian Fainelli wrote:
->> Hi all,
->>
->> I am experiencing high kswapd CPU usage on an ARMv7 system running
->> 3.8.13 when executing relatively large binaries from NFS. When this
->> happens kswapd consumes around 55-60% CPU usage and the applications
->> takes a huge time to load.
->>
->
-> There were a number of changes made related to how and when kswapd
-> stalls, particularly when pages are dirty. Brief check confirms that
->
-> git log v3.8..v3.12 --pretty=one --author "Mel Gorman" mm/vmscan.c
->
-> NFS dirty pages are problematic for compaction as dirty pages cannot be
-> migrated until cleaned. I'd suggest checking if current mainline suffers
-> the same problem and if not, focus on patches related to dirty page
-> handling and kswapd throttling in mm/vmscan.c as backport candidates.
+On Fri, 6 Dec 2013, Rik van Riel wrote:
 
-I have just backported these patches to 3.8.13 and am still seeing the
-problem, although kswapd usage dropped considerably (by half
-approximately). Will keep you updated once I have properly tested
-current mainline on my platform. Thanks!
--- 
-Florian
+> > When you start migrating a page a special page migration entry is
+> > created that will trap all accesses to the page. You can safely flush when
+> > the migration entry is there. Only allow a new PTE/PMD to be put there
+> > *after* the tlb flush.
+>
+> A PROT_NONE or NUMA pte is just as effective as a migration pte.
+> The only problem is, the TLB flush was not always done...
+
+Ok then what are you trying to fix?
+
+> > Dont do that. We have migration entries for a reason.
+>
+> We do not have migration entries for hugepages, do we?
+
+Dunno.
+
+> >
+> > Should cause a page fault which should put the process to sleep. Process
+> > will safely read the page after the migration entry is removed.
+> >
+> >> flush TLB
+> >
+> > Establish the new PTE/PMD after the flush removing the migration pte
+> > entry and thereby avoiding the race.
+>
+> That is what this patch does.
+
+If that is the case then this patch would not be needed and the tracking
+of state in the mm_struct would not be necessary.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
