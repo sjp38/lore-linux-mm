@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f41.google.com (mail-oa0-f41.google.com [209.85.219.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 212EE6B0039
-	for <linux-mm@kvack.org>; Sun,  8 Dec 2013 01:15:13 -0500 (EST)
-Received: by mail-oa0-f41.google.com with SMTP id j17so2563267oag.14
-        for <linux-mm@kvack.org>; Sat, 07 Dec 2013 22:15:12 -0800 (PST)
-Received: from e28smtp01.in.ibm.com (e28smtp01.in.ibm.com. [122.248.162.1])
-        by mx.google.com with ESMTPS id jb8si3303238obb.79.2013.12.07.22.15.10
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 54A026B0039
+	for <linux-mm@kvack.org>; Sun,  8 Dec 2013 01:15:16 -0500 (EST)
+Received: by mail-pd0-f177.google.com with SMTP id q10so3284521pdj.36
+        for <linux-mm@kvack.org>; Sat, 07 Dec 2013 22:15:16 -0800 (PST)
+Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com. [202.81.31.140])
+        by mx.google.com with ESMTPS id zi8si3349423pac.243.2013.12.07.22.15.13
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 07 Dec 2013 22:15:11 -0800 (PST)
+        Sat, 07 Dec 2013 22:15:15 -0800 (PST)
 Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sun, 8 Dec 2013 11:45:07 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id D132CE0056
-	for <linux-mm@kvack.org>; Sun,  8 Dec 2013 11:47:18 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB86Epju3473764
-	for <linux-mm@kvack.org>; Sun, 8 Dec 2013 11:44:52 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rB86F0Oq000571
-	for <linux-mm@kvack.org>; Sun, 8 Dec 2013 11:45:00 +0530
+	Sun, 8 Dec 2013 16:15:09 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 5D35B2CE802D
+	for <linux-mm@kvack.org>; Sun,  8 Dec 2013 17:15:07 +1100 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB86Esrw9961728
+	for <linux-mm@kvack.org>; Sun, 8 Dec 2013 17:14:54 +1100
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rB86F6RK026801
+	for <linux-mm@kvack.org>; Sun, 8 Dec 2013 17:15:06 +1100
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v3 02/12] sched/numa: drop idx field of task_numa_env struct
-Date: Sun,  8 Dec 2013 14:14:43 +0800
-Message-Id: <1386483293-15354-2-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v3 05/12] sched/numa: make numamigrate_isolate_page static
+Date: Sun,  8 Dec 2013 14:14:46 +0800
+Message-Id: <1386483293-15354-5-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1386483293-15354-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1386483293-15354-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -33,28 +33,31 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>
 Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Drop unused idx field of task_numa_env struct.
+Changelog:
+ v2 -> v3:
+  * fix patch description
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Make numamigrate_isolate_page static.
+
 Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- kernel/sched/fair.c |    2 +-
+ mm/migrate.c |    2 +-
  1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index fd773ad..ea3fd1e 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -1037,7 +1037,7 @@ struct task_numa_env {
+diff --git a/mm/migrate.c b/mm/migrate.c
+index fdb70f7..7ad81e0 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1616,7 +1616,7 @@ bool numamigrate_update_ratelimit(pg_data_t *pgdat, unsigned long nr_pages)
+ 	return rate_limited;
+ }
  
- 	struct numa_stats src_stats, dst_stats;
+-int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
++static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
+ {
+ 	int page_lru;
  
--	int imbalance_pct, idx;
-+	int imbalance_pct;
- 
- 	struct task_struct *best_task;
- 	long best_imp;
 -- 
 1.7.5.4
 
