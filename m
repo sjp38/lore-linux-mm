@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 074016B003C
-	for <linux-mm@kvack.org>; Sun,  8 Dec 2013 01:15:18 -0500 (EST)
-Received: by mail-pd0-f177.google.com with SMTP id q10so3284569pdj.36
-        for <linux-mm@kvack.org>; Sat, 07 Dec 2013 22:15:18 -0800 (PST)
-Received: from e28smtp07.in.ibm.com (e28smtp07.in.ibm.com. [122.248.162.7])
-        by mx.google.com with ESMTPS id ws5si3338862pab.296.2013.12.07.22.15.16
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 916286B003D
+	for <linux-mm@kvack.org>; Sun,  8 Dec 2013 01:15:19 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id w10so3301196pde.20
+        for <linux-mm@kvack.org>; Sat, 07 Dec 2013 22:15:19 -0800 (PST)
+Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com. [122.248.162.9])
+        by mx.google.com with ESMTPS id e8si3358286pac.198.2013.12.07.22.15.16
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 07 Dec 2013 22:15:17 -0800 (PST)
+        Sat, 07 Dec 2013 22:15:18 -0800 (PST)
 Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
 	Sun, 8 Dec 2013 11:45:14 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 8024B1258051
-	for <linux-mm@kvack.org>; Sun,  8 Dec 2013 11:46:19 +0530 (IST)
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 6AADD394005B
+	for <linux-mm@kvack.org>; Sun,  8 Dec 2013 11:45:11 +0530 (IST)
 Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB86F9FV65011860
-	for <linux-mm@kvack.org>; Sun, 8 Dec 2013 11:45:09 +0530
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB86F0sf33554618
+	for <linux-mm@kvack.org>; Sun, 8 Dec 2013 11:45:01 +0530
 Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rB86FB77001185
-	for <linux-mm@kvack.org>; Sun, 8 Dec 2013 11:45:12 +0530
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rB86FAVY001063
+	for <linux-mm@kvack.org>; Sun, 8 Dec 2013 11:45:10 +0530
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v3 08/12] sched/numa: use wrapper function task_faults_idx to calculate index in group_faults
-Date: Sun,  8 Dec 2013 14:14:49 +0800
-Message-Id: <1386483293-15354-8-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v3 07/12] sched/numa: fix set cpupid on page migration twice against normal page
+Date: Sun,  8 Dec 2013 14:14:48 +0800
+Message-Id: <1386483293-15354-7-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1386483293-15354-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1386483293-15354-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -33,27 +33,28 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>
 Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Use wrapper function task_faults_idx to calculate index in group_faults.
+commit 7851a45cd3 (mm: numa: Copy cpupid on page migration) copy over
+the cpupid at page migration time, there is unnecessary to set it again
+in function alloc_misplaced_dst_page, this patch fix it.
 
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- kernel/sched/fair.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
+ mm/migrate.c |    2 --
+ 1 files changed, 0 insertions(+), 2 deletions(-)
 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index e0b1063..7073c76 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -935,7 +935,8 @@ static inline unsigned long group_faults(struct task_struct *p, int nid)
- 	if (!p->numa_group)
- 		return 0;
+diff --git a/mm/migrate.c b/mm/migrate.c
+index b1b6663..508cde4 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1557,8 +1557,6 @@ static struct page *alloc_misplaced_dst_page(struct page *page,
+ 					  __GFP_NOMEMALLOC | __GFP_NORETRY |
+ 					  __GFP_NOWARN) &
+ 					 ~GFP_IOFS, 0);
+-	if (newpage)
+-		page_cpupid_xchg_last(newpage, page_cpupid_last(page));
  
--	return p->numa_group->faults[2*nid] + p->numa_group->faults[2*nid+1];
-+	return p->numa_group->faults[task_faults_idx(nid, 0)] +
-+		p->numa_group->faults[task_faults_idx(nid, 1)];
+ 	return newpage;
  }
- 
- /*
 -- 
 1.7.5.4
 
