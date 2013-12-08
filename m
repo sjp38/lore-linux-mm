@@ -1,201 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f53.google.com (mail-yh0-f53.google.com [209.85.213.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 396106B0035
-	for <linux-mm@kvack.org>; Sat,  7 Dec 2013 16:04:39 -0500 (EST)
-Received: by mail-yh0-f53.google.com with SMTP id b20so1532806yha.40
-        for <linux-mm@kvack.org>; Sat, 07 Dec 2013 13:04:38 -0800 (PST)
-Received: from mail-pb0-x230.google.com (mail-pb0-x230.google.com [2607:f8b0:400e:c01::230])
-        by mx.google.com with ESMTPS id z48si3217367yha.81.2013.12.07.13.04.37
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 878946B0035
+	for <linux-mm@kvack.org>; Sat,  7 Dec 2013 19:05:55 -0500 (EST)
+Received: by mail-pb0-f42.google.com with SMTP id uo5so3191758pbc.29
+        for <linux-mm@kvack.org>; Sat, 07 Dec 2013 16:05:55 -0800 (PST)
+Received: from e28smtp05.in.ibm.com (e28smtp05.in.ibm.com. [122.248.162.5])
+        by mx.google.com with ESMTPS id it5si2740215pbc.35.2013.12.07.16.05.52
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 07 Dec 2013 13:04:38 -0800 (PST)
-Received: by mail-pb0-f48.google.com with SMTP id md12so3026641pbc.21
-        for <linux-mm@kvack.org>; Sat, 07 Dec 2013 13:04:36 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sat, 07 Dec 2013 16:05:54 -0800 (PST)
+Received: from /spool/local
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Sun, 8 Dec 2013 05:35:50 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 24E7CE0024
+	for <linux-mm@kvack.org>; Sun,  8 Dec 2013 05:38:03 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB805gBX49938682
+	for <linux-mm@kvack.org>; Sun, 8 Dec 2013 05:35:43 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rB805k6G026519
+	for <linux-mm@kvack.org>; Sun, 8 Dec 2013 05:35:46 +0530
+Date: Sun, 8 Dec 2013 08:05:44 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 4/6] sched/numa: use wrapper function task_node to get
+ node which task is on
+Message-ID: <52a3b7e2.65c5440a.2f3e.5e21SMTPIN_ADDED_BROKEN@mx.google.com>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1386321136-27538-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1386321136-27538-4-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1386364176-it8qfec-mutt-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-In-Reply-To: <20131207190653.GI21724@cmpxchg.org>
-References: <alpine.DEB.2.02.1312032116440.29733@chino.kir.corp.google.com>
-	<alpine.DEB.2.02.1312032118570.29733@chino.kir.corp.google.com>
-	<20131204054533.GZ3556@cmpxchg.org>
-	<alpine.DEB.2.02.1312041742560.20115@chino.kir.corp.google.com>
-	<20131205025026.GA26777@htj.dyndns.org>
-	<alpine.DEB.2.02.1312051537550.7717@chino.kir.corp.google.com>
-	<20131206173438.GE21724@cmpxchg.org>
-	<CAAAKZwsh3erB7PyG6FnvJRgrZhf2hDQCZDx3rMM7NdOdYNCzJw@mail.gmail.com>
-	<20131207174039.GH21724@cmpxchg.org>
-	<CAAAKZwvanMiz8QZVOU0-SUKYzqcaJAXn0HxYs5+=Zakmnbcfbg@mail.gmail.com>
-	<20131207190653.GI21724@cmpxchg.org>
-Date: Sat, 7 Dec 2013 13:04:36 -0800
-Message-ID: <CAAAKZwvL-Mz3wPRoA61_qyrLKMHF=f+T3drDEhMJXWLj7c+BzQ@mail.gmail.com>
-Subject: Re: [patch 7/8] mm, memcg: allow processes handling oom notifications
- to access reserves
-From: Tim Hockin <thockin@hockin.org>
-Content-Type: multipart/alternative; boundary=047d7b6d8d963c7c9004ecf81c6a
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1386364176-it8qfec-mutt-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Li Zefan <lizefan@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@kernel.org>, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
---047d7b6d8d963c7c9004ecf81c6a
-Content-Type: text/plain; charset=UTF-8
-
-We have hierarchical "containers".  Jobs exist in these containers.  The
-containers can hold sub-containers.
-
-In case of system OOM we want to kill in strict priority order.  From the
-root of the hierarchy, choose the lowest priority.  This could be a task or
-a memcg.  If a memcg, recurse.
-
-We CAN do it in kernel (in fact we do, and I argued for that, and David
-acquiesced).  But doing it in kernel means changes are slow and risky.
-
-What we really have is a bunch of features that we offer to our users that
-need certain OOM-time behaviors and guarantees to be implemented.  I don't
-expect that most of our changes are useful for anyone outside of Google,
-really. They come with a lot of environmental assumptions.  This is why
-David finally convinced me it was easier to release changes, to fix bugs,
-and to update kernels if we do this in userspace.
-
-I apologize if I am not giving you what you want.  I am typing on a phone
-at the moment.  If this still doesn't help I can try from a computer later.
-
-Tim
-On Dec 7, 2013 11:07 AM, "Johannes Weiner" <hannes@cmpxchg.org> wrote:
-
-> On Sat, Dec 07, 2013 at 10:12:19AM -0800, Tim Hockin wrote:
-> > You more or less described the fundamental change - a score per memcg,
-> with
-> > a recursive OOM killer which evaluates scores between siblings at the
-> same
-> > level.
-> >
-> > It gets a bit complicated because we have need if wider scoring ranges
-> than
-> > are provided by default
+On Fri, Dec 06, 2013 at 04:09:36PM -0500, Naoya Horiguchi wrote:
+>On Fri, Dec 06, 2013 at 05:12:14PM +0800, Wanpeng Li wrote:
+>> Use wrapper function task_node to get node which task is on.
+>> 
+>> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 >
-> If so, I'm sure you can make a convincing case to widen the internal
-> per-task score ranges.  The per-memcg score ranges have not even be
-> defined, so this is even easier.
+>Maybe we have another line to apply the same fix:
 >
-> > and because we score PIDs against mcgs at a given scope.
->
-> You are describing bits of a solution, not a problem.  And I can't
-> possibly infer a problem from this.
->
-> > We also have some tiebreaker heuristic (age).
->
-> Either periodically update the per-memcg score from userspace or
-> implement this in the kernel.  We have considered CPU usage
-> history/runtime etc. in the past when picking an OOM victim task.
->
-> But I'm again just speculating what your problem is, so this may or
-> may not be a feasible solution.
->
-> > We also have a handful of features that depend on OOM handling like the
-> > aforementioned automatically growing and changing the actual OOM score
-> > depending on usage in relation to various thresholds ( e.g. we sold you
-> X,
-> > and we allow you to go over X but if you do, your likelihood of death in
-> > case of system OOM goes up.
->
-> You can trivially monitor threshold events from userspace with the
-> existing infrastructure and accordingly update the per-memcg score.
->
-> > Do you really want us to teach the kernel policies like this?  It would
-> be
-> > way easier to do and test in userspace.
->
-> Maybe.  Providing fragments of your solution is not an efficient way
-> to communicate the problem.  And you have to sell the problem before
-> anybody can be expected to even consider your proposal as one of the
-> possible solutions.
+>./kernel/sched/debug.c:142:     SEQ_printf(m, " %d", cpu_to_node(task_cpu(p)));
 >
 
---047d7b6d8d963c7c9004ecf81c6a
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Ok, I will fold it to next version. Thanks for your review. ;-)
 
-<p dir=3D"ltr">We have hierarchical &quot;containers&quot;.=C2=A0 Jobs exis=
-t in these containers.=C2=A0 The containers can hold sub-containers.</p>
-<p dir=3D"ltr">In case of system OOM we want to kill in strict priority ord=
-er.=C2=A0 From the root of the hierarchy, choose the lowest priority.=C2=A0=
- This could be a task or a memcg.=C2=A0 If a memcg, recurse.=C2=A0 </p>
-<p dir=3D"ltr">We CAN do it in kernel (in fact we do, and I argued for that=
-, and David acquiesced).=C2=A0 But doing it in kernel means changes are slo=
-w and risky.</p>
-<p dir=3D"ltr">What we really have is a bunch of features that we offer to =
-our users that need certain OOM-time behaviors and guarantees to be impleme=
-nted.=C2=A0 I don&#39;t expect that most of our changes are useful for anyo=
-ne outside of Google, really. They come with a lot of environmental assumpt=
-ions.=C2=A0 This is why David finally convinced me it was easier to release=
- changes, to fix bugs, and to update kernels if we do this in userspace.</p=
->
+Regards,
+Wanpeng Li 
 
-<p dir=3D"ltr">I apologize if I am not giving you what you want.=C2=A0 I am=
- typing on a phone at the moment.=C2=A0 If this still doesn&#39;t help I ca=
-n try from a computer later.</p>
-<p dir=3D"ltr">Tim</p>
-<div class=3D"gmail_quote">On Dec 7, 2013 11:07 AM, &quot;Johannes Weiner&q=
-uot; &lt;<a href=3D"mailto:hannes@cmpxchg.org">hannes@cmpxchg.org</a>&gt; w=
-rote:<br type=3D"attribution"><blockquote class=3D"gmail_quote" style=3D"ma=
-rgin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
-On Sat, Dec 07, 2013 at 10:12:19AM -0800, Tim Hockin wrote:<br>
-&gt; You more or less described the fundamental change - a score per memcg,=
- with<br>
-&gt; a recursive OOM killer which evaluates scores between siblings at the =
-same<br>
-&gt; level.<br>
-&gt;<br>
-&gt; It gets a bit complicated because we have need if wider scoring ranges=
- than<br>
-&gt; are provided by default<br>
-<br>
-If so, I&#39;m sure you can make a convincing case to widen the internal<br=
+>But anyway,
 >
-per-task score ranges. =C2=A0The per-memcg score ranges have not even be<br=
+>Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 >
-defined, so this is even easier.<br>
-<br>
-&gt; and because we score PIDs against mcgs at a given scope.<br>
-<br>
-You are describing bits of a solution, not a problem. =C2=A0And I can&#39;t=
-<br>
-possibly infer a problem from this.<br>
-<br>
-&gt; We also have some tiebreaker heuristic (age).<br>
-<br>
-Either periodically update the per-memcg score from userspace or<br>
-implement this in the kernel. =C2=A0We have considered CPU usage<br>
-history/runtime etc. in the past when picking an OOM victim task.<br>
-<br>
-But I&#39;m again just speculating what your problem is, so this may or<br>
-may not be a feasible solution.<br>
-<br>
-&gt; We also have a handful of features that depend on OOM handling like th=
-e<br>
-&gt; aforementioned automatically growing and changing the actual OOM score=
-<br>
-&gt; depending on usage in relation to various thresholds ( e.g. we sold yo=
-u X,<br>
-&gt; and we allow you to go over X but if you do, your likelihood of death =
-in<br>
-&gt; case of system OOM goes up.<br>
-<br>
-You can trivially monitor threshold events from userspace with the<br>
-existing infrastructure and accordingly update the per-memcg score.<br>
-<br>
-&gt; Do you really want us to teach the kernel policies like this? =C2=A0It=
- would be<br>
-&gt; way easier to do and test in userspace.<br>
-<br>
-Maybe. =C2=A0Providing fragments of your solution is not an efficient way<b=
-r>
-to communicate the problem. =C2=A0And you have to sell the problem before<b=
-r>
-anybody can be expected to even consider your proposal as one of the<br>
-possible solutions.<br>
-</blockquote></div>
-
---047d7b6d8d963c7c9004ecf81c6a--
+>Thanks,
+>Naoya Horiguchi
+>
+>> ---
+>>  kernel/sched/fair.c |    4 ++--
+>>  1 files changed, 2 insertions(+), 2 deletions(-)
+>> 
+>> diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+>> index 56bcc0c..e0b1063 100644
+>> --- a/kernel/sched/fair.c
+>> +++ b/kernel/sched/fair.c
+>> @@ -1216,7 +1216,7 @@ static int task_numa_migrate(struct task_struct *p)
+>>  	 * elsewhere, so there is no point in (re)trying.
+>>  	 */
+>>  	if (unlikely(!sd)) {
+>> -		p->numa_preferred_nid = cpu_to_node(task_cpu(p));
+>> +		p->numa_preferred_nid = task_node(p);
+>>  		return -EINVAL;
+>>  	}
+>>  
+>> @@ -1283,7 +1283,7 @@ static void numa_migrate_preferred(struct task_struct *p)
+>>  	p->numa_migrate_retry = jiffies + HZ;
+>>  
+>>  	/* Success if task is already running on preferred CPU */
+>> -	if (cpu_to_node(task_cpu(p)) == p->numa_preferred_nid)
+>> +	if (task_node(p) == p->numa_preferred_nid)
+>>  		return;
+>>  
+>>  	/* Otherwise, try migrate to a CPU on the preferred node */
+>> -- 
+>> 1.7.7.6
+>> 
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
