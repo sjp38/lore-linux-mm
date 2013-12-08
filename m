@@ -1,60 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id A71586B0035
-	for <linux-mm@kvack.org>; Sun,  8 Dec 2013 01:15:10 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id y13so3316759pdi.33
-        for <linux-mm@kvack.org>; Sat, 07 Dec 2013 22:15:10 -0800 (PST)
-Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com. [202.81.31.141])
-        by mx.google.com with ESMTPS id do3si3360954pbc.202.2013.12.07.22.15.07
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id B8E166B0036
+	for <linux-mm@kvack.org>; Sun,  8 Dec 2013 01:15:11 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id y10so3292295pdj.23
+        for <linux-mm@kvack.org>; Sat, 07 Dec 2013 22:15:11 -0800 (PST)
+Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com. [122.248.162.3])
+        by mx.google.com with ESMTPS id nu5si3355509pbc.208.2013.12.07.22.15.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 07 Dec 2013 22:15:09 -0800 (PST)
+        Sat, 07 Dec 2013 22:15:10 -0800 (PST)
 Received: from /spool/local
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sun, 8 Dec 2013 16:15:05 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id D95113578053
-	for <linux-mm@kvack.org>; Sun,  8 Dec 2013 17:15:01 +1100 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB85upSr5505394
-	for <linux-mm@kvack.org>; Sun, 8 Dec 2013 16:56:53 +1100
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rB86Ew4C026532
-	for <linux-mm@kvack.org>; Sun, 8 Dec 2013 17:14:59 +1100
+	Sun, 8 Dec 2013 11:45:06 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 07906E0024
+	for <linux-mm@kvack.org>; Sun,  8 Dec 2013 11:47:20 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB86ExIA8519706
+	for <linux-mm@kvack.org>; Sun, 8 Dec 2013 11:44:59 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rB86F2hr018410
+	for <linux-mm@kvack.org>; Sun, 8 Dec 2013 11:45:03 +0530
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v3 01/12] sched/numa: fix set cpupid on page migration twice against thp
-Date: Sun,  8 Dec 2013 14:14:42 +0800
-Message-Id: <1386483293-15354-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v3 03/12] sched/numa: drop sysctl_numa_balancing_settle_count sysctl
+Date: Sun,  8 Dec 2013 14:14:44 +0800
+Message-Id: <1386483293-15354-3-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1386483293-15354-1-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1386483293-15354-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>
 Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-commit 7851a45cd3 (mm: numa: Copy cpupid on page migration) copy over
-the cpupid at page migration time, there is unnecessary to set it again
-in function migrate_misplaced_transhuge_page, this patch fix it.
+commit 887c290e (sched/numa: Decide whether to favour task or group weights
+based on swap candidate relationships) drop the check against
+sysctl_numa_balancing_settle_count, this patch remove the sysctl.
 
 Acked-by: Mel Gorman <mgorman@suse.de>
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/migrate.c |    2 --
- 1 files changed, 0 insertions(+), 2 deletions(-)
+ include/linux/sched/sysctl.h |    1 -
+ kernel/sched/fair.c          |    9 ---------
+ kernel/sysctl.c              |    7 -------
+ 3 files changed, 0 insertions(+), 17 deletions(-)
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index bb94004..fdb70f7 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1736,8 +1736,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	if (!new_page)
- 		goto out_fail;
+diff --git a/include/linux/sched/sysctl.h b/include/linux/sched/sysctl.h
+index 41467f8..31e0193 100644
+--- a/include/linux/sched/sysctl.h
++++ b/include/linux/sched/sysctl.h
+@@ -48,7 +48,6 @@ extern unsigned int sysctl_numa_balancing_scan_delay;
+ extern unsigned int sysctl_numa_balancing_scan_period_min;
+ extern unsigned int sysctl_numa_balancing_scan_period_max;
+ extern unsigned int sysctl_numa_balancing_scan_size;
+-extern unsigned int sysctl_numa_balancing_settle_count;
  
--	page_cpupid_xchg_last(new_page, page_cpupid_last(page));
+ #ifdef CONFIG_SCHED_DEBUG
+ extern unsigned int sysctl_sched_migration_cost;
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index ea3fd1e..56bcc0c 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -886,15 +886,6 @@ static unsigned int task_scan_max(struct task_struct *p)
+ 	return max(smin, smax);
+ }
+ 
+-/*
+- * Once a preferred node is selected the scheduler balancer will prefer moving
+- * a task to that node for sysctl_numa_balancing_settle_count number of PTE
+- * scans. This will give the process the chance to accumulate more faults on
+- * the preferred node but still allow the scheduler to move the task again if
+- * the nodes CPUs are overloaded.
+- */
+-unsigned int sysctl_numa_balancing_settle_count __read_mostly = 4;
 -
- 	isolated = numamigrate_isolate_page(pgdat, page);
- 	if (!isolated) {
- 		put_page(new_page);
+ static void account_numa_enqueue(struct rq *rq, struct task_struct *p)
+ {
+ 	rq->nr_numa_running += (p->numa_preferred_nid != -1);
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 34a6047..c8da99f 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -385,13 +385,6 @@ static struct ctl_table kern_table[] = {
+ 		.proc_handler	= proc_dointvec,
+ 	},
+ 	{
+-		.procname       = "numa_balancing_settle_count",
+-		.data           = &sysctl_numa_balancing_settle_count,
+-		.maxlen         = sizeof(unsigned int),
+-		.mode           = 0644,
+-		.proc_handler   = proc_dointvec,
+-	},
+-	{
+ 		.procname       = "numa_balancing_migrate_deferred",
+ 		.data           = &sysctl_numa_balancing_migrate_deferred,
+ 		.maxlen         = sizeof(unsigned int),
 -- 
 1.7.5.4
 
