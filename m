@@ -1,57 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f48.google.com (mail-yh0-f48.google.com [209.85.213.48])
-	by kanga.kvack.org (Postfix) with ESMTP id C1D236B0098
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 08:34:31 -0500 (EST)
-Received: by mail-yh0-f48.google.com with SMTP id f73so2567036yha.21
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 05:34:31 -0800 (PST)
-Received: from mail-pd0-x230.google.com (mail-pd0-x230.google.com [2607:f8b0:400e:c02::230])
-        by mx.google.com with ESMTPS id n44si10118942yhn.140.2013.12.09.05.34.30
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 09 Dec 2013 05:34:30 -0800 (PST)
-Received: by mail-pd0-f176.google.com with SMTP id w10so5255101pde.7
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 05:34:29 -0800 (PST)
-Message-ID: <52A5C6E1.8020406@gmail.com>
-Date: Mon, 09 Dec 2013 21:34:25 +0800
-From: Chen Gang <gang.chen.5i5j@gmail.com>
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id C01BE6B009A
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 09:08:44 -0500 (EST)
+Received: by mail-wi0-f170.google.com with SMTP id hq4so3814049wib.5
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 06:08:44 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id t2si4533870wiz.3.2013.12.09.06.08.43
+        for <linux-mm@kvack.org>;
+        Mon, 09 Dec 2013 06:08:43 -0800 (PST)
+Message-ID: <52A5CEE6.2080609@redhat.com>
+Date: Mon, 09 Dec 2013 09:08:38 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/zswap.c: add BUG() for default case in zswap_writeback_entry()
-References: <52A53024.9090701@gmail.com> <52A5935A.4040709@imgtec.com> <52A5973A.7020509@gmail.com> <52A5990E.2080808@imgtec.com> <52A5A7B5.2040904@gmail.com> <52A5AC11.8050802@imgtec.com>
-In-Reply-To: <52A5AC11.8050802@imgtec.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 01/18] mm: numa: Serialise parallel get_user_page against
+ THP migration
+References: <1386572952-1191-1-git-send-email-mgorman@suse.de> <1386572952-1191-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1386572952-1191-2-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Hogan <james.hogan@imgtec.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alex Thorlton <athorlton@sgi.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 12/09/2013 07:40 PM, James Hogan wrote:
-> On 09/12/13 11:21, Chen Gang wrote:
->> Oh, I tried gcc 4.6.3-2 rhel version, get the same result as yours (do
->> not report warning), but for me, it is still a compiler's bug, it
->> *should* report a warning for it, we can try below:
+On 12/09/2013 02:08 AM, Mel Gorman wrote:
+> Base pages are unmapped and flushed from cache and TLB during normal page
+> migration and replaced with a migration entry that causes any parallel or
+> gup to block until migration completes. THP does not unmap pages due to
+> a lack of support for migration entries at a PMD level. This allows races
+> with get_user_pages and get_user_pages_fast which commit 3f926ab94 ("mm:
+> Close races between THP migration and PMD numa clearing") made worse by
+> introducing a pmd_clear_flush().
 > 
-> Not necessarily. You can't expect the compiler to detect and warn about
-> more complex bugs the programmer writes, so you have to draw the line
-> somewhere.
+> This patch forces get_user_page (fast and normal) on a pmd_numa page to
+> go through the slow get_user_page path where it will serialise against THP
+> migration and properly account for the NUMA hinting fault. On the migration
+> side the page table lock is taken for each PTE update.
 > 
+> Cc: stable@vger.kernel.org
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Yeah, we can not only depend on compiler to help us finding bugs.
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-
-> IMO missing some potential bugs is better than warning about code that
-> isn't buggy since that just makes people ignore the warnings or
-> carelessly try to silence them.
-> 
-
-I can understand, every members have their own taste, so this patch is
-depended on related maintainers' taste (so kernel provided
-"EXTRA_CFLAGS=-W" to satisfy some of guys taste -- e.g. me).  ;-)
-
-
-Thanks
 -- 
-Chen Gang
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
