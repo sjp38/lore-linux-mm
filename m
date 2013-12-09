@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ea0-f176.google.com (mail-ea0-f176.google.com [209.85.215.176])
-	by kanga.kvack.org (Postfix) with ESMTP id A0AD76B0069
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 02:09:27 -0500 (EST)
-Received: by mail-ea0-f176.google.com with SMTP id h14so1345514eaj.7
+	by kanga.kvack.org (Postfix) with ESMTP id 633796B006E
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 02:09:28 -0500 (EST)
+Received: by mail-ea0-f176.google.com with SMTP id h14so1345517eaj.7
         for <linux-mm@kvack.org>; Sun, 08 Dec 2013 23:09:27 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id e2si8187255eeg.240.2013.12.08.23.09.26
+        by mx.google.com with ESMTP id s8si8231099eeh.101.2013.12.08.23.09.27
         for <linux-mm@kvack.org>;
-        Sun, 08 Dec 2013 23:09:26 -0800 (PST)
+        Sun, 08 Dec 2013 23:09:27 -0800 (PST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 14/18] mm: numa: Limit scope of lock for NUMA migrate rate limiting
-Date: Mon,  9 Dec 2013 07:09:08 +0000
-Message-Id: <1386572952-1191-15-git-send-email-mgorman@suse.de>
+Subject: [PATCH 15/18] mm: numa: Trace tasks that fail migration due to rate limiting
+Date: Mon,  9 Dec 2013 07:09:09 +0000
+Message-Id: <1386572952-1191-16-git-send-email-mgorman@suse.de>
 In-Reply-To: <1386572952-1191-1-git-send-email-mgorman@suse.de>
 References: <1386572952-1191-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -19,76 +19,70 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Alex Thorlton <athorlton@sgi.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-NUMA migrate rate limiting protects a migration counter and window using
-a lock but in some cases this can be a contended lock. It is not
-critical that the number of pages be perfect, lost updates are
-acceptable. Reduce the importance of this lock.
+A low local/remote numa hinting fault ratio is potentially explained by
+failed migrations. This patch adds a tracepoint that fires when migration
+fails due to migration rate limitation.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/mmzone.h |  5 +----
- mm/migrate.c           | 21 ++++++++++++---------
- 2 files changed, 13 insertions(+), 13 deletions(-)
+ include/trace/events/migrate.h | 26 ++++++++++++++++++++++++++
+ mm/migrate.c                   |  5 ++++-
+ 2 files changed, 30 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index bd791e4..b835d3f 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -758,10 +758,7 @@ typedef struct pglist_data {
- 	int kswapd_max_order;
- 	enum zone_type classzone_idx;
- #ifdef CONFIG_NUMA_BALANCING
--	/*
--	 * Lock serializing the per destination node AutoNUMA memory
--	 * migration rate limiting data.
--	 */
-+	/* Lock serializing the migrate rate limiting window */
- 	spinlock_t numabalancing_migrate_lock;
+diff --git a/include/trace/events/migrate.h b/include/trace/events/migrate.h
+index ec2a6cc..3075ffb 100644
+--- a/include/trace/events/migrate.h
++++ b/include/trace/events/migrate.h
+@@ -45,6 +45,32 @@ TRACE_EVENT(mm_migrate_pages,
+ 		__print_symbolic(__entry->reason, MIGRATE_REASON))
+ );
  
- 	/* Rate limiting time interval */
++TRACE_EVENT(mm_numa_migrate_ratelimit,
++
++	TP_PROTO(struct task_struct *p, int dst_nid, unsigned long nr_pages),
++
++	TP_ARGS(p, dst_nid, nr_pages),
++
++	TP_STRUCT__entry(
++		__array(	char,		comm,	TASK_COMM_LEN)
++		__field(	pid_t,		pid)
++		__field(	int,		dst_nid)
++		__field(	unsigned long,	nr_pages)
++	),
++
++	TP_fast_assign(
++		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
++		__entry->pid		= p->pid;
++		__entry->dst_nid	= dst_nid;
++		__entry->nr_pages	= nr_pages;
++	),
++
++	TP_printk("comm=%s pid=%d dst_nid=%d nr_pages=%lu",
++		__entry->comm,
++		__entry->pid,
++		__entry->dst_nid,
++		__entry->nr_pages)
++);
+ #endif /* _TRACE_MIGRATE_H */
+ 
+ /* This part must be outside protection */
 diff --git a/mm/migrate.c b/mm/migrate.c
-index 77147bd..8b560d5 100644
+index 8b560d5..9f53c00 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
-@@ -1596,26 +1596,29 @@ bool migrate_ratelimited(int node)
- static bool numamigrate_update_ratelimit(pg_data_t *pgdat,
- 					unsigned long nr_pages)
- {
--	bool rate_limited = false;
--
- 	/*
- 	 * Rate-limit the amount of data that is being migrated to a node.
- 	 * Optimal placement is no good if the memory bus is saturated and
- 	 * all the time is being spent migrating!
- 	 */
--	spin_lock(&pgdat->numabalancing_migrate_lock);
- 	if (time_after(jiffies, pgdat->numabalancing_migrate_next_window)) {
-+		spin_lock(&pgdat->numabalancing_migrate_lock);
- 		pgdat->numabalancing_migrate_nr_pages = 0;
- 		pgdat->numabalancing_migrate_next_window = jiffies +
+@@ -1608,8 +1608,11 @@ static bool numamigrate_update_ratelimit(pg_data_t *pgdat,
  			msecs_to_jiffies(migrate_interval_millisecs);
-+		spin_unlock(&pgdat->numabalancing_migrate_lock);
+ 		spin_unlock(&pgdat->numabalancing_migrate_lock);
  	}
- 	if (pgdat->numabalancing_migrate_nr_pages > ratelimit_pages)
--		rate_limited = true;
--	else
--		pgdat->numabalancing_migrate_nr_pages += nr_pages;
--	spin_unlock(&pgdat->numabalancing_migrate_lock);
--	
--	return rate_limited;
-+		return true;
-+
-+	/*
-+	 * This is an unlocked non-atomic update so errors are possible.
-+	 * The consequences are failing to migrate when we potentiall should
-+	 * have which is not severe enough to warrant locking. If it is ever
-+	 * a problem, it can be converted to a per-cpu counter.
-+	 */
-+	pgdat->numabalancing_migrate_nr_pages += nr_pages;
-+	return false;
- }
+-	if (pgdat->numabalancing_migrate_nr_pages > ratelimit_pages)
++	if (pgdat->numabalancing_migrate_nr_pages > ratelimit_pages) {
++		trace_mm_numa_migrate_ratelimit(current, pgdat->node_id,
++								nr_pages);
+ 		return true;
++	}
  
- static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
+ 	/*
+ 	 * This is an unlocked non-atomic update so errors are possible.
 -- 
 1.8.4
 
