@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 198A16B003B
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 03:06:15 -0500 (EST)
-Received: by mail-la0-f45.google.com with SMTP id eh20so1293584lab.18
+Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 72E7C6B0044
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 03:06:16 -0500 (EST)
+Received: by mail-la0-f54.google.com with SMTP id b8so1296958lan.13
         for <linux-mm@kvack.org>; Mon, 09 Dec 2013 00:06:15 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id yf5si3281189lab.47.2013.12.09.00.06.14
+        by mx.google.com with ESMTPS id a4si3275890laf.98.2013.12.09.00.06.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 09 Dec 2013 00:06:14 -0800 (PST)
+        Mon, 09 Dec 2013 00:06:15 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH v13 01/16] memcg: make cache index determination more robust
-Date: Mon, 9 Dec 2013 12:05:42 +0400
-Message-ID: <47a73097257175128665d5f5952c4ba8e6b1768c.1386571280.git.vdavydov@parallels.com>
+Subject: [PATCH v13 09/16] fs: consolidate {nr,free}_cached_objects args in shrink_control
+Date: Mon, 9 Dec 2013 12:05:50 +0400
+Message-ID: <43660b83b58531ccf4d45f626283484441441943.1386571280.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1386571280.git.vdavydov@parallels.com>
 References: <cover.1386571280.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -20,51 +20,100 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dchinner@redhat.com, hannes@cmpxchg.org, mhocko@suse.cz, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, glommer@gmail.com, vdavydov@parallels.com, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, glommer@gmail.com, vdavydov@parallels.com, Al Viro <viro@zeniv.linux.org.uk>
 
-From: Glauber Costa <glommer@openvz.org>
+We are going to make the FS shrinker memcg-aware. To achieve that, we
+will have to pass the memcg to scan to the nr_cached_objects and
+free_cached_objects VFS methods, which currently take only the NUMA node
+to scan. Since the shrink_control structure already holds the node, and
+the memcg to scan will be added to it as we introduce memcg-aware
+vmscan, let us consolidate the methods' arguments in this structure to
+keep things clean.
 
-I caught myself doing something like the following outside memcg core:
+Thanks to David Chinner for the tip.
 
-	memcg_id = -1;
-	if (memcg && memcg_kmem_is_active(memcg))
-		memcg_id = memcg_cache_id(memcg);
-
-to be able to handle all possible memcgs in a sane manner. In particular, the
-root cache will have kmemcg_id = -1 (just because we don't call memcg_kmem_init
-to the root cache since it is not limitable). We have always coped with that by
-making sure we sanitize which cache is passed to memcg_cache_id. Although this
-example is given for root, what we really need to know is whether or not a
-cache is kmem active.
-
-But outside the memcg core testing for root, for instance, is not trivial since
-we don't export mem_cgroup_is_root. I ended up realizing that this tests really
-belong inside memcg_cache_id. This patch moves a similar but stronger test
-inside memcg_cache_id and make sure it always return a meaningful value.
-
-Signed-off-by: Glauber Costa <glommer@openvz.org>
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Balbir Singh <bsingharora@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Glauber Costa <glommer@openvz.org>
+Cc: Dave Chinner <dchinner@redhat.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>
 ---
- mm/memcontrol.c |    4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ fs/super.c         |    8 +++-----
+ fs/xfs/xfs_super.c |    6 +++---
+ include/linux/fs.h |    6 ++++--
+ 3 files changed, 10 insertions(+), 10 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index f1a0ae6..02b5176 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3073,7 +3073,9 @@ void memcg_cache_list_add(struct mem_cgroup *memcg, struct kmem_cache *cachep)
-  */
- int memcg_cache_id(struct mem_cgroup *memcg)
+diff --git a/fs/super.c b/fs/super.c
+index a039dba..8f9a81b 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -76,7 +76,7 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
+ 		return SHRINK_STOP;
+ 
+ 	if (sb->s_op->nr_cached_objects)
+-		fs_objects = sb->s_op->nr_cached_objects(sb, sc->nid);
++		fs_objects = sb->s_op->nr_cached_objects(sb, sc);
+ 
+ 	inodes = list_lru_count(&sb->s_inode_lru, sc);
+ 	dentries = list_lru_count(&sb->s_dentry_lru, sc);
+@@ -96,8 +96,7 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
+ 	if (fs_objects) {
+ 		fs_objects = mult_frac(sc->nr_to_scan, fs_objects,
+ 								total_objects);
+-		freed += sb->s_op->free_cached_objects(sb, fs_objects,
+-						       sc->nid);
++		freed += sb->s_op->free_cached_objects(sb, sc, fs_objects);
+ 	}
+ 
+ 	drop_super(sb);
+@@ -116,8 +115,7 @@ static unsigned long super_cache_count(struct shrinker *shrink,
+ 		return 0;
+ 
+ 	if (sb->s_op && sb->s_op->nr_cached_objects)
+-		total_objects = sb->s_op->nr_cached_objects(sb,
+-						 sc->nid);
++		total_objects = sb->s_op->nr_cached_objects(sb, sc);
+ 
+ 	total_objects += list_lru_count(&sb->s_dentry_lru, sc);
+ 	total_objects += list_lru_count(&sb->s_inode_lru, sc);
+diff --git a/fs/xfs/xfs_super.c b/fs/xfs/xfs_super.c
+index f317488..06d155d 100644
+--- a/fs/xfs/xfs_super.c
++++ b/fs/xfs/xfs_super.c
+@@ -1524,7 +1524,7 @@ xfs_fs_mount(
+ static long
+ xfs_fs_nr_cached_objects(
+ 	struct super_block	*sb,
+-	int			nid)
++	struct shrink_control	*sc)
  {
--	return memcg ? memcg->kmemcg_id : -1;
-+	if (!memcg || !memcg_can_account_kmem(memcg))
-+		return -1;
-+	return memcg->kmemcg_id;
+ 	return xfs_reclaim_inodes_count(XFS_M(sb));
  }
+@@ -1532,8 +1532,8 @@ xfs_fs_nr_cached_objects(
+ static long
+ xfs_fs_free_cached_objects(
+ 	struct super_block	*sb,
+-	long			nr_to_scan,
+-	int			nid)
++	struct shrink_control	*sc,
++	long			nr_to_scan)
+ {
+ 	return xfs_reclaim_inodes_nr(XFS_M(sb), nr_to_scan);
+ }
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 121f11f..b367d54 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1619,8 +1619,10 @@ struct super_operations {
+ 	ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
+ #endif
+ 	int (*bdev_try_to_free_page)(struct super_block*, struct page*, gfp_t);
+-	long (*nr_cached_objects)(struct super_block *, int);
+-	long (*free_cached_objects)(struct super_block *, long, int);
++	long (*nr_cached_objects)(struct super_block *,
++				  struct shrink_control *);
++	long (*free_cached_objects)(struct super_block *,
++				    struct shrink_control *, long);
+ };
  
  /*
 -- 
