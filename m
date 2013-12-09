@@ -1,88 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
-	by kanga.kvack.org (Postfix) with ESMTP id A76F26B00D2
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 12:07:37 -0500 (EST)
-Received: by mail-qc0-f178.google.com with SMTP id i17so2879456qcy.23
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 09:07:37 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id c3si6555319qan.89.2013.12.09.09.07.35
+Received: from mail-ea0-f178.google.com (mail-ea0-f178.google.com [209.85.215.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 54FB36B00D4
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 12:12:19 -0500 (EST)
+Received: by mail-ea0-f178.google.com with SMTP id d10so1699980eaj.37
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 09:12:18 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTP id i1si10421185eev.68.2013.12.09.09.12.18
         for <linux-mm@kvack.org>;
-        Mon, 09 Dec 2013 09:07:36 -0800 (PST)
-Date: Mon, 09 Dec 2013 12:07:26 -0500
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1386608846-opj9f7ee-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1386580248-22431-7-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1386580248-22431-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1386580248-22431-7-git-send-email-iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 6/7] mm/migrate: remove unused function,
- fail_migrate_page()
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
+        Mon, 09 Dec 2013 09:12:18 -0800 (PST)
+Message-ID: <52A5F9EE.4010605@suse.cz>
+Date: Mon, 09 Dec 2013 18:12:14 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: kernel BUG in munlock_vma_pages_range
+References: <52A3D0C3.1080504@oracle.com> <52A58E8A.3050401@suse.cz> <52A5F83F.4000207@oracle.com>
+In-Reply-To: <52A5F83F.4000207@oracle.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Rafael Aquini <aquini@redhat.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <js1304@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: joern@logfs.org, mgorman@suse.de, Michel Lespinasse <walken@google.com>, riel@redhat.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Dec 09, 2013 at 06:10:47PM +0900, Joonsoo Kim wrote:
-> fail_migrate_page() isn't used anywhere, so remove it.
-> 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On 12/09/2013 06:05 PM, Sasha Levin wrote:
+> On 12/09/2013 04:34 AM, Vlastimil Babka wrote:
+>> Hello, I will look at it, thanks.
+>> Do you have specific reproduction instructions?
+>
+> Not really, the fuzzer hit it once and I've been unable to trigger it again. Looking at
+> the piece of code involved it might have had something to do with hugetlbfs, so I'll crank
+> up testing on that part.
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Thanks. Do you have trinity log and the .config file? I'm currently 
+unable to even boot linux-next with my config/setup due to a GPF.
+Looking at code I wouldn't expect that it could encounter a tail page, 
+without first encountering a head page and skipping the whole huge page. 
+At least in THP case, as TLB pages should be split when a vma is split. 
+As for hugetlbfs, it should be skipped for mlock/munlock operations 
+completely. One of these assumptions is probably failing here...
 
-> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-> index e4671f9..4308018 100644
-> --- a/include/linux/migrate.h
-> +++ b/include/linux/migrate.h
-> @@ -41,9 +41,6 @@ extern int migrate_page(struct address_space *,
->  extern int migrate_pages(struct list_head *l, new_page_t x,
->  		unsigned long private, enum migrate_mode mode, int reason);
->  
-> -extern int fail_migrate_page(struct address_space *,
-> -			struct page *, struct page *);
-> -
->  extern int migrate_prep(void);
->  extern int migrate_prep_local(void);
->  extern int migrate_vmas(struct mm_struct *mm,
-> @@ -83,7 +80,6 @@ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
->  
->  /* Possible settings for the migrate_page() method in address_operations */
->  #define migrate_page NULL
-> -#define fail_migrate_page NULL
->  
->  #endif /* CONFIG_MIGRATION */
->  
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index cdafdc0..b595f89 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -550,14 +550,6 @@ void migrate_page_copy(struct page *newpage, struct page *page)
->   *                    Migration functions
->   ***********************************************************/
->  
-> -/* Always fail migration. Used for mappings that are not movable */
-> -int fail_migrate_page(struct address_space *mapping,
-> -			struct page *newpage, struct page *page)
-> -{
-> -	return -EIO;
-> -}
-> -EXPORT_SYMBOL(fail_migrate_page);
-> -
->  /*
->   * Common logic to directly migrate a single page suitable for
->   * pages that do not use PagePrivate/PagePrivate2.
-> -- 
-> 1.7.9.5
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Vlastimil
+
+>
+> Thanks,
+> Sasha
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
