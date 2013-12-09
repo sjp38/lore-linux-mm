@@ -1,21 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 059B56B00A6
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 09:42:24 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id t10so1618462eei.14
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 06:42:24 -0800 (PST)
+Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D2596B00A8
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 09:50:20 -0500 (EST)
+Received: by mail-we0-f169.google.com with SMTP id w61so3574054wes.14
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 06:50:19 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id s8si9748568eeh.248.2013.12.09.06.42.23
+        by mx.google.com with ESMTP id mv9si4481434wic.0.2013.12.09.06.50.19
         for <linux-mm@kvack.org>;
-        Mon, 09 Dec 2013 06:42:24 -0800 (PST)
-Message-ID: <52A5D6C9.1080307@redhat.com>
-Date: Mon, 09 Dec 2013 09:42:17 -0500
+        Mon, 09 Dec 2013 06:50:19 -0800 (PST)
+Message-ID: <52A5D8A2.1030807@redhat.com>
+Date: Mon, 09 Dec 2013 09:50:10 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 07/18] mm: numa: Avoid unnecessary work on the failure
- path
-References: <1386572952-1191-1-git-send-email-mgorman@suse.de> <1386572952-1191-8-git-send-email-mgorman@suse.de>
-In-Reply-To: <1386572952-1191-8-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 08/18] sched: numa: Skip inaccessible VMAs
+References: <1386572952-1191-1-git-send-email-mgorman@suse.de> <1386572952-1191-9-git-send-email-mgorman@suse.de>
+In-Reply-To: <1386572952-1191-9-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,8 +23,7 @@ To: Mel Gorman <mgorman@suse.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Alex Thorlton <athorlton@sgi.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
 On 12/09/2013 02:09 AM, Mel Gorman wrote:
-> If a PMD changes during a THP migration then migration aborts but the
-> failure path is doing more work than is necessary.
+> Inaccessible VMA should not be trapping NUMA hint faults. Skip them.
 > 
 > Cc: stable@vger.kernel.org
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
