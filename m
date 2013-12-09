@@ -1,92 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f41.google.com (mail-qe0-f41.google.com [209.85.128.41])
-	by kanga.kvack.org (Postfix) with ESMTP id E45D46B00C4
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 11:36:30 -0500 (EST)
-Received: by mail-qe0-f41.google.com with SMTP id gh4so3102203qeb.0
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 08:36:30 -0800 (PST)
-Received: from g5t0006.atlanta.hp.com (g5t0006.atlanta.hp.com. [15.192.0.43])
-        by mx.google.com with ESMTPS id l7si192353qat.113.2013.12.09.08.36.29
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 09 Dec 2013 08:36:29 -0800 (PST)
-Message-ID: <1386606983.2723.2.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH v2 19/20] mm, hugetlb: retry if failed to allocate and
- there is concurrent user
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Mon, 09 Dec 2013 08:36:23 -0800
-In-Reply-To: <20130930074744.GA15351@lge.com>
-References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com>
-	 <1376040398-11212-20-git-send-email-iamjoonsoo.kim@lge.com>
-	 <20130905011553.GA10158@voom.redhat.com> <20130905054357.GA23597@lge.com>
-	 <20130916120909.GA2706@voom.fritz.box> <20130930074744.GA15351@lge.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 392FA6B0062
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 11:40:08 -0500 (EST)
+Received: by mail-qc0-f180.google.com with SMTP id w7so2845261qcr.25
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 08:40:08 -0800 (PST)
+Received: from a9-50.smtp-out.amazonses.com (a9-50.smtp-out.amazonses.com. [54.240.9.50])
+        by mx.google.com with ESMTP id g15si8711476qej.54.2013.12.09.08.40.07
+        for <linux-mm@kvack.org>;
+        Mon, 09 Dec 2013 08:40:07 -0800 (PST)
+Date: Mon, 9 Dec 2013 16:40:06 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v2 7/7] mm/migrate: remove result argument on page
+ allocation function for migration
+In-Reply-To: <1386580248-22431-8-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <00000142d83adfc7-81b70cc9-c87b-4e7e-bd98-0a97ee21db31-000000@email.amazonses.com>
+References: <1386580248-22431-1-git-send-email-iamjoonsoo.kim@lge.com> <1386580248-22431-8-git-send-email-iamjoonsoo.kim@lge.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: David Gibson <david@gibson.dropbear.id.au>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Rafael Aquini <aquini@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Joonsoo Kim <js1304@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On Mon, 2013-09-30 at 16:47 +0900, Joonsoo Kim wrote:
-> On Mon, Sep 16, 2013 at 10:09:09PM +1000, David Gibson wrote:
-> > > > 
-> > > > > +		*do_dequeue = false;
-> > > > >  		spin_unlock(&hugetlb_lock);
-> > > > >  		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
-> > > > >  		if (!page) {
-> > > > 
-> > > > I think the counter also needs to be incremented in the case where we
-> > > > call alloc_buddy_huge_page() from alloc_huge_page().  Even though it's
-> > > > new, it gets added to the hugepage pool at this point and could still
-> > > > be a contended page for the last allocation, unless I'm missing
-> > > > something.
-> > > 
-> > > Your comment has reasonable point to me, but I have a different opinion.
-> > > 
-> > > As I already mentioned, the point is that we want to avoid the race
-> > > which kill the legitimate users of hugepages by out of resources.
-> > > I increase 'h->nr_dequeue_users' when the hugepage allocated by
-> > > administrator is dequeued. It is because what the hugepage I want to
-> > > protect from the race is the one allocated by administrator via
-> > > kernel param or /proc interface. Administrator may already know how many
-> > > hugepages are needed for their application so that he may set nr_hugepage
-> > > to reasonable value. I want to guarantee that these hugepages can be used
-> > > for his application without any race, since he assume that the application
-> > > would work fine with these hugepages.
-> > > 
-> > > To protect hugepages returned from alloc_buddy_huge_page() from the race
-> > > is different for me. Although it will be added to the hugepage pool, this
-> > > doesn't guarantee certain application's success more. If certain
-> > > application's success depends on the race of this new hugepage, it's death
-> > > by the race doesn't matter, since nobody assume that it works fine.
-> > 
-> > Hrm.  I still think this path should be included.  Although I'll agree
-> > that failing in this case is less bad.
-> > 
-> > However, it can still lead to a situation where with two processes or
-> > threads, faulting on exactly the same shared page we have one succeed
-> > and the other fail.  That's a strange behaviour and I think we want to
-> > avoid it in this case too.
-> 
-> Hello, David.
-> 
-> I don't think it is a strange behaviour. Similar situation can occur
-> even though we use the mutex. Hugepage allocation can be failed when
-> the first process try to allocate the hugepage while second process is blocked
-> by the mutex. And then, second process will go into the fault handler. And
-> at this time, it can succeed. So result is that we have one succeed and
-> the other fail.
-> 
-> It is slightly different from the case you mentioned, but I think that
-> effect for user is same. We cannot avoid this kind of race completely and
-> I think that avoiding the race for administrator managed hugepage pool is
-> good enough to use.
+On Mon, 9 Dec 2013, Joonsoo Kim wrote:
 
-What was the final decision on this issue? Is Joonsoo's approach to
-removing this mutex viable, or are we stuck with it?
+> First, we don't use error number in fail case. Call-path related to
+> new_page_node() is shown in the following.
+>
+> do_move_page_to_node_array() -> migrate_pages() -> unmap_and_move()
+> -> new_page_node()
+>
+> If unmap_and_move() failed, migrate_pages() also returns err, and then
+> do_move_page_to_node_array() skips to set page's status to user buffer.
+> So we don't need to set error number to each pages on failure case.
 
-Thanks,
-Davidlohr
+I dont get this. new_page_node() sets the error condition in the
+page_to_node array before this patch. There is no post processing in
+do_move_page_to_node_array(). The function simply returns and relies on
+new_page_node() to have set the page status. do_move_pages() then returns
+the page status back to userspace. How does the change preserve these
+diagnostics?
+
+> Next, we don't need to set node id of the new page in unmap_and_move(),
+> since it cannot be different with pm->node. In new_page_node(), we always
+> try to allocate the page in exact node by referencing pm->node. So it is
+> sufficient to set node id of the new page in new_page_node(), instead of
+> unmap_and_move().
+
+Thats a good thought.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
