@@ -1,119 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 56CD76B00EC
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 16:51:40 -0500 (EST)
-Received: by mail-qc0-f174.google.com with SMTP id n7so3236647qcx.33
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 13:51:40 -0800 (PST)
+Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
+	by kanga.kvack.org (Postfix) with ESMTP id CB3AD6B00EE
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 16:51:51 -0500 (EST)
+Received: by mail-qc0-f170.google.com with SMTP id x13so3270959qcv.15
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 13:51:51 -0800 (PST)
 Received: from devils.ext.ti.com (devils.ext.ti.com. [198.47.26.153])
-        by mx.google.com with ESMTPS id i2si9614717qaz.12.2013.12.09.13.51.38
+        by mx.google.com with ESMTPS id o8si9565559qey.119.2013.12.09.13.51.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 09 Dec 2013 13:51:38 -0800 (PST)
+        Mon, 09 Dec 2013 13:51:50 -0800 (PST)
 From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [PATCH v3 00/23] mm: Use memblock interface instead of bootmem
-Date: Mon, 9 Dec 2013 16:50:33 -0500
-Message-ID: <1386625856-12942-1-git-send-email-santosh.shilimkar@ti.com>
+Subject: [PATCH v3 01/23] mm/memblock: debug: correct displaying of upper memory boundary
+Date: Mon, 9 Dec 2013 16:50:34 -0500
+Message-ID: <1386625856-12942-2-git-send-email-santosh.shilimkar@ti.com>
+In-Reply-To: <1386625856-12942-1-git-send-email-santosh.shilimkar@ti.com>
+References: <1386625856-12942-1-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Santosh Shilimkar <santosh.shilimkar@ti.com>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Grygorii Strashko <grygorii.strashko@ti.com>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Santosh Shilimkar <santosh.shilimkar@ti.com>
 
-Tejun, Andrew and Yinghai,
+From: Grygorii Strashko <grygorii.strashko@ti.com>
 
-Here is the refreshed version of earlier series [1] addressing all
-comments from v2. As mentioned earlier, this series is the last
-bottleneck now for me to enable the coherency on keystone ARM
-LPAE architecture on which the physical memory starts after 4BG.
-I would like to get these patches in next merge window(3.14), so
-it will be great to add these for linux-next testing if you are
-happy with the patchset.
+When debugging is enabled (cmdline has "memblock=debug") the memblock
+will display upper memory boundary per each allocated/freed memory range
+wrongly. For example:
+ memblock_reserve: [0x0000009e7e8000-0x0000009e7ed000] _memblock_early_alloc_try_nid_nopanic+0xfc/0x12c
 
-For convenience, the re-based series on top of 3.13-rc1 is available
-on my git tree [2].
+The 0x0000009e7ed000 is displayed instead of 0x0000009e7ecfff
 
-To recap on the original issue, current memblock APIs don't work on
-32 PAE or LPAE extension arches where the physical memory start
-address beyond 4GB. The problem was discussed here [3] where
-Tejun, Yinghai(thanks) proposed a way forward with memblock interfaces.
-Based on the proposal, this series adds necessary memblock interfaces
-and convert the core kernel code to use them. Architectures already
-converted to NO_BOOTMEM use these new interfaces and other which still
-uses bootmem, these new interfaces just fallback to exiting bootmem APIs.
-
-So no functional change in behavior. In long run, once all the architectures
-moves to NO_BOOTMEM, we can get rid of bootmem layer completely. This is
-one step to remove the core code dependency with bootmem and also
-gives path for architectures to move away from bootmem.
-
-Testing is done on ARM architecture with 32 bit ARM LAPE machines
-with normal as well sparse(faked) memory model.
+Hence, correct this by changing formula used to calculate upper memory
+boundary to (u64)base + size - 1 instead of  (u64)base + size everywhere
+in the debug messages.
 
 Cc: Yinghai Lu <yinghai@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: H. Peter Anvin <hpa@zytor.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Russell King <linux@arm.linux.org.uk>
+Cc: Tejun Heo <tj@kernel.org>
+Acked-by: Tejun Heo <tj@kernel.org>
+Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
+Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
+---
+ mm/memblock.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-Grygorii Strashko (9):
-  mm/memblock: debug: correct displaying of upper memory boundary
-  mm/memblock: debug: don't free reserved array if
-    !ARCH_DISCARD_MEMBLOCK
-  mm/bootmem: remove duplicated declaration of __free_pages_bootmem()
-  mm/memblock: remove unnecessary inclusions of bootmem.h
-  mm/memblock: drop WARN and use SMP_CACHE_BYTES as a default alignment
-  mm/memblock: reorder parameters of memblock_find_in_range_node
-  mm/memblock: switch to use NUMA_NO_NODE instead of MAX_NUMNODES
-  mm/hugetlb: Use memblock apis for early memory allocations
-  mm/page_cgroup: Use memblock apis for early memory allocations
-
-Santosh Shilimkar (14):
-  mm/memblock: Add memblock memory allocation apis
-  mm/init: Use memblock apis for early memory allocations
-  mm/printk: Use memblock apis for early memory allocations
-  mm/page_alloc: Use memblock apis for early memory allocations
-  mm/power: Use memblock apis for early memory allocations
-  mm/lib/swiotlb: Use memblock apis for early memory allocations
-  mm/lib/cpumask: Use memblock apis for early memory allocations
-  mm/sparse: Use memblock apis for early memory allocations
-  mm/percpu: Use memblock apis for early memory allocations
-  mm/memory_hotplug: Use memblock apis for early memory allocations
-  mm/firmware: Use memblock apis for early memory allocations
-  mm/ARM: kernel: Use memblock apis for early memory allocations
-  mm/ARM: mm: Use memblock apis for early memory allocations
-  mm/ARM: OMAP: Use memblock apis for early memory allocations
-
- arch/arm/kernel/devtree.c        |    2 +-
- arch/arm/kernel/setup.c          |    2 +-
- arch/arm/mach-omap2/omap_hwmod.c |    8 +-
- arch/arm/mm/init.c               |    2 +-
- drivers/char/mem.c               |    1 -
- drivers/firmware/memmap.c        |    2 +-
- include/linux/bootmem.h          |  152 +++++++++++++++++++++-
- include/linux/memblock.h         |    9 +-
- init/main.c                      |    8 +-
- kernel/power/snapshot.c          |    2 +-
- kernel/printk/printk.c           |   10 +-
- lib/cpumask.c                    |    4 +-
- lib/swiotlb.c                    |   35 ++---
- mm/hugetlb.c                     |   10 +-
- mm/memblock.c                    |  261 +++++++++++++++++++++++++++++++++++---
- mm/memory_hotplug.c              |    3 +-
- mm/nobootmem.c                   |   10 +-
- mm/page_alloc.c                  |   27 ++--
- mm/page_cgroup.c                 |    5 +-
- mm/percpu.c                      |   38 +++---
- mm/sparse-vmemmap.c              |    6 +-
- mm/sparse.c                      |   27 ++--
- 22 files changed, 504 insertions(+), 120 deletions(-)
-
-Regards,
-Santosh
-[1] https://lkml.org/lkml/2013/12/2/1005
-[2] git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone.git
-for_3.14/memblock
-[3] https://lkml.org/lkml/2013/6/29/77
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 53e477b..aab5669 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -643,7 +643,7 @@ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
+ {
+ 	memblock_dbg("   memblock_free: [%#016llx-%#016llx] %pF\n",
+ 		     (unsigned long long)base,
+-		     (unsigned long long)base + size,
++		     (unsigned long long)base + size - 1,
+ 		     (void *)_RET_IP_);
+ 
+ 	return __memblock_remove(&memblock.reserved, base, size);
+@@ -655,7 +655,7 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
+ 
+ 	memblock_dbg("memblock_reserve: [%#016llx-%#016llx] %pF\n",
+ 		     (unsigned long long)base,
+-		     (unsigned long long)base + size,
++		     (unsigned long long)base + size - 1,
+ 		     (void *)_RET_IP_);
+ 
+ 	return memblock_add_region(_rgn, base, size, MAX_NUMNODES);
 -- 
 1.7.9.5
 
