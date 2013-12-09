@@ -1,58 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f48.google.com (mail-yh0-f48.google.com [209.85.213.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 622846B0126
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 17:39:43 -0500 (EST)
-Received: by mail-yh0-f48.google.com with SMTP id f73so3289516yha.35
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 14:39:43 -0800 (PST)
-Received: from devils.ext.ti.com (devils.ext.ti.com. [198.47.26.153])
-        by mx.google.com with ESMTPS id q66si6309397yhm.254.2013.12.09.14.39.42
+Received: from mail-bk0-f41.google.com (mail-bk0-f41.google.com [209.85.214.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B0006B0128
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 17:51:51 -0500 (EST)
+Received: by mail-bk0-f41.google.com with SMTP id v15so1665785bkz.28
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 14:51:51 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id ed8si1407419bkc.43.2013.12.09.14.51.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 09 Dec 2013 14:39:42 -0800 (PST)
-Message-ID: <52A646AB.1030900@ti.com>
-Date: Mon, 9 Dec 2013 17:39:39 -0500
-From: Santosh Shilimkar <santosh.shilimkar@ti.com>
+        Mon, 09 Dec 2013 14:51:50 -0800 (PST)
+Date: Mon, 9 Dec 2013 17:51:42 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
+ access to memory reserves
+Message-ID: <20131209225142.GK21724@cmpxchg.org>
+References: <alpine.DEB.2.02.1311261648570.21003@chino.kir.corp.google.com>
+ <20131127163435.GA3556@cmpxchg.org>
+ <20131202200221.GC5524@dhcp22.suse.cz>
+ <20131202212500.GN22729@cmpxchg.org>
+ <20131203120454.GA12758@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312031544530.5946@chino.kir.corp.google.com>
+ <20131204111318.GE8410@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312041606260.6329@chino.kir.corp.google.com>
+ <20131209124840.GC3597@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312091328550.11026@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 01/23] mm/memblock: debug: correct displaying of upper
- memory boundary
-References: <1386625856-12942-1-git-send-email-santosh.shilimkar@ti.com> <1386625856-12942-2-git-send-email-santosh.shilimkar@ti.com> <20131209215641.GF29143@saruman.home>
-In-Reply-To: <20131209215641.GF29143@saruman.home>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1312091328550.11026@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: balbi@ti.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Grygorii Strashko <grygorii.strashko@ti.com>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Monday 09 December 2013 04:56 PM, Felipe Balbi wrote:
-> On Mon, Dec 09, 2013 at 04:50:34PM -0500, Santosh Shilimkar wrote:
->> From: Grygorii Strashko <grygorii.strashko@ti.com>
->>
->> When debugging is enabled (cmdline has "memblock=debug") the memblock
->> will display upper memory boundary per each allocated/freed memory range
->> wrongly. For example:
->>  memblock_reserve: [0x0000009e7e8000-0x0000009e7ed000] _memblock_early_alloc_try_nid_nopanic+0xfc/0x12c
->>
->> The 0x0000009e7ed000 is displayed instead of 0x0000009e7ecfff
->>
->> Hence, correct this by changing formula used to calculate upper memory
->> boundary to (u64)base + size - 1 instead of  (u64)base + size everywhere
->> in the debug messages.
->>
->> Cc: Yinghai Lu <yinghai@kernel.org>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Tejun Heo <tj@kernel.org>
->> Acked-by: Tejun Heo <tj@kernel.org>
->> Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
->> Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
+On Mon, Dec 09, 2013 at 01:46:16PM -0800, David Rientjes wrote:
+> On Mon, 9 Dec 2013, Michal Hocko wrote:
 > 
-> Very minor patch but perhaps we should Cc: stable here ? not that it
-> matters much...
+> > > Google depends on getting memory.oom_control notifications only when they 
+> > > are actionable, which is exactly how Documentation/cgroups/memory.txt 
+> > > describes how userspace should respond to such a notification.
+> > > 
+> > > "Actionable" here means that the kernel has exhausted its capabilities of 
+> > > allowing for future memory freeing, which is the entire premise of any oom 
+> > > killer.
+> > > 
+> > > Giving a dying process or a process that is going to subsequently die 
+> > > access to memory reserves is a capability the kernel users to ensure 
+> > > progress is made in oom conditions.  It is not an exhaustion of 
+> > > capabilities.
+> > > 
+> > > Yes, we all know that subsequent to the userspace notification that memory 
+> > > may be freed and the kill no longer becomes required.  There is nothing 
+> > > that can be done about that, and it has never been implied that a memcg is 
+> > > guaranteed to still be oom when the process wakes up.
+> > > 
+> > > I'm referring to a siutation that can manifest in a number of ways: 
+> > > coincidental process exit, coincidental process being killed, 
+> > > VMPRESSURE_CRITICAL notification that results in a process being killed, 
+> > > or memory threshold notification that results in a process being killed.  
+> > > Regardless, we're talking about a situation where something is already 
+> > > in the exit path or has been killed and is simply attempting to free its 
+> > > memory.
+> > 
+> > You have already mentioned that. Several times in fact. And I do
+> > understand what you are saying. You are just not backing your claims
+> > with anything that would convince us that what you are trying to solve
+> > is an issue in the real life. So show us it is real, please.
+> > 
 > 
-Yeah... No major fix as such from stable perspective.
+> What exactly would you like to see?  It's obvious that the kernel has not 
+> exhausted its capabilities of allowing for future memory freeing if the 
+> notification happens before the check for current->flags & PF_EXITING or 
+> fatal_signal_pending(current).  Does that conditional get triggered?  ALL 
+> THE TIME.
 
-regards,
-Santosh
+We check for fatal signals during the repeated charge attempts and
+reclaim.  Should we be checking for PF_EXITING too?
+
+> We know it happens because I had to introduce it into both the 
+> system oom killer and the memcg oom killer to fix mm->mmap_sem issues for 
+> threads that were killed as part of the oom killer SIGKILL but weren't the 
+> thread lucky enough to get TIF_MEMDIE set and they were in the allocation 
+> path.
+
+
+
+> 
+> Are you asking me to patch our kernel, get it rolled out, and plot a graph 
+> to show how often it gets triggered over time in our datacenters and that 
+> it causes us to get unnecessary oom kill notifications?
+> 
+> I'm trying to support you in any way I can by giving you the information 
+> you need, but in all honesty this seems pretty trivial and obvious to 
+> understand.  I'm really quite stunned at this thread.  What exactly are 
+> you arguing in the other direction for?  What does giving an oom 
+> notification before allowing exiting processes to free its memory so the 
+> memcg or system is no longer oom do?  Why can't you use memory thresholds 
+> or vmpressure for such a situation?
+> 
+> > > Such a process simply needs access to memory reserves to make progress and 
+> > > free its memory as part of the exit path.  The process waiting on 
+> > > memory.oom_control does _not_ need to do any of the actions mentioned in 
+> > > Documentation/cgroups/memory.txt: reduce usage, enlarge the limit, kill a 
+> > > process, or move a process with charge migration.
+> > > 
+> > > It would be ridiculous to require anybody implementing such a process to 
+> > > check if the oom condition still exists after a period of time before 
+> > > taking such an action.
+> > 
+> > Why would you consider that ridiculous? If your memcg is oom already
+> > then waiting few seconds to let racing tasks finish doesn't sound that
+> > bad to me.
+> > 
+> 
+> A few seconds?  Is that just handwaving or are you making a guarantee that 
+> all processes that need access to memory reserves will wake up, try its 
+> allocation, get the memcg's oom lock, get access to memory reserves, 
+> allocate, return to handle its pending SIGKILL, proceed down the exit() 
+> path, and free its memory by then?
+> 
+> Meanwhile, the userspace oom handler is doing its little sleep(3) that you 
+> suggest, it checks the status of the memcg, finds it's still oom, but 
+> doesn't realize because it didn't do a second blocking read() that its a 
+> second oom condition for a different process attached to the memcg and 
+> that process simply needs memory reserves to exit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
