@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f47.google.com (mail-qe0-f47.google.com [209.85.128.47])
-	by kanga.kvack.org (Postfix) with ESMTP id D731A6B00F8
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 16:51:59 -0500 (EST)
-Received: by mail-qe0-f47.google.com with SMTP id t7so3285414qeb.6
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 13:51:59 -0800 (PST)
-Received: from devils.ext.ti.com (devils.ext.ti.com. [198.47.26.153])
-        by mx.google.com with ESMTPS id cz10si4227964qcb.12.2013.12.09.13.51.58
+Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
+	by kanga.kvack.org (Postfix) with ESMTP id BD8736B00F8
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 16:52:01 -0500 (EST)
+Received: by mail-qc0-f178.google.com with SMTP id i17so3305755qcy.9
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 13:52:01 -0800 (PST)
+Received: from arroyo.ext.ti.com (arroyo.ext.ti.com. [192.94.94.40])
+        by mx.google.com with ESMTPS id kb1si9569842qeb.113.2013.12.09.13.52.00
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 09 Dec 2013 13:51:59 -0800 (PST)
+        Mon, 09 Dec 2013 13:52:00 -0800 (PST)
 From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [PATCH v3 07/23] mm/memblock: switch to use NUMA_NO_NODE instead of MAX_NUMNODES
-Date: Mon, 9 Dec 2013 16:50:40 -0500
-Message-ID: <1386625856-12942-8-git-send-email-santosh.shilimkar@ti.com>
+Subject: [PATCH v3 08/23] mm/memblock: Add memblock memory allocation apis
+Date: Mon, 9 Dec 2013 16:50:41 -0500
+Message-ID: <1386625856-12942-9-git-send-email-santosh.shilimkar@ti.com>
 In-Reply-To: <1386625856-12942-1-git-send-email-santosh.shilimkar@ti.com>
 References: <1386625856-12942-1-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
@@ -20,20 +20,35 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Grygorii Strashko <grygorii.strashko@ti.com>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Santosh Shilimkar <santosh.shilimkar@ti.com>
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Santosh Shilimkar <santosh.shilimkar@ti.com>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Grygorii Strashko <grygorii.strashko@ti.com>
 
-From: Grygorii Strashko <grygorii.strashko@ti.com>
+Introduce memblock memory allocation APIs which allow to support
+PAE or LPAE extension on 32 bits archs where the physical memory
+start address can be beyond 4GB. In such cases, existing bootmem
+APIs which operate on 32 bit addresses won't work and needs
+memblock layer which operates on 64 bit addresses.
 
-It's recommended to use NUMA_NO_NODE everywhere to select
-"process any node" behavior or to indicate that "no node id specified".
+So we add equivalent APIs so that we can replace usage of bootmem
+with memblock interfaces. Architectures already converted to
+NO_BOOTMEM use these new memblock interfaces. The architectures
+which are still not converted to NO_BOOTMEM continue to function
+as is because we still maintain the fal lback option of bootmem
+back-end supporting these new interfaces. So no functional change
+as such.
 
-Hence, update __next_free_mem_range*() API's to accept both NUMA_NO_NODE
-and MAX_NUMNODES, but emit warning once on MAX_NUMNODES, and correct
-corresponding API's documentation to describe new behavior.
-Also, update other memblock/nobootmem APIs where MAX_NUMNODES is used
-dirrectly.
+In long run, once all the architectures moves to NO_BOOTMEM, we
+can get rid of bootmem layer completely. This is one step to remove
+the core code dependency with bootmem and also gives path for
+architectures to move away from bootmem.
 
-The change was suggested by Tejun Heo <tj@kernel.org>.
+The proposed interface will became active if both
+CONFIG_HAVE_MEMBLOCK and CONFIG_NO_BOOTMEM are specified by arch.
+In case !CONFIG_NO_BOOTMEM, the memblock() wrappers will fallback
+to the existing bootmem apis so that arch's not converted to
+NO_BOOTMEM continue to work as is.
+
+The meaning of MEMBLOCK_ALLOC_ACCESSIBLE and MEMBLOCK_ALLOC_ANYWHERE
+is kept same.
 
 Cc: Yinghai Lu <yinghai@kernel.org>
 Cc: Tejun Heo <tj@kernel.org>
@@ -41,182 +56,388 @@ Cc: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
 Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 ---
- include/linux/memblock.h |    4 ++--
- mm/memblock.c            |   28 +++++++++++++++++++---------
- mm/nobootmem.c           |    8 ++++----
- 3 files changed, 25 insertions(+), 15 deletions(-)
+ include/linux/bootmem.h |  151 ++++++++++++++++++++++++++++++++++++
+ mm/memblock.c           |  198 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 349 insertions(+)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index dca4533..8607429 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -88,7 +88,7 @@ void __next_free_mem_range(u64 *idx, int nid, phys_addr_t *out_start,
- /**
-  * for_each_free_mem_range - iterate through free memblock areas
-  * @i: u64 used as loop variable
-- * @nid: node selector, %MAX_NUMNODES for all nodes
-+ * @nid: node selector, %NUMA_NO_NODE for all nodes
-  * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
-  * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
-  * @p_nid: ptr to int for nid of the range, can be %NULL
-@@ -108,7 +108,7 @@ void __next_free_mem_range_rev(u64 *idx, int nid, phys_addr_t *out_start,
- /**
-  * for_each_free_mem_range_reverse - rev-iterate through free memblock areas
-  * @i: u64 used as loop variable
-- * @nid: node selector, %MAX_NUMNODES for all nodes
-+ * @nid: node selector, %NUMA_NO_NODE for all nodes
-  * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
-  * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
-  * @p_nid: ptr to int for nid of the range, can be %NULL
+diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
+index 55d52fb..1c9aa0e 100644
+--- a/include/linux/bootmem.h
++++ b/include/linux/bootmem.h
+@@ -141,6 +141,157 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
+ #define alloc_bootmem_low_pages_node(pgdat, x) \
+ 	__alloc_bootmem_low_node(pgdat, x, PAGE_SIZE, 0)
+ 
++
++#if defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM)
++
++/* FIXME: use MEMBLOCK_ALLOC_* variants here */
++#define BOOTMEM_ALLOC_ACCESSIBLE	0
++#define BOOTMEM_ALLOC_ANYWHERE		(~(phys_addr_t)0)
++
++/* FIXME: Move to memblock.h at a point where we remove nobootmem.c */
++void *memblock_virt_alloc_try_nid_nopanic(phys_addr_t size,
++		phys_addr_t align, phys_addr_t min_addr,
++		phys_addr_t max_addr, int nid);
++void *memblock_virt_alloc_try_nid(phys_addr_t size, phys_addr_t align,
++		phys_addr_t min_addr, phys_addr_t max_addr, int nid);
++void __memblock_free_early(phys_addr_t base, phys_addr_t size);
++void __memblock_free_late(phys_addr_t base, phys_addr_t size);
++
++static inline void * __init memblock_virt_alloc(
++					phys_addr_t size,  phys_addr_t align)
++{
++	return memblock_virt_alloc_try_nid(size, align, BOOTMEM_LOW_LIMIT,
++					    BOOTMEM_ALLOC_ACCESSIBLE,
++					    NUMA_NO_NODE);
++}
++
++static inline void * __init memblock_virt_alloc_nopanic(
++					phys_addr_t size, phys_addr_t align)
++{
++	return memblock_virt_alloc_try_nid_nopanic(size, align,
++						    BOOTMEM_LOW_LIMIT,
++						    BOOTMEM_ALLOC_ACCESSIBLE,
++						    NUMA_NO_NODE);
++}
++
++static inline void * __init memblock_virt_alloc_from_nopanic(
++		phys_addr_t size, phys_addr_t align, phys_addr_t min_addr)
++{
++	return memblock_virt_alloc_try_nid_nopanic(size, align, min_addr,
++						    BOOTMEM_ALLOC_ACCESSIBLE,
++						    NUMA_NO_NODE);
++}
++
++static inline void * __init memblock_virt_alloc_node(
++						phys_addr_t size, int nid)
++{
++	return memblock_virt_alloc_try_nid(size, 0, BOOTMEM_LOW_LIMIT,
++					    BOOTMEM_ALLOC_ACCESSIBLE, nid);
++}
++
++static inline void * __init memblock_virt_alloc_node_nopanic(
++						phys_addr_t size, int nid)
++{
++	return memblock_virt_alloc_try_nid_nopanic(size, 0, BOOTMEM_LOW_LIMIT,
++						    BOOTMEM_ALLOC_ACCESSIBLE,
++						    nid);
++}
++
++static inline void __init memblock_free_early(
++					phys_addr_t base, phys_addr_t size)
++{
++	__memblock_free_early(base, size);
++}
++
++static inline void __init memblock_free_early_nid(
++				phys_addr_t base, phys_addr_t size, int nid)
++{
++	__memblock_free_early(base, size);
++}
++
++static inline void __init memblock_free_late(
++					phys_addr_t base, phys_addr_t size)
++{
++	__memblock_free_late(base, size);
++}
++
++#else
++
++#define BOOTMEM_ALLOC_ACCESSIBLE	0
++
++
++/* Fall back to all the existing bootmem APIs */
++static inline void * __init memblock_virt_alloc(
++					phys_addr_t size,  phys_addr_t align)
++{
++	if (!align)
++		align = SMP_CACHE_BYTES;
++	return __alloc_bootmem(size, align, BOOTMEM_LOW_LIMIT);
++}
++
++static inline void * __init memblock_virt_alloc_nopanic(
++					phys_addr_t size, phys_addr_t align)
++{
++	if (!align)
++		align = SMP_CACHE_BYTES;
++	return __alloc_bootmem_nopanic(size, align, BOOTMEM_LOW_LIMIT);
++}
++
++static inline void * __init memblock_virt_alloc_from_nopanic(
++		phys_addr_t size, phys_addr_t align, phys_addr_t min_addr)
++{
++	return __alloc_bootmem_nopanic(size, align, min_addr);
++}
++
++static inline void * __init memblock_virt_alloc_node(
++						phys_addr_t size, int nid)
++{
++	return __alloc_bootmem_node(NODE_DATA(nid), size, SMP_CACHE_BYTES,
++				     BOOTMEM_LOW_LIMIT);
++}
++
++static inline void * __init memblock_virt_alloc_node_nopanic(
++						phys_addr_t size, int nid)
++{
++	return __alloc_bootmem_node_nopanic(NODE_DATA(nid), size,
++					     SMP_CACHE_BYTES,
++					     BOOTMEM_LOW_LIMIT);
++}
++
++static inline void * __init memblock_virt_alloc_try_nid(phys_addr_t size,
++	phys_addr_t align, phys_addr_t min_addr, phys_addr_t max_addr, int nid)
++{
++	return __alloc_bootmem_node_high(NODE_DATA(nid), size, align,
++					  min_addr);
++}
++
++static inline void * __init memblock_virt_alloc_try_nid_nopanic(
++			phys_addr_t size, phys_addr_t align,
++			phys_addr_t min_addr, phys_addr_t max_addr, int nid)
++{
++	return ___alloc_bootmem_node_nopanic(NODE_DATA(nid), size, align,
++				min_addr, max_addr);
++}
++
++static inline void __init memblock_free_early(
++					phys_addr_t base, phys_addr_t size)
++{
++	free_bootmem(base, size);
++}
++
++static inline void __init memblock_free_early_nid(
++				phys_addr_t base, phys_addr_t size, int nid)
++{
++	free_bootmem_node(NODE_DATA(nid), base, size);
++}
++
++static inline void __init memblock_free_late(
++					phys_addr_t base, phys_addr_t size)
++{
++	free_bootmem_late(base, size);
++}
++#endif /* defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM) */
++
+ #ifdef CONFIG_HAVE_ARCH_ALLOC_REMAP
+ extern void *alloc_remap(int nid, unsigned long size);
+ #else
 diff --git a/mm/memblock.c b/mm/memblock.c
-index 8786503..900057b 100644
+index 900057b..d03d50a 100644
 --- a/mm/memblock.c
 +++ b/mm/memblock.c
-@@ -91,7 +91,7 @@ static long __init_memblock memblock_overlaps_region(struct memblock_type *type,
-  * @end: end of candidate range, can be %MEMBLOCK_ALLOC_{ANYWHERE|ACCESSIBLE}
-  * @size: size of free area to find
-  * @align: alignment of free area to find
-- * @nid: nid of the free area to find, %MAX_NUMNODES for any node
-+ * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
-  *
-  * Utility called from memblock_find_in_range_node(), find free area bottom-up.
-  *
-@@ -123,7 +123,7 @@ __memblock_find_range_bottom_up(phys_addr_t start, phys_addr_t end,
-  * @end: end of candidate range, can be %MEMBLOCK_ALLOC_{ANYWHERE|ACCESSIBLE}
-  * @size: size of free area to find
-  * @align: alignment of free area to find
-- * @nid: nid of the free area to find, %MAX_NUMNODES for any node
-+ * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
-  *
-  * Utility called from memblock_find_in_range_node(), find free area top-down.
-  *
-@@ -158,7 +158,7 @@ __memblock_find_range_top_down(phys_addr_t start, phys_addr_t end,
-  * @align: alignment of free area to find
-  * @start: start of candidate range
-  * @end: end of candidate range, can be %MEMBLOCK_ALLOC_{ANYWHERE|ACCESSIBLE}
-- * @nid: nid of the free area to find, %MAX_NUMNODES for any node
-+ * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
-  *
-  * Find @size free area aligned to @align in the specified range and node.
-  *
-@@ -239,7 +239,7 @@ phys_addr_t __init_memblock memblock_find_in_range(phys_addr_t start,
- 					phys_addr_t align)
- {
- 	return memblock_find_in_range_node(size, align, start, end,
--					    MAX_NUMNODES);
-+					    NUMA_NO_NODE);
+@@ -21,6 +21,9 @@
+ #include <linux/memblock.h>
+ 
+ #include <asm-generic/sections.h>
++#include <linux/io.h>
++
++#include "internal.h"
+ 
+ static struct memblock_region memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS] __initdata_memblock;
+ static struct memblock_region memblock_reserved_init_regions[INIT_MEMBLOCK_REGIONS] __initdata_memblock;
+@@ -943,6 +946,201 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
+ 	return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
  }
  
- static void __init_memblock memblock_remove_region(struct memblock_type *type, unsigned long r)
-@@ -677,7 +677,7 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
- /**
-  * __next_free_mem_range - next function for for_each_free_mem_range()
-  * @idx: pointer to u64 loop variable
-- * @nid: node selector, %MAX_NUMNODES for all nodes
-+ * @nid: node selector, %NUMA_NO_NODE for all nodes
-  * @out_start: ptr to phys_addr_t for start address of the range, can be %NULL
-  * @out_end: ptr to phys_addr_t for end address of the range, can be %NULL
-  * @out_nid: ptr to int for nid of the range, can be %NULL
-@@ -705,6 +705,11 @@ void __init_memblock __next_free_mem_range(u64 *idx, int nid,
- 	struct memblock_type *rsv = &memblock.reserved;
- 	int mi = *idx & 0xffffffff;
- 	int ri = *idx >> 32;
-+	bool check_node = (nid != NUMA_NO_NODE) && (nid != MAX_NUMNODES);
++/**
++ * memblock_virt_alloc_internal - allocate boot memory block
++ * @size: size of memory block to be allocated in bytes
++ * @align: alignment of the region and block's size
++ * @min_addr: the lower bound of the memory region to allocate (phys address)
++ * @max_addr: the upper bound of the memory region to allocate (phys address)
++ * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
++ *
++ * The @min_addr limit is dropped if it can not be satisfied and the allocation
++ * will fall back to memory below @min_addr. Also, allocation may fall back
++ * to any node in the system if the specified node can not
++ * hold the requested memory.
++ *
++ * The allocation is performed from memory region limited by
++ * memblock.current_limit if @max_addr == %BOOTMEM_ALLOC_ACCESSIBLE.
++ *
++ * The memory block is aligned on SMP_CACHE_BYTES if @align == 0.
++ *
++ * The phys address of allocated boot memory block is converted to virtual and
++ * allocated memory is reset to 0.
++ *
++ * In addition, function sets the min_count to 0 using kmemleak_alloc for
++ * allocated boot memory block, so that it is never reported as leaks.
++ *
++ * RETURNS:
++ * Virtual address of allocated memory block on success, NULL on failure.
++ */
++static void * __init memblock_virt_alloc_internal(
++				phys_addr_t size, phys_addr_t align,
++				phys_addr_t min_addr, phys_addr_t max_addr,
++				int nid)
++{
++	phys_addr_t alloc;
++	void *ptr;
 +
 +	if (nid == MAX_NUMNODES)
-+		pr_warn_once("%s: Usage of MAX_NUMNODES is depricated. Use NUMA_NO_NODE instead\n",
-+			     __func__);
- 
- 	for ( ; mi < mem->cnt; mi++) {
- 		struct memblock_region *m = &mem->regions[mi];
-@@ -712,7 +717,7 @@ void __init_memblock __next_free_mem_range(u64 *idx, int nid,
- 		phys_addr_t m_end = m->base + m->size;
- 
- 		/* only memory regions are associated with nodes, check it */
--		if (nid != MAX_NUMNODES && nid != memblock_get_region_node(m))
-+		if (check_node && nid != memblock_get_region_node(m))
- 			continue;
- 
- 		/* scan areas before each reservation for intersection */
-@@ -753,7 +758,7 @@ void __init_memblock __next_free_mem_range(u64 *idx, int nid,
- /**
-  * __next_free_mem_range_rev - next function for for_each_free_mem_range_reverse()
-  * @idx: pointer to u64 loop variable
-- * @nid: nid: node selector, %MAX_NUMNODES for all nodes
-+ * @nid: nid: node selector, %NUMA_NO_NODE for all nodes
-  * @out_start: ptr to phys_addr_t for start address of the range, can be %NULL
-  * @out_end: ptr to phys_addr_t for end address of the range, can be %NULL
-  * @out_nid: ptr to int for nid of the range, can be %NULL
-@@ -768,6 +773,11 @@ void __init_memblock __next_free_mem_range_rev(u64 *idx, int nid,
- 	struct memblock_type *rsv = &memblock.reserved;
- 	int mi = *idx & 0xffffffff;
- 	int ri = *idx >> 32;
-+	bool check_node = (nid != NUMA_NO_NODE) && (nid != MAX_NUMNODES);
++		pr_warn("%s: usage of MAX_NUMNODES is depricated. Use NUMA_NO_NODE\n",
++			__func__);
 +
-+	if (nid == MAX_NUMNODES)
-+		pr_warn_once("%s: Usage of MAX_NUMNODES is depricated. Use NUMA_NO_NODE instead\n",
-+			     __func__);
++	if (WARN_ON_ONCE(slab_is_available()))
++		return kzalloc_node(size, GFP_NOWAIT, nid);
++
++	if (!align)
++		align = SMP_CACHE_BYTES;
++
++	/* align @size to avoid excessive fragmentation on reserved array */
++	size = round_up(size, align);
++
++again:
++	alloc = memblock_find_in_range_node(size, align, min_addr, max_addr,
++					    nid);
++	if (alloc)
++		goto done;
++
++	if (nid != NUMA_NO_NODE) {
++		alloc = memblock_find_in_range_node(size, align, min_addr,
++						    max_addr,  NUMA_NO_NODE);
++		if (alloc)
++			goto done;
++	}
++
++	if (min_addr) {
++		min_addr = 0;
++		goto again;
++	} else {
++		goto error;
++	}
++
++done:
++	memblock_reserve(alloc, size);
++	ptr = phys_to_virt(alloc);
++	memset(ptr, 0, size);
++
++	/*
++	 * The min_count is set to 0 so that bootmem allocated blocks
++	 * are never reported as leaks.
++	 */
++	kmemleak_alloc(ptr, size, 0, 0);
++
++	return ptr;
++
++error:
++	return NULL;
++}
++
++/**
++ * memblock_virt_alloc_try_nid_nopanic - allocate boot memory block
++ * @size: size of memory block to be allocated in bytes
++ * @align: alignment of the region and block's size
++ * @min_addr: the lower bound of the memory region from where the allocation
++ *	  is preferred (phys address)
++ * @max_addr: the upper bound of the memory region from where the allocation
++ *	      is preferred (phys address), or %BOOTMEM_ALLOC_ACCESSIBLE to
++ *	      allocate only from memory limited by memblock.current_limit value
++ * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
++ *
++ * Public version of _memblock_virt_alloc_try_nid_nopanic() which provides
++ * additional debug information (including caller info), if enabled.
++ *
++ * RETURNS:
++ * Virtual address of allocated memory block on success, NULL on failure.
++ */
++void * __init memblock_virt_alloc_try_nid_nopanic(
++				phys_addr_t size, phys_addr_t align,
++				phys_addr_t min_addr, phys_addr_t max_addr,
++				int nid)
++{
++	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
++		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
++		     (u64)max_addr, (void *)_RET_IP_);
++	return memblock_virt_alloc_internal(size, align, min_addr,
++					     max_addr, nid);
++}
++
++/**
++ * memblock_virt_alloc_try_nid - allocate boot memory block with panicking
++ * @size: size of memory block to be allocated in bytes
++ * @align: alignment of the region and block's size
++ * @min_addr: the lower bound of the memory region from where the allocation
++ *	  is preferred (phys address)
++ * @max_addr: the upper bound of the memory region from where the allocation
++ *	      is preferred (phys address), or %BOOTMEM_ALLOC_ACCESSIBLE to
++ *	      allocate only from memory limited by memblock.current_limit value
++ * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
++ *
++ * Public panicking version of _memblock_virt_alloc_try_nid_nopanic()
++ * which provides debug information (including caller info), if enabled,
++ * and panics if the request can not be satisfied.
++ *
++ * RETURNS:
++ * Virtual address of allocated memory block on success, NULL on failure.
++ */
++void * __init memblock_virt_alloc_try_nid(
++			phys_addr_t size, phys_addr_t align,
++			phys_addr_t min_addr, phys_addr_t max_addr,
++			int nid)
++{
++	void *ptr;
++
++	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
++		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
++		     (u64)max_addr, (void *)_RET_IP_);
++	ptr = memblock_virt_alloc_internal(size, align,
++					   min_addr, max_addr, nid);
++	if (ptr)
++		return ptr;
++
++	panic("%s: Failed to allocate %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx\n",
++	      __func__, (u64)size, (u64)align, nid, (u64)min_addr,
++	      (u64)max_addr);
++	return NULL;
++}
++
++/**
++ * __memblock_free_early - free boot memory block
++ * @base: phys starting address of the  boot memory block
++ * @size: size of the boot memory block in bytes
++ *
++ * Free boot memory block previously allocated by memblock_virt_alloc_xx() API.
++ * The freeing memory will not be released to the buddy allocator.
++ */
++void __init __memblock_free_early(phys_addr_t base, phys_addr_t size)
++{
++	memblock_dbg("%s: [%#016llx-%#016llx] %pF\n",
++		     __func__, (u64)base, (u64)base + size - 1,
++		     (void *)_RET_IP_);
++	kmemleak_free_part(__va(base), size);
++	__memblock_remove(&memblock.reserved, base, size);
++}
++
++/*
++ * __memblock_free_late - free bootmem block pages directly to buddy allocator
++ * @addr: phys starting address of the  boot memory block
++ * @size: size of the boot memory block in bytes
++ *
++ * This is only useful when the bootmem allocator has already been torn
++ * down, but we are still initializing the system.  Pages are released directly
++ * to the buddy allocator, no bootmem metadata is updated because it is gone.
++ */
++void __init __memblock_free_late(phys_addr_t base, phys_addr_t size)
++{
++	u64 cursor, end;
++
++	memblock_dbg("%s: [%#016llx-%#016llx] %pF\n",
++		     __func__, (u64)base, (u64)base + size - 1,
++		     (void *)_RET_IP_);
++	kmemleak_free_part(__va(base), size);
++	cursor = PFN_UP(base);
++	end = PFN_DOWN(base + size);
++
++	for (; cursor < end; cursor++) {
++		__free_pages_bootmem(pfn_to_page(cursor), 0);
++		totalram_pages++;
++	}
++}
  
- 	if (*idx == (u64)ULLONG_MAX) {
- 		mi = mem->cnt - 1;
-@@ -780,7 +790,7 @@ void __init_memblock __next_free_mem_range_rev(u64 *idx, int nid,
- 		phys_addr_t m_end = m->base + m->size;
- 
- 		/* only memory regions are associated with nodes, check it */
--		if (nid != MAX_NUMNODES && nid != memblock_get_region_node(m))
-+		if (check_node && nid != memblock_get_region_node(m))
- 			continue;
- 
- 		/* scan areas before each reservation for intersection */
-@@ -903,7 +913,7 @@ phys_addr_t __init memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int n
- 
- phys_addr_t __init __memblock_alloc_base(phys_addr_t size, phys_addr_t align, phys_addr_t max_addr)
- {
--	return memblock_alloc_base_nid(size, align, max_addr, MAX_NUMNODES);
-+	return memblock_alloc_base_nid(size, align, max_addr, NUMA_NO_NODE);
- }
- 
- phys_addr_t __init memblock_alloc_base(phys_addr_t size, phys_addr_t align, phys_addr_t max_addr)
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index 59777e0..19121ce 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -117,7 +117,7 @@ static unsigned long __init free_low_memory_core_early(void)
- 	phys_addr_t start, end, size;
- 	u64 i;
- 
--	for_each_free_mem_range(i, MAX_NUMNODES, &start, &end, NULL)
-+	for_each_free_mem_range(i, NUMA_NO_NODE, &start, &end, NULL)
- 		count += __free_memory_core(start, end);
- 
- 	/* free range that is used for reserved array if we allocate it */
-@@ -161,7 +161,7 @@ unsigned long __init free_all_bootmem(void)
- 	reset_all_zones_managed_pages();
- 
- 	/*
--	 * We need to use MAX_NUMNODES instead of NODE_DATA(0)->node_id
-+	 * We need to use NUMA_NO_NODE instead of NODE_DATA(0)->node_id
- 	 *  because in some case like Node0 doesn't have RAM installed
- 	 *  low ram will be on Node1
- 	 */
-@@ -215,7 +215,7 @@ static void * __init ___alloc_bootmem_nopanic(unsigned long size,
- 
- restart:
- 
--	ptr = __alloc_memory_core_early(MAX_NUMNODES, size, align, goal, limit);
-+	ptr = __alloc_memory_core_early(NUMA_NO_NODE, size, align, goal, limit);
- 
- 	if (ptr)
- 		return ptr;
-@@ -299,7 +299,7 @@ again:
- 	if (ptr)
- 		return ptr;
- 
--	ptr = __alloc_memory_core_early(MAX_NUMNODES, size, align,
-+	ptr = __alloc_memory_core_early(NUMA_NO_NODE, size, align,
- 					goal, limit);
- 	if (ptr)
- 		return ptr;
+ /*
+  * Remaining API functions
 -- 
 1.7.9.5
 
