@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f41.google.com (mail-bk0-f41.google.com [209.85.214.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B0006B0128
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 17:51:51 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id v15so1665785bkz.28
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 14:51:51 -0800 (PST)
+Received: from mail-bk0-f44.google.com (mail-bk0-f44.google.com [209.85.214.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 9094B6B0129
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 18:05:36 -0500 (EST)
+Received: by mail-bk0-f44.google.com with SMTP id d7so1663133bkh.3
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 15:05:35 -0800 (PST)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id ed8si1407419bkc.43.2013.12.09.14.51.50
+        by mx.google.com with ESMTPS id cl3si5964199bkc.266.2013.12.09.15.05.35
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 09 Dec 2013 14:51:50 -0800 (PST)
-Date: Mon, 9 Dec 2013 17:51:42 -0500
+        Mon, 09 Dec 2013 15:05:35 -0800 (PST)
+Date: Mon, 9 Dec 2013 18:05:27 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
  access to memory reserves
-Message-ID: <20131209225142.GK21724@cmpxchg.org>
+Message-ID: <20131209230527.GL21724@cmpxchg.org>
 References: <alpine.DEB.2.02.1311261648570.21003@chino.kir.corp.google.com>
  <20131127163435.GA3556@cmpxchg.org>
  <20131202200221.GC5524@dhcp22.suse.cz>
@@ -82,48 +82,32 @@ reclaim.  Should we be checking for PF_EXITING too?
 > threads that were killed as part of the oom killer SIGKILL but weren't the 
 > thread lucky enough to get TIF_MEMDIE set and they were in the allocation 
 > path.
-
-
-
-> 
+>
 > Are you asking me to patch our kernel, get it rolled out, and plot a graph 
 > to show how often it gets triggered over time in our datacenters and that 
 > it causes us to get unnecessary oom kill notifications?
-> 
-> I'm trying to support you in any way I can by giving you the information 
-> you need, but in all honesty this seems pretty trivial and obvious to 
-> understand.  I'm really quite stunned at this thread.  What exactly are 
-> you arguing in the other direction for?  What does giving an oom 
-> notification before allowing exiting processes to free its memory so the 
-> memcg or system is no longer oom do?  Why can't you use memory thresholds 
-> or vmpressure for such a situation?
-> 
-> > > Such a process simply needs access to memory reserves to make progress and 
-> > > free its memory as part of the exit path.  The process waiting on 
-> > > memory.oom_control does _not_ need to do any of the actions mentioned in 
-> > > Documentation/cgroups/memory.txt: reduce usage, enlarge the limit, kill a 
-> > > process, or move a process with charge migration.
-> > > 
-> > > It would be ridiculous to require anybody implementing such a process to 
-> > > check if the oom condition still exists after a period of time before 
-> > > taking such an action.
-> > 
-> > Why would you consider that ridiculous? If your memcg is oom already
-> > then waiting few seconds to let racing tasks finish doesn't sound that
-> > bad to me.
-> > 
-> 
-> A few seconds?  Is that just handwaving or are you making a guarantee that 
-> all processes that need access to memory reserves will wake up, try its 
-> allocation, get the memcg's oom lock, get access to memory reserves, 
-> allocate, return to handle its pending SIGKILL, proceed down the exit() 
-> path, and free its memory by then?
-> 
-> Meanwhile, the userspace oom handler is doing its little sleep(3) that you 
-> suggest, it checks the status of the memcg, finds it's still oom, but 
-> doesn't realize because it didn't do a second blocking read() that its a 
-> second oom condition for a different process attached to the memcg and 
-> that process simply needs memory reserves to exit.
+
+I asked this because you were talking about all this nonsense of
+last-second checks and the probability of unnecessary kills.
+
+You kept insisting that this check has to be the last action before
+the OOM kill, which was an entirely different motivation for this
+change and I questioned the validity of this claim repeatedly during
+this thread, to which you never answered.
+
+You even re-inforced this motivation by suggesting the separate memcg
+margin check right before the OOM kill, so don't blame us for
+misunderstanding the exact placement of this check as your main
+argument when you repeated it over and over.
+
+All I object to is that the OOM killer is riddled with last-second
+checks of whether the OOM situation is still existant.  We establish
+that the context is OOM and once we are certain we are executing,
+period.
+
+Not catching PF_EXITING in the long window between the first reclaim
+and going OOM is a separate issue and I can see that this should be
+fixed but it should be checked before we start invoking OOM.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
