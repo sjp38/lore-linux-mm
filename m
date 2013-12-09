@@ -1,75 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 815916B004D
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 03:44:34 -0500 (EST)
-Received: by mail-pb0-f45.google.com with SMTP id rp16so4987801pbb.18
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 00:44:34 -0800 (PST)
-Received: from LGEMRELSE7Q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id v7si6614542pbi.68.2013.12.09.00.44.31
+Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
+	by kanga.kvack.org (Postfix) with ESMTP id A51686B0069
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 03:47:03 -0500 (EST)
+Received: by mail-ea0-f180.google.com with SMTP id f15so1394066eak.11
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 00:47:03 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTP id h45si8492488eeo.235.2013.12.09.00.47.02
         for <linux-mm@kvack.org>;
-        Mon, 09 Dec 2013 00:44:33 -0800 (PST)
-Date: Mon, 9 Dec 2013 17:47:20 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [QUESTION] balloon page isolation needs LRU lock?
-Message-ID: <20131209084720.GB27201@lge.com>
-References: <20131206085331.GA24706@lge.com>
- <20131206122142.GC26883@localhost.localdomain>
+        Mon, 09 Dec 2013 00:47:02 -0800 (PST)
+Date: Mon, 9 Dec 2013 08:46:59 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 13/18] mm: numa: Make NUMA-migrate related functions
+ static
+Message-ID: <20131209084659.GX11295@suse.de>
+References: <1386572952-1191-1-git-send-email-mgorman@suse.de>
+ <1386572952-1191-14-git-send-email-mgorman@suse.de>
+ <20131209072010.GA3716@hacker.(null)>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20131206122142.GC26883@localhost.localdomain>
+In-Reply-To: <20131209072010.GA3716@hacker.(null)>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alex Thorlton <athorlton@sgi.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Dec 06, 2013 at 10:21:43AM -0200, Rafael Aquini wrote:
-> On Fri, Dec 06, 2013 at 05:53:31PM +0900, Joonsoo Kim wrote:
-> > Hello, Rafael.
-> > 
-> > I looked at some compaction code and found that some oddity about
-> > balloon compaction. In isolate_migratepages_range(), if we meet
-> > !PageLRU(), we check whether this page is for balloon compaction.
-> > In this case, code needs locked. Is the lock really needed? I can't find
-> > any relationship between balloon compaction and LRU lock.
-> > 
-> > Second question is that in above case if we don't hold a lock, we
-> > skip this page. I guess that if we meet balloon page repeatedly, there
-> > is no change to run isolation. Am I missing?
-> > 
-> > Please let me know what I am missing.
-> > 
-> > Thanks in advance.
+On Mon, Dec 09, 2013 at 03:20:10PM +0800, Wanpeng Li wrote:
+> Hi Mel,
+> On Mon, Dec 09, 2013 at 07:09:07AM +0000, Mel Gorman wrote:
+> >numamigrate_update_ratelimit and numamigrate_isolate_page only have callers
+> >in mm/migrate.c. This patch makes them static.
+> >
 > 
-> Howdy Joonsoo, thanks for your question.
+> I have already send out patches to fix this issue yesterday. ;-)
 > 
-> The major reason I left the 'locked' case in place when isolating balloon pages
-> was to keep consistency with the other isolation cases. Among all page types we
-> isolate for compaction balloon pages are an exception as, you noticed, they're
-> not on LRU lists. So, we (specially) fake balloon pages as LRU to isolate/compact them, 
-> withouth having to sort to drastic surgeries into kernel code to implement
-> exception cases for isolating/compacting balloon pages.
+> http://marc.info/?l=linux-mm&m=138648332222847&w=2
+> http://marc.info/?l=linux-mm&m=138648332422848&w=2
 > 
-> As others pages we isolate for compaction are isolated while holding the
-> zone->lru_lock, I left the same condition placed for balloon pages as a
-> safeguard for consistency. If we hit a balloon page while scanning page blocks
-> and we do not have the lru lock held, then the balloon page will be treated 
-> by the scanning mechanism just as what it is: a !PageLRU() case, and life will
-> go on as described by the algorithm.
-> 
-> OTOH, there's no direct relationship between the balloon page and the LRU lock,
-> other than this consistency one I aforementioned. I've never seen any major
-> trouble on letting the lock requirement in place during my tests on workloads
-> that mix balloon pages and compaction. However, if you're seeing any trouble and
-> that lru lock requirement is acting as an overkill or playing a bad role on your
-> tests, you can get rid of it easily, IMHO.
 
-Hello, Rafael.
+I know. I had written the patch some time ago waiting to go out with
+the TLB flush fix and just didn't bother dropping it in response to your
+series.
 
-Thanks for nice explanation.
-Now I totally understand what it means and why it does.
-
-Thanks!
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
