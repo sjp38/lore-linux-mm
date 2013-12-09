@@ -1,60 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f181.google.com (mail-ea0-f181.google.com [209.85.215.181])
-	by kanga.kvack.org (Postfix) with ESMTP id C3E4E6B003D
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 10:50:04 -0500 (EST)
-Received: by mail-ea0-f181.google.com with SMTP id m10so1666615eaj.12
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 07:50:04 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id e2si10067467eeg.156.2013.12.09.07.50.03
+Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 947E36B00B2
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 10:57:53 -0500 (EST)
+Received: by mail-we0-f174.google.com with SMTP id q58so3624348wes.19
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 07:57:53 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id pc6si4850943wjb.130.2013.12.09.07.57.52
         for <linux-mm@kvack.org>;
-        Mon, 09 Dec 2013 07:50:03 -0800 (PST)
-Date: Mon, 9 Dec 2013 16:50:02 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: add show num_poisoned_pages when oom
-Message-ID: <20131209155002.GE3597@dhcp22.suse.cz>
-References: <52A592DE.7010302@huawei.com>
+        Mon, 09 Dec 2013 07:57:52 -0800 (PST)
+Message-ID: <52A5E87B.9080209@redhat.com>
+Date: Mon, 09 Dec 2013 10:57:47 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52A592DE.7010302@huawei.com>
+Subject: Re: [PATCH 09/18] mm: numa: Clear numa hinting information on mprotect
+References: <1386572952-1191-1-git-send-email-mgorman@suse.de> <1386572952-1191-10-git-send-email-mgorman@suse.de>
+In-Reply-To: <1386572952-1191-10-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, rientjes@google.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alex Thorlton <athorlton@sgi.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 09-12-13 17:52:30, Xishi Qiu wrote:
-> Show num_poisoned_pages when oom, it is helpful to find the reason.
-> 
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+On 12/09/2013 02:09 AM, Mel Gorman wrote:
+> On a protection change it is no longer clear if the page should be still
+> accessible.  This patch clears the NUMA hinting fault bits on a protection
+> change.
 
-I would not expect the number of these pages would be too high to matter in
-real life but having the information cannot be harmful in any way.
+I had to think about this one, because my first thought was
+"wait, aren't NUMA ptes inaccessible already?".
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Then I thought about doing things like adding read or write
+permission in the mprotect, eg. changing from PROT_NONE to
+PROT_READ ... and it became unclear what to do with the NUMA
+bit in that case...
 
-> ---
->  lib/show_mem.c |    3 +++
->  1 files changed, 3 insertions(+), 0 deletions(-)
-> 
-> diff --git a/lib/show_mem.c b/lib/show_mem.c
-> index 5847a49..1cbdcd8 100644
-> --- a/lib/show_mem.c
-> +++ b/lib/show_mem.c
-> @@ -46,4 +46,7 @@ void show_mem(unsigned int filter)
->  	printk("%lu pages in pagetable cache\n",
->  		quicklist_total_size());
->  #endif
-> +#ifdef CONFIG_MEMORY_FAILURE
-> +	printk("%lu pages poisoned\n", atomic_long_read(&num_poisoned_pages));
-> +#endif
->  }
-> -- 
-> 1.7.1
-> 
+This patch clears up some confusing situations :)
+
+> Cc: stable@vger.kernel.org
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 -- 
-Michal Hocko
-SUSE Labs
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
