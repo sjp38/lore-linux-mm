@@ -1,94 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id A5C726B0092
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 02:20:24 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id r10so4695845pdi.38
-        for <linux-mm@kvack.org>; Sun, 08 Dec 2013 23:20:24 -0800 (PST)
-Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com. [202.81.31.143])
-        by mx.google.com with ESMTPS id pt8si6392236pac.76.2013.12.08.23.20.22
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id EA2816B0035
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 03:06:07 -0500 (EST)
+Received: by mail-la0-f47.google.com with SMTP id ep20so1269096lab.6
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 00:06:07 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id y7si3282441lal.44.2013.12.09.00.06.06
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 08 Dec 2013 23:20:23 -0800 (PST)
-Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 9 Dec 2013 17:20:20 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id C1C6B2BB0057
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 18:20:18 +1100 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB9722Lq8061388
-	for <linux-mm@kvack.org>; Mon, 9 Dec 2013 18:02:08 +1100
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rB97KBOf015934
-	for <linux-mm@kvack.org>; Mon, 9 Dec 2013 18:20:11 +1100
-Date: Mon, 9 Dec 2013 15:20:10 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 13/18] mm: numa: Make NUMA-migrate related functions
- static
-Message-ID: <52a56f37.28dc420a.5f91.3c7fSMTPIN_ADDED_BROKEN@mx.google.com>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1386572952-1191-1-git-send-email-mgorman@suse.de>
- <1386572952-1191-14-git-send-email-mgorman@suse.de>
+        Mon, 09 Dec 2013 00:06:06 -0800 (PST)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH v13 00/16] kmemcg shrinkers
+Date: Mon, 9 Dec 2013 12:05:41 +0400
+Message-ID: <cover.1386571280.git.vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1386572952-1191-14-git-send-email-mgorman@suse.de>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alex Thorlton <athorlton@sgi.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: dchinner@redhat.com, hannes@cmpxchg.org, mhocko@suse.cz, akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, glommer@gmail.com, vdavydov@parallels.com
 
-Hi Mel,
-On Mon, Dec 09, 2013 at 07:09:07AM +0000, Mel Gorman wrote:
->numamigrate_update_ratelimit and numamigrate_isolate_page only have callers
->in mm/migrate.c. This patch makes them static.
->
+Hi,
 
-I have already send out patches to fix this issue yesterday. ;-)
+This is the 13th iteration of Glauber Costa's patch-set implementing slab
+shrinking on memcg pressure. The main idea is to make the list_lru structure
+used by most FS shrinkers per-memcg. When adding or removing an element from a
+list_lru, we use the page information to figure out which memcg it belongs to
+and relay it to the appropriate list. This allows scanning kmem objects
+accounted to different memcgs independently.
 
-http://marc.info/?l=linux-mm&m=138648332222847&w=2
-http://marc.info/?l=linux-mm&m=138648332422848&w=2
+Please note that in contrast to previous versions this patch-set implements
+slab shrinking only when we hit the user memory limit so that kmem allocations
+will still fail if we are below the user memory limit, but close to the kmem
+limit. This is, because the implementation of kmem-only reclaim was rather
+incomplete - we had to fail GFP_NOFS allocations since everything we could
+reclaim was only FS data. I will try to improve this and send in a separate
+patch-set, but currently it is only worthwhile setting the kmem limit to be
+greater than the user mem limit just to enable per-memcg slab accounting and
+reclaim.
 
-Regards,
-Wanpeng Li 
+The patch-set is based on top of Linux-3.13-rc3 and organized as follows:
+ - patches 1-9 prepare vmscan, memcontrol, list_lru to kmemcg reclaim;
+ - patch 10 implements the kmemcg reclaim core;
+ - patch 11 makes the list_lru struct per-memcg and patch 12 marks all
+   list_lru-based shrinkers as memcg-aware;
+ - patches 13-16 slightly improve memcontrol behavior regarding mem reclaim.
 
->Signed-off-by: Mel Gorman <mgorman@suse.de>
->---
-> mm/migrate.c | 5 +++--
-> 1 file changed, 3 insertions(+), 2 deletions(-)
->
->diff --git a/mm/migrate.c b/mm/migrate.c
->index 5372521..77147bd 100644
->--- a/mm/migrate.c
->+++ b/mm/migrate.c
->@@ -1593,7 +1593,8 @@ bool migrate_ratelimited(int node)
-> }
->
-> /* Returns true if the node is migrate rate-limited after the update */
->-bool numamigrate_update_ratelimit(pg_data_t *pgdat, unsigned long nr_pages)
->+static bool numamigrate_update_ratelimit(pg_data_t *pgdat,
->+					unsigned long nr_pages)
-> {
-> 	bool rate_limited = false;
->
->@@ -1617,7 +1618,7 @@ bool numamigrate_update_ratelimit(pg_data_t *pgdat, unsigned long nr_pages)
-> 	return rate_limited;
-> }
->
->-int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
->+static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
-> {
-> 	int page_lru;
->
->-- 
->1.8.4
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Changes in v13:
+ - fix NUMA-unaware shrinkers not being called when node 0 is not set in the
+   nodemask;
+ - rework list_lru API to require a shrink_control
+ - make list_lru automatically handle memcgs w/o introducing a separate struct;
+ - simplify walk over all memcg LRUs of a list_lru;
+ - cleanup shrink_slab()
+ - remove kmem-only reclaim as explained above;
+
+Previous iterations of this patch-set can be found here:
+ - https://lkml.org/lkml/2013/12/2/141
+ - https://lkml.org/lkml/2013/11/25/214
+
+Thanks.
+
+Glauber Costa (7):
+  memcg: make cache index determination more robust
+  memcg: consolidate callers of memcg_cache_id
+  memcg: move initialization to memcg creation
+  vmscan: take at least one pass with shrinkers
+  vmpressure: in-kernel notifications
+  memcg: reap dead memcgs upon global memory pressure
+  memcg: flush memcg items upon memcg destruction
+
+Vladimir Davydov (9):
+  memcg: move memcg_caches_array_size() function
+  vmscan: move call to shrink_slab() to shrink_zones()
+  vmscan: remove shrink_control arg from do_try_to_free_pages()
+  vmscan: call NUMA-unaware shrinkers irrespective of nodemask
+  mm: list_lru: require shrink_control in count, walk functions
+  fs: consolidate {nr,free}_cached_objects args in shrink_control
+  vmscan: shrink slab on memcg pressure
+  mm: list_lru: add per-memcg lists
+  fs: mark list_lru based shrinkers memcg aware
+
+ fs/dcache.c                |   17 +-
+ fs/gfs2/quota.c            |   10 +-
+ fs/inode.c                 |    8 +-
+ fs/internal.h              |    9 +-
+ fs/super.c                 |   24 ++-
+ fs/xfs/xfs_buf.c           |   16 +-
+ fs/xfs/xfs_qm.c            |    8 +-
+ fs/xfs/xfs_super.c         |    6 +-
+ include/linux/fs.h         |    6 +-
+ include/linux/list_lru.h   |   83 ++++++----
+ include/linux/memcontrol.h |   35 ++++
+ include/linux/shrinker.h   |   10 +-
+ include/linux/vmpressure.h |    5 +
+ mm/list_lru.c              |  263 +++++++++++++++++++++++++++---
+ mm/memcontrol.c            |  384 +++++++++++++++++++++++++++++++++++++++-----
+ mm/vmpressure.c            |   53 +++++-
+ mm/vmscan.c                |  172 +++++++++++++-------
+ 17 files changed, 888 insertions(+), 221 deletions(-)
+
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
