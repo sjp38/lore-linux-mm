@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
-	by kanga.kvack.org (Postfix) with ESMTP id F24F26B0036
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 03:06:12 -0500 (EST)
-Received: by mail-la0-f45.google.com with SMTP id eh20so1285469lab.4
+Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 531756B0038
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 03:06:13 -0500 (EST)
+Received: by mail-la0-f44.google.com with SMTP id ep20so1288601lab.3
         for <linux-mm@kvack.org>; Mon, 09 Dec 2013 00:06:12 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id d10si3268065lae.157.2013.12.09.00.06.11
+        by mx.google.com with ESMTPS id h4si3265663lam.176.2013.12.09.00.06.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
         Mon, 09 Dec 2013 00:06:11 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH v13 12/16] fs: mark list_lru based shrinkers memcg aware
-Date: Mon, 9 Dec 2013 12:05:53 +0400
-Message-ID: <9e1005848996c3df5ceca9e8262edcf8211a893d.1386571280.git.vdavydov@parallels.com>
+Subject: [PATCH v13 05/16] vmscan: move call to shrink_slab() to shrink_zones()
+Date: Mon, 9 Dec 2013 12:05:46 +0400
+Message-ID: <71c7c5bbcad2e29f81eaf9eaad36c120815125c8.1386571280.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1386571280.git.vdavydov@parallels.com>
 References: <cover.1386571280.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -20,77 +20,132 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dchinner@redhat.com, hannes@cmpxchg.org, mhocko@suse.cz, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, glommer@gmail.com, vdavydov@parallels.com, Al Viro <viro@zeniv.linux.org.uk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, glommer@gmail.com, vdavydov@parallels.com, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-Since now list_lru automatically distributes objects among per-memcg
-lists and list_lru_{count,walk} employ information passed in the
-shrink_control argument to scan appropriate list, all shrinkers that
-keep objects in the list_lru structure can already work as memcg-aware.
-Let us mark them so.
+This reduces the indentation level of do_try_to_free_pages() and removes
+extra loop over all eligible zones counting the number of on-LRU pages.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 Cc: Glauber Costa <glommer@openvz.org>
-Cc: Dave Chinner <dchinner@redhat.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
 ---
- fs/gfs2/quota.c  |    2 +-
- fs/super.c       |    2 +-
- fs/xfs/xfs_buf.c |    2 +-
- fs/xfs/xfs_qm.c  |    2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ mm/vmscan.c |   57 ++++++++++++++++++++++++++-------------------------------
+ 1 file changed, 26 insertions(+), 31 deletions(-)
 
-diff --git a/fs/gfs2/quota.c b/fs/gfs2/quota.c
-index f0435da..6cf6114 100644
---- a/fs/gfs2/quota.c
-+++ b/fs/gfs2/quota.c
-@@ -150,7 +150,7 @@ struct shrinker gfs2_qd_shrinker = {
- 	.count_objects = gfs2_qd_shrink_count,
- 	.scan_objects = gfs2_qd_shrink_scan,
- 	.seeks = DEFAULT_SEEKS,
--	.flags = SHRINKER_NUMA_AWARE,
-+	.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE,
- };
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index eea668d..035ab3a 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2273,13 +2273,17 @@ static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
+  * the caller that it should consider retrying the allocation instead of
+  * further reclaim.
+  */
+-static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
++static bool shrink_zones(struct zonelist *zonelist,
++			 struct scan_control *sc,
++			 struct shrink_control *shrink)
+ {
+ 	struct zoneref *z;
+ 	struct zone *zone;
+ 	unsigned long nr_soft_reclaimed;
+ 	unsigned long nr_soft_scanned;
++	unsigned long lru_pages = 0;
+ 	bool aborted_reclaim = false;
++	struct reclaim_state *reclaim_state = current->reclaim_state;
  
+ 	/*
+ 	 * If the number of buffer_heads in the machine exceeds the maximum
+@@ -2289,6 +2293,8 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+ 	if (buffer_heads_over_limit)
+ 		sc->gfp_mask |= __GFP_HIGHMEM;
  
-diff --git a/fs/super.c b/fs/super.c
-index 8f9a81b..05bead8 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -219,7 +219,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
- 	s->s_shrink.scan_objects = super_cache_scan;
- 	s->s_shrink.count_objects = super_cache_count;
- 	s->s_shrink.batch = 1024;
--	s->s_shrink.flags = SHRINKER_NUMA_AWARE;
-+	s->s_shrink.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE;
- 	return s;
++	nodes_clear(shrink->nodes_to_scan);
++
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+ 					gfp_zone(sc->gfp_mask), sc->nodemask) {
+ 		if (!populated_zone(zone))
+@@ -2300,6 +2306,10 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+ 		if (global_reclaim(sc)) {
+ 			if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+ 				continue;
++
++			lru_pages += zone_reclaimable_pages(zone);
++			node_set(zone_to_nid(zone), shrink->nodes_to_scan);
++
+ 			if (sc->priority != DEF_PRIORITY &&
+ 			    !zone_reclaimable(zone))
+ 				continue;	/* Let kswapd poll it */
+@@ -2336,6 +2346,20 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+ 		shrink_zone(zone, sc);
+ 	}
  
- fail:
-diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
-index 5b2a49c..d8326b6 100644
---- a/fs/xfs/xfs_buf.c
-+++ b/fs/xfs/xfs_buf.c
-@@ -1679,7 +1679,7 @@ xfs_alloc_buftarg(
- 	btp->bt_shrinker.count_objects = xfs_buftarg_shrink_count;
- 	btp->bt_shrinker.scan_objects = xfs_buftarg_shrink_scan;
- 	btp->bt_shrinker.seeks = DEFAULT_SEEKS;
--	btp->bt_shrinker.flags = SHRINKER_NUMA_AWARE;
-+	btp->bt_shrinker.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE;
- 	register_shrinker(&btp->bt_shrinker);
- 	return btp;
- 
-diff --git a/fs/xfs/xfs_qm.c b/fs/xfs/xfs_qm.c
-index aaacf8f..1f9bbb5 100644
---- a/fs/xfs/xfs_qm.c
-+++ b/fs/xfs/xfs_qm.c
-@@ -903,7 +903,7 @@ xfs_qm_init_quotainfo(
- 	qinf->qi_shrinker.count_objects = xfs_qm_shrink_count;
- 	qinf->qi_shrinker.scan_objects = xfs_qm_shrink_scan;
- 	qinf->qi_shrinker.seeks = DEFAULT_SEEKS;
--	qinf->qi_shrinker.flags = SHRINKER_NUMA_AWARE;
-+	qinf->qi_shrinker.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE;
- 	register_shrinker(&qinf->qi_shrinker);
- 	return 0;
++	/*
++	 * Don't shrink slabs when reclaiming memory from over limit
++	 * cgroups but do shrink slab at least once when aborting
++	 * reclaim for compaction to avoid unevenly scanning file/anon
++	 * LRU pages over slab pages.
++	 */
++	if (global_reclaim(sc)) {
++		shrink_slab(shrink, sc->nr_scanned, lru_pages);
++		if (reclaim_state) {
++			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
++			reclaim_state->reclaimed_slab = 0;
++		}
++	}
++
+ 	return aborted_reclaim;
  }
+ 
+@@ -2380,9 +2404,6 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 					struct shrink_control *shrink)
+ {
+ 	unsigned long total_scanned = 0;
+-	struct reclaim_state *reclaim_state = current->reclaim_state;
+-	struct zoneref *z;
+-	struct zone *zone;
+ 	unsigned long writeback_threshold;
+ 	bool aborted_reclaim;
+ 
+@@ -2395,34 +2416,8 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
+ 				sc->priority);
+ 		sc->nr_scanned = 0;
+-		aborted_reclaim = shrink_zones(zonelist, sc);
+-
+-		/*
+-		 * Don't shrink slabs when reclaiming memory from over limit
+-		 * cgroups but do shrink slab at least once when aborting
+-		 * reclaim for compaction to avoid unevenly scanning file/anon
+-		 * LRU pages over slab pages.
+-		 */
+-		if (global_reclaim(sc)) {
+-			unsigned long lru_pages = 0;
++		aborted_reclaim = shrink_zones(zonelist, sc, shrink);
+ 
+-			nodes_clear(shrink->nodes_to_scan);
+-			for_each_zone_zonelist(zone, z, zonelist,
+-					gfp_zone(sc->gfp_mask)) {
+-				if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+-					continue;
+-
+-				lru_pages += zone_reclaimable_pages(zone);
+-				node_set(zone_to_nid(zone),
+-					 shrink->nodes_to_scan);
+-			}
+-
+-			shrink_slab(shrink, sc->nr_scanned, lru_pages);
+-			if (reclaim_state) {
+-				sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+-				reclaim_state->reclaimed_slab = 0;
+-			}
+-		}
+ 		total_scanned += sc->nr_scanned;
+ 		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
+ 			goto out;
 -- 
 1.7.10.4
 
