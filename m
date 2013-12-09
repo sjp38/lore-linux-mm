@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 26C936B009B
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 09:09:56 -0500 (EST)
-Received: by mail-we0-f177.google.com with SMTP id u56so3428816wes.22
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 06:09:55 -0800 (PST)
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 937736B009D
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 09:14:26 -0500 (EST)
+Received: by mail-wi0-f178.google.com with SMTP id bz8so3658337wib.11
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 06:14:26 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id wx3si4616393wjb.102.2013.12.09.06.09.54
+        by mx.google.com with ESMTP id k7si6794685wic.54.2013.12.09.06.14.25
         for <linux-mm@kvack.org>;
-        Mon, 09 Dec 2013 06:09:55 -0800 (PST)
-Message-ID: <52A5CF2F.6090802@redhat.com>
-Date: Mon, 09 Dec 2013 09:09:51 -0500
+        Mon, 09 Dec 2013 06:14:25 -0800 (PST)
+Message-ID: <52A5D03C.1040100@redhat.com>
+Date: Mon, 09 Dec 2013 09:14:20 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/18] mm: numa: Call MMU notifiers on THP migration
-References: <1386572952-1191-1-git-send-email-mgorman@suse.de> <1386572952-1191-3-git-send-email-mgorman@suse.de>
-In-Reply-To: <1386572952-1191-3-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 03/18] mm: Clear pmd_numa before invalidating
+References: <1386572952-1191-1-git-send-email-mgorman@suse.de> <1386572952-1191-4-git-send-email-mgorman@suse.de>
+In-Reply-To: <1386572952-1191-4-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -23,8 +23,9 @@ To: Mel Gorman <mgorman@suse.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Alex Thorlton <athorlton@sgi.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
 On 12/09/2013 02:08 AM, Mel Gorman wrote:
-> MMU notifiers must be called on THP page migration or secondary MMUs will
-> get very confused.
+> pmdp_invalidate clears the present bit without taking into account that it
+> might be in the _PAGE_NUMA bit leaving the PMD in an unexpected state. Clear
+> pmd_numa before invalidating.
 > 
 > Cc: stable@vger.kernel.org
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
