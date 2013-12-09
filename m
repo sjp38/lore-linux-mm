@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f42.google.com (mail-yh0-f42.google.com [209.85.213.42])
-	by kanga.kvack.org (Postfix) with ESMTP id C00F66B0107
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 16:52:15 -0500 (EST)
-Received: by mail-yh0-f42.google.com with SMTP id z6so3251835yhz.29
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 13:52:15 -0800 (PST)
+Received: from mail-yh0-f54.google.com (mail-yh0-f54.google.com [209.85.213.54])
+	by kanga.kvack.org (Postfix) with ESMTP id DA9FB6B0108
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 16:52:16 -0500 (EST)
+Received: by mail-yh0-f54.google.com with SMTP id z12so3229550yhz.13
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 13:52:16 -0800 (PST)
 Received: from comal.ext.ti.com (comal.ext.ti.com. [198.47.26.152])
-        by mx.google.com with ESMTPS id u45si11319147yhc.53.2013.12.09.13.52.14
+        by mx.google.com with ESMTPS id s6si11316236yho.64.2013.12.09.13.52.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 09 Dec 2013 13:52:14 -0800 (PST)
+        Mon, 09 Dec 2013 13:52:16 -0800 (PST)
 From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [PATCH v3 18/23] mm/percpu: Use memblock apis for early memory allocations
-Date: Mon, 9 Dec 2013 16:50:51 -0500
-Message-ID: <1386625856-12942-19-git-send-email-santosh.shilimkar@ti.com>
+Subject: [PATCH v3 20/23] mm/firmware: Use memblock apis for early memory allocations
+Date: Mon, 9 Dec 2013 16:50:53 -0500
+Message-ID: <1386625856-12942-21-git-send-email-santosh.shilimkar@ti.com>
 In-Reply-To: <1386625856-12942-1-git-send-email-santosh.shilimkar@ti.com>
 References: <1386625856-12942-1-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
@@ -20,7 +20,7 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Santosh Shilimkar <santosh.shilimkar@ti.com>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Santosh Shilimkar <santosh.shilimkar@ti.com>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Grygorii Strashko <grygorii.strashko@ti.com>
 
 Switch to memblock interfaces for early memory allocator instead of
 bootmem allocator. No functional change in beahvior than what it is
@@ -34,142 +34,25 @@ bootmem APIs.
 Cc: Yinghai Lu <yinghai@kernel.org>
 Cc: Tejun Heo <tj@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>
+Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
 Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 ---
- mm/percpu.c |   38 ++++++++++++++++++++++----------------
- 1 file changed, 22 insertions(+), 16 deletions(-)
+ drivers/firmware/memmap.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/percpu.c b/mm/percpu.c
-index 0d10def..65fd8a7 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -1063,7 +1063,7 @@ struct pcpu_alloc_info * __init pcpu_alloc_alloc_info(int nr_groups,
- 			  __alignof__(ai->groups[0].cpu_map[0]));
- 	ai_size = base_size + nr_units * sizeof(ai->groups[0].cpu_map[0]);
- 
--	ptr = alloc_bootmem_nopanic(PFN_ALIGN(ai_size));
-+	ptr = memblock_virt_alloc_nopanic(PFN_ALIGN(ai_size), 0);
- 	if (!ptr)
- 		return NULL;
- 	ai = ptr;
-@@ -1088,7 +1088,7 @@ struct pcpu_alloc_info * __init pcpu_alloc_alloc_info(int nr_groups,
-  */
- void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai)
+diff --git a/drivers/firmware/memmap.c b/drivers/firmware/memmap.c
+index e2e04b0..17cf96c 100644
+--- a/drivers/firmware/memmap.c
++++ b/drivers/firmware/memmap.c
+@@ -324,7 +324,7 @@ int __init firmware_map_add_early(u64 start, u64 end, const char *type)
  {
--	free_bootmem(__pa(ai), ai->__ai_size);
-+	memblock_free_early(__pa(ai), ai->__ai_size);
- }
+ 	struct firmware_map_entry *entry;
  
- /**
-@@ -1246,10 +1246,12 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 	PCPU_SETUP_BUG_ON(pcpu_verify_alloc_info(ai) < 0);
+-	entry = alloc_bootmem(sizeof(struct firmware_map_entry));
++	entry = memblock_virt_alloc(sizeof(struct firmware_map_entry), 0);
+ 	if (WARN_ON(!entry))
+ 		return -ENOMEM;
  
- 	/* process group information and build config tables accordingly */
--	group_offsets = alloc_bootmem(ai->nr_groups * sizeof(group_offsets[0]));
--	group_sizes = alloc_bootmem(ai->nr_groups * sizeof(group_sizes[0]));
--	unit_map = alloc_bootmem(nr_cpu_ids * sizeof(unit_map[0]));
--	unit_off = alloc_bootmem(nr_cpu_ids * sizeof(unit_off[0]));
-+	group_offsets = memblock_virt_alloc(ai->nr_groups *
-+					     sizeof(group_offsets[0]), 0);
-+	group_sizes = memblock_virt_alloc(ai->nr_groups *
-+					   sizeof(group_sizes[0]), 0);
-+	unit_map = memblock_virt_alloc(nr_cpu_ids * sizeof(unit_map[0]), 0);
-+	unit_off = memblock_virt_alloc(nr_cpu_ids * sizeof(unit_off[0]), 0);
- 
- 	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
- 		unit_map[cpu] = UINT_MAX;
-@@ -1311,7 +1313,8 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 	 * empty chunks.
- 	 */
- 	pcpu_nr_slots = __pcpu_size_to_slot(pcpu_unit_size) + 2;
--	pcpu_slot = alloc_bootmem(pcpu_nr_slots * sizeof(pcpu_slot[0]));
-+	pcpu_slot = memblock_virt_alloc(
-+			pcpu_nr_slots * sizeof(pcpu_slot[0]), 0);
- 	for (i = 0; i < pcpu_nr_slots; i++)
- 		INIT_LIST_HEAD(&pcpu_slot[i]);
- 
-@@ -1322,7 +1325,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 	 * covers static area + reserved area (mostly used for module
- 	 * static percpu allocation).
- 	 */
--	schunk = alloc_bootmem(pcpu_chunk_struct_size);
-+	schunk = memblock_virt_alloc(pcpu_chunk_struct_size, 0);
- 	INIT_LIST_HEAD(&schunk->list);
- 	schunk->base_addr = base_addr;
- 	schunk->map = smap;
-@@ -1346,7 +1349,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 
- 	/* init dynamic chunk if necessary */
- 	if (dyn_size) {
--		dchunk = alloc_bootmem(pcpu_chunk_struct_size);
-+		dchunk = memblock_virt_alloc(pcpu_chunk_struct_size, 0);
- 		INIT_LIST_HEAD(&dchunk->list);
- 		dchunk->base_addr = base_addr;
- 		dchunk->map = dmap;
-@@ -1626,7 +1629,7 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
- 	size_sum = ai->static_size + ai->reserved_size + ai->dyn_size;
- 	areas_size = PFN_ALIGN(ai->nr_groups * sizeof(void *));
- 
--	areas = alloc_bootmem_nopanic(areas_size);
-+	areas = memblock_virt_alloc_nopanic(areas_size, 0);
- 	if (!areas) {
- 		rc = -ENOMEM;
- 		goto out_free;
-@@ -1712,7 +1715,7 @@ out_free_areas:
- out_free:
- 	pcpu_free_alloc_info(ai);
- 	if (areas)
--		free_bootmem(__pa(areas), areas_size);
-+		memblock_free_early(__pa(areas), areas_size);
- 	return rc;
- }
- #endif /* BUILD_EMBED_FIRST_CHUNK */
-@@ -1760,7 +1763,7 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
- 	/* unaligned allocations can't be freed, round up to page size */
- 	pages_size = PFN_ALIGN(unit_pages * num_possible_cpus() *
- 			       sizeof(pages[0]));
--	pages = alloc_bootmem(pages_size);
-+	pages = memblock_virt_alloc(pages_size, 0);
- 
- 	/* allocate pages */
- 	j = 0;
-@@ -1823,7 +1826,7 @@ enomem:
- 		free_fn(page_address(pages[j]), PAGE_SIZE);
- 	rc = -ENOMEM;
- out_free_ar:
--	free_bootmem(__pa(pages), pages_size);
-+	memblock_free_early(__pa(pages), pages_size);
- 	pcpu_free_alloc_info(ai);
- 	return rc;
- }
-@@ -1848,12 +1851,13 @@ EXPORT_SYMBOL(__per_cpu_offset);
- static void * __init pcpu_dfl_fc_alloc(unsigned int cpu, size_t size,
- 				       size_t align)
- {
--	return __alloc_bootmem_nopanic(size, align, __pa(MAX_DMA_ADDRESS));
-+	return  memblock_virt_alloc_from_nopanic(
-+			size, align, __pa(MAX_DMA_ADDRESS));
- }
- 
- static void __init pcpu_dfl_fc_free(void *ptr, size_t size)
- {
--	free_bootmem(__pa(ptr), size);
-+	memblock_free_early(__pa(ptr), size);
- }
- 
- void __init setup_per_cpu_areas(void)
-@@ -1896,7 +1900,9 @@ void __init setup_per_cpu_areas(void)
- 	void *fc;
- 
- 	ai = pcpu_alloc_alloc_info(1, 1);
--	fc = __alloc_bootmem(unit_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
-+	fc = memblock_virt_alloc_from_nopanic(unit_size,
-+					      PAGE_SIZE,
-+					      __pa(MAX_DMA_ADDRESS));
- 	if (!ai || !fc)
- 		panic("Failed to allocate memory for percpu areas.");
- 	/* kmemleak tracks the percpu allocations separately */
 -- 
 1.7.9.5
 
