@@ -1,59 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
-	by kanga.kvack.org (Postfix) with ESMTP id A00626B010E
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 16:52:22 -0500 (EST)
-Received: by mail-qc0-f169.google.com with SMTP id r5so3315770qcx.0
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 13:52:22 -0800 (PST)
-Received: from arroyo.ext.ti.com (arroyo.ext.ti.com. [192.94.94.40])
-        by mx.google.com with ESMTPS id q6si9527555qag.184.2013.12.09.13.52.18
+Received: from mail-yh0-f48.google.com (mail-yh0-f48.google.com [209.85.213.48])
+	by kanga.kvack.org (Postfix) with ESMTP id AA5D76B011C
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 16:56:40 -0500 (EST)
+Received: by mail-yh0-f48.google.com with SMTP id f73so3212771yha.21
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 13:56:40 -0800 (PST)
+Received: from mail-yh0-x22d.google.com (mail-yh0-x22d.google.com [2607:f8b0:4002:c01::22d])
+        by mx.google.com with ESMTPS id k1si11319352yhm.93.2013.12.09.13.56.39
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 09 Dec 2013 13:52:20 -0800 (PST)
-From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [PATCH v3 22/23] mm/ARM: mm: Use memblock apis for early memory allocations
-Date: Mon, 9 Dec 2013 16:50:55 -0500
-Message-ID: <1386625856-12942-23-git-send-email-santosh.shilimkar@ti.com>
-In-Reply-To: <1386625856-12942-1-git-send-email-santosh.shilimkar@ti.com>
-References: <1386625856-12942-1-git-send-email-santosh.shilimkar@ti.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 09 Dec 2013 13:56:39 -0800 (PST)
+Received: by mail-yh0-f45.google.com with SMTP id v1so3238200yhn.18
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 13:56:39 -0800 (PST)
+Date: Mon, 9 Dec 2013 13:56:37 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, page_alloc: make __GFP_NOFAIL really not fail
+Message-ID: <alpine.DEB.2.02.1312091355360.11026@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Santosh Shilimkar <santosh.shilimkar@ti.com>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Switch to memblock interfaces for early memory allocator instead of
-bootmem allocator. No functional change in beahvior than what it is
-in current code from bootmem users points of view.
+__GFP_NOFAIL specifies that the page allocator cannot fail to return
+memory.  Allocators that call it may not even check for NULL upon
+returning.
 
-Archs already converted to NO_BOOTMEM now directly use memblock
-interfaces instead of bootmem wrappers build on top of memblock. And the
-archs which still uses bootmem, these new apis just fallback to exiting
-bootmem APIs.
+It turns out GFP_NOWAIT | __GFP_NOFAIL or GFP_ATOMIC | __GFP_NOFAIL can
+actually return NULL.  More interestingly, processes that are doing
+direct reclaim and have PF_MEMALLOC set may also return NULL for any
+__GFP_NOFAIL allocation.
 
-Cc: Yinghai Lu <yinghai@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
+This patch fixes it so that the page allocator never actually returns
+NULL as expected for __GFP_NOFAIL.  It turns out that no code actually
+does anything as crazy as GFP_ATOMIC | __GFP_NOFAIL currently, so this
+is more for correctness than a bug fix for that issue.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- arch/arm/mm/init.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/page_alloc.c | 24 +++++++++++++-----------
+ 1 file changed, 13 insertions(+), 11 deletions(-)
 
-diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-index 3e8f106..bee6d2c 100644
---- a/arch/arm/mm/init.c
-+++ b/arch/arm/mm/init.c
-@@ -461,7 +461,7 @@ free_memmap(unsigned long start_pfn, unsigned long end_pfn)
- 	 * free the section of the memmap array.
- 	 */
- 	if (pg < pgend)
--		free_bootmem(pg, pgend - pg);
-+		memblock_free_early(pg, pgend - pg);
- }
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2535,17 +2535,19 @@ rebalance:
+ 		}
+ 	}
  
- /*
--- 
-1.7.9.5
+-	/* Atomic allocations - we can't balance anything */
+-	if (!wait)
+-		goto nopage;
+-
+-	/* Avoid recursion of direct reclaim */
+-	if (current->flags & PF_MEMALLOC)
+-		goto nopage;
+-
+-	/* Avoid allocations with no watermarks from looping endlessly */
+-	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
+-		goto nopage;
++	if (likely(!(gfp_mask & __GFP_NOFAIL))) {
++		/* Atomic allocations - we can't balance anything */
++		if (!wait)
++			goto nopage;
++
++		/* Avoid recursion of direct reclaim */
++		if (current->flags & PF_MEMALLOC)
++			goto nopage;
++
++		/* Avoid allocations with no watermarks from looping forever */
++		if (test_thread_flag(TIF_MEMDIE))
++			goto nopage;
++	}
+ 
+ 	/*
+ 	 * Try direct compaction. The first pass is asynchronous. Subsequent
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
