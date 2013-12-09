@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f175.google.com (mail-qc0-f175.google.com [209.85.216.175])
-	by kanga.kvack.org (Postfix) with ESMTP id C547F6B0111
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 16:52:21 -0500 (EST)
-Received: by mail-qc0-f175.google.com with SMTP id e9so3299709qcy.34
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 13:52:21 -0800 (PST)
-Received: from comal.ext.ti.com (comal.ext.ti.com. [198.47.26.152])
-        by mx.google.com with ESMTPS id v3si8729751qat.21.2013.12.09.13.52.19
+Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
+	by kanga.kvack.org (Postfix) with ESMTP id A00626B010E
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 16:52:22 -0500 (EST)
+Received: by mail-qc0-f169.google.com with SMTP id r5so3315770qcx.0
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 13:52:22 -0800 (PST)
+Received: from arroyo.ext.ti.com (arroyo.ext.ti.com. [192.94.94.40])
+        by mx.google.com with ESMTPS id q6si9527555qag.184.2013.12.09.13.52.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
         Mon, 09 Dec 2013 13:52:20 -0800 (PST)
 From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [PATCH v3 17/23] mm/page_cgroup: Use memblock apis for early memory allocations
-Date: Mon, 9 Dec 2013 16:50:50 -0500
-Message-ID: <1386625856-12942-18-git-send-email-santosh.shilimkar@ti.com>
+Subject: [PATCH v3 22/23] mm/ARM: mm: Use memblock apis for early memory allocations
+Date: Mon, 9 Dec 2013 16:50:55 -0500
+Message-ID: <1386625856-12942-23-git-send-email-santosh.shilimkar@ti.com>
 In-Reply-To: <1386625856-12942-1-git-send-email-santosh.shilimkar@ti.com>
 References: <1386625856-12942-1-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
@@ -20,9 +20,7 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Grygorii Strashko <grygorii.strashko@ti.com>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Santosh Shilimkar <santosh.shilimkar@ti.com>
-
-From: Grygorii Strashko <grygorii.strashko@ti.com>
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Santosh Shilimkar <santosh.shilimkar@ti.com>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
 Switch to memblock interfaces for early memory allocator instead of
 bootmem allocator. No functional change in beahvior than what it is
@@ -36,31 +34,24 @@ bootmem APIs.
 Cc: Yinghai Lu <yinghai@kernel.org>
 Cc: Tejun Heo <tj@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
 Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 ---
- mm/page_cgroup.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ arch/arm/mm/init.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-index 6d757e3a..d8bd2c5 100644
---- a/mm/page_cgroup.c
-+++ b/mm/page_cgroup.c
-@@ -54,8 +54,9 @@ static int __init alloc_node_page_cgroup(int nid)
+diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+index 3e8f106..bee6d2c 100644
+--- a/arch/arm/mm/init.c
++++ b/arch/arm/mm/init.c
+@@ -461,7 +461,7 @@ free_memmap(unsigned long start_pfn, unsigned long end_pfn)
+ 	 * free the section of the memmap array.
+ 	 */
+ 	if (pg < pgend)
+-		free_bootmem(pg, pgend - pg);
++		memblock_free_early(pg, pgend - pg);
+ }
  
- 	table_size = sizeof(struct page_cgroup) * nr_pages;
- 
--	base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
--			table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
-+	base = memblock_virt_alloc_try_nid_nopanic(
-+			table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
-+			BOOTMEM_ALLOC_ACCESSIBLE, nid);
- 	if (!base)
- 		return -ENOMEM;
- 	NODE_DATA(nid)->node_page_cgroup = base;
+ /*
 -- 
 1.7.9.5
 
