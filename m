@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 0350A6B0103
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 16:52:08 -0500 (EST)
-Received: by mail-qa0-f41.google.com with SMTP id j5so3081811qaq.14
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 13:52:08 -0800 (PST)
-Received: from bear.ext.ti.com (bear.ext.ti.com. [192.94.94.41])
-        by mx.google.com with ESMTPS id 4si9623581qeq.17.2013.12.09.13.52.07
+Received: from mail-yh0-f48.google.com (mail-yh0-f48.google.com [209.85.213.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 45FAB6B0104
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 16:52:11 -0500 (EST)
+Received: by mail-yh0-f48.google.com with SMTP id f73so3242373yha.35
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 13:52:11 -0800 (PST)
+Received: from comal.ext.ti.com (comal.ext.ti.com. [198.47.26.152])
+        by mx.google.com with ESMTPS id q66si6176650yhm.179.2013.12.09.13.52.09
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 09 Dec 2013 13:52:08 -0800 (PST)
+        Mon, 09 Dec 2013 13:52:10 -0800 (PST)
 From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [PATCH v3 14/23] mm/lib/cpumask: Use memblock apis for early memory allocations
-Date: Mon, 9 Dec 2013 16:50:47 -0500
-Message-ID: <1386625856-12942-15-git-send-email-santosh.shilimkar@ti.com>
+Subject: [PATCH v3 15/23] mm/sparse: Use memblock apis for early memory allocations
+Date: Mon, 9 Dec 2013 16:50:48 -0500
+Message-ID: <1386625856-12942-16-git-send-email-santosh.shilimkar@ti.com>
 In-Reply-To: <1386625856-12942-1-git-send-email-santosh.shilimkar@ti.com>
 References: <1386625856-12942-1-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
@@ -36,30 +36,122 @@ Cc: Tejun Heo <tj@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 ---
- lib/cpumask.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/sparse-vmemmap.c |    6 ++++--
+ mm/sparse.c         |   27 +++++++++++++++------------
+ 2 files changed, 19 insertions(+), 14 deletions(-)
 
-diff --git a/lib/cpumask.c b/lib/cpumask.c
-index d327b87..b810b75 100644
---- a/lib/cpumask.c
-+++ b/lib/cpumask.c
-@@ -140,7 +140,7 @@ EXPORT_SYMBOL(zalloc_cpumask_var);
-  */
- void __init alloc_bootmem_cpumask_var(cpumask_var_t *mask)
+diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+index 27eeab3..4cba9c2 100644
+--- a/mm/sparse-vmemmap.c
++++ b/mm/sparse-vmemmap.c
+@@ -40,7 +40,8 @@ static void * __init_refok __earlyonly_bootmem_alloc(int node,
+ 				unsigned long align,
+ 				unsigned long goal)
  {
--	*mask = alloc_bootmem(cpumask_size());
-+	*mask = memblock_virt_alloc(cpumask_size(), 0);
+-	return __alloc_bootmem_node_high(NODE_DATA(node), size, align, goal);
++	return memblock_virt_alloc_try_nid(size, align, goal,
++					    BOOTMEM_ALLOC_ACCESSIBLE, node);
  }
  
- /**
-@@ -161,6 +161,6 @@ EXPORT_SYMBOL(free_cpumask_var);
-  */
- void __init free_bootmem_cpumask_var(cpumask_var_t mask)
+ static void *vmemmap_buf;
+@@ -226,7 +227,8 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+ 
+ 	if (vmemmap_buf_start) {
+ 		/* need to free left buf */
+-		free_bootmem(__pa(vmemmap_buf), vmemmap_buf_end - vmemmap_buf);
++		memblock_free_early(__pa(vmemmap_buf),
++				    vmemmap_buf_end - vmemmap_buf);
+ 		vmemmap_buf = NULL;
+ 		vmemmap_buf_end = NULL;
+ 	}
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 8cc7be0..63c3ea5 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -69,7 +69,7 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
+ 		else
+ 			section = kzalloc(array_size, GFP_KERNEL);
+ 	} else {
+-		section = alloc_bootmem_node(NODE_DATA(nid), array_size);
++		section = memblock_virt_alloc_node(array_size, nid);
+ 	}
+ 
+ 	return section;
+@@ -279,8 +279,9 @@ sparse_early_usemaps_alloc_pgdat_section(struct pglist_data *pgdat,
+ 	limit = goal + (1UL << PA_SECTION_SHIFT);
+ 	nid = early_pfn_to_nid(goal >> PAGE_SHIFT);
+ again:
+-	p = ___alloc_bootmem_node_nopanic(NODE_DATA(nid), size,
+-					  SMP_CACHE_BYTES, goal, limit);
++	p = memblock_virt_alloc_try_nid_nopanic(size,
++						SMP_CACHE_BYTES, goal, limit,
++						nid);
+ 	if (!p && limit) {
+ 		limit = 0;
+ 		goto again;
+@@ -331,7 +332,7 @@ static unsigned long * __init
+ sparse_early_usemaps_alloc_pgdat_section(struct pglist_data *pgdat,
+ 					 unsigned long size)
  {
--	free_bootmem(__pa(mask), cpumask_size());
-+	memblock_free_early(__pa(mask), cpumask_size());
+-	return alloc_bootmem_node_nopanic(pgdat, size);
++	return memblock_virt_alloc_node_nopanic(size, pgdat->node_id);
  }
+ 
+ static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
+@@ -376,8 +377,9 @@ struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid)
+ 		return map;
+ 
+ 	size = PAGE_ALIGN(sizeof(struct page) * PAGES_PER_SECTION);
+-	map = __alloc_bootmem_node_high(NODE_DATA(nid), size,
+-					 PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
++	map = memblock_virt_alloc_try_nid(size,
++					  PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
++					  BOOTMEM_ALLOC_ACCESSIBLE, nid);
+ 	return map;
+ }
+ void __init sparse_mem_maps_populate_node(struct page **map_map,
+@@ -401,8 +403,9 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+ 	}
+ 
+ 	size = PAGE_ALIGN(size);
+-	map = __alloc_bootmem_node_high(NODE_DATA(nodeid), size * map_count,
+-					 PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
++	map = memblock_virt_alloc_try_nid(size * map_count,
++					  PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
++					  BOOTMEM_ALLOC_ACCESSIBLE, nodeid);
+ 	if (map) {
+ 		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+ 			if (!present_section_nr(pnum))
+@@ -545,7 +548,7 @@ void __init sparse_init(void)
+ 	 * sparse_early_mem_map_alloc, so allocate usemap_map at first.
+ 	 */
+ 	size = sizeof(unsigned long *) * NR_MEM_SECTIONS;
+-	usemap_map = alloc_bootmem(size);
++	usemap_map = memblock_virt_alloc(size, 0);
+ 	if (!usemap_map)
+ 		panic("can not allocate usemap_map\n");
+ 	alloc_usemap_and_memmap(sparse_early_usemaps_alloc_node,
+@@ -553,7 +556,7 @@ void __init sparse_init(void)
+ 
+ #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+ 	size2 = sizeof(struct page *) * NR_MEM_SECTIONS;
+-	map_map = alloc_bootmem(size2);
++	map_map = memblock_virt_alloc(size2, 0);
+ 	if (!map_map)
+ 		panic("can not allocate map_map\n");
+ 	alloc_usemap_and_memmap(sparse_early_mem_maps_alloc_node,
+@@ -583,9 +586,9 @@ void __init sparse_init(void)
+ 	vmemmap_populate_print_last();
+ 
+ #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+-	free_bootmem(__pa(map_map), size2);
++	memblock_free_early(__pa(map_map), size2);
  #endif
+-	free_bootmem(__pa(usemap_map), size);
++	memblock_free_early(__pa(usemap_map), size);
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTPLUG
 -- 
 1.7.9.5
 
