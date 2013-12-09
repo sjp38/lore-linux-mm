@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f47.google.com (mail-qe0-f47.google.com [209.85.128.47])
-	by kanga.kvack.org (Postfix) with ESMTP id C81DC6B00BB
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 11:17:39 -0500 (EST)
-Received: by mail-qe0-f47.google.com with SMTP id t7so3055949qeb.34
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 08:17:39 -0800 (PST)
+Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 678486B00BD
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 11:20:15 -0500 (EST)
+Received: by mail-qa0-f48.google.com with SMTP id w5so2761995qac.14
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 08:20:15 -0800 (PST)
 Received: from a9-50.smtp-out.amazonses.com (a9-50.smtp-out.amazonses.com. [54.240.9.50])
-        by mx.google.com with ESMTP id r5si8594612qat.160.2013.12.09.08.17.33
+        by mx.google.com with ESMTP id il3si8622849qab.111.2013.12.09.08.20.14
         for <linux-mm@kvack.org>;
-        Mon, 09 Dec 2013 08:17:38 -0800 (PST)
-Date: Mon, 9 Dec 2013 16:17:32 +0000
+        Mon, 09 Dec 2013 08:20:14 -0800 (PST)
+Date: Mon, 9 Dec 2013 16:20:13 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2 2/7] mm/migrate: correct failure handling if
- !hugepage_migration_support()
-In-Reply-To: <1386580248-22431-3-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <00000142d8263858-5c29199b-77e5-47a5-9db6-2ea6ea7c7fc8-000000@email.amazonses.com>
-References: <1386580248-22431-1-git-send-email-iamjoonsoo.kim@lge.com> <1386580248-22431-3-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 6/7] mm/migrate: remove unused function,
+ fail_migrate_page()
+In-Reply-To: <1386580248-22431-7-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <00000142d828aafc-37d556c5-558d-4c78-86bf-006921ad6dae-000000@email.amazonses.com>
+References: <1386580248-22431-1-git-send-email-iamjoonsoo.kim@lge.com> <1386580248-22431-7-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -24,18 +24,7 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik
 
 On Mon, 9 Dec 2013, Joonsoo Kim wrote:
 
-> We should remove the page from the list if we fail without ENOSYS,
-> since migrate_pages() consider error cases except -ENOMEM and -EAGAIN
-> as permanent failure and it assumes that the page would be removed from
-> the list. Without this patch, we could overcount number of failure.
-
-Ok what does the patch do about this? I dont see any modifications. Remove
-this part of the description?
-
-> In addition, we should put back the new hugepage if
-> !hugepage_migration_support(). If not, we would leak hugepage memory.
-
-Ok looks like that is fixed by this patch.
+> fail_migrate_page() isn't used anywhere, so remove it.
 
 Acked-by: Christoph Lameter <cl@linux.com>
 
