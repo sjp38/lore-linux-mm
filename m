@@ -1,79 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 78B386B0068
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 21:22:37 -0500 (EST)
-Received: by mail-pd0-f177.google.com with SMTP id q10so6303660pdj.22
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 18:22:37 -0800 (PST)
-Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com. [202.81.31.140])
-        by mx.google.com with ESMTPS id e8si8940762pac.285.2013.12.09.18.22.32
+Received: from mail-bk0-f43.google.com (mail-bk0-f43.google.com [209.85.214.43])
+	by kanga.kvack.org (Postfix) with ESMTP id AF28C6B006E
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 21:32:04 -0500 (EST)
+Received: by mail-bk0-f43.google.com with SMTP id mz12so1706975bkb.30
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 18:32:03 -0800 (PST)
+Received: from mail-la0-x22d.google.com (mail-la0-x22d.google.com [2a00:1450:4010:c03::22d])
+        by mx.google.com with ESMTPS id s8si6208824bkh.189.2013.12.09.18.32.03
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 09 Dec 2013 18:22:34 -0800 (PST)
-Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 10 Dec 2013 12:22:28 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 997BD3578053
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 13:22:24 +1100 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBA2MCL066387980
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 13:22:12 +1100
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBA2MNgh024758
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 13:22:24 +1100
-Date: Tue, 10 Dec 2013 10:22:22 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 3/7] mm/mempolicy: correct putback method for isolate
- pages if failed
-Message-ID: <52a67aea.280d420a.3935.1addSMTPIN_ADDED_BROKEN@mx.google.com>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1386580248-22431-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1386580248-22431-4-git-send-email-iamjoonsoo.kim@lge.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 09 Dec 2013 18:32:03 -0800 (PST)
+Received: by mail-la0-f45.google.com with SMTP id eh20so2232502lab.4
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 18:32:03 -0800 (PST)
+Date: Tue, 10 Dec 2013 03:31:37 +0100
+From: Vladimir Murzin <murzin.v@gmail.com>
+Subject: Re: [PATCH v2] mm/hwpoison: add '#' to hwpoison_inject
+Message-ID: <20131210023133.GA1849@hp530>
+References: <1386632757-11783-1-git-send-email-liwanp@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=koi8-r
 Content-Disposition: inline
-In-Reply-To: <1386580248-22431-4-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1386632757-11783-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Rafael Aquini <aquini@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <js1304@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Dec 09, 2013 at 06:10:44PM +0900, Joonsoo Kim wrote:
->queue_pages_range() isolates hugetlbfs pages and putback_lru_pages() can't
->handle these. We should change it to putback_movable_pages().
->
->Naoya said that it is worth going into stable, because it can break
->in-use hugepage list.
->
->Cc: <stable@vger.kernel.org> # 3.12
->Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
+On Tue, Dec 10, 2013 at 07:45:57AM +0800, Wanpeng Li wrote:
+> Changelog:
+>  v1 -> v2:
+>   * remove KERN_INFO in pr_info().
+> 
+> Add '#' to hwpoison_inject just as done in madvise_hwpoison.
+> 
+> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> ---
+>  mm/hwpoison-inject.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/hwpoison-inject.c b/mm/hwpoison-inject.c
+> index 4c84678..95487c7 100644
+> --- a/mm/hwpoison-inject.c
+> +++ b/mm/hwpoison-inject.c
+> @@ -55,7 +55,7 @@ static int hwpoison_inject(void *data, u64 val)
+>  		return 0;
+>  
+>  inject:
+> -	printk(KERN_INFO "Injecting memory failure at pfn %lx\n", pfn);
+> +	pr_info("Injecting memory failure at pfn %#lx\n", pfn);
+>  	return memory_failure(pfn, 18, MF_COUNT_INCREASED);
+>  }
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Reviewed-by: Vladimir Murzin <murzin.v@gmail.com>
 
->diff --git a/mm/mempolicy.c b/mm/mempolicy.c
->index eca4a31..6d04d37 100644
->--- a/mm/mempolicy.c
->+++ b/mm/mempolicy.c
->@@ -1318,7 +1318,7 @@ static long do_mbind(unsigned long start, unsigned long len,
-> 		if (nr_failed && (flags & MPOL_MF_STRICT))
-> 			err = -EIO;
-> 	} else
->-		putback_lru_pages(&pagelist);
->+		putback_movable_pages(&pagelist);
->
-> 	up_write(&mm->mmap_sem);
->  mpol_out:
->-- 
->1.7.9.5
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>  
+> -- 
+> 1.7.5.4
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
