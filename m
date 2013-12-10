@@ -1,54 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
-	by kanga.kvack.org (Postfix) with ESMTP id A41686B0081
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 03:43:00 -0500 (EST)
-Received: by mail-ee0-f53.google.com with SMTP id b57so2050581eek.12
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 00:43:00 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id h45si13345992eeo.25.2013.12.10.00.42.59
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 9210F6B0085
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 03:48:58 -0500 (EST)
+Received: by mail-pd0-f174.google.com with SMTP id y13so6834951pdi.5
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 00:48:58 -0800 (PST)
+Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
+        by mx.google.com with ESMTP id bc2si9817370pad.71.2013.12.10.00.48.54
         for <linux-mm@kvack.org>;
-        Tue, 10 Dec 2013 00:42:59 -0800 (PST)
-Date: Tue, 10 Dec 2013 08:42:57 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 17/18] sched: Tracepoint task movement
-Message-ID: <20131210084257.GD11295@suse.de>
-References: <1386572952-1191-1-git-send-email-mgorman@suse.de>
- <1386572952-1191-18-git-send-email-mgorman@suse.de>
- <52A611FB.7000305@redhat.com>
+        Tue, 10 Dec 2013 00:48:57 -0800 (PST)
+Date: Tue, 10 Dec 2013 17:51:47 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 4/7] mm/migrate: remove putback_lru_pages, fix comment
+ on putback_movable_pages
+Message-ID: <20131210085147.GD24992@lge.com>
+References: <1386580248-22431-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1386580248-22431-5-git-send-email-iamjoonsoo.kim@lge.com>
+ <52a67d8c.6966420a.7a42.555fSMTPIN_ADDED_BROKEN@mx.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <52A611FB.7000305@redhat.com>
+In-Reply-To: <52a67d8c.6966420a.7a42.555fSMTPIN_ADDED_BROKEN@mx.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alex Thorlton <athorlton@sgi.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Drew Jones <drjones@redhat.com>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Rafael Aquini <aquini@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On Mon, Dec 09, 2013 at 01:54:51PM -0500, Rik van Riel wrote:
-> On 12/09/2013 02:09 AM, Mel Gorman wrote:
-> > move_task() is called from move_one_task and move_tasks and is an
-> > approximation of load balancer activity. We should be able to track
-> > tasks that move between CPUs frequently. If the tracepoint included node
-> > information then we could distinguish between in-node and between-node
-> > traffic for load balancer decisions. The tracepoint allows us to track
-> > local migrations, remote migrations and average task migrations.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> >@@ -1704,6 +1688,12 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
+> > 	nr_remaining = migrate_pages(&migratepages, alloc_misplaced_dst_page,
+> > 				     node, MIGRATE_ASYNC, MR_NUMA_MISPLACED);
+> > 	if (nr_remaining) {
+> >+		if (!list_empty(&migratepages)) {
+> >+			list_del(&page->lru);
+> >+			dec_zone_page_state(page, NR_ISOLATED_ANON +
+> >+					page_is_file_cache(page));
+> >+			putback_lru_page(page);
+> >+		}
+> > 		putback_lru_pages(&migratepages);
 > 
-> Does this replicate the task_sched_migrate_task tracepoint in
-> set_task_cpu() ?
+> You should remove this line. Otherwise,
+
+Yes, you are right. I will send next version. T_T
+
 > 
+> Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-There is significant overlap but bits missing. We do not necessarily know
-where the task was previously running and whether this is a local->remote
-migration. We also cannot tell the difference between load balancer activity,
-numa balancing and try_to_wake_up. Still, you're right, this patch is not
-painting a full picture either. I'll drop it for now and look at improving
-the existing task_sched_migrate_task tracepoint.
-
--- 
-Mel Gorman
-SUSE Labs
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
