@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3850F6B005C
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id E3C0B6B0062
 	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 10:51:46 -0500 (EST)
-Received: by mail-ee0-f51.google.com with SMTP id b15so2328019eek.24
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 07:51:45 -0800 (PST)
+Received: by mail-wg0-f43.google.com with SMTP id k14so5153638wgh.10
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 07:51:46 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id j47si14890872eeo.74.2013.12.10.07.51.45
+        by mx.google.com with ESMTP id s42si14873220eew.140.2013.12.10.07.51.46
         for <linux-mm@kvack.org>;
-        Tue, 10 Dec 2013 07:51:45 -0800 (PST)
+        Tue, 10 Dec 2013 07:51:46 -0800 (PST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 12/18] mm: numa: Defer TLB flush for THP migration as long as possible
-Date: Tue, 10 Dec 2013 15:51:30 +0000
-Message-Id: <1386690695-27380-13-git-send-email-mgorman@suse.de>
+Subject: [PATCH 13/18] mm: numa: Make NUMA-migrate related functions static
+Date: Tue, 10 Dec 2013 15:51:31 +0000
+Message-Id: <1386690695-27380-14-git-send-email-mgorman@suse.de>
 In-Reply-To: <1386690695-27380-1-git-send-email-mgorman@suse.de>
 References: <1386690695-27380-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -19,48 +19,38 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Alex Thorlton <athorlton@sgi.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-THP migration can fail for a variety of reasons. Avoid flushing the TLB
-to deal with THP migration races until the copy is ready to start.
+numamigrate_update_ratelimit and numamigrate_isolate_page only have callers
+in mm/migrate.c. This patch makes them static.
 
-Cc: stable@vger.kernel.org
 Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
- mm/huge_memory.c | 7 -------
- mm/migrate.c     | 3 +++
- 2 files changed, 3 insertions(+), 7 deletions(-)
+ mm/migrate.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index e3a5ee2..e3b6a75 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1377,13 +1377,6 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	}
- 
- 	/*
--	 * The page_table_lock above provides a memory barrier
--	 * with change_protection_range.
--	 */
--	if (tlb_flush_pending(mm))
--		flush_tlb_range(vma, haddr, haddr + HPAGE_PMD_SIZE);
--
--	/*
- 	 * Migrate the THP to the requested node, returns with page unlocked
- 	 * and pmd_numa cleared.
- 	 */
 diff --git a/mm/migrate.c b/mm/migrate.c
-index cfb4190..0c4fbf6 100644
+index 0c4fbf6..b6eef65 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
-@@ -1759,6 +1759,9 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 		goto out_fail;
- 	}
+@@ -1593,7 +1593,8 @@ bool migrate_ratelimited(int node)
+ }
  
-+	if (tlb_flush_pending(mm))
-+		flush_tlb_range(vma, mmun_start, mmun_end);
-+
- 	/* Prepare a page as a migration target */
- 	__set_page_locked(new_page);
- 	SetPageSwapBacked(new_page);
+ /* Returns true if the node is migrate rate-limited after the update */
+-bool numamigrate_update_ratelimit(pg_data_t *pgdat, unsigned long nr_pages)
++static bool numamigrate_update_ratelimit(pg_data_t *pgdat,
++					unsigned long nr_pages)
+ {
+ 	bool rate_limited = false;
+ 
+@@ -1617,7 +1618,7 @@ bool numamigrate_update_ratelimit(pg_data_t *pgdat, unsigned long nr_pages)
+ 	return rate_limited;
+ }
+ 
+-int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
++static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
+ {
+ 	int page_lru;
+ 
 -- 
 1.8.4
 
