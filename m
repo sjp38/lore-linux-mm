@@ -1,77 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C1606B0035
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 17:00:23 -0500 (EST)
-Received: by mail-qa0-f53.google.com with SMTP id j5so4145081qaq.19
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 14:00:22 -0800 (PST)
-Received: from a9-46.smtp-out.amazonses.com (a9-46.smtp-out.amazonses.com. [54.240.9.46])
-        by mx.google.com with ESMTP id r5si13348530qat.64.2013.12.10.14.00.19
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id C57756B0035
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 17:22:14 -0500 (EST)
+Received: by mail-pb0-f42.google.com with SMTP id uo5so8678314pbc.1
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 14:22:14 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id sa6si11634755pbb.23.2013.12.10.14.22.12
         for <linux-mm@kvack.org>;
-        Tue, 10 Dec 2013 14:00:20 -0800 (PST)
-Date: Tue, 10 Dec 2013 22:00:18 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] [RFC] mm: slab: separate slab_page from 'struct page'
-In-Reply-To: <52A78B55.8050500@sr71.net>
-Message-ID: <00000142de866123-cf1406b5-b7a3-4688-b46f-80e338a622a1-000000@email.amazonses.com>
-References: <20131210204641.3CB515AE@viggo.jf.intel.com> <00000142de5634af-f92870a7-efe2-45cd-b50d-a6fbdf3b353c-000000@email.amazonses.com> <52A78B55.8050500@sr71.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Tue, 10 Dec 2013 14:22:13 -0800 (PST)
+Date: Tue, 10 Dec 2013 14:22:11 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 17/18] sched: Add tracepoints related to NUMA task
+ migration
+Message-Id: <20131210142211.099fe782c361707ab3c04742@linux-foundation.org>
+In-Reply-To: <1386690695-27380-18-git-send-email-mgorman@suse.de>
+References: <1386690695-27380-1-git-send-email-mgorman@suse.de>
+	<1386690695-27380-18-git-send-email-mgorman@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, Andi Kleen <ak@linux.intel.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Alex Thorlton <athorlton@sgi.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 10 Dec 2013, Dave Hansen wrote:
+On Tue, 10 Dec 2013 15:51:35 +0000 Mel Gorman <mgorman@suse.de> wrote:
 
-> >
-> > The single page struct definitions makes it easy to see how a certain
-> > field is being used in various subsystems. If you add a field then you
-> > can see other use cases in other subsystems. If you happen to call
-> > them then you know that there is trouble afoot.
+> This patch adds three tracepoints
+>  o trace_sched_move_numa	when a task is moved to a node
+>  o trace_sched_swap_numa	when a task is swapped with another task
+>  o trace_sched_stick_numa	when a numa-related migration fails
+> 
+> The tracepoints allow the NUMA scheduler activity to be monitored and the
+> following high-level metrics can be calculated
+> 
+>  o NUMA migrated stuck	 nr trace_sched_stick_numa
+>  o NUMA migrated idle	 nr trace_sched_move_numa
+>  o NUMA migrated swapped nr trace_sched_swap_numa
+>  o NUMA local swapped	 trace_sched_swap_numa src_nid == dst_nid (should never happen)
+>  o NUMA remote swapped	 trace_sched_swap_numa src_nid != dst_nid (should == NUMA migrated swapped)
+>  o NUMA group swapped	 trace_sched_swap_numa src_ngid == dst_ngid
+> 			 Maybe a small number of these are acceptable
+> 			 but a high number would be a major surprise.
+> 			 It would be even worse if bounces are frequent.
+>  o NUMA avg task migs.	 Average number of migrations for tasks
+>  o NUMA stddev task mig	 Self-explanatory
+>  o NUMA max task migs.	 Maximum number of migrations for a single task
+> 
+> In general the intent of the tracepoints is to help diagnose problems
+> where automatic NUMA balancing appears to be doing an excessive amount of
+> useless work.
+> 
+> ...
 >
-> First of all, I'd really argue with the assertion that the way it is now
-> make it easy to figure anything out.  Maybe we can take a vote. :)
+> --- a/kernel/sched/fair.c
+> +++ b/kernel/sched/fair.c
+> @@ -1272,11 +1272,13 @@ static int task_numa_migrate(struct task_struct *p)
+>  	p->numa_scan_period = task_scan_min(p);
+>  
+>  	if (env.best_task == NULL) {
+> -		int ret = migrate_task_to(p, env.best_cpu);
+> +		if ((ret = migrate_task_to(p, env.best_cpu)) != 0)
+> +			trace_sched_stick_numa(p, env.src_cpu, env.best_cpu);
+>  		return ret;
+>  	}
+>  
+> -	ret = migrate_swap(p, env.best_task);
+> +	if ((ret = migrate_swap(p, env.best_task)) != 0);
 
-Its certainly easier than it was before where we had page struct defs
-spluttered in various subsystems.
+I'll zap that semicolon...
 
-> We _need_ to share fields when the structure is handed between different
-> subsystems and it needs to be consistent in both places.  For slab page
-> at least, the only data that actually gets used consistently is
-> page->flags.  It seems silly to bend over backwards just to share a
-> single bitfield.
-
-If you get corruption in one field then you need to figure out which other
-subsystem could have accessed that field. Its not a single bitfield. There
-are numerous relationships between the fields in struct page.
-
-> > How do you ensure that the sizes and the locations of the fields in
-> > multiple page structs stay consistent?
->
-> Check out the BUILD_BUG_ON().  That shows one example of how we do it
-> for a field location.  We could do the same for sizeof() the two.
-
-A bazillion of those? And this is simpler than what we ahve?
-
-> > As far as I can tell we are trying to put everything into one page struct
-> > to keep track of the uses of various fields and to allow a reference for
-> > newcomes to the kernel.
->
-> If the goal is to make a structure which is approachable to newcomers to
-> the kernel, then I think we've utterly failed.
-
-I do not see your approach making things easier. Having this stuff in one
-place is helpful. I kept on discovering special use cases in various
-kernel subsystems that caused breakage because of this and that
-special use cases for fields. I think we were only able to optimize
-slabs use of struct page because we finally had a better handle on what
-uses which field for what purpose.
-
-Looks to me that you want to go back to the old mess because we now have a
-more complete accounting of how the fields are used. It may be a horror
-but maybe you can help by simplifying things where possible and find as of
-yet undocumented use cases for various page struct fields?
-
+> +		trace_sched_stick_numa(p, env.src_cpu, task_cpu(env.best_task));
+>  	put_task_struct(env.best_task);
+>  	return ret;
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
