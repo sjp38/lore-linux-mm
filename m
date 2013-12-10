@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id ADFB46B00A2
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 04:20:02 -0500 (EST)
-Received: by mail-pb0-f54.google.com with SMTP id un15so7257777pbc.13
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 01:20:02 -0800 (PST)
-Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com. [202.81.31.143])
-        by mx.google.com with ESMTPS id d2si9906991pba.121.2013.12.10.01.19.59
+Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BC3F6B00A7
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 04:20:13 -0500 (EST)
+Received: by mail-ob0-f180.google.com with SMTP id wo20so5043226obc.11
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 01:20:12 -0800 (PST)
+Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com. [122.248.162.9])
+        by mx.google.com with ESMTPS id sy1si9863081obc.25.2013.12.10.01.20.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 10 Dec 2013 01:20:01 -0800 (PST)
+        Tue, 10 Dec 2013 01:20:12 -0800 (PST)
 Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 10 Dec 2013 19:19:57 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 447C13578023
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 20:19:55 +1100 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBA91Z4A7733652
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 20:01:35 +1100
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBA9Js1V027244
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 20:19:54 +1100
+	Tue, 10 Dec 2013 14:49:58 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 76C7D1258053
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 14:51:05 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBA9JrSk37421262
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 14:49:53 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBA9Jt8I014408
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 14:49:56 +0530
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v4 10/12] sched/numa: fix record hinting faults check
-Date: Tue, 10 Dec 2013 17:19:33 +0800
-Message-Id: <1386667175-19952-10-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v4 11/12] sched/numa: drop unnecessary variable in task_weight
+Date: Tue, 10 Dec 2013 17:19:34 +0800
+Message-Id: <1386667175-19952-11-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1386667175-19952-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1386667175-19952-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -33,30 +33,39 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>
 Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Adjust numa_scan_period in task_numa_placement, depending on how much useful
-work the numa code can do. The local faults and remote faults should be used
-to check if there is record hinting faults instead of local faults and shared
-faults. This patch fix it.
+Drop unnecessary total_faults variable in function task_weight to unify
+task_weight and group_weight.
 
 Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- kernel/sched/fair.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ kernel/sched/fair.c |   11 ++---------
+ 1 files changed, 2 insertions(+), 9 deletions(-)
 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 90b9b88..d51b8c3 100644
+index d51b8c3..5ff86ec 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -1322,7 +1322,7 @@ static void update_task_scan_period(struct task_struct *p,
- 	 * completely idle or all activity is areas that are not of interest
- 	 * to automatic numa balancing. Scan slower
- 	 */
--	if (local + shared == 0) {
-+	if (local + remote == 0) {
- 		p->numa_scan_period = min(p->numa_scan_period_max,
- 			p->numa_scan_period << 1);
+@@ -947,17 +947,10 @@ static inline unsigned long group_faults(struct task_struct *p, int nid)
+  */
+ static inline unsigned long task_weight(struct task_struct *p, int nid)
+ {
+-	unsigned long total_faults;
+-
+-	if (!p->numa_faults)
+-		return 0;
+-
+-	total_faults = p->total_numa_faults;
+-
+-	if (!total_faults)
++	if (!p->numa_faults || !p->total_numa_faults)
+ 		return 0;
  
+-	return 1000 * task_faults(p, nid) / total_faults;
++	return 1000 * task_faults(p, nid) / p->total_numa_faults;
+ }
+ 
+ static inline unsigned long group_weight(struct task_struct *p, int nid)
 -- 
 1.7.7.6
 
