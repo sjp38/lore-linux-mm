@@ -1,63 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CD786B012F
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 18:46:12 -0500 (EST)
-Received: by mail-pb0-f53.google.com with SMTP id ma3so6372436pbc.12
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 15:46:12 -0800 (PST)
-Received: from e28smtp05.in.ibm.com (e28smtp05.in.ibm.com. [122.248.162.5])
-        by mx.google.com with ESMTPS id j8si8641057pad.236.2013.12.09.15.46.10
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 09 Dec 2013 15:46:11 -0800 (PST)
-Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 10 Dec 2013 05:16:08 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 99CDE3940023
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 05:16:06 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rB9Nk2Rx47644870
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 05:16:02 +0530
-Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rB9Nk5Bs030011
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 05:16:06 +0530
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v2] mm/hwpoison: add '#' to hwpoison_inject
-Date: Tue, 10 Dec 2013 07:45:57 +0800
-Message-Id: <1386632757-11783-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 82A186B0132
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 19:11:37 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id p10so6127228pdj.40
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 16:11:37 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id qx4si8708464pbc.135.2013.12.09.16.11.35
+        for <linux-mm@kvack.org>;
+        Mon, 09 Dec 2013 16:11:35 -0800 (PST)
+Date: Mon, 9 Dec 2013 16:11:34 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3 02/23] mm/memblock: debug: don't free reserved array
+ if !ARCH_DISCARD_MEMBLOCK
+Message-Id: <20131209161134.e161ddfedf284f2052cad4a5@linux-foundation.org>
+In-Reply-To: <1386625856-12942-3-git-send-email-santosh.shilimkar@ti.com>
+References: <1386625856-12942-1-git-send-email-santosh.shilimkar@ti.com>
+	<1386625856-12942-3-git-send-email-santosh.shilimkar@ti.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vladimir Murzin <murzin.v@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Santosh Shilimkar <santosh.shilimkar@ti.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Grygorii Strashko <grygorii.strashko@ti.com>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>
 
-Changelog:
- v1 -> v2:
-  * remove KERN_INFO in pr_info().
+On Mon, 9 Dec 2013 16:50:35 -0500 Santosh Shilimkar <santosh.shilimkar@ti.com> wrote:
 
-Add '#' to hwpoison_inject just as done in madvise_hwpoison.
+> Now the Nobootmem allocator will always try to free memory allocated for
+> reserved memory regions (free_low_memory_core_early()) without taking
+> into to account current memblock debugging configuration
+> (CONFIG_ARCH_DISCARD_MEMBLOCK and CONFIG_DEBUG_FS state).
+> As result if:
+>  - CONFIG_DEBUG_FS defined
+>  - CONFIG_ARCH_DISCARD_MEMBLOCK not defined;
+> -  reserved memory regions array have been resized during boot
+> 
+> then:
+> - memory allocated for reserved memory regions array will be freed to
+> buddy allocator;
+> - debug_fs entry "sys/kernel/debug/memblock/reserved" will show garbage
+> instead of state of memory reservations. like:
+>    0: 0x98393bc0..0x9a393bbf
+>    1: 0xff120000..0xff11ffff
+>    2: 0x00000000..0xffffffff
+> 
+> Hence, do not free memory allocated for reserved memory regions if
+> defined(CONFIG_DEBUG_FS) && !defined(CONFIG_ARCH_DISCARD_MEMBLOCK).
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
----
- mm/hwpoison-inject.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+Alternatives:
 
-diff --git a/mm/hwpoison-inject.c b/mm/hwpoison-inject.c
-index 4c84678..95487c7 100644
---- a/mm/hwpoison-inject.c
-+++ b/mm/hwpoison-inject.c
-@@ -55,7 +55,7 @@ static int hwpoison_inject(void *data, u64 val)
- 		return 0;
- 
- inject:
--	printk(KERN_INFO "Injecting memory failure at pfn %lx\n", pfn);
-+	pr_info("Injecting memory failure at pfn %#lx\n", pfn);
- 	return memory_failure(pfn, 18, MF_COUNT_INCREASED);
- }
- 
--- 
-1.7.5.4
+- disable /proc/sys/kernel/debug/memblock/reserved in this case
+
+- disable defined(CONFIG_DEBUG_FS) &&
+  !defined(CONFIG_ARCH_DISCARD_MEMBLOCK) in Kconfig.
+
+How much memory are we talking about here?  If it's more than "very
+little" then I think either of these would be better - most users will
+value the extra memory over an accurate
+/proc/sys/kernel/debug/memblock/reserved?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
