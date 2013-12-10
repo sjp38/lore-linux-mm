@@ -1,74 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f50.google.com (mail-yh0-f50.google.com [209.85.213.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 62BFF6B0035
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 18:03:43 -0500 (EST)
-Received: by mail-yh0-f50.google.com with SMTP id b6so4532006yha.37
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 15:03:43 -0800 (PST)
-Received: from mail-yh0-x22c.google.com (mail-yh0-x22c.google.com [2607:f8b0:4002:c01::22c])
-        by mx.google.com with ESMTPS id l5si15366481yhl.49.2013.12.10.15.03.42
+Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 93C786B0035
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 18:20:21 -0500 (EST)
+Received: by mail-qc0-f181.google.com with SMTP id e9so4556231qcy.12
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 15:20:21 -0800 (PST)
+Received: from mail-yh0-x22f.google.com (mail-yh0-x22f.google.com [2607:f8b0:4002:c01::22f])
+        by mx.google.com with ESMTPS id kb1si13559079qeb.75.2013.12.10.15.20.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 10 Dec 2013 15:03:42 -0800 (PST)
-Received: by mail-yh0-f44.google.com with SMTP id f64so4455512yha.3
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 15:03:42 -0800 (PST)
-Date: Tue, 10 Dec 2013 15:03:39 -0800 (PST)
+        Tue, 10 Dec 2013 15:20:20 -0800 (PST)
+Received: by mail-yh0-f47.google.com with SMTP id 29so4497406yhl.34
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 15:20:20 -0800 (PST)
+Date: Tue, 10 Dec 2013 15:20:17 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, page_alloc: allow __GFP_NOFAIL to allocate below
- watermarks after reclaim
-In-Reply-To: <20131210075059.GA11295@suse.de>
-Message-ID: <alpine.DEB.2.02.1312101453020.22701@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1312091402580.11026@chino.kir.corp.google.com> <20131210075059.GA11295@suse.de>
+Subject: Re: [patch] mm, page_alloc: make __GFP_NOFAIL really not fail
+In-Reply-To: <20131209152202.df3d4051d7dc61ada7c420a9@linux-foundation.org>
+Message-ID: <alpine.DEB.2.02.1312101504120.22701@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1312091355360.11026@chino.kir.corp.google.com> <20131209152202.df3d4051d7dc61ada7c420a9@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 10 Dec 2013, Mel Gorman wrote:
+On Mon, 9 Dec 2013, Andrew Morton wrote:
 
-> > If direct reclaim has failed to free memory, __GFP_NOFAIL allocations
-> > can potentially loop forever in the page allocator.  In this case, it's
-> > better to give them the ability to access below watermarks so that they
-> > may allocate similar to the same privilege given to GFP_ATOMIC
-> > allocations.
+> > __GFP_NOFAIL specifies that the page allocator cannot fail to return
+> > memory.  Allocators that call it may not even check for NULL upon
+> > returning.
 > > 
-> > We're careful to ensure this is only done after direct reclaim has had
-> > the chance to free memory, however.
-> > 
-> > Signed-off-by: David Rientjes <rientjes@google.com>
+> > It turns out GFP_NOWAIT | __GFP_NOFAIL or GFP_ATOMIC | __GFP_NOFAIL can
+> > actually return NULL.  More interestingly, processes that are doing
+> > direct reclaim and have PF_MEMALLOC set may also return NULL for any
+> > __GFP_NOFAIL allocation.
 > 
-> The main problem with doing something like this is that it just smacks
-> into the adjusted watermark if there are a number of __GFP_NOFAIL. Who
-> was the user of __GFP_NOFAIL that was fixed by this patch?
-> 
-
-Nobody, it comes out of a memcg discussion where __GFP_NOFAIL were 
-recently given the ability to bypass charges to the root memcg when the 
-memcg has hit its limit since we disallow the oom killer to kill a process 
-(for the same reason that the vast majority of __GFP_NOFAIL users, those 
-that do GFP_NOFS | __GFP_NOFAIL, disallow the oom killer in the page 
-allocator).
-
-Without some other thread freeing memory, these allocations simply loop 
-forever.  We probably don't want to reconsider the choice that prevents 
-calling the oom killer in !__GFP_FS contexts since it will allow 
-unnecessary oom killing when memory can actually be freed by another 
-thread.
-
-Since there are comments in both gfp.h and page_alloc.c that say no new 
-users will be added, it seems legitimate to ensure that the allocation 
-will at least have a chance of succeeding, but not the point of depleting 
-memory reserves entirely.
-
-> There are enough bad users of __GFP_NOFAIL that I really question how
-> good an idea it is to allow emergency reserves to be used when they are
-> potentially leaked to other !__GFP_NOFAIL users via the slab allocator
-> shortly afterwards.
+> __GFP_NOFAIL is a nasty thing and making it pretend to work even better
+> is heading in the wrong direction, surely?  It would be saner to just
+> disallow these even-sillier combinations.  Can we fix up the current
+> callers then stick a WARN_ON() in there?
 > 
 
-You could make the same argument for GFP_ATOMIC which can also allow 
-access to memory reserves.
+Heh, it's difficult to remove __GFP_NOFAIL when new users get added: 
+84235de394d9 ("fs: buffer: move allocation failure loop into the 
+allocator") added a new user and a bypass of memcg limits in oom 
+conditions so __GFP_NOFAIL just essentially became 
+__GFP_BYPASS_MEMCG_LIMIT_ON_OOM.
+
+We can probably ignore the PF_MEMALLOC behavior since it allows full 
+access to memory reserves and the only time we would see a __GFP_NOFAIL 
+allocation fail in such a context is if every zone's free memory was 0.  
+We have bigger problems if memory reserves are completely depleted like 
+that, so it's probably sufficient not to address it.
+
+I'd be concerned about new users of __GFP_NOFAIL that are added for 
+GFP_NOWAIT or GFP_ATOMIC and never actually trigger such a warning because 
+in testing they never trigger the slowpath, but the conditional is 
+probably better placed outside of the fastpath:
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2536,8 +2536,15 @@ rebalance:
+ 	}
+ 
+ 	/* Atomic allocations - we can't balance anything */
+-	if (!wait)
++	if (!wait) {
++		/*
++		 * All existing users of the deprecated __GFP_NOFAIL are
++		 * blockable, so warn of any new users that actually allow this
++		 * type of allocation to fail.
++		 */
++		WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
+ 		goto nopage;
++	}
+ 
+ 	/* Avoid recursion of direct reclaim */
+ 	if (current->flags & PF_MEMALLOC)
+
+But perhaps the best way to do this in a preventative way is to add a 
+warning to checkpatch.pl that actually warns about adding new users.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
