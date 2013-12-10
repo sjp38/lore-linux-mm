@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D1896B003B
+Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 17DEF6B003C
 	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 10:51:41 -0500 (EST)
-Received: by mail-ee0-f44.google.com with SMTP id b57so2322195eek.17
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 07:51:40 -0800 (PST)
+Received: by mail-ee0-f46.google.com with SMTP id d49so2312117eek.19
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 07:51:41 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id 5si14864214eei.165.2013.12.10.07.51.40
+        by mx.google.com with ESMTP id a9si14897424eew.54.2013.12.10.07.51.41
         for <linux-mm@kvack.org>;
-        Tue, 10 Dec 2013 07:51:40 -0800 (PST)
+        Tue, 10 Dec 2013 07:51:41 -0800 (PST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 05/18] mm: numa: Do not clear PTE for pte_numa update
-Date: Tue, 10 Dec 2013 15:51:23 +0000
-Message-Id: <1386690695-27380-6-git-send-email-mgorman@suse.de>
+Subject: [PATCH 06/18] mm: numa: Ensure anon_vma is locked to prevent parallel THP splits
+Date: Tue, 10 Dec 2013 15:51:24 +0000
+Message-Id: <1386690695-27380-7-git-send-email-mgorman@suse.de>
 In-Reply-To: <1386690695-27380-1-git-send-email-mgorman@suse.de>
 References: <1386690695-27380-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -19,52 +19,36 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Alex Thorlton <athorlton@sgi.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-The TLB must be flushed if the PTE is updated but change_pte_range is clearing
-the PTE while marking PTEs pte_numa without necessarily flushing the TLB if it
-reinserts the same entry. Without the flush, it's conceivable that two processors
-have different TLBs for the same virtual address and at the very least it would
-generate spurious faults. This patch only unmaps the pages in change_pte_range for
-a full protection change.
+The anon_vma lock prevents parallel THP splits and any associated complexity
+that arises when handling splits during THP migration. This patch checks
+if the lock was successfully acquired and bails from THP migration if it
+failed for any reason.
 
 Cc: stable@vger.kernel.org
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
- mm/mprotect.c | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ mm/huge_memory.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 2666797..0a07e2d 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -52,13 +52,14 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 			pte_t ptent;
- 			bool updated = false;
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 5a5da50..0f00b96 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1359,6 +1359,13 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		goto out_unlock;
+ 	}
  
--			ptent = ptep_modify_prot_start(mm, addr, pte);
- 			if (!prot_numa) {
-+				ptent = ptep_modify_prot_start(mm, addr, pte);
- 				ptent = pte_modify(ptent, newprot);
- 				updated = true;
- 			} else {
- 				struct page *page;
- 
-+				ptent = *pte;
- 				page = vm_normal_page(vma, addr, oldpte);
- 				if (page) {
- 					if (!pte_numa(oldpte)) {
-@@ -79,7 +80,10 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 
- 			if (updated)
- 				pages++;
--			ptep_modify_prot_commit(mm, addr, pte, ptent);
++	/* Bail if we fail to protect against THP splits for any reason */
++	if (unlikely(!anon_vma)) {
++		put_page(page);
++		page_nid = -1;
++		goto clear_pmdnuma;
++	}
 +
-+			/* Only !prot_numa always clears the pte */
-+			if (!prot_numa)
-+				ptep_modify_prot_commit(mm, addr, pte, ptent);
- 		} else if (IS_ENABLED(CONFIG_MIGRATION) && !pte_file(oldpte)) {
- 			swp_entry_t entry = pte_to_swp_entry(oldpte);
- 
+ 	/*
+ 	 * Migrate the THP to the requested node, returns with page unlocked
+ 	 * and pmd_numa cleared.
 -- 
 1.8.4
 
