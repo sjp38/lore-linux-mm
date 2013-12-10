@@ -1,67 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id BCD006B0092
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 04:12:58 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id y13so6972845pdi.33
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 01:12:58 -0800 (PST)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
-        by mx.google.com with ESMTPS id ws5si9849139pab.180.2013.12.10.01.09.17
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D0B26B0036
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 04:19:55 -0500 (EST)
+Received: by mail-pd0-f176.google.com with SMTP id w10so6954793pde.35
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 01:19:54 -0800 (PST)
+Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com. [202.81.31.144])
+        by mx.google.com with ESMTPS id ez5si9886076pab.164.2013.12.10.01.19.51
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 10 Dec 2013 01:12:57 -0800 (PST)
-Message-ID: <52A6D9B0.7040506@huawei.com>
-Date: Tue, 10 Dec 2013 17:06:56 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
-MIME-Version: 1.0
-Subject: [PATCH] mm,x86: fix span coverage in e820_all_mapped()
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+        Tue, 10 Dec 2013 01:19:53 -0800 (PST)
+Received: from /spool/local
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Tue, 10 Dec 2013 19:19:48 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id B2D302CE8040
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 20:19:44 +1100 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBA91OxN9765232
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 20:01:24 +1100
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBA9JioW031890
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 20:19:44 +1100
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v4 04/12] sched/numa: use wrapper function task_node to get node which task is on
+Date: Tue, 10 Dec 2013 17:19:27 +0800
+Message-Id: <1386667175-19952-4-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1386667175-19952-1-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1386667175-19952-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linn@hp.com, penberg@kernel.org, yinghai@kernel.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: Xishi Qiu <qiuxishi@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-In the following case, e820_all_mapped() will return 1.
-A < start < B-1 and B < end < C, it means <start, end> spans two regions.
-<start, end>:	        [start - end]
-e820 addr:	    ...[A - B-1][B - C]...
+Changelog:
+ v2 -> v3:
+  * tranlate cpu_to_node(task_cpu(p)) to task_node(p) in sched/debug.c
 
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+Use wrapper function task_node to get node which task is on.
+
+Acked-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- arch/x86/kernel/e820.c |   15 +++------------
- 1 files changed, 3 insertions(+), 12 deletions(-)
+ kernel/sched/debug.c |    2 +-
+ kernel/sched/fair.c  |    4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
-index 174da5f..31ecab2 100644
---- a/arch/x86/kernel/e820.c
-+++ b/arch/x86/kernel/e820.c
-@@ -85,20 +85,11 @@ int __init e820_all_mapped(u64 start, u64 end, unsigned type)
- 
- 		if (type && ei->type != type)
- 			continue;
--		/* is the region (part) in overlap with the current region ?*/
-+		/* is the region (part) in overlap with the current region ? */
- 		if (ei->addr >= end || ei->addr + ei->size <= start)
- 			continue;
--
--		/* if the region is at the beginning of <start,end> we move
--		 * start to the end of the region since it's ok until there
--		 */
--		if (ei->addr <= start)
--			start = ei->addr + ei->size;
--		/*
--		 * if start is now at or beyond end, we're done, full
--		 * coverage
--		 */
--		if (start >= end)
-+		/* is the region full coverage of <start, end> ? */
-+		if (ei->addr <= start && ei->addr + ei->size >= end)
- 			return 1;
+diff --git a/kernel/sched/debug.c b/kernel/sched/debug.c
+index 5c34d18..374fe04 100644
+--- a/kernel/sched/debug.c
++++ b/kernel/sched/debug.c
+@@ -139,7 +139,7 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
+ 		0LL, 0LL, 0LL, 0L, 0LL, 0L, 0LL, 0L);
+ #endif
+ #ifdef CONFIG_NUMA_BALANCING
+-	SEQ_printf(m, " %d", cpu_to_node(task_cpu(p)));
++	SEQ_printf(m, " %d", task_node(p));
+ #endif
+ #ifdef CONFIG_CGROUP_SCHED
+ 	SEQ_printf(m, " %s", task_group_path(task_group(p)));
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 56bcc0c..e0b1063 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -1216,7 +1216,7 @@ static int task_numa_migrate(struct task_struct *p)
+ 	 * elsewhere, so there is no point in (re)trying.
+ 	 */
+ 	if (unlikely(!sd)) {
+-		p->numa_preferred_nid = cpu_to_node(task_cpu(p));
++		p->numa_preferred_nid = task_node(p);
+ 		return -EINVAL;
  	}
- 	return 0;
+ 
+@@ -1283,7 +1283,7 @@ static void numa_migrate_preferred(struct task_struct *p)
+ 	p->numa_migrate_retry = jiffies + HZ;
+ 
+ 	/* Success if task is already running on preferred CPU */
+-	if (cpu_to_node(task_cpu(p)) == p->numa_preferred_nid)
++	if (task_node(p) == p->numa_preferred_nid)
+ 		return;
+ 
+ 	/* Otherwise, try migrate to a CPU on the preferred node */
 -- 
-1.7.1
-
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
