@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 6069F6B0038
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 10:51:39 -0500 (EST)
-Received: by mail-ee0-f43.google.com with SMTP id c13so2323583eek.2
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 07:51:38 -0800 (PST)
+Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 2344D6B0038
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 10:51:40 -0500 (EST)
+Received: by mail-ea0-f180.google.com with SMTP id f15so2343738eak.11
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 07:51:39 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id j47si14853087eeo.200.2013.12.10.07.51.38
+        by mx.google.com with ESMTP id t6si14871039eeh.129.2013.12.10.07.51.39
         for <linux-mm@kvack.org>;
-        Tue, 10 Dec 2013 07:51:38 -0800 (PST)
+        Tue, 10 Dec 2013 07:51:39 -0800 (PST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 02/18] mm: numa: Call MMU notifiers on THP migration
-Date: Tue, 10 Dec 2013 15:51:20 +0000
-Message-Id: <1386690695-27380-3-git-send-email-mgorman@suse.de>
+Subject: [PATCH 03/18] mm: Clear pmd_numa before invalidating
+Date: Tue, 10 Dec 2013 15:51:21 +0000
+Message-Id: <1386690695-27380-4-git-send-email-mgorman@suse.de>
 In-Reply-To: <1386690695-27380-1-git-send-email-mgorman@suse.de>
 References: <1386690695-27380-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -19,96 +19,31 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Alex Thorlton <athorlton@sgi.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-MMU notifiers must be called on THP page migration or secondary MMUs will
-get very confused.
+pmdp_invalidate clears the present bit without taking into account that it
+might be in the _PAGE_NUMA bit leaving the PMD in an unexpected state. Clear
+pmd_numa before invalidating.
 
 Cc: stable@vger.kernel.org
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
- mm/migrate.c | 22 ++++++++++++++--------
- 1 file changed, 14 insertions(+), 8 deletions(-)
+ mm/pgtable-generic.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 2cabbd5..be787d5 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -36,6 +36,7 @@
- #include <linux/hugetlb_cgroup.h>
- #include <linux/gfp.h>
- #include <linux/balloon_compaction.h>
-+#include <linux/mmu_notifier.h>
- 
- #include <asm/tlbflush.h>
- 
-@@ -1716,12 +1717,13 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 				struct page *page, int node)
+diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
+index cbb3854..e84cad2 100644
+--- a/mm/pgtable-generic.c
++++ b/mm/pgtable-generic.c
+@@ -191,6 +191,9 @@ pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
+ void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+ 		     pmd_t *pmdp)
  {
- 	spinlock_t *ptl;
--	unsigned long haddr = address & HPAGE_PMD_MASK;
- 	pg_data_t *pgdat = NODE_DATA(node);
- 	int isolated = 0;
- 	struct page *new_page = NULL;
- 	struct mem_cgroup *memcg = NULL;
- 	int page_lru = page_is_file_cache(page);
-+	unsigned long mmun_start = address & HPAGE_PMD_MASK;
-+	unsigned long mmun_end = mmun_start + HPAGE_PMD_SIZE;
- 	pmd_t orig_entry;
- 
- 	/*
-@@ -1756,10 +1758,12 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	WARN_ON(PageLRU(new_page));
- 
- 	/* Recheck the target PMD */
-+	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
- 	ptl = pmd_lock(mm, pmd);
- 	if (unlikely(!pmd_same(*pmd, entry) || page_count(page) != 2)) {
- fail_putback:
- 		spin_unlock(ptl);
-+		mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- 
- 		/* Reverse changes made by migrate_page_copy() */
- 		if (TestClearPageActive(new_page))
-@@ -1800,15 +1804,16 @@ fail_putback:
- 	 * The SetPageUptodate on the new page and page_add_new_anon_rmap
- 	 * guarantee the copy is visible before the pagetable update.
- 	 */
--	flush_cache_range(vma, haddr, haddr + HPAGE_PMD_SIZE);
--	page_add_new_anon_rmap(new_page, vma, haddr);
--	pmdp_clear_flush(vma, haddr, pmd);
--	set_pmd_at(mm, haddr, pmd, entry);
-+	flush_cache_range(vma, mmun_start, mmun_end);
-+	page_add_new_anon_rmap(new_page, vma, mmun_start);
-+	pmdp_clear_flush(vma, mmun_start, pmd);
-+	set_pmd_at(mm, mmun_start, pmd, entry);
-+	flush_tlb_range(vma, mmun_start, mmun_end);
- 	update_mmu_cache_pmd(vma, address, &entry);
- 
- 	if (page_count(page) != 2) {
--		set_pmd_at(mm, haddr, pmd, orig_entry);
--		flush_tlb_range(vma, haddr, haddr + HPAGE_PMD_SIZE);
-+		set_pmd_at(mm, mmun_start, pmd, orig_entry);
-+		flush_tlb_range(vma, mmun_start, mmun_end);
- 		update_mmu_cache_pmd(vma, address, &entry);
- 		page_remove_rmap(new_page);
- 		goto fail_putback;
-@@ -1823,6 +1828,7 @@ fail_putback:
- 	 */
- 	mem_cgroup_end_migration(memcg, page, new_page, true);
- 	spin_unlock(ptl);
-+	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- 
- 	unlock_page(new_page);
- 	unlock_page(page);
-@@ -1843,7 +1849,7 @@ out_dropref:
- 	ptl = pmd_lock(mm, pmd);
- 	if (pmd_same(*pmd, entry)) {
- 		entry = pmd_mknonnuma(entry);
--		set_pmd_at(mm, haddr, pmd, entry);
-+		set_pmd_at(mm, mmun_start, pmd, entry);
- 		update_mmu_cache_pmd(vma, address, &entry);
- 	}
- 	spin_unlock(ptl);
++	pmd_t entry = *pmdp;
++	if (pmd_numa(entry))
++		entry = pmd_mknonnuma(entry);
+ 	set_pmd_at(vma->vm_mm, address, pmdp, pmd_mknotpresent(*pmdp));
+ 	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+ }
 -- 
 1.8.4
 
