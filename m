@@ -1,78 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id EFE126B0062
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 20:53:44 -0500 (EST)
-Received: by mail-pd0-f182.google.com with SMTP id v10so6259410pde.41
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 17:53:44 -0800 (PST)
-Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com. [202.81.31.146])
-        by mx.google.com with ESMTPS id d2si8889163pba.211.2013.12.09.17.53.42
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 09 Dec 2013 17:53:43 -0800 (PST)
-Received: from /spool/local
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 10 Dec 2013 11:53:40 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 9AE4B2BB0056
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 12:53:37 +1100 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBA1ZHfK9175362
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 12:35:17 +1100
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBA1rZTj029467
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 12:53:36 +1100
-Date: Tue, 10 Dec 2013 09:53:34 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH V2] mm: add show num_poisoned_pages when oom
-Message-ID: <52a67427.c206440a.62e8.34eeSMTPIN_ADDED_BROKEN@mx.google.com>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <52A670AC.6090504@huawei.com>
+Received: from mail-yh0-f47.google.com (mail-yh0-f47.google.com [209.85.213.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 79B216B003B
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 21:12:22 -0500 (EST)
+Received: by mail-yh0-f47.google.com with SMTP id 29so3403140yhl.6
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 18:12:22 -0800 (PST)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:6])
+        by mx.google.com with ESMTP id b7si11942794yhm.160.2013.12.09.18.12.20
+        for <linux-mm@kvack.org>;
+        Mon, 09 Dec 2013 18:12:21 -0800 (PST)
+Date: Tue, 10 Dec 2013 13:11:52 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v13 10/16] vmscan: shrink slab on memcg pressure
+Message-ID: <20131210021152.GZ31386@dastard>
+References: <cover.1386571280.git.vdavydov@parallels.com>
+ <24314b9f3b299bac988ea3570f71f9e6919bbc4e.1386571280.git.vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <52A670AC.6090504@huawei.com>
+In-Reply-To: <24314b9f3b299bac988ea3570f71f9e6919bbc4e.1386571280.git.vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, rientjes@google.com, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: dchinner@redhat.com, hannes@cmpxchg.org, mhocko@suse.cz, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, glommer@gmail.com, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Tue, Dec 10, 2013 at 09:38:52AM +0800, Xishi Qiu wrote:
->Show num_poisoned_pages when oom, it is a little helpful to find the reason.
->Also it will be emitted anytime show_mem() is called.
->
->Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
->Suggested-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->Acked-by: Michal Hocko <mhocko@suse.cz>
->Acked-by: David Rientjes <rientjes@google.com>
+On Mon, Dec 09, 2013 at 12:05:51PM +0400, Vladimir Davydov wrote:
+> This patch makes direct reclaim path shrink slab not only on global
+> memory pressure, but also when we reach the user memory limit of a
+> memcg. To achieve that, it makes shrink_slab() walk over the memcg
+> hierarchy and run shrinkers marked as memcg-aware on the target memcg
+> and all its descendants. The memcg to scan is passed in a shrink_control
+> structure; memcg-unaware shrinkers are still called only on global
+> memory pressure with memcg=NULL. It is up to the shrinker how to
+> organize the objects it is responsible for to achieve per-memcg reclaim.
+> 
+> The idea lying behind the patch as well as the initial implementation
+> belong to Glauber Costa.
+...
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -311,6 +311,58 @@ shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
+>  	return freed;
+>  }
+>  
+> +static unsigned long
+> +run_shrinker(struct shrink_control *shrinkctl, struct shrinker *shrinker,
+> +	     unsigned long nr_pages_scanned, unsigned long lru_pages)
+> +{
+> +	unsigned long freed = 0;
+> +
+> +	/*
+> +	 * If we don't have a target mem cgroup, we scan them all. Otherwise
+> +	 * we will limit our scan to shrinkers marked as memcg aware.
+> +	 */
+> +	if (!(shrinker->flags & SHRINKER_MEMCG_AWARE) &&
+> +	    shrinkctl->target_mem_cgroup != NULL)
+> +		return 0;
+> +	/*
+> +	 * In a hierarchical chain, it might be that not all memcgs are kmem
+> +	 * active. kmemcg design mandates that when one memcg is active, its
+> +	 * children will be active as well. But it is perfectly possible that
+> +	 * its parent is not.
+> +	 *
+> +	 * We also need to make sure we scan at least once, for the global
+> +	 * case. So if we don't have a target memcg, we proceed normally and
+> +	 * expect to break in the next round.
+> +	 */
+> +	shrinkctl->memcg = shrinkctl->target_mem_cgroup;
+> +	do {
+> +		if (shrinkctl->memcg && !memcg_kmem_is_active(shrinkctl->memcg))
+> +			goto next;
+> +
+> +		if (!(shrinker->flags & SHRINKER_NUMA_AWARE)) {
+> +			shrinkctl->nid = 0;
+> +			freed += shrink_slab_node(shrinkctl, shrinker,
+> +					nr_pages_scanned, lru_pages);
+> +			goto next;
+> +		}
+> +
+> +		for_each_node_mask(shrinkctl->nid, shrinkctl->nodes_to_scan) {
+> +			if (node_online(shrinkctl->nid))
+> +				freed += shrink_slab_node(shrinkctl, shrinker,
+> +						nr_pages_scanned, lru_pages);
+> +
+> +		}
+> +next:
+> +		if (!(shrinker->flags & SHRINKER_MEMCG_AWARE))
+> +			break;
+> +		shrinkctl->memcg = mem_cgroup_iter(shrinkctl->target_mem_cgroup,
+> +						   shrinkctl->memcg, NULL);
+> +	} while (shrinkctl->memcg);
+> +
+> +	return freed;
+> +}
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Ok, I think we need to improve the abstraction here, because I find
+this quite messy and hard to follow the code flow differences
+between memcg and non-memg shrinker invocations..
 
->---
-> lib/show_mem.c |    3 +++
-> 1 files changed, 3 insertions(+), 0 deletions(-)
->
->diff --git a/lib/show_mem.c b/lib/show_mem.c
->index 5847a49..1cbdcd8 100644
->--- a/lib/show_mem.c
->+++ b/lib/show_mem.c
->@@ -46,4 +46,7 @@ void show_mem(unsigned int filter)
-> 	printk("%lu pages in pagetable cache\n",
-> 		quicklist_total_size());
-> #endif
->+#ifdef CONFIG_MEMORY_FAILURE
->+	printk("%lu pages hwpoisoned\n", atomic_long_read(&num_poisoned_pages));
->+#endif
-> }
->-- 
->1.7.1
->
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> +
+>  /*
+>   * Call the shrink functions to age shrinkable caches
+>   *
+> @@ -352,20 +404,10 @@ unsigned long shrink_slab(struct shrink_control *shrinkctl,
+>  	}
+>  
+>  	list_for_each_entry(shrinker, &shrinker_list, list) {
+> -		if (!(shrinker->flags & SHRINKER_NUMA_AWARE)) {
+> -			shrinkctl->nid = 0;
+> -			freed += shrink_slab_node(shrinkctl, shrinker,
+> -					nr_pages_scanned, lru_pages);
+> -			continue;
+> -		}
+> -
+> -		for_each_node_mask(shrinkctl->nid, shrinkctl->nodes_to_scan) {
+> -			if (node_online(shrinkctl->nid))
+> -				freed += shrink_slab_node(shrinkctl, shrinker,
+> -						nr_pages_scanned, lru_pages);
+> -
+> -		}
+
+This code is the "run_shrinker()" helper function, not the entire
+memcg loop.
+
+> +		freed += run_shrinker(shrinkctl, shrinker,
+> +				      nr_pages_scanned, lru_pages);
+>  	}
+
+i.e. the shrinker execution control loop becomes much clearer if
+we separate the memcg and non-memcg shrinker execution from the
+node awareness of the shrinker like so:
+
+	list_for_each_entry(shrinker, &shrinker_list, list) {
+
+		/*
+		 * If we aren't doing targeted memcg shrinking, then run
+		 * the shrinker with a global context and move on.
+		 */
+		if (!shrinkctl->target_mem_cgroup) {
+			freed += run_shrinker(shrinkctl, shrinker,
+					      nr_pages_scanned, lru_pages);
+			continue;
+		}
+
+		if (!(shrinker->flags & SHRINKER_MEMCG_AWARE))
+			continue;
+
+		/*
+		 * memcg shrinking: Iterate the target memcg heirarchy
+		 * and run the shrinker on each memcg context that
+		 * is found in the heirarchy.
+		 */
+		shrinkctl->memcg = shrinkctl->target_mem_cgroup;
+		do {
+			if (memcg_kmem_is_active(shrinkctl->memcg))
+				continue;
+
+			freed += run_shrinker(shrinkctl, shrinker,
+					      nr_pages_scanned, lru_pages);
+		while ((shrinkctl->memcg =
+				mem_cgroup_iter(shrinkctl->target_mem_cgroup,
+						shrinkctl->memcg, NULL)));
+	}
+
+That makes the code much easier to read and clearly demonstrates the
+differences betwen non-memcg and memcg shrinking contexts, and
+separates them cleanly from the shrinker implementation.  IMO,
+that's much nicer than trying to handle all contexts in the one
+do-while loop.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
