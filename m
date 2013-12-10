@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 95CD66B0069
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 10:51:47 -0500 (EST)
-Received: by mail-we0-f171.google.com with SMTP id q58so5231354wes.16
+Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 607126B0069
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 10:51:48 -0500 (EST)
+Received: by mail-ee0-f49.google.com with SMTP id c41so2324222eek.8
         for <linux-mm@kvack.org>; Tue, 10 Dec 2013 07:51:47 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id p46si14849865eem.210.2013.12.10.07.51.46
+        by mx.google.com with ESMTP id a9si14867618eew.159.2013.12.10.07.51.47
         for <linux-mm@kvack.org>;
-        Tue, 10 Dec 2013 07:51:46 -0800 (PST)
+        Tue, 10 Dec 2013 07:51:47 -0800 (PST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 14/18] mm: numa: Limit scope of lock for NUMA migrate rate limiting
-Date: Tue, 10 Dec 2013 15:51:32 +0000
-Message-Id: <1386690695-27380-15-git-send-email-mgorman@suse.de>
+Subject: [PATCH 15/18] mm: numa: Trace tasks that fail migration due to rate limiting
+Date: Tue, 10 Dec 2013 15:51:33 +0000
+Message-Id: <1386690695-27380-16-git-send-email-mgorman@suse.de>
 In-Reply-To: <1386690695-27380-1-git-send-email-mgorman@suse.de>
 References: <1386690695-27380-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -19,77 +19,71 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Alex Thorlton <athorlton@sgi.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-NUMA migrate rate limiting protects a migration counter and window using
-a lock but in some cases this can be a contended lock. It is not
-critical that the number of pages be perfect, lost updates are
-acceptable. Reduce the importance of this lock.
+A low local/remote numa hinting fault ratio is potentially explained by
+failed migrations. This patch adds a tracepoint that fires when migration
+fails due to migration rate limitation.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
- include/linux/mmzone.h |  5 +----
- mm/migrate.c           | 21 ++++++++++++---------
- 2 files changed, 13 insertions(+), 13 deletions(-)
+ include/trace/events/migrate.h | 26 ++++++++++++++++++++++++++
+ mm/migrate.c                   |  5 ++++-
+ 2 files changed, 30 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index bd791e4..b835d3f 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -758,10 +758,7 @@ typedef struct pglist_data {
- 	int kswapd_max_order;
- 	enum zone_type classzone_idx;
- #ifdef CONFIG_NUMA_BALANCING
--	/*
--	 * Lock serializing the per destination node AutoNUMA memory
--	 * migration rate limiting data.
--	 */
-+	/* Lock serializing the migrate rate limiting window */
- 	spinlock_t numabalancing_migrate_lock;
+diff --git a/include/trace/events/migrate.h b/include/trace/events/migrate.h
+index ec2a6cc..3075ffb 100644
+--- a/include/trace/events/migrate.h
++++ b/include/trace/events/migrate.h
+@@ -45,6 +45,32 @@ TRACE_EVENT(mm_migrate_pages,
+ 		__print_symbolic(__entry->reason, MIGRATE_REASON))
+ );
  
- 	/* Rate limiting time interval */
++TRACE_EVENT(mm_numa_migrate_ratelimit,
++
++	TP_PROTO(struct task_struct *p, int dst_nid, unsigned long nr_pages),
++
++	TP_ARGS(p, dst_nid, nr_pages),
++
++	TP_STRUCT__entry(
++		__array(	char,		comm,	TASK_COMM_LEN)
++		__field(	pid_t,		pid)
++		__field(	int,		dst_nid)
++		__field(	unsigned long,	nr_pages)
++	),
++
++	TP_fast_assign(
++		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
++		__entry->pid		= p->pid;
++		__entry->dst_nid	= dst_nid;
++		__entry->nr_pages	= nr_pages;
++	),
++
++	TP_printk("comm=%s pid=%d dst_nid=%d nr_pages=%lu",
++		__entry->comm,
++		__entry->pid,
++		__entry->dst_nid,
++		__entry->nr_pages)
++);
+ #endif /* _TRACE_MIGRATE_H */
+ 
+ /* This part must be outside protection */
 diff --git a/mm/migrate.c b/mm/migrate.c
-index b6eef65..564d5c9 100644
+index 564d5c9..8dc277d 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
-@@ -1596,26 +1596,29 @@ bool migrate_ratelimited(int node)
- static bool numamigrate_update_ratelimit(pg_data_t *pgdat,
- 					unsigned long nr_pages)
- {
--	bool rate_limited = false;
--
- 	/*
- 	 * Rate-limit the amount of data that is being migrated to a node.
- 	 * Optimal placement is no good if the memory bus is saturated and
- 	 * all the time is being spent migrating!
- 	 */
--	spin_lock(&pgdat->numabalancing_migrate_lock);
- 	if (time_after(jiffies, pgdat->numabalancing_migrate_next_window)) {
-+		spin_lock(&pgdat->numabalancing_migrate_lock);
- 		pgdat->numabalancing_migrate_nr_pages = 0;
- 		pgdat->numabalancing_migrate_next_window = jiffies +
+@@ -1608,8 +1608,11 @@ static bool numamigrate_update_ratelimit(pg_data_t *pgdat,
  			msecs_to_jiffies(migrate_interval_millisecs);
-+		spin_unlock(&pgdat->numabalancing_migrate_lock);
+ 		spin_unlock(&pgdat->numabalancing_migrate_lock);
  	}
- 	if (pgdat->numabalancing_migrate_nr_pages > ratelimit_pages)
--		rate_limited = true;
--	else
--		pgdat->numabalancing_migrate_nr_pages += nr_pages;
--	spin_unlock(&pgdat->numabalancing_migrate_lock);
--	
--	return rate_limited;
-+		return true;
-+
-+	/*
-+	 * This is an unlocked non-atomic update so errors are possible.
-+	 * The consequences are failing to migrate when we potentiall should
-+	 * have which is not severe enough to warrant locking. If it is ever
-+	 * a problem, it can be converted to a per-cpu counter.
-+	 */
-+	pgdat->numabalancing_migrate_nr_pages += nr_pages;
-+	return false;
- }
+-	if (pgdat->numabalancing_migrate_nr_pages > ratelimit_pages)
++	if (pgdat->numabalancing_migrate_nr_pages > ratelimit_pages) {
++		trace_mm_numa_migrate_ratelimit(current, pgdat->node_id,
++								nr_pages);
+ 		return true;
++	}
  
- static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
+ 	/*
+ 	 * This is an unlocked non-atomic update so errors are possible.
 -- 
 1.8.4
 
