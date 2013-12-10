@@ -1,63 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f48.google.com (mail-yh0-f48.google.com [209.85.213.48])
-	by kanga.kvack.org (Postfix) with ESMTP id CF7276B0037
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 14:30:14 -0500 (EST)
-Received: by mail-yh0-f48.google.com with SMTP id f73so4215109yha.21
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 11:30:14 -0800 (PST)
-Received: from arroyo.ext.ti.com (arroyo.ext.ti.com. [192.94.94.40])
-        by mx.google.com with ESMTPS id v65si14815500yhp.233.2013.12.10.11.30.13
+Received: from mail-qe0-f53.google.com (mail-qe0-f53.google.com [209.85.128.53])
+	by kanga.kvack.org (Postfix) with ESMTP id F288E6B0038
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 14:30:15 -0500 (EST)
+Received: by mail-qe0-f53.google.com with SMTP id nc12so4412429qeb.26
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 11:30:15 -0800 (PST)
+Received: from devils.ext.ti.com (devils.ext.ti.com. [198.47.26.153])
+        by mx.google.com with ESMTPS id q6si12921087qag.72.2013.12.10.11.30.12
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 10 Dec 2013 11:30:13 -0800 (PST)
+        Tue, 10 Dec 2013 11:30:14 -0800 (PST)
 From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Subject: [PATCH 1/2] mm/ARM: dma: fix conflicting types for 'arm_dma_zone_size'
-Date: Tue, 10 Dec 2013 14:29:57 -0500
-Message-ID: <1386703798-26521-2-git-send-email-santosh.shilimkar@ti.com>
-In-Reply-To: <1386703798-26521-1-git-send-email-santosh.shilimkar@ti.com>
-References: <1386703798-26521-1-git-send-email-santosh.shilimkar@ti.com>
+Subject: [PATCH 0/2] mm: memblock: Couple of kbuild fixes after the memblock series
+Date: Tue, 10 Dec 2013 14:29:56 -0500
+Message-ID: <1386703798-26521-1-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, Grygorii Strashko <grygorii.strashko@ti.com>, Russell King <linux@arm.linux.org.uk>, Rob Herring <rob.herring@calxeda.com>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Santosh Shilimkar <santosh.shilimkar@ti.com>
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, Santosh Shilimkar <santosh.shilimkar@ti.com>, Russell King <linux@arm.linux.org.uk>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>
 
-From: Grygorii Strashko <grygorii.strashko@ti.com>
+Andrew,
 
-Commit 364230b9 "ARM: use phys_addr_t for DMA zone sizes" changes
-type of arm_dma_zone_size to phys_addr_t, but misses to update
-external definition of it in in arch/arm/include/asm/dma.h.
-As result, kernel build is failed if CONFIG_ZONE_DMA is enabled:
+Thanks to kbuild which almost covers all the architectures builds, couple
+of build related issues poped up after the memblock series applied [1]
 
-arch/arm/mm/init.c:202:13: error: conflicting types for 'arm_dma_zone_size'
-include/linux/bootmem.h:258:66: note: previous declaration of 'arm_dma_zone_size' was here
-
-Hence, fix external definition of arm_dma_zone_size.
+This series tries to address those build issues.
 
 Cc: Russell King <linux@arm.linux.org.uk>
-Cc: Rob Herring <rob.herring@calxeda.com>
 Cc: Yinghai Lu <yinghai@kernel.org>
 Cc: Tejun Heo <tj@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
-Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
----
- arch/arm/include/asm/dma.h |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/arch/arm/include/asm/dma.h b/arch/arm/include/asm/dma.h
-index 58b8c6a..1439b80 100644
---- a/arch/arm/include/asm/dma.h
-+++ b/arch/arm/include/asm/dma.h
-@@ -8,7 +8,7 @@
- #define MAX_DMA_ADDRESS	0xffffffffUL
- #else
- #define MAX_DMA_ADDRESS	({ \
--	extern unsigned long arm_dma_zone_size; \
-+	extern phys_addr_t arm_dma_zone_size; \
- 	arm_dma_zone_size ? \
- 		(PAGE_OFFSET + arm_dma_zone_size) : 0xffffffffUL; })
- #endif
+Grygorii Strashko (2):
+  mm/ARM: dma: fix conflicting types for 'arm_dma_zone_size'
+  mm/memblock: fix buld of "cris" arch
+
+ arch/arm/include/asm/dma.h |    2 +-
+ include/linux/bootmem.h    |    1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+Regards,
+Santosh
+
+[1] https://lkml.org/lkml/2013/12/9/715 
 -- 
 1.7.9.5
 
