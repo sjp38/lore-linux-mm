@@ -1,56 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f49.google.com (mail-yh0-f49.google.com [209.85.213.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 818E56B0035
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 16:52:18 -0500 (EST)
-Received: by mail-yh0-f49.google.com with SMTP id z20so4337148yhz.22
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 13:52:18 -0800 (PST)
-Received: from mail-ie0-x229.google.com (mail-ie0-x229.google.com [2607:f8b0:4001:c03::229])
-        by mx.google.com with ESMTPS id y62si15157246yhc.169.2013.12.10.13.52.17
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 10 Dec 2013 13:52:17 -0800 (PST)
-Received: by mail-ie0-f169.google.com with SMTP id e14so9801419iej.28
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 13:52:17 -0800 (PST)
+Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C1606B0035
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 17:00:23 -0500 (EST)
+Received: by mail-qa0-f53.google.com with SMTP id j5so4145081qaq.19
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 14:00:22 -0800 (PST)
+Received: from a9-46.smtp-out.amazonses.com (a9-46.smtp-out.amazonses.com. [54.240.9.46])
+        by mx.google.com with ESMTP id r5si13348530qat.64.2013.12.10.14.00.19
+        for <linux-mm@kvack.org>;
+        Tue, 10 Dec 2013 14:00:20 -0800 (PST)
+Date: Tue, 10 Dec 2013 22:00:18 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] [RFC] mm: slab: separate slab_page from 'struct page'
+In-Reply-To: <52A78B55.8050500@sr71.net>
+Message-ID: <00000142de866123-cf1406b5-b7a3-4688-b46f-80e338a622a1-000000@email.amazonses.com>
+References: <20131210204641.3CB515AE@viggo.jf.intel.com> <00000142de5634af-f92870a7-efe2-45cd-b50d-a6fbdf3b353c-000000@email.amazonses.com> <52A78B55.8050500@sr71.net>
 MIME-Version: 1.0
-In-Reply-To: <52A787D0.2070400@zytor.com>
-References: <52A6D9B0.7040506@huawei.com>
-	<CAE9FiQUd+sU4GEq0687u8+26jXJiJVboN90+L7svyosmm+V1Rg@mail.gmail.com>
-	<52A787D0.2070400@zytor.com>
-Date: Tue, 10 Dec 2013 13:52:16 -0800
-Message-ID: <CAE9FiQU8Y_thGxZamz0Uwt4FGXh7KJu7jGP8ED3dbjQuyq7vcQ@mail.gmail.com>
-Subject: Re: [PATCH] mm,x86: fix span coverage in e820_all_mapped()
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, the arch/x86 maintainers <x86@kernel.org>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, Andi Kleen <ak@linux.intel.com>
 
-On Tue, Dec 10, 2013 at 1:29 PM, H. Peter Anvin <hpa@zytor.com> wrote:
-> On 12/10/2013 01:06 PM, Yinghai Lu wrote:
->> On Tue, Dec 10, 2013 at 1:06 AM, Xishi Qiu <qiuxishi@huawei.com> wrote:
->>> In the following case, e820_all_mapped() will return 1.
->>> A < start < B-1 and B < end < C, it means <start, end> spans two regions.
->>> <start, end>:           [start - end]
->>> e820 addr:          ...[A - B-1][B - C]...
->>
->> should be [start, end) right?
->> and
->> [A, B),[B, C)
->>
+On Tue, 10 Dec 2013, Dave Hansen wrote:
+
+> >
+> > The single page struct definitions makes it easy to see how a certain
+> > field is being used in various subsystems. If you add a field then you
+> > can see other use cases in other subsystems. If you happen to call
+> > them then you know that there is trouble afoot.
 >
-> What happens if it spans more than two regions?
+> First of all, I'd really argue with the assertion that the way it is now
+> make it easy to figure anything out.  Maybe we can take a vote. :)
 
-[A, B), [B+1, C), [C+1, D) ?
-start in [A, B), and end in [C+1, D).
+Its certainly easier than it was before where we had page struct defs
+spluttered in various subsystems.
 
-old code:
-first with [A, B), start set to B.
-then with [B+1, C), start still keep as B.
-then with [C+1, D), start still keep as B.
-at last still return 0...aka not_all_mapped.
+> We _need_ to share fields when the structure is handed between different
+> subsystems and it needs to be consistent in both places.  For slab page
+> at least, the only data that actually gets used consistently is
+> page->flags.  It seems silly to bend over backwards just to share a
+> single bitfield.
 
-old code is still right.
+If you get corruption in one field then you need to figure out which other
+subsystem could have accessed that field. Its not a single bitfield. There
+are numerous relationships between the fields in struct page.
+
+> > How do you ensure that the sizes and the locations of the fields in
+> > multiple page structs stay consistent?
+>
+> Check out the BUILD_BUG_ON().  That shows one example of how we do it
+> for a field location.  We could do the same for sizeof() the two.
+
+A bazillion of those? And this is simpler than what we ahve?
+
+> > As far as I can tell we are trying to put everything into one page struct
+> > to keep track of the uses of various fields and to allow a reference for
+> > newcomes to the kernel.
+>
+> If the goal is to make a structure which is approachable to newcomers to
+> the kernel, then I think we've utterly failed.
+
+I do not see your approach making things easier. Having this stuff in one
+place is helpful. I kept on discovering special use cases in various
+kernel subsystems that caused breakage because of this and that
+special use cases for fields. I think we were only able to optimize
+slabs use of struct page because we finally had a better handle on what
+uses which field for what purpose.
+
+Looks to me that you want to go back to the old mess because we now have a
+more complete accounting of how the fields are used. It may be a horror
+but maybe you can help by simplifying things where possible and find as of
+yet undocumented use cases for various page struct fields?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
