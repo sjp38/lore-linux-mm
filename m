@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f173.google.com (mail-ea0-f173.google.com [209.85.215.173])
-	by kanga.kvack.org (Postfix) with ESMTP id A81496B003A
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 10:51:40 -0500 (EST)
-Received: by mail-ea0-f173.google.com with SMTP id o10so2299740eaj.18
+Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D1896B003B
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 10:51:41 -0500 (EST)
+Received: by mail-ee0-f44.google.com with SMTP id b57so2322195eek.17
         for <linux-mm@kvack.org>; Tue, 10 Dec 2013 07:51:40 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id e48si14851646eeh.197.2013.12.10.07.51.39
+        by mx.google.com with ESMTP id 5si14864214eei.165.2013.12.10.07.51.40
         for <linux-mm@kvack.org>;
         Tue, 10 Dec 2013 07:51:40 -0800 (PST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 04/18] mm: numa: Do not clear PMD during PTE update scan
-Date: Tue, 10 Dec 2013 15:51:22 +0000
-Message-Id: <1386690695-27380-5-git-send-email-mgorman@suse.de>
+Subject: [PATCH 05/18] mm: numa: Do not clear PTE for pte_numa update
+Date: Tue, 10 Dec 2013 15:51:23 +0000
+Message-Id: <1386690695-27380-6-git-send-email-mgorman@suse.de>
 In-Reply-To: <1386690695-27380-1-git-send-email-mgorman@suse.de>
 References: <1386690695-27380-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -19,31 +19,52 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Alex Thorlton <athorlton@sgi.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-If the PMD is flushed then a parallel fault in handle_mm_fault() will enter
-the pmd_none and do_huge_pmd_anonymous_page() path where it'll attempt
-to insert a huge zero page. This is wasteful so the patch avoids clearing
-the PMD when setting pmd_numa.
+The TLB must be flushed if the PTE is updated but change_pte_range is clearing
+the PTE while marking PTEs pte_numa without necessarily flushing the TLB if it
+reinserts the same entry. Without the flush, it's conceivable that two processors
+have different TLBs for the same virtual address and at the very least it would
+generate spurious faults. This patch only unmaps the pages in change_pte_range for
+a full protection change.
 
 Cc: stable@vger.kernel.org
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
- mm/huge_memory.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/mprotect.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index deae592..5a5da50 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1529,7 +1529,7 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			 */
- 			if (!is_huge_zero_page(page) &&
- 			    !pmd_numa(*pmd)) {
--				entry = pmdp_get_and_clear(mm, addr, pmd);
-+				entry = *pmd;
- 				entry = pmd_mknuma(entry);
- 				ret = HPAGE_PMD_NR;
- 			}
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 2666797..0a07e2d 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -52,13 +52,14 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 			pte_t ptent;
+ 			bool updated = false;
+ 
+-			ptent = ptep_modify_prot_start(mm, addr, pte);
+ 			if (!prot_numa) {
++				ptent = ptep_modify_prot_start(mm, addr, pte);
+ 				ptent = pte_modify(ptent, newprot);
+ 				updated = true;
+ 			} else {
+ 				struct page *page;
+ 
++				ptent = *pte;
+ 				page = vm_normal_page(vma, addr, oldpte);
+ 				if (page) {
+ 					if (!pte_numa(oldpte)) {
+@@ -79,7 +80,10 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 
+ 			if (updated)
+ 				pages++;
+-			ptep_modify_prot_commit(mm, addr, pte, ptent);
++
++			/* Only !prot_numa always clears the pte */
++			if (!prot_numa)
++				ptep_modify_prot_commit(mm, addr, pte, ptent);
+ 		} else if (IS_ENABLED(CONFIG_MIGRATION) && !pte_file(oldpte)) {
+ 			swp_entry_t entry = pte_to_swp_entry(oldpte);
+ 
 -- 
 1.8.4
 
