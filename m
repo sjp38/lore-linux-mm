@@ -1,57 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
-	by kanga.kvack.org (Postfix) with ESMTP id D4A426B0035
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 08:21:13 -0500 (EST)
-Received: by mail-ee0-f42.google.com with SMTP id e53so2865143eek.15
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 05:21:13 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id l2si19016368een.125.2013.12.11.05.21.12
+Received: from mail-yh0-f77.google.com (mail-yh0-f77.google.com [209.85.213.77])
+	by kanga.kvack.org (Postfix) with ESMTP id 177F86B0031
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 08:53:55 -0500 (EST)
+Received: by mail-yh0-f77.google.com with SMTP id z6so61776yhz.0
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 05:53:54 -0800 (PST)
+Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
+        by mx.google.com with ESMTP id l26si15253778yhg.87.2013.12.10.14.22.09
         for <linux-mm@kvack.org>;
-        Wed, 11 Dec 2013 05:21:12 -0800 (PST)
-Date: Wed, 11 Dec 2013 13:21:09 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: numa: Guarantee that tlb_flush_pending updates are
- visible before page table updates
-Message-ID: <20131211132109.GB24125@suse.de>
-References: <1386690695-27380-1-git-send-email-mgorman@suse.de>
+        Tue, 10 Dec 2013 14:22:10 -0800 (PST)
+Message-ID: <52A793D0.4020306@sr71.net>
+Date: Tue, 10 Dec 2013 14:21:04 -0800
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1386690695-27380-1-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH] [RFC] mm: slab: separate slab_page from 'struct page'
+References: <20131210204641.3CB515AE@viggo.jf.intel.com> <00000142de5634af-f92870a7-efe2-45cd-b50d-a6fbdf3b353c-000000@email.amazonses.com> <52A78B55.8050500@sr71.net> <00000142de866123-cf1406b5-b7a3-4688-b46f-80e338a622a1-000000@email.amazonses.com>
+In-Reply-To: <00000142de866123-cf1406b5-b7a3-4688-b46f-80e338a622a1-000000@email.amazonses.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Alex Thorlton <athorlton@sgi.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, Andi Kleen <ak@linux.intel.com>
 
-According to documentation on barriers, stores issued before a LOCK can
-complete after the lock implying that it's possible tlb_flush_pending can
-be visible after a page table update. As per revised documentation, this patch
-adds a smp_mb__before_spinlock to guarantee the correct ordering.
+On 12/10/2013 02:00 PM, Christoph Lameter wrote:
+>> > We _need_ to share fields when the structure is handed between different
+>> > subsystems and it needs to be consistent in both places.  For slab page
+>> > at least, the only data that actually gets used consistently is
+>> > page->flags.  It seems silly to bend over backwards just to share a
+>> > single bitfield.
+> If you get corruption in one field then you need to figure out which other
+> subsystem could have accessed that field. Its not a single bitfield. There
+> are numerous relationships between the fields in struct page.
 
-Cc: stable@vger.kernel.org
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- include/linux/mm_types.h | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+I'm not saying that every 'struct page' user should get their own
+complete structure.  I'm just saying that the *slabs* should get their
+own structure.  Let's go through it field by field for the "normal"
+'struct page' without debugging options:
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index c122bb1..a12f2ab 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -482,7 +482,12 @@ static inline bool tlb_flush_pending(struct mm_struct *mm)
- static inline void set_tlb_flush_pending(struct mm_struct *mm)
- {
- 	mm->tlb_flush_pending = true;
--	barrier();
-+
-+	/*
-+	 * Guarantee that the tlb_flush_pending store does not leak into the
-+	 * critical section updating the page tables
-+	 */
-+	smp_mb__before_spinlock();
- }
- /* Clearing is done after a TLB flush, which also provides a barrier. */
- static inline void clear_tlb_flush_pending(struct mm_struct *mm)
+page->flags: shared by everybody, needs to be consistent for things 	
+		like memory error handling
+mapping: unioned over by s_mem for slab
+index: unioned over by freelist for sl[oua]b
+_count: unioned over by lots of stuff by sl[oua]b
+lru: unioned over by lots of stuff by sl[oua]b, including another
+	list_head called 'list' which blk-mq.c is now using.
+private: opaque storage anyway, but unioned over by sl[au]b
+
+See? *EVERYTHING* is overridden by at least one of the sl?b allocators
+except ->flags.  In other words, there *ARE* no relationships when it
+comes to the sl?bs, except for page->flags.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
