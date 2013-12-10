@@ -1,150 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id E06A36B0035
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 13:18:08 -0500 (EST)
-Received: by mail-ee0-f48.google.com with SMTP id e49so2383711eek.21
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 10:18:08 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id s42si15458126eew.119.2013.12.10.10.18.07
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 77B726B0035
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 14:19:18 -0500 (EST)
+Received: by mail-pb0-f43.google.com with SMTP id rq2so8273777pbb.16
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 11:19:18 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id ph10si11234547pbb.199.2013.12.10.11.19.16
         for <linux-mm@kvack.org>;
-        Tue, 10 Dec 2013 10:18:07 -0800 (PST)
-Date: Tue, 10 Dec 2013 18:18:04 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: ebizzy performance regression due to X86 TLB range flush
-Message-ID: <20131210181804.GA24125@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
+        Tue, 10 Dec 2013 11:19:16 -0800 (PST)
+From: Dave Hansen <dave.hansen@intel.com>
+Subject: [PATCH] mm: documentation: remove hopelessly out-of-date locking doc
+Date: Tue, 10 Dec 2013 11:18:04 -0800
+Message-Id: <1386703084-24118-1-git-send-email-dave.hansen@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Shi <alex.shi@intel.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: hughd@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>
 
-Running tests on a new machine I found that ebizzy regressed between 3.4
-and 3.10. The ordering of kernel version is a bit off but you can see it
-here
+From: Dave Hansen <dave.hansen@intel.com>
 
-ebizzy
-                          3.0.101                3.2.52                3.11.0                3.12.0                3.4.69               3.10.19
-                          vanilla               vanilla               vanilla               vanilla               vanilla               vanilla
-Mean     1      7633.80 (  0.00%)     7540.60 ( -1.22%)     7296.80 ( -4.41%)     7362.60 ( -3.55%)     7500.80 ( -1.74%)     7441.20 ( -2.52%)
-Mean     2      9546.60 (  0.00%)     9679.60 (  1.39%)     8265.40 (-13.42%)     8125.20 (-14.89%)     9496.40 ( -0.53%)     8307.60 (-12.98%)
-Mean     3      9011.20 (  0.00%)     9277.00 (  2.95%)     8088.00 (-10.25%)     8014.00 (-11.07%)     9225.80 (  2.38%)     8136.80 ( -9.70%)
-Mean     4      8982.20 (  0.00%)     9179.80 (  2.20%)     7877.20 (-12.30%)     7804.40 (-13.11%)     9002.20 (  0.22%)     7952.40 (-11.46%)
-Mean     5      8991.00 (  0.00%)     9053.00 (  0.69%)     7552.20 (-16.00%)     7110.80 (-20.91%)     9022.40 (  0.35%)     7777.40 (-13.50%)
-Mean     6      8999.80 (  0.00%)     9024.00 (  0.27%)     7478.80 (-16.90%)     6858.40 (-23.79%)     8946.20 ( -0.60%)     7595.40 (-15.60%)
-Mean     7      8929.00 (  0.00%)     8969.40 (  0.45%)     7473.80 (-16.30%)     6743.00 (-24.48%)     8942.20 (  0.15%)     7569.00 (-15.23%)
-Mean     8      8894.80 (  0.00%)     8951.60 (  0.64%)     7471.00 (-16.01%)     6506.20 (-26.85%)     8919.20 (  0.27%)     7559.20 (-15.02%)
-Mean     12     8545.20 (  0.00%)     8704.80 (  1.87%)     7181.40 (-15.96%)     6130.40 (-28.26%)     8675.20 (  1.52%)     7271.80 (-14.90%)
-Mean     16     8270.00 (  0.00%)     8513.40 (  2.94%)     6943.40 (-16.04%)     6051.00 (-26.83%)     8454.80 (  2.23%)     7079.00 (-14.40%)
-Mean     20     8040.20 (  0.00%)     8317.40 (  3.45%)     6711.20 (-16.53%)     5967.60 (-25.78%)     8235.20 (  2.43%)     6835.60 (-14.98%)
-Mean     24     7908.80 (  0.00%)     8108.20 (  2.52%)     6570.80 (-16.92%)     5942.80 (-24.86%)     8067.60 (  2.01%)     6692.20 (-15.38%)
-Mean     28     7809.00 (  0.00%)     7937.00 (  1.64%)     6511.20 (-16.62%)     5893.80 (-24.53%)     7947.40 (  1.77%)     6596.00 (-15.53%)
-Mean     32     7758.00 (  0.00%)     7856.60 (  1.27%)     6477.60 (-16.50%)     5878.60 (-24.23%)     7893.60 (  1.75%)     6582.80 (-15.15%)
-Stddev   1        27.41 (  0.00%)       82.88 (-202.38%)       33.40 (-21.84%)       53.44 (-94.95%)       86.41 (-215.24%)       24.08 ( 12.16%)
-Stddev   2       151.35 (  0.00%)       25.35 ( 83.25%)       33.86 ( 77.63%)       74.55 ( 50.74%)      111.26 ( 26.49%)       16.64 ( 89.00%)
-Stddev   3       263.59 (  0.00%)       92.26 ( 65.00%)       27.77 ( 89.46%)       56.03 ( 78.74%)       76.78 ( 70.87%)       30.35 ( 88.49%)
-Stddev   4        44.80 (  0.00%)       39.77 ( 11.23%)       57.74 (-28.89%)       36.71 ( 18.06%)       72.71 (-62.29%)       58.68 (-30.98%)
-Stddev   5        34.25 (  0.00%)       36.81 ( -7.46%)       77.78 (-127.08%)       65.94 (-92.51%)       61.81 (-80.45%)       64.64 (-88.73%)
-Stddev   6        49.11 (  0.00%)       29.70 ( 39.53%)       76.19 (-55.14%)       47.35 (  3.59%)       43.15 ( 12.14%)       37.04 ( 24.58%)
-Stddev   7        23.13 (  0.00%)       13.75 ( 40.55%)       37.18 (-60.76%)       85.62 (-270.26%)       24.94 ( -7.86%)       34.05 (-47.25%)
-Stddev   8        26.53 (  0.00%)       16.67 ( 37.17%)       29.60 (-11.57%)       41.08 (-54.86%)       40.18 (-51.47%)       30.32 (-14.30%)
-Stddev   12       23.47 (  0.00%)       33.39 (-42.23%)       36.43 (-55.22%)       32.29 (-37.56%)       31.92 (-35.99%)       30.66 (-30.60%)
-Stddev   16        7.40 (  0.00%)       14.25 (-92.49%)       48.36 (-553.21%)       10.14 (-36.96%)       64.97 (-777.68%)       64.96 (-777.45%)
-Stddev   20       25.03 (  0.00%)       12.21 ( 51.23%)       20.83 ( 16.80%)       21.74 ( 13.15%)       30.77 (-22.94%)       57.62 (-130.20%)
-Stddev   24       49.13 (  0.00%)       26.10 ( 46.87%)       25.90 ( 47.28%)        7.05 ( 85.64%)       33.13 ( 32.57%)       17.43 ( 64.53%)
-Stddev   28       21.96 (  0.00%)       21.49 (  2.14%)       16.44 ( 25.16%)       13.88 ( 36.82%)       22.97 ( -4.56%)       13.04 ( 40.64%)
-Stddev   32       30.61 (  0.00%)       35.76 (-16.80%)       38.46 (-25.64%)        6.47 ( 78.87%)       25.40 ( 17.04%)       17.31 ( 43.45%)
+Documentation/vm/locking is a blast from the past.  In the entire
+git history, it has had precisely Three modifications.  Two of
+those look to be pure renames, and the third was from 2005.
 
-Bisection initially found at least two problems of which the first was
-commit 611ae8e3 (x86/tlb: enable tlb flush range support for x86). The
-intent of the patch appears to be to preserve existing TLB entries which
-makes sense. The decision on whether to do a full mm flush or a number of
-single page flushes depends on the size of the relevant TLB and the CPU
-which is presuably taking the cost of a TLB refill.
+The doc contains such gems as:
 
-It's a gamble because the cost of the per-page flushes must be offset by a
-reduced TLB miss count. There are no indications what the cost of calling
-invlpg are if there are no TLB entries and it's also not taking into
-account how many CPUs it may have to execute these single TLB flushes on.
+> The page_table_lock is grabbed while holding the
+> kernel_lock spinning monitor.
 
-Ebizzy sees very little benefit as it discards newly allocated memory very
-quickly which is why it appeared to regress so badly. It's a benchmark
-so there is little point optimising for it. However, I'm curious as
-to whether you are aware of this problem already for this or any other
-workload and whether it has been concluded that the cost is justified or
-not?
+> Page stealers hold kernel_lock to protect against a bunch of
+> races.
 
-The below hatchet job happens to work for smaller numbers of clients
-because threads have a chance to run on multiple CPUs in time to decide
-to do a full mm flush. It actually still works out better for ebizzy to
-always flush the full mm and the same might be true for other workloads. I
-haven't thought of a better way of detecting the correct decision though.
+Or this which talks about mmap_sem:
 
----8<---
-x86: mm: Take number of CPUs to flush into account
+> 4. The exception to this rule is expand_stack, which just
+>    takes the read lock and the page_table_lock, this is ok
+>    because it doesn't really modify fields anybody relies on.
 
-ebizzy
-                       3.13.0-rc3            3.13.0-rc3
-                          vanilla           native-v1r5
-Mean     1      7353.60 (  0.00%)     7388.20 (  0.47%)
-Mean     2      8120.40 (  0.00%)     9517.60 ( 17.21%)
-Mean     3      8087.80 (  0.00%)     8933.40 ( 10.46%)
-Mean     4      7919.20 (  0.00%)     8549.40 (  7.96%)
-Mean     5      7310.60 (  0.00%)     8131.20 ( 11.22%)
-Mean     6      6798.00 (  0.00%)     7434.00 (  9.36%)
-Mean     7      6759.40 (  0.00%)     6942.20 (  2.70%)
-Mean     8      6501.80 (  0.00%)     6526.00 (  0.37%)
-Mean     12     6606.00 (  0.00%)     6669.40 (  0.96%)
-Mean     16     6655.40 (  0.00%)     6702.20 (  0.70%)
-Mean     20     6703.80 (  0.00%)     6727.00 (  0.35%)
-Mean     24     6705.80 (  0.00%)     6742.80 (  0.55%)
-Mean     28     6706.60 (  0.00%)     6737.20 (  0.46%)
-Mean     32     6727.20 (  0.00%)     6746.60 (  0.29%)
-Stddev   1        42.71 (  0.00%)       51.62 (-20.87%)
-Stddev   2       250.26 (  0.00%)       22.37 ( 91.06%)
-Stddev   3        71.67 (  0.00%)       32.38 ( 54.82%)
-Stddev   4        30.25 (  0.00%)       67.76 (-124.00%)
-Stddev   5        71.18 (  0.00%)      130.12 (-82.80%)
-Stddev   6        34.22 (  0.00%)      192.50 (-462.60%)
-Stddev   7       100.59 (  0.00%)      148.51 (-47.64%)
-Stddev   8        20.26 (  0.00%)       80.64 (-297.99%)
-Stddev   12       19.43 (  0.00%)       26.79 (-37.84%)
-Stddev   16       14.47 (  0.00%)       13.95 (  3.62%)
-Stddev   20       21.37 (  0.00%)       17.78 ( 16.81%)
-Stddev   24       12.87 (  0.00%)       17.81 (-38.37%)
-Stddev   28       13.89 (  0.00%)       12.83 (  7.67%)
-Stddev   32       18.14 (  0.00%)        9.99 ( 44.91%)
+expand_stack() doesn't take any locks any more directly, and the
+mmap_sem acquisition was long ago moved up in to the page fault
+code itself.
 
+It could be argued that we need to rewrite this, but it is
+dangerous to leave it as-is.  It will confuse more people than it
+helps.
+
+Signed-off-by: Dave Hansen <dave.hansen@intel.com>
 ---
- arch/x86/mm/tlb.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ Documentation/vm/locking | 130 -----------------------------------------------
+ 1 file changed, 130 deletions(-)
+ delete mode 100644 Documentation/vm/locking
 
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 0f35bfb..907d124 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -220,6 +220,7 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- {
- 	unsigned long addr;
- 	unsigned act_entries, tlb_entries = 0;
-+	unsigned nr_flushes;
- 
- 	preempt_disable();
- 	if (current->active_mm != mm)
-@@ -243,9 +244,11 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 		tlb_entries = tlb_lld_4k[ENTRIES];
- 	/* Assume all of TLB entries was occupied by this task */
- 	act_entries = mm->total_vm > tlb_entries ? tlb_entries : mm->total_vm;
-+	nr_flushes = (end - start) >> PAGE_SHIFT;
-+	nr_flushes *= cpumask_weight(mm_cpumask(mm));
- 
- 	/* tlb_flushall_shift is on balance point, details in commit log */
--	if ((end - start) >> PAGE_SHIFT > act_entries >> tlb_flushall_shift) {
-+	if (nr_flushes > act_entries >> tlb_flushall_shift) {
- 		count_vm_event(NR_TLB_LOCAL_FLUSH_ALL);
- 		local_flush_tlb();
- 	} else {
+diff --git a/Documentation/vm/locking b/Documentation/vm/locking
+deleted file mode 100644
+index f61228b..0000000
+--- a/Documentation/vm/locking
++++ /dev/null
+@@ -1,130 +0,0 @@
+-Started Oct 1999 by Kanoj Sarcar <kanojsarcar@yahoo.com>
+-
+-The intent of this file is to have an uptodate, running commentary 
+-from different people about how locking and synchronization is done 
+-in the Linux vm code.
+-
+-page_table_lock & mmap_sem
+---------------------------------------
+-
+-Page stealers pick processes out of the process pool and scan for 
+-the best process to steal pages from. To guarantee the existence 
+-of the victim mm, a mm_count inc and a mmdrop are done in swap_out().
+-Page stealers hold kernel_lock to protect against a bunch of races.
+-The vma list of the victim mm is also scanned by the stealer, 
+-and the page_table_lock is used to preserve list sanity against the
+-process adding/deleting to the list. This also guarantees existence
+-of the vma. Vma existence is not guaranteed once try_to_swap_out() 
+-drops the page_table_lock. To guarantee the existence of the underlying 
+-file structure, a get_file is done before the swapout() method is 
+-invoked. The page passed into swapout() is guaranteed not to be reused
+-for a different purpose because the page reference count due to being
+-present in the user's pte is not released till after swapout() returns.
+-
+-Any code that modifies the vmlist, or the vm_start/vm_end/
+-vm_flags:VM_LOCKED/vm_next of any vma *in the list* must prevent 
+-kswapd from looking at the chain.
+-
+-The rules are:
+-1. To scan the vmlist (look but don't touch) you must hold the
+-   mmap_sem with read bias, i.e. down_read(&mm->mmap_sem)
+-2. To modify the vmlist you need to hold the mmap_sem with
+-   read&write bias, i.e. down_write(&mm->mmap_sem)  *AND*
+-   you need to take the page_table_lock.
+-3. The swapper takes _just_ the page_table_lock, this is done
+-   because the mmap_sem can be an extremely long lived lock
+-   and the swapper just cannot sleep on that.
+-4. The exception to this rule is expand_stack, which just
+-   takes the read lock and the page_table_lock, this is ok
+-   because it doesn't really modify fields anybody relies on.
+-5. You must be able to guarantee that while holding page_table_lock
+-   or page_table_lock of mm A, you will not try to get either lock
+-   for mm B.
+-
+-The caveats are:
+-1. find_vma() makes use of, and updates, the mmap_cache pointer hint.
+-The update of mmap_cache is racy (page stealer can race with other code
+-that invokes find_vma with mmap_sem held), but that is okay, since it 
+-is a hint. This can be fixed, if desired, by having find_vma grab the
+-page_table_lock.
+-
+-
+-Code that add/delete elements from the vmlist chain are
+-1. callers of insert_vm_struct
+-2. callers of merge_segments
+-3. callers of avl_remove
+-
+-Code that changes vm_start/vm_end/vm_flags:VM_LOCKED of vma's on
+-the list:
+-1. expand_stack
+-2. mprotect
+-3. mlock
+-4. mremap
+-
+-It is advisable that changes to vm_start/vm_end be protected, although 
+-in some cases it is not really needed. Eg, vm_start is modified by 
+-expand_stack(), it is hard to come up with a destructive scenario without 
+-having the vmlist protection in this case.
+-
+-The page_table_lock nests with the inode i_mmap_mutex and the kmem cache
+-c_spinlock spinlocks.  This is okay, since the kmem code asks for pages after
+-dropping c_spinlock.  The page_table_lock also nests with pagecache_lock and
+-pagemap_lru_lock spinlocks, and no code asks for memory with these locks
+-held.
+-
+-The page_table_lock is grabbed while holding the kernel_lock spinning monitor.
+-
+-The page_table_lock is a spin lock.
+-
+-Note: PTL can also be used to guarantee that no new clones using the
+-mm start up ... this is a loose form of stability on mm_users. For
+-example, it is used in copy_mm to protect against a racing tlb_gather_mmu
+-single address space optimization, so that the zap_page_range (from
+-truncate) does not lose sending ipi's to cloned threads that might
+-be spawned underneath it and go to user mode to drag in pte's into tlbs.
+-
+-swap_lock
+---------------
+-The swap devices are chained in priority order from the "swap_list" header. 
+-The "swap_list" is used for the round-robin swaphandle allocation strategy.
+-The #free swaphandles is maintained in "nr_swap_pages". These two together
+-are protected by the swap_lock.
+-
+-The swap_lock also protects all the device reference counts on the
+-corresponding swaphandles, maintained in the "swap_map" array, and the
+-"highest_bit" and "lowest_bit" fields.
+-
+-The swap_lock is a spinlock, and is never acquired from intr level.
+-
+-To prevent races between swap space deletion or async readahead swapins
+-deciding whether a swap handle is being used, ie worthy of being read in
+-from disk, and an unmap -> swap_free making the handle unused, the swap
+-delete and readahead code grabs a temp reference on the swaphandle to
+-prevent warning messages from swap_duplicate <- read_swap_cache_async.
+-
+-Swap cache locking
+-------------------
+-Pages are added into the swap cache with kernel_lock held, to make sure
+-that multiple pages are not being added (and hence lost) by associating
+-all of them with the same swaphandle.
+-
+-Pages are guaranteed not to be removed from the scache if the page is 
+-"shared": ie, other processes hold reference on the page or the associated 
+-swap handle. The only code that does not follow this rule is shrink_mmap,
+-which deletes pages from the swap cache if no process has a reference on 
+-the page (multiple processes might have references on the corresponding
+-swap handle though). lookup_swap_cache() races with shrink_mmap, when
+-establishing a reference on a scache page, so, it must check whether the
+-page it located is still in the swapcache, or shrink_mmap deleted it.
+-(This race is due to the fact that shrink_mmap looks at the page ref
+-count with pagecache_lock, but then drops pagecache_lock before deleting
+-the page from the scache).
+-
+-do_wp_page and do_swap_page have MP races in them while trying to figure
+-out whether a page is "shared", by looking at the page_count + swap_count.
+-To preserve the sum of the counts, the page lock _must_ be acquired before
+-calling is_page_shared (else processes might switch their swap_count refs
+-to the page count refs, after the page count ref has been snapshotted).
+-
+-Swap device deletion code currently breaks all the scache assumptions,
+-since it grabs neither mmap_sem nor page_table_lock.
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
