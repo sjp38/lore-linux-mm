@@ -1,96 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id DF2226B0075
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 03:29:54 -0500 (EST)
-Received: by mail-pd0-f173.google.com with SMTP id p10so6849960pdj.4
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 00:29:54 -0800 (PST)
-Received: from LGEMRELSE6Q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id sg3si9765277pbb.283.2013.12.10.00.29.52
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D7186B007B
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 03:35:36 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id v10so6843261pde.41
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 00:35:36 -0800 (PST)
+Received: from LGEMRELSE7Q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id ek3si9812532pbd.25.2013.12.10.00.35.32
         for <linux-mm@kvack.org>;
-        Tue, 10 Dec 2013 00:29:53 -0800 (PST)
-Date: Tue, 10 Dec 2013 17:32:44 +0900
+        Tue, 10 Dec 2013 00:35:34 -0800 (PST)
+Date: Tue, 10 Dec 2013 17:38:25 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 19/20] mm, hugetlb: retry if failed to allocate and
- there is concurrent user
-Message-ID: <20131210083244.GA24992@lge.com>
-References: <1376040398-11212-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1376040398-11212-20-git-send-email-iamjoonsoo.kim@lge.com>
- <20130905011553.GA10158@voom.redhat.com>
- <20130905054357.GA23597@lge.com>
- <20130916120909.GA2706@voom.fritz.box>
- <20130930074744.GA15351@lge.com>
- <1386606983.2723.2.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH v2 2/7] mm/migrate: correct failure handling if
+ !hugepage_migration_support()
+Message-ID: <20131210083825.GB24992@lge.com>
+References: <1386580248-22431-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1386580248-22431-3-git-send-email-iamjoonsoo.kim@lge.com>
+ <00000142d8263858-5c29199b-77e5-47a5-9db6-2ea6ea7c7fc8-000000@email.amazonses.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1386606983.2723.2.camel@buesod1.americas.hpqcorp.net>
+In-Reply-To: <00000142d8263858-5c29199b-77e5-47a5-9db6-2ea6ea7c7fc8-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: David Gibson <david@gibson.dropbear.id.au>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Rafael Aquini <aquini@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On Mon, Dec 09, 2013 at 08:36:23AM -0800, Davidlohr Bueso wrote:
-> On Mon, 2013-09-30 at 16:47 +0900, Joonsoo Kim wrote:
-> > On Mon, Sep 16, 2013 at 10:09:09PM +1000, David Gibson wrote:
-> > > > > 
-> > > > > > +		*do_dequeue = false;
-> > > > > >  		spin_unlock(&hugetlb_lock);
-> > > > > >  		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
-> > > > > >  		if (!page) {
-> > > > > 
-> > > > > I think the counter also needs to be incremented in the case where we
-> > > > > call alloc_buddy_huge_page() from alloc_huge_page().  Even though it's
-> > > > > new, it gets added to the hugepage pool at this point and could still
-> > > > > be a contended page for the last allocation, unless I'm missing
-> > > > > something.
-> > > > 
-> > > > Your comment has reasonable point to me, but I have a different opinion.
-> > > > 
-> > > > As I already mentioned, the point is that we want to avoid the race
-> > > > which kill the legitimate users of hugepages by out of resources.
-> > > > I increase 'h->nr_dequeue_users' when the hugepage allocated by
-> > > > administrator is dequeued. It is because what the hugepage I want to
-> > > > protect from the race is the one allocated by administrator via
-> > > > kernel param or /proc interface. Administrator may already know how many
-> > > > hugepages are needed for their application so that he may set nr_hugepage
-> > > > to reasonable value. I want to guarantee that these hugepages can be used
-> > > > for his application without any race, since he assume that the application
-> > > > would work fine with these hugepages.
-> > > > 
-> > > > To protect hugepages returned from alloc_buddy_huge_page() from the race
-> > > > is different for me. Although it will be added to the hugepage pool, this
-> > > > doesn't guarantee certain application's success more. If certain
-> > > > application's success depends on the race of this new hugepage, it's death
-> > > > by the race doesn't matter, since nobody assume that it works fine.
-> > > 
-> > > Hrm.  I still think this path should be included.  Although I'll agree
-> > > that failing in this case is less bad.
-> > > 
-> > > However, it can still lead to a situation where with two processes or
-> > > threads, faulting on exactly the same shared page we have one succeed
-> > > and the other fail.  That's a strange behaviour and I think we want to
-> > > avoid it in this case too.
-> > 
-> > Hello, David.
-> > 
-> > I don't think it is a strange behaviour. Similar situation can occur
-> > even though we use the mutex. Hugepage allocation can be failed when
-> > the first process try to allocate the hugepage while second process is blocked
-> > by the mutex. And then, second process will go into the fault handler. And
-> > at this time, it can succeed. So result is that we have one succeed and
-> > the other fail.
-> > 
-> > It is slightly different from the case you mentioned, but I think that
-> > effect for user is same. We cannot avoid this kind of race completely and
-> > I think that avoiding the race for administrator managed hugepage pool is
-> > good enough to use.
+On Mon, Dec 09, 2013 at 04:17:32PM +0000, Christoph Lameter wrote:
+> On Mon, 9 Dec 2013, Joonsoo Kim wrote:
 > 
-> What was the final decision on this issue? Is Joonsoo's approach to
-> removing this mutex viable, or are we stuck with it?
+> > We should remove the page from the list if we fail without ENOSYS,
+> > since migrate_pages() consider error cases except -ENOMEM and -EAGAIN
+> > as permanent failure and it assumes that the page would be removed from
+> > the list. Without this patch, we could overcount number of failure.
+> 
+> Ok what does the patch do about this? I dont see any modifications. Remove
+> this part of the description?
 
-Hello.
+Description is slightly wrong.
+Following is correct one.
 
-After rebasing on current kernel, I will repost it soon.
+"We should remove the page from the list if we fail *with* ENOSYS,"
+
+And this patch do this by adding putback_active_hugepage(hpage)
+on ENOSYS case.
+
+> 
+> > In addition, we should put back the new hugepage if
+> > !hugepage_migration_support(). If not, we would leak hugepage memory.
+> 
+> Ok looks like that is fixed by this patch.
+> 
+> Acked-by: Christoph Lameter <cl@linux.com>
 
 Thanks.
 
