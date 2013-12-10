@@ -1,93 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f54.google.com (mail-yh0-f54.google.com [209.85.213.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EE946B0071
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 16:06:55 -0500 (EST)
-Received: by mail-yh0-f54.google.com with SMTP id z12so4409333yhz.27
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 13:06:55 -0800 (PST)
-Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com [2607:f8b0:4001:c03::22b])
-        by mx.google.com with ESMTPS id p5si15113462yho.9.2013.12.10.13.06.54
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 10 Dec 2013 13:06:54 -0800 (PST)
-Received: by mail-ie0-f171.google.com with SMTP id ar20so9628940iec.2
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 13:06:54 -0800 (PST)
+Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
+	by kanga.kvack.org (Postfix) with ESMTP id ADE526B0073
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 16:07:43 -0500 (EST)
+Received: by mail-qc0-f178.google.com with SMTP id i17so4507379qcy.9
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 13:07:43 -0800 (PST)
+Received: from a9-42.smtp-out.amazonses.com (a9-42.smtp-out.amazonses.com. [54.240.9.42])
+        by mx.google.com with ESMTP id j7si13181062qab.119.2013.12.10.13.07.41
+        for <linux-mm@kvack.org>;
+        Tue, 10 Dec 2013 13:07:42 -0800 (PST)
+Date: Tue, 10 Dec 2013 21:07:40 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] [RFC] mm: slab: separate slab_page from 'struct page'
+In-Reply-To: <20131210204641.3CB515AE@viggo.jf.intel.com>
+Message-ID: <00000142de5634af-f92870a7-efe2-45cd-b50d-a6fbdf3b353c-000000@email.amazonses.com>
+References: <20131210204641.3CB515AE@viggo.jf.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <52A6D9B0.7040506@huawei.com>
-References: <52A6D9B0.7040506@huawei.com>
-Date: Tue, 10 Dec 2013 13:06:53 -0800
-Message-ID: <CAE9FiQUd+sU4GEq0687u8+26jXJiJVboN90+L7svyosmm+V1Rg@mail.gmail.com>
-Subject: Re: [PATCH] mm,x86: fix span coverage in e820_all_mapped()
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, Andi Kleen <ak@linux.intel.com>
 
-On Tue, Dec 10, 2013 at 1:06 AM, Xishi Qiu <qiuxishi@huawei.com> wrote:
-> In the following case, e820_all_mapped() will return 1.
-> A < start < B-1 and B < end < C, it means <start, end> spans two regions.
-> <start, end>:           [start - end]
-> e820 addr:          ...[A - B-1][B - C]...
+On Tue, 10 Dec 2013, Dave Hansen wrote:
 
-should be [start, end) right?
-and
-[A, B),[B, C)
+> At least for slab, this doesn't turn out to be too big of a deal:
+> it's only 8 casts.  slub looks like it'll be a bit more work, but
+> still manageable.
 
->
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> ---
->  arch/x86/kernel/e820.c |   15 +++------------
->  1 files changed, 3 insertions(+), 12 deletions(-)
->
-> diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
-> index 174da5f..31ecab2 100644
-> --- a/arch/x86/kernel/e820.c
-> +++ b/arch/x86/kernel/e820.c
-> @@ -85,20 +85,11 @@ int __init e820_all_mapped(u64 start, u64 end, unsigned type)
->
->                 if (type && ei->type != type)
->                         continue;
-> -               /* is the region (part) in overlap with the current region ?*/
-> +               /* is the region (part) in overlap with the current region ? */
->                 if (ei->addr >= end || ei->addr + ei->size <= start)
->                         continue;
-> -
-> -               /* if the region is at the beginning of <start,end> we move
-> -                * start to the end of the region since it's ok until there
-> -                */
-> -               if (ei->addr <= start)
-> -                       start = ei->addr + ei->size;
+The single page struct definitions makes it easy to see how a certain
+field is being used in various subsystems. If you add a field then you
+can see other use cases in other subsystems. If you happen to call
+them then you know that there is trouble afoot.
 
-so in your case new start will be B ?
+Also if you screw up the sizes then you screw up the page struct for
+everything and its very evident that a problem exists.
 
-next run will be C
+How do you ensure that the sizes and the locations of the fields in
+multiple page structs stay consistent?
 
-> -               /*
-> -                * if start is now at or beyond end, we're done, full
-> -                * coverage
-> -                */
-> -               if (start >= end)
-
-
-> +               /* is the region full coverage of <start, end> ? */
-> +               if (ei->addr <= start && ei->addr + ei->size >= end)
->                         return 1;
->         }
->         return 0;
-
-also e820 should be sanitized already to have [A,C).
-
-or you are talking about [A,B), [B+1, C)
-first run start will be B,  and next run with [B+1, ...), that will be
-skipped...
-will not return 1.
-
-so old code should be ok.
-
-Thanks
-
-Yinghai
+As far as I can tell we are trying to put everything into one page struct
+to keep track of the uses of various fields and to allow a reference for
+newcomes to the kernel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
