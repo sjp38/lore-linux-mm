@@ -1,97 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id EF1816B00AE
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 04:27:50 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id w10so6960671pde.20
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 01:27:50 -0800 (PST)
-Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com. [122.248.162.3])
-        by mx.google.com with ESMTPS id sj5si9934823pab.52.2013.12.10.01.27.43
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 10 Dec 2013 01:27:49 -0800 (PST)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 10 Dec 2013 14:57:34 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 443EDE0057
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 14:59:50 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBA9RSi91769894
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 14:57:28 +0530
-Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBA9RU13027113
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 14:57:31 +0530
-Date: Tue, 10 Dec 2013 17:27:28 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 2/7] mm/migrate: correct failure handling if
- !hugepage_migration_support()
-Message-ID: <52a6de95.2590420a.170c.1019SMTPIN_ADDED_BROKEN@mx.google.com>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1386580248-22431-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1386580248-22431-3-git-send-email-iamjoonsoo.kim@lge.com>
- <52a679dd.8886420a.34d4.1b0eSMTPIN_ADDED_BROKEN@mx.google.com>
- <20131210084507.GC24992@lge.com>
+Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 676756B00B0
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 04:45:53 -0500 (EST)
+Received: by mail-we0-f170.google.com with SMTP id w61so4741858wes.15
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 01:45:52 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id ky3si6437551wjb.168.2013.12.10.01.45.52
+        for <linux-mm@kvack.org>;
+        Tue, 10 Dec 2013 01:45:52 -0800 (PST)
+Date: Tue, 10 Dec 2013 10:06:39 +0100
+From: Andrew Jones <drjones@redhat.com>
+Subject: Re: [PATCH 17/18] sched: Tracepoint task movement
+Message-ID: <20131210090639.GA2370@hawk.usersys.redhat.com>
+References: <1386572952-1191-1-git-send-email-mgorman@suse.de>
+ <1386572952-1191-18-git-send-email-mgorman@suse.de>
+ <52A611FB.7000305@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131210084507.GC24992@lge.com>
+In-Reply-To: <52A611FB.7000305@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Rafael Aquini <aquini@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <js1304@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Alex Thorlton <athorlton@sgi.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Dec 10, 2013 at 05:45:07PM +0900, Joonsoo Kim wrote:
->On Tue, Dec 10, 2013 at 10:17:56AM +0800, Wanpeng Li wrote:
->> Hi Joonsoo,
->> On Mon, Dec 09, 2013 at 06:10:43PM +0900, Joonsoo Kim wrote:
->> >We should remove the page from the list if we fail without ENOSYS,
->> >since migrate_pages() consider error cases except -ENOMEM and -EAGAIN
->> >as permanent failure and it assumes that the page would be removed from
->> >the list. Without this patch, we could overcount number of failure.
->> >
->> >In addition, we should put back the new hugepage if
->> >!hugepage_migration_support(). If not, we would leak hugepage memory.
->> >
->> >Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->> >
->> >diff --git a/mm/migrate.c b/mm/migrate.c
->> >index c6ac87a..b1cfd01 100644
->> >--- a/mm/migrate.c
->> >+++ b/mm/migrate.c
->> >@@ -1011,7 +1011,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
->> > {
->> > 	int rc = 0;
->> > 	int *result = NULL;
->> >-	struct page *new_hpage = get_new_page(hpage, private, &result);
->> >+	struct page *new_hpage;
->> > 	struct anon_vma *anon_vma = NULL;
->> >
->> > 	/*
->> >@@ -1021,9 +1021,12 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
->> > 	 * tables or check whether the hugepage is pmd-based or not before
->> > 	 * kicking migration.
->> > 	 */
->> >-	if (!hugepage_migration_support(page_hstate(hpage)))
->> >+	if (!hugepage_migration_support(page_hstate(hpage))) {
->> >+		putback_active_hugepage(hpage);
->> > 		return -ENOSYS;
->> 
->> The memory hotplug(do_migrate_range) and hwpoison(soft_offline_huge_page) callsets both 
->> will call putback_movable_pages/putback_active_hugepage for -ENOSYS case.
->
->Hello Wanpeng.
->
->Yes, those callsite handle error case, but error case handling should be done
->in unmap_and_move_huge_page(). It is mentioned on patch 1. If we defer to
->remove the pages from the list, nr_failed can be overcounted.
->
+On Mon, Dec 09, 2013 at 01:54:51PM -0500, Rik van Riel wrote:
+> On 12/09/2013 02:09 AM, Mel Gorman wrote:
+> > move_task() is called from move_one_task and move_tasks and is an
+> > approximation of load balancer activity. We should be able to track
+> > tasks that move between CPUs frequently. If the tracepoint included node
+> > information then we could distinguish between in-node and between-node
+> > traffic for load balancer decisions. The tracepoint allows us to track
+> > local migrations, remote migrations and average task migrations.
+> > 
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> 
+> Does this replicate the task_sched_migrate_task tracepoint in
+> set_task_cpu() ?
+> 
+> I know Drew has been using that tracepoint in his (still experimental)
+> numatop script. Drew, does this tracepoint look better than the trace
+> point that you are currently using, or is it similar enough that we do
+> not really benefit from this addition?
 
-I see. 
+Right, sched::sched_migrate_task only gives us pid, orig_cpu, and
+dest_cpu, but all the fields below are important. The numamigtop script
+has been extracting/using all that information as well, but by using the
+pid and /proc, plus a cpu-node map built from /sys info. I agree with Mel
+that enhancing the tracepoint is a good idea. Doing so, would allow trace
+data of this sort to be analyzed without a tool, or at least with a much
+simpler tool.
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+drew
 
->Thanks.
+> 
+> > diff --git a/include/trace/events/sched.h b/include/trace/events/sched.h
+> > index 04c3084..cf1694c 100644
+> > --- a/include/trace/events/sched.h
+> > +++ b/include/trace/events/sched.h
+> > @@ -443,6 +443,41 @@ TRACE_EVENT(sched_process_hang,
+> >  );
+> >  #endif /* CONFIG_DETECT_HUNG_TASK */
+> >  
+> > +/*
+> > + * Tracks migration of tasks from one runqueue to another. Can be used to
+> > + * detect if automatic NUMA balancing is bouncing between nodes
+> > + */
+> > +TRACE_EVENT(sched_move_task,
+> > +
+> > +	TP_PROTO(struct task_struct *tsk, int src_cpu, int dst_cpu),
+> > +
+> > +	TP_ARGS(tsk, src_cpu, dst_cpu),
+> > +
+> > +	TP_STRUCT__entry(
+> > +		__field( pid_t,	pid			)
+> > +		__field( pid_t,	tgid			)
+> > +		__field( pid_t,	ngid			)
+> > +		__field( int,	src_cpu			)
+> > +		__field( int,	src_nid			)
+> > +		__field( int,	dst_cpu			)
+> > +		__field( int,	dst_nid			)
+> > +	),
+> > +
+> > +	TP_fast_assign(
+> > +		__entry->pid		= task_pid_nr(tsk);
+> > +		__entry->tgid		= task_tgid_nr(tsk);
+> > +		__entry->ngid		= task_numa_group_id(tsk);
+> > +		__entry->src_cpu	= src_cpu;
+> > +		__entry->src_nid	= cpu_to_node(src_cpu);
+> > +		__entry->dst_cpu	= dst_cpu;
+> > +		__entry->dst_nid	= cpu_to_node(dst_cpu);
+> > +	),
+> > +
+> > +	TP_printk("pid=%d tgid=%d ngid=%d src_cpu=%d src_nid=%d dst_cpu=%d dst_nid=%d",
+> > +			__entry->pid, __entry->tgid, __entry->ngid,
+> > +			__entry->src_cpu, __entry->src_nid,
+> > +			__entry->dst_cpu, __entry->dst_nid)
+> > +);
+> >  #endif /* _TRACE_SCHED_H */
+> >  
+> >  /* This part must be outside protection */
+> > diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+> > index 1ce1615..41021c8 100644
+> > --- a/kernel/sched/fair.c
+> > +++ b/kernel/sched/fair.c
+> > @@ -4770,6 +4770,8 @@ static void move_task(struct task_struct *p, struct lb_env *env)
+> >  	set_task_cpu(p, env->dst_cpu);
+> >  	activate_task(env->dst_rq, p, 0);
+> >  	check_preempt_curr(env->dst_rq, p, 0);
+> > +
+> > +	trace_sched_move_task(p, env->src_cpu, env->dst_cpu);
+> >  }
+> >  
+> >  /*
+> > 
+> 
+> 
+> -- 
+> All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
