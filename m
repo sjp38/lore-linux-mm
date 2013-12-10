@@ -1,46 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
-	by kanga.kvack.org (Postfix) with ESMTP id ADE526B0073
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 16:07:43 -0500 (EST)
-Received: by mail-qc0-f178.google.com with SMTP id i17so4507379qcy.9
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 13:07:43 -0800 (PST)
-Received: from a9-42.smtp-out.amazonses.com (a9-42.smtp-out.amazonses.com. [54.240.9.42])
-        by mx.google.com with ESMTP id j7si13181062qab.119.2013.12.10.13.07.41
-        for <linux-mm@kvack.org>;
-        Tue, 10 Dec 2013 13:07:42 -0800 (PST)
-Date: Tue, 10 Dec 2013 21:07:40 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] [RFC] mm: slab: separate slab_page from 'struct page'
-In-Reply-To: <20131210204641.3CB515AE@viggo.jf.intel.com>
-Message-ID: <00000142de5634af-f92870a7-efe2-45cd-b50d-a6fbdf3b353c-000000@email.amazonses.com>
-References: <20131210204641.3CB515AE@viggo.jf.intel.com>
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B7646B0075
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 16:25:42 -0500 (EST)
+Received: by mail-wi0-f178.google.com with SMTP id bz8so5926828wib.11
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 13:25:41 -0800 (PST)
+Received: from caramon.arm.linux.org.uk (caramon.arm.linux.org.uk. [78.32.30.218])
+        by mx.google.com with ESMTPS id wo9si7462664wjc.167.2013.12.10.13.25.41
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 10 Dec 2013 13:25:41 -0800 (PST)
+Date: Tue, 10 Dec 2013 21:25:23 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCH 1/2] mm/ARM: dma: fix conflicting types for
+	'arm_dma_zone_size'
+Message-ID: <20131210212523.GE4360@n2100.arm.linux.org.uk>
+References: <1386703798-26521-1-git-send-email-santosh.shilimkar@ti.com> <1386703798-26521-2-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1386703798-26521-2-git-send-email-santosh.shilimkar@ti.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, Andi Kleen <ak@linux.intel.com>
+To: Santosh Shilimkar <santosh.shilimkar@ti.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, Grygorii Strashko <grygorii.strashko@ti.com>, Rob Herring <rob.herring@calxeda.com>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>
 
-On Tue, 10 Dec 2013, Dave Hansen wrote:
+On Tue, Dec 10, 2013 at 02:29:57PM -0500, Santosh Shilimkar wrote:
+> diff --git a/arch/arm/include/asm/dma.h b/arch/arm/include/asm/dma.h
+> index 58b8c6a..1439b80 100644
+> --- a/arch/arm/include/asm/dma.h
+> +++ b/arch/arm/include/asm/dma.h
+> @@ -8,7 +8,7 @@
+>  #define MAX_DMA_ADDRESS	0xffffffffUL
+>  #else
+>  #define MAX_DMA_ADDRESS	({ \
+> -	extern unsigned long arm_dma_zone_size; \
+> +	extern phys_addr_t arm_dma_zone_size; \
+>  	arm_dma_zone_size ? \
+>  		(PAGE_OFFSET + arm_dma_zone_size) : 0xffffffffUL; })
 
-> At least for slab, this doesn't turn out to be too big of a deal:
-> it's only 8 casts.  slub looks like it'll be a bit more work, but
-> still manageable.
+This is wrong.  Take a moment to look at it more closely.  What does
+"PAGE_OFFSET" tell you about what its returning?
 
-The single page struct definitions makes it easy to see how a certain
-field is being used in various subsystems. If you add a field then you
-can see other use cases in other subsystems. If you happen to call
-them then you know that there is trouble afoot.
-
-Also if you screw up the sizes then you screw up the page struct for
-everything and its very evident that a problem exists.
-
-How do you ensure that the sizes and the locations of the fields in
-multiple page structs stay consistent?
-
-As far as I can tell we are trying to put everything into one page struct
-to keep track of the uses of various fields and to allow a reference for
-newcomes to the kernel.
+What happens if arm_dma_zone_size is greater than 1GB when PAGE_OFFSET
+is at the default setting of 3GB?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
