@@ -1,83 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f45.google.com (mail-qe0-f45.google.com [209.85.128.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FEC26B0038
-	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 20:38:59 -0500 (EST)
-Received: by mail-qe0-f45.google.com with SMTP id 6so3622228qea.32
-        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 17:38:59 -0800 (PST)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:6])
-        by mx.google.com with ESMTP id b6si10242347qak.70.2013.12.09.17.38.56
-        for <linux-mm@kvack.org>;
-        Mon, 09 Dec 2013 17:38:57 -0800 (PST)
-Date: Tue, 10 Dec 2013 12:38:41 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v13 09/16] fs: consolidate {nr,free}_cached_objects args
- in shrink_control
-Message-ID: <20131210013841.GY31386@dastard>
-References: <cover.1386571280.git.vdavydov@parallels.com>
- <43660b83b58531ccf4d45f626283484441441943.1386571280.git.vdavydov@parallels.com>
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id EC01C6B003A
+	for <linux-mm@kvack.org>; Mon,  9 Dec 2013 20:42:57 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id v10so6291079pde.13
+        for <linux-mm@kvack.org>; Mon, 09 Dec 2013 17:42:57 -0800 (PST)
+Received: from e28smtp04.in.ibm.com (e28smtp04.in.ibm.com. [122.248.162.4])
+        by mx.google.com with ESMTPS id pj7si8848184pbc.279.2013.12.09.17.42.55
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 09 Dec 2013 17:42:56 -0800 (PST)
+Received: from /spool/local
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Tue, 10 Dec 2013 07:12:53 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 7D479394002D
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 07:12:50 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBA1gkFp3277102
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 07:12:47 +0530
+Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBA1gnIL013991
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 07:12:49 +0530
+Date: Tue, 10 Dec 2013 09:42:48 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 1/7] mm/migrate: add comment about permanent failure
+ path
+Message-ID: <52a671a0.e7da440a.46f3.272cSMTPIN_ADDED_BROKEN@mx.google.com>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1386580248-22431-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1386580248-22431-2-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <43660b83b58531ccf4d45f626283484441441943.1386571280.git.vdavydov@parallels.com>
+In-Reply-To: <1386580248-22431-2-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: dchinner@redhat.com, hannes@cmpxchg.org, mhocko@suse.cz, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, glommer@gmail.com, Al Viro <viro@zeniv.linux.org.uk>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Rafael Aquini <aquini@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <js1304@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On Mon, Dec 09, 2013 at 12:05:50PM +0400, Vladimir Davydov wrote:
-> We are going to make the FS shrinker memcg-aware. To achieve that, we
-> will have to pass the memcg to scan to the nr_cached_objects and
-> free_cached_objects VFS methods, which currently take only the NUMA node
-> to scan. Since the shrink_control structure already holds the node, and
-> the memcg to scan will be added to it as we introduce memcg-aware
-> vmscan, let us consolidate the methods' arguments in this structure to
-> keep things clean.
-> 
-> Thanks to David Chinner for the tip.
+On Mon, Dec 09, 2013 at 06:10:42PM +0900, Joonsoo Kim wrote:
+>From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>
+>Let's add a comment about where the failed page goes to, which makes
+>code more readable.
+>
+>Acked-by: Christoph Lameter <cl@linux.com>
+>Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
 
-Ok, you dealt with this as a separate patch...
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-> 
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-> Cc: Glauber Costa <glommer@openvz.org>
-> Cc: Dave Chinner <dchinner@redhat.com>
-> Cc: Al Viro <viro@zeniv.linux.org.uk>
-> ---
->  fs/super.c         |    8 +++-----
->  fs/xfs/xfs_super.c |    6 +++---
->  include/linux/fs.h |    6 ++++--
->  3 files changed, 10 insertions(+), 10 deletions(-)
-> 
-> diff --git a/fs/super.c b/fs/super.c
-> index a039dba..8f9a81b 100644
-> --- a/fs/super.c
-> +++ b/fs/super.c
-> @@ -76,7 +76,7 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
->  		return SHRINK_STOP;
->  
->  	if (sb->s_op->nr_cached_objects)
-> -		fs_objects = sb->s_op->nr_cached_objects(sb, sc->nid);
-> +		fs_objects = sb->s_op->nr_cached_objects(sb, sc);
->  
->  	inodes = list_lru_count(&sb->s_inode_lru, sc);
->  	dentries = list_lru_count(&sb->s_dentry_lru, sc);
-> @@ -96,8 +96,7 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
->  	if (fs_objects) {
->  		fs_objects = mult_frac(sc->nr_to_scan, fs_objects,
->  								total_objects);
-> -		freed += sb->s_op->free_cached_objects(sb, fs_objects,
-> -						       sc->nid);
-> +		freed += sb->s_op->free_cached_objects(sb, sc, fs_objects);
->  	}
-
-Again, pass the number to scan in sc->nr_to_scan, please.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+>diff --git a/mm/migrate.c b/mm/migrate.c
+>index 3747fcd..c6ac87a 100644
+>--- a/mm/migrate.c
+>+++ b/mm/migrate.c
+>@@ -1123,7 +1123,12 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+> 				nr_succeeded++;
+> 				break;
+> 			default:
+>-				/* Permanent failure */
+>+				/*
+>+				 * Permanent failure (-EBUSY, -ENOSYS, etc.):
+>+				 * unlike -EAGAIN case, the failed page is
+>+				 * removed from migration page list and not
+>+				 * retried in the next outer loop.
+>+				 */
+> 				nr_failed++;
+> 				break;
+> 			}
+>-- 
+>1.7.9.5
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
