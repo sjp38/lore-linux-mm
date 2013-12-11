@@ -1,58 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A9826B0035
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 05:29:04 -0500 (EST)
-Received: by mail-pd0-f172.google.com with SMTP id g10so9294845pdj.3
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 02:29:04 -0800 (PST)
-Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com. [202.81.31.140])
-        by mx.google.com with ESMTPS id fn9si13162526pab.145.2013.12.11.02.29.01
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 11 Dec 2013 02:29:03 -0800 (PST)
-Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 11 Dec 2013 20:29:00 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 9897C3578023
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 21:28:57 +1100 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBBAAjiH4850040
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 21:10:45 +1100
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBBASufM032193
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 21:28:56 +1100
-Date: Wed, 11 Dec 2013 18:28:54 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v6 0/6] mm: sched: numa: several fixups
-Message-ID: <52a83e6f.6966420a.0139.131bSMTPIN_ADDED_BROKEN@mx.google.com>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1386756961-3887-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20131211102408.GI13532@twins.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131211102408.GI13532@twins.programming.kicks-ass.net>
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 268696B0036
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 06:09:09 -0500 (EST)
+Received: by mail-wg0-f48.google.com with SMTP id z12so6282747wgg.27
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 03:09:09 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id fx5si8371475wjb.84.2013.12.11.03.09.08
+        for <linux-mm@kvack.org>;
+        Wed, 11 Dec 2013 03:09:09 -0800 (PST)
+Subject: Re: [PATCH v13 12/16] fs: mark list_lru based shrinkers memcg aware
+From: Steven Whitehouse <swhiteho@redhat.com>
+In-Reply-To: <20131210041747.GA31386@dastard>
+References: <cover.1386571280.git.vdavydov@parallels.com>
+	 <9e1005848996c3df5ceca9e8262edcf8211a893d.1386571280.git.vdavydov@parallels.com>
+	 <20131210041747.GA31386@dastard>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 11 Dec 2013 11:08:05 +0000
+Message-ID: <1386760085.2706.20.camel@menhir>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, dchinner@redhat.com, hannes@cmpxchg.org, mhocko@suse.cz, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, glommer@gmail.com, Al Viro <viro@zeniv.linux.org.uk>
 
-On Wed, Dec 11, 2013 at 11:24:08AM +0100, Peter Zijlstra wrote:
->On Wed, Dec 11, 2013 at 06:15:55PM +0800, Wanpeng Li wrote:
->> Hi Andrew,
->
->You'll find kernel/sched/ has a maintainer !Andrew.
->
+Hi,
 
-Ah, ok. ;-)
+On Tue, 2013-12-10 at 15:17 +1100, Dave Chinner wrote:
+> On Mon, Dec 09, 2013 at 12:05:53PM +0400, Vladimir Davydov wrote:
+> > Since now list_lru automatically distributes objects among per-memcg
+> > lists and list_lru_{count,walk} employ information passed in the
+> > shrink_control argument to scan appropriate list, all shrinkers that
+> > keep objects in the list_lru structure can already work as memcg-aware.
+> > Let us mark them so.
+> > 
+> > Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+> > Cc: Glauber Costa <glommer@openvz.org>
+> > Cc: Dave Chinner <dchinner@redhat.com>
+> > Cc: Al Viro <viro@zeniv.linux.org.uk>
+> > ---
+> >  fs/gfs2/quota.c  |    2 +-
+> >  fs/super.c       |    2 +-
+> >  fs/xfs/xfs_buf.c |    2 +-
+> >  fs/xfs/xfs_qm.c  |    2 +-
+> >  4 files changed, 4 insertions(+), 4 deletions(-)
+> > 
+> > diff --git a/fs/gfs2/quota.c b/fs/gfs2/quota.c
+> > index f0435da..6cf6114 100644
+> > --- a/fs/gfs2/quota.c
+> > +++ b/fs/gfs2/quota.c
+> > @@ -150,7 +150,7 @@ struct shrinker gfs2_qd_shrinker = {
+> >  	.count_objects = gfs2_qd_shrink_count,
+> >  	.scan_objects = gfs2_qd_shrink_scan,
+> >  	.seeks = DEFAULT_SEEKS,
+> > -	.flags = SHRINKER_NUMA_AWARE,
+> > +	.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE,
+> >  };
+> 
+> I'll leave it for Steve to have the final say, but this cache tracks
+> objects that have contexts that span multiple memcgs (i.e. global
+> scope) and so is not a candidate for memcg based shrinking.
+> 
+> e.g. a single user can have processes running in multiple concurrent
+> memcgs, and so the user quota dquot needs to be accessed from all
+> those memcg contexts. Same for group quota objects - they can span
+> multiple memcgs that different users have instantiated, simply
+> because they all belong to the same group and hence are subject to
+> the group quota accounting.
+> 
+> And for XFS, there's also project quotas, which means you can have
+> files that are unique to both users and groups, but shared the same
+> project quota and hence span memcgs that way....
+> 
 
->>  include/linux/sched/sysctl.h |    1 -
->>  kernel/sched/debug.c         |    2 +-
->>  kernel/sched/fair.c          |   17 ++++-------------
->>  kernel/sysctl.c              |    7 -------
->>  mm/migrate.c                 |    4 ----
->>  5 files changed, 5 insertions(+), 26 deletions(-)
+Well that seems to make sense to me. I'm not that familiar with memcg
+and my main interest was to use the provided lru code, unless there was
+a good reason why we should roll our own, and also to take advantage of
+the NUMA friendliness of the new code. Although my main target in GFS2
+was the glock lru, I've not got that far yet as it is a rather more
+complicated thing to do, compared with the quota code,
+
+Steve.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
