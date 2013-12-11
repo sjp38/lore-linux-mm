@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
-	by kanga.kvack.org (Postfix) with ESMTP id AC3F46B003A
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 09:16:43 -0500 (EST)
-Received: by mail-ee0-f44.google.com with SMTP id b57so2940456eek.3
+Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 336C66B003A
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 09:16:44 -0500 (EST)
+Received: by mail-ee0-f52.google.com with SMTP id d17so2925611eek.39
         for <linux-mm@kvack.org>; Wed, 11 Dec 2013 06:16:43 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id e48si19238364eeh.113.2013.12.11.06.16.42
+        by mx.google.com with ESMTP id t6si19229508eeh.129.2013.12.11.06.16.43
         for <linux-mm@kvack.org>;
         Wed, 11 Dec 2013 06:16:43 -0800 (PST)
 From: Michal Hocko <mhocko@suse.cz>
-Subject: [RFC 3/4] memcg: Allow setting low_limit
-Date: Wed, 11 Dec 2013 15:15:54 +0100
-Message-Id: <1386771355-21805-4-git-send-email-mhocko@suse.cz>
+Subject: [RFC 4/4] mm, memcg: expedite OOM if no memcg is reclaimable
+Date: Wed, 11 Dec 2013 15:15:55 +0100
+Message-Id: <1386771355-21805-5-git-send-email-mhocko@suse.cz>
 In-Reply-To: <1386771355-21805-1-git-send-email-mhocko@suse.cz>
 References: <1386771355-21805-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -19,123 +19,142 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>
 
-Export memory.low_limit_in_bytes knob with the same rules as the hard
-limit represented by limit_in_bytes knob (e.g. no limit to be set for
-the root cgroup). There is no memsw alternative for low_limit_in_bytes
-because the primary motivation behind this limit is to protect the
-working set of the group and so considering swap doesn't make much
-sense. There is also no kmem variant exported because we do not have any
-easy way to protect kernel allocations now.
+Let shrink_zone us know that at least one group has been eligible so
+that the caller knows that further attempts to reclaim will not help.
 
-Please note that the low limit might exceed the hard limit which
-basically means that the group is never reclaimable. If the hard limit
-is reached with this setting then the memcg OOM killer is triggered to
-sort out the situation.
-
-TODO: update Documentation/cgroups/memory.txt
+All the shrink_zone callers should back off in such a case. Direct
+reclaim should hand over to OOM as soon as possible, kswapd should not
+raise the priority and prefferably go to sleep, and the zone reclaim
+should just give up without re-trying with higher priority.
 
 Signed-off-by: Michal Hocko <mhocko@suse.cz>
 ---
- include/linux/res_counter.h | 13 +++++++++++++
- kernel/res_counter.c        |  2 ++
- mm/memcontrol.c             | 27 ++++++++++++++++++++++++++-
- 3 files changed, 41 insertions(+), 1 deletion(-)
+ mm/vmscan.c | 52 +++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 41 insertions(+), 11 deletions(-)
 
-diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-index c7e7dfeca847..7befcf3c2ee2 100644
---- a/include/linux/res_counter.h
-+++ b/include/linux/res_counter.h
-@@ -93,6 +93,7 @@ enum {
- 	RES_LIMIT,
- 	RES_FAILCNT,
- 	RES_SOFT_LIMIT,
-+	RES_LOW_LIMIT,
- };
- 
- /*
-@@ -251,4 +252,16 @@ res_counter_set_soft_limit(struct res_counter *cnt,
- 	return 0;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 234d1690563a..b9e21df2751a 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2167,9 +2167,15 @@ static inline bool should_continue_reclaim(struct zone *zone,
+ 	}
  }
  
-+static inline int
-+res_counter_set_low_limit(struct res_counter *cnt,
-+				unsigned long long low_limit)
-+{
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&cnt->lock, flags);
-+	cnt->low_limit = low_limit;
-+	spin_unlock_irqrestore(&cnt->lock, flags);
-+	return 0;
-+}
-+
- #endif
-diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-index 4aa8a305aede..c57daf997d9d 100644
---- a/kernel/res_counter.c
-+++ b/kernel/res_counter.c
-@@ -135,6 +135,8 @@ res_counter_member(struct res_counter *counter, int member)
- 		return &counter->failcnt;
- 	case RES_SOFT_LIMIT:
- 		return &counter->soft_limit;
-+	case RES_LOW_LIMIT:
-+		return &counter->low_limit;
- 	};
+-static void shrink_zone(struct zone *zone, struct scan_control *sc)
++/*
++ * Returns true if there is at least one lruvec has been scanned.
++ * Always true for !CONFIG_MEMCG otherwise at least one eligible
++ * memcg has to exist (see mem_cgroup_reclaim_eligible).
++ */
++static bool shrink_zone(struct zone *zone, struct scan_control *sc)
+ {
+ 	unsigned long nr_reclaimed, nr_scanned;
++	int groups_reclaimed = 0;
  
- 	BUG();
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 102e2da9ec8d..afe7c84d823f 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1694,8 +1694,9 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
- 	pr_cont(" as a result of limit of %s\n", memcg_name);
- done:
+ 	do {
+ 		struct mem_cgroup *root = sc->target_mem_cgroup;
+@@ -2200,6 +2206,7 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+ 				continue;
+ 			}
  
--	pr_info("memory: usage %llukB, limit %llukB, failcnt %llu\n",
-+	pr_info("memory: usage %llukB, low_limit %llukB limit %llukB, failcnt %llu\n",
- 		res_counter_read_u64(&memcg->res, RES_USAGE) >> 10,
-+		res_counter_read_u64(&memcg->res, RES_LOW_LIMIT) >> 10,
- 		res_counter_read_u64(&memcg->res, RES_LIMIT) >> 10,
- 		res_counter_read_u64(&memcg->res, RES_FAILCNT));
- 	pr_info("memory+swap: usage %llukB, limit %llukB, failcnt %llu\n",
-@@ -5300,6 +5301,24 @@ static int mem_cgroup_write(struct cgroup_subsys_state *css, struct cftype *cft,
- 		else
- 			return -EINVAL;
- 		break;
-+	case RES_LOW_LIMIT:
-+		if (mem_cgroup_is_root(memcg)) { /* Can't set limit on root */
-+			ret = -EINVAL;
++			groups_reclaimed++;
+ 			lruvec = mem_cgroup_zone_lruvec(zone, memcg);
+ 
+ 			shrink_lruvec(lruvec, sc);
+@@ -2226,8 +2233,12 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+ 			   sc->nr_scanned - nr_scanned,
+ 			   sc->nr_reclaimed - nr_reclaimed);
+ 
++		if (!groups_reclaimed)
 +			break;
-+		}
-+		ret = res_counter_memparse_write_strategy(buffer, &val);
-+		if (ret)
+ 	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
+ 					 sc->nr_scanned - nr_scanned, sc));
++
++	return groups_reclaimed > 0;
+ }
+ 
+ /* Returns true if compaction should go ahead for a high-order request */
+@@ -2347,7 +2358,9 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+ 			/* need some check for avoid more shrink_zone() */
+ 		}
+ 
+-		shrink_zone(zone, sc);
++		/* No memcg to reclaim from so bail out */
++		if (!shrink_zone(zone, sc))
 +			break;
-+		if (type == _MEM) {
-+			ret = res_counter_set_low_limit(&memcg->res, val);
-+			break;
-+		}
-+		/*
-+		 * memsw low limit doesn't make any sense and kmem is not
-+		 * implemented yet - if ever
+ 	}
+ 
+ 	return aborted_reclaim;
+@@ -2442,6 +2455,17 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 			goto out;
+ 
+ 		/*
++		 * If the target memcg is not eligible for reclaim then we have
++		 * no option but OOM
 +		 */
-+		return -EINVAL;
++		if (!sc->nr_scanned &&
++				mem_cgroup_reclaim_no_eligible(
++					sc->target_mem_cgroup)) {
++			delayacct_freepages_end();
++			return 0;
++		}
 +
- 	case RES_SOFT_LIMIT:
- 		ret = res_counter_memparse_write_strategy(buffer, &val);
- 		if (ret)
-@@ -6013,6 +6032,12 @@ static struct cftype mem_cgroup_files[] = {
- 		.read = mem_cgroup_read,
- 	},
- 	{
-+		.name = "low_limit_in_bytes",
-+		.private = MEMFILE_PRIVATE(_MEM, RES_LOW_LIMIT),
-+		.write_string = mem_cgroup_write,
-+		.read = mem_cgroup_read,
-+	},
-+	{
- 		.name = "soft_limit_in_bytes",
- 		.private = MEMFILE_PRIVATE(_MEM, RES_SOFT_LIMIT),
- 		.write_string = mem_cgroup_write,
++		/*
+ 		 * If we're getting trouble reclaiming, start doing
+ 		 * writepage even in laptop mode.
+ 		 */
+@@ -2481,13 +2505,6 @@ out:
+ 	if (aborted_reclaim)
+ 		return 1;
+ 
+-	/*
+-	 * If the target memcg is not eligible for reclaim then we have no opetion
+-	 * but OOM
+-	 */
+-	if (!sc->nr_scanned && mem_cgroup_reclaim_no_eligible(sc->target_mem_cgroup))
+-		return 0;
+-
+ 	/* top priority shrink_zones still had more to do? don't OOM, then */
+ 	if (global_reclaim(sc) && !all_unreclaimable(zonelist, sc))
+ 		return 1;
+@@ -2772,6 +2789,17 @@ static bool pgdat_balanced(pg_data_t *pgdat, int order, int classzone_idx)
+ 	unsigned long balanced_pages = 0;
+ 	int i;
+ 
++
++	/*
++	 * If no memcg is eligible to reclaim then we end up scanning nothing
++	 * and so it doesn't make any sense to do any scanning in the first
++	 * place. So let's go to sleep and pretend everything is balanced.
++	 * We rely on the direct reclaim to eventually sort out the situation
++	 * e.g. by triggering OOM killer.
++	 */
++	if (mem_cgroup_reclaim_no_eligible(NULL))
++		return true;
++
+ 	/* Check the watermark levels */
+ 	for (i = 0; i <= classzone_idx; i++) {
+ 		struct zone *zone = pgdat->node_zones + i;
+@@ -3115,7 +3143,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 		 * Raise priority if scanning rate is too low or there was no
+ 		 * progress in reclaiming pages
+ 		 */
+-		if (raise_priority || !sc.nr_reclaimed)
++		if (raise_priority || (sc.nr_scanned && !sc.nr_reclaimed))
+ 			sc.priority--;
+ 	} while (sc.priority >= 1 &&
+ 		 !pgdat_balanced(pgdat, order, *classzone_idx));
+@@ -3572,7 +3600,9 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 		 * priorities until we have enough memory freed.
+ 		 */
+ 		do {
+-			shrink_zone(zone, &sc);
++			/* memcg to reclaim from so bail out */
++			if(!shrink_zone(zone, &sc))
++				break;
+ 		} while (sc.nr_reclaimed < nr_pages && --sc.priority >= 0);
+ 	}
+ 
 -- 
 1.8.4.4
 
