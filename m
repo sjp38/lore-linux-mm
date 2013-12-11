@@ -1,46 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f53.google.com (mail-yh0-f53.google.com [209.85.213.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 00A846B006E
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 20:03:50 -0500 (EST)
-Received: by mail-yh0-f53.google.com with SMTP id b20so4568324yha.12
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 17:03:50 -0800 (PST)
-Received: from mail-yh0-x235.google.com (mail-yh0-x235.google.com [2607:f8b0:4002:c01::235])
-        by mx.google.com with ESMTPS id n44si15615223yhn.240.2013.12.10.17.03.47
+Received: from mail-yh0-f51.google.com (mail-yh0-f51.google.com [209.85.213.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 35C8F6B0070
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 20:07:11 -0500 (EST)
+Received: by mail-yh0-f51.google.com with SMTP id c41so4526209yho.38
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 17:07:11 -0800 (PST)
+Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
+        by mx.google.com with ESMTPS id v1si15666227yhg.76.2013.12.10.17.07.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 10 Dec 2013 17:03:49 -0800 (PST)
-Received: by mail-yh0-f53.google.com with SMTP id b20so4466327yha.26
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 17:03:47 -0800 (PST)
-Date: Tue, 10 Dec 2013 17:03:45 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-In-Reply-To: <20131210103827.GB20242@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.02.1312101655430.22701@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1311261648570.21003@chino.kir.corp.google.com> <20131127163435.GA3556@cmpxchg.org> <20131202200221.GC5524@dhcp22.suse.cz> <20131202212500.GN22729@cmpxchg.org> <20131203120454.GA12758@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312031544530.5946@chino.kir.corp.google.com> <20131204111318.GE8410@dhcp22.suse.cz> <alpine.DEB.2.02.1312041606260.6329@chino.kir.corp.google.com> <20131209124840.GC3597@dhcp22.suse.cz> <alpine.DEB.2.02.1312091328550.11026@chino.kir.corp.google.com>
- <20131210103827.GB20242@dhcp22.suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Dec 2013 17:07:10 -0800 (PST)
+In-Reply-To: <CAE9FiQVf+vAbW1v_VL5XSseQg06S6AX8RrE4vvJwPbLOeRcr=A@mail.gmail.com>
+References: <52A6D9B0.7040506@huawei.com> <CAE9FiQUd+sU4GEq0687u8+26jXJiJVboN90+L7svyosmm+V1Rg@mail.gmail.com> <52A787D0.2070400@zytor.com> <CAE9FiQU8Y_thGxZamz0Uwt4FGXh7KJu7jGP8ED3dbjQuyq7vcQ@mail.gmail.com> <52A79B0D.4090303@zytor.com> <CAE9FiQVf+vAbW1v_VL5XSseQg06S6AX8RrE4vvJwPbLOeRcr=A@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+ charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH] mm,x86: fix span coverage in e820_all_mapped()
+From: "H. Peter Anvin" <hpa@zytor.com>
+Date: Tue, 10 Dec 2013 17:06:36 -0800
+Message-ID: <b2e6fc81-a956-46f7-9a44-a707064c24a2@email.android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Xishi Qiu <qiuxishi@huawei.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, the arch/x86 maintainers <x86@kernel.org>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>
 
-On Tue, 10 Dec 2013, Michal Hocko wrote:
+Ok, the issue I thought we were discussing was actually [A,B) [B,C) [C,D) ...
 
-> > What exactly would you like to see?
-> 
-> How often do you see PF_EXITING tasks which haven't been killed causing
-> a pointless notification? Because fatal_signal_pending and TIF_MEMDIE
-> cases are already handled because we bypass charges in those cases (except
-> for user OOM killer killed tasks which don't get TIF_MEMDIE and that
-> should be fixed).
-> 
+Yinghai Lu <yinghai@kernel.org> wrote:
+>On Tue, Dec 10, 2013 at 2:51 PM, H. Peter Anvin <hpa@zytor.com> wrote:
+>> On 12/10/2013 01:52 PM, Yinghai Lu wrote:
+>>>>
+>>>> What happens if it spans more than two regions?
+>>>
+>>> [A, B), [B+1, C), [C+1, D) ?
+>>> start in [A, B), and end in [C+1, D).
+>>>
+>>> old code:
+>>> first with [A, B), start set to B.
+>>> then with [B+1, C), start still keep as B.
+>>> then with [C+1, D), start still keep as B.
+>>> at last still return 0...aka not_all_mapped.
+>>>
+>>> old code is still right.
+>>>
+>>
+>> Why not_all_mapped?
+>
+>[B, B+1), and [C, C+1) are not there.
 
-Triggering a pointless notification with PF_EXITING is rare, yet one 
-pointless notification can be avoided with the patch.  Additionally, it 
-also avoids a pointless notification for a racing SIGKILL.
+-- 
+Sent from my mobile phone.  Please pardon brevity and lack of formatting.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
