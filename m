@@ -1,60 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f54.google.com (mail-yh0-f54.google.com [209.85.213.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 1691A6B0038
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 17:45:28 -0500 (EST)
-Received: by mail-yh0-f54.google.com with SMTP id z12so5681188yhz.13
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:45:27 -0800 (PST)
-Received: from mail-yh0-x230.google.com (mail-yh0-x230.google.com [2607:f8b0:4002:c01::230])
-        by mx.google.com with ESMTPS id z48si19384290yha.156.2013.12.11.14.45.26
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 11 Dec 2013 14:45:27 -0800 (PST)
-Received: by mail-yh0-f48.google.com with SMTP id f73so5715269yha.35
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:45:26 -0800 (PST)
-Date: Wed, 11 Dec 2013 14:45:23 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] mm: slab/slub: use page->list consistently instead
- of page->lru
-In-Reply-To: <20131211223631.51094A3D@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.02.1312111443130.7354@chino.kir.corp.google.com>
-References: <20131211223631.51094A3D@viggo.jf.intel.com>
+Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
+	by kanga.kvack.org (Postfix) with ESMTP id A8A386B0038
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 17:47:24 -0500 (EST)
+Received: by mail-ee0-f45.google.com with SMTP id d49so3133332eek.18
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:47:24 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTP id 5si21181003eei.60.2013.12.11.14.47.23
+        for <linux-mm@kvack.org>;
+        Wed, 11 Dec 2013 14:47:23 -0800 (PST)
+Date: Wed, 11 Dec 2013 22:47:19 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch] mm: page_alloc: exclude unreclaimable allocations from
+ zone fairness policy
+Message-ID: <20131211224719.GE11295@suse.de>
+References: <1386785356-19911-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1386785356-19911-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@gentwo.org, kirill.shutemov@linux.intel.com, Andi Kleen <ak@linux.intel.com>, akpm@linux-foundation.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 11 Dec 2013, Dave Hansen wrote:
-
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> 'struct page' has two list_head fields: 'lru' and 'list'.
-> Conveniently, they are unioned together.  This means that code
-> can use them interchangably, which gets horribly confusing like
-> with this nugget from slab.c:
-> 
-> >	list_del(&page->lru);
-> >	if (page->active == cachep->num)
-> >		list_add(&page->list, &n->slabs_full);
-> 
-> This patch makes the slab and slub code use page->list
-> universally instead of mixing ->list and ->lru.
-> 
-> It also adds some comments to attempt to keep new users from
-> picking up uses of ->list.
-> 
-> So, the new rule is: page->list is what the slabs use.  page->lru
-> is for everybody else.  This is a pretty arbitrary rule, but we
-> need _something_.  Maybe we should just axe the ->list one and
-> make the sl?bs use ->lru.
+On Wed, Dec 11, 2013 at 01:09:16PM -0500, Johannes Weiner wrote:
+> Dave Hansen noted a regression in a microbenchmark that loops around
+> open() and close() on an 8-node NUMA machine and bisected it down to
+> 81c0a2bb515f ("mm: page_alloc: fair zone allocator policy").  That
+> change forces the slab allocations of the file descriptor to spread
+> out to all 8 nodes, causing remote references in the page allocator
+> and slab.
 > 
 
-I'd recommend this suggestion, I don't see why the slab allocators can't 
-use a page->lru field to maintain their lists of slab pages and it makes 
-the code much cleaner.  Anybody hacking thise code will know it's not 
-really a lru and we're just reusing a field from struct page without 
-adding unnecessary complexity.
+The original patch was primarily concerned with the fair aging of LRU pages
+of zones within a node. This patch uses GFP_MOVABLE_MASK which includes
+__GFP_RECLAIMABLE meaning any slab created with SLAB_RECLAIM_ACCOUNT is still
+getting the round-robin treatment. Those pages have a different lifecycle
+to LRU pages and the shrinkers are only node aware, not zone aware.
+While I get this patch probably helps this specific benchmark, was the
+use of GFP_MOVABLE_MASK intentional or did you mean to use __GFP_MOVABLE?
+
+Looking at the original patch again I think I made a major mistake when
+reviewing it. Considering the effect of the following for NUMA machines
+
+        for_each_zone_zonelist_nodemask(zone, z, zonelist,
+                                                high_zoneidx, nodemask) {
+		....
+                if (alloc_flags & ALLOC_WMARK_LOW) {
+                        if (zone_page_state(zone, NR_ALLOC_BATCH) <= 0)
+				continue;
+                        if (zone_reclaim_mode &&
+                            !zone_local(preferred_zone, zone))
+                                continue;
+		}
+
+
+Enabling zone_reclaim_mode sucks badly for workloads that are not paritioned
+to fit within NUMA nodes. Consequently, I expect the common case it that
+it's disabled by default due to small NUMA distances or manually disabled.
+
+However, the effect of that block is that we allocate NR_ALLOC_BATCH
+from local zones then fallback to batch allocating remote nodes! I bet
+the numa_hit stats in /proc/vmstat have sucked recently. The original
+problem was because the page allocator would try allocating from the
+highest zone while kswapd reclaimed from it causing LRU-aging problems.
+The problem is not the same between nodes. How do you feel about dropping
+the zone_reclaim_mode check above and only round-robin in batches between
+zones on the local node?
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
