@@ -1,67 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
-	by kanga.kvack.org (Postfix) with ESMTP id A6A8A6B0035
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 04:55:51 -0500 (EST)
-Received: by mail-ea0-f180.google.com with SMTP id f15so2755655eak.25
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 01:55:51 -0800 (PST)
+Received: from mail-ea0-f181.google.com (mail-ea0-f181.google.com [209.85.215.181])
+	by kanga.kvack.org (Postfix) with ESMTP id F40FA6B0035
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 05:15:07 -0500 (EST)
+Received: by mail-ea0-f181.google.com with SMTP id m10so2768225eaj.26
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 02:15:07 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id l44si18264465eem.61.2013.12.11.01.55.50
+        by mx.google.com with ESMTP id m49si18318558eeg.115.2013.12.11.02.15.07
         for <linux-mm@kvack.org>;
-        Wed, 11 Dec 2013 01:55:50 -0800 (PST)
-Date: Wed, 11 Dec 2013 10:55:49 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-Message-ID: <20131211095549.GA18741@dhcp22.suse.cz>
-References: <20131202200221.GC5524@dhcp22.suse.cz>
- <20131202212500.GN22729@cmpxchg.org>
- <20131203120454.GA12758@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312031544530.5946@chino.kir.corp.google.com>
- <20131204111318.GE8410@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312041606260.6329@chino.kir.corp.google.com>
- <20131209124840.GC3597@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312091328550.11026@chino.kir.corp.google.com>
- <20131210103827.GB20242@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312101655430.22701@chino.kir.corp.google.com>
+        Wed, 11 Dec 2013 02:15:07 -0800 (PST)
+Date: Wed, 11 Dec 2013 10:15:03 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH v5 7/8] sched/numa: fix record hinting faults check
+Message-ID: <20131211101503.GY11295@suse.de>
+References: <1386723001-25408-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1386723001-25408-8-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20131211091422.GU11295@suse.de>
+ <20131211094156.GB26093@hacker.(null)>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1312101655430.22701@chino.kir.corp.google.com>
+In-Reply-To: <20131211094156.GB26093@hacker.(null)>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 10-12-13 17:03:45, David Rientjes wrote:
-> On Tue, 10 Dec 2013, Michal Hocko wrote:
+On Wed, Dec 11, 2013 at 05:41:56PM +0800, Wanpeng Li wrote:
+> Hi Mel,
+> On Wed, Dec 11, 2013 at 09:14:22AM +0000, Mel Gorman wrote:
+> >On Wed, Dec 11, 2013 at 08:50:00AM +0800, Wanpeng Li wrote:
+> >> Adjust numa_scan_period in task_numa_placement, depending on how much useful
+> >> work the numa code can do. The local faults and remote faults should be used
+> >> to check if there is record hinting faults instead of local faults and shared
+> >> faults. This patch fix it.
+> >> 
+> >> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> >> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> >
+> >This potentially has the side-effect of making it easier to reduce the
+> >scan rate because it'll only take the most recent scan window into
+> >account. The existing code takes recent shared accesses into account.
 > 
-> > > What exactly would you like to see?
-> > 
-> > How often do you see PF_EXITING tasks which haven't been killed causing
-> > a pointless notification? Because fatal_signal_pending and TIF_MEMDIE
-> > cases are already handled because we bypass charges in those cases (except
-> > for user OOM killer killed tasks which don't get TIF_MEMDIE and that
-> > should be fixed).
-> > 
+> The local/remote and share/private both accumulate the just finished
+> scan window, why takes the most recent scan window into account will 
+> reduce the scan rate than takes recent shared accesses into account?
 > 
-> Triggering a pointless notification with PF_EXITING is rare, yet one 
-> pointless notification can be avoided with the patch. 
 
-Sigh. Yes it will avoid one particular and rare race. There will still
-be notifications without oom kills.
+Ok, shoddy reasoning and explanation on my part. It was the second question
+I really cared about -- was this tested? It wasn't and this patch is
+surprisingly subtle.
 
-Anyway.
-Does the reclaim make any sense for PF_EXITING tasks? Shouldn't we
-simply bypass charges of these tasks automatically. Those tasks will
-free some memory anyway so why to trigger reclaim and potentially OOM
-in the first place? Do we need to go via TIF_MEMDIE loop in the first
-place?
+The intent of the code was to check "is this processes recent activity
+of interest to automatic numa balancing?"
 
-> Additionally, it also avoids a pointless notification for a racing
-> SIGKILL.
+If it's incurring local faults, then it's interesting.
+
+If it's sharing faults then it is interesting. Shared accesses are
+inherently dirty data because it is racing with other threads to be the
+first to trap the hinting fault.
+
+The current code takes those points into account and decides to slow
+scanning on that basis. The change to using remote accesses is not
+equivalent. The change is not necessarily better or worse because it's
+workload dependant. It's just different and should be supported by more
+detailed reasoning than either you or I are giving it right now. It could
+also be argued that it should also be taking remote accesses into account
+but again, it is a subtle patch that would require a bit of backup.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
