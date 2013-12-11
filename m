@@ -1,73 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id D8E486B003D
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 19:50:27 -0500 (EST)
-Received: by mail-pd0-f173.google.com with SMTP id p10so8445854pdj.32
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 16:50:27 -0800 (PST)
-Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com. [202.81.31.148])
-        by mx.google.com with ESMTPS id pj7si11848008pbc.249.2013.12.10.16.50.25
+Received: from mail-yh0-f53.google.com (mail-yh0-f53.google.com [209.85.213.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 00A846B006E
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 20:03:50 -0500 (EST)
+Received: by mail-yh0-f53.google.com with SMTP id b20so4568324yha.12
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 17:03:50 -0800 (PST)
+Received: from mail-yh0-x235.google.com (mail-yh0-x235.google.com [2607:f8b0:4002:c01::235])
+        by mx.google.com with ESMTPS id n44si15615223yhn.240.2013.12.10.17.03.47
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 10 Dec 2013 16:50:26 -0800 (PST)
-Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 11 Dec 2013 10:50:23 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 6A7583578050
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 11:50:20 +1100 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBB0o7t04456800
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 11:50:07 +1100
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBB0oJMV022888
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 11:50:20 +1100
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v5 8/8] sched/numa: drop unnecessary variable in task_weight
-Date: Wed, 11 Dec 2013 08:50:01 +0800
-Message-Id: <1386723001-25408-9-git-send-email-liwanp@linux.vnet.ibm.com>
-In-Reply-To: <1386723001-25408-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1386723001-25408-1-git-send-email-liwanp@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 10 Dec 2013 17:03:49 -0800 (PST)
+Received: by mail-yh0-f53.google.com with SMTP id b20so4466327yha.26
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 17:03:47 -0800 (PST)
+Date: Tue, 10 Dec 2013 17:03:45 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
+ access to memory reserves
+In-Reply-To: <20131210103827.GB20242@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.02.1312101655430.22701@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1311261648570.21003@chino.kir.corp.google.com> <20131127163435.GA3556@cmpxchg.org> <20131202200221.GC5524@dhcp22.suse.cz> <20131202212500.GN22729@cmpxchg.org> <20131203120454.GA12758@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312031544530.5946@chino.kir.corp.google.com> <20131204111318.GE8410@dhcp22.suse.cz> <alpine.DEB.2.02.1312041606260.6329@chino.kir.corp.google.com> <20131209124840.GC3597@dhcp22.suse.cz> <alpine.DEB.2.02.1312091328550.11026@chino.kir.corp.google.com>
+ <20131210103827.GB20242@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-Drop unnecessary total_faults variable in function task_weight to unify
-task_weight and group_weight.
+On Tue, 10 Dec 2013, Michal Hocko wrote:
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
----
- kernel/sched/fair.c |   11 ++---------
- 1 files changed, 2 insertions(+), 9 deletions(-)
+> > What exactly would you like to see?
+> 
+> How often do you see PF_EXITING tasks which haven't been killed causing
+> a pointless notification? Because fatal_signal_pending and TIF_MEMDIE
+> cases are already handled because we bypass charges in those cases (except
+> for user OOM killer killed tasks which don't get TIF_MEMDIE and that
+> should be fixed).
+> 
 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index f507e12..5c54837 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -947,17 +947,10 @@ static inline unsigned long group_faults(struct task_struct *p, int nid)
-  */
- static inline unsigned long task_weight(struct task_struct *p, int nid)
- {
--	unsigned long total_faults;
--
--	if (!p->numa_faults)
--		return 0;
--
--	total_faults = p->total_numa_faults;
--
--	if (!total_faults)
-+	if (!p->numa_faults || !p->total_numa_faults)
- 		return 0;
- 
--	return 1000 * task_faults(p, nid) / total_faults;
-+	return 1000 * task_faults(p, nid) / p->total_numa_faults;
- }
- 
- static inline unsigned long group_weight(struct task_struct *p, int nid)
--- 
-1.7.7.6
+Triggering a pointless notification with PF_EXITING is rare, yet one 
+pointless notification can be avoided with the patch.  Additionally, it 
+also avoids a pointless notification for a racing SIGKILL.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
