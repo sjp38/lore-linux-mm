@@ -1,37 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f43.google.com (mail-qe0-f43.google.com [209.85.128.43])
-	by kanga.kvack.org (Postfix) with ESMTP id E30FD6B0037
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 11:00:59 -0500 (EST)
-Received: by mail-qe0-f43.google.com with SMTP id 2so5417652qeb.2
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 08:00:59 -0800 (PST)
-Received: from a9-42.smtp-out.amazonses.com (a9-42.smtp-out.amazonses.com. [54.240.9.42])
-        by mx.google.com with ESMTP id f1si15857600qar.116.2013.12.11.08.00.57
-        for <linux-mm@kvack.org>;
-        Wed, 11 Dec 2013 08:00:58 -0800 (PST)
-Date: Wed, 11 Dec 2013 16:00:56 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2 7/7] mm/migrate: remove result argument on page
- allocation function for migration
-In-Reply-To: <20131211084719.GA2043@lge.com>
-Message-ID: <00000142e263bbcd-65959fd3-eadc-4580-b55b-065c734a229e-000000@email.amazonses.com>
-References: <1386580248-22431-1-git-send-email-iamjoonsoo.kim@lge.com> <1386580248-22431-8-git-send-email-iamjoonsoo.kim@lge.com> <00000142d83adfc7-81b70cc9-c87b-4e7e-bd98-0a97ee21db31-000000@email.amazonses.com> <20131211084719.GA2043@lge.com>
+Received: from mail-oa0-f52.google.com (mail-oa0-f52.google.com [209.85.219.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EBB66B0037
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 11:04:45 -0500 (EST)
+Received: by mail-oa0-f52.google.com with SMTP id h16so7475858oag.39
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 08:04:45 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id f6si13828107obr.20.2013.12.11.08.04.43
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 11 Dec 2013 08:04:44 -0800 (PST)
+Message-ID: <52A88AFB.7000204@oracle.com>
+Date: Wed, 11 Dec 2013 10:55:39 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: kernel BUG in munlock_vma_pages_range
+References: <52A3D0C3.1080504@oracle.com> <52A58E8A.3050401@suse.cz> <52A5F83F.4000207@oracle.com> <alpine.LRH.2.00.1312092215340.1515@twin.jikos.cz>
+In-Reply-To: <alpine.LRH.2.00.1312092215340.1515@twin.jikos.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Rafael Aquini <aquini@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Jiri Kosina <jkosina@suse.cz>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, joern@logfs.org, mgorman@suse.de, Michel Lespinasse <walken@google.com>, riel@redhat.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, 11 Dec 2013, Joonsoo Kim wrote:
+On 12/09/2013 04:16 PM, Jiri Kosina wrote:
+> On Mon, 9 Dec 2013, Sasha Levin wrote:
+>
+>> Not really, the fuzzer hit it once and I've been unable to trigger it
+>> again.
+>
+> If you are ever able to trigger it again, I think having crashdump
+> available would be very helpful here, to see how exactly does the VMA/THP
+> layout look like at the time of crash.
+>
+> Any chance you run your fuzzing with crashkernel configured for a while?
+>
 
-> In do_move_pages(), if error occurs, 'goto out_pm' is executed and the
-> page status doesn't back to userspace. So we don't need to store err number.
+Been trying to, can't get crashkernel to interact nicely with my KVM tools guest.
 
-If a page cannot be moved then the error code is containing the number of
-pages that could not be migrated. The check there is for err < 0.
-So a positive number is not an error.
+Will keep trying.
 
-migrate_pages only returns an error code if we are running out of memory.
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
