@@ -1,61 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f49.google.com (mail-yh0-f49.google.com [209.85.213.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 799946B0038
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 17:40:28 -0500 (EST)
-Received: by mail-yh0-f49.google.com with SMTP id z20so5587897yhz.22
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:40:28 -0800 (PST)
-Received: from mail-yh0-x232.google.com (mail-yh0-x232.google.com [2607:f8b0:4002:c01::232])
-        by mx.google.com with ESMTPS id l26si19342644yhg.262.2013.12.11.14.40.27
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 11 Dec 2013 14:40:27 -0800 (PST)
-Received: by mail-yh0-f50.google.com with SMTP id b6so5615636yha.23
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:40:27 -0800 (PST)
-Date: Wed, 11 Dec 2013 14:40:24 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-In-Reply-To: <20131211095549.GA18741@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.02.1312111434200.7354@chino.kir.corp.google.com>
-References: <20131202200221.GC5524@dhcp22.suse.cz> <20131202212500.GN22729@cmpxchg.org> <20131203120454.GA12758@dhcp22.suse.cz> <alpine.DEB.2.02.1312031544530.5946@chino.kir.corp.google.com> <20131204111318.GE8410@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312041606260.6329@chino.kir.corp.google.com> <20131209124840.GC3597@dhcp22.suse.cz> <alpine.DEB.2.02.1312091328550.11026@chino.kir.corp.google.com> <20131210103827.GB20242@dhcp22.suse.cz> <alpine.DEB.2.02.1312101655430.22701@chino.kir.corp.google.com>
- <20131211095549.GA18741@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id E7F446B0039
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 17:40:32 -0500 (EST)
+Received: by mail-pb0-f46.google.com with SMTP id md12so10728795pbc.5
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:40:32 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id 5si5469225pbj.5.2013.12.11.14.40.29
+        for <linux-mm@kvack.org>;
+        Wed, 11 Dec 2013 14:40:30 -0800 (PST)
+Subject: [RFC][PATCH 0/3] re-shrink 'struct page' when SLUB is on.
+From: Dave Hansen <dave@sr71.net>
+Date: Wed, 11 Dec 2013 14:40:22 -0800
+Message-Id: <20131211224022.AA8CF0B9@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, cl@gentwo.org, kirill.shutemov@linux.intel.com, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave@sr71.net>
 
-On Wed, 11 Dec 2013, Michal Hocko wrote:
+OK, here's the real reason I was digging around for exactly which
+fields in 'struct page' slub uses.
 
-> > Triggering a pointless notification with PF_EXITING is rare, yet one 
-> > pointless notification can be avoided with the patch. 
-> 
-> Sigh. Yes it will avoid one particular and rare race. There will still
-> be notifications without oom kills.
-> 
+SLUB depends on a 16-byte cmpxchg for an optimization.  For the
+purposes of this series, I'm assuming that it is a very important
+optimization that we desperately need to keep around.
 
-Would you prefer doing the mem_cgroup_oom_notify() in two places instead:
+In order to get guaranteed 16-byte alignment (required by the
+hardware on x86), 'struct page' is padded out from 56 to 64
+bytes.
 
- - immediately before doing oom_kill_process() when it's guaranteed that
-   the kernel would have killed something, and
+Those 8-bytes matter.  We've gone to great lengths to keep
+'struct page' small in the past.  It's a shame that we bloat it
+now just for alignment reasons when we have extra space.  These
+patches attempt _internal_ alignment instead of external
+alignment for slub.
 
- - when memory.oom_control == 1 in mem_cgroup_oom_synchronize()?
+I also got a bug report from some folks running a large database
+benchmark.  Their old kernel uses slab and their new one uses
+slub.  They were swapping and couldn't figure out why.  It turned
+out to be the 2GB of RAM that the slub padding wastes on their
+system.
 
-> Anyway.
-> Does the reclaim make any sense for PF_EXITING tasks? Shouldn't we
-> simply bypass charges of these tasks automatically. Those tasks will
-> free some memory anyway so why to trigger reclaim and potentially OOM
-> in the first place? Do we need to go via TIF_MEMDIE loop in the first
-> place?
-> 
+On my box, that 2GB cost about $200 to populate back when we
+bought it.  I want my $200 back.
 
-I don't see any reason to make an optimization there since they will get 
-TIF_MEMDIE set if reclaim has failed on one of their charges or if it 
-results in a system oom through the page allocator's oom killer.  It would 
-be nice to ensure reclaim has had a chance to free memory in the presence 
-of any other potential parallel memory freeing.
+This is compile tested and lightly runtime tested.  I'm curious
+what people think of it before we push it futher.  This is on top
+of my previous patch to create a 'struct slab_page', but doesn't
+really rely on it.  It could easily be done independently.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
