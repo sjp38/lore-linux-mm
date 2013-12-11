@@ -1,100 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 0925C6B0031
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 17:59:11 -0500 (EST)
-Received: by mail-ee0-f44.google.com with SMTP id b57so3170816eek.31
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:59:11 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id l2si21191771een.104.2013.12.11.14.59.11
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 28A036B0031
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 18:05:26 -0500 (EST)
+Received: by mail-pb0-f53.google.com with SMTP id ma3so10814225pbc.26
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 15:05:25 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id v7si14794589pbi.128.2013.12.11.15.05.23
         for <linux-mm@kvack.org>;
-        Wed, 11 Dec 2013 14:59:11 -0800 (PST)
-Message-ID: <52A8EE38.2060004@suse.cz>
-Date: Wed, 11 Dec 2013 23:59:04 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
-MIME-Version: 1.0
-Subject: Re: kernel BUG in munlock_vma_pages_range
-References: <52A3D0C3.1080504@oracle.com> <52A58E8A.3050401@suse.cz> <52A5F83F.4000207@oracle.com> <52A5F9EE.4010605@suse.cz> <52A6275F.4040007@oracle.com>
-In-Reply-To: <52A6275F.4040007@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1
+        Wed, 11 Dec 2013 15:05:24 -0800 (PST)
+Date: Wed, 11 Dec 2013 15:05:22 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH RFC] mm readahead: Fix the readahead fail in case of
+ empty numa node
+Message-Id: <20131211150522.4b853323e8b82f342f81b64d@linux-foundation.org>
+In-Reply-To: <20131211224917.GF1163@quack.suse.cz>
+References: <1386066977-17368-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
+	<20131203143841.11b71e387dc1db3a8ab0974c@linux-foundation.org>
+	<529EE811.5050306@linux.vnet.ibm.com>
+	<20131204004125.a06f7dfc.akpm@linux-foundation.org>
+	<529EF0FB.2050808@linux.vnet.ibm.com>
+	<20131204134838.a048880a1db9e9acd14a39e4@linux-foundation.org>
+	<20131211224917.GF1163@quack.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: joern@logfs.org, mgorman@suse.de, Michel Lespinasse <walken@google.com>, riel@redhat.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On 12/09/2013 09:26 PM, Sasha Levin wrote:
-> On 12/09/2013 12:12 PM, Vlastimil Babka wrote:
->> On 12/09/2013 06:05 PM, Sasha Levin wrote:
->>> On 12/09/2013 04:34 AM, Vlastimil Babka wrote:
->>>> Hello, I will look at it, thanks.
->>>> Do you have specific reproduction instructions?
->>>
->>> Not really, the fuzzer hit it once and I've been unable to trigger it again. Looking at
->>> the piece of code involved it might have had something to do with hugetlbfs, so I'll crank
->>> up testing on that part.
->>
->> Thanks. Do you have trinity log and the .config file? I'm currently unable to even boot linux-next
->> with my config/setup due to a GPF.
->> Looking at code I wouldn't expect that it could encounter a tail page, without first encountering a
->> head page and skipping the whole huge page. At least in THP case, as TLB pages should be split when
->> a vma is split. As for hugetlbfs, it should be skipped for mlock/munlock operations completely. One
->> of these assumptions is probably failing here...
-> 
-> If it helps, I've added a dump_page() in case we hit a tail page there and got:
-> 
-> [  980.172299] page:ffffea003e5e8040 count:0 mapcount:1 mapping:          (null) index:0
-> x0
-> [  980.173412] page flags: 0x2fffff80008000(tail)
-> 
-> I can also add anything else in there to get other debug output if you think of something else useful.
+On Wed, 11 Dec 2013 23:49:17 +0100 Jan Kara <jack@suse.cz> wrote:
 
-Please try the following. Thanks in advance.
+> >  /*
+> > - * Given a desired number of PAGE_CACHE_SIZE readahead pages, return a
+> > - * sensible upper limit.
+> > + * max_sane_readahead() is disabled.  It can later be removed altogether, but
+> > + * let's keep a skeleton in place for now, in case disabling was the wrong call.
+> >   */
+> >  unsigned long max_sane_readahead(unsigned long nr)
+> >  {
+> > -	return min(nr, (node_page_state(numa_node_id(), NR_INACTIVE_FILE)
+> > -		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
+> > +	return nr;
+> >  }
+> >  
+> >  /*
+> > 
+> > Can anyone see a problem with this?
+>   Well, the downside seems to be that if userspace previously issued
+> MADV/FADV_WILLNEED on a huge file, we trimmed the request to a sensible
+> size. Now we try to read the whole huge file which is pretty much
+> guaranteed to be useless (as we'll be pushing out of cache data we just
+> read a while ago). And guessing the right readahead size from userspace
+> isn't trivial so it would make WILLNEED advice less useful. What do you
+> think?
 
-------8<------
-diff --git a/mm/mlock.c b/mm/mlock.c
-index d480cd6..c81b7c3 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -436,11 +436,14 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
- void munlock_vma_pages_range(struct vm_area_struct *vma,
- 			     unsigned long start, unsigned long end)
- {
-+	unsigned long orig_start = start;
-+	unsigned int page_increm = 0;
-+
- 	vma->vm_flags &= ~VM_LOCKED;
+OK, yes, there is conceivably a back-compatibility issue there.  There
+indeed might be applications which decide the chuck the whole thing at
+the kernel and let the kernel work out what is a sensible readahead
+size to perform.
 
- 	while (start < end) {
- 		struct page *page = NULL;
--		unsigned int page_mask, page_increm;
-+		unsigned int page_mask;
- 		struct pagevec pvec;
- 		struct zone *zone;
- 		int zoneid;
-@@ -457,6 +460,22 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
- 				&page_mask);
-
- 		if (page && !IS_ERR(page)) {
-+			if (PageTail(page)) {
-+				struct page *first_page;
-+				dump_page(page);
-+				printk("start=%lu pfn=%lu orig_start=%lu "
-+				       "page_increm=%d "
-+				       "vm_start=%lu vm_end=%lu vm_flags=%lu\n",
-+					start, page_to_pfn(page), orig_start,
-+					page_increm,
-+					vma->vm_start, vma->vm_end,
-+					vma->vm_flags);
-+				first_page = page->first_page;
-+				printk("first_page pfn=%lu\n",
-+						page_to_pfn(first_page));
-+				dump_page(first_page);
-+				VM_BUG_ON(true);
-+			}
- 			if (PageTransHuge(page)) {
- 				lock_page(page);
- 				/*
-
+But I'm really struggling to think up an implementation!  The current
+code looks only at the caller's node and doesn't seem to make much
+sense.  Should we look at all nodes?  Hard to say without prior
+knowledge of where those pages will be coming from.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
