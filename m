@@ -1,75 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id E602F6B0035
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 04:42:07 -0500 (EST)
-Received: by mail-pb0-f52.google.com with SMTP id uo5so9614378pbc.39
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 01:42:07 -0800 (PST)
-Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com. [202.81.31.147])
-        by mx.google.com with ESMTPS id eb3si13017467pbc.236.2013.12.11.01.42.02
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 11 Dec 2013 01:42:06 -0800 (PST)
-Received: from /spool/local
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 11 Dec 2013 19:42:01 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id C04F62BB0054
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 20:41:59 +1100 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBB9NlgO53280878
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 20:23:47 +1100
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBB9fwPO030686
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 20:41:59 +1100
-Date: Wed, 11 Dec 2013 17:41:56 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v5 7/8] sched/numa: fix record hinting faults check
-Message-ID: <52a8336e.23b6440a.5215.37a6SMTPIN_ADDED_BROKEN@mx.google.com>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1386723001-25408-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1386723001-25408-8-git-send-email-liwanp@linux.vnet.ibm.com>
- <20131211091422.GU11295@suse.de>
+Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CB156B0035
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 04:49:17 -0500 (EST)
+Received: by mail-ee0-f48.google.com with SMTP id e49so2719804eek.21
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 01:49:16 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTP id e48si18202635eeh.197.2013.12.11.01.49.16
+        for <linux-mm@kvack.org>;
+        Wed, 11 Dec 2013 01:49:16 -0800 (PST)
+Date: Wed, 11 Dec 2013 09:49:12 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch 7/8] mm, memcg: allow processes handling oom
+ notifications to access reserves
+Message-ID: <20131211094912.GX11295@suse.de>
+References: <alpine.DEB.2.02.1312032116440.29733@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1312032118570.29733@chino.kir.corp.google.com>
+ <20131204054533.GZ3556@cmpxchg.org>
+ <alpine.DEB.2.02.1312041742560.20115@chino.kir.corp.google.com>
+ <20131205025026.GA26777@htj.dyndns.org>
+ <alpine.DEB.2.02.1312051537550.7717@chino.kir.corp.google.com>
+ <20131206190105.GE13373@htj.dyndns.org>
+ <alpine.DEB.2.02.1312061441390.8949@chino.kir.corp.google.com>
+ <20131210215037.GB9143@htj.dyndns.org>
+ <alpine.DEB.2.02.1312101522400.22701@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20131211091422.GU11295@suse.de>
+In-Reply-To: <alpine.DEB.2.02.1312101522400.22701@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Li Zefan <lizefan@huawei.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-Hi Mel,
-On Wed, Dec 11, 2013 at 09:14:22AM +0000, Mel Gorman wrote:
->On Wed, Dec 11, 2013 at 08:50:00AM +0800, Wanpeng Li wrote:
->> Adjust numa_scan_period in task_numa_placement, depending on how much useful
->> work the numa code can do. The local faults and remote faults should be used
->> to check if there is record hinting faults instead of local faults and shared
->> faults. This patch fix it.
->> 
->> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->
->This potentially has the side-effect of making it easier to reduce the
->scan rate because it'll only take the most recent scan window into
->account. The existing code takes recent shared accesses into account.
+On Tue, Dec 10, 2013 at 03:55:48PM -0800, David Rientjes wrote:
+> > Okay, are you saying that userland OOM handlers will be able to dip
+> > into kernel reserve memory?  Maybe I'm mistaken but you realize that
+> > that reserve is there to make things like task exits work under OOM
+> > conditions, right?  The only way userland OOM handlers as you describe
+> > would work would be creating a separate reserve for them.
+> > 
+> 
+> Yes, PF_OOM_HANDLER processes would be able to allocate this amount as 
+> specified by memory.oom_reserve_in_bytes below the per-zone watermarks and 
+> the amount of reserves can already be controlled via min_free_kbytes, 
+> which we already increase internally for thp.
 
-The local/remote and share/private both accumulate the just finished
-scan window, why takes the most recent scan window into account will 
-reduce the scan rate than takes recent shared accesses into account?
+THP increased min_free_kbytes for external fragmentation control as
+it reduces the amount of mixing of the different migrate types within
+pageblocks. It was not about reserves, increasing reserves was just the
+most straight forward way of handling the problem.
 
->What sort of tests did you do on this patch and what was the result?
+This dicussion is closer to swap-over-network than to anything
+THP did. Swap-over-network takes care to only allocate memory for
+reserves if it the allocation was required for swapping and reject
+all other allocation requests to the extent they can get throttled in
+throttle_direct_reclaim. Once allocated from reserves for swapping,
+care is taken that the allocations are not leaked to other users (e.g.
+is_obj_pfmemalloc checks in slab).
 
-I find this by codes review, I can drop this patch if your point is
-correct. ;-)
+It does not look like PF_OOM_HANDLER takes the same sort of care. Even
+if it did, it's not quite the same. swap-over-network allocates from the
+zone reserves *only* the memory required to writeback the pages. It can
+be slow but it'll make forward progress. A userspace process with special
+privileges could allocate any amount of memory for any reason so it would
+need a pre-configured and limited reserve on top of the zone reserves or
+run the risk of livelock.
 
-Regards,
-Wanpeng Li 
-
->
->-- 
->Mel Gorman
->SUSE Labs
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
