@@ -1,120 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 620ED6B0035
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id E144A6B0037
 	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 21:04:38 -0500 (EST)
-Received: by mail-pb0-f45.google.com with SMTP id rp16so8903275pbb.18
+Received: by mail-pb0-f41.google.com with SMTP id jt11so8972857pbb.28
         for <linux-mm@kvack.org>; Tue, 10 Dec 2013 18:04:38 -0800 (PST)
 Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
-        by mx.google.com with ESMTP id ot3si11999950pac.195.2013.12.10.18.04.35
+        by mx.google.com with ESMTP id v7si12020997pbi.8.2013.12.10.18.04.36
         for <linux-mm@kvack.org>;
         Tue, 10 Dec 2013 18:04:37 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v9 0/4] zram/zsmalloc promotion
-Date: Wed, 11 Dec 2013 11:04:35 +0900
-Message-Id: <1386727479-18502-1-git-send-email-minchan@kernel.org>
+Subject: [PATCH v9 1/4] zsmalloc: add Kconfig for enabling page table method
+Date: Wed, 11 Dec 2013 11:04:36 +0900
+Message-Id: <1386727479-18502-2-git-send-email-minchan@kernel.org>
+In-Reply-To: <1386727479-18502-1-git-send-email-minchan@kernel.org>
+References: <1386727479-18502-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jens Axboe <axboe@kernel.dk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Luigi Semenzato <semenzato@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Bob Liu <bob.liu@oracle.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>
 
-Zram is a simple pseudo block device which can keep data on
-in-memory with compressed[1].
+Zsmalloc has two methods 1) copy-based and 2) pte based to
+access objects that span two pages.
+You can see history why we supported two approach from [1].
 
-It have been used for many embedded system for several years
-One of significant usecase is in-memory swap device.
-Because NAND which is very popular on most embedded device
-is weak for frequent write without good wear-level
-and slow I/O hurts system's responsiblity so zram is really
-good choice to use memory efficiently.
+But it was bad choice that adding hard coding to select arch
+which want to use pte based method because there are lots of
+SoC in an architecure and they can have different cache size,
+CPU speed and so on so it would be better to expose it to user
+as selectable Kconfig option like Andrew Morton suggested.
 
-In previous trial, there was some argument[2] that zram has
-similar goal with zswap so let's merge zram's functionality
-into zswap via adding pseudo block device in zswap but I and
-some people(At least, Hugh and Rik) believe it's not a good idea.
-[2][3][4] and zswap might go writethrough model[5]. It makes
-clear difference zram and zswap.
+[1] https://lkml.org/lkml/2012/7/11/58
 
-Zram itself is simple/well-designed/good abstraciton so it has
-clear market(ex, Android, TV, ChromeOS, some Linux distro) which
-is never niche. :)
+Acked-by: Nitin Gupta <ngupta@vflare.org>
+Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ drivers/staging/zsmalloc/Kconfig         |   13 +++++++++++++
+ drivers/staging/zsmalloc/zsmalloc-main.c |   19 ++++---------------
+ 2 files changed, 17 insertions(+), 15 deletions(-)
 
-Another zram-blk's usecase is following as.
-The admin can use it as tmpfs so it could help small memory system.
-The tmpfs is never good solution for swapless embedded system.
-
-Patch 1 adds new Kconfig for zram to use page table method instead
-of copy.
-
-Patch 2 adds more comment for zsmalloc.
-
-Patch 3 moves zsmalloc under mm.
-
-Patch 4 moves zram from driver/staging to driver/blocks, finally.
-
-[1] http://en.wikipedia.org/wiki/Zram
-[2] https://lkml.org/lkml/2013/8/21/54
-[3] https://lkml.org/lkml/2013/11/13/570
-[4] https://lkml.org/lkml/2013/11/7/318
-[5] http://www.spinics.net/lists/linux-mm/msg65499.html
-
- * From v8
-  * Move zram.txt into Documentation/blockdev/ - Jerome
-  * Rebased on next-20131210
-  
- * From v7
-  * Remove unnecessary zswap VS zram comparison in cover letter.
-  * Add Reviewed-by/Acked-by I forgot.
-  * Remove exporting unmap_kernel_range patch. I will do if promotion is done.
-  * Move zsmalloc under mm - Hugh
+diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
+index 0ae13cd0908e..9d1f2a24ad62 100644
+--- a/drivers/staging/zsmalloc/Kconfig
++++ b/drivers/staging/zsmalloc/Kconfig
+@@ -9,3 +9,16 @@ config ZSMALLOC
+ 	  non-standard allocator interface where a handle, not a pointer, is
+ 	  returned by an alloc().  This handle must be mapped in order to
+ 	  access the allocated space.
++
++config PGTABLE_MAPPING
++	bool "Use page table mapping to access object in zsmalloc"
++	depends on ZSMALLOC
++	help
++	  By default, zsmalloc uses a copy-based object mapping method to
++	  access allocations that span two pages. However, if a particular
++	  architecture (ex, ARM) performs VM mapping faster than copying,
++	  then you should select this. This causes zsmalloc to use page table
++	  mapping rather than copying for object mapping.
++
++	  You can check speed with zsmalloc benchmark[1].
++	  [1] https://github.com/spartacus06/zsmalloc
+diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
+index 3b950e5a918f..5bd53a835f6d 100644
+--- a/drivers/staging/zsmalloc/zsmalloc-main.c
++++ b/drivers/staging/zsmalloc/zsmalloc-main.c
+@@ -218,19 +218,8 @@ struct zs_pool {
+ #define CLASS_IDX_MASK	((1 << CLASS_IDX_BITS) - 1)
+ #define FULLNESS_MASK	((1 << FULLNESS_BITS) - 1)
  
-Minchan Kim (3):
-  zsmalloc: add Kconfig for enabling page table method
-  zsmalloc: move it under mm
-  zram: promote zram from staging
-
-Nitin Cupta (1):
-  zsmalloc: add more comment
-
- Documentation/blockdev/zram.txt          |   77 +++
- drivers/block/Kconfig                    |    2 +
- drivers/block/Makefile                   |    1 +
- drivers/block/zram/Kconfig               |   25 +
- drivers/block/zram/Makefile              |    3 +
- drivers/block/zram/zram_drv.c            |  994 +++++++++++++++++++++++++++
- drivers/block/zram/zram_drv.h            |  124 ++++
- drivers/staging/Kconfig                  |    4 -
- drivers/staging/Makefile                 |    2 -
- drivers/staging/zram/Kconfig             |   25 -
- drivers/staging/zram/Makefile            |    3 -
- drivers/staging/zram/zram.txt            |   77 ---
- drivers/staging/zram/zram_drv.c          |  994 ---------------------------
- drivers/staging/zram/zram_drv.h          |  125 ----
- drivers/staging/zsmalloc/Kconfig         |   11 -
- drivers/staging/zsmalloc/Makefile        |    3 -
- drivers/staging/zsmalloc/zsmalloc-main.c | 1072 -----------------------------
- drivers/staging/zsmalloc/zsmalloc.h      |   43 --
- include/linux/zsmalloc.h                 |   50 ++
- mm/Kconfig                               |   25 +
- mm/Makefile                              |    1 +
- mm/zsmalloc.c                            | 1106 ++++++++++++++++++++++++++++++
- 22 files changed, 2408 insertions(+), 2359 deletions(-)
- create mode 100644 Documentation/blockdev/zram.txt
- create mode 100644 drivers/block/zram/Kconfig
- create mode 100644 drivers/block/zram/Makefile
- create mode 100644 drivers/block/zram/zram_drv.c
- create mode 100644 drivers/block/zram/zram_drv.h
- delete mode 100644 drivers/staging/zram/Kconfig
- delete mode 100644 drivers/staging/zram/Makefile
- delete mode 100644 drivers/staging/zram/zram.txt
- delete mode 100644 drivers/staging/zram/zram_drv.c
- delete mode 100644 drivers/staging/zram/zram_drv.h
- delete mode 100644 drivers/staging/zsmalloc/Kconfig
- delete mode 100644 drivers/staging/zsmalloc/Makefile
- delete mode 100644 drivers/staging/zsmalloc/zsmalloc-main.c
- delete mode 100644 drivers/staging/zsmalloc/zsmalloc.h
- create mode 100644 include/linux/zsmalloc.h
- create mode 100644 mm/zsmalloc.c
-
+-/*
+- * By default, zsmalloc uses a copy-based object mapping method to access
+- * allocations that span two pages. However, if a particular architecture
+- * performs VM mapping faster than copying, then it should be added here
+- * so that USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use
+- * page table mapping rather than copying for object mapping.
+- */
+-#if defined(CONFIG_ARM) && !defined(MODULE)
+-#define USE_PGTABLE_MAPPING
+-#endif
+-
+ struct mapping_area {
+-#ifdef USE_PGTABLE_MAPPING
++#ifdef CONFIG_PGTABLE_MAPPING
+ 	struct vm_struct *vm; /* vm area for mapping object that span pages */
+ #else
+ 	char *vm_buf; /* copy buffer for objects that span pages */
+@@ -631,7 +620,7 @@ static struct page *find_get_zspage(struct size_class *class)
+ 	return page;
+ }
+ 
+-#ifdef USE_PGTABLE_MAPPING
++#ifdef CONFIG_PGTABLE_MAPPING
+ static inline int __zs_cpu_up(struct mapping_area *area)
+ {
+ 	/*
+@@ -669,7 +658,7 @@ static inline void __zs_unmap_object(struct mapping_area *area,
+ 	unmap_kernel_range(addr, PAGE_SIZE * 2);
+ }
+ 
+-#else /* USE_PGTABLE_MAPPING */
++#else /* CONFIG_PGTABLE_MAPPING */
+ 
+ static inline int __zs_cpu_up(struct mapping_area *area)
+ {
+@@ -747,7 +736,7 @@ out:
+ 	pagefault_enable();
+ }
+ 
+-#endif /* USE_PGTABLE_MAPPING */
++#endif /* CONFIG_PGTABLE_MAPPING */
+ 
+ static int zs_cpu_notifier(struct notifier_block *nb, unsigned long action,
+ 				void *pcpu)
 -- 
 1.7.9.5
 
