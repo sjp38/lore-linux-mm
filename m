@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 315F56B003A
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 19:50:21 -0500 (EST)
-Received: by mail-pb0-f47.google.com with SMTP id um1so8792372pbc.34
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 16:50:20 -0800 (PST)
-Received: from e28smtp04.in.ibm.com (e28smtp04.in.ibm.com. [122.248.162.4])
-        by mx.google.com with ESMTPS id qz9si11835399pab.249.2013.12.10.16.50.18
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 883E96B003A
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 19:50:22 -0500 (EST)
+Received: by mail-pd0-f172.google.com with SMTP id g10so8478997pdj.3
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 16:50:22 -0800 (PST)
+Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com. [202.81.31.143])
+        by mx.google.com with ESMTPS id pi8si8988264pac.204.2013.12.10.16.50.19
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 10 Dec 2013 16:50:19 -0800 (PST)
+        Tue, 10 Dec 2013 16:50:21 -0800 (PST)
 Received: from /spool/local
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 11 Dec 2013 06:20:16 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id A7AC3E0056
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 06:22:33 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBB0o9Xv57082004
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 06:20:10 +0530
-Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBB0oCCn020344
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 06:20:13 +0530
+	Wed, 11 Dec 2013 10:50:17 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id AD73C2BB0052
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 11:50:15 +1100 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBB0W3WK3867092
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 11:32:03 +1100
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBB0oEt4003702
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 11:50:14 +1100
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v5 4/8] sched/numa: fix set cpupid on page migration twice against normal page
-Date: Wed, 11 Dec 2013 08:49:57 +0800
-Message-Id: <1386723001-25408-5-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v5 5/8] sched/numa: use wrapper function task_faults_idx to calculate index in group_faults
+Date: Wed, 11 Dec 2013 08:49:58 +0800
+Message-Id: <1386723001-25408-6-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1386723001-25408-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1386723001-25408-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -33,29 +33,28 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Ingo Molnar <mingo@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-commit 7851a45cd3 (mm: numa: Copy cpupid on page migration) copy over
-the cpupid at page migration time, there is unnecessary to set it again
-in function alloc_misplaced_dst_page, this patch fix it.
+Use wrapper function task_faults_idx to calculate index in group_faults.
 
 Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/migrate.c |    2 --
- 1 files changed, 0 insertions(+), 2 deletions(-)
+ kernel/sched/fair.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index b13e181..30ba8fb 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1558,8 +1558,6 @@ static struct page *alloc_misplaced_dst_page(struct page *page,
- 					  __GFP_NOMEMALLOC | __GFP_NORETRY |
- 					  __GFP_NOWARN) &
- 					 ~GFP_IOFS, 0);
--	if (newpage)
--		page_cpupid_xchg_last(newpage, page_cpupid_last(page));
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index c20d22f..106a607 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -935,7 +935,8 @@ static inline unsigned long group_faults(struct task_struct *p, int nid)
+ 	if (!p->numa_group)
+ 		return 0;
  
- 	return newpage;
+-	return p->numa_group->faults[2*nid] + p->numa_group->faults[2*nid+1];
++	return p->numa_group->faults[task_faults_idx(nid, 0)] +
++		p->numa_group->faults[task_faults_idx(nid, 1)];
  }
+ 
+ /*
 -- 
 1.7.7.6
 
