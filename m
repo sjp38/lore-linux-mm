@@ -1,54 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f45.google.com (mail-qe0-f45.google.com [209.85.128.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F3CE6B0031
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 11:38:24 -0500 (EST)
-Received: by mail-qe0-f45.google.com with SMTP id 6so5435382qea.4
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 08:38:23 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id p10si7034867qce.40.2013.12.11.08.38.21
+Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D03A6B0031
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 11:40:55 -0500 (EST)
+Received: by mail-ee0-f42.google.com with SMTP id e53so2991116eek.15
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 08:40:54 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTP id r9si19886175eeo.65.2013.12.11.08.40.54
         for <linux-mm@kvack.org>;
-        Wed, 11 Dec 2013 08:38:22 -0800 (PST)
-Date: Wed, 11 Dec 2013 11:38:09 -0500
-From: Dave Jones <davej@redhat.com>
-Subject: Re: oops in pgtable_trans_huge_withdraw
-Message-ID: <20131211163809.GA26342@redhat.com>
-References: <20131206210254.GA7962@redhat.com>
- <52A8877A.10209@suse.cz>
+        Wed, 11 Dec 2013 08:40:54 -0800 (PST)
+Date: Wed, 11 Dec 2013 16:40:52 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: numa: Guarantee that tlb_flush_pending updates are
+ visible before page table updates
+Message-ID: <20131211164052.GB11295@suse.de>
+References: <1386690695-27380-1-git-send-email-mgorman@suse.de>
+ <20131211132109.GB24125@suse.de>
+ <20131211144446.GP4208@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <52A8877A.10209@suse.cz>
+In-Reply-To: <20131211144446.GP4208@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, Sasha Levin <sasha.levin@oracle.com>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Alex Thorlton <athorlton@sgi.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Dec 11, 2013 at 04:40:42PM +0100, Vlastimil Babka wrote:
- > On 12/06/2013 10:02 PM, Dave Jones wrote:
- > > I've spent a few days enhancing trinity's use of mmap's, trying to make it
- > > reproduce https://lkml.org/lkml/2013/12/4/499
- > 
- > FYI, I managed to reproduce that using trinity today,
- > trinity was from git at commit e8912cc which is from Dec 09 so I guess 
- > your enhancements were already there?
+On Wed, Dec 11, 2013 at 06:44:47AM -0800, Paul E. McKenney wrote:
+> On Wed, Dec 11, 2013 at 01:21:09PM +0000, Mel Gorman wrote:
+> > According to documentation on barriers, stores issued before a LOCK can
+> > complete after the lock implying that it's possible tlb_flush_pending can
+> > be visible after a page table update. As per revised documentation, this patch
+> > adds a smp_mb__before_spinlock to guarantee the correct ordering.
+> > 
+> > Cc: stable@vger.kernel.org
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> 
+> Assuming that there is a lock acquisition after calls to
+> set_tlb_flush_pending():
+> 
+> Acked-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+> 
+> (I don't see set_tlb_flush_pending() in mainline.)
+> 
 
-yep, everything I had pending is in HEAD now.
+It's introduced by a patch flight that is currently sitting in Andrew's
+tree. In the case where we care about the value of tlb_flush_pending, a
+spinlock will be taken. PMD or PTE split spinlocks or the mm->page_table_lock
+depending on whether it is 3.13 or 3.12-stable and earlier kernels. I
+pushed the relevant patches to this tree and branch
 
- > kernel was linux-next-20131209
- > I was running trinity -c mmap -c munmap -c mremap -c remap_file_pages -c 
- > mlock -c munlock
- 
-A shorthand for all those -c's is '-G vm'. (Though there might be a couple
-extra syscalls in the list too, madvise, mprotect etc).
+git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux-balancenuma.git numab-instrument-serialise-v5r1
 
- > Now I'm running with Kirill's patch, will post results later.
- 
-Seemed to fix it for me, I've not reproduced that particular bug since applying it.
-Kirill, is that on its way to Linus soon ?
+There is no guarantee the lock will be taken if there are no pages populated
+in the region but we also do not care about flushing the TLB in that case
+either. Does it matter that there is no guarantee a lock will be taken
+after smp_mb__before_spinlock, just very likely that it will be?
 
-thanks,
-
-	Dave
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
