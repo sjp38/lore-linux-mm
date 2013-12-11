@@ -1,70 +1,263 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f51.google.com (mail-yh0-f51.google.com [209.85.213.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6440D6B0031
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 17:23:23 -0500 (EST)
-Received: by mail-yh0-f51.google.com with SMTP id c41so5611419yho.24
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:23:23 -0800 (PST)
-Received: from mail-yh0-x22e.google.com (mail-yh0-x22e.google.com [2607:f8b0:4002:c01::22e])
-        by mx.google.com with ESMTPS id v3si19370635yhd.13.2013.12.11.14.23.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 11 Dec 2013 14:23:22 -0800 (PST)
-Received: by mail-yh0-f46.google.com with SMTP id l109so5624727yhq.5
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:23:22 -0800 (PST)
-Date: Wed, 11 Dec 2013 14:23:18 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] memcg, oom: lock mem_cgroup_print_oom_info
-In-Reply-To: <1386776545-24916-1-git-send-email-mhocko@suse.cz>
-Message-ID: <alpine.DEB.2.02.1312111421320.7354@chino.kir.corp.google.com>
-References: <1386776545-24916-1-git-send-email-mhocko@suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id B2F2C6B0039
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 17:36:38 -0500 (EST)
+Received: by mail-pd0-f170.google.com with SMTP id g10so10336653pdj.15
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:36:38 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id 8si14737637pbe.40.2013.12.11.14.36.32
+        for <linux-mm@kvack.org>;
+        Wed, 11 Dec 2013 14:36:33 -0800 (PST)
+Subject: [PATCH 1/2] mm: slab/slub: use page->list consistently instead of page->lru
+From: Dave Hansen <dave@sr71.net>
+Date: Wed, 11 Dec 2013 14:36:31 -0800
+Message-Id: <20131211223631.51094A3D@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, cl@gentwo.org, kirill.shutemov@linux.intel.com, Andi Kleen <ak@linux.intel.com>, akpm@linux-foundation.org, Dave Hansen <dave@sr71.net>
 
-On Wed, 11 Dec 2013, Michal Hocko wrote:
 
-> mem_cgroup_print_oom_info uses a static buffer (memcg_name) to store the
-> name of the cgroup. This is not safe as pointed out by David Rientjes
-> because memcg oom is locked only for its hierarchy and nothing prevents
-> another parallel hierarchy to trigger oom as well and overwrite the
-> already in-use buffer.
-> 
-> This patch introduces oom_info_lock hidden inside mem_cgroup_print_oom_info
-> which is held throughout the function. It make access to memcg_name safe
-> and as a bonus it also prevents parallel memcg ooms to interleave their
-> statistics which would make the printed data hard to analyze otherwise.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Acked-by: David Rientjes <rientjes@google.com>
+'struct page' has two list_head fields: 'lru' and 'list'.
+Conveniently, they are unioned together.  This means that code
+can use them interchangably, which gets horribly confusing like
+with this nugget from slab.c:
 
-> ---
->  mm/memcontrol.c | 12 +++++++-----
->  1 file changed, 7 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 28c9221b74ea..c72b03bf9679 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1647,13 +1647,13 @@ static void move_unlock_mem_cgroup(struct mem_cgroup *memcg,
->   */
->  void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
->  {
-> -	struct cgroup *task_cgrp;
-> -	struct cgroup *mem_cgrp;
->  	/*
-> -	 * Need a buffer in BSS, can't rely on allocations. The code relies
-> -	 * on the assumption that OOM is serialized for memory controller.
-> -	 * If this assumption is broken, revisit this code.
-> +	 * protects memcg_name and makes sure that parallel ooms do not
-> +	 * interleave
+>	list_del(&page->lru);
+>	if (page->active == cachep->num)
+>		list_add(&page->list, &n->slabs_full);
 
-Parallel memcg oom kills can happen in disjoint memcg hierarchies, this 
-just prevents the printing of the statistics from interleaving.  I'm not 
-sure if that's clear from this comment.
+This patch makes the slab and slub code use page->list
+universally instead of mixing ->list and ->lru.
+
+It also adds some comments to attempt to keep new users from
+picking up uses of ->list.
+
+So, the new rule is: page->list is what the slabs use.  page->lru
+is for everybody else.  This is a pretty arbitrary rule, but we
+need _something_.  Maybe we should just axe the ->list one and
+make the sl?bs use ->lru.
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+---
+
+ linux.git-davehans/include/linux/mm_types.h |    5 ++
+ linux.git-davehans/mm/slab.c                |   50 ++++++++++++++--------------
+ 2 files changed, 29 insertions(+), 26 deletions(-)
+
+diff -puN include/linux/mm_types.h~make-slab-use-page-lru-vs-list-consistently include/linux/mm_types.h
+--- linux.git/include/linux/mm_types.h~make-slab-use-page-lru-vs-list-consistently	2013-12-11 14:34:51.438183588 -0800
++++ linux.git-davehans/include/linux/mm_types.h	2013-12-11 14:34:51.445183899 -0800
+@@ -123,6 +123,8 @@ struct page {
+ 	union {
+ 		struct list_head lru;	/* Pageout list, eg. active_list
+ 					 * protected by zone->lru_lock !
++					 * Can be used as a generic list
++					 * by the page owner.
+ 					 */
+ 		struct {		/* slub per cpu partial pages */
+ 			struct page *next;	/* Next partial slab */
+@@ -135,7 +137,8 @@ struct page {
+ #endif
+ 		};
+ 
+-		struct list_head list;	/* slobs list of pages */
++		struct list_head list;	/* sl[aou]bs list of pages.
++					 * do not use outside of slabs */
+ 		struct slab *slab_page; /* slab fields */
+ 		struct rcu_head rcu_head;	/* Used by SLAB
+ 						 * when destroying via RCU
+diff -puN mm/slab.c~make-slab-use-page-lru-vs-list-consistently mm/slab.c
+--- linux.git/mm/slab.c~make-slab-use-page-lru-vs-list-consistently	2013-12-11 14:34:51.440183677 -0800
++++ linux.git-davehans/mm/slab.c	2013-12-11 14:34:51.444183855 -0800
+@@ -765,15 +765,15 @@ static void recheck_pfmemalloc_active(st
+ 		return;
+ 
+ 	spin_lock_irqsave(&n->list_lock, flags);
+-	list_for_each_entry(page, &n->slabs_full, lru)
++	list_for_each_entry(page, &n->slabs_full, list)
+ 		if (is_slab_pfmemalloc(page))
+ 			goto out;
+ 
+-	list_for_each_entry(page, &n->slabs_partial, lru)
++	list_for_each_entry(page, &n->slabs_partial, list)
+ 		if (is_slab_pfmemalloc(page))
+ 			goto out;
+ 
+-	list_for_each_entry(page, &n->slabs_free, lru)
++	list_for_each_entry(page, &n->slabs_free, list)
+ 		if (is_slab_pfmemalloc(page))
+ 			goto out;
+ 
+@@ -1428,7 +1428,7 @@ void __init kmem_cache_init(void)
+ {
+ 	int i;
+ 
+-	BUILD_BUG_ON(sizeof(((struct page *)NULL)->lru) <
++	BUILD_BUG_ON(sizeof(((struct page *)NULL)->list) <
+ 					sizeof(struct rcu_head));
+ 	kmem_cache = &kmem_cache_boot;
+ 	setup_node_pointer(kmem_cache);
+@@ -1624,15 +1624,15 @@ slab_out_of_memory(struct kmem_cache *ca
+ 			continue;
+ 
+ 		spin_lock_irqsave(&n->list_lock, flags);
+-		list_for_each_entry(page, &n->slabs_full, lru) {
++		list_for_each_entry(page, &n->slabs_full, list) {
+ 			active_objs += cachep->num;
+ 			active_slabs++;
+ 		}
+-		list_for_each_entry(page, &n->slabs_partial, lru) {
++		list_for_each_entry(page, &n->slabs_partial, list) {
+ 			active_objs += page->active;
+ 			active_slabs++;
+ 		}
+-		list_for_each_entry(page, &n->slabs_free, lru)
++		list_for_each_entry(page, &n->slabs_free, list)
+ 			num_slabs++;
+ 
+ 		free_objects += n->free_objects;
+@@ -2424,11 +2424,11 @@ static int drain_freelist(struct kmem_ca
+ 			goto out;
+ 		}
+ 
+-		page = list_entry(p, struct page, lru);
++		page = list_entry(p, struct page, list);
+ #if DEBUG
+ 		BUG_ON(page->active);
+ #endif
+-		list_del(&page->lru);
++		list_del(&page->list);
+ 		/*
+ 		 * Safe to drop the lock. The slab is no longer linked
+ 		 * to the cache.
+@@ -2721,7 +2721,7 @@ static int cache_grow(struct kmem_cache
+ 	spin_lock(&n->list_lock);
+ 
+ 	/* Make slab active. */
+-	list_add_tail(&page->lru, &(n->slabs_free));
++	list_add_tail(&page->list, &(n->slabs_free));
+ 	STATS_INC_GROWN(cachep);
+ 	n->free_objects += cachep->num;
+ 	spin_unlock(&n->list_lock);
+@@ -2864,7 +2864,7 @@ retry:
+ 				goto must_grow;
+ 		}
+ 
+-		page = list_entry(entry, struct page, lru);
++		page = list_entry(entry, struct page, list);
+ 		check_spinlock_acquired(cachep);
+ 
+ 		/*
+@@ -2884,7 +2884,7 @@ retry:
+ 		}
+ 
+ 		/* move slabp to correct slabp list: */
+-		list_del(&page->lru);
++		list_del(&page->list);
+ 		if (page->active == cachep->num)
+ 			list_add(&page->list, &n->slabs_full);
+ 		else
+@@ -3163,7 +3163,7 @@ retry:
+ 			goto must_grow;
+ 	}
+ 
+-	page = list_entry(entry, struct page, lru);
++	page = list_entry(entry, struct page, list);
+ 	check_spinlock_acquired_node(cachep, nodeid);
+ 
+ 	STATS_INC_NODEALLOCS(cachep);
+@@ -3175,12 +3175,12 @@ retry:
+ 	obj = slab_get_obj(cachep, page, nodeid);
+ 	n->free_objects--;
+ 	/* move slabp to correct slabp list: */
+-	list_del(&page->lru);
++	list_del(&page->list);
+ 
+ 	if (page->active == cachep->num)
+-		list_add(&page->lru, &n->slabs_full);
++		list_add(&page->list, &n->slabs_full);
+ 	else
+-		list_add(&page->lru, &n->slabs_partial);
++		list_add(&page->list, &n->slabs_partial);
+ 
+ 	spin_unlock(&n->list_lock);
+ 	goto done;
+@@ -3337,7 +3337,7 @@ static void free_block(struct kmem_cache
+ 
+ 		page = virt_to_head_page(objp);
+ 		n = cachep->node[node];
+-		list_del(&page->lru);
++		list_del(&page->list);
+ 		check_spinlock_acquired_node(cachep, node);
+ 		slab_put_obj(cachep, page, objp, node);
+ 		STATS_DEC_ACTIVE(cachep);
+@@ -3355,14 +3355,14 @@ static void free_block(struct kmem_cache
+ 				 */
+ 				slab_destroy(cachep, page);
+ 			} else {
+-				list_add(&page->lru, &n->slabs_free);
++				list_add(&page->list, &n->slabs_free);
+ 			}
+ 		} else {
+ 			/* Unconditionally move a slab to the end of the
+ 			 * partial list on free - maximum time for the
+ 			 * other objects to be freed, too.
+ 			 */
+-			list_add_tail(&page->lru, &n->slabs_partial);
++			list_add_tail(&page->list, &n->slabs_partial);
+ 		}
+ 	}
+ }
+@@ -3404,7 +3404,7 @@ free_done:
+ 		while (p != &(n->slabs_free)) {
+ 			struct page *page;
+ 
+-			page = list_entry(p, struct page, lru);
++			page = list_entry(p, struct page, list);
+ 			BUG_ON(page->active);
+ 
+ 			i++;
+@@ -4029,13 +4029,13 @@ void get_slabinfo(struct kmem_cache *cac
+ 		check_irq_on();
+ 		spin_lock_irq(&n->list_lock);
+ 
+-		list_for_each_entry(page, &n->slabs_full, lru) {
++		list_for_each_entry(page, &n->slabs_full, list) {
+ 			if (page->active != cachep->num && !error)
+ 				error = "slabs_full accounting error";
+ 			active_objs += cachep->num;
+ 			active_slabs++;
+ 		}
+-		list_for_each_entry(page, &n->slabs_partial, lru) {
++		list_for_each_entry(page, &n->slabs_partial, list) {
+ 			if (page->active == cachep->num && !error)
+ 				error = "slabs_partial accounting error";
+ 			if (!page->active && !error)
+@@ -4043,7 +4043,7 @@ void get_slabinfo(struct kmem_cache *cac
+ 			active_objs += page->active;
+ 			active_slabs++;
+ 		}
+-		list_for_each_entry(page, &n->slabs_free, lru) {
++		list_for_each_entry(page, &n->slabs_free, list) {
+ 			if (page->active && !error)
+ 				error = "slabs_free accounting error";
+ 			num_slabs++;
+@@ -4266,9 +4266,9 @@ static int leaks_show(struct seq_file *m
+ 		check_irq_on();
+ 		spin_lock_irq(&n->list_lock);
+ 
+-		list_for_each_entry(page, &n->slabs_full, lru)
++		list_for_each_entry(page, &n->slabs_full, list)
+ 			handle_slab(x, cachep, page);
+-		list_for_each_entry(page, &n->slabs_partial, lru)
++		list_for_each_entry(page, &n->slabs_partial, list)
+ 			handle_slab(x, cachep, page);
+ 		spin_unlock_irq(&n->list_lock);
+ 	}
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
