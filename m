@@ -1,65 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id D87B26B0039
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 17:36:39 -0500 (EST)
-Received: by mail-pb0-f45.google.com with SMTP id rp16so10812176pbb.4
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:36:39 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id 8si14737637pbe.40.2013.12.11.14.36.38
-        for <linux-mm@kvack.org>;
-        Wed, 11 Dec 2013 14:36:38 -0800 (PST)
-Subject: [PATCH 2/2] mm: blk-mq: uses page->list incorrectly
-From: Dave Hansen <dave@sr71.net>
-Date: Wed, 11 Dec 2013 14:36:32 -0800
-References: <20131211223631.51094A3D@viggo.jf.intel.com>
-In-Reply-To: <20131211223631.51094A3D@viggo.jf.intel.com>
-Message-Id: <20131211223632.8B2DFD41@viggo.jf.intel.com>
+Received: from mail-yh0-f49.google.com (mail-yh0-f49.google.com [209.85.213.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 799946B0038
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 17:40:28 -0500 (EST)
+Received: by mail-yh0-f49.google.com with SMTP id z20so5587897yhz.22
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:40:28 -0800 (PST)
+Received: from mail-yh0-x232.google.com (mail-yh0-x232.google.com [2607:f8b0:4002:c01::232])
+        by mx.google.com with ESMTPS id l26si19342644yhg.262.2013.12.11.14.40.27
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 11 Dec 2013 14:40:27 -0800 (PST)
+Received: by mail-yh0-f50.google.com with SMTP id b6so5615636yha.23
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:40:27 -0800 (PST)
+Date: Wed, 11 Dec 2013 14:40:24 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
+ access to memory reserves
+In-Reply-To: <20131211095549.GA18741@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.02.1312111434200.7354@chino.kir.corp.google.com>
+References: <20131202200221.GC5524@dhcp22.suse.cz> <20131202212500.GN22729@cmpxchg.org> <20131203120454.GA12758@dhcp22.suse.cz> <alpine.DEB.2.02.1312031544530.5946@chino.kir.corp.google.com> <20131204111318.GE8410@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312041606260.6329@chino.kir.corp.google.com> <20131209124840.GC3597@dhcp22.suse.cz> <alpine.DEB.2.02.1312091328550.11026@chino.kir.corp.google.com> <20131210103827.GB20242@dhcp22.suse.cz> <alpine.DEB.2.02.1312101655430.22701@chino.kir.corp.google.com>
+ <20131211095549.GA18741@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, cl@gentwo.org, kirill.shutemov@linux.intel.com, Andi Kleen <ak@linux.intel.com>, akpm@linux-foundation.org, Dave Hansen <dave@sr71.net>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
+On Wed, 11 Dec 2013, Michal Hocko wrote:
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+> > Triggering a pointless notification with PF_EXITING is rare, yet one 
+> > pointless notification can be avoided with the patch. 
+> 
+> Sigh. Yes it will avoid one particular and rare race. There will still
+> be notifications without oom kills.
+> 
 
-'struct page' has two list_head fields: 'lru' and 'list'.
-Conveniently, they are unioned together.  This means that code
-can use them interchangably, which gets horribly confusing.
+Would you prefer doing the mem_cgroup_oom_notify() in two places instead:
 
-The blk-mq made the logical decision to try to use page->list.
-But, that field was actually introduced just for the slub code.
-->lru is the right field to use outside of slab/slub.
+ - immediately before doing oom_kill_process() when it's guaranteed that
+   the kernel would have killed something, and
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
----
+ - when memory.oom_control == 1 in mem_cgroup_oom_synchronize()?
 
- linux.git-davehans/block/blk-mq.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+> Anyway.
+> Does the reclaim make any sense for PF_EXITING tasks? Shouldn't we
+> simply bypass charges of these tasks automatically. Those tasks will
+> free some memory anyway so why to trigger reclaim and potentially OOM
+> in the first place? Do we need to go via TIF_MEMDIE loop in the first
+> place?
+> 
 
-diff -puN block/blk-mq.c~blk-mq-uses-page-list-incorrectly block/blk-mq.c
---- linux.git/block/blk-mq.c~blk-mq-uses-page-list-incorrectly	2013-12-11 14:34:51.735196799 -0800
-+++ linux.git-davehans/block/blk-mq.c	2013-12-11 14:34:51.739196977 -0800
-@@ -1087,8 +1087,8 @@ static void blk_mq_free_rq_map(struct bl
- 	struct page *page;
- 
- 	while (!list_empty(&hctx->page_list)) {
--		page = list_first_entry(&hctx->page_list, struct page, list);
--		list_del_init(&page->list);
-+		page = list_first_entry(&hctx->page_list, struct page, lru);
-+		list_del_init(&page->lru);
- 		__free_pages(page, page->private);
- 	}
- 
-@@ -1152,7 +1152,7 @@ static int blk_mq_init_rq_map(struct blk
- 			break;
- 
- 		page->private = this_order;
--		list_add_tail(&page->list, &hctx->page_list);
-+		list_add_tail(&page->lru, &hctx->page_list);
- 
- 		p = page_address(page);
- 		entries_per_page = order_to_size(this_order) / rq_size;
-_
+I don't see any reason to make an optimization there since they will get 
+TIF_MEMDIE set if reclaim has failed on one of their charges or if it 
+results in a system oom through the page allocator's oom killer.  It would 
+be nice to ensure reclaim has had a chance to free memory in the presence 
+of any other potential parallel memory freeing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
