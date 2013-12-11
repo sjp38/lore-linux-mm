@@ -1,65 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 5513F6B0039
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
+	by kanga.kvack.org (Postfix) with ESMTP id DFAED6B003B
 	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 05:16:29 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id jt11so9699440pbb.28
+Received: by mail-ob0-f174.google.com with SMTP id wn1so6675290obc.19
         for <linux-mm@kvack.org>; Wed, 11 Dec 2013 02:16:29 -0800 (PST)
-Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com. [202.81.31.147])
-        by mx.google.com with ESMTPS id ty3si13145327pbc.77.2013.12.11.02.16.26
+Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com. [122.248.162.3])
+        by mx.google.com with ESMTPS id ns8si12981460obc.61.2013.12.11.02.16.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
         Wed, 11 Dec 2013 02:16:28 -0800 (PST)
 Received: from /spool/local
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 11 Dec 2013 20:16:25 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 6F91B2BB0055
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 21:16:22 +1100 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBB9w0Lg43253942
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 20:58:01 +1100
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBBAGLdZ008494
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 21:16:21 +1100
+	Wed, 11 Dec 2013 15:46:14 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 69613E0057
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 15:48:30 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBBAG7va45875298
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 15:46:07 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBBAG9sx027037
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 15:46:09 +0530
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v6 6/6] sched/numa: fix period_slot recalculation
-Date: Wed, 11 Dec 2013 18:16:01 +0800
-Message-Id: <1386756961-3887-7-git-send-email-liwanp@linux.vnet.ibm.com>
-In-Reply-To: <1386756961-3887-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1386756961-3887-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v6 0/6] mm: sched: numa: several fixups
+Date: Wed, 11 Dec 2013 18:15:55 +0800
+Message-Id: <1386756961-3887-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Ingo Molnar <mingo@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Changelog:
- v3 -> v4:
-  * remove period_slot recalculation
+Hi Andrew,
 
-The original code is as intended and was meant to scale the difference
-between the NUMA_PERIOD_THRESHOLD and local/remote ratio when adjusting
-the scan period. The period_slot recalculation can be dropped.
+I rebase this patchset against latest mmotm tree since Mel's [PATCH 00/17]
+NUMA balancing segmentation fault fixes and misc followups v4 merged. Several
+patches are dropped in my v6 since one is merged in tip tree and other three
+patches conflict with Mel's series. I have already picked up everybody's Acked-by
+or Reviewed-by in v6 and hopefully they can be merged soon. ;-)
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
----
- kernel/sched/fair.c |    1 -
- 1 files changed, 0 insertions(+), 1 deletions(-)
+Wanpeng Li (6):
+  sched/numa: fix set cpupid on page migration twice against thp
+  sched/numa: drop sysctl_numa_balancing_settle_count sysctl
+  sched/numa: use wrapper function task_node to get node which task is on
+  sched/numa: fix set cpupid on page migration twice against normal page
+  sched/numa: use wrapper function task_faults_idx to calculate index in group_faults
+  sched/numa: fix period_slot recalculation
 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 8a00879..e7ca79a 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -1356,7 +1356,6 @@ static void update_task_scan_period(struct task_struct *p,
- 		 * scanning faster if shared accesses dominate as it may
- 		 * simply bounce migrations uselessly
- 		 */
--		period_slot = DIV_ROUND_UP(diff, NUMA_PERIOD_SLOTS);
- 		ratio = DIV_ROUND_UP(private * NUMA_PERIOD_SLOTS, (private + shared));
- 		diff = (diff * ratio) / NUMA_PERIOD_SLOTS;
- 	}
+ include/linux/sched/sysctl.h |    1 -
+ kernel/sched/debug.c         |    2 +-
+ kernel/sched/fair.c          |   17 ++++-------------
+ kernel/sysctl.c              |    7 -------
+ mm/migrate.c                 |    4 ----
+ 5 files changed, 5 insertions(+), 26 deletions(-)
+
 -- 
 1.7.5.4
 
