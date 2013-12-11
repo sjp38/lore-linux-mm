@@ -1,142 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D89C6B0038
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 17:49:20 -0500 (EST)
-Received: by mail-ee0-f50.google.com with SMTP id c41so3160311eek.23
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:49:19 -0800 (PST)
+Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 0925C6B0031
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 17:59:11 -0500 (EST)
+Received: by mail-ee0-f44.google.com with SMTP id b57so3170816eek.31
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:59:11 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id p9si21202388eew.34.2013.12.11.14.49.19
+        by mx.google.com with ESMTP id l2si21191771een.104.2013.12.11.14.59.11
         for <linux-mm@kvack.org>;
-        Wed, 11 Dec 2013 14:49:19 -0800 (PST)
-Date: Wed, 11 Dec 2013 23:49:17 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH RFC] mm readahead: Fix the readahead fail in case of
- empty numa node
-Message-ID: <20131211224917.GF1163@quack.suse.cz>
-References: <1386066977-17368-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
- <20131203143841.11b71e387dc1db3a8ab0974c@linux-foundation.org>
- <529EE811.5050306@linux.vnet.ibm.com>
- <20131204004125.a06f7dfc.akpm@linux-foundation.org>
- <529EF0FB.2050808@linux.vnet.ibm.com>
- <20131204134838.a048880a1db9e9acd14a39e4@linux-foundation.org>
+        Wed, 11 Dec 2013 14:59:11 -0800 (PST)
+Message-ID: <52A8EE38.2060004@suse.cz>
+Date: Wed, 11 Dec 2013 23:59:04 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131204134838.a048880a1db9e9acd14a39e4@linux-foundation.org>
+Subject: Re: kernel BUG in munlock_vma_pages_range
+References: <52A3D0C3.1080504@oracle.com> <52A58E8A.3050401@suse.cz> <52A5F83F.4000207@oracle.com> <52A5F9EE.4010605@suse.cz> <52A6275F.4040007@oracle.com>
+In-Reply-To: <52A6275F.4040007@oracle.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: joern@logfs.org, mgorman@suse.de, Michel Lespinasse <walken@google.com>, riel@redhat.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed 04-12-13 13:48:38, Andrew Morton wrote:
-> On Wed, 04 Dec 2013 14:38:11 +0530 Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com> wrote:
+On 12/09/2013 09:26 PM, Sasha Levin wrote:
+> On 12/09/2013 12:12 PM, Vlastimil Babka wrote:
+>> On 12/09/2013 06:05 PM, Sasha Levin wrote:
+>>> On 12/09/2013 04:34 AM, Vlastimil Babka wrote:
+>>>> Hello, I will look at it, thanks.
+>>>> Do you have specific reproduction instructions?
+>>>
+>>> Not really, the fuzzer hit it once and I've been unable to trigger it again. Looking at
+>>> the piece of code involved it might have had something to do with hugetlbfs, so I'll crank
+>>> up testing on that part.
+>>
+>> Thanks. Do you have trinity log and the .config file? I'm currently unable to even boot linux-next
+>> with my config/setup due to a GPF.
+>> Looking at code I wouldn't expect that it could encounter a tail page, without first encountering a
+>> head page and skipping the whole huge page. At least in THP case, as TLB pages should be split when
+>> a vma is split. As for hugetlbfs, it should be skipped for mlock/munlock operations completely. One
+>> of these assumptions is probably failing here...
 > 
-> > On 12/04/2013 02:11 PM, Andrew Morton wrote:
-> > > On Wed, 04 Dec 2013 14:00:09 +0530 Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com> wrote:
-> > >
-> > >> Unfaortunately, from my search, I saw that the code belonged to pre git
-> > >> time, so could not get much information on that.
-> > >
-> > > Here: https://lkml.org/lkml/2004/8/20/242
-> > >
-> > > It seems it was done as a rather thoughtless performance optimisation.
-> > > I'd say it's time to reimplement max_sane_readahead() from scratch.
-> > >
-> > 
-> > Ok. Thanks for the link. I think after that,
-> > Here it was changed to pernode:
-> > https://lkml.org/lkml/2004/8/21/9 to avoid iteration all over.
-> > 
-> > do you think above patch (+comments) with some sanitized nr (thus
-> > avoiding iteration over nodes in remote numa readahead case) does look
-> > better?
-> > or should we iterate all memory.
+> If it helps, I've added a dump_page() in case we hit a tail page there and got:
 > 
-> I dunno, the whole thing smells of arbitrary woolly thinking to me. 
-> Going back further in time..
+> [  980.172299] page:ffffea003e5e8040 count:0 mapcount:1 mapping:          (null) index:0
+> x0
+> [  980.173412] page flags: 0x2fffff80008000(tail)
 > 
-> : commit f76d03dc9fcff7ac88e2d23c5814fd0f50c59bb6
-> : Author:     akpm <akpm>
-> : AuthorDate: Sun Dec 15 03:18:58 2002 +0000
-> : Commit:     akpm <akpm>
-> : CommitDate: Sun Dec 15 03:18:58 2002 +0000
-> : 
-> :     [PATCH] madvise_willneed() maximum readahead checking
-> :     
-> :     madvise_willneed() currently has a very strange check on how much readahead
-> :     it is prepared to do.
-> :     
-> :       It is based on the user's rss limit.  But this is usually enormous, and
-> :       the user isn't necessarily going to map all that memory at the same time
-> :       anyway.
-> :     
-> :       And the logic is wrong - it is comparing rss (which is in bytes) with
-> :       `end - start', which is in pages.
-> :     
-> :       And it returns -EIO on error, which is not mentioned in the Open Group
-> :       spec and doesn't make sense.
-> :     
-> :     
-> :     This patch takes it all out and applies the same upper limit as is used in
-> :     sys_readahead() - half the inactive list.
-> : 
-> : +/*
-> : + * Given a desired number of PAGE_CACHE_SIZE readahead pages, return a
-> : + * sensible upper limit.
-> : + */
-> : +unsigned long max_sane_readahead(unsigned long nr)
-> : +{
-> : +       unsigned long active;
-> : +       unsigned long inactive;
-> : +
-> : +       get_zone_counts(&active, &inactive);
-> : +       return min(nr, inactive / 2);
-> : +}
-> 
-> And one would need to go back further still to understand the rationale
-> for the sys_readahead() decision and that even predates the BK repo.
-> 
-> iirc the thinking was that we need _some_ limit on readahead size so
-> the user can't go and do ridiculously large amounts of readahead via
-> sys_readahead().  But that doesn't make a lot of sense because the user
-> could do the same thing with plain old read().
-> 
-> So for argument's sake I'm thinking we just kill it altogether and
-> permit arbitrarily large readahead:
-> 
-> --- a/mm/readahead.c~a
-> +++ a/mm/readahead.c
-> @@ -238,13 +238,12 @@ int force_page_cache_readahead(struct ad
->  }
->  
->  /*
-> - * Given a desired number of PAGE_CACHE_SIZE readahead pages, return a
-> - * sensible upper limit.
-> + * max_sane_readahead() is disabled.  It can later be removed altogether, but
-> + * let's keep a skeleton in place for now, in case disabling was the wrong call.
->   */
->  unsigned long max_sane_readahead(unsigned long nr)
->  {
-> -	return min(nr, (node_page_state(numa_node_id(), NR_INACTIVE_FILE)
-> -		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
-> +	return nr;
->  }
->  
->  /*
-> 
-> Can anyone see a problem with this?
-  Well, the downside seems to be that if userspace previously issued
-MADV/FADV_WILLNEED on a huge file, we trimmed the request to a sensible
-size. Now we try to read the whole huge file which is pretty much
-guaranteed to be useless (as we'll be pushing out of cache data we just
-read a while ago). And guessing the right readahead size from userspace
-isn't trivial so it would make WILLNEED advice less useful. What do you
-think?
+> I can also add anything else in there to get other debug output if you think of something else useful.
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Please try the following. Thanks in advance.
+
+------8<------
+diff --git a/mm/mlock.c b/mm/mlock.c
+index d480cd6..c81b7c3 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -436,11 +436,14 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
+ void munlock_vma_pages_range(struct vm_area_struct *vma,
+ 			     unsigned long start, unsigned long end)
+ {
++	unsigned long orig_start = start;
++	unsigned int page_increm = 0;
++
+ 	vma->vm_flags &= ~VM_LOCKED;
+
+ 	while (start < end) {
+ 		struct page *page = NULL;
+-		unsigned int page_mask, page_increm;
++		unsigned int page_mask;
+ 		struct pagevec pvec;
+ 		struct zone *zone;
+ 		int zoneid;
+@@ -457,6 +460,22 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
+ 				&page_mask);
+
+ 		if (page && !IS_ERR(page)) {
++			if (PageTail(page)) {
++				struct page *first_page;
++				dump_page(page);
++				printk("start=%lu pfn=%lu orig_start=%lu "
++				       "page_increm=%d "
++				       "vm_start=%lu vm_end=%lu vm_flags=%lu\n",
++					start, page_to_pfn(page), orig_start,
++					page_increm,
++					vma->vm_start, vma->vm_end,
++					vma->vm_flags);
++				first_page = page->first_page;
++				printk("first_page pfn=%lu\n",
++						page_to_pfn(first_page));
++				dump_page(first_page);
++				VM_BUG_ON(true);
++			}
+ 			if (PageTransHuge(page)) {
+ 				lock_page(page);
+ 				/*
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
