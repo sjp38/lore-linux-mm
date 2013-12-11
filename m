@@ -1,62 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f46.google.com (mail-yh0-f46.google.com [209.85.213.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 6193F6B0035
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 21:09:35 -0500 (EST)
-Received: by mail-yh0-f46.google.com with SMTP id l109so4580792yhq.33
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 18:09:35 -0800 (PST)
-Received: from mail-pd0-x235.google.com (mail-pd0-x235.google.com [2607:f8b0:400e:c02::235])
-        by mx.google.com with ESMTPS id n44si15809926yhn.165.2013.12.10.18.09.34
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 10 Dec 2013 18:09:34 -0800 (PST)
-Received: by mail-pd0-f181.google.com with SMTP id p10so8546524pdj.12
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 18:09:33 -0800 (PST)
-Message-ID: <52A7C9D9.4080308@gmail.com>
-Date: Wed, 11 Dec 2013 10:11:37 +0800
-From: Chen Gang <gang.chen.5i5j@gmail.com>
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 259306B0037
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 21:09:56 -0500 (EST)
+Received: by mail-pd0-f173.google.com with SMTP id p10so8557364pdj.32
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 18:09:55 -0800 (PST)
+Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
+        by mx.google.com with ESMTP id bt3si11978594pbb.344.2013.12.10.18.09.53
+        for <linux-mm@kvack.org>;
+        Tue, 10 Dec 2013 18:09:54 -0800 (PST)
+Date: Wed, 11 Dec 2013 11:09:59 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v9 0/4] zram/zsmalloc promotion
+Message-ID: <20131211020959.GA17970@bbox>
+References: <1386727479-18502-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Subject: [PATCH v2] mm/zswap.c: add BUG() for default case in zswap_writeback_entry()
-References: <52A53024.9090701@gmail.com> <20131209153626.GA3752@cerebellum.variantweb.net> <52A67973.20904@gmail.com>
-In-Reply-To: <52A67973.20904@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1386727479-18502-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjennings@variantweb.net>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, James Hogan <james.hogan@imgtec.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jens Axboe <axboe@kernel.dk>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Luigi Semenzato <semenzato@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Bob Liu <bob.liu@oracle.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Recommend to add default case to avoid compiler's warning, although at
-present, the original implementation is still correct.
+Hello Greg,
 
-The related warning (with allmodconfig for metag):
+On Wed, Dec 11, 2013 at 11:04:35AM +0900, Minchan Kim wrote:
+> Zram is a simple pseudo block device which can keep data on
+> in-memory with compressed[1].
+> 
+> It have been used for many embedded system for several years
+> One of significant usecase is in-memory swap device.
+> Because NAND which is very popular on most embedded device
+> is weak for frequent write without good wear-level
+> and slow I/O hurts system's responsiblity so zram is really
+> good choice to use memory efficiently.
+> 
+> In previous trial, there was some argument[2] that zram has
+> similar goal with zswap so let's merge zram's functionality
+> into zswap via adding pseudo block device in zswap but I and
+> some people(At least, Hugh and Rik) believe it's not a good idea.
+> [2][3][4] and zswap might go writethrough model[5]. It makes
+> clear difference zram and zswap.
+> 
+> Zram itself is simple/well-designed/good abstraciton so it has
+> clear market(ex, Android, TV, ChromeOS, some Linux distro) which
+> is never niche. :)
+> 
+> Another zram-blk's usecase is following as.
+> The admin can use it as tmpfs so it could help small memory system.
+> The tmpfs is never good solution for swapless embedded system.
+> 
+> Patch 1 adds new Kconfig for zram to use page table method instead
+> of copy.
+> 
+> Patch 2 adds more comment for zsmalloc.
+> 
+> Patch 3 moves zsmalloc under mm.
+> 
+> Patch 4 moves zram from driver/staging to driver/blocks, finally.
 
-    CC      mm/zswap.o
-  mm/zswap.c: In function 'zswap_writeback_entry':
-  mm/zswap.c:537: warning: 'ret' may be used uninitialized in this function
+Patch 1(suggested by Andrew Morton) and 2(Just comment to make review easy)
+are prepartion for promotion so I hope it could be merged into your staging
+regardless of allowing promotion at the moment.
 
+Thanks.
 
-Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
----
- mm/zswap.c |    4 ++++
- 1 files changed, 4 insertions(+), 0 deletions(-)
-
-diff --git a/mm/zswap.c b/mm/zswap.c
-index 5a63f78..f58a001 100644
---- a/mm/zswap.c
-+++ b/mm/zswap.c
-@@ -585,6 +585,10 @@ static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
- 
- 		/* page is up to date */
- 		SetPageUptodate(page);
-+		break;
-+
-+	default:
-+		BUG();
- 	}
- 
- 	/* move it to the tail of the inactive list after end_writeback */
 -- 
-1.7.7.6
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
