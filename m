@@ -1,70 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
-	by kanga.kvack.org (Postfix) with ESMTP id EFBB36B0036
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 09:39:09 -0500 (EST)
-Received: by mail-qa0-f41.google.com with SMTP id j5so4807537qaq.14
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 06:39:09 -0800 (PST)
-Received: from devils.ext.ti.com (devils.ext.ti.com. [198.47.26.153])
-        by mx.google.com with ESMTPS id b6si15626750qak.166.2013.12.11.06.39.06
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E1E36B0035
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 09:44:52 -0500 (EST)
+Received: by mail-ob0-f176.google.com with SMTP id vb8so1502836obc.21
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 06:44:52 -0800 (PST)
+Received: from e32.co.us.ibm.com (e32.co.us.ibm.com. [32.97.110.150])
+        by mx.google.com with ESMTPS id jb8si13640258obb.1.2013.12.11.06.44.51
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 11 Dec 2013 06:39:08 -0800 (PST)
-From: Grygorii Strashko <grygorii.strashko@ti.com>
-Subject: [PATCH 1/2] mm/memblock: add more comments in code
-Date: Wed, 11 Dec 2013 17:36:13 +0200
-Message-ID: <1386776175-23779-1-git-send-email-grygorii.strashko@ti.com>
+        Wed, 11 Dec 2013 06:44:51 -0800 (PST)
+Received: from /spool/local
+	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Wed, 11 Dec 2013 07:44:50 -0700
+Received: from b03cxnp07027.gho.boulder.ibm.com (b03cxnp07027.gho.boulder.ibm.com [9.17.130.14])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id B8B9D19D8048
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 07:44:41 -0700 (MST)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by b03cxnp07027.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBBCgecX6226248
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 13:42:40 +0100
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id rBBElo8S000944
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 07:47:50 -0700
+Date: Wed, 11 Dec 2013 06:44:47 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm: numa: Guarantee that tlb_flush_pending updates are
+ visible before page table updates
+Message-ID: <20131211144446.GP4208@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <1386690695-27380-1-git-send-email-mgorman@suse.de>
+ <20131211132109.GB24125@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131211132109.GB24125@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: santosh.shilimkar@ti.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Grygorii Strashko <grygorii.strashko@ti.com>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Alex Thorlton <athorlton@sgi.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Add additional description on:
-- why warning is produced in case if slab is ready
-- why kmemleak_alloc is called for each allocated memory block
+On Wed, Dec 11, 2013 at 01:21:09PM +0000, Mel Gorman wrote:
+> According to documentation on barriers, stores issued before a LOCK can
+> complete after the lock implying that it's possible tlb_flush_pending can
+> be visible after a page table update. As per revised documentation, this patch
+> adds a smp_mb__before_spinlock to guarantee the correct ordering.
+> 
+> Cc: stable@vger.kernel.org
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Cc: Yinghai Lu <yinghai@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
----
+Assuming that there is a lock acquisition after calls to
+set_tlb_flush_pending():
 
-It's additional change on top of the memblock series 
-https://lkml.org/lkml/2013/12/9/715
+Acked-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
- mm/memblock.c |    9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+(I don't see set_tlb_flush_pending() in mainline.)
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index d03d50a..974f0d3 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -985,6 +985,11 @@ static void * __init memblock_virt_alloc_internal(
- 		pr_warn("%s: usage of MAX_NUMNODES is depricated. Use NUMA_NO_NODE\n",
- 			__func__);
- 
-+	/*
-+	 * Detect any accidental use of these APIs after slab is ready, as at
-+	 * this moment memblock may be deinitialized already and its
-+	 * internal data may be destroyed (after execution of free_all_bootmem)
-+	 */
- 	if (WARN_ON_ONCE(slab_is_available()))
- 		return kzalloc_node(size, GFP_NOWAIT, nid);
- 
-@@ -1021,7 +1026,9 @@ done:
- 
- 	/*
- 	 * The min_count is set to 0 so that bootmem allocated blocks
--	 * are never reported as leaks.
-+	 * are never reported as leaks. This is because many of these blocks
-+	 * are only referred via the physical address which is not
-+	 * looked up by kmemleak.
- 	 */
- 	kmemleak_alloc(ptr, size, 0, 0);
- 
--- 
-1.7.9.5
+> ---
+>  include/linux/mm_types.h | 7 ++++++-
+>  1 file changed, 6 insertions(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index c122bb1..a12f2ab 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -482,7 +482,12 @@ static inline bool tlb_flush_pending(struct mm_struct *mm)
+>  static inline void set_tlb_flush_pending(struct mm_struct *mm)
+>  {
+>  	mm->tlb_flush_pending = true;
+> -	barrier();
+> +
+> +	/*
+> +	 * Guarantee that the tlb_flush_pending store does not leak into the
+> +	 * critical section updating the page tables
+> +	 */
+> +	smp_mb__before_spinlock();
+>  }
+>  /* Clearing is done after a TLB flush, which also provides a barrier. */
+>  static inline void clear_tlb_flush_pending(struct mm_struct *mm)
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
