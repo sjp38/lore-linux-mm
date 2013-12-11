@@ -1,89 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 201B16B0036
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 04:26:52 -0500 (EST)
-Received: by mail-ee0-f49.google.com with SMTP id c41so2739866eek.8
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 01:26:51 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id r9si18142661eeo.128.2013.12.11.01.26.51
-        for <linux-mm@kvack.org>;
-        Wed, 11 Dec 2013 01:26:51 -0800 (PST)
-Date: Wed, 11 Dec 2013 09:26:48 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [patch] mm, page_alloc: allow __GFP_NOFAIL to allocate below
- watermarks after reclaim
-Message-ID: <20131211092648.GW11295@suse.de>
-References: <alpine.DEB.2.02.1312091402580.11026@chino.kir.corp.google.com>
- <20131210075059.GA11295@suse.de>
- <alpine.DEB.2.02.1312101453020.22701@chino.kir.corp.google.com>
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 96BF86B0035
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 04:34:15 -0500 (EST)
+Received: by mail-pb0-f49.google.com with SMTP id jt11so9586452pbb.36
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 01:34:15 -0800 (PST)
+Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com. [202.81.31.143])
+        by mx.google.com with ESMTPS id tr4si13014595pab.63.2013.12.11.01.34.13
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 11 Dec 2013 01:34:14 -0800 (PST)
+Received: from /spool/local
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Wed, 11 Dec 2013 19:34:11 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 8EEF02CE8040
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 20:34:08 +1100 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBB9FtDE53280782
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 20:15:56 +1100
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBB9Y7Fv019295
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 20:34:07 +1100
+Date: Wed, 11 Dec 2013 17:34:05 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH v5 8/8] sched/numa: drop unnecessary variable in
+ task_weight
+Message-ID: <52a83196.6494420a.5e2f.4829SMTPIN_ADDED_BROKEN@mx.google.com>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1386723001-25408-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1386723001-25408-9-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20131211092123.GV11295@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1312101453020.22701@chino.kir.corp.google.com>
+In-Reply-To: <20131211092123.GV11295@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Dec 10, 2013 at 03:03:39PM -0800, David Rientjes wrote:
-> On Tue, 10 Dec 2013, Mel Gorman wrote:
-> 
-> > > If direct reclaim has failed to free memory, __GFP_NOFAIL allocations
-> > > can potentially loop forever in the page allocator.  In this case, it's
-> > > better to give them the ability to access below watermarks so that they
-> > > may allocate similar to the same privilege given to GFP_ATOMIC
-> > > allocations.
-> > > 
-> > > We're careful to ensure this is only done after direct reclaim has had
-> > > the chance to free memory, however.
-> > > 
-> > > Signed-off-by: David Rientjes <rientjes@google.com>
-> > 
-> > The main problem with doing something like this is that it just smacks
-> > into the adjusted watermark if there are a number of __GFP_NOFAIL. Who
-> > was the user of __GFP_NOFAIL that was fixed by this patch?
-> > 
-> 
-> Nobody, it comes out of a memcg discussion where __GFP_NOFAIL were 
-> recently given the ability to bypass charges to the root memcg when the 
-> memcg has hit its limit since we disallow the oom killer to kill a process 
-> (for the same reason that the vast majority of __GFP_NOFAIL users, those 
-> that do GFP_NOFS | __GFP_NOFAIL, disallow the oom killer in the page 
-> allocator).
-> 
-> Without some other thread freeing memory, these allocations simply loop 
-> forever.  We probably don't want to reconsider the choice that prevents 
-> calling the oom killer in !__GFP_FS contexts since it will allow 
-> unnecessary oom killing when memory can actually be freed by another 
-> thread.
-> 
-> Since there are comments in both gfp.h and page_alloc.c that say no new 
-> users will be added, it seems legitimate to ensure that the allocation 
-> will at least have a chance of succeeding, but not the point of depleting 
-> memory reserves entirely.
-> 
+On Wed, Dec 11, 2013 at 09:21:23AM +0000, Mel Gorman wrote:
+>On Wed, Dec 11, 2013 at 08:50:01AM +0800, Wanpeng Li wrote:
+>> Drop unnecessary total_faults variable in function task_weight to unify
+>> task_weight and group_weight.
+>> 
+>> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>
+>Nak.
+>
+>task_weight is called for tasks other than current. If p handles a fault
+>in parallel then it can drop to 0 between when it's checked and used to
+>divide resulting in an oops.
 
-Which __GFP_NOFAIL on its own does not guarantee if they just smack into
-that barrier and cannot do anything. It changes the timing, not fixes
-the problem.
+I see, thanks for your pointing out.
 
-> > There are enough bad users of __GFP_NOFAIL that I really question how
-> > good an idea it is to allow emergency reserves to be used when they are
-> > potentially leaked to other !__GFP_NOFAIL users via the slab allocator
-> > shortly afterwards.
-> > 
-> 
-> You could make the same argument for GFP_ATOMIC which can also allow 
-> access to memory reserves.
+Regards,
+Wanpeng Li 
 
-The critical difference being that GFP_ATOMIC callers typically can handle
-NULL being returned to them. GFP_ATOMIC storms may starve !GFP_ATOMIC
-requests but it does not cause the same types of problems that
-__GFP_NOFAIL using reserves would.
-
--- 
-Mel Gorman
-SUSE Labs
+>
+>-- 
+>Mel Gorman
+>SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
