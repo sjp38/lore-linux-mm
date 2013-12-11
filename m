@@ -1,57 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f44.google.com (mail-yh0-f44.google.com [209.85.213.44])
-	by kanga.kvack.org (Postfix) with ESMTP id D07FA6B0035
-	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 19:26:18 -0500 (EST)
-Received: by mail-yh0-f44.google.com with SMTP id f64so4537345yha.17
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 16:26:18 -0800 (PST)
-Received: from mail-yh0-x22f.google.com (mail-yh0-x22f.google.com [2607:f8b0:4002:c01::22f])
-        by mx.google.com with ESMTPS id t39si10404672yhp.50.2013.12.10.16.26.17
+Received: from mail-yh0-f43.google.com (mail-yh0-f43.google.com [209.85.213.43])
+	by kanga.kvack.org (Postfix) with ESMTP id EDD736B0035
+	for <linux-mm@kvack.org>; Tue, 10 Dec 2013 19:35:01 -0500 (EST)
+Received: by mail-yh0-f43.google.com with SMTP id a41so4521815yho.16
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 16:35:01 -0800 (PST)
+Received: from mail-ie0-x22f.google.com (mail-ie0-x22f.google.com [2607:f8b0:4001:c03::22f])
+        by mx.google.com with ESMTPS id j69si15555064yhb.171.2013.12.10.16.35.00
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 10 Dec 2013 16:26:17 -0800 (PST)
-Received: by mail-yh0-f47.google.com with SMTP id 29so4492065yhl.6
-        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 16:26:17 -0800 (PST)
-Date: Tue, 10 Dec 2013 16:26:14 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] checkpatch: add warning of future __GFP_NOFAIL use
-In-Reply-To: <alpine.DEB.2.02.1312101618530.22701@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.02.1312101624330.22701@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1312091355360.11026@chino.kir.corp.google.com> <20131209152202.df3d4051d7dc61ada7c420a9@linux-foundation.org> <alpine.DEB.2.02.1312101504120.22701@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1312101618530.22701@chino.kir.corp.google.com>
+        Tue, 10 Dec 2013 16:35:01 -0800 (PST)
+Received: by mail-ie0-f175.google.com with SMTP id x13so9913285ief.20
+        for <linux-mm@kvack.org>; Tue, 10 Dec 2013 16:35:00 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <52A79B0D.4090303@zytor.com>
+References: <52A6D9B0.7040506@huawei.com>
+	<CAE9FiQUd+sU4GEq0687u8+26jXJiJVboN90+L7svyosmm+V1Rg@mail.gmail.com>
+	<52A787D0.2070400@zytor.com>
+	<CAE9FiQU8Y_thGxZamz0Uwt4FGXh7KJu7jGP8ED3dbjQuyq7vcQ@mail.gmail.com>
+	<52A79B0D.4090303@zytor.com>
+Date: Tue, 10 Dec 2013 16:35:00 -0800
+Message-ID: <CAE9FiQVf+vAbW1v_VL5XSseQg06S6AX8RrE4vvJwPbLOeRcr=A@mail.gmail.com>
+Subject: Re: [PATCH] mm,x86: fix span coverage in e820_all_mapped()
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Whitcroft <apw@canonical.com>, Joe Perches <joe@perches.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Xishi Qiu <qiuxishi@huawei.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, the arch/x86 maintainers <x86@kernel.org>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>
 
-gfp.h and page_alloc.c already specify that __GFP_NOFAIL is deprecated and 
-no new users should be added.
+On Tue, Dec 10, 2013 at 2:51 PM, H. Peter Anvin <hpa@zytor.com> wrote:
+> On 12/10/2013 01:52 PM, Yinghai Lu wrote:
+>>>
+>>> What happens if it spans more than two regions?
+>>
+>> [A, B), [B+1, C), [C+1, D) ?
+>> start in [A, B), and end in [C+1, D).
+>>
+>> old code:
+>> first with [A, B), start set to B.
+>> then with [B+1, C), start still keep as B.
+>> then with [C+1, D), start still keep as B.
+>> at last still return 0...aka not_all_mapped.
+>>
+>> old code is still right.
+>>
+>
+> Why not_all_mapped?
 
-Add a warning to checkpatch to catch this.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- scripts/checkpatch.pl | 6 ++++++
- 1 file changed, 6 insertions(+)
-
-diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
-index 9c98100..6667689 100755
---- a/scripts/checkpatch.pl
-+++ b/scripts/checkpatch.pl
-@@ -4114,6 +4114,12 @@ sub process {
- 			     "$1 uses number as first arg, sizeof is generally wrong\n" . $herecurr);
- 		}
- 
-+# check for GFP_NOWAIT use
-+		if ($line =~ /\b__GFP_NOFAIL\b/) {
-+			WARN("__GFP_NOFAIL",
-+			     "Use of __GFP_NOFAIL is deprecated, no new users should be added\n" . $herecurr);
-+		}
-+
- # check for multiple semicolons
- 		if ($line =~ /;\s*;\s*$/) {
- 			if (WARN("ONE_SEMICOLON",
+[B, B+1), and [C, C+1) are not there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
