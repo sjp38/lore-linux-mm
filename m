@@ -1,55 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 16D4F6B0031
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 10:54:59 -0500 (EST)
-Received: by mail-ob0-f171.google.com with SMTP id wp18so7163085obc.16
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 07:54:58 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id pp9si13802094obc.24.2013.12.11.07.54.57
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 11 Dec 2013 07:54:58 -0800 (PST)
-Message-ID: <52A88ACC.4030103@oracle.com>
-Date: Wed, 11 Dec 2013 10:54:52 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from mail-qe0-f43.google.com (mail-qe0-f43.google.com [209.85.128.43])
+	by kanga.kvack.org (Postfix) with ESMTP id E30FD6B0037
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 11:00:59 -0500 (EST)
+Received: by mail-qe0-f43.google.com with SMTP id 2so5417652qeb.2
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 08:00:59 -0800 (PST)
+Received: from a9-42.smtp-out.amazonses.com (a9-42.smtp-out.amazonses.com. [54.240.9.42])
+        by mx.google.com with ESMTP id f1si15857600qar.116.2013.12.11.08.00.57
+        for <linux-mm@kvack.org>;
+        Wed, 11 Dec 2013 08:00:58 -0800 (PST)
+Date: Wed, 11 Dec 2013 16:00:56 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v2 7/7] mm/migrate: remove result argument on page
+ allocation function for migration
+In-Reply-To: <20131211084719.GA2043@lge.com>
+Message-ID: <00000142e263bbcd-65959fd3-eadc-4580-b55b-065c734a229e-000000@email.amazonses.com>
+References: <1386580248-22431-1-git-send-email-iamjoonsoo.kim@lge.com> <1386580248-22431-8-git-send-email-iamjoonsoo.kim@lge.com> <00000142d83adfc7-81b70cc9-c87b-4e7e-bd98-0a97ee21db31-000000@email.amazonses.com> <20131211084719.GA2043@lge.com>
 MIME-Version: 1.0
-Subject: Re: oops in pgtable_trans_huge_withdraw
-References: <20131206210254.GA7962@redhat.com> <52A8877A.10209@suse.cz>
-In-Reply-To: <52A8877A.10209@suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Rafael Aquini <aquini@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On 12/11/2013 10:40 AM, Vlastimil Babka wrote:
-> On 12/06/2013 10:02 PM, Dave Jones wrote:
->> I've spent a few days enhancing trinity's use of mmap's, trying to make it
->> reproduce https://lkml.org/lkml/2013/12/4/499
->
-> FYI, I managed to reproduce that using trinity today,
-> trinity was from git at commit e8912cc which is from Dec 09 so I guess your enhancements were
-> already there?
-> kernel was linux-next-20131209
-> I was running trinity -c mmap -c munmap -c mremap -c remap_file_pages -c mlock -c munlock
->
-> Now I'm running with Kirill's patch, will post results later.
->
-> My goal was to reproduce Sasha Levin's BUG in munlock_vma_pages_range
-> https://lkml.org/lkml/2013/12/7/130
->
-> Perhaps it could be related as well.
-> Sasha, do you know at which commit your trinity clone was at?
+On Wed, 11 Dec 2013, Joonsoo Kim wrote:
 
-Didn't think those two were related. I've hit this one when I've started fuzzing too, but
-Kirill's patch solved it - so I've mostly ignored it.
+> In do_move_pages(), if error occurs, 'goto out_pm' is executed and the
+> page status doesn't back to userspace. So we don't need to store err number.
 
-Trinity is usually pulled and updated before testing, so it's at whatever the latest Dave
-has pushed.
+If a page cannot be moved then the error code is containing the number of
+pages that could not be migrated. The check there is for err < 0.
+So a positive number is not an error.
 
-
-Thanks,
-Sasha
+migrate_pages only returns an error code if we are running out of memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
