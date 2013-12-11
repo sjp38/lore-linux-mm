@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f179.google.com (mail-ea0-f179.google.com [209.85.215.179])
-	by kanga.kvack.org (Postfix) with ESMTP id EC1C86B003C
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 17:10:00 -0500 (EST)
-Received: by mail-ea0-f179.google.com with SMTP id r15so3206878ead.38
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:10:00 -0800 (PST)
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 55A2E6B003D
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 17:10:02 -0500 (EST)
+Received: by mail-wg0-f50.google.com with SMTP id a1so7168007wgh.5
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:10:01 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id l44si21070054eem.61.2013.12.11.14.09.59
+        by mx.google.com with ESMTP id k7si3520296wic.54.2013.12.11.14.10.01
         for <linux-mm@kvack.org>;
-        Wed, 11 Dec 2013 14:10:00 -0800 (PST)
+        Wed, 11 Dec 2013 14:10:01 -0800 (PST)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 08/11] madvise: redefine callback functions for page table walker
-Date: Wed, 11 Dec 2013 17:09:04 -0500
-Message-Id: <1386799747-31069-9-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 09/11] arch/powerpc/mm/subpage-prot.c: use walk_page_vma() instead of walk_page_range()
+Date: Wed, 11 Dec 2013 17:09:05 -0500
+Message-Id: <1386799747-31069-10-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1386799747-31069-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1386799747-31069-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,81 +19,38 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Cliff Wickman <cpw@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@parallels.com>, Rik van Riel <riel@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
 
-swapin_walk_pmd_entry() is defined as pmd_entry(), but it has no code
-about pmd handling (except pmd_none_or_trans_huge_or_clear_bad, but the
-same check are now done in core page table walk code).
-So let's move this function on pte_entry() as swapin_walk_pte_entry().
+We don't have to use mm_walk->private to pass vma to the callback
+function because of mm_walk->vma.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 ---
- mm/madvise.c | 43 +++++++++++++------------------------------
- 1 file changed, 13 insertions(+), 30 deletions(-)
+ arch/powerpc/mm/subpage-prot.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
-diff --git v3.13-rc3-mmots-2013-12-10-16-38.orig/mm/madvise.c v3.13-rc3-mmots-2013-12-10-16-38/mm/madvise.c
-index 539eeb96b323..5e957b984c14 100644
---- v3.13-rc3-mmots-2013-12-10-16-38.orig/mm/madvise.c
-+++ v3.13-rc3-mmots-2013-12-10-16-38/mm/madvise.c
-@@ -135,38 +135,22 @@ static long madvise_behavior(struct vm_area_struct *vma,
- }
- 
- #ifdef CONFIG_SWAP
--static int swapin_walk_pmd_entry(pmd_t *pmd, unsigned long start,
-+static int swapin_walk_pte_entry(pte_t *pte, unsigned long start,
- 	unsigned long end, struct mm_walk *walk)
+diff --git v3.13-rc3-mmots-2013-12-10-16-38.orig/arch/powerpc/mm/subpage-prot.c v3.13-rc3-mmots-2013-12-10-16-38/arch/powerpc/mm/subpage-prot.c
+index a770df2dae70..cec0af0a935f 100644
+--- v3.13-rc3-mmots-2013-12-10-16-38.orig/arch/powerpc/mm/subpage-prot.c
++++ v3.13-rc3-mmots-2013-12-10-16-38/arch/powerpc/mm/subpage-prot.c
+@@ -134,7 +134,7 @@ static void subpage_prot_clear(unsigned long addr, unsigned long len)
+ static int subpage_walk_pmd_entry(pmd_t *pmd, unsigned long addr,
+ 				  unsigned long end, struct mm_walk *walk)
  {
--	pte_t *orig_pte;
 -	struct vm_area_struct *vma = walk->private;
--	unsigned long index;
-+	swp_entry_t entry;
-+	struct page *page;
 +	struct vm_area_struct *vma = walk->vma;
- 
--	if (pmd_none_or_trans_huge_or_clear_bad(pmd))
-+	if (pte_present(*pte) || pte_none(*pte) || pte_file(*pte))
- 		return 0;
--
--	for (index = start; index != end; index += PAGE_SIZE) {
--		pte_t pte;
--		swp_entry_t entry;
--		struct page *page;
--		spinlock_t *ptl;
--
--		orig_pte = pte_offset_map_lock(vma->vm_mm, pmd, start, &ptl);
--		pte = *(orig_pte + ((index - start) / PAGE_SIZE));
--		pte_unmap_unlock(orig_pte, ptl);
--
--		if (pte_present(pte) || pte_none(pte) || pte_file(pte))
--			continue;
--		entry = pte_to_swp_entry(pte);
--		if (unlikely(non_swap_entry(entry)))
--			continue;
--
--		page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
--								vma, index);
--		if (page)
--			page_cache_release(page);
--	}
--
-+	entry = pte_to_swp_entry(*pte);
-+	if (unlikely(non_swap_entry(entry)))
-+		return 0;
-+	page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
-+				     vma, start);
-+	if (page)
-+		page_cache_release(page);
+ 	split_huge_page_pmd(vma, addr, pmd);
  	return 0;
  }
- 
-@@ -175,8 +159,7 @@ static void force_swapin_readahead(struct vm_area_struct *vma,
- {
- 	struct mm_walk walk = {
- 		.mm = vma->vm_mm,
--		.pmd_entry = swapin_walk_pmd_entry,
--		.private = vma,
-+		.pte_entry = swapin_walk_pte_entry,
- 	};
- 
- 	walk_page_range(start, end, &walk);
+@@ -163,9 +163,7 @@ static void subpage_mark_vma_nohuge(struct mm_struct *mm, unsigned long addr,
+ 		if (vma->vm_start >= (addr + len))
+ 			break;
+ 		vma->vm_flags |= VM_NOHUGEPAGE;
+-		subpage_proto_walk.private = vma;
+-		walk_page_range(vma->vm_start, vma->vm_end,
+-				&subpage_proto_walk);
++		walk_page_vma(vma, &subpage_proto_walk);
+ 		vma = vma->vm_next;
+ 	}
+ }
 -- 
 1.8.3.1
 
