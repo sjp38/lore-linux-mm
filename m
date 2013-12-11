@@ -1,79 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 912746B0031
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 10:42:33 -0500 (EST)
-Received: by mail-ee0-f45.google.com with SMTP id d49so2996813eek.4
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 07:42:33 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id h45si19632101eeo.67.2013.12.11.07.42.32
-        for <linux-mm@kvack.org>;
-        Wed, 11 Dec 2013 07:42:32 -0800 (PST)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH] memcg, oom: lock mem_cgroup_print_oom_info
-Date: Wed, 11 Dec 2013 16:42:25 +0100
-Message-Id: <1386776545-24916-1-git-send-email-mhocko@suse.cz>
+Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 16D4F6B0031
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 10:54:59 -0500 (EST)
+Received: by mail-ob0-f171.google.com with SMTP id wp18so7163085obc.16
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 07:54:58 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id pp9si13802094obc.24.2013.12.11.07.54.57
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 11 Dec 2013 07:54:58 -0800 (PST)
+Message-ID: <52A88ACC.4030103@oracle.com>
+Date: Wed, 11 Dec 2013 10:54:52 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
+MIME-Version: 1.0
+Subject: Re: oops in pgtable_trans_huge_withdraw
+References: <20131206210254.GA7962@redhat.com> <52A8877A.10209@suse.cz>
+In-Reply-To: <52A8877A.10209@suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>
+To: Vlastimil Babka <vbabka@suse.cz>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-mem_cgroup_print_oom_info uses a static buffer (memcg_name) to store the
-name of the cgroup. This is not safe as pointed out by David Rientjes
-because memcg oom is locked only for its hierarchy and nothing prevents
-another parallel hierarchy to trigger oom as well and overwrite the
-already in-use buffer.
+On 12/11/2013 10:40 AM, Vlastimil Babka wrote:
+> On 12/06/2013 10:02 PM, Dave Jones wrote:
+>> I've spent a few days enhancing trinity's use of mmap's, trying to make it
+>> reproduce https://lkml.org/lkml/2013/12/4/499
+>
+> FYI, I managed to reproduce that using trinity today,
+> trinity was from git at commit e8912cc which is from Dec 09 so I guess your enhancements were
+> already there?
+> kernel was linux-next-20131209
+> I was running trinity -c mmap -c munmap -c mremap -c remap_file_pages -c mlock -c munlock
+>
+> Now I'm running with Kirill's patch, will post results later.
+>
+> My goal was to reproduce Sasha Levin's BUG in munlock_vma_pages_range
+> https://lkml.org/lkml/2013/12/7/130
+>
+> Perhaps it could be related as well.
+> Sasha, do you know at which commit your trinity clone was at?
 
-This patch introduces oom_info_lock hidden inside mem_cgroup_print_oom_info
-which is held throughout the function. It make access to memcg_name safe
-and as a bonus it also prevents parallel memcg ooms to interleave their
-statistics which would make the printed data hard to analyze otherwise.
+Didn't think those two were related. I've hit this one when I've started fuzzing too, but
+Kirill's patch solved it - so I've mostly ignored it.
 
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
----
- mm/memcontrol.c | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+Trinity is usually pulled and updated before testing, so it's at whatever the latest Dave
+has pushed.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 28c9221b74ea..c72b03bf9679 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1647,13 +1647,13 @@ static void move_unlock_mem_cgroup(struct mem_cgroup *memcg,
-  */
- void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
- {
--	struct cgroup *task_cgrp;
--	struct cgroup *mem_cgrp;
- 	/*
--	 * Need a buffer in BSS, can't rely on allocations. The code relies
--	 * on the assumption that OOM is serialized for memory controller.
--	 * If this assumption is broken, revisit this code.
-+	 * protects memcg_name and makes sure that parallel ooms do not
-+	 * interleave
- 	 */
-+	static DEFINE_SPINLOCK(oom_info_lock);
-+	struct cgroup *task_cgrp;
-+	struct cgroup *mem_cgrp;
- 	static char memcg_name[PATH_MAX];
- 	int ret;
- 	struct mem_cgroup *iter;
-@@ -1662,6 +1662,7 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
- 	if (!p)
- 		return;
- 
-+	spin_lock(&oom_info_lock);
- 	rcu_read_lock();
- 
- 	mem_cgrp = memcg->css.cgroup;
-@@ -1730,6 +1731,7 @@ done:
- 
- 		pr_cont("\n");
- 	}
-+	spin_unlock(&oom_info_lock);
- }
- 
- /*
--- 
-1.8.4.4
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
