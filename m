@@ -1,98 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
-	by kanga.kvack.org (Postfix) with ESMTP id B6B5A6B0031
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:12:54 -0500 (EST)
-Received: by mail-ee0-f54.google.com with SMTP id e51so2930966eek.13
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 11:12:53 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id h45si20487834eeo.151.2013.12.11.11.12.53
-        for <linux-mm@kvack.org>;
-        Wed, 11 Dec 2013 11:12:53 -0800 (PST)
-Date: Wed, 11 Dec 2013 19:12:50 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: fix TLB flush race between migration, and
- change_protection_range -fix
-Message-ID: <20131211191250.GD11295@suse.de>
-References: <1386690695-27380-1-git-send-email-mgorman@suse.de>
- <1386690695-27380-12-git-send-email-mgorman@suse.de>
+Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 96F116B0031
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:59:30 -0500 (EST)
+Received: by mail-ob0-f171.google.com with SMTP id wp18so7531215obc.2
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 11:59:30 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id co8si14368224oec.21.2013.12.11.11.59.29
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 11 Dec 2013 11:59:29 -0800 (PST)
+Message-ID: <52A8C41C.2070706@oracle.com>
+Date: Wed, 11 Dec 2013 14:59:24 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1386690695-27380-12-git-send-email-mgorman@suse.de>
+Subject: Re: oops in pgtable_trans_huge_withdraw
+References: <20131206210254.GA7962@redhat.com> <52A8877A.10209@suse.cz> <52A88ACC.4030103@oracle.com>
+In-Reply-To: <52A88ACC.4030103@oracle.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alex Thorlton <athorlton@sgi.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-The following build error was reported by the 0-day build checker.
+On 12/11/2013 10:54 AM, Sasha Levin wrote:
+> On 12/11/2013 10:40 AM, Vlastimil Babka wrote:
+>> On 12/06/2013 10:02 PM, Dave Jones wrote:
+>>> I've spent a few days enhancing trinity's use of mmap's, trying to make it
+>>> reproduce https://lkml.org/lkml/2013/12/4/499
+>>
+>> FYI, I managed to reproduce that using trinity today,
+>> trinity was from git at commit e8912cc which is from Dec 09 so I guess your enhancements were
+>> already there?
+>> kernel was linux-next-20131209
+>> I was running trinity -c mmap -c munmap -c mremap -c remap_file_pages -c mlock -c munlock
+>>
+>> Now I'm running with Kirill's patch, will post results later.
+>>
+>> My goal was to reproduce Sasha Levin's BUG in munlock_vma_pages_range
+>> https://lkml.org/lkml/2013/12/7/130
+>>
+>> Perhaps it could be related as well.
+>> Sasha, do you know at which commit your trinity clone was at?
+>
+> Didn't think those two were related. I've hit this one when I've started fuzzing too, but
+> Kirill's patch solved it - so I've mostly ignored it.
+>
+> Trinity is usually pulled and updated before testing, so it's at whatever the latest Dave
+> has pushed.
 
->> arch/arm/mm/context.c:51:18: error: 'tlb_flush_pending' redeclared as different kind of symbol
-   include/linux/mm_types.h:477:91: note: previous definition of 'tlb_flush_pending' was here
+I can't seem to get kexec tools to properly work with the weird layout KVM tools creates for
+the guest kernel.
 
-This patch renames tlb_flush_pending to
-mm_tlb_flush_pending. This is a fix for the -mm patch
-mm-fix-tlb-flush-race-between-migration-and-change_protection_range.patch
+I'd be happy to try out any debug patches sent my way, this reproduces rather easily.
 
-Note that when slotted into place that it will cause a conflict with
-mm-numa-defer-tlb-flush-for-thp-migration-as-long-as-possible.patch . The
-resolution is to delete the call from huge_memory.c and make sure the
-tlb_flush_pending call in mm/migrate.c is renamed appropriately.
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- arch/x86/include/asm/pgtable.h | 2 +-
- include/linux/mm_types.h       | 4 ++--
- mm/huge_memory.c               | 2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
-
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 48cab4c..bbc8b12 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -458,7 +458,7 @@ static inline bool pte_accessible(struct mm_struct *mm, pte_t a)
- 		return true;
- 
- 	if ((pte_flags(a) & (_PAGE_PROTNONE | _PAGE_NUMA)) &&
--			tlb_flush_pending(mm))
-+			mm_tlb_flush_pending(mm))
- 		return true;
- 
- 	return false;
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index c122bb1..e5c49c3 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -474,7 +474,7 @@ static inline cpumask_t *mm_cpumask(struct mm_struct *mm)
-  * The barriers below prevent the compiler from re-ordering the instructions
-  * around the memory barriers that are already present in the code.
-  */
--static inline bool tlb_flush_pending(struct mm_struct *mm)
-+static inline bool mm_tlb_flush_pending(struct mm_struct *mm)
- {
- 	barrier();
- 	return mm->tlb_flush_pending;
-@@ -491,7 +491,7 @@ static inline void clear_tlb_flush_pending(struct mm_struct *mm)
- 	mm->tlb_flush_pending = false;
- }
- #else
--static inline bool tlb_flush_pending(struct mm_struct *mm)
-+static inline bool mm_tlb_flush_pending(struct mm_struct *mm)
- {
- 	return false;
- }
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index e3a5ee2..317a8ff 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1380,7 +1380,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	 * The page_table_lock above provides a memory barrier
- 	 * with change_protection_range.
- 	 */
--	if (tlb_flush_pending(mm))
-+	if (mm_tlb_flush_pending(mm))
- 		flush_tlb_range(vma, haddr, haddr + HPAGE_PMD_SIZE);
- 
- 	/*
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
