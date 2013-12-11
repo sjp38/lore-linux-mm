@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 532036B0044
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 17:10:03 -0500 (EST)
-Received: by mail-ee0-f46.google.com with SMTP id d49so3111958eek.5
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:10:02 -0800 (PST)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id D8C636B004D
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 17:10:09 -0500 (EST)
+Received: by mail-wi0-f182.google.com with SMTP id en1so1603707wid.15
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 14:10:09 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id s8si21068006eeh.101.2013.12.11.14.10.02
+        by mx.google.com with ESMTP id pi9si9339805wjb.56.2013.12.11.14.10.08
         for <linux-mm@kvack.org>;
-        Wed, 11 Dec 2013 14:10:02 -0800 (PST)
+        Wed, 11 Dec 2013 14:10:09 -0800 (PST)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 06/11] numa_maps: redefine callback functions for page table walker
-Date: Wed, 11 Dec 2013 17:09:02 -0500
-Message-Id: <1386799747-31069-7-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 11/11] mempolicy: apply page table walker on queue_pages_range()
+Date: Wed, 11 Dec 2013 17:09:07 -0500
+Message-Id: <1386799747-31069-12-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1386799747-31069-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1386799747-31069-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,127 +19,327 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Cliff Wickman <cpw@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@parallels.com>, Rik van Riel <riel@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
 
-gather_pte_stats() connected to pmd_entry() does both of pmd loop and
-pte loop. So this patch moves pte part into pte_entry().
+queue_pages_range() does page table walking in its own way now,
+so this patch rewrites it with walk_page_range().
+One difficulty was that queue_pages_range() needed to check vmas
+to determine whether we queue pages from a given vma or skip it.
+Now we have test_walk() callback in mm_walk for that purpose,
+so we can do the replacement cleanly. queue_pages_test_walk()
+depends on not only the current vma but also the previous one,
+so we use queue_pages->prev to keep it.
 
 ChangeLog v2:
 - rebase onto mmots
+- add VM_PFNMAP check on queue_pages_test_walk()
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 ---
- fs/proc/task_mmu.c | 54 ++++++++++++++++++++++++++----------------------------
- 1 file changed, 26 insertions(+), 28 deletions(-)
+ mm/mempolicy.c | 255 ++++++++++++++++++++++-----------------------------------
+ 1 file changed, 99 insertions(+), 156 deletions(-)
 
-diff --git v3.13-rc3-mmots-2013-12-10-16-38.orig/fs/proc/task_mmu.c v3.13-rc3-mmots-2013-12-10-16-38/fs/proc/task_mmu.c
-index 7ed7c88f0687..8b23bbcc5e04 100644
---- v3.13-rc3-mmots-2013-12-10-16-38.orig/fs/proc/task_mmu.c
-+++ v3.13-rc3-mmots-2013-12-10-16-38/fs/proc/task_mmu.c
-@@ -1193,7 +1193,6 @@ const struct file_operations proc_pagemap_operations = {
- #ifdef CONFIG_NUMA
+diff --git v3.13-rc3-mmots-2013-12-10-16-38.orig/mm/mempolicy.c v3.13-rc3-mmots-2013-12-10-16-38/mm/mempolicy.c
+index 9f73b29d304d..281fd12e9767 100644
+--- v3.13-rc3-mmots-2013-12-10-16-38.orig/mm/mempolicy.c
++++ v3.13-rc3-mmots-2013-12-10-16-38/mm/mempolicy.c
+@@ -476,140 +476,66 @@ static const struct mempolicy_operations mpol_ops[MPOL_MAX] = {
+ static void migrate_page_add(struct page *page, struct list_head *pagelist,
+ 				unsigned long flags);
  
- struct numa_maps {
--	struct vm_area_struct *vma;
- 	unsigned long pages;
- 	unsigned long anon;
- 	unsigned long active;
-@@ -1259,43 +1258,41 @@ static struct page *can_gather_numa_stats(pte_t pte, struct vm_area_struct *vma,
- 	return page;
- }
- 
--static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
-+static int gather_pte_stats(pte_t *pte, unsigned long addr,
- 		unsigned long end, struct mm_walk *walk)
++struct queue_pages {
++	struct list_head *pagelist;
++	unsigned long flags;
++	nodemask_t *nmask;
++	struct vm_area_struct *prev;
++};
++
+ /*
+  * Scan through pages checking if pages follow certain conditions,
+  * and move them to the pagelist if they do.
+  */
+-static int queue_pages_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
++static int queue_pages_pte(pte_t *pte, unsigned long addr,
++			unsigned long next, struct mm_walk *walk)
  {
--	struct numa_maps *md;
--	spinlock_t *ptl;
 -	pte_t *orig_pte;
 -	pte_t *pte;
-+	struct numa_maps *md = walk->private;
+-	spinlock_t *ptl;
+-
+-	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+-	do {
+-		struct page *page;
+-		int nid;
++	struct vm_area_struct *vma = walk->vma;
++	struct page *page;
++	struct queue_pages *qp = walk->private;
++	unsigned long flags = qp->flags;
++	int nid;
  
--	md = walk->private;
-+	struct page *page = can_gather_numa_stats(*pte, walk->vma, addr);
+-		if (!pte_present(*pte))
+-			continue;
+-		page = vm_normal_page(vma, addr, *pte);
+-		if (!page)
+-			continue;
+-		/*
+-		 * vm_normal_page() filters out zero pages, but there might
+-		 * still be PageReserved pages to skip, perhaps in a VDSO.
+-		 */
+-		if (PageReserved(page))
+-			continue;
+-		nid = page_to_nid(page);
+-		if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
+-			continue;
++	if (!pte_present(*pte))
++		return 0;
++	page = vm_normal_page(vma, addr, *pte);
 +	if (!page)
 +		return 0;
-+	gather_stats(page, md, pte_dirty(*pte), 1);
++	/*
++	 * vm_normal_page() filters out zero pages, but there might
++	 * still be PageReserved pages to skip, perhaps in a VDSO.
++	 */
++	if (PageReserved(page))
++		return 0;
++	nid = page_to_nid(page);
++	if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
++		return 0;
+ 
+-		if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+-			migrate_page_add(page, private, flags);
+-		else
+-			break;
+-	} while (pte++, addr += PAGE_SIZE, addr != end);
+-	pte_unmap_unlock(orig_pte, ptl);
+-	return addr != end;
++	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
++		migrate_page_add(page, qp->pagelist, flags);
++	return 0;
+ }
+ 
+-static void queue_pages_hugetlb_pmd_range(struct vm_area_struct *vma,
+-		pmd_t *pmd, const nodemask_t *nodes, unsigned long flags,
+-				    void *private)
++static int queue_pages_hugetlb(pte_t *pte, unsigned long addr,
++				unsigned long next, struct mm_walk *walk)
+ {
+ #ifdef CONFIG_HUGETLB_PAGE
++	struct queue_pages *qp = walk->private;
++	unsigned long flags = qp->flags;
+ 	int nid;
+ 	struct page *page;
+-	spinlock_t *ptl;
+ 
+-	ptl = huge_pte_lock(hstate_vma(vma), vma->vm_mm, (pte_t *)pmd);
+-	page = pte_page(huge_ptep_get((pte_t *)pmd));
++	page = pte_page(huge_ptep_get(pte));
+ 	nid = page_to_nid(page);
+-	if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
+-		goto unlock;
++	if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
++		return 0;
+ 	/* With MPOL_MF_MOVE, we migrate only unshared hugepage. */
+ 	if (flags & (MPOL_MF_MOVE_ALL) ||
+ 	    (flags & MPOL_MF_MOVE && page_mapcount(page) == 1))
+-		isolate_huge_page(page, private);
+-unlock:
+-	spin_unlock(ptl);
++		isolate_huge_page(page, qp->pagelist);
+ #else
+ 	BUG();
+ #endif
+-}
+-
+-static inline int queue_pages_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
+-{
+-	pmd_t *pmd;
+-	unsigned long next;
+-
+-	pmd = pmd_offset(pud, addr);
+-	do {
+-		next = pmd_addr_end(addr, end);
+-		if (!pmd_present(*pmd))
+-			continue;
+-		if (pmd_huge(*pmd) && is_vm_hugetlb_page(vma)) {
+-			queue_pages_hugetlb_pmd_range(vma, pmd, nodes,
+-						flags, private);
+-			continue;
+-		}
+-		split_huge_page_pmd(vma, addr, pmd);
+-		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+-			continue;
+-		if (queue_pages_pte_range(vma, pmd, addr, next, nodes,
+-				    flags, private))
+-			return -EIO;
+-	} while (pmd++, addr = next, addr != end);
+-	return 0;
+-}
+-
+-static inline int queue_pages_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
+-{
+-	pud_t *pud;
+-	unsigned long next;
+-
+-	pud = pud_offset(pgd, addr);
+-	do {
+-		next = pud_addr_end(addr, end);
+-		if (pud_huge(*pud) && is_vm_hugetlb_page(vma))
+-			continue;
+-		if (pud_none_or_clear_bad(pud))
+-			continue;
+-		if (queue_pages_pmd_range(vma, pud, addr, next, nodes,
+-				    flags, private))
+-			return -EIO;
+-	} while (pud++, addr = next, addr != end);
+-	return 0;
+-}
+-
+-static inline int queue_pages_pgd_range(struct vm_area_struct *vma,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
+-{
+-	pgd_t *pgd;
+-	unsigned long next;
+-
+-	pgd = pgd_offset(vma->vm_mm, addr);
+-	do {
+-		next = pgd_addr_end(addr, end);
+-		if (pgd_none_or_clear_bad(pgd))
+-			continue;
+-		if (queue_pages_pud_range(vma, pgd, addr, next, nodes,
+-				    flags, private))
+-			return -EIO;
+-	} while (pgd++, addr = next, addr != end);
+ 	return 0;
+ }
+ 
+@@ -642,6 +568,45 @@ static unsigned long change_prot_numa(struct vm_area_struct *vma,
+ }
+ #endif /* CONFIG_NUMA_BALANCING */
+ 
++static int queue_pages_test_walk(unsigned long start, unsigned long end,
++				struct mm_walk *walk)
++{
++	struct vm_area_struct *vma = walk->vma;
++	struct queue_pages *qp = walk->private;
++	unsigned long endvma = vma->vm_end;
++	unsigned long flags = qp->flags;
++
++	if (endvma > end)
++		endvma = end;
++	if (vma->vm_start > start)
++		start = vma->vm_start;
++
++	if (!(flags & MPOL_MF_DISCONTIG_OK)) {
++		if (!vma->vm_next && vma->vm_end < end)
++			return -EFAULT;
++		if (qp->prev && qp->prev->vm_end < vma->vm_start)
++			return -EFAULT;
++	}
++
++	qp->prev = vma;
++	walk->skip = 1;
++
++	if (vma->vm_flags & VM_PFNMAP)
++		return 0;
++
++	if (flags & MPOL_MF_LAZY) {
++		change_prot_numa(vma, start, endvma);
++		return 0;
++	}
++
++	if ((flags & MPOL_MF_STRICT) ||
++	    ((flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) &&
++	     vma_migratable(vma)))
++		/* queue pages from current vma */
++		walk->skip = 0;
 +	return 0;
 +}
 +
-+static int gather_pmd_stats(pmd_t *pmd, unsigned long addr,
-+		unsigned long end, struct mm_walk *walk)
-+{
-+	struct numa_maps *md = walk->private;
-+	struct vm_area_struct *vma = walk->vma;
-+	spinlock_t *ptl;
- 
--	if (pmd_trans_huge_lock(pmd, md->vma, &ptl) == 1) {
-+	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
- 		pte_t huge_pte = *(pte_t *)pmd;
- 		struct page *page;
- 
--		page = can_gather_numa_stats(huge_pte, md->vma, addr);
-+		page = can_gather_numa_stats(huge_pte, vma, addr);
- 		if (page)
- 			gather_stats(page, md, pte_dirty(huge_pte),
- 				     HPAGE_PMD_SIZE/PAGE_SIZE);
- 		spin_unlock(ptl);
--		return 0;
-+		/* don't call gather_pte_stats() */
-+		walk->skip = 1;
- 	}
--
--	if (pmd_trans_unstable(pmd))
--		return 0;
--	orig_pte = pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
--	do {
--		struct page *page = can_gather_numa_stats(*pte, md->vma, addr);
--		if (!page)
--			continue;
--		gather_stats(page, md, pte_dirty(*pte), 1);
--
--	} while (pte++, addr += PAGE_SIZE, addr != end);
--	pte_unmap_unlock(orig_pte, ptl);
- 	return 0;
- }
- #ifdef CONFIG_HUGETLB_PAGE
--static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
-+static int gather_hugetlb_stats(pte_t *pte, unsigned long hmask,
- 		unsigned long addr, unsigned long end, struct mm_walk *walk)
+ /*
+  * Walk through page tables and collect pages to be migrated.
+  *
+@@ -651,51 +616,29 @@ static unsigned long change_prot_numa(struct vm_area_struct *vma,
+  */
+ static struct vm_area_struct *
+ queue_pages_range(struct mm_struct *mm, unsigned long start, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags, void *private)
++		nodemask_t *nodes, unsigned long flags,
++		struct list_head *pagelist)
  {
- 	struct numa_maps *md;
-@@ -1314,7 +1311,7 @@ static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
+ 	int err;
+-	struct vm_area_struct *first, *vma, *prev;
+-
+-
+-	first = find_vma(mm, start);
+-	if (!first)
+-		return ERR_PTR(-EFAULT);
+-	prev = NULL;
+-	for (vma = first; vma && vma->vm_start < end; vma = vma->vm_next) {
+-		unsigned long endvma = vma->vm_end;
+-
+-		if (endvma > end)
+-			endvma = end;
+-		if (vma->vm_start > start)
+-			start = vma->vm_start;
+-
+-		if (!(flags & MPOL_MF_DISCONTIG_OK)) {
+-			if (!vma->vm_next && vma->vm_end < end)
+-				return ERR_PTR(-EFAULT);
+-			if (prev && prev->vm_end < vma->vm_start)
+-				return ERR_PTR(-EFAULT);
+-		}
+-
+-		if (flags & MPOL_MF_LAZY) {
+-			change_prot_numa(vma, start, endvma);
+-			goto next;
+-		}
+-
+-		if ((flags & MPOL_MF_STRICT) ||
+-		     ((flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) &&
+-		      vma_migratable(vma))) {
+-
+-			err = queue_pages_pgd_range(vma, start, endvma, nodes,
+-						flags, private);
+-			if (err) {
+-				first = ERR_PTR(err);
+-				break;
+-			}
+-		}
+-next:
+-		prev = vma;
+-	}
+-	return first;
++	struct queue_pages qp = {
++		.pagelist = pagelist,
++		.flags = flags,
++		.nmask = nodes,
++		.prev = NULL,
++	};
++	struct mm_walk queue_pages_walk = {
++		.hugetlb_entry = queue_pages_hugetlb,
++		.pte_entry = queue_pages_pte,
++		.test_walk = queue_pages_test_walk,
++		.mm = mm,
++		.private = &qp,
++	};
++
++	err = walk_page_range(start, end, &queue_pages_walk);
++	if (err < 0)
++		return ERR_PTR(err);
++	else
++		return find_vma(mm, start);
  }
  
- #else
--static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
-+static int gather_hugetlb_stats(pte_t *pte, unsigned long hmask,
- 		unsigned long addr, unsigned long end, struct mm_walk *walk)
- {
- 	return 0;
-@@ -1344,12 +1341,12 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	/* Ensure we start with an empty set of numa_maps statistics. */
- 	memset(md, 0, sizeof(*md));
- 
--	md->vma = vma;
--
--	walk.hugetlb_entry = gather_hugetbl_stats;
--	walk.pmd_entry = gather_pte_stats;
-+	walk.hugetlb_entry = gather_hugetlb_stats;
-+	walk.pmd_entry = gather_pmd_stats;
-+	walk.pte_entry = gather_pte_stats;
- 	walk.private = md;
- 	walk.mm = mm;
-+	walk.vma = vma;
- 
- 	pol = get_vma_policy(task, vma, vma->vm_start);
- 	mpol_to_str(buffer, sizeof(buffer), pol);
-@@ -1380,6 +1377,7 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	if (is_vm_hugetlb_page(vma))
- 		seq_printf(m, " huge");
- 
-+	/* mmap_sem is held by m_start */
- 	walk_page_range(vma->vm_start, vma->vm_end, &walk);
- 
- 	if (!md->pages)
+ /*
 -- 
 1.8.3.1
 
