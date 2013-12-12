@@ -1,154 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 925AF6B0031
-	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 09:11:51 -0500 (EST)
-Received: by mail-wg0-f49.google.com with SMTP id x12so476343wgg.4
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 06:11:50 -0800 (PST)
-Received: from mail-ea0-x22f.google.com (mail-ea0-x22f.google.com [2a00:1450:4013:c01::22f])
-        by mx.google.com with ESMTPS id yx3si10351151wjc.17.2013.12.12.06.11.50
+Received: from mail-qe0-f53.google.com (mail-qe0-f53.google.com [209.85.128.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 21B986B0031
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 09:22:10 -0500 (EST)
+Received: by mail-qe0-f53.google.com with SMTP id nc12so354649qeb.12
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 06:22:09 -0800 (PST)
+Received: from mail-qa0-x22b.google.com (mail-qa0-x22b.google.com [2607:f8b0:400d:c00::22b])
+        by mx.google.com with ESMTPS id r5si18921090qat.112.2013.12.12.06.22.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 12 Dec 2013 06:11:50 -0800 (PST)
-Received: by mail-ea0-f175.google.com with SMTP id z10so263724ead.20
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 06:11:50 -0800 (PST)
-Date: Thu, 12 Dec 2013 15:11:47 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 2/3] x86: mm: Change tlb_flushall_shift for IvyBridge
-Message-ID: <20131212141147.GB17059@gmail.com>
-References: <1386849309-22584-1-git-send-email-mgorman@suse.de>
- <1386849309-22584-3-git-send-email-mgorman@suse.de>
- <20131212131309.GD5806@gmail.com>
- <52A9BC3A.7010602@linaro.org>
+        Thu, 12 Dec 2013 06:22:08 -0800 (PST)
+Received: by mail-qa0-f43.google.com with SMTP id ii20so5856844qab.16
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 06:22:08 -0800 (PST)
+Date: Thu, 12 Dec 2013 09:21:56 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [patch 7/8] mm, memcg: allow processes handling oom
+ notifications to access reserves
+Message-ID: <20131212142156.GB32683@htj.dyndns.org>
+References: <20131204054533.GZ3556@cmpxchg.org>
+ <alpine.DEB.2.02.1312041742560.20115@chino.kir.corp.google.com>
+ <20131205025026.GA26777@htj.dyndns.org>
+ <alpine.DEB.2.02.1312051537550.7717@chino.kir.corp.google.com>
+ <20131206190105.GE13373@htj.dyndns.org>
+ <alpine.DEB.2.02.1312061441390.8949@chino.kir.corp.google.com>
+ <20131210215037.GB9143@htj.dyndns.org>
+ <alpine.DEB.2.02.1312101522400.22701@chino.kir.corp.google.com>
+ <20131211124240.GA24557@htj.dyndns.org>
+ <CAAAKZwsmM-C=kLGV=RW=Y4Mq=BWpQzuPruW6zvEr9p0Xs4GD5g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <52A9BC3A.7010602@linaro.org>
+In-Reply-To: <CAAAKZwsmM-C=kLGV=RW=Y4Mq=BWpQzuPruW6zvEr9p0Xs4GD5g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Shi <alex.shi@linaro.org>
-Cc: Mel Gorman <mgorman@suse.de>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Tim Hockin <thockin@hockin.org>
+Cc: David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Li Zefan <lizefan@huawei.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>
 
+Hey, Tim.
 
-* Alex Shi <alex.shi@linaro.org> wrote:
+Sidenote: Please don't top-post with the whole body quoted below
+unless you're adding new cc's.  Please selectively quote the original
+message's body to remind the readers of the context and reply below
+it.  It's a basic lkml etiquette and one with good reasons.  If you
+have to top-post for whatever reason - say you're typing from a
+machine which doesn't allow easy editing of the original message,
+explain so at the top of the message, or better yet, wait till you can
+unless it's urgent.
 
-> On 12/12/2013 09:13 PM, Ingo Molnar wrote:
-> > 
-> > * Mel Gorman <mgorman@suse.de> wrote:
-> > 
-> >> There was a large performance regression that was bisected to commit 611ae8e3
-> >> (x86/tlb: enable tlb flush range support for x86). This patch simply changes
-> >> the default balance point between a local and global flush for IvyBridge.
-> >>
-> >> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> >> ---
-> >>  arch/x86/kernel/cpu/intel.c | 2 +-
-> >>  1 file changed, 1 insertion(+), 1 deletion(-)
-> >>
-> >> diff --git a/arch/x86/kernel/cpu/intel.c b/arch/x86/kernel/cpu/intel.c
-> >> index dc1ec0d..2d93753 100644
-> >> --- a/arch/x86/kernel/cpu/intel.c
-> >> +++ b/arch/x86/kernel/cpu/intel.c
-> >> @@ -627,7 +627,7 @@ static void intel_tlb_flushall_shift_set(struct cpuinfo_x86 *c)
-> >>  		tlb_flushall_shift = 5;
-> >>  		break;
-> >>  	case 0x63a: /* Ivybridge */
-> >> -		tlb_flushall_shift = 1;
-> >> +		tlb_flushall_shift = 2;
-> >>  		break;
-> > 
-> > I'd not be surprised if other CPU models showed similar weaknesses 
-> > under ebizzy as well.
-> > 
-> > I don't particularly like the tuning aspect of the whole feature: the 
-> > tunings are model specific and they seem to come out of thin air, 
-> > without explicit measurements visible.
-> > 
-> > In particular the first commit that added this optimization:
-> > 
-> >  commit c4211f42d3e66875298a5e26a75109878c80f15b
-> >  Date:   Thu Jun 28 09:02:19 2012 +0800
-> > 
-> >     x86/tlb: add tlb_flushall_shift for specific CPU
-> > 
-> > already had these magic tunings, with no explanation about what kind 
-> > of measurement was done to back up those tunings.
-> > 
-> > I don't think this is acceptable and until this is cleared up I think 
-> > we might be better off turning off this feature altogether, or making 
-> > a constant, very low tuning point.
-> > 
-> > The original code came via:
-> > 
-> >   611ae8e3f520 x86/tlb: enable tlb flush range support for x86
-> > 
-> > which references a couple of benchmarks, in particular a 
-> > micro-benchmark:
-> > 
-> >   My micro benchmark 'mummap' http://lkml.org/lkml/2012/5/17/59
-> >   show that the random memory access on other CPU has 0~50% speed up
-> >   on a 2P * 4cores * HT NHM EP while do 'munmap'.
-> > 
-> > if the tunings were done with the micro-benchmark then I think they 
-> > are bogus, because AFAICS it does not measure the adversarial case of 
-> > the optimization.
-
-You have not replied to this concern of mine: if my concern is valid 
-then that invalidates much of the current tunings.
-
-> > So I'd say at minimum we need to remove the per model tunings, and 
-> > need to use very conservative defaults, to make sure we don't slow 
-> > down reasonable workloads.
+On Wed, Dec 11, 2013 at 09:37:46PM -0800, Tim Hockin wrote:
+> The immediate problem I see with setting aside reserves "off the top"
+> is that we don't really know a priori how much memory the kernel
+> itself is going to use, which could still land us in an overcommitted
+> state.
 > 
-> I also hate to depends on mysterious hardware differentiation. But 
-> there do have some changes in tlb/cache part on different Intel 
-> CPU.(Guess HPA know this more). And the different shift value get 
-> from testing not from air. :)
+> In other words, if I have your 128 MB machine, and I set aside 8 MB
+> for OOM handling, and give 120 MB for jobs, I have not accounted for
+> the kernel.  So I set aside 8 MB for OOM and 100 MB for jobs, leaving
+> 20 MB for jobs.  That should be enough right?  Hell if I know, and
+> nothing ensures that.
 
-As far as I could see from the changelogs and the code itself the 
-various tunings came from nowhere.
+Yes, sure thing, that's the reason why I mentioned "with some slack"
+in the original message and also that it might not be completely the
+same.  It doesn't allow you to aggressively use system level OOM
+handling as the sizing estimator for the root cgroup; however, it's
+more of an implementation details than something which should guide
+the overall architecture - it's a problem which lessens in severity as
+[k]memcg improves and its coverage becomes more complete, which is the
+direction we should be headed no matter what.
 
-So I don't see my concerns addressed. My inclination would be to start 
-with something like Mel's known-good tuning value below, we know that 
-ebizzy does not regress with that setting. Any more aggressive tuning 
-needs to be backed up with ebizzy-alike adversarial workload 
-performance numbers.
+It'd depend on the workload but with memcg fully configured it
+shouldn't fluctuate wildly.  If it does, we need to hunt down whatever
+is causing such fluctuatation and include it in kmemcg, right?  That
+way, memcg as a whole improves for all use cases not just your niche
+one and I strongly believe that aligning as many use cases as possible
+along the same axis, rather than creating a large hole to stow away
+the exceptions, is vastly more beneficial to *everyone* in the long
+term.
 
-Thanks,
+There'd still be all the bells and whistles to configure and monitor
+system-level OOM and if there's justified need for improvements, we
+surely can and should do that; however, with the heavy lifting / hot
+path offloaded to the per-memcg userland OOM handlers, I believe it's
+reasonable to expect the burden on system OOM handler being noticeably
+less, which is the way it should be.  That's the last guard against
+the whole system completely locking up and we can't extend its
+capabilities beyond that easily and we most likely don't even want to.
 
-	Ingo
+If I take back a step and look at the two options and their pros and
+cons, which path we should take is rather obvious to me.  I hope you
+see it too.
 
-(Patch totally untested.)
+Thanks.
 
-=============>
-diff --git a/arch/x86/kernel/cpu/intel.c b/arch/x86/kernel/cpu/intel.c
-index dc1ec0d..c98385d 100644
---- a/arch/x86/kernel/cpu/intel.c
-+++ b/arch/x86/kernel/cpu/intel.c
-@@ -614,23 +614,8 @@ static void intel_tlb_flushall_shift_set(struct cpuinfo_x86 *c)
- 	case 0x61d: /* six-core 45 nm xeon "Dunnington" */
- 		tlb_flushall_shift = -1;
- 		break;
--	case 0x61a: /* 45 nm nehalem, "Bloomfield" */
--	case 0x61e: /* 45 nm nehalem, "Lynnfield" */
--	case 0x625: /* 32 nm nehalem, "Clarkdale" */
--	case 0x62c: /* 32 nm nehalem, "Gulftown" */
--	case 0x62e: /* 45 nm nehalem-ex, "Beckton" */
--	case 0x62f: /* 32 nm Xeon E7 */
--		tlb_flushall_shift = 6;
--		break;
--	case 0x62a: /* SandyBridge */
--	case 0x62d: /* SandyBridge, "Romely-EP" */
--		tlb_flushall_shift = 5;
--		break;
--	case 0x63a: /* Ivybridge */
--		tlb_flushall_shift = 1;
--		break;
- 	default:
--		tlb_flushall_shift = 6;
-+		tlb_flushall_shift = 2;
- 	}
- }
- 
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
