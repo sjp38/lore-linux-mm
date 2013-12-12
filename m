@@ -1,320 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f179.google.com (mail-ea0-f179.google.com [209.85.215.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FAF76B0039
-	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 08:27:09 -0500 (EST)
-Received: by mail-ea0-f179.google.com with SMTP id r15so233577ead.24
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 05:27:08 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id l44si23664574eem.103.2013.12.12.05.27.07
-        for <linux-mm@kvack.org>;
-        Thu, 12 Dec 2013 05:27:08 -0800 (PST)
-Message-ID: <52A9B9A2.2050306@suse.cz>
-Date: Thu, 12 Dec 2013 14:26:58 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A0B06B0031
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 08:38:11 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id jt11so533759pbb.14
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 05:38:10 -0800 (PST)
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+        by mx.google.com with ESMTPS id ez5si16568208pab.164.2013.12.12.05.38.09
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 12 Dec 2013 05:38:09 -0800 (PST)
+Received: by mail-pb0-f41.google.com with SMTP id jt11so539532pbb.0
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 05:38:09 -0800 (PST)
+Message-ID: <52A9BC3A.7010602@linaro.org>
+Date: Thu, 12 Dec 2013 21:38:02 +0800
+From: Alex Shi <alex.shi@linaro.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH V2 0/6] Memory compaction efficiency improvements
-References: <1386757477-10333-1-git-send-email-vbabka@suse.cz> <20131212061223.GA5912@lge.com>
-In-Reply-To: <20131212061223.GA5912@lge.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 2/3] x86: mm: Change tlb_flushall_shift for IvyBridge
+References: <1386849309-22584-1-git-send-email-mgorman@suse.de> <1386849309-22584-3-git-send-email-mgorman@suse.de> <20131212131309.GD5806@gmail.com>
+In-Reply-To: <20131212131309.GD5806@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
+To: Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>
+Cc: H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On 12/12/2013 07:12 AM, Joonsoo Kim wrote:
-> On Wed, Dec 11, 2013 at 11:24:31AM +0100, Vlastimil Babka wrote:
->> Changelog since V1 (thanks to the reviewers!)
->> o Included "trace compaction being and end" patch in the series     (mgorman)
->> o Changed variable names and comments in patches 2 and 5            (mgorman)
->> o More thorough measurements, based on v3.13-rc2
+On 12/12/2013 09:13 PM, Ingo Molnar wrote:
+> 
+> * Mel Gorman <mgorman@suse.de> wrote:
+> 
+>> There was a large performance regression that was bisected to commit 611ae8e3
+>> (x86/tlb: enable tlb flush range support for x86). This patch simply changes
+>> the default balance point between a local and global flush for IvyBridge.
 >>
->> The broad goal of the series is to improve allocation success rates for huge
->> pages through memory compaction, while trying not to increase the compaction
->> overhead. The original objective was to reintroduce capturing of high-order
->> pages freed by the compaction, before they are split by concurrent activity.
->> However, several bugs and opportunities for simple improvements were found in
->> the current implementation, mostly through extra tracepoints (which are however
->> too ugly for now to be considered for sending).
+>> Signed-off-by: Mel Gorman <mgorman@suse.de>
+>> ---
+>>  arch/x86/kernel/cpu/intel.c | 2 +-
+>>  1 file changed, 1 insertion(+), 1 deletion(-)
 >>
->> The patches mostly deal with two mechanisms that reduce compaction overhead,
->> which is caching the progress of migrate and free scanners, and marking
->> pageblocks where isolation failed to be skipped during further scans.
->>
->> Patch 1 (from mgorman) adds tracepoints that allow calculate time spent in
->>          compaction and potentially debug scanner pfn values.
->>
->> Patch 2 encapsulates the some functionality for handling deferred compactions
->>          for better maintainability, without a functional change
->>          type is not determined without being actually needed.
->>
->> Patch 3 fixes a bug where cached scanner pfn's are sometimes reset only after
->>          they have been read to initialize a compaction run.
->>
->> Patch 4 fixes a bug where scanners meeting is sometimes not properly detected
->>          and can lead to multiple compaction attempts quitting early without
->>          doing any work.
->>
->> Patch 5 improves the chances of sync compaction to process pageblocks that
->>          async compaction has skipped due to being !MIGRATE_MOVABLE.
->>
->> Patch 6 improves the chances of sync direct compaction to actually do anything
->>          when called after async compaction fails during allocation slowpath.
->>
->> The impact of patches were validated using mmtests's stress-highalloc benchmark
->> with mmtests's stress-highalloc benchmark on a x86_64 machine with 4GB memory.
->>
->> Due to instability of the results (mostly related to the bugs fixed by patches
->> 2 and 3), 10 iterations were performed, taking min,mean,max values for success
->> rates and mean values for time and vmstat-based metrics.
->>
->> First, the default GFP_HIGHUSER_MOVABLE allocations were tested with the patches
->> stacked on top of v3.13-rc2. Patch 2 is OK to serve as baseline due to no
->> functional changes in 1 and 2. Comments below.
->>
->> stress-highalloc
->>                               3.13-rc2              3.13-rc2              3.13-rc2              3.13-rc2              3.13-rc2
->>                                2-nothp               3-nothp               4-nothp               5-nothp               6-nothp
->> Success 1 Min          9.00 (  0.00%)       10.00 (-11.11%)       43.00 (-377.78%)       43.00 (-377.78%)       33.00 (-266.67%)
->> Success 1 Mean        27.50 (  0.00%)       25.30 (  8.00%)       45.50 (-65.45%)       45.90 (-66.91%)       46.30 (-68.36%)
->> Success 1 Max         36.00 (  0.00%)       36.00 (  0.00%)       47.00 (-30.56%)       48.00 (-33.33%)       52.00 (-44.44%)
->> Success 2 Min         10.00 (  0.00%)        8.00 ( 20.00%)       46.00 (-360.00%)       45.00 (-350.00%)       35.00 (-250.00%)
->> Success 2 Mean        26.40 (  0.00%)       23.50 ( 10.98%)       47.30 (-79.17%)       47.60 (-80.30%)       48.10 (-82.20%)
->> Success 2 Max         34.00 (  0.00%)       33.00 (  2.94%)       48.00 (-41.18%)       50.00 (-47.06%)       54.00 (-58.82%)
->> Success 3 Min         65.00 (  0.00%)       63.00 (  3.08%)       85.00 (-30.77%)       84.00 (-29.23%)       85.00 (-30.77%)
->> Success 3 Mean        76.70 (  0.00%)       70.50 (  8.08%)       86.20 (-12.39%)       85.50 (-11.47%)       86.00 (-12.13%)
->> Success 3 Max         87.00 (  0.00%)       86.00 (  1.15%)       88.00 ( -1.15%)       87.00 (  0.00%)       87.00 (  0.00%)
->>
->>              3.13-rc2    3.13-rc2    3.13-rc2    3.13-rc2    3.13-rc2
->>               2-nothp     3-nothp     4-nothp     5-nothp     6-nothp
->> User         6437.72     6459.76     5960.32     5974.55     6019.67
->> System       1049.65     1049.09     1029.32     1031.47     1032.31
->> Elapsed      1856.77     1874.48     1949.97     1994.22     1983.15
->>
->>                                3.13-rc2    3.13-rc2    3.13-rc2    3.13-rc2    3.13-rc2
->>                                 2-nothp     3-nothp     4-nothp     5-nothp     6-nothp
->> Minor Faults                 253952267   254581900   250030122   250507333   250157829
->> Major Faults                       420         407         506         530         530
->> Swap Ins                             4           9           9           6           6
->> Swap Outs                          398         375         345         346         333
->> Direct pages scanned            197538      189017      298574      287019      299063
->> Kswapd pages scanned           1809843     1801308     1846674     1873184     1861089
->> Kswapd pages reclaimed         1806972     1798684     1844219     1870509     1858622
->> Direct pages reclaimed          197227      188829      298380      286822      298835
->> Kswapd efficiency                  99%         99%         99%         99%         99%
->> Kswapd velocity                953.382     970.449     952.243     934.569     922.286
->> Direct efficiency                  99%         99%         99%         99%         99%
->> Direct velocity                104.058     101.832     153.961     143.200     148.205
->> Percentage direct scans             9%          9%         13%         13%         13%
->> Zone normal velocity           347.289     359.676     348.063     339.933     332.983
->> Zone dma32 velocity            710.151     712.605     758.140     737.835     737.507
->> Zone dma velocity                0.000       0.000       0.000       0.000       0.000
->> Page writes by reclaim         557.600     429.000     353.600     426.400     381.800
->> Page writes file                   159          53           7          79          48
->> Page writes anon                   398         375         345         346         333
->> Page reclaim immediate             825         644         411         575         420
->> Sector Reads                   2781750     2769780     2878547     2939128     2910483
->> Sector Writes                 12080843    12083351    12012892    12002132    12010745
->> Page rescued immediate               0           0           0           0           0
->> Slabs scanned                  1575654     1545344     1778406     1786700     1794073
->> Direct inode steals               9657       10037       15795       14104       14645
->> Kswapd inode steals              46857       46335       50543       50716       51796
->> Kswapd skipped wait                  0           0           0           0           0
->> THP fault alloc                     97          91          81          71          77
->> THP collapse alloc                 456         506         546         544         565
->> THP splits                           6           5           5           4           4
->> THP fault fallback                   0           1           0           0           0
->> THP collapse fail                   14          14          12          13          12
->> Compaction stalls                 1006         980        1537        1536        1548
->> Compaction success                 303         284         562         559         578
->> Compaction failures                702         696         974         976         969
->> Page migrate success           1177325     1070077     3927538     3781870     3877057
->> Page migrate failure                 0           0           0           0           0
->> Compaction pages isolated      2547248     2306457     8301218     8008500     8200674
->> Compaction migrate scanned    42290478    38832618   153961130   154143900   159141197
->> Compaction free scanned       89199429    79189151   356529027   351943166   356326727
->> Compaction cost                   1566        1426        5312        5156        5294
->> NUMA PTE updates                     0           0           0           0           0
->> NUMA hint faults                     0           0           0           0           0
->> NUMA hint local faults               0           0           0           0           0
->> NUMA hint local percent            100         100         100         100         100
->> NUMA pages migrated                  0           0           0           0           0
->> AutoNUMA cost                        0           0           0           0           0
->>
->>
->> Observations:
->> - The "Success 3" line is allocation success rate with system idle (phases 1
->>    and 2 are with background interference). I used to get stable values around
->>    85% with vanilla 3.11. The lower min and mean values came with 3.12.
->>    This was bisected to commit 81c0a2bb ("mm: page_alloc:  fair zone allocator
->>    policy") As explained in comment for patch 3, I don't think the commit is
->>    wrong, but that it makes the effect of compaction bugs worse. From patch 3
->>    onwards, the results are OK and match the 3.11 results.
->> - Patch 4 also clearly helps phases 1 and 2, and exceeds any results I've
->>    seen with 3.11 (I didn't measure it that thoroughly then, but it was never
->>    above 40%).
->> - Compaction cost and number of scanned pages is higher, especially due to
->>    patch 4. However, keep in mind that patches 3 and 4 fix existing bugs in the
->>    current design of compaction overhead mitigation, they do not change it.
->>    If overhead is found unacceptable, then it should be decreased differently
->>    (and consistently, not due to random conditions) than the current implementation
->>    does. In contrast, patches 5 and 6 (which are not strictly bug fixes) do not
->>    increase the overhead (but also not success rates). This might be a limitation
->>    of the stress-highalloc benchmark as it's quite uniform.
->>
->> Another set of results is when configuring stress-highalloc t allocate
->> with similar flags as THP uses:
->>   (GFP_HIGHUSER_MOVABLE|__GFP_NOMEMALLOC|__GFP_NORETRY|__GFP_NO_KSWAPD)
->>
->> stress-highalloc
->>                               3.13-rc2              3.13-rc2              3.13-rc2              3.13-rc2              3.13-rc2
->>                                  2-thp                 3-thp                 4-thp                 5-thp                 6-thp
->> Success 1 Min          2.00 (  0.00%)        7.00 (-250.00%)       18.00 (-800.00%)       19.00 (-850.00%)       26.00 (-1200.00%)
->> Success 1 Mean        19.20 (  0.00%)       17.80 (  7.29%)       29.20 (-52.08%)       29.90 (-55.73%)       32.80 (-70.83%)
->> Success 1 Max         27.00 (  0.00%)       29.00 ( -7.41%)       35.00 (-29.63%)       36.00 (-33.33%)       37.00 (-37.04%)
->> Success 2 Min          3.00 (  0.00%)        8.00 (-166.67%)       21.00 (-600.00%)       21.00 (-600.00%)       32.00 (-966.67%)
->> Success 2 Mean        19.30 (  0.00%)       17.90 (  7.25%)       32.20 (-66.84%)       32.60 (-68.91%)       35.70 (-84.97%)
->> Success 2 Max         27.00 (  0.00%)       30.00 (-11.11%)       36.00 (-33.33%)       37.00 (-37.04%)       39.00 (-44.44%)
->> Success 3 Min         62.00 (  0.00%)       62.00 (  0.00%)       85.00 (-37.10%)       75.00 (-20.97%)       64.00 ( -3.23%)
->> Success 3 Mean        66.30 (  0.00%)       65.50 (  1.21%)       85.60 (-29.11%)       83.40 (-25.79%)       83.50 (-25.94%)
->> Success 3 Max         70.00 (  0.00%)       69.00 (  1.43%)       87.00 (-24.29%)       86.00 (-22.86%)       87.00 (-24.29%)
->>
->>              3.13-rc2    3.13-rc2    3.13-rc2    3.13-rc2    3.13-rc2
->>                 2-thp       3-thp       4-thp       5-thp       6-thp
->> User         6547.93     6475.85     6265.54     6289.46     6189.96
->> System       1053.42     1047.28     1043.23     1042.73     1038.73
->> Elapsed      1835.43     1821.96     1908.67     1912.74     1956.38
->
-> Hello, Vlastimil.
->
-> I have some questions related to your stat, not your patchset,
-> just for curiosity. :)
->
-> Are these results, "elapsed time" and "vmstat", for Success 3 line scenario?
+>> diff --git a/arch/x86/kernel/cpu/intel.c b/arch/x86/kernel/cpu/intel.c
+>> index dc1ec0d..2d93753 100644
+>> --- a/arch/x86/kernel/cpu/intel.c
+>> +++ b/arch/x86/kernel/cpu/intel.c
+>> @@ -627,7 +627,7 @@ static void intel_tlb_flushall_shift_set(struct cpuinfo_x86 *c)
+>>  		tlb_flushall_shift = 5;
+>>  		break;
+>>  	case 0x63a: /* Ivybridge */
+>> -		tlb_flushall_shift = 1;
+>> +		tlb_flushall_shift = 2;
+>>  		break;
+> 
+> I'd not be surprised if other CPU models showed similar weaknesses 
+> under ebizzy as well.
+> 
+> I don't particularly like the tuning aspect of the whole feature: the 
+> tunings are model specific and they seem to come out of thin air, 
+> without explicit measurements visible.
+> 
+> In particular the first commit that added this optimization:
+> 
+>  commit c4211f42d3e66875298a5e26a75109878c80f15b
+>  Date:   Thu Jun 28 09:02:19 2012 +0800
+> 
+>     x86/tlb: add tlb_flushall_shift for specific CPU
+> 
+> already had these magic tunings, with no explanation about what kind 
+> of measurement was done to back up those tunings.
+> 
+> I don't think this is acceptable and until this is cleared up I think 
+> we might be better off turning off this feature altogether, or making 
+> a constant, very low tuning point.
+> 
+> The original code came via:
+> 
+>   611ae8e3f520 x86/tlb: enable tlb flush range support for x86
+> 
+> which references a couple of benchmarks, in particular a 
+> micro-benchmark:
+> 
+>   My micro benchmark 'mummap' http://lkml.org/lkml/2012/5/17/59
+>   show that the random memory access on other CPU has 0~50% speed up
+>   on a 2P * 4cores * HT NHM EP while do 'munmap'.
+> 
+> if the tunings were done with the micro-benchmark then I think they 
+> are bogus, because AFAICS it does not measure the adversarial case of 
+> the optimization.
+> 
+> So I'd say at minimum we need to remove the per model tunings, and 
+> need to use very conservative defaults, to make sure we don't slow 
+> down reasonable workloads.
 
-No that's for the whole test which does the scenarios in succession.
+I also hate to depends on mysterious hardware differentiation. But there
+do have some changes in tlb/cache part on different Intel CPU.(Guess HPA
+know this more). And the different shift value get from testing not from
+air. :)
 
-> If so, could you show me others?
-> I wonder why thp case consumes more system time rather than no-thp case.
+> 
+> ( In theory madvise() could give us information about the usage 
+>   pattern of the vma - but in practice madvise() is rarely used and I 
+>   doubt ebizzy or other real-world apps are using it, so it's 
+>   meaningless. )
+> 
+> Thanks,
+> 
+> 	Ingo
+> 
 
-Unfortunately these stats are not that useful as they don't distinguish 
-the 3 phases and also include what the background load does. They are 
-included just to show that nothing truly dramatic is happening.
-So
 
-> And I found that elapsed time has no big difference between both cases,
-> roughly less than 2%. In this situation, do we get more benefits with
-> aggressive allocation like no-thp case?
-
-Elapsed time suffers from the same problem, so it's again hard to say 
-how relevant it actually is to the allocator workload and how much to 
-background load. It seems that the more successful allocator is, the 
-longer elapsed time (in both thp and nothp case). My guess is that less 
-memory available for the background load makes it progress slower which 
-affects the duration of the test as a whole.
-
-I hope that in case of further compaction patches that would be 
-potentially more intrusive to the its design (and not bugfixes and 
-simple tweaks to the existing design as this series) I will have a more 
-detailed breakdown of what time is spent where.
-
-Thanks,
-Vlastimil
-
-> Thanks.
->
->>
->>                                3.13-rc2    3.13-rc2    3.13-rc2    3.13-rc2    3.13-rc2
->>                                   2-thp       3-thp       4-thp       5-thp       6-thp
->> Minor Faults                 256805673   253106328   253222299   249830289   251184418
->> Major Faults                       395         375         423         434         448
->> Swap Ins                            12          10          10          12           9
->> Swap Outs                          530         537         487         455         415
->> Direct pages scanned             71859       86046      153244      152764      190713
->> Kswapd pages scanned           1900994     1870240     1898012     1892864     1880520
->> Kswapd pages reclaimed         1897814     1867428     1894939     1890125     1877924
->> Direct pages reclaimed           71766       85908      153167      152643      190600
->> Kswapd efficiency                  99%         99%         99%         99%         99%
->> Kswapd velocity               1029.000    1067.782    1000.091     991.049     951.218
->> Direct efficiency                  99%         99%         99%         99%         99%
->> Direct velocity                 38.897      49.127      80.747      79.983      96.468
->> Percentage direct scans             3%          4%          7%          7%          9%
->> Zone normal velocity           351.377     372.494     348.910     341.689     335.310
->> Zone dma32 velocity            716.520     744.414     731.928     729.343     712.377
->> Zone dma velocity                0.000       0.000       0.000       0.000       0.000
->> Page writes by reclaim         669.300     604.000     545.700     538.900     429.900
->> Page writes file                   138          66          58          83          14
->> Page writes anon                   530         537         487         455         415
->> Page reclaim immediate             806         655         772         548         517
->> Sector Reads                   2711956     2703239     2811602     2818248     2839459
->> Sector Writes                 12163238    12018662    12038248    11954736    11994892
->> Page rescued immediate               0           0           0           0           0
->> Slabs scanned                  1385088     1388364     1507968     1513292     1558656
->> Direct inode steals               1739        2564        4622        5496        6007
->> Kswapd inode steals              47461       46406       47804       48013       48466
->> Kswapd skipped wait                  0           0           0           0           0
->> THP fault alloc                    110          82          84          69          70
->> THP collapse alloc                 445         482         467         462         539
->> THP splits                           6           5           4           5           3
->> THP fault fallback                   3           0           0           0           0
->> THP collapse fail                   15          14          14          14          13
->> Compaction stalls                  659         685        1033        1073        1111
->> Compaction success                 222         225         410         427         456
->> Compaction failures                436         460         622         646         655
->> Page migrate success            446594      439978     1085640     1095062     1131716
->> Page migrate failure                 0           0           0           0           0
->> Compaction pages isolated      1029475     1013490     2453074     2482698     2565400
->> Compaction migrate scanned     9955461    11344259    24375202    27978356    30494204
->> Compaction free scanned       27715272    28544654    80150615    82898631    85756132
->> Compaction cost                    552         555        1344        1379        1436
->> NUMA PTE updates                     0           0           0           0           0
->> NUMA hint faults                     0           0           0           0           0
->> NUMA hint local faults               0           0           0           0           0
->> NUMA hint local percent            100         100         100         100         100
->> NUMA pages migrated                  0           0           0           0           0
->> AutoNUMA cost                        0           0           0           0           0
->>
->> There are some differences from the previous results for THP-like allocations:
->>   - Here, the bad result for unpatched kernel in phase 3 is much more consistent
->>     to be between 65-70% and not related to the "regression" in 3.12. Still there is
->>     the improvement from patch 4 onwards, which brings it on par with simple
->>     GFP_HIGHUSER_MOVABLE allocations.
->>   - Compaction costs have increased, but nowhere near as much as the non-THP case. Again,
->>     the patches should be worth the gained determininsm.
->>   - Patches 5 and 6 somewhat increase the number of migrate-scanned pages. This is most likely
->>     due to __GFP_NO_KSWAPD flag, which means the cached pfn's and pageblock skip bits are not
->>     reset by kswapd that often (at least in phase 3 where no concurrent activity would wake
->>     up kswapd) and the patches thus help the sync-after-async compaction. It doesn't however
->>     show that the sync compaction would help so much with success rates, which can be again
->>     seen as a limitation of the benchmark scenario.
->>
->>
->>
->> Mel Gorman (1):
->>    mm: compaction: trace compaction begin and end
->>
->> Vlastimil Babka (5):
->>    mm: compaction: encapsulate defer reset logic
->>    mm: compaction: reset cached scanner pfn's before reading them
->>    mm: compaction: detect when scanners meet in isolate_freepages
->>    mm: compaction: do not mark unmovable pageblocks as skipped in async
->>      compaction
->>    mm: compaction: reset scanner positions immediately when they meet
->>
->>   include/linux/compaction.h        | 16 ++++++++++
->>   include/trace/events/compaction.h | 42 +++++++++++++++++++++++++++
->>   mm/compaction.c                   | 61 +++++++++++++++++++++++++++------------
->>   mm/page_alloc.c                   |  5 +---
->>   4 files changed, 102 insertions(+), 22 deletions(-)
->>
->> --
->> 1.8.4
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- 
+Thanks
+    Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
