@@ -1,210 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f52.google.com (mail-bk0-f52.google.com [209.85.214.52])
-	by kanga.kvack.org (Postfix) with ESMTP id EC1D06B0031
-	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 04:50:40 -0500 (EST)
-Received: by mail-bk0-f52.google.com with SMTP id u14so775971bkz.39
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 01:50:40 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id pe1si9597497bkb.305.2013.12.12.01.50.39
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 12 Dec 2013 01:50:39 -0800 (PST)
-Message-ID: <52A986D2.6010606@parallels.com>
-Date: Thu, 12 Dec 2013 13:50:10 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
+Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
+	by kanga.kvack.org (Postfix) with ESMTP id EA8916B0031
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 05:32:02 -0500 (EST)
+Received: by mail-ee0-f48.google.com with SMTP id e49so118558eek.35
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 02:32:02 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTP id 5si23047770eei.123.2013.12.12.02.32.01
+        for <linux-mm@kvack.org>;
+        Thu, 12 Dec 2013 02:32:01 -0800 (PST)
+Date: Thu, 12 Dec 2013 11:31:59 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
+ access to memory reserves
+Message-ID: <20131212103159.GB2630@dhcp22.suse.cz>
+References: <20131203120454.GA12758@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312031544530.5946@chino.kir.corp.google.com>
+ <20131204111318.GE8410@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312041606260.6329@chino.kir.corp.google.com>
+ <20131209124840.GC3597@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312091328550.11026@chino.kir.corp.google.com>
+ <20131210103827.GB20242@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312101655430.22701@chino.kir.corp.google.com>
+ <20131211095549.GA18741@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312111434200.7354@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v13 11/16] mm: list_lru: add per-memcg lists
-References: <cover.1386571280.git.vdavydov@parallels.com> <0ca62dbfbf545edb22b86bd11c50e9017a3dc4db.1386571280.git.vdavydov@parallels.com> <20131210050005.GC31386@dastard> <52A6E77B.3090106@parallels.com> <20131212014023.GG31386@dastard>
-In-Reply-To: <20131212014023.GG31386@dastard>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1312111434200.7354@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: dchinner@redhat.com, hannes@cmpxchg.org, mhocko@suse.cz, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, glommer@gmail.com, Al Viro <viro@zeniv.linux.org.uk>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On 12/12/2013 05:40 AM, Dave Chinner wrote:
->>>> +int list_lru_grow_memcg(struct list_lru *lru, size_t new_array_size)
->>>> +{
->>>> +	int i;
->>>> +	struct list_lru_one **memcg_lrus;
->>>> +
->>>> +	memcg_lrus = kcalloc(new_array_size, sizeof(*memcg_lrus), GFP_KERNEL);
->>>> +	if (!memcg_lrus)
->>>> +		return -ENOMEM;
->>>> +
->>>> +	if (lru->memcg) {
->>>> +		for_each_memcg_cache_index(i) {
->>>> +			if (lru->memcg[i])
->>>> +				memcg_lrus[i] = lru->memcg[i];
->>>> +		}
->>>> +	}
->>> Um, krealloc()?
->> Not exactly. We have to keep the old version until we call sync_rcu.
-> Ah, of course. Could you add a big comment explaining this so that
-> the next reader doesn't suggest replacing it with krealloc(), too?
+On Wed 11-12-13 14:40:24, David Rientjes wrote:
+> On Wed, 11 Dec 2013, Michal Hocko wrote:
+> 
+> > > Triggering a pointless notification with PF_EXITING is rare, yet one 
+> > > pointless notification can be avoided with the patch. 
+> > 
+> > Sigh. Yes it will avoid one particular and rare race. There will still
+> > be notifications without oom kills.
+> > 
+> 
+> Would you prefer doing the mem_cgroup_oom_notify() in two places instead:
+> 
+>  - immediately before doing oom_kill_process() when it's guaranteed that
+>    the kernel would have killed something, and
+> 
+>  - when memory.oom_control == 1 in mem_cgroup_oom_synchronize()?
 
-Sure.
+Yes that would make sense to me. At least the two oom_control paths
+would be consistent wrt. notifications. I thought it would be too messy
+but it looks quite straightforward:
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c72b03bf9679..5cb1deea6aac 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2256,15 +2256,16 @@ bool mem_cgroup_oom_synchronize(bool handle)
+ 
+ 	locked = mem_cgroup_oom_trylock(memcg);
+ 
+-	if (locked)
+-		mem_cgroup_oom_notify(memcg);
+-
+ 	if (locked && !memcg->oom_kill_disable) {
+ 		mem_cgroup_unmark_under_oom(memcg);
+ 		finish_wait(&memcg_oom_waitq, &owait.wait);
++		/* calls mem_cgroup_oom_notify if there is a task to kill */
+ 		mem_cgroup_out_of_memory(memcg, current->memcg_oom.gfp_mask,
+ 					 current->memcg_oom.order);
+ 	} else {
++		if (locked && memcg->oom_kill_disable)
++			mem_cgroup_oom_notify(memcg);
++
+ 		schedule();
+ 		mem_cgroup_unmark_under_oom(memcg);
+ 		finish_wait(&memcg_oom_waitq, &owait.wait);
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 1e4a600a6163..2a7f15900922 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -470,6 +470,9 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 		victim = p;
+ 	}
+ 
++	if (memcg)
++		mem_cgroup_oom_notify(memcg);
++
+ 	/* mm cannot safely be dereferenced after task_unlock(victim) */
+ 	mm = victim->mm;
+ 	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
 
->>>> +int memcg_list_lru_init(struct list_lru *lru)
->>>> +{
->>>> +	int err = 0;
->>>> +	int i;
->>>> +	struct mem_cgroup *memcg;
->>>> +
->>>> +	lru->memcg = NULL;
->>>> +	lru->memcg_old = NULL;
->>>> +
->>>> +	mutex_lock(&memcg_create_mutex);
->>>> +	if (!memcg_kmem_enabled())
->>>> +		goto out_list_add;
->>>> +
->>>> +	lru->memcg = kcalloc(memcg_limited_groups_array_size,
->>>> +			     sizeof(*lru->memcg), GFP_KERNEL);
->>>> +	if (!lru->memcg) {
->>>> +		err = -ENOMEM;
->>>> +		goto out;
->>>> +	}
->>>> +
->>>> +	for_each_mem_cgroup(memcg) {
->>>> +		int memcg_id;
->>>> +
->>>> +		memcg_id = memcg_cache_id(memcg);
->>>> +		if (memcg_id < 0)
->>>> +			continue;
->>>> +
->>>> +		err = list_lru_memcg_alloc(lru, memcg_id);
->>>> +		if (err) {
->>>> +			mem_cgroup_iter_break(NULL, memcg);
->>>> +			goto out_free_lru_memcg;
->>>> +		}
->>>> +	}
->>>> +out_list_add:
->>>> +	list_add(&lru->list, &all_memcg_lrus);
->>>> +out:
->>>> +	mutex_unlock(&memcg_create_mutex);
->>>> +	return err;
->>>> +
->>>> +out_free_lru_memcg:
->>>> +	for (i = 0; i < memcg_limited_groups_array_size; i++)
->>>> +		list_lru_memcg_free(lru, i);
->>>> +	kfree(lru->memcg);
->>>> +	goto out;
->>>> +}
->>> That will probably scale even worse. Think about what happens when we
->>> try to mount a bunch of filesystems in parallel - they will now
->>> serialise completely on this memcg_create_mutex instantiating memcg
->>> lists inside list_lru_init().
->> Yes, the scalability seems to be the main problem here. I have a couple
->> of thoughts on how it could be improved. Here they go:
->>
->> 1) We can turn memcg_create_mutex to rw-semaphore (or introduce an
->> rw-semaphore, which we would take for modifying list_lru's) and take it
->> for reading in memcg_list_lru_init() and for writing when we create a
->> new memcg (memcg_init_all_lrus()).
->> This would remove the bottleneck from the mount path, but every memcg
->> creation would still iterate over all LRUs under a memcg mutex. So I
->> guess it is not an option, isn't it?
-> Right - it's not so much that there is a mutex to protect the init,
-> it's how long it's held that will be the issue. I mean, we don't
-> need to hold the memcg_create_mutex until we've completely
-> initialised the lru structure and are ready to add it to the
-> all_memcg_lrus list, right?
->
-> i.e. restructing it so that you don't need to hold the mutex until
-> you make the LRU list globally visible would solve the problem just
-> as well. if we can iterate the memcgs lists without holding a lock,
-> then we can init the per-memcg lru lists without holding a lock
-> because nobody will access them through the list_lru structure
-> because it's not yet been published.
->
-> That keeps the locking simple, and we get scalability because we've
-> reduced the lock's scope to just a few instructures instead of a
-> memcg iteration and a heap of memory allocation....
 
-Unfortunately that's not that easy as it seems to be :-(
+The semantic would be as simple as "notification is sent only when
+an action is due". It will be still racy as nothing prevents a task
+which is not under OOM to exit and release some memory but there is no
+sensible way to address that. On the other hand such a semantic would be
+sensible for oom_control listeners because they will know that an action
+has to be or will be taken (the line was drawn).
 
-Currently I hold the memcg_create_mutex while initializing per-memcg
-LRUs in memcg_list_lru_init() in order to be sure that I won't miss a
-memcg that is added during initialization.
+Can we agree on this, Johannes? Or you see the line drawn when
+mem_cgroup_oom_synchronize has been reached already no matter whether
+the action is to be done or not?
 
-I mean, let's try to move per-memcg LRUs allocation outside the lock and
-only register the LRU there:
+Regardless the above. We would still have to cope with PF_EXITING
+without TIF_MEMDIE entering OOM which is a separate issue. I think the
+easier and cleaner solution would be to bail out early and do not even
+charge for PF_EXITING tasks. It will solve the issue mentioned before
+and also reduce the exit latency. Besides that I do not think we are
+talking about many charges, do we?
 
-memcg_list_lru_init():
-    1) allocate lru->memcg array
-    2) for_each_kmem_active_memcg(m)
-            allocate lru->memcg[m]
-    3) lock memcg_create_mutex
-       add lru to all_memcg_lrus_list
-       unlock memcg_create_mutex
+> > Anyway.
+> > Does the reclaim make any sense for PF_EXITING tasks? Shouldn't we
+> > simply bypass charges of these tasks automatically. Those tasks will
+> > free some memory anyway so why to trigger reclaim and potentially OOM
+> > in the first place? Do we need to go via TIF_MEMDIE loop in the first
+> > place?
+> > 
+> 
+> I don't see any reason to make an optimization there since they will get 
+> TIF_MEMDIE set if reclaim has failed on one of their charges or if it 
+> results in a system oom through the page allocator's oom killer.
 
-Then if a new kmem-active memcg is added after step 2 and before step 3,
-it won't see the new lru, because it has not been registered yet, and
-thus won't initialize its list in this lru. As a result, we will end up
-with a partially initialized list_lru. Note that this will happen even
-if the whole memcg initialization proceeds under the memcg_create_mutex.
+This all will happen after MEM_CGROUP_RECLAIM_RETRIES full reclaim
+rounds. Is it really worth the addional overhead just to later say "OK
+go ahead and skipp charges"?
+And for the !oom memcg it might reclaim some pages which could have
+stayed on LRUs just to free some memory little bit later and release the
+memory pressure.
+So I would rather go with
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c72b03bf9679..fee25c5934d2 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2692,7 +2693,8 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
+ 	 * MEMDIE process.
+ 	 */
+ 	if (unlikely(test_thread_flag(TIF_MEMDIE)
+-		     || fatal_signal_pending(current)))
++		     || fatal_signal_pending(current))
++		     || current->flags & PF_EXITING)
+ 		goto bypass;
+ 
+ 	if (unlikely(task_in_memcg_oom(current)))
 
-Provided we could freeze memcg_limited_groups_array_size, it would be
-possible to fix this problem by swapping steps 2 and 3 and making step 2
-initialize lru->memcg[m] using cmpxchg() only if it was not initialized.
-However we still have to hold the memcg_create_mutex during the whole
-kmemcg activation path (memcg_init_all_lrus()).
+rather than the later checks down the oom_synchronize paths. The comment
+already mentions dying process...
 
-Let's see if we can get rid of the lock in memcg_init_all_lrus() by
-making the all_memcg_lrus RCU-protected so that we could iterate over
-all list_lrus w/o holding any locks and turn memcg_init_all_lrus() to
-something like this:
+> It would be nice to ensure reclaim has had a chance to free memory in
+> the presence of any other potential parallel memory freeing.
 
-memcg_init_all_lrus():
-    1) for_each_list_lru_rcu(lru)
-           allocate lru->memcg[new_memcg_id]
-    2) mark new_memcg as kmem-active
-
-The problem is that if memcg_list_lru_init(new_lru) starts and completes
-between steps 1 and 2, we will not initialize
-new_lru->memcg[new_memcg_id] neither in memcg_init_all_lrus() nor in
-memcg_list_lru_init().
-
-The problem here is that on kmemcg creation (memcg_init_all_lrus()) we
-have to iterate over all list_lrus while on list_lru creation
-(memcg_list_lru_init()) we have to iterate over all memcgs. Currently I
-can't figure out how we can do it w/o holding any mutexes at least while
-calling one of these functions, but I'm keep thinking on it.
-
->
->> 2) We could use cmpxchg() instead of a mutex in list_lru_init_memcg()
->> and memcg_init_all_lrus() to assure a memcg LRU is initialized only
->> once. But again, this would not remove iteration over all LRUs from
->> memcg_init_all_lrus().
->>
->> 3) We can try to initialize per-memcg LRUs lazily only when we actually
->> need them, similar to how we now handle per-memcg kmem caches creation.
->> If list_lru_add() cannot find appropriate LRU, it will schedule a
->> background worker for its initialization.
-> I'd prefer not to add complexity to the list_lru_add() path here.
-> It's frequently called, so it's a code hot path and so we should
-> keep it as simply as possible.
->
->> The benefits of this approach are clear: we do not introduce any
->> bottlenecks, and we lower memory consumption in case different memcgs
->> use different mounts exclusively.
->> However, there is one thing that bothers me. Some objects accounted to a
->> memcg will go into the global LRU, which will postpone actual memcg
->> destruction until global reclaim.
-> Yeah, that's messy. best to avoid it by doing the work at list init
-> time, IMO.
-
-I also think so, because the benefits of this are rather doubtful:
-1) We actually remove bottlenecks from slow paths (memcg creation and fs
-mount) executed relatively rare.
-2) In contrast to kmem_cache, list_lru_node is a very small structure so
-that making per-memcg lists initialized lazily would not save us much
-memory.
-But currently I guess it would be the easiest way to get rid of the
-memcg_create_mutex held in the initialization paths.
-
-Thanks.
+I am afraid I didn't get what you mean by this. We can only check we are
+under OOM or try to reclaim to see if there is something...
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
