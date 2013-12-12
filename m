@@ -1,71 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f42.google.com (mail-qe0-f42.google.com [209.85.128.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 878A46B0035
-	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 15:48:04 -0500 (EST)
-Received: by mail-qe0-f42.google.com with SMTP id b4so849308qen.29
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 12:48:04 -0800 (PST)
-Received: from mail-ve0-x229.google.com (mail-ve0-x229.google.com [2607:f8b0:400c:c01::229])
-        by mx.google.com with ESMTPS id t8si19963512qeu.56.2013.12.12.12.48.03
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 12 Dec 2013 12:48:03 -0800 (PST)
-Received: by mail-ve0-f169.google.com with SMTP id c14so740743vea.14
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 12:48:03 -0800 (PST)
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id DA8D06B0035
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 15:49:55 -0500 (EST)
+Received: by mail-ig0-f180.google.com with SMTP id uq1so176095igb.1
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 12:49:55 -0800 (PST)
+Date: Thu, 12 Dec 2013 14:49:50 -0600
+From: Alex Thorlton <athorlton@sgi.com>
+Subject: Re: [RFC PATCH 2/3] Add tunable to control THP behavior
+Message-ID: <20131212204950.GA6034@sgi.com>
+References: <cover.1386790423.git.athorlton@sgi.com>
+ <20131212180050.GC134240@sgi.com>
+ <CALCETrWfFRhjuoK8T9G8hecxsRxFPQ+qA0x7azoof1X5tuxruA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20131210050005.GC31386@dastard>
-References: <cover.1386571280.git.vdavydov@parallels.com>
-	<0ca62dbfbf545edb22b86bd11c50e9017a3dc4db.1386571280.git.vdavydov@parallels.com>
-	<20131210050005.GC31386@dastard>
-Date: Fri, 13 Dec 2013 00:48:03 +0400
-Message-ID: <CAA6-i6rukbiu+_pnS1nkD45ViA0fnn9fQjhk74LWXOA+S=+7Tg@mail.gmail.com>
-Subject: Re: [PATCH v13 11/16] mm: list_lru: add per-memcg lists
-From: Glauber Costa <glommer@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrWfFRhjuoK8T9G8hecxsRxFPQ+qA0x7azoof1X5tuxruA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, dchinner@redhat.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Glauber Costa <glommer@openvz.org>, Al Viro <viro@zeniv.linux.org.uk>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Benjamin LaHaise <bcrl@kvack.org>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Al Viro <viro@zeniv.linux.org.uk>, David Rientjes <rientjes@google.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jiang Liu <jiang.liu@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Glauber Costa <glommer@parallels.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-> OK, as far as I can tell, this is introducing a per-node, per-memcg
-> LRU lists. Is that correct?
->
-> If so, then that is not what Glauber and I originally intended for
-> memcg LRUs. per-node LRUs are expensive in terms of memory and cross
-> multiplying them by the number of memcgs in a system was not a good
-> use of memory.
->
-> According to Glauber, most memcgs are small and typically confined
-> to a single node or two by external means and therefore don't need the
-> scalability numa aware LRUs provide. Hence the idea was that the
-> memcg LRUs would just be a single LRU list, just like a non-numa
-> aware list_lru instantiation. IOWs, this is the structure that we
-> had decided on as the best compromise between memory usage,
-> complexity and memcg awareness:
->
-Sorry for jumping late into this particular e-mail.
+> Is there a setting that will turn off the must-be-the-same-node
+> behavior?  There are workloads where TLB matters more than cross-node
+> traffic (or where all the pages are hopelessly shared between nodes,
+> but hugepages are still useful).
 
-I just wanted to point out that the reason I adopted such matrix in my
-design was that
-it actually uses less memory this way. My reasoning for this was
-explained in the original
-patch that I posted that contained that implementation.
+That's pretty much how THPs already behave in the kernel, so if you want
+to allow THPs to be handed out to one node, but referenced from many
+others, you'd just set the threshold to 1, and let the existing code
+take over.
 
-This is because whenever an object would go on a memcg list, it *would
-not* go on
-the global list. Therefore, to keep information about nodes for global
-reclaim, you
-have to put them in node-lists.
+As for the must-be-the-same-node behavior:  I'd actually say it's more
+like a "must have so much on one node" behavior, in that, if you set the
+threshold to 16, for example, 16 4K pages must be faulted in on the same
+node, in the same contiguous 2M chunk, before a THP will be created.
+What happens after that THP is created is out of our control, it could
+be referenced from anywhere.
 
-memcg reclaim, however, would reclaim regardless of node information.
+The idea here is that we can tune things so that jobs that behave poorly
+with THP on will not be given THPs, but the jobs that like THPs can
+still get them.  Granted, there are still issues with this approach, but
+I think it's a bit better than just handing out a THP because we touched
+one byte in a 2M chunk.
 
-In global reclaim, the memcg lists would be scanned obeying the node structure
-in the lists.
-
-Because that has a fixed cost, it ends up using less memory that having a second
-list pointer in the objects, which is something that scale with the
-number of objects.
-Not to mention, that cost would be incurred even with memcg not being in use,
-which is something that we would like to avoid.
+- Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
