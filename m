@@ -1,98 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f47.google.com (mail-bk0-f47.google.com [209.85.214.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 049636B0031
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 20:09:13 -0500 (EST)
-Received: by mail-bk0-f47.google.com with SMTP id mx12so617048bkb.20
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 17:09:13 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id y3si8123706bkn.268.2013.12.11.17.09.12
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 11 Dec 2013 17:09:12 -0800 (PST)
-Date: Wed, 11 Dec 2013 20:09:03 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm: page_alloc: exclude unreclaimable allocations from
- zone fairness policy
-Message-ID: <20131212010903.GP21724@cmpxchg.org>
-References: <1386785356-19911-1-git-send-email-hannes@cmpxchg.org>
- <20131211224719.GE11295@suse.de>
+Received: from mail-yh0-f53.google.com (mail-yh0-f53.google.com [209.85.213.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 1320A6B0031
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 20:10:43 -0500 (EST)
+Received: by mail-yh0-f53.google.com with SMTP id b20so5677338yha.26
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 17:10:42 -0800 (PST)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:6])
+        by mx.google.com with ESMTP id 25si19785430yhc.107.2013.12.11.17.10.41
+        for <linux-mm@kvack.org>;
+        Wed, 11 Dec 2013 17:10:42 -0800 (PST)
+Date: Thu, 12 Dec 2013 12:10:38 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [patch] mm, page_alloc: allow __GFP_NOFAIL to allocate below
+ watermarks after reclaim
+Message-ID: <20131212011038.GF31386@dastard>
+References: <alpine.DEB.2.02.1312091402580.11026@chino.kir.corp.google.com>
+ <20131210075059.GA11295@suse.de>
+ <alpine.DEB.2.02.1312101453020.22701@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131211224719.GE11295@suse.de>
+In-Reply-To: <alpine.DEB.2.02.1312101453020.22701@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Dec 11, 2013 at 10:47:19PM +0000, Mel Gorman wrote:
-> On Wed, Dec 11, 2013 at 01:09:16PM -0500, Johannes Weiner wrote:
-> > Dave Hansen noted a regression in a microbenchmark that loops around
-> > open() and close() on an 8-node NUMA machine and bisected it down to
-> > 81c0a2bb515f ("mm: page_alloc: fair zone allocator policy").  That
-> > change forces the slab allocations of the file descriptor to spread
-> > out to all 8 nodes, causing remote references in the page allocator
-> > and slab.
+On Tue, Dec 10, 2013 at 03:03:39PM -0800, David Rientjes wrote:
+> On Tue, 10 Dec 2013, Mel Gorman wrote:
+> 
+> > > If direct reclaim has failed to free memory, __GFP_NOFAIL allocations
+> > > can potentially loop forever in the page allocator.  In this case, it's
+> > > better to give them the ability to access below watermarks so that they
+> > > may allocate similar to the same privilege given to GFP_ATOMIC
+> > > allocations.
+> > > 
+> > > We're careful to ensure this is only done after direct reclaim has had
+> > > the chance to free memory, however.
+> > > 
+> > > Signed-off-by: David Rientjes <rientjes@google.com>
+> > 
+> > The main problem with doing something like this is that it just smacks
+> > into the adjusted watermark if there are a number of __GFP_NOFAIL. Who
+> > was the user of __GFP_NOFAIL that was fixed by this patch?
 > > 
 > 
-> The original patch was primarily concerned with the fair aging of LRU pages
-> of zones within a node. This patch uses GFP_MOVABLE_MASK which includes
-> __GFP_RECLAIMABLE meaning any slab created with SLAB_RECLAIM_ACCOUNT is still
-> getting the round-robin treatment. Those pages have a different lifecycle
-> to LRU pages and the shrinkers are only node aware, not zone aware.
-> While I get this patch probably helps this specific benchmark, was the
-> use of GFP_MOVABLE_MASK intentional or did you mean to use __GFP_MOVABLE?
-
-It was intentional to spread SLAB_RECLAIM_ACCOUNT pages across all
-allowed nodes evenly for the same aging fairness reason.
-
-> Looking at the original patch again I think I made a major mistake when
-> reviewing it. Considering the effect of the following for NUMA machines
+> Nobody, it comes out of a memcg discussion where __GFP_NOFAIL were 
+> recently given the ability to bypass charges to the root memcg when the 
+> memcg has hit its limit since we disallow the oom killer to kill a process 
+> (for the same reason that the vast majority of __GFP_NOFAIL users, those 
+> that do GFP_NOFS | __GFP_NOFAIL, disallow the oom killer in the page 
+> allocator).
 > 
->         for_each_zone_zonelist_nodemask(zone, z, zonelist,
->                                                 high_zoneidx, nodemask) {
-> 		....
->                 if (alloc_flags & ALLOC_WMARK_LOW) {
->                         if (zone_page_state(zone, NR_ALLOC_BATCH) <= 0)
-> 				continue;
->                         if (zone_reclaim_mode &&
->                             !zone_local(preferred_zone, zone))
->                                 continue;
-> 		}
-> 
-> 
-> Enabling zone_reclaim_mode sucks badly for workloads that are not paritioned
-> to fit within NUMA nodes. Consequently, I expect the common case it that
-> it's disabled by default due to small NUMA distances or manually disabled.
-> 
-> However, the effect of that block is that we allocate NR_ALLOC_BATCH
-> from local zones then fallback to batch allocating remote nodes! I bet
-> the numa_hit stats in /proc/vmstat have sucked recently. The original
-> problem was because the page allocator would try allocating from the
-> highest zone while kswapd reclaimed from it causing LRU-aging problems.
-> The problem is not the same between nodes. How do you feel about dropping
-> the zone_reclaim_mode check above and only round-robin in batches between
-> zones on the local node?
+> Without some other thread freeing memory, these allocations simply loop 
+> forever.
 
-It might not be for anon but it's the same problem for cache.  The
-page allocator will fill all the nodes in the system before waking up
-the kswapds.  It will utilize all nodes, just not evenly.
+So what is kswapd doing in this situation?
 
-I know that on the node-level staying local is often preferrable over
-full memory utilization but I was under the assumption that
-zone_reclaim_mode is there to express this preference.
+> Since there are comments in both gfp.h and page_alloc.c that say no new 
+> users will be added, it seems legitimate to ensure that the allocation 
+> will at least have a chance of succeeding, but not the point of depleting 
+> memory reserves entirely.
 
-My patch certainly makes this preference more aggressive in the sense
-that there is no grayzone anymore.  There is no try to stay local.
-There is either not using a block of memory at all, or using it to the
-same extent as any other block of the same size; that's the
-requirement for fair aging.
+As it said before, the filesystem will then simply keep allocating
+memory until it hits the next limit, and then you're back in the
+same situation. Moving the limit at which it fails does not solve
+the problem at all.
 
-That being said, the fairness concerns are primarily about file pages.
-Should we exclude anon and slab pages entirely?  I'd still account for
-them in the batches but only apply placement rules to page cache.
-That should still leave us with roughly equal cache aging speeds in
-all zones and nodes.
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
