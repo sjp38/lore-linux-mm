@@ -1,67 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
-	by kanga.kvack.org (Postfix) with ESMTP id E0B886B0031
-	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 18:46:53 -0500 (EST)
-Received: by mail-qc0-f181.google.com with SMTP id e9so914717qcy.26
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 15:46:53 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id kc8si63014qeb.65.2013.12.12.15.46.52
-        for <linux-mm@kvack.org>;
-        Thu, 12 Dec 2013 15:46:53 -0800 (PST)
-Date: Thu, 12 Dec 2013 17:51:19 -0500
-From: Dave Jones <davej@redhat.com>
-Subject: kernel BUG at mm/mempolicy.c:1204!
-Message-ID: <20131212225119.GA18718@redhat.com>
+Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F2496B0031
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 18:53:50 -0500 (EST)
+Received: by mail-ee0-f49.google.com with SMTP id c41so548455eek.36
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 15:53:49 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r9si62003eeo.86.2013.12.12.15.53.49
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 12 Dec 2013 15:53:49 -0800 (PST)
+Date: Thu, 12 Dec 2013 23:53:46 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/3] x86: mm: Clean up inconsistencies when flushing TLB
+ ranges
+Message-ID: <20131212235237.GK11295@suse.de>
+References: <1386849309-22584-1-git-send-email-mgorman@suse.de>
+ <1386849309-22584-2-git-send-email-mgorman@suse.de>
+ <52A9C145.9050706@linaro.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
+In-Reply-To: <52A9C145.9050706@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>
+To: Alex Shi <alex.shi@linaro.org>
+Cc: H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Just hit this with my fuzz tester.
+On Thu, Dec 12, 2013 at 09:59:33PM +0800, Alex Shi wrote:
+> On 12/12/2013 07:55 PM, Mel Gorman wrote:
+> > NR_TLB_LOCAL_FLUSH_ALL is not always accounted for correctly and the
+> > comparison with total_vm is done before taking tlb_flushall_shift into
+> > account. Clean it up.
+> > 
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> 
+> Reviewed-by: Alex Shi
 
-kernel BUG at mm/mempolicy.c:1204!
-invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-CPU: 3 PID: 7056 Comm: trinity-child3 Not tainted 3.13.0-rc3+ #2
-task: ffff8801ca5295d0 ti: ffff88005ab20000 task.ti: ffff88005ab20000
-RIP: 0010:[<ffffffff8119f200>]  [<ffffffff8119f200>] new_vma_page+0x70/0x90
-RSP: 0000:ffff88005ab21db0  EFLAGS: 00010246
-RAX: fffffffffffffff2 RBX: 0000000000000000 RCX: 0000000000000000
-RDX: 0000000008040075 RSI: ffff8801c3d74600 RDI: ffffea00079a8b80
-RBP: ffff88005ab21dc8 R08: 0000000000000004 R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000000 R12: fffffffffffffff2
-R13: ffffea00079a8b80 R14: 0000000000400000 R15: 0000000000400000
-FS:  00007ff49c6f4740(0000) GS:ffff880244e00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 00007ff49c68f994 CR3: 000000005a205000 CR4: 00000000001407e0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-Stack:
- ffffea00079a8b80 ffffea00079a8bc0 ffffea00079a8ba0 ffff88005ab21e50
- ffffffff811adc7a 0000000000000000 ffff8801ca5295d0 0000000464e224f8
- 0000000000000000 0000000000000002 0000000000000000 ffff88020ce75c00
-Call Trace:
- [<ffffffff811adc7a>] migrate_pages+0x12a/0x850
- [<ffffffff8119f190>] ? alloc_pages_vma+0x1b0/0x1b0
- [<ffffffff8119fa13>] SYSC_mbind+0x513/0x6a0
- [<ffffffff810aa7de>] ? lock_release_holdtime.part.29+0xee/0x170
- [<ffffffff8119fbae>] SyS_mbind+0xe/0x10
- [<ffffffff817626a9>] ia32_do_call+0x13/0x13
-Code: 85 c0 75 2f 4c 89 e1 48 89 da 31 f6 bf da 00 02 00 65 44 8b 04 25 08 f7 1c 00 e8 ec fd ff ff 5b 41 5c 41 5d 5d c3 0f 1f 44 00 00 <0f> 0b 66 0f 1f 44 00 00 4c 89 e6 48 89 df ba 01 00 00 00 e8 48 
-RIP  [<ffffffff8119f200>] new_vma_page+0x70/0x90
- RSP <ffff88005ab21db0>
+Thanks.
 
+> > ---
+> >  arch/x86/mm/tlb.c | 12 ++++++------
+> >  1 file changed, 6 insertions(+), 6 deletions(-)
+> > 
+> > diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+> > index ae699b3..09b8cb8 100644
+> > --- a/arch/x86/mm/tlb.c
+> > +++ b/arch/x86/mm/tlb.c
+> > @@ -189,6 +189,7 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+> >  {
+> >  	unsigned long addr;
+> >  	unsigned act_entries, tlb_entries = 0;
+> > +	unsigned long nr_base_pages;
+> >  
+> >  	preempt_disable();
+> >  	if (current->active_mm != mm)
+> > @@ -210,18 +211,17 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+> >  		tlb_entries = tlb_lli_4k[ENTRIES];
+> >  	else
+> >  		tlb_entries = tlb_lld_4k[ENTRIES];
+> > +
+> >  	/* Assume all of TLB entries was occupied by this task */
+> 
+> the benchmark break this assumption?
 
-That's..
+No, but it's a small benchmark with very little else running at the
+time. It's an assumption that would only hold true on dedicated machines
+to a single application. It would not hold true on desktops, multi-tier
+server applications etc.
 
-1200         /*
-1201          * queue_pages_range() confirms that @page belongs to some vma,
-1202          * so vma shouldn't be NULL.
-1203          */
-1204         BUG_ON(!vma);
-1205 
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
