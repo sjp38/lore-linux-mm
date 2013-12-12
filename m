@@ -1,574 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 410316B0039
-	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 13:01:01 -0500 (EST)
-Received: by mail-ig0-f177.google.com with SMTP id uy17so2682964igb.4
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 10:01:01 -0800 (PST)
-Date: Thu, 12 Dec 2013 12:00:57 -0600
-From: Alex Thorlton <athorlton@sgi.com>
-Subject: [RFC PATCH 3/3] Change THP behavior
-Message-ID: <20131212180057.GD134240@sgi.com>
-References: <cover.1386790423.git.athorlton@sgi.com>
+Received: from mail-yh0-f46.google.com (mail-yh0-f46.google.com [209.85.213.46])
+	by kanga.kvack.org (Postfix) with ESMTP id EF5026B0035
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 13:42:41 -0500 (EST)
+Received: by mail-yh0-f46.google.com with SMTP id l109so662696yhq.19
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 10:42:41 -0800 (PST)
+Received: from mail-vb0-x229.google.com (mail-vb0-x229.google.com [2607:f8b0:400c:c02::229])
+        by mx.google.com with ESMTPS id x18si19612253qef.89.2013.12.12.10.42.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 12 Dec 2013 10:42:40 -0800 (PST)
+Received: by mail-vb0-f41.google.com with SMTP id m10so595834vbh.28
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 10:42:40 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cover.1386790423.git.athorlton@sgi.com>
+In-Reply-To: <20131212142156.GB32683@htj.dyndns.org>
+References: <20131204054533.GZ3556@cmpxchg.org> <alpine.DEB.2.02.1312041742560.20115@chino.kir.corp.google.com>
+ <20131205025026.GA26777@htj.dyndns.org> <alpine.DEB.2.02.1312051537550.7717@chino.kir.corp.google.com>
+ <20131206190105.GE13373@htj.dyndns.org> <alpine.DEB.2.02.1312061441390.8949@chino.kir.corp.google.com>
+ <20131210215037.GB9143@htj.dyndns.org> <alpine.DEB.2.02.1312101522400.22701@chino.kir.corp.google.com>
+ <20131211124240.GA24557@htj.dyndns.org> <CAAAKZwsmM-C=kLGV=RW=Y4Mq=BWpQzuPruW6zvEr9p0Xs4GD5g@mail.gmail.com>
+ <20131212142156.GB32683@htj.dyndns.org>
+From: Tim Hockin <thockin@hockin.org>
+Date: Thu, 12 Dec 2013 10:42:20 -0800
+Message-ID: <CAAAKZwtuydFdiiSsKMuOUv3nr9trjuKvKoDO2aM0QsJKu1TMZA@mail.gmail.com>
+Subject: Re: [patch 7/8] mm, memcg: allow processes handling oom notifications
+ to access reserves
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Benjamin LaHaise <bcrl@kvack.org>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, David Rientjes <rientjes@google.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jiang Liu <jiang.liu@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Glauber Costa <glommer@parallels.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Li Zefan <lizefan@huawei.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>
 
-This patch implements the functionality we're really going for here.
-It adds the decision making behavior to determine when to grab a
-temporary compound page, and whether or not to fault in single pages or
-to turn the temporary page into a THP.  This one is rather large, might
-split it up a bit more for later versions
+On Thu, Dec 12, 2013 at 6:21 AM, Tejun Heo <tj@kernel.org> wrote:
+> Hey, Tim.
+>
+> Sidenote: Please don't top-post with the whole body quoted below
+> unless you're adding new cc's.  Please selectively quote the original
+> message's body to remind the readers of the context and reply below
+> it.  It's a basic lkml etiquette and one with good reasons.  If you
+> have to top-post for whatever reason - say you're typing from a
+> machine which doesn't allow easy editing of the original message,
+> explain so at the top of the message, or better yet, wait till you can
+> unless it's urgent.
 
-I've left most of my comments in here just to provide people with some
-insight into what I may have been thinking when I chose to do something
-in a certain way.  These will probably be trimmed down in later versions
-of the patch.
+Yeah sorry.  Replying from my phone is awkward at best.  I know better :)
 
-Signed-off-by: Alex Thorlton <athorlton@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nate Zimmer <nzimmer@sgi.com>
-Cc: Cliff Wickman <cpw@sgi.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Benjamin LaHaise <bcrl@kvack.org>
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Jiang Liu <jiang.liu@huawei.com>
-Cc: Cody P Schafer <cody@linux.vnet.ibm.com>
-Cc: Glauber Costa <glommer@parallels.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+> On Wed, Dec 11, 2013 at 09:37:46PM -0800, Tim Hockin wrote:
+>> The immediate problem I see with setting aside reserves "off the top"
+>> is that we don't really know a priori how much memory the kernel
+>> itself is going to use, which could still land us in an overcommitted
+>> state.
+>>
+>> In other words, if I have your 128 MB machine, and I set aside 8 MB
+>> for OOM handling, and give 120 MB for jobs, I have not accounted for
+>> the kernel.  So I set aside 8 MB for OOM and 100 MB for jobs, leaving
+>> 20 MB for jobs.  That should be enough right?  Hell if I know, and
+>> nothing ensures that.
+>
+> Yes, sure thing, that's the reason why I mentioned "with some slack"
+> in the original message and also that it might not be completely the
+> same.  It doesn't allow you to aggressively use system level OOM
+> handling as the sizing estimator for the root cgroup; however, it's
+> more of an implementation details than something which should guide
+> the overall architecture - it's a problem which lessens in severity as
+> [k]memcg improves and its coverage becomes more complete, which is the
+> direction we should be headed no matter what.
 
----
- include/linux/huge_mm.h  |   6 +
- include/linux/mm_types.h |  13 +++
- kernel/fork.c            |   1 +
- mm/huge_memory.c         | 283 +++++++++++++++++++++++++++++++++++++++++++++++
- mm/internal.h            |   1 +
- mm/memory.c              |  29 ++++-
- mm/page_alloc.c          |  66 ++++++++++-
- 7 files changed, 392 insertions(+), 7 deletions(-)
+In my mind, the ONLY point of pulling system-OOM handling into
+userspace is to make it easier for crazy people (Google) to implement
+bizarre system-OOM policies.  Example:
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 0943b1b6..c1e407d 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -5,6 +5,12 @@ extern int do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 				      struct vm_area_struct *vma,
- 				      unsigned long address, pmd_t *pmd,
- 				      unsigned int flags);
-+extern struct temp_hugepage *find_pmd_mm_freelist(struct mm_struct *mm,
-+						 pmd_t *pmd);
-+extern int do_huge_pmd_temp_page(struct mm_struct *mm,
-+				 struct vm_area_struct *vma,
-+				 unsigned long address, pmd_t *pmd,
-+				 unsigned int flags);
- extern int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 			 pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr,
- 			 struct vm_area_struct *vma);
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index b5efa23..d48c6ab 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -322,6 +322,17 @@ struct mm_rss_stat {
- 	atomic_long_t count[NR_MM_COUNTERS];
- };
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+struct temp_hugepage {
-+	pmd_t *pmd;
-+	struct page *page;
-+	spinlock_t temp_hugepage_lock;
-+	int node;			/* node id of the first page in the chunk */
-+	int ref_count;			/* number of pages faulted in from the chunk */
-+	struct list_head list;		/* pointers to next/prev chunks */
-+};
-+#endif
-+
- struct kioctx_table;
- struct mm_struct {
- 	struct vm_area_struct * mmap;		/* list of VMAs */
-@@ -408,7 +419,9 @@ struct mm_struct {
- #endif
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
-+	spinlock_t thp_list_lock; /* lock to protect thp_temp_list */
- 	int thp_threshold;
-+	struct list_head thp_temp_list; /* list of 512 page chunks for THPs */
- #endif
- #ifdef CONFIG_CPUMASK_OFFSTACK
- 	struct cpumask cpumask_allocation;
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 086fe73..a3ccf857 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -816,6 +816,7 @@ struct mm_struct *dup_mm(struct task_struct *tsk)
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 	mm->pmd_huge_pte = NULL;
-+	INIT_LIST_HEAD(&mm->thp_temp_list);
- #endif
- #ifdef CONFIG_NUMA_BALANCING
- 	mm->first_nid = NUMA_PTE_SCAN_INIT;
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 5d388e4..43ea095 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -788,6 +788,20 @@ static inline struct page *alloc_hugepage_vma(int defrag,
- 			       HPAGE_PMD_ORDER, vma, haddr, nd);
- }
- 
-+static inline gfp_t alloc_temp_hugepage_gfpmask(gfp_t extra_gfp)
-+{
-+	return GFP_TEMP_TRANSHUGE | extra_gfp;
-+}
-+
-+static inline struct page *alloc_temp_hugepage_vma(int defrag,
-+					      struct vm_area_struct *vma,
-+					      unsigned long haddr, int nd,
-+					      gfp_t extra_gfp)
-+{
-+	return alloc_pages_vma(alloc_temp_hugepage_gfpmask(extra_gfp),
-+			       HPAGE_PMD_ORDER, vma, haddr, nd);
-+}
-+
- #ifndef CONFIG_NUMA
- static inline struct page *alloc_hugepage(int defrag)
- {
-@@ -871,6 +885,275 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	return 0;
- }
- 
-+/* We need to hold mm->thp_list_lock during this search */
-+struct temp_hugepage *find_pmd_mm_freelist(struct mm_struct *mm, pmd_t *pmd)
-+{
-+	struct temp_hugepage *temp_thp;
-+	/*
-+	 * we need to check to make sure that the PMD isn't already
-+	 * on the list. return the temp_hugepage struct if we find one
-+	 * otherwise we just return NULL
-+	 */
-+	list_for_each_entry(temp_thp, &mm->thp_temp_list, list) {
-+		if (temp_thp->pmd == pmd) {
-+			return temp_thp;
-+		}
-+	}
-+
-+	return NULL;
-+}
-+
-+int do_huge_pmd_temp_page(struct mm_struct *mm, struct vm_area_struct *vma,
-+			       unsigned long address, pmd_t *pmd,
-+			       unsigned int flags)
-+{
-+	int i;
-+	spinlock_t *ptl;
-+	struct page *page;
-+	pte_t *pte;
-+	pte_t entry;
-+	struct temp_hugepage *temp_thp;
-+	unsigned long haddr = address & HPAGE_PMD_MASK;
-+
-+	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
-+		return VM_FAULT_FALLBACK;
-+	if (unlikely(anon_vma_prepare(vma)))
-+		return VM_FAULT_OOM;
-+	if (unlikely(khugepaged_enter(vma)))
-+		return VM_FAULT_OOM;
-+	/*
-+	 * we're not going to handle this case yet, for now
-+	 * we'll just fall back to regular pages
-+	 */
-+	if (!(flags & FAULT_FLAG_WRITE) &&
-+			transparent_hugepage_use_zero_page()) {
-+		pgtable_t pgtable;
-+		struct page *zero_page;
-+		bool set;
-+		pgtable = pte_alloc_one(mm, haddr);
-+		if (unlikely(!pgtable))
-+			return VM_FAULT_OOM;
-+		zero_page = get_huge_zero_page();
-+		if (unlikely(!zero_page)) {
-+			pte_free(mm, pgtable);
-+			count_vm_event(THP_FAULT_FALLBACK);
-+			return VM_FAULT_FALLBACK;
-+		}
-+		spin_lock(&mm->page_table_lock);
-+		set = set_huge_zero_page(pgtable, mm, vma, haddr, pmd,
-+				zero_page);
-+		spin_unlock(&mm->page_table_lock);
-+		if (!set) {
-+			pte_free(mm, pgtable);
-+			put_huge_zero_page();
-+		}
-+		return 0;
-+	}
-+
-+	/*
-+	 * Here's where we either need to store the PMD on the list
-+	 * and give them a regular page, or make the decision to flip
-+	 * the PSE bit and send them back with a hugepage
-+	 *
-+	 * + First we call find_pmd_mm_freelist to determine if the pmd
-+	 *   we're interested in has already been faulted into
-+	 */
-+	spin_lock(&mm->thp_list_lock);
-+	temp_thp = find_pmd_mm_freelist(mm, pmd);
-+
-+	/* this is a temporary workaround to avoid putting the pages back on the freelist */
-+	if (temp_thp && temp_thp->node == -1) {
-+		spin_unlock(&mm->thp_list_lock);
-+		goto single_fault;
-+	}
-+
-+	/*
-+	 * we need to create a list entry and add it to the
-+	 * new per-mm free list if we didn't find an existing
-+	 * entry
-+	 */
-+	if (!temp_thp && pmd_none(*pmd)) {
-+		/* try to get 512 pages from the freelist */
-+		page = alloc_temp_hugepage_vma(transparent_hugepage_defrag(vma),
-+					  vma, haddr, numa_node_id(), 0);
-+
-+		if (unlikely(!page)) {
-+			/* we should probably change the VM event here? */
-+			count_vm_event(THP_FAULT_FALLBACK);
-+			return VM_FAULT_FALLBACK;
-+		}
-+
-+		/* do this here instead of below, to get the whole page ready */
-+		clear_huge_page(page, haddr, HPAGE_PMD_NR);
-+
-+		/* add a new temp_hugepage entry to the local freelist */
-+		temp_thp = kmalloc(sizeof(struct temp_hugepage), GFP_KERNEL);
-+		if (!temp_thp)
-+			return VM_FAULT_OOM;
-+		temp_thp->pmd = pmd;
-+		temp_thp->page = page;
-+		temp_thp->node = numa_node_id();
-+		temp_thp->ref_count = 1;
-+		list_add(&temp_thp->list, &mm->thp_temp_list);
-+	/*
-+	 * otherwise we increment the reference count, and decide whether
-+	 * or not to create a THP
-+	 */
-+	} else if (temp_thp && !pmd_none(*pmd) && temp_thp->node == numa_node_id()) {
-+		temp_thp->ref_count++;
-+	/* if they allocated from a different node, they don't get a thp */
-+	} else if (temp_thp && !pmd_none(*pmd) && temp_thp->node != numa_node_id()) {
-+		/*
-+		 * for now we handle this by pushing the rest of the faults through our
-+		 * custom fault code below, eventually we will want to put the unused
-+		 * pages from out temp_hugepage back on the freelist, so they can be
-+		 * faulted in by the normal code paths
-+		 */
-+
-+		temp_thp->node = -1;
-+	} else {
-+		spin_unlock(&mm->thp_list_lock);
-+		return VM_FAULT_FALLBACK;
-+	}
-+
-+	spin_unlock(&mm->thp_list_lock);
-+
-+	/*
-+	 * now that we've done the accounting work, we check to see if
-+	 * we've exceeded our threshold
-+	 */
-+	if (temp_thp->ref_count >= mm->thp_threshold) {
-+		pmd_t pmd_entry;
-+		pgtable_t pgtable;
-+
-+		/*
-+		 * we'll do all of the following beneath the big ptl for now
-+		 * this will need to be modified to work with the split ptl
-+		 */
-+		spin_lock(&mm->page_table_lock);
-+
-+		/*
-+		 * once we get past the lock we have to make sure that somebody
-+		 * else hasn't already turned this guy into a THP, if they have,
-+		 * then the page we need is already faulted in as part of the THP
-+		 * they created
-+		 */
-+		if (PageTransHuge(temp_thp->page)) {
-+			spin_unlock(&mm->page_table_lock);
-+			return 0;
-+		}
-+
-+		pgtable = pte_alloc_one(mm, haddr);
-+		if (unlikely(!pgtable)) {
-+			spin_unlock(&mm->page_table_lock);
-+			return VM_FAULT_OOM;
-+		}
-+
-+		/* might wanna move this? */
-+		__SetPageUptodate(temp_thp->page);
-+
-+		/* turn the pages into one compound page */
-+		make_compound_page(temp_thp->page, HPAGE_PMD_ORDER);
-+
-+		/* set up the pmd */
-+		pmd_entry = mk_huge_pmd(temp_thp->page, vma->vm_page_prot);
-+		pmd_entry = maybe_pmd_mkwrite(pmd_mkdirty(pmd_entry), vma);
-+
-+		/* remap the new page since we cleared the mappings */
-+		page_add_anon_rmap(temp_thp->page, vma, address);
-+
-+		/* deposit the thp */
-+		pgtable_trans_huge_deposit(mm, pmd, pgtable);
-+
-+		set_pmd_at(mm, haddr, pmd, pmd_entry);
-+		add_mm_counter(mm, MM_ANONPAGES, HPAGE_PMD_NR - mm->thp_threshold + 1);
-+		/* mm->nr_ptes++; */
-+
-+		/* delete the reference to this compound page from our list */
-+		spin_lock(&mm->thp_list_lock);
-+		list_del(&temp_thp->list);
-+		spin_unlock(&mm->thp_list_lock);
-+
-+		spin_unlock(&mm->page_table_lock);
-+		return 0;
-+	} else {
-+single_fault:
-+		/* fault in the page */
-+		if (pmd_none(*pmd) && __pte_alloc(mm, vma, temp_thp->pmd, address))
-+			return VM_FAULT_OOM;
-+
-+		/*
-+		 * we'll do all of the following beneath the big ptl for now
-+		 * this will need to be modified to work with the split ptl
-+		 */
-+		spin_lock(&mm->page_table_lock);
-+
-+		page = temp_thp->page + (int) pte_index(address);
-+
-+		/* set the page's refcount */
-+		set_page_refcounted(page);
-+		pte = pte_offset_map(temp_thp->pmd, address);
-+
-+		/* might wanna move this? */
-+		__SetPageUptodate(page);
-+
-+		if (!pte_present(*pte)) {
-+			if (pte_none(*pte)) {
-+				pte_unmap(pte);
-+
-+				if (unlikely(anon_vma_prepare(vma))) {
-+					spin_unlock(&mm->page_table_lock);
-+					return VM_FAULT_OOM;
-+				}
-+
-+				entry = mk_pte(page, vma->vm_page_prot);
-+				if (vma->vm_flags & VM_WRITE)
-+					entry = pte_mkwrite(pte_mkdirty(entry));
-+
-+				pte = pte_offset_map_lock(mm, temp_thp->pmd, address, &ptl);
-+
-+				page_add_new_anon_rmap(page, vma, haddr);
-+				add_mm_counter(mm, MM_ANONPAGES, 1);
-+
-+				set_pte_at(mm, address, pte, entry);
-+
-+				pte_unmap_unlock(pte, ptl);
-+				spin_unlock(&mm->page_table_lock);
-+
-+				return 0;
-+			}
-+		} else {
-+			spin_unlock(&mm->page_table_lock);
-+			return VM_FAULT_FALLBACK;
-+		}
-+	}
-+
-+	/* I don't know what this does right now.  I'm leaving it */
-+	if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
-+		put_page(page);
-+		count_vm_event(THP_FAULT_FALLBACK);
-+		return VM_FAULT_FALLBACK;
-+	}
-+
-+	/*
-+	 * here's the important piece, where we actually make our 512
-+	 * page chunk into a THP, by setting the PSE bit.  This is the
-+	 * spot we really need to change.  In the end, we could probably
-+	 * spin this up into the old function, but we'll keep them separate
-+	 * for now
-+	 */
-+	if (unlikely(__do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page))) {
-+		mem_cgroup_uncharge_page(page);
-+		put_page(page);
-+		count_vm_event(THP_FAULT_FALLBACK);
-+		return VM_FAULT_FALLBACK;
-+	}
-+
-+	/* again, probably want a different VM event here */
-+	count_vm_event(THP_FAULT_ALLOC);
-+	return 0;
-+}
-+
- int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 		  pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr,
- 		  struct vm_area_struct *vma)
-diff --git a/mm/internal.h b/mm/internal.h
-index 684f7aa..8fc296b 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -98,6 +98,7 @@ extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
-  */
- extern void __free_pages_bootmem(struct page *page, unsigned int order);
- extern void prep_compound_page(struct page *page, unsigned long order);
-+extern void make_compound_page(struct page *page, unsigned long order);
- #ifdef CONFIG_MEMORY_FAILURE
- extern bool is_free_buddy_page(struct page *page);
- #endif
-diff --git a/mm/memory.c b/mm/memory.c
-index d176154..014d9ba 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3764,13 +3764,30 @@ retry:
- 	pmd = pmd_alloc(mm, pud, address);
- 	if (!pmd)
- 		return VM_FAULT_OOM;
--	if (pmd_none(*pmd) && transparent_hugepage_enabled(vma)) {
-+	if (transparent_hugepage_enabled(vma)) {
- 		int ret = VM_FAULT_FALLBACK;
--		if (!vma->vm_ops)
--			ret = do_huge_pmd_anonymous_page(mm, vma, address,
--					pmd, flags);
--		if (!(ret & VM_FAULT_FALLBACK))
--			return ret;
-+		/*
-+		 * This is a temporary location for this code, just to get things
-+		 * up and running.  I'll come up with a better way to handle this
-+		 * later
-+		 */
-+		if (!mm->thp_threshold)
-+			mm->thp_threshold = thp_threshold_check();
-+		if (!mm->thp_temp_list.next && !mm->thp_temp_list.prev)
-+			INIT_LIST_HEAD(&mm->thp_temp_list);
-+		if (mm->thp_threshold > 1) {
-+			if (!vma->vm_ops)
-+				ret = do_huge_pmd_temp_page(mm, vma, address,
-+							    pmd, flags);
-+			if (!(ret & VM_FAULT_FALLBACK))
-+				return ret;
-+		} else if (pmd_none(*pmd)) {
-+			if (!vma->vm_ops)
-+				ret = do_huge_pmd_anonymous_page(mm, vma, address,
-+								 pmd, flags);
-+			if (!(ret & VM_FAULT_FALLBACK))
-+				return ret;
-+		}
- 	} else {
- 		pmd_t orig_pmd = *pmd;
- 		int ret;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index dd886fa..48e13fc 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -375,6 +375,65 @@ void prep_compound_page(struct page *page, unsigned long order)
- 	}
- }
- 
-+/*
-+ * This function is used to create a proper compound page from a chunk of
-+ * contiguous pages, most likely allocated as a temporary hugepage
-+ */
-+void make_compound_page(struct page *page, unsigned long order)
-+{
-+	int i, max_count = 0, max_mapcount = 0;
-+	int nr_pages = 1 << order;
-+
-+	set_compound_page_dtor(page, free_compound_page);
-+	set_compound_order(page, order);
-+
-+	__SetPageHead(page);
-+
-+	/*
-+	 * we clear all the mappings here, so we have to remember to set
-+	 * them back up!
-+	 */
-+	page->mapping = NULL;
-+
-+	max_count = (int) atomic_read(&page->_count);
-+	max_mapcount = (int) atomic_read(&page->_mapcount);
-+
-+	for (i = 1; i < nr_pages; i++) {
-+		int cur_count, cur_mapcount;
-+		struct page *p = page + i;
-+		p->flags = 0; /* this seems dumb */
-+		__SetPageTail(p);
-+		set_page_count(p, 0);
-+		p->first_page = page;
-+		p->mapping = NULL;
-+
-+		cur_count = (int) atomic_read(&page->_count);
-+		cur_mapcount = (int) atomic_read(&page->_mapcount);
-+		atomic_set(&page->_count, 0);
-+		atomic_set(&page->_mapcount, -1);
-+		if (cur_count > max_count)
-+			max_count = cur_count;
-+		if (cur_mapcount > max_mapcount)
-+			max_mapcount = cur_mapcount;
-+
-+		/*
-+		 * poison the LRU entries for all the tail pages (aside from the
-+		 * first one), the entries for the head page should be okay
-+		 */
-+		if (i != 1) {
-+			p->lru.next = LIST_POISON1;
-+			p->lru.prev = LIST_POISON2;
-+		}
-+	}
-+
-+	atomic_set(&page->_count, max_count);
-+	/*
-+	 * we set to max_mapcount - 1 here because we're going to
-+	 * map this page again later.  This definitely doesn't seem right.
-+	 */
-+	atomic_set(&page->_mapcount, max_mapcount - 1);
-+}
-+
- /* update __split_huge_page_refcount if you change this function */
- static int destroy_compound_page(struct page *page, unsigned long order)
- {
-@@ -865,7 +924,12 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
- 	}
- 
- 	set_page_private(page, 0);
--	set_page_refcounted(page);
-+	 /*
-+	  * We don't want to set _count for temporary compound pages, since
-+	  * we may not immediately fault in the first page
-+	  */
-+	if (!(gfp_flags & __GFP_COMP_TEMP))
-+		set_page_refcounted(page);
- 
- 	arch_alloc_page(page, order);
- 	kernel_map_pages(page, 1 << order, 1);
--- 
-1.7.12.4
+When we have a system OOM we want to do a walk of the administrative
+memcg tree (which is only a couple levels deep, users can make
+non-admin sub-memcgs), selecting the lowest priority entity at each
+step (where both tasks and memcgs have a priority and the priority
+range is much wider than the current OOM scores, and where memcg
+priority is sometimes a function of memcg usage), until we reach a
+leaf.
+
+Once we reach a leaf, I want to log some info about the memcg doing
+the allocation, the memcg being terminated, and maybe some other bits
+about the system (depending on the priority of the selected victim,
+this may or may not be an "acceptable" situation).  Then I want to
+kill *everything* under that memcg.  Then I want to "publish" some
+information through a sane API (e.g. not dmesg scraping).
+
+This is basically our policy as we understand it today.  This is
+notably different than it was a year ago, and it will probably evolve
+further in the next year.
+
+Teaching the kernel all of this stuff has proven to be sort of
+difficult to maintain and forward-port, and has been very slow to
+evolve because of how painful it is to test and deploy new kernels.
+
+Maybe we can find a way to push this level of policy down to the
+kernel OOM killer?  When this was mentioned internally I got shot down
+(gently, but shot down none the less).  Assuming we had
+nearly-reliable (it doesn't have to be 100% guaranteed to be useful)
+OOM-in-userspace, I can keep the adminstrative memcg metadata in
+memory, implement killing as cruelly as I need, and do all of the
+logging and publication after the OOM kill is done.  Most importantly
+I can test and deploy new policy changes pretty trivially.
+
+Handling per-memcg OOM is a different discussion.  Here is where we
+want to be able to extract things like heap profiles or take stats
+snapshots, grow memcgs (if so configured) etc.  Allowing our users to
+have a moment of mercy before we put a bullet in their brain enables a
+whole new realm of debugging, as well as a lot of valuable features.
+
+> It'd depend on the workload but with memcg fully configured it
+> shouldn't fluctuate wildly.  If it does, we need to hunt down whatever
+> is causing such fluctuatation and include it in kmemcg, right?  That
+> way, memcg as a whole improves for all use cases not just your niche
+> one and I strongly believe that aligning as many use cases as possible
+> along the same axis, rather than creating a large hole to stow away
+> the exceptions, is vastly more beneficial to *everyone* in the long
+> term.
+
+We have a long tail of kernel memory usage.  If we provision machines
+so that the "do work here" first-level memcg excludes the average
+kernel usage, we have a huge number of machines that will fail to
+apply OOM policy because of actual overcommitment.  If we provision
+for 95th or 99th percentile kernel usage, we're wasting large amounts
+of memory that could be used to schedule jobs.  This is the
+fundamental problem we face with static apportionment (and we face it
+in a dozen other situations, too).  Expressing this set-aside memory
+as "off-the-top" rather than absolute limits makes the whole system
+more flexible.
+
+> There'd still be all the bells and whistles to configure and monitor
+> system-level OOM and if there's justified need for improvements, we
+> surely can and should do that; however, with the heavy lifting / hot
+> path offloaded to the per-memcg userland OOM handlers, I believe it's
+> reasonable to expect the burden on system OOM handler being noticeably
+> less, which is the way it should be.  That's the last guard against
+> the whole system completely locking up and we can't extend its
+> capabilities beyond that easily and we most likely don't even want to.
+>
+> If I take back a step and look at the two options and their pros and
+> cons, which path we should take is rather obvious to me.  I hope you
+> see it too.
+>
+> Thanks.
+>
+> --
+> tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
