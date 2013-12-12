@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f170.google.com (mail-ea0-f170.google.com [209.85.215.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F1946B0036
-	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 10:06:24 -0500 (EST)
-Received: by mail-ea0-f170.google.com with SMTP id k10so300812eaj.29
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 07:06:23 -0800 (PST)
+Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A63E6B0038
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 10:06:25 -0500 (EST)
+Received: by mail-ee0-f48.google.com with SMTP id e49so293108eek.21
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 07:06:24 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l44si24045567eem.124.2013.12.12.07.06.23
+        by mx.google.com with ESMTPS id f8si24072813eep.57.2013.12.12.07.06.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 12 Dec 2013 07:06:23 -0800 (PST)
+        Thu, 12 Dec 2013 07:06:24 -0800 (PST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 2/4] mm: page_alloc: Break out zone page aging distribution into its own helper
-Date: Thu, 12 Dec 2013 15:06:17 +0000
-Message-Id: <1386860779-2301-3-git-send-email-mgorman@suse.de>
+Subject: [PATCH 3/4] mm: page_alloc: Use zone node IDs to approximate locality
+Date: Thu, 12 Dec 2013 15:06:18 +0000
+Message-Id: <1386860779-2301-4-git-send-email-mgorman@suse.de>
 In-Reply-To: <1386860779-2301-1-git-send-email-mgorman@suse.de>
 References: <1386860779-2301-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,96 +20,30 @@ List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-This patch moves the decision on whether to round-robin allocations between
-zones and nodes into its own helper functions. It'll make some later patches
-easier to understand and it will be automatically inlined.
+zone_local is using node_distance which is a more expensive call than
+necessary. On x86, it's another function call in the allocator fast path
+and increases cache footprint. This patch makes the assumption zones on a
+local node will share the same node ID. The necessary information should
+already be cache hot.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/page_alloc.c | 63 ++++++++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 42 insertions(+), 21 deletions(-)
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f861d02..64020eb 100644
+index 64020eb..fd9677e 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1872,6 +1872,42 @@ static inline void init_zone_allows_reclaim(int nid)
- #endif	/* CONFIG_NUMA */
+@@ -1816,7 +1816,7 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
  
- /*
-+ * Distribute pages in proportion to the individual zone size to ensure fair
-+ * page aging.  The zone a page was allocated in should have no effect on the
-+ * time the page has in memory before being reclaimed.
-+ * 
-+ * Returns true if this zone should be skipped to spread the page ages to
-+ * other zones.
-+ */
-+static bool zone_distribute_age(gfp_t gfp_mask, struct zone *preferred_zone,
-+				struct zone *zone, int alloc_flags)
-+{
-+	/* Only round robin in the allocator fast path */
-+	if (!(alloc_flags & ALLOC_WMARK_LOW))
-+		return false;
-+
-+	/* Only round robin pages likely to be LRU or reclaimable slab */
-+	if (!(gfp_mask & GFP_MOVABLE_MASK))
-+		return false;
-+
-+	/* Distribute to the next zone if this zone has exhausted its batch */
-+	if (zone_page_state(zone, NR_ALLOC_BATCH) <= 0)
-+		return true;
-+
-+	/*
-+	 * When zone_reclaim_mode is enabled, try to stay in local zones in the
-+	 * fastpath.  If that fails, the slowpath is entered, which will do
-+	 * another pass starting with the local zones, but ultimately fall back
-+	 * back to remote zones that do not partake in the fairness round-robin
-+	 * cycle of this zonelist.
-+	 */
-+	if (zone_reclaim_mode && !zone_local(preferred_zone, zone))
-+		return true;
-+
-+	return false;
-+}
-+
-+/*
-  * get_page_from_freelist goes through the zonelist trying to allocate
-  * a page.
-  */
-@@ -1907,27 +1943,12 @@ zonelist_scan:
- 		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
- 		if (unlikely(alloc_flags & ALLOC_NO_WATERMARKS))
- 			goto try_this_zone;
--		/*
--		 * Distribute pages in proportion to the individual
--		 * zone size to ensure fair page aging.  The zone a
--		 * page was allocated in should have no effect on the
--		 * time the page has in memory before being reclaimed.
--		 *
--		 * When zone_reclaim_mode is enabled, try to stay in
--		 * local zones in the fastpath.  If that fails, the
--		 * slowpath is entered, which will do another pass
--		 * starting with the local zones, but ultimately fall
--		 * back to remote zones that do not partake in the
--		 * fairness round-robin cycle of this zonelist.
--		 */
--		if ((alloc_flags & ALLOC_WMARK_LOW) &&
--		    (gfp_mask & GFP_MOVABLE_MASK)) {
--			if (zone_page_state(zone, NR_ALLOC_BATCH) <= 0)
--				continue;
--			if (zone_reclaim_mode &&
--			    !zone_local(preferred_zone, zone))
--				continue;
--		}
-+
-+		/* Distribute pages to ensure fair page aging */
-+		if (zone_distribute_age(gfp_mask, preferred_zone, zone,
-+					alloc_flags))
-+			continue;
-+
- 		/*
- 		 * When allocating a page cache page for writing, we
- 		 * want to get it from a zone that is within its dirty
+ static bool zone_local(struct zone *local_zone, struct zone *zone)
+ {
+-	return node_distance(local_zone->node, zone->node) == LOCAL_DISTANCE;
++	return zone_to_nid(zone) == numa_node_id();
+ }
+ 
+ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
 -- 
 1.8.4
 
