@@ -1,92 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 2396A6B0031
-	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 06:14:36 -0500 (EST)
-Received: by mail-ea0-f180.google.com with SMTP id f15so149790eak.11
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 03:14:35 -0800 (PST)
+Received: from mail-ea0-f181.google.com (mail-ea0-f181.google.com [209.85.215.181])
+	by kanga.kvack.org (Postfix) with ESMTP id B8EB66B0031
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 06:55:12 -0500 (EST)
+Received: by mail-ea0-f181.google.com with SMTP id m10so170725eaj.26
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 03:55:12 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id f8si23218733eep.78.2013.12.12.03.14.34
+        by mx.google.com with ESMTP id u49si23319687eep.148.2013.12.12.03.55.11
         for <linux-mm@kvack.org>;
-        Thu, 12 Dec 2013 03:14:34 -0800 (PST)
-Date: Thu, 12 Dec 2013 12:14:29 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH RFC] mm readahead: Fix the readahead fail in case of
- empty numa node
-Message-ID: <20131212111429.GA4312@quack.suse.cz>
-References: <1386066977-17368-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
- <20131203143841.11b71e387dc1db3a8ab0974c@linux-foundation.org>
- <529EE811.5050306@linux.vnet.ibm.com>
- <20131204004125.a06f7dfc.akpm@linux-foundation.org>
- <529EF0FB.2050808@linux.vnet.ibm.com>
- <20131204134838.a048880a1db9e9acd14a39e4@linux-foundation.org>
- <20131211224917.GF1163@quack.suse.cz>
- <20131211150522.4b853323e8b82f342f81b64d@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131211150522.4b853323e8b82f342f81b64d@linux-foundation.org>
+        Thu, 12 Dec 2013 03:55:11 -0800 (PST)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [RFC PATCH 0/3] Fix ebizzy performance regression on IvyBridge due to X86 TLB range flush
+Date: Thu, 12 Dec 2013 11:55:06 +0000
+Message-Id: <1386849309-22584-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Alex Shi <alex.shi@linaro.org>
+Cc: H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Wed 11-12-13 15:05:22, Andrew Morton wrote:
-> On Wed, 11 Dec 2013 23:49:17 +0100 Jan Kara <jack@suse.cz> wrote:
-> 
-> > >  /*
-> > > - * Given a desired number of PAGE_CACHE_SIZE readahead pages, return a
-> > > - * sensible upper limit.
-> > > + * max_sane_readahead() is disabled.  It can later be removed altogether, but
-> > > + * let's keep a skeleton in place for now, in case disabling was the wrong call.
-> > >   */
-> > >  unsigned long max_sane_readahead(unsigned long nr)
-> > >  {
-> > > -	return min(nr, (node_page_state(numa_node_id(), NR_INACTIVE_FILE)
-> > > -		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
-> > > +	return nr;
-> > >  }
-> > >  
-> > >  /*
-> > > 
-> > > Can anyone see a problem with this?
-> >   Well, the downside seems to be that if userspace previously issued
-> > MADV/FADV_WILLNEED on a huge file, we trimmed the request to a sensible
-> > size. Now we try to read the whole huge file which is pretty much
-> > guaranteed to be useless (as we'll be pushing out of cache data we just
-> > read a while ago). And guessing the right readahead size from userspace
-> > isn't trivial so it would make WILLNEED advice less useful. What do you
-> > think?
-> 
-> OK, yes, there is conceivably a back-compatibility issue there.  There
-> indeed might be applications which decide the chuck the whole thing at
-> the kernel and let the kernel work out what is a sensible readahead
-> size to perform.
->
-> But I'm really struggling to think up an implementation!  The current
-> code looks only at the caller's node and doesn't seem to make much
-> sense.  Should we look at all nodes?  Hard to say without prior
-> knowledge of where those pages will be coming from.
-  Well, I believe that we might have some compatibility issues only for
-non-NUMA machines - there the current logic makes sense. For NUMA machines
-I believe we are free to do basically anything because results of the
-current logic are pretty random.
+I found that ebizzy regressed between 3.4 and 3.10 while testing on a new
+machine. Bisection initially found at least two problems of which the
+first was commit 611ae8e3 (x86/tlb: enable tlb flush range support for
+x86). The second was related to ACPI cpufreq and so it was disabled for
+the purposes of this series.
 
-Thinking about proper implementation for NUMA - max_sane_readahead() is
-really interesting for madvise() and fadvise() calls (standard on demand
-readahead is bounded by bdi->ra_pages which tends to be pretty low anyway
-(like 512K or so)). For these calls we will do the reads from the process
-issuing the [fm]advise() call and thus we will allocate pages depending on
-the NUMA policy. So depending on this policy we should be able to pick some
-estimate on the number of available pages, shouldn't we?
+The intent of the TLB range flush patch appeared to be to preserve
+existing TLB entries which makes sense. The decision on whether to do a
+full mm flush or a number of single page flushes depends on the size of the
+relevant TLB and the CPU which is presuably taking the cost of a TLB refill.
+It is a gamble because the cost of the per-page flushes must be offset by a
+reduced TLB miss count. There are no indications what the cost of calling
+invlpg are if there are no TLB entries and it's also not taking into
+account how many CPUs it may have to execute these single TLB flushes on.
 
-BTW, the fact that [fm]advise() calls submit all reads synchronously is
-another reason why we should bound the readahead requests to a sensible
-size.
+Ebizzy sees very little benefit as it discards newly allocated memory very
+quickly which is why it appeared to regress so badly. While I'm wary of
+optimising for such a benchmark, it's commonly tested and the defaults for
+Ivybridge may need to be re-examined.
 
-								Honza
+The following small series restores ebizzy to 3.4-era performance. Is there a
+better way of doing this? Bear in mind that I'm testing on a single IvyBridge
+machine and there is no guarantee the gain is universal or even relevant.
+
+kernel build was tested but it's uninteresting as TLB range is unimportant
+to it. A page fault benchmark was also tested but it does not hit the same paths
+impacted by commit 611ae8e3.
+
+ebizzy
+                       3.13.0-rc3                3.4.69            3.13.0-rc3
+                          vanilla               vanilla           newdefault-v1
+Mean     1      7353.60 (  0.00%)     6782.00 ( -7.77%)     7836.20 (  6.56%)
+Mean     2      8120.40 (  0.00%)     8278.80 (  1.95%)     9520.60 ( 17.24%)
+Mean     3      8087.80 (  0.00%)     8083.60 ( -0.05%)     9003.80 ( 11.33%)
+Mean     4      7919.20 (  0.00%)     7842.60 ( -0.97%)     8680.60 (  9.61%)
+Mean     5      7310.60 (  0.00%)     7740.60 (  5.88%)     8273.20 ( 13.17%)
+Mean     6      6798.00 (  0.00%)     7720.20 ( 13.57%)     8033.20 ( 18.17%)
+Mean     7      6759.40 (  0.00%)     7644.00 ( 13.09%)     7643.80 ( 13.08%)
+Mean     8      6501.80 (  0.00%)     7666.40 ( 17.91%)     6944.40 (  6.81%)
+Mean     12     6606.00 (  0.00%)     7523.20 ( 13.88%)     7035.80 (  6.51%)
+Mean     16     6655.40 (  0.00%)     7287.40 (  9.50%)     7099.20 (  6.67%)
+Mean     20     6703.80 (  0.00%)     7152.20 (  6.69%)     7116.60 (  6.16%)
+Mean     24     6705.80 (  0.00%)     7014.80 (  4.61%)     7113.60 (  6.08%)
+Mean     28     6706.60 (  0.00%)     6940.40 (  3.49%)     7115.20 (  6.09%)
+Mean     32     6727.20 (  0.00%)     6878.80 (  2.25%)     7110.80 (  5.70%)
+Stddev   1        42.71 (  0.00%)       53.16 (-24.46%)       39.80 (  6.82%)
+Stddev   2       250.26 (  0.00%)      150.57 ( 39.84%)       31.94 ( 87.24%)
+Stddev   3        71.67 (  0.00%)       69.38 (  3.19%)       84.13 (-17.39%)
+Stddev   4        30.25 (  0.00%)       87.06 (-187.82%)       31.80 ( -5.14%)
+Stddev   5        71.18 (  0.00%)       25.68 ( 63.92%)      125.24 (-75.95%)
+Stddev   6        34.22 (  0.00%)       23.35 ( 31.75%)      124.40 (-263.57%)
+Stddev   7       100.59 (  0.00%)      112.83 (-12.17%)       65.07 ( 35.31%)
+Stddev   8        20.26 (  0.00%)       43.43 (-114.32%)       48.26 (-138.16%)
+Stddev   12       19.43 (  0.00%)       19.73 ( -1.55%)       23.25 (-19.65%)
+Stddev   16       14.47 (  0.00%)       26.42 (-82.54%)       17.71 (-22.40%)
+Stddev   20       21.37 (  0.00%)       15.97 ( 25.27%)       14.87 ( 30.42%)
+Stddev   24       12.87 (  0.00%)       28.12 (-118.44%)       10.46 ( 18.75%)
+Stddev   28       13.89 (  0.00%)       17.97 (-29.36%)       12.22 ( 12.04%)
+Stddev   32       18.14 (  0.00%)       20.37 (-12.31%)       16.40 (  9.58%)
+
+          3.13.0-rc3      3.4.69  3.13.0-rc3
+             vanilla     vanilla newdefault-v1
+User          900.27      995.20      947.33
+System       1583.41     1680.76     1533.17
+Elapsed      2100.78     2100.81     2100.76
+
+This shows the ebizzy comparison between 3.13-rc3, 3.4.69-stable and this series.
+The series is not a universal win against 3.4 but the figure are generally better
+and system CPU usage is reduced.
+
+ arch/x86/kernel/cpu/intel.c |  2 +-
+ arch/x86/mm/tlb.c           | 15 +++++++++------
+ 2 files changed, 10 insertions(+), 7 deletions(-)
+
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+1.8.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
