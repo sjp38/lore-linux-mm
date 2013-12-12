@@ -1,61 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f170.google.com (mail-ea0-f170.google.com [209.85.215.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D9E66B0031
-	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 10:34:27 -0500 (EST)
-Received: by mail-ea0-f170.google.com with SMTP id k10so319879eaj.29
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 07:34:26 -0800 (PST)
+Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 35CC06B0031
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 11:32:25 -0500 (EST)
+Received: by mail-ea0-f180.google.com with SMTP id f15so356212eak.11
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 08:32:24 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l44si24162692eem.124.2013.12.12.07.34.25
+        by mx.google.com with ESMTPS id p9si24413010eew.34.2013.12.12.08.32.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 12 Dec 2013 07:34:26 -0800 (PST)
-Date: Thu, 12 Dec 2013 15:34:22 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH 0/4] Configurable fair allocation zone policy
-Message-ID: <20131212153422.GJ11295@suse.de>
-References: <1386860779-2301-1-git-send-email-mgorman@suse.de>
+        Thu, 12 Dec 2013 08:32:24 -0800 (PST)
+Date: Thu, 12 Dec 2013 17:32:22 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 7/8] mm, memcg: allow processes handling oom
+ notifications to access reserves
+Message-ID: <20131212163222.GK2630@dhcp22.suse.cz>
+References: <alpine.DEB.2.02.1312041742560.20115@chino.kir.corp.google.com>
+ <20131205025026.GA26777@htj.dyndns.org>
+ <alpine.DEB.2.02.1312051537550.7717@chino.kir.corp.google.com>
+ <20131206190105.GE13373@htj.dyndns.org>
+ <alpine.DEB.2.02.1312061441390.8949@chino.kir.corp.google.com>
+ <20131210215037.GB9143@htj.dyndns.org>
+ <alpine.DEB.2.02.1312101522400.22701@chino.kir.corp.google.com>
+ <20131211124240.GA24557@htj.dyndns.org>
+ <CAAAKZwsmM-C=kLGV=RW=Y4Mq=BWpQzuPruW6zvEr9p0Xs4GD5g@mail.gmail.com>
+ <20131212142156.GB32683@htj.dyndns.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1386860779-2301-1-git-send-email-mgorman@suse.de>
+In-Reply-To: <20131212142156.GB32683@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Tim Hockin <thockin@hockin.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Li Zefan <lizefan@huawei.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>
 
-On Thu, Dec 12, 2013 at 03:06:15PM +0000, Mel Gorman wrote:
-> Commit 81c0a2bb ("mm: page_alloc: fair zone allocator policy") solved a
-> bug whereby new pages could be reclaimed before old pages because of how
-> the page allocator and kswapd interacted on the per-zone LRU lists.
-> 
-> Unfortunately a side-effect missed during review was that it's now very
-> easy to allocate remote memory on NUMA machines. The problem is that
-> it is not a simple case of just restoring local allocation policies as
-> there are genuine reasons why global page aging may be prefereable. It's
-> still a major change to default behaviour so this patch makes the policy
-> configurable and sets what I think is a sensible default.
-> 
-> The patches are on top of some NUMA balancing patches currently in -mm.
-> The first patch in the series is a patch posted by Johannes that must be
-> taken into account before any of my patches on top. The last patch of the
-> series is what alters default behaviour and makes the fair zone allocator
-> policy configurable.
-> 
-> Sniff test results based on following kernels
-> 
-> vanilla		 3.13-rc3 stock
-> instrument-v5r1  NUMA balancing patches just to rule out any conflicts there
-> lruslabonly-v1r2 Patch 1 only
-> local-v1r2	 Full series
-> 
+On Thu 12-12-13 09:21:56, Tejun Heo wrote:
+[...]
+> There'd still be all the bells and whistles to configure and monitor
+> system-level OOM and if there's justified need for improvements, we
+> surely can and should do that;
 
-These figures need to be redone. The instrument-v5r1 and later kernels
-included a debugging patch that increases migration rates to trigger
-another bug. The figures of local-v1r2 relative to instrument-v5r1 are
-fine but not relative to 3.13.0-rc3-vanilla
+You weren't on the CC of the original thread which has started here
+https://lkml.org/lkml/2013/11/19/191. And the original request for
+discussion was more about user defined _policies_ for the global
+OOM rather than user space global OOM handler. I feel that there
+are usacases where the current "kill a single task based on some
+calculations" is far from optimal which leads to hacks which try to cope
+with after oom condition somehow gracefully.
 
+I do agree with you that pulling oom handling sounds too dangerous
+even with all the code that it would need and I feel we should go a
+different path than (ab)using memcg.oom_control interface for that.
+I still think we need to have a way to tell the global OOM killer what
+to do.
+
+[...]
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
