@@ -1,19 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f46.google.com (mail-qe0-f46.google.com [209.85.128.46])
-	by kanga.kvack.org (Postfix) with ESMTP id ADB7D6B0035
-	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 12:44:20 -0500 (EST)
-Received: by mail-qe0-f46.google.com with SMTP id a11so607189qen.5
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 09:44:20 -0800 (PST)
-Received: from a9-42.smtp-out.amazonses.com (a9-42.smtp-out.amazonses.com. [54.240.9.42])
-        by mx.google.com with ESMTP id f1si19420563qar.164.2013.12.12.09.44.19
+Received: from mail-yh0-f45.google.com (mail-yh0-f45.google.com [209.85.213.45])
+	by kanga.kvack.org (Postfix) with ESMTP id C5C836B0035
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 12:46:04 -0500 (EST)
+Received: by mail-yh0-f45.google.com with SMTP id v1so593866yhn.32
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 09:46:04 -0800 (PST)
+Received: from a9-99.smtp-out.amazonses.com (a9-99.smtp-out.amazonses.com. [54.240.9.99])
+        by mx.google.com with ESMTP id b6si19488242qak.6.2013.12.12.09.46.03
         for <linux-mm@kvack.org>;
-        Thu, 12 Dec 2013 09:44:19 -0800 (PST)
-Date: Thu, 12 Dec 2013 17:44:18 +0000
+        Thu, 12 Dec 2013 09:46:03 -0800 (PST)
+Date: Thu, 12 Dec 2013 17:46:02 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH 3/3] mm: slabs: reset page at free
-In-Reply-To: <20131211224028.9D7AD2B7@viggo.jf.intel.com>
-Message-ID: <00000142e7e8ba5d-bcdf8715-dd6a-411a-8c55-12a4668c6489-000000@email.amazonses.com>
-References: <20131211224022.AA8CF0B9@viggo.jf.intel.com> <20131211224028.9D7AD2B7@viggo.jf.intel.com>
+Subject: Re: [RFC][PATCH 2/3] mm: slab: move around slab ->freelist for
+ cmpxchg
+In-Reply-To: <20131211224025.70B40B9C@viggo.jf.intel.com>
+Message-ID: <00000142e7ea519d-8906d225-c99c-44b5-b381-b573c75fd097-000000@email.amazonses.com>
+References: <20131211224022.AA8CF0B9@viggo.jf.intel.com> <20131211224025.70B40B9C@viggo.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -23,19 +24,16 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.inte
 
 On Wed, 11 Dec 2013, Dave Hansen wrote:
 
-> We now have slub's ->freelist usage impinging on page->mapping's
-> storage space.  The buddy allocator wants ->mapping to be NULL
-> when a page is handed back, so we have to make sure that it is
-> cleared.
 >
-> Note that slab already doeds this, so just create a common helper
-> and have all the slabs do it this way.  ->mapping is right next
-> to ->flags, so it's virtually guaranteed to be in the L1 at this
-> point, so this shouldn't cost very much to do in practice.
+> The write-argument to cmpxchg_double() must be 16-byte aligned.
+> We used to align 'struct page' itself in order to guarantee this,
+> but that wastes 8-bytes per page.  Instead, we take 8-bytes
+> internal to the page before page->counters and move freelist
+> between there and the existing 8-bytes after counters.  That way,
+> no matter how 'stuct page' itself is aligned, we can ensure that
+> we have a 16-byte area with which to to this cmpxchg.
 
-Maybe add a common page alloc and free function in mm/slab_common.c?
-
-All the allocators do similar things after all.
+Well this adds additional branching to the fast paths.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
