@@ -1,60 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f53.google.com (mail-yh0-f53.google.com [209.85.213.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FCCD6B0035
-	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 18:31:55 -0500 (EST)
-Received: by mail-yh0-f53.google.com with SMTP id b20so962122yha.40
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 15:31:55 -0800 (PST)
-Received: from mail-yh0-x231.google.com (mail-yh0-x231.google.com [2607:f8b0:4002:c01::231])
-        by mx.google.com with ESMTPS id f29si28530yhd.70.2013.12.12.15.31.54
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 12 Dec 2013 15:31:54 -0800 (PST)
-Received: by mail-yh0-f49.google.com with SMTP id z20so950201yhz.22
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 15:31:54 -0800 (PST)
-Date: Thu, 12 Dec 2013 15:31:51 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] memcg, oom: lock mem_cgroup_print_oom_info
-In-Reply-To: <20131212084420.GA2630@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.02.1312121528400.17641@chino.kir.corp.google.com>
-References: <1386776545-24916-1-git-send-email-mhocko@suse.cz> <alpine.DEB.2.02.1312111421320.7354@chino.kir.corp.google.com> <20131212084420.GA2630@dhcp22.suse.cz>
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 440E66B0035
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 18:40:41 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id w10so1371896pde.20
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 15:40:40 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id ob10si9915pbb.217.2013.12.12.15.40.39
+        for <linux-mm@kvack.org>;
+        Thu, 12 Dec 2013 15:40:39 -0800 (PST)
+Date: Thu, 12 Dec 2013 15:40:38 -0800
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [RFC][PATCH 2/3] mm: slab: move around slab ->freelist for
+ cmpxchg
+Message-ID: <20131212234038.GQ22695@tassilo.jf.intel.com>
+References: <20131211224022.AA8CF0B9@viggo.jf.intel.com>
+ <20131211224025.70B40B9C@viggo.jf.intel.com>
+ <00000142e7ea519d-8906d225-c99c-44b5-b381-b573c75fd097-000000@email.amazonses.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <00000142e7ea519d-8906d225-c99c-44b5-b381-b573c75fd097-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-On Thu, 12 Dec 2013, Michal Hocko wrote:
-
-> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > index 28c9221b74ea..c72b03bf9679 100644
-> > > --- a/mm/memcontrol.c
-> > > +++ b/mm/memcontrol.c
-> > > @@ -1647,13 +1647,13 @@ static void move_unlock_mem_cgroup(struct mem_cgroup *memcg,
-> > >   */
-> > >  void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
-> > >  {
-> > > -	struct cgroup *task_cgrp;
-> > > -	struct cgroup *mem_cgrp;
-> > >  	/*
-> > > -	 * Need a buffer in BSS, can't rely on allocations. The code relies
-> > > -	 * on the assumption that OOM is serialized for memory controller.
-> > > -	 * If this assumption is broken, revisit this code.
-> > > +	 * protects memcg_name and makes sure that parallel ooms do not
-> > > +	 * interleave
-> > 
-> > Parallel memcg oom kills can happen in disjoint memcg hierarchies, this 
-> > just prevents the printing of the statistics from interleaving.  I'm not 
-> > sure if that's clear from this comment.
+On Thu, Dec 12, 2013 at 05:46:02PM +0000, Christoph Lameter wrote:
+> On Wed, 11 Dec 2013, Dave Hansen wrote:
 > 
-> What about this instead:
-> 	* Protects memcg_name and makes sure that ooms from parallel
-> 	* hierarchies do not interleave.
-> ?
+> >
+> > The write-argument to cmpxchg_double() must be 16-byte aligned.
+> > We used to align 'struct page' itself in order to guarantee this,
+> > but that wastes 8-bytes per page.  Instead, we take 8-bytes
+> > internal to the page before page->counters and move freelist
+> > between there and the existing 8-bytes after counters.  That way,
+> > no matter how 'stuct page' itself is aligned, we can ensure that
+> > we have a 16-byte area with which to to this cmpxchg.
+> 
+> Well this adds additional branching to the fast paths.
 
-I think it would be better to explicitly say that you're referring only to 
-the printing here and that we're ensuring it does not interleave in the 
-kernel log.
+The branch should be predictible and compare the cost of a branch
+(near nothing on a modern OOO CPU with low IPC code like this when
+predicted) to the cost of a cache miss (due to larger struct page)
+
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
