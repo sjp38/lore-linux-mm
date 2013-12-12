@@ -1,24 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 2564D6B0031
-	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 08:42:03 -0500 (EST)
-Received: by mail-pd0-f177.google.com with SMTP id q10so518199pdj.8
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 05:42:02 -0800 (PST)
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-        by mx.google.com with ESMTPS id 2si14865011pax.167.2013.12.12.05.41.59
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DBC16B0039
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 08:45:30 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id v10so527409pde.14
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 05:45:29 -0800 (PST)
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+        by mx.google.com with ESMTPS id g6si16636554pbd.54.2013.12.12.05.45.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 12 Dec 2013 05:42:00 -0800 (PST)
-Received: by mail-pd0-f178.google.com with SMTP id y10so525884pdj.9
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 05:41:59 -0800 (PST)
-Message-ID: <52A9BD23.9010902@linaro.org>
-Date: Thu, 12 Dec 2013 21:41:55 +0800
+        Thu, 12 Dec 2013 05:45:29 -0800 (PST)
+Received: by mail-pb0-f51.google.com with SMTP id up15so538211pbc.38
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 05:45:28 -0800 (PST)
+Message-ID: <52A9BDF4.2040101@linaro.org>
+Date: Thu, 12 Dec 2013 21:45:24 +0800
 From: Alex Shi <alex.shi@linaro.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] x86: mm: Account for the of CPUs that must be flushed
- during a TLB range flush
-References: <1386849309-22584-1-git-send-email-mgorman@suse.de> <1386849309-22584-4-git-send-email-mgorman@suse.de>
-In-Reply-To: <1386849309-22584-4-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 2/3] x86: mm: Change tlb_flushall_shift for IvyBridge
+References: <1386849309-22584-1-git-send-email-mgorman@suse.de> <1386849309-22584-3-git-send-email-mgorman@suse.de>
+In-Reply-To: <1386849309-22584-3-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -27,32 +26,32 @@ To: Mel Gorman <mgorman@suse.de>
 Cc: H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
 On 12/12/2013 07:55 PM, Mel Gorman wrote:
-> X86 TLB range flushing uses a balance point to decide if a single global TLB
-> flush or multiple single page flushes would perform best.  This patch takes into
-> account how many CPUs must be flushed.
+> There was a large performance regression that was bisected to commit 611ae8e3
+> (x86/tlb: enable tlb flush range support for x86). This patch simply changes
+> the default balance point between a local and global flush for IvyBridge.
 > 
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->  arch/x86/mm/tlb.c | 3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-> index 09b8cb8..0cababa 100644
-> --- a/arch/x86/mm/tlb.c
-> +++ b/arch/x86/mm/tlb.c
-> @@ -217,6 +217,9 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
->  	act_entries = mm->total_vm > act_entries ? act_entries : mm->total_vm;
->  	nr_base_pages = (end - start) >> PAGE_SHIFT;
->  
-> +	/* Take the number of CPUs to range flush into account */
-> +	nr_base_pages *= cpumask_weight(mm_cpumask(mm));
-> +
 
-flush range calculation base on per cpu, since no matter how many cpus
-in the process, tlb flush and refill time won't change.
->  	/* tlb_flushall_shift is on balance point, details in commit log */
->  	if (nr_base_pages > act_entries || has_large_page(mm, start, end)) {
->  		count_vm_event(NR_TLB_LOCAL_FLUSH_ALL);
+agree to be more conservative.
+
+Reviewed-by: Alex Shi <alex.shi@linro.org>
+> ---
+>  arch/x86/kernel/cpu/intel.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/arch/x86/kernel/cpu/intel.c b/arch/x86/kernel/cpu/intel.c
+> index dc1ec0d..2d93753 100644
+> --- a/arch/x86/kernel/cpu/intel.c
+> +++ b/arch/x86/kernel/cpu/intel.c
+> @@ -627,7 +627,7 @@ static void intel_tlb_flushall_shift_set(struct cpuinfo_x86 *c)
+>  		tlb_flushall_shift = 5;
+>  		break;
+>  	case 0x63a: /* Ivybridge */
+> -		tlb_flushall_shift = 1;
+> +		tlb_flushall_shift = 2;
+>  		break;
+>  	default:
+>  		tlb_flushall_shift = 6;
 > 
 
 
