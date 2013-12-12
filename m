@@ -1,130 +1,320 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f178.google.com (mail-ea0-f178.google.com [209.85.215.178])
-	by kanga.kvack.org (Postfix) with ESMTP id E86426B0037
-	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 08:18:26 -0500 (EST)
-Received: by mail-ea0-f178.google.com with SMTP id d10so234699eaj.9
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 05:18:26 -0800 (PST)
+Received: from mail-ea0-f179.google.com (mail-ea0-f179.google.com [209.85.215.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FAF76B0039
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 08:27:09 -0500 (EST)
+Received: by mail-ea0-f179.google.com with SMTP id r15so233577ead.24
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 05:27:08 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id h45si23655815eeo.25.2013.12.12.05.18.25
+        by mx.google.com with ESMTP id l44si23664574eem.103.2013.12.12.05.27.07
         for <linux-mm@kvack.org>;
-        Thu, 12 Dec 2013 05:18:25 -0800 (PST)
-Date: Thu, 12 Dec 2013 13:18:21 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [patch] mm: page_alloc: exclude unreclaimable allocations from
- zone fairness policy
-Message-ID: <20131212131821.GF11295@suse.de>
-References: <1386785356-19911-1-git-send-email-hannes@cmpxchg.org>
- <20131211224719.GE11295@suse.de>
- <20131212010903.GP21724@cmpxchg.org>
+        Thu, 12 Dec 2013 05:27:08 -0800 (PST)
+Message-ID: <52A9B9A2.2050306@suse.cz>
+Date: Thu, 12 Dec 2013 14:26:58 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20131212010903.GP21724@cmpxchg.org>
+Subject: Re: [PATCH V2 0/6] Memory compaction efficiency improvements
+References: <1386757477-10333-1-git-send-email-vbabka@suse.cz> <20131212061223.GA5912@lge.com>
+In-Reply-To: <20131212061223.GA5912@lge.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-On Wed, Dec 11, 2013 at 08:09:03PM -0500, Johannes Weiner wrote:
-> On Wed, Dec 11, 2013 at 10:47:19PM +0000, Mel Gorman wrote:
-> > On Wed, Dec 11, 2013 at 01:09:16PM -0500, Johannes Weiner wrote:
-> > > Dave Hansen noted a regression in a microbenchmark that loops around
-> > > open() and close() on an 8-node NUMA machine and bisected it down to
-> > > 81c0a2bb515f ("mm: page_alloc: fair zone allocator policy").  That
-> > > change forces the slab allocations of the file descriptor to spread
-> > > out to all 8 nodes, causing remote references in the page allocator
-> > > and slab.
-> > > 
-> > 
-> > The original patch was primarily concerned with the fair aging of LRU pages
-> > of zones within a node. This patch uses GFP_MOVABLE_MASK which includes
-> > __GFP_RECLAIMABLE meaning any slab created with SLAB_RECLAIM_ACCOUNT is still
-> > getting the round-robin treatment. Those pages have a different lifecycle
-> > to LRU pages and the shrinkers are only node aware, not zone aware.
-> > While I get this patch probably helps this specific benchmark, was the
-> > use of GFP_MOVABLE_MASK intentional or did you mean to use __GFP_MOVABLE?
-> 
-> It was intentional to spread SLAB_RECLAIM_ACCOUNT pages across all
-> allowed nodes evenly for the same aging fairness reason.
-> 
+On 12/12/2013 07:12 AM, Joonsoo Kim wrote:
+> On Wed, Dec 11, 2013 at 11:24:31AM +0100, Vlastimil Babka wrote:
+>> Changelog since V1 (thanks to the reviewers!)
+>> o Included "trace compaction being and end" patch in the series     (mgorman)
+>> o Changed variable names and comments in patches 2 and 5            (mgorman)
+>> o More thorough measurements, based on v3.13-rc2
+>>
+>> The broad goal of the series is to improve allocation success rates for huge
+>> pages through memory compaction, while trying not to increase the compaction
+>> overhead. The original objective was to reintroduce capturing of high-order
+>> pages freed by the compaction, before they are split by concurrent activity.
+>> However, several bugs and opportunities for simple improvements were found in
+>> the current implementation, mostly through extra tracepoints (which are however
+>> too ugly for now to be considered for sending).
+>>
+>> The patches mostly deal with two mechanisms that reduce compaction overhead,
+>> which is caching the progress of migrate and free scanners, and marking
+>> pageblocks where isolation failed to be skipped during further scans.
+>>
+>> Patch 1 (from mgorman) adds tracepoints that allow calculate time spent in
+>>          compaction and potentially debug scanner pfn values.
+>>
+>> Patch 2 encapsulates the some functionality for handling deferred compactions
+>>          for better maintainability, without a functional change
+>>          type is not determined without being actually needed.
+>>
+>> Patch 3 fixes a bug where cached scanner pfn's are sometimes reset only after
+>>          they have been read to initialize a compaction run.
+>>
+>> Patch 4 fixes a bug where scanners meeting is sometimes not properly detected
+>>          and can lead to multiple compaction attempts quitting early without
+>>          doing any work.
+>>
+>> Patch 5 improves the chances of sync compaction to process pageblocks that
+>>          async compaction has skipped due to being !MIGRATE_MOVABLE.
+>>
+>> Patch 6 improves the chances of sync direct compaction to actually do anything
+>>          when called after async compaction fails during allocation slowpath.
+>>
+>> The impact of patches were validated using mmtests's stress-highalloc benchmark
+>> with mmtests's stress-highalloc benchmark on a x86_64 machine with 4GB memory.
+>>
+>> Due to instability of the results (mostly related to the bugs fixed by patches
+>> 2 and 3), 10 iterations were performed, taking min,mean,max values for success
+>> rates and mean values for time and vmstat-based metrics.
+>>
+>> First, the default GFP_HIGHUSER_MOVABLE allocations were tested with the patches
+>> stacked on top of v3.13-rc2. Patch 2 is OK to serve as baseline due to no
+>> functional changes in 1 and 2. Comments below.
+>>
+>> stress-highalloc
+>>                               3.13-rc2              3.13-rc2              3.13-rc2              3.13-rc2              3.13-rc2
+>>                                2-nothp               3-nothp               4-nothp               5-nothp               6-nothp
+>> Success 1 Min          9.00 (  0.00%)       10.00 (-11.11%)       43.00 (-377.78%)       43.00 (-377.78%)       33.00 (-266.67%)
+>> Success 1 Mean        27.50 (  0.00%)       25.30 (  8.00%)       45.50 (-65.45%)       45.90 (-66.91%)       46.30 (-68.36%)
+>> Success 1 Max         36.00 (  0.00%)       36.00 (  0.00%)       47.00 (-30.56%)       48.00 (-33.33%)       52.00 (-44.44%)
+>> Success 2 Min         10.00 (  0.00%)        8.00 ( 20.00%)       46.00 (-360.00%)       45.00 (-350.00%)       35.00 (-250.00%)
+>> Success 2 Mean        26.40 (  0.00%)       23.50 ( 10.98%)       47.30 (-79.17%)       47.60 (-80.30%)       48.10 (-82.20%)
+>> Success 2 Max         34.00 (  0.00%)       33.00 (  2.94%)       48.00 (-41.18%)       50.00 (-47.06%)       54.00 (-58.82%)
+>> Success 3 Min         65.00 (  0.00%)       63.00 (  3.08%)       85.00 (-30.77%)       84.00 (-29.23%)       85.00 (-30.77%)
+>> Success 3 Mean        76.70 (  0.00%)       70.50 (  8.08%)       86.20 (-12.39%)       85.50 (-11.47%)       86.00 (-12.13%)
+>> Success 3 Max         87.00 (  0.00%)       86.00 (  1.15%)       88.00 ( -1.15%)       87.00 (  0.00%)       87.00 (  0.00%)
+>>
+>>              3.13-rc2    3.13-rc2    3.13-rc2    3.13-rc2    3.13-rc2
+>>               2-nothp     3-nothp     4-nothp     5-nothp     6-nothp
+>> User         6437.72     6459.76     5960.32     5974.55     6019.67
+>> System       1049.65     1049.09     1029.32     1031.47     1032.31
+>> Elapsed      1856.77     1874.48     1949.97     1994.22     1983.15
+>>
+>>                                3.13-rc2    3.13-rc2    3.13-rc2    3.13-rc2    3.13-rc2
+>>                                 2-nothp     3-nothp     4-nothp     5-nothp     6-nothp
+>> Minor Faults                 253952267   254581900   250030122   250507333   250157829
+>> Major Faults                       420         407         506         530         530
+>> Swap Ins                             4           9           9           6           6
+>> Swap Outs                          398         375         345         346         333
+>> Direct pages scanned            197538      189017      298574      287019      299063
+>> Kswapd pages scanned           1809843     1801308     1846674     1873184     1861089
+>> Kswapd pages reclaimed         1806972     1798684     1844219     1870509     1858622
+>> Direct pages reclaimed          197227      188829      298380      286822      298835
+>> Kswapd efficiency                  99%         99%         99%         99%         99%
+>> Kswapd velocity                953.382     970.449     952.243     934.569     922.286
+>> Direct efficiency                  99%         99%         99%         99%         99%
+>> Direct velocity                104.058     101.832     153.961     143.200     148.205
+>> Percentage direct scans             9%          9%         13%         13%         13%
+>> Zone normal velocity           347.289     359.676     348.063     339.933     332.983
+>> Zone dma32 velocity            710.151     712.605     758.140     737.835     737.507
+>> Zone dma velocity                0.000       0.000       0.000       0.000       0.000
+>> Page writes by reclaim         557.600     429.000     353.600     426.400     381.800
+>> Page writes file                   159          53           7          79          48
+>> Page writes anon                   398         375         345         346         333
+>> Page reclaim immediate             825         644         411         575         420
+>> Sector Reads                   2781750     2769780     2878547     2939128     2910483
+>> Sector Writes                 12080843    12083351    12012892    12002132    12010745
+>> Page rescued immediate               0           0           0           0           0
+>> Slabs scanned                  1575654     1545344     1778406     1786700     1794073
+>> Direct inode steals               9657       10037       15795       14104       14645
+>> Kswapd inode steals              46857       46335       50543       50716       51796
+>> Kswapd skipped wait                  0           0           0           0           0
+>> THP fault alloc                     97          91          81          71          77
+>> THP collapse alloc                 456         506         546         544         565
+>> THP splits                           6           5           5           4           4
+>> THP fault fallback                   0           1           0           0           0
+>> THP collapse fail                   14          14          12          13          12
+>> Compaction stalls                 1006         980        1537        1536        1548
+>> Compaction success                 303         284         562         559         578
+>> Compaction failures                702         696         974         976         969
+>> Page migrate success           1177325     1070077     3927538     3781870     3877057
+>> Page migrate failure                 0           0           0           0           0
+>> Compaction pages isolated      2547248     2306457     8301218     8008500     8200674
+>> Compaction migrate scanned    42290478    38832618   153961130   154143900   159141197
+>> Compaction free scanned       89199429    79189151   356529027   351943166   356326727
+>> Compaction cost                   1566        1426        5312        5156        5294
+>> NUMA PTE updates                     0           0           0           0           0
+>> NUMA hint faults                     0           0           0           0           0
+>> NUMA hint local faults               0           0           0           0           0
+>> NUMA hint local percent            100         100         100         100         100
+>> NUMA pages migrated                  0           0           0           0           0
+>> AutoNUMA cost                        0           0           0           0           0
+>>
+>>
+>> Observations:
+>> - The "Success 3" line is allocation success rate with system idle (phases 1
+>>    and 2 are with background interference). I used to get stable values around
+>>    85% with vanilla 3.11. The lower min and mean values came with 3.12.
+>>    This was bisected to commit 81c0a2bb ("mm: page_alloc:  fair zone allocator
+>>    policy") As explained in comment for patch 3, I don't think the commit is
+>>    wrong, but that it makes the effect of compaction bugs worse. From patch 3
+>>    onwards, the results are OK and match the 3.11 results.
+>> - Patch 4 also clearly helps phases 1 and 2, and exceeds any results I've
+>>    seen with 3.11 (I didn't measure it that thoroughly then, but it was never
+>>    above 40%).
+>> - Compaction cost and number of scanned pages is higher, especially due to
+>>    patch 4. However, keep in mind that patches 3 and 4 fix existing bugs in the
+>>    current design of compaction overhead mitigation, they do not change it.
+>>    If overhead is found unacceptable, then it should be decreased differently
+>>    (and consistently, not due to random conditions) than the current implementation
+>>    does. In contrast, patches 5 and 6 (which are not strictly bug fixes) do not
+>>    increase the overhead (but also not success rates). This might be a limitation
+>>    of the stress-highalloc benchmark as it's quite uniform.
+>>
+>> Another set of results is when configuring stress-highalloc t allocate
+>> with similar flags as THP uses:
+>>   (GFP_HIGHUSER_MOVABLE|__GFP_NOMEMALLOC|__GFP_NORETRY|__GFP_NO_KSWAPD)
+>>
+>> stress-highalloc
+>>                               3.13-rc2              3.13-rc2              3.13-rc2              3.13-rc2              3.13-rc2
+>>                                  2-thp                 3-thp                 4-thp                 5-thp                 6-thp
+>> Success 1 Min          2.00 (  0.00%)        7.00 (-250.00%)       18.00 (-800.00%)       19.00 (-850.00%)       26.00 (-1200.00%)
+>> Success 1 Mean        19.20 (  0.00%)       17.80 (  7.29%)       29.20 (-52.08%)       29.90 (-55.73%)       32.80 (-70.83%)
+>> Success 1 Max         27.00 (  0.00%)       29.00 ( -7.41%)       35.00 (-29.63%)       36.00 (-33.33%)       37.00 (-37.04%)
+>> Success 2 Min          3.00 (  0.00%)        8.00 (-166.67%)       21.00 (-600.00%)       21.00 (-600.00%)       32.00 (-966.67%)
+>> Success 2 Mean        19.30 (  0.00%)       17.90 (  7.25%)       32.20 (-66.84%)       32.60 (-68.91%)       35.70 (-84.97%)
+>> Success 2 Max         27.00 (  0.00%)       30.00 (-11.11%)       36.00 (-33.33%)       37.00 (-37.04%)       39.00 (-44.44%)
+>> Success 3 Min         62.00 (  0.00%)       62.00 (  0.00%)       85.00 (-37.10%)       75.00 (-20.97%)       64.00 ( -3.23%)
+>> Success 3 Mean        66.30 (  0.00%)       65.50 (  1.21%)       85.60 (-29.11%)       83.40 (-25.79%)       83.50 (-25.94%)
+>> Success 3 Max         70.00 (  0.00%)       69.00 (  1.43%)       87.00 (-24.29%)       86.00 (-22.86%)       87.00 (-24.29%)
+>>
+>>              3.13-rc2    3.13-rc2    3.13-rc2    3.13-rc2    3.13-rc2
+>>                 2-thp       3-thp       4-thp       5-thp       6-thp
+>> User         6547.93     6475.85     6265.54     6289.46     6189.96
+>> System       1053.42     1047.28     1043.23     1042.73     1038.73
+>> Elapsed      1835.43     1821.96     1908.67     1912.74     1956.38
+>
+> Hello, Vlastimil.
+>
+> I have some questions related to your stat, not your patchset,
+> just for curiosity. :)
+>
+> Are these results, "elapsed time" and "vmstat", for Success 3 line scenario?
 
-That could be argued either way and ultimately it'll come down to being
-workload dependant.
+No that's for the whole test which does the scenarios in succession.
 
-> > Looking at the original patch again I think I made a major mistake when
-> > reviewing it. Considering the effect of the following for NUMA machines
-> > 
-> >         for_each_zone_zonelist_nodemask(zone, z, zonelist,
-> >                                                 high_zoneidx, nodemask) {
-> > 		....
-> >                 if (alloc_flags & ALLOC_WMARK_LOW) {
-> >                         if (zone_page_state(zone, NR_ALLOC_BATCH) <= 0)
-> > 				continue;
-> >                         if (zone_reclaim_mode &&
-> >                             !zone_local(preferred_zone, zone))
-> >                                 continue;
-> > 		}
-> > 
-> > 
-> > Enabling zone_reclaim_mode sucks badly for workloads that are not paritioned
-> > to fit within NUMA nodes. Consequently, I expect the common case it that
-> > it's disabled by default due to small NUMA distances or manually disabled.
-> > 
-> > However, the effect of that block is that we allocate NR_ALLOC_BATCH
-> > from local zones then fallback to batch allocating remote nodes! I bet
-> > the numa_hit stats in /proc/vmstat have sucked recently. The original
-> > problem was because the page allocator would try allocating from the
-> > highest zone while kswapd reclaimed from it causing LRU-aging problems.
-> > The problem is not the same between nodes. How do you feel about dropping
-> > the zone_reclaim_mode check above and only round-robin in batches between
-> > zones on the local node?
-> 
-> It might not be for anon but it's the same problem for cache.  The
-> page allocator will fill all the nodes in the system before waking up
-> the kswapds.  It will utilize all nodes, just not evenly.
-> 
+> If so, could you show me others?
+> I wonder why thp case consumes more system time rather than no-thp case.
 
-Which is a definite remote allocation penalty now versus a potential page
-aging inversion problem later. That's a shitty tradeoff.
+Unfortunately these stats are not that useful as they don't distinguish 
+the 3 phases and also include what the background load does. They are 
+included just to show that nothing truly dramatic is happening.
+So
 
-> I know that on the node-level staying local is often preferrable over
-> full memory utilization but I was under the assumption that
-> zone_reclaim_mode is there to express this preference.
-> 
+> And I found that elapsed time has no big difference between both cases,
+> roughly less than 2%. In this situation, do we get more benefits with
+> aggressive allocation like no-thp case?
 
-It's the expected behaviour of MPOL_LOCAL and the original patch significant
-altered default behaviour that should have been flagged. The zone_relaim_mode
-tunable has nasty side effects for workloads that are not partitioned to
-fit within a NUMA node. I blame myself here because that patch should have
-sent off klaxons but I was blinded by those lovely performance figures.
+Elapsed time suffers from the same problem, so it's again hard to say 
+how relevant it actually is to the allocator workload and how much to 
+background load. It seems that the more successful allocator is, the 
+longer elapsed time (in both thp and nothp case). My guess is that less 
+memory available for the background load makes it progress slower which 
+affects the duration of the test as a whole.
 
-> My patch certainly makes this preference more aggressive in the sense
-> that there is no grayzone anymore.  There is no try to stay local.
+I hope that in case of further compaction patches that would be 
+potentially more intrusive to the its design (and not bugfixes and 
+simple tweaks to the existing design as this series) I will have a more 
+detailed breakdown of what time is spent where.
 
-Which automatic NUMA balancing then comes in and stomps all over.
+Thanks,
+Vlastimil
 
-> There is either not using a block of memory at all, or using it to the
-> same extent as any other block of the same size; that's the
-> requirement for fair aging.
-> 
-> That being said, the fairness concerns are primarily about file pages.
-> Should we exclude anon and slab pages entirely? 
-
-File pages would certainly be the most noticeable. We may not want to
-prematurely discard clean pages because of the IO costs of brining them
-back in and the other penalties for example. Unfortunately, there is not
-a reliable way to distinguish between these type of pages from allocator
-context, we'd need another GFP flag. At least, an obvious method did not
-immediately print to mind.
-
-Without or without that flag, deciding how to treat them would lead to a
-lot of hand waving and bullshit. I'll put together a small series that
-makes this configurable and set what I think are sensible defaults and
-we can figure out the way forward on that basis.
-
--- 
-Mel Gorman
-SUSE Labs
+> Thanks.
+>
+>>
+>>                                3.13-rc2    3.13-rc2    3.13-rc2    3.13-rc2    3.13-rc2
+>>                                   2-thp       3-thp       4-thp       5-thp       6-thp
+>> Minor Faults                 256805673   253106328   253222299   249830289   251184418
+>> Major Faults                       395         375         423         434         448
+>> Swap Ins                            12          10          10          12           9
+>> Swap Outs                          530         537         487         455         415
+>> Direct pages scanned             71859       86046      153244      152764      190713
+>> Kswapd pages scanned           1900994     1870240     1898012     1892864     1880520
+>> Kswapd pages reclaimed         1897814     1867428     1894939     1890125     1877924
+>> Direct pages reclaimed           71766       85908      153167      152643      190600
+>> Kswapd efficiency                  99%         99%         99%         99%         99%
+>> Kswapd velocity               1029.000    1067.782    1000.091     991.049     951.218
+>> Direct efficiency                  99%         99%         99%         99%         99%
+>> Direct velocity                 38.897      49.127      80.747      79.983      96.468
+>> Percentage direct scans             3%          4%          7%          7%          9%
+>> Zone normal velocity           351.377     372.494     348.910     341.689     335.310
+>> Zone dma32 velocity            716.520     744.414     731.928     729.343     712.377
+>> Zone dma velocity                0.000       0.000       0.000       0.000       0.000
+>> Page writes by reclaim         669.300     604.000     545.700     538.900     429.900
+>> Page writes file                   138          66          58          83          14
+>> Page writes anon                   530         537         487         455         415
+>> Page reclaim immediate             806         655         772         548         517
+>> Sector Reads                   2711956     2703239     2811602     2818248     2839459
+>> Sector Writes                 12163238    12018662    12038248    11954736    11994892
+>> Page rescued immediate               0           0           0           0           0
+>> Slabs scanned                  1385088     1388364     1507968     1513292     1558656
+>> Direct inode steals               1739        2564        4622        5496        6007
+>> Kswapd inode steals              47461       46406       47804       48013       48466
+>> Kswapd skipped wait                  0           0           0           0           0
+>> THP fault alloc                    110          82          84          69          70
+>> THP collapse alloc                 445         482         467         462         539
+>> THP splits                           6           5           4           5           3
+>> THP fault fallback                   3           0           0           0           0
+>> THP collapse fail                   15          14          14          14          13
+>> Compaction stalls                  659         685        1033        1073        1111
+>> Compaction success                 222         225         410         427         456
+>> Compaction failures                436         460         622         646         655
+>> Page migrate success            446594      439978     1085640     1095062     1131716
+>> Page migrate failure                 0           0           0           0           0
+>> Compaction pages isolated      1029475     1013490     2453074     2482698     2565400
+>> Compaction migrate scanned     9955461    11344259    24375202    27978356    30494204
+>> Compaction free scanned       27715272    28544654    80150615    82898631    85756132
+>> Compaction cost                    552         555        1344        1379        1436
+>> NUMA PTE updates                     0           0           0           0           0
+>> NUMA hint faults                     0           0           0           0           0
+>> NUMA hint local faults               0           0           0           0           0
+>> NUMA hint local percent            100         100         100         100         100
+>> NUMA pages migrated                  0           0           0           0           0
+>> AutoNUMA cost                        0           0           0           0           0
+>>
+>> There are some differences from the previous results for THP-like allocations:
+>>   - Here, the bad result for unpatched kernel in phase 3 is much more consistent
+>>     to be between 65-70% and not related to the "regression" in 3.12. Still there is
+>>     the improvement from patch 4 onwards, which brings it on par with simple
+>>     GFP_HIGHUSER_MOVABLE allocations.
+>>   - Compaction costs have increased, but nowhere near as much as the non-THP case. Again,
+>>     the patches should be worth the gained determininsm.
+>>   - Patches 5 and 6 somewhat increase the number of migrate-scanned pages. This is most likely
+>>     due to __GFP_NO_KSWAPD flag, which means the cached pfn's and pageblock skip bits are not
+>>     reset by kswapd that often (at least in phase 3 where no concurrent activity would wake
+>>     up kswapd) and the patches thus help the sync-after-async compaction. It doesn't however
+>>     show that the sync compaction would help so much with success rates, which can be again
+>>     seen as a limitation of the benchmark scenario.
+>>
+>>
+>>
+>> Mel Gorman (1):
+>>    mm: compaction: trace compaction begin and end
+>>
+>> Vlastimil Babka (5):
+>>    mm: compaction: encapsulate defer reset logic
+>>    mm: compaction: reset cached scanner pfn's before reading them
+>>    mm: compaction: detect when scanners meet in isolate_freepages
+>>    mm: compaction: do not mark unmovable pageblocks as skipped in async
+>>      compaction
+>>    mm: compaction: reset scanner positions immediately when they meet
+>>
+>>   include/linux/compaction.h        | 16 ++++++++++
+>>   include/trace/events/compaction.h | 42 +++++++++++++++++++++++++++
+>>   mm/compaction.c                   | 61 +++++++++++++++++++++++++++------------
+>>   mm/page_alloc.c                   |  5 +---
+>>   4 files changed, 102 insertions(+), 22 deletions(-)
+>>
+>> --
+>> 1.8.4
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
