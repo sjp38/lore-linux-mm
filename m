@@ -1,69 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 28A036B0031
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 18:05:26 -0500 (EST)
-Received: by mail-pb0-f53.google.com with SMTP id ma3so10814225pbc.26
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 15:05:25 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id v7si14794589pbi.128.2013.12.11.15.05.23
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D19A6B0031
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 19:04:18 -0500 (EST)
+Received: by mail-pd0-f179.google.com with SMTP id r10so10439057pdi.24
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 16:04:18 -0800 (PST)
+Received: from LGEMRELSE6Q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id xh9si3198648pab.6.2013.12.11.16.04.15
         for <linux-mm@kvack.org>;
-        Wed, 11 Dec 2013 15:05:24 -0800 (PST)
-Date: Wed, 11 Dec 2013 15:05:22 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH RFC] mm readahead: Fix the readahead fail in case of
- empty numa node
-Message-Id: <20131211150522.4b853323e8b82f342f81b64d@linux-foundation.org>
-In-Reply-To: <20131211224917.GF1163@quack.suse.cz>
-References: <1386066977-17368-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
-	<20131203143841.11b71e387dc1db3a8ab0974c@linux-foundation.org>
-	<529EE811.5050306@linux.vnet.ibm.com>
-	<20131204004125.a06f7dfc.akpm@linux-foundation.org>
-	<529EF0FB.2050808@linux.vnet.ibm.com>
-	<20131204134838.a048880a1db9e9acd14a39e4@linux-foundation.org>
-	<20131211224917.GF1163@quack.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 11 Dec 2013 16:04:17 -0800 (PST)
+Date: Thu, 12 Dec 2013 09:07:14 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 7/7] mm/migrate: remove result argument on page
+ allocation function for migration
+Message-ID: <20131212000714.GA3634@lge.com>
+References: <1386580248-22431-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1386580248-22431-8-git-send-email-iamjoonsoo.kim@lge.com>
+ <00000142d83adfc7-81b70cc9-c87b-4e7e-bd98-0a97ee21db31-000000@email.amazonses.com>
+ <20131211084719.GA2043@lge.com>
+ <00000142e263bbcd-65959fd3-eadc-4580-b55b-065c734a229e-000000@email.amazonses.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <00000142e263bbcd-65959fd3-eadc-4580-b55b-065c734a229e-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Rafael Aquini <aquini@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On Wed, 11 Dec 2013 23:49:17 +0100 Jan Kara <jack@suse.cz> wrote:
+On Wed, Dec 11, 2013 at 04:00:56PM +0000, Christoph Lameter wrote:
+> On Wed, 11 Dec 2013, Joonsoo Kim wrote:
+> 
+> > In do_move_pages(), if error occurs, 'goto out_pm' is executed and the
+> > page status doesn't back to userspace. So we don't need to store err number.
+> 
+> If a page cannot be moved then the error code is containing the number of
+> pages that could not be migrated. The check there is for err < 0.
+> So a positive number is not an error.
+> 
+> migrate_pages only returns an error code if we are running out of memory.
 
-> >  /*
-> > - * Given a desired number of PAGE_CACHE_SIZE readahead pages, return a
-> > - * sensible upper limit.
-> > + * max_sane_readahead() is disabled.  It can later be removed altogether, but
-> > + * let's keep a skeleton in place for now, in case disabling was the wrong call.
-> >   */
-> >  unsigned long max_sane_readahead(unsigned long nr)
-> >  {
-> > -	return min(nr, (node_page_state(numa_node_id(), NR_INACTIVE_FILE)
-> > -		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
-> > +	return nr;
-> >  }
-> >  
-> >  /*
-> > 
-> > Can anyone see a problem with this?
->   Well, the downside seems to be that if userspace previously issued
-> MADV/FADV_WILLNEED on a huge file, we trimmed the request to a sensible
-> size. Now we try to read the whole huge file which is pretty much
-> guaranteed to be useless (as we'll be pushing out of cache data we just
-> read a while ago). And guessing the right readahead size from userspace
-> isn't trivial so it would make WILLNEED advice less useful. What do you
-> think?
+Ah... I missed it. I will drop this patch and send v3 for whole patchset.
 
-OK, yes, there is conceivably a back-compatibility issue there.  There
-indeed might be applications which decide the chuck the whole thing at
-the kernel and let the kernel work out what is a sensible readahead
-size to perform.
-
-But I'm really struggling to think up an implementation!  The current
-code looks only at the caller's node and doesn't seem to make much
-sense.  Should we look at all nodes?  Hard to say without prior
-knowledge of where those pages will be coming from.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
