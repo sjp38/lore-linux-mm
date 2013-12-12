@@ -1,168 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 867F56B0031
-	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 07:37:39 -0500 (EST)
-Received: by mail-ee0-f43.google.com with SMTP id c13so197053eek.16
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 04:37:38 -0800 (PST)
+Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
+	by kanga.kvack.org (Postfix) with ESMTP id CF0E66B0036
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 07:41:26 -0500 (EST)
+Received: by mail-ee0-f45.google.com with SMTP id d49so198832eek.18
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 04:41:26 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTP id s8si23442986eeh.248.2013.12.12.04.37.37
+        by mx.google.com with ESMTP id m44si23496220eeo.100.2013.12.12.04.41.25
         for <linux-mm@kvack.org>;
-        Thu, 12 Dec 2013 04:37:38 -0800 (PST)
-Date: Thu, 12 Dec 2013 13:37:36 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-Message-ID: <20131212123736.GE2630@dhcp22.suse.cz>
-References: <20131204111318.GE8410@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312041606260.6329@chino.kir.corp.google.com>
- <20131209124840.GC3597@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312091328550.11026@chino.kir.corp.google.com>
- <20131210103827.GB20242@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312101655430.22701@chino.kir.corp.google.com>
- <20131211095549.GA18741@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312111434200.7354@chino.kir.corp.google.com>
- <20131212103159.GB2630@dhcp22.suse.cz>
- <20131212121140.GD2630@dhcp22.suse.cz>
+        Thu, 12 Dec 2013 04:41:26 -0800 (PST)
+Message-ID: <52A9AEF2.2030600@suse.cz>
+Date: Thu, 12 Dec 2013 13:41:22 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131212121140.GD2630@dhcp22.suse.cz>
+Subject: Re: kernel BUG in munlock_vma_pages_range
+References: <52A3D0C3.1080504@oracle.com> <52A58E8A.3050401@suse.cz> <52A5F83F.4000207@oracle.com> <52A5F9EE.4010605@suse.cz> <52A6275F.4040007@oracle.com> <52A8EE38.2060004@suse.cz> <52A92A8D.20603@oracle.com> <52A943BC.2090001@oracle.com>
+In-Reply-To: <52A943BC.2090001@oracle.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Bob Liu <bob.liu@oracle.com>, Sasha Levin <sasha.levin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, joern@logfs.org, mgorman@suse.de, Michel Lespinasse <walken@google.com>, riel@redhat.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu 12-12-13 13:11:40, Michal Hocko wrote:
-> On Thu 12-12-13 11:31:59, Michal Hocko wrote:
-> [...]
-> > The semantic would be as simple as "notification is sent only when
-> > an action is due". It will be still racy as nothing prevents a task
-> > which is not under OOM to exit and release some memory but there is no
-> > sensible way to address that. On the other hand such a semantic would be
-> > sensible for oom_control listeners because they will know that an action
-> > has to be or will be taken (the line was drawn).
-> > 
-> > Can we agree on this, Johannes? Or you see the line drawn when
-> > mem_cgroup_oom_synchronize has been reached already no matter whether
-> > the action is to be done or not?
+On 12/12/2013 06:03 AM, Bob Liu wrote:
 > 
-> Something like the following:
-
-I forgot to mention that this patch assumes "memcg: Do not hang on OOM
-when killed by userspace OOM"
-
-> From 5d9c01e2814a7ade49db7945ad3890f4f138855e Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.cz>
-> Date: Thu, 12 Dec 2013 11:50:17 +0100
-> Subject: [PATCH] memcg: notify userspace about OOM when and action is due
+> On 12/12/2013 11:16 AM, Sasha Levin wrote:
+>> On 12/11/2013 05:59 PM, Vlastimil Babka wrote:
+>>> On 12/09/2013 09:26 PM, Sasha Levin wrote:
+>>>> On 12/09/2013 12:12 PM, Vlastimil Babka wrote:
+>>>>> On 12/09/2013 06:05 PM, Sasha Levin wrote:
+>>>>>> On 12/09/2013 04:34 AM, Vlastimil Babka wrote:
+>>>>>>> Hello, I will look at it, thanks.
+>>>>>>> Do you have specific reproduction instructions?
+>>>>>>
+>>>>>> Not really, the fuzzer hit it once and I've been unable to trigger
+>>>>>> it again. Looking at
+>>>>>> the piece of code involved it might have had something to do with
+>>>>>> hugetlbfs, so I'll crank
+>>>>>> up testing on that part.
+>>>>>
+>>>>> Thanks. Do you have trinity log and the .config file? I'm currently
+>>>>> unable to even boot linux-next
+>>>>> with my config/setup due to a GPF.
+>>>>> Looking at code I wouldn't expect that it could encounter a tail
+>>>>> page, without first encountering a
+>>>>> head page and skipping the whole huge page. At least in THP case, as
+>>>>> TLB pages should be split when
+>>>>> a vma is split. As for hugetlbfs, it should be skipped for
+>>>>> mlock/munlock operations completely. One
+>>>>> of these assumptions is probably failing here...
+>>>>
+>>>> If it helps, I've added a dump_page() in case we hit a tail page
+>>>> there and got:
+>>>>
+>>>> [  980.172299] page:ffffea003e5e8040 count:0 mapcount:1
+>>>> mapping:          (null) index:0
+>>>> x0
+>>>> [  980.173412] page flags: 0x2fffff80008000(tail)
+>>>>
+>>>> I can also add anything else in there to get other debug output if
+>>>> you think of something else useful.
+>>>
+>>> Please try the following. Thanks in advance.
+>>
+>> [  428.499889] page:ffffea003e5c0040 count:0 mapcount:4
+>> mapping:          (null) index:0x0
+>> [  428.499889] page flags: 0x2fffff80008000(tail)
+>> [  428.499889] start=140117131923456 pfn=16347137
+>> orig_start=140117130543104 page_increm
+>> =1 vm_start=140117130543104 vm_end=140117134688256 vm_flags=135266419
+>> [  428.499889] first_page pfn=16347136
+>> [  428.499889] page:ffffea003e5c0000 count:204 mapcount:44
+>> mapping:ffff880fb5c466c1 inde
+>> x:0x7f6f8fe00
+>> [  428.499889] page flags:
+>> 0x2fffff80084068(uptodate|lru|active|head|swapbacked)
 > 
-> Userspace is currently notified about OOM condition after fails
-> to reclaim any memory after MEM_CGROUP_RECLAIM_RETRIES rounds.
-> This usually means that the memcg is really in troubles and an
-> OOM action (either done by userspace or kernel) has to be taken.
-> The kernel OOM killer however bails out and doesn't kill anything
-> if it sees an already dying/exiting task in a good hope a memory
-> will be released and OOM situation will be resolved.
-> 
-> Therefore it makes sense to notify userspace only after really all
-> measures have been taken and an userspace action is required or
-> the kernel kills a task.
-> 
-> This patch also removes fatal_signal_pending and PF_EXITING check from
-> mem_cgroup_oom_synchronize because __mem_cgroup_try_charge already
-> checks for both and bypasses charge so we cannot end up in the oom path.
+>  From this print, it looks like the page is still a huge page.
+> One situation I guess is a huge page which isn't PageMlocked and passed
+> to munlock_vma_page(). I'm not sure whether this will happen.
 
-Hmm, I have just noticed that oom_scan_process_thread aborts scanning
-only if it sees PF_EXITING or TIF_MEMDIE. Why the same is not done for 
-fatal_signal_pending tasks as well? Following the same logic as for the
-current we should do that no?
+Yes that's quite likely the case. It's not illegal to happen I would say.
 
-The different sets of checks is so confusing :/
+> Please take a try this patch.
 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> ---
->  mm/memcontrol.c | 17 ++++-------------
->  mm/oom_kill.c   |  5 +++++
->  2 files changed, 9 insertions(+), 13 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 98900c070045..af7148c77bac 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2235,16 +2235,6 @@ bool mem_cgroup_oom_synchronize(bool handle)
->  	if (!handle)
->  		goto cleanup;
->  
-> -	/*
-> -	 * If current has a pending SIGKILL or is exiting, then automatically
-> -	 * select it.  The goal is to allow it to allocate so that it may
-> -	 * quickly exit and free its memory.
-> -	 */
-> -	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
-> -		set_thread_flag(TIF_MEMDIE);
-> -		goto cleanup;
-> -	}
-> -
->  	owait.memcg = memcg;
->  	owait.wait.flags = 0;
->  	owait.wait.func = memcg_oom_wake_function;
-> @@ -2256,15 +2246,16 @@ bool mem_cgroup_oom_synchronize(bool handle)
->  
->  	locked = mem_cgroup_oom_trylock(memcg);
->  
-> -	if (locked)
-> -		mem_cgroup_oom_notify(memcg);
-> -
->  	if (locked && !memcg->oom_kill_disable) {
->  		mem_cgroup_unmark_under_oom(memcg);
->  		finish_wait(&memcg_oom_waitq, &owait.wait);
-> +		/* calls mem_cgroup_oom_notify if there is a task to kill */
->  		mem_cgroup_out_of_memory(memcg, current->memcg_oom.gfp_mask,
->  					 current->memcg_oom.order);
->  	} else {
-> +		if (locked && memcg->oom_kill_disable)
-> +			mem_cgroup_oom_notify(memcg);
-> +
->  		schedule();
->  		mem_cgroup_unmark_under_oom(memcg);
->  		finish_wait(&memcg_oom_waitq, &owait.wait);
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 1e4a600a6163..47c9de8da36d 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -394,6 +394,8 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
->  		dump_tasks(memcg, nodemask);
->  }
->  
-> +extern void mem_cgroup_oom_notify(struct mem_cgroup *memcg);
-> +
->  #define K(x) ((x) << (PAGE_SHIFT-10))
->  /*
->   * Must be called while holding a reference to p, which will be released upon
-> @@ -470,6 +472,9 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
->  		victim = p;
->  	}
->  
-> +	if (memcg)
-> +		mem_cgroup_oom_notify(memcg);
-> +
->  	/* mm cannot safely be dereferenced after task_unlock(victim) */
->  	mm = victim->mm;
->  	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
-> -- 
-> 1.8.4.4
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+I've made a simpler version that does away with the ugly page_mask thing completely.
+Please try that as well. Thanks.
 
+Also when working on this I think I found another potential but much rare problem
+when munlock_vma_page races with a THP split. That would however manifest such that
+part of the former tail pages would stay PageMlocked. But that still needs more thought.
+The bug at hand should however be fixed by this patch.
+
+--------8<----------
+From: Vlastimil Babka <vbabka@suse.cz>
+Date: Thu, 12 Dec 2013 13:06:39 +0100
+Subject: [PATCH] munlock_vma_pages_range() candidate fix
+
+---
+ mm/internal.h |  2 +-
+ mm/mlock.c    | 22 ++++++++--------------
+ 2 files changed, 9 insertions(+), 15 deletions(-)
+
+diff --git a/mm/internal.h b/mm/internal.h
+index 684f7aa..ffacdec 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -192,7 +192,7 @@ static inline int mlocked_vma_newpage(struct vm_area_struct *vma,
+  * must be called with vma's mmap_sem held for read or write, and page locked.
+  */
+ extern void mlock_vma_page(struct page *page);
+-extern unsigned int munlock_vma_page(struct page *page);
++extern void munlock_vma_page(struct page *page);
+ 
+ /*
+  * Clear the page's PageMlocked().  This can be useful in a situation where
+diff --git a/mm/mlock.c b/mm/mlock.c
+index d480cd6..a34dfdc 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -146,23 +146,18 @@ static void __munlock_isolation_failed(struct page *page)
+  * can't isolate the page, we leave it for putback_lru_page() and vmscan
+  * [page_referenced()/try_to_unmap()] to deal with.
+  */
+-unsigned int munlock_vma_page(struct page *page)
++void munlock_vma_page(struct page *page)
+ {
+-	unsigned int page_mask = 0;
+-
+ 	BUG_ON(!PageLocked(page));
+ 
+ 	if (TestClearPageMlocked(page)) {
+ 		unsigned int nr_pages = hpage_nr_pages(page);
+ 		mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
+-		page_mask = nr_pages - 1;
+ 		if (!isolate_lru_page(page))
+ 			__munlock_isolated_page(page);
+ 		else
+ 			__munlock_isolation_failed(page);
+ 	}
+-
+-	return page_mask;
+ }
+ 
+ /**
+@@ -440,7 +435,7 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
+ 
+ 	while (start < end) {
+ 		struct page *page = NULL;
+-		unsigned int page_mask, page_increm;
++		unsigned int page_increm = 1;
+ 		struct pagevec pvec;
+ 		struct zone *zone;
+ 		int zoneid;
+@@ -453,21 +448,21 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
+ 		 * suits munlock very well (and if somehow an abnormal page
+ 		 * has sneaked into the range, we won't oops here: great).
+ 		 */
+-		page = follow_page_mask(vma, start, FOLL_GET | FOLL_DUMP,
+-				&page_mask);
++		page = follow_page(vma, start, FOLL_GET | FOLL_DUMP);
+ 
+ 		if (page && !IS_ERR(page)) {
+ 			if (PageTransHuge(page)) {
+ 				lock_page(page);
++				munlock_vma_page(page);
+ 				/*
+ 				 * Any THP page found by follow_page_mask() may
+ 				 * have gotten split before reaching
+-				 * munlock_vma_page(), so we need to recompute
+-				 * the page_mask here.
++				 * munlock_vma_page(), so we need to recheck
++				 * how many pages to skip.
+ 				 */
+-				page_mask = munlock_vma_page(page);
++				page_increm = hpage_nr_pages(page);
+ 				unlock_page(page);
+-				put_page(page); /* follow_page_mask() */
++				put_page(page); /* follow_page() */
+ 			} else {
+ 				/*
+ 				 * Non-huge pages are handled in batches via
+@@ -490,7 +485,6 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
+ 				goto next;
+ 			}
+ 		}
+-		page_increm = 1 + (~(start >> PAGE_SHIFT) & page_mask);
+ 		start += page_increm * PAGE_SIZE;
+ next:
+ 		cond_resched();
 -- 
-Michal Hocko
-SUSE Labs
+1.8.4
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
