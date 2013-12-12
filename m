@@ -1,103 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 83E0F6B0037
-	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 08:13:13 -0500 (EST)
-Received: by mail-wi0-f179.google.com with SMTP id z2so2447014wiv.0
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 05:13:12 -0800 (PST)
-Received: from mail-ee0-x230.google.com (mail-ee0-x230.google.com [2a00:1450:4013:c00::230])
-        by mx.google.com with ESMTPS id a1si2158570wix.38.2013.12.12.05.13.12
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B6CC76B0037
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 08:14:51 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id up15so483094pbc.38
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 05:14:51 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id q8si16511485pav.289.2013.12.12.05.14.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 12 Dec 2013 05:13:12 -0800 (PST)
-Received: by mail-ee0-f48.google.com with SMTP id e49so220155eek.21
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 05:13:12 -0800 (PST)
-Date: Thu, 12 Dec 2013 14:13:09 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 2/3] x86: mm: Change tlb_flushall_shift for IvyBridge
-Message-ID: <20131212131309.GD5806@gmail.com>
-References: <1386849309-22584-1-git-send-email-mgorman@suse.de>
- <1386849309-22584-3-git-send-email-mgorman@suse.de>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 12 Dec 2013 05:14:50 -0800 (PST)
+Message-ID: <52A9B69D.50307@huawei.com>
+Date: Thu, 12 Dec 2013 21:14:05 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1386849309-22584-3-git-send-email-mgorman@suse.de>
+Subject: [PATCH] mm/memory-failure.c: recheck PageHuge() after hugetlb page
+ migrate successfull
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Alex Shi <alex.shi@linaro.org>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Mel Gorman <mgorman@suse.de>, Naoya
+ Horiguchi <n-horiguchi@ah.jp.nec.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, qiuxishi <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+After a successful hugetlb page migration by soft offline, the source page
+will either be freed into hugepage_freelists or buddy(over-commit page). If page is in
+buddy, page_hstate(page) will be NULL. It will hit a NULL pointer
+dereference in dequeue_hwpoisoned_huge_page().
 
-* Mel Gorman <mgorman@suse.de> wrote:
+[  890.677918] BUG: unable to handle kernel NULL pointer dereference at
+ 0000000000000058
+[  890.685741] IP: [<ffffffff81163761>]
+dequeue_hwpoisoned_huge_page+0x131/0x1d0
+[  890.692861] PGD c23762067 PUD c24be2067 PMD 0
+[  890.697314] Oops: 0000 [#1] SMP
 
-> There was a large performance regression that was bisected to commit 611ae8e3
-> (x86/tlb: enable tlb flush range support for x86). This patch simply changes
-> the default balance point between a local and global flush for IvyBridge.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->  arch/x86/kernel/cpu/intel.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/arch/x86/kernel/cpu/intel.c b/arch/x86/kernel/cpu/intel.c
-> index dc1ec0d..2d93753 100644
-> --- a/arch/x86/kernel/cpu/intel.c
-> +++ b/arch/x86/kernel/cpu/intel.c
-> @@ -627,7 +627,7 @@ static void intel_tlb_flushall_shift_set(struct cpuinfo_x86 *c)
->  		tlb_flushall_shift = 5;
->  		break;
->  	case 0x63a: /* Ivybridge */
-> -		tlb_flushall_shift = 1;
-> +		tlb_flushall_shift = 2;
->  		break;
+So check PageHuge(page) after call migrate_pages() successfull.
 
-I'd not be surprised if other CPU models showed similar weaknesses 
-under ebizzy as well.
+Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+---
+ mm/memory-failure.c | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)
 
-I don't particularly like the tuning aspect of the whole feature: the 
-tunings are model specific and they seem to come out of thin air, 
-without explicit measurements visible.
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index b7c1716..e5567f2 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1471,7 +1471,8 @@ static int get_any_page(struct page *page, unsigned long pfn, int flags)
+ 
+ static int soft_offline_huge_page(struct page *page, int flags)
+ {
+-	int ret;
++	int ret, i;
++	unsigned long nr_pages;
+ 	unsigned long pfn = page_to_pfn(page);
+ 	struct page *hpage = compound_head(page);
+ 	LIST_HEAD(pagelist);
+@@ -1489,6 +1490,8 @@ static int soft_offline_huge_page(struct page *page, int flags)
+ 	}
+ 	unlock_page(hpage);
+ 
++	nr_pages = 1 << compound_order(hpage);
++
+ 	/* Keep page count to indicate a given hugepage is isolated. */
+ 	list_move(&hpage->lru, &pagelist);
+ 	ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
+@@ -1505,10 +1508,16 @@ static int soft_offline_huge_page(struct page *page, int flags)
+ 		if (ret > 0)
+ 			ret = -EIO;
+ 	} else {
+-		set_page_hwpoison_huge_page(hpage);
+-		dequeue_hwpoisoned_huge_page(hpage);
+-		atomic_long_add(1 << compound_order(hpage),
+-				&num_poisoned_pages);
++		/* over-commit hugetlb page will be freed into buddy */
++		if (PageHuge(page)) {
++			set_page_hwpoison_huge_page(hpage);
++			dequeue_hwpoisoned_huge_page(hpage);
++		} else {
++			for (i = 0; i < nr_pages; i++)
++				SetPageHWPoison(hpage + i);
++		}
++
++		atomic_long_add(nr_pages, &num_poisoned_pages);
+ 	}
+ 	return ret;
+ }
+-- 
+1.8.2.2
 
-In particular the first commit that added this optimization:
-
- commit c4211f42d3e66875298a5e26a75109878c80f15b
- Date:   Thu Jun 28 09:02:19 2012 +0800
-
-    x86/tlb: add tlb_flushall_shift for specific CPU
-
-already had these magic tunings, with no explanation about what kind 
-of measurement was done to back up those tunings.
-
-I don't think this is acceptable and until this is cleared up I think 
-we might be better off turning off this feature altogether, or making 
-a constant, very low tuning point.
-
-The original code came via:
-
-  611ae8e3f520 x86/tlb: enable tlb flush range support for x86
-
-which references a couple of benchmarks, in particular a 
-micro-benchmark:
-
-  My micro benchmark 'mummap' http://lkml.org/lkml/2012/5/17/59
-  show that the random memory access on other CPU has 0~50% speed up
-  on a 2P * 4cores * HT NHM EP while do 'munmap'.
-
-if the tunings were done with the micro-benchmark then I think they 
-are bogus, because AFAICS it does not measure the adversarial case of 
-the optimization.
-
-So I'd say at minimum we need to remove the per model tunings, and 
-need to use very conservative defaults, to make sure we don't slow 
-down reasonable workloads.
-
-( In theory madvise() could give us information about the usage 
-  pattern of the vma - but in practice madvise() is rarely used and I 
-  doubt ebizzy or other real-world apps are using it, so it's 
-  meaningless. )
-
-Thanks,
-
-	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
