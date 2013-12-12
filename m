@@ -1,216 +1,448 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f178.google.com (mail-ea0-f178.google.com [209.85.215.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AA686B0031
-	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 09:40:35 -0500 (EST)
-Received: by mail-ea0-f178.google.com with SMTP id d10so290700eaj.9
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 06:40:35 -0800 (PST)
+Received: from mail-ea0-f175.google.com (mail-ea0-f175.google.com [209.85.215.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 62E756B0031
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 10:06:23 -0500 (EST)
+Received: by mail-ea0-f175.google.com with SMTP id z10so300234ead.20
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 07:06:22 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v6si13289896eel.196.2013.12.12.06.40.34
+        by mx.google.com with ESMTPS id s42si24093931eew.14.2013.12.12.07.06.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 12 Dec 2013 06:40:34 -0800 (PST)
-Date: Thu, 12 Dec 2013 14:40:29 +0000
+        Thu, 12 Dec 2013 07:06:21 -0800 (PST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH 0/3] Fix ebizzy performance regression on IvyBridge
- due to X86 TLB range flush
-Message-ID: <20131212144029.GI11295@suse.de>
-References: <1386849309-22584-1-git-send-email-mgorman@suse.de>
- <20131212130107.GC5806@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20131212130107.GC5806@gmail.com>
+Subject: [RFC PATCH 0/4] Configurable fair allocation zone policy
+Date: Thu, 12 Dec 2013 15:06:15 +0000
+Message-Id: <1386860779-2301-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Alex Shi <alex.shi@linaro.org>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Thu, Dec 12, 2013 at 02:01:07PM +0100, Ingo Molnar wrote:
-> 
-> * Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > I found that ebizzy regressed between 3.4 and 3.10 while testing on a new
-> > machine. Bisection initially found at least two problems of which the
-> > first was commit 611ae8e3 (x86/tlb: enable tlb flush range support for
-> > x86). The second was related to ACPI cpufreq and so it was disabled for
-> > the purposes of this series.
-> > 
-> > The intent of the TLB range flush patch appeared to be to preserve
-> > existing TLB entries which makes sense. The decision on whether to do a
-> > full mm flush or a number of single page flushes depends on the size of the
-> > relevant TLB and the CPU which is presuably taking the cost of a TLB refill.
-> > It is a gamble because the cost of the per-page flushes must be offset by a
-> > reduced TLB miss count. There are no indications what the cost of calling
-> > invlpg are if there are no TLB entries and it's also not taking into
-> > account how many CPUs it may have to execute these single TLB flushes on.
-> > 
-> > Ebizzy sees very little benefit as it discards newly allocated memory very
-> > quickly which is why it appeared to regress so badly. While I'm wary of
-> > optimising for such a benchmark, it's commonly tested and the defaults for
-> > Ivybridge may need to be re-examined.
-> > 
-> > The following small series restores ebizzy to 3.4-era performance. Is there a
-> > better way of doing this? Bear in mind that I'm testing on a single IvyBridge
-> > machine and there is no guarantee the gain is universal or even relevant.
-> > 
-> > kernel build was tested but it's uninteresting as TLB range is unimportant
-> > to it. A page fault benchmark was also tested but it does not hit the same paths
-> > impacted by commit 611ae8e3.
-> > 
-> > ebizzy
-> >                        3.13.0-rc3                3.4.69            3.13.0-rc3
-> >                           vanilla               vanilla           newdefault-v1
-> > Mean     1      7353.60 (  0.00%)     6782.00 ( -7.77%)     7836.20 (  6.56%)
-> > Mean     2      8120.40 (  0.00%)     8278.80 (  1.95%)     9520.60 ( 17.24%)
-> > Mean     3      8087.80 (  0.00%)     8083.60 ( -0.05%)     9003.80 ( 11.33%)
-> > Mean     4      7919.20 (  0.00%)     7842.60 ( -0.97%)     8680.60 (  9.61%)
-> > Mean     5      7310.60 (  0.00%)     7740.60 (  5.88%)     8273.20 ( 13.17%)
-> > Mean     6      6798.00 (  0.00%)     7720.20 ( 13.57%)     8033.20 ( 18.17%)
-> > Mean     7      6759.40 (  0.00%)     7644.00 ( 13.09%)     7643.80 ( 13.08%)
-> > Mean     8      6501.80 (  0.00%)     7666.40 ( 17.91%)     6944.40 (  6.81%)
-> > Mean     12     6606.00 (  0.00%)     7523.20 ( 13.88%)     7035.80 (  6.51%)
-> > Mean     16     6655.40 (  0.00%)     7287.40 (  9.50%)     7099.20 (  6.67%)
-> > Mean     20     6703.80 (  0.00%)     7152.20 (  6.69%)     7116.60 (  6.16%)
-> > Mean     24     6705.80 (  0.00%)     7014.80 (  4.61%)     7113.60 (  6.08%)
-> > Mean     28     6706.60 (  0.00%)     6940.40 (  3.49%)     7115.20 (  6.09%)
-> > Mean     32     6727.20 (  0.00%)     6878.80 (  2.25%)     7110.80 (  5.70%)
-> > Stddev   1        42.71 (  0.00%)       53.16 (-24.46%)       39.80 (  6.82%)
-> > Stddev   2       250.26 (  0.00%)      150.57 ( 39.84%)       31.94 ( 87.24%)
-> > Stddev   3        71.67 (  0.00%)       69.38 (  3.19%)       84.13 (-17.39%)
-> > Stddev   4        30.25 (  0.00%)       87.06 (-187.82%)       31.80 ( -5.14%)
-> > Stddev   5        71.18 (  0.00%)       25.68 ( 63.92%)      125.24 (-75.95%)
-> > Stddev   6        34.22 (  0.00%)       23.35 ( 31.75%)      124.40 (-263.57%)
-> > Stddev   7       100.59 (  0.00%)      112.83 (-12.17%)       65.07 ( 35.31%)
-> > Stddev   8        20.26 (  0.00%)       43.43 (-114.32%)       48.26 (-138.16%)
-> > Stddev   12       19.43 (  0.00%)       19.73 ( -1.55%)       23.25 (-19.65%)
-> > Stddev   16       14.47 (  0.00%)       26.42 (-82.54%)       17.71 (-22.40%)
-> > Stddev   20       21.37 (  0.00%)       15.97 ( 25.27%)       14.87 ( 30.42%)
-> > Stddev   24       12.87 (  0.00%)       28.12 (-118.44%)       10.46 ( 18.75%)
-> > Stddev   28       13.89 (  0.00%)       17.97 (-29.36%)       12.22 ( 12.04%)
-> > Stddev   32       18.14 (  0.00%)       20.37 (-12.31%)       16.40 (  9.58%)
-> > 
-> >           3.13.0-rc3      3.4.69  3.13.0-rc3
-> >              vanilla     vanilla newdefault-v1
-> > User          900.27      995.20      947.33
-> > System       1583.41     1680.76     1533.17
-> > Elapsed      2100.78     2100.81     2100.76
-> > 
-> > This shows the ebizzy comparison between 3.13-rc3, 3.4.69-stable and this series.
-> > The series is not a universal win against 3.4 but the figure are generally better
-> > and system CPU usage is reduced.
-> 
-> I think you found a real bug and I definitely agree that we want to 
-> fix it - the TLB range optimization was supposed to be a (nearly) 
-> unconditional win, so a regression like this is totally not acceptable 
-> IMHO.
-> 
+Commit 81c0a2bb ("mm: page_alloc: fair zone allocator policy") solved a
+bug whereby new pages could be reclaimed before old pages because of how
+the page allocator and kswapd interacted on the per-zone LRU lists.
 
-Ok.
+Unfortunately a side-effect missed during review was that it's now very
+easy to allocate remote memory on NUMA machines. The problem is that
+it is not a simple case of just restoring local allocation policies as
+there are genuine reasons why global page aging may be prefereable. It's
+still a major change to default behaviour so this patch makes the policy
+configurable and sets what I think is a sensible default.
 
-> Please help me out with interpreting the numbers. The Ebizzy table:
-> 
-> > ebizzy
-> >                        3.13.0-rc3                3.4.69            3.13.0-rc3
-> >                           vanilla               vanilla           newdefault-v1
-> > Mean     1      7353.60 (  0.00%)     6782.00 ( -7.77%)     7836.20 (  6.56%)
-> > Mean     2      8120.40 (  0.00%)     8278.80 (  1.95%)     9520.60 ( 17.24%)
-> > Mean     3      8087.80 (  0.00%)     8083.60 ( -0.05%)     9003.80 ( 11.33%)
-> 
-> is the first numeric column number of threads/clients?
+The patches are on top of some NUMA balancing patches currently in -mm.
+The first patch in the series is a patch posted by Johannes that must be
+taken into account before any of my patches on top. The last patch of the
+series is what alters default behaviour and makes the fair zone allocator
+policy configurable.
 
-The number of threads.
+Sniff test results based on following kernels
 
-> The other 
-> colums are showing pairs of throughput (higher is better), with a 
-> performance regression percentage in parentheses.
-> 
+vanilla		 3.13-rc3 stock
+instrument-v5r1  NUMA balancing patches just to rule out any conflicts there
+lruslabonly-v1r2 Patch 1 only
+local-v1r2	 Full series
 
-Average operations/second measured over the duration of the entire test.
-The output of the program is essentially records/duration.
+kernbench
+                          3.13.0-rc3            3.13.0-rc3            3.13.0-rc3            3.13.0-rc3
+                             vanilla       instrument-v5r1      lruslabonly-v1r2            local-v1r2
+User    min        1417.32 (  0.00%)     1412.10 (  0.37%)     1408.49 (  0.62%)     1407.41 (  0.70%)
+User    mean       1419.10 (  0.00%)     1419.18 ( -0.01%)     1413.36 (  0.40%)     1410.62 (  0.60%)
+User    stddev        2.25 (  0.00%)        5.14 (-128.59%)        3.71 (-64.89%)        3.11 (-38.47%)
+User    max        1422.92 (  0.00%)     1425.26 ( -0.16%)     1419.83 (  0.22%)     1416.30 (  0.47%)
+User    range         5.60 (  0.00%)       13.16 (-135.00%)       11.34 (-102.50%)        8.89 (-58.75%)
+System  min         114.83 (  0.00%)      114.69 (  0.12%)      113.76 (  0.93%)      108.45 (  5.56%)
+System  mean        115.89 (  0.00%)      115.18 (  0.61%)      114.39 (  1.29%)      108.93 (  6.00%)
+System  stddev        0.63 (  0.00%)        0.33 ( 48.39%)        0.65 ( -3.01%)        0.50 ( 21.44%)
+System  max         116.81 (  0.00%)      115.65 (  0.99%)      115.55 (  1.08%)      109.76 (  6.04%)
+System  range         1.98 (  0.00%)        0.96 ( 51.52%)        1.79 (  9.60%)        1.31 ( 33.84%)
+Elapsed min          42.90 (  0.00%)       42.42 (  1.12%)       43.62 ( -1.68%)       42.91 ( -0.02%)
+Elapsed mean         43.58 (  0.00%)       43.56 (  0.04%)       44.04 ( -1.05%)       44.30 ( -1.66%)
+Elapsed stddev        0.74 (  0.00%)        1.09 (-46.88%)        0.25 ( 66.08%)        1.16 (-56.18%)
+Elapsed max          44.52 (  0.00%)       45.36 ( -1.89%)       44.33 (  0.43%)       46.39 ( -4.20%)
+Elapsed range         1.62 (  0.00%)        2.94 (-81.48%)        0.71 ( 56.17%)        3.48 (-114.81%)
+CPU     min        3451.00 (  0.00%)     3366.00 (  2.46%)     3441.00 (  0.29%)     3269.00 (  5.27%)
+CPU     mean       3522.40 (  0.00%)     3523.80 ( -0.04%)     3468.40 (  1.53%)     3431.60 (  2.58%)
+CPU     stddev       54.34 (  0.00%)       97.81 (-79.99%)       24.70 ( 54.54%)       89.66 (-64.99%)
+CPU     max        3570.00 (  0.00%)     3630.00 ( -1.68%)     3501.00 (  1.93%)     3541.00 (  0.81%)
+CPU     range       119.00 (  0.00%)      264.00 (-121.85%)       60.00 ( 49.58%)      272.00 (-128.57%)
 
-> do the stddev numbers:
-> 
-> > Stddev   1        42.71 (  0.00%)       53.16 (-24.46%)       39.80 (  6.82%)
-> > Stddev   2       250.26 (  0.00%)      150.57 ( 39.84%)       31.94 ( 87.24%)
-> 
-> ... correspond to the respective thread count and thus overlay the 
-> first table, right?
-> 
+          3.13.0-rc3  3.13.0-rc3  3.13.0-rc3  3.13.0-rc3
+             vanillainstrument-v5r1lruslabonly-v1r2  local-v1r2
+User         8540.49     8535.44     8502.52     8490.02
+System        706.31      701.29      697.45      664.39
+Elapsed       307.58      309.38      311.90      311.43
 
-Each iteration of the test ran for a fixed duration of 30 seconds. There were
-5 iterations per thread which I know is very low, this was an RFC. The stddev
-is the standard deviation of the records/sec recorded for the 5 iterations.
+kernbench figures themselves are not that compelling but the system CPU cost
+is down a lot. It's just such a small percentage of the overall workload
+that it doesn't really matter and the processes are short lived anyway.
 
-> stddev appears to be rather large especially around a client count of 
-> 7-8. It will be difficult to fine-tune the TLB range flush constants 
-> if noise is too large.
-> 
+                            3.13.0-rc3  3.13.0-rc3  3.13.0-rc3  3.13.0-rc3
+                               vanillainstrument-v5r1lruslabonly-v1r2  local-v1r2
+NUMA alloc hit                73783951    73094711    73540917    93365205
+NUMA alloc miss               20013534    20280058    19805156           0
+NUMA interleave hit                  0           0           0           0
+NUMA alloc local              73783935    73094693    73540908    93365198
 
-The number of iterations were very low to have high confidence of the
-figures. The high standard deviation for 5 clients was a single large
-outlier. It potentially could be stabilised to some extent by bumping up
-the number of iterations a lot and using percentiles instead of means.
+NUMA miss rate speaks for itself.
 
-I'm a bit wary of optimising the TLB flush ranges based on the benchmark
-even if we stabilised the figures. There are major weaknesses that limit
-its usefulness for tuning this the shift value. The range of pages being
-flushed are fixed so whether the CPU sees a benefit depends on the cost of
-a single page flush, a global flush and the number of TLB entries relative
-to the fixed size used by ebizzy. Similarly, the full cost/benefit of using
-single page flushes vs global flush partially depends on whether the TLB
-contains hot entries for the task being flushed that will be used in the
-near future. ebizzy's allocations are short lived and, while I have not
-analysed it, I suspect it benefits little from preserving its TLB entries.
+vmr-stream
+                                3.13.0-rc3                  3.13.0-rc3                  3.13.0-rc3                  3.13.0-rc3
+                                   vanilla             instrument-v5r1            lruslabonly-v1r2                  local-v1r2
+Add      5M        3809.80 (  0.00%)     3793.23 ( -0.44%)     3808.76 ( -0.03%)     3997.69 (  4.93%)
+Copy     5M        3360.75 (  0.00%)     3362.61 (  0.06%)     3367.19 (  0.19%)     3478.45 (  3.50%)
+Scale    5M        3160.39 (  0.00%)     3151.84 ( -0.27%)     3159.05 ( -0.04%)     3399.14 (  7.55%)
+Triad    5M        3533.04 (  0.00%)     3523.70 ( -0.26%)     3536.32 (  0.09%)     3858.46 (  9.21%)
+Add      7M        3789.82 (  0.00%)     3796.51 (  0.18%)     3799.61 (  0.26%)     4029.79 (  6.33%)
+Copy     7M        3345.85 (  0.00%)     3358.16 (  0.37%)     3353.81 (  0.24%)     3483.16 (  4.10%)
+Scale    7M        3176.00 (  0.00%)     3161.42 ( -0.46%)     3161.61 ( -0.45%)     3403.88 (  7.17%)
+Triad    7M        3528.85 (  0.00%)     3530.45 (  0.05%)     3533.71 (  0.14%)     3856.90 (  9.30%)
+Add      8M        3801.60 (  0.00%)     3813.84 (  0.32%)     3811.72 (  0.27%)     3976.81 (  4.61%)
+Copy     8M        3364.64 (  0.00%)     3365.61 (  0.03%)     3362.38 ( -0.07%)     3473.99 (  3.25%)
+Scale    8M        3169.34 (  0.00%)     3173.77 (  0.14%)     3160.40 ( -0.28%)     3396.07 (  7.15%)
+Triad    8M        3531.38 (  0.00%)     3539.19 (  0.22%)     3536.68 (  0.15%)     3854.70 (  9.16%)
+Add      10M       3807.95 (  0.00%)     3798.47 ( -0.25%)     3788.44 ( -0.51%)     4003.61 (  5.14%)
+Copy     10M       3365.64 (  0.00%)     3363.00 ( -0.08%)     3355.89 ( -0.29%)     3477.50 (  3.32%)
+Scale    10M       3172.71 (  0.00%)     3177.81 (  0.16%)     3165.05 ( -0.24%)     3397.21 (  7.08%)
+Triad    10M       3536.15 (  0.00%)     3534.21 ( -0.05%)     3523.98 ( -0.34%)     3857.77 (  9.10%)
+Add      14M       3787.56 (  0.00%)     3797.21 (  0.25%)     3797.02 (  0.25%)     4003.90 (  5.71%)
+Copy     14M       3345.19 (  0.00%)     3346.86 (  0.05%)     3355.17 (  0.30%)     3477.81 (  3.96%)
+Scale    14M       3154.55 (  0.00%)     3169.49 (  0.47%)     3161.52 (  0.22%)     3397.43 (  7.70%)
+Triad    14M       3522.09 (  0.00%)     3533.46 (  0.32%)     3526.82 (  0.13%)     3857.32 (  9.52%)
+Add      17M       3806.34 (  0.00%)     3803.44 ( -0.08%)     3786.03 ( -0.53%)     4008.76 (  5.32%)
+Copy     17M       3368.39 (  0.00%)     3364.10 ( -0.13%)     3353.70 ( -0.44%)     3482.19 (  3.38%)
+Scale    17M       3169.18 (  0.00%)     3170.80 (  0.05%)     3169.06 ( -0.00%)     3401.51 (  7.33%)
+Triad    17M       3535.05 (  0.00%)     3536.79 (  0.05%)     3521.98 ( -0.37%)     3863.29 (  9.29%)
+Add      21M       3795.31 (  0.00%)     3808.91 (  0.36%)     3797.88 (  0.07%)     3996.53 (  5.30%)
+Copy     21M       3353.43 (  0.00%)     3360.01 (  0.20%)     3357.44 (  0.12%)     3477.10 (  3.69%)
+Scale    21M       3160.96 (  0.00%)     3164.94 (  0.13%)     3154.44 ( -0.21%)     3400.94 (  7.59%)
+Triad    21M       3530.45 (  0.00%)     3540.10 (  0.27%)     3527.00 ( -0.10%)     3858.31 (  9.29%)
+Add      28M       3803.11 (  0.00%)     3792.40 ( -0.28%)     3786.70 ( -0.43%)     4003.07 (  5.26%)
+Copy     28M       3361.16 (  0.00%)     3363.44 (  0.07%)     3357.54 ( -0.11%)     3475.82 (  3.41%)
+Scale    28M       3160.43 (  0.00%)     3148.44 ( -0.38%)     3157.26 ( -0.10%)     3398.14 (  7.52%)
+Triad    28M       3533.66 (  0.00%)     3517.45 ( -0.46%)     3525.84 ( -0.22%)     3856.66 (  9.14%)
+Add      35M       3792.86 (  0.00%)     3795.61 (  0.07%)     3794.84 (  0.05%)     4009.65 (  5.72%)
+Copy     35M       3344.24 (  0.00%)     3356.56 (  0.37%)     3351.18 (  0.21%)     3484.09 (  4.18%)
+Scale    35M       3160.14 (  0.00%)     3155.12 ( -0.16%)     3164.29 (  0.13%)     3401.23 (  7.63%)
+Triad    35M       3531.94 (  0.00%)     3523.24 ( -0.25%)     3523.71 ( -0.23%)     3861.73 (  9.34%)
+Add      42M       3803.39 (  0.00%)     3777.52 ( -0.68%)     3789.36 ( -0.37%)     4014.25 (  5.54%)
+Copy     42M       3360.64 (  0.00%)     3351.85 ( -0.26%)     3348.05 ( -0.37%)     3484.10 (  3.67%)
+Scale    42M       3158.64 (  0.00%)     3159.51 (  0.03%)     3157.44 ( -0.04%)     3400.86 (  7.67%)
+Triad    42M       3529.99 (  0.00%)     3515.82 ( -0.40%)     3527.70 ( -0.06%)     3860.66 (  9.37%)
+Add      56M       3778.07 (  0.00%)     3806.79 (  0.76%)     3789.54 (  0.30%)     3984.74 (  5.47%)
+Copy     56M       3348.68 (  0.00%)     3361.92 (  0.40%)     3282.70 ( -1.97%)     3473.71 (  3.73%)
+Scale    56M       3169.25 (  0.00%)     3160.16 ( -0.29%)     3097.85 ( -2.25%)     3394.91 (  7.12%)
+Triad    56M       3517.62 (  0.00%)     3534.72 (  0.49%)     3529.84 (  0.35%)     3853.46 (  9.55%)
+Add      71M       3811.71 (  0.00%)     3785.42 ( -0.69%)     3786.40 ( -0.66%)     3975.32 (  4.29%)
+Copy     71M       3370.59 (  0.00%)     3350.70 ( -0.59%)     3351.49 ( -0.57%)     3476.33 (  3.14%)
+Scale    71M       3168.70 (  0.00%)     3162.75 ( -0.19%)     3172.31 (  0.11%)     3397.66 (  7.23%)
+Triad    71M       3536.14 (  0.00%)     3522.81 ( -0.38%)     3525.17 ( -0.31%)     3855.20 (  9.02%)
+Add      85M       3805.94 (  0.00%)     3796.04 ( -0.26%)     3793.99 ( -0.31%)     4024.25 (  5.74%)
+Copy     85M       3354.76 (  0.00%)     3355.38 (  0.02%)     3364.42 (  0.29%)     3482.99 (  3.82%)
+Scale    85M       3162.20 (  0.00%)     3171.71 (  0.30%)     3146.74 ( -0.49%)     3405.10 (  7.68%)
+Triad    85M       3538.76 (  0.00%)     3528.62 ( -0.29%)     3524.00 ( -0.42%)     3857.08 (  9.00%)
+Add      113M      3803.66 (  0.00%)     3791.42 ( -0.32%)     3802.68 ( -0.03%)     4050.85 (  6.50%)
+Copy     113M      3348.32 (  0.00%)     3363.66 (  0.46%)     3355.31 (  0.21%)     3488.14 (  4.18%)
+Scale    113M      3177.09 (  0.00%)     3167.40 ( -0.30%)     3160.93 ( -0.51%)     3399.56 (  7.00%)
+Triad    113M      3536.06 (  0.00%)     3529.99 ( -0.17%)     3529.75 ( -0.18%)     3860.58 (  9.18%)
+Add      142M      3814.65 (  0.00%)     3795.83 ( -0.49%)     3794.67 ( -0.52%)     4001.91 (  4.91%)
+Copy     142M      3353.31 (  0.00%)     3357.70 (  0.13%)     3362.35 (  0.27%)     3483.25 (  3.87%)
+Scale    142M      3186.05 (  0.00%)     3156.22 ( -0.94%)     3149.30 ( -1.15%)     3403.12 (  6.81%)
+Triad    142M      3545.41 (  0.00%)     3526.16 ( -0.54%)     3523.67 ( -0.61%)     3864.64 (  9.00%)
+Add      170M      3787.71 (  0.00%)     3788.86 (  0.03%)     3812.66 (  0.66%)     3990.36 (  5.35%)
+Copy     170M      3351.50 (  0.00%)     3353.34 (  0.05%)     3368.86 (  0.52%)     3480.04 (  3.84%)
+Scale    170M      3158.38 (  0.00%)     3165.12 (  0.21%)     3163.39 (  0.16%)     3399.74 (  7.64%)
+Triad    170M      3521.84 (  0.00%)     3527.88 (  0.17%)     3538.46 (  0.47%)     3859.29 (  9.58%)
+Add      227M      3794.46 (  0.00%)     3804.21 (  0.26%)     3789.75 ( -0.12%)     3996.34 (  5.32%)
+Copy     227M      3368.15 (  0.00%)     3365.69 ( -0.07%)     3353.55 ( -0.43%)     3477.20 (  3.24%)
+Scale    227M      3160.18 (  0.00%)     3155.38 ( -0.15%)     3152.46 ( -0.24%)     3408.65 (  7.86%)
+Triad    227M      3525.39 (  0.00%)     3532.53 (  0.20%)     3518.85 ( -0.19%)     3857.57 (  9.42%)
+Add      284M      3804.29 (  0.00%)     3806.62 (  0.06%)     3798.59 ( -0.15%)     3957.29 (  4.02%)
+Copy     284M      3366.21 (  0.00%)     3355.53 ( -0.32%)     3362.62 ( -0.11%)     3469.98 (  3.08%)
+Scale    284M      3174.61 (  0.00%)     3161.86 ( -0.40%)     3171.81 ( -0.09%)     3394.82 (  6.94%)
+Triad    284M      3538.50 (  0.00%)     3535.29 ( -0.09%)     3532.22 ( -0.18%)     3851.68 (  8.85%)
+Add      341M      3805.26 (  0.00%)     3788.76 ( -0.43%)     3787.26 ( -0.47%)     3977.29 (  4.52%)
+Copy     341M      3366.98 (  0.00%)     3361.62 ( -0.16%)     3357.70 ( -0.28%)     3471.49 (  3.10%)
+Scale    341M      3159.11 (  0.00%)     3157.50 ( -0.05%)     3150.75 ( -0.26%)     3396.89 (  7.53%)
+Triad    341M      3530.80 (  0.00%)     3522.61 ( -0.23%)     3518.81 ( -0.34%)     3854.18 (  9.16%)
+Add      455M      3791.15 (  0.00%)     3794.25 (  0.08%)     3796.21 (  0.13%)     4023.51 (  6.13%)
+Copy     455M      3353.30 (  0.00%)     3356.46 (  0.09%)     3356.24 (  0.09%)     3483.58 (  3.88%)
+Scale    455M      3161.21 (  0.00%)     3163.74 (  0.08%)     3156.56 ( -0.15%)     3400.35 (  7.56%)
+Triad    455M      3527.90 (  0.00%)     3526.21 ( -0.05%)     3523.52 ( -0.12%)     3859.30 (  9.39%)
+Add      568M      3779.79 (  0.00%)     3791.20 (  0.30%)     3794.86 (  0.40%)     4030.14 (  6.62%)
+Copy     568M      3349.93 (  0.00%)     3354.29 (  0.13%)     3349.21 ( -0.02%)     3481.71 (  3.93%)
+Scale    568M      3163.69 (  0.00%)     3161.94 ( -0.06%)     3168.22 (  0.14%)     3399.29 (  7.45%)
+Triad    568M      3518.65 (  0.00%)     3526.50 (  0.22%)     3532.29 (  0.39%)     3857.38 (  9.63%)
+Add      682M      3801.06 (  0.00%)     3807.09 (  0.16%)     3803.26 (  0.06%)     3995.04 (  5.10%)
+Copy     682M      3363.64 (  0.00%)     3365.88 (  0.07%)     3363.97 (  0.01%)     3475.74 (  3.33%)
+Scale    682M      3151.89 (  0.00%)     3169.84 (  0.57%)     3162.50 (  0.34%)     3400.35 (  7.88%)
+Triad    682M      3528.97 (  0.00%)     3535.76 (  0.19%)     3530.60 (  0.05%)     3860.42 (  9.39%)
+Add      910M      3778.97 (  0.00%)     3784.80 (  0.15%)     3782.46 (  0.09%)     3965.85 (  4.95%)
+Copy     910M      3345.09 (  0.00%)     3347.40 (  0.07%)     3354.06 (  0.27%)     3471.09 (  3.77%)
+Scale    910M      3164.46 (  0.00%)     3159.83 ( -0.15%)     3147.78 ( -0.53%)     3392.25 (  7.20%)
+Triad    910M      3516.19 (  0.00%)     3518.54 (  0.07%)     3516.70 (  0.01%)     3848.91 (  9.46%)
+Add      1137M     3812.17 (  0.00%)     3808.22 ( -0.10%)     3794.70 ( -0.46%)     3969.04 (  4.11%)
+Copy     1137M     3367.52 (  0.00%)     3380.77 (  0.39%)     3353.99 ( -0.40%)     3473.60 (  3.15%)
+Scale    1137M     3158.62 (  0.00%)     3160.72 (  0.07%)     3159.71 (  0.03%)     3397.40 (  7.56%)
+Triad    1137M     3536.97 (  0.00%)     3533.26 ( -0.10%)     3522.25 ( -0.42%)     3856.24 (  9.03%)
+Add      1365M     3806.51 (  0.00%)     3799.39 ( -0.19%)     3785.71 ( -0.55%)     3965.55 (  4.18%)
+Copy     1365M     3360.43 (  0.00%)     3356.22 ( -0.12%)     3346.74 ( -0.41%)     3469.44 (  3.24%)
+Scale    1365M     3155.95 (  0.00%)     3160.66 (  0.15%)     3163.20 (  0.23%)     3392.79 (  7.50%)
+Triad    1365M     3534.18 (  0.00%)     3538.56 (  0.12%)     3524.20 ( -0.28%)     3849.29 (  8.92%)
+Add      1820M     3797.86 (  0.00%)     3801.04 (  0.08%)     3796.84 ( -0.03%)     4014.92 (  5.72%)
+Copy     1820M     3362.09 (  0.00%)     3360.66 ( -0.04%)     3352.27 ( -0.29%)     3483.55 (  3.61%)
+Scale    1820M     3170.20 (  0.00%)     3159.70 ( -0.33%)     3159.59 ( -0.33%)     3400.90 (  7.28%)
+Triad    1820M     3531.00 (  0.00%)     3531.65 (  0.02%)     3528.99 ( -0.06%)     3862.69 (  9.39%)
+Add      2275M     3810.31 (  0.00%)     3797.19 ( -0.34%)     3785.76 ( -0.64%)     3913.43 (  2.71%)
+Copy     2275M     3373.60 (  0.00%)     3355.79 ( -0.53%)     3340.74 ( -0.97%)     3456.16 (  2.45%)
+Scale    2275M     3174.64 (  0.00%)     3157.28 ( -0.55%)     3150.71 ( -0.75%)     3383.35 (  6.57%)
+Triad    2275M     3537.57 (  0.00%)     3529.60 ( -0.23%)     3518.91 ( -0.53%)     3837.46 (  8.48%)
+Add      2730M     3801.09 (  0.00%)     3796.96 ( -0.11%)     3800.62 ( -0.01%)     4008.15 (  5.45%)
+Copy     2730M     3357.18 (  0.00%)     3351.88 ( -0.16%)     3358.55 (  0.04%)     3482.93 (  3.75%)
+Scale    2730M     3177.66 (  0.00%)     3159.95 ( -0.56%)     3167.56 ( -0.32%)     3401.39 (  7.04%)
+Triad    2730M     3539.59 (  0.00%)     3532.29 ( -0.21%)     3531.57 ( -0.23%)     3863.61 (  9.15%)
+Add      3640M     3816.88 (  0.00%)     3809.59 ( -0.19%)     3805.49 ( -0.30%)     3991.09 (  4.56%)
+Copy     3640M     3375.91 (  0.00%)     3367.14 ( -0.26%)     3349.94 ( -0.77%)     3477.90 (  3.02%)
+Scale    3640M     3167.22 (  0.00%)     3167.15 ( -0.00%)     3166.88 ( -0.01%)     3398.62 (  7.31%)
+Triad    3640M     3546.45 (  0.00%)     3536.31 ( -0.29%)     3539.15 ( -0.21%)     3860.10 (  8.84%)
+Add      4551M     3799.05 (  0.00%)     3778.41 ( -0.54%)     3784.31 ( -0.39%)     3976.60 (  4.67%)
+Copy     4551M     3355.66 (  0.00%)     3351.03 ( -0.14%)     3355.51 ( -0.00%)     3482.15 (  3.77%)
+Scale    4551M     3171.91 (  0.00%)     3156.10 ( -0.50%)     3166.90 ( -0.16%)     3401.11 (  7.23%)
+Triad    4551M     3531.61 (  0.00%)     3514.39 ( -0.49%)     3516.99 ( -0.41%)     3861.99 (  9.35%)
+Add      5461M     3801.60 (  0.00%)     3807.33 (  0.15%)     3810.09 (  0.22%)     3950.47 (  3.92%)
+Copy     5461M     3360.29 (  0.00%)     3372.50 (  0.36%)     3357.41 ( -0.09%)     3470.96 (  3.29%)
+Scale    5461M     3161.18 (  0.00%)     3159.49 ( -0.05%)     3163.35 (  0.07%)     3394.10 (  7.37%)
+Triad    5461M     3532.35 (  0.00%)     3534.62 (  0.06%)     3539.14 (  0.19%)     3852.67 (  9.07%)
+Add      7281M     3800.80 (  0.00%)     3805.50 (  0.12%)     3787.10 ( -0.36%)     4042.38 (  6.36%)
+Copy     7281M     3359.99 (  0.00%)     3362.34 (  0.07%)     3354.09 ( -0.18%)     3487.91 (  3.81%)
+Scale    7281M     3168.68 (  0.00%)     3165.30 ( -0.11%)     3154.04 ( -0.46%)     3400.69 (  7.32%)
+Triad    7281M     3533.59 (  0.00%)     3537.71 (  0.12%)     3518.15 ( -0.44%)     3862.47 (  9.31%)
+Add      9102M     3790.67 (  0.00%)     3797.98 (  0.19%)     3808.76 (  0.48%)     3995.83 (  5.41%)
+Copy     9102M     3345.80 (  0.00%)     3360.87 (  0.45%)     3360.86 (  0.45%)     3477.97 (  3.95%)
+Scale    9102M     3174.65 (  0.00%)     3160.05 ( -0.46%)     3164.47 ( -0.32%)     3399.24 (  7.07%)
+Triad    9102M     3529.51 (  0.00%)     3533.84 (  0.12%)     3533.79 (  0.12%)     3859.38 (  9.35%)
+Add      10922M     3807.96 (  0.00%)     3803.49 ( -0.12%)     3809.65 (  0.04%)     4002.50 (  5.11%)
+Copy     10922M     3350.99 (  0.00%)     3352.21 (  0.04%)     3359.79 (  0.26%)     3477.24 (  3.77%)
+Scale    10922M     3164.74 (  0.00%)     3170.89 (  0.19%)     3167.50 (  0.09%)     3395.79 (  7.30%)
+Triad    10922M     3536.69 (  0.00%)     3532.25 ( -0.13%)     3538.25 (  0.04%)     3856.99 (  9.06%)
+Add      14563M     3786.28 (  0.00%)     3770.86 ( -0.41%)     3789.66 (  0.09%)     3988.87 (  5.35%)
+Copy     14563M     3352.51 (  0.00%)     3339.40 ( -0.39%)     3351.25 ( -0.04%)     3479.41 (  3.79%)
+Scale    14563M     3171.95 (  0.00%)     3151.73 ( -0.64%)     3154.62 ( -0.55%)     3399.56 (  7.18%)
+Triad    14563M     3522.50 (  0.00%)     3511.16 ( -0.32%)     3521.94 ( -0.02%)     3858.30 (  9.53%)
+Add      18204M     3809.56 (  0.00%)     3799.32 ( -0.27%)     3800.40 ( -0.24%)     3975.64 (  4.36%)
+Copy     18204M     3365.06 (  0.00%)     3360.08 ( -0.15%)     3360.78 ( -0.13%)     3478.50 (  3.37%)
+Scale    18204M     3171.25 (  0.00%)     3147.35 ( -0.75%)     3160.06 ( -0.35%)     3402.14 (  7.28%)
+Triad    18204M     3539.90 (  0.00%)     3526.72 ( -0.37%)     3529.69 ( -0.29%)     3863.45 (  9.14%)
+Add      21845M     3798.46 (  0.00%)     3775.06 ( -0.62%)     3800.56 (  0.06%)     3971.45 (  4.55%)
+Copy     21845M     3362.14 (  0.00%)     3354.93 ( -0.21%)     3358.40 ( -0.11%)     3468.39 (  3.16%)
+Scale    21845M     3170.99 (  0.00%)     3164.52 ( -0.20%)     3167.92 ( -0.10%)     3391.02 (  6.94%)
+Triad    21845M     3534.49 (  0.00%)     3511.51 ( -0.65%)     3534.65 (  0.00%)     3847.34 (  8.85%)
+Add      29127M     3819.69 (  0.00%)     3809.20 ( -0.27%)     3798.24 ( -0.56%)     4004.57 (  4.84%)
+Copy     29127M     3384.67 (  0.00%)     3365.17 ( -0.58%)     3353.97 ( -0.91%)     3478.36 (  2.77%)
+Scale    29127M     3158.68 (  0.00%)     3162.35 (  0.12%)     3171.84 (  0.42%)     3396.96 (  7.54%)
+Triad    29127M     3538.17 (  0.00%)     3539.05 (  0.02%)     3530.30 ( -0.22%)     3854.82 (  8.95%)
+Add      36408M     3806.95 (  0.00%)     3796.64 ( -0.27%)     3802.86 ( -0.11%)     4014.22 (  5.44%)
+Copy     36408M     3361.11 (  0.00%)     3358.35 ( -0.08%)     3358.30 ( -0.08%)     3481.66 (  3.59%)
+Scale    36408M     3165.87 (  0.00%)     3165.94 (  0.00%)     3176.78 (  0.34%)     3400.27 (  7.40%)
+Triad    36408M     3536.86 (  0.00%)     3529.81 ( -0.20%)     3538.19 (  0.04%)     3862.39 (  9.20%)
+Add      43690M     3799.39 (  0.00%)     3806.60 (  0.19%)     3803.09 (  0.10%)     3989.60 (  5.01%)
+Copy     43690M     3359.26 (  0.00%)     3384.76 (  0.76%)     3359.11 ( -0.00%)     3478.31 (  3.54%)
+Scale    43690M     3175.35 (  0.00%)     3164.08 ( -0.36%)     3161.71 ( -0.43%)     3400.39 (  7.09%)
+Triad    43690M     3535.26 (  0.00%)     3534.77 ( -0.01%)     3531.62 ( -0.10%)     3861.40 (  9.23%)
+Add      58254M     3799.66 (  0.00%)     3809.97 (  0.27%)     3800.36 (  0.02%)     3993.44 (  5.10%)
+Copy     58254M     3355.12 (  0.00%)     3367.42 (  0.37%)     3357.51 (  0.07%)     3485.58 (  3.89%)
+Scale    58254M     3170.94 (  0.00%)     3165.55 ( -0.17%)     3170.76 ( -0.01%)     3406.36 (  7.42%)
+Triad    58254M     3537.26 (  0.00%)     3539.78 (  0.07%)     3528.61 ( -0.24%)     3867.25 (  9.33%)
+Add      72817M     3815.26 (  0.00%)     3798.60 ( -0.44%)     3802.47 ( -0.34%)     4017.50 (  5.30%)
+Copy     72817M     3362.18 (  0.00%)     3355.17 ( -0.21%)     3356.95 ( -0.16%)     3484.11 (  3.63%)
+Scale    72817M     3175.73 (  0.00%)     3155.96 ( -0.62%)     3162.10 ( -0.43%)     3399.64 (  7.05%)
+Triad    72817M     3546.44 (  0.00%)     3528.61 ( -0.50%)     3531.39 ( -0.42%)     3860.93 (  8.87%)
+Add      87381M     3519.93 (  0.00%)     3511.38 ( -0.24%)     3501.07 ( -0.54%)     3842.46 (  9.16%)
+Copy     87381M     3175.29 (  0.00%)     3168.75 ( -0.21%)     3166.12 ( -0.29%)     3271.07 (  3.02%)
+Scale    87381M     2848.76 (  0.00%)     2842.46 ( -0.22%)     2840.72 ( -0.28%)     3184.16 ( 11.77%)
+Triad    87381M     3465.19 (  0.00%)     3461.85 ( -0.10%)     3451.36 ( -0.40%)     3786.76 (  9.28%)
 
-I'm not entirely convinced that the balance points are a good idea at
-all. There are a lot of assumptions and some complete unknowns. For example,
-if this task is completely cold is a mm flush far cheaper than flushing
-non-existent entries page by page? Unfortunately I do not know what the
-original thinking was and why something like a calibration loop was not
-used (other than the sheer difficulty of measuring it). i.e. Estimate the
-cost of an mm flush, estimate the cost of a single page flush and then
+This is a memory streaming benchmark that makes the remote costs a bit
+more visible.
 
-if (cost(mm_flush) < nr_to_flush * cost(page_flush))
-	flush_mm
-else
-	flush_page_range
+                            3.13.0-rc3  3.13.0-rc3  3.13.0-rc3  3.13.0-rc3
+                               vanillainstrument-v5r1lruslabonly-v1r2  local-v1r2
+NUMA alloc hit                 1238820     1347097     1432817     2103498
+NUMA alloc miss                 691541      757204      667484           0
+NUMA interleave hit                  0           0           0           0
+NUMA alloc local               1238815     1347095     1432815     2103493
+NUMA page range updates       24916702    24987450    25104153    24929595
+NUMA huge PMD updates            48025       48138       48364       48025
+NUMA PTE updates                375927      388932      390149      388820
+NUMA hint faults                373397       48138       48364       48025
+NUMA hint local faults          142051       12653       12667       48025
+NUMA hint local percent             38          26          26         100
+NUMA pages migrated              83407       68608       86528           0
+AutoNUMA cost                     2042         416         419         414
 
-Hopefully someone does remember.
+NUMA miss rates sepak for themself. I also included the NUMA balancing
+stats and the number of hinting faults that are local and number of pages
+migrated is also interesting.
 
-> Regarding total CPU usage:
-> 
-> >           3.13.0-rc3      3.4.69  3.13.0-rc3
-> >              vanilla     vanilla newdefault-v1
-> > User          900.27      995.20      947.33
-> > System       1583.41     1680.76     1533.17
-> > Elapsed      2100.78     2100.81     2100.76
-> 
-> ... elapsed time appears to be the same - does the benchmark run for a 
-> constant amount of time, regardless of performance?
-> 
+pft
+                        3.13.0-rc3            3.13.0-rc3            3.13.0-rc3            3.13.0-rc3
+                           vanilla       instrument-v5r1      lruslabonly-v1r2            local-v1r2
+User       1       0.6980 (  0.00%)       0.7090 ( -1.58%)       0.7210 ( -3.30%)       0.6760 (  3.15%)
+User       2       0.7040 (  0.00%)       0.6970 (  0.99%)       0.6640 (  5.68%)       0.6590 (  6.39%)
+User       3       0.6910 (  0.00%)       0.7270 ( -5.21%)       0.7450 ( -7.81%)       0.7070 ( -2.32%)
+User       4       0.7250 (  0.00%)       0.7160 (  1.24%)       0.7260 ( -0.14%)       0.7530 ( -3.86%)
+User       5       0.7590 (  0.00%)       0.7790 ( -2.64%)       0.7960 ( -4.87%)       0.7610 ( -0.26%)
+User       6       0.8130 (  0.00%)       0.8180 ( -0.62%)       0.7860 (  3.32%)       0.8030 (  1.23%)
+User       7       0.8210 (  0.00%)       0.8240 ( -0.37%)       0.8050 (  1.95%)       0.7690 (  6.33%)
+User       8       0.8390 (  0.00%)       0.8410 ( -0.24%)       0.7870 (  6.20%)       0.7780 (  7.27%)
+System     1       9.1230 (  0.00%)       9.0640 (  0.65%)       9.6980 ( -6.30%)       8.5410 (  6.38%)
+System     2       9.3990 (  0.00%)       9.3630 (  0.38%)       9.6880 ( -3.07%)       8.5570 (  8.96%)
+System     3       9.1460 (  0.00%)       9.0930 (  0.58%)       9.3010 ( -1.69%)       8.6700 (  5.20%)
+System     4       8.9160 (  0.00%)       8.8630 (  0.59%)       8.9340 ( -0.20%)       8.7370 (  2.01%)
+System     5       9.5900 (  0.00%)       9.4450 (  1.51%)       9.5940 ( -0.04%)       8.8960 (  7.24%)
+System     6       9.8640 (  0.00%)       9.7130 (  1.53%)       9.9510 ( -0.88%)       9.1420 (  7.32%)
+System     7       9.9860 (  0.00%)       9.9050 (  0.81%)       9.9830 (  0.03%)       9.2490 (  7.38%)
+System     8       9.8570 (  0.00%)      10.0090 ( -1.54%)      10.0430 ( -1.89%)       9.3030 (  5.62%)
+Elapsed    1       9.8240 (  0.00%)       9.7790 (  0.46%)      10.4280 ( -6.15%)       9.2280 (  6.07%)
+Elapsed    2       5.0870 (  0.00%)       5.0480 (  0.77%)       5.2190 ( -2.59%)       4.6360 (  8.87%)
+Elapsed    3       3.3220 (  0.00%)       3.3040 (  0.54%)       3.3670 ( -1.35%)       3.1430 (  5.39%)
+Elapsed    4       2.4440 (  0.00%)       2.4340 (  0.41%)       2.4450 ( -0.04%)       2.4010 (  1.76%)
+Elapsed    5       2.1500 (  0.00%)       2.1340 (  0.74%)       2.1590 ( -0.42%)       2.0020 (  6.88%)
+Elapsed    6       1.8290 (  0.00%)       1.8110 (  0.98%)       1.8460 ( -0.93%)       1.6910 (  7.55%)
+Elapsed    7       1.5760 (  0.00%)       1.5740 (  0.13%)       1.5600 (  1.02%)       1.4570 (  7.55%)
+Elapsed    8       1.3660 (  0.00%)       1.3750 ( -0.66%)       1.3840 ( -1.32%)       1.2720 (  6.88%)
+Faults/cpu 1  336505.5875 (  0.00%)  338169.9002 (  0.49%)  317186.6996 ( -5.74%)  358456.5721 (  6.52%)
+Faults/cpu 2  327139.2186 (  0.00%)  328492.4614 (  0.41%)  319274.5257 ( -2.40%)  358628.2150 (  9.63%)
+Faults/cpu 3  336004.1324 (  0.00%)  336567.6552 (  0.17%)  328975.0655 ( -2.09%)  352460.9626 (  4.90%)
+Faults/cpu 4  342824.1564 (  0.00%)  345092.8897 (  0.66%)  342110.6189 ( -0.21%)  348245.2828 (  1.58%)
+Faults/cpu 5  319553.7707 (  0.00%)  323342.1439 (  1.19%)  318221.0947 ( -0.42%)  342196.2266 (  7.09%)
+Faults/cpu 6  309614.5554 (  0.00%)  313909.9679 (  1.39%)  307872.9151 ( -0.56%)  332404.7055 (  7.36%)
+Faults/cpu 7  306159.2969 (  0.00%)  308038.1690 (  0.61%)  306307.5499 (  0.05%)  329872.4584 (  7.75%)
+Faults/cpu 8  309077.4966 (  0.00%)  304874.1843 ( -1.36%)  305342.7590 ( -1.21%)  328041.6604 (  6.14%)
+Faults/sec 1  336364.5575 (  0.00%)  337965.2381 (  0.48%)  316902.8780 ( -5.79%)  358111.9993 (  6.47%)
+Faults/sec 2  649713.2290 (  0.00%)  654535.5476 (  0.74%)  633369.6295 ( -2.52%)  712772.6198 (  9.71%)
+Faults/sec 3  994812.3119 (  0.00%) 1000190.1734 (  0.54%)  981316.5256 ( -1.36%) 1051712.4141 (  5.72%)
+Faults/sec 4 1352137.4832 (  0.00%) 1359242.0027 (  0.53%) 1351401.4285 ( -0.05%) 1376465.2565 (  1.80%)
+Faults/sec 5 1538115.0421 (  0.00%) 1550443.5505 (  0.80%) 1530614.5827 ( -0.49%) 1651864.2216 (  7.40%)
+Faults/sec 6 1807211.7324 (  0.00%) 1826306.7214 (  1.06%) 1790976.0367 ( -0.90%) 1955407.8574 (  8.20%)
+Faults/sec 7 2101840.1872 (  0.00%) 2101627.1857 ( -0.01%) 2117333.0681 (  0.74%) 2269862.7330 (  7.99%)
+Faults/sec 8 2421813.7208 (  0.00%) 2407803.4867 ( -0.58%) 2393045.9288 ( -1.19%) 2601789.0136 (  7.43%)
 
-Constant.
+Local allocations help fault rate microbenchmarl
 
-> This means that higher user time and lower system time generally 
-> represents higher achieved throughput, right?
-> 
+          3.13.0-rc3  3.13.0-rc3  3.13.0-rc3  3.13.0-rc3
+             vanillainstrument-v5r1lruslabonly-v1r2  local-v1r2
+User           60.57       62.13       61.33       60.06
+System        868.16      862.63      881.63      810.32
+Elapsed       336.19      336.05      346.70      317.59
 
-Good point, these values cannot be meaningfully interpreted because of
-the fixed duration of the test. I should not even have looked.
+system CPU down, presuably all the system CPU usage drops are related to
+zeroing of memory.
 
-> Yet the sum does not appear to be constant across kernels - does this 
-> mean that even newdefault-v1 is idling around more than v3.4.69?
+                            3.13.0-rc3  3.13.0-rc3  3.13.0-rc3  3.13.0-rc3
+                               vanillainstrument-v5r1lruslabonly-v1r2  local-v1r2
+NUMA alloc hit               187243902   187602290   188017672   264999137
+NUMA alloc miss               77736695    77400777    76985460           0
+NUMA interleave hit                  0           0           0           0
+NUMA alloc local             187243902   187602290   188017672   264999135
+NUMA page range updates      136246380   135333180   468517162   425261524
+NUMA huge PMD updates                0           0           0           0
+NUMA PTE updates             136246380   135333180   468517162   425261524
+NUMA hint faults                   512           0           0           0
+NUMA hint local faults             248           0           0           0
+NUMA hint local percent             48         100         100         100
+NUMA pages migrated                169           0           0           0
+AutoNUMA cost                      956         947        3279        2976
 
-There are a number of factors that could affect this. Light monitoring was
-active so there is some IO logging that. The workload is very context switch
-so changes to the scheduler will distort results. The load is interrupt
-heavy which will not be properly captured. The cost of the benchmark is
-heavily dominated by zeroing newly allocated pages so changes in cache
-coloring would show up in different ways.
+Does not need spelling out. No huge PMD updates is a curiousity worth looking
+at some other time.
+
+ebizzy
+                       3.13.0-rc3            3.13.0-rc3            3.13.0-rc3            3.13.0-rc3
+                          vanilla       instrument-v5r1      lruslabonly-v1r2            local-v1r2
+Mean     1      3213.33 (  0.00%)     3204.33 ( -0.28%)     3188.00 ( -0.79%)     3195.33 ( -0.56%)
+Mean     2      2291.33 (  0.00%)     2324.67 (  1.45%)     2328.00 (  1.60%)     2350.33 (  2.57%)
+Mean     3      2234.67 (  0.00%)     2264.67 (  1.34%)     2255.00 (  0.91%)     2283.00 (  2.16%)
+Mean     4      2224.33 (  0.00%)     2253.67 (  1.32%)     2252.33 (  1.26%)     2281.00 (  2.55%)
+Mean     5      2256.33 (  0.00%)     2276.00 (  0.87%)     2241.00 ( -0.68%)     2234.33 ( -0.98%)
+Mean     6      2233.00 (  0.00%)     2265.67 (  1.46%)     2238.67 (  0.25%)     2258.00 (  1.12%)
+Mean     7      2212.33 (  0.00%)     2242.67 (  1.37%)     2251.33 (  1.76%)     2258.67 (  2.09%)
+Mean     8      2224.67 (  0.00%)     2241.67 (  0.76%)     2215.33 ( -0.42%)     2240.67 (  0.72%)
+Mean     12     2213.33 (  0.00%)     2246.00 (  1.48%)     2257.00 (  1.97%)     2263.67 (  2.27%)
+Mean     16     2221.00 (  0.00%)     2263.67 (  1.92%)     2257.67 (  1.65%)     2254.00 (  1.49%)
+Mean     20     2215.00 (  0.00%)     2268.67 (  2.42%)     2262.67 (  2.15%)     2282.67 (  3.05%)
+Mean     24     2175.00 (  0.00%)     2204.00 (  1.33%)     2232.67 (  2.65%)     2224.00 (  2.25%)
+Mean     28     2110.00 (  0.00%)     2142.33 (  1.53%)     2164.00 (  2.56%)     2182.33 (  3.43%)
+Mean     32     2077.67 (  0.00%)     2089.33 (  0.56%)     2074.33 ( -0.16%)     2132.67 (  2.65%)
+Mean     36     2016.33 (  0.00%)     2025.33 (  0.45%)     2040.33 (  1.19%)     2096.33 (  3.97%)
+Mean     40     1984.00 (  0.00%)     1983.67 ( -0.02%)     2002.67 (  0.94%)     2067.00 (  4.18%)
+Mean     44     1943.33 (  0.00%)     1960.33 (  0.87%)     1961.33 (  0.93%)     2027.33 (  4.32%)
+Mean     48     1925.00 (  0.00%)     1938.33 (  0.69%)     1942.00 (  0.88%)     2024.00 (  5.14%)
+Stddev   1        25.42 (  0.00%)       43.52 (-71.21%)       32.54 (-27.99%)       74.42 (-192.77%)
+Stddev   2        29.68 (  0.00%)        2.62 ( 91.16%)       22.73 ( 23.41%)       20.53 ( 30.82%)
+Stddev   3        18.15 (  0.00%)       11.15 ( 38.60%)        6.16 ( 66.04%)        0.82 ( 95.50%)
+Stddev   4        41.28 (  0.00%)        8.73 ( 78.85%)        4.64 ( 88.75%)        6.38 ( 84.55%)
+Stddev   5        27.18 (  0.00%)       30.41 (-11.87%)       28.25 ( -3.92%)       31.08 (-14.35%)
+Stddev   6        10.80 (  0.00%)       20.24 (-87.36%)       22.10 (-104.57%)       29.70 (-174.95%)
+Stddev   7        23.10 (  0.00%)        7.59 ( 67.16%)       21.56 (  6.66%)       19.15 ( 17.08%)
+Stddev   8         3.68 (  0.00%)        8.65 (-135.04%)       26.23 (-612.53%)       27.79 (-654.77%)
+Stddev   12       23.84 (  0.00%)       10.03 ( 57.91%)        4.97 ( 79.16%)        4.99 ( 79.07%)
+Stddev   16       20.22 (  0.00%)       32.11 (-58.83%)        3.09 ( 84.71%)        4.97 ( 75.43%)
+Stddev   20        3.74 (  0.00%)       28.94 (-673.47%)       36.02 (-862.72%)       16.94 (-352.68%)
+Stddev   24       18.18 (  0.00%)       27.90 (-53.45%)       21.36 (-17.46%)        9.90 ( 45.56%)
+Stddev   28       11.78 (  0.00%)        1.70 ( 85.57%)       23.85 (-102.51%)       46.94 (-298.64%)
+Stddev   32        9.74 (  0.00%)       20.27 (-108.09%)       10.87 (-11.62%)        8.58 ( 11.96%)
+Stddev   36        3.86 (  0.00%)        8.50 (-120.24%)       11.44 (-196.50%)       21.25 (-450.71%)
+Stddev   40       14.17 (  0.00%)        2.05 ( 85.49%)        7.04 ( 50.31%)        7.12 ( 49.75%)
+Stddev   44        7.54 (  0.00%)        2.87 ( 61.98%)        2.05 ( 72.76%)        2.49 ( 66.93%)
+Stddev   48        2.94 (  0.00%)        5.44 (-84.67%)        7.07 (-140.19%)       15.64 (-431.33%)
+
+Ran ebizzy because it double up as a page allocation micro benchmark that
+hits page faults differently to PFT. Looks like an ok gain but the stddev
+is high and would need to be stabilised to draw a solid conclusion from.
+
+          3.13.0-rc3  3.13.0-rc3  3.13.0-rc3  3.13.0-rc3
+             vanillainstrument-v5r1lruslabonly-v1r2  local-v1r2
+User          491.24      497.42      497.39      505.94
+System        874.62      871.88      872.00      867.24
+Elapsed      1082.00     1082.28     1082.24     1082.18
+
+                            3.13.0-rc3  3.13.0-rc3  3.13.0-rc3  3.13.0-rc3
+                               vanillainstrument-v5r1lruslabonly-v1r2  local-v1r2
+NUMA alloc hit               238904205   239454483   240328156   317773920
+NUMA alloc miss               71969773    74642250    73502556           0
+NUMA interleave hit                  0           0           0           0
+NUMA alloc local             238904198   239454483   240328156   317773916
+NUMA page range updates         157577      731770      766010      781561
+NUMA huge PMD updates               33          34          72          76
+NUMA PTE updates                140714      714396      729218      742725
+NUMA hint faults                 39395          28          65          70
+NUMA hint local faults           17294          12          43          46
+NUMA hint local percent             43          42          66          65
+NUMA pages migrated               7183        2048        3072        6656
+AutoNUMA cost                      198           5           5           5
+
+Similarish observations.
+
+None of these benchmarks do *anything* related to what commit 81c0a2bb was
+supposed to fix. I just wanted to get the point across that our current
+default behaviour sucks and we should revisit that decision.
+
+My position is that by default we should only round-robin zones local to
+the allocating process and that node round-robin is something that should
+only be explicitely enabled.
+
+I'm less sure about the round robin treatment of slab but am erring on
+the side of historical behaviour until it is proven otherwise.
+
+ Documentation/sysctl/vm.txt |  28 +++++++++++
+ include/linux/mmzone.h      |   2 +
+ include/linux/swap.h        |   2 +
+ kernel/sysctl.c             |   8 ++++
+ mm/page_alloc.c             | 111 +++++++++++++++++++++++++++++++++++---------
+ 5 files changed, 130 insertions(+), 21 deletions(-)
 
 -- 
-Mel Gorman
-SUSE Labs
+1.8.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
