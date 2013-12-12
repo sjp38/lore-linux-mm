@@ -1,47 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D19A6B0031
-	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 19:04:18 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id r10so10439057pdi.24
-        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 16:04:18 -0800 (PST)
-Received: from LGEMRELSE6Q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id xh9si3198648pab.6.2013.12.11.16.04.15
-        for <linux-mm@kvack.org>;
-        Wed, 11 Dec 2013 16:04:17 -0800 (PST)
-Date: Thu, 12 Dec 2013 09:07:14 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 7/7] mm/migrate: remove result argument on page
- allocation function for migration
-Message-ID: <20131212000714.GA3634@lge.com>
-References: <1386580248-22431-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1386580248-22431-8-git-send-email-iamjoonsoo.kim@lge.com>
- <00000142d83adfc7-81b70cc9-c87b-4e7e-bd98-0a97ee21db31-000000@email.amazonses.com>
- <20131211084719.GA2043@lge.com>
- <00000142e263bbcd-65959fd3-eadc-4580-b55b-065c734a229e-000000@email.amazonses.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <00000142e263bbcd-65959fd3-eadc-4580-b55b-065c734a229e-000000@email.amazonses.com>
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 51CC76B0031
+	for <linux-mm@kvack.org>; Wed, 11 Dec 2013 19:12:35 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id v10so10462224pde.14
+        for <linux-mm@kvack.org>; Wed, 11 Dec 2013 16:12:34 -0800 (PST)
+Received: from e28smtp01.in.ibm.com (e28smtp01.in.ibm.com. [122.248.162.1])
+        by mx.google.com with ESMTPS id u7si1180409pbh.292.2013.12.11.16.12.32
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 11 Dec 2013 16:12:34 -0800 (PST)
+Received: from /spool/local
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Thu, 12 Dec 2013 05:42:30 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 64659E0053
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 05:44:47 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBC0CNhj6291784
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 05:42:24 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBC0CQQB029574
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 05:42:26 +0530
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v7 sched part 0/4] sched: numa: several fixups
+Date: Thu, 12 Dec 2013 08:12:19 +0800
+Message-Id: <1386807143-15994-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Rafael Aquini <aquini@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Wed, Dec 11, 2013 at 04:00:56PM +0000, Christoph Lameter wrote:
-> On Wed, 11 Dec 2013, Joonsoo Kim wrote:
-> 
-> > In do_move_pages(), if error occurs, 'goto out_pm' is executed and the
-> > page status doesn't back to userspace. So we don't need to store err number.
-> 
-> If a page cannot be moved then the error code is containing the number of
-> pages that could not be migrated. The check there is for err < 0.
-> So a positive number is not an error.
-> 
-> migrate_pages only returns an error code if we are running out of memory.
 
-Ah... I missed it. I will drop this patch and send v3 for whole patchset.
+Wanpeng Li (4):
+  sched/numa: drop sysctl_numa_balancing_settle_count sysctl
+  sched/numa: use wrapper function task_node to get node which task is on
+  sched/numa: use wrapper function task_faults_idx to calculate index in group_faults
+  sched/numa: fix period_slot recalculation
 
-Thanks.
+ include/linux/sched/sysctl.h |  1 -
+ kernel/sched/debug.c         |  2 +-
+ kernel/sched/fair.c          | 17 ++++-------------
+ kernel/sysctl.c              |  7 -------
+ 4 files changed, 5 insertions(+), 22 deletions(-)
+
+-- 
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
