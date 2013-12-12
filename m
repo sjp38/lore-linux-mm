@@ -1,163 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f44.google.com (mail-oa0-f44.google.com [209.85.219.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EA086B0031
-	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 09:36:23 -0500 (EST)
-Received: by mail-oa0-f44.google.com with SMTP id m1so497439oag.17
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 06:36:23 -0800 (PST)
-Received: from eusmtp01.atmel.com (eusmtp01.atmel.com. [212.144.249.243])
-        by mx.google.com with ESMTPS id bx5si16292819oec.104.2013.12.12.06.36.21
+Received: from mail-ea0-f178.google.com (mail-ea0-f178.google.com [209.85.215.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AA686B0031
+	for <linux-mm@kvack.org>; Thu, 12 Dec 2013 09:40:35 -0500 (EST)
+Received: by mail-ea0-f178.google.com with SMTP id d10so290700eaj.9
+        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 06:40:35 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v6si13289896eel.196.2013.12.12.06.40.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 12 Dec 2013 06:36:22 -0800 (PST)
-Date: Thu, 12 Dec 2013 15:36:19 +0100
-From: Ludovic Desroches <ludovic.desroches@atmel.com>
-Subject: Re: possible regression on 3.13 when calling flush_dcache_page
-Message-ID: <20131212143618.GJ12099@ldesroches-Latitude-E6320>
-References: <20131212143149.GI12099@ldesroches-Latitude-E6320>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 12 Dec 2013 06:40:34 -0800 (PST)
+Date: Thu, 12 Dec 2013 14:40:29 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH 0/3] Fix ebizzy performance regression on IvyBridge
+ due to X86 TLB range flush
+Message-ID: <20131212144029.GI11295@suse.de>
+References: <1386849309-22584-1-git-send-email-mgorman@suse.de>
+ <20131212130107.GC5806@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20131212143149.GI12099@ldesroches-Latitude-E6320>
+In-Reply-To: <20131212130107.GC5806@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-mmc@vger.kernel.org, linux-arm-kernel@lists.infradead.org, iamjoonsoo.kim@lge.com
-Cc: Ludovic Desroches <ludovic.desroches@atmel.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Alex Shi <alex.shi@linaro.org>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>
 
-fix mmc mailing list address error
+On Thu, Dec 12, 2013 at 02:01:07PM +0100, Ingo Molnar wrote:
+> 
+> * Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > I found that ebizzy regressed between 3.4 and 3.10 while testing on a new
+> > machine. Bisection initially found at least two problems of which the
+> > first was commit 611ae8e3 (x86/tlb: enable tlb flush range support for
+> > x86). The second was related to ACPI cpufreq and so it was disabled for
+> > the purposes of this series.
+> > 
+> > The intent of the TLB range flush patch appeared to be to preserve
+> > existing TLB entries which makes sense. The decision on whether to do a
+> > full mm flush or a number of single page flushes depends on the size of the
+> > relevant TLB and the CPU which is presuably taking the cost of a TLB refill.
+> > It is a gamble because the cost of the per-page flushes must be offset by a
+> > reduced TLB miss count. There are no indications what the cost of calling
+> > invlpg are if there are no TLB entries and it's also not taking into
+> > account how many CPUs it may have to execute these single TLB flushes on.
+> > 
+> > Ebizzy sees very little benefit as it discards newly allocated memory very
+> > quickly which is why it appeared to regress so badly. While I'm wary of
+> > optimising for such a benchmark, it's commonly tested and the defaults for
+> > Ivybridge may need to be re-examined.
+> > 
+> > The following small series restores ebizzy to 3.4-era performance. Is there a
+> > better way of doing this? Bear in mind that I'm testing on a single IvyBridge
+> > machine and there is no guarantee the gain is universal or even relevant.
+> > 
+> > kernel build was tested but it's uninteresting as TLB range is unimportant
+> > to it. A page fault benchmark was also tested but it does not hit the same paths
+> > impacted by commit 611ae8e3.
+> > 
+> > ebizzy
+> >                        3.13.0-rc3                3.4.69            3.13.0-rc3
+> >                           vanilla               vanilla           newdefault-v1
+> > Mean     1      7353.60 (  0.00%)     6782.00 ( -7.77%)     7836.20 (  6.56%)
+> > Mean     2      8120.40 (  0.00%)     8278.80 (  1.95%)     9520.60 ( 17.24%)
+> > Mean     3      8087.80 (  0.00%)     8083.60 ( -0.05%)     9003.80 ( 11.33%)
+> > Mean     4      7919.20 (  0.00%)     7842.60 ( -0.97%)     8680.60 (  9.61%)
+> > Mean     5      7310.60 (  0.00%)     7740.60 (  5.88%)     8273.20 ( 13.17%)
+> > Mean     6      6798.00 (  0.00%)     7720.20 ( 13.57%)     8033.20 ( 18.17%)
+> > Mean     7      6759.40 (  0.00%)     7644.00 ( 13.09%)     7643.80 ( 13.08%)
+> > Mean     8      6501.80 (  0.00%)     7666.40 ( 17.91%)     6944.40 (  6.81%)
+> > Mean     12     6606.00 (  0.00%)     7523.20 ( 13.88%)     7035.80 (  6.51%)
+> > Mean     16     6655.40 (  0.00%)     7287.40 (  9.50%)     7099.20 (  6.67%)
+> > Mean     20     6703.80 (  0.00%)     7152.20 (  6.69%)     7116.60 (  6.16%)
+> > Mean     24     6705.80 (  0.00%)     7014.80 (  4.61%)     7113.60 (  6.08%)
+> > Mean     28     6706.60 (  0.00%)     6940.40 (  3.49%)     7115.20 (  6.09%)
+> > Mean     32     6727.20 (  0.00%)     6878.80 (  2.25%)     7110.80 (  5.70%)
+> > Stddev   1        42.71 (  0.00%)       53.16 (-24.46%)       39.80 (  6.82%)
+> > Stddev   2       250.26 (  0.00%)      150.57 ( 39.84%)       31.94 ( 87.24%)
+> > Stddev   3        71.67 (  0.00%)       69.38 (  3.19%)       84.13 (-17.39%)
+> > Stddev   4        30.25 (  0.00%)       87.06 (-187.82%)       31.80 ( -5.14%)
+> > Stddev   5        71.18 (  0.00%)       25.68 ( 63.92%)      125.24 (-75.95%)
+> > Stddev   6        34.22 (  0.00%)       23.35 ( 31.75%)      124.40 (-263.57%)
+> > Stddev   7       100.59 (  0.00%)      112.83 (-12.17%)       65.07 ( 35.31%)
+> > Stddev   8        20.26 (  0.00%)       43.43 (-114.32%)       48.26 (-138.16%)
+> > Stddev   12       19.43 (  0.00%)       19.73 ( -1.55%)       23.25 (-19.65%)
+> > Stddev   16       14.47 (  0.00%)       26.42 (-82.54%)       17.71 (-22.40%)
+> > Stddev   20       21.37 (  0.00%)       15.97 ( 25.27%)       14.87 ( 30.42%)
+> > Stddev   24       12.87 (  0.00%)       28.12 (-118.44%)       10.46 ( 18.75%)
+> > Stddev   28       13.89 (  0.00%)       17.97 (-29.36%)       12.22 ( 12.04%)
+> > Stddev   32       18.14 (  0.00%)       20.37 (-12.31%)       16.40 (  9.58%)
+> > 
+> >           3.13.0-rc3      3.4.69  3.13.0-rc3
+> >              vanilla     vanilla newdefault-v1
+> > User          900.27      995.20      947.33
+> > System       1583.41     1680.76     1533.17
+> > Elapsed      2100.78     2100.81     2100.76
+> > 
+> > This shows the ebizzy comparison between 3.13-rc3, 3.4.69-stable and this series.
+> > The series is not a universal win against 3.4 but the figure are generally better
+> > and system CPU usage is reduced.
+> 
+> I think you found a real bug and I definitely agree that we want to 
+> fix it - the TLB range optimization was supposed to be a (nearly) 
+> unconditional win, so a regression like this is totally not acceptable 
+> IMHO.
+> 
 
-On Thu, Dec 12, 2013 at 03:31:50PM +0100, Ludovic Desroches wrote:
-> Hi,
+Ok.
+
+> Please help me out with interpreting the numbers. The Ebizzy table:
 > 
-> With v3.13-rc3 I have an error when the atmel-mci driver calls
-> flush_dcache_page (log at the end of the message).
+> > ebizzy
+> >                        3.13.0-rc3                3.4.69            3.13.0-rc3
+> >                           vanilla               vanilla           newdefault-v1
+> > Mean     1      7353.60 (  0.00%)     6782.00 ( -7.77%)     7836.20 (  6.56%)
+> > Mean     2      8120.40 (  0.00%)     8278.80 (  1.95%)     9520.60 ( 17.24%)
+> > Mean     3      8087.80 (  0.00%)     8083.60 ( -0.05%)     9003.80 ( 11.33%)
 > 
-> Since I didn't have it before, I did a git bisect and the commit introducing
-> the error is the following one:
+> is the first numeric column number of threads/clients?
+
+The number of threads.
+
+> The other 
+> colums are showing pairs of throughput (higher is better), with a 
+> performance regression percentage in parentheses.
 > 
-> 106a74e slab: replace free and inuse in struct slab with newly introduced active
+
+Average operations/second measured over the duration of the entire test.
+The output of the program is essentially records/duration.
+
+> do the stddev numbers:
 > 
-> I don't know if this commit has introduced a bug or if it has revealed a bug
-> in the atmel-mci driver.
+> > Stddev   1        42.71 (  0.00%)       53.16 (-24.46%)       39.80 (  6.82%)
+> > Stddev   2       250.26 (  0.00%)      150.57 ( 39.84%)       31.94 ( 87.24%)
 > 
-> I'll investigate on atmel-mci driver side but if someone has also this issue or
-> see what is wrong in the driver, please tell me all about it.
+> ... correspond to the respective thread count and thus overlay the 
+> first table, right?
 > 
-> Thanks
+
+Each iteration of the test ran for a fixed duration of 30 seconds. There were
+5 iterations per thread which I know is very low, this was an RFC. The stddev
+is the standard deviation of the records/sec recorded for the 5 iterations.
+
+> stddev appears to be rather large especially around a client count of 
+> 7-8. It will be difficult to fine-tune the TLB range flush constants 
+> if noise is too large.
 > 
-> Regards
+
+The number of iterations were very low to have high confidence of the
+figures. The high standard deviation for 5 clients was a single large
+outlier. It potentially could be stabilised to some extent by bumping up
+the number of iterations a lot and using percentiles instead of means.
+
+I'm a bit wary of optimising the TLB flush ranges based on the benchmark
+even if we stabilised the figures. There are major weaknesses that limit
+its usefulness for tuning this the shift value. The range of pages being
+flushed are fixed so whether the CPU sees a benefit depends on the cost of
+a single page flush, a global flush and the number of TLB entries relative
+to the fixed size used by ebizzy. Similarly, the full cost/benefit of using
+single page flushes vs global flush partially depends on whether the TLB
+contains hot entries for the task being flushed that will be used in the
+near future. ebizzy's allocations are short lived and, while I have not
+analysed it, I suspect it benefits little from preserving its TLB entries.
+
+I'm not entirely convinced that the balance points are a good idea at
+all. There are a lot of assumptions and some complete unknowns. For example,
+if this task is completely cold is a mm flush far cheaper than flushing
+non-existent entries page by page? Unfortunately I do not know what the
+original thinking was and why something like a calibration loop was not
+used (other than the sheer difficulty of measuring it). i.e. Estimate the
+cost of an mm flush, estimate the cost of a single page flush and then
+
+if (cost(mm_flush) < nr_to_flush * cost(page_flush))
+	flush_mm
+else
+	flush_page_range
+
+Hopefully someone does remember.
+
+> Regarding total CPU usage:
 > 
-> Ludovic
+> >           3.13.0-rc3      3.4.69  3.13.0-rc3
+> >              vanilla     vanilla newdefault-v1
+> > User          900.27      995.20      947.33
+> > System       1583.41     1680.76     1533.17
+> > Elapsed      2100.78     2100.81     2100.76
 > 
+> ... elapsed time appears to be the same - does the benchmark run for a 
+> constant amount of time, regardless of performance?
 > 
-> # mmc0: mmc_rescan_try_freq: trying to init card at 400000 Hz
-> mmc0: queuing unknown CIS tuple 0x01 (3 bytes)
-> mmc0: queuing unknown CIS tuple 0x1a (5 bytes)
-> mmc0: queuing unknown CIS tuple 0x1b (8 bytes)
-> mmc0: queuing unknown CIS tuple 0x14 (0 bytes)
-> mmc0: queuing unknown CIS tuple 0x80 (1 bytes)
-> mmc0: queuing unknown CIS tuple 0x81 (1 bytes)
-> mmc0: queuing unknown CIS tuple 0x82 (1 bytes)
-> mmc0: new SDIO card at address 0001
-> Unable to handle kernel paging request at virtual address 0a00000c
-> pgd = c0004000
-> [0a00000c] *pgd=00000000
-> Internal error: Oops: 5 [#1] ARM
-> Modules linked in:
-> CPU: 0 PID: 9 Comm: kworker/u2:1 Not tainted 3.11.0+ #68
-> Workqueue: kmmcd mmc_rescan
-> task: c384e800 ti: c385e000 task.ti: c385e000
-> PC is at vma_interval_tree_subtree_search+0x18/0x74
-> LR is at flush_dcache_page+0x90/0x12c
-> pc : [<c0064a50>]    lr : [<c000f00c>]    psr: 20000093
-> sp : c385fab8  ip : 00000000  fp : c10ca400
-> r10: c385fc64  r9 : c12f92fc  r8 : 00000000
-> r7 : c2ace640  r6 : c0cc5be0  r5 : c0cd0000  r4 : c1323a00
-> r3 : 0a000000  r2 : c0cc5be0  r1 : c0cc5be0  r0 : c034ae48
-> Flags: nzCv  IRQs off  FIQs on  Mode SVC_32  ISA ARM  Segment kernel
-> Control: 0005317f  Table: 22b7c000  DAC: 00000017
-> Process kworker/u2:1 (pid: 9, stack limit = 0xc385e1b8)
-> Stack: (0xc385fab8 to 0xc3860000)
-> faa0:                                                       c1323a00 c000f00c
-> fac0: c0cd02d0 c2b0cb40 c385fc30 00000003 00000004 c0281380 44006d72 43495645
-> fae0: 0000c0ef 00000000 3a6d726f 00000000 30303038 c2b42ec0 c3868b80 0000001e
-> fb00: 00000000 00000000 c10f26ed 00000200 0008a000 c0049d3c c3868b80 c2b42ec0
-> fb20: c3868b80 00000000 ffffffff c385fb9c c0cd02d0 1408a004 00000200 c0049ed8
-> fb40: c3868b80 c004c384 0000001e c0049718 0000001e c0009cc8 c10f2a60 c001d7ec
-> fb60: 20000013 c000bf20 c10f3900 c2b0cbd8 0000184a a0000013 c2b0cbd8 ffff824a
-> fb80: c10f30e0 00000000 c0cd02d0 1408a004 00000200 0008a000 ffff814a c385fbb0
-> fba0: c001d560 c001d7ec 20000013 ffffffff c2b0cbd8 a0000013 f7cedc96 c2b07400
-> fbc0: c2b0cb40 c385fc40 00000001 c028207c c385fc40 c2b07400 00000004 c0270e28
-> fbe0: 00000200 000003e8 00000000 61666666 30303038 c2b07400 c385fc50 c385fc40
-> fc00: 00001000 c027100c c1323a02 00000004 c2b48000 00000001 00001000 c027a06c
-> fc20: 00000015 c38f2800 c2ace7c0 c002f804 c1323a02 000002d0 00000004 00000000
-> fc40: 00000000 c385fc94 c385fc64 00000000 00000000 c385fc54 c385fc54 c0270c3c
-> fc60: 00000000 3b9aca00 00000000 00000004 00000001 ffffff8d 00000200 00000000
-> fc80: 00000000 c385fc40 00000001 c385fc30 00000000 00000035 1408a004 00000000
-> fca0: 00000000 00000000 00000000 000001b5 00000000 ffffff8d 00000000 00000000
-> fcc0: c385fc64 c385fc40 00000007 00000004 c2bfb400 c0cd02d0 00000450 00000001
-> fce0: 00000000 00000004 000001ff c027af0c 00000001 c0cd02d0 00000000 00000004
-> fd00: 00000000 00000000 c10cf4f0 00000450 00000004 c2bfb400 c0cd02d0 00000251
-> fd20: 00000450 c0cd02d0 00000251 c027b010 c0cd02d0 00000004 00000450 c022d0e8
-> fd40: c0cd02d0 c3859000 00000004 00000251 00000000 c022d6ac 00000004 00000450
-> fd60: c0cd02c0 c10ce7e8 c0cd02d0 00000004 c385fdb4 c10ce7e8 ffff81c9 c022da4c
-> fd80: 00000251 c385fdb4 00000004 c385fddc 00000000 c0cd02c0 c03b5ccc 00000001
-> fda0: 00000000 c2b48008 c2bfb400 c021bb1c c0cd02c0 00000008 c385fd84 c0cd02c0
-> fdc0: 00000000 00000000 c03b5ccc c022c37c 00000000 c0476909 00000000 00000000
-> fde0: 00000000 c385fd7c c3859000 c0cd02c0 00000000 c022e010 c022de8c c2bfb400
-> fe00: 00000000 c10e18f0 c03b5ccc c027a32c c027a2d4 c2bfb408 00000000 c10e18f0
-> fe20: c01cafc8 c01cadf4 00000000 c385fe38 c2bfb408 c01c966c c38d7a1c c2ad6f34
-> fe40: c2bfb408 c2bfb408 c2bfb43c c2bfb408 00000000 c01cad10 c2bfb408 c10eb49c
-> fe60: c2bfb408 c01ca398 c2bfb408 00000000 c2bfb410 c01c898c c2bfb410 00000000
-> fe80: 00000000 c01818b0 00000001 c2bfb400 c2bfb408 c2bfb400 c2bfb408 00000000
-> fea0: c2b48000 00000001 00000000 c385fed3 c2bfb400 c027a4c4 c2b48000 c2b07400
-> fec0: 00000000 c0279b8c 00000000 c385fed3 00000000 10ffff00 00000000 c2b0757c
-> fee0: c2b07400 00000000 00061a80 c03b9d90 00000000 00000000 00000089 c0272fb8
-> ff00: c385df60 c2b0757c c3817200 c10f26b5 c3849c00 c00270e0 c385df60 c2b0757c
-> ff20: 00000081 c385df60 c3817200 c385e000 c10f26b5 c385df78 c3817200 c3817210
-> ff40: 00000089 c00276d0 c384e800 c384debc 00000000 c385df60 c00274c0 00000000
-> ff60: 00000000 00000000 00000000 c002c130 00000000 00000000 00000000 c385df60
-> ff80: 00000000 c385ff84 c385ff84 00000000 c385ff90 c385ff90 c385ffac c384debc
-> ffa0: c002c090 00000000 00000000 c00094b0 00000000 00000000 00000000 00000000
-> ffc0: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-> ffe0: 00000000 00000000 00000000 00000000 00000013 00000000 00000000 00000000
-> [<c0064a50>] (vma_interval_tree_subtree_search+0x18/0x74) from [<c000f00c>] (flush_dcache_page+0x90/0x12c)
-> [<c000f00c>] (flush_dcache_page+0x90/0x12c) from [<c0281380>] (atmci_interrupt+0x3cc/0x900)
-> [<c0281380>] (atmci_interrupt+0x3cc/0x900) from [<c0049d3c>] (handle_irq_event_percpu+0x2c/0x1a0)
-> [<c0049d3c>] (handle_irq_event_percpu+0x2c/0x1a0) from [<c0049ed8>] (handle_irq_event+0x28/0x38)
-> [<c0049ed8>] (handle_irq_event+0x28/0x38) from [<c004c384>] (handle_fasteoi_irq+0xa4/0xe4)
-> [<c004c384>] (handle_fasteoi_irq+0xa4/0xe4) from [<c0049718>] (generic_handle_irq+0x20/0x30)
-> [<c0049718>] (generic_handle_irq+0x20/0x30) from [<c0009cc8>] (handle_IRQ+0x60/0x84)
-> [<c0009cc8>] (handle_IRQ+0x60/0x84) from [<c000bf20>] (__irq_svc+0x40/0x4c)
-> [<c000bf20>] (__irq_svc+0x40/0x4c) from [<c001d7ec>] (mod_timer+0xf8/0x110)
-> [<c001d7ec>] (mod_timer+0xf8/0x110) from [<c028207c>] (atmci_request+0xd0/0x120)
-> [<c028207c>] (atmci_request+0xd0/0x120) from [<c0270e28>] (mmc_start_request+0x1e4/0x204)
-> [<c0270e28>] (mmc_start_request+0x1e4/0x204) from [<c027100c>] (mmc_wait_for_req+0x6c/0x16c)
-> [<c027100c>] (mmc_wait_for_req+0x6c/0x16c) from [<c027a06c>] (mmc_io_rw_extended+0x214/0x290)
-> [<c027a06c>] (mmc_io_rw_extended+0x214/0x290) from [<c027af0c>] (sdio_io_rw_ext_helper+0x160/0x1a0)
-> [<c027af0c>] (sdio_io_rw_ext_helper+0x160/0x1a0) from [<c027b010>] (sdio_memcpy_fromio+0x14/0x18)
-> [<c027b010>] (sdio_memcpy_fromio+0x14/0x18) from [<c022d0e8>] (ath6kl_sdio_io+0x88/0x9c)
-> [<c022d0e8>] (ath6kl_sdio_io+0x88/0x9c) from [<c022d6ac>] (ath6kl_sdio_read_write_sync+0xb0/0x100)
-> [<c022d6ac>] (ath6kl_sdio_read_write_sync+0xb0/0x100) from [<c022da4c>] (ath6kl_sdio_bmi_write+0x54/0xf8)
-> [<c022da4c>] (ath6kl_sdio_bmi_write+0x54/0xf8) from [<c021bb1c>] (ath6kl_bmi_get_target_info+0x44/0x190)
-> [<c021bb1c>] (ath6kl_bmi_get_target_info+0x44/0x190) from [<c022c37c>] (ath6kl_core_init+0xa4/0x404)
-> [<c022c37c>] (ath6kl_core_init+0xa4/0x404) from [<c022e010>] (ath6kl_sdio_probe+0x184/0x1ec)
-> [<c022e010>] (ath6kl_sdio_probe+0x184/0x1ec) from [<c027a32c>] (sdio_bus_probe+0x58/0x6c)
-> [<c027a32c>] (sdio_bus_probe+0x58/0x6c) from [<c01cadf4>] (driver_probe_device+0xac/0x1f4)
-> [<c01cadf4>] (driver_probe_device+0xac/0x1f4) from [<c01c966c>] (bus_for_each_drv+0x48/0x8c)
-> [<c01c966c>] (bus_for_each_drv+0x48/0x8c) from [<c01cad10>] (device_attach+0x68/0x80)
-> [<c01cad10>] (device_attach+0x68/0x80) from [<c01ca398>] (bus_probe_device+0x28/0x98)
-> [<c01ca398>] (bus_probe_device+0x28/0x98) from [<c01c898c>] (device_add+0x424/0x5fc)
-> [<c01c898c>] (device_add+0x424/0x5fc) from [<c027a4c4>] (sdio_add_func+0x34/0x4c)
-> [<c027a4c4>] (sdio_add_func+0x34/0x4c) from [<c0279b8c>] (mmc_attach_sdio+0x260/0x314)
-> [<c0279b8c>] (mmc_attach_sdio+0x260/0x314) from [<c0272fb8>] (mmc_rescan+0x22c/0x2b4)
-> [<c0272fb8>] (mmc_rescan+0x22c/0x2b4) from [<c00270e0>] (process_one_work+0x1f4/0x348)
-> [<c00270e0>] (process_one_work+0x1f4/0x348) from [<c00276d0>] (worker_thread+0x210/0x36c)
-> [<c00276d0>] (worker_thread+0x210/0x36c) from [<c002c130>] (kthread+0xa0/0xb0)
-> [<c002c130>] (kthread+0xa0/0xb0) from [<c00094b0>] (ret_from_fork+0x14/0x24)
-> Code: e243002c e5903034 e3530000 0a000002 (e593c00c) 
-> ---[ end trace 3f7f9bc3f451e9c9 ]---
-> Kernel panic - not syncing: Fatal exception in interrupt
+
+Constant.
+
+> This means that higher user time and lower system time generally 
+> represents higher achieved throughput, right?
 > 
+
+Good point, these values cannot be meaningfully interpreted because of
+the fixed duration of the test. I should not even have looked.
+
+> Yet the sum does not appear to be constant across kernels - does this 
+> mean that even newdefault-v1 is idling around more than v3.4.69?
+
+There are a number of factors that could affect this. Light monitoring was
+active so there is some IO logging that. The workload is very context switch
+so changes to the scheduler will distort results. The load is interrupt
+heavy which will not be properly captured. The cost of the benchmark is
+heavily dominated by zeroing newly allocated pages so changes in cache
+coloring would show up in different ways.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
