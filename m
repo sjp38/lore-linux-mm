@@ -1,40 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 86F1B6B00B3
-	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 10:47:06 -0500 (EST)
-Received: by mail-ea0-f180.google.com with SMTP id f15so974767eak.39
-        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 07:47:06 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id 5si2311284eei.207.2013.12.13.07.47.05
+Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B3456B0031
+	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 11:41:01 -0500 (EST)
+Received: by mail-qa0-f41.google.com with SMTP id j5so923848qaq.7
+        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 08:41:00 -0800 (PST)
+Received: from a9-50.smtp-out.amazonses.com (a9-50.smtp-out.amazonses.com. [54.240.9.50])
+        by mx.google.com with ESMTP id w9si2748217qad.12.2013.12.13.08.40.59
         for <linux-mm@kvack.org>;
-        Fri, 13 Dec 2013 07:47:05 -0800 (PST)
-Message-ID: <52AB2BEE.8040303@redhat.com>
-Date: Fri, 13 Dec 2013 10:46:54 -0500
-From: Rik van Riel <riel@redhat.com>
+        Fri, 13 Dec 2013 08:41:00 -0800 (PST)
+Date: Fri, 13 Dec 2013 16:40:58 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [patch 2/2] fs: buffer: move allocation failure loop into the
+ allocator
+In-Reply-To: <20131213065805.GC8845@lge.com>
+Message-ID: <00000142ecd51cc6-b987e565-7b4f-4945-89ba-731f1d1376fb-000000@email.amazonses.com>
+References: <1381265890-11333-1-git-send-email-hannes@cmpxchg.org> <1381265890-11333-2-git-send-email-hannes@cmpxchg.org> <20131203165910.54d6b4724a1f3e329af52ac6@linux-foundation.org> <20131204015218.GA19709@lge.com> <20131213065805.GC8845@lge.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/7] mm: page_alloc: Break out zone page aging distribution
- into its own helper
-References: <1386943807-29601-1-git-send-email-mgorman@suse.de> <1386943807-29601-3-git-send-email-mgorman@suse.de>
-In-Reply-To: <1386943807-29601-3-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, azurIt <azurit@pobox.sk>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Christian Casteyde <casteyde.christian@free.fr>, Pekka Enberg <penberg@kernel.org>
 
-On 12/13/2013 09:10 AM, Mel Gorman wrote:
-> This patch moves the decision on whether to round-robin allocations between
-> zones and nodes into its own helper functions. It'll make some later patches
-> easier to understand and it will be automatically inlined.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+On Fri, 13 Dec 2013, Joonsoo Kim wrote:
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+> Could you review this patch?
+> I think that we should merge it to fix the problem reported by Christian.
 
-
--- 
-All rights reversed
+I'd be fine with clearing __GFP_NOFAIL but not with using the same flags
+as for a higher order alloc. __GFP_NORETRY and __GFP_NOWARN should be left
+untouched for the minimal alloc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
