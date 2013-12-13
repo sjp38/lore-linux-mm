@@ -1,147 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id A2E956B0088
-	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 08:01:35 -0500 (EST)
-Received: by mail-ee0-f48.google.com with SMTP id e49so846662eek.21
-        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 05:01:35 -0800 (PST)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.17.21])
-        by mx.google.com with ESMTPS id h45si1801129eeo.46.2013.12.13.05.01.34
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Dec 2013 05:01:34 -0800 (PST)
-Received: from [192.168.178.21] ([85.177.17.206]) by mail.gmx.com (mrgmx103)
- with ESMTPSA (Nemesis) id 0MaIw0-1W6vv339se-00JuP4 for <linux-mm@kvack.org>;
- Fri, 13 Dec 2013 14:01:34 +0100
-Message-ID: <52AB052E.9000404@gmx.de>
-Date: Fri, 13 Dec 2013 14:01:34 +0100
-From: =?UTF-8?B?VG9yYWxmIEbDtnJzdGVy?= <toralf.foerster@gmx.de>
-MIME-Version: 1.0
-Subject: Re: [uml-devel] why does index in truncate_inode_pages_range() grows
- so much ?
-References: <529217CD.1000204@gmx.de>	<20131203140214.GB31128@quack.suse.cz>	<529E3450.9000700@gmx.de>	<20131203230058.GA24037@quack.suse.cz>	<20131204130639.GA31973@quack.suse.cz>	<52A36389.7010103@gmx.de>	<20131211202639.GE1163@quack.suse.cz>	<52AAD8D4.2060807@gmx.de> <CAFLxGvy16wv0m4D+ydmqbksUu9CaEaDtGdtnk1YHa56jAU+SEA@mail.gmail.com>
-In-Reply-To: <CAFLxGvy16wv0m4D+ydmqbksUu9CaEaDtGdtnk1YHa56jAU+SEA@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id EA6986B008A
+	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 08:13:59 -0500 (EST)
+Received: by mail-pd0-f176.google.com with SMTP id w10so2489861pde.7
+        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 05:13:59 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <20131212180057.GD134240@sgi.com>
+References: <cover.1386790423.git.athorlton@sgi.com>
+ <20131212180057.GD134240@sgi.com>
+Subject: RE: [RFC PATCH 3/3] Change THP behavior
+Content-Transfer-Encoding: 7bit
+Message-Id: <20131213131349.D8DE9E0090@blue.fi.intel.com>
+Date: Fri, 13 Dec 2013 15:13:49 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Weinberger <richard.weinberger@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, UML devel <user-mode-linux-devel@lists.sourceforge.net>
+To: Alex Thorlton <athorlton@sgi.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Benjamin LaHaise <bcrl@kvack.org>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, David Rientjes <rientjes@google.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jiang Liu <jiang.liu@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Glauber Costa <glommer@parallels.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.orglinux-mm@kvack.org
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA256
+Alex Thorlton wrote:
+> +	/*
+> +	 * now that we've done the accounting work, we check to see if
+> +	 * we've exceeded our threshold
+> +	 */
+> +	if (temp_thp->ref_count >= mm->thp_threshold) {
+> +		pmd_t pmd_entry;
+> +		pgtable_t pgtable;
+> +
+> +		/*
+> +		 * we'll do all of the following beneath the big ptl for now
+> +		 * this will need to be modified to work with the split ptl
+> +		 */
+> +		spin_lock(&mm->page_table_lock);
+> +
+> +		/*
+> +		 * once we get past the lock we have to make sure that somebody
+> +		 * else hasn't already turned this guy into a THP, if they have,
+> +		 * then the page we need is already faulted in as part of the THP
+> +		 * they created
+> +		 */
+> +		if (PageTransHuge(temp_thp->page)) {
+> +			spin_unlock(&mm->page_table_lock);
+> +			return 0;
+> +		}
+> +
+> +		pgtable = pte_alloc_one(mm, haddr);
+> +		if (unlikely(!pgtable)) {
+> +			spin_unlock(&mm->page_table_lock);
+> +			return VM_FAULT_OOM;
+> +		}
+> +
+> +		/* might wanna move this? */
+> +		__SetPageUptodate(temp_thp->page);
+> +
+> +		/* turn the pages into one compound page */
+> +		make_compound_page(temp_thp->page, HPAGE_PMD_ORDER);
+> +
+> +		/* set up the pmd */
+> +		pmd_entry = mk_huge_pmd(temp_thp->page, vma->vm_page_prot);
+> +		pmd_entry = maybe_pmd_mkwrite(pmd_mkdirty(pmd_entry), vma);
+> +
+> +		/* remap the new page since we cleared the mappings */
+> +		page_add_anon_rmap(temp_thp->page, vma, address);
+> +
+> +		/* deposit the thp */
+> +		pgtable_trans_huge_deposit(mm, pmd, pgtable);
+> +
+> +		set_pmd_at(mm, haddr, pmd, pmd_entry);
+> +		add_mm_counter(mm, MM_ANONPAGES, HPAGE_PMD_NR - mm->thp_threshold + 1);
+> +		/* mm->nr_ptes++; */
+> +
+> +		/* delete the reference to this compound page from our list */
+> +		spin_lock(&mm->thp_list_lock);
+> +		list_del(&temp_thp->list);
+> +		spin_unlock(&mm->thp_list_lock);
+> +
+> +		spin_unlock(&mm->page_table_lock);
+> +		return 0;
 
-On 12/13/2013 11:51 AM, Richard Weinberger wrote:
-> On Fri, Dec 13, 2013 at 10:52 AM, Toralf FA?rster <toralf.foerster@gmx.de> wrote:
->> -----BEGIN PGP SIGNED MESSAGE-----
->> Hash: SHA256
->>
->> On 12/11/2013 09:26 PM, Jan Kara wrote:
->>> Thanks! So this works more or less as expected - trinity issued a
->>> read at absurdly high offset so we created pagecache page a that
->>> offset and tried to read data into it. That failed. We left the
->>> page in the pagecache where it was for reclaim to reclaim it when
->>> free pages are needed. Everything works as designed except we could
->>> possibly argue that it's not the most efficient way to use
->>> pages...
->>>
->>> Patch 'vfs: fix a bug when we do some dio reads with append dio
->>> writes' (http://www.spinics.net/lists/linux-fsdevel/msg70899.html)
->>> should actually change the situation and we won't unnecessarily
->>> cache these pages.
->>>
->> confirmed - applied to latest git tree of Linus I helps.
-> 
-> Good to know! :-)
-> 
+Hm. I think this part is not correct: you collapse temp thp page
+into real one only for current procees. What will happen if a process with
+temp thp pages was forked?
 
-OTOH - there's seems to be more places for an improvement - now trinity often runs hours
-w/o problem (before it runs within a rather short time into such issues).
+And I don't think this problem is an easy one. khugepaged can't collapse
+pages with page->_count != 1 for the same reason: to make it properly you
+need to take mmap_sem for all processes and collapse all pages at once.
+And if a page is pinned, we also can't collapse.
 
-But today I got another case (I did not patched the source files except the mentioned patch by Jan Kara)
-where the trinity call cycles since 2 hours w/o any progress. But fortunately the system is still responsive,
-ssh works and I can shutdown that virtual machine smoothly, furthermore all local and remote file systems
-can be unounted cleanly - so that patch is a big improvement).
+Sorry, I don't think the whole idea has much potential. :(
 
-
-tfoerste@n22 ~/devel/github/bingo $ date; sudo gdb /home/tfoerste/devel/linux/linux 9776 -n -batch -ex 'bt'
-Fri Dec 13 13:54:33 CET 2013
-find_get_pages (mapping=0x45182810, start=0, nr_pages=14, pages=0x0) at mm/filemap.c:885
-885     }
-#0  find_get_pages (mapping=0x45182810, start=0, nr_pages=14, pages=0x0) at mm/filemap.c:885
-#1  0x080d669a in pagevec_lookup (pvec=0x40607d40, mapping=0x0, start=0, nr_pages=0) at mm/swap.c:937
-#2  0x080d6a9a in truncate_inode_pages_range (mapping=0x45182810, lstart=0, lend=-1) at mm/truncate.c:241
-#3  0x080d6e3f in truncate_inode_pages (mapping=0x0, lstart=0) at mm/truncate.c:358
-#4  0x0818c2d2 in ext4_evict_inode (inode=0x45182758) at fs/ext4/inode.c:228
-#5  0x0811b5ff in evict (inode=0x45182758) at fs/inode.c:549
-#6  0x0811c0ed in iput_final (inode=<optimized out>) at fs/inode.c:1419
-#7  iput (inode=0x45182758) at fs/inode.c:1437
-#8  0x08112056 in do_unlinkat (dfd=5, pathname=0x8065d84 <register_lines+276> "") at fs/namei.c:3718
-#9  0x081121c5 in SYSC_unlinkat (flag=<optimized out>, pathname=<optimized out>, dfd=<optimized out>) at fs/namei.c:3754
-#10 SyS_unlinkat (dfd=5, pathname=134634884, flag=0) at fs/namei.c:3746
-#11 0x08062a94 in handle_syscall (r=0x473b59cc) at arch/um/kernel/skas/syscall.c:35
-#12 0x080750f5 in handle_trap (local_using_sysemu=<optimized out>, regs=<optimized out>, pid=<optimized out>) at arch/um/os-Linux/skas/process.c:198
-#13 userspace (regs=0x473b59cc) at arch/um/os-Linux/skas/process.c:431
-#14 0x0805f750 in fork_handler () at arch/um/kernel/process.c:149
-#15 0x5a5a5a5a in ?? ()
-
-
-tfoerste@n22 ~/devel/github/bingo $ date; sudo gdb /home/tfoerste/devel/linux/linux 9776 -n -batch -ex 'bt'
-Fri Dec 13 13:54:47 CET 2013
-radix_tree_next_chunk (root=0x3f, iter=0x40607cdc, flags=6) at lib/radix-tree.c:773
-773                             index &= ~((RADIX_TREE_MAP_SIZE << shift) - 1);
-#0  radix_tree_next_chunk (root=0x3f, iter=0x40607cdc, flags=6) at lib/radix-tree.c:773
-#1  0x080cc88e in find_get_pages (mapping=0x45182810, start=0, nr_pages=14, pages=0x6) at mm/filemap.c:844
-#2  0x080d669a in pagevec_lookup (pvec=0x40607d40, mapping=0x3f, start=63, nr_pages=63) at mm/swap.c:937
-#3  0x080d6a9a in truncate_inode_pages_range (mapping=0x45182810, lstart=0, lend=-1) at mm/truncate.c:241
-#4  0x080d6e3f in truncate_inode_pages (mapping=0x3f, lstart=25769803839) at mm/truncate.c:358
-#5  0x0818c2d2 in ext4_evict_inode (inode=0x45182758) at fs/ext4/inode.c:228
-#6  0x0811b5ff in evict (inode=0x45182758) at fs/inode.c:549
-#7  0x0811c0ed in iput_final (inode=<optimized out>) at fs/inode.c:1419
-#8  iput (inode=0x45182758) at fs/inode.c:1437
-#9  0x08112056 in do_unlinkat (dfd=5, pathname=0x8065d84 <register_lines+276> "") at fs/namei.c:3718
-#10 0x081121c5 in SYSC_unlinkat (flag=<optimized out>, pathname=<optimized out>, dfd=<optimized out>) at fs/namei.c:3754
-#11 SyS_unlinkat (dfd=5, pathname=134634884, flag=0) at fs/namei.c:3746
-#12 0x08062a94 in handle_syscall (r=0x473b59cc) at arch/um/kernel/skas/syscall.c:35
-#13 0x080750f5 in handle_trap (local_using_sysemu=<optimized out>, regs=<optimized out>, pid=<optimized out>) at arch/um/os-Linux/skas/process.c:198
-#14 userspace (regs=0x473b59cc) at arch/um/os-Linux/skas/process.c:431
-#15 0x0805f750 in fork_handler () at arch/um/kernel/process.c:149
-#16 0x5a5a5a5a in ?? ()
-
-
-tfoerste@n22 ~/devel/github/bingo $ date; sudo gdb /home/tfoerste/devel/linux/linux 9776 -n -batch -ex 'bt'
-Fri Dec 13 13:57:16 CET 2013
-radix_tree_next_chunk (root=0x10, iter=0x40607cdc, flags=6) at lib/radix-tree.c:769
-769                                     while (++offset < RADIX_TREE_MAP_SIZE) {
-#0  radix_tree_next_chunk (root=0x10, iter=0x40607cdc, flags=6) at lib/radix-tree.c:769
-#1  0x080cc88e in find_get_pages (mapping=0x45182810, start=0, nr_pages=14, pages=0x6) at mm/filemap.c:844
-#2  0x080d669a in pagevec_lookup (pvec=0x40607d40, mapping=0x10, start=16, nr_pages=16) at mm/swap.c:937
-#3  0x080d6a9a in truncate_inode_pages_range (mapping=0x45182810, lstart=0, lend=-1) at mm/truncate.c:241
-#4  0x080d6e3f in truncate_inode_pages (mapping=0x10, lstart=25769803792) at mm/truncate.c:358
-#5  0x0818c2d2 in ext4_evict_inode (inode=0x45182758) at fs/ext4/inode.c:228
-#6  0x0811b5ff in evict (inode=0x45182758) at fs/inode.c:549
-#7  0x0811c0ed in iput_final (inode=<optimized out>) at fs/inode.c:1419
-#8  iput (inode=0x45182758) at fs/inode.c:1437
-#9  0x08112056 in do_unlinkat (dfd=5, pathname=0x8065d84 <register_lines+276> "") at fs/namei.c:3718
-#10 0x081121c5 in SYSC_unlinkat (flag=<optimized out>, pathname=<optimized out>, dfd=<optimized out>) at fs/namei.c:3754
-#11 SyS_unlinkat (dfd=5, pathname=134634884, flag=0) at fs/namei.c:3746
-#12 0x08062a94 in handle_syscall (r=0x473b59cc) at arch/um/kernel/skas/syscall.c:35
-#13 0x080750f5 in handle_trap (local_using_sysemu=<optimized out>, regs=<optimized out>, pid=<optimized out>) at arch/um/os-Linux/skas/process.c:198
-#14 userspace (regs=0x473b59cc) at arch/um/os-Linux/skas/process.c:431
-#15 0x0805f750 in fork_handler () at arch/um/kernel/process.c:149
-#16 0x5a5a5a5a in ?? ()
-
-- -- 
-MfG/Sincerely
-Toralf FA?rster
-pgp finger print:1A37 6F99 4A9D 026F 13E2 4DCF C4EA CDDE 0076 E94E
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.22 (GNU/Linux)
-Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
-
-iF4EAREIAAYFAlKrBS0ACgkQxOrN3gB26U4bRgD/U/5sIELFBZUTeEgfM9eJBnxh
-PhdMMBTTJHoB3v9z70YA/iEZzD9L30vVSWqYrybOWNPYwDR1i67F41nUemmPczqu
-=u/iT
------END PGP SIGNATURE-----
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
