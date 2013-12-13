@@ -1,181 +1,208 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 8182D6B0037
-	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 18:59:12 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id bj1so660146pad.16
-        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 15:59:12 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id vv1si2572556pbb.209.2013.12.13.15.59.06
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 6700F6B0037
+	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 18:59:15 -0500 (EST)
+Received: by mail-pb0-f48.google.com with SMTP id md12so3212669pbc.35
+        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 15:59:15 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id vb7si2656929pbc.32.2013.12.13.15.59.12
         for <linux-mm@kvack.org>;
-        Fri, 13 Dec 2013 15:59:07 -0800 (PST)
-Subject: [RFC][PATCH 2/7] mm: page->pfmemalloc only used by slab/skb
+        Fri, 13 Dec 2013 15:59:13 -0800 (PST)
+Subject: [RFC][PATCH 6/7] mm: slub: remove 'struct page' alignment restrictions
 From: Dave Hansen <dave@sr71.net>
-Date: Fri, 13 Dec 2013 15:59:06 -0800
+Date: Fri, 13 Dec 2013 15:59:11 -0800
 References: <20131213235903.8236C539@viggo.jf.intel.com>
 In-Reply-To: <20131213235903.8236C539@viggo.jf.intel.com>
-Message-Id: <20131213235906.0838EB32@viggo.jf.intel.com>
+Message-Id: <20131213235911.79AA177D@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, Pravin B Shelar <pshelar@nicira.com>, Christoph Lameter <cl@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave@sr71.net>
 
 
-page->pfmemalloc does not deserve a spot in 'struct page'.  It is
-only used transiently _just_ after a page leaves the buddy
-allocator.
+SLUB depends on a 16-byte cmpxchg for an optimization.  In order
+to get guaranteed 16-byte alignment (required by the hardware on
+x86), 'struct page' is padded out from 56 to 64 bytes.
 
-Instead of declaring a union, we move its functionality behind a
-few quick accessor functions.  This way we could also much more
-easily audit that it is being used correctly in debugging
-scenarios.  For instance, we could store a magic number in there
-which could never get reused as a page->index and check that the
-magic number exists in page_pfmemalloc().
+Those 8-bytes matter.  We've gone to great lengths to keep
+'struct page' small in the past.  It's a shame that we bloat it
+now just for alignment reasons when we have *extra* space.  Also,
+increasing the size of 'struct page' by 14% makes it 14% more
+likely that we will miss a cacheline when fetching it.
+
+This patch takes an unused 8-byte area of slub's 'struct page'
+and reuses it to internally align to the 16-bytes that we need.
+
+Note that this also gets rid of the ugly slub #ifdef that we use
+to segregate ->counters and ->_count for cases where we need to
+manipulate ->counters without the benefit of a hardware cmpxchg.
+
+This patch takes me from 16909584K of reserved memory at boot
+down to 14814472K, so almost *exactly* 2GB of savings!  It also
+helps performance, presumably because of that 14% fewer
+cacheline effect.  A 30GB dd to a ramfs file:
+
+	dd if=/dev/zero of=bigfile bs=$((1<<30)) count=30
+
+is sped up by about 4.4% in my testing.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
 
- linux.git-davehans/include/linux/mm.h       |   17 +++++++++++++++++
- linux.git-davehans/include/linux/mm_types.h |    9 ---------
- linux.git-davehans/include/linux/skbuff.h   |   10 +++++-----
- linux.git-davehans/mm/page_alloc.c          |    2 +-
- linux.git-davehans/mm/slab.c                |    4 ++--
- linux.git-davehans/mm/slub.c                |    2 +-
- 6 files changed, 26 insertions(+), 18 deletions(-)
+ linux.git-davehans/include/linux/mm_types.h |   56 +++++++---------------------
+ linux.git-davehans/mm/slab_common.c         |   10 +++--
+ linux.git-davehans/mm/slub.c                |    5 ++
+ 3 files changed, 26 insertions(+), 45 deletions(-)
 
-diff -puN include/linux/mm.h~page_pfmemalloc-only-used-by-slab include/linux/mm.h
---- linux.git/include/linux/mm.h~page_pfmemalloc-only-used-by-slab	2013-12-13 15:51:47.467218911 -0800
-+++ linux.git-davehans/include/linux/mm.h	2013-12-13 15:51:47.475219263 -0800
-@@ -2013,5 +2013,22 @@ void __init setup_nr_node_ids(void);
- static inline void setup_nr_node_ids(void) {}
- #endif
+diff -puN include/linux/mm_types.h~remove-struct-page-alignment-restrictions include/linux/mm_types.h
+--- linux.git/include/linux/mm_types.h~remove-struct-page-alignment-restrictions	2013-12-13 15:51:48.591268396 -0800
++++ linux.git-davehans/include/linux/mm_types.h	2013-12-13 15:51:48.595268572 -0800
+@@ -24,39 +24,30 @@
+ struct address_space;
  
-+/*
-+ * If set by the page allocator, ALLOC_NO_WATERMARKS was set and the
-+ * low watermark was not met implying that the system is under some
-+ * pressure. The caller should try ensure this page is only used to
-+ * free other pages.  Currently only used by sl[au]b.  Note that
-+ * this is only valid for a short time after the page returns
-+ * from the allocator.
-+ */
-+static inline int page_pfmemalloc(struct page *page)
-+{
-+	return !!page->index;
-+}
-+static inline void set_page_pfmemalloc(struct page *page, int pfmemalloc)
-+{
-+	page->index = pfmemalloc;
-+}
-+
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_H */
-diff -puN include/linux/mm_types.h~page_pfmemalloc-only-used-by-slab include/linux/mm_types.h
---- linux.git/include/linux/mm_types.h~page_pfmemalloc-only-used-by-slab	2013-12-13 15:51:47.468218955 -0800
-+++ linux.git-davehans/include/linux/mm_types.h	2013-12-13 15:51:47.475219263 -0800
-@@ -60,15 +60,6 @@ struct page {
- 		union {
- 			pgoff_t index;		/* Our offset within mapping. */
- 			void *freelist;		/* sl[aou]b first free object */
--			bool pfmemalloc;	/* If set by the page allocator,
--						 * ALLOC_NO_WATERMARKS was set
--						 * and the low watermark was not
--						 * met implying that the system
--						 * is under some pressure. The
--						 * caller should try ensure
--						 * this page is only used to
--						 * free other pages.
--						 */
+ struct slub_data {
+-	void *unused;
+ 	void *freelist;
+ 	union {
+ 		struct {
+ 			unsigned inuse:16;
+ 			unsigned objects:15;
+ 			unsigned frozen:1;
+-			atomic_t dontuse_slub_count;
  		};
+-		/*
+-		 * ->counters is used to make it easier to copy
+-		 * all of the above counters in one chunk.
+-		 * The actual counts are never accessed via this.
+-		 */
+-#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
+-    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
+-		unsigned long counters;
+-#else
+-		/*
+-		 * Keep _count separate from slub cmpxchg_double data.
+-		 * As the rest of the double word is protected by
+-		 * slab_lock but _count is not.
+-		 */
+ 		struct {
+-			unsigned counters;
+-			/*
+-			 * This isn't used directly, but declare it here
+-			 * for clarity since it must line up with _count
+-			 * from 'struct page'
+-			 */
++			/* Note: counters is just a helper for the above bitfield */
++			unsigned long counters;
++			atomic_t padding;
+ 			atomic_t separate_count;
+ 		};
+-#endif
++		/*
++		 * the double-cmpxchg case:
++		 * counters and _count overlap:
++		 */
++		union {
++			unsigned long counters2;
++			struct {
++				atomic_t padding2;
++				atomic_t _count;
++			};
++		};
+ 	};
+ };
  
- 		union {
-diff -puN include/linux/skbuff.h~page_pfmemalloc-only-used-by-slab include/linux/skbuff.h
---- linux.git/include/linux/skbuff.h~page_pfmemalloc-only-used-by-slab	2013-12-13 15:51:47.469218999 -0800
-+++ linux.git-davehans/include/linux/skbuff.h	2013-12-13 15:51:47.475219263 -0800
-@@ -1322,11 +1322,11 @@ static inline void __skb_fill_page_desc(
- 	skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+@@ -70,15 +61,8 @@ struct slub_data {
+  * moment. Note that we have no way to track which tasks are using
+  * a page, though if it is a pagecache page, rmap structures can tell us
+  * who is mapping it.
+- *
+- * The objects in struct page are organized in double word blocks in
+- * order to allows us to use atomic double word operations on portions
+- * of struct page. That is currently only used by slub but the arrangement
+- * allows the use of atomic double word operations on the flags/mapping
+- * and lru list pointers also.
+  */
+ struct page {
+-	/* First double word block */
+ 	unsigned long flags;		/* Atomic flags, some possibly
+ 					 * updated asynchronously */
+ 	union {
+@@ -121,7 +105,6 @@ struct page {
+ 		};
+ 	};
+ 
+-	/* Third double word block */
+ 	union {
+ 		struct list_head lru;	/* Pageout list, eg. active_list
+ 					 * protected by zone->lru_lock !
+@@ -147,7 +130,6 @@ struct page {
+ #endif
+ 	};
+ 
+-	/* Remainder is not double word aligned */
+ 	union {
+ 		unsigned long private;		/* Mapping-private opaque data:
+ 					 	 * usually used for buffer_heads
+@@ -196,15 +178,7 @@ struct page {
+ #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+ 	int _last_cpupid;
+ #endif
+-}
+-/*
+- * The struct page can be forced to be double word aligned so that atomic ops
+- * on double words work. The SLUB allocator can make use of such a feature.
+- */
+-#ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
+-	__aligned(2 * sizeof(unsigned long))
+-#endif
+-;
++};
+ 
+ struct page_frag {
+ 	struct page *page;
+diff -puN mm/slab_common.c~remove-struct-page-alignment-restrictions mm/slab_common.c
+--- linux.git/mm/slab_common.c~remove-struct-page-alignment-restrictions	2013-12-13 15:51:48.592268440 -0800
++++ linux.git-davehans/mm/slab_common.c	2013-12-13 15:51:48.596268616 -0800
+@@ -674,7 +674,6 @@ module_init(slab_proc_init);
+ void slab_build_checks(void)
+ {
+ 	SLAB_PAGE_CHECK(_count, dontuse_slab_count);
+-	SLAB_PAGE_CHECK(_count, slub_data.dontuse_slub_count);
+ 	SLAB_PAGE_CHECK(_count, dontuse_slob_count);
  
  	/*
--	 * Propagate page->pfmemalloc to the skb if we can. The problem is
-+	 * Propagate page_pfmemalloc() to the skb if we can. The problem is
- 	 * that not all callers have unique ownership of the page. If
- 	 * pfmemalloc is set, we check the mapping as a mapping implies
- 	 * page->index is set (index and pfmemalloc share space).
--	 * If it's a valid mapping, we cannot use page->pfmemalloc but we
-+	 * If it's a valid mapping, we cannot use page_pfmemalloc() but we
- 	 * do not lose pfmemalloc information as the pages would not be
- 	 * allocated using __GFP_MEMALLOC.
+@@ -688,9 +687,12 @@ void slab_build_checks(void)
+ 	 * carve out for _count in that case actually lines up
+ 	 * with the real _count.
  	 */
-@@ -1335,7 +1335,7 @@ static inline void __skb_fill_page_desc(
- 	skb_frag_size_set(frag, size);
- 
- 	page = compound_head(page);
--	if (page->pfmemalloc && !page->mapping)
-+	if (page_pfmemalloc(page) && !page->mapping)
- 		skb->pfmemalloc	= true;
+-#if ! (defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
+-	    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE))
+ 	SLAB_PAGE_CHECK(_count, slub_data.separate_count);
+-#endif
++
++	/*
++	 * We need at least three double-words worth of space to
++	 * ensure that we can align to a double-wordk internally.
++	 */
++	BUILD_BUG_ON(sizeof(struct slub_data) != sizeof(unsigned long) * 3);
  }
  
-@@ -1917,7 +1917,7 @@ static inline struct page *__skb_alloc_p
- 		gfp_mask |= __GFP_MEMALLOC;
+diff -puN mm/slub.c~remove-struct-page-alignment-restrictions mm/slub.c
+--- linux.git/mm/slub.c~remove-struct-page-alignment-restrictions	2013-12-13 15:51:48.593268484 -0800
++++ linux.git-davehans/mm/slub.c	2013-12-13 15:51:48.596268616 -0800
+@@ -239,7 +239,12 @@ static inline struct kmem_cache_node *ge
  
- 	page = alloc_pages_node(NUMA_NO_NODE, gfp_mask, order);
--	if (skb && page && page->pfmemalloc)
-+	if (skb && page && page_pfmemalloc(page))
- 		skb->pfmemalloc = true;
- 
- 	return page;
-@@ -1946,7 +1946,7 @@ static inline struct page *__skb_alloc_p
- static inline void skb_propagate_pfmemalloc(struct page *page,
- 					     struct sk_buff *skb)
+ static inline struct slub_data *slub_data(struct page *page)
  {
--	if (page && page->pfmemalloc)
-+	if (page && page_pfmemalloc(page))
- 		skb->pfmemalloc = true;
++	int doubleword_bytes = BITS_PER_LONG * 2 / 8;
+ 	void *ptr = &page->slub_data;
++#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
++	    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
++	ptr = PTR_ALIGN(ptr, doubleword_bytes);
++#endif
+ 	return ptr;
  }
  
-diff -puN mm/page_alloc.c~page_pfmemalloc-only-used-by-slab mm/page_alloc.c
---- linux.git/mm/page_alloc.c~page_pfmemalloc-only-used-by-slab	2013-12-13 15:51:47.470219043 -0800
-+++ linux.git-davehans/mm/page_alloc.c	2013-12-13 15:51:47.477219351 -0800
-@@ -2066,7 +2066,7 @@ this_zone_full:
- 		 * memory. The caller should avoid the page being used
- 		 * for !PFMEMALLOC purposes.
- 		 */
--		page->pfmemalloc = !!(alloc_flags & ALLOC_NO_WATERMARKS);
-+		set_page_pfmemalloc(page, alloc_flags & ALLOC_NO_WATERMARKS);
- 
- 	return page;
- }
-diff -puN mm/slab.c~page_pfmemalloc-only-used-by-slab mm/slab.c
---- linux.git/mm/slab.c~page_pfmemalloc-only-used-by-slab	2013-12-13 15:51:47.471219087 -0800
-+++ linux.git-davehans/mm/slab.c	2013-12-13 15:51:47.478219395 -0800
-@@ -1672,7 +1672,7 @@ static struct page *kmem_getpages(struct
- 	}
- 
- 	/* Record if ALLOC_NO_WATERMARKS was set when allocating the slab */
--	if (unlikely(page->pfmemalloc))
-+	if (unlikely(page_pfmemalloc(page)))
- 		pfmemalloc_active = true;
- 
- 	nr_pages = (1 << cachep->gfporder);
-@@ -1683,7 +1683,7 @@ static struct page *kmem_getpages(struct
- 		add_zone_page_state(page_zone(page),
- 			NR_SLAB_UNRECLAIMABLE, nr_pages);
- 	__SetPageSlab(page);
--	if (page->pfmemalloc)
-+	if (page_pfmemalloc(page))
- 		SetPageSlabPfmemalloc(page);
- 	memcg_bind_pages(cachep, cachep->gfporder);
- 
-diff -puN mm/slub.c~page_pfmemalloc-only-used-by-slab mm/slub.c
---- linux.git/mm/slub.c~page_pfmemalloc-only-used-by-slab	2013-12-13 15:51:47.472219131 -0800
-+++ linux.git-davehans/mm/slub.c	2013-12-13 15:51:47.478219395 -0800
-@@ -1403,7 +1403,7 @@ static struct page *new_slab(struct kmem
- 	memcg_bind_pages(s, order);
- 	page->slab_cache = s;
- 	__SetPageSlab(page);
--	if (page->pfmemalloc)
-+	if (page_pfmemalloc(page))
- 		SetPageSlabPfmemalloc(page);
- 
- 	start = page_address(page);
 _
 
 --
