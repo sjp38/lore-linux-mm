@@ -1,114 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 045096B0035
-	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 18:59:11 -0500 (EST)
-Received: by mail-pb0-f46.google.com with SMTP id md12so3227231pbc.33
-        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 15:59:11 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id ya10si2618561pab.298.2013.12.13.15.59.08
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 8182D6B0037
+	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 18:59:12 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id bj1so660146pad.16
+        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 15:59:12 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id vv1si2572556pbb.209.2013.12.13.15.59.06
         for <linux-mm@kvack.org>;
-        Fri, 13 Dec 2013 15:59:09 -0800 (PST)
-Subject: [RFC][PATCH 3/7] mm: slabs: reset page at free
+        Fri, 13 Dec 2013 15:59:07 -0800 (PST)
+Subject: [RFC][PATCH 2/7] mm: page->pfmemalloc only used by slab/skb
 From: Dave Hansen <dave@sr71.net>
-Date: Fri, 13 Dec 2013 15:59:07 -0800
+Date: Fri, 13 Dec 2013 15:59:06 -0800
 References: <20131213235903.8236C539@viggo.jf.intel.com>
 In-Reply-To: <20131213235903.8236C539@viggo.jf.intel.com>
-Message-Id: <20131213235907.CEB6E034@viggo.jf.intel.com>
+Message-Id: <20131213235906.0838EB32@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, Pravin B Shelar <pshelar@nicira.com>, Christoph Lameter <cl@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave@sr71.net>
 
 
-In order to simplify 'struct page', we will shortly be moving
-some fields around.  This causes slub's ->freelist usage to
-impinge on page->mapping's storage space.  The buddy allocator
-wants ->mapping to be NULL when a page is handed back, so we have
-to make sure that it is cleared.
+page->pfmemalloc does not deserve a spot in 'struct page'.  It is
+only used transiently _just_ after a page leaves the buddy
+allocator.
 
-Note that slab already doeds this, so just create a common helper
-and have all the slabs do it this way.  ->mapping is right next
-to ->flags, so it's virtually guaranteed to be in the L1 at this
-point, so this shouldn't cost very much to do in practice.
-
-Other allocators and users of 'struct page' may also want to call
-this if they use parts of 'struct page' for nonstandard purposes.
+Instead of declaring a union, we move its functionality behind a
+few quick accessor functions.  This way we could also much more
+easily audit that it is being used correctly in debugging
+scenarios.  For instance, we could store a magic number in there
+which could never get reused as a page->index and check that the
+magic number exists in page_pfmemalloc().
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
 
- linux.git-davehans/include/linux/mm.h |   11 +++++++++++
- linux.git-davehans/mm/slab.c          |    3 +--
- linux.git-davehans/mm/slab.h          |    1 +
- linux.git-davehans/mm/slob.c          |    2 +-
- linux.git-davehans/mm/slub.c          |    2 +-
- 5 files changed, 15 insertions(+), 4 deletions(-)
+ linux.git-davehans/include/linux/mm.h       |   17 +++++++++++++++++
+ linux.git-davehans/include/linux/mm_types.h |    9 ---------
+ linux.git-davehans/include/linux/skbuff.h   |   10 +++++-----
+ linux.git-davehans/mm/page_alloc.c          |    2 +-
+ linux.git-davehans/mm/slab.c                |    4 ++--
+ linux.git-davehans/mm/slub.c                |    2 +-
+ 6 files changed, 26 insertions(+), 18 deletions(-)
 
-diff -puN include/linux/mm.h~slub-reset-page-at-free include/linux/mm.h
---- linux.git/include/linux/mm.h~slub-reset-page-at-free	2013-12-13 15:51:47.771232294 -0800
-+++ linux.git-davehans/include/linux/mm.h	2013-12-13 15:51:47.777232559 -0800
-@@ -2030,5 +2030,16 @@ static inline void set_page_pfmemalloc(s
- 	page->index = pfmemalloc;
- }
+diff -puN include/linux/mm.h~page_pfmemalloc-only-used-by-slab include/linux/mm.h
+--- linux.git/include/linux/mm.h~page_pfmemalloc-only-used-by-slab	2013-12-13 15:51:47.467218911 -0800
++++ linux.git-davehans/include/linux/mm.h	2013-12-13 15:51:47.475219263 -0800
+@@ -2013,5 +2013,22 @@ void __init setup_nr_node_ids(void);
+ static inline void setup_nr_node_ids(void) {}
+ #endif
  
 +/*
-+ * Custom allocators (like the slabs) use 'struct page' fields
-+ * for all kinds of things.  This resets the page's state so that
-+ * the buddy allocator will be happy with it.
++ * If set by the page allocator, ALLOC_NO_WATERMARKS was set and the
++ * low watermark was not met implying that the system is under some
++ * pressure. The caller should try ensure this page is only used to
++ * free other pages.  Currently only used by sl[au]b.  Note that
++ * this is only valid for a short time after the page returns
++ * from the allocator.
 + */
-+static inline void allocator_reset_page(struct page *page)
++static inline int page_pfmemalloc(struct page *page)
 +{
-+	page->mapping = NULL;
-+	page_mapcount_reset(page);
++	return !!page->index;
++}
++static inline void set_page_pfmemalloc(struct page *page, int pfmemalloc)
++{
++	page->index = pfmemalloc;
 +}
 +
  #endif /* __KERNEL__ */
  #endif /* _LINUX_MM_H */
-diff -puN mm/slab.c~slub-reset-page-at-free mm/slab.c
---- linux.git/mm/slab.c~slub-reset-page-at-free	2013-12-13 15:51:47.772232339 -0800
-+++ linux.git-davehans/mm/slab.c	2013-12-13 15:51:47.778232603 -0800
-@@ -1718,8 +1718,7 @@ static void kmem_freepages(struct kmem_c
- 	BUG_ON(!PageSlab(page));
- 	__ClearPageSlabPfmemalloc(page);
- 	__ClearPageSlab(page);
--	page_mapcount_reset(page);
--	page->mapping = NULL;
-+	allocator_reset_page(page);
+diff -puN include/linux/mm_types.h~page_pfmemalloc-only-used-by-slab include/linux/mm_types.h
+--- linux.git/include/linux/mm_types.h~page_pfmemalloc-only-used-by-slab	2013-12-13 15:51:47.468218955 -0800
++++ linux.git-davehans/include/linux/mm_types.h	2013-12-13 15:51:47.475219263 -0800
+@@ -60,15 +60,6 @@ struct page {
+ 		union {
+ 			pgoff_t index;		/* Our offset within mapping. */
+ 			void *freelist;		/* sl[aou]b first free object */
+-			bool pfmemalloc;	/* If set by the page allocator,
+-						 * ALLOC_NO_WATERMARKS was set
+-						 * and the low watermark was not
+-						 * met implying that the system
+-						 * is under some pressure. The
+-						 * caller should try ensure
+-						 * this page is only used to
+-						 * free other pages.
+-						 */
+ 		};
  
- 	memcg_release_pages(cachep, cachep->gfporder);
- 	if (current->reclaim_state)
-diff -puN mm/slab.h~slub-reset-page-at-free mm/slab.h
---- linux.git/mm/slab.h~slub-reset-page-at-free	2013-12-13 15:51:47.773232383 -0800
-+++ linux.git-davehans/mm/slab.h	2013-12-13 15:51:47.778232603 -0800
-@@ -278,3 +278,4 @@ struct kmem_cache_node {
+ 		union {
+diff -puN include/linux/skbuff.h~page_pfmemalloc-only-used-by-slab include/linux/skbuff.h
+--- linux.git/include/linux/skbuff.h~page_pfmemalloc-only-used-by-slab	2013-12-13 15:51:47.469218999 -0800
++++ linux.git-davehans/include/linux/skbuff.h	2013-12-13 15:51:47.475219263 -0800
+@@ -1322,11 +1322,11 @@ static inline void __skb_fill_page_desc(
+ 	skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
  
- void *slab_next(struct seq_file *m, void *p, loff_t *pos);
- void slab_stop(struct seq_file *m, void *p);
-+
-diff -puN mm/slob.c~slub-reset-page-at-free mm/slob.c
---- linux.git/mm/slob.c~slub-reset-page-at-free	2013-12-13 15:51:47.774232427 -0800
-+++ linux.git-davehans/mm/slob.c	2013-12-13 15:51:47.778232603 -0800
-@@ -360,7 +360,7 @@ static void slob_free(void *block, int s
- 			clear_slob_page_free(sp);
- 		spin_unlock_irqrestore(&slob_lock, flags);
- 		__ClearPageSlab(sp);
--		page_mapcount_reset(sp);
-+		allocator_reset_page(sp);
- 		slob_free_pages(b, 0);
- 		return;
+ 	/*
+-	 * Propagate page->pfmemalloc to the skb if we can. The problem is
++	 * Propagate page_pfmemalloc() to the skb if we can. The problem is
+ 	 * that not all callers have unique ownership of the page. If
+ 	 * pfmemalloc is set, we check the mapping as a mapping implies
+ 	 * page->index is set (index and pfmemalloc share space).
+-	 * If it's a valid mapping, we cannot use page->pfmemalloc but we
++	 * If it's a valid mapping, we cannot use page_pfmemalloc() but we
+ 	 * do not lose pfmemalloc information as the pages would not be
+ 	 * allocated using __GFP_MEMALLOC.
+ 	 */
+@@ -1335,7 +1335,7 @@ static inline void __skb_fill_page_desc(
+ 	skb_frag_size_set(frag, size);
+ 
+ 	page = compound_head(page);
+-	if (page->pfmemalloc && !page->mapping)
++	if (page_pfmemalloc(page) && !page->mapping)
+ 		skb->pfmemalloc	= true;
+ }
+ 
+@@ -1917,7 +1917,7 @@ static inline struct page *__skb_alloc_p
+ 		gfp_mask |= __GFP_MEMALLOC;
+ 
+ 	page = alloc_pages_node(NUMA_NO_NODE, gfp_mask, order);
+-	if (skb && page && page->pfmemalloc)
++	if (skb && page && page_pfmemalloc(page))
+ 		skb->pfmemalloc = true;
+ 
+ 	return page;
+@@ -1946,7 +1946,7 @@ static inline struct page *__skb_alloc_p
+ static inline void skb_propagate_pfmemalloc(struct page *page,
+ 					     struct sk_buff *skb)
+ {
+-	if (page && page->pfmemalloc)
++	if (page && page_pfmemalloc(page))
+ 		skb->pfmemalloc = true;
+ }
+ 
+diff -puN mm/page_alloc.c~page_pfmemalloc-only-used-by-slab mm/page_alloc.c
+--- linux.git/mm/page_alloc.c~page_pfmemalloc-only-used-by-slab	2013-12-13 15:51:47.470219043 -0800
++++ linux.git-davehans/mm/page_alloc.c	2013-12-13 15:51:47.477219351 -0800
+@@ -2066,7 +2066,7 @@ this_zone_full:
+ 		 * memory. The caller should avoid the page being used
+ 		 * for !PFMEMALLOC purposes.
+ 		 */
+-		page->pfmemalloc = !!(alloc_flags & ALLOC_NO_WATERMARKS);
++		set_page_pfmemalloc(page, alloc_flags & ALLOC_NO_WATERMARKS);
+ 
+ 	return page;
+ }
+diff -puN mm/slab.c~page_pfmemalloc-only-used-by-slab mm/slab.c
+--- linux.git/mm/slab.c~page_pfmemalloc-only-used-by-slab	2013-12-13 15:51:47.471219087 -0800
++++ linux.git-davehans/mm/slab.c	2013-12-13 15:51:47.478219395 -0800
+@@ -1672,7 +1672,7 @@ static struct page *kmem_getpages(struct
  	}
-diff -puN mm/slub.c~slub-reset-page-at-free mm/slub.c
---- linux.git/mm/slub.c~slub-reset-page-at-free	2013-12-13 15:51:47.775232471 -0800
-+++ linux.git-davehans/mm/slub.c	2013-12-13 15:51:47.779232647 -0800
-@@ -1452,7 +1452,7 @@ static void __free_slab(struct kmem_cach
- 	__ClearPageSlab(page);
  
- 	memcg_release_pages(s, order);
--	page_mapcount_reset(page);
-+	allocator_reset_page(page);
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += pages;
- 	__free_memcg_kmem_pages(page, order);
+ 	/* Record if ALLOC_NO_WATERMARKS was set when allocating the slab */
+-	if (unlikely(page->pfmemalloc))
++	if (unlikely(page_pfmemalloc(page)))
+ 		pfmemalloc_active = true;
+ 
+ 	nr_pages = (1 << cachep->gfporder);
+@@ -1683,7 +1683,7 @@ static struct page *kmem_getpages(struct
+ 		add_zone_page_state(page_zone(page),
+ 			NR_SLAB_UNRECLAIMABLE, nr_pages);
+ 	__SetPageSlab(page);
+-	if (page->pfmemalloc)
++	if (page_pfmemalloc(page))
+ 		SetPageSlabPfmemalloc(page);
+ 	memcg_bind_pages(cachep, cachep->gfporder);
+ 
+diff -puN mm/slub.c~page_pfmemalloc-only-used-by-slab mm/slub.c
+--- linux.git/mm/slub.c~page_pfmemalloc-only-used-by-slab	2013-12-13 15:51:47.472219131 -0800
++++ linux.git-davehans/mm/slub.c	2013-12-13 15:51:47.478219395 -0800
+@@ -1403,7 +1403,7 @@ static struct page *new_slab(struct kmem
+ 	memcg_bind_pages(s, order);
+ 	page->slab_cache = s;
+ 	__SetPageSlab(page);
+-	if (page->pfmemalloc)
++	if (page_pfmemalloc(page))
+ 		SetPageSlabPfmemalloc(page);
+ 
+ 	start = page_address(page);
 _
 
 --
