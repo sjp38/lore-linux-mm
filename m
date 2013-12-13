@@ -1,35 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B3456B0031
-	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 11:41:01 -0500 (EST)
-Received: by mail-qa0-f41.google.com with SMTP id j5so923848qaq.7
-        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 08:41:00 -0800 (PST)
-Received: from a9-50.smtp-out.amazonses.com (a9-50.smtp-out.amazonses.com. [54.240.9.50])
-        by mx.google.com with ESMTP id w9si2748217qad.12.2013.12.13.08.40.59
-        for <linux-mm@kvack.org>;
-        Fri, 13 Dec 2013 08:41:00 -0800 (PST)
-Date: Fri, 13 Dec 2013 16:40:58 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [patch 2/2] fs: buffer: move allocation failure loop into the
- allocator
-In-Reply-To: <20131213065805.GC8845@lge.com>
-Message-ID: <00000142ecd51cc6-b987e565-7b4f-4945-89ba-731f1d1376fb-000000@email.amazonses.com>
-References: <1381265890-11333-1-git-send-email-hannes@cmpxchg.org> <1381265890-11333-2-git-send-email-hannes@cmpxchg.org> <20131203165910.54d6b4724a1f3e329af52ac6@linux-foundation.org> <20131204015218.GA19709@lge.com> <20131213065805.GC8845@lge.com>
+Received: from mail-bk0-f53.google.com (mail-bk0-f53.google.com [209.85.214.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 845D86B0031
+	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 12:04:52 -0500 (EST)
+Received: by mail-bk0-f53.google.com with SMTP id na10so1463032bkb.40
+        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 09:04:51 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id tn6si591404bkb.156.2013.12.13.09.04.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 13 Dec 2013 09:04:51 -0800 (PST)
+Date: Fri, 13 Dec 2013 12:04:43 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 7/7] mm: page_alloc: Default allow file pages to use
+ remote nodes for fair allocation policy
+Message-ID: <20131213170443.GO22729@cmpxchg.org>
+References: <1386943807-29601-1-git-send-email-mgorman@suse.de>
+ <1386943807-29601-8-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1386943807-29601-8-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, azurIt <azurit@pobox.sk>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Christian Casteyde <casteyde.christian@free.fr>, Pekka Enberg <penberg@kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 13 Dec 2013, Joonsoo Kim wrote:
+On Fri, Dec 13, 2013 at 02:10:07PM +0000, Mel Gorman wrote:
+> Indications from Johannes that he wanted this. Needs some data and/or justification why
+> thrash protection needs it plus docs describing how MPOL_LOCAL is now different before
+> it should be considered finished. I do not necessarily agree this patch is necessary
+> but it's worth punting it out there for discussion and testing.
 
-> Could you review this patch?
-> I think that we should merge it to fix the problem reported by Christian.
+I demonstrated enormous gains in the original submission of the fair
+allocation patch and your tests haven't really shown downsides to the
+cache-over-nodes portion of it.  So I don't see why we should revert
+the cache-over-nodes fairness without any supporting data.
 
-I'd be fine with clearing __GFP_NOFAIL but not with using the same flags
-as for a higher order alloc. __GFP_NORETRY and __GFP_NOWARN should be left
-untouched for the minimal alloc.
+Reverting cross-node fairness for anon and slab is a good idea.  It
+was always about cache and the original patch was too broad stroked,
+but it doesn't invalidate everything it was about.
+
+I can see, however, that we might want to make this configurable, but
+I'm not eager on exporting user interfaces unless we have to.  As the
+node-local fairness was never questioned by anybody, is it necessary
+to make it configurable?  Shouldn't we be okay with just a single
+vm.pagecache_interleave (name by Rik) sysctl that defaults to 1 but
+allows users to go back to pagecache obeying mempolicy?
+
+> Not signed off
+> ---
+>  mm/page_alloc.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index bf49918..bce40c0 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1885,7 +1885,8 @@ unsigned __bitwise__ zone_distribute_mode __read_mostly;
+>  #define DISTRIBUTE_STUPID_ANON	(DISTRIBUTE_LOCAL_ANON|DISTRIBUTE_REMOTE_ANON)
+>  #define DISTRIBUTE_STUPID_FILE	(DISTRIBUTE_LOCAL_FILE|DISTRIBUTE_REMOTE_FILE)
+>  #define DISTRIBUTE_STUPID_SLAB	(DISTRIBUTE_LOCAL_SLAB|DISTRIBUTE_REMOTE_SLAB)
+> -#define DISTRIBUTE_DEFAULT	(DISTRIBUTE_LOCAL_ANON|DISTRIBUTE_LOCAL_FILE|DISTRIBUTE_LOCAL_SLAB)
+> +#define DISTRIBUTE_DEFAULT	(DISTRIBUTE_LOCAL_ANON|DISTRIBUTE_LOCAL_FILE|DISTRIBUTE_LOCAL_SLAB| \
+> +				 DISTRIBUTE_REMOTE_FILE)
+>  
+>  /* Only these GFP flags are affected by the fair zone allocation policy */
+>  #define DISTRIBUTE_GFP_MASK	((GFP_MOVABLE_MASK|__GFP_PAGECACHE))
+> -- 
+> 1.8.4
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
