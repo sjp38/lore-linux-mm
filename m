@@ -1,110 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f53.google.com (mail-qe0-f53.google.com [209.85.128.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CA676B0085
-	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 06:47:39 -0500 (EST)
-Received: by mail-qe0-f53.google.com with SMTP id nc12so1459613qeb.12
-        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 03:47:39 -0800 (PST)
-Received: from mail-qc0-x229.google.com (mail-qc0-x229.google.com [2607:f8b0:400d:c01::229])
-        by mx.google.com with ESMTPS id q7si1929745qev.25.2013.12.13.03.47.38
+Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
+	by kanga.kvack.org (Postfix) with ESMTP id A2E956B0088
+	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 08:01:35 -0500 (EST)
+Received: by mail-ee0-f48.google.com with SMTP id e49so846662eek.21
+        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 05:01:35 -0800 (PST)
+Received: from mout.gmx.net (mout.gmx.net. [212.227.17.21])
+        by mx.google.com with ESMTPS id h45si1801129eeo.46.2013.12.13.05.01.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 13 Dec 2013 03:47:38 -0800 (PST)
-Received: by mail-qc0-f169.google.com with SMTP id r5so1371474qcx.14
-        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 03:47:38 -0800 (PST)
-Date: Fri, 13 Dec 2013 06:47:34 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [patch 7/8] mm, memcg: allow processes handling oom
- notifications to access reserves
-Message-ID: <20131213114734.GA22074@htj.dyndns.org>
-References: <20131206190105.GE13373@htj.dyndns.org>
- <alpine.DEB.2.02.1312061441390.8949@chino.kir.corp.google.com>
- <20131210215037.GB9143@htj.dyndns.org>
- <alpine.DEB.2.02.1312101522400.22701@chino.kir.corp.google.com>
- <20131211124240.GA24557@htj.dyndns.org>
- <CAAAKZwsmM-C=kLGV=RW=Y4Mq=BWpQzuPruW6zvEr9p0Xs4GD5g@mail.gmail.com>
- <20131212142156.GB32683@htj.dyndns.org>
- <CAAAKZwtuydFdiiSsKMuOUv3nr9trjuKvKoDO2aM0QsJKu1TMZA@mail.gmail.com>
- <20131212192319.GL32683@htj.dyndns.org>
- <CAAAKZwtQc212_-oqf56ToxjSG7f9bsNcBwwurSezpGKiPDT+nQ@mail.gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Dec 2013 05:01:34 -0800 (PST)
+Received: from [192.168.178.21] ([85.177.17.206]) by mail.gmx.com (mrgmx103)
+ with ESMTPSA (Nemesis) id 0MaIw0-1W6vv339se-00JuP4 for <linux-mm@kvack.org>;
+ Fri, 13 Dec 2013 14:01:34 +0100
+Message-ID: <52AB052E.9000404@gmx.de>
+Date: Fri, 13 Dec 2013 14:01:34 +0100
+From: =?UTF-8?B?VG9yYWxmIEbDtnJzdGVy?= <toralf.foerster@gmx.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAAAKZwtQc212_-oqf56ToxjSG7f9bsNcBwwurSezpGKiPDT+nQ@mail.gmail.com>
+Subject: Re: [uml-devel] why does index in truncate_inode_pages_range() grows
+ so much ?
+References: <529217CD.1000204@gmx.de>	<20131203140214.GB31128@quack.suse.cz>	<529E3450.9000700@gmx.de>	<20131203230058.GA24037@quack.suse.cz>	<20131204130639.GA31973@quack.suse.cz>	<52A36389.7010103@gmx.de>	<20131211202639.GE1163@quack.suse.cz>	<52AAD8D4.2060807@gmx.de> <CAFLxGvy16wv0m4D+ydmqbksUu9CaEaDtGdtnk1YHa56jAU+SEA@mail.gmail.com>
+In-Reply-To: <CAFLxGvy16wv0m4D+ydmqbksUu9CaEaDtGdtnk1YHa56jAU+SEA@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Hockin <thockin@hockin.org>
-Cc: David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Li Zefan <lizefan@huawei.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>, Victor Marmol <vmarmol@google.com>
+To: Richard Weinberger <richard.weinberger@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, UML devel <user-mode-linux-devel@lists.sourceforge.net>
 
-Hello, Tim.
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA256
 
-On Thu, Dec 12, 2013 at 04:23:18PM -0800, Tim Hockin wrote:
-> Just to be clear - I say this because it doesn't feel right to impose
-> my craziness on others, and it sucks when we try and are met with
-> "you're crazy, go away".  And you have to admit that happens to
-> Google. :)  Punching an escape valve that allows us to be crazy
-> without hurting anyone else sounds ideal, IF and ONLY IF that escape
-> valve is itself maintainable.
+On 12/13/2013 11:51 AM, Richard Weinberger wrote:
+> On Fri, Dec 13, 2013 at 10:52 AM, Toralf FA?rster <toralf.foerster@gmx.de> wrote:
+>> -----BEGIN PGP SIGNED MESSAGE-----
+>> Hash: SHA256
+>>
+>> On 12/11/2013 09:26 PM, Jan Kara wrote:
+>>> Thanks! So this works more or less as expected - trinity issued a
+>>> read at absurdly high offset so we created pagecache page a that
+>>> offset and tried to read data into it. That failed. We left the
+>>> page in the pagecache where it was for reclaim to reclaim it when
+>>> free pages are needed. Everything works as designed except we could
+>>> possibly argue that it's not the most efficient way to use
+>>> pages...
+>>>
+>>> Patch 'vfs: fix a bug when we do some dio reads with append dio
+>>> writes' (http://www.spinics.net/lists/linux-fsdevel/msg70899.html)
+>>> should actually change the situation and we won't unnecessarily
+>>> cache these pages.
+>>>
+>> confirmed - applied to latest git tree of Linus I helps.
+> 
+> Good to know! :-)
+> 
 
-I don't think google being considered crazy is a good thing in
-general, highly likely not something to be proud of.  It sure is
-partly indicative of the specialization that you guys need but I
-suspect is a much stronger signal for room for better engineering.
+OTOH - there's seems to be more places for an improvement - now trinity often runs hours
+w/o problem (before it runs within a rather short time into such issues).
 
-I'm fairly certain the blame is abundant for everybody to share.  The
-point I'm trying to make is "let's please stop diverging".  It hurts
-everybody.
+But today I got another case (I did not patched the source files except the mentioned patch by Jan Kara)
+where the trinity call cycles since 2 hours w/o any progress. But fortunately the system is still responsive,
+ssh works and I can shutdown that virtual machine smoothly, furthermore all local and remote file systems
+can be unounted cleanly - so that patch is a big improvement).
 
-> If the escape valve is userspace it's REALLY easy to iterate on our
-> craziness.  If it is kernel space, it's somewhat less easy, but not
-> impossible.
 
-As I'm sure you've gathered from this thread, even punching the
-initial hole is a sizable burden and contortion to the general memory
-management and I'm sure as you guys develop further down the path
-you'll encounter cases where you need further support or holes from
-the kernel.  I can't anticipate the details but the fact that those
-will follow is as evident as the day to me, especially given the
-mindset leading to the current situation in the first place.
+tfoerste@n22 ~/devel/github/bingo $ date; sudo gdb /home/tfoerste/devel/linux/linux 9776 -n -batch -ex 'bt'
+Fri Dec 13 13:54:33 CET 2013
+find_get_pages (mapping=0x45182810, start=0, nr_pages=14, pages=0x0) at mm/filemap.c:885
+885     }
+#0  find_get_pages (mapping=0x45182810, start=0, nr_pages=14, pages=0x0) at mm/filemap.c:885
+#1  0x080d669a in pagevec_lookup (pvec=0x40607d40, mapping=0x0, start=0, nr_pages=0) at mm/swap.c:937
+#2  0x080d6a9a in truncate_inode_pages_range (mapping=0x45182810, lstart=0, lend=-1) at mm/truncate.c:241
+#3  0x080d6e3f in truncate_inode_pages (mapping=0x0, lstart=0) at mm/truncate.c:358
+#4  0x0818c2d2 in ext4_evict_inode (inode=0x45182758) at fs/ext4/inode.c:228
+#5  0x0811b5ff in evict (inode=0x45182758) at fs/inode.c:549
+#6  0x0811c0ed in iput_final (inode=<optimized out>) at fs/inode.c:1419
+#7  iput (inode=0x45182758) at fs/inode.c:1437
+#8  0x08112056 in do_unlinkat (dfd=5, pathname=0x8065d84 <register_lines+276> "") at fs/namei.c:3718
+#9  0x081121c5 in SYSC_unlinkat (flag=<optimized out>, pathname=<optimized out>, dfd=<optimized out>) at fs/namei.c:3754
+#10 SyS_unlinkat (dfd=5, pathname=134634884, flag=0) at fs/namei.c:3746
+#11 0x08062a94 in handle_syscall (r=0x473b59cc) at arch/um/kernel/skas/syscall.c:35
+#12 0x080750f5 in handle_trap (local_using_sysemu=<optimized out>, regs=<optimized out>, pid=<optimized out>) at arch/um/os-Linux/skas/process.c:198
+#13 userspace (regs=0x473b59cc) at arch/um/os-Linux/skas/process.c:431
+#14 0x0805f750 in fork_handler () at arch/um/kernel/process.c:149
+#15 0x5a5a5a5a in ?? ()
 
-Please note that this part of discussion is more abstract than
-necessary for this particular patchset or hole.  I'm quite doubtful
-that system-level OOM handling with separate physical reserve is
-likely to survive even just on technical details.  The reason why I'm
-keeping at this abstract point is because this seems to be a
-continuing trend rather than a single occurrence and I really hope it
-changes.
 
-> Well that's an awesome start.  We have or had patches to do a lot of
-> this.  I don't know how well scrubbed they are for pushing or whether
-> they apply at all to current head, though.
+tfoerste@n22 ~/devel/github/bingo $ date; sudo gdb /home/tfoerste/devel/linux/linux 9776 -n -batch -ex 'bt'
+Fri Dec 13 13:54:47 CET 2013
+radix_tree_next_chunk (root=0x3f, iter=0x40607cdc, flags=6) at lib/radix-tree.c:773
+773                             index &= ~((RADIX_TREE_MAP_SIZE << shift) - 1);
+#0  radix_tree_next_chunk (root=0x3f, iter=0x40607cdc, flags=6) at lib/radix-tree.c:773
+#1  0x080cc88e in find_get_pages (mapping=0x45182810, start=0, nr_pages=14, pages=0x6) at mm/filemap.c:844
+#2  0x080d669a in pagevec_lookup (pvec=0x40607d40, mapping=0x3f, start=63, nr_pages=63) at mm/swap.c:937
+#3  0x080d6a9a in truncate_inode_pages_range (mapping=0x45182810, lstart=0, lend=-1) at mm/truncate.c:241
+#4  0x080d6e3f in truncate_inode_pages (mapping=0x3f, lstart=25769803839) at mm/truncate.c:358
+#5  0x0818c2d2 in ext4_evict_inode (inode=0x45182758) at fs/ext4/inode.c:228
+#6  0x0811b5ff in evict (inode=0x45182758) at fs/inode.c:549
+#7  0x0811c0ed in iput_final (inode=<optimized out>) at fs/inode.c:1419
+#8  iput (inode=0x45182758) at fs/inode.c:1437
+#9  0x08112056 in do_unlinkat (dfd=5, pathname=0x8065d84 <register_lines+276> "") at fs/namei.c:3718
+#10 0x081121c5 in SYSC_unlinkat (flag=<optimized out>, pathname=<optimized out>, dfd=<optimized out>) at fs/namei.c:3754
+#11 SyS_unlinkat (dfd=5, pathname=134634884, flag=0) at fs/namei.c:3746
+#12 0x08062a94 in handle_syscall (r=0x473b59cc) at arch/um/kernel/skas/syscall.c:35
+#13 0x080750f5 in handle_trap (local_using_sysemu=<optimized out>, regs=<optimized out>, pid=<optimized out>) at arch/um/os-Linux/skas/process.c:198
+#14 userspace (regs=0x473b59cc) at arch/um/os-Linux/skas/process.c:431
+#15 0x0805f750 in fork_handler () at arch/um/kernel/process.c:149
+#16 0x5a5a5a5a in ?? ()
 
-Awesome, this looks like something everyone agrees on. :)
 
-> As an aside: mucking about with extra nesting levels to achieve a
-> stable OOM semantic sounds doable, but it certainly sucks in a unified
-> hierarchy.  We'll end up with 1, 2, or 3 (or more in esoteric cases?
-> not sure) extra nesting levels for every other resource dimension.
-> And lawd help us if we ever need to do something similar in a
-> different resource dimension - the cross product is mind-bending.
-> What we do with split-hierarchies is this but on a smaller scale.
+tfoerste@n22 ~/devel/github/bingo $ date; sudo gdb /home/tfoerste/devel/linux/linux 9776 -n -batch -ex 'bt'
+Fri Dec 13 13:57:16 CET 2013
+radix_tree_next_chunk (root=0x10, iter=0x40607cdc, flags=6) at lib/radix-tree.c:769
+769                                     while (++offset < RADIX_TREE_MAP_SIZE) {
+#0  radix_tree_next_chunk (root=0x10, iter=0x40607cdc, flags=6) at lib/radix-tree.c:769
+#1  0x080cc88e in find_get_pages (mapping=0x45182810, start=0, nr_pages=14, pages=0x6) at mm/filemap.c:844
+#2  0x080d669a in pagevec_lookup (pvec=0x40607d40, mapping=0x10, start=16, nr_pages=16) at mm/swap.c:937
+#3  0x080d6a9a in truncate_inode_pages_range (mapping=0x45182810, lstart=0, lend=-1) at mm/truncate.c:241
+#4  0x080d6e3f in truncate_inode_pages (mapping=0x10, lstart=25769803792) at mm/truncate.c:358
+#5  0x0818c2d2 in ext4_evict_inode (inode=0x45182758) at fs/ext4/inode.c:228
+#6  0x0811b5ff in evict (inode=0x45182758) at fs/inode.c:549
+#7  0x0811c0ed in iput_final (inode=<optimized out>) at fs/inode.c:1419
+#8  iput (inode=0x45182758) at fs/inode.c:1437
+#9  0x08112056 in do_unlinkat (dfd=5, pathname=0x8065d84 <register_lines+276> "") at fs/namei.c:3718
+#10 0x081121c5 in SYSC_unlinkat (flag=<optimized out>, pathname=<optimized out>, dfd=<optimized out>) at fs/namei.c:3754
+#11 SyS_unlinkat (dfd=5, pathname=134634884, flag=0) at fs/namei.c:3746
+#12 0x08062a94 in handle_syscall (r=0x473b59cc) at arch/um/kernel/skas/syscall.c:35
+#13 0x080750f5 in handle_trap (local_using_sysemu=<optimized out>, regs=<optimized out>, pid=<optimized out>) at arch/um/os-Linux/skas/process.c:198
+#14 userspace (regs=0x473b59cc) at arch/um/os-Linux/skas/process.c:431
+#15 0x0805f750 in fork_handler () at arch/um/kernel/process.c:149
+#16 0x5a5a5a5a in ?? ()
 
-Yes, agreed but I believe there are substantial benefits to having
-certain level of structural constraints.  It encourages people to
-ponder the underlying issues and make active trade-offs.  Not that
-going off that extreme would be good either but we've gone too far
-towards the other end.
+- -- 
+MfG/Sincerely
+Toralf FA?rster
+pgp finger print:1A37 6F99 4A9D 026F 13E2 4DCF C4EA CDDE 0076 E94E
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.22 (GNU/Linux)
+Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
 
-This being a special issue with memcg, if this turns out to be a big
-enough problem, I don't think having a provision to be able to handle
-it without further nesting would be too crazy - e.g. the ability to
-mark a single cgroup at the root level as for OOM handler or whatever
-- as long as we stay within the boundaries of memcg and cgroup proper,
-but we seem to have ways to go before worrying about that one.
-
-Thanks.
-
--- 
-tejun
+iF4EAREIAAYFAlKrBS0ACgkQxOrN3gB26U4bRgD/U/5sIELFBZUTeEgfM9eJBnxh
+PhdMMBTTJHoB3v9z70YA/iEZzD9L30vVSWqYrybOWNPYwDR1i67F41nUemmPczqu
+=u/iT
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
