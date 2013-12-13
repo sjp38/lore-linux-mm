@@ -1,43 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
-	by kanga.kvack.org (Postfix) with ESMTP id EAACB6B0031
-	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 16:21:38 -0500 (EST)
-Received: by mail-qa0-f52.google.com with SMTP id cm18so1182306qab.4
-        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 13:21:38 -0800 (PST)
-Received: from mail-qe0-x22e.google.com (mail-qe0-x22e.google.com [2607:f8b0:400d:c02::22e])
-        by mx.google.com with ESMTPS id nm5si3526518qeb.50.2013.12.13.13.21.37
+Received: from mail-qe0-f44.google.com (mail-qe0-f44.google.com [209.85.128.44])
+	by kanga.kvack.org (Postfix) with ESMTP id EF3B66B0035
+	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 16:22:33 -0500 (EST)
+Received: by mail-qe0-f44.google.com with SMTP id nd7so2117066qeb.31
+        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 13:22:33 -0800 (PST)
+Received: from mail-qa0-x230.google.com (mail-qa0-x230.google.com [2607:f8b0:400d:c00::230])
+        by mx.google.com with ESMTPS id j7si3523906qab.55.2013.12.13.13.22.32
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 13 Dec 2013 13:21:38 -0800 (PST)
-Received: by mail-qe0-f46.google.com with SMTP id a11so2046319qen.5
-        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 13:21:37 -0800 (PST)
-Date: Fri, 13 Dec 2013 16:21:34 -0500
+        Fri, 13 Dec 2013 13:22:33 -0800 (PST)
+Received: by mail-qa0-f48.google.com with SMTP id w5so1183784qac.14
+        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 13:22:32 -0800 (PST)
+Date: Fri, 13 Dec 2013 16:22:29 -0500
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v3 05/23] mm/memblock: drop WARN and use SMP_CACHE_BYTES
- as a default alignment
-Message-ID: <20131213212134.GJ27070@htj.dyndns.org>
+Subject: Re: [PATCH v3 06/23] mm/memblock: reorder parameters of
+ memblock_find_in_range_node
+Message-ID: <20131213212229.GK27070@htj.dyndns.org>
 References: <1386625856-12942-1-git-send-email-santosh.shilimkar@ti.com>
- <1386625856-12942-6-git-send-email-santosh.shilimkar@ti.com>
+ <1386625856-12942-7-git-send-email-santosh.shilimkar@ti.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1386625856-12942-6-git-send-email-santosh.shilimkar@ti.com>
+In-Reply-To: <1386625856-12942-7-git-send-email-santosh.shilimkar@ti.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Santosh Shilimkar <santosh.shilimkar@ti.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Grygorii Strashko <grygorii.strashko@ti.com>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Dec 09, 2013 at 04:50:38PM -0500, Santosh Shilimkar wrote:
+On Mon, Dec 09, 2013 at 04:50:39PM -0500, Santosh Shilimkar wrote:
 > From: Grygorii Strashko <grygorii.strashko@ti.com>
 > 
-> Don't produce warning and interpret 0 as "default align" equal to
-> SMP_CACHE_BYTES in case if caller of memblock_alloc_base_nid() doesn't
-> specify alignment for the block (align == 0).
+> Reorder parameters of memblock_find_in_range_node to be consistent
+> with other memblock APIs.
 > 
-> This is done in preparation of introducing common memblock alloc
-> interface to make code behavior consistent. More details are
-> in below thread :
-> 	https://lkml.org/lkml/2013/10/13/117.
+> The change was suggested by Tejun Heo <tj@kernel.org>.
 > 
 > Cc: Yinghai Lu <yinghai@kernel.org>
 > Cc: Tejun Heo <tj@kernel.org>
