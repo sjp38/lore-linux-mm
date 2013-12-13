@@ -1,38 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 999F66B0031
-	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 13:09:49 -0500 (EST)
-Received: by mail-qc0-f172.google.com with SMTP id e16so1752347qcx.17
-        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 10:09:49 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id r6si2986795qaj.79.2013.12.13.10.09.46
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Dec 2013 10:09:47 -0800 (PST)
-Date: Fri, 13 Dec 2013 19:09:33 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v8 1/4] sched/numa: drop
- sysctl_numa_balancing_settle_count sysctl
-Message-ID: <20131213180933.GS21999@twins.programming.kicks-ass.net>
-References: <1386833006-6600-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id E303D6B0035
+	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 13:12:14 -0500 (EST)
+Received: by mail-wi0-f182.google.com with SMTP id en1so1471012wid.9
+        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 10:12:14 -0800 (PST)
+Date: Fri, 13 Dec 2013 19:12:05 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [RFC PATCH 3/3] Change THP behavior
+Message-ID: <20131213181205.GA16534@redhat.com>
+References: <cover.1386790423.git.athorlton@sgi.com> <20131212180057.GD134240@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1386833006-6600-1-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <20131212180057.GD134240@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alex Thorlton <athorlton@sgi.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Benjamin LaHaise <bcrl@kvack.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, David Rientjes <rientjes@google.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jiang Liu <jiang.liu@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Glauber Costa <glommer@parallels.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org
 
-On Thu, Dec 12, 2013 at 03:23:23PM +0800, Wanpeng Li wrote:
-> Changelog:
->  v7 -> v8:
->   * remove references to it in Documentation/sysctl/kernel.txt 
+I know almost nothing about thp, unlikely I understand this patch
+correctly...
 
-Please do not put such bits in the changelog proper, but put them below
-the --- line, that way they disappear automagically.
+But, afaics, the main idea is that until we have mm->thp_threshold
+faults we install the tail pages of temp_hugepage->page as a normal
+anonymous page, then we actually add the Head/Tail metadata and add
+the necessary huge_pmd/etc.
 
-Applied all 4, thanks!
+I simply can't understand how this can work until make_compound_page()
+is called. Just for example, what happens after sys_munmap() ? If
+nothing else, who will find and free temp_hugepage connected to this
+area? Or, what if sys_mremap() moves this vma? find_pmd_mm_freelist()
+won't find the right temp_thp after that? Or split_vma, etc.
+
+And make_compound_page() itself looks suspicious,
+
+On 12/12, Alex Thorlton wrote:
+>
+> +void make_compound_page(struct page *page, unsigned long order)
+> +{
+> +	int i, max_count = 0, max_mapcount = 0;
+> +	int nr_pages = 1 << order;
+> +
+> +	set_compound_page_dtor(page, free_compound_page);
+> +	set_compound_order(page, order);
+> +
+> +	__SetPageHead(page);
+> +
+> +	/*
+> +	 * we clear all the mappings here, so we have to remember to set
+> +	 * them back up!
+> +	 */
+> +	page->mapping = NULL;
+> +
+> +	max_count = (int) atomic_read(&page->_count);
+> +	max_mapcount = (int) atomic_read(&page->_mapcount);
+> +
+> +	for (i = 1; i < nr_pages; i++) {
+> +		int cur_count, cur_mapcount;
+> +		struct page *p = page + i;
+> +		p->flags = 0; /* this seems dumb */
+> +		__SetPageTail(p);
+
+Just for example, what if put_page(p) or get_page(p) is called after
+__SetPageTail() ?
+
+Afaics, this page was already visible to, say, get_user_pages() and
+it can have external references.
+
+In fact everything else looks suspicious too but let me repeat that
+I do not really understand this code. So please do not count this as
+review, but perhaps the changelog should tell more to explain what
+this patch actually does and how this all should work?
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
