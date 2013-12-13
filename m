@@ -1,110 +1,240 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f54.google.com (mail-yh0-f54.google.com [209.85.213.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D87B6B0031
-	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 18:55:48 -0500 (EST)
-Received: by mail-yh0-f54.google.com with SMTP id z12so2116666yhz.27
-        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 15:55:48 -0800 (PST)
-Received: from mail-yh0-x235.google.com (mail-yh0-x235.google.com [2607:f8b0:4002:c01::235])
-        by mx.google.com with ESMTPS id x29si3528521yha.211.2013.12.13.15.55.47
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 13 Dec 2013 15:55:47 -0800 (PST)
-Received: by mail-yh0-f53.google.com with SMTP id b20so2059978yha.26
-        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 15:55:47 -0800 (PST)
-Date: Fri, 13 Dec 2013 15:55:44 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-In-Reply-To: <20131212103159.GB2630@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.02.1312131551220.28704@chino.kir.corp.google.com>
-References: <20131203120454.GA12758@dhcp22.suse.cz> <alpine.DEB.2.02.1312031544530.5946@chino.kir.corp.google.com> <20131204111318.GE8410@dhcp22.suse.cz> <alpine.DEB.2.02.1312041606260.6329@chino.kir.corp.google.com> <20131209124840.GC3597@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312091328550.11026@chino.kir.corp.google.com> <20131210103827.GB20242@dhcp22.suse.cz> <alpine.DEB.2.02.1312101655430.22701@chino.kir.corp.google.com> <20131211095549.GA18741@dhcp22.suse.cz> <alpine.DEB.2.02.1312111434200.7354@chino.kir.corp.google.com>
- <20131212103159.GB2630@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 06B146B0031
+	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 18:59:09 -0500 (EST)
+Received: by mail-pb0-f50.google.com with SMTP id rr13so3211443pbb.37
+        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 15:59:09 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id sw1si2628304pab.199.2013.12.13.15.59.05
+        for <linux-mm@kvack.org>;
+        Fri, 13 Dec 2013 15:59:06 -0800 (PST)
+Subject: [RFC][PATCH 1/7] mm: print more details for bad_page()
+From: Dave Hansen <dave@sr71.net>
+Date: Fri, 13 Dec 2013 15:59:04 -0800
+References: <20131213235903.8236C539@viggo.jf.intel.com>
+In-Reply-To: <20131213235903.8236C539@viggo.jf.intel.com>
+Message-Id: <20131213235904.D69C09F7@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Pravin B Shelar <pshelar@nicira.com>, Christoph Lameter <cl@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave@sr71.net>
 
-On Thu, 12 Dec 2013, Michal Hocko wrote:
 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index c72b03bf9679..5cb1deea6aac 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2256,15 +2256,16 @@ bool mem_cgroup_oom_synchronize(bool handle)
->  
->  	locked = mem_cgroup_oom_trylock(memcg);
->  
-> -	if (locked)
-> -		mem_cgroup_oom_notify(memcg);
-> -
->  	if (locked && !memcg->oom_kill_disable) {
->  		mem_cgroup_unmark_under_oom(memcg);
->  		finish_wait(&memcg_oom_waitq, &owait.wait);
-> +		/* calls mem_cgroup_oom_notify if there is a task to kill */
->  		mem_cgroup_out_of_memory(memcg, current->memcg_oom.gfp_mask,
->  					 current->memcg_oom.order);
->  	} else {
-> +		if (locked && memcg->oom_kill_disable)
-> +			mem_cgroup_oom_notify(memcg);
-> +
->  		schedule();
->  		mem_cgroup_unmark_under_oom(memcg);
->  		finish_wait(&memcg_oom_waitq, &owait.wait);
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 1e4a600a6163..2a7f15900922 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -470,6 +470,9 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
->  		victim = p;
->  	}
->  
-> +	if (memcg)
-> +		mem_cgroup_oom_notify(memcg);
-> +
->  	/* mm cannot safely be dereferenced after task_unlock(victim) */
->  	mm = victim->mm;
->  	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
+bad_page() is cool in that it prints out a bunch of data about
+the page.  But, I can never remember which page flags are good
+and which are bad, or whether ->index or ->mapping is required to
+be NULL.
 
-Yes, I like this.
+This patch allows bad/dump_page() callers to specify a string about
+why they are dumping the page and adds explanation strings to a
+number of places.  It also adds a 'bad_flags'
+argument to bad_page(), which it then dumps out separately from
+the flags which are actually set.
 
-> The semantic would be as simple as "notification is sent only when
-> an action is due". It will be still racy as nothing prevents a task
-> which is not under OOM to exit and release some memory but there is no
-> sensible way to address that. On the other hand such a semantic would be
-> sensible for oom_control listeners because they will know that an action
-> has to be or will be taken (the line was drawn).
-> 
+This way, the messages will show specifically why the page was
+bad, *specifically* which flags it is complaining about, if it
+was a page flag combination which was the problem.
 
-I think this makes absolute sense and is in agreement with what is 
-described in Documentation/cgroups/memory.txt.
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+---
 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index c72b03bf9679..fee25c5934d2 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2692,7 +2693,8 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
->  	 * MEMDIE process.
->  	 */
->  	if (unlikely(test_thread_flag(TIF_MEMDIE)
-> -		     || fatal_signal_pending(current)))
-> +		     || fatal_signal_pending(current))
-> +		     || current->flags & PF_EXITING)
->  		goto bypass;
->  
->  	if (unlikely(task_in_memcg_oom(current)))
-> 
-> rather than the later checks down the oom_synchronize paths. The comment
-> already mentions dying process...
-> 
+ linux.git-davehans/include/linux/mm.h      |    4 +
+ linux.git-davehans/mm/balloon_compaction.c |    4 -
+ linux.git-davehans/mm/memory.c             |    2 
+ linux.git-davehans/mm/memory_hotplug.c     |    2 
+ linux.git-davehans/mm/page_alloc.c         |   73 +++++++++++++++++++++--------
+ 5 files changed, 62 insertions(+), 23 deletions(-)
 
-This is scary because it doesn't even try to reclaim memcg memory before 
-allowing the allocation to succeed.  I think we could even argue that we 
-should move the fatal_signal_pending(current) check to later and the only 
-condition we should really be bypassing here is TIF_MEMDIE since it will 
-only get set when reclaim has already failed.
+diff -puN include/linux/mm.h~bad-page-details include/linux/mm.h
+--- linux.git/include/linux/mm.h~bad-page-details	2013-12-13 15:51:47.177206143 -0800
++++ linux.git-davehans/include/linux/mm.h	2013-12-13 15:51:47.183206407 -0800
+@@ -1977,7 +1977,9 @@ extern void shake_page(struct page *p, i
+ extern atomic_long_t num_poisoned_pages;
+ extern int soft_offline_page(struct page *page, int flags);
+ 
+-extern void dump_page(struct page *page);
++extern void dump_page(struct page *page, char *reason);
++extern void dump_page_badflags(struct page *page, char *reason,
++			       unsigned long badflags);
+ 
+ #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
+ extern void clear_huge_page(struct page *page,
+diff -puN mm/balloon_compaction.c~bad-page-details mm/balloon_compaction.c
+--- linux.git/mm/balloon_compaction.c~bad-page-details	2013-12-13 15:51:47.178206187 -0800
++++ linux.git-davehans/mm/balloon_compaction.c	2013-12-13 15:51:47.183206407 -0800
+@@ -267,7 +267,7 @@ void balloon_page_putback(struct page *p
+ 		put_page(page);
+ 	} else {
+ 		WARN_ON(1);
+-		dump_page(page);
++		dump_page(page, "not movable balloon page");
+ 	}
+ 	unlock_page(page);
+ }
+@@ -287,7 +287,7 @@ int balloon_page_migrate(struct page *ne
+ 	BUG_ON(!trylock_page(newpage));
+ 
+ 	if (WARN_ON(!__is_movable_balloon_page(page))) {
+-		dump_page(page);
++		dump_page(page, "not movable balloon page");
+ 		unlock_page(newpage);
+ 		return rc;
+ 	}
+diff -puN mm/memory.c~bad-page-details mm/memory.c
+--- linux.git/mm/memory.c~bad-page-details	2013-12-13 15:51:47.179206231 -0800
++++ linux.git-davehans/mm/memory.c	2013-12-13 15:51:47.184206451 -0800
+@@ -670,7 +670,7 @@ static void print_bad_pte(struct vm_area
+ 		current->comm,
+ 		(long long)pte_val(pte), (long long)pmd_val(*pmd));
+ 	if (page)
+-		dump_page(page);
++		dump_page(page, "bad pte");
+ 	printk(KERN_ALERT
+ 		"addr:%p vm_flags:%08lx anon_vma:%p mapping:%p index:%lx\n",
+ 		(void *)addr, vma->vm_flags, vma->anon_vma, mapping, index);
+diff -puN mm/memory_hotplug.c~bad-page-details mm/memory_hotplug.c
+--- linux.git/mm/memory_hotplug.c~bad-page-details	2013-12-13 15:51:47.180206275 -0800
++++ linux.git-davehans/mm/memory_hotplug.c	2013-12-13 15:51:47.185206495 -0800
+@@ -1310,7 +1310,7 @@ do_migrate_range(unsigned long start_pfn
+ #ifdef CONFIG_DEBUG_VM
+ 			printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
+ 			       pfn);
+-			dump_page(page);
++			dump_page(page, "failed to remove from LRU");
+ #endif
+ 			put_page(page);
+ 			/* Because we don't have big zone->lock. we should
+diff -puN mm/page_alloc.c~bad-page-details mm/page_alloc.c
+--- linux.git/mm/page_alloc.c~bad-page-details	2013-12-13 15:51:47.181206319 -0800
++++ linux.git-davehans/mm/page_alloc.c	2013-12-13 15:51:47.186206539 -0800
+@@ -295,7 +295,7 @@ static inline int bad_range(struct zone
+ }
+ #endif
+ 
+-static void bad_page(struct page *page)
++static void bad_page(struct page *page, char *reason, unsigned long bad_flags)
+ {
+ 	static unsigned long resume;
+ 	static unsigned long nr_shown;
+@@ -329,7 +329,7 @@ static void bad_page(struct page *page)
+ 
+ 	printk(KERN_ALERT "BUG: Bad page state in process %s  pfn:%05lx\n",
+ 		current->comm, page_to_pfn(page));
+-	dump_page(page);
++	dump_page_badflags(page, reason, bad_flags);
+ 
+ 	print_modules();
+ 	dump_stack();
+@@ -383,7 +383,7 @@ static int destroy_compound_page(struct
+ 	int bad = 0;
+ 
+ 	if (unlikely(compound_order(page) != order)) {
+-		bad_page(page);
++		bad_page(page, "wrong compound order", 0);
+ 		bad++;
+ 	}
+ 
+@@ -392,8 +392,11 @@ static int destroy_compound_page(struct
+ 	for (i = 1; i < nr_pages; i++) {
+ 		struct page *p = page + i;
+ 
+-		if (unlikely(!PageTail(p) || (p->first_page != page))) {
+-			bad_page(page);
++		if (unlikely(!PageTail(p))) {
++			bad_page(page, "PageTail not set", 0);
++			bad++;
++		} else if (unlikely(p->first_page != page)) {
++			bad_page(page, "first_page not consistent", 0);
+ 			bad++;
+ 		}
+ 		__ClearPageTail(p);
+@@ -618,12 +621,23 @@ out:
+ 
+ static inline int free_pages_check(struct page *page)
+ {
+-	if (unlikely(page_mapcount(page) |
+-		(page->mapping != NULL)  |
+-		(atomic_read(&page->_count) != 0) |
+-		(page->flags & PAGE_FLAGS_CHECK_AT_FREE) |
+-		(mem_cgroup_bad_page_check(page)))) {
+-		bad_page(page);
++	char *bad_reason = NULL;
++	unsigned long bad_flags = 0;
++
++	if (unlikely(page_mapcount(page)))
++		bad_reason = "nonzero mapcount";
++	if (unlikely(page->mapping != NULL))
++		bad_reason = "non-NULL mapping";
++	if (unlikely(atomic_read(&page->_count) != 0))
++		bad_reason = "nonzero _count";
++	if (unlikely(page->flags & PAGE_FLAGS_CHECK_AT_FREE)) {
++		bad_reason = "PAGE_FLAGS_CHECK_AT_FREE flag(s) set";
++		bad_flags = PAGE_FLAGS_CHECK_AT_FREE;
++	}
++	if (unlikely(mem_cgroup_bad_page_check(page)))
++		bad_reason = "cgroup check failed";
++	if (unlikely(bad_reason)) {
++		bad_page(page, bad_reason, bad_flags);
+ 		return 1;
+ 	}
+ 	page_cpupid_reset_last(page);
+@@ -843,12 +857,23 @@ static inline void expand(struct zone *z
+  */
+ static inline int check_new_page(struct page *page)
+ {
+-	if (unlikely(page_mapcount(page) |
+-		(page->mapping != NULL)  |
+-		(atomic_read(&page->_count) != 0)  |
+-		(page->flags & PAGE_FLAGS_CHECK_AT_PREP) |
+-		(mem_cgroup_bad_page_check(page)))) {
+-		bad_page(page);
++	char *bad_reason = NULL;
++	unsigned long bad_flags = 0;
++
++	if (unlikely(page_mapcount(page)))
++		bad_reason = "nonzero mapcount";
++	if (unlikely(page->mapping != NULL))
++		bad_reason = "non-NULL mapping";
++	if (unlikely(atomic_read(&page->_count) != 0))
++		bad_reason = "nonzero _count";
++	if (unlikely(page->flags & PAGE_FLAGS_CHECK_AT_PREP)) {
++		bad_reason = "PAGE_FLAGS_CHECK_AT_PREP flag set";
++		bad_flags = PAGE_FLAGS_CHECK_AT_PREP;
++	}
++	if (unlikely(mem_cgroup_bad_page_check(page)))
++		bad_reason = "cgroup check failed";
++	if (unlikely(bad_reason)) {
++		bad_page(page, bad_reason, bad_flags);
+ 		return 1;
+ 	}
+ 	return 0;
+@@ -6458,12 +6483,24 @@ static void dump_page_flags(unsigned lon
+ 	printk(")\n");
+ }
+ 
+-void dump_page(struct page *page)
++void dump_page_badflags(struct page *page, char *reason, unsigned long badflags)
+ {
+ 	printk(KERN_ALERT
+ 	       "page:%p count:%d mapcount:%d mapping:%p index:%#lx\n",
+ 		page, atomic_read(&page->_count), page_mapcount(page),
+ 		page->mapping, page->index);
+ 	dump_page_flags(page->flags);
++	if (reason)
++		printk(KERN_ALERT "page dumped because: %s\n", reason);
++	if (page->flags & badflags) {
++		printk(KERN_ALERT "bad because of flags:\n");
++		dump_page_flags(page->flags & badflags);
++	}
+ 	mem_cgroup_print_bad_page(page);
+ }
++
++void dump_page(struct page *page, char *reason)
++{
++	dump_page_badflags(page, reason, 0);
++}
++
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
