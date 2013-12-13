@@ -1,115 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f169.google.com (mail-ea0-f169.google.com [209.85.215.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 077F56B0031
-	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 14:20:18 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id l9so917707eaj.28
-        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 11:20:18 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h45si3064331eeo.235.2013.12.13.11.20.17
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 13 Dec 2013 11:20:18 -0800 (PST)
-Date: Fri, 13 Dec 2013 19:20:14 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 7/7] mm: page_alloc: Default allow file pages to use
- remote nodes for fair allocation policy
-Message-ID: <20131213192014.GL11295@suse.de>
-References: <1386943807-29601-1-git-send-email-mgorman@suse.de>
- <1386943807-29601-8-git-send-email-mgorman@suse.de>
- <20131213170443.GO22729@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 65DC76B0031
+	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 14:59:19 -0500 (EST)
+Received: by mail-qc0-f178.google.com with SMTP id i17so1873621qcy.23
+        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 11:59:19 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id n6si3251002qel.147.2013.12.13.11.59.17
+        for <linux-mm@kvack.org>;
+        Fri, 13 Dec 2013 11:59:18 -0800 (PST)
+Date: Fri, 13 Dec 2013 14:59:02 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1386964742-df8sz3d6-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20131212222527.GD8605@mcs.anl.gov>
+References: <20131212222527.GD8605@mcs.anl.gov>
+Subject: Re: [PATCH] mm/memory-failure.c: send action optional signal to an
+ arbitrary thread
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20131213170443.GO22729@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Kamil Iskra <iskra@mcs.anl.gov>
+Cc: linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
 
-On Fri, Dec 13, 2013 at 12:04:43PM -0500, Johannes Weiner wrote:
-> On Fri, Dec 13, 2013 at 02:10:07PM +0000, Mel Gorman wrote:
-> > Indications from Johannes that he wanted this. Needs some data and/or justification why
-> > thrash protection needs it plus docs describing how MPOL_LOCAL is now different before
-> > it should be considered finished. I do not necessarily agree this patch is necessary
-> > but it's worth punting it out there for discussion and testing.
+Hi Kamil,
+
+# Cced: Andi
+
+On Thu, Dec 12, 2013 at 04:25:27PM -0600, Kamil Iskra wrote:
+> Please find below a trivial patch that changes the sending of BUS_MCEERR_AO
+> SIGBUS signals so that they can be handled by an arbitrary thread of the
+> target process.  The current implementation makes it impossible to create a
+> separate, dedicated thread to handle such errors, as the signal is always
+> sent to the main thread.
+
+This can be done in application side by letting the main thread create a
+dedicated thread for error handling, or by waking up existing/sleeping one.
+It might not be optimal in overhead, but note that an action optional error
+does not require to be handled ASAP. And we need only one process to handle
+an action optional error, so no need to send SIGBUS(BUS_MCEERR_AO) for every
+processes/threads.
+
+> Also, do I understand it correctly that "action required" faults *must* be
+> handled by the thread that triggered the error?  I guess it makes sense for
+> it to be that way, even if it circumvents the "dedicated handling thread"
+> idea...
+
+Yes. Unlike action optional errors, action required faults can happen on
+all processes/threads which map the error affected page, so in memory error
+aware applications every thread must be able to handle SIGBUS(BUS_MCEERR_AR)
+or just be killed.
+
+> The patch is against the 3.12.4 kernel.
 > 
-> I demonstrated enormous gains in the original submission of the fair
-> allocation patch and
+> --- mm/memory-failure.c.orig	2013-12-08 10:18:58.000000000 -0600
+> +++ mm/memory-failure.c	2013-12-12 11:43:03.973334767 -0600
+> @@ -219,7 +219,7 @@ static int kill_proc(struct task_struct
+>  		 * to SIG_IGN, but hopefully no one will do that?
+>  		 */
+>  		si.si_code = BUS_MCEERR_AO;
+> -		ret = send_sig_info(SIGBUS, &si, t);  /* synchronous? */
+> +		ret = group_send_sig_info(SIGBUS, &si, t);  /* synchronous? */
 
-And the same test missed that it broke MPOL_DEFAULT and regressed any workload
-that does not hit reclaim by incurring remote accesses unnecessarily. With
-this patch applied, MPOL_DEFAULT again does not act as documented by
-Documentation/vm/numa_memory_policy.txt and that file has been around a
-long time. It also does not match the documented behaviour of mbind
-where it says
+Personally, I don't think we need this change for the above mentioned reason.
+And another concern is if this change can affect/break existing applications.
+If it can, maybe you need to add (for example) a prctl attribute to show that
+the process expects kernel to send SIGBUS(BUS_MCEERR_AO) only to the main
+thread, or to all threads belonging to the process.
 
-	The  system-wide  default  policy allocates  pages  on	the node of
-	the CPU that triggers the allocation.  For MPOL_DEFAULT, the nodemask
-	and maxnode arguments must be specify the empty set of nodes.
+Thanks,
+Naoya Horiguchi
 
-That said, that documentation is also strictly wrong as MPOL_DEFAULT *may*
-allocate on remote nodes.
-
-> your tests haven't really shown downsides to the
-> cache-over-nodes portion of it. 
-> the cache-over-nodes fairness without any supporting data.
+>  	}
+>  	if (ret < 0)
+>  		printk(KERN_INFO "MCE: Error sending signal to %s:%d: %d\n",
 > 
-
-It breaks MPOL_LOCAL for file-backed mappings in a manner that cannot be
-overridden by policies and it is not even documented.  The same effect
-could have been achieved for the repeatedly reading files by running the
-processes with the MPOL_INTERLEAVE policy.  There was also no convenient
-way for a user to override that behaviour. Hard-binding to a node would
-work but tough luck if the process needs more than one node of memory.
-
-What I will admit is that I doubt anyone cares that file-backed pages
-are not node-local as documented as the cost of the IO itself probably
-dominates but just because something does not make sense does not mean
-someone is depending on the behaviour.
-
-That alone is pretty heavy justification even in the absense of supporting
-data showing a workload that depends on file pages being node-local that
-is not hidden by the cost of the IO itself.
-
-> Reverting cross-node fairness for anon and slab is a good idea.  It
-> was always about cache and the original patch was too broad stroked,
-> but it doesn't invalidate everything it was about.
+> Thanks,
 > 
-
-No it doesn't, but it should at least have been documented.
-
-> I can see, however, that we might want to make this configurable, but
-> I'm not eager on exporting user interfaces unless we have to.  As the
-> node-local fairness was never questioned by anybody, is it necessary
-> to make it configurable? 
-
-It's only there since 3.12 and it takes a long time for people to notice
-NUMA regressions, especially ones that would just be within a few percent
-like this was unless they were specifically looking for it.
-
-> Shouldn't we be okay with just a single
-> vm.pagecache_interleave (name by Rik) sysctl that defaults to 1 but
-> allows users to go back to pagecache obeying mempolicy?
+> Kamil
 > 
-
-That can be done. I can put together a patch that defaults it to 0 and
-sets the DISTRIBUTE_REMOTE_FILE  flag if someone writes to it. That's a
-crude hack but many people will be ok with it.
-
-To make it a default though should require more work though.
-Create an MPOL_DISTRIB_PAGECACHE memory policy (name because it
-is not strictly interleave). Abstract MPOL_DEFAULT to be either
-MPOL_LOCAL or MPOL_DISTRIB_PAGECACHE depending on the value of
-vm.pagecache_interleave. Update manual pages, and Documentation/ then set
-the default of vm.pagecache_interleave to 1.
-
-That would allow more sane defaults and also allow users to override it
-on a per task and per VMA basis as they can for any other type of memory
-policy.
-
--- 
-Mel Gorman
-SUSE Labs
+> -- 
+> Kamil Iskra, PhD
+> Argonne National Laboratory, Mathematics and Computer Science Division
+> 9700 South Cass Avenue, Building 240, Argonne, IL 60439, USA
+> phone: +1-630-252-7197  fax: +1-630-252-5986
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
