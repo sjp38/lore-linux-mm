@@ -1,116 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 980D56B0036
-	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 15:11:32 -0500 (EST)
-Received: by mail-qc0-f182.google.com with SMTP id e16so1916005qcx.27
-        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 12:11:32 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id b3si3311741qab.77.2013.12.13.12.11.29
-        for <linux-mm@kvack.org>;
-        Fri, 13 Dec 2013 12:11:30 -0800 (PST)
-Date: Fri, 13 Dec 2013 15:11:13 -0500
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1386965473-eiomxx6m-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1386964742-df8sz3d6-mutt-n-horiguchi@ah.jp.nec.com>
-References: <20131212222527.GD8605@mcs.anl.gov>
- <1386964742-df8sz3d6-mutt-n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm/memory-failure.c: send action optional signal to an
- arbitrary thread
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 08A796B0031
+	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 15:56:52 -0500 (EST)
+Received: by mail-wi0-f173.google.com with SMTP id hn9so1672299wib.6
+        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 12:56:52 -0800 (PST)
+Received: from mail-we0-x231.google.com (mail-we0-x231.google.com [2a00:1450:400c:c03::231])
+        by mx.google.com with ESMTPS id g4si180419wiz.47.2013.12.13.12.56.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 13 Dec 2013 12:56:51 -0800 (PST)
+Received: by mail-we0-f177.google.com with SMTP id u56so2391763wes.22
+        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 12:56:51 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20131122172147.GA6477@cerebellum.variantweb.net>
+References: <1384965522-5788-1-git-send-email-ddstreet@ieee.org> <20131122172147.GA6477@cerebellum.variantweb.net>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Fri, 13 Dec 2013 15:56:31 -0500
+Message-ID: <CALZtONBo-6_BKKT62BTzH3qyD4A+bxj781yGPa00fuFQ4TYdBQ@mail.gmail.com>
+Subject: Re: [PATCH] mm/zswap: change params from hidden to ro
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamil Iskra <iskra@mcs.anl.gov>
-Cc: linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
+To: Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>
 
-On Fri, Dec 13, 2013 at 02:59:02PM -0500, Naoya Horiguchi wrote:
-> Hi Kamil,
-> 
-> # Cced: Andi
-> 
-> On Thu, Dec 12, 2013 at 04:25:27PM -0600, Kamil Iskra wrote:
-> > Please find below a trivial patch that changes the sending of BUS_MCEERR_AO
-> > SIGBUS signals so that they can be handled by an arbitrary thread of the
-> > target process.  The current implementation makes it impossible to create a
-> > separate, dedicated thread to handle such errors, as the signal is always
-> > sent to the main thread.
-> 
-> This can be done in application side by letting the main thread create a
-> dedicated thread for error handling, or by waking up existing/sleeping one.
-> It might not be optimal in overhead, but note that an action optional error
-> does not require to be handled ASAP.
+On Fri, Nov 22, 2013 at 12:21 PM, Seth Jennings
+<sjennings@variantweb.net> wrote:
+> On Wed, Nov 20, 2013 at 11:38:42AM -0500, Dan Streetman wrote:
+>> The "compressor" and "enabled" params are currently hidden,
+>> this changes them to read-only, so userspace can tell if
+>> zswap is enabled or not and see what compressor is in use.
+>
+> Reasonable to me.
+>
+> Acked-by: Seth Jennings <sjennings@variantweb.net>
 
-> And we need only one process to handle
-> an action optional error, so no need to send SIGBUS(BUS_MCEERR_AO) for every
-> processes/threads.
+Ping to see if this patch could get picked up.
 
-Sorry, let me correct the above: "We need only one thread (not one process)
-to handle an action optional error."
-
-Thanks,
-Naoya
-
-> 
-> > Also, do I understand it correctly that "action required" faults *must* be
-> > handled by the thread that triggered the error?  I guess it makes sense for
-> > it to be that way, even if it circumvents the "dedicated handling thread"
-> > idea...
-> 
-> Yes. Unlike action optional errors, action required faults can happen on
-> all processes/threads which map the error affected page, so in memory error
-> aware applications every thread must be able to handle SIGBUS(BUS_MCEERR_AR)
-> or just be killed.
-> 
-> > The patch is against the 3.12.4 kernel.
-> > 
-> > --- mm/memory-failure.c.orig	2013-12-08 10:18:58.000000000 -0600
-> > +++ mm/memory-failure.c	2013-12-12 11:43:03.973334767 -0600
-> > @@ -219,7 +219,7 @@ static int kill_proc(struct task_struct
-> >  		 * to SIG_IGN, but hopefully no one will do that?
-> >  		 */
-> >  		si.si_code = BUS_MCEERR_AO;
-> > -		ret = send_sig_info(SIGBUS, &si, t);  /* synchronous? */
-> > +		ret = group_send_sig_info(SIGBUS, &si, t);  /* synchronous? */
-> 
-> Personally, I don't think we need this change for the above mentioned reason.
-> And another concern is if this change can affect/break existing applications.
-> If it can, maybe you need to add (for example) a prctl attribute to show that
-> the process expects kernel to send SIGBUS(BUS_MCEERR_AO) only to the main
-> thread, or to all threads belonging to the process.
-> 
-> Thanks,
-> Naoya Horiguchi
-> 
-> >  	}
-> >  	if (ret < 0)
-> >  		printk(KERN_INFO "MCE: Error sending signal to %s:%d: %d\n",
-> > 
-> > Thanks,
-> > 
-> > Kamil
-> > 
-> > -- 
-> > Kamil Iskra, PhD
-> > Argonne National Laboratory, Mathematics and Computer Science Division
-> > 9700 South Cass Avenue, Building 240, Argonne, IL 60439, USA
-> > phone: +1-630-252-7197  fax: +1-630-252-5986
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+>
+>>
+>> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+>> ---
+>>  mm/zswap.c | 4 ++--
+>>  1 file changed, 2 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/mm/zswap.c b/mm/zswap.c
+>> index d93510c..36b268b 100644
+>> --- a/mm/zswap.c
+>> +++ b/mm/zswap.c
+>> @@ -77,12 +77,12 @@ static u64 zswap_duplicate_entry;
+>>  **********************************/
+>>  /* Enable/disable zswap (disabled by default, fixed at boot for now) */
+>>  static bool zswap_enabled __read_mostly;
+>> -module_param_named(enabled, zswap_enabled, bool, 0);
+>> +module_param_named(enabled, zswap_enabled, bool, 0444);
+>>
+>>  /* Compressor to be used by zswap (fixed at boot for now) */
+>>  #define ZSWAP_COMPRESSOR_DEFAULT "lzo"
+>>  static char *zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
+>> -module_param_named(compressor, zswap_compressor, charp, 0);
+>> +module_param_named(compressor, zswap_compressor, charp, 0444);
+>>
+>>  /* The maximum percentage of memory that the compressed pool can occupy */
+>>  static unsigned int zswap_max_pool_percent = 20;
+>> --
+>> 1.8.3.1
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
