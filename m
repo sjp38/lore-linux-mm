@@ -1,61 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A4476B0068
-	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 02:00:50 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id r10so1970666pdi.10
-        for <linux-mm@kvack.org>; Thu, 12 Dec 2013 23:00:50 -0800 (PST)
-Received: from LGEMRELSE7Q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id vb7si806303pbc.2.2013.12.12.23.00.47
-        for <linux-mm@kvack.org>;
-        Thu, 12 Dec 2013 23:00:49 -0800 (PST)
-Date: Fri, 13 Dec 2013 16:03:51 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3 5/5] slab: make more slab management structure off the
- slab
-Message-ID: <20131213070351.GD8845@lge.com>
-References: <1385974183-31423-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1385974183-31423-6-git-send-email-iamjoonsoo.kim@lge.com>
- <00000142b3d18433-eacdc401-434f-42e1-8988-686bd15a3e20-000000@email.amazonses.com>
- <20131203021308.GE31168@lge.com>
+Received: from mail-ea0-f172.google.com (mail-ea0-f172.google.com [209.85.215.172])
+	by kanga.kvack.org (Postfix) with ESMTP id D6D076B006E
+	for <linux-mm@kvack.org>; Fri, 13 Dec 2013 03:14:59 -0500 (EST)
+Received: by mail-ea0-f172.google.com with SMTP id q10so598236ead.3
+        for <linux-mm@kvack.org>; Fri, 13 Dec 2013 00:14:59 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l2si1004046een.209.2013.12.13.00.14.58
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 13 Dec 2013 00:14:58 -0800 (PST)
+Message-ID: <52AAC1FE.1010409@suse.cz>
+Date: Fri, 13 Dec 2013 09:14:54 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131203021308.GE31168@lge.com>
+Subject: Re: [PATCH] mm: documentation: remove hopelessly out-of-date locking
+ doc
+References: <1386703084-24118-1-git-send-email-dave.hansen@intel.com>
+In-Reply-To: <1386703084-24118-1-git-send-email-dave.hansen@intel.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave.hansen@intel.com>, akpm@linux-foundation.org
+Cc: hughd@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Dec 03, 2013 at 11:13:08AM +0900, Joonsoo Kim wrote:
-> On Mon, Dec 02, 2013 at 02:58:41PM +0000, Christoph Lameter wrote:
-> > On Mon, 2 Dec 2013, Joonsoo Kim wrote:
-> > 
-> > > Now, the size of the freelist for the slab management diminish,
-> > > so that the on-slab management structure can waste large space
-> > > if the object of the slab is large.
-> > 
-> > Hmmm.. That is confusing to me. "Since the size of the freelist has shrunk
-> > significantly we have to adjust the heuristic for making the on/off slab
-> > placement decision"?
-> > 
-> > Make this clearer.
-> 
-> Yes. your understanding is right.
-> I will replace above line with yours.
-> 
-> Thanks.
-> 
-> > 
-> > Acked-by: Christoph Lameter <cl@linux.com>
+On 12/10/2013 08:18 PM, Dave Hansen wrote:
+> From: Dave Hansen <dave.hansen@intel.com>
+>
+> Documentation/vm/locking is a blast from the past.  In the entire
+> git history, it has had precisely Three modifications.  Two of
+> those look to be pure renames, and the third was from 2005.
+>
+> The doc contains such gems as:
+>
+>> The page_table_lock is grabbed while holding the
+>> kernel_lock spinning monitor.
+>
+>> Page stealers hold kernel_lock to protect against a bunch of
+>> races.
+>
+> Or this which talks about mmap_sem:
+>
+>> 4. The exception to this rule is expand_stack, which just
+>>     takes the read lock and the page_table_lock, this is ok
+>>     because it doesn't really modify fields anybody relies on.
+>
+> expand_stack() doesn't take any locks any more directly, and the
+> mmap_sem acquisition was long ago moved up in to the page fault
+> code itself.
+>
+> It could be argued that we need to rewrite this, but it is
+> dangerous to leave it as-is.  It will confuse more people than it
+> helps.
 
-Hello, Pekka.
+Heh yeah, when I started few months ago and stumbled upon this doc, 
+people in the office suggested that I could send a patch that just 
+deletes it. I wasn't that brave, but I agree nevertheless.
 
-Below is updated patch for 5/5 in this series.
-Now I get acks from Christoph to all patches in this series.
-So, could you merge this patchset? :)
-If you want to resend wholeset with proper ack, I will do it
-with pleasure.
+> Signed-off-by: Dave Hansen <dave.hansen@intel.com>
 
-Thanks.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
---------8<---------------
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
