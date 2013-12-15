@@ -1,74 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f173.google.com (mail-ea0-f173.google.com [209.85.215.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 026AC6B0035
-	for <linux-mm@kvack.org>; Sun, 15 Dec 2013 11:17:58 -0500 (EST)
-Received: by mail-ea0-f173.google.com with SMTP id o10so1759286eaj.32
-        for <linux-mm@kvack.org>; Sun, 15 Dec 2013 08:17:58 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p9si9821076eew.13.2013.12.15.08.17.57
+Received: from mail-qe0-f52.google.com (mail-qe0-f52.google.com [209.85.128.52])
+	by kanga.kvack.org (Postfix) with ESMTP id ECEAD6B0035
+	for <linux-mm@kvack.org>; Sun, 15 Dec 2013 11:56:52 -0500 (EST)
+Received: by mail-qe0-f52.google.com with SMTP id ne12so3153106qeb.25
+        for <linux-mm@kvack.org>; Sun, 15 Dec 2013 08:56:52 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id b6si9395855qak.38.2013.12.15.08.56.49
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 15 Dec 2013 08:17:57 -0800 (PST)
-Date: Sun, 15 Dec 2013 16:17:54 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/4] Fix ebizzy performance regression due to X86 TLB
- range flush v2
-Message-ID: <20131215161754.GN11295@suse.de>
-References: <1386964870-6690-1-git-send-email-mgorman@suse.de>
- <CA+55aFyNAigQqBk07xLpf0nkhZ_x-QkBYG8otRzsqg_8A2eg-Q@mail.gmail.com>
- <20131215155539.GM11295@suse.de>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 15 Dec 2013 08:56:49 -0800 (PST)
+Date: Sun, 15 Dec 2013 17:56:43 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v8 1/4] sched/numa: drop
+ sysctl_numa_balancing_settle_count sysctl
+Message-ID: <20131215165643.GC16438@laptop.programming.kicks-ass.net>
+References: <1386833006-6600-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20131213180933.GS21999@twins.programming.kicks-ass.net>
+ <20131215084110.GA4316@hacker.(null)>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131215155539.GM11295@suse.de>
+In-Reply-To: <20131215084110.GA4316@hacker.(null)>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Alex Shi <alex.shi@linaro.org>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, Dec 15, 2013 at 03:55:39PM +0000, Mel Gorman wrote:
-> <SNIP>
-> tlbflush micro benchmark
->                     3.13.0-rc3            3.13.0-rc3                3.4.69
->                        vanilla           nowalk-v2r7               vanilla
-> Min    1        7.00 (  0.00%)        6.00 ( 14.29%)        5.00 ( 28.57%)
-> Min    2        8.00 (  0.00%)        6.00 ( 25.00%)        4.00 ( 50.00%)
-> Min    3       13.00 (  0.00%)       11.00 ( 15.38%)        9.00 ( 30.77%)
-> Min    4       17.00 (  0.00%)       19.00 (-11.76%)       15.00 ( 11.76%)
-> Mean   1       11.28 (  0.00%)       10.66 (  5.48%)        5.17 ( 54.13%)
-> Mean   2       11.42 (  0.00%)       11.52 ( -0.85%)        9.04 ( 20.82%)
-> Mean   3       23.43 (  0.00%)       21.64 (  7.64%)       10.92 ( 53.39%)
-> Mean   4       35.33 (  0.00%)       34.17 (  3.28%)       19.55 ( 44.67%)
-> Range  1        6.00 (  0.00%)        7.00 (-16.67%)        4.00 ( 33.33%)
-> Range  2       23.00 (  0.00%)       36.00 (-56.52%)       19.00 ( 17.39%)
-> Range  3       15.00 (  0.00%)       17.00 (-13.33%)       10.00 ( 33.33%)
-> Range  4       29.00 (  0.00%)       26.00 ( 10.34%)        9.00 ( 68.97%)
-> Stddev 1        1.01 (  0.00%)        1.12 ( 10.53%)        0.57 (-43.70%)
-> Stddev 2        1.83 (  0.00%)        3.03 ( 66.06%)        6.83 (274.00%)
-> Stddev 3        2.82 (  0.00%)        3.28 ( 16.44%)        1.21 (-57.14%)
-> Stddev 4        6.65 (  0.00%)        6.32 ( -5.00%)        1.58 (-76.24%)
-> Max    1       13.00 (  0.00%)       13.00 (  0.00%)        9.00 ( 30.77%)
-> Max    2       31.00 (  0.00%)       42.00 (-35.48%)       23.00 ( 25.81%)
-> Max    3       28.00 (  0.00%)       28.00 (  0.00%)       19.00 ( 32.14%)
-> Max    4       46.00 (  0.00%)       45.00 (  2.17%)       24.00 ( 47.83%)
+On Sun, Dec 15, 2013 at 04:41:10PM +0800, Wanpeng Li wrote:
+> Do you mean something like: 
 > 
-> <SNIP>
+> commit 887c290e (sched/numa: Decide whether to favour task or group
+> weights
+> based on swap candidate relationships) drop the check against
+> sysctl_numa_balancing_settle_count, this patch remove the sysctl.
 > 
->           3.13.0-rc3  3.13.0-rc3      3.4.69
->              vanilla nowalk-v2r7     vanilla
-> User          179.36      165.25       97.29
-> System        153.59      155.07      128.32
-> Elapsed      1439.52     1437.69     2802.01
-> 
+> Acked-by: Mel Gorman <mgorman@suse.de>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+> Acked-by: David Rientjes <rientjes@google.com>
+> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> ---
+> Changelog:
+>  v7 -> v8:
+>    * remove references to it in Documentation/sysctl/kernel.txt
+> ---
 
-After I ran the test, I looked closer at the elapsed times and it was
-due to a bug in the test setup itself. The tlbflush tests will need to
-be rerun but ebizzy still has the problem where threads see very
-different performance.
+No need to insert another --- line, just the one below the SoB,
 
--- 
-Mel Gorman
-SUSE Labs
+> Documentation/sysctl/kernel.txt |    5 -----
+> include/linux/sched/sysctl.h    |    1 -
+> kernel/sched/fair.c             |    9 ---------
+> kernel/sysctl.c                 |    7 -------
+> 4 files changed, 0 insertions(+), 22 deletions(-)
+
+Everything between --- and the patch proper (usually started with an
+Index line or other diff syntax thingy), including this diffstat you
+have, will be made to disappear.
+
+But yes indeed. The Changelog should describe the patch as is, and the
+differences between this and the previous version are relevant only to
+the reviewer who saw the previous version too. But once we commit the
+patch, the previous version ceases to exist (in the commit history) and
+therefore such comments loose their intrinsic meaning and should go away
+too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
