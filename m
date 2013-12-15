@@ -1,79 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f46.google.com (mail-yh0-f46.google.com [209.85.213.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 30DB86B003B
-	for <linux-mm@kvack.org>; Sun, 15 Dec 2013 18:37:50 -0500 (EST)
-Received: by mail-yh0-f46.google.com with SMTP id l109so3206332yhq.19
-        for <linux-mm@kvack.org>; Sun, 15 Dec 2013 15:37:49 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id z48si10728833yha.56.2013.12.15.15.37.48
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id F39926B003D
+	for <linux-mm@kvack.org>; Sun, 15 Dec 2013 18:58:15 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id rd3so2180419pab.21
+        for <linux-mm@kvack.org>; Sun, 15 Dec 2013 15:58:15 -0800 (PST)
+Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com. [202.81.31.140])
+        by mx.google.com with ESMTPS id vb7si7308107pbc.302.2013.12.15.15.58.13
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 15 Dec 2013 15:37:49 -0800 (PST)
-Message-ID: <52AE3D45.8000100@oracle.com>
-Date: Sun, 15 Dec 2013 18:37:41 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+        Sun, 15 Dec 2013 15:58:14 -0800 (PST)
+Received: from /spool/local
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Mon, 16 Dec 2013 09:58:09 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 778B72BB0053
+	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 10:58:07 +1100 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBFNvsRR65601688
+	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 10:57:54 +1100
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBFNw66q016886
+	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 10:58:06 +1100
+Date: Mon, 16 Dec 2013 07:58:04 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH v8 1/4] sched/numa: drop
+ sysctl_numa_balancing_settle_count sysctl
+Message-ID: <52ae4216.67ed440a.577e.ffff88e8SMTPIN_ADDED_BROKEN@mx.google.com>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1386833006-6600-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20131213180933.GS21999@twins.programming.kicks-ass.net>
+ <20131215084110.GA4316@hacker.(null)>
+ <20131215165643.GC16438@laptop.programming.kicks-ass.net>
 MIME-Version: 1.0
-Subject: mm: kernel BUG at mm/mempolicy.c:1203!
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131215165643.GC16438@laptop.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, dan.carpenter@oracle.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi all,
+On Sun, Dec 15, 2013 at 05:56:43PM +0100, Peter Zijlstra wrote:
+>On Sun, Dec 15, 2013 at 04:41:10PM +0800, Wanpeng Li wrote:
+>> Do you mean something like: 
+>> 
+>> commit 887c290e (sched/numa: Decide whether to favour task or group
+>> weights
+>> based on swap candidate relationships) drop the check against
+>> sysctl_numa_balancing_settle_count, this patch remove the sysctl.
+>> 
+>> Acked-by: Mel Gorman <mgorman@suse.de>
+>> Reviewed-by: Rik van Riel <riel@redhat.com>
+>> Acked-by: David Rientjes <rientjes@google.com>
+>> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>> ---
+>> Changelog:
+>>  v7 -> v8:
+>>    * remove references to it in Documentation/sysctl/kernel.txt
+>> ---
+>
+>No need to insert another --- line, just the one below the SoB,
+>
+>> Documentation/sysctl/kernel.txt |    5 -----
+>> include/linux/sched/sysctl.h    |    1 -
+>> kernel/sched/fair.c             |    9 ---------
+>> kernel/sysctl.c                 |    7 -------
+>> 4 files changed, 0 insertions(+), 22 deletions(-)
+>
+>Everything between --- and the patch proper (usually started with an
+>Index line or other diff syntax thingy), including this diffstat you
+>have, will be made to disappear.
+>
+>But yes indeed. The Changelog should describe the patch as is, and the
+>differences between this and the previous version are relevant only to
+>the reviewer who saw the previous version too. But once we commit the
+>patch, the previous version ceases to exist (in the commit history) and
+>therefore such comments loose their intrinsic meaning and should go away
+>too.
 
-While fuzzing with trinity inside a KVM tools guest running latest -next kernel, I've
-stumbled on the following spew.
+Thanks for your great explanation. ;-)
 
-This seems to be due to commit 0bf598d863e "mbind: add BUG_ON(!vma) in new_vma_page()"
-which added that BUG_ON.
-
-[  538.836802] kernel BUG at mm/mempolicy.c:1203!
-[  538.838245] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[  538.838507] Dumping ftrace buffer:
-[  538.840150]    (ftrace buffer empty)
-[  538.840150] Modules linked in:
-[  538.840256] CPU: 15 PID: 21136 Comm: trinity-child96 Tainted: G        W    3.13.0-rc
-3-next-20131213-sasha-00010-g6749b49-dirty #4104
-[  538.840256] task: ffff880e73288000 ti: ffff880e73290000 task.ti: ffff880e73290000
-[  538.840256] RIP: 0010:[<ffffffff812a4092>]  [<ffffffff812a4092>] new_vma_page+0x52/0x
-b0
-[  538.840256] RSP: 0000:ffff880e73291d38  EFLAGS: 00010246
-[  538.840256] RAX: fffffffffffffff2 RBX: 0000000000000000 RCX: 0000000000000000
-[  538.840256] RDX: 0000000008040075 RSI: ffff880dc59ebe00 RDI: ffffea003e017c00
-[  538.840256] RBP: ffff880e73291d58 R08: 0000000000000002 R09: 0000000000000001
-[  538.840256] R10: 0000000000000001 R11: 0000000000000000 R12: fffffffffffffff2
-[  538.840256] R13: ffffea003e017c00 R14: 0000000000000002 R15: 00000000fffffff4
-[  538.840256] FS:  00007f43832a3700(0000) GS:ffff880fe7400000(0000) knlGS:0000000000000
-000
-[  538.840256] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[  538.840256] CR2: 0000000002083be8 CR3: 0000000ec894e000 CR4: 00000000000006e0
-[  538.840256] Stack:
-[  538.840256]  0000000000000000 ffffea003e017c00 0000000000000000 ffff880e73291e58
-[  538.840256]  ffff880e73291da8 ffffffff812b5664 000000000000044e 0000000000000000
-[  538.840256]  ffff880e73291da8 ffffea003e017c00 ffffea003e017c40 ffff880e73291e58
-[  538.840256] Call Trace:
-[  538.840256]  [<ffffffff812b5664>] unmap_and_move+0x44/0x180
-[  538.840256]  [<ffffffff812b588b>] migrate_pages+0xeb/0x2f0
-[  538.840256]  [<ffffffff812a4040>] ? alloc_pages_vma+0x220/0x220
-[  538.840256]  [<ffffffff812a4ba3>] do_mbind+0x283/0x340
-[  538.840256]  [<ffffffff812794af>] ? might_fault+0x9f/0xb0
-[  538.840256]  [<ffffffff81279466>] ? might_fault+0x56/0xb0
-[  538.840256]  [<ffffffff81249a98>] ? context_tracking_user_exit+0xb8/0x1d0
-[  538.840256]  [<ffffffff812a4ce9>] SYSC_mbind+0x89/0xb0
-[  538.840256]  [<ffffffff81249b75>] ? context_tracking_user_exit+0x195/0x1d0
-[  538.840256]  [<ffffffff812a4d1e>] SyS_mbind+0xe/0x10
-[  538.840256]  [<ffffffff843bc489>] ia32_do_call+0x13/0x13
-[  538.840256] Code: 95 58 fe ff 49 89 c4 48 83 f8 f2 75 14 48 8b 5b 10 48 85 db 75 e3 0f 1f 00 eb 
-10 66 0f 1f 44 00 00 48 85 db 0f 1f 44 00 00 75 0e <0f> 0b 0f 1f 40 00 eb fe 66 0f 1f 44 00 00 4c 89 
-ef e8 68 6a ff
-[  538.840256] RIP  [<ffffffff812a4092>] new_vma_page+0x52/0xb0
-[  538.840256]  RSP <ffff880e73291d38>
-
-
-Thanks,
-Sasha
+Regards,
+Wanpeng Li 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
