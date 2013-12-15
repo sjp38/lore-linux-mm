@@ -1,99 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f46.google.com (mail-qe0-f46.google.com [209.85.128.46])
-	by kanga.kvack.org (Postfix) with ESMTP id EAC4F6B0039
-	for <linux-mm@kvack.org>; Sun, 15 Dec 2013 17:58:33 -0500 (EST)
-Received: by mail-qe0-f46.google.com with SMTP id a11so3281710qen.19
-        for <linux-mm@kvack.org>; Sun, 15 Dec 2013 14:58:33 -0800 (PST)
-Received: from mail-ve0-x22a.google.com (mail-ve0-x22a.google.com [2607:f8b0:400c:c01::22a])
-        by mx.google.com with ESMTPS id gu7si6521378qab.153.2013.12.15.14.58.32
+Received: from mail-yh0-f46.google.com (mail-yh0-f46.google.com [209.85.213.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 30DB86B003B
+	for <linux-mm@kvack.org>; Sun, 15 Dec 2013 18:37:50 -0500 (EST)
+Received: by mail-yh0-f46.google.com with SMTP id l109so3206332yhq.19
+        for <linux-mm@kvack.org>; Sun, 15 Dec 2013 15:37:49 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id z48si10728833yha.56.2013.12.15.15.37.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 15 Dec 2013 14:58:33 -0800 (PST)
-Received: by mail-ve0-f170.google.com with SMTP id oy12so2864347veb.1
-        for <linux-mm@kvack.org>; Sun, 15 Dec 2013 14:58:32 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 15 Dec 2013 15:37:49 -0800 (PST)
+Message-ID: <52AE3D45.8000100@oracle.com>
+Date: Sun, 15 Dec 2013 18:37:41 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <52AE271C.4040805@oracle.com>
-References: <20130223003232.4CDDB5A41B6@corp2gmr1-2.hot.corp.google.com>
-	<52AA0613.2000908@oracle.com>
-	<CA+55aFw3_0_Et9bbfWgGLXEUaGQW1HE8j=oGBqFG_8j+h6jmvQ@mail.gmail.com>
-	<CA+55aFyRZW=Uy9w+bZR0vMOFNPqV-yW2Xs9N42qEwTQ3AY0fDw@mail.gmail.com>
-	<52AE271C.4040805@oracle.com>
-Date: Sun, 15 Dec 2013 14:58:32 -0800
-Message-ID: <CA+55aFw+-EB0J5v-1LMg1aiDZQJ-Mm0fzdbN312_nyBCVs+Fvw@mail.gmail.com>
-Subject: Re: [patch 019/154] mm: make madvise(MADV_WILLNEED) support swap file prefetch
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Subject: mm: kernel BUG at mm/mempolicy.c:1203!
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, shli@kernel.org, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@fusionio.com>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, dan.carpenter@oracle.com
 
-On Sun, Dec 15, 2013 at 2:03 PM, Sasha Levin <sasha.levin@oracle.com> wrote:
-> On 12/15/2013 02:16 PM, Linus Torvalds wrote:
->>
->> Can anybody see what's wrong with that code? It all seems to happen
->> with mmap_sem held for reading, so there is no mmap activity going on,
->> but what about concurrent pmd splitting due to page faults etc?
->
-> There's one thing that seems odd to me: the only place that allocated
-> the ptl is in pgtable_page_ctor() called from pte_alloc_one().
->
-> However, I don't see how ptl is allocated through all the
-> mk_pmd()/mk_huge_pmd()
-> calls in mm/huge_memory.c .
->
-> I've added some debug output, and it seems that indeed the results of
-> mk_pmd() are
-> with ptl == NULL and one of them ends up getting to swapin_walk_pmd_entry
-> where it NULL
-> ptr derefs.
+Hi all,
 
-Hmm. I don't see that in my tree either, so that doesn't seem to be a
-linux-next issue.
+While fuzzing with trinity inside a KVM tools guest running latest -next kernel, I've
+stumbled on the following spew.
 
-How are we not hitting this left and right? Sure, you need spinlock
-debugging or something like that to trigger the BLOATED_SPINLOCKS
-case, and you'd need the USE_SPLIT_PTE_PTLOCKS case to have this at
-all, but that shouldn't be *that* unusual. And afaik, we should hit
-this on just about any page table traversal.
+This seems to be due to commit 0bf598d863e "mbind: add BUG_ON(!vma) in new_vma_page()"
+which added that BUG_ON.
 
-So I *think* the rule is that largepages don't have ptl entries (since
-they don't have page tables associated with them), and they need to be
-handled specially.
+[  538.836802] kernel BUG at mm/mempolicy.c:1203!
+[  538.838245] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[  538.838507] Dumping ftrace buffer:
+[  538.840150]    (ftrace buffer empty)
+[  538.840150] Modules linked in:
+[  538.840256] CPU: 15 PID: 21136 Comm: trinity-child96 Tainted: G        W    3.13.0-rc
+3-next-20131213-sasha-00010-g6749b49-dirty #4104
+[  538.840256] task: ffff880e73288000 ti: ffff880e73290000 task.ti: ffff880e73290000
+[  538.840256] RIP: 0010:[<ffffffff812a4092>]  [<ffffffff812a4092>] new_vma_page+0x52/0x
+b0
+[  538.840256] RSP: 0000:ffff880e73291d38  EFLAGS: 00010246
+[  538.840256] RAX: fffffffffffffff2 RBX: 0000000000000000 RCX: 0000000000000000
+[  538.840256] RDX: 0000000008040075 RSI: ffff880dc59ebe00 RDI: ffffea003e017c00
+[  538.840256] RBP: ffff880e73291d58 R08: 0000000000000002 R09: 0000000000000001
+[  538.840256] R10: 0000000000000001 R11: 0000000000000000 R12: fffffffffffffff2
+[  538.840256] R13: ffffea003e017c00 R14: 0000000000000002 R15: 00000000fffffff4
+[  538.840256] FS:  00007f43832a3700(0000) GS:ffff880fe7400000(0000) knlGS:0000000000000
+000
+[  538.840256] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[  538.840256] CR2: 0000000002083be8 CR3: 0000000ec894e000 CR4: 00000000000006e0
+[  538.840256] Stack:
+[  538.840256]  0000000000000000 ffffea003e017c00 0000000000000000 ffff880e73291e58
+[  538.840256]  ffff880e73291da8 ffffffff812b5664 000000000000044e 0000000000000000
+[  538.840256]  ffff880e73291da8 ffffea003e017c00 ffffea003e017c40 ffff880e73291e58
+[  538.840256] Call Trace:
+[  538.840256]  [<ffffffff812b5664>] unmap_and_move+0x44/0x180
+[  538.840256]  [<ffffffff812b588b>] migrate_pages+0xeb/0x2f0
+[  538.840256]  [<ffffffff812a4040>] ? alloc_pages_vma+0x220/0x220
+[  538.840256]  [<ffffffff812a4ba3>] do_mbind+0x283/0x340
+[  538.840256]  [<ffffffff812794af>] ? might_fault+0x9f/0xb0
+[  538.840256]  [<ffffffff81279466>] ? might_fault+0x56/0xb0
+[  538.840256]  [<ffffffff81249a98>] ? context_tracking_user_exit+0xb8/0x1d0
+[  538.840256]  [<ffffffff812a4ce9>] SYSC_mbind+0x89/0xb0
+[  538.840256]  [<ffffffff81249b75>] ? context_tracking_user_exit+0x195/0x1d0
+[  538.840256]  [<ffffffff812a4d1e>] SyS_mbind+0xe/0x10
+[  538.840256]  [<ffffffff843bc489>] ia32_do_call+0x13/0x13
+[  538.840256] Code: 95 58 fe ff 49 89 c4 48 83 f8 f2 75 14 48 8b 5b 10 48 85 db 75 e3 0f 1f 00 eb 
+10 66 0f 1f 44 00 00 48 85 db 0f 1f 44 00 00 75 0e <0f> 0b 0f 1f 40 00 eb fe 66 0f 1f 44 00 00 4c 89 
+ef e8 68 6a ff
+[  538.840256] RIP  [<ffffffff812a4092>] new_vma_page+0x52/0xb0
+[  538.840256]  RSP <ffff880e73291d38>
 
-But it's also possibly just that maybe nothing really uses
-large-pages. And afaik, we used to disable USE_SPLIT_PTE_PTLOCKS
-entirely with big spinlocks until Kirill added that indirection
-pointer, so that would explain why we just never noticed this issue
-before (although I'd have expected that the spinlock still needs to be
-initialized, even if it doesn't need allocating - otherwise we'd
-possibly just hang on a "spin_lock()" that never succeeds).
 
-Adding Kirill to the participants, since he did the
-pgtable_pmd_page_ctor/dtor stuff and enabled split PTE locks even with
-BLOATED_SPINLOCKS. And Andrea, since largepages are involved. And
-linux-mm just to have *some* list cc'd.
-
-Kirill? Sasha seems to trigger this problem with
-madvise(MADV_WILLNEED), possibly on a hugepage mapping (but see
-below..) The
-
-        orig_pte = pte_offset_map_lock(vma->vm_mm, pmd, start, &ptl);
-
-in swapin_walk_pmd_entry() ends up taking a NULL ptr fault because the
-pmd doesn't have a ptl pointer..
-
-But why would we trigger this bug then, since we have:
-
-        if (pmd_none_or_trans_huge_or_clear_bad(pmd))
-                return 0;
-
-in swapin_walk_pmd_entry(). Possibly racing with a page-in? Should we
-check the "vma->vm_flags" for VM_HUGETLB?
-
-Let's hope the new people have more answers than questions ;)
-
-                  Linus
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
