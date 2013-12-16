@@ -1,75 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 576E16B0031
-	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 12:12:10 -0500 (EST)
-Received: by mail-ig0-f171.google.com with SMTP id c10so4236078igq.4
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 09:12:10 -0800 (PST)
-Date: Mon, 16 Dec 2013 11:12:15 -0600
-From: Alex Thorlton <athorlton@sgi.com>
-Subject: Re: [RFC PATCH 0/3] Change how we determine when to hand out THPs
-Message-ID: <20131216171214.GA15663@sgi.com>
-References: <20131212180037.GA134240@sgi.com>
- <20131213214437.6fdbf7f2.akpm@linux-foundation.org>
+Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 22DB96B0031
+	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 12:15:32 -0500 (EST)
+Received: by mail-ee0-f42.google.com with SMTP id e53so2374023eek.29
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 09:15:31 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l44si1159970eem.187.2013.12.16.09.15.30
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 16 Dec 2013 09:15:31 -0800 (PST)
+Date: Mon, 16 Dec 2013 18:15:27 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: 3.13-rc breaks MEMCG_SWAP
+Message-ID: <20131216171527.GF26797@dhcp22.suse.cz>
+References: <alpine.LNX.2.00.1312160025200.2785@eggly.anvils>
+ <52AEC989.4080509@huawei.com>
+ <20131216095345.GB23582@dhcp22.suse.cz>
+ <20131216104042.GC23582@dhcp22.suse.cz>
+ <20131216164154.GX21724@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131213214437.6fdbf7f2.akpm@linux-foundation.org>
+In-Reply-To: <20131216164154.GX21724@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Benjamin LaHaise <bcrl@kvack.org>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, David Rientjes <rientjes@google.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jiang Liu <jiang.liu@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Glauber Costa <glommer@parallels.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Li Zefan <lizefan@huawei.com>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-> Please cc Andrea on this.
-
-I'm going to clean up a few small things for a v2 pretty soon, I'll be
-sure to cc Andrea there.
-
-> > My proposed solution to the problem is to allow users to set a
-> > threshold at which THPs will be handed out.  The idea here is that, when
-> > a user faults in a page in an area where they would usually be handed a
-> > THP, we pull 512 pages off the free list, as we would with a regular
-> > THP, but we only fault in single pages from that chunk, until the user
-> > has faulted in enough pages to pass the threshold we've set.  Once they
-> > pass the threshold, we do the necessary work to turn our 512 page chunk
-> > into a proper THP.  As it stands now, if the user tries to fault in
-> > pages from different nodes, we completely give up on ever turning a
-> > particular chunk into a THP, and just fault in the 4K pages as they're
-> > requested.  We may want to make this tunable in the future (i.e. allow
-> > them to fault in from only 2 different nodes).
+On Mon 16-12-13 11:41:54, Johannes Weiner wrote:
+> On Mon, Dec 16, 2013 at 11:40:42AM +0100, Michal Hocko wrote:
+> > On Mon 16-12-13 10:53:45, Michal Hocko wrote:
+> > > On Mon 16-12-13 17:36:09, Li Zefan wrote:
+> > > > On 2013/12/16 16:36, Hugh Dickins wrote:
+> > > > > CONFIG_MEMCG_SWAP is broken in 3.13-rc.  Try something like this:
+> > > > > 
+> > > > > mkdir -p /tmp/tmpfs /tmp/memcg
+> > > > > mount -t tmpfs -o size=1G tmpfs /tmp/tmpfs
+> > > > > mount -t cgroup -o memory memcg /tmp/memcg
+> > > > > mkdir /tmp/memcg/old
+> > > > > echo 512M >/tmp/memcg/old/memory.limit_in_bytes
+> > > > > echo $$ >/tmp/memcg/old/tasks
+> > > > > cp /dev/zero /tmp/tmpfs/zero 2>/dev/null
+> > > > > echo $$ >/tmp/memcg/tasks
+> > > > > rmdir /tmp/memcg/old
+> > > > > sleep 1	# let rmdir work complete
+> > > > > mkdir /tmp/memcg/new
+> > > > > umount /tmp/tmpfs
+> > > > > dmesg | grep WARNING
+> > > > > rmdir /tmp/memcg/new
+> > > > > umount /tmp/memcg
+> > > > > 
+> > > > > Shows lots of WARNING: CPU: 1 PID: 1006 at kernel/res_counter.c:91
+> > > > >                            res_counter_uncharge_locked+0x1f/0x2f()
+> > > > > 
+> > > > > Breakage comes from 34c00c319ce7 ("memcg: convert to use cgroup id").
+> > > > > 
+> > > > > The lifetime of a cgroup id is different from the lifetime of the
+> > > > > css id it replaced: memsw's css_get()s do nothing to hold on to the
+> > > > > old cgroup id, it soon gets recycled to a new cgroup, which then
+> > > > > mysteriously inherits the old's swap, without any charge for it.
+> > > > > (I thought memsw's particular need had been discussed and was
+> > > > > well understood when 34c00c319ce7 went in, but apparently not.)
+> > > > > 
+> > > > > The right thing to do at this stage would be to revert that and its
+> > > > > associated commits; but I imagine to do so would be unwelcome to
+> > > > > the cgroup guys, going against their general direction; and I've
+> > > > > no idea how embedded that css_id removal has become by now.
+> > > > > 
+> > > > > Perhaps some creative refcounting can rescue memsw while still
+> > > > > using cgroup id?
+> > > > > 
+> > > > 
+> > > > Sorry for the broken.
+> > > > 
+> > > > I think we can keep the cgroup->id until the last css reference is
+> > > > dropped and the css is scheduled to be destroyed.
+> > > 
+> > > How would this work? The task which pushed the memory to the swap is
+> > > still alive (living in a different group) and the swap will be there
+> > > after the last reference to css as well.
+> > 
+> > Or did you mean to get css reference in swap_cgroup_record and release
+> > it in __mem_cgroup_try_charge_swapin?
 > 
-> OK.  But all 512 pages reside on the same node, yes?  Whereas with thp
-> disabled those 512 pages would have resided closer to the CPUs which
-> instantiated them.  
+> We already do that, swap records hold a css reference.  We do the put
+> in mem_cgroup_uncharge_swap().
 
-As it stands right now, yes, since we're pulling a 512 page contiguous
-chunk off the free list, everything from that chunk will reside on the
-same node, but as I (stupidly) forgot to mention in my original e-mail,
-one piece I have yet to add is the functionality to put the remaining
-unfaulted pages from our chunk *back* on the free list after we give up
-on handing out a THP.  Once this is in there, things will behave more
-like they do when THP is turned completely off, i.e. pages will get
-faulted in closer to the CPU that first referenced them once we give up
-on handing out the THP.
+Dohh! You are right I have totally missed that the css_get is burried in
+__mem_cgroup_uncharge_common and the counterpart is in mem_cgroup_uncharge_swap
+(which is less unexpected).
 
-> So the expected result will be somewhere in between
-> the 93 secs and the 76 secs?
+> It really strikes me as odd that we recycle the cgroup ID while there
+> are still references to the cgroup in circulation.
 
-Yes.  Due to the time it takes to search for the temporary THP, I'm sure
-we won't get down to 76 secs, but hopefully we'll get close.  I'm also
-considering switching the linked list that stores the temporary THPs
-over to an rbtree to make that search faster, just fyi.
+That is true but even with this fixed I still think that the Hugh's
+approach makes a lot of sense.
 
-> That being said, I don't see a downside to the idea, apart from some
-> additional setup cost in kernel code.
-
-Good to hear.  I still need to address some of the issues that others
-have raised, and finish up the few pieces that aren't fully
-working/finished.  I'll get things polished up and get some more
-informative test results out soon.
-
-Thanks for looking at the patch!
-
-- Alex
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
