@@ -1,34 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f42.google.com (mail-qe0-f42.google.com [209.85.128.42])
-	by kanga.kvack.org (Postfix) with ESMTP id D133E6B0035
-	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 05:12:43 -0500 (EST)
-Received: by mail-qe0-f42.google.com with SMTP id b4so3714187qen.29
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 02:12:43 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id k3si11028202qao.186.2013.12.16.02.12.42
+Received: from mail-ea0-f182.google.com (mail-ea0-f182.google.com [209.85.215.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 486A46B0035
+	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 05:14:29 -0500 (EST)
+Received: by mail-ea0-f182.google.com with SMTP id a15so2105919eae.41
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 02:14:28 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e2si12832084eeg.93.2013.12.16.02.14.28
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Dec 2013 02:12:43 -0800 (PST)
-Date: Mon, 16 Dec 2013 11:12:33 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: mm: ptl is not bloated if it fits in pointer
-Message-ID: <20131216101233.GV21999@twins.programming.kicks-ass.net>
-References: <alpine.LNX.2.00.1312160053530.3066@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.00.1312160053530.3066@eggly.anvils>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 16 Dec 2013 02:14:28 -0800 (PST)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH 0/3] Fix bugs in munlock
+Date: Mon, 16 Dec 2013 11:14:13 +0100
+Message-Id: <1387188856-21027-1-git-send-email-vbabka@suse.cz>
+In-Reply-To: <52AE07B4.4020203@oracle.com>
+References: <52AE07B4.4020203@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, joern@logfs.org, Michel Lespinasse <walken@google.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Mon, Dec 16, 2013 at 01:04:13AM -0800, Hugh Dickins wrote:
-> It's silly to force the 64-bit CONFIG_GENERIC_LOCKBREAK architectures
+This patch mini-series is a result of Sasha Levin's bug reports via trinity.
 
-So yes that's unfortunate, but why are people using that
-GENERIC_LOCKBREAK stuff to begin with? Its atrocious, a much better path
-would be to remove it.
+First two patches are quite straightforward fixes for bugs introduced in 3.12,
+and earlier versions have been tested. Sasha, can you please test the final
+versions of the first two (together) again? The first one added an extra
+VM_BUG_ON.
+
+The third is based on me noticing there might still be an (older than 3.12)
+race with a THP page split with non-fatal but still bad consequences, such as
+pages being kept mlocked. Since this is quite rare and was not reported, any
+review agreeing that it can really happen would be great. Testing as well, of
+course.  So it's kind of RFC at this point.
+
+Vlastimil Babka (3):
+  mm: munlock: fix a bug where THP tail page is encountered
+  mm: munlock: fix deadlock in __munlock_pagevec()
+  mm: munlock: fix potential race with THP page split
+
+ mm/mlock.c | 116 ++++++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 76 insertions(+), 40 deletions(-)
+
+-- 
+1.8.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
