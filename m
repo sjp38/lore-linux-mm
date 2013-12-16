@@ -1,144 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E53D6B0035
-	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 07:48:39 -0500 (EST)
-Received: by mail-pd0-f171.google.com with SMTP id z10so5269312pdj.16
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 04:48:38 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id eb3si8797052pbc.206.2013.12.16.04.48.37
-        for <linux-mm@kvack.org>;
-        Mon, 16 Dec 2013 04:48:37 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <CA+55aFw+-EB0J5v-1LMg1aiDZQJ-Mm0fzdbN312_nyBCVs+Fvw@mail.gmail.com>
-References: <20130223003232.4CDDB5A41B6@corp2gmr1-2.hot.corp.google.com>
- <52AA0613.2000908@oracle.com>
- <CA+55aFw3_0_Et9bbfWgGLXEUaGQW1HE8j=oGBqFG_8j+h6jmvQ@mail.gmail.com>
- <CA+55aFyRZW=Uy9w+bZR0vMOFNPqV-yW2Xs9N42qEwTQ3AY0fDw@mail.gmail.com>
- <52AE271C.4040805@oracle.com>
- <CA+55aFw+-EB0J5v-1LMg1aiDZQJ-Mm0fzdbN312_nyBCVs+Fvw@mail.gmail.com>
-Subject: Re: [patch 019/154] mm: make madvise(MADV_WILLNEED) support swap file
- prefetch
-Content-Transfer-Encoding: 7bit
-Message-Id: <20131216124754.29063E0090@blue.fi.intel.com>
-Date: Mon, 16 Dec 2013 14:47:54 +0200 (EET)
+Received: from mail-ea0-f178.google.com (mail-ea0-f178.google.com [209.85.215.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D1DA6B0075
+	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 07:59:28 -0500 (EST)
+Received: by mail-ea0-f178.google.com with SMTP id d10so2183645eaj.37
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 04:59:27 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h45si47931eeo.214.2013.12.16.04.59.27
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 16 Dec 2013 04:59:27 -0800 (PST)
+Date: Mon, 16 Dec 2013 12:59:23 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 0/4] Fix ebizzy performance regression due to X86 TLB
+ range flush v2
+Message-ID: <20131216125923.GS11295@suse.de>
+References: <1386964870-6690-1-git-send-email-mgorman@suse.de>
+ <CA+55aFyNAigQqBk07xLpf0nkhZ_x-QkBYG8otRzsqg_8A2eg-Q@mail.gmail.com>
+ <20131215155539.GM11295@suse.de>
+ <20131216102439.GA21624@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20131216102439.GA21624@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, shli@kernel.org, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@fusionio.com>, linux-mm <linux-mm@kvack.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Alex Shi <alex.shi@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Linus Torvalds wrote:
-> On Sun, Dec 15, 2013 at 2:03 PM, Sasha Levin <sasha.levin@oracle.com> wrote:
-> > On 12/15/2013 02:16 PM, Linus Torvalds wrote:
-> >>
-> >> Can anybody see what's wrong with that code? It all seems to happen
-> >> with mmap_sem held for reading, so there is no mmap activity going on,
-> >> but what about concurrent pmd splitting due to page faults etc?
-> >
-> > There's one thing that seems odd to me: the only place that allocated
-> > the ptl is in pgtable_page_ctor() called from pte_alloc_one().
-
-pgtable_page_ctor() allocates pte ptl, pgtable_pmd_page_ctor() allocates
-pmd ptl.
-
-> > However, I don't see how ptl is allocated through all the
-> > mk_pmd()/mk_huge_pmd()
-> > calls in mm/huge_memory.c .
-
-pmd ptl allocated on pmd_alloc_one(), usually something like:
- __handle_mm_fault()
-   pmd_alloc()
-     __pmd_alloc()
-       pmd_alloc_one()
-         pgtable_pmd_page_ctor()
-
-It's not specific to huge pages: we allocate it for any pmd table if
-USE_SPLIT_PMD_PTLOCKS != 0
-
-> >
-> > I've added some debug output, and it seems that indeed the results of
-> > mk_pmd() are
-> > with ptl == NULL and one of them ends up getting to swapin_walk_pmd_entry
-> > where it NULL
-> > ptr derefs.
-
-Sorry, I haven't got what debug output you're talking about.
-mk_pmd() creates pmd *entry* and ptl is property of page tables, not
-entries. I would guess you check page->ptl of stack page, where result of
-mk_pmd() first stored.
-
-I probably miss some context here. Do you have crash on some use-case or
-what? Could you point me to start of discussion.
-
-> Hmm. I don't see that in my tree either, so that doesn't seem to be a
-> linux-next issue.
+On Mon, Dec 16, 2013 at 11:24:39AM +0100, Ingo Molnar wrote:
 > 
-> How are we not hitting this left and right? Sure, you need spinlock
-> debugging or something like that to trigger the BLOATED_SPINLOCKS
-> case, and you'd need the USE_SPLIT_PTE_PTLOCKS case to have this at
-> all, but that shouldn't be *that* unusual. And afaik, we should hit
-> this on just about any page table traversal.
+> * Mel Gorman <mgorman@suse.de> wrote:
 > 
-> So I *think* the rule is that largepages don't have ptl entries (since
-> they don't have page tables associated with them), and they need to be
-> handled specially.
-
-Huh? Huge pages have page tables. On x86-64 it's PMD table for 2M pages
-and PUD table for 1G pages. And we have split ptl for PMD: see
-USE_SPLIT_PMD_PTLOCKS.
-
-> But it's also possibly just that maybe nothing really uses
-> large-pages. And afaik, we used to disable USE_SPLIT_PTE_PTLOCKS
-> entirely with big spinlocks until Kirill added that indirection
-> pointer, so that would explain why we just never noticed this issue
-> before (although I'd have expected that the spinlock still needs to be
-> initialized, even if it doesn't need allocating - otherwise we'd
-> possibly just hang on a "spin_lock()" that never succeeds).
-
-I've added missed pgtable_page_ctor() on few archs, but x86 was fine.
-And it should work even without spin_lock() if we don't allocate page->ptl
-dynamically, just because we zero out the field in struct page on page
-allocation.
-
-> Adding Kirill to the participants, since he did the
-> pgtable_pmd_page_ctor/dtor stuff and enabled split PTE locks even with
-> BLOATED_SPINLOCKS. And Andrea, since largepages are involved. And
-> linux-mm just to have *some* list cc'd.
+> > I had hacked ebizzy to report on the performance of each thread, not 
+> > just the overall result and worked out the difference in performance 
+> > of each thread. In a complete fair test you would expect the 
+> > performance of each thread to be identical and so the spread would 
+> > be 0
+> > 
+> > ebizzy thread spread
+> >                     3.13.0-rc3            3.13.0-rc3                3.4.69
+> >                        vanilla           nowalk-v2r7               vanilla
+> > Mean   1        0.00 (  0.00%)        0.00 (  0.00%)        0.00 (  0.00%)
+> > Mean   2        0.34 (  0.00%)        0.30 (-11.76%)        0.07 (-79.41%)
+> > Mean   3        1.29 (  0.00%)        0.92 (-28.68%)        0.29 (-77.52%)
+> > Mean   4        7.08 (  0.00%)       42.38 (498.59%)        0.22 (-96.89%)
+> > Mean   5      193.54 (  0.00%)      483.41 (149.77%)        0.41 (-99.79%)
+> > Mean   6      151.12 (  0.00%)      198.22 ( 31.17%)        0.42 (-99.72%)
+> > Mean   7      115.38 (  0.00%)      160.29 ( 38.92%)        0.58 (-99.50%)
+> > Mean   8      108.65 (  0.00%)      138.96 ( 27.90%)        0.44 (-99.60%)
+> > Range  1        0.00 (  0.00%)        0.00 (  0.00%)        0.00 (  0.00%)
+> > Range  2        5.00 (  0.00%)        6.00 ( 20.00%)        2.00 (-60.00%)
+> > Range  3       10.00 (  0.00%)       17.00 ( 70.00%)        9.00 (-10.00%)
+> > Range  4      256.00 (  0.00%)     1001.00 (291.02%)        5.00 (-98.05%)
+> > Range  5      456.00 (  0.00%)     1226.00 (168.86%)        6.00 (-98.68%)
+> > Range  6      298.00 (  0.00%)      294.00 ( -1.34%)        8.00 (-97.32%)
+> > Range  7      192.00 (  0.00%)      220.00 ( 14.58%)        7.00 (-96.35%)
+> > Range  8      171.00 (  0.00%)      163.00 ( -4.68%)        8.00 (-95.32%)
+> > Stddev 1        0.00 (  0.00%)        0.00 (  0.00%)        0.00 (  0.00%)
+> > Stddev 2        0.72 (  0.00%)        0.85 (-17.99%)        0.29 ( 59.72%)
+> > Stddev 3        1.42 (  0.00%)        1.90 (-34.22%)        1.12 ( 21.19%)
+> > Stddev 4       33.83 (  0.00%)      127.26 (-276.15%)        0.79 ( 97.65%)
+> > Stddev 5       92.08 (  0.00%)      225.01 (-144.35%)        1.06 ( 98.85%)
+> > Stddev 6       64.82 (  0.00%)       69.43 ( -7.11%)        1.28 ( 98.02%)
+> > Stddev 7       36.66 (  0.00%)       49.19 (-34.20%)        1.18 ( 96.79%)
+> > Stddev 8       30.79 (  0.00%)       36.23 (-17.64%)        1.06 ( 96.55%)
+> > 
+> > For example, this is saying that with 8 threads on 3.13-rc3 that the 
+> > difference between the slowest and fastest thread was 171 
+> > records/second.
 > 
-> Kirill? Sasha seems to trigger this problem with
-> madvise(MADV_WILLNEED), possibly on a hugepage mapping (but see
-> below..) The
+> We aren't blind fairness fetishists, but the noise difference between 
+> v3.4 and v3.13 appears to be staggering, it's a serious anomaly in 
+> itself.
 > 
->         orig_pte = pte_offset_map_lock(vma->vm_mm, pmd, start, &ptl);
+
+Agreed.
+
+> Whatever we did right in v3.4 we want to do in v3.13 as well - or at 
+> least understand it.
 > 
-> in swapin_walk_pmd_entry() ends up taking a NULL ptr fault because the
-> pmd doesn't have a ptl pointer..
+
+Also agreed. I started a bisection before answering this mail. It would
+be cooler and potentially faster to figure it out from direct analysis
+but bisection is reliable and less guesswork.
+
+> I agree that the absolute numbers would probably only be interesting 
+> once v3.13 is fixed to not spread thread performance that wildly 
+> again.
 > 
-> But why would we trigger this bug then, since we have:
+> > [...] Because of this bug, I'd be wary about drawing too many 
+> > conclusions about ebizzy performance when the number of threads 
+> > exceed the number of CPUs.
 > 
->         if (pmd_none_or_trans_huge_or_clear_bad(pmd))
->                 return 0;
+> Yes.
 > 
-> in swapin_walk_pmd_entry(). Possibly racing with a page-in? Should we
-> check the "vma->vm_flags" for VM_HUGETLB?
+> Could it be that the v3.13 workload context switches a lot more than 
+> v3.4 workload?
 
-VM_HUGETLB is for hugetlbfs, and it's a different path in page walker.
+The opposite. 3.13 context switches and interrupts less.
 
-I don't see how we can race with THP: swap in doesn't trigger creating THP
-page. khugepaged can collapse small page into THP, but it takes mmap_sem
-on write and we hold it on read in WILL_NEED path.
+> That would magnify any TLB range flushing costs and 
+> would make it essentially a secondary symptom, not a primary cause of 
+> the regression. (I'm only guessing blindly here though.)
+> 
 
-> Let's hope the new people have more answers than questions ;)
+Fortunately, I had collected data on context switches
 
-Sorry, I don't have answers based on the info.
+4 core machine: http://www.csn.ul.ie/~mel/postings/spread-20131216/global-ebizzy/ivor/report.html
+8 core machine: http://www.csn.ul.ie/~mel/postings/spread-20131216/global-ebizzy/ivy/report.html
 
-If page->ptl is NULL on pte_offset_map_lock(), we most likely miss
-pgtable_page_ctor() somewhere, but I haven't found where.
+The ebizzy results are at the end. One of the graphs are for context
+switches as measured by vmstat running during the test.
 
-And I don't see an evidence that huge pages involved. It would be nice to
-check if it's reproducible with USE_SPLIT_PMD_PTLOCKS==0.
+In both cases you can see that context switches are higher for 3.4 as
+are interrupts. The difference in context switches are why I thought this
+might be scheduler related but the difference in interrupts was harder to
+explain. I'm guessing they're IPIs but did not record /proc/interrupts
+to answer that. I lack familiarity with scheduler changes between 3.4
+and 3.13-rc4 and have no intuitive feeling for when this might have been
+introduced. I'm also not sure if we used to do anything like send IPIs
+to reschedule tasks or balance tasks between idle cores that changed
+recently. There was also a truckload of nohz changes in that window that
+I'm not familiar with that are potentially responsible. Should have
+answers soon enough.
 
 -- 
- Kirill A. Shutemov
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
