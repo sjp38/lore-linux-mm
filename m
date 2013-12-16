@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FDF76B003A
-	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 07:17:24 -0500 (EST)
-Received: by mail-lb0-f174.google.com with SMTP id p9so811142lbv.19
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 04:17:23 -0800 (PST)
+Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B12F6B003A
+	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 07:17:26 -0500 (EST)
+Received: by mail-lb0-f176.google.com with SMTP id l4so804165lbv.21
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 04:17:25 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id ww4si3525779lbb.162.2013.12.16.04.17.22
+        by mx.google.com with ESMTPS id fa7si3525840lbc.115.2013.12.16.04.17.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 16 Dec 2013 04:17:23 -0800 (PST)
+        Mon, 16 Dec 2013 04:17:24 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH v14 13/18] vmscan: take at least one pass with shrinkers
-Date: Mon, 16 Dec 2013 16:17:02 +0400
-Message-ID: <9645eb409c9cf01a249b100d2ff0d7dff12deedb.1387193771.git.vdavydov@parallels.com>
+Subject: [PATCH v14 15/18] fs: make shrinker memcg aware
+Date: Mon, 16 Dec 2013 16:17:04 +0400
+Message-ID: <0b2be5a5020fbb9eabbabdd8ab3b9eebb9de824a.1387193771.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1387193771.git.vdavydov@parallels.com>
 References: <cover.1387193771.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -20,63 +20,50 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dchinner@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, glommer@gmail.com, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, glommer@gmail.com, Al Viro <viro@zeniv.linux.org.uk>
 
-From: Glauber Costa <glommer@openvz.org>
+Now, to make any list_lru-based shrinker memcg aware we should only
+initialize its list_lru as memcg-enabled. Let's do it for the general FS
+shrinker (super_block::s_shrink) and mark it as memcg aware.
 
-In very low free kernel memory situations, it may be the case that we
-have less objects to free than our initial batch size. If this is the
-case, it is better to shrink those, and open space for the new workload
-then to keep them and fail the new allocations.
+There are other FS-specific shrinkers that use list_lru for storing
+objects, such as XFS and GFS2 dquot cache shrinkers, but since they
+reclaim objects that may be shared among different cgroups, there is no
+point making them memcg aware.
 
-In particular, we are concerned with the direct reclaim case for memcg.
-Although this same technique can be applied to other situations just as
-well, we will start conservative and apply it for that case, which is
-the one that matters the most.
-
-Signed-off-by: Glauber Costa <glommer@openvz.org>
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Glauber Costa <glommer@openvz.org>
 Cc: Dave Chinner <dchinner@redhat.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>
 ---
- mm/vmscan.c |   13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ fs/super.c |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 67c1950..95fd2c3 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -281,17 +281,22 @@ shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
- 				nr_pages_scanned, lru_pages,
- 				max_pass, delta, total_scan);
+diff --git a/fs/super.c b/fs/super.c
+index 9084c3d..654d021 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -181,9 +181,9 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
+ 	INIT_HLIST_BL_HEAD(&s->s_anon);
+ 	INIT_LIST_HEAD(&s->s_inodes);
  
--	while (total_scan >= batch_size) {
-+	while (total_scan > 0) {
- 		unsigned long ret;
-+		unsigned long nr_to_scan = min(batch_size, total_scan);
+-	if (list_lru_init(&s->s_dentry_lru))
++	if (list_lru_init_memcg(&s->s_dentry_lru))
+ 		goto fail;
+-	if (list_lru_init(&s->s_inode_lru))
++	if (list_lru_init_memcg(&s->s_inode_lru))
+ 		goto fail;
  
--		shrinkctl->nr_to_scan = batch_size;
-+		if (!shrinkctl->target_mem_cgroup &&
-+		    total_scan < batch_size)
-+			break;
-+
-+		shrinkctl->nr_to_scan = nr_to_scan;
- 		ret = shrinker->scan_objects(shrinker, shrinkctl);
- 		if (ret == SHRINK_STOP)
- 			break;
- 		freed += ret;
+ 	INIT_LIST_HEAD(&s->s_mounts);
+@@ -221,7 +221,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
+ 	s->s_shrink.scan_objects = super_cache_scan;
+ 	s->s_shrink.count_objects = super_cache_count;
+ 	s->s_shrink.batch = 1024;
+-	s->s_shrink.flags = SHRINKER_NUMA_AWARE;
++	s->s_shrink.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE;
+ 	return s;
  
--		count_vm_events(SLABS_SCANNED, batch_size);
--		total_scan -= batch_size;
-+		count_vm_events(SLABS_SCANNED, nr_to_scan);
-+		total_scan -= nr_to_scan;
- 
- 		cond_resched();
- 	}
+ fail:
 -- 
 1.7.10.4
 
