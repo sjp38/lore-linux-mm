@@ -1,868 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id DFDFE6B0070
-	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 07:17:36 -0500 (EST)
-Received: by mail-lb0-f182.google.com with SMTP id l4so803864lbv.41
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 04:17:36 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id yf5si5347765lab.107.2013.12.16.04.17.35
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 16 Dec 2013 04:17:35 -0800 (PST)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH v14 14/18] list_lru: add per-memcg lists
-Date: Mon, 16 Dec 2013 16:17:03 +0400
-Message-ID: <7219e5ee31a2c640713d4f7d43fe8ff3eea947af.1387193771.git.vdavydov@parallels.com>
-In-Reply-To: <cover.1387193771.git.vdavydov@parallels.com>
-References: <cover.1387193771.git.vdavydov@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E53D6B0035
+	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 07:48:39 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id z10so5269312pdj.16
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 04:48:38 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id eb3si8797052pbc.206.2013.12.16.04.48.37
+        for <linux-mm@kvack.org>;
+        Mon, 16 Dec 2013 04:48:37 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <CA+55aFw+-EB0J5v-1LMg1aiDZQJ-Mm0fzdbN312_nyBCVs+Fvw@mail.gmail.com>
+References: <20130223003232.4CDDB5A41B6@corp2gmr1-2.hot.corp.google.com>
+ <52AA0613.2000908@oracle.com>
+ <CA+55aFw3_0_Et9bbfWgGLXEUaGQW1HE8j=oGBqFG_8j+h6jmvQ@mail.gmail.com>
+ <CA+55aFyRZW=Uy9w+bZR0vMOFNPqV-yW2Xs9N42qEwTQ3AY0fDw@mail.gmail.com>
+ <52AE271C.4040805@oracle.com>
+ <CA+55aFw+-EB0J5v-1LMg1aiDZQJ-Mm0fzdbN312_nyBCVs+Fvw@mail.gmail.com>
+Subject: Re: [patch 019/154] mm: make madvise(MADV_WILLNEED) support swap file
+ prefetch
+Content-Transfer-Encoding: 7bit
+Message-Id: <20131216124754.29063E0090@blue.fi.intel.com>
+Date: Mon, 16 Dec 2013 14:47:54 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dchinner@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, glommer@gmail.com, Al Viro <viro@zeniv.linux.org.uk>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, shli@kernel.org, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@fusionio.com>, linux-mm <linux-mm@kvack.org>
 
-There are several FS shrinkers, including super_block::s_shrink, that
-keep reclaimable objects in the list_lru structure. That said, to turn
-them to memcg-aware shrinkers, it is enough to make list_lru per-memcg.
+Linus Torvalds wrote:
+> On Sun, Dec 15, 2013 at 2:03 PM, Sasha Levin <sasha.levin@oracle.com> wrote:
+> > On 12/15/2013 02:16 PM, Linus Torvalds wrote:
+> >>
+> >> Can anybody see what's wrong with that code? It all seems to happen
+> >> with mmap_sem held for reading, so there is no mmap activity going on,
+> >> but what about concurrent pmd splitting due to page faults etc?
+> >
+> > There's one thing that seems odd to me: the only place that allocated
+> > the ptl is in pgtable_page_ctor() called from pte_alloc_one().
 
-This patch does the trick. It adds an array of LRU lists to the list_lru
-structure, one for each kmem-active memcg, and dispatches every item
-addition or removal operation to the list corresponding to the memcg the
-item is accounted to.
+pgtable_page_ctor() allocates pte ptl, pgtable_pmd_page_ctor() allocates
+pmd ptl.
 
-Since we already pass a shrink_control object to count and walk list_lru
-functions to specify the NUMA node to scan, and the target memcg is held
-in this structure, there is no need in changing the list_lru interface.
+> > However, I don't see how ptl is allocated through all the
+> > mk_pmd()/mk_huge_pmd()
+> > calls in mm/huge_memory.c .
 
-To make sure each kmem-active memcg has its list initialized in each
-memcg-enabled list_lru, we keep all memcg-enabled list_lrus in a linked
-list, which we iterate over allocating per-memcg LRUs whenever a new
-kmem-active memcg is added. To synchronize this with creation of new
-list_lrus, we have to take activate_kmem_mutex. Since using this mutex
-as is would make all mounts proceed serially, we turn it to an rw
-semaphore and take it for writing whenever a new kmem-active memcg is
-created and for reading when we are going to create a list_lru. This
-still does not allow mount_fs() proceed concurrently with creation of a
-kmem-active memcg, but since creation of memcgs is rather a rare event,
-this is not that critical.
+pmd ptl allocated on pmd_alloc_one(), usually something like:
+ __handle_mm_fault()
+   pmd_alloc()
+     __pmd_alloc()
+       pmd_alloc_one()
+         pgtable_pmd_page_ctor()
 
-The idea lying behind the patch as well as the initial implementation
-belong to Glauber Costa.
+It's not specific to huge pages: we allocate it for any pmd table if
+USE_SPLIT_PMD_PTLOCKS != 0
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Glauber Costa <glommer@openvz.org>
-Cc: Dave Chinner <dchinner@redhat.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
-Cc: Balbir Singh <bsingharora@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/linux/list_lru.h   |  112 +++++++++++++------
- include/linux/memcontrol.h |   13 +++
- mm/list_lru.c              |  257 +++++++++++++++++++++++++++++++++++++++-----
- mm/memcontrol.c            |  181 +++++++++++++++++++++++++++++--
- 4 files changed, 495 insertions(+), 68 deletions(-)
+> >
+> > I've added some debug output, and it seems that indeed the results of
+> > mk_pmd() are
+> > with ptl == NULL and one of them ends up getting to swapin_walk_pmd_entry
+> > where it NULL
+> > ptr derefs.
 
-diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
-index 194b1c4..9b228dc 100644
---- a/include/linux/list_lru.h
-+++ b/include/linux/list_lru.h
-@@ -11,6 +11,8 @@
- #include <linux/nodemask.h>
- #include <linux/shrinker.h>
- 
-+struct mem_cgroup;
-+
- /* list_lru_walk_cb has to always return one of those */
- enum lru_status {
- 	LRU_REMOVED,		/* item removed from list */
-@@ -30,10 +32,52 @@ struct list_lru_node {
- struct list_lru {
- 	struct list_lru_node	*node;
- 	nodemask_t		active_nodes;
-+#ifdef CONFIG_MEMCG_KMEM
-+	/*
-+	 * In order to provide ability of scanning objects from different
-+	 * memory cgroups independently, we keep a separate LRU list for each
-+	 * kmem-active memcg in this array. The array is RCU-protected and
-+	 * indexed by memcg_cache_id().
-+	 */
-+	struct list_lru_node	**memcg;
-+	/*
-+	 * Every time a kmem-active memcg is created or destroyed, we have to
-+	 * update the array of per-memcg LRUs in each memcg enabled list_lru
-+	 * structure. To achieve that, we keep all memcg enabled list_lru
-+	 * structures in the all_memcg_lrus list.
-+	 */
-+	struct list_head	memcg_lrus_list;
-+	/*
-+	 * Since the array of per-memcg LRUs is RCU-protected, we can only free
-+	 * it after a call to synchronize_rcu(). To avoid multiple calls to
-+	 * synchronize_rcu() when a lot of LRUs get updated at the same time,
-+	 * which is a typical scenario, we will store the pointer to the
-+	 * previous version of the array in the memcg_old field for each
-+	 * list_lru structure, and then free them all at once after a single
-+	 * call to synchronize_rcu().
-+	 */
-+	void			*memcg_old;
-+#endif /* CONFIG_MEMCG_KMEM */
- };
- 
-+#ifdef CONFIG_MEMCG_KMEM
-+int list_lru_memcg_alloc(struct list_lru *lru, int memcg_id);
-+void list_lru_memcg_free(struct list_lru *lru, int memcg_id);
-+int list_lru_grow_memcg(struct list_lru *lru, size_t new_array_size);
-+#endif
-+
- void list_lru_destroy(struct list_lru *lru);
--int list_lru_init(struct list_lru *lru);
-+int __list_lru_init(struct list_lru *lru, bool memcg_enabled);
-+
-+static inline int list_lru_init(struct list_lru *lru)
-+{
-+	return __list_lru_init(lru, false);
-+}
-+
-+static inline int list_lru_init_memcg(struct list_lru *lru)
-+{
-+	return __list_lru_init(lru, true);
-+}
- 
- /**
-  * list_lru_add: add an element to the lru list's tail
-@@ -67,39 +111,41 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item);
- bool list_lru_del(struct list_lru *lru, struct list_head *item);
- 
- /**
-- * list_lru_count_node: return the number of objects currently held by @lru
-+ * list_lru_count_node_memcg: return the number of objects currently held by a
-+ *  list_lru.
-  * @lru: the lru pointer.
-  * @nid: the node id to count from.
-+ * @memcg: the memcg to count from.
-  *
-  * Always return a non-negative number, 0 for empty lists. There is no
-  * guarantee that the list is not updated while the count is being computed.
-  * Callers that want such a guarantee need to provide an outer lock.
-  */
--unsigned long list_lru_count_node(struct list_lru *lru, int nid);
-+unsigned long list_lru_count_node_memcg(struct list_lru *lru,
-+					int nid, struct mem_cgroup *memcg);
- 
--static inline unsigned long list_lru_shrink_count(struct list_lru *lru,
--						  struct shrink_control *sc)
-+unsigned long list_lru_count(struct list_lru *lru);
-+
-+static inline unsigned long list_lru_count_node(struct list_lru *lru, int nid)
- {
--	return list_lru_count_node(lru, sc->nid);
-+	return list_lru_count_node_memcg(lru, nid, NULL);
- }
- 
--static inline unsigned long list_lru_count(struct list_lru *lru)
-+static inline unsigned long list_lru_shrink_count(struct list_lru *lru,
-+						  struct shrink_control *sc)
- {
--	long count = 0;
--	int nid;
--
--	for_each_node_mask(nid, lru->active_nodes)
--		count += list_lru_count_node(lru, nid);
--
--	return count;
-+	return list_lru_count_node_memcg(lru, sc->nid, sc->memcg);
- }
- 
- typedef enum lru_status
- (*list_lru_walk_cb)(struct list_head *item, spinlock_t *lock, void *cb_arg);
-+
- /**
-- * list_lru_walk_node: walk a list_lru, isolating and disposing freeable items.
-+ * list_lru_walk_node_memcg: walk a list_lru, isolating and disposing freeable
-+ *  items.
-  * @lru: the lru pointer.
-  * @nid: the node id to scan from.
-+ * @memcg: the memcg to scan from.
-  * @isolate: callback function that is resposible for deciding what to do with
-  *  the item currently being scanned
-  * @cb_arg: opaque type that will be passed to @isolate
-@@ -117,31 +163,29 @@ typedef enum lru_status
-  *
-  * Return value: the number of objects effectively removed from the LRU.
-  */
--unsigned long list_lru_walk_node(struct list_lru *lru, int nid,
--				 list_lru_walk_cb isolate, void *cb_arg,
--				 unsigned long *nr_to_walk);
-+unsigned long list_lru_walk_node_memcg(struct list_lru *lru,
-+				       int nid, struct mem_cgroup *memcg,
-+				       list_lru_walk_cb isolate, void *cb_arg,
-+				       unsigned long *nr_to_walk);
-+
-+unsigned long list_lru_walk(struct list_lru *lru,
-+			    list_lru_walk_cb isolate, void *cb_arg,
-+			    unsigned long nr_to_walk);
- 
- static inline unsigned long
--list_lru_shrink_walk(struct list_lru *lru, struct shrink_control *sc,
--		     list_lru_walk_cb isolate, void *cb_arg)
-+list_lru_walk_node(struct list_lru *lru, int nid,
-+		   list_lru_walk_cb isolate, void *cb_arg,
-+		   unsigned long *nr_to_walk)
- {
--	return list_lru_walk_node(lru, sc->nid, isolate, cb_arg,
--				  &sc->nr_to_scan);
-+	return list_lru_walk_node_memcg(lru, nid, NULL,
-+					isolate, cb_arg, nr_to_walk);
- }
- 
- static inline unsigned long
--list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
--	      void *cb_arg, unsigned long nr_to_walk)
-+list_lru_shrink_walk(struct list_lru *lru, struct shrink_control *sc,
-+		     list_lru_walk_cb isolate, void *cb_arg)
- {
--	long isolated = 0;
--	int nid;
--
--	for_each_node_mask(nid, lru->active_nodes) {
--		isolated += list_lru_walk_node(lru, nid, isolate,
--					       cb_arg, &nr_to_walk);
--		if (nr_to_walk <= 0)
--			break;
--	}
--	return isolated;
-+	return list_lru_walk_node_memcg(lru, sc->nid, sc->memcg,
-+					isolate, cb_arg, &sc->nr_to_scan);
- }
- #endif /* _LRU_LIST_H */
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 6001b31..44fc58a 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -29,6 +29,7 @@ struct page_cgroup;
- struct page;
- struct mm_struct;
- struct kmem_cache;
-+struct list_lru;
- 
- /*
-  * The corresponding mem_cgroup_stat_names is defined in mm/memcontrol.c,
-@@ -538,6 +539,9 @@ __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
- void mem_cgroup_destroy_cache(struct kmem_cache *cachep);
- void kmem_cache_destroy_memcg_children(struct kmem_cache *s);
- 
-+int memcg_list_lru_init(struct list_lru *lru, bool memcg_enabled);
-+void memcg_list_lru_destroy(struct list_lru *lru);
-+
- /**
-  * memcg_kmem_newpage_charge: verify if a new kmem allocation is allowed.
-  * @gfp: the gfp allocation flags.
-@@ -702,6 +706,15 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
- static inline void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
- {
- }
-+
-+static inline int memcg_list_lru_init(struct list_lru *lru, bool memcg_enabled)
-+{
-+	return 0;
-+}
-+
-+static inline void memcg_list_lru_destroy(struct list_lru *lru)
-+{
-+}
- #endif /* CONFIG_MEMCG_KMEM */
- #endif /* _LINUX_MEMCONTROL_H */
- 
-diff --git a/mm/list_lru.c b/mm/list_lru.c
-index 72f9dec..db644f8 100644
---- a/mm/list_lru.c
-+++ b/mm/list_lru.c
-@@ -7,19 +7,87 @@
- #include <linux/kernel.h>
- #include <linux/module.h>
- #include <linux/mm.h>
--#include <linux/list_lru.h>
- #include <linux/slab.h>
-+#include <linux/memcontrol.h>
-+#include <linux/page_cgroup.h>
-+#include <linux/list_lru.h>
-+
-+#ifdef CONFIG_MEMCG_KMEM
-+static inline bool lru_has_memcg(struct list_lru *lru)
-+{
-+	return !!lru->memcg;
-+}
-+
-+static struct list_lru_node *lru_node_of_index(struct list_lru *lru,
-+					int nid, int memcg_id, bool *is_global)
-+{
-+	struct list_lru_node **memcg_lrus;
-+	struct list_lru_node *nlru = NULL;
-+
-+	if (memcg_id < 0 || !lru_has_memcg(lru)) {
-+		*is_global = true;
-+		return &lru->node[nid];
-+	}
-+
-+	rcu_read_lock();
-+	memcg_lrus = rcu_dereference(lru->memcg);
-+	nlru = memcg_lrus[memcg_id];
-+	rcu_read_unlock();
-+
-+	*is_global = false;
-+	return nlru;
-+}
-+
-+static struct list_lru_node *lru_node_of_page(struct list_lru *lru,
-+					struct page *page, bool *is_global)
-+{
-+	struct page_cgroup *pc;
-+	struct mem_cgroup *memcg;
-+
-+	/*
-+	 * Since a kmem page cannot change its cgroup after its allocation is
-+	 * committed, we do not need to lock_page_cgroup() here.
-+	 */
-+	pc = lookup_page_cgroup(compound_head(page));
-+	memcg = PageCgroupUsed(pc) ? pc->mem_cgroup : NULL;
-+
-+	return lru_node_of_index(lru, page_to_nid(page),
-+				 memcg_cache_id(memcg), is_global);
-+}
-+#else /* !CONFIG_MEMCG_KMEM */
-+static inline bool lru_has_memcg(struct list_lru *lru)
-+{
-+	return false;
-+}
-+
-+static inline struct list_lru_node *lru_node_of_index(struct list_lru *lru,
-+					int nid, int memcg_id, bool *is_global)
-+{
-+	*is_global = true;
-+	return &lru->node[nid];
-+}
-+
-+static inline struct list_lru_node *lru_node_of_page(struct list_lru *lru,
-+					struct page *page, bool *is_global)
-+{
-+	return lru_node_of_index(lru, page_to_nid(page), -1, is_global);
-+}
-+#endif /* CONFIG_MEMCG_KMEM */
- 
- bool list_lru_add(struct list_lru *lru, struct list_head *item)
- {
--	int nid = page_to_nid(virt_to_page(item));
--	struct list_lru_node *nlru = &lru->node[nid];
-+	struct page *page = virt_to_page(item);
-+	int nid = page_to_nid(page);
-+	bool is_global;
-+	struct list_lru_node *nlru;
-+
-+	nlru = lru_node_of_page(lru, page, &is_global);
- 
- 	spin_lock(&nlru->lock);
- 	WARN_ON_ONCE(nlru->nr_items < 0);
- 	if (list_empty(item)) {
- 		list_add_tail(item, &nlru->list);
--		if (nlru->nr_items++ == 0)
-+		if (nlru->nr_items++ == 0 && is_global)
- 			node_set(nid, lru->active_nodes);
- 		spin_unlock(&nlru->lock);
- 		return true;
-@@ -31,13 +99,17 @@ EXPORT_SYMBOL_GPL(list_lru_add);
- 
- bool list_lru_del(struct list_lru *lru, struct list_head *item)
- {
--	int nid = page_to_nid(virt_to_page(item));
--	struct list_lru_node *nlru = &lru->node[nid];
-+	struct page *page = virt_to_page(item);
-+	int nid = page_to_nid(page);
-+	bool is_global;
-+	struct list_lru_node *nlru;
-+
-+	nlru = lru_node_of_page(lru, page, &is_global);
- 
- 	spin_lock(&nlru->lock);
- 	if (!list_empty(item)) {
- 		list_del_init(item);
--		if (--nlru->nr_items == 0)
-+		if (--nlru->nr_items == 0 && is_global)
- 			node_clear(nid, lru->active_nodes);
- 		WARN_ON_ONCE(nlru->nr_items < 0);
- 		spin_unlock(&nlru->lock);
-@@ -48,11 +120,14 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item)
- }
- EXPORT_SYMBOL_GPL(list_lru_del);
- 
--unsigned long
--list_lru_count_node(struct list_lru *lru, int nid)
-+unsigned long list_lru_count_node_memcg(struct list_lru *lru,
-+					int nid, struct mem_cgroup *memcg)
- {
- 	unsigned long count = 0;
--	struct list_lru_node *nlru = &lru->node[nid];
-+	bool is_global;
-+	struct list_lru_node *nlru;
-+
-+	nlru = lru_node_of_index(lru, nid, memcg_cache_id(memcg), &is_global);
- 
- 	spin_lock(&nlru->lock);
- 	WARN_ON_ONCE(nlru->nr_items < 0);
-@@ -61,16 +136,41 @@ list_lru_count_node(struct list_lru *lru, int nid)
- 
- 	return count;
- }
--EXPORT_SYMBOL_GPL(list_lru_count_node);
-+EXPORT_SYMBOL_GPL(list_lru_count_node_memcg);
-+
-+unsigned long list_lru_count(struct list_lru *lru)
-+{
-+	long count = 0;
-+	int nid;
-+	struct mem_cgroup *memcg;
-+
-+	for_each_node_mask(nid, lru->active_nodes)
-+		count += list_lru_count_node(lru, nid);
-+
-+	if (!lru_has_memcg(lru))
-+		goto out;
-+
-+	for_each_mem_cgroup(memcg) {
-+		if (memcg_kmem_is_active(memcg))
-+			count += list_lru_count_node_memcg(lru, 0, memcg);
-+	}
-+out:
-+	return count;
-+}
-+EXPORT_SYMBOL_GPL(list_lru_count);
- 
--unsigned long
--list_lru_walk_node(struct list_lru *lru, int nid, list_lru_walk_cb isolate,
--		   void *cb_arg, unsigned long *nr_to_walk)
-+unsigned long list_lru_walk_node_memcg(struct list_lru *lru,
-+				       int nid, struct mem_cgroup *memcg,
-+				       list_lru_walk_cb isolate, void *cb_arg,
-+				       unsigned long *nr_to_walk)
- {
- 
--	struct list_lru_node	*nlru = &lru->node[nid];
- 	struct list_head *item, *n;
- 	unsigned long isolated = 0;
-+	bool is_global;
-+	struct list_lru_node *nlru;
-+
-+	nlru = lru_node_of_index(lru, nid, memcg_cache_id(memcg), &is_global);
- 
- 	spin_lock(&nlru->lock);
- restart:
-@@ -88,7 +188,7 @@ restart:
- 		ret = isolate(item, &nlru->lock, cb_arg);
- 		switch (ret) {
- 		case LRU_REMOVED:
--			if (--nlru->nr_items == 0)
-+			if (--nlru->nr_items == 0 && is_global)
- 				node_clear(nid, lru->active_nodes);
- 			WARN_ON_ONCE(nlru->nr_items < 0);
- 			isolated++;
-@@ -112,29 +212,134 @@ restart:
- 	spin_unlock(&nlru->lock);
- 	return isolated;
- }
--EXPORT_SYMBOL_GPL(list_lru_walk_node);
-+EXPORT_SYMBOL_GPL(list_lru_walk_node_memcg);
- 
--int list_lru_init(struct list_lru *lru)
-+unsigned long list_lru_walk(struct list_lru *lru,
-+			    list_lru_walk_cb isolate, void *cb_arg,
-+			    unsigned long nr_to_walk)
-+{
-+	long isolated = 0;
-+	int nid;
-+	struct mem_cgroup *memcg;
-+
-+	for_each_node_mask(nid, lru->active_nodes) {
-+		isolated += list_lru_walk_node(lru, nid, isolate,
-+					       cb_arg, &nr_to_walk);
-+		if (nr_to_walk <= 0)
-+			break;
-+	}
-+
-+	if (!lru_has_memcg(lru))
-+		goto out;
-+
-+	for_each_mem_cgroup(memcg) {
-+		if (!memcg_kmem_is_active(memcg))
-+			continue;
-+		isolated += list_lru_walk_node_memcg(lru, 0, memcg, isolate,
-+						     cb_arg, &nr_to_walk);
-+		if (nr_to_walk <= 0) {
-+			mem_cgroup_iter_break(NULL, memcg);
-+			break;
-+		}
-+	}
-+out:
-+	return isolated;
-+}
-+EXPORT_SYMBOL_GPL(list_lru_walk);
-+
-+static void list_lru_node_init(struct list_lru_node *nlru)
-+{
-+	spin_lock_init(&nlru->lock);
-+	INIT_LIST_HEAD(&nlru->list);
-+	nlru->nr_items = 0;
-+}
-+
-+int __list_lru_init(struct list_lru *lru, bool memcg_enabled)
- {
- 	int i;
--	size_t size = sizeof(*lru->node) * nr_node_ids;
-+	int err = 0;
- 
--	lru->node = kzalloc(size, GFP_KERNEL);
-+	lru->node = kcalloc(nr_node_ids, sizeof(*lru->node), GFP_KERNEL);
- 	if (!lru->node)
- 		return -ENOMEM;
- 
- 	nodes_clear(lru->active_nodes);
--	for (i = 0; i < nr_node_ids; i++) {
--		spin_lock_init(&lru->node[i].lock);
--		INIT_LIST_HEAD(&lru->node[i].list);
--		lru->node[i].nr_items = 0;
-+	for (i = 0; i < nr_node_ids; i++)
-+		list_lru_node_init(&lru->node[i]);
-+
-+	err = memcg_list_lru_init(lru, memcg_enabled);
-+	if (err) {
-+		kfree(lru->node);
-+		lru->node = NULL; /* see list_lru_destroy() */
- 	}
--	return 0;
-+
-+	return err;
- }
--EXPORT_SYMBOL_GPL(list_lru_init);
-+EXPORT_SYMBOL_GPL(__list_lru_init);
- 
- void list_lru_destroy(struct list_lru *lru)
- {
-+	/*
-+	 * We might be called after partial initialisation (e.g. due to ENOMEM
-+	 * error) so handle that appropriately.
-+	 */
-+	if (!lru->node)
-+		return;
-+
- 	kfree(lru->node);
-+	memcg_list_lru_destroy(lru);
- }
- EXPORT_SYMBOL_GPL(list_lru_destroy);
-+
-+#ifdef CONFIG_MEMCG_KMEM
-+int list_lru_memcg_alloc(struct list_lru *lru, int memcg_id)
-+{
-+	struct list_lru_node *nlru;
-+
-+	nlru = kmalloc(sizeof(*nlru), GFP_KERNEL);
-+	if (!nlru)
-+		return -ENOMEM;
-+
-+	list_lru_node_init(nlru);
-+
-+	VM_BUG_ON(lru->memcg[memcg_id]);
-+	lru->memcg[memcg_id] = nlru;
-+	return 0;
-+}
-+
-+void list_lru_memcg_free(struct list_lru *lru, int memcg_id)
-+{
-+	if (lru->memcg[memcg_id]) {
-+		kfree(lru->memcg[memcg_id]);
-+		lru->memcg[memcg_id] = NULL;
-+	}
-+}
-+
-+int list_lru_grow_memcg(struct list_lru *lru, size_t new_array_size)
-+{
-+	int i;
-+	struct list_lru_node **memcg_lrus;
-+
-+	memcg_lrus = kcalloc(new_array_size, sizeof(*memcg_lrus), GFP_KERNEL);
-+	if (!memcg_lrus)
-+		return -ENOMEM;
-+
-+	if (lru->memcg) {
-+		for_each_memcg_cache_index(i) {
-+			if (lru->memcg[i])
-+				memcg_lrus[i] = lru->memcg[i];
-+		}
-+	}
-+
-+	/*
-+	 * Since we access the lru->memcg array lockless, inside an RCU
-+	 * critical section (see lru_node_of_index()), we cannot free the old
-+	 * version of the array right now. So we save it to lru->memcg_old to
-+	 * be freed by the caller after a grace period.
-+	 */
-+	VM_BUG_ON(lru->memcg_old);
-+	lru->memcg_old = lru->memcg;
-+	rcu_assign_pointer(lru->memcg, memcg_lrus);
-+	return 0;
-+}
-+#endif /* CONFIG_MEMCG_KMEM */
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 13b3131..5fec8aa 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -55,6 +55,7 @@
- #include <linux/cpu.h>
- #include <linux/oom.h>
- #include <linux/lockdep.h>
-+#include <linux/list_lru.h>
- #include "internal.h"
- #include <net/sock.h>
- #include <net/ip.h>
-@@ -3238,6 +3239,160 @@ out:
- }
- 
- /*
-+ * This semaphore serializes activations of kmem accounting for memory cgroups.
-+ * Holding it for reading guarantees no cgroups will become kmem active.
-+ */
-+static DECLARE_RWSEM(activate_kmem_sem);
-+
-+/*
-+ * The list of all memcg-enabled list_lru structures. Needed for updating all
-+ * per-memcg LRUs whenever a kmem-active memcg is created or destroyed. The
-+ * list is updated under the activate_kmem_sem held for reading so to safely
-+ * iterate over it, it is enough to take the activate_kmem_sem for writing.
-+ */
-+static LIST_HEAD(all_memcg_lrus);
-+static DEFINE_SPINLOCK(all_memcg_lrus_lock);
-+
-+static void __memcg_destroy_all_lrus(int memcg_id)
-+{
-+	struct list_lru *lru;
-+
-+	list_for_each_entry(lru, &all_memcg_lrus, memcg_lrus_list)
-+		list_lru_memcg_free(lru, memcg_id);
-+}
-+
-+/*
-+ * This function is called when a kmem-active memcg is destroyed in order to
-+ * free LRUs corresponding to the memcg in all list_lru structures.
-+ */
-+static void memcg_destroy_all_lrus(struct mem_cgroup *memcg)
-+{
-+	int memcg_id;
-+
-+	memcg_id = memcg_cache_id(memcg);
-+	if (memcg_id >= 0) {
-+		down_write(&activate_kmem_sem);
-+		__memcg_destroy_all_lrus(memcg_id);
-+		up_write(&activate_kmem_sem);
-+	}
-+}
-+
-+/*
-+ * This function allocates LRUs for a memcg in all list_lru structures. It is
-+ * called with activate_kmem_sem held for writing when a new kmem-active memcg
-+ * is added.
-+ */
-+static int memcg_init_all_lrus(int new_memcg_id)
-+{
-+	int err = 0;
-+	int num_memcgs = new_memcg_id + 1;
-+	int grow = (num_memcgs > memcg_limited_groups_array_size);
-+	size_t new_array_size = memcg_caches_array_size(num_memcgs);
-+	struct list_lru *lru;
-+
-+	if (grow) {
-+		list_for_each_entry(lru, &all_memcg_lrus, memcg_lrus_list) {
-+			err = list_lru_grow_memcg(lru, new_array_size);
-+			if (err)
-+				goto out;
-+		}
-+	}
-+
-+	list_for_each_entry(lru, &all_memcg_lrus, memcg_lrus_list) {
-+		err = list_lru_memcg_alloc(lru, new_memcg_id);
-+		if (err) {
-+			__memcg_destroy_all_lrus(new_memcg_id);
-+			break;
-+		}
-+	}
-+out:
-+	if (grow) {
-+		synchronize_rcu();
-+		list_for_each_entry(lru, &all_memcg_lrus, memcg_lrus_list) {
-+			kfree(lru->memcg_old);
-+			lru->memcg_old = NULL;
-+		}
-+	}
-+	return err;
-+}
-+
-+int memcg_list_lru_init(struct list_lru *lru, bool memcg_enabled)
-+{
-+	int err = 0;
-+	int i;
-+	struct mem_cgroup *memcg;
-+
-+	lru->memcg = NULL;
-+	lru->memcg_old = NULL;
-+	INIT_LIST_HEAD(&lru->memcg_lrus_list);
-+
-+	if (!memcg_enabled)
-+		return 0;
-+
-+	down_read(&activate_kmem_sem);
-+	if (!memcg_kmem_enabled())
-+		goto out_list_add;
-+
-+	lru->memcg = kcalloc(memcg_limited_groups_array_size,
-+			     sizeof(*lru->memcg), GFP_KERNEL);
-+	if (!lru->memcg) {
-+		err = -ENOMEM;
-+		goto out;
-+	}
-+
-+	for_each_mem_cgroup(memcg) {
-+		int memcg_id;
-+
-+		memcg_id = memcg_cache_id(memcg);
-+		if (memcg_id < 0)
-+			continue;
-+
-+		err = list_lru_memcg_alloc(lru, memcg_id);
-+		if (err) {
-+			mem_cgroup_iter_break(NULL, memcg);
-+			goto out_free_lru_memcg;
-+		}
-+	}
-+out_list_add:
-+	spin_lock(&all_memcg_lrus_lock);
-+	list_add(&lru->memcg_lrus_list, &all_memcg_lrus);
-+	spin_unlock(&all_memcg_lrus_lock);
-+out:
-+	up_read(&activate_kmem_sem);
-+	return err;
-+
-+out_free_lru_memcg:
-+	for (i = 0; i < memcg_limited_groups_array_size; i++)
-+		list_lru_memcg_free(lru, i);
-+	kfree(lru->memcg);
-+	goto out;
-+}
-+
-+void memcg_list_lru_destroy(struct list_lru *lru)
-+{
-+	int i, array_size;
-+
-+	if (list_empty(&lru->memcg_lrus_list))
-+		return;
-+
-+	down_read(&activate_kmem_sem);
-+
-+	array_size = memcg_limited_groups_array_size;
-+
-+	spin_lock(&all_memcg_lrus_lock);
-+	list_del(&lru->memcg_lrus_list);
-+	spin_unlock(&all_memcg_lrus_lock);
-+
-+	up_read(&activate_kmem_sem);
-+
-+	if (lru->memcg) {
-+		for (i = 0; i < array_size; i++)
-+			list_lru_memcg_free(lru, i);
-+		kfree(lru->memcg);
-+	}
-+}
-+
-+/*
-  * During the creation a new cache, we need to disable our accounting mechanism
-  * altogether. This is true even if we are not creating, but rather just
-  * enqueing new caches to be created.
-@@ -5129,9 +5284,7 @@ static ssize_t mem_cgroup_read(struct cgroup_subsys_state *css,
- }
- 
- #ifdef CONFIG_MEMCG_KMEM
--static DEFINE_MUTEX(activate_kmem_mutex);
--
--/* should be called with activate_kmem_mutex held */
-+/* should be called with activate_kmem_sem held for writing */
- static int __memcg_activate_kmem(struct mem_cgroup *memcg,
- 				 unsigned long long limit)
- {
-@@ -5177,12 +5330,21 @@ static int __memcg_activate_kmem(struct mem_cgroup *memcg,
- 	}
- 
- 	/*
-+	 * Initialize this cgroup's lists in each list_lru. This must be done
-+	 * before memcg_update_all_caches(), where we update the
-+	 * limited_groups_array_size.
-+	 */
-+	err = memcg_init_all_lrus(memcg_id);
-+	if (err)
-+		goto out_rmid;
-+
-+	/*
- 	 * Make sure we have enough space for this cgroup in each kmem_cache's
- 	 * memcg_params array.
- 	 */
- 	err = memcg_update_all_caches(memcg_id + 1);
- 	if (err)
--		goto out_rmid;
-+		goto out_destroy_all_lrus;
- 
- 	memcg->kmemcg_id = memcg_id;
- 
-@@ -5197,6 +5359,8 @@ out:
- 	memcg_resume_kmem_account();
- 	return err;
- 
-+out_destroy_all_lrus:
-+	__memcg_destroy_all_lrus(memcg_id);
- out_rmid:
- 	ida_simple_remove(&kmem_limited_groups, memcg_id);
- out_reset_limit:
-@@ -5209,9 +5373,9 @@ static int memcg_activate_kmem(struct mem_cgroup *memcg,
- {
- 	int ret;
- 
--	mutex_lock(&activate_kmem_mutex);
-+	down_write(&activate_kmem_sem);
- 	ret = __memcg_activate_kmem(memcg, limit);
--	mutex_unlock(&activate_kmem_mutex);
-+	up_write(&activate_kmem_sem);
- 	return ret;
- }
- 
-@@ -5235,10 +5399,10 @@ static int memcg_propagate_kmem(struct mem_cgroup *memcg)
- 	if (!parent)
- 		goto out;
- 
--	mutex_lock(&activate_kmem_mutex);
-+	down_write(&activate_kmem_sem);
- 	if (memcg_kmem_is_active(parent))
- 		ret = __memcg_activate_kmem(memcg, RES_COUNTER_MAX);
--	mutex_unlock(&activate_kmem_mutex);
-+	up_write(&activate_kmem_sem);
- out:
- 	return ret;
- }
-@@ -5929,6 +6093,7 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
- static void memcg_destroy_kmem(struct mem_cgroup *memcg)
- {
- 	mem_cgroup_sockets_destroy(memcg);
-+	memcg_destroy_all_lrus(memcg);
- }
- 
- static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
+Sorry, I haven't got what debug output you're talking about.
+mk_pmd() creates pmd *entry* and ptl is property of page tables, not
+entries. I would guess you check page->ptl of stack page, where result of
+mk_pmd() first stored.
+
+I probably miss some context here. Do you have crash on some use-case or
+what? Could you point me to start of discussion.
+
+> Hmm. I don't see that in my tree either, so that doesn't seem to be a
+> linux-next issue.
+> 
+> How are we not hitting this left and right? Sure, you need spinlock
+> debugging or something like that to trigger the BLOATED_SPINLOCKS
+> case, and you'd need the USE_SPLIT_PTE_PTLOCKS case to have this at
+> all, but that shouldn't be *that* unusual. And afaik, we should hit
+> this on just about any page table traversal.
+> 
+> So I *think* the rule is that largepages don't have ptl entries (since
+> they don't have page tables associated with them), and they need to be
+> handled specially.
+
+Huh? Huge pages have page tables. On x86-64 it's PMD table for 2M pages
+and PUD table for 1G pages. And we have split ptl for PMD: see
+USE_SPLIT_PMD_PTLOCKS.
+
+> But it's also possibly just that maybe nothing really uses
+> large-pages. And afaik, we used to disable USE_SPLIT_PTE_PTLOCKS
+> entirely with big spinlocks until Kirill added that indirection
+> pointer, so that would explain why we just never noticed this issue
+> before (although I'd have expected that the spinlock still needs to be
+> initialized, even if it doesn't need allocating - otherwise we'd
+> possibly just hang on a "spin_lock()" that never succeeds).
+
+I've added missed pgtable_page_ctor() on few archs, but x86 was fine.
+And it should work even without spin_lock() if we don't allocate page->ptl
+dynamically, just because we zero out the field in struct page on page
+allocation.
+
+> Adding Kirill to the participants, since he did the
+> pgtable_pmd_page_ctor/dtor stuff and enabled split PTE locks even with
+> BLOATED_SPINLOCKS. And Andrea, since largepages are involved. And
+> linux-mm just to have *some* list cc'd.
+> 
+> Kirill? Sasha seems to trigger this problem with
+> madvise(MADV_WILLNEED), possibly on a hugepage mapping (but see
+> below..) The
+> 
+>         orig_pte = pte_offset_map_lock(vma->vm_mm, pmd, start, &ptl);
+> 
+> in swapin_walk_pmd_entry() ends up taking a NULL ptr fault because the
+> pmd doesn't have a ptl pointer..
+> 
+> But why would we trigger this bug then, since we have:
+> 
+>         if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+>                 return 0;
+> 
+> in swapin_walk_pmd_entry(). Possibly racing with a page-in? Should we
+> check the "vma->vm_flags" for VM_HUGETLB?
+
+VM_HUGETLB is for hugetlbfs, and it's a different path in page walker.
+
+I don't see how we can race with THP: swap in doesn't trigger creating THP
+page. khugepaged can collapse small page into THP, but it takes mmap_sem
+on write and we hold it on read in WILL_NEED path.
+
+> Let's hope the new people have more answers than questions ;)
+
+Sorry, I don't have answers based on the info.
+
+If page->ptl is NULL on pte_offset_map_lock(), we most likely miss
+pgtable_page_ctor() somewhere, but I haven't found where.
+
+And I don't see an evidence that huge pages involved. It would be nice to
+check if it's reproducible with USE_SPLIT_PMD_PTLOCKS==0.
+
 -- 
-1.7.10.4
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
