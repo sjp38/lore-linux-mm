@@ -1,38 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B01126B0036
-	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 14:27:06 -0500 (EST)
-Received: by mail-ee0-f51.google.com with SMTP id b15so2447572eek.10
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 11:27:06 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id w6si15167138eeg.90.2013.12.16.11.27.05
-        for <linux-mm@kvack.org>;
-        Mon, 16 Dec 2013 11:27:06 -0800 (PST)
-Message-ID: <52AF5400.5080400@redhat.com>
-Date: Mon, 16 Dec 2013 14:26:56 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-bk0-f46.google.com (mail-bk0-f46.google.com [209.85.214.46])
+	by kanga.kvack.org (Postfix) with ESMTP id D54B16B0031
+	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 15:17:05 -0500 (EST)
+Received: by mail-bk0-f46.google.com with SMTP id u15so2527654bkz.33
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 12:17:05 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id j6si2421307bko.280.2013.12.16.12.17.04
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 16 Dec 2013 12:17:04 -0800 (PST)
+Date: Mon, 16 Dec 2013 15:16:55 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 2/7] mm: page_alloc: Break out zone page aging
+ distribution into its own helper
+Message-ID: <20131216201655.GY21724@cmpxchg.org>
+References: <1386943807-29601-1-git-send-email-mgorman@suse.de>
+ <1386943807-29601-3-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH 7/7] mm: page_alloc: Default allow file pages to use remote
- nodes for fair allocation policy
-References: <1386943807-29601-1-git-send-email-mgorman@suse.de> <1386943807-29601-8-git-send-email-mgorman@suse.de>
-In-Reply-To: <1386943807-29601-8-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1386943807-29601-3-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 12/13/2013 09:10 AM, Mel Gorman wrote:
-> Indications from Johannes that he wanted this. Needs some data and/or justification why
-> thrash protection needs it plus docs describing how MPOL_LOCAL is now different before
-> it should be considered finished. I do not necessarily agree this patch is necessary
-> but it's worth punting it out there for discussion and testing.
+On Fri, Dec 13, 2013 at 02:10:02PM +0000, Mel Gorman wrote:
+> This patch moves the decision on whether to round-robin allocations between
+> zones and nodes into its own helper functions. It'll make some later patches
+> easier to understand and it will be automatically inlined.
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-This seems like a sane default to me.
-
--- 
-All rights reversed
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
