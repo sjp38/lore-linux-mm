@@ -1,98 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 20FC26B0035
-	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 04:02:51 -0500 (EST)
-Received: by mail-we0-f176.google.com with SMTP id w62so4312709wes.35
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 01:02:50 -0800 (PST)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
-        by mx.google.com with ESMTPS id bo14si3435955wib.27.2013.12.16.01.02.48
+Received: from mail-yh0-f54.google.com (mail-yh0-f54.google.com [209.85.213.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 774E26B0036
+	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 04:04:38 -0500 (EST)
+Received: by mail-yh0-f54.google.com with SMTP id z12so3500256yhz.27
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 01:04:38 -0800 (PST)
+Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com [2607:f8b0:400e:c02::22b])
+        by mx.google.com with ESMTPS id b7si12014559yhm.160.2013.12.16.01.04.37
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 16 Dec 2013 01:02:50 -0800 (PST)
-Message-ID: <52AEC122.2000609@huawei.com>
-Date: Mon, 16 Dec 2013 17:00:18 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 16 Dec 2013 01:04:37 -0800 (PST)
+Received: by mail-pd0-f171.google.com with SMTP id z10so5066380pdj.30
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 01:04:36 -0800 (PST)
+Date: Mon, 16 Dec 2013 01:04:13 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: mm: ptl is not bloated if it fits in pointer
+Message-ID: <alpine.LNX.2.00.1312160053530.3066@eggly.anvils>
 MIME-Version: 1.0
-Subject: [PATCH] mm: fix huge page reallocated in soft_offline_page
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, WuJianguo <wujianguo@huawei.com>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-The huge page may be reallocated in soft_offline_page, because
-MIGRATE_ISOLATE can not keep the page until after setting PG_hwpoison.
-alloc_huge_page()
-	dequeue_huge_page_vma()
-		dequeue_huge_page_node()
-If the huge page was reallocated, we need to try offline it again.
+It's silly to force the 64-bit CONFIG_GENERIC_LOCKBREAK architectures
+to kmalloc eight bytes for an indirect page table lock: the lock needs
+to fit in the space that a pointer to it would occupy, not into an int.
 
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
- mm/memory-failure.c |   21 ++++++++++++++++++---
- 1 files changed, 18 insertions(+), 3 deletions(-)
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index b7c1716..f384249 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1505,8 +1505,11 @@ static int soft_offline_huge_page(struct page *page, int flags)
- 		if (ret > 0)
- 			ret = -EIO;
- 	} else {
-+		ret = dequeue_hwpoisoned_huge_page(hpage);
-+		/* If the page was reallocated, we need to try again. */
-+		if (ret)
-+			return -EAGAIN;
- 		set_page_hwpoison_huge_page(hpage);
--		dequeue_hwpoisoned_huge_page(hpage);
- 		atomic_long_add(1 << compound_order(hpage),
- 				&num_poisoned_pages);
- 	}
-@@ -1624,10 +1627,11 @@ static int __soft_offline_page(struct page *page, int flags)
-  */
- int soft_offline_page(struct page *page, int flags)
- {
--	int ret;
-+	int ret, retry_max = 3;
- 	unsigned long pfn = page_to_pfn(page);
- 	struct page *hpage = compound_trans_head(page);
- 
-+retry:
- 	if (PageHWPoison(page)) {
- 		pr_info("soft offline: %#lx page already poisoned\n", pfn);
- 		return -EBUSY;
-@@ -1663,8 +1667,15 @@ int soft_offline_page(struct page *page, int flags)
- 			ret = __soft_offline_page(page, flags);
- 	} else if (ret == 0) { /* for free pages */
- 		if (PageHuge(page)) {
-+			ret = dequeue_hwpoisoned_huge_page(hpage);
-+			/* If the page was reallocated, we need to try again. */
-+			if (ret) {
-+				unset_migratetype_isolate(page,
-+						MIGRATE_MOVABLE);
-+				if (retry_max-- > 0)
-+					goto retry;
-+			}
- 			set_page_hwpoison_huge_page(hpage);
--			dequeue_hwpoisoned_huge_page(hpage);
- 			atomic_long_add(1 << compound_order(hpage),
- 					&num_poisoned_pages);
- 		} else {
-@@ -1673,5 +1684,9 @@ int soft_offline_page(struct page *page, int flags)
- 		}
- 	}
- 	unset_migratetype_isolate(page, MIGRATE_MOVABLE);
-+
-+	if (ret == -EAGAIN && retry_max-- > 0)
-+		goto retry;
-+
- 	return ret;
+ kernel/bounds.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- 3.13-rc4/kernel/bounds.c	2013-11-22 15:40:37.452192638 -0800
++++ linux/kernel/bounds.c	2013-12-15 14:34:36.304485959 -0800
+@@ -22,6 +22,6 @@ void foo(void)
+ #ifdef CONFIG_SMP
+ 	DEFINE(NR_CPUS_BITS, ilog2(CONFIG_NR_CPUS));
+ #endif
+-	DEFINE(BLOATED_SPINLOCKS, sizeof(spinlock_t) > sizeof(int));
++	DEFINE(BLOATED_SPINLOCKS, sizeof(spinlock_t) > sizeof(spinlock_t *));
+ 	/* End of constants */
  }
--- 
-1.7.1
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
