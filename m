@@ -1,161 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D6CF6B0036
-	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 09:57:58 -0500 (EST)
-Received: by mail-qa0-f41.google.com with SMTP id j5so1586850qaq.14
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 06:57:58 -0800 (PST)
-Received: from mail-pb0-x234.google.com (mail-pb0-x234.google.com [2607:f8b0:400e:c01::234])
-        by mx.google.com with ESMTPS id el7si11696824qeb.105.2013.12.16.06.57.56
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 16 Dec 2013 06:57:57 -0800 (PST)
-Received: by mail-pb0-f52.google.com with SMTP id uo5so5576367pbc.39
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 06:57:56 -0800 (PST)
-Date: Mon, 16 Dec 2013 23:01:09 +0800
-From: Zheng Liu <gnehzuil.liu@gmail.com>
-Subject: Re: [RFC][PATCH] vfs: don't fallback to buffered read if the offset
- of dio read is beyond eof
-Message-ID: <20131216150109.GA4257@gmail.com>
-References: <1385022854-2683-1-git-send-email-wenqing.lz@taobao.com>
- <20131215232132.194f406f.akpm@linux-foundation.org>
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 713866B0036
+	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 10:00:59 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id p10so5422008pdj.12
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 07:00:59 -0800 (PST)
+Received: from m59-178.qiye.163.com (m59-178.qiye.163.com. [123.58.178.59])
+        by mx.google.com with ESMTP id pt8si9125814pac.192.2013.12.16.07.00.57
+        for <linux-mm@kvack.org>;
+        Mon, 16 Dec 2013 07:00:58 -0800 (PST)
+From: Li Wang <liwang@ubuntukylin.com>
+Subject: =?UTF-8?q?=5BPATCH=200/5=5D=20VFS=3A=20Directory=20level=20cache=20cleaning?=
+Date: Mon, 16 Dec 2013 07:00:04 -0800
+Message-Id: <cover.1387205337.git.liwang@ubuntukylin.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131215232132.194f406f.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Zheng Liu <wenqing.lz@taobao.com>, linux-mm@kvack.org
+To: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Sage Weil <sage@inktank.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Li Wang <liwang@ubuntukylin.com>, Yunchuan Wen <yunchuanwen@ubuntukylin.com>
 
-Hi Andrew,
+Currently, Linux only support file system wide VFS
+cache (dentry cache and page cache) cleaning through
+'/proc/sys/vm/drop_caches'. Sometimes this is less
+flexible. The applications may know exactly whether
+the metadata and data will be referenced or not in future,
+a desirable mechanism is to enable applications to
+reclaim the memory of unused cache entries at a finer
+granularity - directory level. This enables applications
+to keep hot metadata and data (to be referenced in the
+future) in the cache, and kick unused out to avoid
+cache thrashing. Another advantage is it is more flexible
+for debugging.
 
-Thanks for reviewing this patch.  This patch has been updated.  The
-following links are the v2 [1] and v3 [2].  In v2 I use a new approach
-to fix this bug, and in v3 only change is to add a 'Reviewed-by' tag.
+This patch extend the 'drop_caches' interface to
+support directory level cache cleaning and has a complete
+backward compatibility. '{1,2,3}' keeps the same semantics
+as before. Besides, "{1,2,3}:DIRECTORY_PATH_NAME" is allowed
+to recursively clean the caches under DIRECTORY_PATH_NAME.
+For example, 'echo 1:/home/foo/jpg > /proc/sys/vm/drop_caches'
+will clean the page caches of the files inside 'home/foo/jpg'.
 
-1. http://permalink.gmane.org/gmane.linux.file-systems/80327
-2. http://www.spinics.net/lists/linux-fsdevel/msg70899.html
+It is easy to demonstrate the advantage of directory level
+cache cleaning. We use a virtual machine configured with
+an Intel(R) Xeon(R) 8-core CPU E5506 @ 2.13GHz, and with 1GB
+memory.  Three directories named '1', '2' and '3' are created,
+with each containing 180000 a?? 280000 files. The test program
+opens all files in a directory and then tries the next directory.
+The order for accessing the directories is '1', '2', '3',
+'1'.
 
-On Sun, Dec 15, 2013 at 11:21:32PM -0800, Andrew Morton wrote:
-[...]
-> > As we expected, we should read nothing or data with 'a'.  But now we
-> > read data with '0'.  I take a closer look at the code and it seems that
-> > there is a bug in vfs.  Let me describe my found here.
-> > 
-> >   reader					writer
-> >                                                 generic_file_aio_write()
-> >                                                 ->__generic_file_aio_write()
-> >                                                   ->generic_file_direct_write()
-> >   generic_file_aio_read()
-> >   ->do_generic_file_read()
-> >     [fallback to buffered read]
-> > 
-> >     ->find_get_page()
-> >     ->page_cache_sync_readahead()
-> >     ->find_get_page()
-> >     [in find_page label, we couldn't find a
-> >      page before and after calling
-> >      page_cache_sync_readahead().  So go to
-> >      no_cached_page label]
-> 
-> It's odd that do_generic_file_read() is permitting a "read" outside
-> i_size.  Perhaps we should be checking for this in the `no_cached_page'
-> block.
+The time on accessing '1' on the second time is measured
+with/without cache cleaning, under different file counts.
+With cache cleaning, we clean all cache entries of files
+in '2' before accessing the files in '3'. The results
+are as follows (in seconds),
 
-In v2 I check i_size at the beginning of do_generic_file_read() to avoid
-permitting a read outside i_size.
+Note: by default, VFS will move those unreferenced inodes
+into a global LRU list rather than freeing them, for this
+experiment, we modified iput() to force to free inode as well,
+this behavior and related codes are left for further discussion,
+thus not reflected in this patch)
 
-> 
-> >     ->page_cache_alloc_cold()
-> >     ->add_to_page_cache_lru()
-> >     [in no_cached_page label, we alloc a page
-> >      and goto readpage label.]
-> > 
-> >     ->aops->readpage()
-> >     [in readpage label, readpage() callback
-> >      is called and mpage_readpage() return a
-> >      zero-filled page (e.g. ext3/4), and go
-> >      to page_ok label]
-> > 
-> >                                                   ->a_ops->direct_IO()
-> >                                                   ->i_size_write()
-> >                                                   [we enlarge the i_size]
-> > 
-> >     Here we check i_size
-> >     [in page_ok label, we check i_size but
-> >      it has been enlarged.  Thus, we pass
-> >      the check and return a zero-filled page]
-> 
-> OK, so it's a race.
-> 
-> > This commit let dio read return directly if the current offset of the
-> > dio read is beyond the end of file in order to avoid this problem.
-> > 
-> > ...
-> >
-> > --- a/mm/filemap.c
-> > +++ b/mm/filemap.c
-> > @@ -1452,6 +1452,8 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
-> >  				file_accessed(filp);
-> >  				goto out;
-> >  			}
-> > +		} else {
-> > +			goto out;
-> >  		}
-> >  	}
-> 
-> OK, so we don't fall back to buffered reading at all if we're outside
-> i_size.
-> 
-> I'm not sure this 100% fixes the problem.  In generic_file_aio_read():
-> 
-> : 		if (pos < size) {
-> 
-> write() extends i_size now.
+Number of files:   180000 200000 220000 240000 260000
+Without cleaning:  2.165  6.977  10.032 11.571 13.443
+With cleaning:     1.949  1.906  2.336  2.918  3.651
 
-Uhh, I don't think so.  If write() extends i_size here, we will read
-something after calling ->direct_IO().  So '*ppos' should be equal to
-'size (old i_size)', and we will goto 'out' label.
+When the number of files is 180000 in each directory,
+the metadata cache is large enough to buffer all entries
+of three directories, so re-accessing '1' will hit in
+the cache, regardless of whether '2' cleaned up or not.
+As the number of files increases, the cache can now only
+buffer two+ directories. Accessing '3' will result in some
+entries of '1' to be evicted (due to LRU). When re-accessing '1',
+some entries need be reloaded from disk, which is time-consuming.
+In this case, cleaning '2' before accessing '3' enjoys a good
+speedup, a maximum 4.29X performance improvements is achieved.
+The advantage of directory level page cache cleaning should be 
+easier to be demonstrated.
 
-> 
-> : 			retval = filemap_write_and_wait_range(mapping, pos,
-> : 					pos + iov_length(iov, nr_segs) - 1);
-> : 			if (!retval) {
-> : 				retval = mapping->a_ops->direct_IO(READ, iocb,
-> : 							iov, pos, nr_segs);
-> : 			}
-> : 			if (retval > 0) {
-> : 				*ppos = pos + retval;
-> : 				count -= retval;
-> : 			}
-> : 
-> : 			/*
-> : 			 * Btrfs can have a short DIO read if we encounter
-> : 			 * compressed extents, so if there was an error, or if
-> : 			 * we've already read everything we wanted to, or if
-> : 			 * there was a short read because we hit EOF, go ahead
-> : 			 * and return.  Otherwise fallthrough to buffered io for
-> : 			 * the rest of the read.
-> : 			 */
-> : 			if (retval < 0 || !count || *ppos >= size) {
+Signed-off-by: Li Wang <liwang@ubuntukylin.com>
+Signed-off-by: Yunchuan Wen <yunchuanwen@ubuntukylin.com>
 
-We will goto 'out' label here.
+Li Wang (5):
+  VFS: Convert drop_caches to accept string
+  VFS: Convert sysctl_drop_caches to string
+  VFS: Add the declaration of shrink_pagecache_parent
+  VFS: Add shrink_pagecache_parent
+  VFS: Extend drop_caches sysctl handler to allow directory level cache
+    cleaning
 
-Thanks,
-                                                - Zheng
+ fs/dcache.c            |   35 +++++++++++++++++++++++++++++++++++
+ fs/drop_caches.c       |   45 +++++++++++++++++++++++++++++++++++++--------
+ include/linux/dcache.h |    1 +
+ include/linux/mm.h     |    3 ++-
+ kernel/sysctl.c        |    6 ++----
+ 5 files changed, 77 insertions(+), 13 deletions(-)
 
-> : 				file_accessed(filp);
-> : 				goto out;
-> : 			}
-> 
-> we can still fall through to buffered read.
-> 
-> : 		} else {
-> : 			goto out;
-> : 		}
-> : 	}
-> 
-> 
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
