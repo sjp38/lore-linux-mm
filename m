@@ -1,41 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 938C66B007B
-	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 08:20:21 -0500 (EST)
-Received: by mail-wg0-f46.google.com with SMTP id m15so4532809wgh.25
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 05:20:20 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id z16si2148091wia.34.2013.12.16.05.20.20
-        for <linux-mm@kvack.org>;
-        Mon, 16 Dec 2013 05:20:20 -0800 (PST)
-Message-ID: <52AEFE08.5020501@redhat.com>
-Date: Mon, 16 Dec 2013 08:20:08 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C8166B0036
+	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 08:44:55 -0500 (EST)
+Received: by mail-we0-f177.google.com with SMTP id u56so4484044wes.8
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 05:44:54 -0800 (PST)
+Received: from mail-ea0-x22b.google.com (mail-ea0-x22b.google.com [2a00:1450:4013:c01::22b])
+        by mx.google.com with ESMTPS id wj1si5054545wjb.46.2013.12.16.05.44.54
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 16 Dec 2013 05:44:54 -0800 (PST)
+Received: by mail-ea0-f171.google.com with SMTP id h10so2234245eak.2
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 05:44:54 -0800 (PST)
+Date: Mon, 16 Dec 2013 14:44:49 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 0/4] Fix ebizzy performance regression due to X86 TLB
+ range flush v2
+Message-ID: <20131216134449.GA3034@gmail.com>
+References: <1386964870-6690-1-git-send-email-mgorman@suse.de>
+ <CA+55aFyNAigQqBk07xLpf0nkhZ_x-QkBYG8otRzsqg_8A2eg-Q@mail.gmail.com>
+ <20131215155539.GM11295@suse.de>
+ <20131216102439.GA21624@gmail.com>
+ <20131216125923.GS11295@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/7] mm: page_alloc: Use zone node IDs to approximate
- locality
-References: <1386943807-29601-1-git-send-email-mgorman@suse.de> <1386943807-29601-4-git-send-email-mgorman@suse.de>
-In-Reply-To: <1386943807-29601-4-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131216125923.GS11295@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Alex Shi <alex.shi@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On 12/13/2013 09:10 AM, Mel Gorman wrote:
-> zone_local is using node_distance which is a more expensive call than
-> necessary. On x86, it's another function call in the allocator fast path
-> and increases cache footprint. This patch makes the assumption zones on a
-> local node will share the same node ID. The necessary information should
-> already be cache hot.
+
+* Mel Gorman <mgorman@suse.de> wrote:
+
+> > Whatever we did right in v3.4 we want to do in v3.13 as well - or 
+> > at least understand it.
 > 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Also agreed. I started a bisection before answering this mail. It 
+> would be cooler and potentially faster to figure it out from direct 
+> analysis but bisection is reliable and less guesswork.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Trying to guess can potentially last a _lot_ longer than a generic, 
+no-assumptions bisection ...
 
--- 
-All rights reversed
+The symptoms could point to anything: scheduler, locking details, some 
+stupid little change in a wakeup sequence somewhere, etc.
+
+It might even be a non-deterministic effect of some timing change 
+causing the workload 'just' to avoid a common point of preemption and 
+not scheduling as much - and become more unfair and thus certain 
+threads lasting longer to finish.
+
+Does the benchmark execute a fixed amount of transactions per thread? 
+
+That might artificially increase the numeric regression: with more 
+threads it 'magnifies' any unfairness effects because slower threads 
+will become slower, faster threads will become faster, as the thread 
+count increases.
+
+[ That in itself is somewhat artificial, because real workloads tend 
+  to balance between threads dynamically and don't insist on keeping 
+  the fastest threads idle near the end of a run. It does not
+  invalidate the complaint about the unfairness itself, obviously. ]
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
