@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B12F6B003A
+Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 115316B0044
 	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 07:17:26 -0500 (EST)
-Received: by mail-lb0-f176.google.com with SMTP id l4so804165lbv.21
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 04:17:25 -0800 (PST)
+Received: by mail-la0-f51.google.com with SMTP id ec20so2592738lab.24
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 04:17:26 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id fa7si3525840lbc.115.2013.12.16.04.17.24
+        by mx.google.com with ESMTPS id 9si5339405lal.162.2013.12.16.04.17.26
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 16 Dec 2013 04:17:24 -0800 (PST)
+        Mon, 16 Dec 2013 04:17:26 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH v14 15/18] fs: make shrinker memcg aware
-Date: Mon, 16 Dec 2013 16:17:04 +0400
-Message-ID: <0b2be5a5020fbb9eabbabdd8ab3b9eebb9de824a.1387193771.git.vdavydov@parallels.com>
+Subject: [PATCH v14 01/18] memcg: make cache index determination more robust
+Date: Mon, 16 Dec 2013 16:16:50 +0400
+Message-ID: <e17a4d621bdf2a01dac6179fc7694d0f1c854711.1387193771.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1387193771.git.vdavydov@parallels.com>
 References: <cover.1387193771.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -20,50 +20,53 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dchinner@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, glommer@gmail.com, Al Viro <viro@zeniv.linux.org.uk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, glommer@openvz.org, glommer@gmail.com, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Now, to make any list_lru-based shrinker memcg aware we should only
-initialize its list_lru as memcg-enabled. Let's do it for the general FS
-shrinker (super_block::s_shrink) and mark it as memcg aware.
+From: Glauber Costa <glommer@openvz.org>
 
-There are other FS-specific shrinkers that use list_lru for storing
-objects, such as XFS and GFS2 dquot cache shrinkers, but since they
-reclaim objects that may be shared among different cgroups, there is no
-point making them memcg aware.
+I caught myself doing something like the following outside memcg core:
 
+	memcg_id = -1;
+	if (memcg && memcg_kmem_is_active(memcg))
+		memcg_id = memcg_cache_id(memcg);
+
+to be able to handle all possible memcgs in a sane manner. In particular, the
+root cache will have kmemcg_id = -1 (just because we don't call memcg_kmem_init
+to the root cache since it is not limitable). We have always coped with that by
+making sure we sanitize which cache is passed to memcg_cache_id. Although this
+example is given for root, what we really need to know is whether or not a
+cache is kmem active.
+
+But outside the memcg core testing for root, for instance, is not trivial since
+we don't export mem_cgroup_is_root. I ended up realizing that this tests really
+belong inside memcg_cache_id. This patch moves a similar but stronger test
+inside memcg_cache_id and make sure it always return a meaningful value.
+
+Signed-off-by: Glauber Costa <glommer@openvz.org>
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Glauber Costa <glommer@openvz.org>
-Cc: Dave Chinner <dchinner@redhat.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Balbir Singh <bsingharora@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- fs/super.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ mm/memcontrol.c |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/fs/super.c b/fs/super.c
-index 9084c3d..654d021 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -181,9 +181,9 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
- 	INIT_HLIST_BL_HEAD(&s->s_anon);
- 	INIT_LIST_HEAD(&s->s_inodes);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index bf5e894..3408852 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3076,7 +3076,9 @@ void memcg_cache_list_add(struct mem_cgroup *memcg, struct kmem_cache *cachep)
+  */
+ int memcg_cache_id(struct mem_cgroup *memcg)
+ {
+-	return memcg ? memcg->kmemcg_id : -1;
++	if (!memcg || !memcg_can_account_kmem(memcg))
++		return -1;
++	return memcg->kmemcg_id;
+ }
  
--	if (list_lru_init(&s->s_dentry_lru))
-+	if (list_lru_init_memcg(&s->s_dentry_lru))
- 		goto fail;
--	if (list_lru_init(&s->s_inode_lru))
-+	if (list_lru_init_memcg(&s->s_inode_lru))
- 		goto fail;
- 
- 	INIT_LIST_HEAD(&s->s_mounts);
-@@ -221,7 +221,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
- 	s->s_shrink.scan_objects = super_cache_scan;
- 	s->s_shrink.count_objects = super_cache_count;
- 	s->s_shrink.batch = 1024;
--	s->s_shrink.flags = SHRINKER_NUMA_AWARE;
-+	s->s_shrink.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE;
- 	return s;
- 
- fail:
+ /*
 -- 
 1.7.10.4
 
