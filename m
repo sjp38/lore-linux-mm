@@ -1,100 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D60C6B0035
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 17:05:10 -0500 (EST)
-Received: by mail-pd0-f171.google.com with SMTP id z10so7353543pdj.2
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 14:05:10 -0800 (PST)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id j5si7123894pbs.91.2013.12.17.14.05.07
-        for <linux-mm@kvack.org>;
-        Tue, 17 Dec 2013 14:05:09 -0800 (PST)
-Date: Wed, 18 Dec 2013 09:05:03 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 0/5] VFS: Directory level cache cleaning
-Message-ID: <20131217220503.GA20579@dastard>
-References: <cover.1387205337.git.liwang@ubuntukylin.com>
+Received: from mail-oa0-f45.google.com (mail-oa0-f45.google.com [209.85.219.45])
+	by kanga.kvack.org (Postfix) with ESMTP id EA7266B0035
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 17:09:29 -0500 (EST)
+Received: by mail-oa0-f45.google.com with SMTP id o6so7348038oag.18
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 14:09:29 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id f6si12439111obr.20.2013.12.17.14.09.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 17 Dec 2013 14:09:28 -0800 (PST)
+Message-ID: <52B0CB84.9050907@oracle.com>
+Date: Tue, 17 Dec 2013 17:09:08 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <cover.1387205337.git.liwang@ubuntukylin.com>
+Subject: Re: netfilter: active obj WARN when cleaning up
+References: <20131127233415.GB19270@kroah.com> <00000142b4282aaf-913f5e4c-314c-4351-9d24-615e66928157-000000@email.amazonses.com> <20131202164039.GA19937@kroah.com> <00000142b4514eb5-2e8f675d-0ecc-423b-9906-58c5f383089b-000000@email.amazonses.com> <20131202172615.GA4722@kroah.com> <00000142b4aeca89-186fc179-92b8-492f-956c-38a7c196d187-000000@email.amazonses.com> <20131202190814.GA2267@kroah.com> <00000142b4d4360c-5755af87-b9b0-4847-b5fa-7a9dd13b49c5-000000@email.amazonses.com> <20131202212235.GA1297@kroah.com> <00000142b54f6694-c51e81b1-f1a2-483b-a1ce-a2d4cb6b155c-000000@email.amazonses.com> <20131202222208.GB13034@kroah.com> <00000142b90da700-19f6b465-ff15-4b2b-9bcd-b91d71958b7f-000000@email.amazonses.com> <52B0ABB6.8090205@oracle.com> <000001430246e902-112cfb9d-5393-4eed-8529-e0008f88df45-000000@email.amazonses.com>
+In-Reply-To: <000001430246e902-112cfb9d-5393-4eed-8529-e0008f88df45-000000@email.amazonses.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Wang <liwang@ubuntukylin.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Sage Weil <sage@inktank.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yunchuan Wen <yunchuanwen@ubuntukylin.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Greg KH <greg@kroah.com>, Thomas Gleixner <tglx@linutronix.de>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Pablo Neira Ayuso <pablo@netfilter.org>, Patrick McHardy <kaber@trash.net>, kadlec@blackhole.kfki.hu, "David S. Miller" <davem@davemloft.net>, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Dec 16, 2013 at 07:00:04AM -0800, Li Wang wrote:
-> Currently, Linux only support file system wide VFS
-> cache (dentry cache and page cache) cleaning through
-> '/proc/sys/vm/drop_caches'. Sometimes this is less
-> flexible. The applications may know exactly whether
-> the metadata and data will be referenced or not in future,
-> a desirable mechanism is to enable applications to
-> reclaim the memory of unused cache entries at a finer
-> granularity - directory level. This enables applications
-> to keep hot metadata and data (to be referenced in the
-> future) in the cache, and kick unused out to avoid
-> cache thrashing. Another advantage is it is more flexible
-> for debugging.
+On 12/17/2013 03:37 PM, Christoph Lameter wrote:
+> On Tue, 17 Dec 2013, Sasha Levin wrote:
 >
-> This patch extend the 'drop_caches' interface to
-> support directory level cache cleaning and has a complete
-> backward compatibility. '{1,2,3}' keeps the same semantics
-> as before. Besides, "{1,2,3}:DIRECTORY_PATH_NAME" is allowed
-> to recursively clean the caches under DIRECTORY_PATH_NAME.
-> For example, 'echo 1:/home/foo/jpg > /proc/sys/vm/drop_caches'
-> will clean the page caches of the files inside 'home/foo/jpg'.
-> 
-> It is easy to demonstrate the advantage of directory level
-> cache cleaning. We use a virtual machine configured with
-> an Intel(R) Xeon(R) 8-core CPU E5506 @ 2.13GHz, and with 1GB
-> memory.  Three directories named '1', '2' and '3' are created,
-> with each containing 180000 a?? 280000 files. The test program
-> opens all files in a directory and then tries the next directory.
-> The order for accessing the directories is '1', '2', '3',
-> '1'.
-> 
-> The time on accessing '1' on the second time is measured
-> with/without cache cleaning, under different file counts.
-> With cache cleaning, we clean all cache entries of files
-> in '2' before accessing the files in '3'. The results
-> are as follows (in seconds),
-
-This sounds like a highly contrived test case. There is no reason
-why dentry cache access time would change going from 180k to 280k
-files in 3 directories unless you're right at the memory pressure
-balance point in terms of cache sizing.
-
-> Note: by default, VFS will move those unreferenced inodes
-> into a global LRU list rather than freeing them, for this
-> experiment, we modified iput() to force to free inode as well,
-> this behavior and related codes are left for further discussion,
-> thus not reflected in this patch)
-> 
-> Number of files:   180000 200000 220000 240000 260000
-> Without cleaning:  2.165  6.977  10.032 11.571 13.443
-> With cleaning:     1.949  1.906  2.336  2.918  3.651
+>> I'm still seeing warnings with this patch applied:
 >
-> When the number of files is 180000 in each directory,
-> the metadata cache is large enough to buffer all entries
-> of three directories, so re-accessing '1' will hit in
-> the cache, regardless of whether '2' cleaned up or not.
-> As the number of files increases, the cache can now only
-> buffer two+ directories. Accessing '3' will result in some
-> entries of '1' to be evicted (due to LRU). When re-accessing '1',
-> some entries need be reloaded from disk, which is time-consuming.
+> Looks like this is related to some device release mechanism that frees
+> twice?
+>
+> I do not see any kmem_cache management functions in the backtrace and
+> therefore would guess that this is not the same issue.
 
-Ok, so exactly as I thought - your example working set is slightly
-larger than what the cache holds. Hence what you are describing is
-a cache reclaim threshold effect: something you can avoid with
-/proc/sys/vm/vfs_cache_pressure.
+rgr, sorry about that - I grepped for 'timer_list' which seemed to have been in
+all previous kmem_cache spews and thought this one is related.
 
-Cheers,
+If that's not the case, your patch works for me.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
