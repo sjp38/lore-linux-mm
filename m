@@ -1,70 +1,54 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f47.google.com (mail-qe0-f47.google.com [209.85.128.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F7896B0031
-	for <linux-mm@kvack.org>; Tue, 31 Dec 2013 19:29:44 -0500 (EST)
-Received: by mail-qe0-f47.google.com with SMTP id t7so13068757qeb.34
-        for <linux-mm@kvack.org>; Tue, 31 Dec 2013 16:29:44 -0800 (PST)
-Received: from e8.ny.us.ibm.com (e8.ny.us.ibm.com. [32.97.182.138])
-        by mx.google.com with ESMTPS id g1si21097725qcl.57.2013.12.31.16.29.43
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 31 Dec 2013 16:29:43 -0800 (PST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <hanpt@linux.vnet.ibm.com>;
-	Tue, 31 Dec 2013 19:29:42 -0500
-Received: from b01cxnp22034.gho.pok.ibm.com (b01cxnp22034.gho.pok.ibm.com [9.57.198.24])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id ADF636E803C
-	for <linux-mm@kvack.org>; Tue, 31 Dec 2013 19:29:35 -0500 (EST)
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by b01cxnp22034.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s010TdOd57540848
-	for <linux-mm@kvack.org>; Wed, 1 Jan 2014 00:29:39 GMT
-Received: from d01av03.pok.ibm.com (localhost [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s010TcK5014456
-	for <linux-mm@kvack.org>; Tue, 31 Dec 2013 19:29:38 -0500
-Date: Wed, 1 Jan 2014 08:29:35 +0800
-From: Han Pingtian <hanpt@linux.vnet.ibm.com>
-Subject: [RFC] mm: show message when updating min_free_kbytes in thp
-Message-ID: <20140101002935.GA15683@localhost.localdomain>
-MIME-Version: 1.0
+From: Matthew Wilcox <matthew@wil.cx>
+Subject: Re: [PATCH 0/5] VFS: Directory level cache cleaning
+Date: Mon, 16 Dec 2013 20:58:48 -0700
+Message-ID: <20131217035847.GA10392@parisc-linux.org>
+References: <cover.1387205337.git.liwang@ubuntukylin.com> <CAM_iQpUSX1yX9SMvUnbwZ7UkaBMUheOEiZNaSb4m8gWBQzzGDQ@mail.gmail.com> <52AFC020.10403@ubuntukylin.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Return-path: <linux-fsdevel-owner@vger.kernel.org>
 Content-Disposition: inline
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+In-Reply-To: <52AFC020.10403@ubuntukylin.com>
+Sender: linux-fsdevel-owner@vger.kernel.org
+To: Li Wang <liwang@ubuntukylin.com>
+Cc: Cong Wang <xiyou.wangcong@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Sage Weil <sage@inktank.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Yunchuan Wen <yunchuanwen@ubuntukylin.com>
+List-Id: linux-mm.kvack.org
 
-min_free_kbytes may be updated during thp's initialization. Sometimes,
-this will change the value being set by user. Showing message will
-clarify this confusion.
+On Tue, Dec 17, 2013 at 11:08:16AM +0800, Li Wang wrote:
+> As far as we know, fadvise(DONTNEED) does not support metadata
+> cache cleaning. We think that is desirable under massive small files
+> situations. Another thing is that do people accept the behavior
+> of feeding a directory fd to fadvise will recusively clean all
+> page caches of files inside that directory?
 
-Signed-off-by: Han Pingtian <hanpt@linux.vnet.ibm.com>
----
- mm/huge_memory.c |    5 ++++-
- 1 files changed, 4 insertions(+), 1 deletions(-)
+I think there's a really good permissions-related question here.
+If that's an acceptable interface, should one have to be CAP_SYS_ADMIN
+to issue the request?  What if some of the files below this directory
+are not owned by the user issuing the request?
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 7de1bf8..46011c6 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -130,8 +130,11 @@ static int set_recommended_min_free_kbytes(void)
- 			      (unsigned long) nr_free_buffer_pages() / 20);
- 	recommended_min <<= (PAGE_SHIFT-10);
- 
--	if (recommended_min > min_free_kbytes)
-+	if (recommended_min > min_free_kbytes) {
- 		min_free_kbytes = recommended_min;
-+		pr_info("min_free_kbytes is updated to %d by enabling transparent hugepage.\n",
-+			min_free_kbytes);
-+	}
- 	setup_per_zone_wmarks();
- 	return 0;
- }
+> On 2013/12/17 1:45, Cong Wang wrote:
+>> On Mon, Dec 16, 2013 at 7:00 AM, Li Wang <liwang@ubuntukylin.com> wrote:
+>>> This patch extend the 'drop_caches' interface to
+>>> support directory level cache cleaning and has a complete
+>>> backward compatibility. '{1,2,3}' keeps the same semantics
+>>> as before. Besides, "{1,2,3}:DIRECTORY_PATH_NAME" is allowed
+>>> to recursively clean the caches under DIRECTORY_PATH_NAME.
+>>> For example, 'echo 1:/home/foo/jpg > /proc/sys/vm/drop_caches'
+>>> will clean the page caches of the files inside 'home/foo/jpg'.
+>>>
+>>
+>> This interface is ugly...
+>>
+>> And we already have a file-level drop cache, that is,
+>> fadvise(DONTNEED). Can you extend it if it can't
+>> handle a directory fd?
+>>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+
 -- 
-1.7.7.6
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Matthew Wilcox				Intel Open Source Technology Centre
+"Bill, look, we understand that you're interested in selling us this
+operating system, but compare it to ours.  We can't possibly take such
+a retrograde step."
