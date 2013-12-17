@@ -1,230 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id B8C9A6B0055
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 11:48:31 -0500 (EST)
-Received: by mail-ee0-f48.google.com with SMTP id e49so3005142eek.7
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 08:48:31 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s42si5349338eew.245.2013.12.17.08.48.30
+Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
+	by kanga.kvack.org (Postfix) with ESMTP id ECF3F6B0036
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 11:54:34 -0500 (EST)
+Received: by mail-qa0-f53.google.com with SMTP id j5so2801915qaq.19
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 08:54:34 -0800 (PST)
+Received: from mail-qe0-f47.google.com (mail-qe0-f47.google.com [209.85.128.47])
+        by mx.google.com with ESMTPS id f1si15000774qar.20.2013.12.17.08.54.31
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 17 Dec 2013 08:48:31 -0800 (PST)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 6/6] mm: page_alloc: add vm.pagecache_interleave to control default mempolicy for page cache
-Date: Tue, 17 Dec 2013 16:48:24 +0000
-Message-Id: <1387298904-8824-7-git-send-email-mgorman@suse.de>
-In-Reply-To: <1387298904-8824-1-git-send-email-mgorman@suse.de>
-References: <1387298904-8824-1-git-send-email-mgorman@suse.de>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 17 Dec 2013 08:54:32 -0800 (PST)
+Received: by mail-qe0-f47.google.com with SMTP id t7so5389449qeb.20
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 08:54:31 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20131217160455.GG18680@sgi.com>
+References: <20131212180037.GA134240@sgi.com> <20131213214437.6fdbf7f2.akpm@linux-foundation.org>
+ <20131216171214.GA15663@sgi.com> <CALCETrW9uGYzckWg3Wcsu-VV-vbXxUCr+Dv0kXqE5VMKopjn+A@mail.gmail.com>
+ <20131217160455.GG18680@sgi.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Tue, 17 Dec 2013 08:54:10 -0800
+Message-ID: <CALCETrX_B0D+XyYD8P6mfS4uqty1vzYpOmR-0Mx-yee=wtyR8g@mail.gmail.com>
+Subject: Re: [RFC PATCH 0/3] Change how we determine when to hand out THPs
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
+To: Alex Thorlton <athorlton@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Benjamin LaHaise <bcrl@kvack.org>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Al Viro <viro@zeniv.linux.org.uk>, David Rientjes <rientjes@google.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jiang Liu <jiang.liu@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Glauber Costa <glommer@parallels.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
 
-This patch introduces a vm.pagecache_interleave sysctl that allows the
-administrator to alter the default memory allocation policy for file-backed
-pages. It removes a more configurable interface that is expected to be
-too complex to expose to users and give an unnecessarily level of control.
+On Tue, Dec 17, 2013 at 8:04 AM, Alex Thorlton <athorlton@sgi.com> wrote:
+> On Mon, Dec 16, 2013 at 05:43:40PM -0800, Andy Lutomirski wrote:
+>> On Mon, Dec 16, 2013 at 9:12 AM, Alex Thorlton <athorlton@sgi.com> wrote:
+>> >> Please cc Andrea on this.
+>> >
+>> > I'm going to clean up a few small things for a v2 pretty soon, I'll be
+>> > sure to cc Andrea there.
+>> >
+>> >> > My proposed solution to the problem is to allow users to set a
+>> >> > threshold at which THPs will be handed out.  The idea here is that, when
+>> >> > a user faults in a page in an area where they would usually be handed a
+>> >> > THP, we pull 512 pages off the free list, as we would with a regular
+>> >> > THP, but we only fault in single pages from that chunk, until the user
+>> >> > has faulted in enough pages to pass the threshold we've set.  Once they
+>> >> > pass the threshold, we do the necessary work to turn our 512 page chunk
+>> >> > into a proper THP.  As it stands now, if the user tries to fault in
+>> >> > pages from different nodes, we completely give up on ever turning a
+>> >> > particular chunk into a THP, and just fault in the 4K pages as they're
+>> >> > requested.  We may want to make this tunable in the future (i.e. allow
+>> >> > them to fault in from only 2 different nodes).
+>> >>
+>> >> OK.  But all 512 pages reside on the same node, yes?  Whereas with thp
+>> >> disabled those 512 pages would have resided closer to the CPUs which
+>> >> instantiated them.
+>> >
+>> > As it stands right now, yes, since we're pulling a 512 page contiguous
+>> > chunk off the free list, everything from that chunk will reside on the
+>> > same node, but as I (stupidly) forgot to mention in my original e-mail,
+>> > one piece I have yet to add is the functionality to put the remaining
+>> > unfaulted pages from our chunk *back* on the free list after we give up
+>> > on handing out a THP.  Once this is in there, things will behave more
+>> > like they do when THP is turned completely off, i.e. pages will get
+>> > faulted in closer to the CPU that first referenced them once we give up
+>> > on handing out the THP.
+>>
+>> This sounds like it's almost the worst possible behavior wrt avoiding
+>> memory fragmentation.  If userspace mmaps a very large region and then
+>> starts accessing it randomly, it will allocate a bunch of contiguous
+>> 512-page regions, claim one page from each, and return the other 511
+>> pages to the free list.  Memory is now maximally fragmented from the
+>> point of view of future THP allocations.
+>
+> Maybe I'm missing the point here to some degree, but the way I think
+> about this is that if we trigger the behavior to return the pages to the
+> free list, we don't *want* future THP allocations in that range of
+> memory for the current process anyways.  So, having the memory be
+> fragmented from the point of view of future THP allocations isn't an
+> issue.
+>
 
-By default it is disabled but there is strong evidence that users on NUMA
-machines will want to enable this. The default is expected to change
-once the documention is in sync. Ideally it would also be possible to
-control on a per-process basis by allowing processes to select either an
-MPOL_LOCAL or MPOL_INTERLEAVE_PAGECACHE memory policy as memory policies
-are the traditional way for controlling allocation behaviour.
+Except that you're causing a problem for the whole system because one
+process is triggering the "hugepages aren't helpful" heuristic.
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- Documentation/sysctl/vm.txt | 61 +++++++++++++++++++++------------------------
- include/linux/mmzone.h      |  2 +-
- include/linux/swap.h        |  2 +-
- kernel/sysctl.c             |  8 +++---
- mm/page_alloc.c             | 18 +++++--------
- 5 files changed, 41 insertions(+), 50 deletions(-)
+--Andy
 
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index 8eaa562..655ed0a 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -49,6 +49,7 @@ Currently, these files are in /proc/sys/vm:
- - oom_kill_allocating_task
- - overcommit_memory
- - overcommit_ratio
-+- pagecache_interleave
- - page-cluster
- - panic_on_oom
- - percpu_pagelist_fraction
-@@ -56,7 +57,6 @@ Currently, these files are in /proc/sys/vm:
- - swappiness
- - user_reserve_kbytes
- - vfs_cache_pressure
--- zone_distribute_mode
- - zone_reclaim_mode
- 
- ==============================================================
-@@ -608,6 +608,34 @@ of physical RAM.  See above.
- 
- ==============================================================
- 
-+pagecache_interleave:
-+
-+This setting is only relevant to NUMA machines.
-+
-+Historically, the default behaviour of the system is to allocate memory
-+local to the process. The behaviour is usually modified through the use
-+of memory policies while zone_reclaim_mode controls how strict the local
-+memory allocation policy is.
-+
-+Issues arise when the allocating process is frequently running on the same
-+node. The kernels memory reclaim daemon runs one instance per NUMA node.
-+A consequence is that relatively new memory may be reclaimed by kswapd when
-+the allocating process is running on a specific node. The user-visible
-+impact is that the system appears to do more IO than necessary when a
-+workload is accessing files that are larger than a given NUMA node.
-+
-+One way of addressing this is to use the interleave memory policy but that
-+is not always possible.
-+
-+Another option is to enable this setting. When enabled, the default
-+memory allocation changes from MPOL_LOCAL to interleaving file-backed
-+pages by default. The downside is that some file accesses will now be
-+to remote memory even though the local node had available resources.
-+The upside is that workloads working on files larger than a NUMA node
-+will not reclaim active pages prematurely.
-+
-+==============================================================
-+
- page-cluster
- 
- page-cluster controls the number of pages up to which consecutive pages
-@@ -725,37 +753,6 @@ causes the kernel to prefer to reclaim dentries and inodes.
- 
- ==============================================================
- 
--zone_distribute_mode
--
--Pages allocation and reclaim are managed on a per-zone basis. When the
--system needs to reclaim memory, candidate pages are selected from these
--per-zone lists.  Historically, a potential consequence was that recently
--allocated pages were considered reclaim candidates. From a zone-local
--perspective, page aging was preserved but from a system-wide perspective
--there was an age inversion problem.
--
--A similar problem occurs on a node level where young pages may be reclaimed
--from the local node instead of allocating remote memory. Unforuntately, the
--cost of accessing remote nodes is higher so the system must choose by default
--between favouring page aging or node locality. zone_distribute_mode controls
--how the system will distribute page ages between zones.
--
--0	= Never round-robin based on age
--
--Otherwise the values are ORed together
--
--1	= Distribute anon pages between zones local to the allocating node
--2	= Distribute file pages between zones local to the allocating node
--4	= Distribute slab pages between zones local to the allocating node
--
--The following three flags effectively alter MPOL_DEFAULT, be careful.
--
--8	= Distribute anon pages between zones remote to the allocating node
--16	= Distribute file pages between zones remote to the allocating node
--32	= Distribute slab pages between zones remote to the allocating node
--
--==============================================================
--
- zone_reclaim_mode:
- 
- Zone_reclaim_mode allows someone to set more or less aggressive approaches to
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 20a75e3..2fb9e2d 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -897,7 +897,7 @@ int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *, int,
- 			void __user *, size_t *, loff_t *);
- int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *, int,
- 			void __user *, size_t *, loff_t *);
--int sysctl_zone_distribute_mode_handler(struct ctl_table *, int,
-+int sysctl_zone_pagecache_interleave_handler(struct ctl_table *, int,
- 			void __user *, size_t *, loff_t *);
- 
- extern int numa_zonelist_order_handler(struct ctl_table *, int,
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 44329b0..2b522cf 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -318,7 +318,7 @@ extern int vm_swappiness;
- extern int remove_mapping(struct address_space *mapping, struct page *page);
- extern unsigned long vm_total_pages;
- 
--extern unsigned __bitwise__ zone_distribute_mode;
-+extern unsigned int zone_pagecache_interleave;
- 
- #ifdef CONFIG_NUMA
- extern int zone_reclaim_mode;
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index b75c08f..385d7cb 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1350,11 +1350,11 @@ static struct ctl_table vm_table[] = {
- 	},
- #endif
- 	{
--		.procname	= "zone_distribute_mode",
--		.data		= &zone_distribute_mode,
--		.maxlen		= sizeof(zone_distribute_mode),
-+		.procname	= "pagecache_interleave",
-+		.data		= &zone_pagecache_interleave,
-+		.maxlen		= sizeof(zone_pagecache_interleave),
- 		.mode		= 0644,
--		.proc_handler	= sysctl_zone_distribute_mode_handler,
-+		.proc_handler	= sysctl_zone_pagecache_interleave_handler,
- 		.extra1		= &zero,
- 	},
- #ifdef CONFIG_NUMA
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c2a2229..b6c8e63 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1872,7 +1872,8 @@ static inline void init_zone_allows_reclaim(int nid)
- #endif	/* CONFIG_NUMA */
- 
- /* Controls how page ages are distributed across zones automatically */
--unsigned __bitwise__ zone_distribute_mode __read_mostly;
-+static unsigned __bitwise__ zone_distribute_mode __read_mostly;
-+unsigned int zone_pagecache_interleave;
- 
- /* See zone_distribute_mode docmentation in Documentation/sysctl/vm.txt */
- #define DISTRIBUTE_DISABLE	(0)
-@@ -1891,7 +1892,7 @@ unsigned __bitwise__ zone_distribute_mode __read_mostly;
- /* Only these GFP flags are affected by the fair zone allocation policy */
- #define DISTRIBUTE_GFP_MASK	((GFP_MOVABLE_MASK|__GFP_PAGECACHE))
- 
--int sysctl_zone_distribute_mode_handler(ctl_table *table, int write,
-+int sysctl_zone_pagecache_interleave_handler(ctl_table *table, int write,
- 	void __user *buffer, size_t *length, loff_t *ppos)
- {
- 	int rc;
-@@ -1900,16 +1901,9 @@ int sysctl_zone_distribute_mode_handler(ctl_table *table, int write,
- 	if (rc)
- 		return rc;
- 
--	/* If you are an admin reading this comment, what were you thinking? */
--	if (WARN_ON_ONCE((zone_distribute_mode & DISTRIBUTE_STUPID_ANON) ==
--							DISTRIBUTE_STUPID_ANON))
--		zone_distribute_mode &= ~DISTRIBUTE_REMOTE_ANON;
--	if (WARN_ON_ONCE((zone_distribute_mode & DISTRIBUTE_STUPID_FILE) ==
--							DISTRIBUTE_STUPID_FILE))
--		zone_distribute_mode &= ~DISTRIBUTE_REMOTE_FILE;
--	if (WARN_ON_ONCE((zone_distribute_mode & DISTRIBUTE_STUPID_SLAB) ==
--							DISTRIBUTE_STUPID_SLAB))
--		zone_distribute_mode &= ~DISTRIBUTE_REMOTE_SLAB;
-+	zone_distribute_mode = DISTRIBUTE_LOCAL_ANON|DISTRIBUTE_LOCAL_FILE|DISTRIBUTE_LOCAL_SLAB;
-+	if (zone_pagecache_interleave)
-+		zone_distribute_mode |= DISTRIBUTE_REMOTE_FILE;
- 
- 	return 0;
- }
+> - Alex
+
+
+
 -- 
-1.8.4
+Andy Lutomirski
+AMA Capital Management, LLC
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
