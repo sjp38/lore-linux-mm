@@ -1,88 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f51.google.com (mail-yh0-f51.google.com [209.85.213.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E35156B0039
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 15:50:13 -0500 (EST)
-Received: by mail-yh0-f51.google.com with SMTP id c41so4919158yho.24
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 12:50:13 -0800 (PST)
-Received: from mail-yh0-x235.google.com (mail-yh0-x235.google.com [2607:f8b0:4002:c01::235])
-        by mx.google.com with ESMTPS id g65si16524018yhc.5.2013.12.17.12.50.12
+Received: from mail-ea0-f170.google.com (mail-ea0-f170.google.com [209.85.215.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 352636B0036
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 16:03:45 -0500 (EST)
+Received: by mail-ea0-f170.google.com with SMTP id k10so3171377eaj.29
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 13:03:44 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w6si6689667eeg.111.2013.12.17.13.03.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 17 Dec 2013 12:50:12 -0800 (PST)
-Received: by mail-yh0-f53.google.com with SMTP id b20so4992611yha.12
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 12:50:12 -0800 (PST)
-Date: Tue, 17 Dec 2013 12:50:09 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-In-Reply-To: <20131217162342.GG28991@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.02.1312171240541.21640@chino.kir.corp.google.com>
-References: <20131204111318.GE8410@dhcp22.suse.cz> <alpine.DEB.2.02.1312041606260.6329@chino.kir.corp.google.com> <20131209124840.GC3597@dhcp22.suse.cz> <alpine.DEB.2.02.1312091328550.11026@chino.kir.corp.google.com> <20131210103827.GB20242@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312101655430.22701@chino.kir.corp.google.com> <20131211095549.GA18741@dhcp22.suse.cz> <alpine.DEB.2.02.1312111434200.7354@chino.kir.corp.google.com> <20131212103159.GB2630@dhcp22.suse.cz> <alpine.DEB.2.02.1312131551220.28704@chino.kir.corp.google.com>
- <20131217162342.GG28991@dhcp22.suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 17 Dec 2013 13:03:44 -0800 (PST)
+Date: Tue, 17 Dec 2013 21:03:40 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 3/7] mm: page_alloc: Use zone node IDs to approximate
+ locality
+Message-ID: <20131217210340.GJ11295@suse.de>
+References: <1386943807-29601-1-git-send-email-mgorman@suse.de>
+ <1386943807-29601-4-git-send-email-mgorman@suse.de>
+ <20131216202507.GZ21724@cmpxchg.org>
+ <20131217111352.GZ11295@suse.de>
+ <20131217153829.GC21724@cmpxchg.org>
+ <20131217160808.GF11295@suse.de>
+ <20131217201147.GH21724@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20131217201147.GH21724@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 17 Dec 2013, Michal Hocko wrote:
-
-> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > index c72b03bf9679..fee25c5934d2 100644
-> > > --- a/mm/memcontrol.c
-> > > +++ b/mm/memcontrol.c
-> > > @@ -2692,7 +2693,8 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
-> > >  	 * MEMDIE process.
-> > >  	 */
-> > >  	if (unlikely(test_thread_flag(TIF_MEMDIE)
-> > > -		     || fatal_signal_pending(current)))
-> > > +		     || fatal_signal_pending(current))
-> > > +		     || current->flags & PF_EXITING)
-> > >  		goto bypass;
-> > >  
-> > >  	if (unlikely(task_in_memcg_oom(current)))
+On Tue, Dec 17, 2013 at 03:11:47PM -0500, Johannes Weiner wrote:
+> On Tue, Dec 17, 2013 at 04:08:08PM +0000, Mel Gorman wrote:
+> > On Tue, Dec 17, 2013 at 10:38:29AM -0500, Johannes Weiner wrote:
+> > > On Tue, Dec 17, 2013 at 11:13:52AM +0000, Mel Gorman wrote:
+> > > > On Mon, Dec 16, 2013 at 03:25:07PM -0500, Johannes Weiner wrote:
+> > > > > On Fri, Dec 13, 2013 at 02:10:03PM +0000, Mel Gorman wrote:
+> > > > > > zone_local is using node_distance which is a more expensive call than
+> > > > > > necessary. On x86, it's another function call in the allocator fast path
+> > > > > > and increases cache footprint. This patch makes the assumption zones on a
+> > > > > > local node will share the same node ID. The necessary information should
+> > > > > > already be cache hot.
+> > > > > > 
+> > > > > > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > > > > > ---
+> > > > > >  mm/page_alloc.c | 2 +-
+> > > > > >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > > > > > 
+> > > > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > > > > index 64020eb..fd9677e 100644
+> > > > > > --- a/mm/page_alloc.c
+> > > > > > +++ b/mm/page_alloc.c
+> > > > > > @@ -1816,7 +1816,7 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
+> > > > > >  
+> > > > > >  static bool zone_local(struct zone *local_zone, struct zone *zone)
+> > > > > >  {
+> > > > > > -	return node_distance(local_zone->node, zone->node) == LOCAL_DISTANCE;
+> > > > > > +	return zone_to_nid(zone) == numa_node_id();
+> > > > > 
+> > > > > Why numa_node_id()?  We pass in the preferred zone as @local_zone:
+> > > > > 
+> > > > 
+> > > > Initially because I was thinking "local node" and numa_node_id() is a
+> > > > per-cpu variable that should be cheap to access and in some cases
+> > > > cache-hot as the top-level gfp API calls numa_node_id().
+> > > > 
+> > > > Thinking about it more though it still makes sense because the preferred
+> > > > zone is not necessarily local. If the allocation request requires ZONE_DMA32
+> > > > and the local node does not have that zone then preferred zone is on a
+> > > > remote node.
 > > > 
-> > > rather than the later checks down the oom_synchronize paths. The comment
-> > > already mentions dying process...
-> > > 
+> > > Don't we treat everything in relation to the preferred zone?
 > > 
-> > This is scary because it doesn't even try to reclaim memcg memory before 
-> > allowing the allocation to succeed.
+> > Usually yes, but this time we really care about whether the memory is
+> > local or remote. It makes sense to me as it is and struggle to see an
+> > advantage of expressing it in terms of the preferred zone. Minimally
+> > zone_local would need to be renamed if it could return true for a remote
+> > zone and I see no advantage in doing that.
 > 
-> Why should it reclaim in the first place when it simply is on the way to
-> release memory. In other words why should it increase the memory
-> pressure when it is in fact releasing it?
-> 
-
-(Answering about removing the fatal_signal_pending() check as well here.)
-
-For memory isolation, we'd only want to bypass memcg charges when 
-absolutely necessary and it seems like TIF_MEMDIE is the only case where 
-that's required.  We don't give processes with pending SIGKILLs or those 
-in the exit() path access to memory reserves in the page allocator without 
-first determining that reclaim can't make any progress for the same reason 
-and then we only do so by setting TIF_MEMDIE when calling the oom killer.  
-
-> I am really puzzled here. On one hand you are strongly arguing for not
-> notifying when we know we can prevent from OOM action and on the other
-> hand you are ok to get vmpressure/thresholds notification when an
-> exiting task triggers reclaim.
-> 
-> So I am really lost in what you are trying to achieve here. It sounds a
-> bit arbirtrary.
+> What the function tests for is whether any given zone is close
+> enough/local to the given preferred zone such that we can allocate
+> from it without having to invoke zone_reclaim_mode.
 > 
 
-It's not arbitrary to define when memcg bypass is allowed and, in my 
-opinion, it should only be done in situations where it is unavoidable and 
-therefore breaking memory isolation is required.
+Fine. The helper should then be renamed to zone_preferred_node because
+it's no longer about being local.
 
-(We wouldn't expect a 128MB memcg to be oom [and perhaps with a userspace 
-oom handler attached] when it has 100 children each 1MB in size just 
-because they all happen to be oom at the same time.  We set up the excess 
-memory in the parent specifically for the memcg with the oom handler 
-attached.)
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
