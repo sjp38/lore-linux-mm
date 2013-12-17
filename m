@@ -1,365 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f54.google.com (mail-bk0-f54.google.com [209.85.214.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E1866B0035
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 15:02:21 -0500 (EST)
-Received: by mail-bk0-f54.google.com with SMTP id v16so2996114bkz.41
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 12:02:20 -0800 (PST)
+Received: from mail-bk0-f50.google.com (mail-bk0-f50.google.com [209.85.214.50])
+	by kanga.kvack.org (Postfix) with ESMTP id A62986B0037
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 15:11:54 -0500 (EST)
+Received: by mail-bk0-f50.google.com with SMTP id e11so2970435bkh.23
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 12:11:53 -0800 (PST)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id xy9si5667728bkb.46.2013.12.17.12.02.19
+        by mx.google.com with ESMTPS id on6si5651097bkb.143.2013.12.17.12.11.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 17 Dec 2013 12:02:19 -0800 (PST)
-Date: Tue, 17 Dec 2013 15:02:10 -0500
+        Tue, 17 Dec 2013 12:11:53 -0800 (PST)
+Date: Tue, 17 Dec 2013 15:11:47 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC PATCH 0/6] Configurable fair allocation zone policy v3
-Message-ID: <20131217200210.GG21724@cmpxchg.org>
-References: <1387298904-8824-1-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 3/7] mm: page_alloc: Use zone node IDs to approximate
+ locality
+Message-ID: <20131217201147.GH21724@cmpxchg.org>
+References: <1386943807-29601-1-git-send-email-mgorman@suse.de>
+ <1386943807-29601-4-git-send-email-mgorman@suse.de>
+ <20131216202507.GZ21724@cmpxchg.org>
+ <20131217111352.GZ11295@suse.de>
+ <20131217153829.GC21724@cmpxchg.org>
+ <20131217160808.GF11295@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1387298904-8824-1-git-send-email-mgorman@suse.de>
+In-Reply-To: <20131217160808.GF11295@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Mel,
-
-On Tue, Dec 17, 2013 at 04:48:18PM +0000, Mel Gorman wrote:
-> This series is currently untested and is being posted to sync up discussions
-> on the treatment of page cache pages, particularly the sysv part. I have
-> not thought it through in detail but postings patches is the easiest way
-> to highlight where I think a problem might be.
->
-> Changelog since v2
-> o Drop an accounting patch, behaviour is deliberate
-> o Special case tmpfs and shmem pages for discussion
+On Tue, Dec 17, 2013 at 04:08:08PM +0000, Mel Gorman wrote:
+> On Tue, Dec 17, 2013 at 10:38:29AM -0500, Johannes Weiner wrote:
+> > On Tue, Dec 17, 2013 at 11:13:52AM +0000, Mel Gorman wrote:
+> > > On Mon, Dec 16, 2013 at 03:25:07PM -0500, Johannes Weiner wrote:
+> > > > On Fri, Dec 13, 2013 at 02:10:03PM +0000, Mel Gorman wrote:
+> > > > > zone_local is using node_distance which is a more expensive call than
+> > > > > necessary. On x86, it's another function call in the allocator fast path
+> > > > > and increases cache footprint. This patch makes the assumption zones on a
+> > > > > local node will share the same node ID. The necessary information should
+> > > > > already be cache hot.
+> > > > > 
+> > > > > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > > > > ---
+> > > > >  mm/page_alloc.c | 2 +-
+> > > > >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > > > > 
+> > > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > > > index 64020eb..fd9677e 100644
+> > > > > --- a/mm/page_alloc.c
+> > > > > +++ b/mm/page_alloc.c
+> > > > > @@ -1816,7 +1816,7 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
+> > > > >  
+> > > > >  static bool zone_local(struct zone *local_zone, struct zone *zone)
+> > > > >  {
+> > > > > -	return node_distance(local_zone->node, zone->node) == LOCAL_DISTANCE;
+> > > > > +	return zone_to_nid(zone) == numa_node_id();
+> > > > 
+> > > > Why numa_node_id()?  We pass in the preferred zone as @local_zone:
+> > > > 
+> > > 
+> > > Initially because I was thinking "local node" and numa_node_id() is a
+> > > per-cpu variable that should be cheap to access and in some cases
+> > > cache-hot as the top-level gfp API calls numa_node_id().
+> > > 
+> > > Thinking about it more though it still makes sense because the preferred
+> > > zone is not necessarily local. If the allocation request requires ZONE_DMA32
+> > > and the local node does not have that zone then preferred zone is on a
+> > > remote node.
+> > 
+> > Don't we treat everything in relation to the preferred zone?
 > 
-> Changelog since v1
-> o Fix lot of brain damage in the configurable policy patch
-> o Yoink a page cache annotation patch
-> o Only account batch pages against allocations eligible for the fair policy
-> o Add patch that default distributes file pages on remote nodes
-> 
-> Commit 81c0a2bb ("mm: page_alloc: fair zone allocator policy") solved a
-> bug whereby new pages could be reclaimed before old pages because of how
-> the page allocator and kswapd interacted on the per-zone LRU lists.
+> Usually yes, but this time we really care about whether the memory is
+> local or remote. It makes sense to me as it is and struggle to see an
+> advantage of expressing it in terms of the preferred zone. Minimally
+> zone_local would need to be renamed if it could return true for a remote
+> zone and I see no advantage in doing that.
 
-Not just that, it was about ensuring predictable cache replacement and
-maximizing the cache's effectiveness.  This implicitely fixed the
-kswapd interaction bug, but that was not the sole reason (I realize
-that the original changelog is incomplete and I apologize for that).
+What the function tests for is whether any given zone is close
+enough/local to the given preferred zone such that we can allocate
+from it without having to invoke zone_reclaim_mode.
 
-I have had offline discussions with Andrea back then and his first
-suggestion was too to make this a zone fairness placement that is
-exclusive to the local node, but eventually he agreed that the problem
-applies just as much on the global level and that we should apply
-fairness throughout the system as long as we honor zone_reclaim_mode
-and hard bindings.  During our discussions now, it turned out that
-zone_reclaim_mode is a terrible predictor for preferred locality, but
-we also more or less agreed that the locality issues in the first
-place are not really applicable to cache loads dominated by IO cost.
+In your example, if the preferred DMA32 zone were to be on a remote
+node and eligible for allocation but full, a DMA zone on the same node
+should be fine as well and would not impose a higher remote reference
+burden on the allocator than allocating from the preferred DMA32 zone.
 
-So I think the main discrepancy between the original patch and what we
-truly want is that aging fairness is really only relevant for actual
-cache backed by secondary storage, because cache replacement is an
-ongoing operation that involves IO.  As opposed to memory types that
-involve IO only in extreme cases (anon, tmpfs, shmem) or no IO at all
-(slab, kernel allocations), in which case we prefer NUMA locality.
+So it's really not about the locality of the allocating task but about
+the locality of the given preferred zone.
 
-> Unfortunately a side-effect missed during review was that it's now very
-> easy to allocate remote memory on NUMA machines. The problem is that
-> it is not a simple case of just restoring local allocation policies as
-> there are genuine reasons why global page aging may be prefereable. It's
-> still a major change to default behaviour so this patch makes the policy
-> configurable and sets what I think is a sensible default.
-> 
-> The patches are on top of some NUMA balancing patches currently in -mm.
-> It's untested and posted to discuss patches 4 and 6.
+In my tree, I replaced the function body with
 
-It might be easier in dealing with -stable if we start with the
-critical fix(es) to restore sane functionality as much and as compact
-as possible and then place the cleanups on top?
-
-In my local tree, I have the following as the first patch:
-
----
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch] mm: page_alloc: restrict fair allocator policy to page cache
-
-81c0a2bb515f ("mm: page_alloc: fair zone allocator policy") was merged
-in order to ensure predictable page cache replacement and to maximize
-the cache's effectiveness of reducing IO regardless of zone or node
-topology.
-
-However, it was overzealous in round-robin placing every type of
-allocation over all allowable nodes, instead of preferring locality,
-which resulted in severe regressions on certain NUMA workloads that
-have nothing to do with page cache.
-
-This patch drastically reduces the impact of the original change by
-having the round-robin placement policy only apply to page cache
-backed by secondary storage, and no longer to anonymous memory, shmem,
-tmpfs, slab allocations.
-
-This still changes the long-standing behavior of page cache adhering
-to the configured memory policy and preferring local allocations per
-default, so make it configurable in case somebody relies on it.
-However, we also expect the majority of users to prefer maximium cache
-effectiveness and a predictable replacement behavior over memory
-locality, so reflect this in the default setting of the sysctl.
----
- Documentation/sysctl/vm.txt             | 21 +++++++++++++++++
- Documentation/vm/numa_memory_policy.txt |  8 +++++++
- include/linux/gfp.h                     |  4 +++-
- include/linux/pagemap.h                 |  2 +-
- include/linux/swap.h                    |  2 ++
- kernel/sysctl.c                         |  8 +++++++
- mm/filemap.c                            |  2 ++
- mm/page_alloc.c                         | 41 +++++++++++++++++++++++++--------
- 8 files changed, 76 insertions(+), 12 deletions(-)
-
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index 1fbd4eb7b64a..50d250f7470f 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -38,6 +38,7 @@ Currently, these files are in /proc/sys/vm:
- - memory_failure_early_kill
- - memory_failure_recovery
- - min_free_kbytes
-+- pagecache_mempolicy_mode
- - min_slab_ratio
- - min_unmapped_ratio
- - mmap_min_addr
-@@ -404,6 +405,26 @@ Setting this too high will OOM your machine instantly.
- 
- =============================================================
- 
-+pagecache_mempolicy_mode:
-+
-+This is available only on NUMA kernels.
-+
-+Per default, the configured memory policy is applicable to anonymous
-+memory, shmem, tmpfs, etc., whereas pagecache is allocated in an
-+interleaving fashion over all allowed nodes (hardbindings and
-+zone_reclaim_mode excluded).
-+
-+The assumption is that, when it comes to pagecache, users generally
-+prefer predictable replacement behavior regardless of NUMA topology
-+and maximizing the cache's effectiveness in reducing IO over memory
-+locality.
-+
-+This behavior can be changed by enabling pagecache_mempolicy_mode, in
-+which case page cache allocations will be placed according to the
-+configured memory policy (Documentation/vm/numa_memory_policy.txt).
-+
-+=============================================================
-+
- min_slab_ratio:
- 
- This is available only on NUMA kernels.
-diff --git a/Documentation/vm/numa_memory_policy.txt b/Documentation/vm/numa_memory_policy.txt
-index 4e7da6543424..64d48b6378db 100644
---- a/Documentation/vm/numa_memory_policy.txt
-+++ b/Documentation/vm/numa_memory_policy.txt
-@@ -16,6 +16,14 @@ programming interface that a NUMA-aware application can take advantage of.  When
- both cpusets and policies are applied to a task, the restrictions of the cpuset
- takes priority.  See "MEMORY POLICIES AND CPUSETS" below for more details.
- 
-+Note that, per default, the memory policies as described below apply to process
-+memory and shmem/tmpfs/ramfs only.  Pagecache backed by secondary storage will
-+be interleaved fairly over all allowable nodes (respecting hardbindings and
-+zone_reclaim_mode) in order to maximize the cache's effectiveness in reducing IO
-+and to ensure predictable cache replacement.  Special setups that require
-+pagecache to adhere to the configured memory policy can change this behavior by
-+enabling pagecache_mempolicy_mode (see Documentation/sysctl/vm.txt).
-+
- MEMORY POLICY CONCEPTS
- 
- Scope of Memory Policies
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 9b4dd491f7e8..f69e4cb78ccf 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -35,6 +35,7 @@ struct vm_area_struct;
- #define ___GFP_NO_KSWAPD	0x400000u
- #define ___GFP_OTHER_NODE	0x800000u
- #define ___GFP_WRITE		0x1000000u
-+#define ___GFP_PAGECACHE	0x2000000u
- /* If the above are modified, __GFP_BITS_SHIFT may need updating */
- 
- /*
-@@ -92,6 +93,7 @@ struct vm_area_struct;
- #define __GFP_OTHER_NODE ((__force gfp_t)___GFP_OTHER_NODE) /* On behalf of other node */
- #define __GFP_KMEMCG	((__force gfp_t)___GFP_KMEMCG) /* Allocation comes from a memcg-accounted resource */
- #define __GFP_WRITE	((__force gfp_t)___GFP_WRITE)	/* Allocator intends to dirty page */
-+#define __GFP_PAGECACHE ((__force gfp_t)___GFP_PAGECACHE)   /* Page cache allocation */
- 
- /*
-  * This may seem redundant, but it's a way of annotating false positives vs.
-@@ -99,7 +101,7 @@ struct vm_area_struct;
-  */
- #define __GFP_NOTRACK_FALSE_POSITIVE (__GFP_NOTRACK)
- 
--#define __GFP_BITS_SHIFT 25	/* Room for N __GFP_FOO bits */
-+#define __GFP_BITS_SHIFT 26	/* Room for N __GFP_FOO bits */
- #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
- 
- /* This equals 0, but use constants in case they ever change */
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index e3dea75a078b..bda48453af8e 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -221,7 +221,7 @@ extern struct page *__page_cache_alloc(gfp_t gfp);
- #else
- static inline struct page *__page_cache_alloc(gfp_t gfp)
- {
--	return alloc_pages(gfp, 0);
-+	return alloc_pages(gfp | __GFP_PAGECACHE, 0);
- }
- #endif
- 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 46ba0c6c219f..3458994b0881 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -320,11 +320,13 @@ extern unsigned long vm_total_pages;
- 
- #ifdef CONFIG_NUMA
- extern int zone_reclaim_mode;
-+extern int pagecache_mempolicy_mode;
- extern int sysctl_min_unmapped_ratio;
- extern int sysctl_min_slab_ratio;
- extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
- #else
- #define zone_reclaim_mode 0
-+#define pagecache_mempolicy_mode 0
- static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
- {
- 	return 0;
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 34a604726d0b..a8c56c1dc98e 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1359,6 +1359,14 @@ static struct ctl_table vm_table[] = {
- 		.extra1		= &zero,
- 	},
- 	{
-+		.procname	= "pagecache_mempolicy_mode",
-+		.data		= &pagecache_mempolicy_mode,
-+		.maxlen		= sizeof(pagecache_mempolicy_mode),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec,
-+		.extra1		= &zero,
-+	},
-+	{
- 		.procname	= "min_unmapped_ratio",
- 		.data		= &sysctl_min_unmapped_ratio,
- 		.maxlen		= sizeof(sysctl_min_unmapped_ratio),
-diff --git a/mm/filemap.c b/mm/filemap.c
-index b7749a92021c..5bb922506906 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -517,6 +517,8 @@ struct page *__page_cache_alloc(gfp_t gfp)
- 	int n;
- 	struct page *page;
- 
-+	gfp |= __GFP_PAGECACHE;
-+
- 	if (cpuset_do_page_mem_spread()) {
- 		unsigned int cpuset_mems_cookie;
- 		do {
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 580a5f075ed0..b28370932950 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1547,7 +1547,15 @@ again:
- 					  get_pageblock_migratetype(page));
- 	}
- 
-+	/*
-+	 * All allocations eat into the round-robin batch, even
-+	 * allocations that are not subject to round-robin placement
-+	 * themselves.  This makes sure that allocations that ARE
-+	 * subject to round-robin placement compensate for the
-+	 * allocations that aren't, to have equal placement overall.
-+	 */
- 	__mod_zone_page_state(zone, NR_ALLOC_BATCH, -(1 << order));
-+
- 	__count_zone_vm_events(PGALLOC, zone, 1 << order);
- 	zone_statistics(preferred_zone, zone, gfp_flags);
- 	local_irq_restore(flags);
-@@ -1699,6 +1707,15 @@ bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
- 
- #ifdef CONFIG_NUMA
- /*
-+ * pagecache_mempolicy_mode - whether page cache should honor the
-+ * configured memory policy and allocate from the zonelist in order of
-+ * preference, or whether it should be interleaved fairly over all
-+ * allowed zones in the given zonelist to maximize cache effects and
-+ * ensure predictable cache replacement.
-+ */
-+int pagecache_mempolicy_mode __read_mostly;
-+
-+/*
-  * zlc_setup - Setup for "zonelist cache".  Uses cached zone data to
-  * skip over zones that are not allowed by the cpuset, or that have
-  * been recently (in last second) found to be nearly full.  See further
-@@ -1816,7 +1833,7 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
- 
- static bool zone_local(struct zone *local_zone, struct zone *zone)
- {
--	return node_distance(local_zone->node, zone->node) == LOCAL_DISTANCE;
-+	return local_zone->node == zone->node;
- }
- 
- static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
-@@ -1908,22 +1925,25 @@ zonelist_scan:
- 		if (unlikely(alloc_flags & ALLOC_NO_WATERMARKS))
- 			goto try_this_zone;
- 		/*
--		 * Distribute pages in proportion to the individual
--		 * zone size to ensure fair page aging.  The zone a
--		 * page was allocated in should have no effect on the
--		 * time the page has in memory before being reclaimed.
-+		 * Distribute page cache pages in proportion to the
-+		 * individual zone size to ensure fair page aging.
-+		 * The zone a page was allocated in should have no
-+		 * effect on the time the page has in memory before
-+		 * being reclaimed.
- 		 *
--		 * When zone_reclaim_mode is enabled, try to stay in
--		 * local zones in the fastpath.  If that fails, the
-+		 * When pagecache_mempolicy_mode or zone_reclaim_mode
-+		 * is enabled, try to allocate from zones within the
-+		 * preferred node in the fastpath.  If that fails, the
- 		 * slowpath is entered, which will do another pass
- 		 * starting with the local zones, but ultimately fall
- 		 * back to remote zones that do not partake in the
- 		 * fairness round-robin cycle of this zonelist.
- 		 */
--		if (alloc_flags & ALLOC_WMARK_LOW) {
-+		if ((alloc_flags & ALLOC_WMARK_LOW) &&
-+		    (gfp_mask & __GFP_PAGECACHE)) {
- 			if (zone_page_state(zone, NR_ALLOC_BATCH) <= 0)
- 				continue;
--			if (zone_reclaim_mode &&
-+			if ((zone_reclaim_mode || pagecache_mempolicy_mode) &&
- 			    !zone_local(preferred_zone, zone))
- 				continue;
- 		}
-@@ -2390,7 +2410,8 @@ static void prepare_slowpath(gfp_t gfp_mask, unsigned int order,
- 		 * thrash fairness information for zones that are not
- 		 * actually part of this zonelist's round-robin cycle.
- 		 */
--		if (zone_reclaim_mode && !zone_local(preferred_zone, zone))
-+		if ((zone_reclaim_mode || pagecache_mempolicy_mode) &&
-+		    !zone_local(preferred_zone, zone))
- 			continue;
- 		mod_zone_page_state(zone, NR_ALLOC_BATCH,
- 				    high_wmark_pages(zone) -
--- 
-1.8.4.2
+	return local_zone->node == zone->node;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
