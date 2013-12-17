@@ -1,99 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f177.google.com (mail-ea0-f177.google.com [209.85.215.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 87D546B0037
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 12:54:46 -0500 (EST)
-Received: by mail-ea0-f177.google.com with SMTP id n15so3081616ead.8
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 09:54:46 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e48si6017857eeh.29.2013.12.17.09.54.44
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 17 Dec 2013 09:54:44 -0800 (PST)
-Date: Tue, 17 Dec 2013 17:54:41 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/4] Fix ebizzy performance regression due to X86 TLB
- range flush v2
-Message-ID: <20131217175441.GI11295@suse.de>
-References: <1386964870-6690-1-git-send-email-mgorman@suse.de>
- <CA+55aFyNAigQqBk07xLpf0nkhZ_x-QkBYG8otRzsqg_8A2eg-Q@mail.gmail.com>
- <20131215155539.GM11295@suse.de>
- <20131216102439.GA21624@gmail.com>
- <20131216125923.GS11295@suse.de>
- <20131216134449.GA3034@gmail.com>
- <20131217092124.GV11295@suse.de>
- <20131217110051.GA27701@gmail.com>
- <20131217143253.GB11295@suse.de>
- <20131217144214.GA12370@gmail.com>
+Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 503666B0038
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 12:57:15 -0500 (EST)
+Received: by mail-we0-f172.google.com with SMTP id w62so6493523wes.3
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 09:57:14 -0800 (PST)
+Date: Tue, 17 Dec 2013 18:55:00 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC PATCH 0/3] Change how we determine when to hand out THPs
+Message-ID: <20131217175500.GB5441@redhat.com>
+References: <20131212180037.GA134240@sgi.com>
+ <20131213214437.6fdbf7f2.akpm@linux-foundation.org>
+ <20131216171214.GA15663@sgi.com>
+ <20131216175111.GD21218@redhat.com>
+ <20131217162006.GH18680@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131217144214.GA12370@gmail.com>
+In-Reply-To: <20131217162006.GH18680@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Alex Shi <alex.shi@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Alex Thorlton <athorlton@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Benjamin LaHaise <bcrl@kvack.org>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, David Rientjes <rientjes@google.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jiang Liu <jiang.liu@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Glauber Costa <glommer@parallels.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org
 
-On Tue, Dec 17, 2013 at 03:42:14PM +0100, Ingo Molnar wrote:
+On Tue, Dec 17, 2013 at 10:20:07AM -0600, Alex Thorlton wrote:
+> This message in particular:
 > 
-> * Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > [...]
-> >
-> > At that point it'll be time to look at profiles and see where we are 
-> > actually spending time because the possibilities of finding things 
-> > to fix through bisection will be exhausted.
-> 
-> Yeah.
-> 
-> One (heavy handed but effective) trick that can be used in such a 
-> situation is to just revert everything that is causing problems, and 
-> continue reverting until we get back to a v3.4 baseline performance.
-> 
+> https://lkml.org/lkml/2013/8/2/697
 
-Very tempted but the potential timeframe here is very large and the number
-of patches could be considerable. Some patches cause a lot of noise. For
-example, one patch enabled ACPI cpufreq driver loading which looks like
-a regression during that window but it's a side-effect that gets fixed
-later. It'll take time to identify all the patches that potentially cause
-problems.
+I think adding a prctl (or similar) inherited by child to turn off THP
+would be a fine addition to the current madvise. So you can then run
+any static app under a wrapper like "THP_disable ./whatever"
 
-> Once such a 'clean' tree (or queue of patches) is achived, that can be 
-> used as a measurement base and the individual features can be 
-> re-applied again, one by one, with measurement and analysis becoming a 
-> lot easier.
-> 
+The idea is, if the software is maintained, madvise allows for
+finegrined optimization, if the software is legacy proprietary
+statically linked (or if it already uses LD_PRELOAD for other things),
+prctl takes care of that in a more coarse way (but still per-app).
 
-Ordinarily I would agree with you but would prefer a shorter window for
-that type of strategy.
+> The thread I mention above originally proposed a per-process switch to
+> disable THP without the use of madvise, but it was not very well 
+> received.  I'm more than willing to revisit that idea, and possibly
 
-> > > Also it appears the Ebizzy numbers ought to be stable enough now 
-> > > to make the range-TLB-flush measurements more precise?
-> > 
-> > Right now, the tlbflush microbenchmark figures look awful on the 
-> > 8-core machine when the tlbflush shift patch and the schedule domain 
-> > fix are both applied.
-> 
-> I think that furthr strengthens the case for the 'clean base' approach 
-> I outlined above - but it's your call obviously ...
-> 
+I think you provided enough explanation of why it is needed (static
+binaries, proprietary apps, annoyance of LD_PRELOAD that may collide
+with other LD_PRELOAD in proprietary apps whatever), so I think a
+prctl is reasonable addition to the madvise.
 
-I'll keep it as plan b if it cannot be fixed with a direct approach.
+We also have an madvise to turn on THP selectively on embedded that
+may boot with enabled=madvise to be sure not to waste any memory
+because of THP. But the prctl to selectively enable doesn't make too
+much sense, as one has to selectively enabled in a finegrined way to
+be sure not to cause any memory waste. So I think a NOHUGEPAGE prctl
+would be enough.
 
-> Thanks again for going through all this. Tracking multi-commit 
-> performance regressions across 1.5 years worth of commits is generally 
-> very hard. Does your testing effort comes from enterprise Linux QA 
-> testing, or did you ran into this problem accidentally?
-> 
+> meld the two (a per-process threshold, instead of a big-hammer on-off
+> swtich).  Let me know if that seems preferable to this idea and we can
+> discuss.
 
-It does not come from enterprise Linux QA testing but it's motivated by
-it. I want to catch as many "obvious" performance bugs before they do as
-it saves time and stress in the long run. To assist that, I setup continual
-performance regression testing and ebizzy was included in the first report
-I opened.  It makes me worry what the rest of the reports contain.
+The per-process threshold would be much bigger patch, I think starting
+with the big-hammer on-off is preferable as it is much simpler and it
+should be more than enough to take care of the rare corner cases,
+while leaving the other workloads unaffected (modulo the cacheline to
+check the task or mm flags) running at max speed.
 
--- 
-Mel Gorman
-SUSE Labs
+To evaluate the threshold solution, a variety of benchmarks of a
+multitude of apps would be necessary first, to see the effect it has
+on the non-corner cases. Adding the big-hammer on-off prctl instead is
+a black and white design solution that won't require black magic
+settings.
+
+Ideally if we add a threshold later it won't require any more
+cacheline accesses, as the threshold would also need to be per-task or
+per-mm so the runtime cost of the prctl would be zero then and it
+could then become a benchmarking tweak even if we add the per-app
+threshold later.
+
+About creating heuristics to automatically detect the ideal value of
+the big-hammer per-app on/off switch (or even harder the ideal value
+of the per-app threshold), I think it's not going to happen because
+there are too few corner cases and it wouldn't be worth the cost of it
+(the cost would be significant no matter how implemented).
+
+Every time we try to make THP smarter at auto-disabling itself for the
+corner cases, we're slowing it down for everyone that gets a benefit
+from it, and there's no way around it. This is why I think the
+big-hammer prctl for the few corner cases is the best way to go.
+
+Thanks!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
