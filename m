@@ -1,37 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f41.google.com (mail-yh0-f41.google.com [209.85.213.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A5566B0039
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 15:37:20 -0500 (EST)
-Received: by mail-yh0-f41.google.com with SMTP id f11so5008878yha.28
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 12:37:20 -0800 (PST)
-Received: from a9-46.smtp-out.amazonses.com (a9-46.smtp-out.amazonses.com. [54.240.9.46])
-        by mx.google.com with ESMTP id p10si6808256qce.69.2013.12.17.12.37.19
-        for <linux-mm@kvack.org>;
-        Tue, 17 Dec 2013 12:37:19 -0800 (PST)
-Date: Tue, 17 Dec 2013 20:37:18 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: netfilter: active obj WARN when cleaning up
-In-Reply-To: <52B0ABB6.8090205@oracle.com>
-Message-ID: <000001430246e902-112cfb9d-5393-4eed-8529-e0008f88df45-000000@email.amazonses.com>
-References: <20131127233415.GB19270@kroah.com> <00000142b4282aaf-913f5e4c-314c-4351-9d24-615e66928157-000000@email.amazonses.com> <20131202164039.GA19937@kroah.com> <00000142b4514eb5-2e8f675d-0ecc-423b-9906-58c5f383089b-000000@email.amazonses.com>
- <20131202172615.GA4722@kroah.com> <00000142b4aeca89-186fc179-92b8-492f-956c-38a7c196d187-000000@email.amazonses.com> <20131202190814.GA2267@kroah.com> <00000142b4d4360c-5755af87-b9b0-4847-b5fa-7a9dd13b49c5-000000@email.amazonses.com> <20131202212235.GA1297@kroah.com>
- <00000142b54f6694-c51e81b1-f1a2-483b-a1ce-a2d4cb6b155c-000000@email.amazonses.com> <20131202222208.GB13034@kroah.com> <00000142b90da700-19f6b465-ff15-4b2b-9bcd-b91d71958b7f-000000@email.amazonses.com> <52B0ABB6.8090205@oracle.com>
+Received: from mail-yh0-f51.google.com (mail-yh0-f51.google.com [209.85.213.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E35156B0039
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 15:50:13 -0500 (EST)
+Received: by mail-yh0-f51.google.com with SMTP id c41so4919158yho.24
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 12:50:13 -0800 (PST)
+Received: from mail-yh0-x235.google.com (mail-yh0-x235.google.com [2607:f8b0:4002:c01::235])
+        by mx.google.com with ESMTPS id g65si16524018yhc.5.2013.12.17.12.50.12
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 17 Dec 2013 12:50:12 -0800 (PST)
+Received: by mail-yh0-f53.google.com with SMTP id b20so4992611yha.12
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 12:50:12 -0800 (PST)
+Date: Tue, 17 Dec 2013 12:50:09 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
+ access to memory reserves
+In-Reply-To: <20131217162342.GG28991@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.02.1312171240541.21640@chino.kir.corp.google.com>
+References: <20131204111318.GE8410@dhcp22.suse.cz> <alpine.DEB.2.02.1312041606260.6329@chino.kir.corp.google.com> <20131209124840.GC3597@dhcp22.suse.cz> <alpine.DEB.2.02.1312091328550.11026@chino.kir.corp.google.com> <20131210103827.GB20242@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312101655430.22701@chino.kir.corp.google.com> <20131211095549.GA18741@dhcp22.suse.cz> <alpine.DEB.2.02.1312111434200.7354@chino.kir.corp.google.com> <20131212103159.GB2630@dhcp22.suse.cz> <alpine.DEB.2.02.1312131551220.28704@chino.kir.corp.google.com>
+ <20131217162342.GG28991@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Greg KH <greg@kroah.com>, Thomas Gleixner <tglx@linutronix.de>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Pablo Neira Ayuso <pablo@netfilter.org>, Patrick McHardy <kaber@trash.net>, kadlec@blackhole.kfki.hu, "David S. Miller" <davem@davemloft.net>, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Tue, 17 Dec 2013, Sasha Levin wrote:
+On Tue, 17 Dec 2013, Michal Hocko wrote:
 
-> I'm still seeing warnings with this patch applied:
+> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > > index c72b03bf9679..fee25c5934d2 100644
+> > > --- a/mm/memcontrol.c
+> > > +++ b/mm/memcontrol.c
+> > > @@ -2692,7 +2693,8 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
+> > >  	 * MEMDIE process.
+> > >  	 */
+> > >  	if (unlikely(test_thread_flag(TIF_MEMDIE)
+> > > -		     || fatal_signal_pending(current)))
+> > > +		     || fatal_signal_pending(current))
+> > > +		     || current->flags & PF_EXITING)
+> > >  		goto bypass;
+> > >  
+> > >  	if (unlikely(task_in_memcg_oom(current)))
+> > > 
+> > > rather than the later checks down the oom_synchronize paths. The comment
+> > > already mentions dying process...
+> > > 
+> > 
+> > This is scary because it doesn't even try to reclaim memcg memory before 
+> > allowing the allocation to succeed.
+> 
+> Why should it reclaim in the first place when it simply is on the way to
+> release memory. In other words why should it increase the memory
+> pressure when it is in fact releasing it?
+> 
 
-Looks like this is related to some device release mechanism that frees
-twice?
+(Answering about removing the fatal_signal_pending() check as well here.)
 
-I do not see any kmem_cache management functions in the backtrace and
-therefore would guess that this is not the same issue.
+For memory isolation, we'd only want to bypass memcg charges when 
+absolutely necessary and it seems like TIF_MEMDIE is the only case where 
+that's required.  We don't give processes with pending SIGKILLs or those 
+in the exit() path access to memory reserves in the page allocator without 
+first determining that reclaim can't make any progress for the same reason 
+and then we only do so by setting TIF_MEMDIE when calling the oom killer.  
+
+> I am really puzzled here. On one hand you are strongly arguing for not
+> notifying when we know we can prevent from OOM action and on the other
+> hand you are ok to get vmpressure/thresholds notification when an
+> exiting task triggers reclaim.
+> 
+> So I am really lost in what you are trying to achieve here. It sounds a
+> bit arbirtrary.
+> 
+
+It's not arbitrary to define when memcg bypass is allowed and, in my 
+opinion, it should only be done in situations where it is unavoidable and 
+therefore breaking memory isolation is required.
+
+(We wouldn't expect a 128MB memcg to be oom [and perhaps with a userspace 
+oom handler attached] when it has 100 children each 1MB in size just 
+because they all happen to be oom at the same time.  We set up the excess 
+memory in the parent specifically for the memcg with the oom handler 
+attached.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
