@@ -1,75 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AED76B0035
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 11:04:48 -0500 (EST)
-Received: by mail-ie0-f179.google.com with SMTP id x13so8299553ief.24
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 08:04:47 -0800 (PST)
-Date: Tue, 17 Dec 2013 10:04:55 -0600
-From: Alex Thorlton <athorlton@sgi.com>
-Subject: Re: [RFC PATCH 0/3] Change how we determine when to hand out THPs
-Message-ID: <20131217160455.GG18680@sgi.com>
-References: <20131212180037.GA134240@sgi.com>
- <20131213214437.6fdbf7f2.akpm@linux-foundation.org>
- <20131216171214.GA15663@sgi.com>
- <CALCETrW9uGYzckWg3Wcsu-VV-vbXxUCr+Dv0kXqE5VMKopjn+A@mail.gmail.com>
+Received: from mail-ea0-f181.google.com (mail-ea0-f181.google.com [209.85.215.181])
+	by kanga.kvack.org (Postfix) with ESMTP id B44676B003B
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 11:06:09 -0500 (EST)
+Received: by mail-ea0-f181.google.com with SMTP id m10so2969573eaj.26
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 08:06:09 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e48si5303636eeh.218.2013.12.17.08.06.08
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 17 Dec 2013 08:06:08 -0800 (PST)
+Date: Tue, 17 Dec 2013 16:06:06 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 6/7] mm: page_alloc: Only account batch allocations
+ requests that are eligible
+Message-ID: <20131217160606.GE11295@suse.de>
+References: <1386943807-29601-1-git-send-email-mgorman@suse.de>
+ <1386943807-29601-7-git-send-email-mgorman@suse.de>
+ <20131216205237.GB21724@cmpxchg.org>
+ <20131217112007.GA11295@suse.de>
+ <20131217154351.GD21724@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <CALCETrW9uGYzckWg3Wcsu-VV-vbXxUCr+Dv0kXqE5VMKopjn+A@mail.gmail.com>
+In-Reply-To: <20131217154351.GD21724@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Benjamin LaHaise <bcrl@kvack.org>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Al Viro <viro@zeniv.linux.org.uk>, David Rientjes <rientjes@google.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jiang Liu <jiang.liu@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Glauber Costa <glommer@parallels.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Dec 16, 2013 at 05:43:40PM -0800, Andy Lutomirski wrote:
-> On Mon, Dec 16, 2013 at 9:12 AM, Alex Thorlton <athorlton@sgi.com> wrote:
-> >> Please cc Andrea on this.
-> >
-> > I'm going to clean up a few small things for a v2 pretty soon, I'll be
-> > sure to cc Andrea there.
-> >
-> >> > My proposed solution to the problem is to allow users to set a
-> >> > threshold at which THPs will be handed out.  The idea here is that, when
-> >> > a user faults in a page in an area where they would usually be handed a
-> >> > THP, we pull 512 pages off the free list, as we would with a regular
-> >> > THP, but we only fault in single pages from that chunk, until the user
-> >> > has faulted in enough pages to pass the threshold we've set.  Once they
-> >> > pass the threshold, we do the necessary work to turn our 512 page chunk
-> >> > into a proper THP.  As it stands now, if the user tries to fault in
-> >> > pages from different nodes, we completely give up on ever turning a
-> >> > particular chunk into a THP, and just fault in the 4K pages as they're
-> >> > requested.  We may want to make this tunable in the future (i.e. allow
-> >> > them to fault in from only 2 different nodes).
-> >>
-> >> OK.  But all 512 pages reside on the same node, yes?  Whereas with thp
-> >> disabled those 512 pages would have resided closer to the CPUs which
-> >> instantiated them.
-> >
-> > As it stands right now, yes, since we're pulling a 512 page contiguous
-> > chunk off the free list, everything from that chunk will reside on the
-> > same node, but as I (stupidly) forgot to mention in my original e-mail,
-> > one piece I have yet to add is the functionality to put the remaining
-> > unfaulted pages from our chunk *back* on the free list after we give up
-> > on handing out a THP.  Once this is in there, things will behave more
-> > like they do when THP is turned completely off, i.e. pages will get
-> > faulted in closer to the CPU that first referenced them once we give up
-> > on handing out the THP.
+On Tue, Dec 17, 2013 at 10:43:51AM -0500, Johannes Weiner wrote:
+> On Tue, Dec 17, 2013 at 11:20:07AM +0000, Mel Gorman wrote:
+> > On Mon, Dec 16, 2013 at 03:52:37PM -0500, Johannes Weiner wrote:
+> > > On Fri, Dec 13, 2013 at 02:10:06PM +0000, Mel Gorman wrote:
+> > > > Not signed off. Johannes, was the intent really to decrement the batch
+> > > > counts regardless of whether the policy was being enforced or not?
+> > > 
+> > > Yes.  Bursts of allocations for which the policy does not get enforced
+> > > will still create memory pressure and affect cache aging on a given
+> > > node.  So even if we only distribute page cache, we want to distribute
+> > > it in a way that all allocations on the eligible zones equal out.
+> > 
+> > This means that allocations for page table pages affects the distribution of
+> > page cache pages. An adverse workload could time when it faults anonymous
+> > pages (to allocate anon and page table pages) in batch sequences and then
+> > access files to force page cache pages to be allocated from a single node.
+> > 
+> > I think I know what your response will be. It will be that the utilisation of
+> > the zone for page table pages and anon pages means that you want more page
+> > cache pages to be allocated from the other zones so the reclaim pressure
+> > is still more or less even. If this is the case or there is another reason
+> > then it could have done with a comment because it's a subtle detail.
 > 
-> This sounds like it's almost the worst possible behavior wrt avoiding
-> memory fragmentation.  If userspace mmaps a very large region and then
-> starts accessing it randomly, it will allocate a bunch of contiguous
-> 512-page regions, claim one page from each, and return the other 511
-> pages to the free list.  Memory is now maximally fragmented from the
-> point of view of future THP allocations.
+> Yes, that was the idea, that the cache placement compensates for pages
+> that still are always allocated on the preferred zone first, so that
+> the end result is approximately as if round-robin had been applied to
+> everybody.
+> 
 
-Maybe I'm missing the point here to some degree, but the way I think
-about this is that if we trigger the behavior to return the pages to the
-free list, we don't *want* future THP allocations in that range of
-memory for the current process anyways.  So, having the memory be
-fragmented from the point of view of future THP allocations isn't an
-issue.  
+Ok, understood. I wanted to be sure that was the thinking behind it.
 
-- Alex
+> This should be documented as part of the patch that first diverges
+> between the allocations that are counted and the allocations that are
+> round-robined:
+> 
+>   mm: page_alloc: exclude unreclaimable allocations from zone fairness policy
+> 
+> I'm updating my tree.
+
+I'll leave it alone in mine then. We'll figure out how to sync up later.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
