@@ -1,67 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f43.google.com (mail-yh0-f43.google.com [209.85.213.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 91B7F6B0035
-	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 20:42:19 -0500 (EST)
-Received: by mail-yh0-f43.google.com with SMTP id a41so4449690yho.30
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 17:42:19 -0800 (PST)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id 41si14206855yhf.77.2013.12.16.17.42.18
+Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 82AB06B0036
+	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 20:44:01 -0500 (EST)
+Received: by mail-qa0-f53.google.com with SMTP id j5so2145889qaq.12
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 17:44:01 -0800 (PST)
+Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
+        by mx.google.com with ESMTPS id b6si13109982qak.150.2013.12.16.17.44.00
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 16 Dec 2013 17:42:18 -0800 (PST)
-Received: by mail-pa0-f44.google.com with SMTP id fa1so3735446pad.17
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 17:42:17 -0800 (PST)
-Date: Mon, 16 Dec 2013 17:41:38 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: 3.13-rc breaks MEMCG_SWAP
-In-Reply-To: <20131216172143.GJ32509@htj.dyndns.org>
-Message-ID: <alpine.LNX.2.00.1312161718001.2037@eggly.anvils>
-References: <alpine.LNX.2.00.1312160025200.2785@eggly.anvils> <52AEC989.4080509@huawei.com> <20131216095345.GB23582@dhcp22.suse.cz> <20131216104042.GC23582@dhcp22.suse.cz> <20131216163530.GH32509@htj.dyndns.org> <20131216171937.GG26797@dhcp22.suse.cz>
- <20131216172143.GJ32509@htj.dyndns.org>
+        Mon, 16 Dec 2013 17:44:00 -0800 (PST)
+Received: by mail-qa0-f53.google.com with SMTP id j5so2145874qaq.12
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 17:44:00 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20131216171214.GA15663@sgi.com>
+References: <20131212180037.GA134240@sgi.com> <20131213214437.6fdbf7f2.akpm@linux-foundation.org>
+ <20131216171214.GA15663@sgi.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Mon, 16 Dec 2013 17:43:40 -0800
+Message-ID: <CALCETrW9uGYzckWg3Wcsu-VV-vbXxUCr+Dv0kXqE5VMKopjn+A@mail.gmail.com>
+Subject: Re: [RFC PATCH 0/3] Change how we determine when to hand out THPs
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Li Zefan <lizefan@huawei.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Alex Thorlton <athorlton@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Benjamin LaHaise <bcrl@kvack.org>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Al Viro <viro@zeniv.linux.org.uk>, David Rientjes <rientjes@google.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jiang Liu <jiang.liu@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Glauber Costa <glommer@parallels.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Mon, 16 Dec 2013, Tejun Heo wrote:
-> On Mon, Dec 16, 2013 at 06:19:37PM +0100, Michal Hocko wrote:
-> > I have to think about it some more (the brain is not working anymore
-> > today). But what we really need is that nobody gets the same id while
-> > the css is alive. So css_from_id returning NULL doesn't seem to be
-> > enough.
-> 
-> Oh, I meant whether it's necessary to keep css_from_id() working
-> (ie. doing successful lookups) between offline and release, because
-> that's where lifetimes are coupled.  IOW, if it's enough for cgroup to
-> not recycle the ID until all css's are released && fail css_from_id()
-> lookup after the css is offlined, I can make a five liner quick fix.
+On Mon, Dec 16, 2013 at 9:12 AM, Alex Thorlton <athorlton@sgi.com> wrote:
+>> Please cc Andrea on this.
+>
+> I'm going to clean up a few small things for a v2 pretty soon, I'll be
+> sure to cc Andrea there.
+>
+>> > My proposed solution to the problem is to allow users to set a
+>> > threshold at which THPs will be handed out.  The idea here is that, when
+>> > a user faults in a page in an area where they would usually be handed a
+>> > THP, we pull 512 pages off the free list, as we would with a regular
+>> > THP, but we only fault in single pages from that chunk, until the user
+>> > has faulted in enough pages to pass the threshold we've set.  Once they
+>> > pass the threshold, we do the necessary work to turn our 512 page chunk
+>> > into a proper THP.  As it stands now, if the user tries to fault in
+>> > pages from different nodes, we completely give up on ever turning a
+>> > particular chunk into a THP, and just fault in the 4K pages as they're
+>> > requested.  We may want to make this tunable in the future (i.e. allow
+>> > them to fault in from only 2 different nodes).
+>>
+>> OK.  But all 512 pages reside on the same node, yes?  Whereas with thp
+>> disabled those 512 pages would have resided closer to the CPUs which
+>> instantiated them.
+>
+> As it stands right now, yes, since we're pulling a 512 page contiguous
+> chunk off the free list, everything from that chunk will reside on the
+> same node, but as I (stupidly) forgot to mention in my original e-mail,
+> one piece I have yet to add is the functionality to put the remaining
+> unfaulted pages from our chunk *back* on the free list after we give up
+> on handing out a THP.  Once this is in there, things will behave more
+> like they do when THP is turned completely off, i.e. pages will get
+> faulted in closer to the CPU that first referenced them once we give up
+> on handing out the THP.
 
-Don't take my word on it, I'm too fuzzy on this: but although it would
-be good to refrain from recycling the ID until all css's are released,
-I believe that it would not be good enough to fail css_from_id() once
-the css is offlined - mem_cgroup_uncharge_swap() needs to uncharge the
-hierarchy of the dead memcg (for example, when tmpfs file is removed).
+This sounds like it's almost the worst possible behavior wrt avoiding
+memory fragmentation.  If userspace mmaps a very large region and then
+starts accessing it randomly, it will allocate a bunch of contiguous
+512-page regions, claim one page from each, and return the other 511
+pages to the free list.  Memory is now maximally fragmented from the
+point of view of future THP allocations.
 
-Uncharging the dead memcg itself is presumably irrelevant, but it does
-need to locate the right parent to uncharge, and NULL css_from_id()
-would make that impossible.  It would be easy if we said those charges
-migrate to root rather than to parent, but that's inconsistent with
-what we have happily converged upon doing elsewhere (in the preferred
-use_hierarchy case), and it would be a change in behaviour.
-
-I'm not nearly as enthusiastic for my patch as Michal is: I really
-would prefer a five-liner from you or from Zefan.  I do think (and
-this is probably what Michal likes) that my patch leaves MEMCG_SWAP
-less surprising, and less likely to cause similar trouble in future;
-but it's not how Kame chose to implement it, and it has those nasty
-swap_cgroup array scans adding to the overhead of memcg removal -
-we can layer on several different hacks/optimizations to reduce that
-overhead, but I think it's debatable whether that will end up as an
-improvement over what we have had until now.
-
-Hugh
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
