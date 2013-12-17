@@ -1,94 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id CC99F6B0037
-	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 20:14:47 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id fb1so3707103pad.18
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 17:14:47 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id qz9si10294208pab.307.2013.12.16.17.14.45
+Received: from mail-yh0-f51.google.com (mail-yh0-f51.google.com [209.85.213.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C1EF6B0037
+	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 20:26:40 -0500 (EST)
+Received: by mail-yh0-f51.google.com with SMTP id c41so4420684yho.24
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 17:26:40 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id t39si14172613yhp.100.2013.12.16.17.26.38
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 16 Dec 2013 17:14:45 -0800 (PST)
-Message-ID: <52AFA331.9070108@oracle.com>
-Date: Mon, 16 Dec 2013 20:04:49 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+        Mon, 16 Dec 2013 17:26:39 -0800 (PST)
+Message-ID: <52AFA845.3060109@oracle.com>
+Date: Tue, 17 Dec 2013 09:26:29 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Subject: mm: kernel BUG at mm/mlock.c:82!
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 1/3] mm: munlock: fix a bug where THP tail page is encountered
+References: <52AE07B4.4020203@oracle.com> <1387188856-21027-1-git-send-email-vbabka@suse.cz> <1387188856-21027-2-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1387188856-21027-2-git-send-email-vbabka@suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Michel Lespinasse <walken@google.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, joern@logfs.org, Michel Lespinasse <walken@google.com>, stable@kernel.org
 
-Hi all,
+On 12/16/2013 06:14 PM, Vlastimil Babka wrote:
+> Since commit ff6a6da60 ("mm: accelerate munlock() treatment of THP pages")
+> munlock skips tail pages of a munlocked THP page. However, when the head page
+> already has PageMlocked unset, it will not skip the tail pages.
+> 
+> Commit 7225522bb ("mm: munlock: batch non-THP page isolation and
+> munlock+putback using pagevec") has added a PageTransHuge() check which
+> contains VM_BUG_ON(PageTail(page)). Sasha Levin found this triggered using
+> trinity, on the first tail page of a THP page without PageMlocked flag.
+> 
+> This patch fixes the issue by skipping tail pages also in the case when
+> PageMlocked flag is unset. There is still a possibility of race with THP page
+> split between clearing PageMlocked and determining how many pages to skip.
+> The race might result in former tail pages not being skipped, which is however
+> no longer a bug, as during the skip the PageTail flags are cleared.
+> 
+> However this race also affects correctness of NR_MLOCK accounting, which is to
+> be fixed in a separate patch.
+> 
+> Cc: stable@kernel.org
+> Reported-by: Sasha Levin <sasha.levin@oracle.com>
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> ---
+>  mm/mlock.c | 24 ++++++++++++++++++------
+>  1 file changed, 18 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/mlock.c b/mm/mlock.c
+> index d480cd6..3847b13 100644
+> --- a/mm/mlock.c
+> +++ b/mm/mlock.c
+> @@ -148,21 +148,30 @@ static void __munlock_isolation_failed(struct page *page)
+>   */
+>  unsigned int munlock_vma_page(struct page *page)
+>  {
+> -	unsigned int page_mask = 0;
+> +	unsigned int nr_pages;
+>  
+>  	BUG_ON(!PageLocked(page));
+>  
+>  	if (TestClearPageMlocked(page)) {
+> -		unsigned int nr_pages = hpage_nr_pages(page);
+> +		nr_pages = hpage_nr_pages(page);
 
-While fuzzing with trinity inside a KVM tools guest running latest -next kernel, I've
-stumbled on the following spew.
+This line can be put before the if.
 
-Codewise, it's pretty straightforward. In try_to_unmap_cluster():
+>  		mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
+> -		page_mask = nr_pages - 1;
+>  		if (!isolate_lru_page(page))
+>  			__munlock_isolated_page(page);
+>  		else
+>  			__munlock_isolation_failed(page);
+> +	} else {
+> +		nr_pages = hpage_nr_pages(page);
+>  	}
+>  
+> -	return page_mask;
+> +	/*
+> +	 * Regardless of the original PageMlocked flag, we determine nr_pages
+> +	 * after touching the flag. This leaves a possible race with a THP page
+> +	 * split, such that a whole THP page was munlocked, but nr_pages == 1.
+> +	 * Returning a smaller mask due to that is OK, the worst that can
+> +	 * happen is subsequent useless scanning of the former tail pages.
+> +	 * The NR_MLOCK accounting can however become broken.
+> +	 */
+> +	return nr_pages - 1;
+>  }
 
-                 page = vm_normal_page(vma, address, *pte);
-                 BUG_ON(!page || PageAnon(page));
+Personally, I'd prefer to make munlock_vma_page() return void.
+If not please add some comment about the return value in this function's
+description also.
 
-                 if (locked_vma) {
-                         mlock_vma_page(page);   /* no-op if already mlocked */
-                         if (page == check_page)
-                                 ret = SWAP_MLOCK;
-                         continue;       /* don't unmap */
-                 }
+>  
+>  /**
+> @@ -440,7 +449,8 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
+>  
+>  	while (start < end) {
+>  		struct page *page = NULL;
+> -		unsigned int page_mask, page_increm;
+> +		unsigned int page_mask;
+> +		unsigned long page_increm;
+>  		struct pagevec pvec;
+>  		struct zone *zone;
+>  		int zoneid;
+> @@ -490,7 +500,9 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
+>  				goto next;
+>  			}
+>  		}
+> -		page_increm = 1 + (~(start >> PAGE_SHIFT) & page_mask);
+> +		/* It's a bug to munlock in the middle of a THP page */
+> +		VM_BUG_ON((start >> PAGE_SHIFT) & page_mask);
+> +		page_increm = 1 + page_mask;
+>  		start += page_increm * PAGE_SIZE;
+>  next:
+>  		cond_resched();
+> 
 
-And the BUG triggers once we see that 'page' isn't locked.
-
-I couldn't find anything that recently changed in those codepaths, so I'm a bit lost.
-
-[  253.869145] kernel BUG at mm/mlock.c:82!
-[  253.869549] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[  253.870098] Dumping ftrace buffer:
-[  253.870098]    (ftrace buffer empty)
-[  253.870098] Modules linked in:
-[  253.870098] CPU: 10 PID: 9162 Comm: trinity-child75 Tainted: G        W    3.13.0-rc
-4-next-20131216-sasha-00011-g5f105ec-dirty #4137
-[  253.873310] task: ffff8800c98cb000 ti: ffff8804d34e8000 task.ti: ffff8804d34e8000
-[  253.873310] RIP: 0010:[<ffffffff81281f28>]  [<ffffffff81281f28>] mlock_vma_page+0x18
-/0xc0
-[  253.873310] RSP: 0000:ffff8804d34e99e8  EFLAGS: 00010246
-[  253.873310] RAX: 006fffff8038002c RBX: ffffea00474944c0 RCX: ffff880807636000
-[  253.873310] RDX: ffffea0000000000 RSI: 00007f17a9bca000 RDI: ffffea00474944c0
-[  253.873310] RBP: ffff8804d34e99f8 R08: ffff880807020000 R09: 0000000000000000
-[  253.873310] R10: 0000000000000001 R11: 0000000000002000 R12: 00007f17a9bca000
-[  253.873310] R13: ffffea00474944c0 R14: 00007f17a9be0000 R15: ffff880807020000
-[  253.873310] FS:  00007f17aa31a700(0000) GS:ffff8801c9c00000(0000) knlGS:000000000000
-0000
-[  253.873310] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[  253.873310] CR2: 00007f17a94fa000 CR3: 00000004d3b02000 CR4: 00000000000006e0
-[  253.873310] DR0: 00007f17a74ca000 DR1: 0000000000000000 DR2: 0000000000000000
-[  253.873310] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
-[  253.873310] Stack:
-[  253.873310]  0000000b3de28067 ffff880b3de28e50 ffff8804d34e9aa8 ffffffff8128bc31
-[  253.873310]  0000000000000301 ffffea0011850220 ffff8809a4039000 ffffea0011850238
-[  253.873310]  ffff8804d34e9aa8 ffff880807636060 0000000000000001 ffff880807636348
-[  253.873310] Call Trace:
-[  253.873310]  [<ffffffff8128bc31>] try_to_unmap_cluster+0x1c1/0x340
-[  253.873310]  [<ffffffff8128c60a>] try_to_unmap_file+0x20a/0x2e0
-[  253.873310]  [<ffffffff8128c7b3>] try_to_unmap+0x73/0x90
-[  253.873310]  [<ffffffff812b526d>] __unmap_and_move+0x18d/0x250
-[  253.873310]  [<ffffffff812b53e9>] unmap_and_move+0xb9/0x180
-[  253.873310]  [<ffffffff812b559b>] migrate_pages+0xeb/0x2f0
-[  253.873310]  [<ffffffff812a0660>] ? queue_pages_pte_range+0x1a0/0x1a0
-[  253.873310]  [<ffffffff812a193c>] migrate_to_node+0x9c/0xc0
-[  253.873310]  [<ffffffff812a30b8>] do_migrate_pages+0x1b8/0x240
-[  253.873310]  [<ffffffff812a3456>] SYSC_migrate_pages+0x316/0x380
-[  253.873310]  [<ffffffff812a31ec>] ? SYSC_migrate_pages+0xac/0x380
-[  253.873310]  [<ffffffff811763c6>] ? vtime_account_user+0x96/0xb0
-[  253.873310]  [<ffffffff812a34ce>] SyS_migrate_pages+0xe/0x10
-[  253.873310]  [<ffffffff843c4990>] tracesys+0xdd/0xe2
-[  253.873310] Code: 0f 1f 00 65 48 ff 04 25 10 25 1d 00 48 83 c4 08 5b c9 c3 55 48 89 e5 53 48 83 
-ec 08 66 66 66 66 90 48 8b 07 48 89 fb a8 01 75 10 <0f> 0b 66 0f 1f 44 00 00 eb fe 66 0f 1f 44 00 00 
-f0 0f ba 2f 15
-[  253.873310] RIP  [<ffffffff81281f28>] mlock_vma_page+0x18/0xc0
-[  253.873310]  RSP <ffff8804d34e99e8>
-[  253.904194] ---[ end trace be59c4a7f8edab3f ]---
+-- 
+Regards,
+-Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
