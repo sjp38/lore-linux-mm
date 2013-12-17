@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D6A66B003B
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 01:11:42 -0500 (EST)
-Received: by mail-pd0-f170.google.com with SMTP id g10so6401089pdj.1
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 22:11:42 -0800 (PST)
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 7491C6B003C
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 01:11:43 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id z10so6348497pdj.30
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 22:11:43 -0800 (PST)
 Received: from LGEAMRELO02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id ek3si10827702pbd.295.2013.12.16.22.11.39
+        by mx.google.com with ESMTP id sa6si10874967pbb.23.2013.12.16.22.11.40
         for <linux-mm@kvack.org>;
-        Mon, 16 Dec 2013 22:11:40 -0800 (PST)
+        Mon, 16 Dec 2013 22:11:41 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH 3/5] zsmalloc: add copyright
-Date: Tue, 17 Dec 2013 15:12:01 +0900
-Message-Id: <1387260723-15817-4-git-send-email-minchan@kernel.org>
+Subject: [PATCH 4/5] zram: add zram maintainers
+Date: Tue, 17 Dec 2013 15:12:02 +0900
+Message-Id: <1387260723-15817-5-git-send-email-minchan@kernel.org>
 In-Reply-To: <1387260723-15817-1-git-send-email-minchan@kernel.org>
 References: <1387260723-15817-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,39 +19,34 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Nitin Gupta <ngupta@vflare.org>, linux-kernel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>
 
-Add my copyright to the zsmalloc source code which I maintain.
+This patch adds maintainer information for zram into the MAINTAINERS
+file.
 
 Cc: Nitin Gupta <ngupta@vflare.org>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- include/linux/zsmalloc.h |    1 +
- mm/zsmalloc.c            |    1 +
- 2 files changed, 2 insertions(+)
+ MAINTAINERS |    8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-diff --git a/include/linux/zsmalloc.h b/include/linux/zsmalloc.h
-index c2eb174b97ee..e44d634e7fb7 100644
---- a/include/linux/zsmalloc.h
-+++ b/include/linux/zsmalloc.h
-@@ -2,6 +2,7 @@
-  * zsmalloc memory allocator
-  *
-  * Copyright (C) 2011  Nitin Gupta
-+ * Copyright (C) 2012, 2013 Minchan Kim
-  *
-  * This code is released using a dual license strategy: BSD/GPL
-  * You can choose the license that better fits your requirements.
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 0202716ff6c2..faa6fd801110 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -2,6 +2,7 @@
-  * zsmalloc memory allocator
-  *
-  * Copyright (C) 2011  Nitin Gupta
-+ * Copyright (C) 2012, 2013 Minchan Kim
-  *
-  * This code is released using a dual license strategy: BSD/GPL
-  * You can choose the license that better fits your requirements.
+diff --git a/MAINTAINERS b/MAINTAINERS
+index d077c89b0440..7b32aa4b5f04 100644
+--- a/MAINTAINERS
++++ b/MAINTAINERS
+@@ -9692,6 +9692,14 @@ T:	Mercurial http://linuxtv.org/hg/v4l-dvb
+ S:	Odd Fixes
+ F:	drivers/media/pci/zoran/
+ 
++ZRAM COMPRESSED RAM BLOCK DEVICE DRVIER
++M:	Minchan Kim <minchan@kernel.org>
++M:	Nitin Gupta <ngupta@vflare.org>
++L:	linux-kernel@vger.kernel.org
++S:	Maintained
++F:	drivers/block/zram/
++F:	Documentation/blockdev/zram.txt
++
+ ZS DECSTATION Z85C30 SERIAL DRIVER
+ M:	"Maciej W. Rozycki" <macro@linux-mips.org>
+ S:	Maintained
 -- 
 1.7.9.5
 
