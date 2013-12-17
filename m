@@ -1,210 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f170.google.com (mail-ea0-f170.google.com [209.85.215.170])
-	by kanga.kvack.org (Postfix) with ESMTP id EBD0F6B0035
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 08:00:06 -0500 (EST)
-Received: by mail-ea0-f170.google.com with SMTP id k10so2898192eaj.1
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 05:00:06 -0800 (PST)
+Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
+	by kanga.kvack.org (Postfix) with ESMTP id CF0526B0035
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 08:06:00 -0500 (EST)
+Received: by mail-ea0-f180.google.com with SMTP id f15so2886818eak.11
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 05:06:00 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 5si5099285eei.18.2013.12.17.05.00.05
+        by mx.google.com with ESMTPS id t6si4921560eeh.108.2013.12.17.05.05.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 17 Dec 2013 05:00:06 -0800 (PST)
-Message-ID: <52B04AD2.2070406@suse.cz>
-Date: Tue, 17 Dec 2013 14:00:02 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Tue, 17 Dec 2013 05:05:59 -0800 (PST)
+Date: Tue, 17 Dec 2013 14:05:55 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: 3.13-rc breaks MEMCG_SWAP
+Message-ID: <20131217130555.GC28991@dhcp22.suse.cz>
+References: <alpine.LNX.2.00.1312160025200.2785@eggly.anvils>
+ <52AEC989.4080509@huawei.com>
+ <20131216095345.GB23582@dhcp22.suse.cz>
+ <20131216104042.GC23582@dhcp22.suse.cz>
+ <20131216163530.GH32509@htj.dyndns.org>
+ <20131216171937.GG26797@dhcp22.suse.cz>
+ <20131216172143.GJ32509@htj.dyndns.org>
+ <alpine.LNX.2.00.1312161718001.2037@eggly.anvils>
+ <52AFC163.5010507@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] mm: munlock: fix a bug where THP tail page is encountered
-References: <52AE07B4.4020203@oracle.com> <1387188856-21027-1-git-send-email-vbabka@suse.cz> <1387188856-21027-2-git-send-email-vbabka@suse.cz> <52AFA845.3060109@oracle.com>
-In-Reply-To: <52AFA845.3060109@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52AFC163.5010507@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <bob.liu@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, joern@logfs.org, Michel Lespinasse <walken@google.com>, stable@kernel.org
+To: Li Zefan <lizefan@huawei.com>
+Cc: Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 12/17/2013 02:26 AM, Bob Liu wrote:
-> On 12/16/2013 06:14 PM, Vlastimil Babka wrote:
->> Since commit ff6a6da60 ("mm: accelerate munlock() treatment of THP pages")
->> munlock skips tail pages of a munlocked THP page. However, when the head page
->> already has PageMlocked unset, it will not skip the tail pages.
->>
->> Commit 7225522bb ("mm: munlock: batch non-THP page isolation and
->> munlock+putback using pagevec") has added a PageTransHuge() check which
->> contains VM_BUG_ON(PageTail(page)). Sasha Levin found this triggered using
->> trinity, on the first tail page of a THP page without PageMlocked flag.
->>
->> This patch fixes the issue by skipping tail pages also in the case when
->> PageMlocked flag is unset. There is still a possibility of race with THP page
->> split between clearing PageMlocked and determining how many pages to skip.
->> The race might result in former tail pages not being skipped, which is however
->> no longer a bug, as during the skip the PageTail flags are cleared.
->>
->> However this race also affects correctness of NR_MLOCK accounting, which is to
->> be fixed in a separate patch.
->>
->> Cc: stable@kernel.org
->> Reported-by: Sasha Levin <sasha.levin@oracle.com>
->> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
->> ---
->>   mm/mlock.c | 24 ++++++++++++++++++------
->>   1 file changed, 18 insertions(+), 6 deletions(-)
->>
->> diff --git a/mm/mlock.c b/mm/mlock.c
->> index d480cd6..3847b13 100644
->> --- a/mm/mlock.c
->> +++ b/mm/mlock.c
->> @@ -148,21 +148,30 @@ static void __munlock_isolation_failed(struct page *page)
->>    */
->>   unsigned int munlock_vma_page(struct page *page)
->>   {
->> -	unsigned int page_mask = 0;
->> +	unsigned int nr_pages;
->>   
->>   	BUG_ON(!PageLocked(page));
->>   
->>   	if (TestClearPageMlocked(page)) {
->> -		unsigned int nr_pages = hpage_nr_pages(page);
->> +		nr_pages = hpage_nr_pages(page);
+On Tue 17-12-13 11:13:39, Li Zefan wrote:
+[...]
+> From: Li Zefan <lizefan@huawei.com>
+> Date: Tue, 17 Dec 2013 10:45:09 +0800
+> Subject: [PATCH] cgroup: don't recycle cgroup id until all csses' have been destroyed
 > 
-> This line can be put before the if.
-
-But that would just "help" the race so that it thinks it munlocked a whole THP page
-which however got split before the flag was cleared. If I'm correct about patch 3,
-then this is moot anyway.
- 
->>   		mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
->> -		page_mask = nr_pages - 1;
->>   		if (!isolate_lru_page(page))
->>   			__munlock_isolated_page(page);
->>   		else
->>   			__munlock_isolation_failed(page);
->> +	} else {
->> +		nr_pages = hpage_nr_pages(page);
->>   	}
->>   
->> -	return page_mask;
->> +	/*
->> +	 * Regardless of the original PageMlocked flag, we determine nr_pages
->> +	 * after touching the flag. This leaves a possible race with a THP page
->> +	 * split, such that a whole THP page was munlocked, but nr_pages == 1.
->> +	 * Returning a smaller mask due to that is OK, the worst that can
->> +	 * happen is subsequent useless scanning of the former tail pages.
->> +	 * The NR_MLOCK accounting can however become broken.
->> +	 */
->> +	return nr_pages - 1;
->>   }
+> Hugh reported this bug:
 > 
-> Personally, I'd prefer to make munlock_vma_page() return void.
+> > CONFIG_MEMCG_SWAP is broken in 3.13-rc.  Try something like this:
+> >
+> > mkdir -p /tmp/tmpfs /tmp/memcg
+> > mount -t tmpfs -o size=1G tmpfs /tmp/tmpfs
+> > mount -t cgroup -o memory memcg /tmp/memcg
+> > mkdir /tmp/memcg/old
+> > echo 512M >/tmp/memcg/old/memory.limit_in_bytes
+> > echo $$ >/tmp/memcg/old/tasks
+> > cp /dev/zero /tmp/tmpfs/zero 2>/dev/null
+> > echo $$ >/tmp/memcg/tasks
+> > rmdir /tmp/memcg/old
+> > sleep 1	# let rmdir work complete
+> > mkdir /tmp/memcg/new
+> > umount /tmp/tmpfs
+> > dmesg | grep WARNING
+> > rmdir /tmp/memcg/new
+> > umount /tmp/memcg
+> >
+> > Shows lots of WARNING: CPU: 1 PID: 1006 at kernel/res_counter.c:91
+> >                            res_counter_uncharge_locked+0x1f/0x2f()
+> >
+> > Breakage comes from 34c00c319ce7 ("memcg: convert to use cgroup id").
+> >
+> > The lifetime of a cgroup id is different from the lifetime of the
+> > css id it replaced: memsw's css_get()s do nothing to hold on to the
+> > old cgroup id, it soon gets recycled to a new cgroup, which then
+> > mysteriously inherits the old's swap, without any charge for it.
+> 
+> Instead of removing cgroup id right after all the csses have been
+> offlined, we should do that after csses have been destroyed.
+> 
+> To make sure an invalid css pointer won't be returned after the css
+> is destroyed, make sure css_from_id() returns NULL in this case.
 
-I would prefer that too but patch 3 needs it again, so I left it as it is here.
-As for comment, here's a revised patch that adds it:
+OK, so this will postpone idr_remove to css_free and until then
+mem_cgroup_lookup finds a correct memcg. This will work as well.
+It is basically the same thing we had with css_id AFAIR.
 
-------8<------
-From: Vlastimil Babka <vbabka@suse.cz>
-Date: Fri, 13 Dec 2013 14:25:21 +0100
-Subject: [PATCH 1/3] mm: munlock: fix a bug where THP tail page is encountered
+Originally I thought this wouldn't be possible because of the comment
+above idr_remove for some reason.
 
-Since commit ff6a6da60 ("mm: accelerate munlock() treatment of THP pages")
-munlock skips tail pages of a munlocked THP page. However, when the head page
-already has PageMlocked unset, it will not skip the tail pages.
+> Reported-by: Hugh Dickins <hughd@google.com>
+> Signed-off-by: Li Zefan <lizefan@huawei.com>
 
-Commit 7225522bb ("mm: munlock: batch non-THP page isolation and
-munlock+putback using pagevec") has added a PageTransHuge() check which
-contains VM_BUG_ON(PageTail(page)). Sasha Levin found this triggered using
-trinity, on the first tail page of a THP page without PageMlocked flag.
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-This patch fixes the issue by skipping tail pages also in the case when
-PageMlocked flag is unset. There is still a possibility of race with THP page
-split between clearing PageMlocked and determining how many pages to skip.
-The race might result in former tail pages not being skipped, which is however
-no longer a bug, as during the skip the PageTail flags are cleared.
+> ---
+>  kernel/cgroup.c | 18 ++++++++++--------
+>  1 file changed, 10 insertions(+), 8 deletions(-)
+> 
+> diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+> index c36d906..769b5bb 100644
+> --- a/kernel/cgroup.c
+> +++ b/kernel/cgroup.c
+> @@ -868,6 +868,15 @@ static void cgroup_diput(struct dentry *dentry, struct inode *inode)
+>  		struct cgroup *cgrp = dentry->d_fsdata;
+>  
+>  		BUG_ON(!(cgroup_is_dead(cgrp)));
+> +
+> +		/*
+> +		 * We should remove the cgroup object from idr before its
+> +		 * grace period starts, so we won't be looking up a cgroup
+> +		 * while the cgroup is being freed.
+> +		 */
+> +		idr_remove(&cgrp->root->cgroup_idr, cgrp->id);
+> +		cgrp->id = -1;
+> +
+>  		call_rcu(&cgrp->rcu_head, cgroup_free_rcu);
+>  	} else {
+>  		struct cfent *cfe = __d_cfe(dentry);
+> @@ -4104,6 +4113,7 @@ static void css_release(struct percpu_ref *ref)
+>  	struct cgroup_subsys_state *css =
+>  		container_of(ref, struct cgroup_subsys_state, refcnt);
+>  
+> +	rcu_assign_pointer(css->cgroup->subsys[css->ss->subsys_id], NULL);
+>  	call_rcu(&css->rcu_head, css_free_rcu_fn);
+>  }
+>  
+> @@ -4545,14 +4555,6 @@ static void cgroup_destroy_css_killed(struct cgroup *cgrp)
+>  	/* delete this cgroup from parent->children */
+>  	list_del_rcu(&cgrp->sibling);
+>  
+> -	/*
+> -	 * We should remove the cgroup object from idr before its grace
+> -	 * period starts, so we won't be looking up a cgroup while the
+> -	 * cgroup is being freed.
+> -	 */
+> -	idr_remove(&cgrp->root->cgroup_idr, cgrp->id);
+> -	cgrp->id = -1;
+> -
+>  	dput(d);
+>  
+>  	set_bit(CGRP_RELEASABLE, &parent->flags);
+> -- 
+> 1.8.0.2
+> 
+> 
+> 
+> 
 
-However this race also affects correctness of NR_MLOCK accounting, which is to
-be fixed in a separate patch.
-
-Cc: stable@kernel.org
-Reported-by: Sasha Levin <sasha.levin@oracle.com>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/mlock.c | 29 ++++++++++++++++++++++-------
- 1 file changed, 22 insertions(+), 7 deletions(-)
-
-diff --git a/mm/mlock.c b/mm/mlock.c
-index d480cd6..c59c420 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -133,7 +133,10 @@ static void __munlock_isolation_failed(struct page *page)
- 
- /**
-  * munlock_vma_page - munlock a vma page
-- * @page - page to be unlocked
-+ * @page - page to be unlocked, either a normal page or THP page head
-+ *
-+ * returns the size of the page as a page mask (0 for normal page,
-+ *         HPAGE_PMD_NR - 1 for THP head page)
-  *
-  * called from munlock()/munmap() path with page supposedly on the LRU.
-  * When we munlock a page, because the vma where we found the page is being
-@@ -148,21 +151,30 @@ static void __munlock_isolation_failed(struct page *page)
-  */
- unsigned int munlock_vma_page(struct page *page)
- {
--	unsigned int page_mask = 0;
-+	unsigned int nr_pages;
- 
- 	BUG_ON(!PageLocked(page));
- 
- 	if (TestClearPageMlocked(page)) {
--		unsigned int nr_pages = hpage_nr_pages(page);
-+		nr_pages = hpage_nr_pages(page);
- 		mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
--		page_mask = nr_pages - 1;
- 		if (!isolate_lru_page(page))
- 			__munlock_isolated_page(page);
- 		else
- 			__munlock_isolation_failed(page);
-+	} else {
-+		nr_pages = hpage_nr_pages(page);
- 	}
- 
--	return page_mask;
-+	/*
-+	 * Regardless of the original PageMlocked flag, we determine nr_pages
-+	 * after touching the flag. This leaves a possible race with a THP page
-+	 * split, such that a whole THP page was munlocked, but nr_pages == 1.
-+	 * Returning a smaller mask due to that is OK, the worst that can
-+	 * happen is subsequent useless scanning of the former tail pages.
-+	 * The NR_MLOCK accounting can however become broken.
-+	 */
-+	return nr_pages - 1;
- }
- 
- /**
-@@ -440,7 +452,8 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
- 
- 	while (start < end) {
- 		struct page *page = NULL;
--		unsigned int page_mask, page_increm;
-+		unsigned int page_mask;
-+		unsigned long page_increm;
- 		struct pagevec pvec;
- 		struct zone *zone;
- 		int zoneid;
-@@ -490,7 +503,9 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
- 				goto next;
- 			}
- 		}
--		page_increm = 1 + (~(start >> PAGE_SHIFT) & page_mask);
-+		/* It's a bug to munlock in the middle of a THP page */
-+		VM_BUG_ON((start >> PAGE_SHIFT) & page_mask);
-+		page_increm = 1 + page_mask;
- 		start += page_increm * PAGE_SIZE;
- next:
- 		cond_resched();
 -- 
-1.8.4
-
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
