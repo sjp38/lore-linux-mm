@@ -1,66 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f54.google.com (mail-bk0-f54.google.com [209.85.214.54])
-	by kanga.kvack.org (Postfix) with ESMTP id CCED96B003D
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 10:43:59 -0500 (EST)
-Received: by mail-bk0-f54.google.com with SMTP id v16so2925306bkz.27
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 07:43:59 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id dg6si5497007bkc.330.2013.12.17.07.43.58
+Received: from mail-ea0-f182.google.com (mail-ea0-f182.google.com [209.85.215.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C3E16B004D
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 10:45:52 -0500 (EST)
+Received: by mail-ea0-f182.google.com with SMTP id a15so2970955eae.41
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 07:45:51 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f8si5160578eep.99.2013.12.17.07.45.51
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 17 Dec 2013 07:43:58 -0800 (PST)
-Date: Tue, 17 Dec 2013 10:43:51 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 6/7] mm: page_alloc: Only account batch allocations
- requests that are eligible
-Message-ID: <20131217154351.GD21724@cmpxchg.org>
-References: <1386943807-29601-1-git-send-email-mgorman@suse.de>
- <1386943807-29601-7-git-send-email-mgorman@suse.de>
- <20131216205237.GB21724@cmpxchg.org>
- <20131217112007.GA11295@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131217112007.GA11295@suse.de>
+        Tue, 17 Dec 2013 07:45:51 -0800 (PST)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [RFC] memcg: some charge path cleanups + css offline vs. charge race fix
+Date: Tue, 17 Dec 2013 16:45:25 +0100
+Message-Id: <1387295130-19771-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Tue, Dec 17, 2013 at 11:20:07AM +0000, Mel Gorman wrote:
-> On Mon, Dec 16, 2013 at 03:52:37PM -0500, Johannes Weiner wrote:
-> > On Fri, Dec 13, 2013 at 02:10:06PM +0000, Mel Gorman wrote:
-> > > Not signed off. Johannes, was the intent really to decrement the batch
-> > > counts regardless of whether the policy was being enforced or not?
-> > 
-> > Yes.  Bursts of allocations for which the policy does not get enforced
-> > will still create memory pressure and affect cache aging on a given
-> > node.  So even if we only distribute page cache, we want to distribute
-> > it in a way that all allocations on the eligible zones equal out.
-> 
-> This means that allocations for page table pages affects the distribution of
-> page cache pages. An adverse workload could time when it faults anonymous
-> pages (to allocate anon and page table pages) in batch sequences and then
-> access files to force page cache pages to be allocated from a single node.
-> 
-> I think I know what your response will be. It will be that the utilisation of
-> the zone for page table pages and anon pages means that you want more page
-> cache pages to be allocated from the other zones so the reclaim pressure
-> is still more or less even. If this is the case or there is another reason
-> then it could have done with a comment because it's a subtle detail.
+Hi,
+the first three patches are an attempt to clean up memcg charging path a
+bit. I am already fed up about all the different combinations of mm vs.
+memcgp parameters so I have split up the function into two parts:
+	* charge mm
+	* charge a known memcg
+More details are in the patch 1. I think that this makes more sense.
+It was also quite surprising that just the code reordering without any
+functional changes made the code smaller by 600B.
 
-Yes, that was the idea, that the cache placement compensates for pages
-that still are always allocated on the preferred zone first, so that
-the end result is approximately as if round-robin had been applied to
-everybody.
+Second patch is just a trivial follow up, shouldn't be controversial.
 
-This should be documented as part of the patch that first diverges
-between the allocations that are counted and the allocations that are
-round-robined:
+The third one tries to remove an exception (bypass) path which was there
+from the early days but it never made any sense to me. It always made me
+confused so I would more than happy to ditch it.
 
-  mm: page_alloc: exclude unreclaimable allocations from zone fairness policy
+Finally patch#4 addresses memcg charge vs. memcg_offline race + #5
+reverts the workaround which has been merged as a first aid.
 
-I'm updating my tree.
+What do you think?
+
+Based on the current mmotm (mmotm-2013-12-16-14-29-6)
+Michal Hocko (5):
+      memcg: cleanup charge routines
+      memcg: move stock charge into __mem_cgroup_try_charge_memcg
+      memcg: mm == NULL is not allowed for mem_cgroup_try_charge_mm
+      memcg: make sure that memcg is not offline when charging
+      Revert "mm: memcg: fix race condition between memcg teardown and swapin"
+
+Diffstat:
+ mm/memcontrol.c | 361 +++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 185 insertions(+), 176 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
