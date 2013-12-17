@@ -1,55 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f171.google.com (mail-ea0-f171.google.com [209.85.215.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B32E6B0035
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 06:20:11 -0500 (EST)
-Received: by mail-ea0-f171.google.com with SMTP id h10so2793400eak.16
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 03:20:11 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a9si4920392eew.138.2013.12.17.03.20.10
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id C18576B0035
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 06:59:12 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id fa1so4349574pad.17
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 03:59:12 -0800 (PST)
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+        by mx.google.com with ESMTPS id sj5si11608023pab.81.2013.12.17.03.59.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 17 Dec 2013 03:20:10 -0800 (PST)
-Date: Tue, 17 Dec 2013 11:20:07 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 6/7] mm: page_alloc: Only account batch allocations
- requests that are eligible
-Message-ID: <20131217112007.GA11295@suse.de>
-References: <1386943807-29601-1-git-send-email-mgorman@suse.de>
- <1386943807-29601-7-git-send-email-mgorman@suse.de>
- <20131216205237.GB21724@cmpxchg.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 17 Dec 2013 03:59:11 -0800 (PST)
+Received: by mail-pb0-f50.google.com with SMTP id rr13so6857810pbb.23
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 03:59:10 -0800 (PST)
+Message-ID: <52B03C84.1000600@linaro.org>
+Date: Tue, 17 Dec 2013 19:59:00 +0800
+From: Alex Shi <alex.shi@linaro.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20131216205237.GB21724@cmpxchg.org>
+Subject: Re: [PATCH 2/3] x86: mm: Change tlb_flushall_shift for IvyBridge
+References: <1386849309-22584-1-git-send-email-mgorman@suse.de> <1386849309-22584-3-git-send-email-mgorman@suse.de> <20131212131309.GD5806@gmail.com> <52A9BC3A.7010602@linaro.org> <20131212141147.GB17059@gmail.com> <52AA5C92.7030207@linaro.org> <52AA6CB9.60302@linaro.org> <20131214141902.GA16438@laptop.programming.kicks-ass.net> <20131214142741.GB16438@laptop.programming.kicks-ass.net> <20131216135901.GA6171@gmail.com>
+In-Reply-To: <20131216135901.GA6171@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>
+Cc: Mel Gorman <mgorman@suse.de>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Fengguang Wu <fengguang.wu@intel.com>
 
-On Mon, Dec 16, 2013 at 03:52:37PM -0500, Johannes Weiner wrote:
-> On Fri, Dec 13, 2013 at 02:10:06PM +0000, Mel Gorman wrote:
-> > Not signed off. Johannes, was the intent really to decrement the batch
-> > counts regardless of whether the policy was being enforced or not?
+On 12/16/2013 09:59 PM, Ingo Molnar wrote:
+> So if the kbuild speedup of 1-2% is true and reproducable then that 
+> might be worth doing.
+
+I have a Intel desktop and need it for daily works. Wonder if Intel guys
+like to have a try? I assume the patch is already in Fengguang's testing
+system.
 > 
-> Yes.  Bursts of allocations for which the policy does not get enforced
-> will still create memory pressure and affect cache aging on a given
-> node.  So even if we only distribute page cache, we want to distribute
-> it in a way that all allocations on the eligible zones equal out.
+> Building the kernel is obviously a prime workload - and given that the 
+> kernel is active only about 10% of the time for a typical kernel 
+> build, a 1-2% speedup means a 10-20% speedup in kernel performance 
+> (which sounds a bit too good at first glance).
 
-This means that allocations for page table pages affects the distribution of
-page cache pages. An adverse workload could time when it faults anonymous
-pages (to allocate anon and page table pages) in batch sequences and then
-access files to force page cache pages to be allocated from a single node.
-
-I think I know what your response will be. It will be that the utilisation of
-the zone for page table pages and anon pages means that you want more page
-cache pages to be allocated from the other zones so the reclaim pressure
-is still more or less even. If this is the case or there is another reason
-then it could have done with a comment because it's a subtle detail.
-
+Maybe a extra time tlb flush causes more tlb refill that cost much user
+space time.
 -- 
-Mel Gorman
-SUSE Labs
+Thanks
+    Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
