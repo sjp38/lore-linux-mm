@@ -1,50 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A5F36B0035
-	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 22:08:25 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id r10so6177116pdi.24
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 19:08:24 -0800 (PST)
-Received: from m59-178.qiye.163.com (m59-178.qiye.163.com. [123.58.178.59])
-        by mx.google.com with ESMTP id im7si10510534pbd.221.2013.12.16.19.08.22
-        for <linux-mm@kvack.org>;
-        Mon, 16 Dec 2013 19:08:23 -0800 (PST)
-Message-ID: <52AFC020.10403@ubuntukylin.com>
-Date: Tue, 17 Dec 2013 11:08:16 +0800
-From: Li Wang <liwang@ubuntukylin.com>
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 4ADD76B0035
+	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 22:14:18 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id z10so6195705pdj.2
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 19:14:17 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id ty3si10551805pbc.47.2013.12.16.19.14.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 16 Dec 2013 19:14:16 -0800 (PST)
+Message-ID: <52AFC163.5010507@huawei.com>
+Date: Tue, 17 Dec 2013 11:13:39 +0800
+From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/5] VFS: Directory level cache cleaning
-References: <cover.1387205337.git.liwang@ubuntukylin.com> <CAM_iQpUSX1yX9SMvUnbwZ7UkaBMUheOEiZNaSb4m8gWBQzzGDQ@mail.gmail.com>
-In-Reply-To: <CAM_iQpUSX1yX9SMvUnbwZ7UkaBMUheOEiZNaSb4m8gWBQzzGDQ@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: 3.13-rc breaks MEMCG_SWAP
+References: <alpine.LNX.2.00.1312160025200.2785@eggly.anvils> <52AEC989.4080509@huawei.com> <20131216095345.GB23582@dhcp22.suse.cz> <20131216104042.GC23582@dhcp22.suse.cz> <20131216163530.GH32509@htj.dyndns.org> <20131216171937.GG26797@dhcp22.suse.cz> <20131216172143.GJ32509@htj.dyndns.org> <alpine.LNX.2.00.1312161718001.2037@eggly.anvils>
+In-Reply-To: <alpine.LNX.2.00.1312161718001.2037@eggly.anvils>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cong Wang <xiyou.wangcong@gmail.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Sage Weil <sage@inktank.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Yunchuan Wen <yunchuanwen@ubuntukylin.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA
+ Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-As far as we know, fadvise(DONTNEED) does not support metadata
-cache cleaning. We think that is desirable under massive small files
-situations. Another thing is that do people accept the behavior
-of feeding a directory fd to fadvise will recusively clean all
-page caches of files inside that directory?
+On 2013/12/17 9:41, Hugh Dickins wrote:
+> On Mon, 16 Dec 2013, Tejun Heo wrote:
+>> On Mon, Dec 16, 2013 at 06:19:37PM +0100, Michal Hocko wrote:
+>>> I have to think about it some more (the brain is not working anymore
+>>> today). But what we really need is that nobody gets the same id while
+>>> the css is alive.
 
-On 2013/12/17 1:45, Cong Wang wrote:
-> On Mon, Dec 16, 2013 at 7:00 AM, Li Wang <liwang@ubuntukylin.com> wrote:
->> This patch extend the 'drop_caches' interface to
->> support directory level cache cleaning and has a complete
->> backward compatibility. '{1,2,3}' keeps the same semantics
->> as before. Besides, "{1,2,3}:DIRECTORY_PATH_NAME" is allowed
->> to recursively clean the caches under DIRECTORY_PATH_NAME.
->> For example, 'echo 1:/home/foo/jpg > /proc/sys/vm/drop_caches'
->> will clean the page caches of the files inside 'home/foo/jpg'.
+That's what I meant to do in my last reply.
+
+But I'm confused by
+
+"How would this work? .. the swap will be there
+after the last reference to css as well."
+
+>>> So css_from_id returning NULL doesn't seem to be
+>>> enough.
 >>
+>> Oh, I meant whether it's necessary to keep css_from_id() working
+>> (ie. doing successful lookups) between offline and release, because
+>> that's where lifetimes are coupled.  IOW, if it's enough for cgroup to
+>> not recycle the ID until all css's are released && fail css_from_id()
+>> lookup after the css is offlined, I can make a five liner quick fix.
+> 
+> Don't take my word on it, I'm too fuzzy on this: but although it would
+> be good to refrain from recycling the ID until all css's are released,
+> I believe that it would not be good enough to fail css_from_id() once
+> the css is offlined - mem_cgroup_uncharge_swap() needs to uncharge the
+> hierarchy of the dead memcg (for example, when tmpfs file is removed).
+> 
+> Uncharging the dead memcg itself is presumably irrelevant, but it does
+> need to locate the right parent to uncharge, and NULL css_from_id()
+> would make that impossible.  It would be easy if we said those charges
+> migrate to root rather than to parent, but that's inconsistent with
+> what we have happily converged upon doing elsewhere (in the preferred
+> use_hierarchy case), and it would be a change in behaviour.
+> 
+> I'm not nearly as enthusiastic for my patch as Michal is: I really
+> would prefer a five-liner from you or from Zefan. 
+
+I've come up with a fix. Though it's more than five-line, it mostly moves
+a few lines from one place to another. I've tested it with your script.
+
+============================
+
+From: Li Zefan <lizefan@huawei.com>
+Date: Tue, 17 Dec 2013 10:45:09 +0800
+Subject: [PATCH] cgroup: don't recycle cgroup id until all csses' have been destroyed
+
+Hugh reported this bug:
+
+> CONFIG_MEMCG_SWAP is broken in 3.13-rc.  Try something like this:
 >
-> This interface is ugly...
+> mkdir -p /tmp/tmpfs /tmp/memcg
+> mount -t tmpfs -o size=1G tmpfs /tmp/tmpfs
+> mount -t cgroup -o memory memcg /tmp/memcg
+> mkdir /tmp/memcg/old
+> echo 512M >/tmp/memcg/old/memory.limit_in_bytes
+> echo $$ >/tmp/memcg/old/tasks
+> cp /dev/zero /tmp/tmpfs/zero 2>/dev/null
+> echo $$ >/tmp/memcg/tasks
+> rmdir /tmp/memcg/old
+> sleep 1	# let rmdir work complete
+> mkdir /tmp/memcg/new
+> umount /tmp/tmpfs
+> dmesg | grep WARNING
+> rmdir /tmp/memcg/new
+> umount /tmp/memcg
 >
-> And we already have a file-level drop cache, that is,
-> fadvise(DONTNEED). Can you extend it if it can't
-> handle a directory fd?
+> Shows lots of WARNING: CPU: 1 PID: 1006 at kernel/res_counter.c:91
+>                            res_counter_uncharge_locked+0x1f/0x2f()
 >
+> Breakage comes from 34c00c319ce7 ("memcg: convert to use cgroup id").
+>
+> The lifetime of a cgroup id is different from the lifetime of the
+> css id it replaced: memsw's css_get()s do nothing to hold on to the
+> old cgroup id, it soon gets recycled to a new cgroup, which then
+> mysteriously inherits the old's swap, without any charge for it.
+
+Instead of removing cgroup id right after all the csses have been
+offlined, we should do that after csses have been destroyed.
+
+To make sure an invalid css pointer won't be returned after the css
+is destroyed, make sure css_from_id() returns NULL in this case.
+
+Reported-by: Hugh Dickins <hughd@google.com>
+Signed-off-by: Li Zefan <lizefan@huawei.com>
+---
+ kernel/cgroup.c | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+index c36d906..769b5bb 100644
+--- a/kernel/cgroup.c
++++ b/kernel/cgroup.c
+@@ -868,6 +868,15 @@ static void cgroup_diput(struct dentry *dentry, struct inode *inode)
+ 		struct cgroup *cgrp = dentry->d_fsdata;
+ 
+ 		BUG_ON(!(cgroup_is_dead(cgrp)));
++
++		/*
++		 * We should remove the cgroup object from idr before its
++		 * grace period starts, so we won't be looking up a cgroup
++		 * while the cgroup is being freed.
++		 */
++		idr_remove(&cgrp->root->cgroup_idr, cgrp->id);
++		cgrp->id = -1;
++
+ 		call_rcu(&cgrp->rcu_head, cgroup_free_rcu);
+ 	} else {
+ 		struct cfent *cfe = __d_cfe(dentry);
+@@ -4104,6 +4113,7 @@ static void css_release(struct percpu_ref *ref)
+ 	struct cgroup_subsys_state *css =
+ 		container_of(ref, struct cgroup_subsys_state, refcnt);
+ 
++	rcu_assign_pointer(css->cgroup->subsys[css->ss->subsys_id], NULL);
+ 	call_rcu(&css->rcu_head, css_free_rcu_fn);
+ }
+ 
+@@ -4545,14 +4555,6 @@ static void cgroup_destroy_css_killed(struct cgroup *cgrp)
+ 	/* delete this cgroup from parent->children */
+ 	list_del_rcu(&cgrp->sibling);
+ 
+-	/*
+-	 * We should remove the cgroup object from idr before its grace
+-	 * period starts, so we won't be looking up a cgroup while the
+-	 * cgroup is being freed.
+-	 */
+-	idr_remove(&cgrp->root->cgroup_idr, cgrp->id);
+-	cgrp->id = -1;
+-
+ 	dput(d);
+ 
+ 	set_bit(CGRP_RELEASABLE, &parent->flags);
+-- 
+1.8.0.2
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
