@@ -1,94 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f42.google.com (mail-bk0-f42.google.com [209.85.214.42])
-	by kanga.kvack.org (Postfix) with ESMTP id AB8A26B0035
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 17:31:47 -0500 (EST)
-Received: by mail-bk0-f42.google.com with SMTP id w11so3133749bkz.1
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 14:31:46 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id pf10si5730250bkb.249.2013.12.17.14.31.46
+Received: from mail-qe0-f50.google.com (mail-qe0-f50.google.com [209.85.128.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 61E236B0035
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 17:53:54 -0500 (EST)
+Received: by mail-qe0-f50.google.com with SMTP id 1so5793844qec.23
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 14:53:54 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id l3si15797414qac.30.2013.12.17.14.53.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 17 Dec 2013 14:31:46 -0800 (PST)
-Date: Tue, 17 Dec 2013 17:31:36 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 3/7] mm: page_alloc: Use zone node IDs to approximate
- locality
-Message-ID: <20131217223136.GI21724@cmpxchg.org>
-References: <1386943807-29601-1-git-send-email-mgorman@suse.de>
- <1386943807-29601-4-git-send-email-mgorman@suse.de>
- <20131216202507.GZ21724@cmpxchg.org>
- <20131217111352.GZ11295@suse.de>
- <20131217153829.GC21724@cmpxchg.org>
- <20131217160808.GF11295@suse.de>
- <20131217201147.GH21724@cmpxchg.org>
- <20131217210340.GJ11295@suse.de>
+        Tue, 17 Dec 2013 14:53:53 -0800 (PST)
+Message-ID: <52B0D5F9.5030208@oracle.com>
+Date: Tue, 17 Dec 2013 17:53:45 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131217210340.GJ11295@suse.de>
+Subject: Re: [PATCH 10/18] mm: numa: Avoid unnecessary disruption of NUMA
+ hinting during migration
+References: <1386690695-27380-1-git-send-email-mgorman@suse.de> <1386690695-27380-11-git-send-email-mgorman@suse.de>
+In-Reply-To: <1386690695-27380-11-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Alex Thorlton <athorlton@sgi.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Dec 17, 2013 at 09:03:40PM +0000, Mel Gorman wrote:
-> On Tue, Dec 17, 2013 at 03:11:47PM -0500, Johannes Weiner wrote:
-> > On Tue, Dec 17, 2013 at 04:08:08PM +0000, Mel Gorman wrote:
-> > > On Tue, Dec 17, 2013 at 10:38:29AM -0500, Johannes Weiner wrote:
-> > > > On Tue, Dec 17, 2013 at 11:13:52AM +0000, Mel Gorman wrote:
-> > > > > On Mon, Dec 16, 2013 at 03:25:07PM -0500, Johannes Weiner wrote:
-> > > > > > On Fri, Dec 13, 2013 at 02:10:03PM +0000, Mel Gorman wrote:
-> > > > > > > zone_local is using node_distance which is a more expensive call than
-> > > > > > > necessary. On x86, it's another function call in the allocator fast path
-> > > > > > > and increases cache footprint. This patch makes the assumption zones on a
-> > > > > > > local node will share the same node ID. The necessary information should
-> > > > > > > already be cache hot.
-> > > > > > > 
-> > > > > > > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > > > > > > ---
-> > > > > > >  mm/page_alloc.c | 2 +-
-> > > > > > >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > > > > > > 
-> > > > > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > > > > > index 64020eb..fd9677e 100644
-> > > > > > > --- a/mm/page_alloc.c
-> > > > > > > +++ b/mm/page_alloc.c
-> > > > > > > @@ -1816,7 +1816,7 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
-> > > > > > >  
-> > > > > > >  static bool zone_local(struct zone *local_zone, struct zone *zone)
-> > > > > > >  {
-> > > > > > > -	return node_distance(local_zone->node, zone->node) == LOCAL_DISTANCE;
-> > > > > > > +	return zone_to_nid(zone) == numa_node_id();
-> > > > > > 
-> > > > > > Why numa_node_id()?  We pass in the preferred zone as @local_zone:
-> > > > > > 
-> > > > > 
-> > > > > Initially because I was thinking "local node" and numa_node_id() is a
-> > > > > per-cpu variable that should be cheap to access and in some cases
-> > > > > cache-hot as the top-level gfp API calls numa_node_id().
-> > > > > 
-> > > > > Thinking about it more though it still makes sense because the preferred
-> > > > > zone is not necessarily local. If the allocation request requires ZONE_DMA32
-> > > > > and the local node does not have that zone then preferred zone is on a
-> > > > > remote node.
-> > > > 
-> > > > Don't we treat everything in relation to the preferred zone?
-> > > 
-> > > Usually yes, but this time we really care about whether the memory is
-> > > local or remote. It makes sense to me as it is and struggle to see an
-> > > advantage of expressing it in terms of the preferred zone. Minimally
-> > > zone_local would need to be renamed if it could return true for a remote
-> > > zone and I see no advantage in doing that.
-> > 
-> > What the function tests for is whether any given zone is close
-> > enough/local to the given preferred zone such that we can allocate
-> > from it without having to invoke zone_reclaim_mode.
-> > 
-> 
-> Fine. The helper should then be renamed to zone_preferred_node because
-> it's no longer about being local.
+Hi Mel,
 
-Fair enough!
+On 12/10/2013 10:51 AM, Mel Gorman wrote:
+> +
+> +	/* mmap_sem prevents this happening but warn if that changes */
+> +	WARN_ON(pmd_trans_migrating(pmd));
+> +
+
+I seem to be hitting this warning with latest -next kernel:
+
+[ 1704.594807] WARNING: CPU: 28 PID: 35287 at mm/huge_memory.c:887 copy_huge_pmd+0x145/
+0x3a0()
+[ 1704.597258] Modules linked in:
+[ 1704.597844] CPU: 28 PID: 35287 Comm: trinity-main Tainted: G        W    3.13.0-rc4-
+next-20131217-sasha-00013-ga878504-dirty #4149
+[ 1704.599924]  0000000000000377e delta! pid slot 27 [36258]: old:2 now:537927697 diff:
+537927695 ffff8803593ddb90 ffffffff8439501c ffffffff854722c1
+[ 1704.604846]  0000000000000000 ffff8803593ddbd0 ffffffff8112f8ac ffff8803593ddbe0
+[ 1704.606391]  ffff88034bc137f0 ffff880e41677000 8000000b47c009e4 ffff88034a638000
+[ 1704.608008] Call Trace:
+[ 1704.608511]  [<ffffffff8439501c>] dump_stack+0x52/0x7f
+[ 1704.609699]  [<ffffffff8112f8ac>] warn_slowpath_common+0x8c/0xc0
+[ 1704.612617]  [<ffffffff8112f8fa>] warn_slowpath_null+0x1a/0x20
+[ 1704.614043]  [<ffffffff812b91c5>] copy_huge_pmd+0x145/0x3a0
+[ 1704.615587]  [<ffffffff8127e032>] copy_page_range+0x3f2/0x560
+[ 1704.616869]  [<ffffffff81199ef1>] ? rwsem_wake+0x51/0x70
+[ 1704.617942]  [<ffffffff8112cf59>] dup_mmap+0x2c9/0x3d0
+[ 1704.619146]  [<ffffffff8112d54d>] dup_mm+0xad/0x150
+[ 1704.620051]  [<ffffffff8112e178>] copy_process+0xa68/0x12e0
+[ 1704.622976]  [<ffffffff81194eda>] ? __lock_release+0x1da/0x1f0
+[ 1704.624234]  [<ffffffff8112eee6>] do_fork+0x96/0x270
+[ 1704.624975]  [<ffffffff81249465>] ? context_tracking_user_exit+0x195/0x1d0
+[ 1704.626427]  [<ffffffff811930ed>] ? trace_hardirqs_on+0xd/0x10
+[ 1704.627681]  [<ffffffff8112f0d6>] SyS_clone+0x16/0x20
+[ 1704.628833]  [<ffffffff843a6309>] stub_clone+0x69/0x90
+[ 1704.629672]  [<ffffffff843a6150>] ? tracesys+0xdd/0xe2
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
