@@ -1,47 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f171.google.com (mail-ea0-f171.google.com [209.85.215.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BD446B0035
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 10:07:38 -0500 (EST)
-Received: by mail-ea0-f171.google.com with SMTP id h10so2968949eak.30
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 07:07:37 -0800 (PST)
-Received: from bitsync.net (bitsync.net. [80.83.126.10])
-        by mx.google.com with ESMTP id e2si5346607eeg.30.2013.12.17.07.07.37
+Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 84CE16B0037
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 10:17:39 -0500 (EST)
+Received: by mail-qc0-f181.google.com with SMTP id e9so4912349qcy.26
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 07:17:39 -0800 (PST)
+Received: from a9-62.smtp-out.amazonses.com (a9-62.smtp-out.amazonses.com. [54.240.9.62])
+        by mx.google.com with ESMTP id kc8si14756236qeb.65.2013.12.17.07.17.37
         for <linux-mm@kvack.org>;
-        Tue, 17 Dec 2013 07:07:37 -0800 (PST)
-Message-ID: <52B068B7.4070304@bitsync.net>
-Date: Tue, 17 Dec 2013 16:07:35 +0100
-From: Zlatko Calusic <zcalusic@bitsync.net>
+        Tue, 17 Dec 2013 07:17:38 -0800 (PST)
+Date: Tue, 17 Dec 2013 15:17:37 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC][PATCH 0/7] re-shrink 'struct page' when SLUB is on.
+In-Reply-To: <52AF9EB9.7080606@sr71.net>
+Message-ID: <0000014301223b3e-a73f3d59-8234-48f1-9888-9af32709a879-000000@email.amazonses.com>
+References: <20131213235903.8236C539@viggo.jf.intel.com> <20131216160128.aa1f1eb8039f5eee578cf560@linux-foundation.org> <52AF9EB9.7080606@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/7] Configurable fair allocation zone policy v2r6
-References: <1386943807-29601-1-git-send-email-mgorman@suse.de>
-In-Reply-To: <1386943807-29601-1-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dave Hansen <dave@sr71.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pravin B Shelar <pshelar@nicira.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Pekka Enberg <penberg@kernel.org>
 
-On 13.12.2013 15:10, Mel Gorman wrote:
-> Kicked this another bit today. It's still a bit half-baked but it restores
-> the historical performance and leaves the door open at the end for playing
-> nice with distributing file pages between nodes. Finishing this series
-> depends on whether we are going to make the remote node behaviour of the
-> fair zone allocation policy configurable or redefine MPOL_LOCAL. I'm in
-> favour of the configurable option because the default can be redefined and
-> tested while giving users a "compat" mode if we discover the new default
-> behaviour sucks for some workload.
->
+On Mon, 16 Dec 2013, Dave Hansen wrote:
 
-I'll start a 5-day test of this patchset in a few hours, unless you can 
-send an updated one in the meantime. I intend to test it on a rather 
-boring 4GB x86_64 machine that before Johannes' work had lots of trouble 
-balancing zones. Would you recommend to use the default settings, i.e. 
-don't mess with tunables at this point?
+> I'll do some testing and see if I can coax out any delta from the
+> optimization myself.  Christoph went to a lot of trouble to put this
+> together, so I assumed that he had a really good reason, although the
+> changelogs don't really mention any.
 
-Regards,
--- 
-Zlatko
+The cmpxchg on the struct page avoids disabling interrupts etc and
+therefore simplifies the code significantly.
+
+> I honestly can't imagine that a cmpxchg16 is going to be *THAT* much
+> cheaper than a per-page spinlock.  The contended case of the cmpxchg is
+> way more expensive than spinlock contention for sure.
+
+Make sure slub does not set __CMPXCHG_DOUBLE in the kmem_cache flags
+and it will fall back to spinlocks if you want to do a comparison. Most
+non x86 arches will use that fallback code.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
