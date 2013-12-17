@@ -1,127 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f51.google.com (mail-yh0-f51.google.com [209.85.213.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C1EF6B0037
-	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 20:26:40 -0500 (EST)
-Received: by mail-yh0-f51.google.com with SMTP id c41so4420684yho.24
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 17:26:40 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id t39si14172613yhp.100.2013.12.16.17.26.38
+Received: from mail-yh0-f43.google.com (mail-yh0-f43.google.com [209.85.213.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 91B7F6B0035
+	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 20:42:19 -0500 (EST)
+Received: by mail-yh0-f43.google.com with SMTP id a41so4449690yho.30
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 17:42:19 -0800 (PST)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id 41si14206855yhf.77.2013.12.16.17.42.18
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 16 Dec 2013 17:26:39 -0800 (PST)
-Message-ID: <52AFA845.3060109@oracle.com>
-Date: Tue, 17 Dec 2013 09:26:29 +0800
-From: Bob Liu <bob.liu@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 16 Dec 2013 17:42:18 -0800 (PST)
+Received: by mail-pa0-f44.google.com with SMTP id fa1so3735446pad.17
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 17:42:17 -0800 (PST)
+Date: Mon, 16 Dec 2013 17:41:38 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: 3.13-rc breaks MEMCG_SWAP
+In-Reply-To: <20131216172143.GJ32509@htj.dyndns.org>
+Message-ID: <alpine.LNX.2.00.1312161718001.2037@eggly.anvils>
+References: <alpine.LNX.2.00.1312160025200.2785@eggly.anvils> <52AEC989.4080509@huawei.com> <20131216095345.GB23582@dhcp22.suse.cz> <20131216104042.GC23582@dhcp22.suse.cz> <20131216163530.GH32509@htj.dyndns.org> <20131216171937.GG26797@dhcp22.suse.cz>
+ <20131216172143.GJ32509@htj.dyndns.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] mm: munlock: fix a bug where THP tail page is encountered
-References: <52AE07B4.4020203@oracle.com> <1387188856-21027-1-git-send-email-vbabka@suse.cz> <1387188856-21027-2-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1387188856-21027-2-git-send-email-vbabka@suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, joern@logfs.org, Michel Lespinasse <walken@google.com>, stable@kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Li Zefan <lizefan@huawei.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 12/16/2013 06:14 PM, Vlastimil Babka wrote:
-> Since commit ff6a6da60 ("mm: accelerate munlock() treatment of THP pages")
-> munlock skips tail pages of a munlocked THP page. However, when the head page
-> already has PageMlocked unset, it will not skip the tail pages.
+On Mon, 16 Dec 2013, Tejun Heo wrote:
+> On Mon, Dec 16, 2013 at 06:19:37PM +0100, Michal Hocko wrote:
+> > I have to think about it some more (the brain is not working anymore
+> > today). But what we really need is that nobody gets the same id while
+> > the css is alive. So css_from_id returning NULL doesn't seem to be
+> > enough.
 > 
-> Commit 7225522bb ("mm: munlock: batch non-THP page isolation and
-> munlock+putback using pagevec") has added a PageTransHuge() check which
-> contains VM_BUG_ON(PageTail(page)). Sasha Levin found this triggered using
-> trinity, on the first tail page of a THP page without PageMlocked flag.
-> 
-> This patch fixes the issue by skipping tail pages also in the case when
-> PageMlocked flag is unset. There is still a possibility of race with THP page
-> split between clearing PageMlocked and determining how many pages to skip.
-> The race might result in former tail pages not being skipped, which is however
-> no longer a bug, as during the skip the PageTail flags are cleared.
-> 
-> However this race also affects correctness of NR_MLOCK accounting, which is to
-> be fixed in a separate patch.
-> 
-> Cc: stable@kernel.org
-> Reported-by: Sasha Levin <sasha.levin@oracle.com>
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> ---
->  mm/mlock.c | 24 ++++++++++++++++++------
->  1 file changed, 18 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/mlock.c b/mm/mlock.c
-> index d480cd6..3847b13 100644
-> --- a/mm/mlock.c
-> +++ b/mm/mlock.c
-> @@ -148,21 +148,30 @@ static void __munlock_isolation_failed(struct page *page)
->   */
->  unsigned int munlock_vma_page(struct page *page)
->  {
-> -	unsigned int page_mask = 0;
-> +	unsigned int nr_pages;
->  
->  	BUG_ON(!PageLocked(page));
->  
->  	if (TestClearPageMlocked(page)) {
-> -		unsigned int nr_pages = hpage_nr_pages(page);
-> +		nr_pages = hpage_nr_pages(page);
+> Oh, I meant whether it's necessary to keep css_from_id() working
+> (ie. doing successful lookups) between offline and release, because
+> that's where lifetimes are coupled.  IOW, if it's enough for cgroup to
+> not recycle the ID until all css's are released && fail css_from_id()
+> lookup after the css is offlined, I can make a five liner quick fix.
 
-This line can be put before the if.
+Don't take my word on it, I'm too fuzzy on this: but although it would
+be good to refrain from recycling the ID until all css's are released,
+I believe that it would not be good enough to fail css_from_id() once
+the css is offlined - mem_cgroup_uncharge_swap() needs to uncharge the
+hierarchy of the dead memcg (for example, when tmpfs file is removed).
 
->  		mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
-> -		page_mask = nr_pages - 1;
->  		if (!isolate_lru_page(page))
->  			__munlock_isolated_page(page);
->  		else
->  			__munlock_isolation_failed(page);
-> +	} else {
-> +		nr_pages = hpage_nr_pages(page);
->  	}
->  
-> -	return page_mask;
-> +	/*
-> +	 * Regardless of the original PageMlocked flag, we determine nr_pages
-> +	 * after touching the flag. This leaves a possible race with a THP page
-> +	 * split, such that a whole THP page was munlocked, but nr_pages == 1.
-> +	 * Returning a smaller mask due to that is OK, the worst that can
-> +	 * happen is subsequent useless scanning of the former tail pages.
-> +	 * The NR_MLOCK accounting can however become broken.
-> +	 */
-> +	return nr_pages - 1;
->  }
+Uncharging the dead memcg itself is presumably irrelevant, but it does
+need to locate the right parent to uncharge, and NULL css_from_id()
+would make that impossible.  It would be easy if we said those charges
+migrate to root rather than to parent, but that's inconsistent with
+what we have happily converged upon doing elsewhere (in the preferred
+use_hierarchy case), and it would be a change in behaviour.
 
-Personally, I'd prefer to make munlock_vma_page() return void.
-If not please add some comment about the return value in this function's
-description also.
+I'm not nearly as enthusiastic for my patch as Michal is: I really
+would prefer a five-liner from you or from Zefan.  I do think (and
+this is probably what Michal likes) that my patch leaves MEMCG_SWAP
+less surprising, and less likely to cause similar trouble in future;
+but it's not how Kame chose to implement it, and it has those nasty
+swap_cgroup array scans adding to the overhead of memcg removal -
+we can layer on several different hacks/optimizations to reduce that
+overhead, but I think it's debatable whether that will end up as an
+improvement over what we have had until now.
 
->  
->  /**
-> @@ -440,7 +449,8 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
->  
->  	while (start < end) {
->  		struct page *page = NULL;
-> -		unsigned int page_mask, page_increm;
-> +		unsigned int page_mask;
-> +		unsigned long page_increm;
->  		struct pagevec pvec;
->  		struct zone *zone;
->  		int zoneid;
-> @@ -490,7 +500,9 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
->  				goto next;
->  			}
->  		}
-> -		page_increm = 1 + (~(start >> PAGE_SHIFT) & page_mask);
-> +		/* It's a bug to munlock in the middle of a THP page */
-> +		VM_BUG_ON((start >> PAGE_SHIFT) & page_mask);
-> +		page_increm = 1 + page_mask;
->  		start += page_increm * PAGE_SIZE;
->  next:
->  		cond_resched();
-> 
-
--- 
-Regards,
--Bob
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
