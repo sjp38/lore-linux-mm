@@ -1,71 +1,259 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 82AB06B0036
-	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 20:44:01 -0500 (EST)
-Received: by mail-qa0-f53.google.com with SMTP id j5so2145889qaq.12
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 17:44:01 -0800 (PST)
-Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
-        by mx.google.com with ESMTPS id b6si13109982qak.150.2013.12.16.17.44.00
+Received: from mail-yh0-f41.google.com (mail-yh0-f41.google.com [209.85.213.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B1EC6B0035
+	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 21:26:39 -0500 (EST)
+Received: by mail-yh0-f41.google.com with SMTP id f11so4545169yha.28
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 18:26:39 -0800 (PST)
+Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com [2607:f8b0:400e:c02::22a])
+        by mx.google.com with ESMTPS id j69si14286677yhb.121.2013.12.16.18.26.37
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 16 Dec 2013 17:44:00 -0800 (PST)
-Received: by mail-qa0-f53.google.com with SMTP id j5so2145874qaq.12
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 17:44:00 -0800 (PST)
+        Mon, 16 Dec 2013 18:26:37 -0800 (PST)
+Received: by mail-pd0-f170.google.com with SMTP id g10so6157134pdj.29
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 18:26:36 -0800 (PST)
+Date: Mon, 16 Dec 2013 18:26:18 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: 3.13-rc breaks MEMCG_SWAP
+In-Reply-To: <20131216162042.GC26797@dhcp22.suse.cz>
+Message-ID: <alpine.LNX.2.00.1312161742540.2037@eggly.anvils>
+References: <alpine.LNX.2.00.1312160025200.2785@eggly.anvils> <20131216162042.GC26797@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20131216171214.GA15663@sgi.com>
-References: <20131212180037.GA134240@sgi.com> <20131213214437.6fdbf7f2.akpm@linux-foundation.org>
- <20131216171214.GA15663@sgi.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 16 Dec 2013 17:43:40 -0800
-Message-ID: <CALCETrW9uGYzckWg3Wcsu-VV-vbXxUCr+Dv0kXqE5VMKopjn+A@mail.gmail.com>
-Subject: Re: [RFC PATCH 0/3] Change how we determine when to hand out THPs
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Thorlton <athorlton@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Benjamin LaHaise <bcrl@kvack.org>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Al Viro <viro@zeniv.linux.org.uk>, David Rientjes <rientjes@google.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jiang Liu <jiang.liu@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Glauber Costa <glommer@parallels.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Hugh Dickins <hughd@google.com>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Dec 16, 2013 at 9:12 AM, Alex Thorlton <athorlton@sgi.com> wrote:
->> Please cc Andrea on this.
->
-> I'm going to clean up a few small things for a v2 pretty soon, I'll be
-> sure to cc Andrea there.
->
->> > My proposed solution to the problem is to allow users to set a
->> > threshold at which THPs will be handed out.  The idea here is that, when
->> > a user faults in a page in an area where they would usually be handed a
->> > THP, we pull 512 pages off the free list, as we would with a regular
->> > THP, but we only fault in single pages from that chunk, until the user
->> > has faulted in enough pages to pass the threshold we've set.  Once they
->> > pass the threshold, we do the necessary work to turn our 512 page chunk
->> > into a proper THP.  As it stands now, if the user tries to fault in
->> > pages from different nodes, we completely give up on ever turning a
->> > particular chunk into a THP, and just fault in the 4K pages as they're
->> > requested.  We may want to make this tunable in the future (i.e. allow
->> > them to fault in from only 2 different nodes).
->>
->> OK.  But all 512 pages reside on the same node, yes?  Whereas with thp
->> disabled those 512 pages would have resided closer to the CPUs which
->> instantiated them.
->
-> As it stands right now, yes, since we're pulling a 512 page contiguous
-> chunk off the free list, everything from that chunk will reside on the
-> same node, but as I (stupidly) forgot to mention in my original e-mail,
-> one piece I have yet to add is the functionality to put the remaining
-> unfaulted pages from our chunk *back* on the free list after we give up
-> on handing out a THP.  Once this is in there, things will behave more
-> like they do when THP is turned completely off, i.e. pages will get
-> faulted in closer to the CPU that first referenced them once we give up
-> on handing out the THP.
+On Mon, 16 Dec 2013, Michal Hocko wrote:
+> On Mon 16-12-13 00:36:05, Hugh Dickins wrote:
+> [...]
+> 
+> OK, I went through the patch and it looks good except for suspicious
+> ctrl->lock handling in swap_cgroup_reassign (see below). I am just
+> suggesting to split it into 4 parts
 
-This sounds like it's almost the worst possible behavior wrt avoiding
-memory fragmentation.  If userspace mmaps a very large region and then
-starts accessing it randomly, it will allocate a bunch of contiguous
-512-page regions, claim one page from each, and return the other 511
-pages to the free list.  Memory is now maximally fragmented from the
-point of view of future THP allocations.
+Thanks a lot for studying it, and responding so quickly.
+As I remark in reply to Tejun, I'm not nearly so keen on this
+approach as you are, and would prefer something short and sweet
+from the cgroup end, at least for now; but let's go through your
+comments, to keep both options open until we're surer.
 
---Andy
+> 
+> * swap_cgroup_mutex -> swap_cgroup_lock
+> * swapon cleanup
+> * drop irqsave when taking ctrl->lock
+> * mem_cgroup_reparent_swap
+> 
+> but I will leave the split up to you. Just make sure that the fix is a
+> separate patch, please.
+
+Yes indeed, some split like that, maybe even more pieces.  The difficult
+part is the ordering: for going into 3.13, we'd prefer a small fix first
+and cleanup to follow after in 3.14, but it will be hard to force myself
+not to do the cleanup ones first, and until getting down to it I won't
+recall how much of the cleanup was essential e.g. to avoid lock ordering
+problems or long lock hold times, perhaps.
+
+> 
+> [...]
+> > --- 3.13-rc4/mm/page_cgroup.c	2013-02-18 15:58:34.000000000 -0800
+> > +++ linux/mm/page_cgroup.c	2013-12-15 14:34:36.312485960 -0800
+> > @@ -322,7 +322,8 @@ void __meminit pgdat_page_cgroup_init(st
+> >  
+> >  #ifdef CONFIG_MEMCG_SWAP
+> >  
+> > -static DEFINE_MUTEX(swap_cgroup_mutex);
+> > +static DEFINE_SPINLOCK(swap_cgroup_lock);
+> > +
+> 
+> This one is worth a separate patch IMO.
+
+Agreed.
+
+> 
+> >  struct swap_cgroup_ctrl {
+> >  	struct page **map;
+> >  	unsigned long length;
+> > @@ -353,14 +354,11 @@ struct swap_cgroup {
+> >  /*
+> >   * allocate buffer for swap_cgroup.
+> >   */
+> > -static int swap_cgroup_prepare(int type)
+> > +static int swap_cgroup_prepare(struct swap_cgroup_ctrl *ctrl)
+> >  {
+> >  	struct page *page;
+> > -	struct swap_cgroup_ctrl *ctrl;
+> >  	unsigned long idx, max;
+> >  
+> > -	ctrl = &swap_cgroup_ctrl[type];
+> > -
+> >  	for (idx = 0; idx < ctrl->length; idx++) {
+> >  		page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+> >  		if (!page)
+> 
+> This with swap_cgroup_swapon should be in a separate patch as a cleanup.
+
+Agreed.
+
+> 
+> > @@ -407,18 +405,17 @@ unsigned short swap_cgroup_cmpxchg(swp_e
+> >  {
+> >  	struct swap_cgroup_ctrl *ctrl;
+> >  	struct swap_cgroup *sc;
+> > -	unsigned long flags;
+> >  	unsigned short retval;
+> >  
+> >  	sc = lookup_swap_cgroup(ent, &ctrl);
+> >  
+> > -	spin_lock_irqsave(&ctrl->lock, flags);
+> > +	spin_lock(&ctrl->lock);
+> >  	retval = sc->id;
+> >  	if (retval == old)
+> >  		sc->id = new;
+> >  	else
+> >  		retval = 0;
+> > -	spin_unlock_irqrestore(&ctrl->lock, flags);
+> > +	spin_unlock(&ctrl->lock);
+> >  	return retval;
+> >  }
+> >  
+> > @@ -435,14 +432,13 @@ unsigned short swap_cgroup_record(swp_en
+> >  	struct swap_cgroup_ctrl *ctrl;
+> >  	struct swap_cgroup *sc;
+> >  	unsigned short old;
+> > -	unsigned long flags;
+> >  
+> >  	sc = lookup_swap_cgroup(ent, &ctrl);
+> >  
+> > -	spin_lock_irqsave(&ctrl->lock, flags);
+> > +	spin_lock(&ctrl->lock);
+> >  	old = sc->id;
+> >  	sc->id = id;
+> > -	spin_unlock_irqrestore(&ctrl->lock, flags);
+> > +	spin_unlock(&ctrl->lock);
+> >  
+> >  	return old;
+> >  }
+> 
+> I would prefer these two in a separate patch as well. I have no idea why
+> these were IRQ aware as this was never needed AFAICS.
+> e9e58a4ec3b10 is not very specific...
+
+Agreed.  Yes, I couldn't work out any justification for the _irqsave
+variants, and preferred to avoid that clutter rather than add to it.
+
+> 
+> > @@ -451,19 +447,60 @@ unsigned short swap_cgroup_record(swp_en
+> >   * lookup_swap_cgroup_id - lookup mem_cgroup id tied to swap entry
+> >   * @ent: swap entry to be looked up.
+> >   *
+> > - * Returns CSS ID of mem_cgroup at success. 0 at failure. (0 is invalid ID)
+> > + * Returns ID of mem_cgroup at success. 0 at failure. (0 is invalid ID)
+> >   */
+> >  unsigned short lookup_swap_cgroup_id(swp_entry_t ent)
+> >  {
+> >  	return lookup_swap_cgroup(ent, NULL)->id;
+> >  }
+> >  
+> > +/**
+> > + * swap_cgroup_reassign - assign all old entries to new (before old is freed).
+> > + * @old: id of emptied memcg whose entries are now to be reassigned
+> > + * @new: id of parent memcg to which those entries are to be assigned
+> > + *
+> > + * Returns number of entries reassigned, for debugging or for statistics.
+> > + */
+> > +long swap_cgroup_reassign(unsigned short old, unsigned short new)
+> > +{
+> > +	long reassigned = 0;
+> > +	int type;
+> > +
+> > +	for (type = 0; type < MAX_SWAPFILES; type++) {
+> > +		struct swap_cgroup_ctrl *ctrl = &swap_cgroup_ctrl[type];
+> > +		unsigned long idx;
+> > +
+> > +		for (idx = 0; idx < ACCESS_ONCE(ctrl->length); idx++) {
+> > +			struct swap_cgroup *sc, *scend;
+> > +
+> > +			spin_lock(&swap_cgroup_lock);
+> > +			if (idx >= ACCESS_ONCE(ctrl->length))
+> > +				goto unlock;
+> > +			sc = page_address(ctrl->map[idx]);
+> > +			for (scend = sc + SC_PER_PAGE; sc < scend; sc++) {
+> > +				if (sc->id != old)
+> > +					continue;
+> 
+> Is this safe? What prevents from race when id is set to old?
+
+I am assuming that when this is called, we shall not be making any
+new charges to old (if you see what I mean :) - this is called after
+mem_cgroup_reparent_charges() (the main call - I've not yet wrapped
+my head around Hannes's later safety-net call; perhaps these patches
+would even make that one redundant - dunno).
+
+Quite a lot is made simpler by the fact that we do not need to call
+this from mem_cgroup_force_empty(), with all the races that would
+entail: there was never any attempt to move these swap charges before,
+so it's a pleasure not to have to deal with that possibility now.
+
+> 
+> > +				spin_lock(&ctrl->lock);
+> > +				if (sc->id == old) {
+> 
+> Also it seems that compiler is free to optimize this test away, no?
+> You need ACCESS_ONCE here as well, I guess.
+
+Oh dear, you're asking me to read again through memory-barriers.txt
+(Xmas 2013 edition), and come to a conclusion.  I think this pattern
+of test outside spinlock, spinlock, test again inside spinlock is
+used in very many places, without any ACCESS_ONCE.  I'll have to
+go and search through the precedents.
+
+I've probably brought this upon myself with the ACCESS_ONCE(ctrl->length)
+a few lines above, which I added at a late stage to match the one above
+it; but now I'm arguing that's unnecessary.
+
+One of the problems with ACCESS_ONCE is that one easily falls into
+a mistaken state in which it seems to be necessary everywhere;
+but that illusion must be resisted.
+
+The spinlock should make it unnecessary, but I'll have to muse on
+semi-permeable membranes, osmosis, stuff like that.
+
+> 
+> > +					sc->id = new;
+> > +					reassigned++;
+> > +				}
+> > +				spin_unlock(&ctrl->lock);
+> > +			}
+> > +unlock:
+> > +			spin_unlock(&swap_cgroup_lock);
+> > +			cond_resched();
+> > +		}
+> > +	}
+> > +	return reassigned;
+> > +}
+> > +
+> >  int swap_cgroup_swapon(int type, unsigned long max_pages)
+> >  {
+> >  	void *array;
+> >  	unsigned long array_size;
+> >  	unsigned long length;
+> > -	struct swap_cgroup_ctrl *ctrl;
+> > +	struct swap_cgroup_ctrl ctrl;
+> >  
+> >  	if (!do_swap_account)
+> >  		return 0;
+> [...]
+> -- 
+> Michal Hocko
+> SUSE Labs
+
+Thanks: let's see if Tejun and Zefan can come up with something
+simpler than this at their end.  If we do all decide that this
+swap_cgroup_reassign() kind of change is desirable, it would still
+be better to make it later on as a cleanup than rush it in now.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
