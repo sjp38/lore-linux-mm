@@ -1,69 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f50.google.com (mail-qe0-f50.google.com [209.85.128.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 61E236B0035
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 17:53:54 -0500 (EST)
-Received: by mail-qe0-f50.google.com with SMTP id 1so5793844qec.23
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 14:53:54 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id l3si15797414qac.30.2013.12.17.14.53.53
+Received: from mail-bk0-f43.google.com (mail-bk0-f43.google.com [209.85.214.43])
+	by kanga.kvack.org (Postfix) with ESMTP id B0E536B0035
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 17:57:24 -0500 (EST)
+Received: by mail-bk0-f43.google.com with SMTP id mz12so3064506bkb.16
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 14:57:23 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id cl3si5749049bkc.90.2013.12.17.14.57.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 17 Dec 2013 14:53:53 -0800 (PST)
-Message-ID: <52B0D5F9.5030208@oracle.com>
-Date: Tue, 17 Dec 2013 17:53:45 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+        Tue, 17 Dec 2013 14:57:23 -0800 (PST)
+Date: Tue, 17 Dec 2013 17:57:16 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 5/7] mm: page_alloc: Make zone distribution page aging
+ policy configurable
+Message-ID: <20131217225716.GJ21724@cmpxchg.org>
+References: <1386943807-29601-1-git-send-email-mgorman@suse.de>
+ <1386943807-29601-6-git-send-email-mgorman@suse.de>
+ <20131216204215.GA21724@cmpxchg.org>
+ <20131217152954.GA24067@suse.de>
+ <20131217155435.GE21724@cmpxchg.org>
+ <20131217161420.GG11295@suse.de>
+ <20131217174302.GF21724@cmpxchg.org>
+ <20131217212216.GK11295@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH 10/18] mm: numa: Avoid unnecessary disruption of NUMA
- hinting during migration
-References: <1386690695-27380-1-git-send-email-mgorman@suse.de> <1386690695-27380-11-git-send-email-mgorman@suse.de>
-In-Reply-To: <1386690695-27380-11-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131217212216.GK11295@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Alex Thorlton <athorlton@sgi.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Mel,
+On Tue, Dec 17, 2013 at 09:22:16PM +0000, Mel Gorman wrote:
+> On Tue, Dec 17, 2013 at 12:43:02PM -0500, Johannes Weiner wrote:
+> > > > > When looking at this closer I found that sysv is a weird exception. It's
+> > > > > file-backed as far as most of the VM is concerned but looks anonymous to
+> > > > > most applications that care. That and MAP_SHARED anonymous pages should
+> > > > > not be treated like files but we still want tmpfs to be treated as
+> > > > > files. Details will be in the changelog of the next series.
+> > > > 
+> > > > In what sense is it seen as file-backed?
+> > > 
+> > > sysv and anonymous pages are backed by an internal shmem mount point. In
+> > > lots of respects, it's looks like a file and quacks like a file but I expect
+> > > developers think of it being anonmous and chunks of the VM treats it like
+> > > it's anonymous. tmpfs uses the same paths and they get treated similar to
+> > > the VM as anon but users may think that tmpfs should be subject to the
+> > > fair allocation zone policy "because they're files." It's a sufficently
+> > > weird case that any action we take there should be deliberate. It'll be
+> > > a bit clearer when I post the patch that special cases this.
+> > 
+> > The line I see here is mostly derived from performance expectations.
+> > 
+> > People and programs expect anon, shmem/tmpfs etc. to be fast and avoid
+> > their reclaim at great costs, so they size this part of their workload
+> > according to memory size and locality.  Filesystem cache (on-disk) on
+> > the other hand is expected to be slow on the first fault and after it
+> > has been displaced by other data, but the kernel is mostly expected to
+> > maximize the caching effects in a predictable manner.
+> > 
+> 
+> Part of their performance expectations is that memory referenced from the
+> local node will be allocated locally. Consider NUMA-aware applications that
+> partition their data usage appropriately and share that data between threads
+> using processes and shared memory (some MPI implementations). They have
+> an expectation that the memory will be local and a further expectation
+> that it will not be reclaimed because they sized it appropriately.
+> Automatically interleaving such memory by default will be surprising to
+> NUMA aware applications even if NUMA-oblivious applications benefit.
 
-On 12/10/2013 10:51 AM, Mel Gorman wrote:
-> +
-> +	/* mmap_sem prevents this happening but warn if that changes */
-> +	WARN_ON(pmd_trans_migrating(pmd));
-> +
+That's exactly why I want to exclude any type of data that is
+typically sized to memory capacity.  Are we talking past each other?
 
-I seem to be hitting this warning with latest -next kernel:
+> Similarly, the pagecache sysctl is documented to affect files, at least
+> that's how I wrote it. It's inconsistent to explain that as "the sysctl
+> control files, except for tmpfs ones because ...... whatever".
 
-[ 1704.594807] WARNING: CPU: 28 PID: 35287 at mm/huge_memory.c:887 copy_huge_pmd+0x145/
-0x3a0()
-[ 1704.597258] Modules linked in:
-[ 1704.597844] CPU: 28 PID: 35287 Comm: trinity-main Tainted: G        W    3.13.0-rc4-
-next-20131217-sasha-00013-ga878504-dirty #4149
-[ 1704.599924]  0000000000000377e delta! pid slot 27 [36258]: old:2 now:537927697 diff:
-537927695 ffff8803593ddb90 ffffffff8439501c ffffffff854722c1
-[ 1704.604846]  0000000000000000 ffff8803593ddbd0 ffffffff8112f8ac ffff8803593ddbe0
-[ 1704.606391]  ffff88034bc137f0 ffff880e41677000 8000000b47c009e4 ffff88034a638000
-[ 1704.608008] Call Trace:
-[ 1704.608511]  [<ffffffff8439501c>] dump_stack+0x52/0x7f
-[ 1704.609699]  [<ffffffff8112f8ac>] warn_slowpath_common+0x8c/0xc0
-[ 1704.612617]  [<ffffffff8112f8fa>] warn_slowpath_null+0x1a/0x20
-[ 1704.614043]  [<ffffffff812b91c5>] copy_huge_pmd+0x145/0x3a0
-[ 1704.615587]  [<ffffffff8127e032>] copy_page_range+0x3f2/0x560
-[ 1704.616869]  [<ffffffff81199ef1>] ? rwsem_wake+0x51/0x70
-[ 1704.617942]  [<ffffffff8112cf59>] dup_mmap+0x2c9/0x3d0
-[ 1704.619146]  [<ffffffff8112d54d>] dup_mm+0xad/0x150
-[ 1704.620051]  [<ffffffff8112e178>] copy_process+0xa68/0x12e0
-[ 1704.622976]  [<ffffffff81194eda>] ? __lock_release+0x1da/0x1f0
-[ 1704.624234]  [<ffffffff8112eee6>] do_fork+0x96/0x270
-[ 1704.624975]  [<ffffffff81249465>] ? context_tracking_user_exit+0x195/0x1d0
-[ 1704.626427]  [<ffffffff811930ed>] ? trace_hardirqs_on+0xd/0x10
-[ 1704.627681]  [<ffffffff8112f0d6>] SyS_clone+0x16/0x20
-[ 1704.628833]  [<ffffffff843a6309>] stub_clone+0x69/0x90
-[ 1704.629672]  [<ffffffff843a6150>] ? tracesys+0xdd/0xe2
+I documented it as affecting by secondary storage cache.
 
+> > The round-robin policy makes the displacement predictable (think of
+> > the aging artifacts here where random pages do not get displaced
+> > reliably because they ended up on remote nodes) and it avoids IO by
+> > maximizing memory utilization.
+> > 
+> > I.e. it improves behavior associated with a cache, but I don't expect
+> > shmem/tmpfs to be typically used as a disk cache.  I could be wrong
+> > about that, but I figure if you need named shared memory that is
+> > bigger than your memory capacity (the point where your tmpfs would
+> > actually turn into a disk cache), you'd be better of using a more
+> > efficient on-disk filesystem.
+> 
+> I am concerned with semantics like "all files except tmpfs files" or
+> alternatively regressing performance of NUMA-aware applications and their
+> use of MAP_SHARED and sysv.
 
-Thanks,
-Sasha
+I'm really not following.  MAP_SHARED, sysv, shmem, tmpfs, whatever is
+entirely unaffected by my proposal.  I never claimed "all files except
+tmpfs".  It's about what backs the data, which what makes a difference
+in people's performance expectation, which makes a difference in how
+they size the workloads.
+
+Tmpfs files that may overflow into swap on heavy memory pressure have
+an entirely different trade-off than actual cache that is continuously
+replaced as part of its size management, and in that sense they are
+much closer to anon and sysv shared memory.  I don't believe that the
+difference between virtual in-core filesystems and actual secondary
+storage filesystems is so obscure to users that this behavioral
+difference would violate expectations of the term "file".
+
+Is that what you are saying or am I missing something?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
