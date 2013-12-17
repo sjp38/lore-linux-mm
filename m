@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id F3E8A6B0039
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 01:11:40 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id hz1so4004160pad.40
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 22:11:40 -0800 (PST)
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 714876B003B
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 01:11:41 -0500 (EST)
+Received: by mail-pb0-f47.google.com with SMTP id um1so6501968pbc.34
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 22:11:41 -0800 (PST)
 Received: from LGEAMRELO02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id ek3si10827702pbd.295.2013.12.16.22.11.37
+        by mx.google.com with ESMTP id sa6si10874967pbb.23.2013.12.16.22.11.38
         for <linux-mm@kvack.org>;
-        Mon, 16 Dec 2013 22:11:38 -0800 (PST)
+        Mon, 16 Dec 2013 22:11:40 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH 1/5] zram: remove old private project comment
-Date: Tue, 17 Dec 2013 15:11:59 +0900
-Message-Id: <1387260723-15817-2-git-send-email-minchan@kernel.org>
+Subject: [PATCH 2/5] zram: add copyright
+Date: Tue, 17 Dec 2013 15:12:00 +0900
+Message-Id: <1387260723-15817-3-git-send-email-minchan@kernel.org>
 In-Reply-To: <1387260723-15817-1-git-send-email-minchan@kernel.org>
 References: <1387260723-15817-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,78 +19,39 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Nitin Gupta <ngupta@vflare.org>, linux-kernel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>
 
-This patch removes old private compcache project address so
-upcoming patches should be sent to LKML because we Linux kernel
-community will take care.
+Add my copyright to the zram source code which I maintain.
 
 Cc: Nitin Gupta <ngupta@vflare.org>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- Documentation/blockdev/zram.txt |    6 ------
- drivers/block/zram/Kconfig      |    1 -
- drivers/block/zram/zram_drv.c   |    1 -
- drivers/block/zram/zram_drv.h   |    1 -
- 4 files changed, 9 deletions(-)
+ drivers/block/zram/zram_drv.c |    1 +
+ drivers/block/zram/zram_drv.h |    1 +
+ 2 files changed, 2 insertions(+)
 
-diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
-index 765d790ae831..2eccddffa6c8 100644
---- a/Documentation/blockdev/zram.txt
-+++ b/Documentation/blockdev/zram.txt
-@@ -1,8 +1,6 @@
- zram: Compressed RAM based block devices
- ----------------------------------------
- 
--Project home: http://compcache.googlecode.com/
--
- * Introduction
- 
- The zram module creates RAM based block devices named /dev/zram<id>
-@@ -69,9 +67,5 @@ Following shows a typical sequence of steps for using zram.
- 	resets the disksize to zero. You must set the disksize again
- 	before reusing the device.
- 
--Please report any problems at:
-- - Mailing list: linux-mm-cc at laptop dot org
-- - Issue tracker: http://code.google.com/p/compcache/issues/list
--
- Nitin Gupta
- ngupta@vflare.org
-diff --git a/drivers/block/zram/Kconfig b/drivers/block/zram/Kconfig
-index 983314c41349..3450be850399 100644
---- a/drivers/block/zram/Kconfig
-+++ b/drivers/block/zram/Kconfig
-@@ -14,7 +14,6 @@ config ZRAM
- 	  disks and maybe many more.
- 
- 	  See zram.txt for more information.
--	  Project home: <https://compcache.googlecode.com/>
- 
- config ZRAM_DEBUG
- 	bool "Compressed RAM block device debug support"
 diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 108f2733106d..134d605836ca 100644
+index 134d605836ca..f9711c520269 100644
 --- a/drivers/block/zram/zram_drv.c
 +++ b/drivers/block/zram/zram_drv.c
-@@ -9,7 +9,6 @@
-  * Released under the terms of 3-clause BSD License
-  * Released under the terms of GNU General Public License Version 2.0
+@@ -2,6 +2,7 @@
+  * Compressed RAM block device
   *
-- * Project home: http://compcache.googlecode.com
-  */
- 
- #define KMSG_COMPONENT "zram"
+  * Copyright (C) 2008, 2009, 2010  Nitin Gupta
++ *               2012, 2013 Minchan Kim
+  *
+  * This code is released using a dual license strategy: BSD/GPL
+  * You can choose the licence that better fits your requirements.
 diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-index d8f6596513c3..92f70e8f457c 100644
+index 92f70e8f457c..0e46953c08e9 100644
 --- a/drivers/block/zram/zram_drv.h
 +++ b/drivers/block/zram/zram_drv.h
-@@ -9,7 +9,6 @@
-  * Released under the terms of 3-clause BSD License
-  * Released under the terms of GNU General Public License Version 2.0
+@@ -2,6 +2,7 @@
+  * Compressed RAM block device
   *
-- * Project home: http://compcache.googlecode.com
-  */
- 
- #ifndef _ZRAM_DRV_H_
+  * Copyright (C) 2008, 2009, 2010  Nitin Gupta
++ *               2012, 2013 Minchan Kim
+  *
+  * This code is released using a dual license strategy: BSD/GPL
+  * You can choose the licence that better fits your requirements.
 -- 
 1.7.9.5
 
