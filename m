@@ -1,80 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f169.google.com (mail-ea0-f169.google.com [209.85.215.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 701566B0035
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 11:08:11 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id l9so2555345eaj.14
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 08:08:10 -0800 (PST)
+Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 936E16B0035
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 11:14:24 -0500 (EST)
+Received: by mail-ee0-f43.google.com with SMTP id c13so2985017eek.2
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 08:14:23 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i1si19087543eev.236.2013.12.17.08.08.10
+        by mx.google.com with ESMTPS id p46si4475506eem.0.2013.12.17.08.14.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 17 Dec 2013 08:08:10 -0800 (PST)
-Date: Tue, 17 Dec 2013 16:08:08 +0000
+        Tue, 17 Dec 2013 08:14:23 -0800 (PST)
+Date: Tue, 17 Dec 2013 16:14:20 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 3/7] mm: page_alloc: Use zone node IDs to approximate
- locality
-Message-ID: <20131217160808.GF11295@suse.de>
+Subject: Re: [PATCH 5/7] mm: page_alloc: Make zone distribution page aging
+ policy configurable
+Message-ID: <20131217161420.GG11295@suse.de>
 References: <1386943807-29601-1-git-send-email-mgorman@suse.de>
- <1386943807-29601-4-git-send-email-mgorman@suse.de>
- <20131216202507.GZ21724@cmpxchg.org>
- <20131217111352.GZ11295@suse.de>
- <20131217153829.GC21724@cmpxchg.org>
+ <1386943807-29601-6-git-send-email-mgorman@suse.de>
+ <20131216204215.GA21724@cmpxchg.org>
+ <20131217152954.GA24067@suse.de>
+ <20131217155435.GE21724@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20131217153829.GC21724@cmpxchg.org>
+In-Reply-To: <20131217155435.GE21724@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Dec 17, 2013 at 10:38:29AM -0500, Johannes Weiner wrote:
-> On Tue, Dec 17, 2013 at 11:13:52AM +0000, Mel Gorman wrote:
-> > On Mon, Dec 16, 2013 at 03:25:07PM -0500, Johannes Weiner wrote:
-> > > On Fri, Dec 13, 2013 at 02:10:03PM +0000, Mel Gorman wrote:
-> > > > zone_local is using node_distance which is a more expensive call than
-> > > > necessary. On x86, it's another function call in the allocator fast path
-> > > > and increases cache footprint. This patch makes the assumption zones on a
-> > > > local node will share the same node ID. The necessary information should
-> > > > already be cache hot.
+On Tue, Dec 17, 2013 at 10:54:35AM -0500, Johannes Weiner wrote:
+> On Tue, Dec 17, 2013 at 03:29:54PM +0000, Mel Gorman wrote:
+> > On Mon, Dec 16, 2013 at 03:42:15PM -0500, Johannes Weiner wrote:
+> > > On Fri, Dec 13, 2013 at 02:10:05PM +0000, Mel Gorman wrote:
+> > > > Commit 81c0a2bb ("mm: page_alloc: fair zone allocator policy") solved a
+> > > > bug whereby new pages could be reclaimed before old pages because of
+> > > > how the page allocator and kswapd interacted on the per-zone LRU lists.
+> > > > Unfortunately it was missed during review that a consequence is that
+> > > > we also round-robin between NUMA nodes. This is bad for two reasons
+> > > > 
+> > > > 1. It alters the semantics of MPOL_LOCAL without telling anyone
+> > > > 2. It incurs an immediate remote memory performance hit in exchange
+> > > >    for a potential performance gain when memory needs to be reclaimed
+> > > >    later
+> > > > 
+> > > > No cookies for the reviewers on this one.
+> > > > 
+> > > > This patch makes the behaviour of the fair zone allocator policy
+> > > > configurable.  By default it will only distribute pages that are going
+> > > > to exist on the LRU between zones local to the allocating process. This
+> > > > preserves the historical semantics of MPOL_LOCAL.
+> > > > 
+> > > > By default, slab pages are not distributed between zones after this patch is
+> > > > applied. It can be argued that they should get similar treatment but they
+> > > > have different lifecycles to LRU pages, the shrinkers are not zone-aware
+> > > > and the interaction between the page allocator and kswapd is different
+> > > > for slabs. If it turns out to be an almost universal win, we can change
+> > > > the default.
 > > > > 
 > > > > Signed-off-by: Mel Gorman <mgorman@suse.de>
 > > > > ---
-> > > >  mm/page_alloc.c | 2 +-
-> > > >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > > >  Documentation/sysctl/vm.txt |  32 ++++++++++++++
+> > > >  include/linux/mmzone.h      |   2 +
+> > > >  include/linux/swap.h        |   2 +
+> > > >  kernel/sysctl.c             |   8 ++++
+> > > >  mm/page_alloc.c             | 102 ++++++++++++++++++++++++++++++++++++++------
+> > > >  5 files changed, 134 insertions(+), 12 deletions(-)
 > > > > 
-> > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > > index 64020eb..fd9677e 100644
-> > > > --- a/mm/page_alloc.c
-> > > > +++ b/mm/page_alloc.c
-> > > > @@ -1816,7 +1816,7 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
+> > > > diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+> > > > index 1fbd4eb..8eaa562 100644
+> > > > --- a/Documentation/sysctl/vm.txt
+> > > > +++ b/Documentation/sysctl/vm.txt
+> > > > @@ -56,6 +56,7 @@ Currently, these files are in /proc/sys/vm:
+> > > >  - swappiness
+> > > >  - user_reserve_kbytes
+> > > >  - vfs_cache_pressure
+> > > > +- zone_distribute_mode
+> > > >  - zone_reclaim_mode
 > > > >  
-> > > >  static bool zone_local(struct zone *local_zone, struct zone *zone)
-> > > >  {
-> > > > -	return node_distance(local_zone->node, zone->node) == LOCAL_DISTANCE;
-> > > > +	return zone_to_nid(zone) == numa_node_id();
+> > > >  ==============================================================
+> > > > @@ -724,6 +725,37 @@ causes the kernel to prefer to reclaim dentries and inodes.
+> > > >  
+> > > >  ==============================================================
+> > > >  
+> > > > +zone_distribute_mode
+> > > > +
+> > > > +Pages allocation and reclaim are managed on a per-zone basis. When the
+> > > > +system needs to reclaim memory, candidate pages are selected from these
+> > > > +per-zone lists.  Historically, a potential consequence was that recently
+> > > > +allocated pages were considered reclaim candidates. From a zone-local
+> > > > +perspective, page aging was preserved but from a system-wide perspective
+> > > > +there was an age inversion problem.
+> > > > +
+> > > > +A similar problem occurs on a node level where young pages may be reclaimed
+> > > > +from the local node instead of allocating remote memory. Unforuntately, the
+> > > > +cost of accessing remote nodes is higher so the system must choose by default
+> > > > +between favouring page aging or node locality. zone_distribute_mode controls
+> > > > +how the system will distribute page ages between zones.
+> > > > +
+> > > > +0	= Never round-robin based on age
 > > > 
-> > > Why numa_node_id()?  We pass in the preferred zone as @local_zone:
+> > > I think we should be very conservative with the userspace interface we
+> > > export on a mechanism we are obviously just figuring out.
 > > > 
 > > 
-> > Initially because I was thinking "local node" and numa_node_id() is a
-> > per-cpu variable that should be cheap to access and in some cases
-> > cache-hot as the top-level gfp API calls numa_node_id().
+> > And we have a proposal on how to limit this. I'll be layering another
+> > patch on top and removes this interface again. That will allows us to
+> > rollback one patch and still have a usable interface if necessary.
 > > 
-> > Thinking about it more though it still makes sense because the preferred
-> > zone is not necessarily local. If the allocation request requires ZONE_DMA32
-> > and the local node does not have that zone then preferred zone is on a
-> > remote node.
+> > > > +Otherwise the values are ORed together
+> > > > +
+> > > > +1	= Distribute anon pages between zones local to the allocating node
+> > > > +2	= Distribute file pages between zones local to the allocating node
+> > > > +4	= Distribute slab pages between zones local to the allocating node
+> > > 
+> > > Zone fairness within a node does not affect mempolicy or remote
+> > > reference costs.  Is there a reason to have this configurable?
+> > > 
+> > 
+> > Symmetry
+> > 
+> > > > +The following three flags effectively alter MPOL_DEFAULT, be careful.
+> > > > +
+> > > > +8	= Distribute anon pages between zones remote to the allocating node
+> > > > +16	= Distribute file pages between zones remote to the allocating node
+> > > > +32	= Distribute slab pages between zones remote to the allocating node
+> > > 
+> > > Yes, it's conceivable that somebody might want to disable remote
+> > > distribution because of the extra references.
+> > > 
+> > > But at this point, I'd much rather back out anon and slab distribution
+> > > entirely, it was a mistake to include them.
+> > > 
+> > > That would leave us with a single knob to disable remote page cache
+> > > placement.
+> > > 
+> > 
+> > When looking at this closer I found that sysv is a weird exception. It's
+> > file-backed as far as most of the VM is concerned but looks anonymous to
+> > most applications that care. That and MAP_SHARED anonymous pages should
+> > not be treated like files but we still want tmpfs to be treated as
+> > files. Details will be in the changelog of the next series.
 > 
-> Don't we treat everything in relation to the preferred zone?
+> In what sense is it seen as file-backed?
 
-Usually yes, but this time we really care about whether the memory is
-local or remote. It makes sense to me as it is and struggle to see an
-advantage of expressing it in terms of the preferred zone. Minimally
-zone_local would need to be renamed if it could return true for a remote
-zone and I see no advantage in doing that.
-
-I might be stuck in a "la la la, everything is fine" rut.
+sysv and anonymous pages are backed by an internal shmem mount point. In
+lots of respects, it's looks like a file and quacks like a file but I expect
+developers think of it being anonmous and chunks of the VM treats it like
+it's anonymous. tmpfs uses the same paths and they get treated similar to
+the VM as anon but users may think that tmpfs should be subject to the
+fair allocation zone policy "because they're files." It's a sufficently
+weird case that any action we take there should be deliberate. It'll be
+a bit clearer when I post the patch that special cases this.
 
 -- 
 Mel Gorman
