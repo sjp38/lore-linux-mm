@@ -1,84 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id EE0CB6B0035
-	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 19:01:32 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id fa1so3651354pad.31
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 16:01:32 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id sa6si10226108pbb.53.2013.12.16.16.01.30
-        for <linux-mm@kvack.org>;
-        Mon, 16 Dec 2013 16:01:31 -0800 (PST)
-Date: Mon, 16 Dec 2013 16:01:28 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC][PATCH 0/7] re-shrink 'struct page' when SLUB is on.
-Message-Id: <20131216160128.aa1f1eb8039f5eee578cf560@linux-foundation.org>
-In-Reply-To: <20131213235903.8236C539@viggo.jf.intel.com>
-References: <20131213235903.8236C539@viggo.jf.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-yh0-f44.google.com (mail-yh0-f44.google.com [209.85.213.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 89B796B0035
+	for <linux-mm@kvack.org>; Mon, 16 Dec 2013 19:18:49 -0500 (EST)
+Received: by mail-yh0-f44.google.com with SMTP id f64so4395074yha.3
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 16:18:49 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id l5si14016644yhl.199.2013.12.16.16.18.48
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 16 Dec 2013 16:18:48 -0800 (PST)
+Message-ID: <52AF9860.9000303@oracle.com>
+Date: Mon, 16 Dec 2013 19:18:40 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
+MIME-Version: 1.0
+Subject: Re: [patch 019/154] mm: make madvise(MADV_WILLNEED) support swap
+ file prefetch
+References: <20130223003232.4CDDB5A41B6@corp2gmr1-2.hot.corp.google.com> <52AA0613.2000908@oracle.com> <CA+55aFw3_0_Et9bbfWgGLXEUaGQW1HE8j=oGBqFG_8j+h6jmvQ@mail.gmail.com> <CA+55aFyRZW=Uy9w+bZR0vMOFNPqV-yW2Xs9N42qEwTQ3AY0fDw@mail.gmail.com> <52AE271C.4040805@oracle.com> <CA+55aFw+-EB0J5v-1LMg1aiDZQJ-Mm0fzdbN312_nyBCVs+Fvw@mail.gmail.com> <20131216124754.29063E0090@blue.fi.intel.com> <52AF19CF.2060102@oracle.com> <20131216205244.GG21218@redhat.com>
+In-Reply-To: <20131216205244.GG21218@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pravin B Shelar <pshelar@nicira.com>, Christoph Lameter <cl@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Pekka Enberg <penberg@kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, shli@kernel.org, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@fusionio.com>, linux-mm <linux-mm@kvack.org>
 
-On Fri, 13 Dec 2013 15:59:03 -0800 Dave Hansen <dave@sr71.net> wrote:
+Hi Andrea,
 
-> SLUB depends on a 16-byte cmpxchg for an optimization.  For the
-> purposes of this series, I'm assuming that it is a very important
-> optimization that we desperately need to keep around.
+On 12/16/2013 03:52 PM, Andrea Arcangeli wrote:
+> Is the bug reproducible? If yes the simplest is probably to add some
+> allocation tracking to the page, so if page->ptl is null we can simply
+> print a stack trace of who allocated the page (and later forgot to
+> initialize the ptl).
 
-What if we don't do that.
+Yes, it's easy to reproduce. I've done as suggested and here's the trace from
+the allocation:
 
-> In order to get guaranteed 16-byte alignment (required by the
-> hardware on x86), 'struct page' is padded out from 56 to 64
-> bytes.
-> 
-> Those 8-bytes matter.  We've gone to great lengths to keep
-> 'struct page' small in the past.  It's a shame that we bloat it
-> now just for alignment reasons when we have extra space.  Plus,
-> bloating such a commonly-touched structure *HAS* to have cache
-> footprint implications.
-> 
-> These patches attempt _internal_ alignment instead of external
-> alignment for slub.
-> 
-> I also got a bug report from some folks running a large database
-> benchmark.  Their old kernel uses slab and their new one uses
-> slub.  They were swapping and couldn't figure out why.  It turned
-> out to be the 2GB of RAM that the slub padding wastes on their
-> system.
-> 
-> On my box, that 2GB cost about $200 to populate back when we
-> bought it.  I want my $200 back.
-> 
-> This set takes me from 16909584K of reserved memory at boot
-> down to 14814472K, so almost *exactly* 2GB of savings!  It also
-> helps performance, presumably because it touches 14% fewer
-> struct page cachelines.  A 30GB dd to a ramfs file:
-> 
->         dd if=/dev/zero of=bigfile bs=$((1<<30)) count=30
-> 
-> is sped up by about 4.4% in my testing.
+[  184.139519]  [<ffffffff8107de0f>] save_stack_trace+0x2f/0x50
+[  184.140706]  [<ffffffff81257769>] get_page_from_freelist+0x759/0x7a0
+[  184.141605]  [<ffffffff81258438>] __alloc_pages_nodemask+0x3b8/0x520
+[  184.142810]  [<ffffffff812a4baf>] alloc_pages_vma+0x1df/0x220
+[  184.143631]  [<ffffffff812bcd58>] do_huge_pmd_wp_page+0x2d8/0x730
+[  184.144526]  [<ffffffff81280e01>] __handle_mm_fault+0x2b1/0x3d0
+[  184.145361]  [<ffffffff81281053>] handle_mm_fault+0x133/0x1c0
+[  184.146129]  [<ffffffff812815f8>] __get_user_pages+0x448/0x640
+[  184.147055]  [<ffffffff812827a4>] __mlock_vma_pages_range+0xd4/0xe0
+[  184.147980]  [<ffffffff812828c0>] __mm_populate+0x110/0x190
+[  184.148933]  [<ffffffff812839b2>] SyS_mlock+0xf2/0x130
+[  184.149689]  [<ffffffff843c5e50>] tracesys+0xdd/0xe2
 
-This is a gruesome and horrible tale of inefficiency and regression.
+> Agree with Kirill that it would help to verify the bug goes away by
+> disabling USE_SPLIT_PTE_PTLOCKS.
 
->From 5-10 minutes of gitting I couldn't see any performance testing
-results for slub's cmpxchg_double stuff.  I am thinking we should just
-tip it all overboard unless someone can demonstrate sufficiently
-serious losses from so doing.
+It seems that the bug is gone without USE_SPLIT_PTE_PTLOCKS.
 
---- a/arch/x86/Kconfig~a
-+++ a/arch/x86/Kconfig
-@@ -78,7 +78,6 @@ config X86
- 	select ANON_INODES
- 	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
- 	select HAVE_CMPXCHG_LOCAL
--	select HAVE_CMPXCHG_DOUBLE
- 	select HAVE_ARCH_KMEMCHECK
- 	select HAVE_USER_RETURN_NOTIFIER
- 	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
-_
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
