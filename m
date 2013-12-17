@@ -1,96 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f50.google.com (mail-bk0-f50.google.com [209.85.214.50])
-	by kanga.kvack.org (Postfix) with ESMTP id A62986B0037
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 15:11:54 -0500 (EST)
-Received: by mail-bk0-f50.google.com with SMTP id e11so2970435bkh.23
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 12:11:53 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id on6si5651097bkb.143.2013.12.17.12.11.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 17 Dec 2013 12:11:53 -0800 (PST)
-Date: Tue, 17 Dec 2013 15:11:47 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 3/7] mm: page_alloc: Use zone node IDs to approximate
- locality
-Message-ID: <20131217201147.GH21724@cmpxchg.org>
-References: <1386943807-29601-1-git-send-email-mgorman@suse.de>
- <1386943807-29601-4-git-send-email-mgorman@suse.de>
- <20131216202507.GZ21724@cmpxchg.org>
- <20131217111352.GZ11295@suse.de>
- <20131217153829.GC21724@cmpxchg.org>
- <20131217160808.GF11295@suse.de>
+Received: from mail-yh0-f41.google.com (mail-yh0-f41.google.com [209.85.213.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A5566B0039
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 15:37:20 -0500 (EST)
+Received: by mail-yh0-f41.google.com with SMTP id f11so5008878yha.28
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 12:37:20 -0800 (PST)
+Received: from a9-46.smtp-out.amazonses.com (a9-46.smtp-out.amazonses.com. [54.240.9.46])
+        by mx.google.com with ESMTP id p10si6808256qce.69.2013.12.17.12.37.19
+        for <linux-mm@kvack.org>;
+        Tue, 17 Dec 2013 12:37:19 -0800 (PST)
+Date: Tue, 17 Dec 2013 20:37:18 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: netfilter: active obj WARN when cleaning up
+In-Reply-To: <52B0ABB6.8090205@oracle.com>
+Message-ID: <000001430246e902-112cfb9d-5393-4eed-8529-e0008f88df45-000000@email.amazonses.com>
+References: <20131127233415.GB19270@kroah.com> <00000142b4282aaf-913f5e4c-314c-4351-9d24-615e66928157-000000@email.amazonses.com> <20131202164039.GA19937@kroah.com> <00000142b4514eb5-2e8f675d-0ecc-423b-9906-58c5f383089b-000000@email.amazonses.com>
+ <20131202172615.GA4722@kroah.com> <00000142b4aeca89-186fc179-92b8-492f-956c-38a7c196d187-000000@email.amazonses.com> <20131202190814.GA2267@kroah.com> <00000142b4d4360c-5755af87-b9b0-4847-b5fa-7a9dd13b49c5-000000@email.amazonses.com> <20131202212235.GA1297@kroah.com>
+ <00000142b54f6694-c51e81b1-f1a2-483b-a1ce-a2d4cb6b155c-000000@email.amazonses.com> <20131202222208.GB13034@kroah.com> <00000142b90da700-19f6b465-ff15-4b2b-9bcd-b91d71958b7f-000000@email.amazonses.com> <52B0ABB6.8090205@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131217160808.GF11295@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Greg KH <greg@kroah.com>, Thomas Gleixner <tglx@linutronix.de>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Pablo Neira Ayuso <pablo@netfilter.org>, Patrick McHardy <kaber@trash.net>, kadlec@blackhole.kfki.hu, "David S. Miller" <davem@davemloft.net>, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Dec 17, 2013 at 04:08:08PM +0000, Mel Gorman wrote:
-> On Tue, Dec 17, 2013 at 10:38:29AM -0500, Johannes Weiner wrote:
-> > On Tue, Dec 17, 2013 at 11:13:52AM +0000, Mel Gorman wrote:
-> > > On Mon, Dec 16, 2013 at 03:25:07PM -0500, Johannes Weiner wrote:
-> > > > On Fri, Dec 13, 2013 at 02:10:03PM +0000, Mel Gorman wrote:
-> > > > > zone_local is using node_distance which is a more expensive call than
-> > > > > necessary. On x86, it's another function call in the allocator fast path
-> > > > > and increases cache footprint. This patch makes the assumption zones on a
-> > > > > local node will share the same node ID. The necessary information should
-> > > > > already be cache hot.
-> > > > > 
-> > > > > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > > > > ---
-> > > > >  mm/page_alloc.c | 2 +-
-> > > > >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > > > > 
-> > > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > > > index 64020eb..fd9677e 100644
-> > > > > --- a/mm/page_alloc.c
-> > > > > +++ b/mm/page_alloc.c
-> > > > > @@ -1816,7 +1816,7 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
-> > > > >  
-> > > > >  static bool zone_local(struct zone *local_zone, struct zone *zone)
-> > > > >  {
-> > > > > -	return node_distance(local_zone->node, zone->node) == LOCAL_DISTANCE;
-> > > > > +	return zone_to_nid(zone) == numa_node_id();
-> > > > 
-> > > > Why numa_node_id()?  We pass in the preferred zone as @local_zone:
-> > > > 
-> > > 
-> > > Initially because I was thinking "local node" and numa_node_id() is a
-> > > per-cpu variable that should be cheap to access and in some cases
-> > > cache-hot as the top-level gfp API calls numa_node_id().
-> > > 
-> > > Thinking about it more though it still makes sense because the preferred
-> > > zone is not necessarily local. If the allocation request requires ZONE_DMA32
-> > > and the local node does not have that zone then preferred zone is on a
-> > > remote node.
-> > 
-> > Don't we treat everything in relation to the preferred zone?
-> 
-> Usually yes, but this time we really care about whether the memory is
-> local or remote. It makes sense to me as it is and struggle to see an
-> advantage of expressing it in terms of the preferred zone. Minimally
-> zone_local would need to be renamed if it could return true for a remote
-> zone and I see no advantage in doing that.
+On Tue, 17 Dec 2013, Sasha Levin wrote:
 
-What the function tests for is whether any given zone is close
-enough/local to the given preferred zone such that we can allocate
-from it without having to invoke zone_reclaim_mode.
+> I'm still seeing warnings with this patch applied:
 
-In your example, if the preferred DMA32 zone were to be on a remote
-node and eligible for allocation but full, a DMA zone on the same node
-should be fine as well and would not impose a higher remote reference
-burden on the allocator than allocating from the preferred DMA32 zone.
+Looks like this is related to some device release mechanism that frees
+twice?
 
-So it's really not about the locality of the allocating task but about
-the locality of the given preferred zone.
-
-In my tree, I replaced the function body with
-
-	return local_zone->node == zone->node;
+I do not see any kmem_cache management functions in the backtrace and
+therefore would guess that this is not the same issue.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
