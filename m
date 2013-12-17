@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
-	by kanga.kvack.org (Postfix) with ESMTP id C86CB6B0035
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 02:34:14 -0500 (EST)
-Received: by mail-ee0-f45.google.com with SMTP id d49so2680790eek.4
-        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 23:34:14 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id r9si3769750eeo.233.2013.12.16.23.34.13
-        for <linux-mm@kvack.org>;
-        Mon, 16 Dec 2013 23:34:13 -0800 (PST)
-Date: Tue, 17 Dec 2013 02:34:04 -0500
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1387265644-l2iufoc7-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1387262658-29067-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1387262658-29067-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
+	by kanga.kvack.org (Postfix) with ESMTP id B18BB6B0035
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 02:40:56 -0500 (EST)
+Received: by mail-qc0-f170.google.com with SMTP id x13so4668021qcv.1
+        for <linux-mm@kvack.org>; Mon, 16 Dec 2013 23:40:56 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id g1si6010260qcl.86.2013.12.16.23.40.55
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 16 Dec 2013 23:40:55 -0800 (PST)
+Message-ID: <52AFFFF2.6040009@oracle.com>
+Date: Tue, 17 Dec 2013 15:40:34 +0800
+From: Bob Liu <bob.liu@oracle.com>
+MIME-Version: 1.0
 Subject: Re: [PATCH] mm/mempolicy: fix !vma in new_vma_page()
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
+References: <1387262658-29067-1-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1387262658-29067-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Dave Jones <davej@codemonkey.org.uk>, Bob Liu <bob.liu@oracle.com>, dan.carpenter@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Dave Jones <davej@codemonkey.org.uk>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, dan.carpenter@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Dec 17, 2013 at 02:44:17PM +0800, Wanpeng Li wrote:
+
+On 12/17/2013 02:44 PM, Wanpeng Li wrote:
 > BUG_ON(!vma) assumption is introduced by commit 0bf598d8 (mbind: add BUG_ON(!vma) 
 > in new_vma_page()), however, even if address = __vma_address(page, vma); and 
 > vma->start < address < vma->end; page_address_in_vma() may still return -EFAULT 
@@ -69,9 +69,7 @@ On Tue, Dec 17, 2013 at 02:44:17PM +0800, Wanpeng Li wrote:
 > Reported-by: Sasha Levin <sasha.levin@oracle.com>
 > Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Thanks Wanpeng, and everyone!
-
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Reviewed-by: Bob Liu <bob.liu@oracle.com>
 
 > ---
 >  mm/mempolicy.c |   14 ++++++++------
@@ -104,9 +102,11 @@ Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 >  	return alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
 >  }
 >  #else
-> -- 
-> 1.7.5.4
 > 
+
+-- 
+Regards,
+-Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
