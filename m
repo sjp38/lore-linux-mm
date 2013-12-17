@@ -1,44 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 84CE16B0037
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 10:17:39 -0500 (EST)
-Received: by mail-qc0-f181.google.com with SMTP id e9so4912349qcy.26
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 07:17:39 -0800 (PST)
-Received: from a9-62.smtp-out.amazonses.com (a9-62.smtp-out.amazonses.com. [54.240.9.62])
-        by mx.google.com with ESMTP id kc8si14756236qeb.65.2013.12.17.07.17.37
-        for <linux-mm@kvack.org>;
-        Tue, 17 Dec 2013 07:17:38 -0800 (PST)
-Date: Tue, 17 Dec 2013 15:17:37 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH 0/7] re-shrink 'struct page' when SLUB is on.
-In-Reply-To: <52AF9EB9.7080606@sr71.net>
-Message-ID: <0000014301223b3e-a73f3d59-8234-48f1-9888-9af32709a879-000000@email.amazonses.com>
-References: <20131213235903.8236C539@viggo.jf.intel.com> <20131216160128.aa1f1eb8039f5eee578cf560@linux-foundation.org> <52AF9EB9.7080606@sr71.net>
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 1675C6B0036
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 10:29:59 -0500 (EST)
+Received: by mail-wi0-f179.google.com with SMTP id z2so3826969wiv.12
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 07:29:59 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u49si5708147eep.85.2013.12.17.07.29.58
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 17 Dec 2013 07:29:58 -0800 (PST)
+Date: Tue, 17 Dec 2013 15:29:54 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 5/7] mm: page_alloc: Make zone distribution page aging
+ policy configurable
+Message-ID: <20131217152954.GA24067@suse.de>
+References: <1386943807-29601-1-git-send-email-mgorman@suse.de>
+ <1386943807-29601-6-git-send-email-mgorman@suse.de>
+ <20131216204215.GA21724@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20131216204215.GA21724@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pravin B Shelar <pshelar@nicira.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Pekka Enberg <penberg@kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 16 Dec 2013, Dave Hansen wrote:
+On Mon, Dec 16, 2013 at 03:42:15PM -0500, Johannes Weiner wrote:
+> On Fri, Dec 13, 2013 at 02:10:05PM +0000, Mel Gorman wrote:
+> > Commit 81c0a2bb ("mm: page_alloc: fair zone allocator policy") solved a
+> > bug whereby new pages could be reclaimed before old pages because of
+> > how the page allocator and kswapd interacted on the per-zone LRU lists.
+> > Unfortunately it was missed during review that a consequence is that
+> > we also round-robin between NUMA nodes. This is bad for two reasons
+> > 
+> > 1. It alters the semantics of MPOL_LOCAL without telling anyone
+> > 2. It incurs an immediate remote memory performance hit in exchange
+> >    for a potential performance gain when memory needs to be reclaimed
+> >    later
+> > 
+> > No cookies for the reviewers on this one.
+> > 
+> > This patch makes the behaviour of the fair zone allocator policy
+> > configurable.  By default it will only distribute pages that are going
+> > to exist on the LRU between zones local to the allocating process. This
+> > preserves the historical semantics of MPOL_LOCAL.
+> > 
+> > By default, slab pages are not distributed between zones after this patch is
+> > applied. It can be argued that they should get similar treatment but they
+> > have different lifecycles to LRU pages, the shrinkers are not zone-aware
+> > and the interaction between the page allocator and kswapd is different
+> > for slabs. If it turns out to be an almost universal win, we can change
+> > the default.
+> > 
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > ---
+> >  Documentation/sysctl/vm.txt |  32 ++++++++++++++
+> >  include/linux/mmzone.h      |   2 +
+> >  include/linux/swap.h        |   2 +
+> >  kernel/sysctl.c             |   8 ++++
+> >  mm/page_alloc.c             | 102 ++++++++++++++++++++++++++++++++++++++------
+> >  5 files changed, 134 insertions(+), 12 deletions(-)
+> > 
+> > diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+> > index 1fbd4eb..8eaa562 100644
+> > --- a/Documentation/sysctl/vm.txt
+> > +++ b/Documentation/sysctl/vm.txt
+> > @@ -56,6 +56,7 @@ Currently, these files are in /proc/sys/vm:
+> >  - swappiness
+> >  - user_reserve_kbytes
+> >  - vfs_cache_pressure
+> > +- zone_distribute_mode
+> >  - zone_reclaim_mode
+> >  
+> >  ==============================================================
+> > @@ -724,6 +725,37 @@ causes the kernel to prefer to reclaim dentries and inodes.
+> >  
+> >  ==============================================================
+> >  
+> > +zone_distribute_mode
+> > +
+> > +Pages allocation and reclaim are managed on a per-zone basis. When the
+> > +system needs to reclaim memory, candidate pages are selected from these
+> > +per-zone lists.  Historically, a potential consequence was that recently
+> > +allocated pages were considered reclaim candidates. From a zone-local
+> > +perspective, page aging was preserved but from a system-wide perspective
+> > +there was an age inversion problem.
+> > +
+> > +A similar problem occurs on a node level where young pages may be reclaimed
+> > +from the local node instead of allocating remote memory. Unforuntately, the
+> > +cost of accessing remote nodes is higher so the system must choose by default
+> > +between favouring page aging or node locality. zone_distribute_mode controls
+> > +how the system will distribute page ages between zones.
+> > +
+> > +0	= Never round-robin based on age
+> 
+> I think we should be very conservative with the userspace interface we
+> export on a mechanism we are obviously just figuring out.
+> 
 
-> I'll do some testing and see if I can coax out any delta from the
-> optimization myself.  Christoph went to a lot of trouble to put this
-> together, so I assumed that he had a really good reason, although the
-> changelogs don't really mention any.
+And we have a proposal on how to limit this. I'll be layering another
+patch on top and removes this interface again. That will allows us to
+rollback one patch and still have a usable interface if necessary.
 
-The cmpxchg on the struct page avoids disabling interrupts etc and
-therefore simplifies the code significantly.
+> > +Otherwise the values are ORed together
+> > +
+> > +1	= Distribute anon pages between zones local to the allocating node
+> > +2	= Distribute file pages between zones local to the allocating node
+> > +4	= Distribute slab pages between zones local to the allocating node
+> 
+> Zone fairness within a node does not affect mempolicy or remote
+> reference costs.  Is there a reason to have this configurable?
+> 
 
-> I honestly can't imagine that a cmpxchg16 is going to be *THAT* much
-> cheaper than a per-page spinlock.  The contended case of the cmpxchg is
-> way more expensive than spinlock contention for sure.
+Symmetry
 
-Make sure slub does not set __CMPXCHG_DOUBLE in the kmem_cache flags
-and it will fall back to spinlocks if you want to do a comparison. Most
-non x86 arches will use that fallback code.
+> > +The following three flags effectively alter MPOL_DEFAULT, be careful.
+> > +
+> > +8	= Distribute anon pages between zones remote to the allocating node
+> > +16	= Distribute file pages between zones remote to the allocating node
+> > +32	= Distribute slab pages between zones remote to the allocating node
+> 
+> Yes, it's conceivable that somebody might want to disable remote
+> distribution because of the extra references.
+> 
+> But at this point, I'd much rather back out anon and slab distribution
+> entirely, it was a mistake to include them.
+> 
+> That would leave us with a single knob to disable remote page cache
+> placement.
+> 
 
+When looking at this closer I found that sysv is a weird exception. It's
+file-backed as far as most of the VM is concerned but looks anonymous to
+most applications that care. That and MAP_SHARED anonymous pages should
+not be treated like files but we still want tmpfs to be treated as
+files. Details will be in the changelog of the next series.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
