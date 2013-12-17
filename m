@@ -1,179 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f42.google.com (mail-bk0-f42.google.com [209.85.214.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 55D3E6B0035
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 12:43:12 -0500 (EST)
-Received: by mail-bk0-f42.google.com with SMTP id w11so3018052bkz.1
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 09:43:11 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id ko10si5562011bkb.340.2013.12.17.09.43.10
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 17 Dec 2013 09:43:11 -0800 (PST)
-Date: Tue, 17 Dec 2013 12:43:02 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 5/7] mm: page_alloc: Make zone distribution page aging
- policy configurable
-Message-ID: <20131217174302.GF21724@cmpxchg.org>
-References: <1386943807-29601-1-git-send-email-mgorman@suse.de>
- <1386943807-29601-6-git-send-email-mgorman@suse.de>
- <20131216204215.GA21724@cmpxchg.org>
- <20131217152954.GA24067@suse.de>
- <20131217155435.GE21724@cmpxchg.org>
- <20131217161420.GG11295@suse.de>
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 13F176B0038
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 12:47:53 -0500 (EST)
+Received: by mail-ig0-f170.google.com with SMTP id k19so6878258igc.1
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 09:47:52 -0800 (PST)
+Date: Tue, 17 Dec 2013 11:47:59 -0600
+From: Alex Thorlton <athorlton@sgi.com>
+Subject: Re: [RFC PATCH 0/3] Change how we determine when to hand out THPs
+Message-ID: <20131217174759.GL18680@sgi.com>
+References: <20131212180037.GA134240@sgi.com>
+ <20131213214437.6fdbf7f2.akpm@linux-foundation.org>
+ <20131216171214.GA15663@sgi.com>
+ <CALCETrW9uGYzckWg3Wcsu-VV-vbXxUCr+Dv0kXqE5VMKopjn+A@mail.gmail.com>
+ <20131217160455.GG18680@sgi.com>
+ <CALCETrX_B0D+XyYD8P6mfS4uqty1vzYpOmR-0Mx-yee=wtyR8g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131217161420.GG11295@suse.de>
+In-Reply-To: <CALCETrX_B0D+XyYD8P6mfS4uqty1vzYpOmR-0Mx-yee=wtyR8g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Benjamin LaHaise <bcrl@kvack.org>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Al Viro <viro@zeniv.linux.org.uk>, David Rientjes <rientjes@google.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jiang Liu <jiang.liu@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Glauber Costa <glommer@parallels.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Tue, Dec 17, 2013 at 04:14:20PM +0000, Mel Gorman wrote:
-> On Tue, Dec 17, 2013 at 10:54:35AM -0500, Johannes Weiner wrote:
-> > On Tue, Dec 17, 2013 at 03:29:54PM +0000, Mel Gorman wrote:
-> > > On Mon, Dec 16, 2013 at 03:42:15PM -0500, Johannes Weiner wrote:
-> > > > On Fri, Dec 13, 2013 at 02:10:05PM +0000, Mel Gorman wrote:
-> > > > > Commit 81c0a2bb ("mm: page_alloc: fair zone allocator policy") solved a
-> > > > > bug whereby new pages could be reclaimed before old pages because of
-> > > > > how the page allocator and kswapd interacted on the per-zone LRU lists.
-> > > > > Unfortunately it was missed during review that a consequence is that
-> > > > > we also round-robin between NUMA nodes. This is bad for two reasons
-> > > > > 
-> > > > > 1. It alters the semantics of MPOL_LOCAL without telling anyone
-> > > > > 2. It incurs an immediate remote memory performance hit in exchange
-> > > > >    for a potential performance gain when memory needs to be reclaimed
-> > > > >    later
-> > > > > 
-> > > > > No cookies for the reviewers on this one.
-> > > > > 
-> > > > > This patch makes the behaviour of the fair zone allocator policy
-> > > > > configurable.  By default it will only distribute pages that are going
-> > > > > to exist on the LRU between zones local to the allocating process. This
-> > > > > preserves the historical semantics of MPOL_LOCAL.
-> > > > > 
-> > > > > By default, slab pages are not distributed between zones after this patch is
-> > > > > applied. It can be argued that they should get similar treatment but they
-> > > > > have different lifecycles to LRU pages, the shrinkers are not zone-aware
-> > > > > and the interaction between the page allocator and kswapd is different
-> > > > > for slabs. If it turns out to be an almost universal win, we can change
-> > > > > the default.
-> > > > > 
-> > > > > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > > > > ---
-> > > > >  Documentation/sysctl/vm.txt |  32 ++++++++++++++
-> > > > >  include/linux/mmzone.h      |   2 +
-> > > > >  include/linux/swap.h        |   2 +
-> > > > >  kernel/sysctl.c             |   8 ++++
-> > > > >  mm/page_alloc.c             | 102 ++++++++++++++++++++++++++++++++++++++------
-> > > > >  5 files changed, 134 insertions(+), 12 deletions(-)
-> > > > > 
-> > > > > diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-> > > > > index 1fbd4eb..8eaa562 100644
-> > > > > --- a/Documentation/sysctl/vm.txt
-> > > > > +++ b/Documentation/sysctl/vm.txt
-> > > > > @@ -56,6 +56,7 @@ Currently, these files are in /proc/sys/vm:
-> > > > >  - swappiness
-> > > > >  - user_reserve_kbytes
-> > > > >  - vfs_cache_pressure
-> > > > > +- zone_distribute_mode
-> > > > >  - zone_reclaim_mode
-> > > > >  
-> > > > >  ==============================================================
-> > > > > @@ -724,6 +725,37 @@ causes the kernel to prefer to reclaim dentries and inodes.
-> > > > >  
-> > > > >  ==============================================================
-> > > > >  
-> > > > > +zone_distribute_mode
-> > > > > +
-> > > > > +Pages allocation and reclaim are managed on a per-zone basis. When the
-> > > > > +system needs to reclaim memory, candidate pages are selected from these
-> > > > > +per-zone lists.  Historically, a potential consequence was that recently
-> > > > > +allocated pages were considered reclaim candidates. From a zone-local
-> > > > > +perspective, page aging was preserved but from a system-wide perspective
-> > > > > +there was an age inversion problem.
-> > > > > +
-> > > > > +A similar problem occurs on a node level where young pages may be reclaimed
-> > > > > +from the local node instead of allocating remote memory. Unforuntately, the
-> > > > > +cost of accessing remote nodes is higher so the system must choose by default
-> > > > > +between favouring page aging or node locality. zone_distribute_mode controls
-> > > > > +how the system will distribute page ages between zones.
-> > > > > +
-> > > > > +0	= Never round-robin based on age
-> > > > 
-> > > > I think we should be very conservative with the userspace interface we
-> > > > export on a mechanism we are obviously just figuring out.
-> > > > 
-> > > 
-> > > And we have a proposal on how to limit this. I'll be layering another
-> > > patch on top and removes this interface again. That will allows us to
-> > > rollback one patch and still have a usable interface if necessary.
-> > > 
-> > > > > +Otherwise the values are ORed together
-> > > > > +
-> > > > > +1	= Distribute anon pages between zones local to the allocating node
-> > > > > +2	= Distribute file pages between zones local to the allocating node
-> > > > > +4	= Distribute slab pages between zones local to the allocating node
-> > > > 
-> > > > Zone fairness within a node does not affect mempolicy or remote
-> > > > reference costs.  Is there a reason to have this configurable?
-> > > > 
-> > > 
-> > > Symmetry
-> > > 
-> > > > > +The following three flags effectively alter MPOL_DEFAULT, be careful.
-> > > > > +
-> > > > > +8	= Distribute anon pages between zones remote to the allocating node
-> > > > > +16	= Distribute file pages between zones remote to the allocating node
-> > > > > +32	= Distribute slab pages between zones remote to the allocating node
-> > > > 
-> > > > Yes, it's conceivable that somebody might want to disable remote
-> > > > distribution because of the extra references.
-> > > > 
-> > > > But at this point, I'd much rather back out anon and slab distribution
-> > > > entirely, it was a mistake to include them.
-> > > > 
-> > > > That would leave us with a single knob to disable remote page cache
-> > > > placement.
-> > > > 
-> > > 
-> > > When looking at this closer I found that sysv is a weird exception. It's
-> > > file-backed as far as most of the VM is concerned but looks anonymous to
-> > > most applications that care. That and MAP_SHARED anonymous pages should
-> > > not be treated like files but we still want tmpfs to be treated as
-> > > files. Details will be in the changelog of the next series.
-> > 
-> > In what sense is it seen as file-backed?
+On Tue, Dec 17, 2013 at 08:54:10AM -0800, Andy Lutomirski wrote:
+> On Tue, Dec 17, 2013 at 8:04 AM, Alex Thorlton <athorlton@sgi.com> wrote:
+> > On Mon, Dec 16, 2013 at 05:43:40PM -0800, Andy Lutomirski wrote:
+> >> On Mon, Dec 16, 2013 at 9:12 AM, Alex Thorlton <athorlton@sgi.com> wrote:
+> >> >> Please cc Andrea on this.
+> >> >
+> >> > I'm going to clean up a few small things for a v2 pretty soon, I'll be
+> >> > sure to cc Andrea there.
+> >> >
+> >> >> > My proposed solution to the problem is to allow users to set a
+> >> >> > threshold at which THPs will be handed out.  The idea here is that, when
+> >> >> > a user faults in a page in an area where they would usually be handed a
+> >> >> > THP, we pull 512 pages off the free list, as we would with a regular
+> >> >> > THP, but we only fault in single pages from that chunk, until the user
+> >> >> > has faulted in enough pages to pass the threshold we've set.  Once they
+> >> >> > pass the threshold, we do the necessary work to turn our 512 page chunk
+> >> >> > into a proper THP.  As it stands now, if the user tries to fault in
+> >> >> > pages from different nodes, we completely give up on ever turning a
+> >> >> > particular chunk into a THP, and just fault in the 4K pages as they're
+> >> >> > requested.  We may want to make this tunable in the future (i.e. allow
+> >> >> > them to fault in from only 2 different nodes).
+> >> >>
+> >> >> OK.  But all 512 pages reside on the same node, yes?  Whereas with thp
+> >> >> disabled those 512 pages would have resided closer to the CPUs which
+> >> >> instantiated them.
+> >> >
+> >> > As it stands right now, yes, since we're pulling a 512 page contiguous
+> >> > chunk off the free list, everything from that chunk will reside on the
+> >> > same node, but as I (stupidly) forgot to mention in my original e-mail,
+> >> > one piece I have yet to add is the functionality to put the remaining
+> >> > unfaulted pages from our chunk *back* on the free list after we give up
+> >> > on handing out a THP.  Once this is in there, things will behave more
+> >> > like they do when THP is turned completely off, i.e. pages will get
+> >> > faulted in closer to the CPU that first referenced them once we give up
+> >> > on handing out the THP.
+> >>
+> >> This sounds like it's almost the worst possible behavior wrt avoiding
+> >> memory fragmentation.  If userspace mmaps a very large region and then
+> >> starts accessing it randomly, it will allocate a bunch of contiguous
+> >> 512-page regions, claim one page from each, and return the other 511
+> >> pages to the free list.  Memory is now maximally fragmented from the
+> >> point of view of future THP allocations.
+> >
+> > Maybe I'm missing the point here to some degree, but the way I think
+> > about this is that if we trigger the behavior to return the pages to the
+> > free list, we don't *want* future THP allocations in that range of
+> > memory for the current process anyways.  So, having the memory be
+> > fragmented from the point of view of future THP allocations isn't an
+> > issue.
+> >
 > 
-> sysv and anonymous pages are backed by an internal shmem mount point. In
-> lots of respects, it's looks like a file and quacks like a file but I expect
-> developers think of it being anonmous and chunks of the VM treats it like
-> it's anonymous. tmpfs uses the same paths and they get treated similar to
-> the VM as anon but users may think that tmpfs should be subject to the
-> fair allocation zone policy "because they're files." It's a sufficently
-> weird case that any action we take there should be deliberate. It'll be
-> a bit clearer when I post the patch that special cases this.
+> Except that you're causing a problem for the whole system because one
+> process is triggering the "hugepages aren't helpful" heuristic.
 
-The line I see here is mostly derived from performance expectations.
+I do see where you're coming from here.  Do you have any good tests
+that can cause this type of memory fragmentation that I might be able to
+take a look at, to see how we might combat that issue in this case?
+It seems like something that could occur anyways, but my patch would
+create a situation where it could become a problem much more quickly.
 
-People and programs expect anon, shmem/tmpfs etc. to be fast and avoid
-their reclaim at great costs, so they size this part of their workload
-according to memory size and locality.  Filesystem cache (on-disk) on
-the other hand is expected to be slow on the first fault and after it
-has been displaced by other data, but the kernel is mostly expected to
-maximize the caching effects in a predictable manner.
+Also, just a side note, I see this being more of a problem on a smaller
+system, where swap is enabled.  However, on larger systems where swap is
+turned off, I think that this scenario might be a bit tougher to hit.  I
+understand that we don't want to hurt the average small system in favor
+of large ones, but that's why we leave it as a tunable and leave it up
+to the system administrator to decide whether or not this is appropriate
+to enable.
 
-The round-robin policy makes the displacement predictable (think of
-the aging artifacts here where random pages do not get displaced
-reliably because they ended up on remote nodes) and it avoids IO by
-maximizing memory utilization.
-
-I.e. it improves behavior associated with a cache, but I don't expect
-shmem/tmpfs to be typically used as a disk cache.  I could be wrong
-about that, but I figure if you need named shared memory that is
-bigger than your memory capacity (the point where your tmpfs would
-actually turn into a disk cache), you'd be better of using a more
-efficient on-disk filesystem.
+- Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
