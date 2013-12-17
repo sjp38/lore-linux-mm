@@ -1,59 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id CA2126B0036
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 08:15:00 -0500 (EST)
-Received: by mail-we0-f180.google.com with SMTP id t61so5921287wes.25
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 05:15:00 -0800 (PST)
-Received: from mail-ea0-x236.google.com (mail-ea0-x236.google.com [2a00:1450:4013:c01::236])
-        by mx.google.com with ESMTPS id ds14si5299991wic.2.2013.12.17.05.15.00
+Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 57D556B0038
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 08:15:30 -0500 (EST)
+Received: by mail-qc0-f173.google.com with SMTP id m20so4777048qcx.4
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 05:15:30 -0800 (PST)
+Received: from mail-gg0-x230.google.com (mail-gg0-x230.google.com [2607:f8b0:4002:c02::230])
+        by mx.google.com with ESMTPS id k3si14381890qao.170.2013.12.17.05.15.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 17 Dec 2013 05:15:00 -0800 (PST)
-Received: by mail-ea0-f182.google.com with SMTP id a15so2891553eae.27
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 05:14:59 -0800 (PST)
-Date: Tue, 17 Dec 2013 14:14:56 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 2/3] x86: mm: Change tlb_flushall_shift for IvyBridge
-Message-ID: <20131217131456.GA28688@gmail.com>
-References: <1386849309-22584-3-git-send-email-mgorman@suse.de>
- <20131212131309.GD5806@gmail.com>
- <52A9BC3A.7010602@linaro.org>
- <20131212141147.GB17059@gmail.com>
- <52AA5C92.7030207@linaro.org>
- <52AA6CB9.60302@linaro.org>
- <20131214141902.GA16438@laptop.programming.kicks-ass.net>
- <20131214142741.GB16438@laptop.programming.kicks-ass.net>
- <20131216135901.GA6171@gmail.com>
- <52B03C84.1000600@linaro.org>
+        Tue, 17 Dec 2013 05:15:29 -0800 (PST)
+Received: by mail-gg0-f176.google.com with SMTP id l12so59703gge.7
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 05:15:28 -0800 (PST)
+Date: Tue, 17 Dec 2013 08:15:25 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: [PATCH cgroup/for-3.13-fixes] cgroup: don't recycle cgroup id until
+ all csses' have been destroyed
+Message-ID: <20131217131525.GH29989@htj.dyndns.org>
+References: <alpine.LNX.2.00.1312160025200.2785@eggly.anvils>
+ <52AEC989.4080509@huawei.com>
+ <20131216095345.GB23582@dhcp22.suse.cz>
+ <20131216104042.GC23582@dhcp22.suse.cz>
+ <20131216163530.GH32509@htj.dyndns.org>
+ <20131216171937.GG26797@dhcp22.suse.cz>
+ <20131216172143.GJ32509@htj.dyndns.org>
+ <alpine.LNX.2.00.1312161718001.2037@eggly.anvils>
+ <52AFC163.5010507@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <52B03C84.1000600@linaro.org>
+In-Reply-To: <52AFC163.5010507@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Shi <alex.shi@linaro.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Fengguang Wu <fengguang.wu@intel.com>
+To: Li Zefan <lizefan@huawei.com>
+Cc: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
+Hey,
 
-* Alex Shi <alex.shi@linaro.org> wrote:
+I updated the comment myself and applied the patch to
+cgroup/for-3.13-fixes.
 
-> > Building the kernel is obviously a prime workload - and given that 
-> > the kernel is active only about 10% of the time for a typical 
-> > kernel build, a 1-2% speedup means a 10-20% speedup in kernel 
-> > performance (which sounds a bit too good at first glance).
-> 
-> Maybe a extra time tlb flush causes more tlb refill that cost much 
-> user space time.
-
-All these things are measurable, that way maybes can be converted into 
-certainty.
-
-Thanks,
-
-	Ingo
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thanks!
+-------- 8< --------
