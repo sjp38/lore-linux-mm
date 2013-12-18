@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 535B46B0038
+Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 8007C6B003A
 	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 08:17:10 -0500 (EST)
-Received: by mail-lb0-f177.google.com with SMTP id q8so1999362lbi.8
+Received: by mail-lb0-f171.google.com with SMTP id w7so2101128lbi.30
         for <linux-mm@kvack.org>; Wed, 18 Dec 2013 05:17:09 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id 9si9311075las.39.2013.12.18.05.17.08
+        by mx.google.com with ESMTPS id rc10si2874933lbb.164.2013.12.18.05.17.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 18 Dec 2013 05:17:08 -0800 (PST)
+        Wed, 18 Dec 2013 05:17:09 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH 4/6] memcg, slab: check and init memcg_cahes under slab_mutex
-Date: Wed, 18 Dec 2013 17:16:55 +0400
-Message-ID: <afc6d5e85d805c7313e928497b4ebcf1815703dd.1387372122.git.vdavydov@parallels.com>
+Subject: [PATCH 3/6] memcg, slab: cleanup barrier usage when accessing memcg_caches
+Date: Wed, 18 Dec 2013 17:16:54 +0400
+Message-ID: <bd0a7ffc57e4a0b0c3d456c0cf8801e829e14717.1387372122.git.vdavydov@parallels.com>
 In-Reply-To: <6f02b2d079ffd0990ae335339c803337b13ecd8c.1387372122.git.vdavydov@parallels.com>
 References: <6f02b2d079ffd0990ae335339c803337b13ecd8c.1387372122.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,38 +22,15 @@ List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-The memcg_params::memcg_caches array can be updated concurrently from
-memcg_update_cache_size() and memcg_create_kmem_cache(). Although both
-of these functions take the slab_mutex during their operation, the
-latter checks if memcg's cache has already been allocated w/o taking the
-mutex. This can result in a race as described below.
+First, in memcg_create_kmem_cache() we should issue the write barrier
+after the kmem_cache is initialized, but before storing the pointer to
+it in its parent's memcg_params.
 
-Asume two threads schedule kmem_cache creation works for the same
-kmem_cache of the same memcg from __memcg_kmem_get_cache(). One of the
-works successfully creates it. Another work should fail then, but if it
-interleaves with memcg_update_cache_size() as follows, it does not:
+Second, we should always issue the read barrier after
+cache_from_memcg_idx() to conform with the write barrier.
 
-  memcg_create_kmem_cache()                     memcg_update_cache_size()
-  (called w/o mutexes held)                     (called with slab_mutex held)
-  -------------------------                     -------------------------
-  mutex_lock(&memcg_cache_mutex)
-                                                s->memcg_params=kzalloc(...)
-  new_cachep=cache_from_memcg_idx(cachep,idx)
-  // new_cachep==NULL => proceed to creation
-                                                s->memcg_params->memcg_caches[i]
-                                                    =cur_params->memcg_caches[i]
-  // kmem_cache_dup takes slab_mutex so we will
-  // hang around here until memcg_update_cache_size()
-  // finishes, but ...
-  new_cachep = kmem_cache_dup(memcg, cachep)
-  // nothing will prevent kmem_cache_dup from
-  // succeeding so ...
-  cachep->memcg_params->memcg_caches[idx]=new_cachep
-  // we've overwritten an existing cache ptr!
-
-Let's fix this by moving both the check and the update of
-memcg_params::memcg_caches from memcg_create_kmem_cache() to
-kmem_cache_create_memcg() to be called under the slab_mutex.
+Third, its better to use smp_* versions of barriers, because we don't
+need them on UP systems.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 Cc: Michal Hocko <mhocko@suse.cz>
@@ -63,208 +40,80 @@ Cc: Christoph Lameter <cl@linux.com>
 Cc: Pekka Enberg <penberg@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/memcontrol.h |    9 ++--
- mm/memcontrol.c            |   98 +++++++++++++++-----------------------------
- mm/slab_common.c           |    8 +++-
- 3 files changed, 44 insertions(+), 71 deletions(-)
+ mm/memcontrol.c |   24 ++++++++++--------------
+ mm/slab.h       |    6 +++++-
+ 2 files changed, 15 insertions(+), 15 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index b357ae3..fdd3f30 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -500,8 +500,8 @@ int memcg_cache_id(struct mem_cgroup *memcg);
- int memcg_init_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
- 			    struct kmem_cache *root_cache);
- void memcg_free_cache_params(struct kmem_cache *s);
--void memcg_release_cache(struct kmem_cache *cachep);
--void memcg_cache_list_add(struct mem_cgroup *memcg, struct kmem_cache *cachep);
-+void memcg_register_cache(struct kmem_cache *s);
-+void memcg_release_cache(struct kmem_cache *s);
- 
- int memcg_update_cache_size(struct kmem_cache *s, int num_groups);
- void memcg_update_array_size(int num_groups);
-@@ -652,12 +652,11 @@ static inline void memcg_free_cache_params(struct kmem_cache *s);
- {
- }
- 
--static inline void memcg_release_cache(struct kmem_cache *cachep)
-+static inline void memcg_register_cache(struct kmem_cache *s)
- {
- }
- 
--static inline void memcg_cache_list_add(struct mem_cgroup *memcg,
--					struct kmem_cache *s)
-+static inline void memcg_release_cache(struct kmem_cache *s)
- {
- }
- 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e37fdb5..62b9991 100644
+index e6ad6ff..e37fdb5 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -3059,16 +3059,6 @@ static void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size)
- 		css_put(&memcg->css);
- }
+@@ -3429,12 +3429,14 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
  
--void memcg_cache_list_add(struct mem_cgroup *memcg, struct kmem_cache *cachep)
--{
--	if (!memcg)
--		return;
--
--	mutex_lock(&memcg->slab_caches_mutex);
--	list_add(&cachep->memcg_params->list, &memcg->memcg_slab_caches);
--	mutex_unlock(&memcg->slab_caches_mutex);
--}
--
- /*
-  * helper for acessing a memcg's index. It will be used as an index in the
-  * child cache array in kmem_cache, and also to derive its name. This function
-@@ -3229,6 +3219,35 @@ void memcg_free_cache_params(struct kmem_cache *s)
- 	kfree(s->memcg_params);
- }
+ 	atomic_set(&new_cachep->memcg_params->nr_pages , 0);
  
-+void memcg_register_cache(struct kmem_cache *s)
-+{
-+	struct kmem_cache *root;
-+	struct mem_cgroup *memcg;
-+	int id;
-+
-+	if (is_root_cache(s))
-+		return;
-+
-+	memcg = s->memcg_params->memcg;
-+	id = memcg_cache_id(memcg);
-+	root = s->memcg_params->root_cache;
-+
-+	css_get(&memcg->css);
-+
-+	/*
+-	cachep->memcg_params->memcg_caches[idx] = new_cachep;
+ 	/*
+-	 * the readers won't lock, make sure everybody sees the updated value,
+-	 * so they won't put stuff in the queue again for no reason
 +	 * Since readers won't lock (see cache_from_memcg_idx()), we need a
 +	 * barrier here to ensure nobody will see the kmem_cache partially
 +	 * initialized.
-+	 */
+ 	 */
+-	wmb();
 +	smp_wmb();
 +
-+	root->memcg_params->memcg_caches[id] = s;
-+
-+	mutex_lock(&memcg->slab_caches_mutex);
-+	list_add(&s->memcg_params->list, &memcg->memcg_slab_caches);
-+	mutex_unlock(&memcg->slab_caches_mutex);
-+}
-+
- void memcg_release_cache(struct kmem_cache *s)
++	cachep->memcg_params->memcg_caches[idx] = new_cachep;
+ out:
+ 	mutex_unlock(&memcg_cache_mutex);
+ 	return new_cachep;
+@@ -3573,7 +3575,7 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
+ 					  gfp_t gfp)
  {
- 	struct kmem_cache *root;
-@@ -3356,26 +3375,13 @@ void mem_cgroup_destroy_cache(struct kmem_cache *cachep)
- 	schedule_work(&cachep->memcg_params->destroy);
- }
- 
--/*
-- * This lock protects updaters, not readers. We want readers to be as fast as
-- * they can, and they will either see NULL or a valid cache value. Our model
-- * allow them to see NULL, in which case the root memcg will be selected.
-- *
-- * We need this lock because multiple allocations to the same cache from a non
-- * will span more than one worker. Only one of them can create the cache.
-- */
--static DEFINE_MUTEX(memcg_cache_mutex);
--
--/*
-- * Called with memcg_cache_mutex held
-- */
--static struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
--					 struct kmem_cache *s)
-+static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
-+						  struct kmem_cache *s)
- {
- 	struct kmem_cache *new;
- 	static char *tmp_name = NULL;
- 
--	lockdep_assert_held(&memcg_cache_mutex);
-+	BUG_ON(!memcg_can_account_kmem(memcg));
- 
- 	/*
- 	 * kmem_cache_create_memcg duplicates the given name and
-@@ -3403,45 +3409,6 @@ static struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
- 	return new;
- }
- 
--static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
--						  struct kmem_cache *cachep)
--{
--	struct kmem_cache *new_cachep;
+ 	struct mem_cgroup *memcg;
 -	int idx;
--
--	BUG_ON(!memcg_can_account_kmem(memcg));
--
++	struct kmem_cache *memcg_cachep;
+ 
+ 	VM_BUG_ON(!cachep->memcg_params);
+ 	VM_BUG_ON(!cachep->memcg_params->is_root_cache);
+@@ -3587,15 +3589,9 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
+ 	if (!memcg_can_account_kmem(memcg))
+ 		goto out;
+ 
 -	idx = memcg_cache_id(memcg);
 -
--	mutex_lock(&memcg_cache_mutex);
--	new_cachep = cache_from_memcg_idx(cachep, idx);
--	if (new_cachep) {
--		css_put(&memcg->css);
--		goto out;
--	}
--
--	new_cachep = kmem_cache_dup(memcg, cachep);
--	if (new_cachep == NULL) {
--		new_cachep = cachep;
--		css_put(&memcg->css);
--		goto out;
--	}
--
--	atomic_set(&new_cachep->memcg_params->nr_pages , 0);
--
 -	/*
--	 * Since readers won't lock (see cache_from_memcg_idx()), we need a
--	 * barrier here to ensure nobody will see the kmem_cache partially
--	 * initialized.
+-	 * barrier to mare sure we're always seeing the up to date value.  The
+-	 * code updating memcg_caches will issue a write barrier to match this.
 -	 */
--	smp_wmb();
--
--	cachep->memcg_params->memcg_caches[idx] = new_cachep;
--out:
--	mutex_unlock(&memcg_cache_mutex);
--	return new_cachep;
--}
--
- void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
- {
- 	struct kmem_cache *c;
-@@ -3516,6 +3483,7 @@ static void memcg_create_cache_work_func(struct work_struct *w)
+-	read_barrier_depends();
+-	if (likely(cache_from_memcg_idx(cachep, idx))) {
+-		cachep = cache_from_memcg_idx(cachep, idx);
++	memcg_cachep = cache_from_memcg_idx(cachep, memcg_cache_id(memcg));
++	if (likely(memcg_cachep)) {
++		cachep = memcg_cachep;
+ 		goto out;
+ 	}
  
- 	cw = container_of(w, struct create_work, work);
- 	memcg_create_kmem_cache(cw->memcg, cw->cachep);
-+	css_put(&cw->memcg->css);
- 	kfree(cw);
+diff --git a/mm/slab.h b/mm/slab.h
+index 0859c42..1d8b53f 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -163,9 +163,13 @@ static inline const char *cache_name(struct kmem_cache *s)
+ static inline struct kmem_cache *
+ cache_from_memcg_idx(struct kmem_cache *s, int idx)
+ {
++	struct kmem_cache *cachep;
++
+ 	if (!s->memcg_params)
+ 		return NULL;
+-	return s->memcg_params->memcg_caches[idx];
++	cachep = s->memcg_params->memcg_caches[idx];
++	smp_read_barrier_depends();	/* see memcg_register_cache() */
++	return cachep;
  }
  
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 62712fe..51dc106 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -176,6 +176,12 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
- 	get_online_cpus();
- 	mutex_lock(&slab_mutex);
- 
-+	if (memcg) {
-+		s = cache_from_memcg_idx(parent_cache, memcg_cache_id(memcg));
-+		if (s)
-+			goto out_unlock;
-+	}
-+
- 	err = kmem_cache_sanity_check(memcg, name, size);
- 	if (err)
- 		goto out_unlock;
-@@ -218,7 +224,7 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
- 
- 	s->refcount = 1;
- 	list_add(&s->list, &slab_caches);
--	memcg_cache_list_add(memcg, s);
-+	memcg_register_cache(s);
- 
- out_unlock:
- 	mutex_unlock(&slab_mutex);
+ static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
 -- 
 1.7.10.4
 
