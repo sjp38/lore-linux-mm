@@ -1,64 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 88B0F6B0035
-	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 05:24:16 -0500 (EST)
-Received: by mail-we0-f172.google.com with SMTP id w62so7367060wes.31
-        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 02:24:15 -0800 (PST)
-Received: from mail-ea0-x234.google.com (mail-ea0-x234.google.com [2a00:1450:4013:c01::234])
-        by mx.google.com with ESMTPS id wd4si8276542wjc.61.2013.12.18.02.24.15
+Received: from mail-yh0-f53.google.com (mail-yh0-f53.google.com [209.85.213.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AD936B0035
+	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 05:27:01 -0500 (EST)
+Received: by mail-yh0-f53.google.com with SMTP id b20so5140345yha.26
+        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 02:27:01 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id v3si18320735yhd.88.2013.12.18.02.27.00
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 18 Dec 2013 02:24:15 -0800 (PST)
-Received: by mail-ea0-f180.google.com with SMTP id f15so3415155eak.25
-        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 02:24:15 -0800 (PST)
-Date: Wed, 18 Dec 2013 11:24:12 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 0/4] Fix ebizzy performance regression due to X86 TLB
- range flush v2
-Message-ID: <20131218102412.GC20360@gmail.com>
-References: <CA+55aFyNAigQqBk07xLpf0nkhZ_x-QkBYG8otRzsqg_8A2eg-Q@mail.gmail.com>
- <20131215155539.GM11295@suse.de>
- <20131216102439.GA21624@gmail.com>
- <20131216125923.GS11295@suse.de>
- <20131216134449.GA3034@gmail.com>
- <20131217092124.GV11295@suse.de>
- <20131217110051.GA27701@gmail.com>
- <20131217143253.GB11295@suse.de>
- <20131217144214.GA12370@gmail.com>
- <20131217175441.GI11295@suse.de>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 18 Dec 2013 02:27:00 -0800 (PST)
+Message-ID: <52B17860.4000106@oracle.com>
+Date: Wed, 18 Dec 2013 18:26:40 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131217175441.GI11295@suse.de>
+Subject: Re: [PATCH] mm: remove BUG_ON() from mlock_vma_page()
+References: <1387327369-18806-1-git-send-email-bob.liu@oracle.com> <52B16C9C.9060201@suse.cz>
+In-Reply-To: <52B16C9C.9060201@suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Alex Shi <alex.shi@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Bob Liu <lliubbo@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, walken@google.com, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, sasha.levin@oracle.com, stable@kernel.org, gregkh@linuxfoundation.org
 
 
-* Mel Gorman <mgorman@suse.de> wrote:
-
-> > Thanks again for going through all this. Tracking multi-commit 
-> > performance regressions across 1.5 years worth of commits is 
-> > generally very hard. Does your testing effort comes from 
-> > enterprise Linux QA testing, or did you ran into this problem 
-> > accidentally?
+On 12/18/2013 05:36 PM, Vlastimil Babka wrote:
+> On 12/18/2013 01:42 AM, Bob Liu wrote:
+>> This BUG_ON() was triggered when called from try_to_unmap_cluster() which
+>> didn't lock the page.
+>> And it's safe to mlock_vma_page() without PageLocked, so this patch
+>> fix this
+>> issue by removing that BUG_ON() simply.
 > 
-> It does not come from enterprise Linux QA testing but it's motivated 
-> by it. I want to catch as many "obvious" performance bugs before 
-> they do as it saves time and stress in the long run. To assist that, 
-> I setup continual performance regression testing and ebizzy was 
-> included in the first report I opened. [...]
+> I think it might be correct, but needs better explanation why it's safe.
+> The check appeared in both mlock_vma_page and munlock_vma_page since the
+> original commit b291f0003. Munlock definitely needs it for
+> try_to_munlock(), but mlock doesn't seem to be doing anything that would
+> need it.
+> 
+> In case it's really not needed, it might be useful to remove the
+> now-useless lock from the callers, if they acquire it just for this call.
 
-Neat!
+Thank you, I will take a look at the place your mentioned.
 
-> [...]  It makes me worry what the rest of the reports contain.
+> I quickly checked:
+> - follow_trans_huge_pmd only rechecks page->mapping besides calling this
+>   so it might be a candidate?
+> - try_to_merge_one_page is definitely a candidate
+> - follow_page_mask checks page->mapping only outside of the lock, which
+>   seems strangely different from follow_trans_huge_pmd at first glance.
+>   So it only does lru_add_drain() under the lock and is probably a
+>   candidate. Or, it should be rechecking page->mapping as well.
+> 
 
-It will be full with reports of phenomenal speedups!
+I'm prefer to make this patch a separate one which just fixing the issue
+Sasha reported in case more bugs might be introduced if removed lock
+page in other place.
 
-Thanks,
+> 
+>> [  253.869145] kernel BUG at mm/mlock.c:82!
+>> [  253.869549] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+>> [  253.870098] Dumping ftrace buffer:
+>> [  253.870098]    (ftrace buffer empty)
+>> [  253.870098] Modules linked in:
+>> [  253.870098] CPU: 10 PID: 9162 Comm: trinity-child75 Tainted:
+>> G        W
+>> 3.13.0-rc4-next-20131216-sasha-00011-g5f105ec-dirty #4137
+>> [  253.873310] task: ffff8800c98cb000 ti: ffff8804d34e8000 task.ti:
+>> ffff8804d34e8000
+>> [  253.873310] RIP: 0010:[<ffffffff81281f28>]  [<ffffffff81281f28>]
+>> mlock_vma_page+0x18/0xc0
+>> [  253.873310] RSP: 0000:ffff8804d34e99e8  EFLAGS: 00010246
+>> [  253.873310] RAX: 006fffff8038002c RBX: ffffea00474944c0 RCX:
+>> ffff880807636000
+>> [  253.873310] RDX: ffffea0000000000 RSI: 00007f17a9bca000 RDI:
+>> ffffea00474944c0
+>> [  253.873310] RBP: ffff8804d34e99f8 R08: ffff880807020000 R09:
+>> 0000000000000000
+>> [  253.873310] R10: 0000000000000001 R11: 0000000000002000 R12:
+>> 00007f17a9bca000
+>> [  253.873310] R13: ffffea00474944c0 R14: 00007f17a9be0000 R15:
+>> ffff880807020000
+>> [  253.873310] FS:  00007f17aa31a700(0000) GS:ffff8801c9c00000(0000)
+>> knlGS:0000000000000000
+>> [  253.873310] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+>> [  253.873310] CR2: 00007f17a94fa000 CR3: 00000004d3b02000 CR4:
+>> 00000000000006e0
+>> [  253.873310] DR0: 00007f17a74ca000 DR1: 0000000000000000 DR2:
+>> 0000000000000000
+>> [  253.873310] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7:
+>> 0000000000000600
+>> [  253.873310] Stack:
+>> [  253.873310]  0000000b3de28067 ffff880b3de28e50 ffff8804d34e9aa8
+>> ffffffff8128bc31
+>> [  253.873310]  0000000000000301 ffffea0011850220 ffff8809a4039000
+>> ffffea0011850238
+>> [  253.873310]  ffff8804d34e9aa8 ffff880807636060 0000000000000001
+>> ffff880807636348
+>> [  253.873310] Call Trace:
+>> [  253.873310]  [<ffffffff8128bc31>] try_to_unmap_cluster+0x1c1/0x340
+>> [  253.873310]  [<ffffffff8128c60a>] try_to_unmap_file+0x20a/0x2e0
+>> [  253.873310]  [<ffffffff8128c7b3>] try_to_unmap+0x73/0x90
+>> [  253.873310]  [<ffffffff812b526d>] __unmap_and_move+0x18d/0x250
+>> [  253.873310]  [<ffffffff812b53e9>] unmap_and_move+0xb9/0x180
+>> [  253.873310]  [<ffffffff812b559b>] migrate_pages+0xeb/0x2f0
+>> [  253.873310]  [<ffffffff812a0660>] ? queue_pages_pte_range+0x1a0/0x1a0
+>> [  253.873310]  [<ffffffff812a193c>] migrate_to_node+0x9c/0xc0
+>> [  253.873310]  [<ffffffff812a30b8>] do_migrate_pages+0x1b8/0x240
+>> [  253.873310]  [<ffffffff812a3456>] SYSC_migrate_pages+0x316/0x380
+>> [  253.873310]  [<ffffffff812a31ec>] ? SYSC_migrate_pages+0xac/0x380
+>> [  253.873310]  [<ffffffff811763c6>] ? vtime_account_user+0x96/0xb0
+>> [  253.873310]  [<ffffffff812a34ce>] SyS_migrate_pages+0xe/0x10
+>> [  253.873310]  [<ffffffff843c4990>] tracesys+0xdd/0xe2
+>> [  253.873310] Code: 0f 1f 00 65 48 ff 04 25 10 25 1d 00 48 83 c4 08
+>> 5b c9 c3 55 48 89 e5 53 48 83 ec 08 66 66 66 66 90 48 8b 07 48 89 fb
+>> a8 01 75 10 <0f> 0b 66 0f 1f 44 00 00 eb fe 66 0f 1f 44 00 00 f0 0f ba
+>> 2f 15
+>> [  253.873310] RIP  [<ffffffff81281f28>] mlock_vma_page+0x18/0xc0
+>> [  253.873310]  RSP <ffff8804d34e99e8>
+>> [  253.904194] ---[ end trace be59c4a7f8edab3f ]---
+>>
+>> Reported-by: Sasha Levin <sasha.levin@oracle.com>
+>> Signed-off-by: Bob Liu <bob.liu@oracle.com>
+>> ---
+>>   mm/mlock.c |    2 --
+>>   1 file changed, 2 deletions(-)
+>>
+>> diff --git a/mm/mlock.c b/mm/mlock.c
+>> index d480cd6..5488d44 100644
+>> --- a/mm/mlock.c
+>> +++ b/mm/mlock.c
+>> @@ -79,8 +79,6 @@ void clear_page_mlock(struct page *page)
+>>    */
+>>   void mlock_vma_page(struct page *page)
+>>   {
+>> -    BUG_ON(!PageLocked(page));
+>> -
+>>       if (!TestSetPageMlocked(page)) {
+>>           mod_zone_page_state(page_zone(page), NR_MLOCK,
+>>                       hpage_nr_pages(page));
+>>
+> 
 
-	Ingo
+-- 
+Regards,
+-Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
