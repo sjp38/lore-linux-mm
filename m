@@ -1,87 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f49.google.com (mail-yh0-f49.google.com [209.85.213.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EDFA6B0035
-	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 10:37:48 -0500 (EST)
-Received: by mail-yh0-f49.google.com with SMTP id z20so5376220yhz.36
-        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 07:37:47 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id p5si263394yho.234.2013.12.18.07.37.46
+Received: from mail-bk0-f53.google.com (mail-bk0-f53.google.com [209.85.214.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 8702E6B0035
+	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 10:41:48 -0500 (EST)
+Received: by mail-bk0-f53.google.com with SMTP id na10so262530bkb.40
+        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 07:41:47 -0800 (PST)
+Received: from mail-lb0-x231.google.com (mail-lb0-x231.google.com [2a00:1450:4010:c04::231])
+        by mx.google.com with ESMTPS id qz1si330851bkb.69.2013.12.18.07.41.47
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 18 Dec 2013 07:37:46 -0800 (PST)
-Message-ID: <52B1C143.8080301@oracle.com>
-Date: Wed, 18 Dec 2013 10:37:39 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 18 Dec 2013 07:41:47 -0800 (PST)
+Received: by mail-lb0-f177.google.com with SMTP id q8so2083206lbi.8
+        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 07:41:47 -0800 (PST)
+Date: Wed, 18 Dec 2013 19:41:45 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: mm: kernel BUG at include/linux/swapops.h:131!
+Message-ID: <20131218154145.GW8167@moon>
+References: <52B1C143.8080301@oracle.com>
 MIME-Version: 1.0
-Subject: mm: kernel BUG at include/linux/swapops.h:131!
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52B1C143.8080301@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, khlebnikov@openvz.org, LKML <linux-kernel@vger.kernel.org>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, khlebnikov@openvz.org, LKML <linux-kernel@vger.kernel.org>
 
-Hi all,
+On Wed, Dec 18, 2013 at 10:37:39AM -0500, Sasha Levin wrote:
+> Hi all,
+> 
+> While fuzzing with trinity inside a KVM tools guest running latest
+> -next kernel, I've stumbled on the following spew.
+> 
+> The code is in zap_pte_range():
+> 
+>                 if (!non_swap_entry(entry))
+>                         rss[MM_SWAPENTS]--;
+>                 else if (is_migration_entry(entry)) {
+>                         struct page *page;
+> 
+>                         page = migration_entry_to_page(entry);	<==== HERE
+> 
+>                         if (PageAnon(page))
+>                                 rss[MM_ANONPAGES]--;
+>                         else
+>                                 rss[MM_FILEPAGES]--;
 
-While fuzzing with trinity inside a KVM tools guest running latest -next kernel, I've stumbled on 
-the following spew.
-
-The code is in zap_pte_range():
-
-                 if (!non_swap_entry(entry))
-                         rss[MM_SWAPENTS]--;
-                 else if (is_migration_entry(entry)) {
-                         struct page *page;
-
-                         page = migration_entry_to_page(entry);	<==== HERE
-
-                         if (PageAnon(page))
-                                 rss[MM_ANONPAGES]--;
-                         else
-                                 rss[MM_FILEPAGES]--;
-
-
-[ 2622.589064] kernel BUG at include/linux/swapops.h:131!
-[ 2622.589064] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[ 2622.589064] Dumping ftrace buffer:
-[ 2622.589064]    (ftrace buffer empty)
-[ 2622.589064] Modules linked in:
-[ 2622.589064] CPU: 9 PID: 15984 Comm: trinity-child16 Tainted: G        W    3.13.0-rc
-4-next-20131217-sasha-00013-ga878504-dirty #4150
-[ 2622.589064] task: ffff88168346b000 ti: ffff8816561d8000 task.ti: ffff8816561d8000
-[ 2622.589064] RIP: 0010:[<ffffffff8127c730>]  [<ffffffff8127c730>] zap_pte_range+0x360
-/0x4a0
-[ 2622.589064] RSP: 0018:ffff8816561d9c18  EFLAGS: 00010246
-[ 2622.589064] RAX: ffffea00736a6600 RBX: ffff88200299d068 RCX: 0000000000000009
-[ 2622.589064] RDX: 022fffff80380000 RSI: ffffea0000000000 RDI: 3c00000001cda998
-[ 2622.589064] RBP: ffff8816561d9cb8 R08: 0000000000000000 R09: 0000000000000000
-[ 2622.589064] R10: 0000000000000001 R11: 0000000000000000 R12: 00007fc7ee20d000
-[ 2622.589064] R13: ffff8816561d9de8 R14: 000000039b53303c R15: 00007fc7ee29b000
-[ 2622.589064] FS:  00007fc7eeceb700(0000) GS:ffff882011a00000(0000) knlGS:000000000000
-0000
-[ 2622.589064] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[ 2622.589064] CR2: 000000000068c000 CR3: 0000000005c26000 CR4: 00000000000006e0
-[ 2622.589064] Stack:
-[ 2622.589064]  ffff8816561d9c58 0000000000000286 ffff88168327b060 ffff88168327b060
-[ 2622.589064]  00007fc700000160 ffff881667067b88 00000000c8f4b120 00ff88168327b060
-[ 2622.589064]  ffff88168327b060 ffff8820051a8600 0000000000000000 ffff88168327b000
-[ 2622.589064] Call Trace:
-[ 2622.589064]  [<ffffffff8127cc5e>] unmap_page_range+0x3ee/0x400
-[ 2622.589064]  [<ffffffff8127cd71>] unmap_single_vma+0x101/0x120
-[ 2622.589064]  [<ffffffff8127cdf1>] unmap_vmas+0x61/0xa0
-[ 2622.589064]  [<ffffffff81283980>] exit_mmap+0xd0/0x170
-[ 2622.589064]  [<ffffffff8112d430>] mmput+0x70/0xe0
-[ 2622.589064]  [<ffffffff8113144d>] exit_mm+0x18d/0x1a0
-[ 2622.589064]  [<ffffffff811defb5>] ? acct_collect+0x175/0x1b0
-[ 2622.589064]  [<ffffffff8113389f>] do_exit+0x24f/0x500
-[ 2622.589064]  [<ffffffff81133bf9>] do_group_exit+0xa9/0xe0
-[ 2622.589064]  [<ffffffff81133c47>] SyS_exit_group+0x17/0x20
-[ 2622.589064]  [<ffffffff843a6150>] tracesys+0xdd/0xe2
-[ 2622.589064] Code: 83 f8 1f 75 46 48 b8 ff ff ff ff ff ff ff 01 48 be 00 00 00 00 00 ea ff ff 48 
-21 f8 48 c1 e0 06 48 01 f0 48 8b 10 80 e2 01 75 0a <0f> 0b 66 0f 1f 44 00 00 eb fe f6 40 08 01 74 05 
-ff 4d c4 eb 0b
-[ 2622.589064] RIP  [<ffffffff8127c730>] zap_pte_range+0x360/0x4a0
-[ 2622.589064]  RSP <ffff8816561d9c18>
+This I think is my issue, I'll take a look, thanks Sasha!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
