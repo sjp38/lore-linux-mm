@@ -1,69 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f47.google.com (mail-bk0-f47.google.com [209.85.214.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 01AC16B0035
-	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 10:18:56 -0500 (EST)
-Received: by mail-bk0-f47.google.com with SMTP id mx12so249852bkb.6
-        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 07:18:56 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id lv5si293290bkb.202.2013.12.18.07.18.55
+Received: from mail-yh0-f49.google.com (mail-yh0-f49.google.com [209.85.213.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EDFA6B0035
+	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 10:37:48 -0500 (EST)
+Received: by mail-yh0-f49.google.com with SMTP id z20so5376220yhz.36
+        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 07:37:47 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id p5si263394yho.234.2013.12.18.07.37.46
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 18 Dec 2013 07:18:56 -0800 (PST)
-Date: Wed, 18 Dec 2013 10:18:46 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC PATCH 0/6] Configurable fair allocation zone policy v3
-Message-ID: <20131218151846.GM21724@cmpxchg.org>
-References: <1387298904-8824-1-git-send-email-mgorman@suse.de>
- <20131217200210.GG21724@cmpxchg.org>
- <20131218145111.GA27510@dhcp22.suse.cz>
+        Wed, 18 Dec 2013 07:37:46 -0800 (PST)
+Message-ID: <52B1C143.8080301@oracle.com>
+Date: Wed, 18 Dec 2013 10:37:39 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131218145111.GA27510@dhcp22.suse.cz>
+Subject: mm: kernel BUG at include/linux/swapops.h:131!
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, khlebnikov@openvz.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Dec 18, 2013 at 03:51:11PM +0100, Michal Hocko wrote:
-> On Tue 17-12-13 15:02:10, Johannes Weiner wrote:
-> [...]
-> > +pagecache_mempolicy_mode:
-> > +
-> > +This is available only on NUMA kernels.
-> > +
-> > +Per default, the configured memory policy is applicable to anonymous
-> > +memory, shmem, tmpfs, etc., whereas pagecache is allocated in an
-> > +interleaving fashion over all allowed nodes (hardbindings and
-> > +zone_reclaim_mode excluded).
-> > +
-> > +The assumption is that, when it comes to pagecache, users generally
-> > +prefer predictable replacement behavior regardless of NUMA topology
-> > +and maximizing the cache's effectiveness in reducing IO over memory
-> > +locality.
-> 
-> Isn't page spreading (PF_SPREAD_PAGE) intended to do the same thing
-> semantically? The setting is per-cpuset rather than global which makes
-> it harder to use but essentially it tries to distribute page cache pages
-> across all the nodes.
->
-> This is really getting confusing. We have zone_reclaim_mode to keep
-> memory local in general, pagecache_mempolicy_mode to keep page cache
-> local and PF_SPREAD_PAGE to spread the page cache around nodes.
+Hi all,
 
-zone_reclaim_mode is a global setting to go through great lengths to
-stay on local nodes, intended to be used depending on the hardware,
-not the workload.
+While fuzzing with trinity inside a KVM tools guest running latest -next kernel, I've stumbled on 
+the following spew.
 
-Mempolicy on the other hand is to optimize placement for maximum
-locality depending on access patterns of a workload or even just the
-subset of a workload.  I'm trying to change whether this applies to
-page cache (due to different locality / cache effectiveness tradeoff)
-and we want to provide pagecache_mempolicy_mode to revert in the field
-in case this is a mistake.
+The code is in zap_pte_range():
 
-PF_SPREAD_PAGE becomes implied per default and should eventually be
-removed.
+                 if (!non_swap_entry(entry))
+                         rss[MM_SWAPENTS]--;
+                 else if (is_migration_entry(entry)) {
+                         struct page *page;
+
+                         page = migration_entry_to_page(entry);	<==== HERE
+
+                         if (PageAnon(page))
+                                 rss[MM_ANONPAGES]--;
+                         else
+                                 rss[MM_FILEPAGES]--;
+
+
+[ 2622.589064] kernel BUG at include/linux/swapops.h:131!
+[ 2622.589064] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[ 2622.589064] Dumping ftrace buffer:
+[ 2622.589064]    (ftrace buffer empty)
+[ 2622.589064] Modules linked in:
+[ 2622.589064] CPU: 9 PID: 15984 Comm: trinity-child16 Tainted: G        W    3.13.0-rc
+4-next-20131217-sasha-00013-ga878504-dirty #4150
+[ 2622.589064] task: ffff88168346b000 ti: ffff8816561d8000 task.ti: ffff8816561d8000
+[ 2622.589064] RIP: 0010:[<ffffffff8127c730>]  [<ffffffff8127c730>] zap_pte_range+0x360
+/0x4a0
+[ 2622.589064] RSP: 0018:ffff8816561d9c18  EFLAGS: 00010246
+[ 2622.589064] RAX: ffffea00736a6600 RBX: ffff88200299d068 RCX: 0000000000000009
+[ 2622.589064] RDX: 022fffff80380000 RSI: ffffea0000000000 RDI: 3c00000001cda998
+[ 2622.589064] RBP: ffff8816561d9cb8 R08: 0000000000000000 R09: 0000000000000000
+[ 2622.589064] R10: 0000000000000001 R11: 0000000000000000 R12: 00007fc7ee20d000
+[ 2622.589064] R13: ffff8816561d9de8 R14: 000000039b53303c R15: 00007fc7ee29b000
+[ 2622.589064] FS:  00007fc7eeceb700(0000) GS:ffff882011a00000(0000) knlGS:000000000000
+0000
+[ 2622.589064] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[ 2622.589064] CR2: 000000000068c000 CR3: 0000000005c26000 CR4: 00000000000006e0
+[ 2622.589064] Stack:
+[ 2622.589064]  ffff8816561d9c58 0000000000000286 ffff88168327b060 ffff88168327b060
+[ 2622.589064]  00007fc700000160 ffff881667067b88 00000000c8f4b120 00ff88168327b060
+[ 2622.589064]  ffff88168327b060 ffff8820051a8600 0000000000000000 ffff88168327b000
+[ 2622.589064] Call Trace:
+[ 2622.589064]  [<ffffffff8127cc5e>] unmap_page_range+0x3ee/0x400
+[ 2622.589064]  [<ffffffff8127cd71>] unmap_single_vma+0x101/0x120
+[ 2622.589064]  [<ffffffff8127cdf1>] unmap_vmas+0x61/0xa0
+[ 2622.589064]  [<ffffffff81283980>] exit_mmap+0xd0/0x170
+[ 2622.589064]  [<ffffffff8112d430>] mmput+0x70/0xe0
+[ 2622.589064]  [<ffffffff8113144d>] exit_mm+0x18d/0x1a0
+[ 2622.589064]  [<ffffffff811defb5>] ? acct_collect+0x175/0x1b0
+[ 2622.589064]  [<ffffffff8113389f>] do_exit+0x24f/0x500
+[ 2622.589064]  [<ffffffff81133bf9>] do_group_exit+0xa9/0xe0
+[ 2622.589064]  [<ffffffff81133c47>] SyS_exit_group+0x17/0x20
+[ 2622.589064]  [<ffffffff843a6150>] tracesys+0xdd/0xe2
+[ 2622.589064] Code: 83 f8 1f 75 46 48 b8 ff ff ff ff ff ff ff 01 48 be 00 00 00 00 00 ea ff ff 48 
+21 f8 48 c1 e0 06 48 01 f0 48 8b 10 80 e2 01 75 0a <0f> 0b 66 0f 1f 44 00 00 eb fe f6 40 08 01 74 05 
+ff 4d c4 eb 0b
+[ 2622.589064] RIP  [<ffffffff8127c730>] zap_pte_range+0x360/0x4a0
+[ 2622.589064]  RSP <ffff8816561d9c18>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
