@@ -1,83 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 43FB96B0035
-	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 23:12:23 -0500 (EST)
-Received: by mail-pb0-f46.google.com with SMTP id md12so7810336pbc.5
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 20:12:22 -0800 (PST)
-Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com. [202.81.31.140])
-        by mx.google.com with ESMTPS id cz3si13230880pbc.243.2013.12.17.20.12.19
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 17 Dec 2013 20:12:21 -0800 (PST)
-Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 18 Dec 2013 14:12:16 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 923692BB0058
-	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 15:12:13 +1100 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBI3riUX3473890
-	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 14:53:44 +1100
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBI4CCG3008245
-	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 15:12:13 +1100
-Date: Wed, 18 Dec 2013 12:12:10 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/mlock: fix BUG_ON unlocked page for nolinear VMAs
-Message-ID: <52b120a5.a3b2440a.3acf.ffffd7c3SMTPIN_ADDED_BROKEN@mx.google.com>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1387267550-8689-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <52b1138b.0201430a.19a8.605dSMTPIN_ADDED_BROKEN@mx.google.com>
- <20131218032329.GA6044@hacker.(null)>
- <52B11765.8030005@oracle.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="J/dobhs11T7y2rNN"
+Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
+	by kanga.kvack.org (Postfix) with ESMTP id E25DB6B0035
+	for <linux-mm@kvack.org>; Tue, 17 Dec 2013 23:54:43 -0500 (EST)
+Received: by mail-qa0-f52.google.com with SMTP id cm18so64160qab.18
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 20:54:43 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id v4si16355960qeb.26.2013.12.17.20.54.42
+        for <linux-mm@kvack.org>;
+        Tue, 17 Dec 2013 20:54:42 -0800 (PST)
+Date: Tue, 17 Dec 2013 23:54:26 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1387342466-7cf57hks-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20131213230004.GD7793@mcs.anl.gov>
+References: <20131212222527.GD8605@mcs.anl.gov>
+ <1386964742-df8sz3d6-mutt-n-horiguchi@ah.jp.nec.com>
+ <20131213230004.GD7793@mcs.anl.gov>
+Subject: Re: [PATCH] mm/memory-failure.c: send action optional signal to an
+ arbitrary thread
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <52B11765.8030005@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Michel Lespinasse <walken@google.com>, Bob Liu <bob.liu@oracle.com>, npiggin@suse.de, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Kamil Iskra <iskra@mcs.anl.gov>
+Cc: linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
 
+Kamil,
 
---J/dobhs11T7y2rNN
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+# Sorry for late response.
 
-Hi Sasha,
-On Tue, Dec 17, 2013 at 10:32:53PM -0500, Sasha Levin wrote:
->On 12/17/2013 10:23 PM, Wanpeng Li wrote:
->>-			mlock_vma_page(page);   /* no-op if already mlocked */
->>-			if (page == check_page)
->>+			if (page != check_page && trylock_page(page)) {
->>+				mlock_vma_page(page);   /* no-op if already mlocked */
->>+				unlock_page(page);
->>+			} else if (page == check_page) {
->>+				mlock_vma_page(page);  /* no-op if already mlocked */
->>  				ret = SWAP_MLOCK;
->>+			}
->
->Previously, if page != check_page and the page was locked, we'd call mlock_vma_page()
->anyways. With this change, we don't. In fact, we'll just skip that entire block not doing
->anything.
+On Fri, Dec 13, 2013 at 05:00:04PM -0600, Kamil Iskra wrote:
+> On Fri, Dec 13, 2013 at 14:59:02 -0500, Naoya Horiguchi wrote:
+> 
+> Hi Naoya,
+> 
+> > On Thu, Dec 12, 2013 at 04:25:27PM -0600, Kamil Iskra wrote:
+> > > Please find below a trivial patch that changes the sending of BUS_MCEERR_AO
+> > > SIGBUS signals so that they can be handled by an arbitrary thread of the
+> > > target process.  The current implementation makes it impossible to create a
+> > > separate, dedicated thread to handle such errors, as the signal is always
+> > > sent to the main thread.
+> > This can be done in application side by letting the main thread create a
+> > dedicated thread for error handling, or by waking up existing/sleeping one.
+> > It might not be optimal in overhead, but note that an action optional error
+> > does not require to be handled ASAP. And we need only one process to handle
+> > an action optional error, so no need to send SIGBUS(BUS_MCEERR_AO) for every
+> > processes/threads.
+> 
+> I'm not sure if I understand.  "letting the main thread create a dedicated
+> thread for error handling" is exactly what I was trying to do -- the
+> problem is that SIGBUS(BUS_MCEERR_AO) signals are never sent to that
+> thread, which is contrary to common expectations.  The signals are sent to
+> the main thread only, even if SIGBUS is masked there.
 
-Thanks for pointing out. ;-)
+I think that what your patch suggests is that "letting the dedicated thread
+get SIGBUS(BUS_MCEERR_AO) directly (not via the main thread) from kernel."
+It's a bit different from what I meant in the previous email.
 
->
->If that's something that's never supposed to happen, can we add a
->
->	VM_BUG_ON(page != check_page && PageLocked(page))
->
->Just to cover this new code path?
->
+> Just to make sure that we're on the same page, here's a testcase that
+> demonstrates the problem I'm trying to fix (I should've sent it the first
+> time; sorry for being lazy):
 
-How about this one? 
+Thanks. And I see your problem.
 
+> 
+> #include <pthread.h>
+> #include <signal.h>
+> #include <stdio.h>
+> #include <stdlib.h>
+> #include <sys/prctl.h>
+> #include <unistd.h>
+> 
+> void sigbus_handler(int sig, siginfo_t* si, void* ucontext)
+> {
+>     printf("SIGBUS caught by thread %ld, code %d, addr %p\n",
+> 	   (long)pthread_self(), si->si_code, si->si_addr);
+> }
+> 
+> void* sigbus_thread(void* arg)
+> {
+>     printf("sigbus thread: %ld\n", (long)pthread_self());
+>     for (;;)
+> 	pause();
+> }
+> 
+> int main(void)
+> {
+>     struct sigaction sa;
+>     sigset_t mask;
+>     char* buf;
+>     pthread_t thread_id;
+> 
+>     prctl(PR_MCE_KILL, PR_MCE_KILL_SET, PR_MCE_KILL_EARLY, 0, 0);
+> 
+>     posix_memalign((void*)&buf, 4096, 4096);
+>     buf[0] = 0;
+>     printf("convenient address to hard offline: %p\n", buf);
+> 
+>     sa.sa_sigaction = sigbus_handler;
+>     sigemptyset(&sa.sa_mask);
+>     sa.sa_flags = SA_SIGINFO;
+>     sigaction(SIGBUS, &sa, NULL);
+> 
+>     pthread_create(&thread_id, NULL, sigbus_thread, NULL);
+> 
+>     sigemptyset(&mask);
+>     sigaddset(&mask, SIGBUS);
+>     pthread_sigmask(SIG_BLOCK, &mask, NULL);
+> 
+>     printf("main thread: %ld\n", (long)pthread_self());
+> 
+>     for (;;)
+> 	pause();
+> 
+>     return 0;
+> }
+> 
+> 
+> This testcase uses a very common signal handling strategy in multithreaded
+> programs: masking signals in all threads but one, created specifically for
+> signal handling.  It works just fine if I send it SIGBUS from another
+> terminal using "kill".  It does not work if I offline the page: the signal
+> is routed to the main thread, where it's marked as pending; nothing gets
+> printed out.
+> 
+> As you were so kind to point out, SIGBUS(BUS_MCEERR_AO) does not need to be
+> handled ASAP, so why should the kernel handle it differently to other
+> non-critical signals?  The current behavior seems inconsistent, and there
+> is no convenient workaround (as a library writer, I have no control over
+> the actions of the main thread).
 
---J/dobhs11T7y2rNN
-Content-Type: text/x-diff; charset=us-ascii
-Content-Disposition: attachment; filename="0001-3.patch"
+I'm not sure if current implementation is intentional or not,
+but I understand about the inconsistency.
 
+> > And another concern is if this change can affect/break existing applications.
+> > If it can, maybe you need to add (for example) a prctl attribute to show that
+> > the process expects kernel to send SIGBUS(BUS_MCEERR_AO) only to the main
+> > thread, or to all threads belonging to the process.
+> 
+> I understand your concern.  However, I believe that having
+> SIGBUS(BUS_MCEERR_AO) behave consistently with established POSIX standards
+> for signal handling outhweighs the concerns over potential
+> incompatibilities, especially with a feature that is currently used by a
+> very small subset of applications.
 
---J/dobhs11T7y2rNN--
+OK, and in this case the effect on existing multi-threaded applications seems
+to be small (just small degradation of availability, but no kernel panic nor
+data lost,) so I think it's acceptable.
+
+I want to agree with your patch, so could you repost the patch with patch
+description?  git-format-patch will help you.
+
+Thanks,
+Naoya Horiguchi
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
