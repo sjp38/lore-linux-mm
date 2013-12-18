@@ -1,77 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f175.google.com (mail-ea0-f175.google.com [209.85.215.175])
-	by kanga.kvack.org (Postfix) with ESMTP id E8C7E6B0035
-	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 11:20:53 -0500 (EST)
-Received: by mail-ea0-f175.google.com with SMTP id z10so3639458ead.6
-        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 08:20:53 -0800 (PST)
+Received: from mail-ea0-f178.google.com (mail-ea0-f178.google.com [209.85.215.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 481626B0035
+	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 11:56:05 -0500 (EST)
+Received: by mail-ea0-f178.google.com with SMTP id d10so3625601eaj.37
+        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 08:56:04 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v6si642656eel.196.2013.12.18.08.20.52
+        by mx.google.com with ESMTPS id s8si779736eeh.206.2013.12.18.08.56.04
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 18 Dec 2013 08:20:52 -0800 (PST)
-Date: Wed, 18 Dec 2013 17:20:50 +0100
+        Wed, 18 Dec 2013 08:56:04 -0800 (PST)
+Date: Wed, 18 Dec 2013 17:56:03 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC PATCH 0/6] Configurable fair allocation zone policy v3
-Message-ID: <20131218162050.GB27510@dhcp22.suse.cz>
-References: <1387298904-8824-1-git-send-email-mgorman@suse.de>
- <20131217200210.GG21724@cmpxchg.org>
- <20131218145111.GA27510@dhcp22.suse.cz>
- <20131218151846.GM21724@cmpxchg.org>
+Subject: Re: [PATCH 1/6] slab: cleanup kmem_cache_create_memcg()
+Message-ID: <20131218165603.GB31080@dhcp22.suse.cz>
+References: <6f02b2d079ffd0990ae335339c803337b13ecd8c.1387372122.git.vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131218151846.GM21724@cmpxchg.org>
+In-Reply-To: <6f02b2d079ffd0990ae335339c803337b13ecd8c.1387372122.git.vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed 18-12-13 10:18:46, Johannes Weiner wrote:
-> On Wed, Dec 18, 2013 at 03:51:11PM +0100, Michal Hocko wrote:
-> > On Tue 17-12-13 15:02:10, Johannes Weiner wrote:
-> > [...]
-> > > +pagecache_mempolicy_mode:
-> > > +
-> > > +This is available only on NUMA kernels.
-> > > +
-> > > +Per default, the configured memory policy is applicable to anonymous
-> > > +memory, shmem, tmpfs, etc., whereas pagecache is allocated in an
-> > > +interleaving fashion over all allowed nodes (hardbindings and
-> > > +zone_reclaim_mode excluded).
-> > > +
-> > > +The assumption is that, when it comes to pagecache, users generally
-> > > +prefer predictable replacement behavior regardless of NUMA topology
-> > > +and maximizing the cache's effectiveness in reducing IO over memory
-> > > +locality.
-> > 
-> > Isn't page spreading (PF_SPREAD_PAGE) intended to do the same thing
-> > semantically? The setting is per-cpuset rather than global which makes
-> > it harder to use but essentially it tries to distribute page cache pages
-> > across all the nodes.
-> >
-> > This is really getting confusing. We have zone_reclaim_mode to keep
-> > memory local in general, pagecache_mempolicy_mode to keep page cache
-> > local and PF_SPREAD_PAGE to spread the page cache around nodes.
-> 
-> zone_reclaim_mode is a global setting to go through great lengths to
-> stay on local nodes, intended to be used depending on the hardware,
-> not the workload.
-> 
-> Mempolicy on the other hand is to optimize placement for maximum
-> locality depending on access patterns of a workload or even just the
-> subset of a workload.  I'm trying to change whether this applies to
-> page cache (due to different locality / cache effectiveness tradeoff)
-> and we want to provide pagecache_mempolicy_mode to revert in the field
-> in case this is a mistake.
-> 
-> PF_SPREAD_PAGE becomes implied per default and should eventually be
-> removed.
+On Wed 18-12-13 17:16:52, Vladimir Davydov wrote:
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Glauber Costa <glommer@gmail.com>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
 
-I guess many loads do not care about page cache locality and the default
-spreading would be OK for them but what about those that do care?
-Currently we have a per-process (cpuset in fact) flag but this will
-change it to all or nothing. Is this really a good step?
-Btw. I do not mind having PF_SPREAD_PAGE enabled by default.
+Dunno, is this really better to be worth the code churn?
+
+It even makes the generated code tiny bit bigger:
+text    data     bss     dec     hex filename
+4355     171     236    4762    129a mm/slab_common.o.after
+4342     171     236    4749    128d mm/slab_common.o.before
+
+Or does it make the further changes much more easier? Be explicit in the
+patch description if so.
+
+> ---
+>  mm/slab_common.c |   66 +++++++++++++++++++++++++++---------------------------
+>  1 file changed, 33 insertions(+), 33 deletions(-)
+> 
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index 0b7bb39..5d6f743 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -176,8 +176,9 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
+>  	get_online_cpus();
+>  	mutex_lock(&slab_mutex);
+>  
+> -	if (!kmem_cache_sanity_check(memcg, name, size) == 0)
+> -		goto out_locked;
+> +	err = kmem_cache_sanity_check(memcg, name, size);
+> +	if (err)
+> +		goto out_unlock;
+>  
+>  	/*
+>  	 * Some allocators will constraint the set of valid flags to a subset
+> @@ -189,45 +190,41 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
+>  
+>  	s = __kmem_cache_alias(memcg, name, size, align, flags, ctor);
+>  	if (s)
+> -		goto out_locked;
+> +		goto out_unlock;
+>  
+>  	s = kmem_cache_zalloc(kmem_cache, GFP_KERNEL);
+> -	if (s) {
+> -		s->object_size = s->size = size;
+> -		s->align = calculate_alignment(flags, align, size);
+> -		s->ctor = ctor;
+> -
+> -		if (memcg_register_cache(memcg, s, parent_cache)) {
+> -			kmem_cache_free(kmem_cache, s);
+> -			err = -ENOMEM;
+> -			goto out_locked;
+> -		}
+> +	if (!s) {
+> +		err = -ENOMEM;
+> +		goto out_unlock;
+> +	}
+>  
+> -		s->name = kstrdup(name, GFP_KERNEL);
+> -		if (!s->name) {
+> -			kmem_cache_free(kmem_cache, s);
+> -			err = -ENOMEM;
+> -			goto out_locked;
+> -		}
+> +	s->object_size = s->size = size;
+> +	s->align = calculate_alignment(flags, align, size);
+> +	s->ctor = ctor;
+>  
+> -		err = __kmem_cache_create(s, flags);
+> -		if (!err) {
+> -			s->refcount = 1;
+> -			list_add(&s->list, &slab_caches);
+> -			memcg_cache_list_add(memcg, s);
+> -		} else {
+> -			kfree(s->name);
+> -			kmem_cache_free(kmem_cache, s);
+> -		}
+> -	} else
+> +	s->name = kstrdup(name, GFP_KERNEL);
+> +	if (!s->name) {
+>  		err = -ENOMEM;
+> +		goto out_free_cache;
+> +	}
+> +
+> +	err = memcg_register_cache(memcg, s, parent_cache);
+> +	if (err)
+> +		goto out_free_cache;
+>  
+> -out_locked:
+> +	err = __kmem_cache_create(s, flags);
+> +	if (err)
+> +		goto out_free_cache;
+> +
+> +	s->refcount = 1;
+> +	list_add(&s->list, &slab_caches);
+> +	memcg_cache_list_add(memcg, s);
+> +
+> +out_unlock:
+>  	mutex_unlock(&slab_mutex);
+>  	put_online_cpus();
+>  
+>  	if (err) {
+> -
+>  		if (flags & SLAB_PANIC)
+>  			panic("kmem_cache_create: Failed to create slab '%s'. Error %d\n",
+>  				name, err);
+> @@ -236,11 +233,14 @@ out_locked:
+>  				name, err);
+>  			dump_stack();
+>  		}
+> -
+>  		return NULL;
+>  	}
+> -
+>  	return s;
+> +
+> +out_free_cache:
+> +	kfree(s->name);
+> +	kmem_cache_free(kmem_cache, s);
+> +	goto out_unlock;
+>  }
+>  
+>  struct kmem_cache *
+> -- 
+> 1.7.10.4
+> 
+
 -- 
 Michal Hocko
 SUSE Labs
