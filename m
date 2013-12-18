@@ -1,131 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 526846B0035
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id CFC1D6B0037
 	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 01:54:08 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id kl14so5489129pab.5
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 22:54:07 -0800 (PST)
+Received: by mail-pa0-f44.google.com with SMTP id fa1so5542532pad.31
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 22:54:08 -0800 (PST)
 Received: from LGEAMRELO01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id wh6si13516242pac.306.2013.12.17.22.54.05
+        by mx.google.com with ESMTP id v7si13541359pbi.38.2013.12.17.22.54.05
         for <linux-mm@kvack.org>;
-        Tue, 17 Dec 2013 22:54:06 -0800 (PST)
+        Tue, 17 Dec 2013 22:54:07 -0800 (PST)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v3 00/14] mm, hugetlb: remove a hugetlb_instantiation_mutex
-Date: Wed, 18 Dec 2013 15:53:46 +0900
-Message-Id: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v3 01/14] mm, hugetlb: unify region structure handling
+Date: Wed, 18 Dec 2013 15:53:47 +0900
+Message-Id: <1387349640-8071-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-* NOTE for v3
-- Updating patchset is so late because of other works, not issue from
-this patchset.
+Currently, to track a reserved and allocated region, we use two different
+ways for MAP_SHARED and MAP_PRIVATE. For MAP_SHARED, we use
+address_mapping's private_list and, for MAP_PRIVATE, we use a resv_map.
+Now, we are preparing to change a coarse grained lock which protect
+a region structure to fine grained lock, and this difference hinder it.
+So, before changing it, unify region structure handling.
 
-- While reviewing v2, David Gibson who had tried to remove this mutex long
-time ago suggested that the race between concurrent call to
-alloc_buddy_huge_page() in alloc_huge_page() is also prevented[2] since
-this *new* hugepage from it is also contended page for the last allocation.
-But I think that it is useless, since if some application's success depends
-on the *new* hugepage from alloc_buddy_huge_page() rather than *reserved*
-page, it's successful running cannot be guaranteed all the times. So I
-don't implement it. Except this issue, there is no issue to this patchset.
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-* Changes in v3 (No big difference)
-- Slightly modify cover-letter since Part 1. is already mereged.
-- On patch 1-12, add Reviewed-by from "Aneesh Kumar K.V".
-- Patches 1-12 and 14 are just rebased onto v3.13-rc4.
-- Patch 13 is changed as following.
-	add comment on alloc_huge_page()
-	add in-flight user handling in alloc_huge_page_noerr()
-	minor code position changes (Suggested by David)
-
-* Changes in v2
-- Re-order patches to clear it's relationship
-- sleepable object allocation(kmalloc) without holding a spinlock
-	(Pointed by Hillf)
-- Remove vma_has_reserves, instead of vma_needs_reservation.
-	(Suggest by Aneesh and Naoya)
-- Change a way of returning a hugepage back to reserved pool
-	(Suggedt by Naoya)
-
-Without a hugetlb_instantiation_mutex, if parallel fault occur, we can
-fail to allocate a hugepage, because many threads dequeue a hugepage
-to handle a fault of same address. This makes reserved pool shortage
-just for a little while and this causes faulting thread to get a SIGBUS
-signal, although there are enough hugepages.
-
-To solve this problem, we already have a nice solution, that is,
-a hugetlb_instantiation_mutex. This blocks other threads to dive into
-a fault handler. This solve the problem clearly, but it introduce
-performance degradation, because it serialize all fault handling.
-    
-Now, I try to remove a hugetlb_instantiation_mutex to get rid of
-performance problem reported by Davidlohr Bueso [1].
-
-This patchset consist of 4 parts roughly.
-
-Part 1. (Merged) Random fix and clean-up to enhance error handling.
-	These are already merged to mainline.
-
-Part 2. (1-3) introduce new protection method for region tracking 
-	data structure, instead of the hugetlb_instantiation_mutex. There
-	is race condition when we map the hugetlbfs file to two different
-	processes. To prevent it, we need to new protection method like
-	as this patchset.
-	
-	This can be merged into mainline separately.
-
-Part 3. (4-7) clean-up.
-	
-	IMO, these make code really simple, so these are worth to go into
-	mainline separately.
-
-Part 4. (8-14) remove a hugetlb_instantiation_mutex.
-	
-	Almost patches are just for clean-up to error handling path.
-	In patch 13, retry approach is implemented that if faulted thread
-	failed to allocate a hugepage, it continue to run a fault handler
-	until there is no concurrent thread having a hugepage. This causes
-	threads who want to get a last hugepage to be serialized, so
-	threads don't get a SIGBUS if enough hugepage exist.
-	In patch 14, remove a hugetlb_instantiation_mutex.
-
-These patches are based on v3.13-rc4.
-
-With applying these, I passed a libhugetlbfs test suite clearly which
-have allocation-instantiation race test cases.
-
-If there is something I should consider, please let me know!
-Thanks.
-
-[1] http://lwn.net/Articles/558863/ 
-	"[PATCH] mm/hugetlb: per-vma instantiation mutexes"
-[2] https://lkml.org/lkml/2013/9/4/630
-
-Joonsoo Kim (14):
-  mm, hugetlb: unify region structure handling
-  mm, hugetlb: region manipulation functions take resv_map rather
-    list_head
-  mm, hugetlb: protect region tracking via newly introduced resv_map
-    lock
-  mm, hugetlb: remove resv_map_put()
-  mm, hugetlb: make vma_resv_map() works for all mapping type
-  mm, hugetlb: remove vma_has_reserves()
-  mm, hugetlb: mm, hugetlb: unify chg and avoid_reserve to use_reserve
-  mm, hugetlb: call vma_needs_reservation before entering
-    alloc_huge_page()
-  mm, hugetlb: remove a check for return value of alloc_huge_page()
-  mm, hugetlb: move down outside_reserve check
-  mm, hugetlb: move up anon_vma_prepare()
-  mm, hugetlb: clean-up error handling in hugetlb_cow()
-  mm, hugetlb: retry if failed to allocate and there is concurrent user
-  mm, hugetlb: remove a hugetlb_instantiation_mutex
-
- fs/hugetlbfs/inode.c    |   17 +-
- include/linux/hugetlb.h |   11 ++
- mm/hugetlb.c            |  401 +++++++++++++++++++++++++----------------------
- 3 files changed, 241 insertions(+), 188 deletions(-)
-
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index d19b30a..2040275 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -366,7 +366,13 @@ static void truncate_hugepages(struct inode *inode, loff_t lstart)
+ 
+ static void hugetlbfs_evict_inode(struct inode *inode)
+ {
++	struct resv_map *resv_map;
++
+ 	truncate_hugepages(inode, 0);
++	resv_map = (struct resv_map *)inode->i_mapping->private_data;
++	/* root inode doesn't have the resv_map, so we should check it */
++	if (resv_map)
++		resv_map_release(&resv_map->refs);
+ 	clear_inode(inode);
+ }
+ 
+@@ -476,6 +482,11 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
+ 					umode_t mode, dev_t dev)
+ {
+ 	struct inode *inode;
++	struct resv_map *resv_map;
++
++	resv_map = resv_map_alloc();
++	if (!resv_map)
++		return NULL;
+ 
+ 	inode = new_inode(sb);
+ 	if (inode) {
+@@ -487,7 +498,7 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
+ 		inode->i_mapping->a_ops = &hugetlbfs_aops;
+ 		inode->i_mapping->backing_dev_info =&hugetlbfs_backing_dev_info;
+ 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+-		INIT_LIST_HEAD(&inode->i_mapping->private_list);
++		inode->i_mapping->private_data = resv_map;
+ 		info = HUGETLBFS_I(inode);
+ 		/*
+ 		 * The policy is initialized here even if we are creating a
+@@ -517,7 +528,9 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
+ 			break;
+ 		}
+ 		lockdep_annotate_inode_mutex_key(inode);
+-	}
++	} else
++		kref_put(&resv_map->refs, resv_map_release);
++
+ 	return inode;
+ }
+ 
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index bd7e987..317b0a6 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -5,6 +5,8 @@
+ #include <linux/fs.h>
+ #include <linux/hugetlb_inline.h>
+ #include <linux/cgroup.h>
++#include <linux/list.h>
++#include <linux/kref.h>
+ 
+ struct ctl_table;
+ struct user_struct;
+@@ -22,6 +24,13 @@ struct hugepage_subpool {
+ 	long max_hpages, used_hpages;
+ };
+ 
++struct resv_map {
++	struct kref refs;
++	struct list_head regions;
++};
++extern struct resv_map *resv_map_alloc(void);
++void resv_map_release(struct kref *ref);
++
+ extern spinlock_t hugetlb_lock;
+ extern int hugetlb_max_hstate __read_mostly;
+ #define for_each_hstate(h) \
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index dee6cf4..2891902 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -376,12 +376,7 @@ static void set_vma_private_data(struct vm_area_struct *vma,
+ 	vma->vm_private_data = (void *)value;
+ }
+ 
+-struct resv_map {
+-	struct kref refs;
+-	struct list_head regions;
+-};
+-
+-static struct resv_map *resv_map_alloc(void)
++struct resv_map *resv_map_alloc(void)
+ {
+ 	struct resv_map *resv_map = kmalloc(sizeof(*resv_map), GFP_KERNEL);
+ 	if (!resv_map)
+@@ -393,7 +388,7 @@ static struct resv_map *resv_map_alloc(void)
+ 	return resv_map;
+ }
+ 
+-static void resv_map_release(struct kref *ref)
++void resv_map_release(struct kref *ref)
+ {
+ 	struct resv_map *resv_map = container_of(ref, struct resv_map, refs);
+ 
+@@ -1164,8 +1159,9 @@ static long vma_needs_reservation(struct hstate *h,
+ 
+ 	if (vma->vm_flags & VM_MAYSHARE) {
+ 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
+-		return region_chg(&inode->i_mapping->private_list,
+-							idx, idx + 1);
++		struct resv_map *resv = inode->i_mapping->private_data;
++
++		return region_chg(&resv->regions, idx, idx + 1);
+ 
+ 	} else if (!is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
+ 		return 1;
+@@ -1189,7 +1185,9 @@ static void vma_commit_reservation(struct hstate *h,
+ 
+ 	if (vma->vm_flags & VM_MAYSHARE) {
+ 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
+-		region_add(&inode->i_mapping->private_list, idx, idx + 1);
++		struct resv_map *resv = inode->i_mapping->private_data;
++
++		region_add(&resv->regions, idx, idx + 1);
+ 
+ 	} else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
+ 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
+@@ -3159,6 +3157,7 @@ int hugetlb_reserve_pages(struct inode *inode,
+ 	long ret, chg;
+ 	struct hstate *h = hstate_inode(inode);
+ 	struct hugepage_subpool *spool = subpool_inode(inode);
++	struct resv_map *resv_map;
+ 
+ 	/*
+ 	 * Only apply hugepage reservation if asked. At fault time, an
+@@ -3174,10 +3173,13 @@ int hugetlb_reserve_pages(struct inode *inode,
+ 	 * to reserve the full area even if read-only as mprotect() may be
+ 	 * called to make the mapping read-write. Assume !vma is a shm mapping
+ 	 */
+-	if (!vma || vma->vm_flags & VM_MAYSHARE)
+-		chg = region_chg(&inode->i_mapping->private_list, from, to);
+-	else {
+-		struct resv_map *resv_map = resv_map_alloc();
++	if (!vma || vma->vm_flags & VM_MAYSHARE) {
++		resv_map = inode->i_mapping->private_data;
++
++		chg = region_chg(&resv_map->regions, from, to);
++
++	} else {
++		resv_map = resv_map_alloc();
+ 		if (!resv_map)
+ 			return -ENOMEM;
+ 
+@@ -3220,7 +3222,7 @@ int hugetlb_reserve_pages(struct inode *inode,
+ 	 * else has to be done for private mappings here
+ 	 */
+ 	if (!vma || vma->vm_flags & VM_MAYSHARE)
+-		region_add(&inode->i_mapping->private_list, from, to);
++		region_add(&resv_map->regions, from, to);
+ 	return 0;
+ out_err:
+ 	if (vma)
+@@ -3231,9 +3233,12 @@ out_err:
+ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
+ {
+ 	struct hstate *h = hstate_inode(inode);
+-	long chg = region_truncate(&inode->i_mapping->private_list, offset);
++	struct resv_map *resv_map = inode->i_mapping->private_data;
++	long chg = 0;
+ 	struct hugepage_subpool *spool = subpool_inode(inode);
+ 
++	if (resv_map)
++		chg = region_truncate(&resv_map->regions, offset);
+ 	spin_lock(&inode->i_lock);
+ 	inode->i_blocks -= (blocks_per_huge_page(h) * freed);
+ 	spin_unlock(&inode->i_lock);
 -- 
 1.7.9.5
 
