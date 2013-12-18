@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C0D06B003C
-	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 01:54:12 -0500 (EST)
-Received: by mail-pd0-f170.google.com with SMTP id g10so7808526pdj.15
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 20FE86B003D
+	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 01:54:13 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id hz1so5541624pad.40
         for <linux-mm@kvack.org>; Tue, 17 Dec 2013 22:54:12 -0800 (PST)
 Received: from LGEAMRELO01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id sj5si13538774pab.168.2013.12.17.22.54.08
+        by mx.google.com with ESMTP id wh6si13516242pac.306.2013.12.17.22.54.08
         for <linux-mm@kvack.org>;
-        Tue, 17 Dec 2013 22:54:09 -0800 (PST)
+        Tue, 17 Dec 2013 22:54:10 -0800 (PST)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v3 06/14] mm, hugetlb: remove vma_has_reserves()
-Date: Wed, 18 Dec 2013 15:53:52 +0900
-Message-Id: <1387349640-8071-7-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v3 07/14] mm, hugetlb: mm, hugetlb: unify chg and avoid_reserve to use_reserve
+Date: Wed, 18 Dec 2013 15:53:53 +0900
+Message-Id: <1387349640-8071-8-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,87 +19,100 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-vma_has_reserves() can be substituted by using return value of
-vma_needs_reservation(). If chg returned by vma_needs_reservation()
-is 0, it means that vma has reserves. Otherwise, it means that vma don't
-have reserves and need a hugepage outside of reserve pool. This definition
-is perfectly same as vma_has_reserves(), so remove vma_has_reserves().
+Currently, we have two variable to represent whether we can use reserved
+page or not, chg and avoid_reserve, respectively. With aggregating these,
+we can have more clean code. This makes no functinoal difference.
 
 Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index f394454..9d456d4 100644
+index 9d456d4..9927407 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -469,39 +469,6 @@ void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
- 		vma->vm_private_data = (void *)0;
- }
+@@ -508,8 +508,7 @@ static inline gfp_t htlb_alloc_mask(struct hstate *h)
  
--/* Returns true if the VMA has associated reserve pages */
--static int vma_has_reserves(struct vm_area_struct *vma, long chg)
--{
--	if (vma->vm_flags & VM_NORESERVE) {
--		/*
--		 * This address is already reserved by other process(chg == 0),
--		 * so, we should decrement reserved count. Without decrementing,
--		 * reserve count remains after releasing inode, because this
--		 * allocated page will go into page cache and is regarded as
--		 * coming from reserved pool in releasing step.  Currently, we
--		 * don't have any other solution to deal with this situation
--		 * properly, so add work-around here.
--		 */
--		if (vma->vm_flags & VM_MAYSHARE && chg == 0)
--			return 1;
--		else
--			return 0;
--	}
--
--	/* Shared mappings always use reserves */
--	if (vma->vm_flags & VM_MAYSHARE)
--		return 1;
--
--	/*
--	 * Only the process that called mmap() has reserves for
--	 * private mappings.
--	 */
--	if (is_vma_resv_set(vma, HPAGE_RESV_OWNER))
--		return 1;
--
--	return 0;
--}
--
- static void enqueue_huge_page(struct hstate *h, struct page *page)
+ static struct page *dequeue_huge_page_vma(struct hstate *h,
+ 				struct vm_area_struct *vma,
+-				unsigned long address, int avoid_reserve,
+-				long chg)
++				unsigned long address, bool use_reserve)
  {
- 	int nid = page_to_nid(page);
-@@ -555,10 +522,11 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
- 	/*
+ 	struct page *page = NULL;
+ 	struct mempolicy *mpol;
+@@ -523,14 +522,10 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
  	 * A child process with MAP_PRIVATE mappings created by their parent
  	 * have no page reserves. This check ensures that reservations are
--	 * not "stolen". The child may still get SIGKILLed
-+	 * not "stolen". The child may still get SIGKILLed.
-+	 * chg represents whether current user has a reserved hugepages or not,
-+	 * so that we can use it to ensure that reservations are not "stolen".
+ 	 * not "stolen". The child may still get SIGKILLed.
+-	 * chg represents whether current user has a reserved hugepages or not,
+-	 * so that we can use it to ensure that reservations are not "stolen".
++	 * Or, when parent process do COW, we cannot use reserved page.
++	 * In this case, ensure enough pages are in the pool.
  	 */
--	if (!vma_has_reserves(vma, chg) &&
--			h->free_huge_pages - h->resv_huge_pages == 0)
-+	if (chg && h->free_huge_pages - h->resv_huge_pages == 0)
+-	if (chg && h->free_huge_pages - h->resv_huge_pages == 0)
+-		goto err;
+-
+-	/* If reserves cannot be used, ensure enough pages are in the pool */
+-	if (avoid_reserve && h->free_huge_pages - h->resv_huge_pages == 0)
++	if (!use_reserve && h->free_huge_pages - h->resv_huge_pages == 0)
  		goto err;
  
- 	/* If reserves cannot be used, ensure enough pages are in the pool */
-@@ -577,7 +545,11 @@ retry_cpuset:
+ retry_cpuset:
+@@ -543,13 +538,7 @@ retry_cpuset:
+ 		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask(h))) {
+ 			page = dequeue_huge_page_node(h, zone_to_nid(zone));
  			if (page) {
- 				if (avoid_reserve)
- 					break;
--				if (!vma_has_reserves(vma, chg))
-+				/*
-+				 * chg means whether current user allocates
-+				 * a hugepage on the reserved pool or not
-+				 */
-+				if (chg)
+-				if (avoid_reserve)
+-					break;
+-				/*
+-				 * chg means whether current user allocates
+-				 * a hugepage on the reserved pool or not
+-				 */
+-				if (chg)
++				if (!use_reserve)
  					break;
  
  				SetPagePrivate(page);
+@@ -1194,6 +1183,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 	struct hstate *h = hstate_vma(vma);
+ 	struct page *page;
+ 	long chg;
++	bool use_reserve;
+ 	int ret, idx;
+ 	struct hugetlb_cgroup *h_cg;
+ 
+@@ -1209,18 +1199,19 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 	chg = vma_needs_reservation(h, vma, addr);
+ 	if (chg < 0)
+ 		return ERR_PTR(-ENOMEM);
+-	if (chg || avoid_reserve)
++	use_reserve = (!chg && !avoid_reserve);
++	if (!use_reserve)
+ 		if (hugepage_subpool_get_pages(spool, 1))
+ 			return ERR_PTR(-ENOSPC);
+ 
+ 	ret = hugetlb_cgroup_charge_cgroup(idx, pages_per_huge_page(h), &h_cg);
+ 	if (ret) {
+-		if (chg || avoid_reserve)
++		if (!use_reserve)
+ 			hugepage_subpool_put_pages(spool, 1);
+ 		return ERR_PTR(-ENOSPC);
+ 	}
+ 	spin_lock(&hugetlb_lock);
+-	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve, chg);
++	page = dequeue_huge_page_vma(h, vma, addr, use_reserve);
+ 	if (!page) {
+ 		spin_unlock(&hugetlb_lock);
+ 		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+@@ -1228,7 +1219,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 			hugetlb_cgroup_uncharge_cgroup(idx,
+ 						       pages_per_huge_page(h),
+ 						       h_cg);
+-			if (chg || avoid_reserve)
++			if (!use_reserve)
+ 				hugepage_subpool_put_pages(spool, 1);
+ 			return ERR_PTR(-ENOSPC);
+ 		}
 -- 
 1.7.9.5
 
