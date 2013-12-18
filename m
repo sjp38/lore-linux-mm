@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 20FE86B003D
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id E9C226B003D
 	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 01:54:13 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id hz1so5541624pad.40
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 22:54:12 -0800 (PST)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so5538939pab.15
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 22:54:13 -0800 (PST)
 Received: from LGEAMRELO01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id wh6si13516242pac.306.2013.12.17.22.54.08
+        by mx.google.com with ESMTP id ty3si13551493pbc.167.2013.12.17.22.54.08
         for <linux-mm@kvack.org>;
         Tue, 17 Dec 2013 22:54:10 -0800 (PST)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v3 07/14] mm, hugetlb: mm, hugetlb: unify chg and avoid_reserve to use_reserve
-Date: Wed, 18 Dec 2013 15:53:53 +0900
-Message-Id: <1387349640-8071-8-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v3 08/14] mm, hugetlb: call vma_needs_reservation before entering alloc_huge_page()
+Date: Wed, 18 Dec 2013 15:53:54 +0900
+Message-Id: <1387349640-8071-9-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,100 +19,108 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Currently, we have two variable to represent whether we can use reserved
-page or not, chg and avoid_reserve, respectively. With aggregating these,
-we can have more clean code. This makes no functinoal difference.
+In order to validate that this failure is reasonable, we need to know
+whether allocation request is for reserved or not on caller function.
+So moving vma_needs_reservation() up to the caller of alloc_huge_page().
+There is no functional change in this patch and following patch use
+this information.
 
 Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 9d456d4..9927407 100644
+index 9927407..d960f46 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -508,8 +508,7 @@ static inline gfp_t htlb_alloc_mask(struct hstate *h)
+@@ -1177,13 +1177,11 @@ static void vma_commit_reservation(struct hstate *h,
+ }
  
- static struct page *dequeue_huge_page_vma(struct hstate *h,
- 				struct vm_area_struct *vma,
--				unsigned long address, int avoid_reserve,
--				long chg)
-+				unsigned long address, bool use_reserve)
+ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+-				    unsigned long addr, int avoid_reserve)
++				    unsigned long addr, int use_reserve)
  {
- 	struct page *page = NULL;
- 	struct mempolicy *mpol;
-@@ -523,14 +522,10 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
- 	 * A child process with MAP_PRIVATE mappings created by their parent
- 	 * have no page reserves. This check ensures that reservations are
- 	 * not "stolen". The child may still get SIGKILLed.
--	 * chg represents whether current user has a reserved hugepages or not,
--	 * so that we can use it to ensure that reservations are not "stolen".
-+	 * Or, when parent process do COW, we cannot use reserved page.
-+	 * In this case, ensure enough pages are in the pool.
- 	 */
--	if (chg && h->free_huge_pages - h->resv_huge_pages == 0)
--		goto err;
--
--	/* If reserves cannot be used, ensure enough pages are in the pool */
--	if (avoid_reserve && h->free_huge_pages - h->resv_huge_pages == 0)
-+	if (!use_reserve && h->free_huge_pages - h->resv_huge_pages == 0)
- 		goto err;
- 
- retry_cpuset:
-@@ -543,13 +538,7 @@ retry_cpuset:
- 		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask(h))) {
- 			page = dequeue_huge_page_node(h, zone_to_nid(zone));
- 			if (page) {
--				if (avoid_reserve)
--					break;
--				/*
--				 * chg means whether current user allocates
--				 * a hugepage on the reserved pool or not
--				 */
--				if (chg)
-+				if (!use_reserve)
- 					break;
- 
- 				SetPagePrivate(page);
-@@ -1194,6 +1183,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 	struct hugepage_subpool *spool = subpool_vma(vma);
  	struct hstate *h = hstate_vma(vma);
  	struct page *page;
- 	long chg;
-+	bool use_reserve;
+-	long chg;
+-	bool use_reserve;
  	int ret, idx;
  	struct hugetlb_cgroup *h_cg;
  
-@@ -1209,18 +1199,19 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 	chg = vma_needs_reservation(h, vma, addr);
- 	if (chg < 0)
- 		return ERR_PTR(-ENOMEM);
--	if (chg || avoid_reserve)
-+	use_reserve = (!chg && !avoid_reserve);
-+	if (!use_reserve)
+@@ -1196,10 +1194,6 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 	 * need pages and subpool limit allocated allocated if no reserve
+ 	 * mapping overlaps.
+ 	 */
+-	chg = vma_needs_reservation(h, vma, addr);
+-	if (chg < 0)
+-		return ERR_PTR(-ENOMEM);
+-	use_reserve = (!chg && !avoid_reserve);
+ 	if (!use_reserve)
  		if (hugepage_subpool_get_pages(spool, 1))
  			return ERR_PTR(-ENOSPC);
+@@ -1244,7 +1238,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
+ 				unsigned long addr, int avoid_reserve)
+ {
+-	struct page *page = alloc_huge_page(vma, addr, avoid_reserve);
++	struct page *page = alloc_huge_page(vma, addr, !avoid_reserve);
+ 	if (IS_ERR(page))
+ 		page = NULL;
+ 	return page;
+@@ -2581,6 +2575,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	struct hstate *h = hstate_vma(vma);
+ 	struct page *old_page, *new_page;
+ 	int outside_reserve = 0;
++	long chg;
++	bool use_reserve;
+ 	unsigned long mmun_start;	/* For mmu_notifiers */
+ 	unsigned long mmun_end;		/* For mmu_notifiers */
  
- 	ret = hugetlb_cgroup_charge_cgroup(idx, pages_per_huge_page(h), &h_cg);
- 	if (ret) {
--		if (chg || avoid_reserve)
-+		if (!use_reserve)
- 			hugepage_subpool_put_pages(spool, 1);
- 		return ERR_PTR(-ENOSPC);
- 	}
- 	spin_lock(&hugetlb_lock);
--	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve, chg);
-+	page = dequeue_huge_page_vma(h, vma, addr, use_reserve);
- 	if (!page) {
- 		spin_unlock(&hugetlb_lock);
- 		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
-@@ -1228,7 +1219,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 			hugetlb_cgroup_uncharge_cgroup(idx,
- 						       pages_per_huge_page(h),
- 						       h_cg);
--			if (chg || avoid_reserve)
-+			if (!use_reserve)
- 				hugepage_subpool_put_pages(spool, 1);
- 			return ERR_PTR(-ENOSPC);
- 		}
+@@ -2612,7 +2608,17 @@ retry_avoidcopy:
+ 
+ 	/* Drop page table lock as buddy allocator may be called */
+ 	spin_unlock(ptl);
+-	new_page = alloc_huge_page(vma, address, outside_reserve);
++	chg = vma_needs_reservation(h, vma, address);
++	if (chg < 0) {
++		page_cache_release(old_page);
++
++		/* Caller expects lock to be held */
++		spin_lock(ptl);
++		return VM_FAULT_OOM;
++	}
++	use_reserve = !chg && !outside_reserve;
++
++	new_page = alloc_huge_page(vma, address, use_reserve);
+ 
+ 	if (IS_ERR(new_page)) {
+ 		long err = PTR_ERR(new_page);
+@@ -2742,6 +2748,8 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	struct address_space *mapping;
+ 	pte_t new_pte;
+ 	spinlock_t *ptl;
++	long chg;
++	bool use_reserve;
+ 
+ 	/*
+ 	 * Currently, we are forced to kill the process in the event the
+@@ -2767,7 +2775,15 @@ retry:
+ 		size = i_size_read(mapping->host) >> huge_page_shift(h);
+ 		if (idx >= size)
+ 			goto out;
+-		page = alloc_huge_page(vma, address, 0);
++
++		chg = vma_needs_reservation(h, vma, address);
++		if (chg == -ENOMEM) {
++			ret = VM_FAULT_OOM;
++			goto out;
++		}
++		use_reserve = !chg;
++
++		page = alloc_huge_page(vma, address, use_reserve);
+ 		if (IS_ERR(page)) {
+ 			ret = PTR_ERR(page);
+ 			if (ret == -ENOMEM)
 -- 
 1.7.9.5
 
