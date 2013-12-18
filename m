@@ -1,98 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 968E66B0062
-	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 01:54:17 -0500 (EST)
-Received: by mail-pd0-f171.google.com with SMTP id z10so7831589pdj.2
-        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 22:54:17 -0800 (PST)
-Received: from LGEAMRELO01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id ye6si13499901pbc.350.2013.12.17.22.54.10
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B2AE6B0038
+	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 02:21:23 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id bj1so5585943pad.30
+        for <linux-mm@kvack.org>; Tue, 17 Dec 2013 23:21:22 -0800 (PST)
+Received: from LGEAMRELO02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id cz3si13603967pbc.63.2013.12.17.23.21.20
         for <linux-mm@kvack.org>;
-        Tue, 17 Dec 2013 22:54:11 -0800 (PST)
+        Tue, 17 Dec 2013 23:21:21 -0800 (PST)
+Date: Wed, 18 Dec 2013 16:21:17 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v3 12/14] mm, hugetlb: clean-up error handling in hugetlb_cow()
-Date: Wed, 18 Dec 2013 15:53:58 +0900
-Message-Id: <1387349640-8071-13-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: possible regression on 3.13 when calling flush_dcache_page
+Message-ID: <20131218072117.GA2383@lge.com>
+References: <20131212143149.GI12099@ldesroches-Latitude-E6320>
+ <20131212143618.GJ12099@ldesroches-Latitude-E6320>
+ <20131213015909.GA8845@lge.com>
+ <20131216144343.GD9627@ldesroches-Latitude-E6320>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131216144343.GD9627@ldesroches-Latitude-E6320>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-mmc@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-Current code include 'Caller expects lock to be held' in every error path.
-We can clean-up it as we do error handling in one place.
+On Mon, Dec 16, 2013 at 03:43:43PM +0100, Ludovic Desroches wrote:
+> Hello,
+> 
+> On Fri, Dec 13, 2013 at 10:59:09AM +0900, Joonsoo Kim wrote:
+> > On Thu, Dec 12, 2013 at 03:36:19PM +0100, Ludovic Desroches wrote:
+> > > fix mmc mailing list address error
+> > > 
+> > > On Thu, Dec 12, 2013 at 03:31:50PM +0100, Ludovic Desroches wrote:
+> > > > Hi,
+> > > > 
+> > > > With v3.13-rc3 I have an error when the atmel-mci driver calls
+> > > > flush_dcache_page (log at the end of the message).
+> > > > 
+> > > > Since I didn't have it before, I did a git bisect and the commit introducing
+> > > > the error is the following one:
+> > > > 
+> > > > 106a74e slab: replace free and inuse in struct slab with newly introduced active
+> > > > 
+> > > > I don't know if this commit has introduced a bug or if it has revealed a bug
+> > > > in the atmel-mci driver.
+> > 
+> > Hello,
+> > 
+> > I think that this commit may not introduce a bug. This patch remove one
+> > variable on slab management structure and replace variable name. So there
+> > is no functional change.
+> > 
+> 
+> If I have reverted this patch and other ones you did on top of it and
+> the issue disappear.
 
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Hello,
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 1817720..a9ae7d3 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2577,6 +2577,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
- 	int outside_reserve = 0;
- 	long chg;
- 	bool use_reserve = false;
-+	int ret = 0;
- 	unsigned long mmun_start;	/* For mmu_notifiers */
- 	unsigned long mmun_end;		/* For mmu_notifiers */
- 
-@@ -2601,10 +2602,8 @@ retry_avoidcopy:
- 	 * anon_vma prepared.
- 	 */
- 	if (unlikely(anon_vma_prepare(vma))) {
--		page_cache_release(old_page);
--		/* Caller expects lock to be held */
--		spin_lock(ptl);
--		return VM_FAULT_OOM;
-+		ret = VM_FAULT_OOM;
-+		goto out_old_page;
- 	}
- 
- 	/*
-@@ -2623,11 +2622,8 @@ retry_avoidcopy:
- 	if (!outside_reserve) {
- 		chg = vma_needs_reservation(h, vma, address);
- 		if (chg < 0) {
--			page_cache_release(old_page);
--
--			/* Caller expects lock to be held */
--			spin_lock(ptl);
--			return VM_FAULT_OOM;
-+			ret = VM_FAULT_OOM;
-+			goto out_old_page;
- 		}
- 		use_reserve = !chg;
- 	}
-@@ -2661,9 +2657,8 @@ retry_avoidcopy:
- 			WARN_ON_ONCE(1);
- 		}
- 
--		/* Caller expects lock to be held */
--		spin_lock(ptl);
--		return VM_FAULT_SIGBUS;
-+		ret = VM_FAULT_SIGBUS;
-+		goto out_lock;
- 	}
- 
- 	copy_user_huge_page(new_page, old_page, address, vma,
-@@ -2694,11 +2689,12 @@ retry_avoidcopy:
- 	spin_unlock(ptl);
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- 	page_cache_release(new_page);
-+out_old_page:
- 	page_cache_release(old_page);
--
-+out_lock:
- 	/* Caller expects lock to be held */
- 	spin_lock(ptl);
--	return 0;
-+	return ret;
- }
- 
- /* Return the pagecache page at a given address within a VMA */
--- 
-1.7.9.5
+Could you give me your '/proc/slabinfo' before/after this commit (106a74e)?
+
+And how about testing with artificially increasing size of struct slab on
+top of this commit (106a74e)?
+
+I really wonder why the problem happens, because this doesn't cause any
+functional change as far as I know. Only side-effect from this patch is
+decreasing size of struct slab.
+
+Thanks.
+
+diff --git a/mm/slab.c b/mm/slab.c
+index 2ec2336..d2240fd 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -174,6 +174,7 @@ struct slab {
+        struct {
+                struct list_head list;
+                void *s_mem;            /* including colour offset */
++               unsigned int x;
+                unsigned int active;    /* num of objs active in slab */
+        };
+ };
+
+> 
+> > I doubt that side-effect of this patch reveals a bug in other place.
+> > Side-effect is reduced memory usage for slab management structure. It would
+> > makes some slabs have more objects with more density since slab management
+> > structure is sometimes on the page for objects. So if it diminishes, more
+> > objects can be in the page.
+> > 
+> > Anyway, I will look at it more. If you have any progress, please let me know.
+> 
+> No progress at the moment.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
