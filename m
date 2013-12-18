@@ -1,83 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 693476B0031
-	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 15:42:22 -0500 (EST)
-Received: by mail-ob0-f170.google.com with SMTP id wp18so207573obc.15
-        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 12:42:22 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id t5si1111672oem.79.2013.12.18.12.42.20
+Received: from mail-bk0-f47.google.com (mail-bk0-f47.google.com [209.85.214.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A8816B0031
+	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 16:09:55 -0500 (EST)
+Received: by mail-bk0-f47.google.com with SMTP id mx12so403447bkb.6
+        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 13:09:55 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id pr4si595846bkb.314.2013.12.18.13.09.54
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 18 Dec 2013 12:42:21 -0800 (PST)
-Message-ID: <52B206F4.2010706@oracle.com>
-Date: Wed, 18 Dec 2013 15:35:00 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+        Wed, 18 Dec 2013 13:09:54 -0800 (PST)
+Date: Wed, 18 Dec 2013 16:06:17 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC PATCH 0/6] Configurable fair allocation zone policy v4
+Message-ID: <20131218210617.GC20038@cmpxchg.org>
+References: <1387395723-25391-1-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Subject: mm: kernel BUG at mm/rmap.c:1663!
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1387395723-25391-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi all,
+On Wed, Dec 18, 2013 at 07:41:57PM +0000, Mel Gorman wrote:
+> This is still a work in progress. I know Johannes is maintaining his own
+> patch which takes a different approach and has different priorities. Michal
+> Hocko has raised concerns potentially affecting both. I'm releasing this so
+> there is a basis of comparison with Johannes' patch. It's not necessarily
+> the final shape of what we want to merge but the test results highlight
+> the current behaviour has regressed performance for basic workloads.
+> 
+> A big concern is the semantics and tradeoffs of the tunable are quite
+> involved.  Basically no matter what workload you get right, there will be
+> a workload that will be wrong. This might indicate that this really needs
+> to be controlled via memory policies or some means of detecting online
+> which policy should be used on a per-process basis.
 
-As a side note, I seem to be hitting various VM_BUG_ON(!PageLocked(page)) all over the code, is it
-possible that something major broke that's causing this fallout?
+I'm more and more agreeing with this.  As I stated in my answer to
+Michal, I may have seen this too black and white and the flipside of
+the coin as not important enough.
 
-While fuzzing with trinity inside a KVM tools guest running latest -next kernel, I've stumbled on 
-the following spew.
+But it really does point to a mempolicy.  As long as we can agree on a
+default that makes most sense for users, there is no harm in offering
+a choice.  E.g. aging artifacts are simply irrelevant without reclaim
+going on, so a workload that mostly avoids it can benefit from a
+placement policy that strives for locality without any downsides.
 
-[  588.698828] kernel BUG at mm/rmap.c:1663!
-[  588.699380] invalid opcode: 0000 [#2] PREEMPT SMP DEBUG_PAGEALLOC
-[  588.700347] Dumping ftrace buffer:
-[  588.701186]    (ftrace buffer empty)
-[  588.702062] Modules linked in:
-[  588.702759] CPU: 0 PID: 4647 Comm: kswapd0 Tainted: G      D W    3.13.0-rc4-next-20
-131218-sasha-00012-g1962367-dirty #4155
-[  588.704330] task: ffff880062bcb000 ti: ffff880062450000 task.ti: ffff880062450000
-[  588.705507] RIP: 0010:[<ffffffff81289c80>]  [<ffffffff81289c80>] rmap_walk+0x10/0x50
-[  588.706800] RSP: 0018:ffff8800624518d8  EFLAGS: 00010246
-[  588.707515] RAX: 000fffff80080048 RBX: ffffea00000227c0 RCX: 0000000000000000
-[  588.707515] RDX: 0000000000000000 RSI: ffff8800624518e8 RDI: ffffea00000227c0
-[  588.707515] RBP: ffff8800624518d8 R08: ffff8800624518e8 R09: 0000000000000000
-[  588.707515] R10: 0000000000000000 R11: 0000000000000000 R12: ffff8800624519d8
-[  588.707515] R13: 0000000000000000 R14: ffffea00000227e0 R15: 0000000000000000
-[  588.707515] FS:  0000000000000000(0000) GS:ffff880065200000(0000) knlGS:000000000000
-0000
-[  588.707515] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[  588.707515] CR2: 00007fec40cbe0f8 CR3: 00000000c2382000 CR4: 00000000000006f0
-[  588.707515] Stack:
-[  588.707515]  ffff880062451958 ffffffff81289f4b ffff880062451918 ffffffff81289f80
-[  588.707515]  0000000000000000 0000000000000000 ffffffff8128af60 0000000000000000
-[  588.707515]  0000000000000024 0000000000000000 0000000000000000 0000000000000286
-[  588.707515] Call Trace:
-[  588.707515]  [<ffffffff81289f4b>] page_referenced+0xcb/0x100
-[  588.707515]  [<ffffffff81289f80>] ? page_referenced+0x100/0x100
-[  588.707515]  [<ffffffff8128af60>] ? invalid_page_referenced_vma+0x170/0x170
-[  588.707515]  [<ffffffff81264302>] shrink_active_list+0x212/0x330
-[  588.707515]  [<ffffffff81260e23>] ? inactive_file_is_low+0x33/0x50
-[  588.707515]  [<ffffffff812646f5>] shrink_lruvec+0x2d5/0x300
-[  588.707515]  [<ffffffff812647b6>] shrink_zone+0x96/0x1e0
-[  588.707515]  [<ffffffff81265b06>] kswapd_shrink_zone+0xf6/0x1c0
-[  588.707515]  [<ffffffff81265f43>] balance_pgdat+0x373/0x550
-[  588.707515]  [<ffffffff81266d63>] kswapd+0x2f3/0x350
-[  588.707515]  [<ffffffff81266a70>] ? perf_trace_mm_vmscan_lru_isolate_template+0x120/
-0x120
-[  588.707515]  [<ffffffff8115c9c5>] kthread+0x105/0x110
-[  588.707515]  [<ffffffff8115c8c0>] ? set_kthreadd_affinity+0x30/0x30
-[  588.707515]  [<ffffffff843a6a7c>] ret_from_fork+0x7c/0xb0
-[  588.707515]  [<ffffffff8115c8c0>] ? set_kthreadd_affinity+0x30/0x30
-[  588.707515] Code: c0 48 83 c4 18 89 d0 5b 41 5c 41 5d 41 5e 41 5f c9 c3 66 0f 1f 84
-00 00 00 00 00 55 48 89 e5 66 66 66 66 90 48 8b 07 a8 01 75 10 <0f> 0b 66 0f 1f 44 00 0
-0 eb fe 66 0f 1f 44 00 00 f6 47 08 01 74
-[  588.707515] RIP  [<ffffffff81289c80>] rmap_walk+0x10/0x50
-[  588.707515]  RSP <ffff8800624518d8>
+> By default, this series does *not* interleave pagecache across nodes but
+> it will interleave between local zones.
+> 
+> Changelog since V3
+> o Add documentation
+> o Bring tunable in line with Johannes
+> o Common code when deciding to update the batch count and skip zones
+> 
+> Changelog since v2
+> o Drop an accounting patch, behaviour is deliberate
+> o Special case tmpfs and shmem pages for discussion
+> 
+> Changelog since v1
+> o Fix lot of brain damage in the configurable policy patch
+> o Yoink a page cache annotation patch
+> o Only account batch pages against allocations eligible for the fair policy
+> o Add patch that default distributes file pages on remote nodes
+> 
+> Commit 81c0a2bb ("mm: page_alloc: fair zone allocator policy") solved a
+> bug whereby new pages could be reclaimed before old pages because of how
+> the page allocator and kswapd interacted on the per-zone LRU lists.
+> 
+> Unfortunately a side-effect missed during review was that it's now very
+> easy to allocate remote memory on NUMA machines. The problem is that
+> it is not a simple case of just restoring local allocation policies as
+> there are genuine reasons why global page aging may be prefereable. It's
+> still a major change to default behaviour so this patch makes the policy
+> configurable and sets what I think is a sensible default.
 
+I wrote this to Michal, too: as 3.12 was only recently released and
+its NUMA placement quite broken, I doubt that people running NUMA
+machines already rely on this aspect of global page cache placement.
 
-Thanks,
-Sasha
+We should be able to restrict placement fairness to node-local zones
+exclusively for 3.12-stable and possibly for 3.13, depending on how
+fast we can agree on the interface.
+
+I would prefer fixing the worst first so that we don't have to rush a
+user interface in order to keep global cache aging, which nobody knows
+exists yet.  But that part is simply not ready, so let's revert it.
+And then place any subsequent attempts of implementing this for NUMA
+on top of it, without depending on them for 3.12-stable and 3.13.
+
+The following fix should produce the same outcomes on your tests:
+
+---
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch] mm: page_alloc: revert NUMA aspect of fair allocation
+ policy
+
+81c0a2bb ("mm: page_alloc: fair zone allocator policy") meant to bring
+aging fairness among zones in system, but it was overzealous and badly
+regressed basic workloads on NUMA systems.
+
+Due to the way kswapd and page allocator interacts, we still want to
+make sure that all zones in any given node are used equally for all
+allocations to maximize memory utilization and prevent thrashing on
+the highest zone in the node.
+
+While the same principle applies to NUMA nodes - memory utilization is
+obviously improved by spreading allocations throughout all nodes -
+remote references can be costly and so many workloads prefer locality
+over memory utilization.  The original change assumed that
+zone_reclaim_mode would be a good enough predictor for that, but it
+turned out to be as indicative as a coin flip.
+
+Revert the NUMA aspect of the fairness until we can find a proper way
+to make it configurable and agree on a sane default.
+
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Cc: <stable@kernel.org> # 3.12
+---
+ mm/page_alloc.c | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index dd886fac451a..c5939317984f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1919,18 +1919,17 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+ 		 * page was allocated in should have no effect on the
+ 		 * time the page has in memory before being reclaimed.
+ 		 *
+-		 * When zone_reclaim_mode is enabled, try to stay in
+-		 * local zones in the fastpath.  If that fails, the
+-		 * slowpath is entered, which will do another pass
+-		 * starting with the local zones, but ultimately fall
+-		 * back to remote zones that do not partake in the
+-		 * fairness round-robin cycle of this zonelist.
++		 * Try to stay in local zones in the fastpath.  If
++		 * that fails, the slowpath is entered, which will do
++		 * another pass starting with the local zones, but
++		 * ultimately fall back to remote zones that do not
++		 * partake in the fairness round-robin cycle of this
++		 * zonelist.
+ 		 */
+ 		if (alloc_flags & ALLOC_WMARK_LOW) {
+ 			if (zone_page_state(zone, NR_ALLOC_BATCH) <= 0)
+ 				continue;
+-			if (zone_reclaim_mode &&
+-			    !zone_local(preferred_zone, zone))
++			if (!zone_local(preferred_zone, zone))
+ 				continue;
+ 		}
+ 		/*
+@@ -2396,7 +2395,7 @@ static void prepare_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		 * thrash fairness information for zones that are not
+ 		 * actually part of this zonelist's round-robin cycle.
+ 		 */
+-		if (zone_reclaim_mode && !zone_local(preferred_zone, zone))
++		if (!zone_local(preferred_zone, zone))
+ 			continue;
+ 		mod_zone_page_state(zone, NR_ALLOC_BATCH,
+ 				    high_wmark_pages(zone) -
+-- 
+1.8.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
