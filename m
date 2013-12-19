@@ -1,88 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F0D66B0031
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 09:34:54 -0500 (EST)
-Received: by mail-ee0-f44.google.com with SMTP id b57so515191eek.31
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 06:34:53 -0800 (PST)
+Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
+	by kanga.kvack.org (Postfix) with ESMTP id C747D6B0031
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 09:41:36 -0500 (EST)
+Received: by mail-ee0-f42.google.com with SMTP id e53so519080eek.15
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 06:41:36 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t6si4597677eeh.171.2013.12.19.06.34.53
+        by mx.google.com with ESMTPS id 5si4602721eei.228.2013.12.19.06.41.35
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 19 Dec 2013 06:34:53 -0800 (PST)
-Date: Thu, 19 Dec 2013 14:34:50 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/4] Fix ebizzy performance regression due to X86 TLB
- range flush v2
-Message-ID: <20131219143449.GN11295@suse.de>
-References: <1386964870-6690-1-git-send-email-mgorman@suse.de>
- <20131218072814.GA798@localhost>
+        Thu, 19 Dec 2013 06:41:35 -0800 (PST)
+Date: Thu, 19 Dec 2013 15:41:34 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
+ access to memory reserves
+Message-ID: <20131219144134.GH10855@dhcp22.suse.cz>
+References: <20131210103827.GB20242@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312101655430.22701@chino.kir.corp.google.com>
+ <20131211095549.GA18741@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312111434200.7354@chino.kir.corp.google.com>
+ <20131212103159.GB2630@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312131551220.28704@chino.kir.corp.google.com>
+ <20131217162342.GG28991@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312171240541.21640@chino.kir.corp.google.com>
+ <20131218200434.GA4161@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312182157510.1247@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131218072814.GA798@localhost>
+In-Reply-To: <alpine.DEB.2.02.1312182157510.1247@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Alex Shi <alex.shi@linaro.org>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Wed, Dec 18, 2013 at 03:28:14PM +0800, Fengguang Wu wrote:
-> Hi Mel,
+On Wed 18-12-13 22:09:12, David Rientjes wrote:
+> On Wed, 18 Dec 2013, Michal Hocko wrote:
 > 
-> I'd like to share some test numbers with your patches applied on top of v3.13-rc3.
+> > > For memory isolation, we'd only want to bypass memcg charges when 
+> > > absolutely necessary and it seems like TIF_MEMDIE is the only case where 
+> > > that's required.  We don't give processes with pending SIGKILLs or those 
+> > > in the exit() path access to memory reserves in the page allocator without 
+> > > first determining that reclaim can't make any progress for the same reason 
+> > > and then we only do so by setting TIF_MEMDIE when calling the oom killer.  
+> > 
+> > While I do understand arguments about isolation I would also like to be
+> > practical here. How many charges are we talking about? Dozen pages? Much
+> > more?
 > 
-> Basically there are
+> The PF_EXITING bypass is indeed much less concerning than the 
+> fatal_signal_pending() bypass.
+
+OK, so can we at least agree on the patch posted here:
+https://lkml.org/lkml/2013/12/12/129. This is a real bug and definitely
+worth fixing.
+
+> > Besides that all of those should be very short lived because the task
+> > is going to die very soon and so the memory will be freed.
+> > 
 > 
-> 1) no big performance changes
+> We don't know how much memory is being allocated while 
+> fatal_signal_pending() is true before the process can handle the SIGKILL, 
+> so this could potentially bypass a significant amount of memory. 
+
+The question is. Does it in _practice_?
+
+We have this behavior since 867578cbccb08 which is 2.6.34 and we haven't
+seen a single report where a shotdown task would break over the limit too
+much. This would suggest that such a case doesn't happen very often.  If
+it happens or it is easily triggerable then I am all for reverting that
+check but that would require a proper justification rather than
+speculations.
+
+> If we are to have a configuration such as what Tejun recommended for
+> oom handling:
 > 
->   76628486           -0.7%   76107841       TOTAL vm-scalability.throughput
->     407038           +1.2%     412032       TOTAL hackbench.throughput
->      50307           -1.5%      49549       TOTAL ebizzy.throughput
+> 			 _____root______
+> 			/		\
+> 		    user		 oom
+> 		   /    \		/   \
+> 		  A	 B	       a     b
 > 
+> where the limit of A + B can be greater than the limit of user for 
+> overcommit, and the limit of user is the amount of RAM minus whatever is 
+> reserved for the oom hierarchy, then significant bypass to the root memcg 
+> will cause memcgs in the oom hierarchy to actually not be able to allocate 
+> memory from the page allocator.
 
-I'm assuming this was an ivybridge processor. How many threads were ebizzy
-tested with? The memory ranges used by the vm scalability benchmarks are
-probably too large to be affected by the series but I'm guessing. I doubt
-hackbench is doing any flushes and the 1.2% is noise.
+I can imagine that the killed task might be in the middle of an
+allocation loop and rather far away from returning to userspace (e.g.
+readahead comes to mind - although that one shouldn't cause the global
+OOM).
+I would argue that we shouldn't reclaim in such a case and rather fail
+the charge. Reclaiming will not help us much. In an extreme case we
+would end up in OOM and the killed task would get TIF_MEMDIE and so it
+would be allowed to bypass charges and break the isolation anyway.
+Can we fail charges for killed tasks in general? I am very skeptical
+because this might be a regular allocation to make a progress on the way
+out.
 
-> 2) huge proc-vmstat.nr_tlb_* increases
+So this doesn't solve the isolation problem, it just postpones it to
+later and makes the life of other tasks in the same memcg worse because
+their memory gets reclaimed which can lead to different performance
+issues. And all of that for temporal charges which will go away shortly.
+
+> The PF_EXITING bypass is much less concerning because we shouldn't be 
+> doing significant memory allocation in the exit() path, but it's also true 
+> that neither the PF_EXITING nor the fatal_signal_pending() bypass is 
+> required. 
+
+Yes, it is not, strictly speaking, required. It is very practical to do,
+though. We do not know much about the context which called us so we
+cannot base our decisions properly and just doing reclaim to see what
+happens sounds like a bad decision to me.
+
+> In Tejun's suggested configuration above, we absolutely do want 
+> to reclaim from the user hierarchy before declaring oom and setting 
+> TIF_MEMDIE, otherwise the oom hierarchy cannot allocate.
 > 
->   99986527         +3e+14%  2.988e+20       TOTAL proc-vmstat.nr_tlb_local_flush_one
->  3.812e+08       +2.2e+13%  8.393e+19       TOTAL proc-vmstat.nr_tlb_remote_flush_received
->  3.301e+08       +2.2e+13%  7.241e+19       TOTAL proc-vmstat.nr_tlb_remote_flush
->    5990864       +1.2e+15%  7.032e+19       TOTAL proc-vmstat.nr_tlb_local_flush_all
+> > So from my POV I would like to see these heuristics as simple as
+> > possible and placed at very few places. Doing a bypass before charge
+> > - or even after a failed charge before doing reclaim sounds like an easy
+> > enough heuristic without a big risk.
 > 
-
-The accounting changes can be mostly explained by "x86: mm: Clean up
-inconsistencies when flushing TLB ranges". flush_all was simply not
-being counted before so I would claim that the old figure was simply
-wrong and did not reflect reality.
-
-Alterations on when range versus global flushes would affect the other
-counters but arguably it's now behaving as originally intended by the tlb
-flush shift.
-
-> Here are the detailed numbers. eabb1f89905a0c809d13 is the HEAD commit
-> with 4 patches applied. The "~ N%" notations are the stddev percent.
-> The "[+-] N%" notations are the increase/decrease percent. The
-> brickland2, lkp-snb01, lkp-ib03 etc. are testbox names.
-> 
-
-Are positive numbers always better? If so, most of these figures look good
-to me and support the series being merged. Please speak up if that is in
-error.
-
-I do see a few major regressions like this
-
->     324497 ~ 0%    -100.0%          0 ~ 0%  brickland2/micro/vm-scalability/16G-truncate
-
-but I have no idea what the test is doing and whether something happened
-that the test broke that time or if it's something to be really
-concerned about.
-
-Thanks
+> It's a very significant risk of depleting memory that is available for oom 
+> handling in the suggested configuration.
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
