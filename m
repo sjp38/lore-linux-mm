@@ -1,74 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f50.google.com (mail-qa0-f50.google.com [209.85.216.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 826236B0031
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 03:01:00 -0500 (EST)
-Received: by mail-qa0-f50.google.com with SMTP id i13so1245720qae.2
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 00:01:00 -0800 (PST)
-Received: from mail-pb0-x236.google.com (mail-pb0-x236.google.com [2607:f8b0:400e:c01::236])
-        by mx.google.com with ESMTPS id i10si2121347qen.124.2013.12.19.00.00.59
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 82FBB6B0031
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 03:19:43 -0500 (EST)
+Received: by mail-ig0-f169.google.com with SMTP id hk11so11290215igb.0
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 00:19:43 -0800 (PST)
+Received: from relay.sw.ru (mailhub.sw.ru. [195.214.232.25])
+        by mx.google.com with ESMTPS id jw1si2905557icc.127.2013.12.19.00.19.41
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 19 Dec 2013 00:00:59 -0800 (PST)
-Received: by mail-pb0-f54.google.com with SMTP id un15so824726pbc.27
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 00:00:58 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 19 Dec 2013 00:19:42 -0800 (PST)
+Message-ID: <52B2AB7C.1010803@parallels.com>
+Date: Thu, 19 Dec 2013 12:17:00 +0400
+From: Vasily Averin <vvs@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <52B29B2F.7050909@parallels.com>
+Subject: Re: [Devel] [PATCH 1/6] slab: cleanup kmem_cache_create_memcg()
 References: <6f02b2d079ffd0990ae335339c803337b13ecd8c.1387372122.git.vdavydov@parallels.com>
-	<afc6d5e85d805c7313e928497b4ebcf1815703dd.1387372122.git.vdavydov@parallels.com>
-	<20131218174105.GE31080@dhcp22.suse.cz>
-	<52B29B2F.7050909@parallels.com>
-Date: Thu, 19 Dec 2013 12:00:58 +0400
-Message-ID: <CAA6-i6r=hW+Y2+kdKME=GTWN6sCbi37kh4sX5dT3AKkatpQzGg@mail.gmail.com>
-Subject: Re: [PATCH 4/6] memcg, slab: check and init memcg_cahes under slab_mutex
-From: Glauber Costa <glommer@gmail.com>
+In-Reply-To: <6f02b2d079ffd0990ae335339c803337b13ecd8c.1387372122.git.vdavydov@parallels.com>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Glauber Costa <glommer@gmail.com>, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, devel@openvz.org
 
-On Thu, Dec 19, 2013 at 11:07 AM, Vladimir Davydov
-<vdavydov@parallels.com> wrote:
-> On 12/18/2013 09:41 PM, Michal Hocko wrote:
->> On Wed 18-12-13 17:16:55, Vladimir Davydov wrote:
->>> The memcg_params::memcg_caches array can be updated concurrently from
->>> memcg_update_cache_size() and memcg_create_kmem_cache(). Although both
->>> of these functions take the slab_mutex during their operation, the
->>> latter checks if memcg's cache has already been allocated w/o taking the
->>> mutex. This can result in a race as described below.
->>>
->>> Asume two threads schedule kmem_cache creation works for the same
->>> kmem_cache of the same memcg from __memcg_kmem_get_cache(). One of the
->>> works successfully creates it. Another work should fail then, but if it
->>> interleaves with memcg_update_cache_size() as follows, it does not:
->> I am not sure I understand the race. memcg_update_cache_size is called
->> when we start accounting a new memcg or a child is created and it
->> inherits accounting from the parent. memcg_create_kmem_cache is called
->> when a new cache is first allocated from, right?
->
-> memcg_update_cache_size() is called when kmem accounting is activated
-> for a memcg, no matter how.
->
-> memcg_create_kmem_cache() is scheduled from __memcg_kmem_get_cache().
-> It's OK to have a bunch of such methods trying to create the same memcg
-> cache concurrently, but only one of them should succeed.
->
->> Why cannot we simply take slab_mutex inside memcg_create_kmem_cache?
->> it is running from the workqueue context so it should clash with other
->> locks.
->
-> Hmm, Glauber's code never takes the slab_mutex inside memcontrol.c. I
-> have always been wondering why, because it could simplify flow paths
-> significantly (e.g. update_cache_sizes() -> update_all_caches() ->
-> update_cache_size() - from memcontrol.c to slab_common.c and back again
-> just to take the mutex).
->
+On 12/18/2013 05:16 PM, Vladimir Davydov wrote:
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -176,8 +176,9 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
+>  	get_online_cpus();
+>  	mutex_lock(&slab_mutex);
+>  
+> -	if (!kmem_cache_sanity_check(memcg, name, size) == 0)
+> -		goto out_locked;
+> +	err = kmem_cache_sanity_check(memcg, name, size);
+> +	if (err)
+> +		goto out_unlock;
+>  
+>  	/*
+>  	 * Some allocators will constraint the set of valid flags to a subset
 
-Because that is a layering violation and exposes implementation
-details of the slab to
-the outside world. I agree this would make things a lot simpler, but
-please check with Christoph
-if this is acceptable before going forward.
+Theoretically in future kmem_cache_sanity_check() can return positive value.
+Probably it's better to check (err < 0) in caller ?
+
+Thank you,
+	Vasily Averin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
