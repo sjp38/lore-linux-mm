@@ -1,64 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f44.google.com (mail-qe0-f44.google.com [209.85.128.44])
-	by kanga.kvack.org (Postfix) with ESMTP id DF7136B0031
-	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 23:40:09 -0500 (EST)
-Received: by mail-qe0-f44.google.com with SMTP id nd7so564285qeb.31
-        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 20:40:09 -0800 (PST)
-Received: from mail-vb0-x22f.google.com (mail-vb0-x22f.google.com [2607:f8b0:400c:c02::22f])
-        by mx.google.com with ESMTPS id q6si1829674qag.120.2013.12.18.20.40.08
+Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
+	by kanga.kvack.org (Postfix) with ESMTP id A1BC96B0031
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 00:00:00 -0500 (EST)
+Received: by mail-ob0-f179.google.com with SMTP id wm4so658319obc.24
+        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 21:00:00 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id ds9si1907811obc.73.2013.12.18.20.59.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 18 Dec 2013 20:40:08 -0800 (PST)
-Received: by mail-vb0-f47.google.com with SMTP id q12so340666vbe.20
-        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 20:40:08 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 18 Dec 2013 20:59:59 -0800 (PST)
+Message-ID: <52B27D48.9030703@oracle.com>
+Date: Wed, 18 Dec 2013 23:59:52 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20131219040738.GA10316@redhat.com>
-References: <20131219040738.GA10316@redhat.com>
-Date: Wed, 18 Dec 2013 20:40:07 -0800
-Message-ID: <CA+55aFwweoGs3eGWXFULcqnbRbpDhpj2qrefXB5OpQOiWW8wYA@mail.gmail.com>
-Subject: Re: bad page state in 3.13-rc4
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v2] mm/rmap: fix BUG at rmap_walk
+References: <1387424720-22826-1-git-send-email-liwanp@linux.vnet.ibm.com> <CAA_GA1dA0Yohqx9=HRUJWWcbwp==n3uY5auuB-LRMHWtKJ3QBQ@mail.gmail.com> <20131219042902.GA27512@hacker.(null)>
+In-Reply-To: <20131219042902.GA27512@hacker.(null)>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@gentwo.org>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Bob Liu <lliubbo@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
-On Wed, Dec 18, 2013 at 8:07 PM, Dave Jones <davej@redhat.com> wrote:
-> Just hit this while fuzzing with lots of child processes.
-> (trinity -C128)
+On 12/18/2013 11:29 PM, Wanpeng Li wrote:
+>> PageLocked is not required by page_referenced_anon() and there is not
+>> >any assertion before, commit 37f093cdf introduced this extra BUG_ON()
+> There are two callsites shrink_active_list and page_check_references()
+> of page_referenced(). shrink_active_list and its callee won't lock anonymous
+> page, however, page_check_references() is called with anonymous page
+> lock held in shrink_page_list. So page_check_references case need
+> specail handling.
 
-Ok, there's a BUG_ON() in the middle, the "bad page" part is just this:
+This explanation seems to be based on current observed behaviour.
 
-> BUG: Bad page state in process trinity-c93  pfn:100499
-> page:ffffea0004012640 count:0 mapcount:0 mapping:          (null) index:0x389
-> page flags: 0x2000000000000c(referenced|uptodate)
-> Call Trace:
->  [<ffffffff816db2f5>] dump_stack+0x4e/0x7a
->  [<ffffffff816d8b05>] bad_page.part.71+0xcf/0xe8
->  [<ffffffff8113a645>] free_pages_prepare+0x185/0x190
->  [<ffffffff8113b085>] free_hot_cold_page+0x35/0x180
->  [<ffffffff811403f3>] __put_single_page+0x23/0x30
->  [<ffffffff81140665>] put_page+0x35/0x50
->  [<ffffffff811e8705>] aio_free_ring+0x55/0xf0
->  [<ffffffff811e9c5a>] SyS_io_setup+0x59a/0xbe0
->  [<ffffffff816edb24>] tracesys+0xdd/0xe2
+I think it would be easier if you could point out the actual code in each
+function that requires a page to be locked, once we have that we don't have
+to care about what the callers currently do.
 
-at free_pages() time, and I don't see anything bad in the printout wrt
-the page counts of flags.
 
-Which makes me wonder if this is mem_cgroup_bad_page_check()
-triggering. Of course, if it's a race, it may be that by the time we
-print out the counts they all look good, even if they weren't good at
-the time we did that bad_page() *check*.
-
-And the fact that we do have a concurrent BUG_ON() triggering with a
-zero page count obviously does look suspicious. Looks like a possible
-race with memory compaction happening at the same time aio_free_ring()
-frees the page.
-
-Somebody who knows the migration code needs to look at this. ChristophL?
-
-                        Linus
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
