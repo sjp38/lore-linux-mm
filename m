@@ -1,84 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f45.google.com (mail-yh0-f45.google.com [209.85.213.45])
-	by kanga.kvack.org (Postfix) with ESMTP id B8A5E6B0031
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 01:09:16 -0500 (EST)
-Received: by mail-yh0-f45.google.com with SMTP id v1so221406yhn.18
-        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 22:09:16 -0800 (PST)
-Received: from mail-gg0-x235.google.com (mail-gg0-x235.google.com [2607:f8b0:4002:c02::235])
-        by mx.google.com with ESMTPS id q66si2201608yhm.104.2013.12.18.22.09.15
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id EB2456B0031
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 01:14:38 -0500 (EST)
+Received: by mail-pb0-f54.google.com with SMTP id un15so710225pbc.13
+        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 22:14:38 -0800 (PST)
+Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com. [202.81.31.146])
+        by mx.google.com with ESMTPS id eb3si1790146pbc.26.2013.12.18.22.14.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 18 Dec 2013 22:09:15 -0800 (PST)
-Received: by mail-gg0-f181.google.com with SMTP id y1so200588ggc.12
-        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 22:09:15 -0800 (PST)
-Date: Wed, 18 Dec 2013 22:09:12 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-In-Reply-To: <20131218200434.GA4161@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.02.1312182157510.1247@chino.kir.corp.google.com>
-References: <20131209124840.GC3597@dhcp22.suse.cz> <alpine.DEB.2.02.1312091328550.11026@chino.kir.corp.google.com> <20131210103827.GB20242@dhcp22.suse.cz> <alpine.DEB.2.02.1312101655430.22701@chino.kir.corp.google.com> <20131211095549.GA18741@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312111434200.7354@chino.kir.corp.google.com> <20131212103159.GB2630@dhcp22.suse.cz> <alpine.DEB.2.02.1312131551220.28704@chino.kir.corp.google.com> <20131217162342.GG28991@dhcp22.suse.cz> <alpine.DEB.2.02.1312171240541.21640@chino.kir.corp.google.com>
- <20131218200434.GA4161@dhcp22.suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 18 Dec 2013 22:14:37 -0800 (PST)
+Received: from /spool/local
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Thu, 19 Dec 2013 16:14:31 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 3B77D2BB0053
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 17:14:28 +1100 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBJ5u6Ev53936270
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 16:56:06 +1100
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBJ6ERcN015026
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 17:14:27 +1100
+Date: Thu, 19 Dec 2013 14:14:25 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3] mm/rmap: fix BUG at rmap_walk
+Message-ID: <52b28ecd.23b6440a.2262.603bSMTPIN_ADDED_BROKEN@mx.google.com>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1387431715-6786-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20131219055510.GA27532@lge.com>
+ <20131219060703.GA27787@lge.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131219060703.GA27787@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 18 Dec 2013, Michal Hocko wrote:
+On Thu, Dec 19, 2013 at 03:07:03PM +0900, Joonsoo Kim wrote:
+>On Thu, Dec 19, 2013 at 02:55:10PM +0900, Joonsoo Kim wrote:
+>> On Thu, Dec 19, 2013 at 01:41:55PM +0800, Wanpeng Li wrote:
+>> > This bug is introduced by commit 37f093cdf(mm/rmap: use rmap_walk() in 
+>> > page_referenced()). page_get_anon_vma() called in page_referenced_anon() 
+>> > will lock and increase the refcount of anon_vma. PageLocked is not required 
+>> > by page_referenced_anon() and there is not any assertion before, commit 
+>> > 37f093cdf introduced this extra BUG_ON() checking for anon page by mistake.
+>> > This patch fix it by remove rmap_walk()'s VM_BUG_ON() and comment reason why 
+>> > the page must be locked for rmap_walk_ksm() and rmap_walk_file().
+>
+>FYI.
+>
+>See following link to get more information.
+>
+>https://lkml.org/lkml/2004/7/12/241
+>
 
-> > For memory isolation, we'd only want to bypass memcg charges when 
-> > absolutely necessary and it seems like TIF_MEMDIE is the only case where 
-> > that's required.  We don't give processes with pending SIGKILLs or those 
-> > in the exit() path access to memory reserves in the page allocator without 
-> > first determining that reclaim can't make any progress for the same reason 
-> > and then we only do so by setting TIF_MEMDIE when calling the oom killer.  
-> 
-> While I do understand arguments about isolation I would also like to be
-> practical here. How many charges are we talking about? Dozen pages? Much
-> more?
+Interesting, thanks. ;-)
 
-The PF_EXITING bypass is indeed much less concerning than the 
-fatal_signal_pending() bypass.
+Regards,
+Wanpeng Li 
 
-> Besides that all of those should be very short lived because the task
-> is going to die very soon and so the memory will be freed.
-> 
-
-We don't know how much memory is being allocated while 
-fatal_signal_pending() is true before the process can handle the SIGKILL, 
-so this could potentially bypass a significant amount of memory.  If we 
-are to have a configuration such as what Tejun recommended for oom 
-handling:
-
-			 _____root______
-			/		\
-		    user		 oom
-		   /    \		/   \
-		  A	 B	       a     b
-
-where the limit of A + B can be greater than the limit of user for 
-overcommit, and the limit of user is the amount of RAM minus whatever is 
-reserved for the oom hierarchy, then significant bypass to the root memcg 
-will cause memcgs in the oom hierarchy to actually not be able to allocate 
-memory from the page allocator.
-
-The PF_EXITING bypass is much less concerning because we shouldn't be 
-doing significant memory allocation in the exit() path, but it's also true 
-that neither the PF_EXITING nor the fatal_signal_pending() bypass is 
-required.  In Tejun's suggested configuration above, we absolutely do want 
-to reclaim from the user hierarchy before declaring oom and setting 
-TIF_MEMDIE, otherwise the oom hierarchy cannot allocate.
-
-> So from my POV I would like to see these heuristics as simple as
-> possible and placed at very few places. Doing a bypass before charge
-> - or even after a failed charge before doing reclaim sounds like an easy
-> enough heuristic without a big risk.
-
-It's a very significant risk of depleting memory that is available for oom 
-handling in the suggested configuration.
+>Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
