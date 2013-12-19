@@ -1,119 +1,225 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F109C6B0037
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 08:12:37 -0500 (EST)
-Received: by mail-ee0-f51.google.com with SMTP id b15so468754eek.10
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 05:12:37 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r9si4231051eeo.233.2013.12.19.05.12.36
+Received: from mail-gg0-f170.google.com (mail-gg0-f170.google.com [209.85.161.170])
+	by kanga.kvack.org (Postfix) with ESMTP id E27666B0037
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 08:24:19 -0500 (EST)
+Received: by mail-gg0-f170.google.com with SMTP id 24so286646gge.1
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 05:24:19 -0800 (PST)
+Received: from mail-qa0-x233.google.com (mail-qa0-x233.google.com [2607:f8b0:400d:c00::233])
+        by mx.google.com with ESMTPS id x18si2836038qef.13.2013.12.19.05.24.18
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 19 Dec 2013 05:12:37 -0800 (PST)
-Date: Thu, 19 Dec 2013 14:12:36 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC PATCH 0/6] Configurable fair allocation zone policy v4
-Message-ID: <20131219131236.GG10855@dhcp22.suse.cz>
-References: <1387395723-25391-1-git-send-email-mgorman@suse.de>
- <20131218210617.GC20038@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131218210617.GC20038@cmpxchg.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 19 Dec 2013 05:24:18 -0800 (PST)
+Received: by mail-qa0-f51.google.com with SMTP id o15so1460490qap.3
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 05:24:18 -0800 (PST)
+From: Dan Streetman <ddstreet@ieee.org>
+Subject: [PATCH] mm/zswap: add writethrough option
+Date: Thu, 19 Dec 2013 08:23:27 -0500
+Message-Id: <1387459407-29342-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Seth Jennings <sjennings@variantweb.net>
+Cc: Dan Streetman <ddstreet@ieee.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>, Shirish Pargaonkar <spargaonkar@suse.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed 18-12-13 16:06:17, Johannes Weiner wrote:
-[...]
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Subject: [patch] mm: page_alloc: revert NUMA aspect of fair allocation
->  policy
-> 
-> 81c0a2bb ("mm: page_alloc: fair zone allocator policy") meant to bring
-> aging fairness among zones in system, but it was overzealous and badly
-> regressed basic workloads on NUMA systems.
-> 
-> Due to the way kswapd and page allocator interacts, we still want to
-> make sure that all zones in any given node are used equally for all
-> allocations to maximize memory utilization and prevent thrashing on
-> the highest zone in the node.
-> 
-> While the same principle applies to NUMA nodes - memory utilization is
-> obviously improved by spreading allocations throughout all nodes -
-> remote references can be costly and so many workloads prefer locality
-> over memory utilization.  The original change assumed that
-> zone_reclaim_mode would be a good enough predictor for that, but it
-> turned out to be as indicative as a coin flip.
+Currently, zswap is writeback cache; stored pages are not sent
+to swap disk, and when zswap wants to evict old pages it must
+first write them back to swap cache/disk manually.  This avoids
+swap out disk I/O up front, but only moves that disk I/O to
+the writeback case (for pages that are evicted), and adds the
+overhead of having to uncompress the evicted pages and the
+need for an additional free page (to store the uncompressed page).
 
-We generaly suggest to disable zone_reclaim_mode because it does more
-harm than good in 90% of situations.
+This optionally changes zswap to writethrough cache by enabling
+frontswap_writethrough() before registering, so that any
+successful page store will also be written to swap disk.  The
+default remains writeback.  To enable writethrough, the param
+zswap.writethrough=1 must be used at boot.
 
-> Revert the NUMA aspect of the fairness until we can find a proper way
-> to make it configurable and agree on a sane default.
+Whether writeback or writethrough will provide better performance
+depends on many factors including disk I/O speed/throughput,
+CPU speed(s), system load, etc.  In most cases it is likely
+that writeback has better performance than writethrough before
+zswap is full, but after zswap fills up writethrough has
+better performance than writeback.
 
-OK, so you have dropped zone_local change which is good IMO. We still
-might allocate from !local node but it will be in the local distance so
-it shouldn't be harmful from the performance point of view. Zone NUMA
-statistics might be skewed a bit - especially NUMA misses but that would
-be a separate issue - why do we even count such allocations as misses?
+Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+
+---
+
+Based on specjbb testing on my laptop, the results for both writeback
+and writethrough are better than not using zswap at all, but writeback
+does seem to be better than writethrough while zswap isn't full.  Once
+it fills up, performance for writethrough is essentially close to not
+using zswap, while writeback seems to be worse than not using zswap.
+However, I think more testing on a wider span of systems and conditions
+is needed.  Additionally, I'm not sure that specjbb is measuring true
+performance under fully loaded cpu conditions, so additional cpu load
+might need to be added or specjbb parameters modified (I took the
+values from the 4 "warehouses" test run).
+
+In any case though, I think having writethrough as an option is still
+useful.  More changes could be made, such as changing from writeback
+to writethrough based on the zswap % full.  And the patch doesn't
+change default behavior - writethrough must be specifically enabled.
+
+The %-ized numbers I got from specjbb on average, using the default
+20% max_pool_percent and varying the amount of heap used as shown:
+
+ram | no zswap | writeback | writethrough
+75     93.08     100         96.90
+87     96.58     95.58       96.72
+100    92.29     89.73       86.75
+112    63.80     38.66       19.66
+125    4.79      29.90       15.75
+137    4.99      4.50        4.75
+150    4.28      4.62        5.01
+162    5.20      2.94        4.66
+175    5.71      2.11        4.84
+
+
+
+ mm/zswap.c | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 64 insertions(+), 4 deletions(-)
+
+diff --git a/mm/zswap.c b/mm/zswap.c
+index e55bab9..2f919db 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -61,6 +61,8 @@ static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
+ static u64 zswap_pool_limit_hit;
+ /* Pages written back when pool limit was reached */
+ static u64 zswap_written_back_pages;
++/* Pages evicted when pool limit was reached */
++static u64 zswap_evicted_pages;
+ /* Store failed due to a reclaim failure after pool limit was reached */
+ static u64 zswap_reject_reclaim_fail;
+ /* Compressed page was too big for the allocator to (optimally) store */
+@@ -89,6 +91,10 @@ static unsigned int zswap_max_pool_percent = 20;
+ module_param_named(max_pool_percent,
+ 			zswap_max_pool_percent, uint, 0644);
  
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: <stable@kernel.org> # 3.12
-
-Anyway
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-
-> ---
->  mm/page_alloc.c | 17 ++++++++---------
->  1 file changed, 8 insertions(+), 9 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index dd886fac451a..c5939317984f 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1919,18 +1919,17 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
->  		 * page was allocated in should have no effect on the
->  		 * time the page has in memory before being reclaimed.
->  		 *
-> -		 * When zone_reclaim_mode is enabled, try to stay in
-> -		 * local zones in the fastpath.  If that fails, the
-> -		 * slowpath is entered, which will do another pass
-> -		 * starting with the local zones, but ultimately fall
-> -		 * back to remote zones that do not partake in the
-> -		 * fairness round-robin cycle of this zonelist.
-> +		 * Try to stay in local zones in the fastpath.  If
-> +		 * that fails, the slowpath is entered, which will do
-> +		 * another pass starting with the local zones, but
-> +		 * ultimately fall back to remote zones that do not
-> +		 * partake in the fairness round-robin cycle of this
-> +		 * zonelist.
->  		 */
->  		if (alloc_flags & ALLOC_WMARK_LOW) {
->  			if (zone_page_state(zone, NR_ALLOC_BATCH) <= 0)
->  				continue;
-> -			if (zone_reclaim_mode &&
-> -			    !zone_local(preferred_zone, zone))
-> +			if (!zone_local(preferred_zone, zone))
->  				continue;
->  		}
->  		/*
-> @@ -2396,7 +2395,7 @@ static void prepare_slowpath(gfp_t gfp_mask, unsigned int order,
->  		 * thrash fairness information for zones that are not
->  		 * actually part of this zonelist's round-robin cycle.
->  		 */
-> -		if (zone_reclaim_mode && !zone_local(preferred_zone, zone))
-> +		if (!zone_local(preferred_zone, zone))
->  			continue;
->  		mod_zone_page_state(zone, NR_ALLOC_BATCH,
->  				    high_wmark_pages(zone) -
-> -- 
-> 1.8.4.2
-> 
-
++/* Writeback/writethrough mode (fixed at boot for now) */
++static bool zswap_writethrough;
++module_param_named(writethrough, zswap_writethrough, bool, 0444);
++
+ /*********************************
+ * compression functions
+ **********************************/
+@@ -629,6 +635,48 @@ end:
+ }
+ 
+ /*********************************
++* evict code
++**********************************/
++
++/*
++ * This evicts pages that have already been written through to swap.
++ */
++static int zswap_evict_entry(struct zbud_pool *pool, unsigned long handle)
++{
++	struct zswap_header *zhdr;
++	swp_entry_t swpentry;
++	struct zswap_tree *tree;
++	pgoff_t offset;
++	struct zswap_entry *entry;
++
++	/* extract swpentry from data */
++	zhdr = zbud_map(pool, handle);
++	swpentry = zhdr->swpentry; /* here */
++	zbud_unmap(pool, handle);
++	tree = zswap_trees[swp_type(swpentry)];
++	offset = swp_offset(swpentry);
++	BUG_ON(pool != tree->pool);
++
++	/* find and ref zswap entry */
++	spin_lock(&tree->lock);
++	entry = zswap_rb_search(&tree->rbroot, offset);
++	if (!entry) {
++		/* entry was invalidated */
++		spin_unlock(&tree->lock);
++		return 0;
++	}
++
++	zswap_evicted_pages++;
++
++	zswap_rb_erase(&tree->rbroot, entry);
++	zswap_entry_put(tree, entry);
++
++	spin_unlock(&tree->lock);
++
++	return 0;
++}
++
++/*********************************
+ * frontswap hooks
+ **********************************/
+ /* attempts to compress and store an single page */
+@@ -744,7 +792,7 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
+ 	spin_lock(&tree->lock);
+ 	entry = zswap_entry_find_get(&tree->rbroot, offset);
+ 	if (!entry) {
+-		/* entry was written back */
++		/* entry was written back or evicted */
+ 		spin_unlock(&tree->lock);
+ 		return -1;
+ 	}
+@@ -778,7 +826,7 @@ static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
+ 	spin_lock(&tree->lock);
+ 	entry = zswap_rb_search(&tree->rbroot, offset);
+ 	if (!entry) {
+-		/* entry was written back */
++		/* entry was written back or evicted */
+ 		spin_unlock(&tree->lock);
+ 		return;
+ 	}
+@@ -813,18 +861,26 @@ static void zswap_frontswap_invalidate_area(unsigned type)
+ 	zswap_trees[type] = NULL;
+ }
+ 
+-static struct zbud_ops zswap_zbud_ops = {
++static struct zbud_ops zswap_zbud_writeback_ops = {
+ 	.evict = zswap_writeback_entry
+ };
++static struct zbud_ops zswap_zbud_writethrough_ops = {
++	.evict = zswap_evict_entry
++};
+ 
+ static void zswap_frontswap_init(unsigned type)
+ {
+ 	struct zswap_tree *tree;
++	struct zbud_ops *ops;
+ 
+ 	tree = kzalloc(sizeof(struct zswap_tree), GFP_KERNEL);
+ 	if (!tree)
+ 		goto err;
+-	tree->pool = zbud_create_pool(GFP_KERNEL, &zswap_zbud_ops);
++	if (zswap_writethrough)
++		ops = &zswap_zbud_writethrough_ops;
++	else
++		ops = &zswap_zbud_writeback_ops;
++	tree->pool = zbud_create_pool(GFP_KERNEL, ops);
+ 	if (!tree->pool)
+ 		goto freetree;
+ 	tree->rbroot = RB_ROOT;
+@@ -875,6 +931,8 @@ static int __init zswap_debugfs_init(void)
+ 			zswap_debugfs_root, &zswap_reject_compress_poor);
+ 	debugfs_create_u64("written_back_pages", S_IRUGO,
+ 			zswap_debugfs_root, &zswap_written_back_pages);
++	debugfs_create_u64("evicted_pages", S_IRUGO,
++			zswap_debugfs_root, &zswap_evicted_pages);
+ 	debugfs_create_u64("duplicate_entry", S_IRUGO,
+ 			zswap_debugfs_root, &zswap_duplicate_entry);
+ 	debugfs_create_u64("pool_pages", S_IRUGO,
+@@ -919,6 +977,8 @@ static int __init init_zswap(void)
+ 		pr_err("per-cpu initialization failed\n");
+ 		goto pcpufail;
+ 	}
++	if (zswap_writethrough)
++		frontswap_writethrough(true);
+ 	frontswap_register_ops(&zswap_frontswap_ops);
+ 	if (zswap_debugfs_init())
+ 		pr_warn("debugfs initialization failed\n");
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
