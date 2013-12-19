@@ -1,90 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Thu, 19 Dec 2013 13:29:21 -0500
-From: Benjamin LaHaise <bcrl@kvack.org>
-Subject: Re: bad page state in 3.13-rc4
-Message-ID: <20131219182920.GG30640@kvack.org>
-References: <20131219040738.GA10316@redhat.com> <CA+55aFwweoGs3eGWXFULcqnbRbpDhpj2qrefXB5OpQOiWW8wYA@mail.gmail.com> <20131219155313.GA25771@redhat.com> <CA+55aFyoXCDNfHb+r5b=CgKQLPA1wrU_Tmh4ROZNEt5TPjpODA@mail.gmail.com> <20131219181134.GC25385@kmo-pixel>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131219181134.GC25385@kmo-pixel>
+Received: from mail-qe0-f52.google.com (mail-qe0-f52.google.com [209.85.128.52])
+	by kanga.kvack.org (Postfix) with ESMTP id F1F9B6B0031
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 13:36:09 -0500 (EST)
+Received: by mail-qe0-f52.google.com with SMTP id ne12so1366934qeb.25
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 10:36:09 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id t13si3621562qef.73.2013.12.19.10.36.08
+        for <linux-mm@kvack.org>;
+        Thu, 19 Dec 2013 10:36:09 -0800 (PST)
+Message-ID: <52B33C93.2020006@redhat.com>
+Date: Thu, 19 Dec 2013 13:36:03 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: Remove bogus warning in copy_huge_pmd
+References: <1386690695-27380-1-git-send-email-mgorman@suse.de> <1386690695-27380-11-git-send-email-mgorman@suse.de> <52B0D5F9.5030208@oracle.com> <20131219120007.GJ11295@suse.de>
+In-Reply-To: <20131219120007.GJ11295@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kent Overstreet <kmo@daterainc.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@gentwo.org>, Al Viro <viro@zeniv.linux.org.uk>
+To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Alex Thorlton <athorlton@sgi.com>, Sasha Levin <sasha.levin@oracle.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Dec 19, 2013 at 10:11:34AM -0800, Kent Overstreet wrote:
-> On Thu, Dec 19, 2013 at 09:07:27AM -0800, Linus Torvalds wrote:
-> > On Thu, Dec 19, 2013 at 7:53 AM, Dave Jones <davej@redhat.com> wrote:
-> > >
-> > > Interesting that CPU2 was doing sys_io_setup again. Different trace though.
-> > 
-> > Well, it was once again in aio_free_ring() - double free or freeing
-> > while already in use? And this time the other end of the complaint was
-> > allocating a new page that definitely was still busily in use (it's
-> > locked).
-> > 
-> > And there's no sign of migration, although obviously that could have
-> > happened or be in progress on another CPU and just didn't notice the
-> > mess. But yes, based on the two traces, fs/aio.c:io_setup() would seem
-> > to be the main point of interest.
-> > 
-> > Have you started doing something new in trinity wrt AIO, and
-> > io_setup() in particular? Or anything else different that might have
-> > started triggering this?
-> > 
-> > But we do have new AIO code, and these two in particular look suspicious:
-> > 
-> >  - new page migration logic:
-> > 
-> >     71ad7490c1f3 rework aio migrate pages to use aio fs
-> > 
-> >  - trying to fix double frees and error cases:
-> > 
-> >     e34ecee2ae79 aio: Fix a trinity splat
-> >     d558023207e0 aio: prevent double free in ioctx_alloc
-> >     d1b9432712a2 aio: clean up aio ring in the fail path
-> > 
-> > and some kind of double free in an error path would certainly explain
-> > this (with io_setup() . And the first oops reported obviously had that
-> > migration thing. So maybe those "fixes" weren't fixing things at all
-> > (or just moved the error case around).
-> > 
-> > Btw, that "rework aio migrate pages to use aio fs" looks odd. It has
-> > Ben LaHaise marked as author, but no sign-off, instead "Tested-by" and
-> > "Acked-by".
-> 
-> I could certainly believe a double free, but rereading the current code
-> I can't find anything, and I just manually tested all the relevant error
-> paths in ioctx_alloc() and aio_setup_ring() without finding anything.
+On 12/19/2013 07:00 AM, Mel Gorman wrote:
+> Sasha Levin reported the following warning being triggered
+>
+> [ 1704.594807] WARNING: CPU: 28 PID: 35287 at mm/huge_memory.c:887 copy_huge_pmd+0x145/ 0x3a0()
+> [ 1704.597258] Modules linked in:
+> [ 1704.597844] CPU: 28 PID: 35287 Comm: trinity-main Tainted: G        W    3.13.0-rc4-next-20131217-sasha-00013-ga878504-dirty #4149
+> [ 1704.599924]  0000000000000377e delta! pid slot 27 [36258]: old:2 now:537927697 diff: 537927695 ffff8803593ddb90 ffffffff8439501c ffffffff854722c1
+> [ 1704.604846]  0000000000000000 ffff8803593ddbd0 ffffffff8112f8ac ffff8803593ddbe0
+> [ 1704.606391]  ffff88034bc137f0 ffff880e41677000 8000000b47c009e4 ffff88034a638000
+> [ 1704.608008] Call Trace:
+> [ 1704.608511]  [<ffffffff8439501c>] dump_stack+0x52/0x7f
+> [ 1704.609699]  [<ffffffff8112f8ac>] warn_slowpath_common+0x8c/0xc0
+> [ 1704.612617]  [<ffffffff8112f8fa>] warn_slowpath_null+0x1a/0x20
+> [ 1704.614043]  [<ffffffff812b91c5>] copy_huge_pmd+0x145/0x3a0
+> [ 1704.615587]  [<ffffffff8127e032>] copy_page_range+0x3f2/0x560
+> [ 1704.616869]  [<ffffffff81199ef1>] ? rwsem_wake+0x51/0x70
+> [ 1704.617942]  [<ffffffff8112cf59>] dup_mmap+0x2c9/0x3d0
+> [ 1704.619146]  [<ffffffff8112d54d>] dup_mm+0xad/0x150
+> [ 1704.620051]  [<ffffffff8112e178>] copy_process+0xa68/0x12e0
+> [ 1704.622976]  [<ffffffff81194eda>] ? __lock_release+0x1da/0x1f0
+> [ 1704.624234]  [<ffffffff8112eee6>] do_fork+0x96/0x270
+> [ 1704.624975]  [<ffffffff81249465>] ? context_tracking_user_exit+0x195/0x1d0
+> [ 1704.626427]  [<ffffffff811930ed>] ? trace_hardirqs_on+0xd/0x10
+> [ 1704.627681]  [<ffffffff8112f0d6>] SyS_clone+0x16/0x20
+> [ 1704.628833]  [<ffffffff843a6309>] stub_clone+0x69/0x90
+> [ 1704.629672]  [<ffffffff843a6150>] ? tracesys+0xdd/0xe2
+>
+> This warning was introduced by "mm: numa: Avoid unnecessary disruption
+> of NUMA hinting during migration" for paranoia reasons but the warning
+> is bogus. I was thinking of parallel races between NUMA hinting faults
+> and forks but this warning would also be triggered by a parallel reclaim
+> splitting a THP during a fork. Remote the bogus warning.
+>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-The same here.  It would be very helpful to know what syscalls trinity is 
-issuing in the lead up to the bug.
-
-> I don't get wtf that loop at line 350 is supposed to be for though.
-> You'd think if it was doing anything important it would be doing
-> something more intelligent than just breaking on error (?). But I
-> haven't slept yet and maybe I'm just being dumb.
-
-The loop at 350 is just instantiating the page cache pages for the ring 
-buffer with freshly zeroed pages.
-
-> I don't understand this page migration stuff at all, and I actually
-> don't think I understand the refcounting w.r.t. the page cache either.
-> But looking at (say) the aio_free_ring() call at line 409 - we just did
-> one put_page() in aio_setup_ring(), and then _another_ put_page() in
-> aio_free_ring()... ok, one of those corresponds to the get
-> get_user_pages() did, but what's the other correspond to?
-
-The second put_page() should be dropping the page from the page cache.  
-Perhaps it would be better to rely on a truncate of the file to remove the 
-pages from the page cache.  I'd hoped someone with a clue about how 
-migration is supposed to work would have chimed in during the review, but 
-nobody has stepped up with expertise in this area yet.
-
-		-ben
--- 
-"Thought is the essence of where you are now."
+Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
