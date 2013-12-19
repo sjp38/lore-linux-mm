@@ -1,21 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
-	by kanga.kvack.org (Postfix) with ESMTP id E6CC56B0031
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 01:31:57 -0500 (EST)
-Received: by mail-lb0-f181.google.com with SMTP id q8so254791lbi.26
-        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 22:31:57 -0800 (PST)
+Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 31DF36B0036
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 01:32:37 -0500 (EST)
+Received: by mail-lb0-f173.google.com with SMTP id z5so261403lbh.18
+        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 22:32:36 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id h3si1086337lbd.156.2013.12.18.22.31.55
+        by mx.google.com with ESMTPS id y9si1117391laa.40.2013.12.18.22.32.35
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 18 Dec 2013 22:31:56 -0800 (PST)
-Message-ID: <52B292CF.5030002@parallels.com>
-Date: Thu, 19 Dec 2013 10:31:43 +0400
+        Wed, 18 Dec 2013 22:32:35 -0800 (PST)
+Message-ID: <52B292FD.8040603@parallels.com>
+Date: Thu, 19 Dec 2013 10:32:29 +0400
 From: Vladimir Davydov <vdavydov@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/6] slab: cleanup kmem_cache_create_memcg()
-References: <6f02b2d079ffd0990ae335339c803337b13ecd8c.1387372122.git.vdavydov@parallels.com> <20131218165603.GB31080@dhcp22.suse.cz>
-In-Reply-To: <20131218165603.GB31080@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/6] memcg, slab: kmem_cache_create_memcg(): free memcg
+ params on error
+References: <6f02b2d079ffd0990ae335339c803337b13ecd8c.1387372122.git.vdavydov@parallels.com> <9420ad797a2cfa14c23ad1ba6db615a2a51ffee0.1387372122.git.vdavydov@parallels.com> <20131218170649.GC31080@dhcp22.suse.cz>
+In-Reply-To: <20131218170649.GC31080@dhcp22.suse.cz>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -23,8 +24,23 @@ List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 12/18/2013 08:56 PM, Michal Hocko wrote:
-> On Wed 18-12-13 17:16:52, Vladimir Davydov wrote:
+On 12/18/2013 09:06 PM, Michal Hocko wrote:
+> On Wed 18-12-13 17:16:53, Vladimir Davydov wrote:
+>> Plus, rename memcg_register_cache() to memcg_init_cache_params(),
+>> because it actually does not register the cache anywhere, but simply
+>> initialize kmem_cache::memcg_params.
+> I've almost missed this is a memory leak fix.
+
+Yeah, the comment is poor, sorry about that. Will fix it.
+
+> I do not mind renaming and the name but wouldn't
+> memcg_alloc_cache_params suit better?
+
+As you wish. I don't have a strong preference for memcg_init_cache_params.
+
+Thanks.
+
+>
 >> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 >> Cc: Michal Hocko <mhocko@suse.cz>
 >> Cc: Johannes Weiner <hannes@cmpxchg.org>
@@ -32,173 +48,95 @@ On 12/18/2013 08:56 PM, Michal Hocko wrote:
 >> Cc: Christoph Lameter <cl@linux.com>
 >> Cc: Pekka Enberg <penberg@kernel.org>
 >> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Dunno, is this really better to be worth the code churn?
->
-> It even makes the generated code tiny bit bigger:
-> text    data     bss     dec     hex filename
-> 4355     171     236    4762    129a mm/slab_common.o.after
-> 4342     171     236    4749    128d mm/slab_common.o.before
->
-> Or does it make the further changes much more easier? Be explicit in the
-> patch description if so.
-
-Hi, Michal
-
-IMO, undoing under labels looks better than inside conditionals, because
-we don't have to repeat the same deinitialization code then, like this
-(note three calls to kmem_cache_free()):
-
-    s = kmem_cache_zalloc(kmem_cache, GFP_KERNEL);
-    if (s) {
-        s->object_size = s->size = size;
-        s->align = calculate_alignment(flags, align, size);
-        s->ctor = ctor;
-
-        if (memcg_register_cache(memcg, s, parent_cache)) {
-            kmem_cache_free(kmem_cache, s);
-            err = -ENOMEM;
-            goto out_locked;
-        }
-
-        s->name = kstrdup(name, GFP_KERNEL);
-        if (!s->name) {
-            kmem_cache_free(kmem_cache, s);
-            err = -ENOMEM;
-            goto out_locked;
-        }
-
-        err = __kmem_cache_create(s, flags);
-        if (!err) {
-            s->refcount = 1;
-            list_add(&s->list, &slab_caches);
-            memcg_cache_list_add(memcg, s);
-        } else {
-            kfree(s->name);
-            kmem_cache_free(kmem_cache, s);
-        }
-    } else
-        err = -ENOMEM;
-
-The next patch, which fixes the memcg_params leakage on error, would
-make it even worse introducing two calls to memcg_free_cache_params()
-after kstrdup and __kmem_cache_create.
-
-If you think it isn't worthwhile applying this patch, just let me know,
-I don't mind dropping it.
-
-Anyway, I'll improve the comment and resend.
-
-Thanks.
-
->
 >> ---
->>  mm/slab_common.c |   66 +++++++++++++++++++++++++++---------------------------
->>  1 file changed, 33 insertions(+), 33 deletions(-)
+>>  include/linux/memcontrol.h |   13 +++++++++----
+>>  mm/memcontrol.c            |    9 +++++++--
+>>  mm/slab_common.c           |    3 ++-
+>>  3 files changed, 18 insertions(+), 7 deletions(-)
 >>
->> diff --git a/mm/slab_common.c b/mm/slab_common.c
->> index 0b7bb39..5d6f743 100644
->> --- a/mm/slab_common.c
->> +++ b/mm/slab_common.c
->> @@ -176,8 +176,9 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
->>  	get_online_cpus();
->>  	mutex_lock(&slab_mutex);
+>> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+>> index b3e7a66..b357ae3 100644
+>> --- a/include/linux/memcontrol.h
+>> +++ b/include/linux/memcontrol.h
+>> @@ -497,8 +497,9 @@ void __memcg_kmem_commit_charge(struct page *page,
+>>  void __memcg_kmem_uncharge_pages(struct page *page, int order);
 >>  
->> -	if (!kmem_cache_sanity_check(memcg, name, size) == 0)
->> -		goto out_locked;
->> +	err = kmem_cache_sanity_check(memcg, name, size);
->> +	if (err)
->> +		goto out_unlock;
+>>  int memcg_cache_id(struct mem_cgroup *memcg);
+>> -int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
+>> -			 struct kmem_cache *root_cache);
+>> +int memcg_init_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
+>> +			    struct kmem_cache *root_cache);
+>> +void memcg_free_cache_params(struct kmem_cache *s);
+>>  void memcg_release_cache(struct kmem_cache *cachep);
+>>  void memcg_cache_list_add(struct mem_cgroup *memcg, struct kmem_cache *cachep);
 >>  
->>  	/*
->>  	 * Some allocators will constraint the set of valid flags to a subset
->> @@ -189,45 +190,41 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
->>  
->>  	s = __kmem_cache_alias(memcg, name, size, align, flags, ctor);
->>  	if (s)
->> -		goto out_locked;
->> +		goto out_unlock;
->>  
->>  	s = kmem_cache_zalloc(kmem_cache, GFP_KERNEL);
->> -	if (s) {
->> -		s->object_size = s->size = size;
->> -		s->align = calculate_alignment(flags, align, size);
->> -		s->ctor = ctor;
->> -
->> -		if (memcg_register_cache(memcg, s, parent_cache)) {
->> -			kmem_cache_free(kmem_cache, s);
->> -			err = -ENOMEM;
->> -			goto out_locked;
->> -		}
->> +	if (!s) {
->> +		err = -ENOMEM;
->> +		goto out_unlock;
->> +	}
->>  
->> -		s->name = kstrdup(name, GFP_KERNEL);
->> -		if (!s->name) {
->> -			kmem_cache_free(kmem_cache, s);
->> -			err = -ENOMEM;
->> -			goto out_locked;
->> -		}
->> +	s->object_size = s->size = size;
->> +	s->align = calculate_alignment(flags, align, size);
->> +	s->ctor = ctor;
->>  
->> -		err = __kmem_cache_create(s, flags);
->> -		if (!err) {
->> -			s->refcount = 1;
->> -			list_add(&s->list, &slab_caches);
->> -			memcg_cache_list_add(memcg, s);
->> -		} else {
->> -			kfree(s->name);
->> -			kmem_cache_free(kmem_cache, s);
->> -		}
->> -	} else
->> +	s->name = kstrdup(name, GFP_KERNEL);
->> +	if (!s->name) {
->>  		err = -ENOMEM;
->> +		goto out_free_cache;
->> +	}
->> +
->> +	err = memcg_register_cache(memcg, s, parent_cache);
->> +	if (err)
->> +		goto out_free_cache;
->>  
->> -out_locked:
->> +	err = __kmem_cache_create(s, flags);
->> +	if (err)
->> +		goto out_free_cache;
->> +
->> +	s->refcount = 1;
->> +	list_add(&s->list, &slab_caches);
->> +	memcg_cache_list_add(memcg, s);
->> +
->> +out_unlock:
->>  	mutex_unlock(&slab_mutex);
->>  	put_online_cpus();
->>  
->>  	if (err) {
->> -
->>  		if (flags & SLAB_PANIC)
->>  			panic("kmem_cache_create: Failed to create slab '%s'. Error %d\n",
->>  				name, err);
->> @@ -236,11 +233,14 @@ out_locked:
->>  				name, err);
->>  			dump_stack();
->>  		}
->> -
->>  		return NULL;
->>  	}
->> -
->>  	return s;
->> +
->> +out_free_cache:
->> +	kfree(s->name);
->> +	kmem_cache_free(kmem_cache, s);
->> +	goto out_unlock;
+>> @@ -641,12 +642,16 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
 >>  }
 >>  
->>  struct kmem_cache *
+>>  static inline int
+>> -memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
+>> -		     struct kmem_cache *root_cache)
+>> +memcg_init_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
+>> +			struct kmem_cache *root_cache)
+>>  {
+>>  	return 0;
+>>  }
+>>  
+>> +static inline void memcg_free_cache_params(struct kmem_cache *s);
+>> +{
+>> +}
+>> +
+>>  static inline void memcg_release_cache(struct kmem_cache *cachep)
+>>  {
+>>  }
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index bf5e894..e6ad6ff 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -3195,8 +3195,8 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
+>>  	return 0;
+>>  }
+>>  
+>> -int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
+>> -			 struct kmem_cache *root_cache)
+>> +int memcg_init_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
+>> +			    struct kmem_cache *root_cache)
+>>  {
+>>  	size_t size;
+>>  
+>> @@ -3224,6 +3224,11 @@ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
+>>  	return 0;
+>>  }
+>>  
+>> +void memcg_free_cache_params(struct kmem_cache *s)
+>> +{
+>> +	kfree(s->memcg_params);
+>> +}
+>> +
+>>  void memcg_release_cache(struct kmem_cache *s)
+>>  {
+>>  	struct kmem_cache *root;
+>> diff --git a/mm/slab_common.c b/mm/slab_common.c
+>> index 5d6f743..62712fe 100644
+>> --- a/mm/slab_common.c
+>> +++ b/mm/slab_common.c
+>> @@ -208,7 +208,7 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
+>>  		goto out_free_cache;
+>>  	}
+>>  
+>> -	err = memcg_register_cache(memcg, s, parent_cache);
+>> +	err = memcg_init_cache_params(memcg, s, parent_cache);
+>>  	if (err)
+>>  		goto out_free_cache;
+>>  
+>> @@ -238,6 +238,7 @@ out_unlock:
+>>  	return s;
+>>  
+>>  out_free_cache:
+>> +	memcg_free_cache_params(s);
+>>  	kfree(s->name);
+>>  	kmem_cache_free(kmem_cache, s);
+>>  	goto out_unlock;
 >> -- 
 >> 1.7.10.4
 >>
