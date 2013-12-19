@@ -1,84 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f175.google.com (mail-ea0-f175.google.com [209.85.215.175])
-	by kanga.kvack.org (Postfix) with ESMTP id A0AA46B0031
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 04:12:17 -0500 (EST)
-Received: by mail-ea0-f175.google.com with SMTP id z10so319884ead.34
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 01:12:17 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u49si3400361eep.148.2013.12.19.01.12.16
+Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
+	by kanga.kvack.org (Postfix) with ESMTP id C48236B0031
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 04:16:15 -0500 (EST)
+Received: by mail-lb0-f173.google.com with SMTP id z5so335293lbh.32
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 01:16:15 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id 6si1282050lby.157.2013.12.19.01.16.14
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 19 Dec 2013 01:12:16 -0800 (PST)
-Date: Thu, 19 Dec 2013 10:12:15 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 4/6] memcg, slab: check and init memcg_cahes under
- slab_mutex
-Message-ID: <20131219091215.GD9331@dhcp22.suse.cz>
-References: <6f02b2d079ffd0990ae335339c803337b13ecd8c.1387372122.git.vdavydov@parallels.com>
- <afc6d5e85d805c7313e928497b4ebcf1815703dd.1387372122.git.vdavydov@parallels.com>
- <20131218174105.GE31080@dhcp22.suse.cz>
- <52B29B2F.7050909@parallels.com>
- <CAA6-i6r=hW+Y2+kdKME=GTWN6sCbi37kh4sX5dT3AKkatpQzGg@mail.gmail.com>
+        Thu, 19 Dec 2013 01:16:14 -0800 (PST)
+Message-ID: <52B2B951.5080809@parallels.com>
+Date: Thu, 19 Dec 2013 13:16:01 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAA6-i6r=hW+Y2+kdKME=GTWN6sCbi37kh4sX5dT3AKkatpQzGg@mail.gmail.com>
+Subject: Re: [PATCH 3/6] memcg, slab: cleanup barrier usage when accessing
+ memcg_caches
+References: <6f02b2d079ffd0990ae335339c803337b13ecd8c.1387372122.git.vdavydov@parallels.com> <bd0a7ffc57e4a0b0c3d456c0cf8801e829e14717.1387372122.git.vdavydov@parallels.com> <20131218171411.GD31080@dhcp22.suse.cz> <52B29427.9010909@parallels.com> <20131219091007.GC9331@dhcp22.suse.cz>
+In-Reply-To: <20131219091007.GC9331@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@gmail.com>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu 19-12-13 12:00:58, Glauber Costa wrote:
-> On Thu, Dec 19, 2013 at 11:07 AM, Vladimir Davydov
-> <vdavydov@parallels.com> wrote:
-> > On 12/18/2013 09:41 PM, Michal Hocko wrote:
-> >> On Wed 18-12-13 17:16:55, Vladimir Davydov wrote:
-> >>> The memcg_params::memcg_caches array can be updated concurrently from
-> >>> memcg_update_cache_size() and memcg_create_kmem_cache(). Although both
-> >>> of these functions take the slab_mutex during their operation, the
-> >>> latter checks if memcg's cache has already been allocated w/o taking the
-> >>> mutex. This can result in a race as described below.
-> >>>
-> >>> Asume two threads schedule kmem_cache creation works for the same
-> >>> kmem_cache of the same memcg from __memcg_kmem_get_cache(). One of the
-> >>> works successfully creates it. Another work should fail then, but if it
-> >>> interleaves with memcg_update_cache_size() as follows, it does not:
-> >> I am not sure I understand the race. memcg_update_cache_size is called
-> >> when we start accounting a new memcg or a child is created and it
-> >> inherits accounting from the parent. memcg_create_kmem_cache is called
-> >> when a new cache is first allocated from, right?
-> >
-> > memcg_update_cache_size() is called when kmem accounting is activated
-> > for a memcg, no matter how.
-> >
-> > memcg_create_kmem_cache() is scheduled from __memcg_kmem_get_cache().
-> > It's OK to have a bunch of such methods trying to create the same memcg
-> > cache concurrently, but only one of them should succeed.
-> >
-> >> Why cannot we simply take slab_mutex inside memcg_create_kmem_cache?
-> >> it is running from the workqueue context so it should clash with other
-> >> locks.
-> >
-> > Hmm, Glauber's code never takes the slab_mutex inside memcontrol.c. I
-> > have always been wondering why, because it could simplify flow paths
-> > significantly (e.g. update_cache_sizes() -> update_all_caches() ->
-> > update_cache_size() - from memcontrol.c to slab_common.c and back again
-> > just to take the mutex).
-> >
-> 
-> Because that is a layering violation and exposes implementation
-> details of the slab to
-> the outside world. I agree this would make things a lot simpler, but
-> please check with Christoph
-> if this is acceptable before going forward.
+On 12/19/2013 01:10 PM, Michal Hocko wrote:
+> On Thu 19-12-13 10:37:27, Vladimir Davydov wrote:
+>> On 12/18/2013 09:14 PM, Michal Hocko wrote:
+>>> On Wed 18-12-13 17:16:54, Vladimir Davydov wrote:
+>>>> First, in memcg_create_kmem_cache() we should issue the write barrier
+>>>> after the kmem_cache is initialized, but before storing the pointer to
+>>>> it in its parent's memcg_params.
+>>>>
+>>>> Second, we should always issue the read barrier after
+>>>> cache_from_memcg_idx() to conform with the write barrier.
+>>>>
+>>>> Third, its better to use smp_* versions of barriers, because we don't
+>>>> need them on UP systems.
+>>> Please be (much) more verbose on Why. Barriers are tricky and should be
+>>> documented accordingly. So if you say that we should issue a barrier
+>>> always be specific why we should do it.
+>> In short, we have kmem_cache::memcg_params::memcg_caches is an array of
+>> pointers to per-memcg caches. We access it lock-free so we should use
+>> memory barriers during initialization. Obviously we should place a write
+>> barrier just before we set the pointer in order to make sure nobody will
+>> see a partially initialized structure. Besides there must be a read
+>> barrier between reading the pointer and accessing the structure, to
+>> conform with the write barrier. It's all that similar to rcu_assign and
+>> rcu_deref. Currently the barrier usage looks rather strange:
+>>
+>> memcg_create_kmem_cache:
+>>     initialize kmem
+>>     set the pointer in memcg_caches
+>>     wmb() // ???
+>>
+>> __memcg_kmem_get_cache:
+>>     <...>
+>>     read_barrier_depends() // ???
+>>     cachep = root_cache->memcg_params->memcg_caches[memcg_id]
+>>     <...>
+> Why do we need explicit memory barriers when we can use RCU?
+> __memcg_kmem_get_cache already dereferences within rcu_read_lock.
 
-We do not have to expose the lock directly. We can hide it behind a
-helper function. Relying on the lock silently at many places is worse
-then expose it IMHO.
+Because it's not RCU, IMO. RCU implies freeing the old version after a
+grace period, while kmem_caches are freed immediately. We simply want to
+be sure the kmem_cache is fully initialized. And we do not require
+calling this in an RCU critical section.
 
--- 
-Michal Hocko
-SUSE Labs
+> Btw. cache_from_memcg_idx is desperately asking for a comment about
+> required locking.
+
+Actually, I placed a reference to the comment there ;-) but no problem,
+I move it to cache_from_memcg_idx().
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
