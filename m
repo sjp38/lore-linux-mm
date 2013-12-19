@@ -1,85 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A2E06B0031
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 04:01:36 -0500 (EST)
-Received: by mail-lb0-f182.google.com with SMTP id l4so329054lbv.27
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 01:01:35 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id le8si1302846lab.33.2013.12.19.01.01.35
+Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 094126B0031
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 04:10:08 -0500 (EST)
+Received: by mail-ea0-f180.google.com with SMTP id f15so320346eak.39
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 01:10:08 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e48si3440353eeh.50.2013.12.19.01.10.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 19 Dec 2013 01:01:35 -0800 (PST)
-Message-ID: <52B2B5E8.6020307@parallels.com>
-Date: Thu, 19 Dec 2013 13:01:28 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
+        Thu, 19 Dec 2013 01:10:07 -0800 (PST)
+Date: Thu, 19 Dec 2013 10:10:07 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/6] memcg, slab: cleanup barrier usage when accessing
+ memcg_caches
+Message-ID: <20131219091007.GC9331@dhcp22.suse.cz>
+References: <6f02b2d079ffd0990ae335339c803337b13ecd8c.1387372122.git.vdavydov@parallels.com>
+ <bd0a7ffc57e4a0b0c3d456c0cf8801e829e14717.1387372122.git.vdavydov@parallels.com>
+ <20131218171411.GD31080@dhcp22.suse.cz>
+ <52B29427.9010909@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/6] memcg, slab: kmem_cache_create_memcg(): free memcg
- params on error
-References: <6f02b2d079ffd0990ae335339c803337b13ecd8c.1387372122.git.vdavydov@parallels.com> <9420ad797a2cfa14c23ad1ba6db615a2a51ffee0.1387372122.git.vdavydov@parallels.com> <20131218170649.GC31080@dhcp22.suse.cz> <52B292FD.8040603@parallels.com> <20131219084845.GB9331@dhcp22.suse.cz>
-In-Reply-To: <20131219084845.GB9331@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52B29427.9010909@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
+To: Vladimir Davydov <vdavydov@parallels.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 12/19/2013 12:48 PM, Michal Hocko wrote:
-> On Thu 19-12-13 10:32:29, Vladimir Davydov wrote:
->> On 12/18/2013 09:06 PM, Michal Hocko wrote:
->>> On Wed 18-12-13 17:16:53, Vladimir Davydov wrote:
->>>> Plus, rename memcg_register_cache() to memcg_init_cache_params(),
->>>> because it actually does not register the cache anywhere, but simply
->>>> initialize kmem_cache::memcg_params.
->>> I've almost missed this is a memory leak fix.
->> Yeah, the comment is poor, sorry about that. Will fix it.
->>
->>> I do not mind renaming and the name but wouldn't
->>> memcg_alloc_cache_params suit better?
->> As you wish. I don't have a strong preference for memcg_init_cache_params.
-> I really hate naming... but it seems that alloc is a better fit. _init_
-> would expect an already allocated object.
->
-> Btw. memcg_free_cache_params is called only once which sounds
-> suspicious. The regular destroy path should use it as well?
-> [...]
+On Thu 19-12-13 10:37:27, Vladimir Davydov wrote:
+> On 12/18/2013 09:14 PM, Michal Hocko wrote:
+> > On Wed 18-12-13 17:16:54, Vladimir Davydov wrote:
+> >> First, in memcg_create_kmem_cache() we should issue the write barrier
+> >> after the kmem_cache is initialized, but before storing the pointer to
+> >> it in its parent's memcg_params.
+> >>
+> >> Second, we should always issue the read barrier after
+> >> cache_from_memcg_idx() to conform with the write barrier.
+> >>
+> >> Third, its better to use smp_* versions of barriers, because we don't
+> >> need them on UP systems.
+> > Please be (much) more verbose on Why. Barriers are tricky and should be
+> > documented accordingly. So if you say that we should issue a barrier
+> > always be specific why we should do it.
+> 
+> In short, we have kmem_cache::memcg_params::memcg_caches is an array of
+> pointers to per-memcg caches. We access it lock-free so we should use
+> memory barriers during initialization. Obviously we should place a write
+> barrier just before we set the pointer in order to make sure nobody will
+> see a partially initialized structure. Besides there must be a read
+> barrier between reading the pointer and accessing the structure, to
+> conform with the write barrier. It's all that similar to rcu_assign and
+> rcu_deref. Currently the barrier usage looks rather strange:
+> 
+> memcg_create_kmem_cache:
+>     initialize kmem
+>     set the pointer in memcg_caches
+>     wmb() // ???
+> 
+> __memcg_kmem_get_cache:
+>     <...>
+>     read_barrier_depends() // ???
+>     cachep = root_cache->memcg_params->memcg_caches[memcg_id]
+>     <...>
 
-The usual destroy path uses memcg_release_cache(), which does the trick.
-Plus, it actually "unregisters" the cache. BTW, I forgot to substitute
-kfree(s->memcg_params) with the new memcg_free_cache_params() there.
-Although it currently does not break anything, better to fix it in case
-new memcg_free_cache_params() will have to do something else.
+Why do we need explicit memory barriers when we can use RCU?
+__memcg_kmem_get_cache already dereferences within rcu_read_lock.
 
-And you're right about the naming is not good.
+Btw. cache_from_memcg_idx is desperately asking for a comment about
+required locking.
 
-Currently we have:
+> Nothing prevents some archs from moving initialization after setting the
+> pointer, or reading data before reading the pointer to it.
+> 
+> Of course, I will include a detailed description in the next version of
+> this patch.
+> 
+> Thanks.
+> 
+> >> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+> >> Cc: Michal Hocko <mhocko@suse.cz>
+> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> >> Cc: Glauber Costa <glommer@gmail.com>
+> >> Cc: Christoph Lameter <cl@linux.com>
+> >> Cc: Pekka Enberg <penberg@kernel.org>
+> >> Cc: Andrew Morton <akpm@linux-foundation.org>
+> >> ---
+> >>  mm/memcontrol.c |   24 ++++++++++--------------
+> >>  mm/slab.h       |    6 +++++-
+> >>  2 files changed, 15 insertions(+), 15 deletions(-)
+> >>
+> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> >> index e6ad6ff..e37fdb5 100644
+> >> --- a/mm/memcontrol.c
+> >> +++ b/mm/memcontrol.c
+> >> @@ -3429,12 +3429,14 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
+> >>  
+> >>  	atomic_set(&new_cachep->memcg_params->nr_pages , 0);
+> >>  
+> >> -	cachep->memcg_params->memcg_caches[idx] = new_cachep;
+> >>  	/*
+> >> -	 * the readers won't lock, make sure everybody sees the updated value,
+> >> -	 * so they won't put stuff in the queue again for no reason
+> >> +	 * Since readers won't lock (see cache_from_memcg_idx()), we need a
+> >> +	 * barrier here to ensure nobody will see the kmem_cache partially
+> >> +	 * initialized.
+> >>  	 */
+> >> -	wmb();
+> >> +	smp_wmb();
+> >> +
+> >> +	cachep->memcg_params->memcg_caches[idx] = new_cachep;
+> >>  out:
+> >>  	mutex_unlock(&memcg_cache_mutex);
+> >>  	return new_cachep;
+> >> @@ -3573,7 +3575,7 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
+> >>  					  gfp_t gfp)
+> >>  {
+> >>  	struct mem_cgroup *memcg;
+> >> -	int idx;
+> >> +	struct kmem_cache *memcg_cachep;
+> >>  
+> >>  	VM_BUG_ON(!cachep->memcg_params);
+> >>  	VM_BUG_ON(!cachep->memcg_params->is_root_cache);
+> >> @@ -3587,15 +3589,9 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
+> >>  	if (!memcg_can_account_kmem(memcg))
+> >>  		goto out;
+> >>  
+> >> -	idx = memcg_cache_id(memcg);
+> >> -
+> >> -	/*
+> >> -	 * barrier to mare sure we're always seeing the up to date value.  The
+> >> -	 * code updating memcg_caches will issue a write barrier to match this.
+> >> -	 */
+> >> -	read_barrier_depends();
+> >> -	if (likely(cache_from_memcg_idx(cachep, idx))) {
+> >> -		cachep = cache_from_memcg_idx(cachep, idx);
+> >> +	memcg_cachep = cache_from_memcg_idx(cachep, memcg_cache_id(memcg));
+> >> +	if (likely(memcg_cachep)) {
+> >> +		cachep = memcg_cachep;
+> >>  		goto out;
+> >>  	}
+> >>  
+> >> diff --git a/mm/slab.h b/mm/slab.h
+> >> index 0859c42..1d8b53f 100644
+> >> --- a/mm/slab.h
+> >> +++ b/mm/slab.h
+> >> @@ -163,9 +163,13 @@ static inline const char *cache_name(struct kmem_cache *s)
+> >>  static inline struct kmem_cache *
+> >>  cache_from_memcg_idx(struct kmem_cache *s, int idx)
+> >>  {
+> >> +	struct kmem_cache *cachep;
+> >> +
+> >>  	if (!s->memcg_params)
+> >>  		return NULL;
+> >> -	return s->memcg_params->memcg_caches[idx];
+> >> +	cachep = s->memcg_params->memcg_caches[idx];
+> >> +	smp_read_barrier_depends();	/* see memcg_register_cache() */
+> >> +	return cachep;
+> >>  }
+> >>  
+> >>  static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
+> >> -- 
+> >> 1.7.10.4
+> >>
+> 
 
-  on create:
-    memcg_register_cache()
-    memcg_cache_list_add()
-  on destroy:
-    memcg_release_cache()
-
-After this patch we would have:
-
-  on create:
-    memcg_alloc_cache_params()
-    memcg_register_cache()
-  on destroy:
-    memcg_release_cache()
-
-Still not perfect: "alloc" does not have corresponding "free", while
-"register" does not have corresponding "unregister", everything is done
-by "release".
-
-What do you think about splitting memcg_release_cache() into two functions:
-
-    memcg_unregister_cache()
-    memcg_free_cache_params()
-
-?
-
-Thanks.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
