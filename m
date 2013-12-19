@@ -1,221 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f176.google.com (mail-ea0-f176.google.com [209.85.215.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 481316B0037
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 10:44:24 -0500 (EST)
-Received: by mail-ea0-f176.google.com with SMTP id h14so552874eaj.21
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 07:44:23 -0800 (PST)
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com. [195.75.94.109])
-        by mx.google.com with ESMTPS id i1si4891058eev.131.2013.12.19.07.44.23
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 19 Dec 2013 07:44:23 -0800 (PST)
-Received: from /spool/local
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ehrhardt@linux.vnet.ibm.com>;
-	Thu, 19 Dec 2013 15:44:22 -0000
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 829DB1B0805F
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 15:43:29 +0000 (GMT)
-Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBJFi7I3786720
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 15:44:07 GMT
-Received: from d06av04.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av04.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBJFiIU9016122
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 08:44:19 -0700
-Message-ID: <52B31451.4020602@linux.vnet.ibm.com>
-Date: Thu, 19 Dec 2013 16:44:17 +0100
-From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Puzzling behaviour with multiple swap targets
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail-qe0-f51.google.com (mail-qe0-f51.google.com [209.85.128.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 82D706B0031
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 10:50:35 -0500 (EST)
+Received: by mail-qe0-f51.google.com with SMTP id 1so1129892qee.38
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 07:50:35 -0800 (PST)
+Received: from qmta04.emeryville.ca.mail.comcast.net (qmta04.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:40])
+        by mx.google.com with ESMTP id nh12si3150689qeb.4.2013.12.19.07.50.34
+        for <linux-mm@kvack.org>;
+        Thu, 19 Dec 2013 07:50:34 -0800 (PST)
+Message-Id: <20131219155030.875202631@linux.com>
+Date: Thu, 19 Dec 2013 09:50:16 -0600
+From: Christoph Lameter <cl@linux.com>
+Subject: [PATCH 01/40] mm: Replace __get_cpu_var uses with this_cpu_ptr
+References: <20131219155015.443763038@linux.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline; filename=this_mm
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Shaohua Li <shli@kernel.org>
-Cc: Christian Borntraeger <borntraeger@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Eberhard Pasch <epasch@de.ibm.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: akpm@linuxfoundation.org, rostedt@goodmis.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, akpm@linux-foundation.org, linux-mm@kvack.org
 
-Hi,
-I've analyzed swapping for a while now. I made some progress tuning my 
-system for better, faster and more efficient swapping. However one thing 
-still eludes me.
-I think by asking here we can only win. Either it is trivial to you and 
-I get a better understanding or you can take it as brain teaser over 
-Christmas time :-)
+Replace places where __get_cpu_var() is used for an address calculation
+with this_cpu_ptr().
 
-Long Story Short - the Issue:
-The more Swap targets I use, the slower the swapping becomes.
+Cc: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-
-Details - Issue:
-As mentioned before I made a lot of analysis already including 
-simplifications of the testcase.
-Therefore I only describe the most simplified setup and scenario.
-I run a testcase (see below) accessing overcommitted (1.25:1) memory in 
-4k chunks selecting the offset randomly.
-When swapping to a single disk I achieve about 20% more throughput 
-compared to just taking this disk, partitioning it into 4 equal pieces 
-and activate those as swap.
-The workload does read only in that overcommitted memory.
-
-According to my understanding for read only the exact location shouldn't 
-matter.
-The fault will find a page that was swapped out and discarded, start the 
-I/O to bring it back going via the swap extends.
-There is just no code caring a lot about the partitions in the fault-IN 
-path.
-Also as the workload is uniform random locality on disk should be 
-irrelevant as the accesses to the four partitions will be mapped to just 
-the same disk.
-
-Still the number of partitions on the same physical resource changes the 
-throughput I can achieve on memory.
-
-
-
-Details - Setup
-My Main System is a System zEnterprise zEC12 s390 machine with 10GB Memory.
-I have 2 CPUs (FYI the issue appears no matter how much cpus - tested 1-64).
-The working set of the workload is 12.5 GB,so the overcommit ratio is a 
-light 1.25:1 (also tested from 1.02 up to 3:1 - it was visible in each 
-case, but 1.25:1 was the most stable)
-As swap device I use 1 FCP attached Disk served by a IBM DS8870 attached 
-via 8x8Gb FCP adapters on Server and Storage Server.
-The disk holds 256GB which leaves my case far away from 50% swap.
-Initially I used multiple disks, but the problem is more puzzling (as it 
-leaves less room for speculation) when just changing the #partitions on 
-the same physical resource.
-
-I verified it on an IBM X5 (Xeon X7560) and while the (local raid 5) 
-disk devices there are much slower, they still show the same issue when 
-comparing 1 disk 1 partition vs the same 1 disk 4 partitions.
-
-
-
-Remaining Leads:
-Using iostat to compare swap disk activity vs what my testcase can 
-achieve in memory identified that the "bad case" is less efficient.
-That means it doesn't have less/slower disk I/O, no in fact it has 
-usually slightly more disk I/O at about the same performance 
-characteristics than the "good case".
-That implies that the "efficiency" in the good case is better meaning 
-that it is more likely to have the "correct next page" at hand and in 
-swap cache.
-That is confirmed by the fact that setting page_cluster to 0 eliminates 
-the difference of 1 to many partitions.
-Unfortunately the meet at the lower throughput level.
-Also I don't see what the mm/swap code can make right/wrong for a 
-workload accessing 4k pages in a randomized way.
-There should be no statistically relevant value in the locality of the 
-workload that can be handled right.
-
-
-
-Rejected theories:
-I tested a lot of things already and some made it into tunings (IO 
-scheduler, page_cluster, ...), but non of them fixed the "more swap 
-targets -> slower" issue.
-- locking: Lockstat showed nothing changing a lot between 1 and 4 
-partitions. In fact the 5 most busy locks were related to huge pages and 
-disabling those got rid of the locks in lockstat, but didn't affect the 
-throughput at all.
-- scsi/blkdev: as complex multipath setups can often be a source of 
-issues I used a special s390 only memory device called xpram. It 
-essentially is a block device that fulfils I/O requests at make_request 
-level at memory speed. That sped up my test a lot, but taking the same 
-xpram memory once in one chunk and once broken into 4 pieces it still 
-was worse with the four pieces.
-- already fixed: there was an upstream patch commit ec8acf20 "swap: add 
-per-partition lock for swapfile" from "Shaohua Li <shli@kernel.org>" 
-that pretty much sounds like the same issue. But it was already applied.
-- Kernel Versions: while the majority of my tests were on 3.10.7 I 
-tested up to 3.12.2 and still saw the same issue.
-- Scaling in general: when I go from 1 to 4 partitions on a single disk 
-I see the mentioned ~20% drop in throughput.
-   But going further like 6 disks with 4 partitions each is at almost 
-the same level.
-   So it gets a bit worse, but the black magic seems to happen between 1->4.
-
-
-
-Details - Workload:
-While my original workload can be complex with configurable threads, 
-background load and all kind of accounting I thought it is better to 
-simplify it for this discussion. Therefore the code now is rather simple 
-and even lacking the majority of e.g. null pointer checks - but it is 
-easy to understand what it does.
-Essentially I allocate a given amount of memory - 12500MB by default. 
-Then I initialize that memory followed by a warmup phase of three runs 
-through the full working set. Then the real workload starts accessing 4k 
-chunks at random offsets.
-
-Since the code is so small now I think it qualifies as inline
----cut here---
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/wait.h>
-
-#define MB (1024*1024)
-int stopme = 0;
-unsigned chunk_size = 4096;
-unsigned no_chunks = 0;
-int duration = 600;
-size_t mem_size = 12500;
-
-void * uniform_random_access(char *buffer) {
-	unsigned long offset;
-	offset = ((unsigned long)(drand48()*(mem_size/chunk_size)))*chunk_size;
-	return (void*)(((unsigned long)buffer)+offset);
-}
-
-void  alrmhandler(int sig) {
-	signal(SIGALRM, SIG_IGN);
-	printf("\n\nGot alarm, set stopme\n");
-	stopme=1;
-}
-
-int main(int argc, char * argv[])
-{
-	unsigned long j, i = 0;
-	double rmem;
-	unsigned long local_reads = 0;
-	void *read_buffer;
-	char *c;
-	mem_size = mem_size * MB;
-	signal(SIGALRM, alrmhandler);
-	c=malloc(mem_size);
-	read_buffer = malloc(chunk_size);
-	memset(read_buffer,1,chunk_size);
-	memset(c,1,mem_size);
-	for (i=0; i<3; i++) {
-		for (j=0; j<(mem_size/chunk_size); j++) {
-			memcpy(read_buffer,uniform_random_access(c),chunk_size);
-		}
-	}
-	i=0;
-	alarm(duration);
-
-	while (1) {
-		for (j=0; j<(mem_size/chunk_size); j++) {
-			memcpy(read_buffer,uniform_random_access(c),chunk_size);
-			local_reads++;
-
-			if (stopme)
-				goto out;
-		}
-		i++;
-	}
-out:
-	rmem = ((mem_size/MB)*i*1) + ((local_reads*chunk_size)/MB);
-	printf("Accumulated Read Throughput (mb/s):  %20.2lf\n", rmem/duration);
-	printf("%% of working set covered:            %20.2lf\n", 
-(rmem/(mem_size/MB))*100.0 );
-	free(c);
-	free(read_buffer);
-	exit(0);
-}
----cut here---
+Index: linux/lib/radix-tree.c
+===================================================================
+--- linux.orig/lib/radix-tree.c	2013-12-18 21:50:02.550389590 -0600
++++ linux/lib/radix-tree.c	2013-12-18 21:50:02.530389966 -0600
+@@ -221,7 +221,7 @@
+ 		 * succeed in getting a node here (and never reach
+ 		 * kmem_cache_alloc)
+ 		 */
+-		rtp = &__get_cpu_var(radix_tree_preloads);
++		rtp = this_cpu_ptr(&radix_tree_preloads);
+ 		if (rtp->nr) {
+ 			ret = rtp->nodes[rtp->nr - 1];
+ 			rtp->nodes[rtp->nr - 1] = NULL;
+@@ -277,14 +277,14 @@
+ 	int ret = -ENOMEM;
+ 
+ 	preempt_disable();
+-	rtp = &__get_cpu_var(radix_tree_preloads);
++	rtp = this_cpu_ptr(&radix_tree_preloads);
+ 	while (rtp->nr < ARRAY_SIZE(rtp->nodes)) {
+ 		preempt_enable();
+ 		node = kmem_cache_alloc(radix_tree_node_cachep, gfp_mask);
+ 		if (node == NULL)
+ 			goto out;
+ 		preempt_disable();
+-		rtp = &__get_cpu_var(radix_tree_preloads);
++		rtp = this_cpu_ptr(&radix_tree_preloads);
+ 		if (rtp->nr < ARRAY_SIZE(rtp->nodes))
+ 			rtp->nodes[rtp->nr++] = node;
+ 		else
+Index: linux/mm/memcontrol.c
+===================================================================
+--- linux.orig/mm/memcontrol.c	2013-12-18 21:50:02.550389590 -0600
++++ linux/mm/memcontrol.c	2013-12-18 21:50:02.534389891 -0600
+@@ -2432,7 +2432,7 @@
+  */
+ static void drain_local_stock(struct work_struct *dummy)
+ {
+-	struct memcg_stock_pcp *stock = &__get_cpu_var(memcg_stock);
++	struct memcg_stock_pcp *stock = this_cpu_ptr(&memcg_stock);
+ 	drain_stock(stock);
+ 	clear_bit(FLUSHING_CACHED_CHARGE, &stock->flags);
+ }
+Index: linux/mm/memory-failure.c
+===================================================================
+--- linux.orig/mm/memory-failure.c	2013-12-18 21:50:02.550389590 -0600
++++ linux/mm/memory-failure.c	2013-12-18 21:50:02.534389891 -0600
+@@ -1286,7 +1286,7 @@
+ 	unsigned long proc_flags;
+ 	int gotten;
+ 
+-	mf_cpu = &__get_cpu_var(memory_failure_cpu);
++	mf_cpu = this_cpu_ptr(&memory_failure_cpu);
+ 	for (;;) {
+ 		spin_lock_irqsave(&mf_cpu->lock, proc_flags);
+ 		gotten = kfifo_get(&mf_cpu->fifo, &entry);
+Index: linux/mm/page-writeback.c
+===================================================================
+--- linux.orig/mm/page-writeback.c	2013-12-18 21:50:02.550389590 -0600
++++ linux/mm/page-writeback.c	2013-12-18 21:50:02.538389816 -0600
+@@ -1628,7 +1628,7 @@
+ 	 * 1000+ tasks, all of them start dirtying pages at exactly the same
+ 	 * time, hence all honoured too large initial task->nr_dirtied_pause.
+ 	 */
+-	p =  &__get_cpu_var(bdp_ratelimits);
++	p =  this_cpu_ptr(&bdp_ratelimits);
+ 	if (unlikely(current->nr_dirtied >= ratelimit))
+ 		*p = 0;
+ 	else if (unlikely(*p >= ratelimit_pages)) {
+@@ -1640,7 +1640,7 @@
+ 	 * short-lived tasks (eg. gcc invocations in a kernel build) escaping
+ 	 * the dirty throttling and livelock other long-run dirtiers.
+ 	 */
+-	p = &__get_cpu_var(dirty_throttle_leaks);
++	p = this_cpu_ptr(&dirty_throttle_leaks);
+ 	if (*p > 0 && current->nr_dirtied < ratelimit) {
+ 		unsigned long nr_pages_dirtied;
+ 		nr_pages_dirtied = min(*p, ratelimit - current->nr_dirtied);
+Index: linux/mm/swap.c
+===================================================================
+--- linux.orig/mm/swap.c	2013-12-18 21:50:02.550389590 -0600
++++ linux/mm/swap.c	2013-12-18 21:50:02.538389816 -0600
+@@ -409,7 +409,7 @@
+ 
+ 		page_cache_get(page);
+ 		local_irq_save(flags);
+-		pvec = &__get_cpu_var(lru_rotate_pvecs);
++		pvec = this_cpu_ptr(&lru_rotate_pvecs);
+ 		if (!pagevec_add(pvec, page))
+ 			pagevec_move_tail(pvec);
+ 		local_irq_restore(flags);
+Index: linux/mm/vmalloc.c
+===================================================================
+--- linux.orig/mm/vmalloc.c	2013-12-18 21:50:02.550389590 -0600
++++ linux/mm/vmalloc.c	2013-12-18 21:50:02.538389816 -0600
+@@ -1488,7 +1488,7 @@
+ 	if (!addr)
+ 		return;
+ 	if (unlikely(in_interrupt())) {
+-		struct vfree_deferred *p = &__get_cpu_var(vfree_deferred);
++		struct vfree_deferred *p = this_cpu_ptr(&vfree_deferred);
+ 		if (llist_add((struct llist_node *)addr, &p->list))
+ 			schedule_work(&p->wq);
+ 	} else
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c	2013-12-18 21:50:02.550389590 -0600
++++ linux/mm/slub.c	2013-12-18 21:50:02.542389740 -0600
+@@ -2176,7 +2176,7 @@
+ 
+ 	page = new_slab(s, flags, node);
+ 	if (page) {
+-		c = __this_cpu_ptr(s->cpu_slab);
++		c = raw_cpu_ptr(s->cpu_slab);
+ 		if (c->page)
+ 			flush_slab(s, c);
+ 
+@@ -2396,7 +2396,7 @@
+ 	 * and the retrieval of the tid.
+ 	 */
+ 	preempt_disable();
+-	c = __this_cpu_ptr(s->cpu_slab);
++	c = this_cpu_ptr(s->cpu_slab);
+ 
+ 	/*
+ 	 * The transaction ids are globally unique per cpu and per operation on
+@@ -2651,7 +2651,7 @@
+ 	 * during the cmpxchg then the free will succedd.
+ 	 */
+ 	preempt_disable();
+-	c = __this_cpu_ptr(s->cpu_slab);
++	c = this_cpu_ptr(s->cpu_slab);
+ 
+ 	tid = c->tid;
+ 	preempt_enable();
+Index: linux/mm/vmstat.c
+===================================================================
+--- linux.orig/mm/vmstat.c	2013-12-18 21:50:02.550389590 -0600
++++ linux/mm/vmstat.c	2013-12-18 21:50:13.586182025 -0600
+@@ -489,7 +489,7 @@
+ 			continue;
+ 
+ 		if (__this_cpu_read(p->pcp.count))
+-			drain_zone_pages(zone, __this_cpu_ptr(&p->pcp));
++			drain_zone_pages(zone, this_cpu_ptr(&p->pcp));
+ #endif
+ 	}
+ 	fold_diff(global_diff);
+@@ -1218,7 +1218,7 @@
+ static void vmstat_update(struct work_struct *w)
+ {
+ 	refresh_cpu_vm_stats();
+-	schedule_delayed_work(&__get_cpu_var(vmstat_work),
++	schedule_delayed_work(this_cpu_ptr(&vmstat_work),
+ 		round_jiffies_relative(sysctl_stat_interval));
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
