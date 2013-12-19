@@ -1,68 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id EB2456B0031
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 01:14:38 -0500 (EST)
-Received: by mail-pb0-f54.google.com with SMTP id un15so710225pbc.13
-        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 22:14:38 -0800 (PST)
-Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com. [202.81.31.146])
-        by mx.google.com with ESMTPS id eb3si1790146pbc.26.2013.12.18.22.14.36
+Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
+	by kanga.kvack.org (Postfix) with ESMTP id E6CC56B0031
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 01:31:57 -0500 (EST)
+Received: by mail-lb0-f181.google.com with SMTP id q8so254791lbi.26
+        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 22:31:57 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id h3si1086337lbd.156.2013.12.18.22.31.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 18 Dec 2013 22:14:37 -0800 (PST)
-Received: from /spool/local
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 19 Dec 2013 16:14:31 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 3B77D2BB0053
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 17:14:28 +1100 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBJ5u6Ev53936270
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 16:56:06 +1100
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBJ6ERcN015026
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 17:14:27 +1100
-Date: Thu, 19 Dec 2013 14:14:25 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3] mm/rmap: fix BUG at rmap_walk
-Message-ID: <52b28ecd.23b6440a.2262.603bSMTPIN_ADDED_BROKEN@mx.google.com>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1387431715-6786-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20131219055510.GA27532@lge.com>
- <20131219060703.GA27787@lge.com>
+        Wed, 18 Dec 2013 22:31:56 -0800 (PST)
+Message-ID: <52B292CF.5030002@parallels.com>
+Date: Thu, 19 Dec 2013 10:31:43 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131219060703.GA27787@lge.com>
+Subject: Re: [PATCH 1/6] slab: cleanup kmem_cache_create_memcg()
+References: <6f02b2d079ffd0990ae335339c803337b13ecd8c.1387372122.git.vdavydov@parallels.com> <20131218165603.GB31080@dhcp22.suse.cz>
+In-Reply-To: <20131218165603.GB31080@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Dec 19, 2013 at 03:07:03PM +0900, Joonsoo Kim wrote:
->On Thu, Dec 19, 2013 at 02:55:10PM +0900, Joonsoo Kim wrote:
->> On Thu, Dec 19, 2013 at 01:41:55PM +0800, Wanpeng Li wrote:
->> > This bug is introduced by commit 37f093cdf(mm/rmap: use rmap_walk() in 
->> > page_referenced()). page_get_anon_vma() called in page_referenced_anon() 
->> > will lock and increase the refcount of anon_vma. PageLocked is not required 
->> > by page_referenced_anon() and there is not any assertion before, commit 
->> > 37f093cdf introduced this extra BUG_ON() checking for anon page by mistake.
->> > This patch fix it by remove rmap_walk()'s VM_BUG_ON() and comment reason why 
->> > the page must be locked for rmap_walk_ksm() and rmap_walk_file().
+On 12/18/2013 08:56 PM, Michal Hocko wrote:
+> On Wed 18-12-13 17:16:52, Vladimir Davydov wrote:
+>> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+>> Cc: Michal Hocko <mhocko@suse.cz>
+>> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> Cc: Glauber Costa <glommer@gmail.com>
+>> Cc: Christoph Lameter <cl@linux.com>
+>> Cc: Pekka Enberg <penberg@kernel.org>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Dunno, is this really better to be worth the code churn?
 >
->FYI.
+> It even makes the generated code tiny bit bigger:
+> text    data     bss     dec     hex filename
+> 4355     171     236    4762    129a mm/slab_common.o.after
+> 4342     171     236    4749    128d mm/slab_common.o.before
 >
->See following link to get more information.
->
->https://lkml.org/lkml/2004/7/12/241
->
+> Or does it make the further changes much more easier? Be explicit in the
+> patch description if so.
 
-Interesting, thanks. ;-)
+Hi, Michal
 
-Regards,
-Wanpeng Li 
+IMO, undoing under labels looks better than inside conditionals, because
+we don't have to repeat the same deinitialization code then, like this
+(note three calls to kmem_cache_free()):
 
->Thanks.
+    s = kmem_cache_zalloc(kmem_cache, GFP_KERNEL);
+    if (s) {
+        s->object_size = s->size = size;
+        s->align = calculate_alignment(flags, align, size);
+        s->ctor = ctor;
+
+        if (memcg_register_cache(memcg, s, parent_cache)) {
+            kmem_cache_free(kmem_cache, s);
+            err = -ENOMEM;
+            goto out_locked;
+        }
+
+        s->name = kstrdup(name, GFP_KERNEL);
+        if (!s->name) {
+            kmem_cache_free(kmem_cache, s);
+            err = -ENOMEM;
+            goto out_locked;
+        }
+
+        err = __kmem_cache_create(s, flags);
+        if (!err) {
+            s->refcount = 1;
+            list_add(&s->list, &slab_caches);
+            memcg_cache_list_add(memcg, s);
+        } else {
+            kfree(s->name);
+            kmem_cache_free(kmem_cache, s);
+        }
+    } else
+        err = -ENOMEM;
+
+The next patch, which fixes the memcg_params leakage on error, would
+make it even worse introducing two calls to memcg_free_cache_params()
+after kstrdup and __kmem_cache_create.
+
+If you think it isn't worthwhile applying this patch, just let me know,
+I don't mind dropping it.
+
+Anyway, I'll improve the comment and resend.
+
+Thanks.
+
+>
+>> ---
+>>  mm/slab_common.c |   66 +++++++++++++++++++++++++++---------------------------
+>>  1 file changed, 33 insertions(+), 33 deletions(-)
+>>
+>> diff --git a/mm/slab_common.c b/mm/slab_common.c
+>> index 0b7bb39..5d6f743 100644
+>> --- a/mm/slab_common.c
+>> +++ b/mm/slab_common.c
+>> @@ -176,8 +176,9 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
+>>  	get_online_cpus();
+>>  	mutex_lock(&slab_mutex);
+>>  
+>> -	if (!kmem_cache_sanity_check(memcg, name, size) == 0)
+>> -		goto out_locked;
+>> +	err = kmem_cache_sanity_check(memcg, name, size);
+>> +	if (err)
+>> +		goto out_unlock;
+>>  
+>>  	/*
+>>  	 * Some allocators will constraint the set of valid flags to a subset
+>> @@ -189,45 +190,41 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
+>>  
+>>  	s = __kmem_cache_alias(memcg, name, size, align, flags, ctor);
+>>  	if (s)
+>> -		goto out_locked;
+>> +		goto out_unlock;
+>>  
+>>  	s = kmem_cache_zalloc(kmem_cache, GFP_KERNEL);
+>> -	if (s) {
+>> -		s->object_size = s->size = size;
+>> -		s->align = calculate_alignment(flags, align, size);
+>> -		s->ctor = ctor;
+>> -
+>> -		if (memcg_register_cache(memcg, s, parent_cache)) {
+>> -			kmem_cache_free(kmem_cache, s);
+>> -			err = -ENOMEM;
+>> -			goto out_locked;
+>> -		}
+>> +	if (!s) {
+>> +		err = -ENOMEM;
+>> +		goto out_unlock;
+>> +	}
+>>  
+>> -		s->name = kstrdup(name, GFP_KERNEL);
+>> -		if (!s->name) {
+>> -			kmem_cache_free(kmem_cache, s);
+>> -			err = -ENOMEM;
+>> -			goto out_locked;
+>> -		}
+>> +	s->object_size = s->size = size;
+>> +	s->align = calculate_alignment(flags, align, size);
+>> +	s->ctor = ctor;
+>>  
+>> -		err = __kmem_cache_create(s, flags);
+>> -		if (!err) {
+>> -			s->refcount = 1;
+>> -			list_add(&s->list, &slab_caches);
+>> -			memcg_cache_list_add(memcg, s);
+>> -		} else {
+>> -			kfree(s->name);
+>> -			kmem_cache_free(kmem_cache, s);
+>> -		}
+>> -	} else
+>> +	s->name = kstrdup(name, GFP_KERNEL);
+>> +	if (!s->name) {
+>>  		err = -ENOMEM;
+>> +		goto out_free_cache;
+>> +	}
+>> +
+>> +	err = memcg_register_cache(memcg, s, parent_cache);
+>> +	if (err)
+>> +		goto out_free_cache;
+>>  
+>> -out_locked:
+>> +	err = __kmem_cache_create(s, flags);
+>> +	if (err)
+>> +		goto out_free_cache;
+>> +
+>> +	s->refcount = 1;
+>> +	list_add(&s->list, &slab_caches);
+>> +	memcg_cache_list_add(memcg, s);
+>> +
+>> +out_unlock:
+>>  	mutex_unlock(&slab_mutex);
+>>  	put_online_cpus();
+>>  
+>>  	if (err) {
+>> -
+>>  		if (flags & SLAB_PANIC)
+>>  			panic("kmem_cache_create: Failed to create slab '%s'. Error %d\n",
+>>  				name, err);
+>> @@ -236,11 +233,14 @@ out_locked:
+>>  				name, err);
+>>  			dump_stack();
+>>  		}
+>> -
+>>  		return NULL;
+>>  	}
+>> -
+>>  	return s;
+>> +
+>> +out_free_cache:
+>> +	kfree(s->name);
+>> +	kmem_cache_free(kmem_cache, s);
+>> +	goto out_unlock;
+>>  }
+>>  
+>>  struct kmem_cache *
+>> -- 
+>> 1.7.10.4
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
