@@ -1,102 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CBEE6B0036
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 04:10:14 -0500 (EST)
-Received: by mail-qa0-f54.google.com with SMTP id f11so1276726qae.20
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 01:10:14 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id t7si2256737qar.75.2013.12.19.01.10.13
-        for <linux-mm@kvack.org>;
-        Thu, 19 Dec 2013 01:10:13 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH] mm/memory-failure.c: transfer page count from head page to tail page after split thp
-Date: Thu, 19 Dec 2013 04:09:34 -0500
-Message-Id: <1387444174-16752-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from mail-ea0-f175.google.com (mail-ea0-f175.google.com [209.85.215.175])
+	by kanga.kvack.org (Postfix) with ESMTP id A0AA46B0031
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 04:12:17 -0500 (EST)
+Received: by mail-ea0-f175.google.com with SMTP id z10so319884ead.34
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 01:12:17 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u49si3400361eep.148.2013.12.19.01.12.16
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 19 Dec 2013 01:12:16 -0800 (PST)
+Date: Thu, 19 Dec 2013 10:12:15 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 4/6] memcg, slab: check and init memcg_cahes under
+ slab_mutex
+Message-ID: <20131219091215.GD9331@dhcp22.suse.cz>
+References: <6f02b2d079ffd0990ae335339c803337b13ecd8c.1387372122.git.vdavydov@parallels.com>
+ <afc6d5e85d805c7313e928497b4ebcf1815703dd.1387372122.git.vdavydov@parallels.com>
+ <20131218174105.GE31080@dhcp22.suse.cz>
+ <52B29B2F.7050909@parallels.com>
+ <CAA6-i6r=hW+Y2+kdKME=GTWN6sCbi37kh4sX5dT3AKkatpQzGg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAA6-i6r=hW+Y2+kdKME=GTWN6sCbi37kh4sX5dT3AKkatpQzGg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Glauber Costa <glommer@gmail.com>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Memory failures on thp tail pages cause kernel panic like below:
+On Thu 19-12-13 12:00:58, Glauber Costa wrote:
+> On Thu, Dec 19, 2013 at 11:07 AM, Vladimir Davydov
+> <vdavydov@parallels.com> wrote:
+> > On 12/18/2013 09:41 PM, Michal Hocko wrote:
+> >> On Wed 18-12-13 17:16:55, Vladimir Davydov wrote:
+> >>> The memcg_params::memcg_caches array can be updated concurrently from
+> >>> memcg_update_cache_size() and memcg_create_kmem_cache(). Although both
+> >>> of these functions take the slab_mutex during their operation, the
+> >>> latter checks if memcg's cache has already been allocated w/o taking the
+> >>> mutex. This can result in a race as described below.
+> >>>
+> >>> Asume two threads schedule kmem_cache creation works for the same
+> >>> kmem_cache of the same memcg from __memcg_kmem_get_cache(). One of the
+> >>> works successfully creates it. Another work should fail then, but if it
+> >>> interleaves with memcg_update_cache_size() as follows, it does not:
+> >> I am not sure I understand the race. memcg_update_cache_size is called
+> >> when we start accounting a new memcg or a child is created and it
+> >> inherits accounting from the parent. memcg_create_kmem_cache is called
+> >> when a new cache is first allocated from, right?
+> >
+> > memcg_update_cache_size() is called when kmem accounting is activated
+> > for a memcg, no matter how.
+> >
+> > memcg_create_kmem_cache() is scheduled from __memcg_kmem_get_cache().
+> > It's OK to have a bunch of such methods trying to create the same memcg
+> > cache concurrently, but only one of them should succeed.
+> >
+> >> Why cannot we simply take slab_mutex inside memcg_create_kmem_cache?
+> >> it is running from the workqueue context so it should clash with other
+> >> locks.
+> >
+> > Hmm, Glauber's code never takes the slab_mutex inside memcontrol.c. I
+> > have always been wondering why, because it could simplify flow paths
+> > significantly (e.g. update_cache_sizes() -> update_all_caches() ->
+> > update_cache_size() - from memcontrol.c to slab_common.c and back again
+> > just to take the mutex).
+> >
+> 
+> Because that is a layering violation and exposes implementation
+> details of the slab to
+> the outside world. I agree this would make things a lot simpler, but
+> please check with Christoph
+> if this is acceptable before going forward.
 
-  [  317.361821] mce: [Hardware Error]: Machine check events logged
-  [  317.361831] MCE exception done on CPU 7
-  [  317.362007] BUG: unable to handle kernel NULL pointer dereference at 0000000000000058
-  [  317.362015] IP: [<ffffffff811b7cd1>] dequeue_hwpoisoned_huge_page+0x131/0x1e0
-  [  317.362017] PGD bae42067 PUD ba47d067 PMD 0
-  [  317.362019] Oops: 0000 [#1] SMP
-  ...
-  [  317.362052] CPU: 7 PID: 128 Comm: kworker/7:2 Tainted: G   M       O 3.13.0-rc4-131217-1558-00003-g83b7df08e462 #25
-  ...
-  [  317.362083] Call Trace:
-  [  317.362091]  [<ffffffff811d9bae>] me_huge_page+0x3e/0x50
-  [  317.362094]  [<ffffffff811dab9b>] memory_failure+0x4bb/0xc20
-  [  317.362096]  [<ffffffff8106661e>] mce_process_work+0x3e/0x70
-  [  317.362100]  [<ffffffff810b1e21>] process_one_work+0x171/0x420
-  [  317.362102]  [<ffffffff810b2c1b>] worker_thread+0x11b/0x3a0
-  [  317.362105]  [<ffffffff810b2b00>] ? manage_workers.isra.25+0x2b0/0x2b0
-  [  317.362109]  [<ffffffff810b93c4>] kthread+0xe4/0x100
-  [  317.362112]  [<ffffffff810b92e0>] ? kthread_create_on_node+0x190/0x190
-  [  317.362117]  [<ffffffff816e3c6c>] ret_from_fork+0x7c/0xb0
-  [  317.362119]  [<ffffffff810b92e0>] ? kthread_create_on_node+0x190/0x190
-  ...
-  [  317.362162] RIP  [<ffffffff811b7cd1>] dequeue_hwpoisoned_huge_page+0x131/0x1e0
-  [  317.362163]  RSP <ffff880426699cf0>
-  [  317.362164] CR2: 0000000000000058
+We do not have to expose the lock directly. We can hide it behind a
+helper function. Relying on the lock silently at many places is worse
+then expose it IMHO.
 
-The reasoning of this problem is shown below:
- - when we have a memory error on a thp tail page, the memory error
-   handler grabs a refcount of the head page to keep the thp under us.
- - Before unmapping the error page from processes, we split the thp,
-   where page refcounts of both of head/tail pages don't change.
- - Then we call try_to_unmap() over the error page (which was a tail
-   page before). We didn't pin the error page to handle the memory error,
-   this error page is freed and removed from LRU list.
- - We never have the error page on LRU list, so the first page state
-   check returns "unknown page," then we move to the second check
-   with the saved page flag.
- - The saved page flag have PG_tail set, so the second page state check
-   returns "hugepage."
- - We call me_huge_page() for freed error page, then we hit the above panic.
-
-The root cause is that we didn't move refcount from the head page to
-the tail page after split thp. So this patch suggests to do this.
-
-This panic was introduced by commit 524fca1e73 "HWPOISON: fix misjudgement
-of page_action() for errors on mlocked pages."  Note that we did have
-the same refcount problem before this commit, but it was just ignored
-because we had only first page state check which returned "unknown page."
-The commit changed the refcount problem from "doesn't work" to "kernel panic."
-
-Cc: stable@vger.kernel.org # 3.9+
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- mm/memory-failure.c | 10 ++++++++++
- 1 file changed, 10 insertions(+)
-
-diff --git v3.13-rc4.orig/mm/memory-failure.c v3.13-rc4/mm/memory-failure.c
-index db08af92c6fc..fabe55046c1d 100644
---- v3.13-rc4.orig/mm/memory-failure.c
-+++ v3.13-rc4/mm/memory-failure.c
-@@ -938,6 +938,16 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
- 				BUG_ON(!PageHWPoison(p));
- 				return SWAP_FAIL;
- 			}
-+			/*
-+			 * We pinned the head page for hwpoison handling,
-+			 * now we split the thp and we are interested in
-+			 * the hwpoisoned raw page, so move the refcount
-+			 * to it.
-+			 */
-+			if (hpage != p) {
-+				put_page(hpage);
-+				get_page(p);
-+			}
- 			/* THP is split, so ppage should be the real poisoned page. */
- 			ppage = p;
- 		}
 -- 
-1.8.3.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
