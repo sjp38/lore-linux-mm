@@ -1,76 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
-	by kanga.kvack.org (Postfix) with ESMTP id CE8D06B0031
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 10:29:12 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id t10so555662eei.14
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 07:29:12 -0800 (PST)
-Date: Thu, 19 Dec 2013 15:29:06 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH 0/3] Change how we determine when to hand out THPs
-Message-ID: <20131219152906.GQ11295@suse.de>
-References: <20131212180037.GA134240@sgi.com>
- <20131213214437.6fdbf7f2.akpm@linux-foundation.org>
- <20131216171214.GA15663@sgi.com>
+Received: from mail-bk0-f46.google.com (mail-bk0-f46.google.com [209.85.214.46])
+	by kanga.kvack.org (Postfix) with ESMTP id C2B9B6B0037
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 10:42:11 -0500 (EST)
+Received: by mail-bk0-f46.google.com with SMTP id u15so767656bkz.33
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 07:42:11 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id xy9si1568114bkb.222.2013.12.19.07.42.10
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 19 Dec 2013 07:42:10 -0800 (PST)
+Date: Thu, 19 Dec 2013 10:41:57 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 15/24] mm: page_alloc: exclude unreclaimable allocations
+ from zone fairness policy
+Message-ID: <20131219154157.GN21724@cmpxchg.org>
+References: <20131219010847.E56B731C2B8@corp2gmr1-1.hot.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131216171214.GA15663@sgi.com>
+In-Reply-To: <20131219010847.E56B731C2B8@corp2gmr1-1.hot.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Thorlton <athorlton@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Michel Lespinasse <walken@google.com>, Benjamin LaHaise <bcrl@kvack.org>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, David Rientjes <rientjes@google.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jiang Liu <jiang.liu@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Glauber Costa <glommer@parallels.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>
+To: akpm@linux-foundation.org
+Cc: torvalds@linux-foundation.org, dave.hansen@intel.com, mgorman@suse.de, riel@redhat.com, stable@kernel.org, mhocko@suse.cz, linux-mm@kvack.org
 
-On Mon, Dec 16, 2013 at 11:12:15AM -0600, Alex Thorlton wrote:
-> > Please cc Andrea on this.
+On Wed, Dec 18, 2013 at 05:08:47PM -0800, akpm@linux-foundation.org wrote:
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Subject: mm: page_alloc: exclude unreclaimable allocations from zone fairness policy
 > 
-> I'm going to clean up a few small things for a v2 pretty soon, I'll be
-> sure to cc Andrea there.
+> Dave Hansen noted a regression in a microbenchmark that loops around
+> open() and close() on an 8-node NUMA machine and bisected it down to
+> 81c0a2bb515f ("mm: page_alloc: fair zone allocator policy").  That change
+> forces the slab allocations of the file descriptor to spread out to all 8
+> nodes, causing remote references in the page allocator and slab.
 > 
-> > > My proposed solution to the problem is to allow users to set a
-> > > threshold at which THPs will be handed out.  The idea here is that, when
-> > > a user faults in a page in an area where they would usually be handed a
-> > > THP, we pull 512 pages off the free list, as we would with a regular
-> > > THP, but we only fault in single pages from that chunk, until the user
-> > > has faulted in enough pages to pass the threshold we've set.  Once they
-> > > pass the threshold, we do the necessary work to turn our 512 page chunk
-> > > into a proper THP.  As it stands now, if the user tries to fault in
-> > > pages from different nodes, we completely give up on ever turning a
-> > > particular chunk into a THP, and just fault in the 4K pages as they're
-> > > requested.  We may want to make this tunable in the future (i.e. allow
-> > > them to fault in from only 2 different nodes).
-> > 
-> > OK.  But all 512 pages reside on the same node, yes?  Whereas with thp
-> > disabled those 512 pages would have resided closer to the CPUs which
-> > instantiated them.  
+> The round-robin policy is only there to provide fairness among memory
+> allocations that are reclaimed involuntarily based on pressure in each
+> zone.  It does not make sense to apply it to unreclaimable kernel
+> allocations that are freed manually, in this case instantly after the
+> allocation, and incur the remote reference costs twice for no reason.
 > 
-> As it stands right now, yes, since we're pulling a 512 page contiguous
-> chunk off the free list, everything from that chunk will reside on the
-> same node, but as I (stupidly) forgot to mention in my original e-mail,
-> one piece I have yet to add is the functionality to put the remaining
-> unfaulted pages from our chunk *back* on the free list after we give up
-> on handing out a THP. 
+> Only round-robin allocations that are usually freed through page reclaim
+> or slab shrinking.
+> 
+> Bisected by Dave Hansen.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+> Cc: <stable@kernel.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 
-You don't necessarily have to take it off in the
-first place either. Heavy handed approach is to create
-MIGRATE_MOVABLE_THP_RESERVATION_BECAUSE_WHO_NEEDS_SNAPPY_NAMES and put it
-at the bottom of the fallback lists in the page allocator. Allocate one
-base page, move the other 511 to that list. On the second fault, use the
-correctly aligned page if it's still on the buddy lists and local to the
-current NUMA node, otherwise fallback to a normal allocation. On promotion,
-you're checking first if all the faulted page are on the same node and
-second if the correctly aligned pages are on the free lists or not.
+Linus, I did not see this patch show up in your tree yet, so if it's
+not too late, please consider merging the following patch instead to
+disable NUMA aspects of the fairness allocator entirely until we can
+agree on how it should behave, how it should be configurable etc.:
 
-The addition of a migrate type would very heavy handed but you could
-just create a special cased linked list of pages that are potentially
-reserved that is drained before the page allocator wakes kswapd.
+---
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch] mm: page_alloc: revert NUMA aspect of fair allocation policy
 
-Order the pages such that the oldest one on the new free list is the
-first allocated. That way you do not have to worry about scanning tasks
-for pages to put back on the free list.
+81c0a2bb ("mm: page_alloc: fair zone allocator policy") meant to bring
+aging fairness among zones in system, but it was overzealous and badly
+regressed basic workloads on NUMA systems.
 
+Due to the way kswapd and page allocator interacts, we still want to
+make sure that all zones in any given node are used equally for all
+allocations to maximize memory utilization and prevent thrashing on
+the highest zone in the node.
+
+While the same principle applies to NUMA nodes - memory utilization is
+obviously improved by spreading allocations throughout all nodes -
+remote references can be costly and so many workloads prefer locality
+over memory utilization.  The original change assumed that
+zone_reclaim_mode would be a good enough predictor for that, but it
+turned out to be as indicative as a coin flip.
+
+Revert the NUMA aspect of the fairness until we can find a proper way
+to make it configurable and agree on a sane default.
+
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: Mel Gorman <mgorman@suse.de>
+Cc: <stable@kernel.org> # 3.12
+---
+ mm/page_alloc.c | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 580a5f075ed0..5248fe070aa4 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1816,7 +1816,7 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
+ 
+ static bool zone_local(struct zone *local_zone, struct zone *zone)
+ {
+-	return node_distance(local_zone->node, zone->node) == LOCAL_DISTANCE;
++	return local_zone->node == zone->node;
+ }
+ 
+ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
+@@ -1913,18 +1913,17 @@ zonelist_scan:
+ 		 * page was allocated in should have no effect on the
+ 		 * time the page has in memory before being reclaimed.
+ 		 *
+-		 * When zone_reclaim_mode is enabled, try to stay in
+-		 * local zones in the fastpath.  If that fails, the
+-		 * slowpath is entered, which will do another pass
+-		 * starting with the local zones, but ultimately fall
+-		 * back to remote zones that do not partake in the
+-		 * fairness round-robin cycle of this zonelist.
++		 * Try to stay in local zones in the fastpath.  If
++		 * that fails, the slowpath is entered, which will do
++		 * another pass starting with the local zones, but
++		 * ultimately fall back to remote zones that do not
++		 * partake in the fairness round-robin cycle of this
++		 * zonelist.
+ 		 */
+ 		if (alloc_flags & ALLOC_WMARK_LOW) {
+ 			if (zone_page_state(zone, NR_ALLOC_BATCH) <= 0)
+ 				continue;
+-			if (zone_reclaim_mode &&
+-			    !zone_local(preferred_zone, zone))
++			if (!zone_local(preferred_zone, zone))
+ 				continue;
+ 		}
+ 		/*
+@@ -2390,7 +2389,7 @@ static void prepare_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		 * thrash fairness information for zones that are not
+ 		 * actually part of this zonelist's round-robin cycle.
+ 		 */
+-		if (zone_reclaim_mode && !zone_local(preferred_zone, zone))
++		if (!zone_local(preferred_zone, zone))
+ 			continue;
+ 		mod_zone_page_state(zone, NR_ALLOC_BATCH,
+ 				    high_wmark_pages(zone) -
 -- 
-Mel Gorman
-SUSE Labs
+1.8.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
