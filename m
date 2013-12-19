@@ -1,136 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f52.google.com (mail-yh0-f52.google.com [209.85.213.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 3852D6B0036
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 10:50:40 -0500 (EST)
-Received: by mail-yh0-f52.google.com with SMTP id i7so353945yha.11
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 07:50:39 -0800 (PST)
-Received: from qmta10.emeryville.ca.mail.comcast.net (qmta10.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:17])
-        by mx.google.com with ESMTP id b15si3140958qey.134.2013.12.19.07.50.38
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FB776B0031
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 11:00:48 -0500 (EST)
+Received: by mail-ig0-f173.google.com with SMTP id uq10so12354387igb.0
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 08:00:47 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id mg9si4383961icc.63.2013.12.19.08.00.45
         for <linux-mm@kvack.org>;
-        Thu, 19 Dec 2013 07:50:38 -0800 (PST)
-Message-Id: <20131219155032.365009133@linux.com>
-Date: Thu, 19 Dec 2013 09:50:30 -0600
-From: Christoph Lameter <cl@linux.com>
-Subject: [PATCH 15/40] mm: Use raw_cpu ops for determining current NUMA node
-References: <20131219155015.443763038@linux.com>
+        Thu, 19 Dec 2013 08:00:47 -0800 (PST)
+Message-ID: <52B30E48.9070505@redhat.com>
+Date: Thu, 19 Dec 2013 10:18:32 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm,numa,THP: initialize hstate for THP page size
+References: <20131218170314.1e57bea7@cuia.bos.redhat.com> <20131218140830.924fa0a3bab0d497db5e256c@linux-foundation.org> <52B21FC7.7070905@redhat.com> <20131219102231.GE10855@dhcp22.suse.cz>
+In-Reply-To: <20131219102231.GE10855@dhcp22.suse.cz>
 Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=preempt_fix_numa_node
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: akpm@linuxfoundation.org, rostedt@goodmis.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Alex Shi <alex.shi@intel.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Chao Yang <chayang@redhat.com>, linux-mm@kvack.org, aarcange@redhat.com, mgorman@suse.de, Veaceslav Falico <vfalico@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Michel Lespinasse <walken@google.com>
 
-[Patch depends on another patch in this series that introduces raw_cpu_ops]
+On 12/19/2013 05:22 AM, Michal Hocko wrote:
+> [Adding Dave and Mel]
 
-With the preempt checking logic for __this_cpu_ops we will get false
-positives from locations in the code that use numa_node_id.
+> copy_huge_page as hugetlb specific thing. It relies on hstate which is
+> obviously not existing for THP pages. So why do we use it for thp pages
+> in the first place?
+> 
+> Mel, your "mm: numa: Add THP migration for the NUMA working set scanning
+> fault case." has added check for PageTransHuge in migrate_page_copy so
+> it uses the shared copy_huge_page now. Dave has already tried to fix it
+> by https://lkml.org/lkml/2013/10/28/592 but this one has been dropped
+> later with "to-be-updated".
+> 
+> Dave do you have an alternative for your patch?
 
-Before the  __this_cpu ops where introduced there were
-no checks for preemption present either. smp_raw_processor_id()
-was used. See http://www.spinics.net/lists/linux-numa/msg00641.html
+Gah, never mind me.  This oops happened on a slightly older tree,
+that did not have Dave's patch yet...
 
-Therefore we need to use raw_cpu_read here to avoid false postives.
+Andrew, you can drop the patch. Sorry for the noise.
 
-Note that this issue has been discussed in prior years.
-If the process changes nodes after retrieving the current numa node then
-that is acceptable since most uses of numa_node etc are for optimization
-and not for correctness.
-
-There were suggestions to implement a raw_numa_node_id in order to
-do preempt checks for numa_node_id as well. But I think we better
-defer that to another patch since that would mean investigating
-how numa_node_id() is used throughout the kernel which would increase
-the scope of this patchset significantly. After all preemption was never
-checked before when numa_node_id() was used.
-
-Some sample traces:
-
-__this_cpu_read operation in preemptible [00000000] code: login/1456
-caller is __this_cpu_preempt_check+0x2b/0x2d
-CPU: 0 PID: 1456 Comm: login Not tainted 3.12.0-rc4-cl-00062-g2fe80d3-dirty #185
-Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
- 000000000000013c ffff88001f31ba58 ffffffff8147cf5e ffff88001f31bfd8
- ffff88001f31ba88 ffffffff8127eea9 0000000000000000 ffff88001f3975c0
- 00000000f7707000 ffff88001f3975c0 ffff88001f31bac0 ffffffff8127eeef
-Call Trace:
- [<ffffffff8147cf5e>] dump_stack+0x4e/0x82
- [<ffffffff8127eea9>] check_preemption_disabled+0xc5/0xe0
- [<ffffffff8127eeef>] __this_cpu_preempt_check+0x2b/0x2d
- [<ffffffff81030ff5>] ? show_stack+0x3b/0x3d
- [<ffffffff810ebee3>] get_task_policy+0x1d/0x49
- [<ffffffff810ed705>] get_vma_policy+0x14/0x76
- [<ffffffff810ed8ff>] alloc_pages_vma+0x35/0xff
- [<ffffffff810dad97>] handle_mm_fault+0x290/0x73b
- [<ffffffff810503da>] __do_page_fault+0x3fe/0x44d
- [<ffffffff8109b360>] ? trace_hardirqs_on_caller+0x142/0x19e
- [<ffffffff8109b3c9>] ? trace_hardirqs_on+0xd/0xf
- [<ffffffff81278bed>] ? trace_hardirqs_off_thunk+0x3a/0x3c
- [<ffffffff810be97f>] ? find_get_pages_contig+0x18e/0x18e
- [<ffffffff810be97f>] ? find_get_pages_contig+0x18e/0x18e
- [<ffffffff81050451>] do_page_fault+0x9/0xc
- [<ffffffff81483602>] page_fault+0x22/0x30
- [<ffffffff810be97f>] ? find_get_pages_contig+0x18e/0x18e
- [<ffffffff810be97f>] ? find_get_pages_contig+0x18e/0x18e
- [<ffffffff810be4c3>] ? file_read_actor+0x3a/0x15a
- [<ffffffff810be97f>] ? find_get_pages_contig+0x18e/0x18e
- [<ffffffff810bffab>] generic_file_aio_read+0x38e/0x624
- [<ffffffff810f6d69>] do_sync_read+0x54/0x73
- [<ffffffff810f7890>] vfs_read+0x9d/0x12a
- [<ffffffff810f7a59>] SyS_read+0x47/0x7e
- [<ffffffff81484f21>] cstar_dispatch+0x7/0x23
-
-
-caller is __this_cpu_preempt_check+0x2b/0x2d
-CPU: 0 PID: 1456 Comm: login Not tainted 3.12.0-rc4-cl-00062-g2fe80d3-dirty #185
-Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
- 00000000000000e8 ffff88001f31bbf8 ffffffff8147cf5e ffff88001f31bfd8
- ffff88001f31bc28 ffffffff8127eea9 ffffffff823c5c40 00000000000213da
- 0000000000000000 0000000000000000 ffff88001f31bc60 ffffffff8127eeef
-Call Trace:
- [<ffffffff8147cf5e>] dump_stack+0x4e/0x82
- [<ffffffff8127eea9>] check_preemption_disabled+0xc5/0xe0
- [<ffffffff8127eeef>] __this_cpu_preempt_check+0x2b/0x2d
- [<ffffffff810e006e>] ? install_special_mapping+0x11/0xe4
- [<ffffffff810ec8a8>] alloc_pages_current+0x8f/0xbc
- [<ffffffff810bec6b>] __page_cache_alloc+0xb/0xd
- [<ffffffff810c7e90>] __do_page_cache_readahead+0xf4/0x219
- [<ffffffff810c7e0e>] ? __do_page_cache_readahead+0x72/0x219
- [<ffffffff810c827c>] ra_submit+0x1c/0x20
- [<ffffffff810c850c>] ondemand_readahead+0x28c/0x2b4
- [<ffffffff810c85e9>] page_cache_sync_readahead+0x38/0x3a
- [<ffffffff810bfe7e>] generic_file_aio_read+0x261/0x624
- [<ffffffff810f6d69>] do_sync_read+0x54/0x73
- [<ffffffff810f7890>] vfs_read+0x9d/0x12a
- [<ffffffff810f7a59>] SyS_read+0x47/0x7e
- [<ffffffff81484f21>] cstar_dispatch+0x7/0x23
-
-Cc: linux-mm@kvack.org
-Cc: Alex Shi <alex.shi@intel.com>
-Acked-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-Index: linux/include/linux/topology.h
-===================================================================
---- linux.orig/include/linux/topology.h	2013-12-02 16:07:51.304591590 -0600
-+++ linux/include/linux/topology.h	2013-12-02 16:07:51.304591590 -0600
-@@ -188,7 +188,7 @@ DECLARE_PER_CPU(int, numa_node);
- /* Returns the number of the current Node. */
- static inline int numa_node_id(void)
- {
--	return __this_cpu_read(numa_node);
-+	return raw_cpu_read(numa_node);
- }
- #endif
- 
-@@ -245,7 +245,7 @@ static inline void set_numa_mem(int node
- /* Returns the number of the nearest Node with memory */
- static inline int numa_mem_id(void)
- {
--	return __this_cpu_read(_numa_mem_);
-+	return raw_cpu_read(_numa_mem_);
- }
- #endif
- 
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
