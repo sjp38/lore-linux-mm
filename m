@@ -1,87 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 37BD66B0037
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 07:59:24 -0500 (EST)
-Received: by mail-ee0-f45.google.com with SMTP id d49so461314eek.4
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 04:59:23 -0800 (PST)
+Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
+	by kanga.kvack.org (Postfix) with ESMTP id F109C6B0037
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 08:12:37 -0500 (EST)
+Received: by mail-ee0-f51.google.com with SMTP id b15so468754eek.10
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 05:12:37 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v6si4240350eel.91.2013.12.19.04.59.22
+        by mx.google.com with ESMTPS id r9si4231051eeo.233.2013.12.19.05.12.36
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 19 Dec 2013 04:59:22 -0800 (PST)
-Date: Thu, 19 Dec 2013 13:59:21 +0100
+        Thu, 19 Dec 2013 05:12:37 -0800 (PST)
+Date: Thu, 19 Dec 2013 14:12:36 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC PATCH 0/6] Configurable fair allocation zone policy v3
-Message-ID: <20131219125921.GF10855@dhcp22.suse.cz>
-References: <1387298904-8824-1-git-send-email-mgorman@suse.de>
- <20131217200210.GG21724@cmpxchg.org>
- <20131218145111.GA27510@dhcp22.suse.cz>
- <20131218151846.GM21724@cmpxchg.org>
- <20131218162050.GB27510@dhcp22.suse.cz>
- <20131218192015.GA20038@cmpxchg.org>
+Subject: Re: [RFC PATCH 0/6] Configurable fair allocation zone policy v4
+Message-ID: <20131219131236.GG10855@dhcp22.suse.cz>
+References: <1387395723-25391-1-git-send-email-mgorman@suse.de>
+ <20131218210617.GC20038@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131218192015.GA20038@cmpxchg.org>
+In-Reply-To: <20131218210617.GC20038@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 18-12-13 14:20:15, Johannes Weiner wrote:
-> On Wed, Dec 18, 2013 at 05:20:50PM +0100, Michal Hocko wrote:
+On Wed 18-12-13 16:06:17, Johannes Weiner wrote:
 [...]
-> > Currently we have a per-process (cpuset in fact) flag but this will
-> > change it to all or nothing. Is this really a good step?
-> > Btw. I do not mind having PF_SPREAD_PAGE enabled by default.
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Subject: [patch] mm: page_alloc: revert NUMA aspect of fair allocation
+>  policy
 > 
-> I don't want to muck around with cpusets too much, tbh...  but I agree
-> that the behavior of PF_SPREAD_PAGE should be the default.  Except it
-> should honor zone_reclaim_mode and round-robin nodes that are within
-> RECLAIM_DISTANCE of the local one.
-
-Agreed.
-
-> I will have spotty access to internet starting tomorrow night until
-> New Year's.  Is there a chance we can maybe revert the NUMA aspects of
-> the original patch for now and leave it as a node-local zone fairness
-> thing?
-
-Yes, that sounds perfectly reasonable to me.
-
-> The NUMA behavior was so broken on 3.12 that I doubt that
-> people have come to rely on the cache fairness on such machines in
-> that one release.  So we should be able to release 3.12-stable and
-> 3.13 with node-local zone fairness without regressing anybody, and
-> then give the NUMA aspect of it another try in 3.14.
+> 81c0a2bb ("mm: page_alloc: fair zone allocator policy") meant to bring
+> aging fairness among zones in system, but it was overzealous and badly
+> regressed basic workloads on NUMA systems.
 > 
-> Something like the following should restore NUMA behavior while still
-> fixing the kswapd vs. page allocator interaction bug of thrashing on
-> the highest zone. 
-
-Yes, it looks good to me. I guess zone_local could have stayed as it
-was because it shouldn't be a big deal to fall-back to a different node
-if the distance is LOCAL, but taking a conservative approach is not
-harmfull.
-
-> PS: zone_local() is in a CONFIG_NUMA block, which
-> is why accessing zone->node is safe :-)
+> Due to the way kswapd and page allocator interacts, we still want to
+> make sure that all zones in any given node are used equally for all
+> allocations to maximize memory utilization and prevent thrashing on
+> the highest zone in the node.
 > 
+> While the same principle applies to NUMA nodes - memory utilization is
+> obviously improved by spreading allocations throughout all nodes -
+> remote references can be costly and so many workloads prefer locality
+> over memory utilization.  The original change assumed that
+> zone_reclaim_mode would be a good enough predictor for that, but it
+> turned out to be as indicative as a coin flip.
+
+We generaly suggest to disable zone_reclaim_mode because it does more
+harm than good in 90% of situations.
+
+> Revert the NUMA aspect of the fairness until we can find a proper way
+> to make it configurable and agree on a sane default.
+
+OK, so you have dropped zone_local change which is good IMO. We still
+might allocate from !local node but it will be in the local distance so
+it shouldn't be harmful from the performance point of view. Zone NUMA
+statistics might be skewed a bit - especially NUMA misses but that would
+be a separate issue - why do we even count such allocations as misses?
+ 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: <stable@kernel.org> # 3.12
+
+Anyway
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+
 > ---
+>  mm/page_alloc.c | 17 ++++++++---------
+>  1 file changed, 8 insertions(+), 9 deletions(-)
 > 
 > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index dd886fac451a..317ea747d2cd 100644
+> index dd886fac451a..c5939317984f 100644
 > --- a/mm/page_alloc.c
 > +++ b/mm/page_alloc.c
-> @@ -1822,7 +1822,7 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
->  
->  static bool zone_local(struct zone *local_zone, struct zone *zone)
->  {
-> -	return node_distance(local_zone->node, zone->node) == LOCAL_DISTANCE;
-> +	return local_zone->node == zone->node;
->  }
->  
->  static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
 > @@ -1919,18 +1919,17 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
 >  		 * page was allocated in should have no effect on the
 >  		 * time the page has in memory before being reclaimed.
@@ -117,7 +107,8 @@ harmfull.
 >  			continue;
 >  		mod_zone_page_state(zone, NR_ALLOC_BATCH,
 >  				    high_wmark_pages(zone) -
-> 
+> -- 
+> 1.8.4.2
 > 
 
 -- 
