@@ -1,63 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 190F56B0037
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 11:49:30 -0500 (EST)
-Received: by mail-we0-f170.google.com with SMTP id w61so1369466wes.29
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 08:49:29 -0800 (PST)
-Received: from mail-ea0-x235.google.com (mail-ea0-x235.google.com [2a00:1450:4013:c01::235])
-        by mx.google.com with ESMTPS id ui5si1770818wjc.22.2013.12.19.08.49.28
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 19 Dec 2013 08:49:29 -0800 (PST)
-Received: by mail-ea0-f181.google.com with SMTP id m10so597528eaj.26
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 08:49:28 -0800 (PST)
-Date: Thu, 19 Dec 2013 17:49:25 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 0/4] Fix ebizzy performance regression due to X86 TLB
- range flush v2
-Message-ID: <20131219164925.GA29546@gmail.com>
-References: <1386964870-6690-1-git-send-email-mgorman@suse.de>
- <CA+55aFyNAigQqBk07xLpf0nkhZ_x-QkBYG8otRzsqg_8A2eg-Q@mail.gmail.com>
- <20131215155539.GM11295@suse.de>
- <20131216102439.GA21624@gmail.com>
- <20131216125923.GS11295@suse.de>
- <20131216134449.GA3034@gmail.com>
- <20131217092124.GV11295@suse.de>
- <20131217110051.GA27701@gmail.com>
- <20131219142405.GM11295@suse.de>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 30B096B0031
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 12:07:29 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id cc10so2515610wib.4
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 09:07:28 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131219142405.GM11295@suse.de>
+In-Reply-To: <20131219155313.GA25771@redhat.com>
+References: <20131219040738.GA10316@redhat.com>
+	<CA+55aFwweoGs3eGWXFULcqnbRbpDhpj2qrefXB5OpQOiWW8wYA@mail.gmail.com>
+	<20131219155313.GA25771@redhat.com>
+Date: Thu, 19 Dec 2013 09:07:27 -0800
+Message-ID: <CA+55aFyoXCDNfHb+r5b=CgKQLPA1wrU_Tmh4ROZNEt5TPjpODA@mail.gmail.com>
+Subject: Re: bad page state in 3.13-rc4
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Alex Shi <alex.shi@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Dave Jones <davej@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@gentwo.org>, Benjamin LaHaise <bcrl@kvack.org>, Kent Overstreet <kmo@daterainc.com>, Al Viro <viro@zeniv.linux.org.uk>
 
+On Thu, Dec 19, 2013 at 7:53 AM, Dave Jones <davej@redhat.com> wrote:
+>
+> Interesting that CPU2 was doing sys_io_setup again. Different trace though.
 
-* Mel Gorman <mgorman@suse.de> wrote:
+Well, it was once again in aio_free_ring() - double free or freeing
+while already in use? And this time the other end of the complaint was
+allocating a new page that definitely was still busily in use (it's
+locked).
 
-> [...]
-> 
-> Because we lack data on TLB range flush distributions I think we 
-> should still go with the conservative choice for the TLB flush 
-> shift. The worst case is really bad here and it's painfully obvious 
-> on ebizzy.
+And there's no sign of migration, although obviously that could have
+happened or be in progress on another CPU and just didn't notice the
+mess. But yes, based on the two traces, fs/aio.c:io_setup() would seem
+to be the main point of interest.
 
-So I'm obviously much in favor of this - I'd in fact suggest making 
-the conservative choice on _all_ CPU models that have aggressive TLB 
-range values right now, because frankly the testing used to pick those 
-values does not look all that convincing to me.
+Have you started doing something new in trinity wrt AIO, and
+io_setup() in particular? Or anything else different that might have
+started triggering this?
 
-I very much suspect that the problem goes wider than just IvyBridge 
-CPUs ... it's just that few people put as much testing into it as you.
+But we do have new AIO code, and these two in particular look suspicious:
 
-We can certainly get more aggressive in the future, subject to proper 
-measurements.
+ - new page migration logic:
 
-Thanks,
+    71ad7490c1f3 rework aio migrate pages to use aio fs
 
-	Ingo
+ - trying to fix double frees and error cases:
+
+    e34ecee2ae79 aio: Fix a trinity splat
+    d558023207e0 aio: prevent double free in ioctx_alloc
+    d1b9432712a2 aio: clean up aio ring in the fail path
+
+and some kind of double free in an error path would certainly explain
+this (with io_setup() . And the first oops reported obviously had that
+migration thing. So maybe those "fixes" weren't fixing things at all
+(or just moved the error case around).
+
+Btw, that "rework aio migrate pages to use aio fs" looks odd. It has
+Ben LaHaise marked as author, but no sign-off, instead "Tested-by" and
+"Acked-by".
+
+Al, Ben, Kent, see the beginning thread on lkml
+(https://lkml.org/lkml/2013/12/18/932). Any comments?
+
+                      Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
