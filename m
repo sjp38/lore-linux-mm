@@ -1,61 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B37A6B0036
-	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 19:41:54 -0500 (EST)
-Received: by mail-pd0-f169.google.com with SMTP id v10so381989pde.14
-        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 16:41:54 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id xh9si1262669pab.35.2013.12.18.16.41.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 18 Dec 2013 16:41:52 -0800 (PST)
-Message-ID: <52B240C8.5070805@oracle.com>
-Date: Wed, 18 Dec 2013 19:41:44 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id ED4E66B0031
+	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 19:47:57 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so413044pab.1
+        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 16:47:57 -0800 (PST)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id wm3si1257236pab.107.2013.12.18.16.47.54
+        for <linux-mm@kvack.org>;
+        Wed, 18 Dec 2013 16:47:55 -0800 (PST)
+Message-ID: <52B2424F.7050406@sr71.net>
+Date: Wed, 18 Dec 2013 16:48:15 -0800
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/rmap: fix BUG at rmap_walk
-References: <1387412195-26498-1-git-send-email-liwanp@linux.vnet.ibm.com> <20131218162858.6ec808c067baf4644532e110@linux-foundation.org>
-In-Reply-To: <20131218162858.6ec808c067baf4644532e110@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [RFC][PATCH 0/7] re-shrink 'struct page' when SLUB is on.
+References: <20131213235903.8236C539@viggo.jf.intel.com>	<20131216160128.aa1f1eb8039f5eee578cf560@linux-foundation.org>	<52AF9EB9.7080606@sr71.net>	<0000014301223b3e-a73f3d59-8234-48f1-9888-9af32709a879-000000@email.amazonses.com>	<52B23CAF.809@sr71.net> <20131218164109.5e169e258378fac44ec5212d@linux-foundation.org>
+In-Reply-To: <20131218164109.5e169e258378fac44ec5212d@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Hugh Dickins <hughd@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Jones <davej@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pravin B Shelar <pshelar@nicira.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Pekka Enberg <penberg@kernel.org>
 
-On 12/18/2013 07:28 PM, Andrew Morton wrote:
-> On Thu, 19 Dec 2013 08:16:35 +0800 Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
+On 12/18/2013 04:41 PM, Andrew Morton wrote:
+>> > Unless somebody can find some holes in this, I think we have no choice
+>> > but to unset the HAVE_ALIGNED_STRUCT_PAGE config option and revert using
+>> > the cmpxchg, at least for now.
 >
->> page_get_anon_vma() called in page_referenced_anon() will lock and
->> increase the refcount of anon_vma, page won't be locked for anonymous
->> page. This patch fix it by skip check anonymous page locked.
->>
->> [  588.698828] kernel BUG at mm/rmap.c:1663!
->
-> Why is all this suddenly happening.  Did we change something, or did a
-> new test get added to trinity?
+> So your scary patch series which shrinks struct page while retaining
+> the cmpxchg_double() might reclaim most of this loss?
 
-Dave has improved mmap testing in trinity, maybe it's related?
+That's what I'll test next, but I hope so.
 
-> Or if there is no reason why the page must be locked for
-> rmap_walk_ksm() and rmap_walk_file(), let's just remove rmap_walk()'s
-> VM_BUG_ON()?  And rmap_walk_ksm()'s as well - it's duplicative anyway.
-
-IMO, removing all these VM_BUG_ON()s (which is happening quite often recently) will
-lead to having bugs sneak by causing obscure undetected corruption instead of
-being very obvious through a BUG.
-
-I know it might be silly, but if we're removing a lot of these - can we "balance"
-it back by asking people to introduce new VM_BUG_ON()s, along with a short comment
-explaining why to places where these assumptions are going unchecked and are obvious
-to them but not to many others?
-
-I'll be more than happy to fuzz through patches that do that to make sure
-we catch corner cases.
-
-
-Thanks,
-Sasha
+The config tweak is important because it shows a low-risk way to get a
+small 'struct page', plus get back some performance that we lost and
+evidently never noticed.  A distro that was nearing a release might want
+to go with this, for instance.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
