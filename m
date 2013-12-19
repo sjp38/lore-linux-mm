@@ -1,172 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 094126B0031
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 04:10:08 -0500 (EST)
-Received: by mail-ea0-f180.google.com with SMTP id f15so320346eak.39
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 01:10:08 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e48si3440353eeh.50.2013.12.19.01.10.07
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 19 Dec 2013 01:10:07 -0800 (PST)
-Date: Thu, 19 Dec 2013 10:10:07 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/6] memcg, slab: cleanup barrier usage when accessing
- memcg_caches
-Message-ID: <20131219091007.GC9331@dhcp22.suse.cz>
-References: <6f02b2d079ffd0990ae335339c803337b13ecd8c.1387372122.git.vdavydov@parallels.com>
- <bd0a7ffc57e4a0b0c3d456c0cf8801e829e14717.1387372122.git.vdavydov@parallels.com>
- <20131218171411.GD31080@dhcp22.suse.cz>
- <52B29427.9010909@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52B29427.9010909@parallels.com>
+Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CBEE6B0036
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 04:10:14 -0500 (EST)
+Received: by mail-qa0-f54.google.com with SMTP id f11so1276726qae.20
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 01:10:14 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id t7si2256737qar.75.2013.12.19.01.10.13
+        for <linux-mm@kvack.org>;
+        Thu, 19 Dec 2013 01:10:13 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH] mm/memory-failure.c: transfer page count from head page to tail page after split thp
+Date: Thu, 19 Dec 2013 04:09:34 -0500
+Message-Id: <1387444174-16752-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-kernel@vger.kernel.org
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Thu 19-12-13 10:37:27, Vladimir Davydov wrote:
-> On 12/18/2013 09:14 PM, Michal Hocko wrote:
-> > On Wed 18-12-13 17:16:54, Vladimir Davydov wrote:
-> >> First, in memcg_create_kmem_cache() we should issue the write barrier
-> >> after the kmem_cache is initialized, but before storing the pointer to
-> >> it in its parent's memcg_params.
-> >>
-> >> Second, we should always issue the read barrier after
-> >> cache_from_memcg_idx() to conform with the write barrier.
-> >>
-> >> Third, its better to use smp_* versions of barriers, because we don't
-> >> need them on UP systems.
-> > Please be (much) more verbose on Why. Barriers are tricky and should be
-> > documented accordingly. So if you say that we should issue a barrier
-> > always be specific why we should do it.
-> 
-> In short, we have kmem_cache::memcg_params::memcg_caches is an array of
-> pointers to per-memcg caches. We access it lock-free so we should use
-> memory barriers during initialization. Obviously we should place a write
-> barrier just before we set the pointer in order to make sure nobody will
-> see a partially initialized structure. Besides there must be a read
-> barrier between reading the pointer and accessing the structure, to
-> conform with the write barrier. It's all that similar to rcu_assign and
-> rcu_deref. Currently the barrier usage looks rather strange:
-> 
-> memcg_create_kmem_cache:
->     initialize kmem
->     set the pointer in memcg_caches
->     wmb() // ???
-> 
-> __memcg_kmem_get_cache:
->     <...>
->     read_barrier_depends() // ???
->     cachep = root_cache->memcg_params->memcg_caches[memcg_id]
->     <...>
+Memory failures on thp tail pages cause kernel panic like below:
 
-Why do we need explicit memory barriers when we can use RCU?
-__memcg_kmem_get_cache already dereferences within rcu_read_lock.
+  [  317.361821] mce: [Hardware Error]: Machine check events logged
+  [  317.361831] MCE exception done on CPU 7
+  [  317.362007] BUG: unable to handle kernel NULL pointer dereference at 0000000000000058
+  [  317.362015] IP: [<ffffffff811b7cd1>] dequeue_hwpoisoned_huge_page+0x131/0x1e0
+  [  317.362017] PGD bae42067 PUD ba47d067 PMD 0
+  [  317.362019] Oops: 0000 [#1] SMP
+  ...
+  [  317.362052] CPU: 7 PID: 128 Comm: kworker/7:2 Tainted: G   M       O 3.13.0-rc4-131217-1558-00003-g83b7df08e462 #25
+  ...
+  [  317.362083] Call Trace:
+  [  317.362091]  [<ffffffff811d9bae>] me_huge_page+0x3e/0x50
+  [  317.362094]  [<ffffffff811dab9b>] memory_failure+0x4bb/0xc20
+  [  317.362096]  [<ffffffff8106661e>] mce_process_work+0x3e/0x70
+  [  317.362100]  [<ffffffff810b1e21>] process_one_work+0x171/0x420
+  [  317.362102]  [<ffffffff810b2c1b>] worker_thread+0x11b/0x3a0
+  [  317.362105]  [<ffffffff810b2b00>] ? manage_workers.isra.25+0x2b0/0x2b0
+  [  317.362109]  [<ffffffff810b93c4>] kthread+0xe4/0x100
+  [  317.362112]  [<ffffffff810b92e0>] ? kthread_create_on_node+0x190/0x190
+  [  317.362117]  [<ffffffff816e3c6c>] ret_from_fork+0x7c/0xb0
+  [  317.362119]  [<ffffffff810b92e0>] ? kthread_create_on_node+0x190/0x190
+  ...
+  [  317.362162] RIP  [<ffffffff811b7cd1>] dequeue_hwpoisoned_huge_page+0x131/0x1e0
+  [  317.362163]  RSP <ffff880426699cf0>
+  [  317.362164] CR2: 0000000000000058
 
-Btw. cache_from_memcg_idx is desperately asking for a comment about
-required locking.
+The reasoning of this problem is shown below:
+ - when we have a memory error on a thp tail page, the memory error
+   handler grabs a refcount of the head page to keep the thp under us.
+ - Before unmapping the error page from processes, we split the thp,
+   where page refcounts of both of head/tail pages don't change.
+ - Then we call try_to_unmap() over the error page (which was a tail
+   page before). We didn't pin the error page to handle the memory error,
+   this error page is freed and removed from LRU list.
+ - We never have the error page on LRU list, so the first page state
+   check returns "unknown page," then we move to the second check
+   with the saved page flag.
+ - The saved page flag have PG_tail set, so the second page state check
+   returns "hugepage."
+ - We call me_huge_page() for freed error page, then we hit the above panic.
 
-> Nothing prevents some archs from moving initialization after setting the
-> pointer, or reading data before reading the pointer to it.
-> 
-> Of course, I will include a detailed description in the next version of
-> this patch.
-> 
-> Thanks.
-> 
-> >> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-> >> Cc: Michal Hocko <mhocko@suse.cz>
-> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> >> Cc: Glauber Costa <glommer@gmail.com>
-> >> Cc: Christoph Lameter <cl@linux.com>
-> >> Cc: Pekka Enberg <penberg@kernel.org>
-> >> Cc: Andrew Morton <akpm@linux-foundation.org>
-> >> ---
-> >>  mm/memcontrol.c |   24 ++++++++++--------------
-> >>  mm/slab.h       |    6 +++++-
-> >>  2 files changed, 15 insertions(+), 15 deletions(-)
-> >>
-> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> >> index e6ad6ff..e37fdb5 100644
-> >> --- a/mm/memcontrol.c
-> >> +++ b/mm/memcontrol.c
-> >> @@ -3429,12 +3429,14 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
-> >>  
-> >>  	atomic_set(&new_cachep->memcg_params->nr_pages , 0);
-> >>  
-> >> -	cachep->memcg_params->memcg_caches[idx] = new_cachep;
-> >>  	/*
-> >> -	 * the readers won't lock, make sure everybody sees the updated value,
-> >> -	 * so they won't put stuff in the queue again for no reason
-> >> +	 * Since readers won't lock (see cache_from_memcg_idx()), we need a
-> >> +	 * barrier here to ensure nobody will see the kmem_cache partially
-> >> +	 * initialized.
-> >>  	 */
-> >> -	wmb();
-> >> +	smp_wmb();
-> >> +
-> >> +	cachep->memcg_params->memcg_caches[idx] = new_cachep;
-> >>  out:
-> >>  	mutex_unlock(&memcg_cache_mutex);
-> >>  	return new_cachep;
-> >> @@ -3573,7 +3575,7 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
-> >>  					  gfp_t gfp)
-> >>  {
-> >>  	struct mem_cgroup *memcg;
-> >> -	int idx;
-> >> +	struct kmem_cache *memcg_cachep;
-> >>  
-> >>  	VM_BUG_ON(!cachep->memcg_params);
-> >>  	VM_BUG_ON(!cachep->memcg_params->is_root_cache);
-> >> @@ -3587,15 +3589,9 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
-> >>  	if (!memcg_can_account_kmem(memcg))
-> >>  		goto out;
-> >>  
-> >> -	idx = memcg_cache_id(memcg);
-> >> -
-> >> -	/*
-> >> -	 * barrier to mare sure we're always seeing the up to date value.  The
-> >> -	 * code updating memcg_caches will issue a write barrier to match this.
-> >> -	 */
-> >> -	read_barrier_depends();
-> >> -	if (likely(cache_from_memcg_idx(cachep, idx))) {
-> >> -		cachep = cache_from_memcg_idx(cachep, idx);
-> >> +	memcg_cachep = cache_from_memcg_idx(cachep, memcg_cache_id(memcg));
-> >> +	if (likely(memcg_cachep)) {
-> >> +		cachep = memcg_cachep;
-> >>  		goto out;
-> >>  	}
-> >>  
-> >> diff --git a/mm/slab.h b/mm/slab.h
-> >> index 0859c42..1d8b53f 100644
-> >> --- a/mm/slab.h
-> >> +++ b/mm/slab.h
-> >> @@ -163,9 +163,13 @@ static inline const char *cache_name(struct kmem_cache *s)
-> >>  static inline struct kmem_cache *
-> >>  cache_from_memcg_idx(struct kmem_cache *s, int idx)
-> >>  {
-> >> +	struct kmem_cache *cachep;
-> >> +
-> >>  	if (!s->memcg_params)
-> >>  		return NULL;
-> >> -	return s->memcg_params->memcg_caches[idx];
-> >> +	cachep = s->memcg_params->memcg_caches[idx];
-> >> +	smp_read_barrier_depends();	/* see memcg_register_cache() */
-> >> +	return cachep;
-> >>  }
-> >>  
-> >>  static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
-> >> -- 
-> >> 1.7.10.4
-> >>
-> 
+The root cause is that we didn't move refcount from the head page to
+the tail page after split thp. So this patch suggests to do this.
 
+This panic was introduced by commit 524fca1e73 "HWPOISON: fix misjudgement
+of page_action() for errors on mlocked pages."  Note that we did have
+the same refcount problem before this commit, but it was just ignored
+because we had only first page state check which returned "unknown page."
+The commit changed the refcount problem from "doesn't work" to "kernel panic."
+
+Cc: stable@vger.kernel.org # 3.9+
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/memory-failure.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git v3.13-rc4.orig/mm/memory-failure.c v3.13-rc4/mm/memory-failure.c
+index db08af92c6fc..fabe55046c1d 100644
+--- v3.13-rc4.orig/mm/memory-failure.c
++++ v3.13-rc4/mm/memory-failure.c
+@@ -938,6 +938,16 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
+ 				BUG_ON(!PageHWPoison(p));
+ 				return SWAP_FAIL;
+ 			}
++			/*
++			 * We pinned the head page for hwpoison handling,
++			 * now we split the thp and we are interested in
++			 * the hwpoisoned raw page, so move the refcount
++			 * to it.
++			 */
++			if (hpage != p) {
++				put_page(hpage);
++				get_page(p);
++			}
+ 			/* THP is split, so ppage should be the real poisoned page. */
+ 			ppage = p;
+ 		}
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
