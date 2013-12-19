@@ -1,88 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 281CA6B0037
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 07:12:48 -0500 (EST)
-Received: by mail-ee0-f52.google.com with SMTP id d17so429667eek.11
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 04:12:47 -0800 (PST)
-Received: from smtpgw.stone-is.be (smtp03.stone-is.org. [87.238.162.66])
-        by mx.google.com with ESMTP id h45si4002970eeo.214.2013.12.19.04.12.47
-        for <linux-mm@kvack.org>;
-        Thu, 19 Dec 2013 04:12:47 -0800 (PST)
-Message-ID: <52B2E2B9.1040706@acm.org>
-Date: Thu, 19 Dec 2013 13:12:41 +0100
-From: Bart Van Assche <bvanassche@acm.org>
+Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 37BD66B0037
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 07:59:24 -0500 (EST)
+Received: by mail-ee0-f45.google.com with SMTP id d49so461314eek.4
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 04:59:23 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v6si4240350eel.91.2013.12.19.04.59.22
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 19 Dec 2013 04:59:22 -0800 (PST)
+Date: Thu, 19 Dec 2013 13:59:21 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC PATCH 0/6] Configurable fair allocation zone policy v3
+Message-ID: <20131219125921.GF10855@dhcp22.suse.cz>
+References: <1387298904-8824-1-git-send-email-mgorman@suse.de>
+ <20131217200210.GG21724@cmpxchg.org>
+ <20131218145111.GA27510@dhcp22.suse.cz>
+ <20131218151846.GM21724@cmpxchg.org>
+ <20131218162050.GB27510@dhcp22.suse.cz>
+ <20131218192015.GA20038@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: netfilter: active obj WARN when cleaning up
-References: <20131127233415.GB19270@kroah.com> <00000142b4282aaf-913f5e4c-314c-4351-9d24-615e66928157-000000@email.amazonses.com> <20131202164039.GA19937@kroah.com> <00000142b4514eb5-2e8f675d-0ecc-423b-9906-58c5f383089b-000000@email.amazonses.com> <20131202172615.GA4722@kroah.com> <00000142b4aeca89-186fc179-92b8-492f-956c-38a7c196d187-000000@email.amazonses.com> <20131202190814.GA2267@kroah.com> <00000142b4d4360c-5755af87-b9b0-4847-b5fa-7a9dd13b49c5-000000@email.amazonses.com> <20131202212235.GA1297@kroah.com> <00000142b54f6694-c51e81b1-f1a2-483b-a1ce-a2d4cb6b155c-000000@email.amazonses.com> <20131202222208.GB13034@kroah.com> <00000142b90da700-19f6b465-ff15-4b2b-9bcd-b91d71958b7f-000000@email.amazonses.com> <52B0ABB6.8090205@oracle.com>
-In-Reply-To: <52B0ABB6.8090205@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20131218192015.GA20038@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Greg KH <greg@kroah.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Pablo Neira Ayuso <pablo@netfilter.org>, Patrick McHardy <kaber@trash.net>, kadlec@blackhole.kfki.hu, "David S. Miller" <davem@davemloft.net>, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 12/17/13 20:53, Sasha Levin wrote:
-> I'm still seeing warnings with this patch applied:
+On Wed 18-12-13 14:20:15, Johannes Weiner wrote:
+> On Wed, Dec 18, 2013 at 05:20:50PM +0100, Michal Hocko wrote:
+[...]
+> > Currently we have a per-process (cpuset in fact) flag but this will
+> > change it to all or nothing. Is this really a good step?
+> > Btw. I do not mind having PF_SPREAD_PAGE enabled by default.
 > 
-> [   24.900482] WARNING: CPU: 12 PID: 3654 at lib/debugobjects.c:260
-> debug_print_object+
-> 0x8d/0xb0()
-> [   24.900482] ODEBUG: free active (active state 0) object type:
-> timer_list hint: delay
-> ed_work_timer_fn+0x0/0x20
-> [   24.900482] Modules linked in:
-> [   24.900482] CPU: 12 PID: 3654 Comm: kworker/12:1 Tainted: G       
-> W    3.13.0-rc4-n
-> ext-20131217-sasha-00013-ga878504-dirty #4149
-> [   24.900482] Workqueue: events kobject_delayed_cleanup
-> [   24.900482]  0000000000000104 ffff8804f429bae8 ffffffff8439501c
-> ffffffff8555a92c
-> [   24.900482]  ffff8804f429bb38 ffff8804f429bb28 ffffffff8112f8ac
-> ffff8804f429bb58
-> [   24.900482]  ffffffff856a9413 ffff880826333530 ffffffff85c68c40
-> ffffffff8801bb58
-> [   24.900482] Call Trace:
-> [   24.900482]  [<ffffffff8439501c>] dump_stack+0x52/0x7f
-> [   24.900482]  [<ffffffff8112f8ac>] warn_slowpath_common+0x8c/0xc0
-> [   24.900482]  [<ffffffff8112f996>] warn_slowpath_fmt+0x46/0x50
-> [   24.900482]  [<ffffffff81adb50d>] debug_print_object+0x8d/0xb0
-> [   24.900482]  [<ffffffff81153090>] ? __queue_work+0x3f0/0x3f0
-> [   24.900482]  [<ffffffff81adbd15>] __debug_check_no_obj_freed+0xa5/0x220
-> [   24.900482]  [<ffffffff832b1acb>] ? rtc_device_release+0x2b/0x40
-> [   24.900482]  [<ffffffff832b1acb>] ? rtc_device_release+0x2b/0x40
-> [   24.900482]  [<ffffffff81adbea5>] debug_check_no_obj_freed+0x15/0x20
-> [   24.900482]  [<ffffffff812ad54f>] kfree+0x21f/0x2e0
-> [   24.900482]  [<ffffffff832b1acb>] rtc_device_release+0x2b/0x40
-> [   24.900482]  [<ffffffff8207efd5>] device_release+0x65/0xc0
-> [   24.900482]  [<ffffffff81ab05e5>] kobject_cleanup+0x145/0x190
-> [   24.900482]  [<ffffffff81ab063d>] kobject_delayed_cleanup+0xd/0x10
-> [   24.900482]  [<ffffffff81153a60>] process_one_work+0x320/0x530
-> [   24.900482]  [<ffffffff81153940>] ? process_one_work+0x200/0x530
-> [   24.900482]  [<ffffffff81155fe5>] worker_thread+0x215/0x350
-> [   24.900482]  [<ffffffff81155dd0>] ? manage_workers+0x180/0x180
-> [   24.900482]  [<ffffffff8115c9c5>] kthread+0x105/0x110
-> [   24.900482]  [<ffffffff8115c8c0>] ? set_kthreadd_affinity+0x30/0x30
-> [   24.900482]  [<ffffffff843a5e7c>] ret_from_fork+0x7c/0xb0
-> [   24.900482]  [<ffffffff8115c8c0>] ? set_kthreadd_affinity+0x30/0x30
-> [   24.900482] ---[ end trace 45529ebf79b2573e ]---
+> I don't want to muck around with cpusets too much, tbh...  but I agree
+> that the behavior of PF_SPREAD_PAGE should be the default.  Except it
+> should honor zone_reclaim_mode and round-robin nodes that are within
+> RECLAIM_DISTANCE of the local one.
 
-Can anyone tell me whether the patch below makes sense ? Please note
-that I'm not familiar with the timer subsystem.
+Agreed.
 
-diff --git a/kernel/timer.c b/kernel/timer.c
-index accfd24..828b666 100644
---- a/kernel/timer.c
-+++ b/kernel/timer.c
-@@ -969,6 +969,8 @@ int del_timer(struct timer_list *timer)
-                base = lock_timer_base(timer, &flags);
-                ret = detach_if_pending(timer, base, true);
-                spin_unlock_irqrestore(&base->lock, flags);
-+       } else {
-+               debug_deactivate(timer);
-        }
+> I will have spotty access to internet starting tomorrow night until
+> New Year's.  Is there a chance we can maybe revert the NUMA aspects of
+> the original patch for now and leave it as a node-local zone fairness
+> thing?
 
-        return ret;
+Yes, that sounds perfectly reasonable to me.
+
+> The NUMA behavior was so broken on 3.12 that I doubt that
+> people have come to rely on the cache fairness on such machines in
+> that one release.  So we should be able to release 3.12-stable and
+> 3.13 with node-local zone fairness without regressing anybody, and
+> then give the NUMA aspect of it another try in 3.14.
+> 
+> Something like the following should restore NUMA behavior while still
+> fixing the kswapd vs. page allocator interaction bug of thrashing on
+> the highest zone. 
+
+Yes, it looks good to me. I guess zone_local could have stayed as it
+was because it shouldn't be a big deal to fall-back to a different node
+if the distance is LOCAL, but taking a conservative approach is not
+harmfull.
+
+> PS: zone_local() is in a CONFIG_NUMA block, which
+> is why accessing zone->node is safe :-)
+> 
+> ---
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index dd886fac451a..317ea747d2cd 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1822,7 +1822,7 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
+>  
+>  static bool zone_local(struct zone *local_zone, struct zone *zone)
+>  {
+> -	return node_distance(local_zone->node, zone->node) == LOCAL_DISTANCE;
+> +	return local_zone->node == zone->node;
+>  }
+>  
+>  static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
+> @@ -1919,18 +1919,17 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+>  		 * page was allocated in should have no effect on the
+>  		 * time the page has in memory before being reclaimed.
+>  		 *
+> -		 * When zone_reclaim_mode is enabled, try to stay in
+> -		 * local zones in the fastpath.  If that fails, the
+> -		 * slowpath is entered, which will do another pass
+> -		 * starting with the local zones, but ultimately fall
+> -		 * back to remote zones that do not partake in the
+> -		 * fairness round-robin cycle of this zonelist.
+> +		 * Try to stay in local zones in the fastpath.  If
+> +		 * that fails, the slowpath is entered, which will do
+> +		 * another pass starting with the local zones, but
+> +		 * ultimately fall back to remote zones that do not
+> +		 * partake in the fairness round-robin cycle of this
+> +		 * zonelist.
+>  		 */
+>  		if (alloc_flags & ALLOC_WMARK_LOW) {
+>  			if (zone_page_state(zone, NR_ALLOC_BATCH) <= 0)
+>  				continue;
+> -			if (zone_reclaim_mode &&
+> -			    !zone_local(preferred_zone, zone))
+> +			if (!zone_local(preferred_zone, zone))
+>  				continue;
+>  		}
+>  		/*
+> @@ -2396,7 +2395,7 @@ static void prepare_slowpath(gfp_t gfp_mask, unsigned int order,
+>  		 * thrash fairness information for zones that are not
+>  		 * actually part of this zonelist's round-robin cycle.
+>  		 */
+> -		if (zone_reclaim_mode && !zone_local(preferred_zone, zone))
+> +		if (!zone_local(preferred_zone, zone))
+>  			continue;
+>  		mod_zone_page_state(zone, NR_ALLOC_BATCH,
+>  				    high_wmark_pages(zone) -
+> 
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
