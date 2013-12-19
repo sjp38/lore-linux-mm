@@ -1,92 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 47D156B0036
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 15:12:03 -0500 (EST)
-Received: by mail-ee0-f42.google.com with SMTP id e53so668417eek.1
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 12:12:02 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m44si5779058eeo.226.2013.12.19.12.12.02
+Received: from mail-qe0-f47.google.com (mail-qe0-f47.google.com [209.85.128.47])
+	by kanga.kvack.org (Postfix) with ESMTP id CF0C36B0031
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 15:25:34 -0500 (EST)
+Received: by mail-qe0-f47.google.com with SMTP id t7so1558796qeb.34
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 12:25:34 -0800 (PST)
+Received: from mail-ve0-x229.google.com (mail-ve0-x229.google.com [2607:f8b0:400c:c01::229])
+        by mx.google.com with ESMTPS id f4si1710489qcs.77.2013.12.19.12.25.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 19 Dec 2013 12:12:02 -0800 (PST)
-Date: Thu, 19 Dec 2013 20:11:58 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: bad page state in 3.13-rc4
-Message-ID: <20131219201158.GT11295@suse.de>
-References: <20131219040738.GA10316@redhat.com>
- <CA+55aFwweoGs3eGWXFULcqnbRbpDhpj2qrefXB5OpQOiWW8wYA@mail.gmail.com>
- <alpine.DEB.2.10.1312190930190.4238@nuc>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 19 Dec 2013 12:25:33 -0800 (PST)
+Received: by mail-ve0-f169.google.com with SMTP id c14so995483vea.14
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 12:25:33 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1312190930190.4238@nuc>
+Reply-To: matvejchikov@gmail.com
+From: Matvejchikov Ilya <matvejchikov@gmail.com>
+Date: Fri, 20 Dec 2013 00:25:13 +0400
+Message-ID: <CAKh5naYHUUUPnSv4skmX=+88AB-L=M4ruQti5cX=1BRxZY2JRg@mail.gmail.com>
+Subject: A question aboout virtual mapping of kernel and module pages
+Content-Type: multipart/alternative; boundary=047d7b677208a6662d04ede8f615
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: Ilya Matveychikov <matvejchikov@gmail.com>
 
-On Thu, Dec 19, 2013 at 09:41:50AM -0600, Christoph Lameter wrote:
-> On Wed, 18 Dec 2013, Linus Torvalds wrote:
-> 
-> > Somebody who knows the migration code needs to look at this. ChristophL?
-> 
-> Its been awhile sorry and there has been a huge amount of work done on top
-> of my earlier work. Cannot debug that anymore and I am finding myself in
-> the role of the old guy who just complains a lot.
+--047d7b677208a6662d04ede8f615
+Content-Type: text/plain; charset=ISO-8859-1
 
-Shake your fist and tell the kids to get off your lawn.
+I'm using VMAP function to create memory writable mapping as it suggested
+in ksplice project. Here is the implementation of map_writable function:
 
-> Some of that
-> functionality seems bizarre to me like the on the fly conversion between
-> huge pages and regular pages, weird and complex page count handling etc
-> etc.
-> 
-> The last time I looked at the code I was horrified to find that the new
-> huge page migration does not use migration ptes to create a cooldown phase
-> but directly swaps the pmd. That used to cause huge problems with regular
-> pages in the past. But I was told that was all safe. Mel?
+/*
+ * map_writable creates a shadow page mapping of the range
+ * [addr, addr + len) so that we can write to code mapped read-only.
+ *
+ * It is similar to a generalized version of x86's text_poke.  But
+ * because one cannot use vmalloc/vfree() inside stop_machine, we use
+ * map_writable to map the pages before stop_machine, then use the
+ * mapping inside stop_machine, and unmap the pages afterwards.
+ */
+static void *map_writable(void *addr, size_t len)
+{
+        void *vaddr;
+        int nr_pages = DIV_ROUND_UP(offset_in_page(addr) + len, PAGE_SIZE);
+        struct page **pages = kmalloc(nr_pages * sizeof(*pages),
+GFP_KERNEL);
+        void *page_addr = (void *)((unsigned long)addr & PAGE_MASK);
+        int i;
 
-THP migration is specific to automatic NUMA balancing and the safety of
-how it works is dependant upon how pmds are marked NUMA and how they are
-cleared and migrated.
+        if (pages == NULL)
+                return NULL;
 
-Dave, was this a NUMA machine? If yes, was CONFIG_NUMA_BALANCING set? If
-yes, was NUMA_BALANCING_DEFAULT_ENABLED set or was numa_balancing=enable
-specified on the kernel command line? I'm skeptical that this is related to
-THP migration largely because the initial stack trace was in the compaction
-path which does not deal with THP migration.
+        for (i = 0; i < nr_pages; i++) {
+                if (__module_address((unsigned long)page_addr) == NULL) {
+                        pages[i] = virt_to_page(page_addr);
+                        WARN_ON(!PageReserved(pages[i]));
+                } else {
+                        pages[i] = vmalloc_to_page(page_addr);
+                }
+                if (pages[i] == NULL) {
+                        kfree(pages);
+                        return NULL;
+                }
+                page_addr += PAGE_SIZE;
+        }
+        vaddr = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
+        kfree(pages);
+        if (vaddr == NULL)
+                return NULL;
+        return vaddr + offset_in_page(addr);
+}
 
-If this is recent, then an outside possibility is that this is related to
-pmd-level split locks and mm->page_table_lock was protecting us from some
-split THP vs migration race or possibly a gup page for aio vs migration
-race we were previously unaware of (e.g. aio taking a reference on a page
-that migration has frozen the references on, bug would be a case where
-get_page instead of get_page_unless_zero was used) . Dave, when this this
-bug start triggering? If it's due to a recent change in trinity, can you
-check if 3.12 is also affected? If not, can you check if the bug started
-happening somewhere around these commits?
+This function works well when I used it to map kernel's text addresses. All
+fine and I can rewrite read-only data well via the mapping.
 
-ea1e7ed33708c7a760419ff9ded0a6cb90586a50 mm: create a separate slab for page->ptl allocation
-539edb5846c740d78a8b6c2e43a99ca4323df68f mm: properly separate the bloated ptl from the regular case
-49076ec2ccaf68610aa03d96bced9a6694b93ca1 mm: dynamically allocate page->ptl if it cannot be embedded to struct page
-e009bb30c8df8a52a9622b616b67436b6a03a0cd mm: implement split page table lock for PMD level
-c4088ebdca64c9a2e34a38177d2249805ede1f4b mm: convert the rest to new page table lock api
-cb900f41215447433cbc456d1c4294e858a84d7c mm, hugetlb: convert hugetlbfs to use split pmd lock
-c389a250ab4cfa4a3775d9f2c45271618af6d5b2 mm, thp: do not access mm->pmd_huge_pte directly
-117b0791ac42f2ec447bc864e70ad622b5604059 mm, thp: move ptl taking inside page_check_address_pmd()
-bf929152e9f6c49b66fad4ebf08cc95b02ce48f5 mm, thp: change pmd_trans_huge_lock() to return taken lock
-e1f56c89b040134add93f686931cc266541d239a mm: convert mm->nr_ptes to atomic_long_t
-e9bb18c7b95d4dcf8c7f0e14f920ca6f03109e75 mm: avoid increase sizeof(struct page) due to split page table lock
-b77d88d493b8fc7a4c2dadd3bb86d1dee2f53a56 mm: drop actor argument of do_generic_file_read()
+Now, I need to modify kernel module's text. Given the symbol address inside
+the module, I use the same method. The mapping I've got seems to be valid.
+But all my changes visible only in that mapping and not in the module!
 
-A few bad state bugs have shown up on linux-mm recently but my impression
-was that they were related to rmap_walk changes currently in next. The
-initial log indicated that this was 3.13-rc4 but is it really 3.13-rc4 or
-are there any -next patches applied?
+I suppose that in case of module mapping I get something like copy-on-write
+but I can't prove it.
 
--- 
-Mel Gorman
-SUSE Labs
+Can anyone explain me what's happend and why I can use it for mapping
+kernel and can't for modules?
+
+http://stackoverflow.com/questions/20658357/virtual-mapping-of-kernel-and-module-pages
+
+--047d7b677208a6662d04ede8f615
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">I&#39;m using VMAP function to create memory writable mapp=
+ing as it suggested in ksplice project. Here is the implementation of map_w=
+ritable function:<br><br>/*<br>=A0* map_writable creates a shadow page mapp=
+ing of the range<br>
+
+=A0* [addr, addr + len) so that we can write to code mapped read-only.<br>=
+=A0*<br>=A0* It is similar to a generalized version of x86&#39;s text_poke.=
+ =A0But<br>=A0* because one cannot use vmalloc/vfree() inside stop_machine,=
+ we use<br>
+
+=A0* map_writable to map the pages before stop_machine, then use the<br>=A0=
+* mapping inside stop_machine, and unmap the pages afterwards.<br>=A0*/<br>=
+static void *map_writable(void *addr, size_t len)<br>{<br>=A0 =A0 =A0 =A0 v=
+oid *vaddr;<br>
+
+=A0 =A0 =A0 =A0 int nr_pages =3D DIV_ROUND_UP(offset_in_page(addr) + len, P=
+AGE_SIZE);<br>=A0 =A0 =A0 =A0 struct page **pages =3D kmalloc(nr_pages * si=
+zeof(*pages), GFP_KERNEL);<br>=A0 =A0 =A0 =A0 void *page_addr =3D (void *)(=
+(unsigned long)addr &amp; PAGE_MASK);<br>
+
+=A0 =A0 =A0 =A0 int i;<br><br>=A0 =A0 =A0 =A0 if (pages =3D=3D NULL)<br>=A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 return NULL;<br><br>=A0 =A0 =A0 =A0 for (i =3D=
+ 0; i &lt; nr_pages; i++) {<br>=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (__module=
+_address((unsigned long)page_addr) =3D=3D NULL) {<br>=A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 pages[i] =3D virt_to_page(page_addr);<br>
+
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 WARN_ON(!PageReserved(pages=
+[i]));<br>=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 } else {<br>=A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 pages[i] =3D vmalloc_to_page(page_addr);<br>=A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 }<br>=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (pages=
+[i] =3D=3D NULL) {<br>=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree=
+(pages);<br>
+
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return NULL;<br>=A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 }<br>=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_addr +=3D PA=
+GE_SIZE;<br>=A0 =A0 =A0 =A0 }<br>=A0 =A0 =A0 =A0 vaddr =3D vmap(pages, nr_p=
+ages, VM_MAP, PAGE_KERNEL);<br>=A0 =A0 =A0 =A0 kfree(pages);<br>=A0 =A0 =A0=
+ =A0 if (vaddr =3D=3D NULL)<br>
+
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return NULL;<br>=A0 =A0 =A0 =A0 return vadd=
+r + offset_in_page(addr);<br>}<br><br>This function works well when I used =
+it to map kernel&#39;s text addresses. All fine and I can rewrite read-only=
+ data well via the mapping.<br>
+
+<br>Now, I need to modify kernel module&#39;s text. Given the symbol addres=
+s inside the module, I use the same method. The mapping I&#39;ve got seems =
+to be valid. But all my changes visible only in that mapping and not in the=
+ module!<br>
+
+<br>I suppose that in case of module mapping I get something like copy-on-w=
+rite but I can&#39;t prove it.<br><br>Can anyone explain me what&#39;s happ=
+end and why I can use it for mapping kernel and can&#39;t for modules?<br>
+
+<br><a href=3D"http://stackoverflow.com/questions/20658357/virtual-mapping-=
+of-kernel-and-module-pages">http://stackoverflow.com/questions/20658357/vir=
+tual-mapping-of-kernel-and-module-pages</a></div>
+
+--047d7b677208a6662d04ede8f615--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
