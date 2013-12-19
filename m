@@ -1,132 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
-	by kanga.kvack.org (Postfix) with ESMTP id C747D6B0031
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 09:41:36 -0500 (EST)
-Received: by mail-ee0-f42.google.com with SMTP id e53so519080eek.15
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 06:41:36 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 5si4602721eei.228.2013.12.19.06.41.35
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 19 Dec 2013 06:41:35 -0800 (PST)
-Date: Thu, 19 Dec 2013 15:41:34 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-Message-ID: <20131219144134.GH10855@dhcp22.suse.cz>
-References: <20131210103827.GB20242@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312101655430.22701@chino.kir.corp.google.com>
- <20131211095549.GA18741@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312111434200.7354@chino.kir.corp.google.com>
- <20131212103159.GB2630@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312131551220.28704@chino.kir.corp.google.com>
- <20131217162342.GG28991@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312171240541.21640@chino.kir.corp.google.com>
- <20131218200434.GA4161@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312182157510.1247@chino.kir.corp.google.com>
+Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 115036B0031
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 09:55:18 -0500 (EST)
+Received: by mail-ee0-f50.google.com with SMTP id c41so523503eek.23
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 06:55:18 -0800 (PST)
+Date: Thu, 19 Dec 2013 14:55:11 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH 0/3] Change how we determine when to hand out THPs
+Message-ID: <20131219145511.GO11295@suse.de>
+References: <20131212180037.GA134240@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1312182157510.1247@chino.kir.corp.google.com>
+In-Reply-To: <20131212180037.GA134240@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Alex Thorlton <athorlton@sgi.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Michel Lespinasse <walken@google.com>, Benjamin LaHaise <bcrl@kvack.org>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, David Rientjes <rientjes@google.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jiang Liu <jiang.liu@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Glauber Costa <glommer@parallels.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org
 
-On Wed 18-12-13 22:09:12, David Rientjes wrote:
-> On Wed, 18 Dec 2013, Michal Hocko wrote:
+On Thu, Dec 12, 2013 at 12:00:37PM -0600, Alex Thorlton wrote:
+> This patch changes the way we decide whether or not to give out THPs to
+> processes when they fault in pages.  The way things are right now,
+> touching one byte in a 2M chunk where no pages have been faulted in
+> results in a process being handed a 2M hugepage, which, in some cases,
+> is undesirable.  The most common issue seems to arise when a process
+> uses many cores to work on small portions of an allocated chunk of
+> memory.
 > 
-> > > For memory isolation, we'd only want to bypass memcg charges when 
-> > > absolutely necessary and it seems like TIF_MEMDIE is the only case where 
-> > > that's required.  We don't give processes with pending SIGKILLs or those 
-> > > in the exit() path access to memory reserves in the page allocator without 
-> > > first determining that reclaim can't make any progress for the same reason 
-> > > and then we only do so by setting TIF_MEMDIE when calling the oom killer.  
-> > 
-> > While I do understand arguments about isolation I would also like to be
-> > practical here. How many charges are we talking about? Dozen pages? Much
-> > more?
+> <SNIP>
 > 
-> The PF_EXITING bypass is indeed much less concerning than the 
-> fatal_signal_pending() bypass.
-
-OK, so can we at least agree on the patch posted here:
-https://lkml.org/lkml/2013/12/12/129. This is a real bug and definitely
-worth fixing.
-
-> > Besides that all of those should be very short lived because the task
-> > is going to die very soon and so the memory will be freed.
-> > 
+> As you can see there's a significant performance increase when running
+> this test with THP off.  Here's a pointer to the test, for those who are
+> interested:
 > 
-> We don't know how much memory is being allocated while 
-> fatal_signal_pending() is true before the process can handle the SIGKILL, 
-> so this could potentially bypass a significant amount of memory. 
-
-The question is. Does it in _practice_?
-
-We have this behavior since 867578cbccb08 which is 2.6.34 and we haven't
-seen a single report where a shotdown task would break over the limit too
-much. This would suggest that such a case doesn't happen very often.  If
-it happens or it is easily triggerable then I am all for reverting that
-check but that would require a proper justification rather than
-speculations.
-
-> If we are to have a configuration such as what Tejun recommended for
-> oom handling:
+> http://oss.sgi.com/projects/memtests/thp_pthread.tar.gz
 > 
-> 			 _____root______
-> 			/		\
-> 		    user		 oom
-> 		   /    \		/   \
-> 		  A	 B	       a     b
-> 
-> where the limit of A + B can be greater than the limit of user for 
-> overcommit, and the limit of user is the amount of RAM minus whatever is 
-> reserved for the oom hierarchy, then significant bypass to the root memcg 
-> will cause memcgs in the oom hierarchy to actually not be able to allocate 
-> memory from the page allocator.
+> My proposed solution to the problem is to allow users to set a
+> threshold at which THPs will be handed out.  The idea here is that, when
+> a user faults in a page in an area where they would usually be handed a
+> THP, we pull 512 pages off the free list, as we would with a regular
+> THP, but we only fault in single pages from that chunk, until the user
+> has faulted in enough pages to pass the threshold we've set. 
 
-I can imagine that the killed task might be in the middle of an
-allocation loop and rather far away from returning to userspace (e.g.
-readahead comes to mind - although that one shouldn't cause the global
-OOM).
-I would argue that we shouldn't reclaim in such a case and rather fail
-the charge. Reclaiming will not help us much. In an extreme case we
-would end up in OOM and the killed task would get TIF_MEMDIE and so it
-would be allowed to bypass charges and break the isolation anyway.
-Can we fail charges for killed tasks in general? I am very skeptical
-because this might be a regular allocation to make a progress on the way
-out.
+I have not read this thread yet so this is just me initial reaction to
+just this part.
 
-So this doesn't solve the isolation problem, it just postpones it to
-later and makes the life of other tasks in the same memcg worse because
-their memory gets reclaimed which can lead to different performance
-issues. And all of that for temporal charges which will go away shortly.
+First, you say that the propose solution is to allow users to set a
+threshold at which THPs will be handed out but you actually allocate all
+the pages up front so it's not just that. There a few things in play
 
-> The PF_EXITING bypass is much less concerning because we shouldn't be 
-> doing significant memory allocation in the exit() path, but it's also true 
-> that neither the PF_EXITING nor the fatal_signal_pending() bypass is 
-> required. 
+1. Deferred zeroing cost
+2. Deferred THP set cost
+3. Different TLB pressure
+4. Alignment issues and NUMA
 
-Yes, it is not, strictly speaking, required. It is very practical to do,
-though. We do not know much about the context which called us so we
-cannot base our decisions properly and just doing reclaim to see what
-happens sounds like a bad decision to me.
+All are important. It is common for there to be fewer large TLB entries
+than small ones. Workloads that sparsely reference data may suffer badly
+when using large pages as the TLB gets trashed. Your workload could be
+specifically testing for the TLB pressure (optimising point 3 above) in
+which case the procesor used for benchmarking is a major factor and it's
+not a universal win.
 
-> In Tejun's suggested configuration above, we absolutely do want 
-> to reclaim from the user hierarchy before declaring oom and setting 
-> TIF_MEMDIE, otherwise the oom hierarchy cannot allocate.
-> 
-> > So from my POV I would like to see these heuristics as simple as
-> > possible and placed at very few places. Doing a bypass before charge
-> > - or even after a failed charge before doing reclaim sounds like an easy
-> > enough heuristic without a big risk.
-> 
-> It's a very significant risk of depleting memory that is available for oom 
-> handling in the suggested configuration.
+For example, your workload may optimise 3 but other workloads may suffer
+because more faults are incurred until the threshold is reached, the
+page tables must be walked to initialse the remaining pages and then the
+THP setup and TLB flushed. 
+
+Keep these details in mind when measuring your patches if at all possible.
+
+Otherwise, on the face of it this is actually a similar proposal to "page
+reservation" described one of the more important large page papers written
+by Talluri (http://dl.acm.org/citation.cfm?id=195531). Right now you could
+consider Linux to be reserving pages with a promotion threshold of 1 and
+you're aiming to alter that threshold. Seems like a reasonable idea that
+will eventually work out even though I have not seen the implementation yet.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
