@@ -1,115 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 596686B0031
-	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 19:24:23 -0500 (EST)
-Received: by mail-pd0-f171.google.com with SMTP id z10so361073pdj.16
-        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 16:24:22 -0800 (PST)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id am2si1233436pad.67.2013.12.18.16.24.20
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 6ADDD6B0031
+	for <linux-mm@kvack.org>; Wed, 18 Dec 2013 19:29:01 -0500 (EST)
+Received: by mail-pb0-f54.google.com with SMTP id un15so387110pbc.27
+        for <linux-mm@kvack.org>; Wed, 18 Dec 2013 16:29:01 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id bc2si1214287pad.187.2013.12.18.16.28.59
         for <linux-mm@kvack.org>;
-        Wed, 18 Dec 2013 16:24:20 -0800 (PST)
-Message-ID: <52B23CAF.809@sr71.net>
-Date: Wed, 18 Dec 2013 16:24:15 -0800
-From: Dave Hansen <dave@sr71.net>
-MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 0/7] re-shrink 'struct page' when SLUB is on.
-References: <20131213235903.8236C539@viggo.jf.intel.com> <20131216160128.aa1f1eb8039f5eee578cf560@linux-foundation.org> <52AF9EB9.7080606@sr71.net> <0000014301223b3e-a73f3d59-8234-48f1-9888-9af32709a879-000000@email.amazonses.com>
-In-Reply-To: <0000014301223b3e-a73f3d59-8234-48f1-9888-9af32709a879-000000@email.amazonses.com>
-Content-Type: text/plain; charset=ISO-8859-1
+        Wed, 18 Dec 2013 16:28:59 -0800 (PST)
+Date: Wed, 18 Dec 2013 16:28:58 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/rmap: fix BUG at rmap_walk
+Message-Id: <20131218162858.6ec808c067baf4644532e110@linux-foundation.org>
+In-Reply-To: <1387412195-26498-1-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1387412195-26498-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pravin B Shelar <pshelar@nicira.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Pekka Enberg <penberg@kernel.org>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 12/17/2013 07:17 AM, Christoph Lameter wrote:
-> On Mon, 16 Dec 2013, Dave Hansen wrote:
+On Thu, 19 Dec 2013 08:16:35 +0800 Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
+
+> page_get_anon_vma() called in page_referenced_anon() will lock and 
+> increase the refcount of anon_vma, page won't be locked for anonymous 
+> page. This patch fix it by skip check anonymous page locked.
 > 
->> I'll do some testing and see if I can coax out any delta from the
->> optimization myself.  Christoph went to a lot of trouble to put this
->> together, so I assumed that he had a really good reason, although the
->> changelogs don't really mention any.
-> 
-> The cmpxchg on the struct page avoids disabling interrupts etc and
-> therefore simplifies the code significantly.
-> 
->> I honestly can't imagine that a cmpxchg16 is going to be *THAT* much
->> cheaper than a per-page spinlock.  The contended case of the cmpxchg is
->> way more expensive than spinlock contention for sure.
-> 
-> Make sure slub does not set __CMPXCHG_DOUBLE in the kmem_cache flags
-> and it will fall back to spinlocks if you want to do a comparison. Most
-> non x86 arches will use that fallback code.
+> [  588.698828] kernel BUG at mm/rmap.c:1663!
+
+Why is all this suddenly happening.  Did we change something, or did a
+new test get added to trinity?
+
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -1660,7 +1660,8 @@ done:
+>  
+>  int rmap_walk(struct page *page, struct rmap_walk_control *rwc)
+>  {
+> -	VM_BUG_ON(!PageLocked(page));
+> +	if (!PageAnon(page) || PageKsm(page))
+> +		VM_BUG_ON(!PageLocked(page));
+>  
+>  	if (unlikely(PageKsm(page)))
+>  		return rmap_walk_ksm(page, rwc);
+
+Is there any reason why rmap_walk_ksm() and rmap_walk_file() *need*
+PageLocked() whereas rmap_walk_anon() does not?  If so, let's implement
+it like this:
 
 
-I did four tests.  The first workload allocs a bunch of stuff, then
-frees it all with both the cmpxchg-enabled 64-byte struct page and the
-48-byte one that is supposed to use a spinlock.  I confirmed the 'struct
-page' size in both cases by looking at dmesg.
+--- a/mm/rmap.c~a
++++ a/mm/rmap.c
+@@ -1716,6 +1716,10 @@ static int rmap_walk_file(struct page *p
+ 	struct vm_area_struct *vma;
+ 	int ret = SWAP_AGAIN;
+ 
++	/*
++	 * page must be locked because <reason goes here>
++	 */
++	VM_BUG_ON(!PageLocked(page));
+ 	if (!mapping)
+ 		return ret;
+ 	mutex_lock(&mapping->i_mmap_mutex);
+@@ -1737,8 +1741,6 @@ static int rmap_walk_file(struct page *p
+ int rmap_walk(struct page *page, int (*rmap_one)(struct page *,
+ 		struct vm_area_struct *, unsigned long, void *), void *arg)
+ {
+-	VM_BUG_ON(!PageLocked(page));
+-
+ 	if (unlikely(PageKsm(page)))
+ 		return rmap_walk_ksm(page, rmap_one, arg);
+ 	else if (PageAnon(page))
+--- a/mm/ksm.c~a
++++ a/mm/ksm.c
+@@ -2006,6 +2006,9 @@ int rmap_walk_ksm(struct page *page, int
+ 	int search_new_forks = 0;
+ 
+ 	VM_BUG_ON(!PageKsm(page));
++	/*
++	 * page must be locked because <reason goes here>
++	 */
+ 	VM_BUG_ON(!PageLocked(page));
+ 
+ 	stable_node = page_stable_node(page);
 
-Essentially, I see no worthwhile benefit from using the double-cmpxchg
-over the spinlock.  In fact, the increased cache footprint makes it
-*substantially* worse when doing a tight loop.
 
-Unless somebody can find some holes in this, I think we have no choice
-but to unset the HAVE_ALIGNED_STRUCT_PAGE config option and revert using
-the cmpxchg, at least for now.
-
-Kernel config:
-https://www.sr71.net/~dave/intel/config-20131218-structpagesize
-System was an 80-core "Westmere" Xeon
-
-I suspect that the original data:
-
-> https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=8a5ec0b
-
-are invalid because the data there were not done with the increased
-'struct page' padding.
-
----------------------------
-
-First test:
-
-	for (i = 0; i < kmalloc_iterations; i++)
-        	gunk[i] = kmalloc(kmalloc_size, GFP_KERNEL);
-	for (i = 0; i < kmalloc_iterations; i++)
-		kfree(gunk[i]);
-
-All units are all in nanoseconds, lower is better.
-
-		size of 'struct page':
-kmalloc size	64-byte 48-byte
-8		98.2	105.7
-32		123.7	125.8
-128		293.9	289.9
-256		572.4	577.9
-1024		621.0	639.3
-4096		733.3	746.7
-8192		968.3	948.6
-
-As you can see, it's mostly a wash.  The 64-byte one looks to have a
-~8ns advantage, but any advantage disappears in to the noise on the
-other sizes.
-
----------------------------
-
-Second test did the same 'struct page sizes', but instead did a
-kmalloc() immediately followed by a kfree:
-
-	for (i = 0; i < kmalloc_iterations; i++) {
-        	gunk[i] = kmalloc(kmalloc_size, GFP_KERNEL);
-		kfree(gunk[i]);
-	}
-
-		size of 'struct page':
-kmalloc size	64-byte 48-byte
-8		58.6	43.0
-32		59.3	43.0
-128		59.4	43.2
-256		57.4	42.8
-1024		80.4	43.0
-4096		76.0	43.8
-8192		79.9	43.0
+Or if there is no reason why the page must be locked for
+rmap_walk_ksm() and rmap_walk_file(), let's just remove rmap_walk()'s
+VM_BUG_ON()?  And rmap_walk_ksm()'s as well - it's duplicative anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
