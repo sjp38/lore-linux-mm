@@ -1,143 +1,221 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f46.google.com (mail-bk0-f46.google.com [209.85.214.46])
-	by kanga.kvack.org (Postfix) with ESMTP id C2B9B6B0037
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 10:42:11 -0500 (EST)
-Received: by mail-bk0-f46.google.com with SMTP id u15so767656bkz.33
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 07:42:11 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id xy9si1568114bkb.222.2013.12.19.07.42.10
+Received: from mail-ea0-f176.google.com (mail-ea0-f176.google.com [209.85.215.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 481316B0037
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 10:44:24 -0500 (EST)
+Received: by mail-ea0-f176.google.com with SMTP id h14so552874eaj.21
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 07:44:23 -0800 (PST)
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com. [195.75.94.109])
+        by mx.google.com with ESMTPS id i1si4891058eev.131.2013.12.19.07.44.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 19 Dec 2013 07:42:10 -0800 (PST)
-Date: Thu, 19 Dec 2013 10:41:57 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 15/24] mm: page_alloc: exclude unreclaimable allocations
- from zone fairness policy
-Message-ID: <20131219154157.GN21724@cmpxchg.org>
-References: <20131219010847.E56B731C2B8@corp2gmr1-1.hot.corp.google.com>
+        Thu, 19 Dec 2013 07:44:23 -0800 (PST)
+Received: from /spool/local
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ehrhardt@linux.vnet.ibm.com>;
+	Thu, 19 Dec 2013 15:44:22 -0000
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 829DB1B0805F
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 15:43:29 +0000 (GMT)
+Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBJFi7I3786720
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 15:44:07 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av04.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBJFiIU9016122
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 08:44:19 -0700
+Message-ID: <52B31451.4020602@linux.vnet.ibm.com>
+Date: Thu, 19 Dec 2013 16:44:17 +0100
+From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131219010847.E56B731C2B8@corp2gmr1-1.hot.corp.google.com>
+Subject: Puzzling behaviour with multiple swap targets
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: torvalds@linux-foundation.org, dave.hansen@intel.com, mgorman@suse.de, riel@redhat.com, stable@kernel.org, mhocko@suse.cz, linux-mm@kvack.org
+To: linux-mm@kvack.org, Shaohua Li <shli@kernel.org>
+Cc: Christian Borntraeger <borntraeger@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Eberhard Pasch <epasch@de.ibm.com>
 
-On Wed, Dec 18, 2013 at 05:08:47PM -0800, akpm@linux-foundation.org wrote:
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Subject: mm: page_alloc: exclude unreclaimable allocations from zone fairness policy
-> 
-> Dave Hansen noted a regression in a microbenchmark that loops around
-> open() and close() on an 8-node NUMA machine and bisected it down to
-> 81c0a2bb515f ("mm: page_alloc: fair zone allocator policy").  That change
-> forces the slab allocations of the file descriptor to spread out to all 8
-> nodes, causing remote references in the page allocator and slab.
-> 
-> The round-robin policy is only there to provide fairness among memory
-> allocations that are reclaimed involuntarily based on pressure in each
-> zone.  It does not make sense to apply it to unreclaimable kernel
-> allocations that are freed manually, in this case instantly after the
-> allocation, and incur the remote reference costs twice for no reason.
-> 
-> Only round-robin allocations that are usually freed through page reclaim
-> or slab shrinking.
-> 
-> Bisected by Dave Hansen.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Reviewed-by: Rik van Riel <riel@redhat.com>
-> Cc: <stable@kernel.org>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Hi,
+I've analyzed swapping for a while now. I made some progress tuning my 
+system for better, faster and more efficient swapping. However one thing 
+still eludes me.
+I think by asking here we can only win. Either it is trivial to you and 
+I get a better understanding or you can take it as brain teaser over 
+Christmas time :-)
 
-Linus, I did not see this patch show up in your tree yet, so if it's
-not too late, please consider merging the following patch instead to
-disable NUMA aspects of the fairness allocator entirely until we can
-agree on how it should behave, how it should be configurable etc.:
+Long Story Short - the Issue:
+The more Swap targets I use, the slower the swapping becomes.
 
----
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch] mm: page_alloc: revert NUMA aspect of fair allocation policy
 
-81c0a2bb ("mm: page_alloc: fair zone allocator policy") meant to bring
-aging fairness among zones in system, but it was overzealous and badly
-regressed basic workloads on NUMA systems.
+Details - Issue:
+As mentioned before I made a lot of analysis already including 
+simplifications of the testcase.
+Therefore I only describe the most simplified setup and scenario.
+I run a testcase (see below) accessing overcommitted (1.25:1) memory in 
+4k chunks selecting the offset randomly.
+When swapping to a single disk I achieve about 20% more throughput 
+compared to just taking this disk, partitioning it into 4 equal pieces 
+and activate those as swap.
+The workload does read only in that overcommitted memory.
 
-Due to the way kswapd and page allocator interacts, we still want to
-make sure that all zones in any given node are used equally for all
-allocations to maximize memory utilization and prevent thrashing on
-the highest zone in the node.
+According to my understanding for read only the exact location shouldn't 
+matter.
+The fault will find a page that was swapped out and discarded, start the 
+I/O to bring it back going via the swap extends.
+There is just no code caring a lot about the partitions in the fault-IN 
+path.
+Also as the workload is uniform random locality on disk should be 
+irrelevant as the accesses to the four partitions will be mapped to just 
+the same disk.
 
-While the same principle applies to NUMA nodes - memory utilization is
-obviously improved by spreading allocations throughout all nodes -
-remote references can be costly and so many workloads prefer locality
-over memory utilization.  The original change assumed that
-zone_reclaim_mode would be a good enough predictor for that, but it
-turned out to be as indicative as a coin flip.
+Still the number of partitions on the same physical resource changes the 
+throughput I can achieve on memory.
 
-Revert the NUMA aspect of the fairness until we can find a proper way
-to make it configurable and agree on a sane default.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Cc: <stable@kernel.org> # 3.12
----
- mm/page_alloc.c | 19 +++++++++----------
- 1 file changed, 9 insertions(+), 10 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 580a5f075ed0..5248fe070aa4 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1816,7 +1816,7 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
- 
- static bool zone_local(struct zone *local_zone, struct zone *zone)
- {
--	return node_distance(local_zone->node, zone->node) == LOCAL_DISTANCE;
-+	return local_zone->node == zone->node;
- }
- 
- static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
-@@ -1913,18 +1913,17 @@ zonelist_scan:
- 		 * page was allocated in should have no effect on the
- 		 * time the page has in memory before being reclaimed.
- 		 *
--		 * When zone_reclaim_mode is enabled, try to stay in
--		 * local zones in the fastpath.  If that fails, the
--		 * slowpath is entered, which will do another pass
--		 * starting with the local zones, but ultimately fall
--		 * back to remote zones that do not partake in the
--		 * fairness round-robin cycle of this zonelist.
-+		 * Try to stay in local zones in the fastpath.  If
-+		 * that fails, the slowpath is entered, which will do
-+		 * another pass starting with the local zones, but
-+		 * ultimately fall back to remote zones that do not
-+		 * partake in the fairness round-robin cycle of this
-+		 * zonelist.
- 		 */
- 		if (alloc_flags & ALLOC_WMARK_LOW) {
- 			if (zone_page_state(zone, NR_ALLOC_BATCH) <= 0)
- 				continue;
--			if (zone_reclaim_mode &&
--			    !zone_local(preferred_zone, zone))
-+			if (!zone_local(preferred_zone, zone))
- 				continue;
- 		}
- 		/*
-@@ -2390,7 +2389,7 @@ static void prepare_slowpath(gfp_t gfp_mask, unsigned int order,
- 		 * thrash fairness information for zones that are not
- 		 * actually part of this zonelist's round-robin cycle.
- 		 */
--		if (zone_reclaim_mode && !zone_local(preferred_zone, zone))
-+		if (!zone_local(preferred_zone, zone))
- 			continue;
- 		mod_zone_page_state(zone, NR_ALLOC_BATCH,
- 				    high_wmark_pages(zone) -
--- 
-1.8.4.2
+Details - Setup
+My Main System is a System zEnterprise zEC12 s390 machine with 10GB Memory.
+I have 2 CPUs (FYI the issue appears no matter how much cpus - tested 1-64).
+The working set of the workload is 12.5 GB,so the overcommit ratio is a 
+light 1.25:1 (also tested from 1.02 up to 3:1 - it was visible in each 
+case, but 1.25:1 was the most stable)
+As swap device I use 1 FCP attached Disk served by a IBM DS8870 attached 
+via 8x8Gb FCP adapters on Server and Storage Server.
+The disk holds 256GB which leaves my case far away from 50% swap.
+Initially I used multiple disks, but the problem is more puzzling (as it 
+leaves less room for speculation) when just changing the #partitions on 
+the same physical resource.
+
+I verified it on an IBM X5 (Xeon X7560) and while the (local raid 5) 
+disk devices there are much slower, they still show the same issue when 
+comparing 1 disk 1 partition vs the same 1 disk 4 partitions.
+
+
+
+Remaining Leads:
+Using iostat to compare swap disk activity vs what my testcase can 
+achieve in memory identified that the "bad case" is less efficient.
+That means it doesn't have less/slower disk I/O, no in fact it has 
+usually slightly more disk I/O at about the same performance 
+characteristics than the "good case".
+That implies that the "efficiency" in the good case is better meaning 
+that it is more likely to have the "correct next page" at hand and in 
+swap cache.
+That is confirmed by the fact that setting page_cluster to 0 eliminates 
+the difference of 1 to many partitions.
+Unfortunately the meet at the lower throughput level.
+Also I don't see what the mm/swap code can make right/wrong for a 
+workload accessing 4k pages in a randomized way.
+There should be no statistically relevant value in the locality of the 
+workload that can be handled right.
+
+
+
+Rejected theories:
+I tested a lot of things already and some made it into tunings (IO 
+scheduler, page_cluster, ...), but non of them fixed the "more swap 
+targets -> slower" issue.
+- locking: Lockstat showed nothing changing a lot between 1 and 4 
+partitions. In fact the 5 most busy locks were related to huge pages and 
+disabling those got rid of the locks in lockstat, but didn't affect the 
+throughput at all.
+- scsi/blkdev: as complex multipath setups can often be a source of 
+issues I used a special s390 only memory device called xpram. It 
+essentially is a block device that fulfils I/O requests at make_request 
+level at memory speed. That sped up my test a lot, but taking the same 
+xpram memory once in one chunk and once broken into 4 pieces it still 
+was worse with the four pieces.
+- already fixed: there was an upstream patch commit ec8acf20 "swap: add 
+per-partition lock for swapfile" from "Shaohua Li <shli@kernel.org>" 
+that pretty much sounds like the same issue. But it was already applied.
+- Kernel Versions: while the majority of my tests were on 3.10.7 I 
+tested up to 3.12.2 and still saw the same issue.
+- Scaling in general: when I go from 1 to 4 partitions on a single disk 
+I see the mentioned ~20% drop in throughput.
+   But going further like 6 disks with 4 partitions each is at almost 
+the same level.
+   So it gets a bit worse, but the black magic seems to happen between 1->4.
+
+
+
+Details - Workload:
+While my original workload can be complex with configurable threads, 
+background load and all kind of accounting I thought it is better to 
+simplify it for this discussion. Therefore the code now is rather simple 
+and even lacking the majority of e.g. null pointer checks - but it is 
+easy to understand what it does.
+Essentially I allocate a given amount of memory - 12500MB by default. 
+Then I initialize that memory followed by a warmup phase of three runs 
+through the full working set. Then the real workload starts accessing 4k 
+chunks at random offsets.
+
+Since the code is so small now I think it qualifies as inline
+---cut here---
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+#define MB (1024*1024)
+int stopme = 0;
+unsigned chunk_size = 4096;
+unsigned no_chunks = 0;
+int duration = 600;
+size_t mem_size = 12500;
+
+void * uniform_random_access(char *buffer) {
+	unsigned long offset;
+	offset = ((unsigned long)(drand48()*(mem_size/chunk_size)))*chunk_size;
+	return (void*)(((unsigned long)buffer)+offset);
+}
+
+void  alrmhandler(int sig) {
+	signal(SIGALRM, SIG_IGN);
+	printf("\n\nGot alarm, set stopme\n");
+	stopme=1;
+}
+
+int main(int argc, char * argv[])
+{
+	unsigned long j, i = 0;
+	double rmem;
+	unsigned long local_reads = 0;
+	void *read_buffer;
+	char *c;
+	mem_size = mem_size * MB;
+	signal(SIGALRM, alrmhandler);
+	c=malloc(mem_size);
+	read_buffer = malloc(chunk_size);
+	memset(read_buffer,1,chunk_size);
+	memset(c,1,mem_size);
+	for (i=0; i<3; i++) {
+		for (j=0; j<(mem_size/chunk_size); j++) {
+			memcpy(read_buffer,uniform_random_access(c),chunk_size);
+		}
+	}
+	i=0;
+	alarm(duration);
+
+	while (1) {
+		for (j=0; j<(mem_size/chunk_size); j++) {
+			memcpy(read_buffer,uniform_random_access(c),chunk_size);
+			local_reads++;
+
+			if (stopme)
+				goto out;
+		}
+		i++;
+	}
+out:
+	rmem = ((mem_size/MB)*i*1) + ((local_reads*chunk_size)/MB);
+	printf("Accumulated Read Throughput (mb/s):  %20.2lf\n", rmem/duration);
+	printf("%% of working set covered:            %20.2lf\n", 
+(rmem/(mem_size/MB))*100.0 );
+	free(c);
+	free(read_buffer);
+	exit(0);
+}
+---cut here---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
