@@ -1,225 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-gg0-f170.google.com (mail-gg0-f170.google.com [209.85.161.170])
-	by kanga.kvack.org (Postfix) with ESMTP id E27666B0037
-	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 08:24:19 -0500 (EST)
-Received: by mail-gg0-f170.google.com with SMTP id 24so286646gge.1
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 05:24:19 -0800 (PST)
-Received: from mail-qa0-x233.google.com (mail-qa0-x233.google.com [2607:f8b0:400d:c00::233])
-        by mx.google.com with ESMTPS id x18si2836038qef.13.2013.12.19.05.24.18
+Received: from mail-ea0-f177.google.com (mail-ea0-f177.google.com [209.85.215.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B6ED6B0037
+	for <linux-mm@kvack.org>; Thu, 19 Dec 2013 08:29:09 -0500 (EST)
+Received: by mail-ea0-f177.google.com with SMTP id n15so478500ead.22
+        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 05:29:09 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h45si4315032eeo.193.2013.12.19.05.29.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 19 Dec 2013 05:24:18 -0800 (PST)
-Received: by mail-qa0-f51.google.com with SMTP id o15so1460490qap.3
-        for <linux-mm@kvack.org>; Thu, 19 Dec 2013 05:24:18 -0800 (PST)
-From: Dan Streetman <ddstreet@ieee.org>
-Subject: [PATCH] mm/zswap: add writethrough option
-Date: Thu, 19 Dec 2013 08:23:27 -0500
-Message-Id: <1387459407-29342-1-git-send-email-ddstreet@ieee.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 19 Dec 2013 05:29:08 -0800 (PST)
+Date: Thu, 19 Dec 2013 13:29:05 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH 0/6] Configurable fair allocation zone policy v4
+Message-ID: <20131219132905.GL11295@suse.de>
+References: <1387395723-25391-1-git-send-email-mgorman@suse.de>
+ <20131218210617.GC20038@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20131218210617.GC20038@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjennings@variantweb.net>
-Cc: Dan Streetman <ddstreet@ieee.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>, Shirish Pargaonkar <spargaonkar@suse.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Currently, zswap is writeback cache; stored pages are not sent
-to swap disk, and when zswap wants to evict old pages it must
-first write them back to swap cache/disk manually.  This avoids
-swap out disk I/O up front, but only moves that disk I/O to
-the writeback case (for pages that are evicted), and adds the
-overhead of having to uncompress the evicted pages and the
-need for an additional free page (to store the uncompressed page).
+On Wed, Dec 18, 2013 at 04:06:17PM -0500, Johannes Weiner wrote:
+> On Wed, Dec 18, 2013 at 07:41:57PM +0000, Mel Gorman wrote:
+> > This is still a work in progress. I know Johannes is maintaining his own
+> > patch which takes a different approach and has different priorities. Michal
+> > Hocko has raised concerns potentially affecting both. I'm releasing this so
+> > there is a basis of comparison with Johannes' patch. It's not necessarily
+> > the final shape of what we want to merge but the test results highlight
+> > the current behaviour has regressed performance for basic workloads.
+> > 
+> > A big concern is the semantics and tradeoffs of the tunable are quite
+> > involved.  Basically no matter what workload you get right, there will be
+> > a workload that will be wrong. This might indicate that this really needs
+> > to be controlled via memory policies or some means of detecting online
+> > which policy should be used on a per-process basis.
+> 
+> I'm more and more agreeing with this.  As I stated in my answer to
+> Michal, I may have seen this too black and white and the flipside of
+> the coin as not important enough.
+> 
+> But it really does point to a mempolicy.  As long as we can agree on a
+> default that makes most sense for users, there is no harm in offering
+> a choice.  E.g. aging artifacts are simply irrelevant without reclaim
+> going on, so a workload that mostly avoids it can benefit from a
+> placement policy that strives for locality without any downsides.
+> 
 
-This optionally changes zswap to writethrough cache by enabling
-frontswap_writethrough() before registering, so that any
-successful page store will also be written to swap disk.  The
-default remains writeback.  To enable writethrough, the param
-zswap.writethrough=1 must be used at boot.
+Agreed.
 
-Whether writeback or writethrough will provide better performance
-depends on many factors including disk I/O speed/throughput,
-CPU speed(s), system load, etc.  In most cases it is likely
-that writeback has better performance than writethrough before
-zswap is full, but after zswap fills up writethrough has
-better performance than writeback.
+In a land of free ponies we could try detecting online if a process should
+be using MPOL_LOCAL or MPOL_INTERLEAVE_FILE (or whatever the policy gets
+called) automatically if the process is using teh system default memory
+policy. Possible detection methods
 
-Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+1. Recent excessive fallback to remote nodes clean local node
+2. If kswapd awake for long periods of time receiving excessive wakeups
+   then switch the processes waking it to MPOL_INTERLEAVE_FILE. kswapd
+   could track who is keeping it awake on a list. Processes switch back
+   to MPOL_LOCAL after some period of time.
+3. Crystal ball instruction
 
----
+> > By default, this series does *not* interleave pagecache across nodes but
+> > it will interleave between local zones.
+> > 
+> > Changelog since V3
+> > o Add documentation
+> > o Bring tunable in line with Johannes
+> > o Common code when deciding to update the batch count and skip zones
+> > 
+> > Changelog since v2
+> > o Drop an accounting patch, behaviour is deliberate
+> > o Special case tmpfs and shmem pages for discussion
+> > 
+> > Changelog since v1
+> > o Fix lot of brain damage in the configurable policy patch
+> > o Yoink a page cache annotation patch
+> > o Only account batch pages against allocations eligible for the fair policy
+> > o Add patch that default distributes file pages on remote nodes
+> > 
+> > Commit 81c0a2bb ("mm: page_alloc: fair zone allocator policy") solved a
+> > bug whereby new pages could be reclaimed before old pages because of how
+> > the page allocator and kswapd interacted on the per-zone LRU lists.
+> > 
+> > Unfortunately a side-effect missed during review was that it's now very
+> > easy to allocate remote memory on NUMA machines. The problem is that
+> > it is not a simple case of just restoring local allocation policies as
+> > there are genuine reasons why global page aging may be prefereable. It's
+> > still a major change to default behaviour so this patch makes the policy
+> > configurable and sets what I think is a sensible default.
+> 
+> I wrote this to Michal, too: as 3.12 was only recently released and
+> its NUMA placement quite broken, I doubt that people running NUMA
+> machines already rely on this aspect of global page cache placement.
+> 
 
-Based on specjbb testing on my laptop, the results for both writeback
-and writethrough are better than not using zswap at all, but writeback
-does seem to be better than writethrough while zswap isn't full.  Once
-it fills up, performance for writethrough is essentially close to not
-using zswap, while writeback seems to be worse than not using zswap.
-However, I think more testing on a wider span of systems and conditions
-is needed.  Additionally, I'm not sure that specjbb is measuring true
-performance under fully loaded cpu conditions, so additional cpu load
-might need to be added or specjbb parameters modified (I took the
-values from the 4 "warehouses" test run).
+Doubtful. I bet some people are already depending on the local zone
+interleaving though. It's nice, we want that thing.
 
-In any case though, I think having writethrough as an option is still
-useful.  More changes could be made, such as changing from writeback
-to writethrough based on the zswap % full.  And the patch doesn't
-change default behavior - writethrough must be specifically enabled.
+> We should be able to restrict placement fairness to node-local zones
+> exclusively for 3.12-stable and possibly for 3.13, depending on how
+> fast we can agree on the interface.
+> 
+> I would prefer fixing the worst first so that we don't have to rush a
+> user interface in order to keep global cache aging, which nobody knows
+> exists yet.  But that part is simply not ready, so let's revert it.
+> And then place any subsequent attempts of implementing this for NUMA
+> on top of it, without depending on them for 3.12-stable and 3.13.
+> 
+> The following fix should produce the same outcomes on your tests:
+> 
+> ---
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Subject: [patch] mm: page_alloc: revert NUMA aspect of fair allocation
+>  policy
+> 
 
-The %-ized numbers I got from specjbb on average, using the default
-20% max_pool_percent and varying the amount of heap used as shown:
+Yes, it should.
 
-ram | no zswap | writeback | writethrough
-75     93.08     100         96.90
-87     96.58     95.58       96.72
-100    92.29     89.73       86.75
-112    63.80     38.66       19.66
-125    4.79      29.90       15.75
-137    4.99      4.50        4.75
-150    4.28      4.62        5.01
-162    5.20      2.94        4.66
-175    5.71      2.11        4.84
+I see no harm in including the change to zone_local to avoid calling
+node_distance as well. I would be very surprised if there are machines
+that are multiple nodes that are at LOCAL_DISTANCE. Whether you include
+that or not;
+
+Acked-by: Mel Gorman <mgorman@suse.de>
+
+Thanks.
 
 
-
- mm/zswap.c | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 64 insertions(+), 4 deletions(-)
-
-diff --git a/mm/zswap.c b/mm/zswap.c
-index e55bab9..2f919db 100644
---- a/mm/zswap.c
-+++ b/mm/zswap.c
-@@ -61,6 +61,8 @@ static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
- static u64 zswap_pool_limit_hit;
- /* Pages written back when pool limit was reached */
- static u64 zswap_written_back_pages;
-+/* Pages evicted when pool limit was reached */
-+static u64 zswap_evicted_pages;
- /* Store failed due to a reclaim failure after pool limit was reached */
- static u64 zswap_reject_reclaim_fail;
- /* Compressed page was too big for the allocator to (optimally) store */
-@@ -89,6 +91,10 @@ static unsigned int zswap_max_pool_percent = 20;
- module_param_named(max_pool_percent,
- 			zswap_max_pool_percent, uint, 0644);
- 
-+/* Writeback/writethrough mode (fixed at boot for now) */
-+static bool zswap_writethrough;
-+module_param_named(writethrough, zswap_writethrough, bool, 0444);
-+
- /*********************************
- * compression functions
- **********************************/
-@@ -629,6 +635,48 @@ end:
- }
- 
- /*********************************
-+* evict code
-+**********************************/
-+
-+/*
-+ * This evicts pages that have already been written through to swap.
-+ */
-+static int zswap_evict_entry(struct zbud_pool *pool, unsigned long handle)
-+{
-+	struct zswap_header *zhdr;
-+	swp_entry_t swpentry;
-+	struct zswap_tree *tree;
-+	pgoff_t offset;
-+	struct zswap_entry *entry;
-+
-+	/* extract swpentry from data */
-+	zhdr = zbud_map(pool, handle);
-+	swpentry = zhdr->swpentry; /* here */
-+	zbud_unmap(pool, handle);
-+	tree = zswap_trees[swp_type(swpentry)];
-+	offset = swp_offset(swpentry);
-+	BUG_ON(pool != tree->pool);
-+
-+	/* find and ref zswap entry */
-+	spin_lock(&tree->lock);
-+	entry = zswap_rb_search(&tree->rbroot, offset);
-+	if (!entry) {
-+		/* entry was invalidated */
-+		spin_unlock(&tree->lock);
-+		return 0;
-+	}
-+
-+	zswap_evicted_pages++;
-+
-+	zswap_rb_erase(&tree->rbroot, entry);
-+	zswap_entry_put(tree, entry);
-+
-+	spin_unlock(&tree->lock);
-+
-+	return 0;
-+}
-+
-+/*********************************
- * frontswap hooks
- **********************************/
- /* attempts to compress and store an single page */
-@@ -744,7 +792,7 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
- 	spin_lock(&tree->lock);
- 	entry = zswap_entry_find_get(&tree->rbroot, offset);
- 	if (!entry) {
--		/* entry was written back */
-+		/* entry was written back or evicted */
- 		spin_unlock(&tree->lock);
- 		return -1;
- 	}
-@@ -778,7 +826,7 @@ static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
- 	spin_lock(&tree->lock);
- 	entry = zswap_rb_search(&tree->rbroot, offset);
- 	if (!entry) {
--		/* entry was written back */
-+		/* entry was written back or evicted */
- 		spin_unlock(&tree->lock);
- 		return;
- 	}
-@@ -813,18 +861,26 @@ static void zswap_frontswap_invalidate_area(unsigned type)
- 	zswap_trees[type] = NULL;
- }
- 
--static struct zbud_ops zswap_zbud_ops = {
-+static struct zbud_ops zswap_zbud_writeback_ops = {
- 	.evict = zswap_writeback_entry
- };
-+static struct zbud_ops zswap_zbud_writethrough_ops = {
-+	.evict = zswap_evict_entry
-+};
- 
- static void zswap_frontswap_init(unsigned type)
- {
- 	struct zswap_tree *tree;
-+	struct zbud_ops *ops;
- 
- 	tree = kzalloc(sizeof(struct zswap_tree), GFP_KERNEL);
- 	if (!tree)
- 		goto err;
--	tree->pool = zbud_create_pool(GFP_KERNEL, &zswap_zbud_ops);
-+	if (zswap_writethrough)
-+		ops = &zswap_zbud_writethrough_ops;
-+	else
-+		ops = &zswap_zbud_writeback_ops;
-+	tree->pool = zbud_create_pool(GFP_KERNEL, ops);
- 	if (!tree->pool)
- 		goto freetree;
- 	tree->rbroot = RB_ROOT;
-@@ -875,6 +931,8 @@ static int __init zswap_debugfs_init(void)
- 			zswap_debugfs_root, &zswap_reject_compress_poor);
- 	debugfs_create_u64("written_back_pages", S_IRUGO,
- 			zswap_debugfs_root, &zswap_written_back_pages);
-+	debugfs_create_u64("evicted_pages", S_IRUGO,
-+			zswap_debugfs_root, &zswap_evicted_pages);
- 	debugfs_create_u64("duplicate_entry", S_IRUGO,
- 			zswap_debugfs_root, &zswap_duplicate_entry);
- 	debugfs_create_u64("pool_pages", S_IRUGO,
-@@ -919,6 +977,8 @@ static int __init init_zswap(void)
- 		pr_err("per-cpu initialization failed\n");
- 		goto pcpufail;
- 	}
-+	if (zswap_writethrough)
-+		frontswap_writethrough(true);
- 	frontswap_register_ops(&zswap_frontswap_ops);
- 	if (zswap_debugfs_init())
- 		pr_warn("debugfs initialization failed\n");
 -- 
-1.8.3.1
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
