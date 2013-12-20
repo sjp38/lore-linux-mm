@@ -1,81 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
-	by kanga.kvack.org (Postfix) with ESMTP id E2F2B6B003D
-	for <linux-mm@kvack.org>; Fri, 20 Dec 2013 06:18:23 -0500 (EST)
-Received: by mail-we0-f175.google.com with SMTP id t60so2283598wes.6
-        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 03:18:23 -0800 (PST)
-Received: from mail-ee0-x22a.google.com (mail-ee0-x22a.google.com [2a00:1450:4013:c00::22a])
-        by mx.google.com with ESMTPS id hm7si3657869wib.39.2013.12.20.03.18.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 20 Dec 2013 03:18:22 -0800 (PST)
-Received: by mail-ee0-f42.google.com with SMTP id e53so977494eek.15
-        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 03:18:22 -0800 (PST)
-Date: Fri, 20 Dec 2013 12:18:18 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 0/4] Fix ebizzy performance regression due to X86 TLB
- range flush v2
-Message-ID: <20131220111818.GA23349@gmail.com>
-References: <CA+55aFyNAigQqBk07xLpf0nkhZ_x-QkBYG8otRzsqg_8A2eg-Q@mail.gmail.com>
- <20131215155539.GM11295@suse.de>
- <20131216102439.GA21624@gmail.com>
- <20131216125923.GS11295@suse.de>
- <20131216134449.GA3034@gmail.com>
- <20131217092124.GV11295@suse.de>
- <20131217110051.GA27701@gmail.com>
- <20131219142405.GM11295@suse.de>
- <20131219164925.GA29546@gmail.com>
- <20131220111303.GZ11295@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131220111303.GZ11295@suse.de>
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id A1EF96B004D
+	for <linux-mm@kvack.org>; Fri, 20 Dec 2013 06:36:08 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id y10so2417937pdj.23
+        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 03:36:08 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id ob10si5002070pbb.247.2013.12.20.03.36.06
+        for <linux-mm@kvack.org>;
+        Fri, 20 Dec 2013 03:36:07 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mm: do not allocate page->ptl dynamically, if spinlock_t fits to long
+Date: Fri, 20 Dec 2013 13:35:58 +0200
+Message-Id: <1387539358-7302-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Alex Shi <alex.shi@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
+In struct page we have enough space to fit long-size page->ptl
+there, but we use dynamically-allocated page->ptl if
+size(spinlock_t) > sizeof(int). It hurts 64-bit architectures with
+CONFIG_GENERIC_LOCKBREAK, where sizeof(spinlock_t) == 8, but it
+easily fits into struct page.
 
-* Mel Gorman <mgorman@suse.de> wrote:
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Hugh Dickins <hughd@google.com>
+---
+ include/linux/lockref.h  | 2 +-
+ include/linux/mm.h       | 6 +++---
+ include/linux/mm_types.h | 3 ++-
+ kernel/bounds.c          | 2 +-
+ mm/memory.c              | 2 +-
+ 5 files changed, 8 insertions(+), 7 deletions(-)
 
-> On Thu, Dec 19, 2013 at 05:49:25PM +0100, Ingo Molnar wrote:
-> > 
-> > * Mel Gorman <mgorman@suse.de> wrote:
-> > 
-> > > [...]
-> > > 
-> > > Because we lack data on TLB range flush distributions I think we 
-> > > should still go with the conservative choice for the TLB flush 
-> > > shift. The worst case is really bad here and it's painfully obvious 
-> > > on ebizzy.
-> > 
-> > So I'm obviously much in favor of this - I'd in fact suggest 
-> > making the conservative choice on _all_ CPU models that have 
-> > aggressive TLB range values right now, because frankly the testing 
-> > used to pick those values does not look all that convincing to me.
-> 
-> I think the choices there are already reasonably conservative. I'd 
-> be reluctant to support merging a patch that made a choice on all 
-> CPU models without having access to the machines to run tests on. I 
-> don't see the Intel people volunteering to do the necessary testing.
-
-So based on this thread I lost confidence in test results on all CPU 
-models but the one you tested.
-
-I see two workable options right now:
-
- - We turn the feature off on all other CPU models, until someone
-   measures and tunes them reliably.
-
-or
-
- - We make all tunings that are more aggressive than yours to match
-   yours. In the future people can measure and argue for more
-   aggressive tunings.
-
-Thanks,
-
-	Ingo
+diff --git a/include/linux/lockref.h b/include/linux/lockref.h
+index c8929c3832db..4bfde0e99ed5 100644
+--- a/include/linux/lockref.h
++++ b/include/linux/lockref.h
+@@ -19,7 +19,7 @@
+ 
+ #define USE_CMPXCHG_LOCKREF \
+ 	(IS_ENABLED(CONFIG_ARCH_USE_CMPXCHG_LOCKREF) && \
+-	 IS_ENABLED(CONFIG_SMP) && !BLOATED_SPINLOCKS)
++	 IS_ENABLED(CONFIG_SMP) && SPINLOCK_SIZE <= 4)
+ 
+ struct lockref {
+ 	union {
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 1cedd000cf29..35527173cf50 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1317,7 +1317,7 @@ static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long a
+ #endif /* CONFIG_MMU && !__ARCH_HAS_4LEVEL_HACK */
+ 
+ #if USE_SPLIT_PTE_PTLOCKS
+-#if BLOATED_SPINLOCKS
++#if ALLOC_SPLIT_PTLOCKS
+ extern bool ptlock_alloc(struct page *page);
+ extern void ptlock_free(struct page *page);
+ 
+@@ -1325,7 +1325,7 @@ static inline spinlock_t *ptlock_ptr(struct page *page)
+ {
+ 	return page->ptl;
+ }
+-#else /* BLOATED_SPINLOCKS */
++#else /* ALLOC_SPLIT_PTLOCKS */
+ static inline bool ptlock_alloc(struct page *page)
+ {
+ 	return true;
+@@ -1339,7 +1339,7 @@ static inline spinlock_t *ptlock_ptr(struct page *page)
+ {
+ 	return &page->ptl;
+ }
+-#endif /* BLOATED_SPINLOCKS */
++#endif /* ALLOC_SPLIT_PTLOCKS */
+ 
+ static inline spinlock_t *pte_lockptr(struct mm_struct *mm, pmd_t *pmd)
+ {
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index bd299418a934..494b328c2a61 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -26,6 +26,7 @@ struct address_space;
+ #define USE_SPLIT_PTE_PTLOCKS	(NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS)
+ #define USE_SPLIT_PMD_PTLOCKS	(USE_SPLIT_PTE_PTLOCKS && \
+ 		IS_ENABLED(CONFIG_ARCH_ENABLE_SPLIT_PMD_PTLOCK))
++#define ALLOC_SPLIT_PTLOCKS	(SPINLOCK_SIZE > BITS_PER_LONG/8)
+ 
+ /*
+  * Each physical page in the system has a struct page associated with
+@@ -155,7 +156,7 @@ struct page {
+ 						 * system if PG_buddy is set.
+ 						 */
+ #if USE_SPLIT_PTE_PTLOCKS
+-#if BLOATED_SPINLOCKS
++#if ALLOC_SPLIT_PTLOCKS
+ 		spinlock_t *ptl;
+ #else
+ 		spinlock_t ptl;
+diff --git a/kernel/bounds.c b/kernel/bounds.c
+index 5253204afdca..9fd4246b04b8 100644
+--- a/kernel/bounds.c
++++ b/kernel/bounds.c
+@@ -22,6 +22,6 @@ void foo(void)
+ #ifdef CONFIG_SMP
+ 	DEFINE(NR_CPUS_BITS, ilog2(CONFIG_NR_CPUS));
+ #endif
+-	DEFINE(BLOATED_SPINLOCKS, sizeof(spinlock_t) > sizeof(int));
++	DEFINE(SPINLOCK_SIZE, sizeof(spinlock_t));
+ 	/* End of constants */
+ }
+diff --git a/mm/memory.c b/mm/memory.c
+index 5d9025f3b3e1..b6e211b779d0 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -4271,7 +4271,7 @@ void copy_user_huge_page(struct page *dst, struct page *src,
+ }
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
+ 
+-#if USE_SPLIT_PTE_PTLOCKS && BLOATED_SPINLOCKS
++#if ALLOC_SPLIT_PTLOCKS
+ bool ptlock_alloc(struct page *page)
+ {
+ 	spinlock_t *ptl;
+-- 
+1.8.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
