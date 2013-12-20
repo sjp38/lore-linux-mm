@@ -1,95 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 713816B0062
-	for <linux-mm@kvack.org>; Fri, 20 Dec 2013 07:20:24 -0500 (EST)
-Received: by mail-wg0-f49.google.com with SMTP id x12so2432627wgg.16
-        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 04:20:23 -0800 (PST)
-Received: from mail-ee0-x22a.google.com (mail-ee0-x22a.google.com [2a00:1450:4013:c00::22a])
-        by mx.google.com with ESMTPS id um9si3008951wjc.4.2013.12.20.04.20.23
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 20 Dec 2013 04:20:23 -0800 (PST)
-Received: by mail-ee0-f42.google.com with SMTP id e53so1022130eek.29
-        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 04:20:23 -0800 (PST)
-Date: Fri, 20 Dec 2013 13:20:19 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 0/4] Fix ebizzy performance regression due to X86 TLB
- range flush v2
-Message-ID: <20131220122019.GA24479@gmail.com>
-References: <20131216102439.GA21624@gmail.com>
- <20131216125923.GS11295@suse.de>
- <20131216134449.GA3034@gmail.com>
- <20131217092124.GV11295@suse.de>
- <20131217110051.GA27701@gmail.com>
- <20131219142405.GM11295@suse.de>
- <20131219164925.GA29546@gmail.com>
- <20131220111303.GZ11295@suse.de>
- <20131220111818.GA23349@gmail.com>
- <20131220115854.GA11295@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131220115854.GA11295@suse.de>
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 525AF6B0069
+	for <linux-mm@kvack.org>; Fri, 20 Dec 2013 08:10:49 -0500 (EST)
+Received: by mail-pb0-f49.google.com with SMTP id jt11so2574688pbb.22
+        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 05:10:48 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id dv5si5215772pbb.103.2013.12.20.05.10.47
+        for <linux-mm@kvack.org>;
+        Fri, 20 Dec 2013 05:10:47 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <20131216205244.GG21218@redhat.com>
+References: <20130223003232.4CDDB5A41B6@corp2gmr1-2.hot.corp.google.com>
+ <52AA0613.2000908@oracle.com>
+ <CA+55aFw3_0_Et9bbfWgGLXEUaGQW1HE8j=oGBqFG_8j+h6jmvQ@mail.gmail.com>
+ <CA+55aFyRZW=Uy9w+bZR0vMOFNPqV-yW2Xs9N42qEwTQ3AY0fDw@mail.gmail.com>
+ <52AE271C.4040805@oracle.com>
+ <CA+55aFw+-EB0J5v-1LMg1aiDZQJ-Mm0fzdbN312_nyBCVs+Fvw@mail.gmail.com>
+ <20131216124754.29063E0090@blue.fi.intel.com>
+ <52AF19CF.2060102@oracle.com>
+ <20131216205244.GG21218@redhat.com>
+Subject: Re: [patch 019/154] mm: make madvise(MADV_WILLNEED) support swap file
+ prefetch
+Content-Transfer-Encoding: 7bit
+Message-Id: <20131220131003.93C9AE0090@blue.fi.intel.com>
+Date: Fri, 20 Dec 2013 15:10:03 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Alex Shi <alex.shi@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, shli@kernel.org, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@fusionio.com>, linux-mm <linux-mm@kvack.org>
 
-
-* Mel Gorman <mgorman@suse.de> wrote:
-
-> tlb_flushall_shift == -1	Always use flush all
-> tlb_flushall_shift == 1		Aggressively use individual flushes
-> tlb_flushall_shift == 6		Conservatively use individual flushes
+Andrea Arcangeli wrote:
+> Hi,
 > 
-> IvyBridge was too aggressive using individual flushes and my patch 
-> makes it less aggressive.
+> On Mon, Dec 16, 2013 at 10:18:39AM -0500, Sasha Levin wrote:
+> > On 12/16/2013 07:47 AM, Kirill A. Shutemov wrote:
+> > > I probably miss some context here. Do you have crash on some use-case or
+> > > what? Could you point me to start of discussion.
+> > 
+> > Yes, Sorry, here's the crash that started this discussion originally:
+> > 
+> > The code points to:
+> > 
 > 
-> Intel's code for this currently looks like
-> 
->         switch ((c->x86 << 8) + c->x86_model) {
->         case 0x60f: /* original 65 nm celeron/pentium/core2/xeon, "Merom"/"Conroe" */
->         case 0x616: /* single-core 65 nm celeron/core2solo "Merom-L"/"Conroe-L" */
->         case 0x617: /* current 45 nm celeron/core2/xeon "Penryn"/"Wolfdale" */
->         case 0x61d: /* six-core 45 nm xeon "Dunnington" */
->                 tlb_flushall_shift = -1;
->                 break;
->         case 0x61a: /* 45 nm nehalem, "Bloomfield" */
->         case 0x61e: /* 45 nm nehalem, "Lynnfield" */
->         case 0x625: /* 32 nm nehalem, "Clarkdale" */
->         case 0x62c: /* 32 nm nehalem, "Gulftown" */
->         case 0x62e: /* 45 nm nehalem-ex, "Beckton" */
->         case 0x62f: /* 32 nm Xeon E7 */
->                 tlb_flushall_shift = 6;
->                 break;
->         case 0x62a: /* SandyBridge */
->         case 0x62d: /* SandyBridge, "Romely-EP" */
->                 tlb_flushall_shift = 5;
->                 break;
->         case 0x63a: /* Ivybridge */
->                 tlb_flushall_shift = 2;
->                 break;
->         default:
->                 tlb_flushall_shift = 6;
->         }
-> 
-> That default shift of "6" is already conservative which is why I 
-> don't think we need to change anything there. AMD is slightly more 
-> aggressive in their choices but not enough to panic.
+> At this point pmd_none_or_trans_huge_or_clear_bad guaranteed us the
+> pmd points to a regular pte.
 
-Lets face it, the per model tunings are most likely crap: the only 
-place where it significantly deviated from '6' was Ivybridge - and 
-there it was causing a regression.
+It took too long, but I finally found a way to reproduce the bug easily:
 
-With your patch we'll have 6 everywhere, except on SandyBridge where 
-it's slightly more agressive at 5 - which is probably noise.
+	#define _GNU_SOURCE
+	#include <sys/mman.h>
 
-So my argument is that we should use '6' _everywhere_ and do away with 
-the pretense that we do per model tunings...
+	#define MB (1024 * 1024)
 
-Thanks,
+	int main(int argc, char **argv)
+	{
+		void *p;
 
-	Ingo
+		p = mmap(0, 10 * MB, PROT_READ,
+				MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE,
+				-1, 0);
+		mprotect(p, 10 * MB, PROT_NONE);
+		madvise(p, 10 * MB, MADV_WILLNEED);
+		return 0;
+	}
+
+And I track it down to pmd_none_or_trans_huge_or_clear_bad().
+
+It seems it doesn't guarantee to return 1 for pmd_trans_huge() page and I
+don't know how it suppose to do this for non-bad page.
+
+I've fixed this with patch below.
+
+Andrea, do I miss something important here or
+pmd_none_or_trans_huge_or_clear_bad() is broken from day 1?
+
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index f330d28e4d0e..0694c9bf2a34 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -599,7 +599,7 @@ static inline int pmd_none_or_trans_huge_or_clear_bad(pmd_t *pmd)
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 	barrier();
+ #endif
+-	if (pmd_none(pmdval))
++	if (pmd_none(pmdval) || pmd_trans_huge(pmdval))
+ 		return 1;
+ 	if (unlikely(pmd_bad(pmdval))) {
+ 		if (!pmd_trans_huge(pmdval))
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
