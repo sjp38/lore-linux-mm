@@ -1,95 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f176.google.com (mail-ea0-f176.google.com [209.85.215.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 365636B0073
-	for <linux-mm@kvack.org>; Fri, 20 Dec 2013 08:56:02 -0500 (EST)
-Received: by mail-ea0-f176.google.com with SMTP id h14so1061139eaj.21
-        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 05:56:01 -0800 (PST)
+Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
+	by kanga.kvack.org (Postfix) with ESMTP id DEE166B0075
+	for <linux-mm@kvack.org>; Fri, 20 Dec 2013 09:01:59 -0500 (EST)
+Received: by mail-ee0-f46.google.com with SMTP id d49so1072739eek.19
+        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 06:01:59 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u49si8850347eep.85.2013.12.20.05.56.01
+        by mx.google.com with ESMTPS id w6si8901466eeg.27.2013.12.20.06.01.58
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 20 Dec 2013 05:56:01 -0800 (PST)
-Date: Fri, 20 Dec 2013 13:55:56 +0000
+        Fri, 20 Dec 2013 06:01:59 -0800 (PST)
+Date: Fri, 20 Dec 2013 14:01:53 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/4] Fix ebizzy performance regression due to X86 TLB
- range flush v2
-Message-ID: <20131220135556.GB11295@suse.de>
-References: <20131216125923.GS11295@suse.de>
- <20131216134449.GA3034@gmail.com>
- <20131217092124.GV11295@suse.de>
- <20131217110051.GA27701@gmail.com>
- <20131219142405.GM11295@suse.de>
- <20131219164925.GA29546@gmail.com>
- <20131220111303.GZ11295@suse.de>
- <20131220111818.GA23349@gmail.com>
- <20131220115854.GA11295@suse.de>
- <20131220122019.GA24479@gmail.com>
+Subject: Re: [PATCH v3 13/14] mm, hugetlb: retry if failed to allocate and
+ there is concurrent user
+Message-ID: <20131220140153.GC11295@suse.de>
+References: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1387349640-8071-14-git-send-email-iamjoonsoo.kim@lge.com>
+ <20131219170202.0df2d82a2adefa3ab616bdaa@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20131220122019.GA24479@gmail.com>
+In-Reply-To: <20131219170202.0df2d82a2adefa3ab616bdaa@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Alex Shi <alex.shi@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
-On Fri, Dec 20, 2013 at 01:20:19PM +0100, Ingo Molnar wrote:
+On Thu, Dec 19, 2013 at 05:02:02PM -0800, Andrew Morton wrote:
+> On Wed, 18 Dec 2013 15:53:59 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 > 
-> * Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > tlb_flushall_shift == -1	Always use flush all
-> > tlb_flushall_shift == 1		Aggressively use individual flushes
-> > tlb_flushall_shift == 6		Conservatively use individual flushes
+> > If parallel fault occur, we can fail to allocate a hugepage,
+> > because many threads dequeue a hugepage to handle a fault of same address.
+> > This makes reserved pool shortage just for a little while and this cause
+> > faulting thread who can get hugepages to get a SIGBUS signal.
 > > 
-> > IvyBridge was too aggressive using individual flushes and my patch 
-> > makes it less aggressive.
+> > To solve this problem, we already have a nice solution, that is,
+> > a hugetlb_instantiation_mutex. This blocks other threads to dive into
+> > a fault handler. This solve the problem clearly, but it introduce
+> > performance degradation, because it serialize all fault handling.
 > > 
-> > Intel's code for this currently looks like
-> > 
-> >         switch ((c->x86 << 8) + c->x86_model) {
-> >         case 0x60f: /* original 65 nm celeron/pentium/core2/xeon, "Merom"/"Conroe" */
-> >         case 0x616: /* single-core 65 nm celeron/core2solo "Merom-L"/"Conroe-L" */
-> >         case 0x617: /* current 45 nm celeron/core2/xeon "Penryn"/"Wolfdale" */
-> >         case 0x61d: /* six-core 45 nm xeon "Dunnington" */
-> >                 tlb_flushall_shift = -1;
-> >                 break;
-> >         case 0x61a: /* 45 nm nehalem, "Bloomfield" */
-> >         case 0x61e: /* 45 nm nehalem, "Lynnfield" */
-> >         case 0x625: /* 32 nm nehalem, "Clarkdale" */
-> >         case 0x62c: /* 32 nm nehalem, "Gulftown" */
-> >         case 0x62e: /* 45 nm nehalem-ex, "Beckton" */
-> >         case 0x62f: /* 32 nm Xeon E7 */
-> >                 tlb_flushall_shift = 6;
-> >                 break;
-> >         case 0x62a: /* SandyBridge */
-> >         case 0x62d: /* SandyBridge, "Romely-EP" */
-> >                 tlb_flushall_shift = 5;
-> >                 break;
-> >         case 0x63a: /* Ivybridge */
-> >                 tlb_flushall_shift = 2;
-> >                 break;
-> >         default:
-> >                 tlb_flushall_shift = 6;
-> >         }
-> > 
-> > That default shift of "6" is already conservative which is why I 
-> > don't think we need to change anything there. AMD is slightly more 
-> > aggressive in their choices but not enough to panic.
+> > Now, I try to remove a hugetlb_instantiation_mutex to get rid of
+> > performance degradation.
 > 
-> Lets face it, the per model tunings are most likely crap: the only 
-> place where it significantly deviated from '6' was Ivybridge - and 
-> there it was causing a regression.
-> 
-> With your patch we'll have 6 everywhere, except on SandyBridge where 
-> it's slightly more agressive at 5 - which is probably noise.
-> 
-> So my argument is that we should use '6' _everywhere_ and do away with 
-> the pretense that we do per model tunings...
+> So the whole point of the patch is to improve performance, but the
+> changelog doesn't include any performance measurements!
 > 
 
-Understood. I prototyped a suitable patch and stuck it in a queue. I
-also took the libery of adding a patch that also reset IvyBridge to 6
-out of curiousity. I'll post a suitable series once I have results.
+I don't really deal with hugetlbfs any more and I have not examined this
+series but I remember why I never really cared about this mutex. It wrecks
+fault scalability but AFAIK fault scalability almost never mattered for
+workloads using hugetlbfs.  The most common user of hugetlbfs by far is
+sysv shared memory. The memory is faulted early in the lifetime of the
+workload and after that it does not matter. At worst, it hurts application
+startup time but that is still poor motivation for putting a lot of work
+into removing the mutex.
+
+Microbenchmarks will be able to trigger problems in this area but it'd
+be important to check if any workload that matters is actually hitting
+that problem.
 
 -- 
 Mel Gorman
