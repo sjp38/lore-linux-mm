@@ -1,144 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
-	by kanga.kvack.org (Postfix) with ESMTP id D98056B0037
-	for <linux-mm@kvack.org>; Fri, 20 Dec 2013 03:25:25 -0500 (EST)
-Received: by mail-qc0-f174.google.com with SMTP id n7so1947532qcx.33
-        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 00:25:25 -0800 (PST)
-Received: from mail-vb0-x233.google.com (mail-vb0-x233.google.com [2607:f8b0:400c:c02::233])
-        by mx.google.com with ESMTPS id nh12si5193560qeb.80.2013.12.20.00.25.24
+Received: from mail-ea0-f172.google.com (mail-ea0-f172.google.com [209.85.215.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FB686B0038
+	for <linux-mm@kvack.org>; Fri, 20 Dec 2013 04:30:27 -0500 (EST)
+Received: by mail-ea0-f172.google.com with SMTP id q10so781632ead.31
+        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 01:30:26 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h45si7789481eeo.235.2013.12.20.01.30.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 20 Dec 2013 00:25:24 -0800 (PST)
-Received: by mail-vb0-f51.google.com with SMTP id 11so1205934vbe.24
-        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 00:25:24 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 20 Dec 2013 01:30:26 -0800 (PST)
+Date: Fri, 20 Dec 2013 09:30:22 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: LSF/MM 2014 Call For Proposals
+Message-ID: <20131220093022.GV11295@suse.de>
 MIME-Version: 1.0
-Reply-To: matvejchikov@gmail.com
-In-Reply-To: <20131220024126.GA1852@hp530>
-References: <CAKh5naYHUUUPnSv4skmX=+88AB-L=M4ruQti5cX=1BRxZY2JRg@mail.gmail.com>
- <20131220024126.GA1852@hp530>
-From: Matvejchikov Ilya <matvejchikov@gmail.com>
-Date: Fri, 20 Dec 2013 12:25:04 +0400
-Message-ID: <CAKh5naY5Y7Vo7jq7FrLoEb3792w0Kz1A=0+aS-oKtHj_omAKXg@mail.gmail.com>
-Subject: Re: A question aboout virtual mapping of kernel and module pages
-Content-Type: multipart/alternative; boundary=047d7b3435c00d495c04edf3056b
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Murzin <murzin.v@gmail.com>
-Cc: linux-mm@kvack.org
+To: linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, lsf-pc@lists.linux-foundation.org
 
---047d7b3435c00d495c04edf3056b
-Content-Type: text/plain; charset=ISO-8859-1
+The annual Linux Storage, Filesystem and Memory Management Summit for
+2014 will be held on March 24th and 25th before the Linux Foundation
+Collaboration summit at The Meritage Resort, Napa Valley, CA.
 
-Hi Vladimir,
+	http://events.linuxfoundation.org/events/linux-storage-filesystem-and-mm-summit
+	http://events.linuxfoundation.org/events/collaboration-summit
 
-Thanks for the suggestion, but the problem was not in mapping itself. I've
-been mistaken
-about
-it
-as
-the problem I've had was related to bug in my code. Thanks for the idea to
-check if I-D cache aliasing happens. It turns me to the
-right
-direction :)
+Note that we are running LSF/MM a little earlier in 2014 than in previous
+years.
 
-2013/12/20 Vladimir Murzin <murzin.v@gmail.com>
+On behalf of the committee I would like to issue a call for agenda proposals
+that are suitable for cross-track discussion as well as more technical
+subjects for discussion in the breakout sessions.
 
-> Hi Ilya!
->
-> On Fri, Dec 20, 2013 at 12:25:13AM +0400, Matvejchikov Ilya wrote:
-> > I'm using VMAP function to create memory writable mapping as it
-suggested
-> > in ksplice project. Here is the implementation of map_writable function:
-> > ...
-> >
-> > This function works well when I used it to map kernel's text addresses.
-All
-> > fine and I can rewrite read-only data well via the mapping.
-> >
-> > Now, I need to modify kernel module's text. Given the symbol address
-inside
-> > the module, I use the same method. The mapping I've got seems to be
-valid.
-> > But all my changes visible only in that mapping and not in the module!
-> >
-> > I suppose that in case of module mapping I get something like
-copy-on-write
-> > but I can't prove it.
-> >
->
-> Looks like I-D cache aliasing... Have you flushed cashes after your
-> modifications were done?
->
-> Vladimir
->
-> > Can anyone explain me what's happend and why I can use it for mapping
-> > kernel and can't for modules?
-> >
-> >
-http://stackoverflow.com/questions/20658357/virtual-mapping-of-kernel-and-module-pages
+1) Suggestions for agenda topics should be sent before January 31st
+2014 to:
 
---047d7b3435c00d495c04edf3056b
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+	lsf-pc@lists.linux-foundation.org
 
-<div dir=3D"ltr"><div class=3D"gmail_default" style=3D"font-family:verdana,=
-sans-serif;color:rgb(0,0,255);display:inline"></div>Hi Vladimir,<br><br>Tha=
-nks for the suggestion, but the problem was not in mapping itself. I&#39;ve=
- been mistaken<div class=3D"gmail_default" style=3D"font-family:verdana,san=
-s-serif;color:rgb(0,0,255);display:inline">
+and cc the Linux list or lists that are most interested in it:
 
- </div>about<div class=3D"gmail_default" style=3D"font-family:verdana,sans-=
-serif;color:rgb(0,0,255);display:inline"> </div>it<div class=3D"gmail_defau=
-lt" style=3D"font-family:verdana,sans-serif;color:rgb(0,0,255);display:inli=
-ne">
+	ATA: linux-ide@vger.kernel.org
+	FS: linux-fsdevel@vger.kernel.org
+	MM: linux-mm@kvack.org
+	SCSI: linux-scsi@vger.kernel.org
 
- </div>as<div class=3D"gmail_default" style=3D"font-family:verdana,sans-ser=
-if;color:rgb(0,0,255);display:inline"> </div>the problem I&#39;ve had was r=
-elated to bug in my code. Thanks for the idea to<div class=3D"gmail_default=
-" style=3D"font-family:verdana,sans-serif;color:rgb(0,0,255);display:inline=
-">
+People who need more time for visa applications should send proposals before
+January 15th. The committee will complete the first round of selections
+on that date to accommodate applications.
 
- </div>check if I-D cache aliasing happens. It turns me to the<div class=3D=
-"gmail_default" style=3D"font-family:verdana,sans-serif;color:rgb(0,0,255);=
-display:inline"> </div>right<div class=3D"gmail_default" style=3D"font-fami=
-ly:verdana,sans-serif;color:rgb(0,0,255);display:inline">
+Please remember to tag your subject with [LSF/MM TOPIC] to make it
+easier to track. Agenda topics and attendees will be selected by the
+program committee, but the final agenda will be formed by consensus of
+the attendees on the day.
 
- </div>direction :)<br><br>2013/12/20 Vladimir Murzin &lt;<a href=3D"mailto=
-:murzin.v@gmail.com" target=3D"_blank">murzin.v@gmail.com</a>&gt;<br>
-<br>&gt; Hi Ilya!<br>&gt;<br>&gt; On Fri, Dec 20, 2013 at 12:25:13AM +0400,=
- Matvejchikov Ilya wrote:<br>&gt; &gt; I&#39;m using VMAP function to creat=
-e memory writable mapping as it suggested<br>&gt; &gt; in ksplice project. =
-Here is the implementation of map_writable function:<br>
+We will try to cap attendance at around 25-30 per track to facilitate
+discussions although the final numbers will depend on the room sizes at
+the venue.
 
+2) Requests to attend the summit should be sent to:
 
-&gt; &gt; ...<br>&gt; &gt;<br>&gt; &gt; This function works well when I use=
-d it to map kernel&#39;s text addresses. All<br>&gt; &gt; fine and I can re=
-write read-only data well via the mapping.<br>&gt; &gt;<br>&gt; &gt; Now, I=
- need to modify kernel module&#39;s text. Given the symbol address inside<b=
-r>
+	lsf-pc@lists.linux-foundation.org
 
+Please summarize what expertise you will bring to the meeting, and what
+you would like to discuss. Please also tag your email with [LSF/MM ATTEND]
+so there is less chance of it getting lost in the large mail pile.
 
-&gt; &gt; the module, I use the same method. The mapping I&#39;ve got seems=
- to be valid.<br>&gt; &gt; But all my changes visible only in that mapping =
-and not in the module!<br>&gt; &gt;<br>&gt; &gt; I suppose that in case of =
-module mapping I get something like copy-on-write<br>
+Presentations are allowed to guide discussion, but are strongly
+discouraged. There will be no recording or audio bridge. However, we expect
+that written minutes will be published as we did in previous years
 
+2013:
+	http://lwn.net/Articles/548089/
 
-&gt; &gt; but I can&#39;t prove it.<br>&gt; &gt;<br>&gt;<br>&gt; Looks like=
- I-D cache aliasing... Have you flushed cashes after your<br>&gt; modificat=
-ions were done?<br>&gt;<br>&gt; Vladimir<br>&gt;<br>&gt; &gt; Can anyone ex=
-plain me what&#39;s happend and why I can use it for mapping<br>
+2012:
+	http://lwn.net/Articles/490114/
+	http://lwn.net/Articles/490501/
 
+2011:
+	http://lwn.net/Articles/436871/
+	http://lwn.net/Articles/437066/
 
-&gt; &gt; kernel and can&#39;t for modules?<br>&gt; &gt;<br>&gt; &gt; <a hr=
-ef=3D"http://stackoverflow.com/questions/20658357/virtual-mapping-of-kernel=
--and-module-pages" target=3D"_blank">http://stackoverflow.com/questions/206=
-58357/virtual-mapping-of-kernel-and-module-pages</a><br>
+3) If you have feedback on last year's meeting that we can use to
+improve this year's, please also send that to:
 
+	lsf-pc@lists.linux-foundation.org
 
-</div>
+Thank you on behalf of the program committee:
 
---047d7b3435c00d495c04edf3056b--
+Storage:
+	James Bottomley
+	Martin K. Petersen
+
+Filesystems:
+	Trond Myklebust
+	Jeff Layton
+	Dave Chinner
+	Jan Kara
+	Ted Ts'o
+
+MM:
+	Rik van Riel
+	Michel Lespinasse
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
