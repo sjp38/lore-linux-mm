@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 839176B006E
-	for <linux-mm@kvack.org>; Fri, 20 Dec 2013 08:31:48 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id x10so2519444pdj.19
-        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 05:31:48 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
-        by mx.google.com with ESMTP id dv5si5268494pbb.43.2013.12.20.05.31.45
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 12B9C6B0071
+	for <linux-mm@kvack.org>; Fri, 20 Dec 2013 08:36:27 -0500 (EST)
+Received: by mail-pb0-f44.google.com with SMTP id rq2so2614952pbb.17
+        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 05:36:26 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id eb3si5229935pbc.296.2013.12.20.05.36.24
         for <linux-mm@kvack.org>;
-        Fri, 20 Dec 2013 05:31:47 -0800 (PST)
+        Fri, 20 Dec 2013 05:36:25 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 In-Reply-To: <20131220131003.93C9AE0090@blue.fi.intel.com>
 References: <20130223003232.4CDDB5A41B6@corp2gmr1-2.hot.corp.google.com>
@@ -23,11 +23,11 @@ References: <20130223003232.4CDDB5A41B6@corp2gmr1-2.hot.corp.google.com>
 Subject: Re: [patch 019/154] mm: make madvise(MADV_WILLNEED) support swap file
  prefetch
 Content-Transfer-Encoding: 7bit
-Message-Id: <20131220133140.655DEE0090@blue.fi.intel.com>
-Date: Fri, 20 Dec 2013 15:31:40 +0200 (EET)
+Message-Id: <20131220133619.4980AE0090@blue.fi.intel.com>
+Date: Fri, 20 Dec 2013 15:36:19 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
+To: Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>
 Cc: Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, shli@kernel.org, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@fusionio.com>, linux-mm <linux-mm@kvack.org>
 
 Kirill A. Shutemov wrote:
@@ -75,6 +75,8 @@ Kirill A. Shutemov wrote:
 > 
 > Andrea, do I miss something important here or
 > pmd_none_or_trans_huge_or_clear_bad() is broken from day 1?
+
+[ resend with fixed mail headers. ]
 
 Oh.. It seems it cased by change pmd_bad() behaviour by commit be3a728427a6, so
 pmd_none_or_trans_huge_or_clear_bad() misses THP pmds if they are pmd_numa().
