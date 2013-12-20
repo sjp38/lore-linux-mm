@@ -1,57 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DA066B0031
-	for <linux-mm@kvack.org>; Fri, 20 Dec 2013 17:27:12 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id fa1so3187988pad.31
-        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 14:27:12 -0800 (PST)
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-        by mx.google.com with ESMTPS id qh6si6294659pbb.154.2013.12.20.14.27.10
+Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 4611E6B0031
+	for <linux-mm@kvack.org>; Fri, 20 Dec 2013 17:29:07 -0500 (EST)
+Received: by mail-qa0-f49.google.com with SMTP id ii20so3182841qab.1
+        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 14:29:07 -0800 (PST)
+Received: from devils.ext.ti.com (devils.ext.ti.com. [198.47.26.153])
+        by mx.google.com with ESMTPS id hj7si7316435qeb.2.2013.12.20.14.29.06
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 20 Dec 2013 14:27:11 -0800 (PST)
-Received: by mail-pa0-f47.google.com with SMTP id kq14so3206324pab.20
-        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 14:27:10 -0800 (PST)
-From: Olof Johansson <olof@lixom.net>
-Subject: [PATCH] mm: fix build of split ptlock code
-Date: Fri, 20 Dec 2013 14:28:05 -0800
-Message-Id: <1387578485-11829-1-git-send-email-olof@lixom.net>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 20 Dec 2013 14:29:06 -0800 (PST)
+From: Santosh Shilimkar <santosh.shilimkar@ti.com>
+Subject: [PATCH] mm/memblock: use WARN_ONCE when MAX_NUMNODES passed as input parameter
+Date: Fri, 20 Dec 2013 17:28:56 -0500
+Message-ID: <1387578536-18280-1-git-send-email-santosh.shilimkar@ti.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: torvalds@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Olof Johansson <olof@lixom.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>
+To: akpm@linux-foundation.org, tj@kernel.org
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, Grygorii Strashko <grygorii.strashko@ti.com>, Yinghai Lu <yinghai@kernel.org>, Santosh Shilimkar <santosh.shilimkar@ti.com>
 
-Commit 597d795a2a78 ('mm: do not allocate page->ptl dynamically, if
-spinlock_t fits to long') restructures some allocators that are compiled
-even if USE_SPLIT_PTLOCKS arn't used. It results in compilation failure:
+From: Grygorii Strashko <grygorii.strashko@ti.com>
 
-mm/memory.c:4282:6: error: 'struct page' has no member named 'ptl'
-mm/memory.c:4288:12: error: 'struct page' has no member named 'ptl'
+Check nid parameter and produce warning if it has deprecated MAX_NUMNODES
+value. Also re-assign NUMA_NO_NODE value to the nid parameter in this case.
 
-Add in the missing ifdef.
+These will help to identify the wrong API usage (the caller) and make code
+simpler.
 
-Fixes: 597d795a2a78 ('mm: do not allocate page->ptl dynamically, if spinlock_t fits to long')
-Signed-off-by: Olof Johansson <olof@lixom.net>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Hugh Dickins <hughd@google.com>
+Cc: Yinghai Lu <yinghai@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
+Signed-off-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
 ---
- mm/memory.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Incremental update on the memblock series as suggested by Tejun in
+below thread:
+	https://lkml.org/lkml/2013/12/14/159
 
-diff --git a/mm/memory.c b/mm/memory.c
-index b6e211b..6768ce9 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -4271,7 +4271,7 @@ void copy_user_huge_page(struct page *dst, struct page *src,
- }
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
+ mm/memblock.c |   21 ++++++++-------------
+ 1 file changed, 8 insertions(+), 13 deletions(-)
+
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 71b11d9..6af873a 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -707,11 +707,9 @@ void __init_memblock __next_free_mem_range(u64 *idx, int nid,
+ 	struct memblock_type *rsv = &memblock.reserved;
+ 	int mi = *idx & 0xffffffff;
+ 	int ri = *idx >> 32;
+-	bool check_node = (nid != NUMA_NO_NODE) && (nid != MAX_NUMNODES);
  
--#if ALLOC_SPLIT_PTLOCKS
-+#if USE_SPLIT_PTE_PTLOCKS && ALLOC_SPLIT_PTLOCKS
- bool ptlock_alloc(struct page *page)
- {
- 	spinlock_t *ptl;
+-	if (nid == MAX_NUMNODES)
+-		pr_warn_once("%s: Usage of MAX_NUMNODES is depricated. Use NUMA_NO_NODE instead\n",
+-			     __func__);
++	if (WARN_ONCE(nid == MAX_NUMNODES, "Usage of MAX_NUMNODES is deprecated. Use NUMA_NO_NODE instead\n"))
++		nid = NUMA_NO_NODE;
+ 
+ 	for ( ; mi < mem->cnt; mi++) {
+ 		struct memblock_region *m = &mem->regions[mi];
+@@ -719,7 +717,7 @@ void __init_memblock __next_free_mem_range(u64 *idx, int nid,
+ 		phys_addr_t m_end = m->base + m->size;
+ 
+ 		/* only memory regions are associated with nodes, check it */
+-		if (check_node && nid != memblock_get_region_node(m))
++		if (nid != NUMA_NO_NODE && nid != memblock_get_region_node(m))
+ 			continue;
+ 
+ 		/* scan areas before each reservation for intersection */
+@@ -775,11 +773,9 @@ void __init_memblock __next_free_mem_range_rev(u64 *idx, int nid,
+ 	struct memblock_type *rsv = &memblock.reserved;
+ 	int mi = *idx & 0xffffffff;
+ 	int ri = *idx >> 32;
+-	bool check_node = (nid != NUMA_NO_NODE) && (nid != MAX_NUMNODES);
+ 
+-	if (nid == MAX_NUMNODES)
+-		pr_warn_once("%s: Usage of MAX_NUMNODES is depricated. Use NUMA_NO_NODE instead\n",
+-			     __func__);
++	if (WARN_ONCE(nid == MAX_NUMNODES, "Usage of MAX_NUMNODES is deprecated. Use NUMA_NO_NODE instead\n"))
++		nid = NUMA_NO_NODE;
+ 
+ 	if (*idx == (u64)ULLONG_MAX) {
+ 		mi = mem->cnt - 1;
+@@ -792,7 +788,7 @@ void __init_memblock __next_free_mem_range_rev(u64 *idx, int nid,
+ 		phys_addr_t m_end = m->base + m->size;
+ 
+ 		/* only memory regions are associated with nodes, check it */
+-		if (check_node && nid != memblock_get_region_node(m))
++		if (nid != NUMA_NO_NODE && nid != memblock_get_region_node(m))
+ 			continue;
+ 
+ 		/* scan areas before each reservation for intersection */
+@@ -980,9 +976,8 @@ static void * __init memblock_virt_alloc_internal(
+ 	phys_addr_t alloc;
+ 	void *ptr;
+ 
+-	if (nid == MAX_NUMNODES)
+-		pr_warn("%s: usage of MAX_NUMNODES is depricated. Use NUMA_NO_NODE\n",
+-			__func__);
++	if (WARN_ONCE(nid == MAX_NUMNODES, "Usage of MAX_NUMNODES is deprecated. Use NUMA_NO_NODE instead\n"))
++		nid = NUMA_NO_NODE;
+ 
+ 	/*
+ 	 * Detect any accidental use of these APIs after slab is ready, as at
 -- 
-1.7.10.4
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
