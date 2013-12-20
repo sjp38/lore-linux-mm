@@ -1,40 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f78.google.com (mail-oa0-f78.google.com [209.85.219.78])
-	by kanga.kvack.org (Postfix) with ESMTP id 264406B0031
-	for <linux-mm@kvack.org>; Fri, 20 Dec 2013 15:39:47 -0500 (EST)
-Received: by mail-oa0-f78.google.com with SMTP id m1so40337oag.5
-        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 12:39:46 -0800 (PST)
-Received: from qmta11.emeryville.ca.mail.comcast.net (qmta11.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:211])
-        by mx.google.com with ESMTP id t7si3142052qar.107.2013.12.19.07.41.52
-        for <linux-mm@kvack.org>;
-        Thu, 19 Dec 2013 07:41:54 -0800 (PST)
-Date: Thu, 19 Dec 2013 09:41:50 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: bad page state in 3.13-rc4
-In-Reply-To: <CA+55aFwweoGs3eGWXFULcqnbRbpDhpj2qrefXB5OpQOiWW8wYA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.10.1312190930190.4238@nuc>
-References: <20131219040738.GA10316@redhat.com> <CA+55aFwweoGs3eGWXFULcqnbRbpDhpj2qrefXB5OpQOiWW8wYA@mail.gmail.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DA066B0031
+	for <linux-mm@kvack.org>; Fri, 20 Dec 2013 17:27:12 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id fa1so3187988pad.31
+        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 14:27:12 -0800 (PST)
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+        by mx.google.com with ESMTPS id qh6si6294659pbb.154.2013.12.20.14.27.10
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 20 Dec 2013 14:27:11 -0800 (PST)
+Received: by mail-pa0-f47.google.com with SMTP id kq14so3206324pab.20
+        for <linux-mm@kvack.org>; Fri, 20 Dec 2013 14:27:10 -0800 (PST)
+From: Olof Johansson <olof@lixom.net>
+Subject: [PATCH] mm: fix build of split ptlock code
+Date: Fri, 20 Dec 2013 14:28:05 -0800
+Message-Id: <1387578485-11829-1-git-send-email-olof@lixom.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: torvalds@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Olof Johansson <olof@lixom.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>
 
-On Wed, 18 Dec 2013, Linus Torvalds wrote:
+Commit 597d795a2a78 ('mm: do not allocate page->ptl dynamically, if
+spinlock_t fits to long') restructures some allocators that are compiled
+even if USE_SPLIT_PTLOCKS arn't used. It results in compilation failure:
 
-> Somebody who knows the migration code needs to look at this. ChristophL?
+mm/memory.c:4282:6: error: 'struct page' has no member named 'ptl'
+mm/memory.c:4288:12: error: 'struct page' has no member named 'ptl'
 
-Its been awhile sorry and there has been a huge amount of work done on top
-of my earlier work. Cannot debug that anymore and I am finding myself in
-the role of the old guy who just complains a lot. Some of that
-functionality seems bizarre to me like the on the fly conversion between
-huge pages and regular pages, weird and complex page count handling etc
-etc.
+Add in the missing ifdef.
 
-The last time I looked at the code I was horrified to find that the new
-huge page migration does not use migration ptes to create a cooldown phase
-but directly swaps the pmd. That used to cause huge problems with regular
-pages in the past. But I was told that was all safe. Mel?
+Fixes: 597d795a2a78 ('mm: do not allocate page->ptl dynamically, if spinlock_t fits to long')
+Signed-off-by: Olof Johansson <olof@lixom.net>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Hugh Dickins <hughd@google.com>
+---
+ mm/memory.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/memory.c b/mm/memory.c
+index b6e211b..6768ce9 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -4271,7 +4271,7 @@ void copy_user_huge_page(struct page *dst, struct page *src,
+ }
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
+ 
+-#if ALLOC_SPLIT_PTLOCKS
++#if USE_SPLIT_PTE_PTLOCKS && ALLOC_SPLIT_PTLOCKS
+ bool ptlock_alloc(struct page *page)
+ {
+ 	spinlock_t *ptl;
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
