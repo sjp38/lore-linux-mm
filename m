@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E61A6B003A
+Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E42C6B003D
 	for <linux-mm@kvack.org>; Sat, 21 Dec 2013 10:54:26 -0500 (EST)
-Received: by mail-la0-f53.google.com with SMTP id mc6so1631134lab.12
+Received: by mail-la0-f54.google.com with SMTP id b8so1574304lan.41
         for <linux-mm@kvack.org>; Sat, 21 Dec 2013 07:54:25 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id rc10si5266600lbb.179.2013.12.21.07.54.24
+        by mx.google.com with ESMTPS id h4si5304828lam.26.2013.12.21.07.54.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 21 Dec 2013 07:54:24 -0800 (PST)
+        Sat, 21 Dec 2013 07:54:25 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH 04/11] memcg, slab: fix barrier usage when accessing memcg_caches
-Date: Sat, 21 Dec 2013 19:53:55 +0400
-Message-ID: <519657f631ee090942106f77f203c2b9e3453345.1387640542.git.vdavydov@parallels.com>
+Subject: [PATCH 02/11] memcg, slab: kmem_cache_create_memcg(): fix memleak on fail path
+Date: Sat, 21 Dec 2013 19:53:53 +0400
+Message-ID: <36af4620739c61830f5556fe8164c67d40a6a182.1387640541.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1387640541.git.vdavydov@parallels.com>
 References: <cover.1387640541.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,22 +22,12 @@ List-ID: <linux-mm.kvack.org>
 To: mhocko@suse.cz
 Cc: glommer@gmail.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
 
-Each root kmem_cache has pointers to per-memcg caches stored in its
-memcg_params::memcg_caches array. Whenever we want to allocate a slab
-for a memcg, we access this array to get per-memcg cache to allocate
-from (see memcg_kmem_get_cache()). The access must be lock-free for
-performance reasons, so we should use barriers to assert the kmem_cache
-is up-to-date.
+We do not free the cache's memcg_params if __kmem_cache_create fails.
+Fix this.
 
-First, we should place a write barrier immediately before setting the
-pointer to it in the memcg_caches array in order to make sure nobody
-will see a partially initialized object. Second, we should issue a read
-barrier before dereferencing the pointer to conform to the write
-barrier.
-
-However, currently the barrier usage looks rather strange. We have a
-write barrier *after* setting the pointer and a read barrier *before*
-reading the pointer, which is incorrect. This patch fixes this.
+Plus, rename memcg_register_cache() to memcg_alloc_cache_params(),
+because it actually does not register the cache anywhere, but simply
+initialize kmem_cache::memcg_params.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 Cc: Michal Hocko <mhocko@suse.cz>
@@ -49,86 +39,104 @@ Cc: Pekka Enberg <penberg@kernel.org>
 Cc: Christoph Lameter <cl@linux.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- mm/memcontrol.c |   24 ++++++++++--------------
- mm/slab.h       |   12 +++++++++++-
- 2 files changed, 21 insertions(+), 15 deletions(-)
+ include/linux/memcontrol.h |   14 +++++++++-----
+ mm/memcontrol.c            |   11 ++++++++---
+ mm/slab_common.c           |    3 ++-
+ 3 files changed, 19 insertions(+), 9 deletions(-)
 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index b3e7a66..5e6541f 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -497,8 +497,9 @@ void __memcg_kmem_commit_charge(struct page *page,
+ void __memcg_kmem_uncharge_pages(struct page *page, int order);
+ 
+ int memcg_cache_id(struct mem_cgroup *memcg);
+-int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
+-			 struct kmem_cache *root_cache);
++int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
++			     struct kmem_cache *root_cache);
++void memcg_free_cache_params(struct kmem_cache *s);
+ void memcg_release_cache(struct kmem_cache *cachep);
+ void memcg_cache_list_add(struct mem_cgroup *memcg, struct kmem_cache *cachep);
+ 
+@@ -640,13 +641,16 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
+ 	return -1;
+ }
+ 
+-static inline int
+-memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
+-		     struct kmem_cache *root_cache)
++static inline int memcg_alloc_cache_params(struct mem_cgroup *memcg,
++		struct kmem_cache *s, struct kmem_cache *root_cache)
+ {
+ 	return 0;
+ }
+ 
++static inline void memcg_free_cache_params(struct kmem_cache *s);
++{
++}
++
+ static inline void memcg_release_cache(struct kmem_cache *cachep)
+ {
+ }
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index f8eb994..999e7d4 100644
+index bf5e894..8c47910 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -3238,12 +3238,14 @@ void memcg_register_cache(struct kmem_cache *s)
- 	list_add(&s->memcg_params->list, &memcg->memcg_slab_caches);
- 	mutex_unlock(&memcg->slab_caches_mutex);
- 
--	root->memcg_params->memcg_caches[id] = s;
- 	/*
--	 * the readers won't lock, make sure everybody sees the updated value,
--	 * so they won't put stuff in the queue again for no reason
-+	 * Since readers won't lock (see cache_from_memcg_idx()), we need a
-+	 * barrier here to ensure nobody will see the kmem_cache partially
-+	 * initialized.
- 	 */
--	wmb();
-+	smp_wmb();
-+
-+	root->memcg_params->memcg_caches[id] = s;
+@@ -3195,8 +3195,8 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
+ 	return 0;
  }
  
- void memcg_unregister_cache(struct kmem_cache *s)
-@@ -3569,7 +3571,7 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
- 					  gfp_t gfp)
+-int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
+-			 struct kmem_cache *root_cache)
++int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
++			     struct kmem_cache *root_cache)
  {
- 	struct mem_cgroup *memcg;
--	int idx;
-+	struct kmem_cache *memcg_cachep;
+ 	size_t size;
  
- 	VM_BUG_ON(!cachep->memcg_params);
- 	VM_BUG_ON(!cachep->memcg_params->is_root_cache);
-@@ -3583,15 +3585,9 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
- 	if (!memcg_can_account_kmem(memcg))
- 		goto out;
- 
--	idx = memcg_cache_id(memcg);
--
--	/*
--	 * barrier to mare sure we're always seeing the up to date value.  The
--	 * code updating memcg_caches will issue a write barrier to match this.
--	 */
--	read_barrier_depends();
--	if (likely(cache_from_memcg_idx(cachep, idx))) {
--		cachep = cache_from_memcg_idx(cachep, idx);
-+	memcg_cachep = cache_from_memcg_idx(cachep, memcg_cache_id(memcg));
-+	if (likely(memcg_cachep)) {
-+		cachep = memcg_cachep;
- 		goto out;
- 	}
- 
-diff --git a/mm/slab.h b/mm/slab.h
-index 0859c42..72d1f9d 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -163,9 +163,19 @@ static inline const char *cache_name(struct kmem_cache *s)
- static inline struct kmem_cache *
- cache_from_memcg_idx(struct kmem_cache *s, int idx)
- {
-+	struct kmem_cache *cachep;
-+
- 	if (!s->memcg_params)
- 		return NULL;
--	return s->memcg_params->memcg_caches[idx];
-+	cachep = s->memcg_params->memcg_caches[idx];
-+
-+	/*
-+	 * Make sure we will access the up-to-date value. The code updating
-+	 * memcg_caches issues a write barrier to match this (see
-+	 * memcg_register_cache()).
-+	 */
-+	smp_read_barrier_depends();
-+	return cachep;
+@@ -3224,6 +3224,11 @@ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
+ 	return 0;
  }
  
- static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
++void memcg_free_cache_params(struct kmem_cache *s)
++{
++	kfree(s->memcg_params);
++}
++
+ void memcg_release_cache(struct kmem_cache *s)
+ {
+ 	struct kmem_cache *root;
+@@ -3252,7 +3257,7 @@ void memcg_release_cache(struct kmem_cache *s)
+ 
+ 	css_put(&memcg->css);
+ out:
+-	kfree(s->memcg_params);
++	memcg_free_cache_params(s);
+ }
+ 
+ /*
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index f70df3e..70f9e24 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -205,7 +205,7 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
+ 	if (!s->name)
+ 		goto out_free_cache;
+ 
+-	err = memcg_register_cache(memcg, s, parent_cache);
++	err = memcg_alloc_cache_params(memcg, s, parent_cache);
+ 	if (err)
+ 		goto out_free_cache;
+ 
+@@ -235,6 +235,7 @@ out_unlock:
+ 	return s;
+ 
+ out_free_cache:
++	memcg_free_cache_params(s);
+ 	kfree(s->name);
+ 	kmem_cache_free(kmem_cache, s);
+ 	goto out_unlock;
 -- 
 1.7.10.4
 
