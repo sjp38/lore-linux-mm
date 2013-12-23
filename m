@@ -1,94 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 424E36B0031
-	for <linux-mm@kvack.org>; Mon, 23 Dec 2013 12:24:14 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id x10so5320017pdj.19
-        for <linux-mm@kvack.org>; Mon, 23 Dec 2013 09:24:13 -0800 (PST)
+Received: from mail-qe0-f51.google.com (mail-qe0-f51.google.com [209.85.128.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A81CC6B0031
+	for <linux-mm@kvack.org>; Mon, 23 Dec 2013 14:31:02 -0500 (EST)
+Received: by mail-qe0-f51.google.com with SMTP id 1so5485373qee.38
+        for <linux-mm@kvack.org>; Mon, 23 Dec 2013 11:31:02 -0800 (PST)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id im7si13182503pbd.11.2013.12.23.09.24.12
+        by mx.google.com with ESMTPS id o8si15657492qey.81.2013.12.23.11.31.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 23 Dec 2013 09:24:13 -0800 (PST)
-Message-ID: <52B871B2.7040409@oracle.com>
-Date: Mon, 23 Dec 2013 12:24:02 -0500
+        Mon, 23 Dec 2013 11:31:01 -0800 (PST)
+Message-ID: <52B88F6E.8070909@oracle.com>
+Date: Mon, 23 Dec 2013 14:30:54 -0500
 From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Subject: Re: mm: kernel BUG at include/linux/swapops.h:131!
-References: <52B1C143.8080301@oracle.com>
-In-Reply-To: <52B1C143.8080301@oracle.com>
+Subject: mm: kernel BUG at mm/huge_memory.c:1440!
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, khlebnikov@openvz.org, LKML <linux-kernel@vger.kernel.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Bob Liu <bob.liu@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
 
-Ping?
+Hi all,
 
-I've also Cc'ed the "this page shouldn't be locked at all" team.
+While fuzzing with trinity inside a KVM tools guest running latest -next kernel, I've stumbled on 
+the following spew.
 
-On 12/18/2013 10:37 AM, Sasha Levin wrote:
-> Hi all,
->
-> While fuzzing with trinity inside a KVM tools guest running latest -next kernel, I've stumbled on
-> the following spew.
->
-> The code is in zap_pte_range():
->
->                  if (!non_swap_entry(entry))
->                          rss[MM_SWAPENTS]--;
->                  else if (is_migration_entry(entry)) {
->                          struct page *page;
->
->                          page = migration_entry_to_page(entry);    <==== HERE
->
->                          if (PageAnon(page))
->                                  rss[MM_ANONPAGES]--;
->                          else
->                                  rss[MM_FILEPAGES]--;
->
->
-> [ 2622.589064] kernel BUG at include/linux/swapops.h:131!
-> [ 2622.589064] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-> [ 2622.589064] Dumping ftrace buffer:
-> [ 2622.589064]    (ftrace buffer empty)
-> [ 2622.589064] Modules linked in:
-> [ 2622.589064] CPU: 9 PID: 15984 Comm: trinity-child16 Tainted: G        W    3.13.0-rc
-> 4-next-20131217-sasha-00013-ga878504-dirty #4150
-> [ 2622.589064] task: ffff88168346b000 ti: ffff8816561d8000 task.ti: ffff8816561d8000
-> [ 2622.589064] RIP: 0010:[<ffffffff8127c730>]  [<ffffffff8127c730>] zap_pte_range+0x360
-> /0x4a0
-> [ 2622.589064] RSP: 0018:ffff8816561d9c18  EFLAGS: 00010246
-> [ 2622.589064] RAX: ffffea00736a6600 RBX: ffff88200299d068 RCX: 0000000000000009
-> [ 2622.589064] RDX: 022fffff80380000 RSI: ffffea0000000000 RDI: 3c00000001cda998
-> [ 2622.589064] RBP: ffff8816561d9cb8 R08: 0000000000000000 R09: 0000000000000000
-> [ 2622.589064] R10: 0000000000000001 R11: 0000000000000000 R12: 00007fc7ee20d000
-> [ 2622.589064] R13: ffff8816561d9de8 R14: 000000039b53303c R15: 00007fc7ee29b000
-> [ 2622.589064] FS:  00007fc7eeceb700(0000) GS:ffff882011a00000(0000) knlGS:000000000000
-> 0000
-> [ 2622.589064] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> [ 2622.589064] CR2: 000000000068c000 CR3: 0000000005c26000 CR4: 00000000000006e0
-> [ 2622.589064] Stack:
-> [ 2622.589064]  ffff8816561d9c58 0000000000000286 ffff88168327b060 ffff88168327b060
-> [ 2622.589064]  00007fc700000160 ffff881667067b88 00000000c8f4b120 00ff88168327b060
-> [ 2622.589064]  ffff88168327b060 ffff8820051a8600 0000000000000000 ffff88168327b000
-> [ 2622.589064] Call Trace:
-> [ 2622.589064]  [<ffffffff8127cc5e>] unmap_page_range+0x3ee/0x400
-> [ 2622.589064]  [<ffffffff8127cd71>] unmap_single_vma+0x101/0x120
-> [ 2622.589064]  [<ffffffff8127cdf1>] unmap_vmas+0x61/0xa0
-> [ 2622.589064]  [<ffffffff81283980>] exit_mmap+0xd0/0x170
-> [ 2622.589064]  [<ffffffff8112d430>] mmput+0x70/0xe0
-> [ 2622.589064]  [<ffffffff8113144d>] exit_mm+0x18d/0x1a0
-> [ 2622.589064]  [<ffffffff811defb5>] ? acct_collect+0x175/0x1b0
-> [ 2622.589064]  [<ffffffff8113389f>] do_exit+0x24f/0x500
-> [ 2622.589064]  [<ffffffff81133bf9>] do_group_exit+0xa9/0xe0
-> [ 2622.589064]  [<ffffffff81133c47>] SyS_exit_group+0x17/0x20
-> [ 2622.589064]  [<ffffffff843a6150>] tracesys+0xdd/0xe2
-> [ 2622.589064] Code: 83 f8 1f 75 46 48 b8 ff ff ff ff ff ff ff 01 48 be 00 00 00 00 00 ea ff ff 48
-> 21 f8 48 c1 e0 06 48 01 f0 48 8b 10 80 e2 01 75 0a <0f> 0b 66 0f 1f 44 00 00 eb fe f6 40 08 01 74 05
-> ff 4d c4 eb 0b
-> [ 2622.589064] RIP  [<ffffffff8127c730>] zap_pte_range+0x360/0x4a0
-> [ 2622.589064]  RSP <ffff8816561d9c18>
+	page = pmd_page(orig_pmd);
+	page_remove_rmap(page);
+	VM_BUG_ON(page_mapcount(page) < 0);
+	add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
+	VM_BUG_ON(!PageHead(page));		<=== HERE
+	atomic_long_dec(&tlb->mm->nr_ptes);
+	spin_unlock(ptl);
+	tlb_remove_page(tlb, page);
+
+[  265.474585] kernel BUG at mm/huge_memory.c:1440!
+[  265.475129] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[  265.476684] Dumping ftrace buffer:
+[  265.477144]    (ftrace buffer empty)
+[  265.478398] Modules linked in:
+[  265.478807] CPU: 8 PID: 11344 Comm: trinity-c206 Tainted: G        W    3.13.0-rc5-ne
+xt-20131223-sasha-00015-gec22156-dirty #8
+[  265.480172] task: ffff8801cb573000 ti: ffff8801cbd3a000 task.ti: ffff8801cbd3a000
+[  265.480172] RIP: 0010:[<ffffffff812c7f70>]  [<ffffffff812c7f70>] zap_huge_pmd+0x170/0
+x1f0
+[  265.480172] RSP: 0000:ffff8801cbd3bc78  EFLAGS: 00010246
+[  265.480172] RAX: 015fffff80090018 RBX: ffff8801cbd3bde8 RCX: ffffffffffffff9c
+[  265.480172] RDX: ffffffffffffffff RSI: 0000000000000008 RDI: ffff8800bffd2000
+[  265.480172] RBP: ffff8801cbd3bcb8 R08: 0000000000000000 R09: 0000000000000000
+[  265.480172] R10: 0000000000000001 R11: 0000000000000000 R12: ffffea0002856740
+[  265.480172] R13: ffffea0002d50000 R14: 00007ff915000000 R15: 00007ff930e48fff
+[  265.480172] FS:  00007ff934899700(0000) GS:ffff88014d400000(0000) knlGS:0000000000000
+000
+[  265.480172] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[  265.480172] CR2: 00007ff93428a000 CR3: 000000010babe000 CR4: 00000000000006e0
+[  265.480172] Stack:
+[  265.480172]  00000000000004dd ffff8801ccbfbb60 ffff8801cbd3bcb8 ffff8801cbb15540
+[  265.480172]  00007ff915000000 00007ff930e49000 ffff8801cbd3bde8 00007ff930e48fff
+[  265.480172]  ffff8801cbd3bd48 ffffffff812885b6 ffff88005f5d20c0 00007ff915200000
+[  265.480172] Call Trace:
+[  265.480172]  [<ffffffff812885b6>] unmap_page_range+0x2c6/0x410
+[  265.480172]  [<ffffffff81288801>] unmap_single_vma+0x101/0x120
+[  265.480172]  [<ffffffff81288881>] unmap_vmas+0x61/0xa0
+[  265.480172]  [<ffffffff8128f730>] exit_mmap+0xd0/0x170
+[  265.480172]  [<ffffffff81138860>] mmput+0x70/0xe0
+[  265.480172]  [<ffffffff8113c89d>] exit_mm+0x18d/0x1a0
+[  265.480172]  [<ffffffff811ea355>] ? acct_collect+0x175/0x1b0
+[  265.480172]  [<ffffffff8113ed0f>] do_exit+0x26f/0x520
+[  265.480172]  [<ffffffff8113f069>] do_group_exit+0xa9/0xe0
+[  265.480172]  [<ffffffff8113f0b7>] SyS_exit_group+0x17/0x20
+[  265.480172]  [<ffffffff845f10d0>] tracesys+0xdd/0xe2
+[  265.480172] Code: 0f 0b 66 0f 1f 84 00 00 00 00 00 eb fe 66 0f 1f 44 00 00 48 8b 03 f0 48 81 80 
+50 03 00 00 00 fe ff ff 49 8b 45 00 f6 c4 40 75 10 <0f> 0b 66 0f 1f 44 00 00 eb fe 66 0f 1f 44 00 00 
+48 8b 03 f0 48
+[  265.480172] RIP  [<ffffffff812c7f70>] zap_huge_pmd+0x170/0x1f0
+[  265.480172]  RSP <ffff8801cbd3bc78>
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
