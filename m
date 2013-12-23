@@ -1,45 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f176.google.com (mail-ea0-f176.google.com [209.85.215.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 06F716B0031
-	for <linux-mm@kvack.org>; Mon, 23 Dec 2013 15:26:26 -0500 (EST)
-Received: by mail-ea0-f176.google.com with SMTP id h14so2522312eaj.35
-        for <linux-mm@kvack.org>; Mon, 23 Dec 2013 12:26:26 -0800 (PST)
-Received: from jenni1.inet.fi (mta-out.inet.fi. [195.156.147.13])
-        by mx.google.com with ESMTP id p9si21845268eew.55.2013.12.23.12.26.26
-        for <linux-mm@kvack.org>;
-        Mon, 23 Dec 2013 12:26:26 -0800 (PST)
-Date: Mon, 23 Dec 2013 20:54:33 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v4 21/22] Add support for pmd_faults
-Message-ID: <20131223185433.GA18067@node.dhcp.inet.fi>
-References: <cover.1387748521.git.matthew.r.wilcox@intel.com>
- <e944917f571781b46ca4dbb789ae8a86c5166059.1387748521.git.matthew.r.wilcox@intel.com>
- <20131223134113.GA14806@node.dhcp.inet.fi>
- <20131223145031.GB11091@parisc-linux.org>
- <20131223151003.GA15744@node.dhcp.inet.fi>
- <20131223184222.GE11091@parisc-linux.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131223184222.GE11091@parisc-linux.org>
+Received: from mail-yh0-f45.google.com (mail-yh0-f45.google.com [209.85.213.45])
+	by kanga.kvack.org (Postfix) with ESMTP id A18166B0031
+	for <linux-mm@kvack.org>; Mon, 23 Dec 2013 16:01:41 -0500 (EST)
+Received: by mail-yh0-f45.google.com with SMTP id v1so1318988yhn.32
+        for <linux-mm@kvack.org>; Mon, 23 Dec 2013 13:01:41 -0800 (PST)
+Received: from mail-qe0-x236.google.com (mail-qe0-x236.google.com [2607:f8b0:400d:c02::236])
+        by mx.google.com with ESMTPS id r6si15901543qaj.111.2013.12.23.13.01.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 23 Dec 2013 13:01:39 -0800 (PST)
+Received: by mail-qe0-f54.google.com with SMTP id cy11so5749312qeb.27
+        for <linux-mm@kvack.org>; Mon, 23 Dec 2013 13:01:38 -0800 (PST)
+From: William Roberts <bill.c.roberts@gmail.com>
+Subject: [RFC][PATCH 1/3] mm: Create utility function for accessing a tasks commandline value
+Date: Mon, 23 Dec 2013 13:01:29 -0800
+Message-Id: <1387832491-16477-1-git-send-email-wroberts@tresys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew@wil.cx>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
+To: linux-audit@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rgb@redhat.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, sds@tycho.nsa.gov
+Cc: William Roberts <wroberts@tresys.com>
 
-On Mon, Dec 23, 2013 at 11:42:22AM -0700, Matthew Wilcox wrote:
-> > Do you know anyone who relay on SIGBUS for correctness?
-> 
-> Oh, I remember the real reason now.  If we install a PMD that hangs off
-> the end of the file then by reading past i_size, we can read the blocks of
-> whatever happens to be in storage after the end of the file, which could
-> be another file's data.  This doesn't happen for the PTE case because the
-> existing code only works for filesystems with a block size == PAGE_SIZE.
+introduce get_cmdline() for retreiving the value of a processes
+proc/self/cmdline value.
 
-I see. It's valid reason. Probably, it's better to add comment there.
+Signed-off-by: William Roberts <wroberts@tresys.com>
+---
+ include/linux/mm.h |    1 +
+ mm/util.c          |   48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+)
 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 3552717..01e7970 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1134,6 +1134,7 @@ void account_page_writeback(struct page *page);
+ int set_page_dirty(struct page *page);
+ int set_page_dirty_lock(struct page *page);
+ int clear_page_dirty_for_io(struct page *page);
++int get_cmdline(struct task_struct *task, char *buffer, int buflen);
+ 
+ /* Is the vma a continuation of the stack vma above it? */
+ static inline int vma_growsdown(struct vm_area_struct *vma, unsigned long addr)
+diff --git a/mm/util.c b/mm/util.c
+index f7bc209..5285ff0 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -410,6 +410,54 @@ unsigned long vm_commit_limit(void)
+ 		* sysctl_overcommit_ratio / 100) + total_swap_pages;
+ }
+ 
++/**
++ * get_cmdline() - copy the cmdline value to a buffer.
++ * @task:     the task whose cmdline value to copy.
++ * @buffer:   the buffer to copy to.
++ * @buflen:   the length of the buffer. Larger cmdline values are truncated
++ *            to this length.
++ * Returns the size of the cmdline field copied. Note that the copy does
++ * not guarantee an ending NULL byte.
++ */
++int get_cmdline(struct task_struct *task, char *buffer, int buflen)
++{
++	int res = 0;
++	unsigned int len;
++	struct mm_struct *mm = get_task_mm(task);
++	if (!mm)
++		goto out;
++	if (!mm->arg_end)
++		goto out_mm;	/* Shh! No looking before we're done */
++
++	len = mm->arg_end - mm->arg_start;
++
++	if (len > buflen)
++		len = buflen;
++
++	res = access_process_vm(task, mm->arg_start, buffer, len, 0);
++
++	/*
++	 * If the nul at the end of args has been overwritten, then
++	 * assume application is using setproctitle(3).
++	 */
++	if (res > 0 && buffer[res-1] != '\0' && len < buflen) {
++		len = strnlen(buffer, res);
++		if (len < res) {
++			res = len;
++		} else {
++			len = mm->env_end - mm->env_start;
++			if (len > buflen - res)
++				len = buflen - res;
++			res += access_process_vm(task, mm->env_start,
++						 buffer+res, len, 0);
++			res = strnlen(buffer, res);
++		}
++	}
++out_mm:
++	mmput(mm);
++out:
++	return res;
++}
+ 
+ /* Tracepoints definitions. */
+ EXPORT_TRACEPOINT_SYMBOL(kmalloc);
 -- 
- Kirill A. Shutemov
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
