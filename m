@@ -1,91 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 06C166B0031
-	for <linux-mm@kvack.org>; Tue, 24 Dec 2013 01:38:40 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id rq2so6118446pbb.17
-        for <linux-mm@kvack.org>; Mon, 23 Dec 2013 22:38:40 -0800 (PST)
-Received: from LGEAMRELO01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id e8si14658418pac.285.2013.12.23.22.38.38
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id CC55F6B0031
+	for <linux-mm@kvack.org>; Tue, 24 Dec 2013 02:45:49 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id lf10so6281809pab.0
+        for <linux-mm@kvack.org>; Mon, 23 Dec 2013 23:45:49 -0800 (PST)
+Received: from LGEMRELSE7Q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id mi6si6842362pab.35.2013.12.23.23.45.46
         for <linux-mm@kvack.org>;
-        Mon, 23 Dec 2013 22:38:39 -0800 (PST)
-Date: Tue, 24 Dec 2013 15:38:37 +0900
+        Mon, 23 Dec 2013 23:45:48 -0800 (PST)
+Date: Tue, 24 Dec 2013 16:45:46 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: possible regression on 3.13 when calling flush_dcache_page
-Message-ID: <20131224063837.GA27156@lge.com>
-References: <20131212143149.GI12099@ldesroches-Latitude-E6320>
- <20131212143618.GJ12099@ldesroches-Latitude-E6320>
- <20131213015909.GA8845@lge.com>
- <20131216144343.GD9627@ldesroches-Latitude-E6320>
- <20131218072117.GA2383@lge.com>
- <20131220080851.GC16592@ldesroches-Latitude-E6320>
- <20131223224435.GD16592@ldesroches-Latitude-E6320>
+Subject: Re: mm: kernel BUG at include/linux/swapops.h:131!
+Message-ID: <20131224074546.GB27156@lge.com>
+References: <52B1C143.8080301@oracle.com>
+ <52B871B2.7040409@oracle.com>
+ <20131224025127.GA2835@lge.com>
+ <52B8F8F6.1080500@oracle.com>
+ <20131224060705.GA16140@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131223224435.GD16592@ldesroches-Latitude-E6320>
+In-Reply-To: <20131224060705.GA16140@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-mmc@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, khlebnikov@openvz.org, LKML <linux-kernel@vger.kernel.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Bob Liu <bob.liu@oracle.com>
 
-On Mon, Dec 23, 2013 at 11:44:35PM +0100, Ludovic Desroches wrote:
-> On Fri, Dec 20, 2013 at 09:08:51AM +0100, Ludovic Desroches wrote:
-> > Hello,
+On Tue, Dec 24, 2013 at 03:07:05PM +0900, Joonsoo Kim wrote:
+> On Mon, Dec 23, 2013 at 10:01:10PM -0500, Sasha Levin wrote:
+> > On 12/23/2013 09:51 PM, Joonsoo Kim wrote:
+> > >On Mon, Dec 23, 2013 at 12:24:02PM -0500, Sasha Levin wrote:
+> > >>>Ping?
+> > >>>
+> > >>>I've also Cc'ed the "this page shouldn't be locked at all" team.
+> > >Hello,
+> > >
+> > >I can't find the reason of this problem.
+> > >If it is reproducible, how about bisecting?
 > > 
-> > On Wed, Dec 18, 2013 at 04:21:17PM +0900, Joonsoo Kim wrote:
-> > > On Mon, Dec 16, 2013 at 03:43:43PM +0100, Ludovic Desroches wrote:
-> > > > Hello,
-> > > > 
-> > > > On Fri, Dec 13, 2013 at 10:59:09AM +0900, Joonsoo Kim wrote:
-> > > > > On Thu, Dec 12, 2013 at 03:36:19PM +0100, Ludovic Desroches wrote:
-> > > > > > fix mmc mailing list address error
-> > > > > > 
-> > > > > > On Thu, Dec 12, 2013 at 03:31:50PM +0100, Ludovic Desroches wrote:
-> > > > > > > Hi,
-> > > > > > > 
-> > > > > > > With v3.13-rc3 I have an error when the atmel-mci driver calls
-> > > > > > > flush_dcache_page (log at the end of the message).
-> > > > > > > 
-> > > > > > > Since I didn't have it before, I did a git bisect and the commit introducing
-> > > > > > > the error is the following one:
-> > > > > > > 
-> > > > > > > 106a74e slab: replace free and inuse in struct slab with newly introduced active
-> > > > > > > 
-> > > > > > > I don't know if this commit has introduced a bug or if it has revealed a bug
-> > > > > > > in the atmel-mci driver.
-> > > > > 
-> > > > > Hello,
-> > > > > 
-> > > > > I think that this commit may not introduce a bug. This patch remove one
-> > > > > variable on slab management structure and replace variable name. So there
-> > > > > is no functional change.
-> > > > > 
-> > > > 
-> > > > If I have reverted this patch and other ones you did on top of it and
-> > > > the issue disappear.
-> > > 
-> > > Hello,
-> > > 
-> > > Could you give me your '/proc/slabinfo' before/after this commit (106a74e)?
-> > > 
-> > > And how about testing with artificially increasing size of struct slab on
-> > > top of this commit (106a74e)?
-> > > 
-> > > I really wonder why the problem happens, because this doesn't cause any
-> > > functional change as far as I know. Only side-effect from this patch is
-> > > decreasing size of struct slab.
+> > While it reproduces under fuzzing it's pretty hard to bisect it with
+> > the amount of issues uncovered by trinity recently.
 > > 
-> > Sorry I am not at the office, I have tried to reproduce it with a
-> > different device and a different sdcard but without success. I'll test
-> > it on Monday.
+> > I can add any debug code to the site of the BUG if that helps.
 > 
-> I am still not at the office but I get the same device and the same
-> sdcard and I don't reproduce it. I am not totally in the same
-> conditions. It seems there is an extra parameter causing this bug but I
-> don't figure out which one at the moment.
+> Good!
+> It will be helpful to add dump_page() in migration_entry_to_page().
+> 
+> Thanks.
+> 
 
-Okay. I will wait for you!
+Minchan teaches me that there is possible race condition between
+fork and migration.
 
-Thanks for informing progress.
+Please consider following situation.
+
+
+Process A (do migration)			Process B (parents) Process C (child)
+
+try_to_unmap() for migration <begin>		fork
+setup migration entry to B's vma
+...
+try_to_unmap() for migration <end>
+move_to_new_page()
+
+						link new vma
+						    into interval tree
+remove_migration_ptes() <begin>
+check and clear migration entry on C's vma
+...						copy_one_pte:
+...						    now, B and C have migration entry
+...
+...
+check and clear migration entry on B's vma
+...
+...
+remove_migration_ptes() <end>
+
+
+Eventually, migration entry on C's vma is left.
+And then, when C exits, above BUG_ON() can be triggered.
+
+I'm not sure the I am right, so please think of it together. :)
+And I'm not sure again that above assumption is related to this trigger report,
+since this may exist for a long time.
+
+So my question to mm folks is is above assumption possible and do we have
+any protection mechanism on this race?
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
