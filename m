@@ -1,185 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D438B6B0031
-	for <linux-mm@kvack.org>; Tue, 24 Dec 2013 05:58:11 -0500 (EST)
-Received: by mail-pb0-f48.google.com with SMTP id md12so6353978pbc.21
-        for <linux-mm@kvack.org>; Tue, 24 Dec 2013 02:58:11 -0800 (PST)
-Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com. [122.248.162.3])
-        by mx.google.com with ESMTPS id o7si4113054pbb.130.2013.12.24.02.58.08
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EC8C6B0031
+	for <linux-mm@kvack.org>; Tue, 24 Dec 2013 06:58:33 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id jt11so6450766pbb.0
+        for <linux-mm@kvack.org>; Tue, 24 Dec 2013 03:58:32 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [203.10.76.45])
+        by mx.google.com with ESMTPS id ph10si15380106pbb.19.2013.12.24.03.58.31
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 24 Dec 2013 02:58:10 -0800 (PST)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 24 Dec 2013 16:25:20 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id B3D86394004E
-	for <linux-mm@kvack.org>; Tue, 24 Dec 2013 16:25:11 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBOAt9mX61341746
-	for <linux-mm@kvack.org>; Tue, 24 Dec 2013 16:25:09 +0530
-Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBOAsAbK015593
-	for <linux-mm@kvack.org>; Tue, 24 Dec 2013 16:24:10 +0530
-Date: Tue, 24 Dec 2013 18:54:07 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/thp: fix vmas tear down race with thp splitting
-Message-ID: <52b968c2.470b440a.3fc0.ffff8012SMTPIN_ADDED_BROKEN@mx.google.com>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1387850059-18525-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20131224102640.GA31495@node.dhcp.inet.fi>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Dec 2013 03:58:32 -0800 (PST)
+Date: Tue, 24 Dec 2013 23:00:12 +1100
+From: David Gibson <david@gibson.dropbear.id.au>
+Subject: Re: [PATCH v3 03/14] mm, hugetlb: protect region tracking via newly
+ introduced resv_map lock
+Message-ID: <20131224120012.GH12407@voom.fritz.box>
+References: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1387349640-8071-4-git-send-email-iamjoonsoo.kim@lge.com>
+ <20131221135819.GB12407@voom.fritz.box>
+ <20131223010517.GB19388@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="FUaywKC54iCcLzqT"
 Content-Disposition: inline
-In-Reply-To: <20131224102640.GA31495@node.dhcp.inet.fi>
+In-Reply-To: <20131223010517.GB19388@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
-Hi Kirill,
-On Tue, Dec 24, 2013 at 12:26:40PM +0200, Kirill A. Shutemov wrote:
->On Tue, Dec 24, 2013 at 09:54:19AM +0800, Wanpeng Li wrote:
->> Sasha reports unmap_page_range tears down pmd range which is race with thp 
->> splitting during page reclaim. Transparent huge page will be splitting 
->> during page reclaim. However, split pmd lock which held by __split_trans_huge_lock
->> can't prevent __split_huge_page_refcount running in parallel. This patch fix 
->> it by hold compound lock to check if __split_huge_page_refcount is running 
->> underneath, in that case zap huge pmd range should be fallback.
->
->I try to understand what's going on. IIUC, you assume race is following:
->
->	CPU0					CPU1
->__split_huge_page()
->  __split_huge_page_splitting()
->  __split_huge_page_refcount()		zap_huge_pmd()
->    compound_lock()			  __pmd_trans_huge_lock() == 1
->    ClearPageCompound()
->					    VM_BUG_ON(!PageHead(page)); <- Compound flags have been cleared already
->    compound_unlock()
->
->Right?
->
->I don't see how it can happen:
->  - __split_huge_page_splitting() marks pmd as splitting under pmd ptlock
->  - __pmd_trans_huge_lock() checks for pmd_trans_splitting() under the
->    same pmd ptlock, before returning 1;
->  - zap_huge_pmd() only hits the VM_BUG_ON() if __pmd_trans_huge_lock()
->    returned one, and it holds pmd ptlock all the time.
->
->Could you describe in details what scenario you have in mind.
->
 
-I make a mistake here. I think you are right and we need to continue to
-fight out the root issue. ;-)
+--FUaywKC54iCcLzqT
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Regards,
-Wanpeng Li 
+On Mon, Dec 23, 2013 at 10:05:17AM +0900, Joonsoo Kim wrote:
+> On Sun, Dec 22, 2013 at 12:58:19AM +1100, David Gibson wrote:
+> > On Wed, Dec 18, 2013 at 03:53:49PM +0900, Joonsoo Kim wrote:
+> > > There is a race condition if we map a same file on different processe=
+s.
+> > > Region tracking is protected by mmap_sem and hugetlb_instantiation_mu=
+tex.
+> > > When we do mmap, we don't grab a hugetlb_instantiation_mutex, but,
+> > > grab a mmap_sem. This doesn't prevent other process to modify region
+> > > structure, so it can be modified by two processes concurrently.
+> > >=20
+> > > To solve this, I introduce a lock to resv_map and make region manipul=
+ation
+> > > function grab a lock before they do actual work. This makes region
+> > > tracking safe.
+> >=20
+> > It's not clear to me if you're saying there is a list corruption race
+> > bug in the existing code, or only that there will be if the
+> > instantiation mutex goes away.
+>=20
+> Hello,
+>=20
+> The race exists in current code.
+> Currently, region tracking is protected by either down_write(&mm->mmap_se=
+m) or
+> down_read(&mm->mmap_sem) + instantiation mutex. But if we map this hugetl=
+bfs
+> file to two different processes, holding a mmap_sem doesn't have any impa=
+ct on
+> the other process and concurrent access to data structure is possible.
 
->> 
->> [  265.474585] kernel BUG at mm/huge_memory.c:1440!
->> [  265.475129] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
->> [  265.476684] Dumping ftrace buffer:
->> [  265.477144]    (ftrace buffer empty)
->> [  265.478398] Modules linked in:
->> [  265.478807] CPU: 8 PID: 11344 Comm: trinity-c206 Tainted: G        W    3.13.0-rc5-next-20131223-sasha-00015-gec22156-dirty #8
->> [  265.480172] task: ffff8801cb573000 ti: ffff8801cbd3a000 task.ti: ffff8801cbd3a000
->> [  265.480172] RIP: 0010:[<ffffffff812c7f70>]  [<ffffffff812c7f70>] zap_huge_pmd+0x170/0x1f0
->> [  265.480172] RSP: 0000:ffff8801cbd3bc78  EFLAGS: 00010246
->> [  265.480172] RAX: 015fffff80090018 RBX: ffff8801cbd3bde8 RCX: ffffffffffffff9c
->> [  265.480172] RDX: ffffffffffffffff RSI: 0000000000000008 RDI: ffff8800bffd2000
->> [  265.480172] RBP: ffff8801cbd3bcb8 R08: 0000000000000000 R09: 0000000000000000
->> [  265.480172] R10: 0000000000000001 R11: 0000000000000000 R12: ffffea0002856740
->> [  265.480172] R13: ffffea0002d50000 R14: 00007ff915000000 R15: 00007ff930e48fff
->> [  265.480172] FS:  00007ff934899700(0000) GS:ffff88014d400000(0000) knlGS:0000000000000000
->> [  265.480172] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
->> [  265.480172] CR2: 00007ff93428a000 CR3: 000000010babe000 CR4: 00000000000006e0
->> [  265.480172] Stack:
->> [  265.480172]  00000000000004dd ffff8801ccbfbb60 ffff8801cbd3bcb8 ffff8801cbb15540
->> [  265.480172]  00007ff915000000 00007ff930e49000 ffff8801cbd3bde8 00007ff930e48fff
->> [  265.480172]  ffff8801cbd3bd48 ffffffff812885b6 ffff88005f5d20c0 00007ff915200000
->> [  265.480172] Call Trace:
->> [  265.480172]  [<ffffffff812885b6>] unmap_page_range+0x2c6/0x410
->> [  265.480172]  [<ffffffff81288801>] unmap_single_vma+0x101/0x120
->> [  265.480172]  [<ffffffff81288881>] unmap_vmas+0x61/0xa0
->> [  265.480172]  [<ffffffff8128f730>] exit_mmap+0xd0/0x170
->> [  265.480172]  [<ffffffff81138860>] mmput+0x70/0xe0
->> [  265.480172]  [<ffffffff8113c89d>] exit_mm+0x18d/0x1a0
->> [  265.480172]  [<ffffffff811ea355>] ? acct_collect+0x175/0x1b0
->> [  265.480172]  [<ffffffff8113ed0f>] do_exit+0x26f/0x520
->> [  265.480172]  [<ffffffff8113f069>] do_group_exit+0xa9/0xe0
->> [  265.480172]  [<ffffffff8113f0b7>] SyS_exit_group+0x17/0x20
->> [  265.480172]  [<ffffffff845f10d0>] tracesys+0xdd/0xe2
->> [  265.480172] Code: 0f 0b 66 0f 1f 84 00 00 00 00 00 eb fe 66 0f 1f
->> 44 00 00 48 8b 03 f0 48 81 80 50 03 00 00 00 fe ff ff 49 8b 45 00 f6
->> c4 40 75 10 <0f> 0b 66 0f 1f 44 00 00 eb fe 66 0f 1f 44 00 00 48 8b 03
->> f0 48
->> [  265.480172] RIP  [<ffffffff812c7f70>] zap_huge_pmd+0x170/0x1f0
->> [  265.480172]  RSP <ffff8801cbd3bc78>
->> 
->> Reported-by: Sasha Levin <sasha.levin@oracle.com>
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> ---
->>  mm/huge_memory.c | 13 ++++++++++++-
->>  1 file changed, 12 insertions(+), 1 deletion(-)
->> 
->> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
->> index 7de1bf8..d1e0c80 100644
->> --- a/mm/huge_memory.c
->> +++ b/mm/huge_memory.c
->> @@ -1414,6 +1414,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->>  {
->>  	spinlock_t *ptl;
->>  	int ret = 0;
->> +	unsigned long flags;
->>  
->>  	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
->>  		struct page *page;
->> @@ -1426,6 +1427,15 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->>  		 * operations.
->>  		 */
->>  		orig_pmd = pmdp_get_and_clear(tlb->mm, addr, pmd);
->> +		page = pmd_page(orig_pmd);
->> +		flags = compound_lock_irqsave(page);
->> +		if (unlikely(!PageHead(page))) {
->> +			/*
->> +			 * __split_huge_page_refcount run before us
->> +			 */
->> +			compound_unlock_irqrestore(page, flags);
->> +			return ret;
->> +		}
->>  		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
->>  		pgtable = pgtable_trans_huge_withdraw(tlb->mm, pmd);
->>  		if (is_huge_zero_pmd(orig_pmd)) {
->> @@ -1433,7 +1443,6 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->>  			spin_unlock(ptl);
->>  			put_huge_zero_page();
->>  		} else {
->> -			page = pmd_page(orig_pmd);
->>  			page_remove_rmap(page);
->>  			VM_BUG_ON(page_mapcount(page) < 0);
->>  			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
->> @@ -1442,6 +1451,8 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->>  			spin_unlock(ptl);
->>  			tlb_remove_page(tlb, page);
->>  		}
->> +		compound_unlock_irqrestore(page, flags);
->> +
->>  		pte_free(tlb->mm, pgtable);
->>  		ret = 1;
->>  	}
->> -- 
->> 1.8.3.2
->> 
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->> Please read the FAQ at  http://www.tux.org/lkml/
->
->-- 
-> Kirill A. Shutemov
+Ouch.  In that case:
+
+Acked-by: David Gibson <david@gibson.dropbear.id.au>
+
+It would be really nice to add a testcase for this race to the
+libhugetlbfs testsuite.
+
+--=20
+David Gibson			| I'll have my music baroque, and my code
+david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
+				| _way_ _around_!
+http://www.ozlabs.org/~dgibson
+
+--FUaywKC54iCcLzqT
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAEBAgAGBQJSuXdLAAoJEGw4ysog2bOS+jEQAIehZUe2TUacMZP+VdVrUnD/
+cHIUzV9DvGBsyciQU1nHbzS2PV/LsglP8yMwNDgSHpygcCKvTj9yzLpbM6uKRsnl
+wCXO6vfy+2bi3dd3znGiH+wRBPIMxuS9TlbUCLHcyCVNLb4jZ0vr3REzoe45OX7x
+Piccug0+AD7D6gLolPr2RlYpt2xfYamwIAGwT1tgkzJeHSNo0Zm2rB8/apnyAbPr
+WOJ7Hkk0yyM+1q02LP8tYrjVX9WxOane5e98i6y+PHImpiWW3T+icFX0knyedqE7
+CDYwMlakgX3L8StpoXppu2nrcoXderrT1ruiQ2Dy8bKvZsMsbsgZ3PwWRRFKZMBF
+Z1SLTe9D9PoJxT39rl02hxHfQuGLFbDC9g795jc/ug0Rww2YJzK75lvvGUyzZsNe
+Ju5990bZywDhfOXdHSQElIuyosQPfEDOUENmx0pzfvOlyeJ/fXwOwQ9RaHxCPCAN
+FsLUjMK8bogBq2C13O3qoqgeD19RVGK0tMEl7utPKGsTdZ6m19dCr11LjptFkcCf
+qOgMOMYUZq3TD9DBFjzMRKoxgUx/hYsU7PCaHBUqsBGQCMlsepRCzNWqf9NtshRy
+lbnKbhllSvIv+TbbDUw8lD0aka0GuJsLzKFEmtJa0GFA2Oqy17JNUlU0PJWMz3uB
+IidLyCPdlxo4SswAxUJR
+=A0Ha
+-----END PGP SIGNATURE-----
+
+--FUaywKC54iCcLzqT--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
