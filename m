@@ -1,77 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f78.google.com (mail-pa0-f78.google.com [209.85.220.78])
-	by kanga.kvack.org (Postfix) with ESMTP id 5184C6B0035
-	for <linux-mm@kvack.org>; Tue, 24 Dec 2013 10:46:34 -0500 (EST)
-Received: by mail-pa0-f78.google.com with SMTP id rd3so69945pab.5
-        for <linux-mm@kvack.org>; Tue, 24 Dec 2013 07:46:33 -0800 (PST)
-Received: from mail.parisc-linux.org (palinux.external.hp.com. [192.25.206.14])
-        by mx.google.com with ESMTPS id r6si15504282qaj.79.2013.12.23.10.42.26
+Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BC216B0035
+	for <linux-mm@kvack.org>; Tue, 24 Dec 2013 14:28:02 -0500 (EST)
+Received: by mail-ob0-f172.google.com with SMTP id gq1so7038724obb.31
+        for <linux-mm@kvack.org>; Tue, 24 Dec 2013 11:28:02 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id so9si19111816oeb.140.2013.12.24.11.28.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 23 Dec 2013 10:42:28 -0800 (PST)
-Date: Mon, 23 Dec 2013 11:42:22 -0700
-From: Matthew Wilcox <matthew@wil.cx>
-Subject: Re: [PATCH v4 21/22] Add support for pmd_faults
-Message-ID: <20131223184222.GE11091@parisc-linux.org>
-References: <cover.1387748521.git.matthew.r.wilcox@intel.com> <e944917f571781b46ca4dbb789ae8a86c5166059.1387748521.git.matthew.r.wilcox@intel.com> <20131223134113.GA14806@node.dhcp.inet.fi> <20131223145031.GB11091@parisc-linux.org> <20131223151003.GA15744@node.dhcp.inet.fi>
+        Tue, 24 Dec 2013 11:28:01 -0800 (PST)
+Message-ID: <52B9E037.1050606@oracle.com>
+Date: Tue, 24 Dec 2013 14:27:51 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20131223151003.GA15744@node.dhcp.inet.fi>
+Subject: Re: mm: kernel BUG at include/linux/swapops.h:131!
+References: <52B1C143.8080301@oracle.com> <52B871B2.7040409@oracle.com> <20131224025127.GA2835@lge.com> <52B8F8F6.1080500@oracle.com> <20131224060705.GA16140@lge.com>
+In-Reply-To: <20131224060705.GA16140@lge.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, khlebnikov@openvz.org, LKML <linux-kernel@vger.kernel.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Bob Liu <bob.liu@oracle.com>
 
-On Mon, Dec 23, 2013 at 05:10:03PM +0200, Kirill A. Shutemov wrote:
-> On Mon, Dec 23, 2013 at 07:50:31AM -0700, Matthew Wilcox wrote:
-> > On Mon, Dec 23, 2013 at 03:41:13PM +0200, Kirill A. Shutemov wrote:
-> > > > +	/* Fall back to PTEs if we're going to COW */
-> > > > +	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED))
-> > > > +		return VM_FAULT_FALLBACK;
-> > > 
-> > > Why?
-> > 
-> > If somebody mmaps a file with MAP_PRIVATE and changes a single byte, I
-> > think we should allocate a single page to hold that change, not a PMD's
-> > worth of pages.
-> 
-> We try allocate new huge page in the same situation for AnonTHP. I don't
-> see a reason why not to do the same here. It would be much harder (if
-> possible) to collapse small page into a huge one later.
+On 12/24/2013 01:07 AM, Joonsoo Kim wrote:
+> On Mon, Dec 23, 2013 at 10:01:10PM -0500, Sasha Levin wrote:
+>> On 12/23/2013 09:51 PM, Joonsoo Kim wrote:
+>>> On Mon, Dec 23, 2013 at 12:24:02PM -0500, Sasha Levin wrote:
+>>>>> Ping?
+>>>>>
+>>>>> I've also Cc'ed the "this page shouldn't be locked at all" team.
+>>> Hello,
+>>>
+>>> I can't find the reason of this problem.
+>>> If it is reproducible, how about bisecting?
+>>
+>> While it reproduces under fuzzing it's pretty hard to bisect it with
+>> the amount of issues uncovered by trinity recently.
+>>
+>> I can add any debug code to the site of the BUG if that helps.
+>
+> Good!
+> It will be helpful to add dump_page() in migration_entry_to_page().
 
-OK, I'll look at what AnonTHP does here.  There may be good reasons to
-do it differently, but in the absence of data, we should probably handle
-the two cases the same.
 
-> > > > +	if ((pgoff | PG_PMD_COLOUR) >= size)
-> > > > +		return VM_FAULT_FALLBACK;
-> > > 
-> > > I don't think it's necessary to fallback in this case.
-> > > Do you care about SIGBUS behaviour or what?
-> > 
-> > I'm looking to preserve the same behaviour we see with PTE mappings.  I mean,
-> > it's supposed to be _transparent_ huge pages, right?
-> 
-> We can't be totally transparent. At least from performance point of view.
-> 
-> The question is whether it's critical to preserve SIGBUS beheviour. I
-> would prefer to map last page in mapping with huge pages too, if it's
-> possible.
-> 
-> Do you know anyone who relay on SIGBUS for correctness?
+[ 3800.520039] page:ffffea0000245800 count:12 mapcount:4 mapping:ffff88001d0c3668 index:0x7de
+[ 3800.521404] page flags: 
+0x1fffff8038003c(referenced|uptodate|dirty|lru|swapbacked|unevictable|mlocked)
+[ 3800.522585] pc:ffff88001ed91600 pc->flags:2 pc->mem_cgroup:ffffc90000c0a000
 
-Oh, I remember the real reason now.  If we install a PMD that hangs off
-the end of the file then by reading past i_size, we can read the blocks of
-whatever happens to be in storage after the end of the file, which could
-be another file's data.  This doesn't happen for the PTE case because the
-existing code only works for filesystems with a block size == PAGE_SIZE.
 
--- 
-Matthew Wilcox				Intel Open Source Technology Centre
-"Bill, look, we understand that you're interested in selling us this
-operating system, but compare it to ours.  We can't possibly take such
-a retrograde step."
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
