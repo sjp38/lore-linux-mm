@@ -1,105 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EC8C6B0031
-	for <linux-mm@kvack.org>; Tue, 24 Dec 2013 06:58:33 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id jt11so6450766pbb.0
-        for <linux-mm@kvack.org>; Tue, 24 Dec 2013 03:58:32 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [203.10.76.45])
-        by mx.google.com with ESMTPS id ph10si15380106pbb.19.2013.12.24.03.58.31
+Received: from mail-qe0-f54.google.com (mail-qe0-f54.google.com [209.85.128.54])
+	by kanga.kvack.org (Postfix) with ESMTP id C97F26B0031
+	for <linux-mm@kvack.org>; Tue, 24 Dec 2013 10:21:11 -0500 (EST)
+Received: by mail-qe0-f54.google.com with SMTP id cy11so6576047qeb.13
+        for <linux-mm@kvack.org>; Tue, 24 Dec 2013 07:21:11 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id b6si7965945qca.27.2013.12.24.07.21.10
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Dec 2013 03:58:32 -0800 (PST)
-Date: Tue, 24 Dec 2013 23:00:12 +1100
-From: David Gibson <david@gibson.dropbear.id.au>
-Subject: Re: [PATCH v3 03/14] mm, hugetlb: protect region tracking via newly
- introduced resv_map lock
-Message-ID: <20131224120012.GH12407@voom.fritz.box>
-References: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1387349640-8071-4-git-send-email-iamjoonsoo.kim@lge.com>
- <20131221135819.GB12407@voom.fritz.box>
- <20131223010517.GB19388@lge.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 24 Dec 2013 07:21:10 -0800 (PST)
+Message-ID: <52B9A65D.8060300@oracle.com>
+Date: Tue, 24 Dec 2013 10:21:01 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="FUaywKC54iCcLzqT"
-Content-Disposition: inline
-In-Reply-To: <20131223010517.GB19388@lge.com>
+Subject: Re: [PATCH] mm/thp: fix vmas tear down race with thp splitting
+References: <1387850059-18525-1-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1387850059-18525-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+
+On 12/23/2013 08:54 PM, Wanpeng Li wrote:
+> Sasha reports unmap_page_range tears down pmd range which is race with thp
+> splitting during page reclaim. Transparent huge page will be splitting
+> during page reclaim. However, split pmd lock which held by __split_trans_huge_lock
+> can't prevent __split_huge_page_refcount running in parallel. This patch fix
+> it by hold compound lock to check if __split_huge_page_refcount is running
+> underneath, in that case zap huge pmd range should be fallback.
+>
+> [  265.474585] kernel BUG at mm/huge_memory.c:1440!
+> [  265.475129] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+> [  265.476684] Dumping ftrace buffer:
+> [  265.477144]    (ftrace buffer empty)
+> [  265.478398] Modules linked in:
+> [  265.478807] CPU: 8 PID: 11344 Comm: trinity-c206 Tainted: G        W    3.13.0-rc5-next-20131223-sasha-00015-gec22156-dirty #8
+> [  265.480172] task: ffff8801cb573000 ti: ffff8801cbd3a000 task.ti: ffff8801cbd3a000
+> [  265.480172] RIP: 0010:[<ffffffff812c7f70>]  [<ffffffff812c7f70>] zap_huge_pmd+0x170/0x1f0
+> [  265.480172] RSP: 0000:ffff8801cbd3bc78  EFLAGS: 00010246
+> [  265.480172] RAX: 015fffff80090018 RBX: ffff8801cbd3bde8 RCX: ffffffffffffff9c
+> [  265.480172] RDX: ffffffffffffffff RSI: 0000000000000008 RDI: ffff8800bffd2000
+> [  265.480172] RBP: ffff8801cbd3bcb8 R08: 0000000000000000 R09: 0000000000000000
+> [  265.480172] R10: 0000000000000001 R11: 0000000000000000 R12: ffffea0002856740
+> [  265.480172] R13: ffffea0002d50000 R14: 00007ff915000000 R15: 00007ff930e48fff
+> [  265.480172] FS:  00007ff934899700(0000) GS:ffff88014d400000(0000) knlGS:0000000000000000
+> [  265.480172] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> [  265.480172] CR2: 00007ff93428a000 CR3: 000000010babe000 CR4: 00000000000006e0
+> [  265.480172] Stack:
+> [  265.480172]  00000000000004dd ffff8801ccbfbb60 ffff8801cbd3bcb8 ffff8801cbb15540
+> [  265.480172]  00007ff915000000 00007ff930e49000 ffff8801cbd3bde8 00007ff930e48fff
+> [  265.480172]  ffff8801cbd3bd48 ffffffff812885b6 ffff88005f5d20c0 00007ff915200000
+> [  265.480172] Call Trace:
+> [  265.480172]  [<ffffffff812885b6>] unmap_page_range+0x2c6/0x410
+> [  265.480172]  [<ffffffff81288801>] unmap_single_vma+0x101/0x120
+> [  265.480172]  [<ffffffff81288881>] unmap_vmas+0x61/0xa0
+> [  265.480172]  [<ffffffff8128f730>] exit_mmap+0xd0/0x170
+> [  265.480172]  [<ffffffff81138860>] mmput+0x70/0xe0
+> [  265.480172]  [<ffffffff8113c89d>] exit_mm+0x18d/0x1a0
+> [  265.480172]  [<ffffffff811ea355>] ? acct_collect+0x175/0x1b0
+> [  265.480172]  [<ffffffff8113ed0f>] do_exit+0x26f/0x520
+> [  265.480172]  [<ffffffff8113f069>] do_group_exit+0xa9/0xe0
+> [  265.480172]  [<ffffffff8113f0b7>] SyS_exit_group+0x17/0x20
+> [  265.480172]  [<ffffffff845f10d0>] tracesys+0xdd/0xe2
+> [  265.480172] Code: 0f 0b 66 0f 1f 84 00 00 00 00 00 eb fe 66 0f 1f
+> 44 00 00 48 8b 03 f0 48 81 80 50 03 00 00 00 fe ff ff 49 8b 45 00 f6
+> c4 40 75 10 <0f> 0b 66 0f 1f 44 00 00 eb fe 66 0f 1f 44 00 00 48 8b 03
+> f0 48
+> [  265.480172] RIP  [<ffffffff812c7f70>] zap_huge_pmd+0x170/0x1f0
+> [  265.480172]  RSP <ffff8801cbd3bc78>
+>
+> Reported-by: Sasha Levin <sasha.levin@oracle.com>
+> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> ---
+
+Ran a round of testing overnight. While the BUG seems to be gone I'm now getting:
+
+[  879.815434] BUG: Bad page state in process trinity-c115  pfn:29a00
+[  879.816430] page:ffffea0000a68000 count:0 mapcount:0 mapping:          (null) index:
+0x7f2f20000
+[  879.817654] page flags: 0x5fffff81084008(uptodate|head|swapbacked|compound_lock)
+[  879.818848] Modules linked in:
+[  879.819340] CPU: 1 PID: 18824 Comm: trinity-c115 Tainted: G        W    3.13.0-rc5-n
+ext-20131223-sasha-00016-g3010ae9-dirty #13
+[  879.821142]  ffffea0000a68000 ffff880188345a58 ffffffff845e014c 0000000000000009
+[  879.822492]  ffffea0000a68000 ffff880188345a78 ffffffff8125c301 ffff880188345a78
+[  879.823858]  0000000000000200 ffff880188345ac8 ffffffff8125cd83 ffff880100000000
+[  879.825128] Call Trace:
+[  879.825568]  [<ffffffff845e014c>] dump_stack+0x52/0x7f
+[  879.826425]  [<ffffffff8125c301>] bad_page+0xf1/0x120
+[  879.827296]  [<ffffffff8125cd83>] free_pages_prepare+0x133/0x1f0
+[  879.828276]  [<ffffffff8125f254>] __free_pages_ok+0x24/0x150
+[  879.829267]  [<ffffffff8125f39b>] free_compound_page+0x1b/0x20
+[  879.830547]  [<ffffffff81267ebc>] __put_compound_page+0x1c/0x30
+[  879.831360]  [<ffffffff81267f60>] put_compound_page+0x60/0x2e0
+[  879.832284]  [<ffffffff8126824b>] release_pages+0x6b/0x230
+[  879.833230]  [<ffffffff8129ef46>] free_pages_and_swap_cache+0xa6/0xd0
+[  879.834297]  [<ffffffff81285dff>] tlb_flush_mmu+0x6f/0x90
+[  879.835146]  [<ffffffff812c8078>] zap_huge_pmd+0x308/0x410
+[  879.836097]  [<ffffffff81288526>] unmap_page_range+0x2c6/0x410
+[  879.837034]  [<ffffffff81288771>] unmap_single_vma+0x101/0x120
+[  879.838027]  [<ffffffff812887f1>] unmap_vmas+0x61/0xa0
+[  879.838892]  [<ffffffff8128f6a0>] exit_mmap+0xd0/0x170
+[  879.839794]  [<ffffffff81138860>] mmput+0x70/0xe0
+[  879.841079]  [<ffffffff8113c89d>] exit_mm+0x18d/0x1a0
+[  879.841565]  [<ffffffff811ea355>] ? acct_collect+0x175/0x1b0
+[  879.842411]  [<ffffffff8113ed0f>] do_exit+0x26f/0x520
+[  879.843169]  [<ffffffff8113f069>] do_group_exit+0xa9/0xe0
+[  879.844033]  [<ffffffff8113f0b7>] SyS_exit_group+0x17/0x20
+[  879.844967]  [<ffffffff845f1290>] tracesys+0xdd/0xe2
 
 
---FUaywKC54iCcLzqT
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-
-On Mon, Dec 23, 2013 at 10:05:17AM +0900, Joonsoo Kim wrote:
-> On Sun, Dec 22, 2013 at 12:58:19AM +1100, David Gibson wrote:
-> > On Wed, Dec 18, 2013 at 03:53:49PM +0900, Joonsoo Kim wrote:
-> > > There is a race condition if we map a same file on different processe=
-s.
-> > > Region tracking is protected by mmap_sem and hugetlb_instantiation_mu=
-tex.
-> > > When we do mmap, we don't grab a hugetlb_instantiation_mutex, but,
-> > > grab a mmap_sem. This doesn't prevent other process to modify region
-> > > structure, so it can be modified by two processes concurrently.
-> > >=20
-> > > To solve this, I introduce a lock to resv_map and make region manipul=
-ation
-> > > function grab a lock before they do actual work. This makes region
-> > > tracking safe.
-> >=20
-> > It's not clear to me if you're saying there is a list corruption race
-> > bug in the existing code, or only that there will be if the
-> > instantiation mutex goes away.
->=20
-> Hello,
->=20
-> The race exists in current code.
-> Currently, region tracking is protected by either down_write(&mm->mmap_se=
-m) or
-> down_read(&mm->mmap_sem) + instantiation mutex. But if we map this hugetl=
-bfs
-> file to two different processes, holding a mmap_sem doesn't have any impa=
-ct on
-> the other process and concurrent access to data structure is possible.
-
-Ouch.  In that case:
-
-Acked-by: David Gibson <david@gibson.dropbear.id.au>
-
-It would be really nice to add a testcase for this race to the
-libhugetlbfs testsuite.
-
---=20
-David Gibson			| I'll have my music baroque, and my code
-david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
-				| _way_ _around_!
-http://www.ozlabs.org/~dgibson
-
---FUaywKC54iCcLzqT
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQIcBAEBAgAGBQJSuXdLAAoJEGw4ysog2bOS+jEQAIehZUe2TUacMZP+VdVrUnD/
-cHIUzV9DvGBsyciQU1nHbzS2PV/LsglP8yMwNDgSHpygcCKvTj9yzLpbM6uKRsnl
-wCXO6vfy+2bi3dd3znGiH+wRBPIMxuS9TlbUCLHcyCVNLb4jZ0vr3REzoe45OX7x
-Piccug0+AD7D6gLolPr2RlYpt2xfYamwIAGwT1tgkzJeHSNo0Zm2rB8/apnyAbPr
-WOJ7Hkk0yyM+1q02LP8tYrjVX9WxOane5e98i6y+PHImpiWW3T+icFX0knyedqE7
-CDYwMlakgX3L8StpoXppu2nrcoXderrT1ruiQ2Dy8bKvZsMsbsgZ3PwWRRFKZMBF
-Z1SLTe9D9PoJxT39rl02hxHfQuGLFbDC9g795jc/ug0Rww2YJzK75lvvGUyzZsNe
-Ju5990bZywDhfOXdHSQElIuyosQPfEDOUENmx0pzfvOlyeJ/fXwOwQ9RaHxCPCAN
-FsLUjMK8bogBq2C13O3qoqgeD19RVGK0tMEl7utPKGsTdZ6m19dCr11LjptFkcCf
-qOgMOMYUZq3TD9DBFjzMRKoxgUx/hYsU7PCaHBUqsBGQCMlsepRCzNWqf9NtshRy
-lbnKbhllSvIv+TbbDUw8lD0aka0GuJsLzKFEmtJa0GFA2Oqy17JNUlU0PJWMz3uB
-IidLyCPdlxo4SswAxUJR
-=A0Ha
------END PGP SIGNATURE-----
-
---FUaywKC54iCcLzqT--
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
