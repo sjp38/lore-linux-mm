@@ -1,129 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C5ED6B0035
-	for <linux-mm@kvack.org>; Tue, 24 Dec 2013 20:07:53 -0500 (EST)
-Received: by mail-pd0-f171.google.com with SMTP id z10so6728932pdj.16
-        for <linux-mm@kvack.org>; Tue, 24 Dec 2013 17:07:52 -0800 (PST)
-Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com. [122.248.162.3])
-        by mx.google.com with ESMTPS id zq7si16859562pac.72.2013.12.24.17.07.50
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 24 Dec 2013 17:07:51 -0800 (PST)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 25 Dec 2013 06:37:48 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 6C8173940023
-	for <linux-mm@kvack.org>; Wed, 25 Dec 2013 06:37:46 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id rBP17gu132964642
-	for <linux-mm@kvack.org>; Wed, 25 Dec 2013 06:37:42 +0530
-Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id rBP17jjD007919
-	for <linux-mm@kvack.org>; Wed, 25 Dec 2013 06:37:45 +0530
-Date: Wed, 25 Dec 2013 09:07:44 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: mm: kernel BUG at include/linux/swapops.h:131!
-Message-ID: <52ba2fe7.47fc420a.0e92.ffff9008SMTPIN_ADDED_BROKEN@mx.google.com>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <52B1C143.8080301@oracle.com>
- <52B871B2.7040409@oracle.com>
- <20131224025127.GA2835@lge.com>
- <52B8F8F6.1080500@oracle.com>
- <20131224060705.GA16140@lge.com>
- <20131224074546.GB27156@lge.com>
+Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id E0C0B6B0035
+	for <linux-mm@kvack.org>; Wed, 25 Dec 2013 11:38:53 -0500 (EST)
+Received: by mail-ie0-f181.google.com with SMTP id e14so7541355iej.26
+        for <linux-mm@kvack.org>; Wed, 25 Dec 2013 08:38:53 -0800 (PST)
+Date: Wed, 25 Dec 2013 10:38:45 -0600
+From: Alex Thorlton <athorlton@sgi.com>
+Subject: Re: [RFC PATCH 0/3] Change how we determine when to hand out THPs
+Message-ID: <20131225163845.GA195633@sgi.com>
+References: <20131212180037.GA134240@sgi.com> <20131213214437.6fdbf7f2.akpm@linux-foundation.org> <20131216171214.GA15663@sgi.com> <20131219152906.GQ11295@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131224074546.GB27156@lge.com>
+In-Reply-To: <20131219152906.GQ11295@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, khlebnikov@openvz.org, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Michel Lespinasse <walken@google.com>, Benjamin LaHaise <bcrl@kvack.org>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, David Rientjes <rientjes@google.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jiang Liu <jiang.liu@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Glauber Costa <glommer@parallels.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>
 
-Hi Joonsoo,
-On Tue, Dec 24, 2013 at 04:45:46PM +0900, Joonsoo Kim wrote:
->On Tue, Dec 24, 2013 at 03:07:05PM +0900, Joonsoo Kim wrote:
->> On Mon, Dec 23, 2013 at 10:01:10PM -0500, Sasha Levin wrote:
->> > On 12/23/2013 09:51 PM, Joonsoo Kim wrote:
->> > >On Mon, Dec 23, 2013 at 12:24:02PM -0500, Sasha Levin wrote:
->> > >>>Ping?
->> > >>>
->> > >>>I've also Cc'ed the "this page shouldn't be locked at all" team.
->> > >Hello,
->> > >
->> > >I can't find the reason of this problem.
->> > >If it is reproducible, how about bisecting?
->> > 
->> > While it reproduces under fuzzing it's pretty hard to bisect it with
->> > the amount of issues uncovered by trinity recently.
->> > 
->> > I can add any debug code to the site of the BUG if that helps.
->> 
->> Good!
->> It will be helpful to add dump_page() in migration_entry_to_page().
->> 
->> Thanks.
->> 
->
->Minchan teaches me that there is possible race condition between
->fork and migration.
->
->Please consider following situation.
->
->
->Process A (do migration)			Process B (parents) Process C (child)
->
->try_to_unmap() for migration <begin>		fork
->setup migration entry to B's vma
->...
->try_to_unmap() for migration <end>
->move_to_new_page()
->
->						link new vma
->						    into interval tree
->remove_migration_ptes() <begin>
->check and clear migration entry on C's vma
->...						copy_one_pte:
->...						    now, B and C have migration entry
->...
+On Thu, Dec 19, 2013 at 03:29:06PM +0000, Mel Gorman wrote:
+> On Mon, Dec 16, 2013 at 11:12:15AM -0600, Alex Thorlton wrote:
+> > > Please cc Andrea on this.
+> > 
+> > I'm going to clean up a few small things for a v2 pretty soon, I'll be
+> > sure to cc Andrea there.
+> > 
+> > > > My proposed solution to the problem is to allow users to set a
+> > > > threshold at which THPs will be handed out.  The idea here is that, when
+> > > > a user faults in a page in an area where they would usually be handed a
+> > > > THP, we pull 512 pages off the free list, as we would with a regular
+> > > > THP, but we only fault in single pages from that chunk, until the user
+> > > > has faulted in enough pages to pass the threshold we've set.  Once they
+> > > > pass the threshold, we do the necessary work to turn our 512 page chunk
+> > > > into a proper THP.  As it stands now, if the user tries to fault in
+> > > > pages from different nodes, we completely give up on ever turning a
+> > > > particular chunk into a THP, and just fault in the 4K pages as they're
+> > > > requested.  We may want to make this tunable in the future (i.e. allow
+> > > > them to fault in from only 2 different nodes).
+> > > 
+> > > OK.  But all 512 pages reside on the same node, yes?  Whereas with thp
+> > > disabled those 512 pages would have resided closer to the CPUs which
+> > > instantiated them.  
+> > 
+> > As it stands right now, yes, since we're pulling a 512 page contiguous
+> > chunk off the free list, everything from that chunk will reside on the
+> > same node, but as I (stupidly) forgot to mention in my original e-mail,
+> > one piece I have yet to add is the functionality to put the remaining
+> > unfaulted pages from our chunk *back* on the free list after we give up
+> > on handing out a THP. 
+> 
+> You don't necessarily have to take it off in the
+> first place either. Heavy handed approach is to create
+> MIGRATE_MOVABLE_THP_RESERVATION_BECAUSE_WHO_NEEDS_SNAPPY_NAMES and put it
+> at the bottom of the fallback lists in the page allocator. Allocate one
+> base page, move the other 511 to that list. On the second fault, use the
+> correctly aligned page if it's still on the buddy lists and local to the
+> current NUMA node, otherwise fallback to a normal allocation. On promotion,
+> you're checking first if all the faulted page are on the same node and
+> second if the correctly aligned pages are on the free lists or not.
+> 
+> The addition of a migrate type would very heavy handed but you could
+> just create a special cased linked list of pages that are potentially
+> reserved that is drained before the page allocator wakes kswapd.
+> 
+> Order the pages such that the oldest one on the new free list is the
+> first allocated. That way you do not have to worry about scanning tasks
+> for pages to put back on the free list.
 
->From Sasha's report:
+Thanks for the input, Mel.  While I agree that the addition of a migrate
+type might be a bit heavy handed, I think that would also get rid of the
+problem that Kirill pointed out with forking processes, i.e. the current
+behavior tracks temporary huge pages in a per-mm freelist, which falls
+apart for forked processes (only useful in the threaded case).  I'll
+take a look into this soon.
 
-| [ 3800.520039] page:ffffea0000245800 count:12 mapcount:4 mapping:ffff88001d0c3668 index:0x7de
-| [ 3800.521404] page flags: 0x1fffff8038003c(referenced|uptodate|dirty|lru|swapbacked|unevictable|mlocked)
-| [ 3800.522585] pc:ffff88001ed91600 pc->flags:2 pc->mem_cgroup:ffffc90000c0a000
-
-IIUC, C's mapcount should be 0 as B's in the race condition you mentioned. 
-
-Regards,
-Wanpeng Li 
-
->...
->check and clear migration entry on B's vma
->...
->...
->remove_migration_ptes() <end>
->
->
->Eventually, migration entry on C's vma is left.
->And then, when C exits, above BUG_ON() can be triggered.
->
->I'm not sure the I am right, so please think of it together. :)
->And I'm not sure again that above assumption is related to this trigger report,
->since this may exist for a long time.
->
->So my question to mm folks is is above assumption possible and do we have
->any protection mechanism on this race?
->
->Thanks.
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+- Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
