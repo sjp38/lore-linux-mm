@@ -1,44 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f47.google.com (mail-qe0-f47.google.com [209.85.128.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A58B6B0031
-	for <linux-mm@kvack.org>; Fri, 27 Dec 2013 15:14:50 -0500 (EST)
-Received: by mail-qe0-f47.google.com with SMTP id t7so9400936qeb.20
-        for <linux-mm@kvack.org>; Fri, 27 Dec 2013 12:14:50 -0800 (PST)
-Received: from blu0-omc4-s36.blu0.hotmail.com (blu0-omc4-s36.blu0.hotmail.com. [65.55.111.175])
-        by mx.google.com with ESMTP id nh12si29682335qeb.42.2013.12.27.12.14.49
-        for <linux-mm@kvack.org>;
-        Fri, 27 Dec 2013 12:14:49 -0800 (PST)
-Message-ID: <BLU0-SMTP67B57AF06A5AC44236538A97CD0@phx.gbl>
-From: John David Anglin <dave.anglin@bell.net>
-In-Reply-To: <BLU0-SMTP15241D603FEB77037F6D1E97CD0@phx.gbl>
-Content-Type: text/plain; charset="US-ASCII"; format=flowed; delsp=yes
+Received: from mail-yh0-f49.google.com (mail-yh0-f49.google.com [209.85.213.49])
+	by kanga.kvack.org (Postfix) with ESMTP id AB57C6B0031
+	for <linux-mm@kvack.org>; Fri, 27 Dec 2013 17:19:51 -0500 (EST)
+Received: by mail-yh0-f49.google.com with SMTP id z20so2027286yhz.22
+        for <linux-mm@kvack.org>; Fri, 27 Dec 2013 14:19:51 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id r49si35169000yho.67.2013.12.27.14.19.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 27 Dec 2013 14:19:50 -0800 (PST)
+Message-ID: <52BDFD00.7020909@oracle.com>
+Date: Fri, 27 Dec 2013 17:19:44 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: dump page when hitting a VM_BUG_ON using VM_BUG_ON_PAGE
+References: <1388114452-30769-1-git-send-email-sasha.levin@oracle.com> <20131227103847.GA19453@node.dhcp.inet.fi>
+In-Reply-To: <20131227103847.GA19453@node.dhcp.inet.fi>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-MIME-Version: 1.0 (Apple Message framework v936)
-Subject: Re: [PATCH] remap_file_pages needs to check for cache coherency
-Date: Fri, 27 Dec 2013 15:14:39 -0500
-References: <20131227180018.GC4945@linux.intel.com> <BLU0-SMTP17D26551261DF285A7E6F497CD0@phx.gbl> <20131227193330.GE4945@linux.intel.com> <BLU0-SMTP15241D603FEB77037F6D1E97CD0@phx.gbl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John David Anglin <dave.anglin@bell.net>
-Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, "David S. Miller" <davem@davemloft.net>, sparclinux@vger.kernel.org, linux-parisc@vger.kernel.org, linux-mips@linux-mips.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 27-Dec-13, at 2:47 PM, John David Anglin wrote:
+On 12/27/2013 05:38 AM, Kirill A. Shutemov wrote:
+> On Thu, Dec 26, 2013 at 10:20:52PM -0500, Sasha Levin wrote:
+>> Most of the VM_BUG_ON assertions are performed on a page. Usually, when
+>> one of these assertions fails we'll get a BUG_ON with a call stack and
+>> the registers.
+>>
+>> I've recently noticed based on the requests to add a small piece of code
+>> that dumps the page to various VM_BUG_ON sites that the page dump is quite
+>> useful to people debugging issues in mm.
+>>
+>> This patch adds a VM_BUG_ON_PAGE(cond, page) which beyond doing what
+>> VM_BUG_ON() does, also dumps the page before executing the actual BUG_ON.
+>>
+>> Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
+>
+> I like the idea. One thing I've noticed you have a lot of page flag based
+> asserts, like:
+>
+> 	VM_BUG_ON_PAGE(PageLRU(page), page);
+> 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+>
+> What about adding per-page-flag assert macros, like:
+>
+> 	PageNotLRU_assert(page);
+> 	PageLocked_assert(page);
+>
+> ? This way we will always dump right page on bug.
+>
 
-> It's worth looking at.  The value is supposed to be returned by the  
-> PDC_CACHE PDC
-> call but I know my rp3440 returns a value of 0 indicating that the  
-> aliasing boundary
-> is unknown and may be greater than 16MB.
+Sure, sounds good.
 
-c3750 data cache has an aliasing boundary of 4 MB, so I think we are  
-stuck with large
-SHMLBA.
-
-Dave
---
-John David Anglin	dave.anglin@bell.net
+I'll send another patch on top of this one.
 
 
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
