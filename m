@@ -1,57 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
-	by kanga.kvack.org (Postfix) with ESMTP id A278A6B0031
-	for <linux-mm@kvack.org>; Fri, 27 Dec 2013 06:11:04 -0500 (EST)
-Received: by mail-ee0-f52.google.com with SMTP id d17so4054584eek.39
-        for <linux-mm@kvack.org>; Fri, 27 Dec 2013 03:11:04 -0800 (PST)
-Received: from jenni2.inet.fi (mta-out.inet.fi. [195.156.147.13])
-        by mx.google.com with ESMTP id s8si37676702eeh.143.2013.12.27.03.11.02
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 824406B0031
+	for <linux-mm@kvack.org>; Fri, 27 Dec 2013 13:00:22 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id up15so9405924pbc.24
+        for <linux-mm@kvack.org>; Fri, 27 Dec 2013 10:00:22 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id eb3si25090540pbc.56.2013.12.27.10.00.20
         for <linux-mm@kvack.org>;
-        Fri, 27 Dec 2013 03:11:02 -0800 (PST)
-Date: Fri, 27 Dec 2013 12:38:47 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: dump page when hitting a VM_BUG_ON using
- VM_BUG_ON_PAGE
-Message-ID: <20131227103847.GA19453@node.dhcp.inet.fi>
-References: <1388114452-30769-1-git-send-email-sasha.levin@oracle.com>
+        Fri, 27 Dec 2013 10:00:21 -0800 (PST)
+Date: Fri, 27 Dec 2013 13:00:18 -0500
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: [PATCH] remap_file_pages needs to check for cache coherency
+Message-ID: <20131227180018.GC4945@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1388114452-30769-1-git-send-email-sasha.levin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: "David S. Miller" <davem@davemloft.net>, sparclinux@vger.kernel.org, linux-parisc@vger.kernel.org, linux-mips@linux-mips.org
 
-On Thu, Dec 26, 2013 at 10:20:52PM -0500, Sasha Levin wrote:
-> Most of the VM_BUG_ON assertions are performed on a page. Usually, when
-> one of these assertions fails we'll get a BUG_ON with a call stack and
-> the registers.
-> 
-> I've recently noticed based on the requests to add a small piece of code
-> that dumps the page to various VM_BUG_ON sites that the page dump is quite
-> useful to people debugging issues in mm.
-> 
-> This patch adds a VM_BUG_ON_PAGE(cond, page) which beyond doing what
-> VM_BUG_ON() does, also dumps the page before executing the actual BUG_ON.
-> 
-> Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
 
-I like the idea. One thing I've noticed you have a lot of page flag based
-asserts, like:
+It seems to me that while (for example) on SPARC, it's not possible to
+create a non-coherent mapping with mmap(), after we've done an mmap,
+we can then use remap_file_pages() to create a mapping that no longer
+aliases in the D-cache.
 
-	VM_BUG_ON_PAGE(PageLRU(page), page);
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
+I have only compile-tested this patch.  I don't have any SPARC hardware,
+and my PA-RISC hardware hasn't been turned on in six years ... I noticed
+this while wandering around looking at some other stuff.
 
-What about adding per-page-flag assert macros, like:
-
-	PageNotLRU_assert(page);
-	PageLocked_assert(page);
-
-? This way we will always dump right page on bug.
-
--- 
- Kirill A. Shutemov
+diff --git a/mm/fremap.c b/mm/fremap.c
+index 5bff081..01fc2e7 100644
+--- a/mm/fremap.c
++++ b/mm/fremap.c
+@@ -19,6 +19,7 @@
+ 
+ #include <asm/mmu_context.h>
+ #include <asm/cacheflush.h>
++#include <asm/shmparam.h>
+ #include <asm/tlbflush.h>
+ 
+ #include "internal.h"
+@@ -177,6 +178,13 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
+ 	if (start < vma->vm_start || start + size > vma->vm_end)
+ 		goto out;
+ 
++#ifdef __ARCH_FORCE_SHMLBA
++	/* Is the mapping cache-coherent? */
++	if ((pgoff ^ linear_page_index(vma, start)) &
++	    ((SHMLBA-1) >> PAGE_SHIFT))
++		goto out;
++#endif
++
+ 	/* Must set VM_NONLINEAR before any pages are populated. */
+ 	if (!(vma->vm_flags & VM_NONLINEAR)) {
+ 		/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
