@@ -1,42 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 331B96B0031
-	for <linux-mm@kvack.org>; Fri, 27 Dec 2013 13:48:18 -0500 (EST)
-Received: by mail-qc0-f180.google.com with SMTP id w7so8994367qcr.11
-        for <linux-mm@kvack.org>; Fri, 27 Dec 2013 10:48:17 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id j7si29345124qab.151.2013.12.27.10.48.16
+Received: from mail-qe0-f43.google.com (mail-qe0-f43.google.com [209.85.128.43])
+	by kanga.kvack.org (Postfix) with ESMTP id B8BCD6B0031
+	for <linux-mm@kvack.org>; Fri, 27 Dec 2013 14:13:29 -0500 (EST)
+Received: by mail-qe0-f43.google.com with SMTP id jy17so9508802qeb.30
+        for <linux-mm@kvack.org>; Fri, 27 Dec 2013 11:13:29 -0800 (PST)
+Received: from blu0-omc4-s14.blu0.hotmail.com (blu0-omc4-s14.blu0.hotmail.com. [65.55.111.153])
+        by mx.google.com with ESMTP id j7si29471888qab.23.2013.12.27.11.13.26
         for <linux-mm@kvack.org>;
-        Fri, 27 Dec 2013 10:48:17 -0800 (PST)
-Date: Fri, 27 Dec 2013 13:48:14 -0500 (EST)
-Message-Id: <20131227.134814.345379118522548543.davem@davemloft.net>
-Subject: Re: [PATCH] remap_file_pages needs to check for cache coherency
-From: David Miller <davem@davemloft.net>
+        Fri, 27 Dec 2013 11:13:28 -0800 (PST)
+Message-ID: <BLU0-SMTP17D26551261DF285A7E6F497CD0@phx.gbl>
+From: John David Anglin <dave.anglin@bell.net>
 In-Reply-To: <20131227180018.GC4945@linux.intel.com>
+Subject: Re: [PATCH] remap_file_pages needs to check for cache coherency
 References: <20131227180018.GC4945@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain; charset="US-ASCII"; format=flowed; delsp=yes
 Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0 (Apple Message framework v936)
+Date: Fri, 27 Dec 2013 14:13:16 -0500
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: willy@linux.intel.com
-Cc: linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-parisc@vger.kernel.org, linux-mips@linux-mips.org
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: linux-mm@kvack.org, "David S. Miller" <davem@davemloft.net>, sparclinux@vger.kernel.org, linux-parisc@vger.kernel.org, linux-mips@linux-mips.org
 
-From: Matthew Wilcox <willy@linux.intel.com>
-Date: Fri, 27 Dec 2013 13:00:18 -0500
+On 27-Dec-13, at 1:00 PM, Matthew Wilcox wrote:
 
-> It seems to me that while (for example) on SPARC, it's not possible to
-> create a non-coherent mapping with mmap(), after we've done an mmap,
-> we can then use remap_file_pages() to create a mapping that no longer
-> aliases in the D-cache.
-> 
-> I have only compile-tested this patch.  I don't have any SPARC hardware,
-> and my PA-RISC hardware hasn't been turned on in six years ... I noticed
-> this while wandering around looking at some other stuff.
+> +#ifdef __ARCH_FORCE_SHMLBA
+> +	/* Is the mapping cache-coherent? */
+> +	if ((pgoff ^ linear_page_index(vma, start)) &
+> +	    ((SHMLBA-1) >> PAGE_SHIFT))
+> +		goto out;
+> +#endif
 
-I suppose this is needed, but only in the case where the mapping is
-shared and writable, right?  I don't see you testing those conditions,
-but with them I'd be OK with this change.
+
+I think this will cause problems on PA-RISC.  The reason is we have an  
+additional offset
+for mappings.  See get_offset() in sys_parisc.c.
+
+SHMLBA is 4 MB on PA-RISC.  If we limit ourselves to aligned mappings,  
+we run out of
+memory very quickly.  Even with our current implementation, we fail  
+the perl locales test
+with locales-all installed.
+
+Dave
+--
+John David Anglin	dave.anglin@bell.net
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
