@@ -1,72 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 2558E6B0036
-	for <linux-mm@kvack.org>; Sat, 28 Dec 2013 20:45:23 -0500 (EST)
-Received: by mail-ie0-f175.google.com with SMTP id x13so10897704ief.20
-        for <linux-mm@kvack.org>; Sat, 28 Dec 2013 17:45:22 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id nh2si48018356icc.78.2013.12.28.17.45.21
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5762C6B0035
+	for <linux-mm@kvack.org>; Sun, 29 Dec 2013 06:45:51 -0500 (EST)
+Received: by mail-wg0-f51.google.com with SMTP id b13so9210765wgh.18
+        for <linux-mm@kvack.org>; Sun, 29 Dec 2013 03:45:50 -0800 (PST)
+Received: from mail-we0-x234.google.com (mail-we0-x234.google.com [2a00:1450:400c:c03::234])
+        by mx.google.com with ESMTPS id vi3si1369731wjc.59.2013.12.29.03.45.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 28 Dec 2013 17:45:22 -0800 (PST)
-From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [RFC 2/2] mm: additional checks to page flag set/clear
-Date: Sat, 28 Dec 2013 20:45:04 -0500
-Message-Id: <1388281504-11453-2-git-send-email-sasha.levin@oracle.com>
-In-Reply-To: <1388281504-11453-1-git-send-email-sasha.levin@oracle.com>
-References: <1388281504-11453-1-git-send-email-sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 29 Dec 2013 03:45:50 -0800 (PST)
+Received: by mail-we0-f180.google.com with SMTP id t61so9490976wes.11
+        for <linux-mm@kvack.org>; Sun, 29 Dec 2013 03:45:50 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <524fc449.06a3420a.03dc.ffffb760SMTPIN_ADDED_BROKEN@mx.google.com>
+References: <522E9569.9060104@huawei.com>
+	<524fc449.06a3420a.03dc.ffffb760SMTPIN_ADDED_BROKEN@mx.google.com>
+Date: Sun, 29 Dec 2013 13:45:49 +0200
+Message-ID: <CAOJsxLEiafGHcX6zy85NRXN7ydnVKNv2oZHNwffp9=hORxGJog@mail.gmail.com>
+Subject: Re: [PATCH] slub: Fix calculation of cpu slabs
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill@shutemov.name, Sasha Levin <sasha.levin@oracle.com>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Li Zefan <lizefan@huawei.com>, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Check if the flag is already set before setting it, and vice versa
-for clearing.
+On Sat, Oct 5, 2013 at 10:48 AM, Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
+> On Tue, Sep 10, 2013 at 11:43:37AM +0800, Li Zefan wrote:
+>>  /sys/kernel/slab/:t-0000048 # cat cpu_slabs
+>>  231 N0=16 N1=215
+>>  /sys/kernel/slab/:t-0000048 # cat slabs
+>>  145 N0=36 N1=109
+>>
+>>See, the number of slabs is smaller than that of cpu slabs.
+>>
+>>The bug was introduced by commit 49e2258586b423684f03c278149ab46d8f8b6700
+>>("slub: per cpu cache for partial pages").
+>>
+>>We should use page->pages instead of page->pobjects when calculating
+>>the number of cpu partial slabs. This also fixes the mapping of slabs
+>>and nodes.
+>>
+>>As there's no variable storing the number of total/active objects in
+>>cpu partial slabs, and we don't have user interfaces requiring those
+>>statistics, I just add WARN_ON for those cases.
+>>
+>>Cc: <stable@vger.kernel.org> # 3.2+
+>>Signed-off-by: Li Zefan <lizefan@huawei.com>
+>
+> Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Obviously setting or clearing a flag twice isn't a problem on it's
-own, but it implies that there's an issue where some piece of code
-assumed an opposite state of the flag.
-
-Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
----
- include/linux/page-flags.h | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index d1fe1a7..36b0bef 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -130,6 +130,12 @@ enum pageflags {
- 
- #ifndef __GENERATING_BOUNDS_H
- 
-+#ifdef CONFIG_DEBUG_VM_PAGE_FLAGS
-+#define VM_ASSERT_FLAG(assert, page) VM_BUG_ON_PAGE(assert, page)
-+#else
-+#define VM_ASSERT_FLAG(assert, page) do { } while (0)
-+#endif
-+
- /*
-  * Macros to create function definitions for page flags
-  */
-@@ -139,11 +145,13 @@ static inline int Page##uname(const struct page *page)			\
- 
- #define SETPAGEFLAG(uname, lname)					\
- static inline void SetPage##uname(struct page *page)			\
--			{ set_bit(PG_##lname, &page->flags); }
-+			{ VM_ASSERT_FLAG(Page##uname(page), page);	\
-+			set_bit(PG_##lname, &page->flags); }
- 
- #define CLEARPAGEFLAG(uname, lname)					\
- static inline void ClearPage##uname(struct page *page)			\
--			{ clear_bit(PG_##lname, &page->flags); }
-+			{ VM_ASSERT_FLAG(!Page##uname(page), page);	\
-+			clear_bit(PG_##lname, &page->flags); }
- 
- #define __SETPAGEFLAG(uname, lname)					\
- static inline void __SetPage##uname(struct page *page)			\
--- 
-1.8.3.2
+Applied and sorry for the slow response!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
