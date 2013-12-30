@@ -1,38 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id EA0836B0031
-	for <linux-mm@kvack.org>; Mon, 30 Dec 2013 14:18:21 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id jt11so11920940pbb.0
-        for <linux-mm@kvack.org>; Mon, 30 Dec 2013 11:18:21 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id ey5si30526464pab.45.2013.12.30.11.18.20
-        for <linux-mm@kvack.org>;
-        Mon, 30 Dec 2013 11:18:20 -0800 (PST)
-Message-ID: <52C1C6F7.8010809@intel.com>
-Date: Mon, 30 Dec 2013 11:18:15 -0800
-From: Dave Hansen <dave.hansen@intel.com>
-MIME-Version: 1.0
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 46A6F6B0031
+	for <linux-mm@kvack.org>; Mon, 30 Dec 2013 14:40:06 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id hz1so11906022pad.40
+        for <linux-mm@kvack.org>; Mon, 30 Dec 2013 11:40:05 -0800 (PST)
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+        by mx.google.com with ESMTPS id s4si1784800pbg.303.2013.12.30.11.40.04
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 30 Dec 2013 11:40:04 -0800 (PST)
+Received: by mail-pd0-f169.google.com with SMTP id v10so11616314pde.14
+        for <linux-mm@kvack.org>; Mon, 30 Dec 2013 11:40:04 -0800 (PST)
+References: <cover.1388409686.git.liwang@ubuntukylin.com> <52C1C6F7.8010809@intel.com>
+Mime-Version: 1.0 (1.0)
+In-Reply-To: <52C1C6F7.8010809@intel.com>
+Content-Type: text/plain;
+	charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <FFE7C704-791E-4B73-9251-EFB9135AB254@dilger.ca>
+From: Andreas Dilger <adilger@dilger.ca>
 Subject: Re: [PATCH 0/3] Fadvise: Directory level page cache cleaning support
-References: <cover.1388409686.git.liwang@ubuntukylin.com>
-In-Reply-To: <cover.1388409686.git.liwang@ubuntukylin.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Mon, 30 Dec 2013 12:40:05 -0700
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Wang <liwang@ubuntukylin.com>, Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, Zefan Li <lizefan@huawei.com>, Matthew Wilcox <matthew@wil.cx>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Li Wang <liwang@ubuntukylin.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, Zefan Li <lizefan@huawei.com>, Matthew Wilcox <matthew@wil.cx>
 
-On 12/30/2013 05:45 AM, Li Wang wrote:
-> This patch extends 'fadvise' to support directory level page cache
-> cleaning. The call to posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED) 
-> with 'fd' referring to a directory will recursively reclaim page cache 
-> entries of files inside 'fd'. For secruity concern, those inodes
-> which the caller does not own appropriate permissions will not 
-> be manipulated.
+On Dec 30, 2013, at 12:18, Dave Hansen <dave.hansen@intel.com> wrote:
+>=20
+> Why is this necessary to do in the kernel?  Why not leave it to
+> userspace to walk the filesystem(s)?
 
-Why is this necessary to do in the kernel?  Why not leave it to
-userspace to walk the filesystem(s)?
+I would suspect that trying to do it in userspace would be quite bad. It wou=
+ld require traversing the whole directory tree to issue cache flushed for ea=
+ch subdirectory, but it doesn't know when to stop traversal. That would mean=
+ the "cache flush" would turn into "cache pollute" and cause a lot of disk I=
+O for subdirectories not in cache to begin with.=20
 
+Cheers, Andreas=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
