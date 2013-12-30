@@ -1,114 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f48.google.com (mail-qe0-f48.google.com [209.85.128.48])
-	by kanga.kvack.org (Postfix) with ESMTP id BB5896B0031
-	for <linux-mm@kvack.org>; Mon, 30 Dec 2013 15:38:04 -0500 (EST)
-Received: by mail-qe0-f48.google.com with SMTP id gc15so11642279qeb.21
-        for <linux-mm@kvack.org>; Mon, 30 Dec 2013 12:38:04 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id t7si43240582qar.91.2013.12.30.12.38.02
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B5496B0031
+	for <linux-mm@kvack.org>; Mon, 30 Dec 2013 16:33:44 -0500 (EST)
+Received: by mail-pb0-f50.google.com with SMTP id rr13so11990090pbb.37
+        for <linux-mm@kvack.org>; Mon, 30 Dec 2013 13:33:44 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id ty3si34702496pbc.197.2013.12.30.13.33.42
         for <linux-mm@kvack.org>;
-        Mon, 30 Dec 2013 12:38:03 -0800 (PST)
-Date: Mon, 30 Dec 2013 18:23:42 -0200
-From: Marcelo Tosatti <mtosatti@redhat.com>
-Subject: Re: [RFC PATCH V1 0/6] mm: add a new option MREMAP_DUP to mmrep
- syscall
-Message-ID: <20131230202342.GA7973@amt.cnet>
-References: <1368093011-4867-1-git-send-email-wenchaolinux@gmail.com>
- <20130509141329.GC11497@suse.de>
- <518C5B5E.4010706@gmail.com>
- <CAJSP0QULp5c3tWwZ4ipWn6wS3YWauE07Bmd8nzjp8CJhWaD_oQ@mail.gmail.com>
- <52AFE828.3010500@linux.vnet.ibm.com>
+        Mon, 30 Dec 2013 13:33:43 -0800 (PST)
+Message-ID: <52C1E6B1.4010402@intel.com>
+Date: Mon, 30 Dec 2013 13:33:37 -0800
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <52AFE828.3010500@linux.vnet.ibm.com>
+Subject: Re: [PATCH 0/3] Fadvise: Directory level page cache cleaning support
+References: <cover.1388409686.git.liwang@ubuntukylin.com> <52C1C6F7.8010809@intel.com> <FFE7C704-791E-4B73-9251-EFB9135AB254@dilger.ca>
+In-Reply-To: <FFE7C704-791E-4B73-9251-EFB9135AB254@dilger.ca>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-Cc: Stefan Hajnoczi <stefanha@gmail.com>, wenchao <wenchaolinux@gmail.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, walken@google.com, Alexander Viro <viro@zeniv.linux.org.uk>, kirill.shutemov@linux.intel.com, Anthony Liguori <anthony@codemonkey.ws>, KVM <kvm@vger.kernel.org>
+To: Andreas Dilger <adilger@dilger.ca>
+Cc: Li Wang <liwang@ubuntukylin.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, Zefan Li <lizefan@huawei.com>, Matthew Wilcox <matthew@wil.cx>
 
-On Tue, Dec 17, 2013 at 01:59:04PM +0800, Xiao Guangrong wrote:
+On 12/30/2013 11:40 AM, Andreas Dilger wrote:
+> On Dec 30, 2013, at 12:18, Dave Hansen <dave.hansen@intel.com> wrote:
+>> Why is this necessary to do in the kernel?  Why not leave it to
+>> userspace to walk the filesystem(s)?
 > 
-> CCed KVM guys.
-> 
-> On 05/10/2013 01:11 PM, Stefan Hajnoczi wrote:
-> > On Fri, May 10, 2013 at 4:28 AM, wenchao <wenchaolinux@gmail.com> wrote:
-> >> ao? 2013-5-9 22:13, Mel Gorman a??e??:
-> >>
-> >>> On Thu, May 09, 2013 at 05:50:05PM +0800, wenchaolinux@gmail.com wrote:
-> >>>>
-> >>>> From: Wenchao Xia <wenchaolinux@gmail.com>
-> >>>>
-> >>>>    This serial try to enable mremap syscall to cow some private memory
-> >>>> region,
-> >>>> just like what fork() did. As a result, user space application would got
-> >>>> a
-> >>>> mirror of those region, and it can be used as a snapshot for further
-> >>>> processing.
-> >>>>
-> >>>
-> >>> What not just fork()? Even if the application was threaded it should be
-> >>> managable to handle fork just for processing the private memory region
-> >>> in question. I'm having trouble figuring out what sort of application
-> >>> would require an interface like this.
-> >>>
-> >>   It have some troubles: parent - child communication, sometimes
-> >> page copy.
-> >>   I'd like to snapshot qemu guest's RAM, currently solution is:
-> >> 1) fork()
-> >> 2) pipe guest RAM data from child to parent.
-> >> 3) parent write down the contents.
-> >>
-> >>   To avoid complex communication for data control, and file content
-> >> protecting, So let parent instead of child handling the data with
-> >> a pipe, but this brings additional copy(). I think an explicit API
-> >> cow mapping an memory region inside one process, could avoid it,
-> >> and faster and cow less pages, also make user space code nicer.
-> > 
-> > A new Linux-specific API is not portable and not available on existing
-> > hosts.  Since QEMU supports non-Linux host operating systems the
-> > fork() approach is preferable.
-> > 
-> > If you're worried about the memory copy - which should be benchmarked
-> > - then vmsplice(2) can be used in the child process and splice(2) can
-> > be used in the parent.  It probably doesn't help though since QEMU
-> > scans RAM pages to find all-zero pages before sending them over the
-> > socket, and at that point the memory copy might not make much
-> > difference.
-> > 
-> > Perhaps other applications can use this new flag better, but for QEMU
-> > I think fork()'s portability is more important than the convenience of
-> > accessing the CoW pages in the same process.
-> 
-> Yup, I agree with you that the new syscall sometimes is not a good solution.
-> 
-> Currently, we're working on live-update[1] that will be enabled on Qemu firstly,
-> this feature let the guest run on the new Qemu binary smoothly without
-> restart, it's good for us to do security-update.
-> 
-> In this case, we need to move the guest memory on old qemu instance to the
-> new one, fork() can not help because we need to exec() a new instance, after
-> that all memory mapping will be destroyed.
-> 
-> We tried to enable SPLICE_F_MOVE[2] for vmsplice() to move the memory without
-> memory-copy but the performance isn't so good as we expected: it's due to
-> some limitations: the page-size, lock, message-size limitation on pipe, etc.
-> Of course, we will continue to improve this, but wenchao's patch seems a new
-> direction for us.
-> 
-> To coordinate with your fork() approach, maybe we can introduce a new flag
-> for VMA, something like: VM_KEEP_ONEXEC, to tell exec() to do not destroy
-> this VMA. How about this or you guy have new idea? Really appreciate for your
-> suggestion.
-> 
-> [1] http://marc.info/?l=qemu-devel&m=138597598700844&w=2
-> [2] https://lkml.org/lkml/2013/10/25/285
+> I would suspect that trying to do it in userspace would be quite bad. It would require traversing the whole directory tree to issue cache flushed for each subdirectory, but it doesn't know when to stop traversal. That would mean the "cache flush" would turn into "cache pollute" and cause a lot of disk IO for subdirectories not in cache to begin with. 
 
-Hi,
+That makes sense for dentries at least and is a pretty good reason.
+Probably good enough to to include some text in the patch description.
+;)  Perhaps: "We need this interface because we have no way of
+determining what is in the dcache from userspace, and we do not want
+userspace to pollute the dcache going and looking for page cache to evict."
 
-What is the purpose of snapshotting guest RAM here, in the context of
-local migration?
+One other thing that bothers me: POSIX_FADV_DONTNEED on a directory
+seems like it should do something with the _directory_.  It should undo
+the kernel's caching that happens as a result of readdir().
+
+Should this also be trying to drop the dentry/inode entries like "echo 2
+> .../drop_caches" does?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
