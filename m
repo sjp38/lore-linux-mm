@@ -1,73 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-gg0-f177.google.com (mail-gg0-f177.google.com [209.85.161.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 68F016B0031
-	for <linux-mm@kvack.org>; Mon, 30 Dec 2013 06:16:28 -0500 (EST)
-Received: by mail-gg0-f177.google.com with SMTP id 4so2278271ggm.8
-        for <linux-mm@kvack.org>; Mon, 30 Dec 2013 03:16:28 -0800 (PST)
-Received: from arroyo.ext.ti.com (arroyo.ext.ti.com. [192.94.94.40])
-        by mx.google.com with ESMTPS id z48si46267818yha.106.2013.12.30.03.16.26
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 30 Dec 2013 03:16:27 -0800 (PST)
-Message-ID: <52C1635D.9070703@ti.com>
-Date: Mon, 30 Dec 2013 14:13:17 +0200
-From: Grygorii Strashko <grygorii.strashko@ti.com>
+Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
+	by kanga.kvack.org (Postfix) with ESMTP id AC8B46B0031
+	for <linux-mm@kvack.org>; Mon, 30 Dec 2013 06:43:21 -0500 (EST)
+Received: by mail-ee0-f44.google.com with SMTP id b57so5035766eek.31
+        for <linux-mm@kvack.org>; Mon, 30 Dec 2013 03:43:20 -0800 (PST)
+Received: from jenni2.inet.fi (mta-out.inet.fi. [195.156.147.13])
+        by mx.google.com with ESMTP id p46si52004353eem.0.2013.12.30.03.43.20
+        for <linux-mm@kvack.org>;
+        Mon, 30 Dec 2013 03:43:20 -0800 (PST)
+Date: Mon, 30 Dec 2013 13:43:17 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC 1/2] mm: additional page lock debugging
+Message-ID: <20131230114317.GA8117@node.dhcp.inet.fi>
+References: <1388281504-11453-1-git-send-email-sasha.levin@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/memblock: use WARN_ONCE when MAX_NUMNODES passed as
- input parameter
-References: <1387578536-18280-1-git-send-email-santosh.shilimkar@ti.com> <alpine.DEB.2.02.1312261542260.9342@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1312261542260.9342@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1388281504-11453-1-git-send-email-sasha.levin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Santosh Shilimkar <santosh.shilimkar@ti.com>
-Cc: akpm@linux-foundation.org, tj@kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, Yinghai Lu <yinghai@kernel.org>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 12/27/2013 01:45 AM, David Rientjes wrote:
-> On Fri, 20 Dec 2013, Santosh Shilimkar wrote:
->
->> diff --git a/mm/memblock.c b/mm/memblock.c
->> index 71b11d9..6af873a 100644
->> --- a/mm/memblock.c
->> +++ b/mm/memblock.c
->> @@ -707,11 +707,9 @@ void __init_memblock __next_free_mem_range(u64 *idx, int nid,
->>   	struct memblock_type *rsv = &memblock.reserved;
->>   	int mi = *idx & 0xffffffff;
->>   	int ri = *idx >> 32;
->> -	bool check_node = (nid != NUMA_NO_NODE) && (nid != MAX_NUMNODES);
->>
->> -	if (nid == MAX_NUMNODES)
->> -		pr_warn_once("%s: Usage of MAX_NUMNODES is depricated. Use NUMA_NO_NODE instead\n",
->> -			     __func__);
->> +	if (WARN_ONCE(nid == MAX_NUMNODES, "Usage of MAX_NUMNODES is deprecated. Use NUMA_NO_NODE instead\n"))
->> +		nid = NUMA_NO_NODE;
->>
->>   	for ( ; mi < mem->cnt; mi++) {
->>   		struct memblock_region *m = &mem->regions[mi];
->
-> Um, why do this at runtime?  This is only used for
-> for_each_free_mem_range(), which is used rarely in x86 and memblock-only
-> code.  I'm struggling to understand why we can't deterministically fix the
-> callers if this condition is possible.
->
+On Sat, Dec 28, 2013 at 08:45:03PM -0500, Sasha Levin wrote:
+> We've recently stumbled on several issues with the page lock which
+> triggered BUG_ON()s.
+> 
+> While working on them, it was clear that due to the complexity of
+> locking its pretty hard to figure out if something is supposed
+> to be locked or not, and if we encountered a race it was quite a
+> pain narrowing it down.
+> 
+> This is an attempt at solving this situation. This patch adds simple
+> asserts to catch cases where someone is trying to lock the page lock
+> while it's already locked, and cases to catch someone unlocking the
+> lock without it being held.
+> 
+> My initial patch attempted to use lockdep to get further coverege,
+> but that attempt uncovered the amount of issues triggered and made
+> it impossible to debug the lockdep integration without clearing out
+> a large portion of existing bugs.
+> 
+> This patch adds a new option since it will horribly break any system
+> booting with it due to the amount of issues that it uncovers. This is
+> more of a "call for help" to other mm/ hackers to help clean it up.
+> 
+> Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
+> ---
+>  include/linux/pagemap.h | 11 +++++++++++
+>  lib/Kconfig.debug       |  9 +++++++++
+>  mm/filemap.c            |  4 +++-
+>  3 files changed, 23 insertions(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+> index 1710d1b..da24939 100644
+> --- a/include/linux/pagemap.h
+> +++ b/include/linux/pagemap.h
+> @@ -321,6 +321,14 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
+>  	return pgoff >> (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+>  }
+>  
+> +#ifdef CONFIG_DEBUG_VM_PAGE_LOCKS
+> +#define VM_ASSERT_LOCKED(page) VM_BUG_ON_PAGE(!PageLocked(page), (page))
+> +#define VM_ASSERT_UNLOCKED(page) VM_BUG_ON_PAGE(PageLocked(page), (page))
+> +#else
+> +#define VM_ASSERT_LOCKED(page) do { } while (0)
+> +#define VM_ASSERT_UNLOCKED(page) do { } while (0)
+> +#endif
+> +
+>  extern void __lock_page(struct page *page);
+>  extern int __lock_page_killable(struct page *page);
+>  extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
+> @@ -329,16 +337,19 @@ extern void unlock_page(struct page *page);
+>  
+>  static inline void __set_page_locked(struct page *page)
+>  {
+> +	VM_ASSERT_UNLOCKED(page);
+>  	__set_bit(PG_locked, &page->flags);
+>  }
+>  
+>  static inline void __clear_page_locked(struct page *page)
+>  {
+> +	VM_ASSERT_LOCKED(page);
+>  	__clear_bit(PG_locked, &page->flags);
+>  }
+>  
+>  static inline int trylock_page(struct page *page)
+>  {
+> +	VM_ASSERT_UNLOCKED(page);
 
+This is not correct. It's perfectly fine if the page is locked here: it's
+why trylock needed.
 
-Unfortunately, It's not so simple as from first look :(
-We've modified __next_free_mem_range_x() functions which are part of
-Memblock APIs (like memblock_alloc_xxx()) and Nobootmem APIs.
-These APIs are used as directly as indirectly (as part of callbacks from 
-other MM modules like Sparse), as result, it's not trivial to identify 
-all places where MAX_NUMNODES will be used as input parameter.
+IIUC, what we want to catch is the case when the page has already locked
+by the task.
 
-Same was discussed here in details:
-- [PATCH v2 08/23] mm/memblock: Add memblock memory allocation apis
-   https://lkml.org/lkml/2013/12/2/1075
-- Re: [PATCH 09/24] mm/memblock: Add memblock memory allocation apis
-   https://lkml.org/lkml/2013/12/2/907
+I don't think it's reasonable to re-implement this functionality. We
+really need to hook up lockdep.
 
-Regards,
-- grygorii
+>  	return (likely(!test_and_set_bit_lock(PG_locked, &page->flags)));
+>  }
+>  
+> diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+> index 48d32cd..ae4b60d 100644
+> --- a/lib/Kconfig.debug
+> +++ b/lib/Kconfig.debug
+> @@ -510,6 +510,15 @@ config DEBUG_VM_RB
+>  
+>  	  If unsure, say N.
+>  
+> +config DEBUG_VM_PAGE_LOCKS
+> +	bool "Debug VM page locking"
+> +	depends on DEBUG_VM
+> +	help
+> +	  Debug page locking by catching double locks and double frees. These
+> +	  checks may impact performance.
+> +
+> +	  If unsure, say N.
+> +
+>  config DEBUG_VIRTUAL
+>  	bool "Debug VM translations"
+>  	depends on DEBUG_KERNEL && X86
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 7a7f3e0..665addc 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -607,7 +607,7 @@ EXPORT_SYMBOL_GPL(add_page_wait_queue);
+>   */
+>  void unlock_page(struct page *page)
+>  {
+> -	VM_BUG_ON_PAGE(!PageLocked(page), page);
+> +	VM_ASSERT_LOCKED(page);
+>  	clear_bit_unlock(PG_locked, &page->flags);
+>  	smp_mb__after_clear_bit();
+>  	wake_up_page(page, PG_locked);
+> @@ -639,6 +639,7 @@ void __lock_page(struct page *page)
+>  {
+>  	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+>  
+> +	VM_ASSERT_UNLOCKED(page);
+
+It's no correct as well: __lock_page() usually called when the page is
+locked and we have to sleep. See lock_page().
+
+>  	__wait_on_bit_lock(page_waitqueue(page), &wait, sleep_on_page,
+>  							TASK_UNINTERRUPTIBLE);
+>  }
+> @@ -648,6 +649,7 @@ int __lock_page_killable(struct page *page)
+>  {
+>  	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+>  
+> +	VM_ASSERT_UNLOCKED(page);
+
+The same here.
+
+>  	return __wait_on_bit_lock(page_waitqueue(page), &wait,
+>  					sleep_on_page_killable, TASK_KILLABLE);
+>  }
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
