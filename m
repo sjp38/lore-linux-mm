@@ -1,41 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DFD16B0031
-	for <linux-mm@kvack.org>; Mon, 30 Dec 2013 09:57:28 -0500 (EST)
-Received: by mail-wi0-f170.google.com with SMTP id hq4so15725445wib.1
-        for <linux-mm@kvack.org>; Mon, 30 Dec 2013 06:57:27 -0800 (PST)
-Received: from mail.parisc-linux.org (palinux.external.hp.com. [192.25.206.14])
-        by mx.google.com with ESMTPS id fp3si11885482wic.22.2013.12.30.06.57.24
+Received: from mail-gg0-f179.google.com (mail-gg0-f179.google.com [209.85.161.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 57BAC6B0031
+	for <linux-mm@kvack.org>; Mon, 30 Dec 2013 11:33:55 -0500 (EST)
+Received: by mail-gg0-f179.google.com with SMTP id l4so2310364ggi.38
+        for <linux-mm@kvack.org>; Mon, 30 Dec 2013 08:33:55 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id f29si47356479yhd.195.2013.12.30.08.33.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 30 Dec 2013 06:57:25 -0800 (PST)
-Date: Mon, 30 Dec 2013 07:57:21 -0700
-From: Matthew Wilcox <matthew@wil.cx>
-Subject: Re: [PATCH 0/3] Fadvise: Directory level page cache cleaning
-	support
-Message-ID: <20131230145720.GB20793@parisc-linux.org>
-References: <cover.1388409686.git.liwang@ubuntukylin.com>
+        Mon, 30 Dec 2013 08:33:54 -0800 (PST)
+Message-ID: <52C1A06B.4070605@oracle.com>
+Date: Mon, 30 Dec 2013 11:33:47 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cover.1388409686.git.liwang@ubuntukylin.com>
+Subject: Re: [RFC 1/2] mm: additional page lock debugging
+References: <1388281504-11453-1-git-send-email-sasha.levin@oracle.com> <20131230114317.GA8117@node.dhcp.inet.fi>
+In-Reply-To: <20131230114317.GA8117@node.dhcp.inet.fi>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Wang <liwang@ubuntukylin.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, Zefan Li <lizefan@huawei.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Dec 30, 2013 at 09:45:15PM +0800, Li Wang wrote:
-> VFS relies on LRU-like page cache eviction algorithm
+On 12/30/2013 06:43 AM, Kirill A. Shutemov wrote:
+> On Sat, Dec 28, 2013 at 08:45:03PM -0500, Sasha Levin wrote:
+>> We've recently stumbled on several issues with the page lock which
+>> triggered BUG_ON()s.
+>>
+>> While working on them, it was clear that due to the complexity of
+>> locking its pretty hard to figure out if something is supposed
+>> to be locked or not, and if we encountered a race it was quite a
+>> pain narrowing it down.
+>>
+>> This is an attempt at solving this situation. This patch adds simple
+>> asserts to catch cases where someone is trying to lock the page lock
+>> while it's already locked, and cases to catch someone unlocking the
+>> lock without it being held.
+>>
+>> My initial patch attempted to use lockdep to get further coverege,
+>> but that attempt uncovered the amount of issues triggered and made
+>> it impossible to debug the lockdep integration without clearing out
+>> a large portion of existing bugs.
+>>
+>> This patch adds a new option since it will horribly break any system
+>> booting with it due to the amount of issues that it uncovers. This is
+>> more of a "call for help" to other mm/ hackers to help clean it up.
+>>
+>> Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
+>> ---
+>>   include/linux/pagemap.h | 11 +++++++++++
+>>   lib/Kconfig.debug       |  9 +++++++++
+>>   mm/filemap.c            |  4 +++-
+>>   3 files changed, 23 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+>> index 1710d1b..da24939 100644
+>> --- a/include/linux/pagemap.h
+>> +++ b/include/linux/pagemap.h
+>> @@ -321,6 +321,14 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
+>>   	return pgoff >> (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+>>   }
+>>
+>> +#ifdef CONFIG_DEBUG_VM_PAGE_LOCKS
+>> +#define VM_ASSERT_LOCKED(page) VM_BUG_ON_PAGE(!PageLocked(page), (page))
+>> +#define VM_ASSERT_UNLOCKED(page) VM_BUG_ON_PAGE(PageLocked(page), (page))
+>> +#else
+>> +#define VM_ASSERT_LOCKED(page) do { } while (0)
+>> +#define VM_ASSERT_UNLOCKED(page) do { } while (0)
+>> +#endif
+>> +
+>>   extern void __lock_page(struct page *page);
+>>   extern int __lock_page_killable(struct page *page);
+>>   extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
+>> @@ -329,16 +337,19 @@ extern void unlock_page(struct page *page);
+>>
+>>   static inline void __set_page_locked(struct page *page)
+>>   {
+>> +	VM_ASSERT_UNLOCKED(page);
+>>   	__set_bit(PG_locked, &page->flags);
+>>   }
+>>
+>>   static inline void __clear_page_locked(struct page *page)
+>>   {
+>> +	VM_ASSERT_LOCKED(page);
+>>   	__clear_bit(PG_locked, &page->flags);
+>>   }
+>>
+>>   static inline int trylock_page(struct page *page)
+>>   {
+>> +	VM_ASSERT_UNLOCKED(page);
+>
+> This is not correct. It's perfectly fine if the page is locked here: it's
+> why trylock needed.
+>
+> IIUC, what we want to catch is the case when the page has already locked
+> by the task.
 
-Why is this a series of three patches?  It just seems like you're trying
-to game the patch count statistics.  One patch would have been fine for
-this tiny change.
+Frankly, we shouldn't have trylock_page() at all.
 
--- 
-Matthew Wilcox				Intel Open Source Technology Centre
-"Bill, look, we understand that you're interested in selling us this
-operating system, but compare it to ours.  We can't possibly take such
-a retrograde step."
+Look at page_referenced() for example. Instead of assuming that it has to be
+called with page lock held, it's trying to acquire the lock and to free it only
+if it's the one that allocated it.
+
+Why isn't there a VM_BUG_ON() there to test whether the page is locked, and let
+the callers handle that?
+
+>
+> I don't think it's reasonable to re-implement this functionality. We
+> really need to hook up lockdep.
+
+The issue with adding lockdep straight away is that we need to deal with
+long held page locks somehow nicely. Unlike regular locks, these may be
+held for a rather long while, triggering really long locking chains which
+lockdep doesn't really like.
+
+Many places lock a long list of pages in bulk - we could allow that with
+nesting, but then you lose your ability to detect trivial deadlocks.
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
