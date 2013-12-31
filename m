@@ -1,126 +1,327 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-gg0-f172.google.com (mail-gg0-f172.google.com [209.85.161.172])
-	by kanga.kvack.org (Postfix) with ESMTP id B42A86B0031
-	for <linux-mm@kvack.org>; Mon, 30 Dec 2013 22:22:46 -0500 (EST)
-Received: by mail-gg0-f172.google.com with SMTP id q6so2422542ggc.3
-        for <linux-mm@kvack.org>; Mon, 30 Dec 2013 19:22:46 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id z21si22898899yhb.249.2013.12.30.19.22.45
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D7496B0031
+	for <linux-mm@kvack.org>; Tue, 31 Dec 2013 03:34:32 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id bj1so12467819pad.16
+        for <linux-mm@kvack.org>; Tue, 31 Dec 2013 00:34:32 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id s4si3404366pbg.123.2013.12.31.00.34.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 30 Dec 2013 19:22:45 -0800 (PST)
-Message-ID: <52C2385A.8020608@oracle.com>
-Date: Mon, 30 Dec 2013 22:22:02 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+        Tue, 31 Dec 2013 00:34:31 -0800 (PST)
+Message-ID: <52C2811C.4090907@huawei.com>
+Date: Tue, 31 Dec 2013 16:32:28 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 1/2] mm: additional page lock debugging
-References: <1388281504-11453-1-git-send-email-sasha.levin@oracle.com> <20131230114317.GA8117@node.dhcp.inet.fi> <52C1A06B.4070605@oracle.com> <20131230224808.GA11674@node.dhcp.inet.fi>
-In-Reply-To: <20131230224808.GA11674@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: [PATCH] mm: add a new command-line kmemcheck value
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>
+To: Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, vegardno@ifi.uio.no, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>
+Cc: wangnan0@huawei.com, Xishi Qiu <qiuxishi@huawei.com>, the arch/x86
+ maintainers <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-On 12/30/2013 05:48 PM, Kirill A. Shutemov wrote:
-> On Mon, Dec 30, 2013 at 11:33:47AM -0500, Sasha Levin wrote:
->> On 12/30/2013 06:43 AM, Kirill A. Shutemov wrote:
->>> On Sat, Dec 28, 2013 at 08:45:03PM -0500, Sasha Levin wrote:
->>>> We've recently stumbled on several issues with the page lock which
->>>> triggered BUG_ON()s.
->>>>
->>>> While working on them, it was clear that due to the complexity of
->>>> locking its pretty hard to figure out if something is supposed
->>>> to be locked or not, and if we encountered a race it was quite a
->>>> pain narrowing it down.
->>>>
->>>> This is an attempt at solving this situation. This patch adds simple
->>>> asserts to catch cases where someone is trying to lock the page lock
->>>> while it's already locked, and cases to catch someone unlocking the
->>>> lock without it being held.
->>>>
->>>> My initial patch attempted to use lockdep to get further coverege,
->>>> but that attempt uncovered the amount of issues triggered and made
->>>> it impossible to debug the lockdep integration without clearing out
->>>> a large portion of existing bugs.
->>>>
->>>> This patch adds a new option since it will horribly break any system
->>>> booting with it due to the amount of issues that it uncovers. This is
->>>> more of a "call for help" to other mm/ hackers to help clean it up.
->>>>
->>>> Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
->>>> ---
->>>>   include/linux/pagemap.h | 11 +++++++++++
->>>>   lib/Kconfig.debug       |  9 +++++++++
->>>>   mm/filemap.c            |  4 +++-
->>>>   3 files changed, 23 insertions(+), 1 deletion(-)
->>>>
->>>> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
->>>> index 1710d1b..da24939 100644
->>>> --- a/include/linux/pagemap.h
->>>> +++ b/include/linux/pagemap.h
->>>> @@ -321,6 +321,14 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
->>>>   	return pgoff >> (PAGE_CACHE_SHIFT - PAGE_SHIFT);
->>>>   }
->>>>
->>>> +#ifdef CONFIG_DEBUG_VM_PAGE_LOCKS
->>>> +#define VM_ASSERT_LOCKED(page) VM_BUG_ON_PAGE(!PageLocked(page), (page))
->>>> +#define VM_ASSERT_UNLOCKED(page) VM_BUG_ON_PAGE(PageLocked(page), (page))
->>>> +#else
->>>> +#define VM_ASSERT_LOCKED(page) do { } while (0)
->>>> +#define VM_ASSERT_UNLOCKED(page) do { } while (0)
->>>> +#endif
->>>> +
->>>>   extern void __lock_page(struct page *page);
->>>>   extern int __lock_page_killable(struct page *page);
->>>>   extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
->>>> @@ -329,16 +337,19 @@ extern void unlock_page(struct page *page);
->>>>
->>>>   static inline void __set_page_locked(struct page *page)
->>>>   {
->>>> +	VM_ASSERT_UNLOCKED(page);
->>>>   	__set_bit(PG_locked, &page->flags);
->>>>   }
->>>>
->>>>   static inline void __clear_page_locked(struct page *page)
->>>>   {
->>>> +	VM_ASSERT_LOCKED(page);
->>>>   	__clear_bit(PG_locked, &page->flags);
->>>>   }
->>>>
->>>>   static inline int trylock_page(struct page *page)
->>>>   {
->>>> +	VM_ASSERT_UNLOCKED(page);
->>>
->>> This is not correct. It's perfectly fine if the page is locked here: it's
->>> why trylock needed.
->>>
->>> IIUC, what we want to catch is the case when the page has already locked
->>> by the task.
->>
->> Frankly, we shouldn't have trylock_page() at all.
->
-> It has valid use cases: if you don't want to sleep on lock, just give up
-> right away. Like grab_cache_page_nowait().
+Add a new command-line kmemcheck value: kmemcheck=3 (disable the feature),
+this is the same effect as CONFIG_KMEMCHECK disabled.
+After doing this, we can enable/disable kmemcheck feature in one vmlinux.
 
-Agreed. We should be checking if the same process is the one holding the lock in
-general. I'll address that in the next version.
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+---
+ arch/x86/mm/init.c                |   11 ++++++
+ arch/x86/mm/kmemcheck/kmemcheck.c |   62 ++++++++++++++++++++++++++-----------
+ arch/x86/mm/kmemcheck/shadow.c    |   13 +++++---
+ include/linux/kmemcheck.h         |    2 +
+ mm/kmemcheck.c                    |   12 +++++--
+ mm/page_alloc.c                   |    2 +
+ 6 files changed, 76 insertions(+), 26 deletions(-)
 
-[snip]
+diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+index f971306..cd7d75f 100644
+--- a/arch/x86/mm/init.c
++++ b/arch/x86/mm/init.c
+@@ -135,6 +135,15 @@ static void __init probe_page_size_mask(void)
+ 		page_size_mask |= 1 << PG_LEVEL_2M;
+ #endif
+ 
++#if defined(CONFIG_KMEMCHECK)
++	if (!kmemcheck_on) {
++		if (direct_gbpages)
++			page_size_mask |= 1 << PG_LEVEL_1G;
++		if (cpu_has_pse)
++			page_size_mask |= 1 << PG_LEVEL_2M;
++	}
++#endif
++
+ 	/* Enable PSE if available */
+ 	if (cpu_has_pse)
+ 		set_in_cr4(X86_CR4_PSE);
+@@ -331,6 +340,8 @@ bool pfn_range_is_mapped(unsigned long start_pfn, unsigned long end_pfn)
+ 	return false;
+ }
+ 
++extern int kmemcheck_on;
++
+ /*
+  * Setup the direct mapping of the physical memory at PAGE_OFFSET.
+  * This runs before bootmem is initialized and gets pages directly from
+diff --git a/arch/x86/mm/kmemcheck/kmemcheck.c b/arch/x86/mm/kmemcheck/kmemcheck.c
+index d87dd6d..d686ee0 100644
+--- a/arch/x86/mm/kmemcheck/kmemcheck.c
++++ b/arch/x86/mm/kmemcheck/kmemcheck.c
+@@ -44,30 +44,35 @@
+ #ifdef CONFIG_KMEMCHECK_ONESHOT_BY_DEFAULT
+ #  define KMEMCHECK_ENABLED 2
+ #endif
++#define KMEMCHECK_CLOSED 3
+ 
+-int kmemcheck_enabled = KMEMCHECK_ENABLED;
++int kmemcheck_enabled = KMEMCHECK_CLOSED;
++int kmemcheck_on = 0;
+ 
+ int __init kmemcheck_init(void)
+ {
++	if (kmemcheck_on) {
+ #ifdef CONFIG_SMP
+-	/*
+-	 * Limit SMP to use a single CPU. We rely on the fact that this code
+-	 * runs before SMP is set up.
+-	 */
+-	if (setup_max_cpus > 1) {
+-		printk(KERN_INFO
+-			"kmemcheck: Limiting number of CPUs to 1.\n");
+-		setup_max_cpus = 1;
+-	}
++		/*
++		 * Limit SMP to use a single CPU. We rely on the fact that this code
++		 * runs before SMP is set up.
++		 */
++		if (setup_max_cpus > 1) {
++			printk(KERN_INFO
++				"kmemcheck: Limiting number of CPUs to 1.\n");
++			setup_max_cpus = 1;
++		}
+ #endif
+ 
+-	if (!kmemcheck_selftest()) {
+-		printk(KERN_INFO "kmemcheck: self-tests failed; disabling\n");
+-		kmemcheck_enabled = 0;
+-		return -EINVAL;
++		if (!kmemcheck_selftest()) {
++			printk(KERN_INFO "kmemcheck: self-tests failed; disabling\n");
++			kmemcheck_enabled = 0;
++			return -EINVAL;
++		}
++
++		printk(KERN_INFO "kmemcheck: Initialized\n");
+ 	}
+ 
+-	printk(KERN_INFO "kmemcheck: Initialized\n");
+ 	return 0;
+ }
+ 
+@@ -82,6 +87,12 @@ static int __init param_kmemcheck(char *str)
+ 		return -EINVAL;
+ 
+ 	sscanf(str, "%d", &kmemcheck_enabled);
++
++	if ((kmemcheck_enabled >= KMEMCHECK_CLOSED) || (kmemcheck_enabled < 0))
++		kmemcheck_on = 0;
++	else
++		kmemcheck_on = 1;
++
+ 	return 0;
+ }
+ 
+@@ -134,9 +145,12 @@ static DEFINE_PER_CPU(struct kmemcheck_context, kmemcheck_context);
+ 
+ bool kmemcheck_active(struct pt_regs *regs)
+ {
+-	struct kmemcheck_context *data = &__get_cpu_var(kmemcheck_context);
++	if (kmemcheck_on) {
++		struct kmemcheck_context *data = &__get_cpu_var(kmemcheck_context);
++		return data->balance > 0;
++	}
+ 
+-	return data->balance > 0;
++	return false;
+ }
+ 
+ /* Save an address that needs to be shown/hidden */
+@@ -223,6 +237,9 @@ void kmemcheck_hide(struct pt_regs *regs)
+ 	struct kmemcheck_context *data = &__get_cpu_var(kmemcheck_context);
+ 	int n;
+ 
++	if (!kmemcheck_on)
++		return;
++
+ 	BUG_ON(!irqs_disabled());
+ 
+ 	if (unlikely(data->balance != 1)) {
+@@ -278,6 +295,9 @@ void kmemcheck_show_pages(struct page *p, unsigned int n)
+ 
+ bool kmemcheck_page_is_tracked(struct page *p)
+ {
++	if (!kmemcheck_on)
++		return false;
++
+ 	/* This will also check the "hidden" flag of the PTE. */
+ 	return kmemcheck_pte_lookup((unsigned long) page_address(p));
+ }
+@@ -333,6 +353,9 @@ bool kmemcheck_is_obj_initialized(unsigned long addr, size_t size)
+ 	enum kmemcheck_shadow status;
+ 	void *shadow;
+ 
++	if (!kmemcheck_on)
++		return true;
++
+ 	shadow = kmemcheck_shadow_lookup(addr);
+ 	if (!shadow)
+ 		return true;
+@@ -616,6 +639,9 @@ bool kmemcheck_fault(struct pt_regs *regs, unsigned long address,
+ {
+ 	pte_t *pte;
+ 
++	if (!kmemcheck_on)
++		return false;
++
+ 	/*
+ 	 * XXX: Is it safe to assume that memory accesses from virtual 86
+ 	 * mode or non-kernel code segments will _never_ access kernel
+@@ -644,7 +670,7 @@ bool kmemcheck_fault(struct pt_regs *regs, unsigned long address,
+ 
+ bool kmemcheck_trap(struct pt_regs *regs)
+ {
+-	if (!kmemcheck_active(regs))
++	if (!kmemcheck_on || !kmemcheck_active(regs))
+ 		return false;
+ 
+ 	/* We're done. */
+diff --git a/arch/x86/mm/kmemcheck/shadow.c b/arch/x86/mm/kmemcheck/shadow.c
+index aec1242..26e461d 100644
+--- a/arch/x86/mm/kmemcheck/shadow.c
++++ b/arch/x86/mm/kmemcheck/shadow.c
+@@ -90,7 +90,8 @@ void kmemcheck_mark_uninitialized(void *address, unsigned int n)
+  */
+ void kmemcheck_mark_initialized(void *address, unsigned int n)
+ {
+-	mark_shadow(address, n, KMEMCHECK_SHADOW_INITIALIZED);
++	if (kmemcheck_on)
++		mark_shadow(address, n, KMEMCHECK_SHADOW_INITIALIZED);
+ }
+ EXPORT_SYMBOL_GPL(kmemcheck_mark_initialized);
+ 
+@@ -103,16 +104,18 @@ void kmemcheck_mark_unallocated_pages(struct page *p, unsigned int n)
+ {
+ 	unsigned int i;
+ 
+-	for (i = 0; i < n; ++i)
+-		kmemcheck_mark_unallocated(page_address(&p[i]), PAGE_SIZE);
++	if (kmemcheck_on)
++		for (i = 0; i < n; ++i)
++			kmemcheck_mark_unallocated(page_address(&p[i]), PAGE_SIZE);
+ }
+ 
+ void kmemcheck_mark_uninitialized_pages(struct page *p, unsigned int n)
+ {
+ 	unsigned int i;
+ 
+-	for (i = 0; i < n; ++i)
+-		kmemcheck_mark_uninitialized(page_address(&p[i]), PAGE_SIZE);
++	if (kmemcheck_on)
++		for (i = 0; i < n; ++i)
++			kmemcheck_mark_uninitialized(page_address(&p[i]), PAGE_SIZE);
+ }
+ 
+ void kmemcheck_mark_initialized_pages(struct page *p, unsigned int n)
+diff --git a/include/linux/kmemcheck.h b/include/linux/kmemcheck.h
+index 39f8453..13d15e1 100644
+--- a/include/linux/kmemcheck.h
++++ b/include/linux/kmemcheck.h
+@@ -6,6 +6,7 @@
+ 
+ #ifdef CONFIG_KMEMCHECK
+ extern int kmemcheck_enabled;
++extern int kmemcheck_on;
+ 
+ /* The slab-related functions. */
+ void kmemcheck_alloc_shadow(struct page *page, int order, gfp_t flags, int node);
+@@ -88,6 +89,7 @@ bool kmemcheck_is_obj_initialized(unsigned long addr, size_t size);
+ 
+ #else
+ #define kmemcheck_enabled 0
++#define kmemcheck_on 0
+ 
+ static inline void
+ kmemcheck_alloc_shadow(struct page *page, int order, gfp_t flags, int node)
+diff --git a/mm/kmemcheck.c b/mm/kmemcheck.c
+index fd814fd..fd89146 100644
+--- a/mm/kmemcheck.c
++++ b/mm/kmemcheck.c
+@@ -10,6 +10,9 @@ void kmemcheck_alloc_shadow(struct page *page, int order, gfp_t flags, int node)
+ 	int pages;
+ 	int i;
+ 
++	if (!kmemcheck_on)
++		return;
++
+ 	pages = 1 << order;
+ 
+ 	/*
+@@ -41,6 +44,9 @@ void kmemcheck_free_shadow(struct page *page, int order)
+ 	int pages;
+ 	int i;
+ 
++	if (!kmemcheck_on)
++		return;
++
+ 	if (!kmemcheck_page_is_tracked(page))
+ 		return;
+ 
+@@ -63,7 +69,7 @@ void kmemcheck_slab_alloc(struct kmem_cache *s, gfp_t gfpflags, void *object,
+ 	 * Has already been memset(), which initializes the shadow for us
+ 	 * as well.
+ 	 */
+-	if (gfpflags & __GFP_ZERO)
++	if (!kmemcheck_on || gfpflags & __GFP_ZERO)
+ 		return;
+ 
+ 	/* No need to initialize the shadow of a non-tracked slab. */
+@@ -92,7 +98,7 @@ void kmemcheck_slab_alloc(struct kmem_cache *s, gfp_t gfpflags, void *object,
+ void kmemcheck_slab_free(struct kmem_cache *s, void *object, size_t size)
+ {
+ 	/* TODO: RCU freeing is unsupported for now; hide false positives. */
+-	if (!s->ctor && !(s->flags & SLAB_DESTROY_BY_RCU))
++	if (kmemcheck_on && !s->ctor && !(s->flags & SLAB_DESTROY_BY_RCU))
+ 		kmemcheck_mark_freed(object, size);
+ }
+ 
+@@ -101,7 +107,7 @@ void kmemcheck_pagealloc_alloc(struct page *page, unsigned int order,
+ {
+ 	int pages;
+ 
+-	if (gfpflags & (__GFP_HIGHMEM | __GFP_NOTRACK))
++	if (!kmemcheck_on || (gfpflags & (__GFP_HIGHMEM | __GFP_NOTRACK)))
+ 		return;
+ 
+ 	pages = 1 << order;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f861d02..0b2bbf2 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2716,6 +2716,8 @@ retry_cpuset:
+ 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
+ 			zonelist, high_zoneidx, alloc_flags,
+ 			preferred_zone, migratetype);
++	if (kmemcheck_on && kmemcheck_enabled && page)
++		kmemcheck_pagealloc_alloc(page, order, gfp_mask);
+ 	if (unlikely(!page)) {
+ 		/*
+ 		 * Runtime PM, block IO and its error handling path
+-- 
+1.7.1
 
->> Many places lock a long list of pages in bulk - we could allow that with
->> nesting, but then you lose your ability to detect trivial deadlocks.
->
-> I see. But we need something better then plain VM_BUG() to be able to
-> analyze what happened.
 
-I really want to use lockdep here, but I'm not really sure how to handle locks which live
-for a rather long while instead of being locked and unlocked in the same function like
-most of the rest of the kernel. (Cc Ingo, PeterZ).
-
-Thanks,
-Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
