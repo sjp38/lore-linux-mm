@@ -1,55 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 7776A6B0031
-	for <linux-mm@kvack.org>; Mon, 30 Dec 2013 20:54:17 -0500 (EST)
-Received: by mail-qc0-f173.google.com with SMTP id m20so11334094qcx.4
-        for <linux-mm@kvack.org>; Mon, 30 Dec 2013 17:54:17 -0800 (PST)
-Received: from nm48.bullet.mail.bf1.yahoo.com (nm48.bullet.mail.bf1.yahoo.com. [216.109.114.64])
-        by mx.google.com with SMTP id lc9si29056397qeb.62.2013.12.30.17.54.16
-        for <linux-mm@kvack.org>;
-        Mon, 30 Dec 2013 17:54:16 -0800 (PST)
-References: <1388341026.52582.YahooMailNeo@web160105.mail.bf1.yahoo.com> <52C0854D.2090802@googlemail.com>
-Message-ID: <1388454855.7071.YahooMailNeo@web160101.mail.bf1.yahoo.com>
-Date: Mon, 30 Dec 2013 17:54:15 -0800 (PST)
-From: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Reply-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Subject: Re: Help about calculating total memory consumption during booting
-In-Reply-To: <52C0854D.2090802@googlemail.com>
+Received: from mail-gg0-f172.google.com (mail-gg0-f172.google.com [209.85.161.172])
+	by kanga.kvack.org (Postfix) with ESMTP id B42A86B0031
+	for <linux-mm@kvack.org>; Mon, 30 Dec 2013 22:22:46 -0500 (EST)
+Received: by mail-gg0-f172.google.com with SMTP id q6so2422542ggc.3
+        for <linux-mm@kvack.org>; Mon, 30 Dec 2013 19:22:46 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id z21si22898899yhb.249.2013.12.30.19.22.45
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 30 Dec 2013 19:22:45 -0800 (PST)
+Message-ID: <52C2385A.8020608@oracle.com>
+Date: Mon, 30 Dec 2013 22:22:02 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [RFC 1/2] mm: additional page lock debugging
+References: <1388281504-11453-1-git-send-email-sasha.levin@oracle.com> <20131230114317.GA8117@node.dhcp.inet.fi> <52C1A06B.4070605@oracle.com> <20131230224808.GA11674@node.dhcp.inet.fi>
+In-Reply-To: <20131230224808.GA11674@node.dhcp.inet.fi>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Beller <stefanbeller@googlemail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mgorman@suse.de" <mgorman@suse.de>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>
 
-=0A=0A=0A=0A=0A>________________________________=0A> From: Stefan Beller <s=
-tefanbeller@googlemail.com>=0A>To: PINTU KUMAR <pintu_agarwal@yahoo.com>; "=
-linux-mm@kvack.org" <linux-mm@kvack.org>; "linux-kernel@vger.kernel.org" <l=
-inux-kernel@vger.kernel.org>; "mgorman@suse.de" <mgorman@suse.de> =0A>Sent:=
- Monday, 30 December 2013 1:55 AM=0A>Subject: Re: Help about calculating to=
-tal memory consumption during booting=0A> =0A>=0A>On 29.12.2013 19:17, PINT=
-U KUMAR wrote:=0A>> Hi,=0A>> =0A>> I need help in roughly calculating the t=
-otal memory consumption in an embedded Linux system just after booting is f=
-inished.=0A>> I know, I can see the memory stats using "free" and "/proc/me=
-minfo"=0A>> =0A>> But, I need the breakup of "Used" memory during bootup, f=
-or both kernel space and user application.=0A>> =0A>> Example, on my ARM ma=
-chine with 128MB RAM, the free memory reported is roughly:=0A>> Total: 90MB=
-=0A>> Used: 88MB=0A>> Free: 2MB=0A>> Buffer+Cached: (5+19)MB=0A>> =0A>> Now=
-, my question is, how to find the breakup of this "Used" memory of "88MB".=
-=0A>> This should include both kernel space allocation and user application=
- allocation(including daemons).=0A>> =0A>=0A>http://www.linuxatemyram.com/ =
-dont panic ;)=0A>=0A>How about htop, top or=0A>"valgrind --tool massif"=0A>=
-=0A>=0A=0A=0A=0AThanks for the reply, I know about top, but top does not he=
-lp much in arriving at the total memory consumption.=0A=0A=0AI need the phy=
-sical memory usage breakup of each process during bootup, with a segregate =
-of user and kernel allocation.=0A=0A1) If I add up all "Pss" field in "proc=
-/<PID>/smaps, do I get the total Used memory?=0A2) Is the Pss value include=
-s the kernel side allocation as well?=0A3) What fields I should choose from=
- /proc/meminfo" to correctly arrive at the "Used" memory in the system?=0A4=
-) What about the memory allocation for kernel threads during booting? Why d=
-oes its Pss/Rss value shows 0 always=0A=0AI already tried adding up all "PS=
-S" values in every PIDs, but still it does not match any where near to the =
-total used memory in the system.=0A=0APlease help.
+On 12/30/2013 05:48 PM, Kirill A. Shutemov wrote:
+> On Mon, Dec 30, 2013 at 11:33:47AM -0500, Sasha Levin wrote:
+>> On 12/30/2013 06:43 AM, Kirill A. Shutemov wrote:
+>>> On Sat, Dec 28, 2013 at 08:45:03PM -0500, Sasha Levin wrote:
+>>>> We've recently stumbled on several issues with the page lock which
+>>>> triggered BUG_ON()s.
+>>>>
+>>>> While working on them, it was clear that due to the complexity of
+>>>> locking its pretty hard to figure out if something is supposed
+>>>> to be locked or not, and if we encountered a race it was quite a
+>>>> pain narrowing it down.
+>>>>
+>>>> This is an attempt at solving this situation. This patch adds simple
+>>>> asserts to catch cases where someone is trying to lock the page lock
+>>>> while it's already locked, and cases to catch someone unlocking the
+>>>> lock without it being held.
+>>>>
+>>>> My initial patch attempted to use lockdep to get further coverege,
+>>>> but that attempt uncovered the amount of issues triggered and made
+>>>> it impossible to debug the lockdep integration without clearing out
+>>>> a large portion of existing bugs.
+>>>>
+>>>> This patch adds a new option since it will horribly break any system
+>>>> booting with it due to the amount of issues that it uncovers. This is
+>>>> more of a "call for help" to other mm/ hackers to help clean it up.
+>>>>
+>>>> Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
+>>>> ---
+>>>>   include/linux/pagemap.h | 11 +++++++++++
+>>>>   lib/Kconfig.debug       |  9 +++++++++
+>>>>   mm/filemap.c            |  4 +++-
+>>>>   3 files changed, 23 insertions(+), 1 deletion(-)
+>>>>
+>>>> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+>>>> index 1710d1b..da24939 100644
+>>>> --- a/include/linux/pagemap.h
+>>>> +++ b/include/linux/pagemap.h
+>>>> @@ -321,6 +321,14 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
+>>>>   	return pgoff >> (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+>>>>   }
+>>>>
+>>>> +#ifdef CONFIG_DEBUG_VM_PAGE_LOCKS
+>>>> +#define VM_ASSERT_LOCKED(page) VM_BUG_ON_PAGE(!PageLocked(page), (page))
+>>>> +#define VM_ASSERT_UNLOCKED(page) VM_BUG_ON_PAGE(PageLocked(page), (page))
+>>>> +#else
+>>>> +#define VM_ASSERT_LOCKED(page) do { } while (0)
+>>>> +#define VM_ASSERT_UNLOCKED(page) do { } while (0)
+>>>> +#endif
+>>>> +
+>>>>   extern void __lock_page(struct page *page);
+>>>>   extern int __lock_page_killable(struct page *page);
+>>>>   extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
+>>>> @@ -329,16 +337,19 @@ extern void unlock_page(struct page *page);
+>>>>
+>>>>   static inline void __set_page_locked(struct page *page)
+>>>>   {
+>>>> +	VM_ASSERT_UNLOCKED(page);
+>>>>   	__set_bit(PG_locked, &page->flags);
+>>>>   }
+>>>>
+>>>>   static inline void __clear_page_locked(struct page *page)
+>>>>   {
+>>>> +	VM_ASSERT_LOCKED(page);
+>>>>   	__clear_bit(PG_locked, &page->flags);
+>>>>   }
+>>>>
+>>>>   static inline int trylock_page(struct page *page)
+>>>>   {
+>>>> +	VM_ASSERT_UNLOCKED(page);
+>>>
+>>> This is not correct. It's perfectly fine if the page is locked here: it's
+>>> why trylock needed.
+>>>
+>>> IIUC, what we want to catch is the case when the page has already locked
+>>> by the task.
+>>
+>> Frankly, we shouldn't have trylock_page() at all.
+>
+> It has valid use cases: if you don't want to sleep on lock, just give up
+> right away. Like grab_cache_page_nowait().
+
+Agreed. We should be checking if the same process is the one holding the lock in
+general. I'll address that in the next version.
+
+[snip]
+
+>> Many places lock a long list of pages in bulk - we could allow that with
+>> nesting, but then you lose your ability to detect trivial deadlocks.
+>
+> I see. But we need something better then plain VM_BUG() to be able to
+> analyze what happened.
+
+I really want to use lockdep here, but I'm not really sure how to handle locks which live
+for a rather long while instead of being locked and unlocked in the same function like
+most of the rest of the kernel. (Cc Ingo, PeterZ).
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
