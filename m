@@ -1,34 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f207.google.com (mail-pd0-f207.google.com [209.85.192.207])
-	by kanga.kvack.org (Postfix) with ESMTP id 970126B0035
-	for <linux-mm@kvack.org>; Tue, 31 Dec 2013 13:01:00 -0500 (EST)
-Received: by mail-pd0-f207.google.com with SMTP id v10so139806pde.2
-        for <linux-mm@kvack.org>; Tue, 31 Dec 2013 10:01:00 -0800 (PST)
-Received: from out3-smtp.messagingengine.com (out3-smtp.messagingengine.com. [66.111.4.27])
-        by mx.google.com with ESMTPS id jv8si33020539pbc.276.2013.12.30.01.54.43
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Dec 2013 01:54:44 -0800 (PST)
-Message-ID: <52C142E0.8010003@iki.fi>
-Date: Mon, 30 Dec 2013 11:54:40 +0200
-From: Pekka Enberg <penberg@iki.fi>
+Received: from mail-qe0-f50.google.com (mail-qe0-f50.google.com [209.85.128.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 28CB86B0037
+	for <linux-mm@kvack.org>; Tue, 31 Dec 2013 14:38:48 -0500 (EST)
+Received: by mail-qe0-f50.google.com with SMTP id 1so12838848qec.23
+        for <linux-mm@kvack.org>; Tue, 31 Dec 2013 11:38:47 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id 4si47308406qeq.17.2013.12.31.11.38.46
+        for <linux-mm@kvack.org>;
+        Tue, 31 Dec 2013 11:38:46 -0800 (PST)
+Date: Tue, 31 Dec 2013 16:53:29 -0200
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: Re: [RFC PATCH V1 0/6] mm: add a new option MREMAP_DUP to mmrep
+ syscall
+Message-ID: <20131231185328.GA22414@amt.cnet>
+References: <1368093011-4867-1-git-send-email-wenchaolinux@gmail.com>
+ <20130509141329.GC11497@suse.de>
+ <518C5B5E.4010706@gmail.com>
+ <CAJSP0QULp5c3tWwZ4ipWn6wS3YWauE07Bmd8nzjp8CJhWaD_oQ@mail.gmail.com>
+ <52AFE828.3010500@linux.vnet.ibm.com>
+ <20131230202342.GA7973@amt.cnet>
+ <943AC3BD-C4EB-4B6C-BE34-AB921938AAF0@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/slub: fix accumulate per cpu partial cache objects
-References: <1388137619-14741-1-git-send-email-liwanp@linux.vnet.ibm.com> <52BE2E74.1070107@huawei.com> <CAOJsxLFH5LGuF+vutPzB90EM9o376Jc99-rjY4qq18d1KQshhg@mail.gmail.com> <20131230010800.GA1623@hacker.(null)>
-In-Reply-To: <20131230010800.GA1623@hacker.(null)>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <943AC3BD-C4EB-4B6C-BE34-AB921938AAF0@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>
-Cc: Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Xiao Guangrong <xiaoguangrong.eric@gmail.com>
+Cc: Stefan Hajnoczi <stefanha@gmail.com>, wenchao <wenchaolinux@gmail.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, walken@google.com, Alexander Viro <viro@zeniv.linux.org.uk>, kirill.shutemov@linux.intel.com, Anthony Liguori <anthony@codemonkey.ws>, KVM <kvm@vger.kernel.org>
 
-On 12/30/2013 03:08 AM, Wanpeng Li wrote:
-> Zefan's patch is good enough, mine doesn't need any more.
+On Tue, Dec 31, 2013 at 08:06:51PM +0800, Xiao Guangrong wrote:
+> 
+> On Dec 31, 2013, at 4:23 AM, Marcelo Tosatti <mtosatti@redhat.com> wrote:
+> 
+> > On Tue, Dec 17, 2013 at 01:59:04PM +0800, Xiao Guangrong wrote:
+> >> 
+> >> CCed KVM guys.
+> >> 
+> >> On 05/10/2013 01:11 PM, Stefan Hajnoczi wrote:
+> >>> On Fri, May 10, 2013 at 4:28 AM, wenchao <wenchaolinux@gmail.com> wrote:
+> >>>> ao? 2013-5-9 22:13, Mel Gorman a??e??:
+> >>>> 
+> >>>>> On Thu, May 09, 2013 at 05:50:05PM +0800, wenchaolinux@gmail.com wrote:
+> >>>>>> 
+> >>>>>> From: Wenchao Xia <wenchaolinux@gmail.com>
+> >>>>>> 
+> >>>>>>  This serial try to enable mremap syscall to cow some private memory
+> >>>>>> region,
+> >>>>>> just like what fork() did. As a result, user space application would got
+> >>>>>> a
+> >>>>>> mirror of those region, and it can be used as a snapshot for further
+> >>>>>> processing.
+> >>>>>> 
+> >>>>> 
+> >>>>> What not just fork()? Even if the application was threaded it should be
+> >>>>> managable to handle fork just for processing the private memory region
+> >>>>> in question. I'm having trouble figuring out what sort of application
+> >>>>> would require an interface like this.
+> >>>>> 
+> >>>> It have some troubles: parent - child communication, sometimes
+> >>>> page copy.
+> >>>> I'd like to snapshot qemu guest's RAM, currently solution is:
+> >>>> 1) fork()
+> >>>> 2) pipe guest RAM data from child to parent.
+> >>>> 3) parent write down the contents.
+> >>>> 
+> >>>> To avoid complex communication for data control, and file content
+> >>>> protecting, So let parent instead of child handling the data with
+> >>>> a pipe, but this brings additional copy(). I think an explicit API
+> >>>> cow mapping an memory region inside one process, could avoid it,
+> >>>> and faster and cow less pages, also make user space code nicer.
+> >>> 
+> >>> A new Linux-specific API is not portable and not available on existing
+> >>> hosts.  Since QEMU supports non-Linux host operating systems the
+> >>> fork() approach is preferable.
+> >>> 
+> >>> If you're worried about the memory copy - which should be benchmarked
+> >>> - then vmsplice(2) can be used in the child process and splice(2) can
+> >>> be used in the parent.  It probably doesn't help though since QEMU
+> >>> scans RAM pages to find all-zero pages before sending them over the
+> >>> socket, and at that point the memory copy might not make much
+> >>> difference.
+> >>> 
+> >>> Perhaps other applications can use this new flag better, but for QEMU
+> >>> I think fork()'s portability is more important than the convenience of
+> >>> accessing the CoW pages in the same process.
+> >> 
+> >> Yup, I agree with you that the new syscall sometimes is not a good solution.
+> >> 
+> >> Currently, we're working on live-update[1] that will be enabled on Qemu firstly,
+> >> this feature let the guest run on the new Qemu binary smoothly without
+> >> restart, it's good for us to do security-update.
+> >> 
+> >> In this case, we need to move the guest memory on old qemu instance to the
+> >> new one, fork() can not help because we need to exec() a new instance, after
+> >> that all memory mapping will be destroyed.
+> >> 
+> >> We tried to enable SPLICE_F_MOVE[2] for vmsplice() to move the memory without
+> >> memory-copy but the performance isn't so good as we expected: it's due to
+> >> some limitations: the page-size, lock, message-size limitation on pipe, etc.
+> >> Of course, we will continue to improve this, but wenchao's patch seems a new
+> >> direction for us.
+> >> 
+> >> To coordinate with your fork() approach, maybe we can introduce a new flag
+> >> for VMA, something like: VM_KEEP_ONEXEC, to tell exec() to do not destroy
+> >> this VMA. How about this or you guy have new idea? Really appreciate for your
+> >> suggestion.
+> >> 
+> >> [1] http://marc.info/?l=qemu-devel&m=138597598700844&w=2
+> >> [2] https://lkml.org/lkml/2013/10/25/285
+> > 
+> > Hi,
+> > 
+> 
+> Hi Marcelo,
+> 
+> 
+> > What is the purpose of snapshotting guest RAM here, in the context of
+> > local migration?
+> 
+> RAM-shapshotting and local-migration are on the different ways.
+> Why i asked for your guya??s suggestion here is  beacuse i  thought
+> they need do a same thing that moves memory from one process
+> to another in a efficient way. Your idea? :)
 
-OK, thanks guys!
+Another possibility is to use memory that is not anonymous for guest
+RAM, such as hugetlbfs or tmpfs. 
 
-             Pekka
+IIRC ksm and thp have limitations wrt tmpfs.
+
+Still curious about RAM snapshotting.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
