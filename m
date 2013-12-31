@@ -1,137 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 368486B0031
-	for <linux-mm@kvack.org>; Mon, 30 Dec 2013 17:48:12 -0500 (EST)
-Received: by mail-ea0-f180.google.com with SMTP id f15so5311594eak.39
-        for <linux-mm@kvack.org>; Mon, 30 Dec 2013 14:48:11 -0800 (PST)
-Received: from kirsi1.inet.fi (mta-out.inet.fi. [195.156.147.13])
-        by mx.google.com with ESMTP id v6si54670669eel.196.2013.12.30.14.48.11
-        for <linux-mm@kvack.org>;
-        Mon, 30 Dec 2013 14:48:11 -0800 (PST)
-Date: Tue, 31 Dec 2013 00:48:08 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC 1/2] mm: additional page lock debugging
-Message-ID: <20131230224808.GA11674@node.dhcp.inet.fi>
-References: <1388281504-11453-1-git-send-email-sasha.levin@oracle.com>
- <20131230114317.GA8117@node.dhcp.inet.fi>
- <52C1A06B.4070605@oracle.com>
+Received: from mail-qe0-f42.google.com (mail-qe0-f42.google.com [209.85.128.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A2C36B0031
+	for <linux-mm@kvack.org>; Mon, 30 Dec 2013 20:52:21 -0500 (EST)
+Received: by mail-qe0-f42.google.com with SMTP id b4so12175415qen.15
+        for <linux-mm@kvack.org>; Mon, 30 Dec 2013 17:52:21 -0800 (PST)
+Received: from nm50.bullet.mail.bf1.yahoo.com (nm50.bullet.mail.bf1.yahoo.com. [216.109.114.67])
+        by mx.google.com with ESMTPS id m3si19441293qcg.80.2013.12.30.17.52.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 30 Dec 2013 17:52:20 -0800 (PST)
+References: <1388341026.52582.YahooMailNeo@web160105.mail.bf1.yahoo.com> <52C0854D.2090802@googlemail.com>
+Message-ID: <1388454739.81970.YahooMailNeo@web160105.mail.bf1.yahoo.com>
+Date: Mon, 30 Dec 2013 17:52:19 -0800 (PST)
+From: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Reply-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Subject: Re: Help about calculating total memory consumption during booting
+In-Reply-To: <52C0854D.2090802@googlemail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52C1A06B.4070605@oracle.com>
+Content-Type: multipart/alternative; boundary="-1322375793-851798681-1388454739=:81970"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Stefan Beller <stefanbeller@googlemail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mgorman@suse.de" <mgorman@suse.de>
 
-On Mon, Dec 30, 2013 at 11:33:47AM -0500, Sasha Levin wrote:
-> On 12/30/2013 06:43 AM, Kirill A. Shutemov wrote:
-> >On Sat, Dec 28, 2013 at 08:45:03PM -0500, Sasha Levin wrote:
-> >>We've recently stumbled on several issues with the page lock which
-> >>triggered BUG_ON()s.
-> >>
-> >>While working on them, it was clear that due to the complexity of
-> >>locking its pretty hard to figure out if something is supposed
-> >>to be locked or not, and if we encountered a race it was quite a
-> >>pain narrowing it down.
-> >>
-> >>This is an attempt at solving this situation. This patch adds simple
-> >>asserts to catch cases where someone is trying to lock the page lock
-> >>while it's already locked, and cases to catch someone unlocking the
-> >>lock without it being held.
-> >>
-> >>My initial patch attempted to use lockdep to get further coverege,
-> >>but that attempt uncovered the amount of issues triggered and made
-> >>it impossible to debug the lockdep integration without clearing out
-> >>a large portion of existing bugs.
-> >>
-> >>This patch adds a new option since it will horribly break any system
-> >>booting with it due to the amount of issues that it uncovers. This is
-> >>more of a "call for help" to other mm/ hackers to help clean it up.
-> >>
-> >>Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
-> >>---
-> >>  include/linux/pagemap.h | 11 +++++++++++
-> >>  lib/Kconfig.debug       |  9 +++++++++
-> >>  mm/filemap.c            |  4 +++-
-> >>  3 files changed, 23 insertions(+), 1 deletion(-)
-> >>
-> >>diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-> >>index 1710d1b..da24939 100644
-> >>--- a/include/linux/pagemap.h
-> >>+++ b/include/linux/pagemap.h
-> >>@@ -321,6 +321,14 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
-> >>  	return pgoff >> (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-> >>  }
-> >>
-> >>+#ifdef CONFIG_DEBUG_VM_PAGE_LOCKS
-> >>+#define VM_ASSERT_LOCKED(page) VM_BUG_ON_PAGE(!PageLocked(page), (page))
-> >>+#define VM_ASSERT_UNLOCKED(page) VM_BUG_ON_PAGE(PageLocked(page), (page))
-> >>+#else
-> >>+#define VM_ASSERT_LOCKED(page) do { } while (0)
-> >>+#define VM_ASSERT_UNLOCKED(page) do { } while (0)
-> >>+#endif
-> >>+
-> >>  extern void __lock_page(struct page *page);
-> >>  extern int __lock_page_killable(struct page *page);
-> >>  extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
-> >>@@ -329,16 +337,19 @@ extern void unlock_page(struct page *page);
-> >>
-> >>  static inline void __set_page_locked(struct page *page)
-> >>  {
-> >>+	VM_ASSERT_UNLOCKED(page);
-> >>  	__set_bit(PG_locked, &page->flags);
-> >>  }
-> >>
-> >>  static inline void __clear_page_locked(struct page *page)
-> >>  {
-> >>+	VM_ASSERT_LOCKED(page);
-> >>  	__clear_bit(PG_locked, &page->flags);
-> >>  }
-> >>
-> >>  static inline int trylock_page(struct page *page)
-> >>  {
-> >>+	VM_ASSERT_UNLOCKED(page);
-> >
-> >This is not correct. It's perfectly fine if the page is locked here: it's
-> >why trylock needed.
-> >
-> >IIUC, what we want to catch is the case when the page has already locked
-> >by the task.
-> 
-> Frankly, we shouldn't have trylock_page() at all.
+---1322375793-851798681-1388454739=:81970
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-It has valid use cases: if you don't want to sleep on lock, just give up
-right away. Like grab_cache_page_nowait().
+Hi,=0A=0AThanks for the reply, I know about top, but top does not help much=
+ in arriving at the total memory consumption.=0A=0AI need the physical memo=
+ry usage breakup of each process during bootup, with a segregate of user an=
+d kernel allocation.=0A=0A1) If I add up all "Pss" field in "proc/<PID>/sma=
+ps, do I get the total Used memory?=0A2) Is the Pss value includes the kern=
+el side allocation as well?=0A3) What fields I should choose from /proc/mem=
+info" to correctly arrive at the "Used" memory in the system?=0A4) What abo=
+ut the memory allocation for kernel threads during booting? Why does its Ps=
+s/Rss value shows 0 always=0A=0AI already tried adding up all "PSS" values =
+in every PIDs, but still it does not match any where near to the total used=
+ memory in the system.=0A=0APlease help.=0A=0A=0AThanks,=0APintu=0A=0A=0A=
+=0A>________________________________=0A> From: Stefan Beller <stefanbeller@=
+googlemail.com>=0A>To: PINTU KUMAR <pintu_agarwal@yahoo.com>; "linux-mm@kva=
+ck.org" <linux-mm@kvack.org>; "linux-kernel@vger.kernel.org" <linux-kernel@=
+vger.kernel.org>; "mgorman@suse.de" <mgorman@suse.de> =0A>Sent: Monday, 30 =
+December 2013 1:55 AM=0A>Subject: Re: Help about calculating total memory c=
+onsumption during booting=0A> =0A>=0A>On 29.12.2013 19:17, PINTU KUMAR wrot=
+e:=0A>> Hi,=0A>> =0A>> I need help in roughly calculating the total memory =
+consumption in an embedded Linux system just after booting is finished.=0A>=
+> I know, I can see the memory stats using "free" and "/proc/meminfo"=0A>> =
+=0A>> But, I need the breakup of "Used" memory during bootup, for both kern=
+el space and user application.=0A>> =0A>> Example, on my ARM machine with 1=
+28MB RAM, the free memory reported is roughly:=0A>> Total: 90MB=0A>> Used: =
+88MB=0A>> Free: 2MB=0A>> Buffer+Cached: (5+19)MB=0A>> =0A>> Now, my questio=
+n is, how to find the breakup of this "Used" memory of "88MB".=0A>> This sh=
+ould include both kernel space allocation and user application allocation(i=
+ncluding daemons).=0A>> =0A>=0A>http://www.linuxatemyram.com/ dont panic ;)=
+=0A>=0A>How about htop, top or=0A>"valgrind --tool massif"=0A>=0A>=0A>=0A>=
+=0A>=0A>--=0A>To unsubscribe, send a message with 'unsubscribe linux-mm' in=
+=0A>the body to majordomo@kvack.org.=A0 For more info on Linux MM,=0A>see: =
+http://www.linux-mm.org/ .=0A>Don't email: <a href=3Dmailto:"dont@kvack.org=
+"> email@kvack.org </a>=0A>=0A>=0A>
+---1322375793-851798681-1388454739=:81970
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-> Look at page_referenced() for example. Instead of assuming that it has to be
-> called with page lock held, it's trying to acquire the lock and to free it only
-> if it's the one that allocated it.
-
-I agree here. page_referenced() looks badly.
-
-> Why isn't there a VM_BUG_ON() there to test whether the page is locked, and let
-> the callers handle that?
-
-At the moment trylock_page() is part of lock_page(), so you'll hit it all
-the time: on any contention.
-
-> >I don't think it's reasonable to re-implement this functionality. We
-> >really need to hook up lockdep.
-> 
-> The issue with adding lockdep straight away is that we need to deal with
-> long held page locks somehow nicely. Unlike regular locks, these may be
-> held for a rather long while, triggering really long locking chains which
-> lockdep doesn't really like.
-> 
-> Many places lock a long list of pages in bulk - we could allow that with
-> nesting, but then you lose your ability to detect trivial deadlocks.
-
-I see. But we need something better then plain VM_BUG() to be able to
-analyze what happened.
-
--- 
- Kirill A. Shutemov
+<html><body><div style=3D"color:#000; background-color:#fff; font-family:Co=
+urier New, courier, monaco, monospace, sans-serif;font-size:12pt"><div>Hi,<=
+/div><div><br></div><div>Thanks for the reply, I know about top, but top do=
+es not help much in arriving at the total memory consumption.</div><div><br=
+></div><div>I need the physical memory usage breakup of each process during=
+ bootup, with a segregate of user and kernel allocation.</div><div><br></di=
+v><div>1) If I add up all "Pss" field in "proc/&lt;PID&gt;/smaps, do I get =
+the total Used memory?</div><div>2) Is the Pss value includes the kernel si=
+de allocation as well?</div><div>3) What fields I should choose from /proc/=
+meminfo" to correctly arrive at the "Used" memory in the system?</div><div>=
+4) What about the memory allocation for kernel threads during booting? Why =
+does its Pss/Rss value shows 0 always</div><div><br></div><div style=3D"col=
+or: rgb(0, 0, 0); font-size: 16px; font-family: 'Courier New', courier,
+ monaco, monospace, sans-serif; background-color: transparent; font-style: =
+normal;">I already tried adding up all "PSS" values in every PIDs, but stil=
+l it does not match any where near to the total used memory in the system.<=
+/div><div style=3D"color: rgb(0, 0, 0); font-size: 16px; font-family: 'Cour=
+ier New', courier, monaco, monospace, sans-serif; background-color: transpa=
+rent; font-style: normal;"><br></div><div style=3D"color: rgb(0, 0, 0); fon=
+t-size: 16px; font-family: 'Courier New', courier, monaco, monospace, sans-=
+serif; background-color: transparent; font-style: normal;">Please help.</di=
+v><div style=3D"color: rgb(0, 0, 0); font-size: 16px; font-family: 'Courier=
+ New', courier, monaco, monospace, sans-serif; background-color: transparen=
+t; font-style: normal;"><br></div><div style=3D"color: rgb(0, 0, 0); font-s=
+ize: 16px; font-family: 'Courier New', courier, monaco, monospace, sans-ser=
+if; background-color: transparent; font-style: normal;"><br></div><div
+ style=3D"color: rgb(0, 0, 0); font-size: 16px; font-family: 'Courier New',=
+ courier, monaco, monospace, sans-serif; background-color: transparent; fon=
+t-style: normal;">Thanks,</div><div style=3D"color: rgb(0, 0, 0); font-size=
+: 16px; font-family: 'Courier New', courier, monaco, monospace, sans-serif;=
+ background-color: transparent; font-style: normal;">Pintu</div><div style=
+=3D"color: rgb(0, 0, 0); font-size: 16px; font-family: 'Courier New', couri=
+er, monaco, monospace, sans-serif; background-color: transparent; font-styl=
+e: normal;"><br></div><div><br></div><blockquote style=3D"border-left: 2px =
+solid rgb(16, 16, 255); margin-left: 5px; margin-top: 5px; padding-left: 5p=
+x;">  <div style=3D"font-family: 'Courier New', courier, monaco, monospace,=
+ sans-serif; font-size: 12pt;"> <div style=3D"font-family: 'times new roman=
+', 'new york', times, serif; font-size: 12pt;"> <div dir=3D"ltr"> <hr size=
+=3D"1">  <font size=3D"2" face=3D"Arial"> <b><span
+ style=3D"font-weight:bold;">From:</span></b> Stefan Beller &lt;stefanbelle=
+r@googlemail.com&gt;<br> <b><span style=3D"font-weight: bold;">To:</span></=
+b> PINTU KUMAR &lt;pintu_agarwal@yahoo.com&gt;; "linux-mm@kvack.org" &lt;li=
+nux-mm@kvack.org&gt;; "linux-kernel@vger.kernel.org" &lt;linux-kernel@vger.=
+kernel.org&gt;; "mgorman@suse.de" &lt;mgorman@suse.de&gt; <br> <b><span sty=
+le=3D"font-weight: bold;">Sent:</span></b> Monday, 30 December 2013 1:55 AM=
+<br> <b><span style=3D"font-weight: bold;">Subject:</span></b> Re: Help abo=
+ut calculating total memory consumption during booting<br> </font> </div> <=
+div class=3D"y_msg_container"><br>On 29.12.2013 19:17, PINTU KUMAR wrote:<b=
+r clear=3D"none">&gt; Hi,<br clear=3D"none">&gt; <br clear=3D"none">&gt; I =
+need help in roughly calculating the total memory consumption in an embedde=
+d Linux system just after booting is finished.<br clear=3D"none">&gt; I kno=
+w, I can see the memory stats using "free" and "/proc/meminfo"<br clear=3D"=
+none">&gt;
+ <br clear=3D"none">&gt; But, I need the breakup of "Used" memory during bo=
+otup, for both kernel space and user application.<br clear=3D"none">&gt; <b=
+r clear=3D"none">&gt; Example, on my ARM machine with 128MB RAM, the free m=
+emory reported is roughly:<br clear=3D"none">&gt; Total: 90MB<br clear=3D"n=
+one">&gt; Used: 88MB<br clear=3D"none">&gt; Free: 2MB<br clear=3D"none">&gt=
+; Buffer+Cached: (5+19)MB<br clear=3D"none">&gt; <br clear=3D"none">&gt; No=
+w, my question is, how to find the breakup of this "Used" memory of "88MB".=
+<br clear=3D"none">&gt; This should include both kernel space allocation an=
+d user application allocation(including daemons).<br clear=3D"none">&gt; <b=
+r clear=3D"none"><br clear=3D"none"><a shape=3D"rect" href=3D"http://www.li=
+nuxatemyram.com/" target=3D"_blank">http://www.linuxatemyram.com/ </a>dont =
+panic ;)<br clear=3D"none"><br clear=3D"none">How about htop, top or<br cle=
+ar=3D"none">"valgrind --tool massif"<div class=3D"yqt7588509124" id=3D"yqtf=
+d34938"><br clear=3D"none"><br
+ clear=3D"none"><br clear=3D"none"><br clear=3D"none"><br clear=3D"none">--=
+<br clear=3D"none">To unsubscribe, send a message with 'unsubscribe linux-m=
+m' in<br clear=3D"none">the body to <a shape=3D"rect" ymailto=3D"mailto:maj=
+ordomo@kvack.org." href=3D"mailto:majordomo@kvack.org.">majordomo@kvack.org=
+.</a>&nbsp; For more info on Linux MM,<br clear=3D"none">see: <a shape=3D"r=
+ect" href=3D"http://www.linux-mm.org/" target=3D"_blank">http://www.linux-m=
+m.org/ </a>.<br clear=3D"none">Don't email: &lt;a href=3Dmailto:"<a shape=
+=3D"rect" ymailto=3D"mailto:dont@kvack.org" href=3D"mailto:dont@kvack.org">=
+dont@kvack.org</a>"&gt; <a shape=3D"rect" ymailto=3D"mailto:email@kvack.org=
+" href=3D"mailto:email@kvack.org">email@kvack.org</a> &lt;/a&gt;<br clear=
+=3D"none"></div><br><br></div> </div> </div> </blockquote><div></div>   </d=
+iv></body></html>
+---1322375793-851798681-1388454739=:81970--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
