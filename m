@@ -1,64 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 77DF56B0031
-	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 18:48:43 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id rq2so14961166pbb.17
-        for <linux-mm@kvack.org>; Thu, 02 Jan 2014 15:48:43 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id ye6si43870516pbc.80.2014.01.02.15.48.41
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 12C806B0031
+	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 18:55:37 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id v10so14671690pde.14
+        for <linux-mm@kvack.org>; Thu, 02 Jan 2014 15:55:37 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id sw1si43836896pab.344.2014.01.02.15.55.36
         for <linux-mm@kvack.org>;
-        Thu, 02 Jan 2014 15:48:42 -0800 (PST)
-Message-ID: <52C5FAD3.6080808@intel.com>
-Date: Thu, 02 Jan 2014 15:48:35 -0800
-From: Dave Hansen <dave.hansen@intel.com>
-MIME-Version: 1.0
-Subject: Re: [RFC] mm: show message when updating min_free_kbytes in thp
-References: <20140101002935.GA15683@localhost.localdomain> <52C5AA61.8060701@intel.com> <alpine.DEB.2.02.1401021357360.21537@chino.kir.corp.google.com> <52C5E3C2.6020205@intel.com> <alpine.DEB.2.02.1401021534320.492@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1401021534320.492@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+        Thu, 02 Jan 2014 15:55:36 -0800 (PST)
+Date: Thu, 2 Jan 2014 15:55:34 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/3] Add shrink_pagecache_parent
+Message-Id: <20140102155534.9b0cd498209d835d0c93837e@linux-foundation.org>
+In-Reply-To: <249cbd3edaa84dd58a0626780fb546ddf7c1dc11.1388409687.git.liwang@ubuntukylin.com>
+References: <cover.1388409686.git.liwang@ubuntukylin.com>
+	<249cbd3edaa84dd58a0626780fb546ddf7c1dc11.1388409687.git.liwang@ubuntukylin.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
+To: Li Wang <liwang@ubuntukylin.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cong Wang <xiyou.wangcong@gmail.com>, Zefan Li <lizefan@huawei.com>, Matthew Wilcox <matthew@wil.cx>, Yunchuan Wen <yunchuanwen@ubuntukylin.com>, Dave Chinner <david@fromorbit.com>
 
-On 01/02/2014 03:36 PM, David Rientjes wrote:
-> On Thu, 2 Jan 2014, Dave Hansen wrote:
->> Let's say enabling THP made my system behave badly.  How do I get it
->> back to the state before I enabled THP?  The user has to have gone and
->> recorded what their min_free_kbytes was before turning THP on in order
->> to get it back to where it was.  Folks also have to either plan in
->> advance (archiving *ALL* the sysctl settings), somehow *know* somehow
->> that THP can affect min_free_kbytes, or just plain be clairvoyant.
->> 
-> How is this different from some initscript changing the value?  We should 
-> either specify that min_free_kbytes changed from its default, which may 
-> change from kernel version to kernel version itself, in all cases or just 
-> leave it as it currently is.  There's no reason to special-case thp in 
-> this way if there are other ways to change the value.
+On Mon, 30 Dec 2013 21:45:17 +0800 Li Wang <liwang@ubuntukylin.com> wrote:
 
-Ummm....  It's different because one is the kernel changing it and the
-other is userspace.  If I wonder how the heck this got set:
+> Analogous to shrink_dcache_parent except that it collects inodes.
+> It is not very appropriate to be put in dcache.c, but d_walk can only
+> be invoked from here.
 
-	kernel.core_pattern = |/usr/share/apport/apport %p %s %c
+Please cc Dave Chinner on future revisions.  He be da man.
 
-I do:
+The overall intent of the patchset seems reasonable and I agree that it
+can't be efficiently done from userspace with the current kernel API. 
+We *could* do it from userspace by providing facilities for userspace to
+query the VFS caches: "is this pathname in the dentry cache" and "is
+this inode in the inode cache".
 
-$ grep -r /usr/share/apport/apport /etc/
-/etc/init/apport.conf:        /usr/share/apport/apportcheckresume || true
-/etc/init/apport.conf:    echo "|/usr/share/apport/apport %p %s %c" >
-/proc/sys/kernel/core_pattern
+> --- a/fs/dcache.c
+> +++ b/fs/dcache.c
+> @@ -1318,6 +1318,42 @@ void shrink_dcache_parent(struct dentry *parent)
+>  }
+>  EXPORT_SYMBOL(shrink_dcache_parent);
+>  
+> +static enum d_walk_ret gather_inode(void *data, struct dentry *dentry)
+> +{
+> +	struct list_head *list = data;
+> +	struct inode *inode = dentry->d_inode;
+> +
+> +	if ((inode == NULL) || ((!inode_owner_or_capable(inode)) &&
+> +				(!capable(CAP_SYS_ADMIN))))
+> +		goto out;
+> +	spin_lock(&inode->i_lock);
+> +	if ((inode->i_state & (I_FREEING|I_WILL_FREE|I_NEW)) ||
 
-There's usually a record of how it got set, somewhere, if it happened
-from userspace.  Printing messages like this in the kernel does the
-same: it gives the sysadmin a _chance_ of finding out what happened.
-Doing it silently (like it's done today) isn't very nice.
+It's unclear what rationale lies behind this particular group of tests.
 
-You're arguing that "if userspace can set it arbitrarily, then the
-kernel should be able to do it silently too."  That's nonsense.
+> +		(inode->i_mapping->nrpages == 0) ||
+> +		(!list_empty(&inode->i_lru))) {
 
-It would be nice to have tracepoints explicitly for tracing who messed
-with sysctl values, too.
+arg, the "Inode locking rules" at the top of fs/inode.c needs a
+refresh, I suspect.  It is too vague.
+
+Formally, inode->i_lru is protected by
+i_sb->s_inode_lru->node[nid].lock, not by ->i_lock.  I guess you can
+just do a list_lru_add() and that will atomically add the inode to your
+local list_lru if ->i_lru wasn't being used for anything else.
+
+I *think* that your use of i_lock works OK, because code which fiddles
+with i_lru and s_inode_lru also takes i_lock.  However we need to
+decide which is the preferred and official lock.  ie: what is the
+design here??
+
+However...  most inodes will be on an LRU list, won't they?  Doesn't
+this reuse of i_lru mean that many inodes will fail to be processed? 
+If so, we might need to add a new list_head to the inode, which will be
+problematic.
+
+
+Aside: inode_lru_isolate() fiddles directly with inode->i_lru without
+taking i_sb->s_inode_lru->node[nid].lock.  Why doesn't this make a
+concurrent s_inode_lru walker go oops??  Should we be using
+list_lru_del() in there?  (which should have been called
+list_lru_del_init(), sigh).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
