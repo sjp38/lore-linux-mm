@@ -1,127 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C9C036B0035
-	for <linux-mm@kvack.org>; Wed,  1 Jan 2014 21:19:59 -0500 (EST)
-Received: by mail-ee0-f51.google.com with SMTP id b15so6097137eek.10
-        for <linux-mm@kvack.org>; Wed, 01 Jan 2014 18:19:59 -0800 (PST)
-Received: from jenni1.inet.fi (mta-out.inet.fi. [195.156.147.13])
-        by mx.google.com with ESMTP id u49si63690334eep.211.2014.01.01.18.19.58
-        for <linux-mm@kvack.org>;
-        Wed, 01 Jan 2014 18:19:58 -0800 (PST)
-Date: Thu, 2 Jan 2014 04:19:51 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] powerpc: thp: Fix crash on mremap
-Message-ID: <20140102021951.GA26369@node.dhcp.inet.fi>
-References: <1388570027-22933-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1388572145.4373.41.camel@pasglop>
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id A95C96B0035
+	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 01:36:52 -0500 (EST)
+Received: by mail-pb0-f48.google.com with SMTP id md12so14066731pbc.21
+        for <linux-mm@kvack.org>; Wed, 01 Jan 2014 22:36:52 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id ph10si41527391pbb.49.2014.01.01.22.36.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 01 Jan 2014 22:36:51 -0800 (PST)
+Message-ID: <52C508FA.9030009@oracle.com>
+Date: Thu, 02 Jan 2014 14:36:42 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1388572145.4373.41.camel@pasglop>
+Subject: Re: mm: kernel BUG at include/linux/swapops.h:131!
+References: <52B1C143.8080301@oracle.com> <52B871B2.7040409@oracle.com>
+In-Reply-To: <52B871B2.7040409@oracle.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: paulus@samba.org, aarcange@redhat.com, kirill.shutemov@linux.intel.com, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, khlebnikov@openvz.org, LKML <linux-kernel@vger.kernel.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Wed, Jan 01, 2014 at 09:29:05PM +1100, Benjamin Herrenschmidt wrote:
-> On Wed, 2014-01-01 at 15:23 +0530, Aneesh Kumar K.V wrote:
-> > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> > 
-> > This patch fix the below crash
-> > 
-> > NIP [c00000000004cee4] .__hash_page_thp+0x2a4/0x440
-> > LR [c0000000000439ac] .hash_page+0x18c/0x5e0
-> > ...
-> > Call Trace:
-> > [c000000736103c40] [00001ffffb000000] 0x1ffffb000000(unreliable)
-> > [437908.479693] [c000000736103d50] [c0000000000439ac] .hash_page+0x18c/0x5e0
-> > [437908.479699] [c000000736103e30] [c00000000000924c] .do_hash_page+0x4c/0x58
-> > 
-> > On ppc64 we use the pgtable for storing the hpte slot information and
-> > store address to the pgtable at a constant offset (PTRS_PER_PMD) from
-> > pmd. On mremap, when we switch the pmd, we need to withdraw and deposit
-> > the pgtable again, so that we find the pgtable at PTRS_PER_PMD offset
-> > from new pmd.
-> > 
-> > We also want to move the withdraw and deposit before the set_pmd so
-> > that, when page fault find the pmd as trans huge we can be sure that
-> > pgtable can be located at the offset.
-> > 
-> > Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> > ---
-> > NOTE:
-> > For other archs we would just be removing the pgtable from the list and adding it back.
-> > I didn't find an easy way to make it not do that without lots of #ifdef around. Any
-> > suggestion around that is welcome.
-> 
-> What about
-> 
-> -		if (new_ptl != old_ptl) {
-> +               if (new_ptl != old_ptl || ARCH_THP_MOVE_PMD_ALWAYS_WITHDRAW) {
-> 
-> Or something similar ?
 
-Looks sane to me. Or something with IS_ENABLED(), if needed.
-
+On 12/24/2013 01:24 AM, Sasha Levin wrote:
+> Ping?
 > 
-> Cheers,
-> Ben.
+> I've also Cc'ed the "this page shouldn't be locked at all" team.
 > 
-> >  mm/huge_memory.c | 21 ++++++++++-----------
-> >  1 file changed, 10 insertions(+), 11 deletions(-)
-> > 
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > index 7de1bf85f683..eb2e60d9ba45 100644
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -1500,24 +1500,23 @@ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
-> >  	 */
-> >  	ret = __pmd_trans_huge_lock(old_pmd, vma, &old_ptl);
-> >  	if (ret == 1) {
-> > +		pgtable_t pgtable;
-> > +
-> >  		new_ptl = pmd_lockptr(mm, new_pmd);
-> >  		if (new_ptl != old_ptl)
-> >  			spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
-> >  		pmd = pmdp_get_and_clear(mm, old_addr, old_pmd);
-> >  		VM_BUG_ON(!pmd_none(*new_pmd));
-> > +		/*
-> > +		 * Archs like ppc64 use pgtable to store per pmd
-> > +		 * specific information. So when we switch the pmd,
-> > +		 * we should also withdraw and deposit the pgtable
-> > +		 */
-> > +		pgtable = pgtable_trans_huge_withdraw(mm, old_pmd);
-> > +		pgtable_trans_huge_deposit(mm, new_pmd, pgtable);
-> >  		set_pmd_at(mm, new_addr, new_pmd, pmd_mksoft_dirty(pmd));
-> > -		if (new_ptl != old_ptl) {
-> > -			pgtable_t pgtable;
-> > -
-> > -			/*
-> > -			 * Move preallocated PTE page table if new_pmd is on
-> > -			 * different PMD page table.
-> > -			 */
 
-Please don't lose the comment.
+I have no idea why this BUG_ON was triggered.
+And it looks like 'mm: kernel BUG at mm/huge_memory.c:1440!' have the
+same call trace with this one. Perhaps they were introduced by the same
+reason.
+Could you confirm whether those issues exist in v3.13-rc6?
 
-> > -			pgtable = pgtable_trans_huge_withdraw(mm, old_pmd);
-> > -			pgtable_trans_huge_deposit(mm, new_pmd, pgtable);
-> > -
-> > +		if (new_ptl != old_ptl)
-> >  			spin_unlock(new_ptl);
-> > -		}
-> >  		spin_unlock(old_ptl);
-> >  	}
-> >  out:
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thanks,
+-Bob
 
--- 
- Kirill A. Shutemov
+> On 12/18/2013 10:37 AM, Sasha Levin wrote:
+>> Hi all,
+>>
+>> While fuzzing with trinity inside a KVM tools guest running latest
+>> -next kernel, I've stumbled on
+>> the following spew.
+>>
+>> The code is in zap_pte_range():
+>>
+>>                  if (!non_swap_entry(entry))
+>>                          rss[MM_SWAPENTS]--;
+>>                  else if (is_migration_entry(entry)) {
+>>                          struct page *page;
+>>
+>>                          page = migration_entry_to_page(entry);   
+>> <==== HERE
+>>
+>>                          if (PageAnon(page))
+>>                                  rss[MM_ANONPAGES]--;
+>>                          else
+>>                                  rss[MM_FILEPAGES]--;
+>>
+>>
+>> [ 2622.589064] kernel BUG at include/linux/swapops.h:131!
+>> [ 2622.589064] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+>> [ 2622.589064] Dumping ftrace buffer:
+>> [ 2622.589064]    (ftrace buffer empty)
+>> [ 2622.589064] Modules linked in:
+>> [ 2622.589064] CPU: 9 PID: 15984 Comm: trinity-child16 Tainted:
+>> G        W    3.13.0-rc
+>> 4-next-20131217-sasha-00013-ga878504-dirty #4150
+>> [ 2622.589064] task: ffff88168346b000 ti: ffff8816561d8000 task.ti:
+>> ffff8816561d8000
+>> [ 2622.589064] RIP: 0010:[<ffffffff8127c730>]  [<ffffffff8127c730>]
+>> zap_pte_range+0x360
+>> /0x4a0
+>> [ 2622.589064] RSP: 0018:ffff8816561d9c18  EFLAGS: 00010246
+>> [ 2622.589064] RAX: ffffea00736a6600 RBX: ffff88200299d068 RCX:
+>> 0000000000000009
+>> [ 2622.589064] RDX: 022fffff80380000 RSI: ffffea0000000000 RDI:
+>> 3c00000001cda998
+>> [ 2622.589064] RBP: ffff8816561d9cb8 R08: 0000000000000000 R09:
+>> 0000000000000000
+>> [ 2622.589064] R10: 0000000000000001 R11: 0000000000000000 R12:
+>> 00007fc7ee20d000
+>> [ 2622.589064] R13: ffff8816561d9de8 R14: 000000039b53303c R15:
+>> 00007fc7ee29b000
+>> [ 2622.589064] FS:  00007fc7eeceb700(0000) GS:ffff882011a00000(0000)
+>> knlGS:000000000000
+>> 0000
+>> [ 2622.589064] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+>> [ 2622.589064] CR2: 000000000068c000 CR3: 0000000005c26000 CR4:
+>> 00000000000006e0
+>> [ 2622.589064] Stack:
+>> [ 2622.589064]  ffff8816561d9c58 0000000000000286 ffff88168327b060
+>> ffff88168327b060
+>> [ 2622.589064]  00007fc700000160 ffff881667067b88 00000000c8f4b120
+>> 00ff88168327b060
+>> [ 2622.589064]  ffff88168327b060 ffff8820051a8600 0000000000000000
+>> ffff88168327b000
+>> [ 2622.589064] Call Trace:
+>> [ 2622.589064]  [<ffffffff8127cc5e>] unmap_page_range+0x3ee/0x400
+>> [ 2622.589064]  [<ffffffff8127cd71>] unmap_single_vma+0x101/0x120
+>> [ 2622.589064]  [<ffffffff8127cdf1>] unmap_vmas+0x61/0xa0
+>> [ 2622.589064]  [<ffffffff81283980>] exit_mmap+0xd0/0x170
+>> [ 2622.589064]  [<ffffffff8112d430>] mmput+0x70/0xe0
+>> [ 2622.589064]  [<ffffffff8113144d>] exit_mm+0x18d/0x1a0
+>> [ 2622.589064]  [<ffffffff811defb5>] ? acct_collect+0x175/0x1b0
+>> [ 2622.589064]  [<ffffffff8113389f>] do_exit+0x24f/0x500
+>> [ 2622.589064]  [<ffffffff81133bf9>] do_group_exit+0xa9/0xe0
+>> [ 2622.589064]  [<ffffffff81133c47>] SyS_exit_group+0x17/0x20
+>> [ 2622.589064]  [<ffffffff843a6150>] tracesys+0xdd/0xe2
+>> [ 2622.589064] Code: 83 f8 1f 75 46 48 b8 ff ff ff ff ff ff ff 01 48
+>> be 00 00 00 00 00 ea ff ff 48
+>> 21 f8 48 c1 e0 06 48 01 f0 48 8b 10 80 e2 01 75 0a <0f> 0b 66 0f 1f 44
+>> 00 00 eb fe f6 40 08 01 74 05
+>> ff 4d c4 eb 0b
+>> [ 2622.589064] RIP  [<ffffffff8127c730>] zap_pte_range+0x360/0x4a0
+>> [ 2622.589064]  RSP <ffff8816561d9c18>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
