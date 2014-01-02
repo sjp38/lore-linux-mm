@@ -1,41 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f175.google.com (mail-ea0-f175.google.com [209.85.215.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 75EAE6B0031
-	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 10:57:30 -0500 (EST)
-Received: by mail-ea0-f175.google.com with SMTP id z10so6351909ead.34
-        for <linux-mm@kvack.org>; Thu, 02 Jan 2014 07:57:29 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s42si66358470eew.203.2014.01.02.07.57.29
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 02 Jan 2014 07:57:29 -0800 (PST)
-Date: Thu, 2 Jan 2014 15:57:26 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: page_alloc: use enum instead of number for
- migratetype
-Message-ID: <20140102155726.GA865@suse.de>
-References: <1388661922-10957-1-git-send-email-sj38.park@gmail.com>
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 995F76B0031
+	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 13:05:29 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id v10so14327454pde.41
+        for <linux-mm@kvack.org>; Thu, 02 Jan 2014 10:05:29 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id o7si32122581pbb.100.2014.01.02.10.05.27
+        for <linux-mm@kvack.org>;
+        Thu, 02 Jan 2014 10:05:28 -0800 (PST)
+Message-ID: <52C5AA61.8060701@intel.com>
+Date: Thu, 02 Jan 2014 10:05:21 -0800
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1388661922-10957-1-git-send-email-sj38.park@gmail.com>
+Subject: Re: [RFC] mm: show message when updating min_free_kbytes in thp
+References: <20140101002935.GA15683@localhost.localdomain>
+In-Reply-To: <20140101002935.GA15683@localhost.localdomain>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: SeongJae Park <sj38.park@gmail.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
 
-On Thu, Jan 02, 2014 at 08:25:22PM +0900, SeongJae Park wrote:
-> Using enum instead of number for migratetype everywhere would be better
-> for reading and understanding.
-> 
-> Signed-off-by: SeongJae Park <sj38.park@gmail.com>
+On 12/31/2013 04:29 PM, Han Pingtian wrote:
+> min_free_kbytes may be updated during thp's initialization. Sometimes,
+> this will change the value being set by user. Showing message will
+> clarify this confusion.
+...
+> -	if (recommended_min > min_free_kbytes)
+> +	if (recommended_min > min_free_kbytes) {
+>  		min_free_kbytes = recommended_min;
+> +		pr_info("min_free_kbytes is updated to %d by enabling transparent hugepage.\n",
+> +			min_free_kbytes);
+> +	}
 
-This implicitly makes assumptions about the value of MIGRATE_UNMOVABLE
-and does not appear to actually fix or improve anything.
+"updated" doesn't tell us much.  It's also kinda nasty that if we enable
+then disable THP, we end up with an elevated min_free_kbytes.  Maybe we
+should at least put something in that tells the user how to get back
+where they were if they care:
 
--- 
-Mel Gorman
-SUSE Labs
+"raising min_free_kbytes from %d to %d to help transparent hugepage
+allocations"
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
