@@ -1,74 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-gg0-f175.google.com (mail-gg0-f175.google.com [209.85.161.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 160276B0036
-	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 17:03:59 -0500 (EST)
-Received: by mail-gg0-f175.google.com with SMTP id u2so2859888ggn.20
-        for <linux-mm@kvack.org>; Thu, 02 Jan 2014 14:03:58 -0800 (PST)
-Received: from mail-gg0-x231.google.com (mail-gg0-x231.google.com [2607:f8b0:4002:c02::231])
-        by mx.google.com with ESMTPS id q66si35613yhm.54.2014.01.02.14.03.56
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 02 Jan 2014 14:03:58 -0800 (PST)
-Received: by mail-gg0-f177.google.com with SMTP id 4so2913451ggm.36
-        for <linux-mm@kvack.org>; Thu, 02 Jan 2014 14:03:56 -0800 (PST)
-Date: Thu, 2 Jan 2014 14:03:53 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm/memblock: use WARN_ONCE when MAX_NUMNODES passed as
- input parameter
-In-Reply-To: <52C1635D.9070703@ti.com>
-Message-ID: <alpine.DEB.2.02.1401021400160.21537@chino.kir.corp.google.com>
-References: <1387578536-18280-1-git-send-email-santosh.shilimkar@ti.com> <alpine.DEB.2.02.1312261542260.9342@chino.kir.corp.google.com> <52C1635D.9070703@ti.com>
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AB356B0038
+	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 17:10:19 -0500 (EST)
+Received: by mail-pd0-f172.google.com with SMTP id g10so14598270pdj.31
+        for <linux-mm@kvack.org>; Thu, 02 Jan 2014 14:10:19 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id wm3si43664486pab.194.2014.01.02.14.10.16
+        for <linux-mm@kvack.org>;
+        Thu, 02 Jan 2014 14:10:16 -0800 (PST)
+Message-ID: <52C5E3C2.6020205@intel.com>
+Date: Thu, 02 Jan 2014 14:10:10 -0800
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC] mm: show message when updating min_free_kbytes in thp
+References: <20140101002935.GA15683@localhost.localdomain> <52C5AA61.8060701@intel.com> <alpine.DEB.2.02.1401021357360.21537@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1401021357360.21537@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Grygorii Strashko <grygorii.strashko@ti.com>
-Cc: Santosh Shilimkar <santosh.shilimkar@ti.com>, akpm@linux-foundation.org, tj@kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, Yinghai Lu <yinghai@kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
 
-On Mon, 30 Dec 2013, Grygorii Strashko wrote:
-
-> > > diff --git a/mm/memblock.c b/mm/memblock.c
-> > > index 71b11d9..6af873a 100644
-> > > --- a/mm/memblock.c
-> > > +++ b/mm/memblock.c
-> > > @@ -707,11 +707,9 @@ void __init_memblock __next_free_mem_range(u64 *idx,
-> > > int nid,
-> > >   	struct memblock_type *rsv = &memblock.reserved;
-> > >   	int mi = *idx & 0xffffffff;
-> > >   	int ri = *idx >> 32;
-> > > -	bool check_node = (nid != NUMA_NO_NODE) && (nid != MAX_NUMNODES);
-> > > 
-> > > -	if (nid == MAX_NUMNODES)
-> > > -		pr_warn_once("%s: Usage of MAX_NUMNODES is depricated. Use
-> > > NUMA_NO_NODE instead\n",
-> > > -			     __func__);
-> > > +	if (WARN_ONCE(nid == MAX_NUMNODES, "Usage of MAX_NUMNODES is
-> > > deprecated. Use NUMA_NO_NODE instead\n"))
-> > > +		nid = NUMA_NO_NODE;
-> > > 
-> > >   	for ( ; mi < mem->cnt; mi++) {
-> > >   		struct memblock_region *m = &mem->regions[mi];
-> > 
-> > Um, why do this at runtime?  This is only used for
-> > for_each_free_mem_range(), which is used rarely in x86 and memblock-only
-> > code.  I'm struggling to understand why we can't deterministically fix the
-> > callers if this condition is possible.
-> > 
+On 01/02/2014 01:58 PM, David Rientjes wrote:
+> On Thu, 2 Jan 2014, Dave Hansen wrote:
 > 
+>>> min_free_kbytes may be updated during thp's initialization. Sometimes,
+>>> this will change the value being set by user. Showing message will
+>>> clarify this confusion.
+>> ...
+>>> -	if (recommended_min > min_free_kbytes)
+>>> +	if (recommended_min > min_free_kbytes) {
+>>>  		min_free_kbytes = recommended_min;
+>>> +		pr_info("min_free_kbytes is updated to %d by enabling transparent hugepage.\n",
+>>> +			min_free_kbytes);
+>>> +	}
+>>
+>> "updated" doesn't tell us much.  It's also kinda nasty that if we enable
+>> then disable THP, we end up with an elevated min_free_kbytes.  Maybe we
+>> should at least put something in that tells the user how to get back
+>> where they were if they care:
 > 
-> Unfortunately, It's not so simple as from first look :(
-> We've modified __next_free_mem_range_x() functions which are part of
-> Memblock APIs (like memblock_alloc_xxx()) and Nobootmem APIs.
-> These APIs are used as directly as indirectly (as part of callbacks from other
-> MM modules like Sparse), as result, it's not trivial to identify all places
-> where MAX_NUMNODES will be used as input parameter.
-> 
+> The default value of min_free_kbytes depends on the implementation of the 
+> VM regardless of any config options that you may have enabled.  We don't 
+> specify what the non-thp default is in the kernel log, so why do we need 
+> to specify what the thp default is?
 
-These functions are only used for for_each_free_mem_range() and 
-for_each_free_mem_range_reverse().  I can very easily find which callers 
-are passing MAX_NUMNODES deterministically.
+Let's say enabling THP made my system behave badly.  How do I get it
+back to the state before I enabled THP?  The user has to have gone and
+recorded what their min_free_kbytes was before turning THP on in order
+to get it back to where it was.  Folks also have to either plan in
+advance (archiving *ALL* the sysctl settings), somehow *know* somehow
+that THP can affect min_free_kbytes, or just plain be clairvoyant.
 
-NACK to doing this at runtime.
+This seems like a pretty straightforward way to be transparent about
+what the kernel mucked with, and exactly how it did it instead of
+requiring clairvoyant sysadmins.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
