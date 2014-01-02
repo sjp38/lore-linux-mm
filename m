@@ -1,47 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id D9B976B0038
-	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 16:53:41 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id bj1so15032154pad.30
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 511256B0037
+	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 16:53:42 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id y10so14554192pdj.23
         for <linux-mm@kvack.org>; Thu, 02 Jan 2014 13:53:41 -0800 (PST)
 Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id sa6si43718738pbb.263.2014.01.02.13.53.39
+        by mx.google.com with ESMTPS id ey5si39823918pab.306.2014.01.02.13.53.40
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 02 Jan 2014 13:53:40 -0800 (PST)
 From: Laura Abbott <lauraa@codeaurora.org>
-Subject: [RFC PATCHv3 02/11] iommu/omap: Use get_vm_area directly
-Date: Thu,  2 Jan 2014 13:53:20 -0800
-Message-Id: <1388699609-18214-3-git-send-email-lauraa@codeaurora.org>
+Subject: [RFC PATCHv3 03/11] percpu: use VMALLOC_TOTAL instead of VMALLOC_END - VMALLOC_START
+Date: Thu,  2 Jan 2014 13:53:21 -0800
+Message-Id: <1388699609-18214-4-git-send-email-lauraa@codeaurora.org>
 In-Reply-To: <1388699609-18214-1-git-send-email-lauraa@codeaurora.org>
 References: <1388699609-18214-1-git-send-email-lauraa@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Kyungmin Park <kmpark@infradead.org>, Dave Hansen <dave@sr71.net>, linux-mm@kvack.org, Joerg Roedel <joro@8bytes.org>
-Cc: linux-kernel@vger.kernel.org, Laura Abbott <lauraa@codeaurora.org>, iommu@lists.linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>, Kyungmin Park <kmpark@infradead.org>, Dave Hansen <dave@sr71.net>, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, Laura Abbott <lauraa@codeaurora.org>
 
-There is no need to call __get_vm_area with VMALLOC_START and
-VMALLOC_END when get_vm_area already does that. Call get_vm_area
-directly.
+vmalloc already gives a useful macro to calculate the total vmalloc
+size. Use it.
 
 Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
 ---
- drivers/iommu/omap-iovmm.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ mm/percpu.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/iommu/omap-iovmm.c b/drivers/iommu/omap-iovmm.c
-index d147259..6280d50 100644
---- a/drivers/iommu/omap-iovmm.c
-+++ b/drivers/iommu/omap-iovmm.c
-@@ -214,7 +214,7 @@ static void *vmap_sg(const struct sg_table *sgt)
- 	if (!total)
- 		return ERR_PTR(-EINVAL);
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 0d10def..afbf352 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -1686,10 +1686,10 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+ 	max_distance += ai->unit_size;
  
--	new = __get_vm_area(total, VM_IOREMAP, VMALLOC_START, VMALLOC_END);
-+	new = get_vm_area(total, VM_IOREMAP);
- 	if (!new)
- 		return ERR_PTR(-ENOMEM);
- 	va = (u32)new->addr;
+ 	/* warn if maximum distance is further than 75% of vmalloc space */
+-	if (max_distance > (VMALLOC_END - VMALLOC_START) * 3 / 4) {
++	if (max_distance > VMALLOC_TOTAL * 3 / 4) {
+ 		pr_warning("PERCPU: max_distance=0x%zx too large for vmalloc "
+ 			   "space 0x%lx\n", max_distance,
+-			   (unsigned long)(VMALLOC_END - VMALLOC_START));
++			   VMALLOC_TOTAL);
+ #ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
+ 		/* and fail if we have fallback */
+ 		rc = -EINVAL;
 -- 
 The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
 hosted by The Linux Foundation
