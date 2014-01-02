@@ -1,58 +1,237 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 251236B0035
-	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 07:44:22 -0500 (EST)
-Received: by mail-pd0-f180.google.com with SMTP id q10so14204408pdj.11
-        for <linux-mm@kvack.org>; Thu, 02 Jan 2014 04:44:21 -0800 (PST)
-Received: from m59-178.qiye.163.com (m59-178.qiye.163.com. [123.58.178.59])
-        by mx.google.com with ESMTP id dv5si42433300pbb.13.2014.01.02.04.44.19
-        for <linux-mm@kvack.org>;
-        Thu, 02 Jan 2014 04:44:20 -0800 (PST)
-Message-ID: <52C55F12.4050406@ubuntukylin.com>
-Date: Thu, 02 Jan 2014 20:44:02 +0800
-From: Li Wang <liwang@ubuntukylin.com>
+Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E605B6B0031
+	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 10:38:55 -0500 (EST)
+Received: by mail-we0-f171.google.com with SMTP id q58so12740502wes.30
+        for <linux-mm@kvack.org>; Thu, 02 Jan 2014 07:38:55 -0800 (PST)
+Received: from mail-wg0-x229.google.com (mail-wg0-x229.google.com [2a00:1450:400c:c00::229])
+        by mx.google.com with ESMTPS id hg12si21694101wib.39.2014.01.02.07.38.55
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 02 Jan 2014 07:38:55 -0800 (PST)
+Received: by mail-wg0-f41.google.com with SMTP id y10so16310332wgg.0
+        for <linux-mm@kvack.org>; Thu, 02 Jan 2014 07:38:54 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/3] Fadvise: Directory level page cache cleaning support
-References: <cover.1388409686.git.liwang@ubuntukylin.com> <52C1C6F7.8010809@intel.com> <FFE7C704-791E-4B73-9251-EFB9135AB254@dilger.ca> <52C1E6B1.4010402@intel.com>
-In-Reply-To: <52C1E6B1.4010402@intel.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1387459407-29342-1-git-send-email-ddstreet@ieee.org>
+References: <1387459407-29342-1-git-send-email-ddstreet@ieee.org>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Thu, 2 Jan 2014 10:38:34 -0500
+Message-ID: <CALZtONDyq_r5=KBYBChWPG0WXDXOyFXBQ7ZZd7+6BXRZzDrNwA@mail.gmail.com>
+Subject: Re: [PATCH] mm/zswap: add writethrough option
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Andreas Dilger <adilger@dilger.ca>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, Zefan Li <lizefan@huawei.com>, Matthew Wilcox <matthew@wil.cx>
+To: Seth Jennings <sjennings@variantweb.net>
+Cc: Dan Streetman <ddstreet@ieee.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>, Shirish Pargaonkar <spargaonkar@suse.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 
-Do we really need clean dcache/icache at the current stage?
-That will introduce more code work, so far, iput() will put
-those unreferenced inodes into superblock lru list. To free
-the inodes inside a specific directory, it seems we do not
-have a handy API to use, and need
-modify iput() to recognize our situation, and collect those
-inodes into our list rather than superblock lru list. Maybe
-we stay at current stage now, since it is simple and could
-gain the major benefits, leave the dcache/icache cleaning
-to do in the future?
+Happy new year!
 
-On 2013/12/31 5:33, Dave Hansen wrote:
-> On 12/30/2013 11:40 AM, Andreas Dilger wrote:
->> On Dec 30, 2013, at 12:18, Dave Hansen <dave.hansen@intel.com> wrote:
->>> Why is this necessary to do in the kernel?  Why not leave it to
->>> userspace to walk the filesystem(s)?
->>
->> I would suspect that trying to do it in userspace would be quite bad. It would require traversing the whole directory tree to issue cache flushed for each subdirectory, but it doesn't know when to stop traversal. That would mean the "cache flush" would turn into "cache pollute" and cause a lot of disk IO for subdirectories not in cache to begin with.
+Seth, just checking if you have had a chance yet to think about this one.
+
+
+
+On Thu, Dec 19, 2013 at 8:23 AM, Dan Streetman <ddstreet@ieee.org> wrote:
+> Currently, zswap is writeback cache; stored pages are not sent
+> to swap disk, and when zswap wants to evict old pages it must
+> first write them back to swap cache/disk manually.  This avoids
+> swap out disk I/O up front, but only moves that disk I/O to
+> the writeback case (for pages that are evicted), and adds the
+> overhead of having to uncompress the evicted pages and the
+> need for an additional free page (to store the uncompressed page).
 >
-> That makes sense for dentries at least and is a pretty good reason.
-> Probably good enough to to include some text in the patch description.
-> ;)  Perhaps: "We need this interface because we have no way of
-> determining what is in the dcache from userspace, and we do not want
-> userspace to pollute the dcache going and looking for page cache to evict."
+> This optionally changes zswap to writethrough cache by enabling
+> frontswap_writethrough() before registering, so that any
+> successful page store will also be written to swap disk.  The
+> default remains writeback.  To enable writethrough, the param
+> zswap.writethrough=1 must be used at boot.
 >
-> One other thing that bothers me: POSIX_FADV_DONTNEED on a directory
-> seems like it should do something with the _directory_.  It should undo
-> the kernel's caching that happens as a result of readdir().
+> Whether writeback or writethrough will provide better performance
+> depends on many factors including disk I/O speed/throughput,
+> CPU speed(s), system load, etc.  In most cases it is likely
+> that writeback has better performance than writethrough before
+> zswap is full, but after zswap fills up writethrough has
+> better performance than writeback.
 >
-> Should this also be trying to drop the dentry/inode entries like "echo 2
->> .../drop_caches" does?
+> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+>
+> ---
+>
+> Based on specjbb testing on my laptop, the results for both writeback
+> and writethrough are better than not using zswap at all, but writeback
+> does seem to be better than writethrough while zswap isn't full.  Once
+> it fills up, performance for writethrough is essentially close to not
+> using zswap, while writeback seems to be worse than not using zswap.
+> However, I think more testing on a wider span of systems and conditions
+> is needed.  Additionally, I'm not sure that specjbb is measuring true
+> performance under fully loaded cpu conditions, so additional cpu load
+> might need to be added or specjbb parameters modified (I took the
+> values from the 4 "warehouses" test run).
+>
+> In any case though, I think having writethrough as an option is still
+> useful.  More changes could be made, such as changing from writeback
+> to writethrough based on the zswap % full.  And the patch doesn't
+> change default behavior - writethrough must be specifically enabled.
+>
+> The %-ized numbers I got from specjbb on average, using the default
+> 20% max_pool_percent and varying the amount of heap used as shown:
+>
+> ram | no zswap | writeback | writethrough
+> 75     93.08     100         96.90
+> 87     96.58     95.58       96.72
+> 100    92.29     89.73       86.75
+> 112    63.80     38.66       19.66
+> 125    4.79      29.90       15.75
+> 137    4.99      4.50        4.75
+> 150    4.28      4.62        5.01
+> 162    5.20      2.94        4.66
+> 175    5.71      2.11        4.84
+>
+>
+>
+>  mm/zswap.c | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+>  1 file changed, 64 insertions(+), 4 deletions(-)
+>
+> diff --git a/mm/zswap.c b/mm/zswap.c
+> index e55bab9..2f919db 100644
+> --- a/mm/zswap.c
+> +++ b/mm/zswap.c
+> @@ -61,6 +61,8 @@ static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
+>  static u64 zswap_pool_limit_hit;
+>  /* Pages written back when pool limit was reached */
+>  static u64 zswap_written_back_pages;
+> +/* Pages evicted when pool limit was reached */
+> +static u64 zswap_evicted_pages;
+>  /* Store failed due to a reclaim failure after pool limit was reached */
+>  static u64 zswap_reject_reclaim_fail;
+>  /* Compressed page was too big for the allocator to (optimally) store */
+> @@ -89,6 +91,10 @@ static unsigned int zswap_max_pool_percent = 20;
+>  module_param_named(max_pool_percent,
+>                         zswap_max_pool_percent, uint, 0644);
+>
+> +/* Writeback/writethrough mode (fixed at boot for now) */
+> +static bool zswap_writethrough;
+> +module_param_named(writethrough, zswap_writethrough, bool, 0444);
+> +
+>  /*********************************
+>  * compression functions
+>  **********************************/
+> @@ -629,6 +635,48 @@ end:
+>  }
+>
+>  /*********************************
+> +* evict code
+> +**********************************/
+> +
+> +/*
+> + * This evicts pages that have already been written through to swap.
+> + */
+> +static int zswap_evict_entry(struct zbud_pool *pool, unsigned long handle)
+> +{
+> +       struct zswap_header *zhdr;
+> +       swp_entry_t swpentry;
+> +       struct zswap_tree *tree;
+> +       pgoff_t offset;
+> +       struct zswap_entry *entry;
+> +
+> +       /* extract swpentry from data */
+> +       zhdr = zbud_map(pool, handle);
+> +       swpentry = zhdr->swpentry; /* here */
+> +       zbud_unmap(pool, handle);
+> +       tree = zswap_trees[swp_type(swpentry)];
+> +       offset = swp_offset(swpentry);
+> +       BUG_ON(pool != tree->pool);
+> +
+> +       /* find and ref zswap entry */
+> +       spin_lock(&tree->lock);
+> +       entry = zswap_rb_search(&tree->rbroot, offset);
+> +       if (!entry) {
+> +               /* entry was invalidated */
+> +               spin_unlock(&tree->lock);
+> +               return 0;
+> +       }
+> +
+> +       zswap_evicted_pages++;
+> +
+> +       zswap_rb_erase(&tree->rbroot, entry);
+> +       zswap_entry_put(tree, entry);
+> +
+> +       spin_unlock(&tree->lock);
+> +
+> +       return 0;
+> +}
+> +
+> +/*********************************
+>  * frontswap hooks
+>  **********************************/
+>  /* attempts to compress and store an single page */
+> @@ -744,7 +792,7 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
+>         spin_lock(&tree->lock);
+>         entry = zswap_entry_find_get(&tree->rbroot, offset);
+>         if (!entry) {
+> -               /* entry was written back */
+> +               /* entry was written back or evicted */
+>                 spin_unlock(&tree->lock);
+>                 return -1;
+>         }
+> @@ -778,7 +826,7 @@ static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
+>         spin_lock(&tree->lock);
+>         entry = zswap_rb_search(&tree->rbroot, offset);
+>         if (!entry) {
+> -               /* entry was written back */
+> +               /* entry was written back or evicted */
+>                 spin_unlock(&tree->lock);
+>                 return;
+>         }
+> @@ -813,18 +861,26 @@ static void zswap_frontswap_invalidate_area(unsigned type)
+>         zswap_trees[type] = NULL;
+>  }
+>
+> -static struct zbud_ops zswap_zbud_ops = {
+> +static struct zbud_ops zswap_zbud_writeback_ops = {
+>         .evict = zswap_writeback_entry
+>  };
+> +static struct zbud_ops zswap_zbud_writethrough_ops = {
+> +       .evict = zswap_evict_entry
+> +};
+>
+>  static void zswap_frontswap_init(unsigned type)
+>  {
+>         struct zswap_tree *tree;
+> +       struct zbud_ops *ops;
+>
+>         tree = kzalloc(sizeof(struct zswap_tree), GFP_KERNEL);
+>         if (!tree)
+>                 goto err;
+> -       tree->pool = zbud_create_pool(GFP_KERNEL, &zswap_zbud_ops);
+> +       if (zswap_writethrough)
+> +               ops = &zswap_zbud_writethrough_ops;
+> +       else
+> +               ops = &zswap_zbud_writeback_ops;
+> +       tree->pool = zbud_create_pool(GFP_KERNEL, ops);
+>         if (!tree->pool)
+>                 goto freetree;
+>         tree->rbroot = RB_ROOT;
+> @@ -875,6 +931,8 @@ static int __init zswap_debugfs_init(void)
+>                         zswap_debugfs_root, &zswap_reject_compress_poor);
+>         debugfs_create_u64("written_back_pages", S_IRUGO,
+>                         zswap_debugfs_root, &zswap_written_back_pages);
+> +       debugfs_create_u64("evicted_pages", S_IRUGO,
+> +                       zswap_debugfs_root, &zswap_evicted_pages);
+>         debugfs_create_u64("duplicate_entry", S_IRUGO,
+>                         zswap_debugfs_root, &zswap_duplicate_entry);
+>         debugfs_create_u64("pool_pages", S_IRUGO,
+> @@ -919,6 +977,8 @@ static int __init init_zswap(void)
+>                 pr_err("per-cpu initialization failed\n");
+>                 goto pcpufail;
+>         }
+> +       if (zswap_writethrough)
+> +               frontswap_writethrough(true);
+>         frontswap_register_ops(&zswap_frontswap_ops);
+>         if (zswap_debugfs_init())
+>                 pr_warn("debugfs initialization failed\n");
+> --
+> 1.8.3.1
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
