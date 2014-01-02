@@ -1,62 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C15D6B0035
-	for <linux-mm@kvack.org>; Wed,  1 Jan 2014 20:36:29 -0500 (EST)
-Received: by mail-pd0-f180.google.com with SMTP id q10so13635391pdj.39
-        for <linux-mm@kvack.org>; Wed, 01 Jan 2014 17:36:28 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id dv5si40849584pbb.313.2014.01.01.17.36.25
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 01 Jan 2014 17:36:27 -0800 (PST)
-Message-ID: <52C4C216.3070607@huawei.com>
-Date: Thu, 2 Jan 2014 09:34:14 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C9C036B0035
+	for <linux-mm@kvack.org>; Wed,  1 Jan 2014 21:19:59 -0500 (EST)
+Received: by mail-ee0-f51.google.com with SMTP id b15so6097137eek.10
+        for <linux-mm@kvack.org>; Wed, 01 Jan 2014 18:19:59 -0800 (PST)
+Received: from jenni1.inet.fi (mta-out.inet.fi. [195.156.147.13])
+        by mx.google.com with ESMTP id u49si63690334eep.211.2014.01.01.18.19.58
+        for <linux-mm@kvack.org>;
+        Wed, 01 Jan 2014 18:19:58 -0800 (PST)
+Date: Thu, 2 Jan 2014 04:19:51 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] powerpc: thp: Fix crash on mremap
+Message-ID: <20140102021951.GA26369@node.dhcp.inet.fi>
+References: <1388570027-22933-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1388572145.4373.41.camel@pasglop>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: add a new command-line kmemcheck value
-References: <52C2811C.4090907@huawei.com> <CAOMGZ=GOR_i9ixvHeHwfDN1wwwSQzFNFGa4qLZMhWWNzx0p8mw@mail.gmail.com>
-In-Reply-To: <CAOMGZ=GOR_i9ixvHeHwfDN1wwwSQzFNFGa4qLZMhWWNzx0p8mw@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1388572145.4373.41.camel@pasglop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vegard Nossum <vegard.nossum@gmail.com>
-Cc: Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Vegard
- Nossum <vegardno@ifi.uio.no>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, wangnan0@huawei.com, the arch/x86 maintainers <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: paulus@samba.org, aarcange@redhat.com, kirill.shutemov@linux.intel.com, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-On 2013/12/31 18:12, Vegard Nossum wrote:
-
-> (Oops, resend to restore Cc.)
+On Wed, Jan 01, 2014 at 09:29:05PM +1100, Benjamin Herrenschmidt wrote:
+> On Wed, 2014-01-01 at 15:23 +0530, Aneesh Kumar K.V wrote:
+> > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> > 
+> > This patch fix the below crash
+> > 
+> > NIP [c00000000004cee4] .__hash_page_thp+0x2a4/0x440
+> > LR [c0000000000439ac] .hash_page+0x18c/0x5e0
+> > ...
+> > Call Trace:
+> > [c000000736103c40] [00001ffffb000000] 0x1ffffb000000(unreliable)
+> > [437908.479693] [c000000736103d50] [c0000000000439ac] .hash_page+0x18c/0x5e0
+> > [437908.479699] [c000000736103e30] [c00000000000924c] .do_hash_page+0x4c/0x58
+> > 
+> > On ppc64 we use the pgtable for storing the hpte slot information and
+> > store address to the pgtable at a constant offset (PTRS_PER_PMD) from
+> > pmd. On mremap, when we switch the pmd, we need to withdraw and deposit
+> > the pgtable again, so that we find the pgtable at PTRS_PER_PMD offset
+> > from new pmd.
+> > 
+> > We also want to move the withdraw and deposit before the set_pmd so
+> > that, when page fault find the pmd as trans huge we can be sure that
+> > pgtable can be located at the offset.
+> > 
+> > Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> > ---
+> > NOTE:
+> > For other archs we would just be removing the pgtable from the list and adding it back.
+> > I didn't find an easy way to make it not do that without lots of #ifdef around. Any
+> > suggestion around that is welcome.
 > 
-> Hi,
+> What about
 > 
-> On 31 December 2013 09:32, Xishi Qiu <qiuxishi@huawei.com> wrote:
->> Add a new command-line kmemcheck value: kmemcheck=3 (disable the feature),
->> this is the same effect as CONFIG_KMEMCHECK disabled.
->> After doing this, we can enable/disable kmemcheck feature in one vmlinux.
+> -		if (new_ptl != old_ptl) {
+> +               if (new_ptl != old_ptl || ARCH_THP_MOVE_PMD_ALWAYS_WITHDRAW) {
 > 
-> Could you please explain what exactly the difference is between the
-> existing kmemcheck=0 parameter and the new kmemcheck=3?
+> Or something similar ?
+
+Looks sane to me. Or something with IS_ENABLED(), if needed.
+
 > 
-> Thanks,
+> Cheers,
+> Ben.
+> 
+> >  mm/huge_memory.c | 21 ++++++++++-----------
+> >  1 file changed, 10 insertions(+), 11 deletions(-)
+> > 
+> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > index 7de1bf85f683..eb2e60d9ba45 100644
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -1500,24 +1500,23 @@ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
+> >  	 */
+> >  	ret = __pmd_trans_huge_lock(old_pmd, vma, &old_ptl);
+> >  	if (ret == 1) {
+> > +		pgtable_t pgtable;
+> > +
+> >  		new_ptl = pmd_lockptr(mm, new_pmd);
+> >  		if (new_ptl != old_ptl)
+> >  			spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
+> >  		pmd = pmdp_get_and_clear(mm, old_addr, old_pmd);
+> >  		VM_BUG_ON(!pmd_none(*new_pmd));
+> > +		/*
+> > +		 * Archs like ppc64 use pgtable to store per pmd
+> > +		 * specific information. So when we switch the pmd,
+> > +		 * we should also withdraw and deposit the pgtable
+> > +		 */
+> > +		pgtable = pgtable_trans_huge_withdraw(mm, old_pmd);
+> > +		pgtable_trans_huge_deposit(mm, new_pmd, pgtable);
+> >  		set_pmd_at(mm, new_addr, new_pmd, pmd_mksoft_dirty(pmd));
+> > -		if (new_ptl != old_ptl) {
+> > -			pgtable_t pgtable;
+> > -
+> > -			/*
+> > -			 * Move preallocated PTE page table if new_pmd is on
+> > -			 * different PMD page table.
+> > -			 */
+
+Please don't lose the comment.
+
+> > -			pgtable = pgtable_trans_huge_withdraw(mm, old_pmd);
+> > -			pgtable_trans_huge_deposit(mm, new_pmd, pgtable);
+> > -
+> > +		if (new_ptl != old_ptl)
+> >  			spin_unlock(new_ptl);
+> > -		}
+> >  		spin_unlock(old_ptl);
+> >  	}
+> >  out:
 > 
 > 
-> Vegard
-> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Hi Vegard,
-
-kmemcheck=0: enable kmemcheck feature, but don't check the memory.
-	and the OS use only one cpu.(setup_max_cpus = 1)
-kmemcheck=3: disable kmemcheck feature.
-	this is the same effect as CONFIG_KMEMCHECK disabled.
-	OS will use cpus as many as possible.
-
-Thanks,
-Xishi Qiu
-
-
-
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
