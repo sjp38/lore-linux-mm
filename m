@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 739536B0037
-	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 02:13:12 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id lf10so14311598pab.28
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 27C416B0037
+	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 02:13:13 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id fb1so14273752pad.32
         for <linux-mm@kvack.org>; Wed, 01 Jan 2014 23:13:12 -0800 (PST)
 Received: from LGEMRELSE7Q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id ll1si23308157pab.57.2014.01.01.23.13.09
+        by mx.google.com with ESMTP id gm1si15344151pac.100.2014.01.01.23.13.10
         for <linux-mm@kvack.org>;
         Wed, 01 Jan 2014 23:13:11 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v10 01/16] vrange: Add vrange support to mm_structs
-Date: Thu,  2 Jan 2014 16:12:09 +0900
-Message-Id: <1388646744-15608-2-git-send-email-minchan@kernel.org>
+Subject: [PATCH v10 02/16] vrange: Clear volatility on new mmaps
+Date: Thu,  2 Jan 2014 16:12:10 +0900
+Message-Id: <1388646744-15608-3-git-send-email-minchan@kernel.org>
 In-Reply-To: <1388646744-15608-1-git-send-email-minchan@kernel.org>
 References: <1388646744-15608-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,29 +19,33 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Johannes Weiner <hannes@cmpxchg.org>, John Stultz <john.stultz@linaro.org>, Dhaval Giani <dhaval.giani@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Rob Clark <robdclark@gmail.com>, Jason Evans <je@fb.com>, Minchan Kim <minchan@kernel.org>
 
-This patch adds vroot on mm_struct so process can set volatile
-ranges on anonymous memory.
+From: John Stultz <john.stultz@linaro.org>
 
-This is somewhat wasteful, as it increases the mm struct even
-if the process doesn't use vrange syscall. So a later patch
-will provide dynamically allocated vroots.
+At lsf-mm, the issue was brought up that there is a precedence with
+interfaces like mlock, such that new mappings in a pre-existing range
+do no inherit the mlock state.
 
-One of note on this patch is vrange_fork. Since we do allocations
-while holding a lock on the vrange, its possible it could deadlock
-with direct reclaim's purging logic. For this reason, vrange_fork
-uses GFP_NOIO for its allocations.
+This is mostly because mlock only modifies the existing vmas, and so
+any new mmaps create new vmas, which won't be mlocked.
 
-If vrange_fork fails, it isn't a critical problem. Since the result
-is the child process's pages won't be volatile/purgable, which
-could cause additional memory pressure, but won't cause problematic
-application behavior (since volatile pages are only purged at the
-kernels' discretion). This is thought to be more desirable then
-having fork fail.
+Since volatility is not stored in the vma (for good cause, specifically
+as we'd have to have manage file volatility differently from anonymous
+and we're likely to manage volatility on small chunks of memory, which
+would cause lots of vma splitting and churn), this patch clears volitility
+on new mappings, to ensure that we don't inherit volatility if memory in
+an existing volatile range is unmapped and then re-mapped with something
+else.
 
-NOTE: Additionally, as a optimization point, we could remove pages
-like MADV_DONTNEED instantly when we see the allocation fail.
-There would be no point to make new volatile ranges when memory
-pressure was already tight.
+Thus, this patch forces any volatility to be cleared on mmap.
+
+XXX: We expect this patch to be not well loved by mm folks, and are open
+to alternative methods here. Its more of a place holder to address
+the issue from lsf-mm and hopefully will spur some further discussion.
+
+Minchan does have an alternative solution[1], but I'm not a big fan of it
+yet, so this simpler approach is a placeholder for now.
+
+[1] https://git.kernel.org/cgit/linux/kernel/git/minchan/linux.git/commit/?h=vrange-working&id=821f58333b381fd88ee7f37fd9c472949756c74e
 
 Cc: Mel Gorman <mel@csn.ul.ie>
 Cc: Hugh Dickins <hughd@google.com>
@@ -50,152 +54,70 @@ Cc: Rik van Riel <riel@redhat.com>
 Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 Cc: Michel Lespinasse <walken@google.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
-[jstultz: Bit of refactoring. Comment cleanups]
-Signed-off-by: John Stultz <john.stultz@linaro.org>
+[minchan: add link alternative solution]
 Signed-off-by: Minchan Kim <minchan@kernel.org>
+Signed-off-by: John Stultz <john.stultz@linaro.org>
 ---
- include/linux/mm_types.h |    4 ++++
- include/linux/vrange.h   |    7 ++++++-
- kernel/fork.c            |   11 +++++++++++
- mm/vrange.c              |   40 ++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 61 insertions(+), 1 deletion(-)
+ include/linux/vrange.h |    2 ++
+ mm/mmap.c              |    5 +++++
+ mm/vrange.c            |    8 ++++++++
+ 3 files changed, 15 insertions(+)
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index d9851eeb6e1d..a4de9cfa8ff1 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -13,6 +13,7 @@
- #include <linux/page-debug-flags.h>
- #include <linux/uprobes.h>
- #include <linux/page-flags-layout.h>
-+#include <linux/vrange_types.h>
- #include <asm/page.h>
- #include <asm/mmu.h>
- 
-@@ -350,6 +351,9 @@ struct mm_struct {
- 						 */
- 
- 
-+#ifdef CONFIG_MMU
-+	struct vrange_root vroot;
-+#endif
- 	unsigned long hiwater_rss;	/* High-watermark of RSS usage */
- 	unsigned long hiwater_vm;	/* High-water virtual memory usage */
- 
 diff --git a/include/linux/vrange.h b/include/linux/vrange.h
-index 0d378a5dc8d7..2b96ee1ee75b 100644
+index 2b96ee1ee75b..ef153c8a88d1 100644
 --- a/include/linux/vrange.h
 +++ b/include/linux/vrange.h
-@@ -37,12 +37,17 @@ static inline int vrange_type(struct vrange *vrange)
+@@ -36,6 +36,8 @@ static inline int vrange_type(struct vrange *vrange)
+ 	return vrange->owner->type;
  }
  
++extern int vrange_clear(struct vrange_root *vroot,
++				unsigned long start, unsigned long end);
  extern void vrange_root_cleanup(struct vrange_root *vroot);
--
-+extern int vrange_fork(struct mm_struct *new,
-+					struct mm_struct *old);
- #else
- 
- static inline void vrange_root_init(struct vrange_root *vroot,
- 					int type, void *object) {};
- static inline void vrange_root_cleanup(struct vrange_root *vroot) {};
-+static inline int vrange_fork(struct mm_struct *new, struct mm_struct *old)
-+{
-+	return 0;
-+}
- 
- #endif
- #endif /* _LINIUX_VRANGE_H */
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 086fe73ad6bd..36d3c4bb4c4d 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -71,6 +71,7 @@
- #include <linux/signalfd.h>
- #include <linux/uprobes.h>
- #include <linux/aio.h>
+ extern int vrange_fork(struct mm_struct *new,
+ 					struct mm_struct *old);
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 9d548512ff8a..b8e2c1e57336 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -36,6 +36,7 @@
+ #include <linux/sched/sysctl.h>
+ #include <linux/notifier.h>
+ #include <linux/memory.h>
 +#include <linux/vrange.h>
  
- #include <asm/pgtable.h>
- #include <asm/pgalloc.h>
-@@ -376,6 +377,14 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
- 	retval = khugepaged_fork(mm, oldmm);
- 	if (retval)
- 		goto out;
-+	/*
-+	 * Note: vrange_fork can fail in the case of ENOMEM, but
-+	 * this only results in the child not having any active
-+	 * volatile ranges. This is not harmful. Thus in this case
-+	 * the child will not see any pages purged unless it remarks
-+	 * them as volatile.
-+	 */
-+	vrange_fork(mm, oldmm);
- 
- 	prev = NULL;
- 	for (mpnt = oldmm->mmap; mpnt; mpnt = mpnt->vm_next) {
-@@ -535,6 +544,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
- 	mm->nr_ptes = 0;
- 	memset(&mm->rss_stat, 0, sizeof(mm->rss_stat));
- 	spin_lock_init(&mm->page_table_lock);
-+	vrange_root_init(&mm->vroot, VRANGE_MM, mm);
- 	mm_init_aio(mm);
- 	mm_init_owner(mm, p);
- 
-@@ -606,6 +616,7 @@ void mmput(struct mm_struct *mm)
- 
- 	if (atomic_dec_and_test(&mm->mm_users)) {
- 		uprobe_clear_state(mm);
-+		vrange_root_cleanup(&mm->vroot);
- 		exit_aio(mm);
- 		ksm_exit(mm);
- 		khugepaged_exit(mm); /* must run before exit_mmap */
+ #include <asm/uaccess.h>
+ #include <asm/cacheflush.h>
+@@ -1503,6 +1504,10 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
+ 	/* Clear old maps */
+ 	error = -ENOMEM;
+ munmap_back:
++
++	/* zap any volatile ranges */
++	vrange_clear(&mm->vroot, addr, addr + len);
++
+ 	if (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent)) {
+ 		if (do_munmap(mm, addr, len))
+ 			return -ENOMEM;
 diff --git a/mm/vrange.c b/mm/vrange.c
-index a5daea44e031..57dad4d72b04 100644
+index 57dad4d72b04..444da8794dbf 100644
 --- a/mm/vrange.c
 +++ b/mm/vrange.c
-@@ -182,3 +182,43 @@ void vrange_root_cleanup(struct vrange_root *vroot)
- 	vrange_unlock(vroot);
+@@ -167,6 +167,14 @@ static int vrange_remove(struct vrange_root *vroot,
+ 	return 0;
  }
  
-+/*
-+ * It's okay to fail vrange_fork because worst case is child process
-+ * can't have copied own vrange data structure so that pages in the
-+ * vrange couldn't be purged. It would be better rather than failing
-+ * fork.
-+ */
-+int vrange_fork(struct mm_struct *new_mm, struct mm_struct *old_mm)
++int vrange_clear(struct vrange_root *vroot,
++					unsigned long start, unsigned long end)
 +{
-+	struct vrange_root *new, *old;
-+	struct vrange *range, *new_range;
-+	struct rb_node *next;
++	int purged;
 +
-+	new = &new_mm->vroot;
-+	old = &old_mm->vroot;
-+
-+	vrange_lock(old);
-+	next = rb_first(&old->v_rb);
-+	while (next) {
-+		range = vrange_entry(next);
-+		next = rb_next(next);
-+		/*
-+		 * We can't use GFP_KERNEL because direct reclaim's
-+		 * purging logic on vrange could be deadlock by
-+		 * vrange_lock.
-+		 */
-+		new_range = __vrange_alloc(GFP_NOIO);
-+		if (!new_range)
-+			goto fail;
-+		__vrange_set(new_range, range->node.start,
-+					range->node.last, range->purged);
-+		__vrange_add(new_range, new);
-+
-+	}
-+	vrange_unlock(old);
-+	return 0;
-+fail:
-+	vrange_unlock(old);
-+	vrange_root_cleanup(new);
-+	return -ENOMEM;
++	return vrange_remove(vroot, start, end - 1, &purged);
 +}
++
+ void vrange_root_cleanup(struct vrange_root *vroot)
+ {
+ 	struct vrange *range;
 -- 
 1.7.9.5
 
