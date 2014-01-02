@@ -1,68 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-gg0-f178.google.com (mail-gg0-f178.google.com [209.85.161.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D5B2E6B0035
-	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 06:26:06 -0500 (EST)
-Received: by mail-gg0-f178.google.com with SMTP id n5so2768706ggj.9
-        for <linux-mm@kvack.org>; Thu, 02 Jan 2014 03:26:06 -0800 (PST)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id s23si29067087yhf.3.2014.01.02.03.26.05
+Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 785F26B0035
+	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 07:29:57 -0500 (EST)
+Received: by mail-ie0-f174.google.com with SMTP id at1so14617660iec.33
+        for <linux-mm@kvack.org>; Thu, 02 Jan 2014 04:29:57 -0800 (PST)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id l3si72576945igx.53.2014.01.02.04.29.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 02 Jan 2014 03:26:05 -0800 (PST)
-Received: by mail-pa0-f43.google.com with SMTP id bj1so14455680pad.30
-        for <linux-mm@kvack.org>; Thu, 02 Jan 2014 03:26:04 -0800 (PST)
-From: SeongJae Park <sj38.park@gmail.com>
-Subject: [PATCH] mm: page_alloc: use enum instead of number for migratetype
-Date: Thu,  2 Jan 2014 20:25:22 +0900
-Message-Id: <1388661922-10957-1-git-send-email-sj38.park@gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 02 Jan 2014 04:29:55 -0800 (PST)
+Message-ID: <1388665786.4373.48.camel@pasglop>
+Subject: Re: [PATCH -V2] powerpc: thp: Fix crash on mremap
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Thu, 02 Jan 2014 23:29:46 +1100
+In-Reply-To: <87zjneodtw.fsf@linux.vnet.ibm.com>
+References: 
+	<1388654266-5195-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	 <20140102094124.04D76E0090@blue.fi.intel.com>
+	 <87zjneodtw.fsf@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman@suse.de, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, SeongJae Park <sj38.park@gmail.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, paulus@samba.org, aarcange@redhat.com, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-Using enum instead of number for migratetype everywhere would be better
-for reading and understanding.
+On Thu, 2014-01-02 at 16:22 +0530, Aneesh Kumar K.V wrote:
+> > Just use config option directly:
+> >
+> >       if (new_ptl != old_ptl ||
+> >               IS_ENABLED(CONFIG_ARCH_THP_MOVE_PMD_ALWAYS_WITHDRAW))
+> 
+> 
+> I didn't like that. I found the earlier one easier for reading.
+> If you and others strongly feel about this, I can redo the patch.
+> Please let me know
 
-Signed-off-by: SeongJae Park <sj38.park@gmail.com>
----
- mm/page_alloc.c | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+Yes, use IS_ENABLED, no need to have two indirections of #define's
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5bcbca5..08f6ed7 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -646,7 +646,7 @@ static inline int free_pages_check(struct page *page)
- static void free_pcppages_bulk(struct zone *zone, int count,
- 					struct per_cpu_pages *pcp)
- {
--	int migratetype = 0;
-+	int migratetype = MIGRATE_UNMOVABLE;
- 	int batch_free = 0;
- 	int to_free = count;
- 
-@@ -667,7 +667,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 		do {
- 			batch_free++;
- 			if (++migratetype == MIGRATE_PCPTYPES)
--				migratetype = 0;
-+				migratetype = MIGRATE_UNMOVABLE;
- 			list = &pcp->lists[migratetype];
- 		} while (list_empty(list));
- 
-@@ -4158,7 +4158,9 @@ static void pageset_init(struct per_cpu_pageset *p)
- 
- 	pcp = &p->pcp;
- 	pcp->count = 0;
--	for (migratetype = 0; migratetype < MIGRATE_PCPTYPES; migratetype++)
-+
-+	for (migratetype = MIGRATE_UNMOVABLE; migratetype < MIGRATE_PCPTYPES;
-+						migratetype++)
- 		INIT_LIST_HEAD(&pcp->lists[migratetype]);
- }
- 
--- 
-1.8.1.2
+Another option is to have
+
+	if (pmd_move_must_withdraw(new,old)) {
+	}
+
+With in a generic header:
+
+#ifndef pmd_move_must_withdraw
+static inline bool pmd_move_must_withdraw(spinlock_t *new_ptl, ...)
+{
+	return new_ptl != old_ptl;
+}
+#endif
+
+And in powerpc:
+
+static inline bool pmd_move_must_withdraw(spinlock_t *new_ptl, ...)
+{
+	return true;
+}
+#define pmd_move_must_withdraw pmd_move_must_withdraw
+
+Cheers,
+Ben.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
