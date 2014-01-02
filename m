@@ -1,151 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 66AD96B006C
-	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 02:13:23 -0500 (EST)
-Received: by mail-pd0-f180.google.com with SMTP id q10so13935682pdj.11
-        for <linux-mm@kvack.org>; Wed, 01 Jan 2014 23:13:23 -0800 (PST)
-Received: from LGEMRELSE7Q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id wm3si41540365pab.281.2014.01.01.23.13.20
-        for <linux-mm@kvack.org>;
-        Wed, 01 Jan 2014 23:13:21 -0800 (PST)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v10 16/16] vrange: Add vmstat counter about purged page
-Date: Thu,  2 Jan 2014 16:12:24 +0900
-Message-Id: <1388646744-15608-17-git-send-email-minchan@kernel.org>
-In-Reply-To: <1388646744-15608-1-git-send-email-minchan@kernel.org>
-References: <1388646744-15608-1-git-send-email-minchan@kernel.org>
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 765956B0035
+	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 04:18:37 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id wm4so14360085obc.0
+        for <linux-mm@kvack.org>; Thu, 02 Jan 2014 01:18:37 -0800 (PST)
+Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com. [122.248.162.3])
+        by mx.google.com with ESMTPS id co8si43756505oec.8.2014.01.02.01.18.25
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 02 Jan 2014 01:18:36 -0800 (PST)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 2 Jan 2014 14:48:03 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id D0FDDE0058
+	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 14:50:40 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s029HiZ016253166
+	for <linux-mm@kvack.org>; Thu, 2 Jan 2014 14:47:50 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s029Ho7E017238
+	for <linux-mm@kvack.org>; Thu, 2 Jan 2014 14:47:50 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V2] powerpc: thp: Fix crash on mremap
+Date: Thu,  2 Jan 2014 14:47:46 +0530
+Message-Id: <1388654266-5195-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Johannes Weiner <hannes@cmpxchg.org>, John Stultz <john.stultz@linaro.org>, Dhaval Giani <dhaval.giani@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Rob Clark <robdclark@gmail.com>, Jason Evans <je@fb.com>, Minchan Kim <minchan@kernel.org>
+To: benh@kernel.crashing.org, paulus@samba.org, aarcange@redhat.com, kirill.shutemov@linux.intel.com
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Adds some vmstat for analysise vrange working.
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-[PGDISCARD|PGVSCAN]_[KSWAPD|DIRECT] means purged page/scanning
-so we could see effectiveness of vrange.
+This patch fix the below crash
 
-PGDISCARD_RESCUED means how many of pages we are missing in
-core discarding logic of vrange so if it is big in no big memory
-pressure, it may have a problem in scanning logic.
+NIP [c00000000004cee4] .__hash_page_thp+0x2a4/0x440
+LR [c0000000000439ac] .hash_page+0x18c/0x5e0
+...
+Call Trace:
+[c000000736103c40] [00001ffffb000000] 0x1ffffb000000(unreliable)
+[437908.479693] [c000000736103d50] [c0000000000439ac] .hash_page+0x18c/0x5e0
+[437908.479699] [c000000736103e30] [c00000000000924c] .do_hash_page+0x4c/0x58
 
-PGDISCARD_SAVE_RECLAIM means how many time we avoid reclaim via
-discarding volatile pages but not sure how it is exact because
-sc->nr_to_reclaim is very high if it were sc->prioirty is low(ie,
-high memory pressure) so it it hard to meet the condition.
-Maybe I would change the check via zone_watermark_ok.
+On ppc64 we use the pgtable for storing the hpte slot information and
+store address to the pgtable at a constant offset (PTRS_PER_PMD) from
+pmd. On mremap, when we switch the pmd, we need to withdraw and deposit
+the pgtable again, so that we find the pgtable at PTRS_PER_PMD offset
+from new pmd.
 
-Cc: Mel Gorman <mel@csn.ul.ie>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: John Stultz <john.stultz@linaro.org>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
+We also want to move the withdraw and deposit before the set_pmd so
+that, when page fault find the pmd as trans huge we can be sure that
+pgtable can be located at the offset.
+
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- include/linux/vm_event_item.h |    6 ++++++
- mm/vmscan.c                   |    8 ++++++--
- mm/vmstat.c                   |    6 ++++++
- mm/vrange.c                   |   14 ++++++++++++++
- 4 files changed, 32 insertions(+), 2 deletions(-)
+Changes from V1:
+* limit the withraw/deposit to only ppc64
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 1855f0a22add..df0d8e9e0540 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -25,6 +25,12 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		FOR_ALL_ZONES(PGALLOC),
- 		PGFREE, PGACTIVATE, PGDEACTIVATE,
- 		PGFAULT, PGMAJFAULT,
-+		PGVSCAN_KSWAPD,
-+		PGVSCAN_DIRECT,
-+		PGDISCARD_KSWAPD,
-+		PGDISCARD_DIRECT,
-+		PGDISCARD_RESCUED, /* rescued from shrink_page_list */
-+		PGDISCARD_SAVE_RECLAIM, /* how many save reclaim */
- 		FOR_ALL_ZONES(PGREFILL),
- 		FOR_ALL_ZONES(PGSTEAL_KSWAPD),
- 		FOR_ALL_ZONES(PGSTEAL_DIRECT),
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d8f45af1ab84..c88e48be010b 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -886,8 +886,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 * because page->mapping could be NULL if it's purged.
- 		 */
- 		case PAGEREF_DISCARD:
--			if (may_enter_fs && discard_vpage(page) == 0)
-+			if (may_enter_fs && discard_vpage(page) == 0) {
-+				count_vm_event(PGDISCARD_RESCUED);
- 				goto free_it;
-+			}
- 		case PAGEREF_KEEP:
- 			goto keep_locked;
- 		case PAGEREF_RECLAIM:
-@@ -1768,8 +1770,10 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
- 	unsigned long nr_reclaimed;
+ arch/Kconfig                           |  3 +++
+ arch/powerpc/platforms/Kconfig.cputype |  1 +
+ include/linux/huge_mm.h                |  6 ++++++
+ mm/huge_memory.c                       | 21 ++++++++++++---------
+ 4 files changed, 22 insertions(+), 9 deletions(-)
+
+diff --git a/arch/Kconfig b/arch/Kconfig
+index f1cf895c040f..3759e70a649d 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -371,6 +371,9 @@ config HAVE_IRQ_TIME_ACCOUNTING
+ config HAVE_ARCH_TRANSPARENT_HUGEPAGE
+ 	bool
  
- 	nr_reclaimed = shrink_vrange(lru, lruvec, sc);
--	if (nr_reclaimed >= sc->nr_to_reclaim)
-+	if (nr_reclaimed >= sc->nr_to_reclaim) {
-+		count_vm_event(PGDISCARD_SAVE_RECLAIM);
- 		return nr_reclaimed;
-+	}
- 
- 	if (is_active_lru(lru)) {
- 		if (inactive_list_is_low(lruvec, lru))
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 9bb314577911..fa4eea4c5499 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -789,6 +789,12 @@ const char * const vmstat_text[] = {
- 
- 	"pgfault",
- 	"pgmajfault",
-+	"pgvscan_kswapd",
-+	"pgvscan_direct",
-+	"pgdiscard_kswapd",
-+	"pgdiscard_direct",
-+	"pgdiscard_rescued",
-+	"pgdiscard_save_reclaim",
- 
- 	TEXTS_FOR_ZONES("pgrefill")
- 	TEXTS_FOR_ZONES("pgsteal_kswapd")
-diff --git a/mm/vrange.c b/mm/vrange.c
-index 6cdbf6feed26..16de0a085453 100644
---- a/mm/vrange.c
-+++ b/mm/vrange.c
-@@ -1223,6 +1223,7 @@ static int discard_vrange(struct vrange *vrange, unsigned long *nr_discard,
- {
- 	int ret = 0;
- 	struct vrange_root *vroot;
-+	unsigned long total_scan = *scan;
- 	vroot = vrange->owner;
- 
- 	vroot = vrange_get_vroot(vrange);
-@@ -1244,6 +1245,19 @@ static int discard_vrange(struct vrange *vrange, unsigned long *nr_discard,
- 		ret = __discard_vrange_file(mapping, vrange, nr_discard, scan);
- 	}
- 
-+	if (!ret) {
-+		if (current_is_kswapd())
-+			count_vm_events(PGDISCARD_KSWAPD, *nr_discard);
-+		else
-+			count_vm_events(PGDISCARD_DIRECT, *nr_discard);
-+	}
++config ARCH_THP_MOVE_PMD_ALWAYS_WITHDRAW
++	bool
 +
-+	if (current_is_kswapd())
-+		count_vm_events(PGVSCAN_KSWAPD,
-+				(total_scan - *scan) >> PAGE_SHIFT);
-+	else
-+		count_vm_events(PGVSCAN_DIRECT,
-+				(total_scan - *scan) >> PAGE_SHIFT);
+ config HAVE_ARCH_SOFT_DIRTY
+ 	bool
+ 
+diff --git a/arch/powerpc/platforms/Kconfig.cputype b/arch/powerpc/platforms/Kconfig.cputype
+index bca2465a9c34..5f83b4334e5f 100644
+--- a/arch/powerpc/platforms/Kconfig.cputype
++++ b/arch/powerpc/platforms/Kconfig.cputype
+@@ -71,6 +71,7 @@ config PPC_BOOK3S_64
+ 	select PPC_FPU
+ 	select PPC_HAVE_PMU_SUPPORT
+ 	select SYS_SUPPORTS_HUGETLBFS
++	select ARCH_THP_MOVE_PMD_ALWAYS_WITHDRAW
+ 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if PPC_64K_PAGES
+ 
+ config PPC_BOOK3E_64
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 91672e2deec3..836242a738a5 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -230,4 +230,10 @@ static inline int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_str
+ 
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 
++#ifdef CONFIG_ARCH_THP_MOVE_PMD_ALWAYS_WITHDRAW
++#define ARCH_THP_MOVE_PMD_ALWAYS_WITHDRAW 1
++#else
++#define ARCH_THP_MOVE_PMD_ALWAYS_WITHDRAW 0
++#endif
++
+ #endif /* _LINUX_HUGE_MM_H */
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 7de1bf85f683..32006b51d102 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1505,19 +1505,22 @@ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
+ 			spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
+ 		pmd = pmdp_get_and_clear(mm, old_addr, old_pmd);
+ 		VM_BUG_ON(!pmd_none(*new_pmd));
+-		set_pmd_at(mm, new_addr, new_pmd, pmd_mksoft_dirty(pmd));
+-		if (new_ptl != old_ptl) {
++		/*
++		 * Archs like ppc64 use pgtable to store per pmd
++		 * specific information. So when we switch the pmd,
++		 * we should also withdraw and deposit the pgtable
++		 *
++		 * With split pmd lock we also need to move preallocated
++		 * PTE page table if new_pmd is on different PMD page table.
++		 */
++		if (new_ptl != old_ptl || ARCH_THP_MOVE_PMD_ALWAYS_WITHDRAW) {
+ 			pgtable_t pgtable;
+-
+-			/*
+-			 * Move preallocated PTE page table if new_pmd is on
+-			 * different PMD page table.
+-			 */
+ 			pgtable = pgtable_trans_huge_withdraw(mm, old_pmd);
+ 			pgtable_trans_huge_deposit(mm, new_pmd, pgtable);
+-
+-			spin_unlock(new_ptl);
+ 		}
++		set_pmd_at(mm, new_addr, new_pmd, pmd_mksoft_dirty(pmd));
++		if (new_ptl != old_ptl)
++			spin_unlock(new_ptl);
+ 		spin_unlock(old_ptl);
+ 	}
  out:
- 	__vroot_put(vroot);
- 	return ret;
 -- 
-1.7.9.5
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
