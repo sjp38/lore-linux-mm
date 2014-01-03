@@ -1,52 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C32A6B0035
-	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 22:22:09 -0500 (EST)
-Received: by mail-we0-f180.google.com with SMTP id t61so13039979wes.39
-        for <linux-mm@kvack.org>; Thu, 02 Jan 2014 19:22:08 -0800 (PST)
-Received: from mail-wg0-x234.google.com (mail-wg0-x234.google.com [2a00:1450:400c:c00::234])
-        by mx.google.com with ESMTPS id pl12si163230wic.2.2014.01.02.19.22.08
+Received: from mail-qe0-f51.google.com (mail-qe0-f51.google.com [209.85.128.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FA016B0035
+	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 22:33:10 -0500 (EST)
+Received: by mail-qe0-f51.google.com with SMTP id 1so14879807qee.38
+        for <linux-mm@kvack.org>; Thu, 02 Jan 2014 19:33:09 -0800 (PST)
+Received: from e9.ny.us.ibm.com (e9.ny.us.ibm.com. [32.97.182.139])
+        by mx.google.com with ESMTPS id j9si25070748qcf.59.2014.01.02.19.33.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 02 Jan 2014 19:22:08 -0800 (PST)
-Received: by mail-wg0-f52.google.com with SMTP id x13so13189297wgg.7
-        for <linux-mm@kvack.org>; Thu, 02 Jan 2014 19:22:08 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 02 Jan 2014 19:33:09 -0800 (PST)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <hanpt@linux.vnet.ibm.com>;
+	Thu, 2 Jan 2014 22:33:08 -0500
+Received: from b01cxnp23034.gho.pok.ibm.com (b01cxnp23034.gho.pok.ibm.com [9.57.198.29])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 432D238C8027
+	for <linux-mm@kvack.org>; Thu,  2 Jan 2014 22:33:04 -0500 (EST)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by b01cxnp23034.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s033X6WJ66846964
+	for <linux-mm@kvack.org>; Fri, 3 Jan 2014 03:33:06 GMT
+Received: from d01av02.pok.ibm.com (localhost [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s033X6hv020280
+	for <linux-mm@kvack.org>; Thu, 2 Jan 2014 22:33:06 -0500
+Date: Fri, 3 Jan 2014 11:33:03 +0800
+From: Han Pingtian <hanpt@linux.vnet.ibm.com>
+Subject: Re: [RFC] mm: show message when updating min_free_kbytes in thp
+Message-ID: <20140103033303.GB4106@localhost.localdomain>
+References: <20140101002935.GA15683@localhost.localdomain>
+ <52C5AA61.8060701@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20140102155726.GA865@suse.de>
-References: <1388661922-10957-1-git-send-email-sj38.park@gmail.com> <20140102155726.GA865@suse.de>
-From: SeongJae Park <sj38.park@gmail.com>
-Date: Fri, 3 Jan 2014 12:21:47 +0900
-Message-ID: <CAEjAshoYE=c_bfOAuR+0eP0No6PErFvSm9dDmrZ=RnXQPWW9fQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: page_alloc: use enum instead of number for migratetype
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52C5AA61.8060701@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
 
-On Fri, Jan 3, 2014 at 12:57 AM, Mel Gorman <mgorman@suse.de> wrote:
-> On Thu, Jan 02, 2014 at 08:25:22PM +0900, SeongJae Park wrote:
->> Using enum instead of number for migratetype everywhere would be better
->> for reading and understanding.
->>
->> Signed-off-by: SeongJae Park <sj38.park@gmail.com>
->
-> This implicitly makes assumptions about the value of MIGRATE_UNMOVABLE
-> and does not appear to actually fix or improve anything.
->
-> --
-> Mel Gorman
-> SUSE Labs
-
-I thought the implicit assumptions may be helpful for some kind of
-people's readability.
-But, anyway, I agree and respect your opinion now.
-
-Thanks and Regards.
-SeongJae Park
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+On Thu, Jan 02, 2014 at 10:05:21AM -0800, Dave Hansen wrote:
+> On 12/31/2013 04:29 PM, Han Pingtian wrote:
+> > min_free_kbytes may be updated during thp's initialization. Sometimes,
+> > this will change the value being set by user. Showing message will
+> > clarify this confusion.
+> ...
+> > -	if (recommended_min > min_free_kbytes)
+> > +	if (recommended_min > min_free_kbytes) {
+> >  		min_free_kbytes = recommended_min;
+> > +		pr_info("min_free_kbytes is updated to %d by enabling transparent hugepage.\n",
+> > +			min_free_kbytes);
+> > +	}
+> 
+> "updated" doesn't tell us much.  It's also kinda nasty that if we enable
+> then disable THP, we end up with an elevated min_free_kbytes.  Maybe we
+> should at least put something in that tells the user how to get back
+> where they were if they care:
+> 
+> "raising min_free_kbytes from %d to %d to help transparent hugepage
+> allocations"
+> 
+Thanks. I have updated it according to your suggestion.
