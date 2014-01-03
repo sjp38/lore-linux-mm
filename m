@@ -1,137 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f42.google.com (mail-oa0-f42.google.com [209.85.219.42])
-	by kanga.kvack.org (Postfix) with ESMTP id CC56E6B0031
-	for <linux-mm@kvack.org>; Fri,  3 Jan 2014 14:55:54 -0500 (EST)
-Received: by mail-oa0-f42.google.com with SMTP id i4so16618271oah.1
-        for <linux-mm@kvack.org>; Fri, 03 Jan 2014 11:55:54 -0800 (PST)
-Received: from g5t0009.atlanta.hp.com (g5t0009.atlanta.hp.com. [15.192.0.46])
-        by mx.google.com with ESMTPS id v5si48430897oep.124.2014.01.03.11.55.53
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 384F46B0031
+	for <linux-mm@kvack.org>; Fri,  3 Jan 2014 15:17:35 -0500 (EST)
+Received: by mail-ig0-f172.google.com with SMTP id hl1so1954642igb.5
+        for <linux-mm@kvack.org>; Fri, 03 Jan 2014 12:17:35 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id i6si4782460igt.7.2014.01.03.12.17.33
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 03 Jan 2014 11:55:53 -0800 (PST)
-Message-ID: <1388778945.2956.20.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH v3 13/14] mm, hugetlb: retry if failed to allocate and
- there is concurrent user
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Fri, 03 Jan 2014 11:55:45 -0800
-In-Reply-To: <20131223021118.GA2487@lge.com>
-References: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
-	 <1387349640-8071-14-git-send-email-iamjoonsoo.kim@lge.com>
-	 <20131219170202.0df2d82a2adefa3ab616bdaa@linux-foundation.org>
-	 <20131220140153.GC11295@suse.de>
-	 <1387608497.3119.17.camel@buesod1.americas.hpqcorp.net>
-	 <20131223004438.GA19388@lge.com> <20131223021118.GA2487@lge.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        Fri, 03 Jan 2014 12:17:34 -0800 (PST)
+Message-ID: <52C71ACC.20603@oracle.com>
+Date: Fri, 03 Jan 2014 15:17:16 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm/mlock: fix BUG_ON unlocked page for nolinear VMAs
+References: <1387267550-8689-1-git-send-email-liwanp@linux.vnet.ibm.com>	<52b1138b.0201430a.19a8.605dSMTPIN_ADDED_BROKEN@mx.google.com>	<20131218032329.GA6044@hacker.(null)>	<52B11765.8030005@oracle.com>	<52b120a5.a3b2440a.3acf.ffffd7c3SMTPIN_ADDED_BROKEN@mx.google.com>	<52B166CF.6080300@suse.cz>	<52b1699f.87293c0a.75d1.34d3SMTPIN_ADDED_BROKEN@mx.google.com> <20131218134316.977d5049209d9278e1dad225@linux-foundation.org>
+In-Reply-To: <20131218134316.977d5049209d9278e1dad225@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh
- Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, aswin@hp.com
+To: Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Michel Lespinasse <walken@google.com>, Bob Liu <bob.liu@oracle.com>, npiggin@suse.de, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-Hi Joonsoo,
+On 12/18/2013 04:43 PM, Andrew Morton wrote:
+> On Wed, 18 Dec 2013 17:23:03 +0800 Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
+>
+>>>> diff --git a/mm/rmap.c b/mm/rmap.c
+>>>> index 55c8b8d..1e24813 100644
+>>>> --- a/mm/rmap.c
+>>>> +++ b/mm/rmap.c
+>>>> @@ -1347,6 +1347,7 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
+>>>>   	unsigned long end;
+>>>>   	int ret = SWAP_AGAIN;
+>>>>   	int locked_vma = 0;
+>>>> +	int we_locked = 0;
+>>>>
+>>>>   	address = (vma->vm_start + cursor) & CLUSTER_MASK;
+>>>>   	end = address + CLUSTER_SIZE;
+>>>> @@ -1385,9 +1386,15 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
+>>>>   		BUG_ON(!page || PageAnon(page));
+>>>>
+>>>>   		if (locked_vma) {
+>>>> -			mlock_vma_page(page);   /* no-op if already mlocked */
+>>>> -			if (page == check_page)
+>>>> +			if (page != check_page) {
+>>>> +				we_locked = trylock_page(page);
+>>>
+>>> If it's not us who has the page already locked, but somebody else, he
+>>> might unlock it at this point and then the BUG_ON in mlock_vma_page()
+>>> will trigger again.
+>
+> yes, this patch is pretty weak.
+>
+>> Any better idea is appreciated. ;-)
+>
+> Remove the BUG_ON() from mlock_vma_page()?  Why was it added?
+> isolate_lru_page() and putback_lru_page() and *might* require
+> the page be locked, but I don't immediately see issues?
 
-Sorry about the delay...
+Ping? This BUG() is triggerable in 3.13-rc6 right now.
 
-On Mon, 2013-12-23 at 11:11 +0900, Joonsoo Kim wrote:
-> On Mon, Dec 23, 2013 at 09:44:38AM +0900, Joonsoo Kim wrote:
-> > On Fri, Dec 20, 2013 at 10:48:17PM -0800, Davidlohr Bueso wrote:
-> > > On Fri, 2013-12-20 at 14:01 +0000, Mel Gorman wrote:
-> > > > On Thu, Dec 19, 2013 at 05:02:02PM -0800, Andrew Morton wrote:
-> > > > > On Wed, 18 Dec 2013 15:53:59 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> > > > > 
-> > > > > > If parallel fault occur, we can fail to allocate a hugepage,
-> > > > > > because many threads dequeue a hugepage to handle a fault of same address.
-> > > > > > This makes reserved pool shortage just for a little while and this cause
-> > > > > > faulting thread who can get hugepages to get a SIGBUS signal.
-> > > > > > 
-> > > > > > To solve this problem, we already have a nice solution, that is,
-> > > > > > a hugetlb_instantiation_mutex. This blocks other threads to dive into
-> > > > > > a fault handler. This solve the problem clearly, but it introduce
-> > > > > > performance degradation, because it serialize all fault handling.
-> > > > > > 
-> > > > > > Now, I try to remove a hugetlb_instantiation_mutex to get rid of
-> > > > > > performance degradation.
-> > > > > 
-> > > > > So the whole point of the patch is to improve performance, but the
-> > > > > changelog doesn't include any performance measurements!
-> > > > > 
-> > > > 
-> > > > I don't really deal with hugetlbfs any more and I have not examined this
-> > > > series but I remember why I never really cared about this mutex. It wrecks
-> > > > fault scalability but AFAIK fault scalability almost never mattered for
-> > > > workloads using hugetlbfs.  The most common user of hugetlbfs by far is
-> > > > sysv shared memory. The memory is faulted early in the lifetime of the
-> > > > workload and after that it does not matter. At worst, it hurts application
-> > > > startup time but that is still poor motivation for putting a lot of work
-> > > > into removing the mutex.
-> > > 
-> > > Yep, important hugepage workloads initially pound heavily on this lock,
-> > > then it naturally decreases.
-> > > 
-> > > > Microbenchmarks will be able to trigger problems in this area but it'd
-> > > > be important to check if any workload that matters is actually hitting
-> > > > that problem.
-> > > 
-> > > I was thinking of writing one to actually get some numbers for this
-> > > patchset -- I don't know of any benchmark that might stress this lock. 
-> > > 
-> > > However I first measured the amount of cycles it costs to start an
-> > > Oracle DB and things went south with these changes. A simple 'startup
-> > > immediate' calls hugetlb_fault() ~5000 times. For a vanilla kernel, this
-> > > costs ~7.5 billion cycles and with this patchset it goes up to ~27.1
-> > > billion. While there is naturally a fair amount of variation, these
-> > > changes do seem to do more harm than good, at least in real world
-> > > scenarios.
-> > 
-> > Hello,
-> > 
-> > I think that number of cycles is not proper to measure this patchset,
-> > because cycles would be wasted by fault handling failure. Instead, it
-> > targeted improved elapsed time. 
-
-Fair enough, however the fact of the matter is this approach does en up
-hurting performance. Regarding total startup time, I didn't see hardly
-any differences, with both vanilla and this patchset it takes close to
-33.5 seconds.
-
-> Could you tell me how long it
-> > takes to fault all of it's hugepages?
-> > 
-> > Anyway, this order of magnitude still seems a problem. :/
-> > 
-> > I guess that cycles are wasted by zeroing hugepage in fault-path like as
-> > Andrew pointed out.
-> > 
-> > I will send another patches to fix this problem.
-> 
-> Hello, Davidlohr.
-> 
-> Here goes the fix on top of this series.
-
-... and with this patch we go from 27 down to 11 billion cycles, so this
-approach still costs more than what we currently have. A perf stat shows
-that an entire 1Gb huge page aware DB startup costs around ~30 billion
-cycles on a vanilla kernel, so the impact of hugetlb_fault() is
-definitely non trivial and IMO worth considering.
-
-Now, I took my old patchset (https://lkml.org/lkml/2013/7/26/299) for a
-ride and things do look quite better, which is basically what Andrew was
-suggesting previously anyway. With the hash table approach the startup
-time did go down to ~25.1 seconds, which is a nice -24.7% time
-reduction, with hugetlb_fault() consuming roughly 5.3 billion cycles.
-This hash table was on a 80 core system, so since we do the power of two
-round up we end up with 256 entries -- I think we can do better if we
-enlarger further, maybe something like statically 1024, or probably
-better, 8-ish * nr cpus.
-
-Thoughts? Is there any reason why we cannot go with this instead? Yes,
-we still keep the mutex, but the approach is (1) proven better for
-performance on real world workloads and (2) far less invasive. 
 
 Thanks,
-Davidlohr
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
