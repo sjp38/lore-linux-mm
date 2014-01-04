@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id AC4636B0036
-	for <linux-mm@kvack.org>; Fri,  3 Jan 2014 18:56:03 -0500 (EST)
-Received: by mail-pd0-f172.google.com with SMTP id g10so15848092pdj.17
-        for <linux-mm@kvack.org>; Fri, 03 Jan 2014 15:56:03 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id l8si47186865pao.65.2014.01.03.15.56.01
-        for <linux-mm@kvack.org>;
-        Fri, 03 Jan 2014 15:56:02 -0800 (PST)
-Date: Fri, 3 Jan 2014 15:56:00 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/mlock: fix BUG_ON unlocked page for nolinear VMAs
-Message-Id: <20140103155600.ce7194bb8b33d5581b05a162@linux-foundation.org>
+Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E5AF6B0031
+	for <linux-mm@kvack.org>; Fri,  3 Jan 2014 19:18:41 -0500 (EST)
+Received: by mail-ee0-f42.google.com with SMTP id e53so7006156eek.1
+        for <linux-mm@kvack.org>; Fri, 03 Jan 2014 16:18:40 -0800 (PST)
+Received: from mail-ee0-f47.google.com (mail-ee0-f47.google.com [74.125.83.47])
+        by mx.google.com with ESMTPS id h45si73504391eeo.67.2014.01.03.16.18.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 03 Jan 2014 16:18:40 -0800 (PST)
+Received: by mail-ee0-f47.google.com with SMTP id e51so5899441eek.20
+        for <linux-mm@kvack.org>; Fri, 03 Jan 2014 16:18:05 -0800 (PST)
+MIME-Version: 1.0
 In-Reply-To: <52C74972.6050909@suse.cz>
 References: <1387267550-8689-1-git-send-email-liwanp@linux.vnet.ibm.com>
 	<52b1138b.0201430a.19a8.605dSMTPIN_ADDED_BROKEN@mx.google.com>
@@ -23,39 +23,64 @@ References: <1387267550-8689-1-git-send-email-liwanp@linux.vnet.ibm.com>
 	<52C71ACC.20603@oracle.com>
 	<CA+55aFzDcFyyXwUUu5bLP3fsiuzxU7VPivpTPHgp8smvdTeESg@mail.gmail.com>
 	<52C74972.6050909@suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Fri, 3 Jan 2014 16:18:05 -0800
+Message-ID: <CA+55aFzq1iQqddGo-m=vutwMYn5CPf65Ergov5svKR4AWC3rUQ@mail.gmail.com>
+Subject: Re: [PATCH] mm/mlock: fix BUG_ON unlocked page for nolinear VMAs
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Michel Lespinasse <walken@google.com>, Bob Liu <bob.liu@oracle.com>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Michel Lespinasse <walken@google.com>, Bob Liu <bob.liu@oracle.com>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Sat, 04 Jan 2014 00:36:18 +0100 Vlastimil Babka <vbabka@suse.cz> wrote:
+On Fri, Jan 3, 2014 at 3:36 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>
+> I'm for going with the removal of BUG_ON. The TestSetPageMlocked should provide enough
+> race protection.
 
-> On 01/03/2014 09:52 PM, Linus Torvalds wrote:
-> > On Fri, Jan 3, 2014 at 12:17 PM, Sasha Levin <sasha.levin@oracle.com> wrote:
-> >>
-> >> Ping? This BUG() is triggerable in 3.13-rc6 right now.
-> > 
-> > So Andrew suggested just removing the BUG_ON(), but it's been there
-> > for a *long* time.
-> 
-> Yes, Andrew also merged this patch for that:
->  http://ozlabs.org/~akpm/mmots/broken-out/mm-remove-bug_on-from-mlock_vma_page.patch
-> 
-> But there wasn't enough confidence in the fix to sent it to you yet, I guess.
-> 
-> The related thread: http://www.spinics.net/lists/linux-mm/msg66972.html
+Maybe. But dammit, that's subtle, and I don't think you're even right.
 
-Yes, I'd taken the cowardly approach of scheduling it for 3.14, with a
-3.13.x backport.
+It basically depends on mlock_vma_page() and munlock_vma_page() being
+able to run CONCURRENTLY on the same page. In particular, you could
+have a mlock_vma_page() set the bit on one CPU, and munlock_vma_page()
+immediately clearing it on another, and then the rest of those
+functions could run with a totally arbitrary interleaving when working
+with the exact same page.
 
-Nobody answered my question!  Is this a new bug or is it a
-five-year-old bug which we only just discovered?
+They both do basically
 
-I guess it doesn't matter much - we should fix it in 3.13.  I'll
-include it in the next for-3.13 batch.
+    if (!isolate_lru_page(page))
+        putback_lru_page(page);
+
+but one or the other would randomly win the race (it's internally
+protected by the lru lock), and *if* the munlock_vma_page() wins it,
+it would also do
+
+    try_to_munlock(page);
+
+but if mlock_vma_page() wins it, that wouldn't happen. That looks
+entirely broken - you end up with the PageMlocked bit clear, but
+try_to_munlock() was never called on that page, because
+mlock_vma_page() got to the page isolation before the "subsequent"
+munlock_vma_page().
+
+And this is very much what the page lock serialization would prevent.
+So no, the PageMlocked in *no* way gives serialization. It's an atomic
+bit op, yes, but that only "serializes" in one direction, not when you
+can have a mix of bit setting and clearing.
+
+So quite frankly, I think you're wrong. The BUG_ON() is correct, or at
+least enforces some kind of ordering. And try_to_unmap_cluster() is
+just broken in calling that without the page being locked. That's my
+opinion. There may be some *other* reason why it all happens to work,
+but no, "TestSetPageMlocked should provide enough race protection" is
+simply not true, and even if it were, it's way too subtle and odd to
+be a good rule.
+
+So I really object to just removing the BUG_ON(). Not with a *lot*
+more explanation as to why these kinds of issues wouldn't matter.
+
+                 Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
