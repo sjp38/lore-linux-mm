@@ -1,55 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 62E496B0031
-	for <linux-mm@kvack.org>; Sat,  4 Jan 2014 02:31:52 -0500 (EST)
-Received: by mail-qa0-f53.google.com with SMTP id j5so1251297qaq.5
-        for <linux-mm@kvack.org>; Fri, 03 Jan 2014 23:31:52 -0800 (PST)
-Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com [2607:f8b0:400e:c03::236])
-        by mx.google.com with ESMTPS id p3si61935178qah.18.2014.01.03.23.31.50
+Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E8586B0031
+	for <linux-mm@kvack.org>; Sat,  4 Jan 2014 03:09:22 -0500 (EST)
+Received: by mail-ee0-f46.google.com with SMTP id d49so6872348eek.5
+        for <linux-mm@kvack.org>; Sat, 04 Jan 2014 00:09:21 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a9si74550429eew.201.2014.01.04.00.09.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 03 Jan 2014 23:31:51 -0800 (PST)
-Received: by mail-pa0-f54.google.com with SMTP id rd3so16533281pab.41
-        for <linux-mm@kvack.org>; Fri, 03 Jan 2014 23:31:50 -0800 (PST)
-Date: Sat, 4 Jan 2014 07:31:43 +0000
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC PATCHv3 00/11] Intermix Lowmem and vmalloc
-Message-ID: <20140104073143.GA5594@gmail.com>
-References: <1388699609-18214-1-git-send-email-lauraa@codeaurora.org>
- <52C70024.1060605@sr71.net>
- <52C734F4.5020602@codeaurora.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sat, 04 Jan 2014 00:09:21 -0800 (PST)
+Message-ID: <52C7C1AA.2070701@suse.cz>
+Date: Sat, 04 Jan 2014 09:09:14 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52C734F4.5020602@codeaurora.org>
+Subject: Re: [PATCH] mm/mlock: fix BUG_ON unlocked page for nolinear VMAs
+References: <1387267550-8689-1-git-send-email-liwanp@linux.vnet.ibm.com>	<52b1138b.0201430a.19a8.605dSMTPIN_ADDED_BROKEN@mx.google.com>	<52B11765.8030005@oracle.com>	<52b120a5.a3b2440a.3acf.ffffd7c3SMTPIN_ADDED_BROKEN@mx.google.com>	<52B166CF.6080300@suse.cz>	<52b1699f.87293c0a.75d1.34d3SMTPIN_ADDED_BROKEN@mx.google.com>	<20131218134316.977d5049209d9278e1dad225@linux-foundation.org>	<52C71ACC.20603@oracle.com>	<CA+55aFzDcFyyXwUUu5bLP3fsiuzxU7VPivpTPHgp8smvdTeESg@mail.gmail.com>	<52C74972.6050909@suse.cz> <CA+55aFzq1iQqddGo-m=vutwMYn5CPf65Ergov5svKR4AWC3rUQ@mail.gmail.com>
+In-Reply-To: <CA+55aFzq1iQqddGo-m=vutwMYn5CPf65Ergov5svKR4AWC3rUQ@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>
-Cc: Dave Hansen <dave@sr71.net>, Andrew Morton <akpm@linux-foundation.org>, Kyungmin Park <kmpark@infradead.org>, linux-mm@kvack.org, Russell King <linux@arm.linux.org.uk>, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Michel Lespinasse <walken@google.com>, Bob Liu <bob.liu@oracle.com>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Hello,
-
-On Fri, Jan 03, 2014 at 02:08:52PM -0800, Laura Abbott wrote:
-> On 1/3/2014 10:23 AM, Dave Hansen wrote:
-> >On 01/02/2014 01:53 PM, Laura Abbott wrote:
-> >>The goal here is to allow as much lowmem to be mapped as if the block of memory
-> >>was not reserved from the physical lowmem region. Previously, we had been
-> >>hacking up the direct virt <-> phys translation to ignore a large region of
-> >>memory. This did not scale for multiple holes of memory however.
-> >
-> >How much lowmem do these holes end up eating up in practice, ballpark?
-> >I'm curious how painful this is going to get.
-> >
+On 01/04/2014 01:18 AM, Linus Torvalds wrote:
+> On Fri, Jan 3, 2014 at 3:36 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>>
+>> I'm for going with the removal of BUG_ON. The TestSetPageMlocked should provide enough
+>> race protection.
 > 
-> In total, the worst case can be close to 100M with an average case
-> around 70M-80M. The split and number of holes vary with the layout
-> but end up with 60M-80M one hole and the rest in the other.
+> Maybe. But dammit, that's subtle, and I don't think you're even right.
+> 
+> It basically depends on mlock_vma_page() and munlock_vma_page() being
+> able to run CONCURRENTLY on the same page. In particular, you could
+> have a mlock_vma_page() set the bit on one CPU, and munlock_vma_page()
+> immediately clearing it on another, and then the rest of those
+> functions could run with a totally arbitrary interleaving when working
+> with the exact same page.
+> 
+> They both do basically
+> 
+>     if (!isolate_lru_page(page))
+>         putback_lru_page(page);
+> 
+> but one or the other would randomly win the race (it's internally
+> protected by the lru lock), and *if* the munlock_vma_page() wins it,
+> it would also do
+> 
+>     try_to_munlock(page);
+> 
+> but if mlock_vma_page() wins it, that wouldn't happen. That looks
+> entirely broken - you end up with the PageMlocked bit clear, but
+> try_to_munlock() was never called on that page, because
+> mlock_vma_page() got to the page isolation before the "subsequent"
+> munlock_vma_page().
 
-One more thing I'd like to know is how bad direct virt <->phys tranlsation
-in scale POV and how often virt<->phys tranlsation is called in your worload
-so what's the gain from this patch?
+I got the impression (see e.g. munlock_vma_page() comments) that the
+whole thing is designed with this possibility in mind. isolate_lru_page()
+may fail (presumably also in other scenarios than this) and if
+try_to_munlock() was not called here, then yes the page might lose the
+PageMlocked bit and go to LRU instead of inevictable list, but
+try_to_unmap() should catch and fix this. That would also explain why
+mlock_vma_page() is called from try_to_unmap_cluster().
+So if I understand correctly, PageMlocked bit is not something that has
+to be correctly set 100% of the time, but when it's set correctly most
+of the time, then most of these pages will go to inevictable list and spare
+vmscan's time.
 
-Thanks.
+> And this is very much what the page lock serialization would prevent.
+> So no, the PageMlocked in *no* way gives serialization. It's an atomic
+> bit op, yes, but that only "serializes" in one direction, not when you
+> can have a mix of bit setting and clearing.
+> 
+> So quite frankly, I think you're wrong. The BUG_ON() is correct, or at
+> least enforces some kind of ordering. And try_to_unmap_cluster() is
+> just broken in calling that without the page being locked. That's my
+> opinion. There may be some *other* reason why it all happens to work,
+> but no, "TestSetPageMlocked should provide enough race protection" is
+> simply not true, and even if it were, it's way too subtle and odd to
+> be a good rule.
+
+Right, it was stupid of me to write such strong statement without any
+details. I wanted to review that patch when back at work next week, but
+since it came up now, I just wanted to point out that it's in the pipeline
+for this bug.
+
+> So I really object to just removing the BUG_ON(). Not with a *lot*
+> more explanation as to why these kinds of issues wouldn't matter.
+> 
+>                  Linus
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
