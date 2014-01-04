@@ -1,53 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-gg0-f169.google.com (mail-gg0-f169.google.com [209.85.161.169])
-	by kanga.kvack.org (Postfix) with ESMTP id F25AF6B0031
-	for <linux-mm@kvack.org>; Fri,  3 Jan 2014 22:32:16 -0500 (EST)
-Received: by mail-gg0-f169.google.com with SMTP id f4so3186805ggn.14
-        for <linux-mm@kvack.org>; Fri, 03 Jan 2014 19:32:16 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id z21si5188297yhb.174.2014.01.03.19.32.15
+Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 62E496B0031
+	for <linux-mm@kvack.org>; Sat,  4 Jan 2014 02:31:52 -0500 (EST)
+Received: by mail-qa0-f53.google.com with SMTP id j5so1251297qaq.5
+        for <linux-mm@kvack.org>; Fri, 03 Jan 2014 23:31:52 -0800 (PST)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id p3si61935178qah.18.2014.01.03.23.31.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 03 Jan 2014 19:32:16 -0800 (PST)
-Message-ID: <52C780A3.8030405@oracle.com>
-Date: Sat, 04 Jan 2014 11:31:47 +0800
-From: Bob Liu <bob.liu@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 03 Jan 2014 23:31:51 -0800 (PST)
+Received: by mail-pa0-f54.google.com with SMTP id rd3so16533281pab.41
+        for <linux-mm@kvack.org>; Fri, 03 Jan 2014 23:31:50 -0800 (PST)
+Date: Sat, 4 Jan 2014 07:31:43 +0000
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC PATCHv3 00/11] Intermix Lowmem and vmalloc
+Message-ID: <20140104073143.GA5594@gmail.com>
+References: <1388699609-18214-1-git-send-email-lauraa@codeaurora.org>
+ <52C70024.1060605@sr71.net>
+ <52C734F4.5020602@codeaurora.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/mlock: fix BUG_ON unlocked page for nolinear VMAs
-References: <1387267550-8689-1-git-send-email-liwanp@linux.vnet.ibm.com> <52b1138b.0201430a.19a8.605dSMTPIN_ADDED_BROKEN@mx.google.com> <52B11765.8030005@oracle.com> <52b120a5.a3b2440a.3acf.ffffd7c3SMTPIN_ADDED_BROKEN@mx.google.com> <52B166CF.6080300@suse.cz> <52b1699f.87293c0a.75d1.34d3SMTPIN_ADDED_BROKEN@mx.google.com> <20131218134316.977d5049209d9278e1dad225@linux-foundation.org> <52C71ACC.20603@oracle.com> <CA+55aFzDcFyyXwUUu5bLP3fsiuzxU7VPivpTPHgp8smvdTeESg@mail.gmail.com>
-In-Reply-To: <CA+55aFzDcFyyXwUUu5bLP3fsiuzxU7VPivpTPHgp8smvdTeESg@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52C734F4.5020602@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Michel Lespinasse <walken@google.com>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: Dave Hansen <dave@sr71.net>, Andrew Morton <akpm@linux-foundation.org>, Kyungmin Park <kmpark@infradead.org>, linux-mm@kvack.org, Russell King <linux@arm.linux.org.uk>, linux-kernel@vger.kernel.org
 
+Hello,
 
-On 01/04/2014 04:52 AM, Linus Torvalds wrote:
-> On Fri, Jan 3, 2014 at 12:17 PM, Sasha Levin <sasha.levin@oracle.com> wrote:
->>
->> Ping? This BUG() is triggerable in 3.13-rc6 right now.
+On Fri, Jan 03, 2014 at 02:08:52PM -0800, Laura Abbott wrote:
+> On 1/3/2014 10:23 AM, Dave Hansen wrote:
+> >On 01/02/2014 01:53 PM, Laura Abbott wrote:
+> >>The goal here is to allow as much lowmem to be mapped as if the block of memory
+> >>was not reserved from the physical lowmem region. Previously, we had been
+> >>hacking up the direct virt <-> phys translation to ignore a large region of
+> >>memory. This did not scale for multiple holes of memory however.
+> >
+> >How much lowmem do these holes end up eating up in practice, ballpark?
+> >I'm curious how painful this is going to get.
+> >
 > 
-> So Andrew suggested just removing the BUG_ON(), but it's been there
-> for a *long* time.
-> 
-> And I detest the patch that was sent out that said "Should I check?"
-> 
-> Maybe we should just remove that mlock_vma_page() thing instead in
-> try_to_unmap_cluster()? Or maybe actually lock the page around calling
+> In total, the worst case can be close to 100M with an average case
+> around 70M-80M. The split and number of holes vary with the layout
+> but end up with 60M-80M one hole and the rest in the other.
 
-I didn't get the reason why we have to call mlock_vma_page() in
-try_to_unmap_cluster() and I agree to just remove it.
+One more thing I'd like to know is how bad direct virt <->phys tranlsation
+in scale POV and how often virt<->phys tranlsation is called in your worload
+so what's the gain from this patch?
 
-> it?
-> 
->              Linus
-> 
-
--- 
-Regards,
--Bob
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
