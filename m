@@ -1,101 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f178.google.com (mail-ea0-f178.google.com [209.85.215.178])
-	by kanga.kvack.org (Postfix) with ESMTP id CC70A6B0031
-	for <linux-mm@kvack.org>; Sat,  4 Jan 2014 16:37:11 -0500 (EST)
-Received: by mail-ea0-f178.google.com with SMTP id d10so7428438eaj.9
-        for <linux-mm@kvack.org>; Sat, 04 Jan 2014 13:37:11 -0800 (PST)
-Received: from smtp1.informatik.tu-muenchen.de (mail-out1.informatik.tu-muenchen.de. [131.159.0.8])
-        by mx.google.com with ESMTPS id w6si77300609eeg.48.2014.01.04.13.37.10
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id E389B6B0031
+	for <linux-mm@kvack.org>; Sat,  4 Jan 2014 19:27:18 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id v10so16854757pde.27
+        for <linux-mm@kvack.org>; Sat, 04 Jan 2014 16:27:18 -0800 (PST)
+Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com. [202.81.31.146])
+        by mx.google.com with ESMTPS id qx4si50090843pbc.255.2014.01.04.16.27.16
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 04 Jan 2014 13:37:10 -0800 (PST)
-Received: from mail-vc0-f177.google.com (mail-vc0-f177.google.com [209.85.220.177])
-	(using TLSv1 with cipher RC4-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail.in.tum.de (Postfix) with ESMTPSA id 98DFC24043E
-	for <linux-mm@kvack.org>; Sat,  4 Jan 2014 22:37:09 +0100 (CET)
-Received: by mail-vc0-f177.google.com with SMTP id le5so463719vcb.36
-        for <linux-mm@kvack.org>; Sat, 04 Jan 2014 13:37:08 -0800 (PST)
+        Sat, 04 Jan 2014 16:27:17 -0800 (PST)
+Received: from /spool/local
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Sun, 5 Jan 2014 10:27:11 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 90E4D2CE8053
+	for <linux-mm@kvack.org>; Sun,  5 Jan 2014 11:27:07 +1100 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0508Gbd7602662
+	for <linux-mm@kvack.org>; Sun, 5 Jan 2014 11:08:16 +1100
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s050R5vI029837
+	for <linux-mm@kvack.org>; Sun, 5 Jan 2014 11:27:06 +1100
+Date: Sun, 5 Jan 2014 08:27:03 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm/mlock: fix BUG_ON unlocked page for nolinear VMAs
+Message-ID: <52c8a6e5.e4df440a.1d7e.ffffe5bfSMTPIN_ADDED_BROKEN@mx.google.com>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <52b1138b.0201430a.19a8.605dSMTPIN_ADDED_BROKEN@mx.google.com>
+ <52B11765.8030005@oracle.com>
+ <52b120a5.a3b2440a.3acf.ffffd7c3SMTPIN_ADDED_BROKEN@mx.google.com>
+ <52B166CF.6080300@suse.cz>
+ <52b1699f.87293c0a.75d1.34d3SMTPIN_ADDED_BROKEN@mx.google.com>
+ <20131218134316.977d5049209d9278e1dad225@linux-foundation.org>
+ <52C71ACC.20603@oracle.com>
+ <CA+55aFzDcFyyXwUUu5bLP3fsiuzxU7VPivpTPHgp8smvdTeESg@mail.gmail.com>
+ <52C74972.6050909@suse.cz>
+ <CA+55aFzq1iQqddGo-m=vutwMYn5CPf65Ergov5svKR4AWC3rUQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20140104182235.GT20765@two.firstfloor.org>
-References: <CAGz0_-2mkN=KCp=3WkPPVo2_JAtNJAkVpBcwfQ4LVr8R40P=tQ@mail.gmail.com>
-	<20140104182235.GT20765@two.firstfloor.org>
-Date: Sat, 4 Jan 2014 22:37:08 +0100
-Message-ID: <CAGz0_-0Q0XxvmXZii0MUrgm8dmYYF5xck3398iyZA2dRySuw5w@mail.gmail.com>
-Subject: Re: Is it possible to disable numa_balance after boot?
-From: Andreas Hollmann <hollmann@in.tum.de>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFzq1iQqddGo-m=vutwMYn5CPf65Ergov5svKR4AWC3rUQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-numa <linux-numa@vger.kernel.org>, linux-mm@kvack.org, mgorman@suse.de, akpm@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Michel Lespinasse <walken@google.com>, Bob Liu <bob.liu@oracle.com>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-2014/1/4 Andi Kleen <andi@firstfloor.org>:
-> On Sat, Jan 04, 2014 at 06:46:55PM +0100, Andreas Hollmann wrote:
->> Hi,
+Hi Andrew, Vlastimil 
+On Fri, Jan 03, 2014 at 04:18:05PM -0800, Linus Torvalds wrote:
+>On Fri, Jan 3, 2014 at 3:36 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
 >>
->> is possible to turn of numa balancing (introduced in 3.8) in a running kernel?
+>> I'm for going with the removal of BUG_ON. The TestSetPageMlocked should provide enough
+>> race protection.
 >
+>Maybe. But dammit, that's subtle, and I don't think you're even right.
 >
-> I submitted a patch to do it some time ago
+>It basically depends on mlock_vma_page() and munlock_vma_page() being
+>able to run CONCURRENTLY on the same page. In particular, you could
+>have a mlock_vma_page() set the bit on one CPU, and munlock_vma_page()
+>immediately clearing it on another, and then the rest of those
+>functions could run with a totally arbitrary interleaving when working
+>with the exact same page.
 >
-> https://lkml.org/lkml/2013/4/24/529
+>They both do basically
 >
-> But it didn't seem to have made it in. Andrew? Mel?
+>    if (!isolate_lru_page(page))
+>        putback_lru_page(page);
 >
-> Yes I agree a disable switch is totally needed for such an intrusive
-> feature, if only to isolate problems with it.
+>but one or the other would randomly win the race (it's internally
+>protected by the lru lock), and *if* the munlock_vma_page() wins it,
+>it would also do
+>
+>    try_to_munlock(page);
+>
+>but if mlock_vma_page() wins it, that wouldn't happen. That looks
+>entirely broken - you end up with the PageMlocked bit clear, but
+>try_to_munlock() was never called on that page, because
+>mlock_vma_page() got to the page isolation before the "subsequent"
+>munlock_vma_page().
+>
+>And this is very much what the page lock serialization would prevent.
+>So no, the PageMlocked in *no* way gives serialization. It's an atomic
+>bit op, yes, but that only "serializes" in one direction, not when you
+>can have a mix of bit setting and clearing.
+>
+>So quite frankly, I think you're wrong. The BUG_ON() is correct, or at
+>least enforces some kind of ordering. And try_to_unmap_cluster() is
+>just broken in calling that without the page being locked. That's my
+>opinion. There may be some *other* reason why it all happens to work,
+>but no, "TestSetPageMlocked should provide enough race protection" is
+>simply not true, and even if it were, it's way too subtle and odd to
+>be a good rule.
+>
+>So I really object to just removing the BUG_ON(). Not with a *lot*
+>more explanation as to why these kinds of issues wouldn't matter.
 
-That would be great. Additionally it would be nice to do it per application.
+Any better idea to improve my patch which in the "lock the page around
+calling it" direction. ;-)
+http://marc.info/?l=linux-mm&m=138733994417230&w=2
 
-Some applications work well with pinning, others don't and it would be
-bad to disable numa balancing globally.
+Regards,
+Wanpeng Li 
 
 >
-> -Andi
->
->
->>
->> I'm running a recent arch kernel and numa balancing is enabled by
->> default. I checked
->> several documents and found some sysctl variable which influence the behavior of
->> numa balance, but there is no clear documentation if it's possible to
->> disable it.
->>
->> The only defined way to disable it is using a kernel parameter
->>
->> numa_balancing= [KNL,X86] Enable or disable automatic NUMA balancing.
->> Allowed values are enable and disable
->>
->> Is there any other way?
->>
->> Best regards,
->> Andreas
->>
->>
->> $ uname -a
->> Linux inwest 3.12.6-1-ARCH #1 SMP PREEMPT Fri Dec 20 19:39:00 CET 2013
->> x86_64 GNU/Linux
->>
->> $ cat /usr/src/linux-3.12.6-1-ARCH/.config | grep NUMA_BALANCING
->> CONFIG_ARCH_SUPPORTS_NUMA_BALANCING=y
->> CONFIG_NUMA_BALANCING_DEFAULT_ENABLED=y
->> CONFIG_NUMA_BALANCING=y
->>
->> $ ls -l /proc/sys/kernel | grep numa_bal
->> -rw-r--r-- 1 root root 0 Jan  4 14:23 numa_balancing_scan_delay_ms
->> -rw-r--r-- 1 root root 0 Jan  4 14:23 numa_balancing_scan_period_max_ms
->> -rw-r--r-- 1 root root 0 Jan  4 14:23 numa_balancing_scan_period_min_ms
->> -rw-r--r-- 1 root root 0 Jan  4 14:23 numa_balancing_scan_period_reset
->> -rw-r--r-- 1 root root 0 Jan  4 14:23 numa_balancing_scan_size_mb
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-numa" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->>
->
-> --
-> ak@linux.intel.com -- Speaking for myself only.
+>                 Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
