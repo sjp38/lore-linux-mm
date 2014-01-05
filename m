@@ -1,63 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 883AF6B0031
-	for <linux-mm@kvack.org>; Sat,  4 Jan 2014 19:35:10 -0500 (EST)
-Received: by mail-ob0-f178.google.com with SMTP id uz6so17189103obc.9
-        for <linux-mm@kvack.org>; Sat, 04 Jan 2014 16:35:10 -0800 (PST)
-Received: from e31.co.us.ibm.com (e31.co.us.ibm.com. [32.97.110.149])
-        by mx.google.com with ESMTPS id rj3si51807002oeb.55.2014.01.04.16.35.09
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DD9D6B0031
+	for <linux-mm@kvack.org>; Sat,  4 Jan 2014 20:34:16 -0500 (EST)
+Received: by mail-pb0-f46.google.com with SMTP id md12so16901803pbc.5
+        for <linux-mm@kvack.org>; Sat, 04 Jan 2014 17:34:15 -0800 (PST)
+Received: from e28smtp01.in.ibm.com (e28smtp01.in.ibm.com. [122.248.162.1])
+        by mx.google.com with ESMTPS id s4si17613417pbg.153.2014.01.04.17.34.12
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 04 Jan 2014 16:35:09 -0800 (PST)
+        Sat, 04 Jan 2014 17:34:14 -0800 (PST)
 Received: from /spool/local
-	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <hanpt@linux.vnet.ibm.com>;
-	Sat, 4 Jan 2014 17:35:08 -0700
-Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id DD3933E4003E
-	for <linux-mm@kvack.org>; Sat,  4 Jan 2014 17:35:05 -0700 (MST)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by b03cxnp07028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s050YtH26816108
-	for <linux-mm@kvack.org>; Sun, 5 Jan 2014 01:34:55 +0100
-Received: from d03av02.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s050Z5B8005875
-	for <linux-mm@kvack.org>; Sat, 4 Jan 2014 17:35:05 -0700
-Date: Sun, 5 Jan 2014 08:35:01 +0800
-From: Han Pingtian <hanpt@linux.vnet.ibm.com>
-Subject: Re: [RFC] mm: show message when updating min_free_kbytes in thp
-Message-ID: <20140105003501.GC4106@localhost.localdomain>
-References: <20140101002935.GA15683@localhost.localdomain>
- <52C5AA61.8060701@intel.com>
- <20140103033303.GB4106@localhost.localdomain>
- <52C6FED2.7070700@intel.com>
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Sun, 5 Jan 2014 07:04:09 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 5C4A93940023
+	for <linux-mm@kvack.org>; Sun,  5 Jan 2014 07:04:06 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s051Y3kp45416524
+	for <linux-mm@kvack.org>; Sun, 5 Jan 2014 07:04:03 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s051Y5n7032005
+	for <linux-mm@kvack.org>; Sun, 5 Jan 2014 07:04:05 +0530
+Date: Sun, 5 Jan 2014 09:34:04 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [LSF/MM ATTEND] Memory management
+Message-ID: <52c8b696.641b440a.0b9e.fffff0f5SMTPIN_ADDED_BROKEN@mx.google.com>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <52C6FED2.7070700@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Fri, Jan 03, 2014 at 10:17:54AM -0800, Dave Hansen wrote:
-> On 01/02/2014 07:33 PM, Han Pingtian wrote:
-> > @@ -130,8 +130,11 @@ static int set_recommended_min_free_kbytes(void)
-> >  			      (unsigned long) nr_free_buffer_pages() / 20);
-> >  	recommended_min <<= (PAGE_SHIFT-10);
-> >  
-> > -	if (recommended_min > min_free_kbytes)
-> > +	if (recommended_min > min_free_kbytes) {
-> > +		pr_info("raising min_free_kbytes from %d to %d to help transparent hugepage allocations\n",
-> > +			min_free_kbytes, recommended_min);
-> >  		min_free_kbytes = recommended_min;
-> > +	}
-> >  	setup_per_zone_wmarks();
-> >  	return 0;
-> >  }
-> 
-> I know I gave you that big bloated string, but 108 columns is a _wee_
-> bit over 80. :)
-> 
-> Otherwise, I do like the new message
+Hi,
 
-Thanks. This is the new version:
+I would like to attend LSF/MM summit. I'm interested in discussion of sched/numa, 
+huge pages, memory compression, memory failure, scalability of memory management 
+subsystem.
+
+Last year I did some work to improve zcache support zero-filled pages and 
+fix bugs/regressions of many components in memory subsystem.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
