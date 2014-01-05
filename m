@@ -1,112 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id E389B6B0031
-	for <linux-mm@kvack.org>; Sat,  4 Jan 2014 19:27:18 -0500 (EST)
-Received: by mail-pd0-f182.google.com with SMTP id v10so16854757pde.27
-        for <linux-mm@kvack.org>; Sat, 04 Jan 2014 16:27:18 -0800 (PST)
-Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com. [202.81.31.146])
-        by mx.google.com with ESMTPS id qx4si50090843pbc.255.2014.01.04.16.27.16
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 883AF6B0031
+	for <linux-mm@kvack.org>; Sat,  4 Jan 2014 19:35:10 -0500 (EST)
+Received: by mail-ob0-f178.google.com with SMTP id uz6so17189103obc.9
+        for <linux-mm@kvack.org>; Sat, 04 Jan 2014 16:35:10 -0800 (PST)
+Received: from e31.co.us.ibm.com (e31.co.us.ibm.com. [32.97.110.149])
+        by mx.google.com with ESMTPS id rj3si51807002oeb.55.2014.01.04.16.35.09
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 04 Jan 2014 16:27:17 -0800 (PST)
+        Sat, 04 Jan 2014 16:35:09 -0800 (PST)
 Received: from /spool/local
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sun, 5 Jan 2014 10:27:11 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 90E4D2CE8053
-	for <linux-mm@kvack.org>; Sun,  5 Jan 2014 11:27:07 +1100 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0508Gbd7602662
-	for <linux-mm@kvack.org>; Sun, 5 Jan 2014 11:08:16 +1100
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s050R5vI029837
-	for <linux-mm@kvack.org>; Sun, 5 Jan 2014 11:27:06 +1100
-Date: Sun, 5 Jan 2014 08:27:03 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/mlock: fix BUG_ON unlocked page for nolinear VMAs
-Message-ID: <52c8a6e5.e4df440a.1d7e.ffffe5bfSMTPIN_ADDED_BROKEN@mx.google.com>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <52b1138b.0201430a.19a8.605dSMTPIN_ADDED_BROKEN@mx.google.com>
- <52B11765.8030005@oracle.com>
- <52b120a5.a3b2440a.3acf.ffffd7c3SMTPIN_ADDED_BROKEN@mx.google.com>
- <52B166CF.6080300@suse.cz>
- <52b1699f.87293c0a.75d1.34d3SMTPIN_ADDED_BROKEN@mx.google.com>
- <20131218134316.977d5049209d9278e1dad225@linux-foundation.org>
- <52C71ACC.20603@oracle.com>
- <CA+55aFzDcFyyXwUUu5bLP3fsiuzxU7VPivpTPHgp8smvdTeESg@mail.gmail.com>
- <52C74972.6050909@suse.cz>
- <CA+55aFzq1iQqddGo-m=vutwMYn5CPf65Ergov5svKR4AWC3rUQ@mail.gmail.com>
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <hanpt@linux.vnet.ibm.com>;
+	Sat, 4 Jan 2014 17:35:08 -0700
+Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id DD3933E4003E
+	for <linux-mm@kvack.org>; Sat,  4 Jan 2014 17:35:05 -0700 (MST)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by b03cxnp07028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s050YtH26816108
+	for <linux-mm@kvack.org>; Sun, 5 Jan 2014 01:34:55 +0100
+Received: from d03av02.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s050Z5B8005875
+	for <linux-mm@kvack.org>; Sat, 4 Jan 2014 17:35:05 -0700
+Date: Sun, 5 Jan 2014 08:35:01 +0800
+From: Han Pingtian <hanpt@linux.vnet.ibm.com>
+Subject: Re: [RFC] mm: show message when updating min_free_kbytes in thp
+Message-ID: <20140105003501.GC4106@localhost.localdomain>
+References: <20140101002935.GA15683@localhost.localdomain>
+ <52C5AA61.8060701@intel.com>
+ <20140103033303.GB4106@localhost.localdomain>
+ <52C6FED2.7070700@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFzq1iQqddGo-m=vutwMYn5CPf65Ergov5svKR4AWC3rUQ@mail.gmail.com>
+In-Reply-To: <52C6FED2.7070700@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Michel Lespinasse <walken@google.com>, Bob Liu <bob.liu@oracle.com>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
 
-Hi Andrew, Vlastimil 
-On Fri, Jan 03, 2014 at 04:18:05PM -0800, Linus Torvalds wrote:
->On Fri, Jan 3, 2014 at 3:36 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
->>
->> I'm for going with the removal of BUG_ON. The TestSetPageMlocked should provide enough
->> race protection.
->
->Maybe. But dammit, that's subtle, and I don't think you're even right.
->
->It basically depends on mlock_vma_page() and munlock_vma_page() being
->able to run CONCURRENTLY on the same page. In particular, you could
->have a mlock_vma_page() set the bit on one CPU, and munlock_vma_page()
->immediately clearing it on another, and then the rest of those
->functions could run with a totally arbitrary interleaving when working
->with the exact same page.
->
->They both do basically
->
->    if (!isolate_lru_page(page))
->        putback_lru_page(page);
->
->but one or the other would randomly win the race (it's internally
->protected by the lru lock), and *if* the munlock_vma_page() wins it,
->it would also do
->
->    try_to_munlock(page);
->
->but if mlock_vma_page() wins it, that wouldn't happen. That looks
->entirely broken - you end up with the PageMlocked bit clear, but
->try_to_munlock() was never called on that page, because
->mlock_vma_page() got to the page isolation before the "subsequent"
->munlock_vma_page().
->
->And this is very much what the page lock serialization would prevent.
->So no, the PageMlocked in *no* way gives serialization. It's an atomic
->bit op, yes, but that only "serializes" in one direction, not when you
->can have a mix of bit setting and clearing.
->
->So quite frankly, I think you're wrong. The BUG_ON() is correct, or at
->least enforces some kind of ordering. And try_to_unmap_cluster() is
->just broken in calling that without the page being locked. That's my
->opinion. There may be some *other* reason why it all happens to work,
->but no, "TestSetPageMlocked should provide enough race protection" is
->simply not true, and even if it were, it's way too subtle and odd to
->be a good rule.
->
->So I really object to just removing the BUG_ON(). Not with a *lot*
->more explanation as to why these kinds of issues wouldn't matter.
+On Fri, Jan 03, 2014 at 10:17:54AM -0800, Dave Hansen wrote:
+> On 01/02/2014 07:33 PM, Han Pingtian wrote:
+> > @@ -130,8 +130,11 @@ static int set_recommended_min_free_kbytes(void)
+> >  			      (unsigned long) nr_free_buffer_pages() / 20);
+> >  	recommended_min <<= (PAGE_SHIFT-10);
+> >  
+> > -	if (recommended_min > min_free_kbytes)
+> > +	if (recommended_min > min_free_kbytes) {
+> > +		pr_info("raising min_free_kbytes from %d to %d to help transparent hugepage allocations\n",
+> > +			min_free_kbytes, recommended_min);
+> >  		min_free_kbytes = recommended_min;
+> > +	}
+> >  	setup_per_zone_wmarks();
+> >  	return 0;
+> >  }
+> 
+> I know I gave you that big bloated string, but 108 columns is a _wee_
+> bit over 80. :)
+> 
+> Otherwise, I do like the new message
 
-Any better idea to improve my patch which in the "lock the page around
-calling it" direction. ;-)
-http://marc.info/?l=linux-mm&m=138733994417230&w=2
-
-Regards,
-Wanpeng Li 
-
->
->                 Linus
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thanks. This is the new version:
