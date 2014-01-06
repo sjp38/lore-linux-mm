@@ -1,84 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id DCC376B0031
-	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 15:43:05 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id p10so18452130pdj.26
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 12:43:05 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id nu8si11431738pbb.72.2014.01.06.12.43.00
-        for <linux-mm@kvack.org>;
-        Mon, 06 Jan 2014 12:43:01 -0800 (PST)
-Subject: [PATCH] mm: slub: fix ALLOC_SLOWPATH stat
-From: Dave Hansen <dave@sr71.net>
-Date: Mon, 06 Jan 2014 12:43:00 -0800
-Message-Id: <20140106204300.DE79BA86@viggo.jf.intel.com>
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E98A6B0035
+	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 17:01:30 -0500 (EST)
+Received: by mail-qc0-f172.google.com with SMTP id e16so18277830qcx.3
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 14:01:29 -0800 (PST)
+Received: from mail-oa0-x236.google.com (mail-oa0-x236.google.com [2607:f8b0:4003:c02::236])
+        by mx.google.com with ESMTPS id r6si73169783qaj.127.2014.01.06.14.01.27
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 06 Jan 2014 14:01:28 -0800 (PST)
+Received: by mail-oa0-f54.google.com with SMTP id o6so2899930oag.13
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 14:01:27 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <6B2BA408B38BA1478B473C31C3D2074E2BF812BC82@SV-EXCHANGE1.Corp.FC.LOCAL>
+References: <1387267550-8689-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <52b1138b.0201430a.19a8.605dSMTPIN_ADDED_BROKEN@mx.google.com>
+ <52B11765.8030005@oracle.com> <52b120a5.a3b2440a.3acf.ffffd7c3SMTPIN_ADDED_BROKEN@mx.google.com>
+ <52B166CF.6080300@suse.cz> <52b1699f.87293c0a.75d1.34d3SMTPIN_ADDED_BROKEN@mx.google.com>
+ <20131218134316.977d5049209d9278e1dad225@linux-foundation.org>
+ <52C71ACC.20603@oracle.com> <CA+55aFzDcFyyXwUUu5bLP3fsiuzxU7VPivpTPHgp8smvdTeESg@mail.gmail.com>
+ <52C74972.6050909@suse.cz> <CA+55aFzq1iQqddGo-m=vutwMYn5CPf65Ergov5svKR4AWC3rUQ@mail.gmail.com>
+ <6B2BA408B38BA1478B473C31C3D2074E2BF812BC82@SV-EXCHANGE1.Corp.FC.LOCAL>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Mon, 6 Jan 2014 17:01:07 -0500
+Message-ID: <CAHGf_=rf7HGD-TBZQQZCCv8iQLC9NN9pbcZ6Mx1Z-LdwrEUsJw@mail.gmail.com>
+Subject: Re: [PATCH] mm/mlock: fix BUG_ON unlocked page for nolinear VMAs
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, cl@linux-foundation.org, akpm@linux-foundation.org, penberg@kernel.org, Dave Hansen <dave@sr71.net>
+To: Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Michel Lespinasse <walken@google.com>, Bob Liu <bob.liu@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
+On Mon, Jan 6, 2014 at 11:47 AM, Motohiro Kosaki
+<Motohiro.Kosaki@us.fujitsu.com> wrote:
+>
+>
+>> -----Original Message-----
+>> From: linus971@gmail.com [mailto:linus971@gmail.com] On Behalf Of Linus
+>> Torvalds
+>> Sent: Friday, January 03, 2014 7:18 PM
+>> To: Vlastimil Babka
+>> Cc: Sasha Levin; Andrew Morton; Wanpeng Li; Michel Lespinasse; Bob Liu;
+>> Nick Piggin; Motohiro Kosaki JP; Rik van Riel; David Rientjes; Mel Gorman;
+>> Minchan Kim; Hugh Dickins; Johannes Weiner; linux-mm; Linux Kernel Mailing
+>> List
+>> Subject: Re: [PATCH] mm/mlock: fix BUG_ON unlocked page for nolinear
+>> VMAs
+>>
+>> On Fri, Jan 3, 2014 at 3:36 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>> >
+>> > I'm for going with the removal of BUG_ON. The TestSetPageMlocked
+>> > should provide enough race protection.
+>>
+>> Maybe. But dammit, that's subtle, and I don't think you're even right.
+>>
+>> It basically depends on mlock_vma_page() and munlock_vma_page() being
+>> able to run CONCURRENTLY on the same page. In particular, you could have a
+>> mlock_vma_page() set the bit on one CPU, and munlock_vma_page()
+>> immediately clearing it on another, and then the rest of those functions
+>> could run with a totally arbitrary interleaving when working with the exact
+>> same page.
+>>
+>> They both do basically
+>>
+>>     if (!isolate_lru_page(page))
+>>         putback_lru_page(page);
+>>
+>> but one or the other would randomly win the race (it's internally protected
+>> by the lru lock), and *if* the munlock_vma_page() wins it, it would also do
+>>
+>>     try_to_munlock(page);
+>>
+>> but if mlock_vma_page() wins it, that wouldn't happen. That looks entirely
+>> broken - you end up with the PageMlocked bit clear, but
+>> try_to_munlock() was never called on that page, because
+>> mlock_vma_page() got to the page isolation before the "subsequent"
+>> munlock_vma_page().
+>>
+>> And this is very much what the page lock serialization would prevent.
+>> So no, the PageMlocked in *no* way gives serialization. It's an atomic bit op,
+>> yes, but that only "serializes" in one direction, not when you can have a mix
+>> of bit setting and clearing.
+>>
+>> So quite frankly, I think you're wrong. The BUG_ON() is correct, or at least
+>> enforces some kind of ordering. And try_to_unmap_cluster() is just broken
+>> in calling that without the page being locked. That's my opinion. There may
+>> be some *other* reason why it all happens to work, but no,
+>> "TestSetPageMlocked should provide enough race protection" is simply not
+>> true, and even if it were, it's way too subtle and odd to be a good rule.
+>>
+>> So I really object to just removing the BUG_ON(). Not with a *lot* more
+>> explanation as to why these kinds of issues wouldn't matter.
+>
+> I don't have a perfect answer. But I can explain a bit history. Let's me try.
+>
+> First off, 5 years ago, Lee's original putback_lru_page() implementation required
+> page-lock, but I removed the restriction months later. That's why we can see
+> strange BUG_ON here.
+>
+> 5 years ago, both mlock(2) and munlock(2) called do_mlock() and it was protected  by
+> mmap_sem (write mdoe). Then, mlock and munlock had no race.
+> Now, __mm_populate() (called by mlock(2)) is only protected by mmap_sem read-mode. However it is enough to
+> protect against munlock.
+>
+> Next, In case of mlock vs reclaim, the key is that mlock(2) has two step operation. 1) turn on VM_LOCKED under
+> mmap_sem write-mode, 2) turn on Page_Mlocked under mmap_sem read-mode. If reclaim race against step (1),
+> reclaim must lose because it uses trylock. On the other hand, if reclaim race against step (2), reclaim must detect
+> VM_LOCKED because both VM_LOCKED modifier and observer take mmap-sem.
+>
+> By the way, page isolation is still necessary because we need to protect another page modification like page migration.
+>
+>
+> My memory was alomostly flushed and I might lost some technical concern and past discussion. Please point me out,
+> If I am overlooking something.
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
-
-There used to be only one path out of __slab_alloc(), and
-ALLOC_SLOWPATH got bumped in that exit path.  Now there are two,
-and a bunch of gotos.  ALLOC_SLOWPATH can now get set more than once
-during a single call to __slab_alloc() which is pretty bogus.
-Here's the sequence:
-
-1. Enter __slab_alloc(), fall through all the way to the
-   stat(s, ALLOC_SLOWPATH);
-2. hit 'if (!freelist)', and bump DEACTIVATE_BYPASS, jump to
-   new_slab (goto #1)
-3. Hit 'if (c->partial)', bump CPU_PARTIAL_ALLOC, goto redo
-   (goto #2)
-4. Fall through in the same path we did before all the way to
-   stat(s, ALLOC_SLOWPATH)
-5. bump ALLOC_REFILL stat, then return
-
-Doing this is obviously bogus.  It keeps us from being able to
-accurately compare ALLOC_SLOWPATH vs. ALLOC_FASTPATH.  It also
-means that the total number of allocs always exceeds the total
-number of frees.
-
-This patch moves stat(s, ALLOC_SLOWPATH) to be called from the
-same place that __slab_alloc() is.  This makes it much less
-likely that ALLOC_SLOWPATH will get botched again in the
-spaghetti-code inside __slab_alloc().
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
----
-
- linux.git-davehans/mm/slub.c |    8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
-
-diff -puN mm/slub.c~slub-ALLOC_SLOWPATH-stat mm/slub.c
---- linux.git/mm/slub.c~slub-ALLOC_SLOWPATH-stat	2014-01-06 12:39:28.148072544 -0800
-+++ linux.git-davehans/mm/slub.c	2014-01-06 12:39:28.155072860 -0800
-@@ -2301,8 +2301,6 @@ redo:
- 	if (freelist)
- 		goto load_freelist;
- 
--	stat(s, ALLOC_SLOWPATH);
--
- 	freelist = get_freelist(s, page);
- 
- 	if (!freelist) {
-@@ -2409,10 +2407,10 @@ redo:
- 
- 	object = c->freelist;
- 	page = c->page;
--	if (unlikely(!object || !node_match(page, node)))
-+	if (unlikely(!object || !node_match(page, node))) {
- 		object = __slab_alloc(s, gfpflags, node, addr, c);
--
--	else {
-+		stat(s, ALLOC_SLOWPATH);
-+	} else {
- 		void *next_object = get_freepointer_safe(s, object);
- 
- 		/*
-_
+No. I did talk about completely different issue. My memory is
+completely broken as I said. I need to read latest code and dig past
+discussion. Sorry again, please ignore my last mail.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
