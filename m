@@ -1,48 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DD9D6B0031
-	for <linux-mm@kvack.org>; Sat,  4 Jan 2014 20:34:16 -0500 (EST)
-Received: by mail-pb0-f46.google.com with SMTP id md12so16901803pbc.5
-        for <linux-mm@kvack.org>; Sat, 04 Jan 2014 17:34:15 -0800 (PST)
-Received: from e28smtp01.in.ibm.com (e28smtp01.in.ibm.com. [122.248.162.1])
-        by mx.google.com with ESMTPS id s4si17613417pbg.153.2014.01.04.17.34.12
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 04 Jan 2014 17:34:14 -0800 (PST)
-Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sun, 5 Jan 2014 07:04:09 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 5C4A93940023
-	for <linux-mm@kvack.org>; Sun,  5 Jan 2014 07:04:06 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s051Y3kp45416524
-	for <linux-mm@kvack.org>; Sun, 5 Jan 2014 07:04:03 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s051Y5n7032005
-	for <linux-mm@kvack.org>; Sun, 5 Jan 2014 07:04:05 +0530
-Date: Sun, 5 Jan 2014 09:34:04 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [LSF/MM ATTEND] Memory management
-Message-ID: <52c8b696.641b440a.0b9e.fffff0f5SMTPIN_ADDED_BROKEN@mx.google.com>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B9236B0031
+	for <linux-mm@kvack.org>; Sun,  5 Jan 2014 19:12:32 -0500 (EST)
+Received: by mail-pb0-f42.google.com with SMTP id uo5so17945021pbc.1
+        for <linux-mm@kvack.org>; Sun, 05 Jan 2014 16:12:31 -0800 (PST)
+Received: from LGEMRELSE6Q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id ll1si34697635pab.318.2014.01.05.16.12.29
+        for <linux-mm@kvack.org>;
+        Sun, 05 Jan 2014 16:12:30 -0800 (PST)
+Date: Mon, 6 Jan 2014 09:12:37 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v3 03/14] mm, hugetlb: protect region tracking via newly
+ introduced resv_map lock
+Message-ID: <20140106001237.GA696@lge.com>
+References: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1387349640-8071-4-git-send-email-iamjoonsoo.kim@lge.com>
+ <20131221135819.GB12407@voom.fritz.box>
+ <20131223010517.GB19388@lge.com>
+ <20131224120012.GH12407@voom.fritz.box>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20131224120012.GH12407@voom.fritz.box>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: David Gibson <david@gibson.dropbear.id.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
-Hi,
+On Tue, Dec 24, 2013 at 11:00:12PM +1100, David Gibson wrote:
+> On Mon, Dec 23, 2013 at 10:05:17AM +0900, Joonsoo Kim wrote:
+> > On Sun, Dec 22, 2013 at 12:58:19AM +1100, David Gibson wrote:
+> > > On Wed, Dec 18, 2013 at 03:53:49PM +0900, Joonsoo Kim wrote:
+> > > > There is a race condition if we map a same file on different processes.
+> > > > Region tracking is protected by mmap_sem and hugetlb_instantiation_mutex.
+> > > > When we do mmap, we don't grab a hugetlb_instantiation_mutex, but,
+> > > > grab a mmap_sem. This doesn't prevent other process to modify region
+> > > > structure, so it can be modified by two processes concurrently.
+> > > > 
+> > > > To solve this, I introduce a lock to resv_map and make region manipulation
+> > > > function grab a lock before they do actual work. This makes region
+> > > > tracking safe.
+> > > 
+> > > It's not clear to me if you're saying there is a list corruption race
+> > > bug in the existing code, or only that there will be if the
+> > > instantiation mutex goes away.
+> > 
+> > Hello,
+> > 
+> > The race exists in current code.
+> > Currently, region tracking is protected by either down_write(&mm->mmap_sem) or
+> > down_read(&mm->mmap_sem) + instantiation mutex. But if we map this hugetlbfs
+> > file to two different processes, holding a mmap_sem doesn't have any impact on
+> > the other process and concurrent access to data structure is possible.
+> 
+> Ouch.  In that case:
+> 
+> Acked-by: David Gibson <david@gibson.dropbear.id.au>
+> 
+> It would be really nice to add a testcase for this race to the
+> libhugetlbfs testsuite.
 
-I would like to attend LSF/MM summit. I'm interested in discussion of sched/numa, 
-huge pages, memory compression, memory failure, scalability of memory management 
-subsystem.
+Okay!
+I will add it.
 
-Last year I did some work to improve zcache support zero-filled pages and 
-fix bugs/regressions of many components in memory subsystem.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
