@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 5967C6B003B
-	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 03:45:35 -0500 (EST)
-Received: by mail-lb0-f175.google.com with SMTP id w6so9655076lbh.34
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 00:45:34 -0800 (PST)
+Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 917106B003C
+	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 03:45:36 -0500 (EST)
+Received: by mail-lb0-f173.google.com with SMTP id z5so9597693lbh.4
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 00:45:35 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id rc10si35757242lbb.89.2014.01.06.00.45.34
+        by mx.google.com with ESMTPS id w6si35727005lag.148.2014.01.06.00.45.34
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 06 Jan 2014 00:45:34 -0800 (PST)
+        Mon, 06 Jan 2014 00:45:35 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH RESEND 05/11] memcg: fix possible NULL deref while traversing memcg_slab_caches list
-Date: Mon, 6 Jan 2014 12:44:56 +0400
-Message-ID: <a50a6ead66e13ff257441a6d01e60185b4f9c1fe.1388996525.git.vdavydov@parallels.com>
+Subject: [PATCH RESEND 09/11] memcg, slab: RCU protect memcg_params for root caches
+Date: Mon, 6 Jan 2014 12:45:00 +0400
+Message-ID: <f85f01e8ea27bb81694bd99cf35230b92d0a6fa9.1388996525.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1388996525.git.vdavydov@parallels.com>
 References: <cover.1388996525.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -20,20 +20,14 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mhocko@suse.cz, akpm@linux-foundation.org
-Cc: glommer@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: glommer@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
 
-All caches of the same memory cgroup are linked in the memcg_slab_caches
-list via kmem_cache::memcg_params::list. This list is traversed, for
-example, when we read memory.kmem.slabinfo. Since the list actually
-consists of memcg_cache_params objects, we have to convert an element of
-the list to a kmem_cache object using memcg_params_to_cache(), which
-obtains the pointer to the cache from the memcg_params::memcg_caches
-array of the corresponding root cache. That said the pointer to a
-kmem_cache in its parent's memcg_params must be initialized before
-adding the cache to the list, and cleared only after it has been
-unlinked. Currently it is vice-versa, which can result in a NULL ptr
-dereference while traversing the memcg_slab_caches list. This patch
-restores the correct order.
+We relocate root cache's memcg_params whenever we need to grow the
+memcg_caches array to accommodate all kmem-active memory cgroups.
+Currently on relocation we free the old version immediately, which can
+lead to use-after-free, because the memcg_caches array is accessed
+lock-free (see cache_from_memcg_idx()). This patch fixes this by making
+memcg_params RCU-protected for root caches.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 Cc: Michal Hocko <mhocko@suse.cz>
@@ -41,68 +35,123 @@ Cc: Glauber Costa <glommer@gmail.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Balbir Singh <bsingharora@gmail.com>
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- mm/memcontrol.c |   25 ++++++++++++++++++-------
- 1 file changed, 18 insertions(+), 7 deletions(-)
+ include/linux/slab.h |    9 +++++++--
+ mm/memcontrol.c      |   15 ++++++++-------
+ mm/slab.h            |   16 +++++++++++++++-
+ 3 files changed, 30 insertions(+), 10 deletions(-)
 
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 1e2f4fe..a060142 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -513,7 +513,9 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+  *
+  * Both the root cache and the child caches will have it. For the root cache,
+  * this will hold a dynamically allocated array large enough to hold
+- * information about the currently limited memcgs in the system.
++ * information about the currently limited memcgs in the system. To allow the
++ * array to be accessed without taking any locks, on relocation we free the old
++ * version only after a grace period.
+  *
+  * Child caches will hold extra metadata needed for its operation. Fields are:
+  *
+@@ -528,7 +530,10 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+ struct memcg_cache_params {
+ 	bool is_root_cache;
+ 	union {
+-		struct kmem_cache *memcg_caches[0];
++		struct {
++			struct rcu_head rcu_head;
++			struct kmem_cache *memcg_caches[0];
++		};
+ 		struct {
+ 			struct mem_cgroup *memcg;
+ 			struct list_head list;
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 999e7d4..d918626 100644
+index ce25f77..a7521c3 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -3234,9 +3234,6 @@ void memcg_register_cache(struct kmem_cache *s)
+@@ -3142,18 +3142,17 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
  
- 	css_get(&memcg->css);
+ 	if (num_groups > memcg_limited_groups_array_size) {
+ 		int i;
++		struct memcg_cache_params *new_params;
+ 		ssize_t size = memcg_caches_array_size(num_groups);
  
--	mutex_lock(&memcg->slab_caches_mutex);
--	list_add(&s->memcg_params->list, &memcg->memcg_slab_caches);
--	mutex_unlock(&memcg->slab_caches_mutex);
+ 		size *= sizeof(void *);
+ 		size += offsetof(struct memcg_cache_params, memcg_caches);
+ 
+-		s->memcg_params = kzalloc(size, GFP_KERNEL);
+-		if (!s->memcg_params) {
+-			s->memcg_params = cur_params;
++		new_params = kzalloc(size, GFP_KERNEL);
++		if (!new_params)
+ 			return -ENOMEM;
+-		}
+ 
+-		s->memcg_params->is_root_cache = true;
++		new_params->is_root_cache = true;
+ 
+ 		/*
+ 		 * There is the chance it will be bigger than
+@@ -3167,7 +3166,7 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
+ 		for (i = 0; i < memcg_limited_groups_array_size; i++) {
+ 			if (!cur_params->memcg_caches[i])
+ 				continue;
+-			s->memcg_params->memcg_caches[i] =
++			new_params->memcg_caches[i] =
+ 						cur_params->memcg_caches[i];
+ 		}
+ 
+@@ -3180,7 +3179,9 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
+ 		 * bigger than the others. And all updates will reset this
+ 		 * anyway.
+ 		 */
+-		kfree(cur_params);
++		rcu_assign_pointer(s->memcg_params, new_params);
++		if (cur_params)
++			kfree_rcu(cur_params, rcu_head);
+ 	}
+ 	return 0;
+ }
+diff --git a/mm/slab.h b/mm/slab.h
+index 72d1f9d..8184a7c 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -160,14 +160,28 @@ static inline const char *cache_name(struct kmem_cache *s)
+ 	return s->name;
+ }
+ 
++/*
++ * Note, we protect with RCU only the memcg_caches array, not per-memcg caches.
++ * That said the caller must assure the memcg's cache won't go away. Since once
++ * created a memcg's cache is destroyed only along with the root cache, it is
++ * true if we are going to allocate from the cache or hold a reference to the
++ * root cache by other means. Otherwise, we should hold either the slab_mutex
++ * or the memcg's slab_caches_mutex while calling this function and accessing
++ * the returned value.
++ */
+ static inline struct kmem_cache *
+ cache_from_memcg_idx(struct kmem_cache *s, int idx)
+ {
+ 	struct kmem_cache *cachep;
++	struct memcg_cache_params *params;
+ 
+ 	if (!s->memcg_params)
+ 		return NULL;
+-	cachep = s->memcg_params->memcg_caches[idx];
++
++	rcu_read_lock();
++	params = rcu_dereference(s->memcg_params);
++	cachep = params->memcg_caches[idx];
++	rcu_read_unlock();
  
  	/*
- 	 * Since readers won't lock (see cache_from_memcg_idx()), we need a
-@@ -3245,7 +3242,16 @@ void memcg_register_cache(struct kmem_cache *s)
- 	 */
- 	smp_wmb();
- 
-+	/*
-+	 * Initialize the pointer to this cache in its parent's memcg_params
-+	 * before adding it to the memcg_slab_caches list, otherwise we can
-+	 * fail to convert memcg_params_to_cache() while traversing the list.
-+	 */
- 	root->memcg_params->memcg_caches[id] = s;
-+
-+	mutex_lock(&memcg->slab_caches_mutex);
-+	list_add(&s->memcg_params->list, &memcg->memcg_slab_caches);
-+	mutex_unlock(&memcg->slab_caches_mutex);
- }
- 
- void memcg_unregister_cache(struct kmem_cache *s)
-@@ -3257,16 +3263,21 @@ void memcg_unregister_cache(struct kmem_cache *s)
- 	if (is_root_cache(s))
- 		return;
- 
--	memcg = s->memcg_params->memcg;
--	id  = memcg_cache_id(memcg);
--
- 	root = s->memcg_params->root_cache;
--	root->memcg_params->memcg_caches[id] = NULL;
-+	memcg = s->memcg_params->memcg;
-+	id = memcg_cache_id(memcg);
- 
- 	mutex_lock(&memcg->slab_caches_mutex);
- 	list_del(&s->memcg_params->list);
- 	mutex_unlock(&memcg->slab_caches_mutex);
- 
-+	/*
-+	 * Clear the pointer to this cache in its parent's memcg_params only
-+	 * after removing it from the memcg_slab_caches list, otherwise we can
-+	 * fail to convert memcg_params_to_cache() while traversing the list.
-+	 */
-+	root->memcg_params->memcg_caches[id] = NULL;
-+
- 	css_put(&memcg->css);
- }
- 
+ 	 * Make sure we will access the up-to-date value. The code updating
 -- 
 1.7.10.4
 
