@@ -1,104 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 762466B0031
-	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 04:34:07 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id fa1so18481132pad.3
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 01:34:07 -0800 (PST)
-Received: from eusmtp01.atmel.com (eusmtp01.atmel.com. [212.144.249.242])
-        by mx.google.com with ESMTPS id qx4si54246423pbc.45.2014.01.06.01.34.04
+Received: from mail-qe0-f45.google.com (mail-qe0-f45.google.com [209.85.128.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 90ED46B0031
+	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 05:04:40 -0500 (EST)
+Received: by mail-qe0-f45.google.com with SMTP id 6so18208263qea.32
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 02:04:40 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id o8si71089798qey.5.2014.01.06.02.04.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 06 Jan 2014 01:34:05 -0800 (PST)
-Date: Mon, 6 Jan 2014 10:34:09 +0100
-From: Ludovic Desroches <ludovic.desroches@atmel.com>
-Subject: Re: possible regression on 3.13 when calling flush_dcache_page
-Message-ID: <20140106093408.GA2816@ldesroches-Latitude-E6320>
-References: <20131212143149.GI12099@ldesroches-Latitude-E6320>
- <20131212143618.GJ12099@ldesroches-Latitude-E6320>
- <20131213015909.GA8845@lge.com>
- <20131216144343.GD9627@ldesroches-Latitude-E6320>
- <20131218072117.GA2383@lge.com>
- <20131220080851.GC16592@ldesroches-Latitude-E6320>
- <20131223224435.GD16592@ldesroches-Latitude-E6320>
- <20131224063837.GA27156@lge.com>
- <20140103145404.GC18002@ldesroches-Latitude-E6320>
- <20140106002648.GC696@lge.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Jan 2014 02:04:34 -0800 (PST)
+Date: Mon, 6 Jan 2014 11:04:08 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC 1/2] mm: additional page lock debugging
+Message-ID: <20140106100408.GC31570@twins.programming.kicks-ass.net>
+References: <1388281504-11453-1-git-send-email-sasha.levin@oracle.com>
+ <20131230114317.GA8117@node.dhcp.inet.fi>
+ <52C1A06B.4070605@oracle.com>
+ <20131230224808.GA11674@node.dhcp.inet.fi>
+ <52C2385A.8020608@oracle.com>
+ <20131231162636.GD16438@laptop.programming.kicks-ass.net>
+ <52C2F3DC.2020106@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140106002648.GC696@lge.com>
+In-Reply-To: <52C2F3DC.2020106@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-mmc@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Ludovic Desroches <ludovic.desroches@atmel.com>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, akpm@linux-foundation.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>
 
-On Mon, Jan 06, 2014 at 09:26:48AM +0900, Joonsoo Kim wrote:
-> On Fri, Jan 03, 2014 at 03:54:04PM +0100, Ludovic Desroches wrote:
-> > Hi,
-> > 
-> > On Tue, Dec 24, 2013 at 03:38:37PM +0900, Joonsoo Kim wrote:
-> > 
-> > [...]
-> > 
-> > > > > > > > I think that this commit may not introduce a bug. This patch remove one
-> > > > > > > > variable on slab management structure and replace variable name. So there
-> > > > > > > > is no functional change.
-> > 
-> > You are right, the commit given by git bisect was not the good one...
-> > Since I removed other patches done on top of it, I thought it really was
-> > this one but in fact it is 8456a64.
+On Tue, Dec 31, 2013 at 11:42:04AM -0500, Sasha Levin wrote:
+> On 12/31/2013 11:26 AM, Peter Zijlstra wrote:
+> >On Mon, Dec 30, 2013 at 10:22:02PM -0500, Sasha Levin wrote:
+> >
+> >>I really want to use lockdep here, but I'm not really sure how to handle locks which live
+> >>for a rather long while instead of being locked and unlocked in the same function like
+> >>most of the rest of the kernel. (Cc Ingo, PeterZ).
+> >
+> >Uh what? Lockdep doesn't care about which function locks and unlocks a
+> >particular lock. Nor does it care how long its held for.
 > 
-> Okay. It seems more reasonable to me.
-> I guess that this is the same issue with following link.
-> http://lkml.org/lkml/2014/1/4/81
+> Sorry, I messed up trying to explain that.
 > 
-> And, perhaps, that patch solves your problem. But I'm not sure that it is the
-> best solution for this problem. I should discuss with slab maintainers.
+> There are several places in the code which lock a large amount of pages, something like:
+> 
+> 	for (i = 0; i < (1 << order); i++)
+> 		lock_page(&pages[i]);
+> 
+> 
+> This triggers two problems:
+> 
+>  - lockdep complains about deadlock since we try to lock another page while one is already
+> locked. I can clear that by allowing page locks to nest within each other, but that seems
+> wrong and we'll miss actual deadlock cases.
 
-Yes this patch solves my problem.
+Right,.. I think we can cobble something together like requiring we
+always lock pages in pfn order or somesuch.
 
-> 
-> I will think about this problem more deeply and report the solution to you
-> as soon as possible.
+>  - We may leave back to userspace with pages still locked. This is valid behaviour but lockdep
+> doesn't like that.
 
-Ok thanks.
+Where do we actually do this? BTW its not only lockdep not liking that,
+Linus was actually a big fan of that check.
 
-> 
-> Thanks.
-> 
-> > 
-> >  dd0f774  Fri Jan 3 12:33:55 2014 +0100  Revert "slab: remove useless
-> > statement for checking pfmemalloc"  Ludovic Desroches 
-> >  ff7487d  Fri Jan 3 12:32:33 2014 +0100  Revert "slab: rename
-> > slab_bufctl to slab_freelist"  Ludovic Desroches 
-> >  b963564  Fri Jan 3 12:32:13 2014 +0100  Revert "slab: fix to calm down
-> > kmemleak warning"  Ludovic Desroches 
-> >  3fcfe50  Fri Jan 3 12:30:32 2014 +0100  Revert "slab: replace
-> > non-existing 'struct freelist *' with 'void *'"  Ludovic Desroches 
-> >  750a795  Fri Jan 3 12:30:16 2014 +0100  Revert "memcg, kmem: rename
-> > cache_from_memcg to cache_from_memcg_idx"  Ludovic Desroches 
-> >  7e2de8a  Fri Jan 3 12:30:10 2014 +0100  mmc: atmel-mci: disable pdc
-> > Ludovic Desroches
-> > 
-> > In this case I have the kernel oops. If I revert 8456a64 too, it
-> > disappears.
-> > 
-> > I will try to test it on other devices because I couldn't reproduce it
-> > with newer ones (but it's not the same ARM architecture so I would like
-> > to see if it's also related to the device itself).
-> > 
-> > In attachment, there are the results of /proc/slabinfo before inserted the
-> > sdio wifi module causing the oops.
-> > 
-> > Regards
-> > 
-> > Ludovic
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+ISTR there being some filesystem freezer issues with that too, where the
+freeze ioctl would return to userspace with 'locks' held and that's
+cobbled around (or maybe gone by now -- who knows).
+
+My initial guess would be that this is AIO/DIO again, those two seem to
+be responsible for the majority of ugly around there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
