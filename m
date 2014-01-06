@@ -1,157 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 83FD86B0031
-	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 07:19:17 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id lf10so18628506pab.28
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 04:19:17 -0800 (PST)
-Received: from g1t0027.austin.hp.com (g1t0027.austin.hp.com. [15.216.28.34])
-        by mx.google.com with ESMTPS id yy4si40486000pbc.339.2014.01.06.04.19.15
+Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D2A56B0031
+	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 07:45:56 -0500 (EST)
+Received: by mail-qa0-f54.google.com with SMTP id f11so2899841qae.13
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 04:45:55 -0800 (PST)
+Received: from mail-vb0-x231.google.com (mail-vb0-x231.google.com [2607:f8b0:400c:c02::231])
+        by mx.google.com with ESMTPS id r5si71477187qat.112.2014.01.06.04.45.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 06 Jan 2014 04:19:16 -0800 (PST)
-Message-ID: <1389010745.14953.5.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH v3 13/14] mm, hugetlb: retry if failed to allocate and
- there is concurrent user
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Mon, 06 Jan 2014 04:19:05 -0800
-In-Reply-To: <20140106001938.GB696@lge.com>
-References: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
-	 <1387349640-8071-14-git-send-email-iamjoonsoo.kim@lge.com>
-	 <20131219170202.0df2d82a2adefa3ab616bdaa@linux-foundation.org>
-	 <20131220140153.GC11295@suse.de>
-	 <1387608497.3119.17.camel@buesod1.americas.hpqcorp.net>
-	 <20131223004438.GA19388@lge.com> <20131223021118.GA2487@lge.com>
-	 <1388778945.2956.20.camel@buesod1.americas.hpqcorp.net>
-	 <20140106001938.GB696@lge.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 06 Jan 2014 04:45:55 -0800 (PST)
+Received: by mail-vb0-f49.google.com with SMTP id x11so8670283vbb.8
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 04:45:54 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20140106112422.GA27602@dhcp22.suse.cz>
+References: <20140106112422.GA27602@dhcp22.suse.cz>
+Date: Mon, 6 Jan 2014 20:45:54 +0800
+Message-ID: <CAA_GA1dNdrG9aQ3UKDA0O=BY721rvseORVkc2+RxUpzysp3rYw@mail.gmail.com>
+Subject: Re: could you clarify mm/mempolicy: fix !vma in new_vma_page()
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh
- Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, aswin@hp.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bob Liu <bob.liu@oracle.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 2014-01-06 at 09:19 +0900, Joonsoo Kim wrote:
-> On Fri, Jan 03, 2014 at 11:55:45AM -0800, Davidlohr Bueso wrote:
-> > Hi Joonsoo,
-> > 
-> > Sorry about the delay...
-> > 
-> > On Mon, 2013-12-23 at 11:11 +0900, Joonsoo Kim wrote:
-> > > On Mon, Dec 23, 2013 at 09:44:38AM +0900, Joonsoo Kim wrote:
-> > > > On Fri, Dec 20, 2013 at 10:48:17PM -0800, Davidlohr Bueso wrote:
-> > > > > On Fri, 2013-12-20 at 14:01 +0000, Mel Gorman wrote:
-> > > > > > On Thu, Dec 19, 2013 at 05:02:02PM -0800, Andrew Morton wrote:
-> > > > > > > On Wed, 18 Dec 2013 15:53:59 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> > > > > > > 
-> > > > > > > > If parallel fault occur, we can fail to allocate a hugepage,
-> > > > > > > > because many threads dequeue a hugepage to handle a fault of same address.
-> > > > > > > > This makes reserved pool shortage just for a little while and this cause
-> > > > > > > > faulting thread who can get hugepages to get a SIGBUS signal.
-> > > > > > > > 
-> > > > > > > > To solve this problem, we already have a nice solution, that is,
-> > > > > > > > a hugetlb_instantiation_mutex. This blocks other threads to dive into
-> > > > > > > > a fault handler. This solve the problem clearly, but it introduce
-> > > > > > > > performance degradation, because it serialize all fault handling.
-> > > > > > > > 
-> > > > > > > > Now, I try to remove a hugetlb_instantiation_mutex to get rid of
-> > > > > > > > performance degradation.
-> > > > > > > 
-> > > > > > > So the whole point of the patch is to improve performance, but the
-> > > > > > > changelog doesn't include any performance measurements!
-> > > > > > > 
-> > > > > > 
-> > > > > > I don't really deal with hugetlbfs any more and I have not examined this
-> > > > > > series but I remember why I never really cared about this mutex. It wrecks
-> > > > > > fault scalability but AFAIK fault scalability almost never mattered for
-> > > > > > workloads using hugetlbfs.  The most common user of hugetlbfs by far is
-> > > > > > sysv shared memory. The memory is faulted early in the lifetime of the
-> > > > > > workload and after that it does not matter. At worst, it hurts application
-> > > > > > startup time but that is still poor motivation for putting a lot of work
-> > > > > > into removing the mutex.
-> > > > > 
-> > > > > Yep, important hugepage workloads initially pound heavily on this lock,
-> > > > > then it naturally decreases.
-> > > > > 
-> > > > > > Microbenchmarks will be able to trigger problems in this area but it'd
-> > > > > > be important to check if any workload that matters is actually hitting
-> > > > > > that problem.
-> > > > > 
-> > > > > I was thinking of writing one to actually get some numbers for this
-> > > > > patchset -- I don't know of any benchmark that might stress this lock. 
-> > > > > 
-> > > > > However I first measured the amount of cycles it costs to start an
-> > > > > Oracle DB and things went south with these changes. A simple 'startup
-> > > > > immediate' calls hugetlb_fault() ~5000 times. For a vanilla kernel, this
-> > > > > costs ~7.5 billion cycles and with this patchset it goes up to ~27.1
-> > > > > billion. While there is naturally a fair amount of variation, these
-> > > > > changes do seem to do more harm than good, at least in real world
-> > > > > scenarios.
-> > > > 
-> > > > Hello,
-> > > > 
-> > > > I think that number of cycles is not proper to measure this patchset,
-> > > > because cycles would be wasted by fault handling failure. Instead, it
-> > > > targeted improved elapsed time. 
-> > 
-> > Fair enough, however the fact of the matter is this approach does en up
-> > hurting performance. Regarding total startup time, I didn't see hardly
-> > any differences, with both vanilla and this patchset it takes close to
-> > 33.5 seconds.
-> > 
-> > > Could you tell me how long it
-> > > > takes to fault all of it's hugepages?
-> > > > 
-> > > > Anyway, this order of magnitude still seems a problem. :/
-> > > > 
-> > > > I guess that cycles are wasted by zeroing hugepage in fault-path like as
-> > > > Andrew pointed out.
-> > > > 
-> > > > I will send another patches to fix this problem.
-> > > 
-> > > Hello, Davidlohr.
-> > > 
-> > > Here goes the fix on top of this series.
-> > 
-> > ... and with this patch we go from 27 down to 11 billion cycles, so this
-> > approach still costs more than what we currently have. A perf stat shows
-> > that an entire 1Gb huge page aware DB startup costs around ~30 billion
-> > cycles on a vanilla kernel, so the impact of hugetlb_fault() is
-> > definitely non trivial and IMO worth considering.
-> 
-> Really thanks for your help. :)
-> 
-> > 
-> > Now, I took my old patchset (https://lkml.org/lkml/2013/7/26/299) for a
-> > ride and things do look quite better, which is basically what Andrew was
-> > suggesting previously anyway. With the hash table approach the startup
-> > time did go down to ~25.1 seconds, which is a nice -24.7% time
-> > reduction, with hugetlb_fault() consuming roughly 5.3 billion cycles.
-> > This hash table was on a 80 core system, so since we do the power of two
-> > round up we end up with 256 entries -- I think we can do better if we
-> > enlarger further, maybe something like statically 1024, or probably
-> > better, 8-ish * nr cpus.
-> > 
-> > Thoughts? Is there any reason why we cannot go with this instead? Yes,
-> > we still keep the mutex, but the approach is (1) proven better for
-> > performance on real world workloads and (2) far less invasive. 
-> 
-> I have no more idea to improve my patches now, so I agree with your approach.
-> When I reviewed your approach last time, I found one race condition. In that
-> time, I didn't think of a solution about it. If you resend it, I will review
-> and re-think about it.
+Hi Michal,
 
-hmm so how do you want to play this? Your first 3 patches basically
-deals (more elegantly) with my patch 1/2 which I was on my way of just
-changing the lock -- we had agreed that serializing regions was with a
-spinlock was better than with a sleeping one as the critical region was
-small enough and we just had to deal with that trivial kmalloc case in
-region_chg(). So I can pick up your patches 1, 2 & 3 and then add the
-instantiation mutex hash table change, sounds good?
+On Mon, Jan 6, 2014 at 7:24 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> Hi Wanpeng Li,
+> I have just noticed 11c731e81bb0 (mm/mempolicy: fix !vma in
+> new_vma_page()) and I am not sure I understand it. Your changelog claims
+> "
+>     page_address_in_vma() may still return -EFAULT because of many other
+>     conditions in it.  As a result the while loop in new_vma_page() may end
+>     with vma=NULL.
+> "
+>
+> And the patch handles hugetlb case only. I was wondering what are those
+> "other conditions" that failed in the BUG_ON mentioned in the changelog?
+> Could you be more specific please?
+>
 
-Thanks,
-Davidlohr 
+Sorry for the confusion caused.
+The code of new_vma_page() used to like this:
+1193         while (vma) {
+1194                 address = page_address_in_vma(page, vma);
+1195                 if (address != -EFAULT)
+1196                         break;
+1197                 vma = vma->vm_next;
+1198         }
+1199         /*
+1200          * queue_pages_range() confirms that @page belongs to some vma,
+1201          * so vma shouldn't be NULL.
+1202          */
+1203         BUG_ON(!vma);
+1204
+1205         if (PageHuge(page))
+1206                 return alloc_huge_page_noerr(vma, address, 1);
+1207         return alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
+
+The BUG_ON() was triggered and my idea was that even
+queue_pages_range() confirms @page belongs to some vma,
+page_address_in_vma() may still return -EFAULT because of below checks
+in page_address_in_vma().
+
+544         if (PageAnon(page)) {
+ 545                 struct anon_vma *page__anon_vma = page_anon_vma(page);
+ 546                 /*
+ 547                  * Note: swapoff's unuse_vma() is more efficient with this
+ 548                  * check, and needs it to match anon_vma when KSM
+is active.
+ 549                  */
+ 550                 if (!vma->anon_vma || !page__anon_vma ||
+ 551                     vma->anon_vma->root != page__anon_vma->root)
+ 552                         return -EFAULT;
+ 553         } else if (page->mapping && !(vma->vm_flags & VM_NONLINEAR)) {
+ 554                 if (!vma->vm_file ||
+ 555                     vma->vm_file->f_mapping != page->mapping)
+ 556                         return -EFAULT;
+ 557         } else
+ 558                 return -EFAULT;
+
+That's the "other conditions" and the reason why we can't use
+BUG_ON(!vma) in new_vma_page().
+
+-- 
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
