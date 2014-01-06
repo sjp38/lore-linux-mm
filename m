@@ -1,136 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 63FA66B0055
-	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 03:45:40 -0500 (EST)
-Received: by mail-lb0-f169.google.com with SMTP id u14so9645977lbd.14
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 00:45:39 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id y9si35743164laa.85.2014.01.06.00.45.38
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B0216B0031
+	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 04:04:04 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id rd3so18534097pab.27
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 01:04:03 -0800 (PST)
+Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com. [202.81.31.144])
+        by mx.google.com with ESMTPS id wm3si54150066pab.223.2014.01.06.01.04.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 06 Jan 2014 00:45:39 -0800 (PST)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH RESEND 04/11] memcg, slab: fix barrier usage when accessing memcg_caches
-Date: Mon, 6 Jan 2014 12:44:55 +0400
-Message-ID: <bee9853bac6bf196ffe1a1bb1634e8947b1d9d09.1388996525.git.vdavydov@parallels.com>
-In-Reply-To: <cover.1388996525.git.vdavydov@parallels.com>
-References: <cover.1388996525.git.vdavydov@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Mon, 06 Jan 2014 01:04:02 -0800 (PST)
+Received: from /spool/local
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 6 Jan 2014 19:03:59 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 456B53578054
+	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 20:03:57 +1100 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0693amJ5374302
+	for <linux-mm@kvack.org>; Mon, 6 Jan 2014 20:03:44 +1100
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0693nPl005905
+	for <linux-mm@kvack.org>; Mon, 6 Jan 2014 20:03:49 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V3 2/2] powerpc: thp: Fix crash on mremap
+Date: Mon,  6 Jan 2014 14:33:32 +0530
+Message-Id: <1388999012-14424-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1388999012-14424-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1388999012-14424-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz, akpm@linux-foundation.org
-Cc: glommer@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
+To: benh@kernel.crashing.org, paulus@samba.org, aarcange@redhat.com, kirill.shutemov@linux.intel.com
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Each root kmem_cache has pointers to per-memcg caches stored in its
-memcg_params::memcg_caches array. Whenever we want to allocate a slab
-for a memcg, we access this array to get per-memcg cache to allocate
-from (see memcg_kmem_get_cache()). The access must be lock-free for
-performance reasons, so we should use barriers to assert the kmem_cache
-is up-to-date.
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-First, we should place a write barrier immediately before setting the
-pointer to it in the memcg_caches array in order to make sure nobody
-will see a partially initialized object. Second, we should issue a read
-barrier before dereferencing the pointer to conform to the write
-barrier.
+This patch fix the below crash
 
-However, currently the barrier usage looks rather strange. We have a
-write barrier *after* setting the pointer and a read barrier *before*
-reading the pointer, which is incorrect. This patch fixes this.
+NIP [c00000000004cee4] .__hash_page_thp+0x2a4/0x440
+LR [c0000000000439ac] .hash_page+0x18c/0x5e0
+...
+Call Trace:
+[c000000736103c40] [00001ffffb000000] 0x1ffffb000000(unreliable)
+[437908.479693] [c000000736103d50] [c0000000000439ac] .hash_page+0x18c/0x5e0
+[437908.479699] [c000000736103e30] [c00000000000924c] .do_hash_page+0x4c/0x58
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Glauber Costa <glommer@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Balbir Singh <bsingharora@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+On ppc64 we use the pgtable for storing the hpte slot information and
+store address to the pgtable at a constant offset (PTRS_PER_PMD) from
+pmd. On mremap, when we switch the pmd, we need to withdraw and deposit
+the pgtable again, so that we find the pgtable at PTRS_PER_PMD offset
+from new pmd.
+
+We also want to move the withdraw and deposit before the set_pmd so
+that, when page fault find the pmd as trans huge we can be sure that
+pgtable can be located at the offset.
+
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- mm/memcontrol.c |   24 ++++++++++--------------
- mm/slab.h       |   12 +++++++++++-
- 2 files changed, 21 insertions(+), 15 deletions(-)
+ arch/powerpc/include/asm/pgtable-ppc64.h | 14 ++++++++++++++
+ include/asm-generic/pgtable.h            | 12 ++++++++++++
+ mm/huge_memory.c                         | 14 +++++---------
+ 3 files changed, 31 insertions(+), 9 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index f8eb994..999e7d4 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3238,12 +3238,14 @@ void memcg_register_cache(struct kmem_cache *s)
- 	list_add(&s->memcg_params->list, &memcg->memcg_slab_caches);
- 	mutex_unlock(&memcg->slab_caches_mutex);
+diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
+index 9935e9b79524..ff3afce40f3b 100644
+--- a/arch/powerpc/include/asm/pgtable-ppc64.h
++++ b/arch/powerpc/include/asm/pgtable-ppc64.h
+@@ -12,6 +12,7 @@
  
--	root->memcg_params->memcg_caches[id] = s;
- 	/*
--	 * the readers won't lock, make sure everybody sees the updated value,
--	 * so they won't put stuff in the queue again for no reason
-+	 * Since readers won't lock (see cache_from_memcg_idx()), we need a
-+	 * barrier here to ensure nobody will see the kmem_cache partially
-+	 * initialized.
- 	 */
--	wmb();
-+	smp_wmb();
+ #ifndef __ASSEMBLY__
+ 
++#include <linux/spinlock.h>
+ /*
+  * This is the default implementation of various PTE accessors, it's
+  * used in all cases except Book3S with 64K pages where we have a
+@@ -459,5 +460,18 @@ extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
+ #define __HAVE_ARCH_PMDP_INVALIDATE
+ extern void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+ 			    pmd_t *pmdp);
 +
-+	root->memcg_params->memcg_caches[id] = s;
- }
- 
- void memcg_unregister_cache(struct kmem_cache *s)
-@@ -3569,7 +3571,7 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
- 					  gfp_t gfp)
- {
- 	struct mem_cgroup *memcg;
--	int idx;
-+	struct kmem_cache *memcg_cachep;
- 
- 	VM_BUG_ON(!cachep->memcg_params);
- 	VM_BUG_ON(!cachep->memcg_params->is_root_cache);
-@@ -3583,15 +3585,9 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
- 	if (!memcg_can_account_kmem(memcg))
- 		goto out;
- 
--	idx = memcg_cache_id(memcg);
--
--	/*
--	 * barrier to mare sure we're always seeing the up to date value.  The
--	 * code updating memcg_caches will issue a write barrier to match this.
--	 */
--	read_barrier_depends();
--	if (likely(cache_from_memcg_idx(cachep, idx))) {
--		cachep = cache_from_memcg_idx(cachep, idx);
-+	memcg_cachep = cache_from_memcg_idx(cachep, memcg_cache_id(memcg));
-+	if (likely(memcg_cachep)) {
-+		cachep = memcg_cachep;
- 		goto out;
- 	}
- 
-diff --git a/mm/slab.h b/mm/slab.h
-index 0859c42..72d1f9d 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -163,9 +163,19 @@ static inline const char *cache_name(struct kmem_cache *s)
- static inline struct kmem_cache *
- cache_from_memcg_idx(struct kmem_cache *s, int idx)
- {
-+	struct kmem_cache *cachep;
-+
- 	if (!s->memcg_params)
- 		return NULL;
--	return s->memcg_params->memcg_caches[idx];
-+	cachep = s->memcg_params->memcg_caches[idx];
-+
++#define pmd_move_must_withdraw pmd_move_must_withdraw
++static inline int pmd_move_must_withdraw(spinlock_t *new_pmd_ptl,
++					 spinlock_t *old_pmd_ptl)
++{
 +	/*
-+	 * Make sure we will access the up-to-date value. The code updating
-+	 * memcg_caches issues a write barrier to match this (see
-+	 * memcg_register_cache()).
++	 * Archs like ppc64 use pgtable to store per pmd
++	 * specific information. So when we switch the pmd,
++	 * we should also withdraw and deposit the pgtable
 +	 */
-+	smp_read_barrier_depends();
-+	return cachep;
++	return true;
++}
++
+ #endif /* __ASSEMBLY__ */
+ #endif /* _ASM_POWERPC_PGTABLE_PPC64_H_ */
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index db0923458940..8e4f41d9af4d 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -558,6 +558,18 @@ static inline pmd_t pmd_read_atomic(pmd_t *pmdp)
  }
+ #endif
  
- static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
++#ifndef pmd_move_must_withdraw
++static inline int pmd_move_must_withdraw(spinlock_t *new_pmd_ptl,
++					 spinlock_t *old_pmd_ptl)
++{
++	/*
++	 * With split pmd lock we also need to move preallocated
++	 * PTE page table if new_pmd is on different PMD page table.
++	 */
++	return new_pmd_ptl != old_pmd_ptl;
++}
++#endif
++
+ /*
+  * This function is meant to be used by sites walking pagetables with
+  * the mmap_sem hold in read mode to protect against MADV_DONTNEED and
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 9c0b17295ba0..b77bb5df4db9 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1502,19 +1502,15 @@ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
+ 			spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
+ 		pmd = pmdp_get_and_clear(mm, old_addr, old_pmd);
+ 		VM_BUG_ON(!pmd_none(*new_pmd));
+-		set_pmd_at(mm, new_addr, new_pmd, pmd_mksoft_dirty(pmd));
+-		if (new_ptl != old_ptl) {
+-			pgtable_t pgtable;
+ 
+-			/*
+-			 * Move preallocated PTE page table if new_pmd is on
+-			 * different PMD page table.
+-			 */
++		if (pmd_move_must_withdraw(new_ptl, old_ptl)) {
++			pgtable_t pgtable;
+ 			pgtable = pgtable_trans_huge_withdraw(mm, old_pmd);
+ 			pgtable_trans_huge_deposit(mm, new_pmd, pgtable);
+-
+-			spin_unlock(new_ptl);
+ 		}
++		set_pmd_at(mm, new_addr, new_pmd, pmd_mksoft_dirty(pmd));
++		if (new_ptl != old_ptl)
++			spin_unlock(new_ptl);
+ 		spin_unlock(old_ptl);
+ 	}
+ out:
 -- 
-1.7.10.4
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
