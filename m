@@ -1,122 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E98A6B0035
-	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 17:01:30 -0500 (EST)
-Received: by mail-qc0-f172.google.com with SMTP id e16so18277830qcx.3
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 14:01:29 -0800 (PST)
-Received: from mail-oa0-x236.google.com (mail-oa0-x236.google.com [2607:f8b0:4003:c02::236])
-        by mx.google.com with ESMTPS id r6si73169783qaj.127.2014.01.06.14.01.27
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 06 Jan 2014 14:01:28 -0800 (PST)
-Received: by mail-oa0-f54.google.com with SMTP id o6so2899930oag.13
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 14:01:27 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <6B2BA408B38BA1478B473C31C3D2074E2BF812BC82@SV-EXCHANGE1.Corp.FC.LOCAL>
-References: <1387267550-8689-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <52b1138b.0201430a.19a8.605dSMTPIN_ADDED_BROKEN@mx.google.com>
- <52B11765.8030005@oracle.com> <52b120a5.a3b2440a.3acf.ffffd7c3SMTPIN_ADDED_BROKEN@mx.google.com>
- <52B166CF.6080300@suse.cz> <52b1699f.87293c0a.75d1.34d3SMTPIN_ADDED_BROKEN@mx.google.com>
- <20131218134316.977d5049209d9278e1dad225@linux-foundation.org>
- <52C71ACC.20603@oracle.com> <CA+55aFzDcFyyXwUUu5bLP3fsiuzxU7VPivpTPHgp8smvdTeESg@mail.gmail.com>
- <52C74972.6050909@suse.cz> <CA+55aFzq1iQqddGo-m=vutwMYn5CPf65Ergov5svKR4AWC3rUQ@mail.gmail.com>
- <6B2BA408B38BA1478B473C31C3D2074E2BF812BC82@SV-EXCHANGE1.Corp.FC.LOCAL>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Mon, 6 Jan 2014 17:01:07 -0500
-Message-ID: <CAHGf_=rf7HGD-TBZQQZCCv8iQLC9NN9pbcZ6Mx1Z-LdwrEUsJw@mail.gmail.com>
-Subject: Re: [PATCH] mm/mlock: fix BUG_ON unlocked page for nolinear VMAs
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FCDA6B0035
+	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 17:13:04 -0500 (EST)
+Received: by mail-pb0-f49.google.com with SMTP id jt11so18787114pbb.8
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 14:13:04 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id yd9si56156407pab.263.2014.01.06.14.13.02
+        for <linux-mm@kvack.org>;
+        Mon, 06 Jan 2014 14:13:03 -0800 (PST)
+Date: Mon, 6 Jan 2014 14:13:00 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH V3] mm readahead: Fix the readahead fail in case of
+ empty numa node
+Message-Id: <20140106141300.4e1c950d45c614d6c29bdd8f@linux-foundation.org>
+In-Reply-To: <1389003715-29733-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
+References: <1389003715-29733-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Michel Lespinasse <walken@google.com>, Bob Liu <bob.liu@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, jack@suse.cz, Linus <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jan 6, 2014 at 11:47 AM, Motohiro Kosaki
-<Motohiro.Kosaki@us.fujitsu.com> wrote:
->
->
->> -----Original Message-----
->> From: linus971@gmail.com [mailto:linus971@gmail.com] On Behalf Of Linus
->> Torvalds
->> Sent: Friday, January 03, 2014 7:18 PM
->> To: Vlastimil Babka
->> Cc: Sasha Levin; Andrew Morton; Wanpeng Li; Michel Lespinasse; Bob Liu;
->> Nick Piggin; Motohiro Kosaki JP; Rik van Riel; David Rientjes; Mel Gorman;
->> Minchan Kim; Hugh Dickins; Johannes Weiner; linux-mm; Linux Kernel Mailing
->> List
->> Subject: Re: [PATCH] mm/mlock: fix BUG_ON unlocked page for nolinear
->> VMAs
->>
->> On Fri, Jan 3, 2014 at 3:36 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
->> >
->> > I'm for going with the removal of BUG_ON. The TestSetPageMlocked
->> > should provide enough race protection.
->>
->> Maybe. But dammit, that's subtle, and I don't think you're even right.
->>
->> It basically depends on mlock_vma_page() and munlock_vma_page() being
->> able to run CONCURRENTLY on the same page. In particular, you could have a
->> mlock_vma_page() set the bit on one CPU, and munlock_vma_page()
->> immediately clearing it on another, and then the rest of those functions
->> could run with a totally arbitrary interleaving when working with the exact
->> same page.
->>
->> They both do basically
->>
->>     if (!isolate_lru_page(page))
->>         putback_lru_page(page);
->>
->> but one or the other would randomly win the race (it's internally protected
->> by the lru lock), and *if* the munlock_vma_page() wins it, it would also do
->>
->>     try_to_munlock(page);
->>
->> but if mlock_vma_page() wins it, that wouldn't happen. That looks entirely
->> broken - you end up with the PageMlocked bit clear, but
->> try_to_munlock() was never called on that page, because
->> mlock_vma_page() got to the page isolation before the "subsequent"
->> munlock_vma_page().
->>
->> And this is very much what the page lock serialization would prevent.
->> So no, the PageMlocked in *no* way gives serialization. It's an atomic bit op,
->> yes, but that only "serializes" in one direction, not when you can have a mix
->> of bit setting and clearing.
->>
->> So quite frankly, I think you're wrong. The BUG_ON() is correct, or at least
->> enforces some kind of ordering. And try_to_unmap_cluster() is just broken
->> in calling that without the page being locked. That's my opinion. There may
->> be some *other* reason why it all happens to work, but no,
->> "TestSetPageMlocked should provide enough race protection" is simply not
->> true, and even if it were, it's way too subtle and odd to be a good rule.
->>
->> So I really object to just removing the BUG_ON(). Not with a *lot* more
->> explanation as to why these kinds of issues wouldn't matter.
->
-> I don't have a perfect answer. But I can explain a bit history. Let's me try.
->
-> First off, 5 years ago, Lee's original putback_lru_page() implementation required
-> page-lock, but I removed the restriction months later. That's why we can see
-> strange BUG_ON here.
->
-> 5 years ago, both mlock(2) and munlock(2) called do_mlock() and it was protected  by
-> mmap_sem (write mdoe). Then, mlock and munlock had no race.
-> Now, __mm_populate() (called by mlock(2)) is only protected by mmap_sem read-mode. However it is enough to
-> protect against munlock.
->
-> Next, In case of mlock vs reclaim, the key is that mlock(2) has two step operation. 1) turn on VM_LOCKED under
-> mmap_sem write-mode, 2) turn on Page_Mlocked under mmap_sem read-mode. If reclaim race against step (1),
-> reclaim must lose because it uses trylock. On the other hand, if reclaim race against step (2), reclaim must detect
-> VM_LOCKED because both VM_LOCKED modifier and observer take mmap-sem.
->
-> By the way, page isolation is still necessary because we need to protect another page modification like page migration.
->
->
-> My memory was alomostly flushed and I might lost some technical concern and past discussion. Please point me out,
-> If I am overlooking something.
+On Mon,  6 Jan 2014 15:51:55 +0530 Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com> wrote:
 
-No. I did talk about completely different issue. My memory is
-completely broken as I said. I need to read latest code and dig past
-discussion. Sorry again, please ignore my last mail.
+> Currently, max_sane_readahead returns zero on the cpu with empty numa node,
+> fix this by checking for potential empty numa node case during calculation.
+> We also limit the number of readahead pages to 4k.
+> 
+> ...
+>
+> --- a/mm/readahead.c
+> +++ b/mm/readahead.c
+> @@ -237,14 +237,25 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
+>  	return ret;
+>  }
+>  
+> +#define MAX_REMOTE_READAHEAD   4096UL
+>  /*
+>   * Given a desired number of PAGE_CACHE_SIZE readahead pages, return a
+>   * sensible upper limit.
+>   */
+>  unsigned long max_sane_readahead(unsigned long nr)
+>  {
+> -	return min(nr, (node_page_state(numa_node_id(), NR_INACTIVE_FILE)
+> -		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
+> +	unsigned long local_free_page;
+> +	unsigned long sane_nr = min(nr, MAX_REMOTE_READAHEAD);
+> +
+> +	local_free_page = node_page_state(numa_node_id(), NR_INACTIVE_FILE)
+> +			  + node_page_state(numa_node_id(), NR_FREE_PAGES);
+> +
+> +	/*
+> +	 * Readahead onto remote memory is better than no readahead when local
+> +	 * numa node does not have memory. We sanitize readahead size depending
+> +	 * on free memory in the local node but limiting to 4k pages.
+> +	 */
+> +	return local_free_page ? min(sane_nr, local_free_page / 2) : sane_nr;
+>  }
+
+So if the local node has two free pages, we do just one page of
+readahead.
+
+Then the local node has one free page and we do zero pages readahead.
+
+Assuming that bug(!) is fixed, the local node now has zero free pages
+and we suddenly resume doing large readahead.
+
+This transition from large readahead to very small readahead then back
+to large readahead is illogical, surely?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
