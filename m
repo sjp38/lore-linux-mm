@@ -1,74 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f45.google.com (mail-qe0-f45.google.com [209.85.128.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 90ED46B0031
-	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 05:04:40 -0500 (EST)
-Received: by mail-qe0-f45.google.com with SMTP id 6so18208263qea.32
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 02:04:40 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id o8si71089798qey.5.2014.01.06.02.04.34
+Received: from mail-oa0-f44.google.com (mail-oa0-f44.google.com [209.85.219.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 107B66B0031
+	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 05:14:49 -0500 (EST)
+Received: by mail-oa0-f44.google.com with SMTP id h16so1576668oag.3
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 02:14:48 -0800 (PST)
+Received: from e8.ny.us.ibm.com (e8.ny.us.ibm.com. [32.97.182.138])
+        by mx.google.com with ESMTPS id iz10si55614205obb.0.2014.01.06.02.14.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jan 2014 02:04:34 -0800 (PST)
-Date: Mon, 6 Jan 2014 11:04:08 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC 1/2] mm: additional page lock debugging
-Message-ID: <20140106100408.GC31570@twins.programming.kicks-ass.net>
-References: <1388281504-11453-1-git-send-email-sasha.levin@oracle.com>
- <20131230114317.GA8117@node.dhcp.inet.fi>
- <52C1A06B.4070605@oracle.com>
- <20131230224808.GA11674@node.dhcp.inet.fi>
- <52C2385A.8020608@oracle.com>
- <20131231162636.GD16438@laptop.programming.kicks-ass.net>
- <52C2F3DC.2020106@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52C2F3DC.2020106@oracle.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 06 Jan 2014 02:14:47 -0800 (PST)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <raghavendra.kt@linux.vnet.ibm.com>;
+	Mon, 6 Jan 2014 05:14:46 -0500
+Received: from b01cxnp23034.gho.pok.ibm.com (b01cxnp23034.gho.pok.ibm.com [9.57.198.29])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id D05F86E803C
+	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 05:14:40 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by b01cxnp23034.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s06AEidh8257928
+	for <linux-mm@kvack.org>; Mon, 6 Jan 2014 10:14:44 GMT
+Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s06AEisH021778
+	for <linux-mm@kvack.org>; Mon, 6 Jan 2014 05:14:44 -0500
+From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Subject: [RFC PATCH V3] mm readahead: Fix the readahead fail in case of empty numa node
+Date: Mon,  6 Jan 2014 15:51:55 +0530
+Message-Id: <1389003715-29733-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, akpm@linux-foundation.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, jack@suse.cz, Linus <torvalds@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
 
-On Tue, Dec 31, 2013 at 11:42:04AM -0500, Sasha Levin wrote:
-> On 12/31/2013 11:26 AM, Peter Zijlstra wrote:
-> >On Mon, Dec 30, 2013 at 10:22:02PM -0500, Sasha Levin wrote:
-> >
-> >>I really want to use lockdep here, but I'm not really sure how to handle locks which live
-> >>for a rather long while instead of being locked and unlocked in the same function like
-> >>most of the rest of the kernel. (Cc Ingo, PeterZ).
-> >
-> >Uh what? Lockdep doesn't care about which function locks and unlocks a
-> >particular lock. Nor does it care how long its held for.
-> 
-> Sorry, I messed up trying to explain that.
-> 
-> There are several places in the code which lock a large amount of pages, something like:
-> 
-> 	for (i = 0; i < (1 << order); i++)
-> 		lock_page(&pages[i]);
-> 
-> 
-> This triggers two problems:
-> 
->  - lockdep complains about deadlock since we try to lock another page while one is already
-> locked. I can clear that by allowing page locks to nest within each other, but that seems
-> wrong and we'll miss actual deadlock cases.
+Currently, max_sane_readahead returns zero on the cpu with empty numa node,
+fix this by checking for potential empty numa node case during calculation.
+We also limit the number of readahead pages to 4k.
 
-Right,.. I think we can cobble something together like requiring we
-always lock pages in pfn order or somesuch.
+Signed-off-by: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+---
+The current patch limits the readahead into 4k pages (16MB was suggested by Linus).
+and also handles the case of memoryless cpu issuing readahead failures.
+We still do not consider [fm]advise() specific calculations here.
+I have dropped the iterating over numa node to calculate free page idea.
+I do not have much idea whether there is any impact on big streaming apps..
+Comments/suggestions ?
 
->  - We may leave back to userspace with pages still locked. This is valid behaviour but lockdep
-> doesn't like that.
+ mm/readahead.c | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)
 
-Where do we actually do this? BTW its not only lockdep not liking that,
-Linus was actually a big fan of that check.
-
-ISTR there being some filesystem freezer issues with that too, where the
-freeze ioctl would return to userspace with 'locks' held and that's
-cobbled around (or maybe gone by now -- who knows).
-
-My initial guess would be that this is AIO/DIO again, those two seem to
-be responsible for the majority of ugly around there.
+diff --git a/mm/readahead.c b/mm/readahead.c
+index 7cdbb44..be4d205 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -237,14 +237,25 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
+ 	return ret;
+ }
+ 
++#define MAX_REMOTE_READAHEAD   4096UL
+ /*
+  * Given a desired number of PAGE_CACHE_SIZE readahead pages, return a
+  * sensible upper limit.
+  */
+ unsigned long max_sane_readahead(unsigned long nr)
+ {
+-	return min(nr, (node_page_state(numa_node_id(), NR_INACTIVE_FILE)
+-		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
++	unsigned long local_free_page;
++	unsigned long sane_nr = min(nr, MAX_REMOTE_READAHEAD);
++
++	local_free_page = node_page_state(numa_node_id(), NR_INACTIVE_FILE)
++			  + node_page_state(numa_node_id(), NR_FREE_PAGES);
++
++	/*
++	 * Readahead onto remote memory is better than no readahead when local
++	 * numa node does not have memory. We sanitize readahead size depending
++	 * on free memory in the local node but limiting to 4k pages.
++	 */
++	return local_free_page ? min(sane_nr, local_free_page / 2) : sane_nr;
+ }
+ 
+ /*
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
