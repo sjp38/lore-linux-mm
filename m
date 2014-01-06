@@ -1,108 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-gg0-f169.google.com (mail-gg0-f169.google.com [209.85.161.169])
-	by kanga.kvack.org (Postfix) with ESMTP id CA1376B0031
-	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 11:48:53 -0500 (EST)
-Received: by mail-gg0-f169.google.com with SMTP id f4so3604373ggn.14
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 08:48:53 -0800 (PST)
-Received: from fujitsu24.fnanic.fujitsu.com (fujitsu24.fnanic.fujitsu.com. [192.240.6.14])
-        by mx.google.com with ESMTPS id n44si16655500yhn.90.2014.01.06.08.48.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 06 Jan 2014 08:48:52 -0800 (PST)
-From: Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>
-Date: Mon, 6 Jan 2014 08:47:23 -0800
-Subject: RE: [PATCH] mm/mlock: fix BUG_ON unlocked page for nolinear VMAs
-Message-ID: <6B2BA408B38BA1478B473C31C3D2074E2BF812BC82@SV-EXCHANGE1.Corp.FC.LOCAL>
-References: <1387267550-8689-1-git-send-email-liwanp@linux.vnet.ibm.com>
-	<52b1138b.0201430a.19a8.605dSMTPIN_ADDED_BROKEN@mx.google.com>
-	<52B11765.8030005@oracle.com>
-	<52b120a5.a3b2440a.3acf.ffffd7c3SMTPIN_ADDED_BROKEN@mx.google.com>
-	<52B166CF.6080300@suse.cz>
-	<52b1699f.87293c0a.75d1.34d3SMTPIN_ADDED_BROKEN@mx.google.com>
-	<20131218134316.977d5049209d9278e1dad225@linux-foundation.org>
-	<52C71ACC.20603@oracle.com>
-	<CA+55aFzDcFyyXwUUu5bLP3fsiuzxU7VPivpTPHgp8smvdTeESg@mail.gmail.com>
-	<52C74972.6050909@suse.cz>
- <CA+55aFzq1iQqddGo-m=vutwMYn5CPf65Ergov5svKR4AWC3rUQ@mail.gmail.com>
-In-Reply-To: <CA+55aFzq1iQqddGo-m=vutwMYn5CPf65Ergov5svKR4AWC3rUQ@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 9093C6B0031
+	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 12:09:05 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id t10so8141012eei.28
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 09:09:05 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id e2si84846680eeg.93.2014.01.06.09.09.04
+        for <linux-mm@kvack.org>;
+        Mon, 06 Jan 2014 09:09:04 -0800 (PST)
+Date: Mon, 6 Jan 2014 18:08:56 +0100
+From: Mateusz Guzik <mguzik@redhat.com>
+Subject: Re: [RFC][PATCH 3/3] audit: Audit proc cmdline value
+Message-ID: <20140106170855.GA1828@mguzik.redhat.com>
+References: <1389022230-24664-1-git-send-email-wroberts@tresys.com>
+ <1389022230-24664-3-git-send-email-wroberts@tresys.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <1389022230-24664-3-git-send-email-wroberts@tresys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Michel Lespinasse <walken@google.com>, Bob Liu <bob.liu@oracle.com>, Nick Piggin <npiggin@suse.de>, Motohiro Kosaki JP <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: William Roberts <bill.c.roberts@gmail.com>
+Cc: linux-audit@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rgb@redhat.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, sds@tycho.nsa.gov, William Roberts <wroberts@tresys.com>
 
-DQoNCj4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogbGludXM5NzFAZ21haWwu
-Y29tIFttYWlsdG86bGludXM5NzFAZ21haWwuY29tXSBPbiBCZWhhbGYgT2YgTGludXMNCj4gVG9y
-dmFsZHMNCj4gU2VudDogRnJpZGF5LCBKYW51YXJ5IDAzLCAyMDE0IDc6MTggUE0NCj4gVG86IFZs
-YXN0aW1pbCBCYWJrYQ0KPiBDYzogU2FzaGEgTGV2aW47IEFuZHJldyBNb3J0b247IFdhbnBlbmcg
-TGk7IE1pY2hlbCBMZXNwaW5hc3NlOyBCb2IgTGl1Ow0KPiBOaWNrIFBpZ2dpbjsgTW90b2hpcm8g
-S29zYWtpIEpQOyBSaWsgdmFuIFJpZWw7IERhdmlkIFJpZW50amVzOyBNZWwgR29ybWFuOw0KPiBN
-aW5jaGFuIEtpbTsgSHVnaCBEaWNraW5zOyBKb2hhbm5lcyBXZWluZXI7IGxpbnV4LW1tOyBMaW51
-eCBLZXJuZWwgTWFpbGluZw0KPiBMaXN0DQo+IFN1YmplY3Q6IFJlOiBbUEFUQ0hdIG1tL21sb2Nr
-OiBmaXggQlVHX09OIHVubG9ja2VkIHBhZ2UgZm9yIG5vbGluZWFyDQo+IFZNQXMNCj4gDQo+IE9u
-IEZyaSwgSmFuIDMsIDIwMTQgYXQgMzozNiBQTSwgVmxhc3RpbWlsIEJhYmthIDx2YmFia2FAc3Vz
-ZS5jej4gd3JvdGU6DQo+ID4NCj4gPiBJJ20gZm9yIGdvaW5nIHdpdGggdGhlIHJlbW92YWwgb2Yg
-QlVHX09OLiBUaGUgVGVzdFNldFBhZ2VNbG9ja2VkDQo+ID4gc2hvdWxkIHByb3ZpZGUgZW5vdWdo
-IHJhY2UgcHJvdGVjdGlvbi4NCj4gDQo+IE1heWJlLiBCdXQgZGFtbWl0LCB0aGF0J3Mgc3VidGxl
-LCBhbmQgSSBkb24ndCB0aGluayB5b3UncmUgZXZlbiByaWdodC4NCj4gDQo+IEl0IGJhc2ljYWxs
-eSBkZXBlbmRzIG9uIG1sb2NrX3ZtYV9wYWdlKCkgYW5kIG11bmxvY2tfdm1hX3BhZ2UoKSBiZWlu
-Zw0KPiBhYmxlIHRvIHJ1biBDT05DVVJSRU5UTFkgb24gdGhlIHNhbWUgcGFnZS4gSW4gcGFydGlj
-dWxhciwgeW91IGNvdWxkIGhhdmUgYQ0KPiBtbG9ja192bWFfcGFnZSgpIHNldCB0aGUgYml0IG9u
-IG9uZSBDUFUsIGFuZCBtdW5sb2NrX3ZtYV9wYWdlKCkNCj4gaW1tZWRpYXRlbHkgY2xlYXJpbmcg
-aXQgb24gYW5vdGhlciwgYW5kIHRoZW4gdGhlIHJlc3Qgb2YgdGhvc2UgZnVuY3Rpb25zDQo+IGNv
-dWxkIHJ1biB3aXRoIGEgdG90YWxseSBhcmJpdHJhcnkgaW50ZXJsZWF2aW5nIHdoZW4gd29ya2lu
-ZyB3aXRoIHRoZSBleGFjdA0KPiBzYW1lIHBhZ2UuDQo+IA0KPiBUaGV5IGJvdGggZG8gYmFzaWNh
-bGx5DQo+IA0KPiAgICAgaWYgKCFpc29sYXRlX2xydV9wYWdlKHBhZ2UpKQ0KPiAgICAgICAgIHB1
-dGJhY2tfbHJ1X3BhZ2UocGFnZSk7DQo+IA0KPiBidXQgb25lIG9yIHRoZSBvdGhlciB3b3VsZCBy
-YW5kb21seSB3aW4gdGhlIHJhY2UgKGl0J3MgaW50ZXJuYWxseSBwcm90ZWN0ZWQNCj4gYnkgdGhl
-IGxydSBsb2NrKSwgYW5kICppZiogdGhlIG11bmxvY2tfdm1hX3BhZ2UoKSB3aW5zIGl0LCBpdCB3
-b3VsZCBhbHNvIGRvDQo+IA0KPiAgICAgdHJ5X3RvX211bmxvY2socGFnZSk7DQo+IA0KPiBidXQg
-aWYgbWxvY2tfdm1hX3BhZ2UoKSB3aW5zIGl0LCB0aGF0IHdvdWxkbid0IGhhcHBlbi4gVGhhdCBs
-b29rcyBlbnRpcmVseQ0KPiBicm9rZW4gLSB5b3UgZW5kIHVwIHdpdGggdGhlIFBhZ2VNbG9ja2Vk
-IGJpdCBjbGVhciwgYnV0DQo+IHRyeV90b19tdW5sb2NrKCkgd2FzIG5ldmVyIGNhbGxlZCBvbiB0
-aGF0IHBhZ2UsIGJlY2F1c2UNCj4gbWxvY2tfdm1hX3BhZ2UoKSBnb3QgdG8gdGhlIHBhZ2UgaXNv
-bGF0aW9uIGJlZm9yZSB0aGUgInN1YnNlcXVlbnQiDQo+IG11bmxvY2tfdm1hX3BhZ2UoKS4NCj4g
-DQo+IEFuZCB0aGlzIGlzIHZlcnkgbXVjaCB3aGF0IHRoZSBwYWdlIGxvY2sgc2VyaWFsaXphdGlv
-biB3b3VsZCBwcmV2ZW50Lg0KPiBTbyBubywgdGhlIFBhZ2VNbG9ja2VkIGluICpubyogd2F5IGdp
-dmVzIHNlcmlhbGl6YXRpb24uIEl0J3MgYW4gYXRvbWljIGJpdCBvcCwNCj4geWVzLCBidXQgdGhh
-dCBvbmx5ICJzZXJpYWxpemVzIiBpbiBvbmUgZGlyZWN0aW9uLCBub3Qgd2hlbiB5b3UgY2FuIGhh
-dmUgYSBtaXgNCj4gb2YgYml0IHNldHRpbmcgYW5kIGNsZWFyaW5nLg0KPiANCj4gU28gcXVpdGUg
-ZnJhbmtseSwgSSB0aGluayB5b3UncmUgd3JvbmcuIFRoZSBCVUdfT04oKSBpcyBjb3JyZWN0LCBv
-ciBhdCBsZWFzdA0KPiBlbmZvcmNlcyBzb21lIGtpbmQgb2Ygb3JkZXJpbmcuIEFuZCB0cnlfdG9f
-dW5tYXBfY2x1c3RlcigpIGlzIGp1c3QgYnJva2VuDQo+IGluIGNhbGxpbmcgdGhhdCB3aXRob3V0
-IHRoZSBwYWdlIGJlaW5nIGxvY2tlZC4gVGhhdCdzIG15IG9waW5pb24uIFRoZXJlIG1heQ0KPiBi
-ZSBzb21lICpvdGhlciogcmVhc29uIHdoeSBpdCBhbGwgaGFwcGVucyB0byB3b3JrLCBidXQgbm8s
-DQo+ICJUZXN0U2V0UGFnZU1sb2NrZWQgc2hvdWxkIHByb3ZpZGUgZW5vdWdoIHJhY2UgcHJvdGVj
-dGlvbiIgaXMgc2ltcGx5IG5vdA0KPiB0cnVlLCBhbmQgZXZlbiBpZiBpdCB3ZXJlLCBpdCdzIHdh
-eSB0b28gc3VidGxlIGFuZCBvZGQgdG8gYmUgYSBnb29kIHJ1bGUuDQo+IA0KPiBTbyBJIHJlYWxs
-eSBvYmplY3QgdG8ganVzdCByZW1vdmluZyB0aGUgQlVHX09OKCkuIE5vdCB3aXRoIGEgKmxvdCog
-bW9yZQ0KPiBleHBsYW5hdGlvbiBhcyB0byB3aHkgdGhlc2Uga2luZHMgb2YgaXNzdWVzIHdvdWxk
-bid0IG1hdHRlci4NCg0KSSBkb24ndCBoYXZlIGEgcGVyZmVjdCBhbnN3ZXIuIEJ1dCBJIGNhbiBl
-eHBsYWluIGEgYml0IGhpc3RvcnkuIExldCdzIG1lIHRyeS4NCg0KRmlyc3Qgb2ZmLCA1IHllYXJz
-IGFnbywgTGVlJ3Mgb3JpZ2luYWwgcHV0YmFja19scnVfcGFnZSgpIGltcGxlbWVudGF0aW9uIHJl
-cXVpcmVkDQpwYWdlLWxvY2ssIGJ1dCBJIHJlbW92ZWQgdGhlIHJlc3RyaWN0aW9uIG1vbnRocyBs
-YXRlci4gVGhhdCdzIHdoeSB3ZSBjYW4gc2VlIA0Kc3RyYW5nZSBCVUdfT04gaGVyZS4gDQoNCjUg
-eWVhcnMgYWdvLCBib3RoIG1sb2NrKDIpIGFuZCBtdW5sb2NrKDIpIGNhbGxlZCBkb19tbG9jaygp
-IGFuZCBpdCB3YXMgcHJvdGVjdGVkICBieSANCm1tYXBfc2VtICh3cml0ZSBtZG9lKS4gVGhlbiwg
-bWxvY2sgYW5kIG11bmxvY2sgaGFkIG5vIHJhY2UuIA0KTm93LCBfX21tX3BvcHVsYXRlKCkgKGNh
-bGxlZCBieSBtbG9jaygyKSkgaXMgb25seSBwcm90ZWN0ZWQgYnkgbW1hcF9zZW0gcmVhZC1tb2Rl
-LiBIb3dldmVyIGl0IGlzIGVub3VnaCB0bw0KcHJvdGVjdCBhZ2FpbnN0IG11bmxvY2suDQoNCk5l
-eHQsIEluIGNhc2Ugb2YgbWxvY2sgdnMgcmVjbGFpbSwgdGhlIGtleSBpcyB0aGF0IG1sb2NrKDIp
-IGhhcyB0d28gc3RlcCBvcGVyYXRpb24uIDEpIHR1cm4gb24gVk1fTE9DS0VEIHVuZGVyDQptbWFw
-X3NlbSB3cml0ZS1tb2RlLCAyKSB0dXJuIG9uIFBhZ2VfTWxvY2tlZCB1bmRlciBtbWFwX3NlbSBy
-ZWFkLW1vZGUuIElmIHJlY2xhaW0gcmFjZSBhZ2FpbnN0IHN0ZXAgKDEpLA0KcmVjbGFpbSBtdXN0
-IGxvc2UgYmVjYXVzZSBpdCB1c2VzIHRyeWxvY2suIE9uIHRoZSBvdGhlciBoYW5kLCBpZiByZWNs
-YWltIHJhY2UgYWdhaW5zdCBzdGVwICgyKSwgcmVjbGFpbSBtdXN0IGRldGVjdA0KVk1fTE9DS0VE
-IGJlY2F1c2UgYm90aCBWTV9MT0NLRUQgbW9kaWZpZXIgYW5kIG9ic2VydmVyIHRha2UgbW1hcC1z
-ZW0uDQoNCkJ5IHRoZSB3YXksIHBhZ2UgaXNvbGF0aW9uIGlzIHN0aWxsIG5lY2Vzc2FyeSBiZWNh
-dXNlIHdlIG5lZWQgdG8gcHJvdGVjdCBhbm90aGVyIHBhZ2UgbW9kaWZpY2F0aW9uIGxpa2UgcGFn
-ZSBtaWdyYXRpb24uDQoNCg0KTXkgbWVtb3J5IHdhcyBhbG9tb3N0bHkgZmx1c2hlZCBhbmQgSSBt
-aWdodCBsb3N0IHNvbWUgdGVjaG5pY2FsIGNvbmNlcm4gYW5kIHBhc3QgZGlzY3Vzc2lvbi4gUGxl
-YXNlIHBvaW50IG1lIG91dCwNCklmIEkgYW0gb3Zlcmxvb2tpbmcgc29tZXRoaW5nLg0KDQpUaGFu
-a3MuDQoNCg==
+I can't comment on the concept, but have one nit.
+
+On Mon, Jan 06, 2014 at 07:30:30AM -0800, William Roberts wrote:
+> +static void audit_log_cmdline(struct audit_buffer *ab, struct task_struct *tsk,
+> +			 struct audit_context *context)
+> +{
+> +	int res;
+> +	char *buf;
+> +	char *msg = "(null)";
+> +	audit_log_format(ab, " cmdline=");
+> +
+> +	/* Not  cached */
+> +	if (!context->cmdline) {
+> +		buf = kmalloc(PATH_MAX, GFP_KERNEL);
+> +		if (!buf)
+> +			goto out;
+> +		res = get_cmdline(tsk, buf, PATH_MAX);
+> +		/* Ensure NULL terminated */
+> +		if (buf[res-1] != '\0')
+> +			buf[res-1] = '\0';
+
+This accesses memory below the buffer if get_cmdline returned 0, which I
+believe will be the case when someone jokingly unmaps the area (all
+maybe when it is swapped out but can't be swapped in due to I/O errors).
+
+Also since you are just putting 0 in there anyway I don't see much point
+in testing for it.
+
+> +		context->cmdline = buf;
+> +	}
+> +	msg = context->cmdline;
+> +out:
+> +	audit_log_untrustedstring(ab, msg);
+> +}
+> +
+
+
+
+-- 
+Mateusz Guzik
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
