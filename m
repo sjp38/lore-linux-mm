@@ -1,67 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B9236B0031
-	for <linux-mm@kvack.org>; Sun,  5 Jan 2014 19:12:32 -0500 (EST)
-Received: by mail-pb0-f42.google.com with SMTP id uo5so17945021pbc.1
-        for <linux-mm@kvack.org>; Sun, 05 Jan 2014 16:12:31 -0800 (PST)
-Received: from LGEMRELSE6Q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id ll1si34697635pab.318.2014.01.05.16.12.29
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id AAD396B0031
+	for <linux-mm@kvack.org>; Sun,  5 Jan 2014 19:19:32 -0500 (EST)
+Received: by mail-pb0-f45.google.com with SMTP id rp16so17790850pbb.4
+        for <linux-mm@kvack.org>; Sun, 05 Jan 2014 16:19:32 -0800 (PST)
+Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
+        by mx.google.com with ESMTP id yl2si13779048pab.298.2014.01.05.16.19.29
         for <linux-mm@kvack.org>;
-        Sun, 05 Jan 2014 16:12:30 -0800 (PST)
-Date: Mon, 6 Jan 2014 09:12:37 +0900
+        Sun, 05 Jan 2014 16:19:31 -0800 (PST)
+Date: Mon, 6 Jan 2014 09:19:38 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3 03/14] mm, hugetlb: protect region tracking via newly
- introduced resv_map lock
-Message-ID: <20140106001237.GA696@lge.com>
+Subject: Re: [PATCH v3 13/14] mm, hugetlb: retry if failed to allocate and
+ there is concurrent user
+Message-ID: <20140106001938.GB696@lge.com>
 References: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1387349640-8071-4-git-send-email-iamjoonsoo.kim@lge.com>
- <20131221135819.GB12407@voom.fritz.box>
- <20131223010517.GB19388@lge.com>
- <20131224120012.GH12407@voom.fritz.box>
+ <1387349640-8071-14-git-send-email-iamjoonsoo.kim@lge.com>
+ <20131219170202.0df2d82a2adefa3ab616bdaa@linux-foundation.org>
+ <20131220140153.GC11295@suse.de>
+ <1387608497.3119.17.camel@buesod1.americas.hpqcorp.net>
+ <20131223004438.GA19388@lge.com>
+ <20131223021118.GA2487@lge.com>
+ <1388778945.2956.20.camel@buesod1.americas.hpqcorp.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20131224120012.GH12407@voom.fritz.box>
+In-Reply-To: <1388778945.2956.20.camel@buesod1.americas.hpqcorp.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Gibson <david@gibson.dropbear.id.au>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, aswin@hp.com
 
-On Tue, Dec 24, 2013 at 11:00:12PM +1100, David Gibson wrote:
-> On Mon, Dec 23, 2013 at 10:05:17AM +0900, Joonsoo Kim wrote:
-> > On Sun, Dec 22, 2013 at 12:58:19AM +1100, David Gibson wrote:
-> > > On Wed, Dec 18, 2013 at 03:53:49PM +0900, Joonsoo Kim wrote:
-> > > > There is a race condition if we map a same file on different processes.
-> > > > Region tracking is protected by mmap_sem and hugetlb_instantiation_mutex.
-> > > > When we do mmap, we don't grab a hugetlb_instantiation_mutex, but,
-> > > > grab a mmap_sem. This doesn't prevent other process to modify region
-> > > > structure, so it can be modified by two processes concurrently.
+On Fri, Jan 03, 2014 at 11:55:45AM -0800, Davidlohr Bueso wrote:
+> Hi Joonsoo,
+> 
+> Sorry about the delay...
+> 
+> On Mon, 2013-12-23 at 11:11 +0900, Joonsoo Kim wrote:
+> > On Mon, Dec 23, 2013 at 09:44:38AM +0900, Joonsoo Kim wrote:
+> > > On Fri, Dec 20, 2013 at 10:48:17PM -0800, Davidlohr Bueso wrote:
+> > > > On Fri, 2013-12-20 at 14:01 +0000, Mel Gorman wrote:
+> > > > > On Thu, Dec 19, 2013 at 05:02:02PM -0800, Andrew Morton wrote:
+> > > > > > On Wed, 18 Dec 2013 15:53:59 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> > > > > > 
+> > > > > > > If parallel fault occur, we can fail to allocate a hugepage,
+> > > > > > > because many threads dequeue a hugepage to handle a fault of same address.
+> > > > > > > This makes reserved pool shortage just for a little while and this cause
+> > > > > > > faulting thread who can get hugepages to get a SIGBUS signal.
+> > > > > > > 
+> > > > > > > To solve this problem, we already have a nice solution, that is,
+> > > > > > > a hugetlb_instantiation_mutex. This blocks other threads to dive into
+> > > > > > > a fault handler. This solve the problem clearly, but it introduce
+> > > > > > > performance degradation, because it serialize all fault handling.
+> > > > > > > 
+> > > > > > > Now, I try to remove a hugetlb_instantiation_mutex to get rid of
+> > > > > > > performance degradation.
+> > > > > > 
+> > > > > > So the whole point of the patch is to improve performance, but the
+> > > > > > changelog doesn't include any performance measurements!
+> > > > > > 
+> > > > > 
+> > > > > I don't really deal with hugetlbfs any more and I have not examined this
+> > > > > series but I remember why I never really cared about this mutex. It wrecks
+> > > > > fault scalability but AFAIK fault scalability almost never mattered for
+> > > > > workloads using hugetlbfs.  The most common user of hugetlbfs by far is
+> > > > > sysv shared memory. The memory is faulted early in the lifetime of the
+> > > > > workload and after that it does not matter. At worst, it hurts application
+> > > > > startup time but that is still poor motivation for putting a lot of work
+> > > > > into removing the mutex.
 > > > > 
-> > > > To solve this, I introduce a lock to resv_map and make region manipulation
-> > > > function grab a lock before they do actual work. This makes region
-> > > > tracking safe.
+> > > > Yep, important hugepage workloads initially pound heavily on this lock,
+> > > > then it naturally decreases.
+> > > > 
+> > > > > Microbenchmarks will be able to trigger problems in this area but it'd
+> > > > > be important to check if any workload that matters is actually hitting
+> > > > > that problem.
+> > > > 
+> > > > I was thinking of writing one to actually get some numbers for this
+> > > > patchset -- I don't know of any benchmark that might stress this lock. 
+> > > > 
+> > > > However I first measured the amount of cycles it costs to start an
+> > > > Oracle DB and things went south with these changes. A simple 'startup
+> > > > immediate' calls hugetlb_fault() ~5000 times. For a vanilla kernel, this
+> > > > costs ~7.5 billion cycles and with this patchset it goes up to ~27.1
+> > > > billion. While there is naturally a fair amount of variation, these
+> > > > changes do seem to do more harm than good, at least in real world
+> > > > scenarios.
 > > > 
-> > > It's not clear to me if you're saying there is a list corruption race
-> > > bug in the existing code, or only that there will be if the
-> > > instantiation mutex goes away.
+> > > Hello,
+> > > 
+> > > I think that number of cycles is not proper to measure this patchset,
+> > > because cycles would be wasted by fault handling failure. Instead, it
+> > > targeted improved elapsed time. 
+> 
+> Fair enough, however the fact of the matter is this approach does en up
+> hurting performance. Regarding total startup time, I didn't see hardly
+> any differences, with both vanilla and this patchset it takes close to
+> 33.5 seconds.
+> 
+> > Could you tell me how long it
+> > > takes to fault all of it's hugepages?
+> > > 
+> > > Anyway, this order of magnitude still seems a problem. :/
+> > > 
+> > > I guess that cycles are wasted by zeroing hugepage in fault-path like as
+> > > Andrew pointed out.
+> > > 
+> > > I will send another patches to fix this problem.
 > > 
-> > Hello,
+> > Hello, Davidlohr.
 > > 
-> > The race exists in current code.
-> > Currently, region tracking is protected by either down_write(&mm->mmap_sem) or
-> > down_read(&mm->mmap_sem) + instantiation mutex. But if we map this hugetlbfs
-> > file to two different processes, holding a mmap_sem doesn't have any impact on
-> > the other process and concurrent access to data structure is possible.
+> > Here goes the fix on top of this series.
 > 
-> Ouch.  In that case:
-> 
-> Acked-by: David Gibson <david@gibson.dropbear.id.au>
-> 
-> It would be really nice to add a testcase for this race to the
-> libhugetlbfs testsuite.
+> ... and with this patch we go from 27 down to 11 billion cycles, so this
+> approach still costs more than what we currently have. A perf stat shows
+> that an entire 1Gb huge page aware DB startup costs around ~30 billion
+> cycles on a vanilla kernel, so the impact of hugetlb_fault() is
+> definitely non trivial and IMO worth considering.
 
-Okay!
-I will add it.
+Really thanks for your help. :)
+
+> 
+> Now, I took my old patchset (https://lkml.org/lkml/2013/7/26/299) for a
+> ride and things do look quite better, which is basically what Andrew was
+> suggesting previously anyway. With the hash table approach the startup
+> time did go down to ~25.1 seconds, which is a nice -24.7% time
+> reduction, with hugetlb_fault() consuming roughly 5.3 billion cycles.
+> This hash table was on a 80 core system, so since we do the power of two
+> round up we end up with 256 entries -- I think we can do better if we
+> enlarger further, maybe something like statically 1024, or probably
+> better, 8-ish * nr cpus.
+> 
+> Thoughts? Is there any reason why we cannot go with this instead? Yes,
+> we still keep the mutex, but the approach is (1) proven better for
+> performance on real world workloads and (2) far less invasive. 
+
+I have no more idea to improve my patches now, so I agree with your approach.
+When I reviewed your approach last time, I found one race condition. In that
+time, I didn't think of a solution about it. If you resend it, I will review
+and re-think about it.
 
 Thanks.
 
