@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 548C86B003D
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 9211B6B0044
 	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 03:45:39 -0500 (EST)
-Received: by mail-la0-f42.google.com with SMTP id ec20so9698815lab.15
+Received: by mail-la0-f50.google.com with SMTP id el20so9493503lab.23
         for <linux-mm@kvack.org>; Mon, 06 Jan 2014 00:45:38 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id y7si35753531lal.14.2014.01.06.00.45.37
+        by mx.google.com with ESMTPS id 6si35735305lby.142.2014.01.06.00.45.38
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
         Mon, 06 Jan 2014 00:45:38 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH RESEND 06/11] memcg, slab: fix races in per-memcg cache creation/destruction
-Date: Mon, 6 Jan 2014 12:44:57 +0400
-Message-ID: <75f6caa087d0e3e9a57eb30f7675c90ebdc08dab.1388996525.git.vdavydov@parallels.com>
+Subject: [PATCH RESEND 03/11] memcg, slab: cleanup memcg cache initialization/destruction
+Date: Mon, 6 Jan 2014 12:44:54 +0400
+Message-ID: <c37bfbb652917f782192cd08d3c526d9993aad39.1388996525.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1388996525.git.vdavydov@parallels.com>
 References: <cover.1388996525.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,59 +22,36 @@ List-ID: <linux-mm.kvack.org>
 To: mhocko@suse.cz, akpm@linux-foundation.org
 Cc: glommer@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
 
-We obtain a per-memcg cache from a root kmem_cache by dereferencing an
-entry of the root cache's memcg_params::memcg_caches array. If we find
-no cache for a memcg there on allocation, we initiate the memcg cache
-creation (see memcg_kmem_get_cache()). The cache creation proceeds
-asynchronously in memcg_create_kmem_cache() in order to avoid lock
-clashes, so there can be several threads trying to create the same
-kmem_cache concurrently, but only one of them may succeed. However, due
-to a race in the code, it is not always true. The point is that the
-memcg_caches array can be relocated when we activate kmem accounting for
-a memcg (see memcg_update_all_caches(), memcg_update_cache_size()). If
-memcg_update_cache_size() and memcg_create_kmem_cache() proceed
-concurrently as described below, we can leak a kmem_cache.
+Currently, we have rather a messy function set relating to per-memcg
+kmem cache initialization/destruction.
 
-Asume two threads schedule creation of the same kmem_cache. One of them
-successfully creates it. Another one should fail then, but if
-memcg_create_kmem_cache() interleaves with memcg_update_cache_size() as
-follows, it won't:
+Per-memcg caches are created in memcg_create_kmem_cache(). This function
+calls kmem_cache_create_memcg() to allocate and initialize a kmem cache
+and then "registers" the new cache in the memcg_params::memcg_caches
+array of the parent cache.
 
-  memcg_create_kmem_cache()             memcg_update_cache_size()
-  (called w/o mutexes held)             (called with slab_mutex,
-                                         set_limit_mutex held)
-  -------------------------             -------------------------
+During its work-flow, kmem_cache_create_memcg() executes the following
+memcg-related functions:
 
-  mutex_lock(&memcg_cache_mutex)
+ - memcg_alloc_cache_params(), to initialize memcg_params of the newly
+   created cache;
+ - memcg_cache_list_add(), to add the new cache to the memcg_slab_caches
+   list.
 
-                                        s->memcg_params=kzalloc(...)
+On the other hand, kmem_cache_destroy() called on a cache destruction
+only calls memcg_release_cache(), which does all the work: it cleans the
+reference to the cache in its parent's memcg_params::memcg_caches,
+removes the cache from the memcg_slab_caches list, and frees
+memcg_params.
 
-  new_cachep=cache_from_memcg_idx(cachep,idx)
-  // new_cachep==NULL => proceed to creation
+Such an inconsistency between destruction and initialization paths make
+the code difficult to read, so let's clean this up a bit.
 
-                                        s->memcg_params->memcg_caches[i]
-                                            =cur_params->memcg_caches[i]
-
-  // kmem_cache_create_memcg takes slab_mutex
-  // so we will hang around until
-  // memcg_update_cache_size finishes, but
-  // nothing will prevent it from succeeding so
-  // memcg_caches[idx] will be overwritten in
-  // memcg_register_cache!
-
-  new_cachep = kmem_cache_create_memcg(...)
-  mutex_unlock(&memcg_cache_mutex)
-
-Let's fix this by moving the check for existence of the memcg cache to
-kmem_cache_create_memcg() to be called under the slab_mutex and make it
-return NULL if so.
-
-A similar race is possible when destroying a memcg cache (see
-kmem_cache_destroy()). Since memcg_unregister_cache(), which clears the
-pointer in the memcg_caches array, is called w/o protection, we can race
-with memcg_update_cache_size() and omit clearing the pointer. Therefore
-memcg_unregister_cache() should be moved before we release the
-slab_mutex.
+This patch moves all the code relating to registration of per-memcg
+caches (adding to memcg list, setting the pointer to a cache from its
+parent) to the newly created memcg_register_cache() and
+memcg_unregister_cache() functions making the initialization and
+destruction paths look symmetrical.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 Cc: Michal Hocko <mhocko@suse.cz>
@@ -86,115 +63,180 @@ Cc: Pekka Enberg <penberg@kernel.org>
 Cc: Christoph Lameter <cl@linux.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- mm/memcontrol.c  |   23 ++++++++++++++---------
- mm/slab_common.c |   14 +++++++++++++-
- 2 files changed, 27 insertions(+), 10 deletions(-)
+ include/linux/memcontrol.h |    9 +++----
+ mm/memcontrol.c            |   64 +++++++++++++++++++++-----------------------
+ mm/slab_common.c           |    5 ++--
+ 3 files changed, 37 insertions(+), 41 deletions(-)
 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 5e6541f..6202406 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -500,8 +500,8 @@ int memcg_cache_id(struct mem_cgroup *memcg);
+ int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
+ 			     struct kmem_cache *root_cache);
+ void memcg_free_cache_params(struct kmem_cache *s);
+-void memcg_release_cache(struct kmem_cache *cachep);
+-void memcg_cache_list_add(struct mem_cgroup *memcg, struct kmem_cache *cachep);
++void memcg_register_cache(struct kmem_cache *s);
++void memcg_unregister_cache(struct kmem_cache *s);
+ 
+ int memcg_update_cache_size(struct kmem_cache *s, int num_groups);
+ void memcg_update_array_size(int num_groups);
+@@ -651,12 +651,11 @@ static inline void memcg_free_cache_params(struct kmem_cache *s);
+ {
+ }
+ 
+-static inline void memcg_release_cache(struct kmem_cache *cachep)
++static inline void memcg_register_cache(struct kmem_cache *s)
+ {
+ }
+ 
+-static inline void memcg_cache_list_add(struct mem_cgroup *memcg,
+-					struct kmem_cache *s)
++static inline void memcg_unregister_cache(struct kmem_cache *s)
+ {
+ }
+ 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index d918626..56fc410 100644
+index 8c47910..f8eb994 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -3228,6 +3228,12 @@ void memcg_register_cache(struct kmem_cache *s)
- 	if (is_root_cache(s))
- 		return;
+@@ -3059,16 +3059,6 @@ static void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size)
+ 		css_put(&memcg->css);
+ }
  
-+	/*
-+	 * Holding the slab_mutex assures nobody will touch the memcg_caches
-+	 * array while we are modifying it.
-+	 */
-+	lockdep_assert_held(&slab_mutex);
+-void memcg_cache_list_add(struct mem_cgroup *memcg, struct kmem_cache *cachep)
+-{
+-	if (!memcg)
+-		return;
+-
+-	mutex_lock(&memcg->slab_caches_mutex);
+-	list_add(&cachep->memcg_params->list, &memcg->memcg_slab_caches);
+-	mutex_unlock(&memcg->slab_caches_mutex);
+-}
+-
+ /*
+  * helper for acessing a memcg's index. It will be used as an index in the
+  * child cache array in kmem_cache, and also to derive its name. This function
+@@ -3229,21 +3219,41 @@ void memcg_free_cache_params(struct kmem_cache *s)
+ 	kfree(s->memcg_params);
+ }
+ 
+-void memcg_release_cache(struct kmem_cache *s)
++void memcg_register_cache(struct kmem_cache *s)
+ {
+ 	struct kmem_cache *root;
+ 	struct mem_cgroup *memcg;
+ 	int id;
+ 
++	if (is_root_cache(s))
++		return;
 +
- 	root = s->memcg_params->root_cache;
- 	memcg = s->memcg_params->memcg;
- 	id = memcg_cache_id(memcg);
-@@ -3247,6 +3253,7 @@ void memcg_register_cache(struct kmem_cache *s)
- 	 * before adding it to the memcg_slab_caches list, otherwise we can
- 	 * fail to convert memcg_params_to_cache() while traversing the list.
- 	 */
-+	VM_BUG_ON(root->memcg_params->memcg_caches[id]);
- 	root->memcg_params->memcg_caches[id] = s;
- 
- 	mutex_lock(&memcg->slab_caches_mutex);
-@@ -3263,6 +3270,12 @@ void memcg_unregister_cache(struct kmem_cache *s)
- 	if (is_root_cache(s))
- 		return;
- 
-+	/*
-+	 * Holding the slab_mutex assures nobody will touch the memcg_caches
-+	 * array while we are modifying it.
-+	 */
-+	lockdep_assert_held(&slab_mutex);
++	root = s->memcg_params->root_cache;
++	memcg = s->memcg_params->memcg;
++	id = memcg_cache_id(memcg);
 +
- 	root = s->memcg_params->root_cache;
- 	memcg = s->memcg_params->memcg;
- 	id = memcg_cache_id(memcg);
-@@ -3276,6 +3289,7 @@ void memcg_unregister_cache(struct kmem_cache *s)
- 	 * after removing it from the memcg_slab_caches list, otherwise we can
- 	 * fail to convert memcg_params_to_cache() while traversing the list.
++	css_get(&memcg->css);
++
++	mutex_lock(&memcg->slab_caches_mutex);
++	list_add(&s->memcg_params->list, &memcg->memcg_slab_caches);
++	mutex_unlock(&memcg->slab_caches_mutex);
++
++	root->memcg_params->memcg_caches[id] = s;
+ 	/*
+-	 * This happens, for instance, when a root cache goes away before we
+-	 * add any memcg.
++	 * the readers won't lock, make sure everybody sees the updated value,
++	 * so they won't put stuff in the queue again for no reason
  	 */
-+	VM_BUG_ON(!root->memcg_params->memcg_caches[id]);
- 	root->memcg_params->memcg_caches[id] = NULL;
+-	if (!s->memcg_params)
+-		return;
++	wmb();
++}
+ 
+-	if (s->memcg_params->is_root_cache)
+-		goto out;
++void memcg_unregister_cache(struct kmem_cache *s)
++{
++	struct kmem_cache *root;
++	struct mem_cgroup *memcg;
++	int id;
++
++	if (is_root_cache(s))
++		return;
+ 
+ 	memcg = s->memcg_params->memcg;
+ 	id  = memcg_cache_id(memcg);
+@@ -3256,8 +3266,6 @@ void memcg_release_cache(struct kmem_cache *s)
+ 	mutex_unlock(&memcg->slab_caches_mutex);
  
  	css_put(&memcg->css);
-@@ -3428,22 +3442,13 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
- 						  struct kmem_cache *cachep)
- {
- 	struct kmem_cache *new_cachep;
--	int idx;
- 
- 	BUG_ON(!memcg_can_account_kmem(memcg));
- 
--	idx = memcg_cache_id(memcg);
--
- 	mutex_lock(&memcg_cache_mutex);
--	new_cachep = cache_from_memcg_idx(cachep, idx);
--	if (new_cachep)
--		goto out;
--
- 	new_cachep = kmem_cache_dup(memcg, cachep);
- 	if (new_cachep == NULL)
- 		new_cachep = cachep;
--
 -out:
+-	memcg_free_cache_params(s);
+ }
+ 
+ /*
+@@ -3415,26 +3423,13 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
+ 
+ 	mutex_lock(&memcg_cache_mutex);
+ 	new_cachep = cache_from_memcg_idx(cachep, idx);
+-	if (new_cachep) {
+-		css_put(&memcg->css);
++	if (new_cachep)
+ 		goto out;
+-	}
+ 
+ 	new_cachep = kmem_cache_dup(memcg, cachep);
+-	if (new_cachep == NULL) {
++	if (new_cachep == NULL)
+ 		new_cachep = cachep;
+-		css_put(&memcg->css);
+-		goto out;
+-	}
+-
+-	atomic_set(&new_cachep->memcg_params->nr_pages , 0);
+ 
+-	cachep->memcg_params->memcg_caches[idx] = new_cachep;
+-	/*
+-	 * the readers won't lock, make sure everybody sees the updated value,
+-	 * so they won't put stuff in the queue again for no reason
+-	 */
+-	wmb();
+ out:
  	mutex_unlock(&memcg_cache_mutex);
  	return new_cachep;
+@@ -3514,6 +3509,7 @@ static void memcg_create_cache_work_func(struct work_struct *w)
+ 
+ 	cw = container_of(w, struct create_work, work);
+ 	memcg_create_kmem_cache(cw->memcg, cw->cachep);
++	css_put(&cw->memcg->css);
+ 	kfree(cw);
  }
+ 
 diff --git a/mm/slab_common.c b/mm/slab_common.c
-index db24ec4..f34707e 100644
+index 70f9e24..db24ec4 100644
 --- a/mm/slab_common.c
 +++ b/mm/slab_common.c
-@@ -180,6 +180,18 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
- 	if (err)
- 		goto out_unlock;
+@@ -215,7 +215,7 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
  
-+	if (memcg) {
-+		/*
-+		 * Since per-memcg caches are created asynchronously on first
-+		 * allocation (see memcg_kmem_get_cache()), several threads can
-+		 * try to create the same cache, but only one of them may
-+		 * succeed. Therefore if we get here and see the cache has
-+		 * already been created, we silently return NULL.
-+		 */
-+		if (cache_from_memcg_idx(parent_cache, memcg_cache_id(memcg)))
-+			goto out_unlock;
-+	}
-+
- 	/*
- 	 * Some allocators will constraint the set of valid flags to a subset
- 	 * of all flags. We expect them to define CACHE_CREATE_MASK in this
-@@ -261,11 +273,11 @@ void kmem_cache_destroy(struct kmem_cache *s)
- 		list_del(&s->list);
+ 	s->refcount = 1;
+ 	list_add(&s->list, &slab_caches);
+-	memcg_cache_list_add(memcg, s);
++	memcg_register_cache(s);
  
- 		if (!__kmem_cache_shutdown(s)) {
-+			memcg_unregister_cache(s);
- 			mutex_unlock(&slab_mutex);
+ out_unlock:
+ 	mutex_unlock(&slab_mutex);
+@@ -265,7 +265,8 @@ void kmem_cache_destroy(struct kmem_cache *s)
  			if (s->flags & SLAB_DESTROY_BY_RCU)
  				rcu_barrier();
  
--			memcg_unregister_cache(s);
- 			memcg_free_cache_params(s);
+-			memcg_release_cache(s);
++			memcg_unregister_cache(s);
++			memcg_free_cache_params(s);
  			kfree(s->name);
  			kmem_cache_free(kmem_cache, s);
+ 		} else {
 -- 
 1.7.10.4
 
