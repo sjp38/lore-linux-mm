@@ -1,54 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 609AC6B0031
-	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 07:17:36 -0500 (EST)
-Received: by mail-qa0-f54.google.com with SMTP id f11so2874099qae.13
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 04:17:36 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id hi9si31401960qcb.15.2014.01.06.04.17.35
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 83FD86B0031
+	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 07:19:17 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id lf10so18628506pab.28
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 04:19:17 -0800 (PST)
+Received: from g1t0027.austin.hp.com (g1t0027.austin.hp.com. [15.216.28.34])
+        by mx.google.com with ESMTPS id yy4si40486000pbc.339.2014.01.06.04.19.15
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jan 2014 04:17:35 -0800 (PST)
-Date: Mon, 6 Jan 2014 13:17:19 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] sched/auto_group: fix consume memory even if add
- 'noautogroup' in the cmdline
-Message-ID: <20140106121719.GH31570@twins.programming.kicks-ass.net>
-References: <1388139751-19632-1-git-send-email-liwanp@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1388139751-19632-1-git-send-email-liwanp@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 06 Jan 2014 04:19:16 -0800 (PST)
+Message-ID: <1389010745.14953.5.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH v3 13/14] mm, hugetlb: retry if failed to allocate and
+ there is concurrent user
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Mon, 06 Jan 2014 04:19:05 -0800
+In-Reply-To: <20140106001938.GB696@lge.com>
+References: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
+	 <1387349640-8071-14-git-send-email-iamjoonsoo.kim@lge.com>
+	 <20131219170202.0df2d82a2adefa3ab616bdaa@linux-foundation.org>
+	 <20131220140153.GC11295@suse.de>
+	 <1387608497.3119.17.camel@buesod1.americas.hpqcorp.net>
+	 <20131223004438.GA19388@lge.com> <20131223021118.GA2487@lge.com>
+	 <1388778945.2956.20.camel@buesod1.americas.hpqcorp.net>
+	 <20140106001938.GB696@lge.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Galbraith <bitbucket@online.de>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh
+ Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, aswin@hp.com
 
-On Fri, Dec 27, 2013 at 06:22:31PM +0800, Wanpeng Li wrote:
-> We have a server which have 200 CPUs and 8G memory, there is auto_group creation 
+On Mon, 2014-01-06 at 09:19 +0900, Joonsoo Kim wrote:
+> On Fri, Jan 03, 2014 at 11:55:45AM -0800, Davidlohr Bueso wrote:
+> > Hi Joonsoo,
+> > 
+> > Sorry about the delay...
+> > 
+> > On Mon, 2013-12-23 at 11:11 +0900, Joonsoo Kim wrote:
+> > > On Mon, Dec 23, 2013 at 09:44:38AM +0900, Joonsoo Kim wrote:
+> > > > On Fri, Dec 20, 2013 at 10:48:17PM -0800, Davidlohr Bueso wrote:
+> > > > > On Fri, 2013-12-20 at 14:01 +0000, Mel Gorman wrote:
+> > > > > > On Thu, Dec 19, 2013 at 05:02:02PM -0800, Andrew Morton wrote:
+> > > > > > > On Wed, 18 Dec 2013 15:53:59 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> > > > > > > 
+> > > > > > > > If parallel fault occur, we can fail to allocate a hugepage,
+> > > > > > > > because many threads dequeue a hugepage to handle a fault of same address.
+> > > > > > > > This makes reserved pool shortage just for a little while and this cause
+> > > > > > > > faulting thread who can get hugepages to get a SIGBUS signal.
+> > > > > > > > 
+> > > > > > > > To solve this problem, we already have a nice solution, that is,
+> > > > > > > > a hugetlb_instantiation_mutex. This blocks other threads to dive into
+> > > > > > > > a fault handler. This solve the problem clearly, but it introduce
+> > > > > > > > performance degradation, because it serialize all fault handling.
+> > > > > > > > 
+> > > > > > > > Now, I try to remove a hugetlb_instantiation_mutex to get rid of
+> > > > > > > > performance degradation.
+> > > > > > > 
+> > > > > > > So the whole point of the patch is to improve performance, but the
+> > > > > > > changelog doesn't include any performance measurements!
+> > > > > > > 
+> > > > > > 
+> > > > > > I don't really deal with hugetlbfs any more and I have not examined this
+> > > > > > series but I remember why I never really cared about this mutex. It wrecks
+> > > > > > fault scalability but AFAIK fault scalability almost never mattered for
+> > > > > > workloads using hugetlbfs.  The most common user of hugetlbfs by far is
+> > > > > > sysv shared memory. The memory is faulted early in the lifetime of the
+> > > > > > workload and after that it does not matter. At worst, it hurts application
+> > > > > > startup time but that is still poor motivation for putting a lot of work
+> > > > > > into removing the mutex.
+> > > > > 
+> > > > > Yep, important hugepage workloads initially pound heavily on this lock,
+> > > > > then it naturally decreases.
+> > > > > 
+> > > > > > Microbenchmarks will be able to trigger problems in this area but it'd
+> > > > > > be important to check if any workload that matters is actually hitting
+> > > > > > that problem.
+> > > > > 
+> > > > > I was thinking of writing one to actually get some numbers for this
+> > > > > patchset -- I don't know of any benchmark that might stress this lock. 
+> > > > > 
+> > > > > However I first measured the amount of cycles it costs to start an
+> > > > > Oracle DB and things went south with these changes. A simple 'startup
+> > > > > immediate' calls hugetlb_fault() ~5000 times. For a vanilla kernel, this
+> > > > > costs ~7.5 billion cycles and with this patchset it goes up to ~27.1
+> > > > > billion. While there is naturally a fair amount of variation, these
+> > > > > changes do seem to do more harm than good, at least in real world
+> > > > > scenarios.
+> > > > 
+> > > > Hello,
+> > > > 
+> > > > I think that number of cycles is not proper to measure this patchset,
+> > > > because cycles would be wasted by fault handling failure. Instead, it
+> > > > targeted improved elapsed time. 
+> > 
+> > Fair enough, however the fact of the matter is this approach does en up
+> > hurting performance. Regarding total startup time, I didn't see hardly
+> > any differences, with both vanilla and this patchset it takes close to
+> > 33.5 seconds.
+> > 
+> > > Could you tell me how long it
+> > > > takes to fault all of it's hugepages?
+> > > > 
+> > > > Anyway, this order of magnitude still seems a problem. :/
+> > > > 
+> > > > I guess that cycles are wasted by zeroing hugepage in fault-path like as
+> > > > Andrew pointed out.
+> > > > 
+> > > > I will send another patches to fix this problem.
+> > > 
+> > > Hello, Davidlohr.
+> > > 
+> > > Here goes the fix on top of this series.
+> > 
+> > ... and with this patch we go from 27 down to 11 billion cycles, so this
+> > approach still costs more than what we currently have. A perf stat shows
+> > that an entire 1Gb huge page aware DB startup costs around ~30 billion
+> > cycles on a vanilla kernel, so the impact of hugetlb_fault() is
+> > definitely non trivial and IMO worth considering.
+> 
+> Really thanks for your help. :)
+> 
+> > 
+> > Now, I took my old patchset (https://lkml.org/lkml/2013/7/26/299) for a
+> > ride and things do look quite better, which is basically what Andrew was
+> > suggesting previously anyway. With the hash table approach the startup
+> > time did go down to ~25.1 seconds, which is a nice -24.7% time
+> > reduction, with hugetlb_fault() consuming roughly 5.3 billion cycles.
+> > This hash table was on a 80 core system, so since we do the power of two
+> > round up we end up with 256 entries -- I think we can do better if we
+> > enlarger further, maybe something like statically 1024, or probably
+> > better, 8-ish * nr cpus.
+> > 
+> > Thoughts? Is there any reason why we cannot go with this instead? Yes,
+> > we still keep the mutex, but the approach is (1) proven better for
+> > performance on real world workloads and (2) far less invasive. 
+> 
+> I have no more idea to improve my patches now, so I agree with your approach.
+> When I reviewed your approach last time, I found one race condition. In that
+> time, I didn't think of a solution about it. If you resend it, I will review
+> and re-think about it.
 
-I'm hoping that is 8T, otherwise that's a severely under provisioned
-system, that's a mere 40M per cpu, does that even work?
+hmm so how do you want to play this? Your first 3 patches basically
+deals (more elegantly) with my patch 1/2 which I was on my way of just
+changing the lock -- we had agreed that serializing regions was with a
+spinlock was better than with a sleeping one as the critical region was
+small enough and we just had to deal with that trivial kmalloc case in
+region_chg(). So I can pick up your patches 1, 2 & 3 and then add the
+instantiation mutex hash table change, sounds good?
 
-> which will almost consume 12MB memory even if add 'noautogroup' in the kernel 
-> boot parameter. In addtion, SLUB per cpu partial caches freeing that is local to 
-> a processor which requires the taking of locks at the price of more indeterminism 
-> in the latency of the free. This patch fix it by check noautogroup earlier to avoid 
-> free after unnecessary memory consumption.
-
-That's just a bad changelog. It fails to explain the actual problem and
-it babbles about unrelated things like SLUB details.
-
-Also, I'm not entirely sure what the intention was of this code, I've so
-far tried to ignore the entire autogroup fest... 
-
-It looks like it creates and maintains the entire autogroup hierarchy,
-such that if you at runtime enable the sysclt and move tasks 'back' to
-the root cgroup you get the autogroup behaviour.
-
-Was this intended? Mike?
-
-This patch obviously breaks that.
+Thanks,
+Davidlohr 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
