@@ -1,154 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f52.google.com (mail-bk0-f52.google.com [209.85.214.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 81EBC6B0031
-	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 12:13:29 -0500 (EST)
-Received: by mail-bk0-f52.google.com with SMTP id u14so5703907bkz.25
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 09:13:28 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id lx9si23286055bkb.59.2014.01.06.09.13.28
+Received: from mail-vb0-f51.google.com (mail-vb0-f51.google.com [209.85.212.51])
+	by kanga.kvack.org (Postfix) with ESMTP id ADE9C6B0031
+	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 12:26:53 -0500 (EST)
+Received: by mail-vb0-f51.google.com with SMTP id 11so8906248vbe.24
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 09:26:53 -0800 (PST)
+Received: from exchange10.columbia.tresys.com (exchange10.columbia.tresys.com. [216.30.191.171])
+        by mx.google.com with ESMTPS id yt16si29736818vcb.42.2014.01.06.09.26.52
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 06 Jan 2014 09:13:28 -0800 (PST)
-Date: Mon, 6 Jan 2014 12:13:24 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [REGRESSION] [BISECTED] MM patch causes kernel lockup with 3.12
- and acpi_backlight=vendor
-Message-ID: <20140106171324.GA6963@cmpxchg.org>
-References: <CAJrk0BuA2OTfMhmqZ-OFvtbdf_8+O3V77L0mDsoixN+t4A0ASA@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 06 Jan 2014 09:26:52 -0800 (PST)
+From: William Roberts <WRoberts@tresys.com>
+Subject: RE: [RFC][PATCH 3/3] audit: Audit proc cmdline value
+Date: Mon, 6 Jan 2014 17:26:15 +0000
+Message-ID: <A8856C6323EFE0459533E910625AB9303DC9C7@Exchange10.columbia.tresys.com>
+References: <1389022230-24664-1-git-send-email-wroberts@tresys.com>
+ <1389022230-24664-3-git-send-email-wroberts@tresys.com>
+ <20140106170855.GA1828@mguzik.redhat.com>
+In-Reply-To: <20140106170855.GA1828@mguzik.redhat.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJrk0BuA2OTfMhmqZ-OFvtbdf_8+O3V77L0mDsoixN+t4A0ASA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bradley Baetz <bbaetz@gmail.com>
-Cc: platform-driver-x86@vger.kernel.org, linux-mm@kvack.org, hdegoede@redhat.com
+To: Mateusz Guzik <mguzik@redhat.com>, William Roberts <bill.c.roberts@gmail.com>
+Cc: "linux-audit@redhat.com" <linux-audit@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "rgb@redhat.com" <rgb@redhat.com>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "sds@tycho.nsa.gov" <sds@tycho.nsa.gov>
 
-Hi Bradley,
-
-On Fri, Dec 27, 2013 at 02:21:21PM +1100, Bradley Baetz wrote:
-> Hi,
-> 
-> I have a Dell laptop (Vostro 3560). When I boot Fedora 20 with the
-> acpi_backlight=vendor option, the kernel locks up hard during the boot
-> proces, when systemd runs udevadm trigger. This is a hard lockup -
-> magic-sysrq doesn't work, and neither does caps lock/vt-change/etc.
-> 
-> I've bisected this to:
-> 
-> commit 81c0a2bb515fd4daae8cab64352877480792b515
-> Author: Johannes Weiner <hannes@cmpxchg.org>
-> Date:   Wed Sep 11 14:20:47 2013 -0700
-> 
->     mm: page_alloc: fair zone allocator policy
-> 
-> which seemed really unrelated, but I've confirmed that:
-> 
->  - the commit before this patch doesn't cause the problem, and the commit
-> afterwrads does
->  - reverting that patch from 3.12.0 fixes the problem
->  - reverting that patch (and the partial revert
-> fff4068cba484e6b0abe334ed6b15d5a215a3b25) from master also fixes the problem
->  - reverting that patch from the fedora 3.12.5-302.fc20 kernel fixes the
-> problem
->  - applying that patch to 3.11.0 causes the problem
-> 
-> so I'm pretty sure that that is the patch that causes (or at least
-> triggers) this issue
-> 
-> I'm using the acpi_backlight option to get the backlight working - without
-> this the backlight doesn't work at all. Removing 'acpi_backlight=vendor'
-> (or blacklisting the dell-laptop module, which is effectively the same
-> thing) fixes the issue.
-> 
-> The lockup happens when systemd runs "udevadm trigger", not when the module
-> is loaded - I can reproduce the issue by booting into emergency mode,
-> remounting the filesystem as rw, starting up systemd-udevd and running
-> udevadm trigger manually. It dies a few seconds after loading the
-> dell-laptop module.
-> 
-> This happens even if I don't boot into X (using
-> systemd.unit=multi-user.target)
-> 
-> Triggering udev individually for each item doesn't trigger the issue ie:
-> 
-> for i in `udevadm --debug trigger --type=devices --action=add --dry-run
-> --verbose`; do echo $i; udevadm --debug trigger --type=devices --action=add
-> --verbose --parent-match=$i; sleep 1; done
-> 
-> works, so I haven't been able to work out what specific combination of
-> actions are causing this.
-> 
-> With the acpi_backlight option, I can manually read/write to the sysfs
-> dell-laptop backlight file, and it works (and changes the backlight as
-> expected)
-> 
-> This is 100% reproducible. I've also tested by powering off the laptop and
-> pulling the battery just in case one of the previous boots with the bisect
-> left the hardware in a strange state - no change.
-
-My patch aggressively spreads allocations over all zones in the
-system, but it should still respect dell-laptop's requirements for
-DMA32 memory.
-
-I wonder if the drastic change in allocation placement exposes an
-existing memory corruption.  In fact, the dell-laptop module is
-confused when it comes to the page allocator interface, it does
-
-  free_page((unsigned long)bufferpage);
-
-in the error path, where bufferpage is a page pointer that came out of
-alloc_page(), which will cause the page allocator to try to free the
-mem_map(!) page that backs the bufferpage page struct.  So one failed
-load attempt of the module could plausibly corrupt internal state.
-
-Does the following resolve the problem?  And if not, what are the
-"dell-laptop:" lines in the good and the bad kernel, and does the bad
-kernel trigger the WARNING?
-
----
-
-diff --git a/drivers/platform/x86/dell-laptop.c b/drivers/platform/x86/dell-laptop.c
-index c608b1d33f4a..92088b228573 100644
---- a/drivers/platform/x86/dell-laptop.c
-+++ b/drivers/platform/x86/dell-laptop.c
-@@ -819,6 +819,18 @@ static int __init dell_init(void)
- 		ret = -ENOMEM;
- 		goto fail_buffer;
- 	}
-+
-+	{
-+		struct zone *zone = page_zone(bufferpage);
-+		int idx = zone_idx(zone);
-+
-+		printk("dell-laptop: bufferpage (%p) in node %d zone %d (%s)\n", bufferpage, zone->node, idx, zone->name);
-+		if (WARN_ON(idx > ZONE_DMA32)) {
-+			ret = -EINVAL;
-+			goto fail_rfkill;
-+		}
-+	}
-+
- 	buffer = page_address(bufferpage);
- 
- 	ret = dell_setup_rfkill();
-@@ -888,7 +900,7 @@ fail_backlight:
- fail_filter:
- 	dell_cleanup_rfkill();
- fail_rfkill:
--	free_page((unsigned long)bufferpage);
-+	__free_page(bufferpage);
- fail_buffer:
- 	platform_device_del(platform_device);
- fail_platform_device2:
-@@ -914,7 +926,7 @@ static void __exit dell_exit(void)
- 		platform_driver_unregister(&platform_driver);
- 	}
- 	kfree(da_tokens);
--	free_page((unsigned long)buffer);
-+	__free_page(bufferpage);
- }
- 
- module_init(dell_init);
+DQoNCi0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQpGcm9tOiBNYXRldXN6IEd1emlrIFttYWls
+dG86bWd1emlrQHJlZGhhdC5jb21dIA0KU2VudDogTW9uZGF5LCBKYW51YXJ5IDA2LCAyMDE0IDk6
+MDkgQU0NClRvOiBXaWxsaWFtIFJvYmVydHMNCkNjOiBsaW51eC1hdWRpdEByZWRoYXQuY29tOyBs
+aW51eC1tbUBrdmFjay5vcmc7IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7IHJnYkByZWRo
+YXQuY29tOyB2aXJvQHplbml2LmxpbnV4Lm9yZy51azsgYWtwbUBsaW51eC1mb3VuZGF0aW9uLm9y
+Zzsgc2RzQHR5Y2hvLm5zYS5nb3Y7IFdpbGxpYW0gUm9iZXJ0cw0KU3ViamVjdDogUmU6IFtSRkNd
+W1BBVENIIDMvM10gYXVkaXQ6IEF1ZGl0IHByb2MgY21kbGluZSB2YWx1ZQ0KDQpJIGNhbid0IGNv
+bW1lbnQgb24gdGhlIGNvbmNlcHQsIGJ1dCBoYXZlIG9uZSBuaXQuDQoNCk9uIE1vbiwgSmFuIDA2
+LCAyMDE0IGF0IDA3OjMwOjMwQU0gLTA4MDAsIFdpbGxpYW0gUm9iZXJ0cyB3cm90ZToNCj4gK3N0
+YXRpYyB2b2lkIGF1ZGl0X2xvZ19jbWRsaW5lKHN0cnVjdCBhdWRpdF9idWZmZXIgKmFiLCBzdHJ1
+Y3QgdGFza19zdHJ1Y3QgKnRzaywNCj4gKwkJCSBzdHJ1Y3QgYXVkaXRfY29udGV4dCAqY29udGV4
+dCkNCj4gK3sNCj4gKwlpbnQgcmVzOw0KPiArCWNoYXIgKmJ1ZjsNCj4gKwljaGFyICptc2cgPSAi
+KG51bGwpIjsNCj4gKwlhdWRpdF9sb2dfZm9ybWF0KGFiLCAiIGNtZGxpbmU9Iik7DQo+ICsNCj4g
+KwkvKiBOb3QgIGNhY2hlZCAqLw0KPiArCWlmICghY29udGV4dC0+Y21kbGluZSkgew0KPiArCQli
+dWYgPSBrbWFsbG9jKFBBVEhfTUFYLCBHRlBfS0VSTkVMKTsNCj4gKwkJaWYgKCFidWYpDQo+ICsJ
+CQlnb3RvIG91dDsNCj4gKwkJcmVzID0gZ2V0X2NtZGxpbmUodHNrLCBidWYsIFBBVEhfTUFYKTsN
+Cj4gKwkJLyogRW5zdXJlIE5VTEwgdGVybWluYXRlZCAqLw0KPiArCQlpZiAoYnVmW3Jlcy0xXSAh
+PSAnXDAnKQ0KPiArCQkJYnVmW3Jlcy0xXSA9ICdcMCc7DQoNClRoaXMgYWNjZXNzZXMgbWVtb3J5
+IGJlbG93IHRoZSBidWZmZXIgaWYgZ2V0X2NtZGxpbmUgcmV0dXJuZWQgMCwgd2hpY2ggSSBiZWxp
+ZXZlIHdpbGwgYmUgdGhlIGNhc2Ugd2hlbiBzb21lb25lIGpva2luZ2x5IHVubWFwcyB0aGUgYXJl
+YSAoYWxsIG1heWJlIHdoZW4gaXQgaXMgc3dhcHBlZCBvdXQgYnV0IGNhbid0IGJlIHN3YXBwZWQg
+aW4gZHVlIHRvIEkvTyBlcnJvcnMpLg0KW1dpbGxpYW0gUm9iZXJ0c10gDQpTb3JyeSBmb3IgdGhl
+IHdlaXJkIGlubGluZSBwb3N0aW5nIChUaGFua3MgTVMgT3V0bG9vayBvZiBkb29tKS4gQW55d2F5
+cywgdGhpcyBpc27igJl0IGEgbml0LiBUaGlzIGlzIGEgbWFqb3IgaXNzdWUgdGhhdCBzaG91bGQg
+YmUgZGVhbHQgd2l0aC4gVGhhbmtzLg0KDQpBbHNvIHNpbmNlIHlvdSBhcmUganVzdCBwdXR0aW5n
+IDAgaW4gdGhlcmUgYW55d2F5IEkgZG9uJ3Qgc2VlIG11Y2ggcG9pbnQgaW4gdGVzdGluZyBmb3Ig
+aXQuDQoNCj4gKwkJY29udGV4dC0+Y21kbGluZSA9IGJ1ZjsNCj4gKwl9DQo+ICsJbXNnID0gY29u
+dGV4dC0+Y21kbGluZTsNCj4gK291dDoNCj4gKwlhdWRpdF9sb2dfdW50cnVzdGVkc3RyaW5nKGFi
+LCBtc2cpOw0KPiArfQ0KPiArDQoNCg0KDQotLQ0KTWF0ZXVzeiBHdXppaw0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
