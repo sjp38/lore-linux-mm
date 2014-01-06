@@ -1,43 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 4100A6B0031
-	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 06:24:26 -0500 (EST)
-Received: by mail-ee0-f53.google.com with SMTP id b57so7878862eek.12
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 03:24:25 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e2si83395612eeg.9.2014.01.06.03.24.25
+Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 609AC6B0031
+	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 07:17:36 -0500 (EST)
+Received: by mail-qa0-f54.google.com with SMTP id f11so2874099qae.13
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 04:17:36 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id hi9si31401960qcb.15.2014.01.06.04.17.35
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 06 Jan 2014 03:24:25 -0800 (PST)
-Date: Mon, 6 Jan 2014 12:24:22 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: could you clarify mm/mempolicy: fix !vma in new_vma_page()
-Message-ID: <20140106112422.GA27602@dhcp22.suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Jan 2014 04:17:35 -0800 (PST)
+Date: Mon, 6 Jan 2014 13:17:19 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] sched/auto_group: fix consume memory even if add
+ 'noautogroup' in the cmdline
+Message-ID: <20140106121719.GH31570@twins.programming.kicks-ass.net>
+References: <1388139751-19632-1-git-send-email-liwanp@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1388139751-19632-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bob Liu <bob.liu@oracle.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Galbraith <bitbucket@online.de>
 
-Hi Wanpeng Li,
-I have just noticed 11c731e81bb0 (mm/mempolicy: fix !vma in
-new_vma_page()) and I am not sure I understand it. Your changelog claims
-"
-    page_address_in_vma() may still return -EFAULT because of many other
-    conditions in it.  As a result the while loop in new_vma_page() may end
-    with vma=NULL.
-"
+On Fri, Dec 27, 2013 at 06:22:31PM +0800, Wanpeng Li wrote:
+> We have a server which have 200 CPUs and 8G memory, there is auto_group creation 
 
-And the patch handles hugetlb case only. I was wondering what are those
-"other conditions" that failed in the BUG_ON mentioned in the changelog?
-Could you be more specific please?
+I'm hoping that is 8T, otherwise that's a severely under provisioned
+system, that's a mere 40M per cpu, does that even work?
 
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+> which will almost consume 12MB memory even if add 'noautogroup' in the kernel 
+> boot parameter. In addtion, SLUB per cpu partial caches freeing that is local to 
+> a processor which requires the taking of locks at the price of more indeterminism 
+> in the latency of the free. This patch fix it by check noautogroup earlier to avoid 
+> free after unnecessary memory consumption.
+
+That's just a bad changelog. It fails to explain the actual problem and
+it babbles about unrelated things like SLUB details.
+
+Also, I'm not entirely sure what the intention was of this code, I've so
+far tried to ignore the entire autogroup fest... 
+
+It looks like it creates and maintains the entire autogroup hierarchy,
+such that if you at runtime enable the sysclt and move tasks 'back' to
+the root cgroup you get the autogroup behaviour.
+
+Was this intended? Mike?
+
+This patch obviously breaks that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
