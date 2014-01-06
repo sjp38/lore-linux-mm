@@ -1,145 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id AAD396B0031
-	for <linux-mm@kvack.org>; Sun,  5 Jan 2014 19:19:32 -0500 (EST)
-Received: by mail-pb0-f45.google.com with SMTP id rp16so17790850pbb.4
-        for <linux-mm@kvack.org>; Sun, 05 Jan 2014 16:19:32 -0800 (PST)
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 374486B0031
+	for <linux-mm@kvack.org>; Sun,  5 Jan 2014 19:26:42 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id fb1so17864558pad.18
+        for <linux-mm@kvack.org>; Sun, 05 Jan 2014 16:26:41 -0800 (PST)
 Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
-        by mx.google.com with ESMTP id yl2si13779048pab.298.2014.01.05.16.19.29
+        by mx.google.com with ESMTP id pl18si47221190pab.191.2014.01.05.16.26.39
         for <linux-mm@kvack.org>;
-        Sun, 05 Jan 2014 16:19:31 -0800 (PST)
-Date: Mon, 6 Jan 2014 09:19:38 +0900
+        Sun, 05 Jan 2014 16:26:40 -0800 (PST)
+Date: Mon, 6 Jan 2014 09:26:48 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3 13/14] mm, hugetlb: retry if failed to allocate and
- there is concurrent user
-Message-ID: <20140106001938.GB696@lge.com>
-References: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1387349640-8071-14-git-send-email-iamjoonsoo.kim@lge.com>
- <20131219170202.0df2d82a2adefa3ab616bdaa@linux-foundation.org>
- <20131220140153.GC11295@suse.de>
- <1387608497.3119.17.camel@buesod1.americas.hpqcorp.net>
- <20131223004438.GA19388@lge.com>
- <20131223021118.GA2487@lge.com>
- <1388778945.2956.20.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: possible regression on 3.13 when calling flush_dcache_page
+Message-ID: <20140106002648.GC696@lge.com>
+References: <20131212143149.GI12099@ldesroches-Latitude-E6320>
+ <20131212143618.GJ12099@ldesroches-Latitude-E6320>
+ <20131213015909.GA8845@lge.com>
+ <20131216144343.GD9627@ldesroches-Latitude-E6320>
+ <20131218072117.GA2383@lge.com>
+ <20131220080851.GC16592@ldesroches-Latitude-E6320>
+ <20131223224435.GD16592@ldesroches-Latitude-E6320>
+ <20131224063837.GA27156@lge.com>
+ <20140103145404.GC18002@ldesroches-Latitude-E6320>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1388778945.2956.20.camel@buesod1.americas.hpqcorp.net>
+In-Reply-To: <20140103145404.GC18002@ldesroches-Latitude-E6320>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, aswin@hp.com
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-mmc@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>
 
-On Fri, Jan 03, 2014 at 11:55:45AM -0800, Davidlohr Bueso wrote:
-> Hi Joonsoo,
+On Fri, Jan 03, 2014 at 03:54:04PM +0100, Ludovic Desroches wrote:
+> Hi,
 > 
-> Sorry about the delay...
+> On Tue, Dec 24, 2013 at 03:38:37PM +0900, Joonsoo Kim wrote:
 > 
-> On Mon, 2013-12-23 at 11:11 +0900, Joonsoo Kim wrote:
-> > On Mon, Dec 23, 2013 at 09:44:38AM +0900, Joonsoo Kim wrote:
-> > > On Fri, Dec 20, 2013 at 10:48:17PM -0800, Davidlohr Bueso wrote:
-> > > > On Fri, 2013-12-20 at 14:01 +0000, Mel Gorman wrote:
-> > > > > On Thu, Dec 19, 2013 at 05:02:02PM -0800, Andrew Morton wrote:
-> > > > > > On Wed, 18 Dec 2013 15:53:59 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> > > > > > 
-> > > > > > > If parallel fault occur, we can fail to allocate a hugepage,
-> > > > > > > because many threads dequeue a hugepage to handle a fault of same address.
-> > > > > > > This makes reserved pool shortage just for a little while and this cause
-> > > > > > > faulting thread who can get hugepages to get a SIGBUS signal.
-> > > > > > > 
-> > > > > > > To solve this problem, we already have a nice solution, that is,
-> > > > > > > a hugetlb_instantiation_mutex. This blocks other threads to dive into
-> > > > > > > a fault handler. This solve the problem clearly, but it introduce
-> > > > > > > performance degradation, because it serialize all fault handling.
-> > > > > > > 
-> > > > > > > Now, I try to remove a hugetlb_instantiation_mutex to get rid of
-> > > > > > > performance degradation.
-> > > > > > 
-> > > > > > So the whole point of the patch is to improve performance, but the
-> > > > > > changelog doesn't include any performance measurements!
-> > > > > > 
-> > > > > 
-> > > > > I don't really deal with hugetlbfs any more and I have not examined this
-> > > > > series but I remember why I never really cared about this mutex. It wrecks
-> > > > > fault scalability but AFAIK fault scalability almost never mattered for
-> > > > > workloads using hugetlbfs.  The most common user of hugetlbfs by far is
-> > > > > sysv shared memory. The memory is faulted early in the lifetime of the
-> > > > > workload and after that it does not matter. At worst, it hurts application
-> > > > > startup time but that is still poor motivation for putting a lot of work
-> > > > > into removing the mutex.
-> > > > 
-> > > > Yep, important hugepage workloads initially pound heavily on this lock,
-> > > > then it naturally decreases.
-> > > > 
-> > > > > Microbenchmarks will be able to trigger problems in this area but it'd
-> > > > > be important to check if any workload that matters is actually hitting
-> > > > > that problem.
-> > > > 
-> > > > I was thinking of writing one to actually get some numbers for this
-> > > > patchset -- I don't know of any benchmark that might stress this lock. 
-> > > > 
-> > > > However I first measured the amount of cycles it costs to start an
-> > > > Oracle DB and things went south with these changes. A simple 'startup
-> > > > immediate' calls hugetlb_fault() ~5000 times. For a vanilla kernel, this
-> > > > costs ~7.5 billion cycles and with this patchset it goes up to ~27.1
-> > > > billion. While there is naturally a fair amount of variation, these
-> > > > changes do seem to do more harm than good, at least in real world
-> > > > scenarios.
-> > > 
-> > > Hello,
-> > > 
-> > > I think that number of cycles is not proper to measure this patchset,
-> > > because cycles would be wasted by fault handling failure. Instead, it
-> > > targeted improved elapsed time. 
+> [...]
 > 
-> Fair enough, however the fact of the matter is this approach does en up
-> hurting performance. Regarding total startup time, I didn't see hardly
-> any differences, with both vanilla and this patchset it takes close to
-> 33.5 seconds.
+> > > > > > > I think that this commit may not introduce a bug. This patch remove one
+> > > > > > > variable on slab management structure and replace variable name. So there
+> > > > > > > is no functional change.
 > 
-> > Could you tell me how long it
-> > > takes to fault all of it's hugepages?
-> > > 
-> > > Anyway, this order of magnitude still seems a problem. :/
-> > > 
-> > > I guess that cycles are wasted by zeroing hugepage in fault-path like as
-> > > Andrew pointed out.
-> > > 
-> > > I will send another patches to fix this problem.
-> > 
-> > Hello, Davidlohr.
-> > 
-> > Here goes the fix on top of this series.
-> 
-> ... and with this patch we go from 27 down to 11 billion cycles, so this
-> approach still costs more than what we currently have. A perf stat shows
-> that an entire 1Gb huge page aware DB startup costs around ~30 billion
-> cycles on a vanilla kernel, so the impact of hugetlb_fault() is
-> definitely non trivial and IMO worth considering.
+> You are right, the commit given by git bisect was not the good one...
+> Since I removed other patches done on top of it, I thought it really was
+> this one but in fact it is 8456a64.
 
-Really thanks for your help. :)
+Okay. It seems more reasonable to me.
+I guess that this is the same issue with following link.
+http://lkml.org/lkml/2014/1/4/81
 
-> 
-> Now, I took my old patchset (https://lkml.org/lkml/2013/7/26/299) for a
-> ride and things do look quite better, which is basically what Andrew was
-> suggesting previously anyway. With the hash table approach the startup
-> time did go down to ~25.1 seconds, which is a nice -24.7% time
-> reduction, with hugetlb_fault() consuming roughly 5.3 billion cycles.
-> This hash table was on a 80 core system, so since we do the power of two
-> round up we end up with 256 entries -- I think we can do better if we
-> enlarger further, maybe something like statically 1024, or probably
-> better, 8-ish * nr cpus.
-> 
-> Thoughts? Is there any reason why we cannot go with this instead? Yes,
-> we still keep the mutex, but the approach is (1) proven better for
-> performance on real world workloads and (2) far less invasive. 
+And, perhaps, that patch solves your problem. But I'm not sure that it is the
+best solution for this problem. I should discuss with slab maintainers.
 
-I have no more idea to improve my patches now, so I agree with your approach.
-When I reviewed your approach last time, I found one race condition. In that
-time, I didn't think of a solution about it. If you resend it, I will review
-and re-think about it.
+I will think about this problem more deeply and report the solution to you
+as soon as possible.
 
 Thanks.
+
+> 
+>  dd0f774  Fri Jan 3 12:33:55 2014 +0100  Revert "slab: remove useless
+> statement for checking pfmemalloc"  Ludovic Desroches 
+>  ff7487d  Fri Jan 3 12:32:33 2014 +0100  Revert "slab: rename
+> slab_bufctl to slab_freelist"  Ludovic Desroches 
+>  b963564  Fri Jan 3 12:32:13 2014 +0100  Revert "slab: fix to calm down
+> kmemleak warning"  Ludovic Desroches 
+>  3fcfe50  Fri Jan 3 12:30:32 2014 +0100  Revert "slab: replace
+> non-existing 'struct freelist *' with 'void *'"  Ludovic Desroches 
+>  750a795  Fri Jan 3 12:30:16 2014 +0100  Revert "memcg, kmem: rename
+> cache_from_memcg to cache_from_memcg_idx"  Ludovic Desroches 
+>  7e2de8a  Fri Jan 3 12:30:10 2014 +0100  mmc: atmel-mci: disable pdc
+> Ludovic Desroches
+> 
+> In this case I have the kernel oops. If I revert 8456a64 too, it
+> disappears.
+> 
+> I will try to test it on other devices because I couldn't reproduce it
+> with newer ones (but it's not the same ARM architecture so I would like
+> to see if it's also related to the device itself).
+> 
+> In attachment, there are the results of /proc/slabinfo before inserted the
+> sdio wifi module causing the oops.
+> 
+> Regards
+> 
+> Ludovic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
