@@ -1,93 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id E4C986B0036
-	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 22:01:35 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id fa1so19517964pad.3
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 19:01:35 -0800 (PST)
-Received: from LGEAMRELO02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id sz7si55309834pab.29.2014.01.06.19.01.32
-        for <linux-mm@kvack.org>;
-        Mon, 06 Jan 2014 19:01:34 -0800 (PST)
-Date: Tue, 7 Jan 2014 12:01:48 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: swap, compress, discard: what's in the future?
-Message-ID: <20140107030148.GA24188@bbox>
-References: <CAA25o9Q921VnXvTo2OhXK5taif6MSF6LBtgPKve=kpgeW5XQ9Q@mail.gmail.com>
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 5259A6B0031
+	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 23:19:54 -0500 (EST)
+Received: by mail-pd0-f176.google.com with SMTP id w10so19080320pde.35
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 20:19:54 -0800 (PST)
+Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com. [202.81.31.144])
+        by mx.google.com with ESMTPS id pi8si57014113pac.204.2014.01.06.20.19.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 06 Jan 2014 20:19:52 -0800 (PST)
+Received: from /spool/local
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Tue, 7 Jan 2014 14:19:49 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 893963578054
+	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 15:19:42 +1100 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s074JTYB9175454
+	for <linux-mm@kvack.org>; Tue, 7 Jan 2014 15:19:29 +1100
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s074JfTg004582
+	for <linux-mm@kvack.org>; Tue, 7 Jan 2014 15:19:41 +1100
+Date: Tue, 7 Jan 2014 12:19:39 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
+ no local memory
+Message-ID: <52cb8068.c8da420a.033a.ffffc6b2SMTPIN_ADDED_BROKEN@mx.google.com>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <20140107132100.5b5ad198@kryten>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAA25o9Q921VnXvTo2OhXK5taif6MSF6LBtgPKve=kpgeW5XQ9Q@mail.gmail.com>
+In-Reply-To: <20140107132100.5b5ad198@kryten>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: linux-mm@kvack.org
+To: Anton Blanchard <anton@samba.org>
+Cc: benh@kernel.crashing.org, paulus@samba.org, cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, nacc@linux.vnet.ibm.com, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-Hello Luigi,
+On Tue, Jan 07, 2014 at 01:21:00PM +1100, Anton Blanchard wrote:
+>
+>We noticed a huge amount of slab memory consumed on a large ppc64 box:
+>
+>Slab:            2094336 kB
+>
+>Almost 2GB. This box is not balanced and some nodes do not have local
+>memory, causing slub to be very inefficient in its slab usage.
+>
+>Each time we call kmem_cache_alloc_node slub checks the per cpu slab,
+>sees it isn't node local, deactivates it and tries to allocate a new
+>slab. On empty nodes we will allocate a new remote slab and use the
+>first slot, but as explained above when we get called a second time
+>we will just deactivate that slab and retry.
+>
+>As such we end up only using 1 entry in each slab:
+>
+>slab                    mem  objects
+>                       used   active
+>------------------------------------
+>kmalloc-16384       1404 MB    4.90%
+>task_struct          668 MB    2.90%
+>kmalloc-128          193 MB    3.61%
+>kmalloc-192          152 MB    5.23%
+>kmalloc-8192          72 MB   23.40%
+>kmalloc-16            64 MB    7.43%
+>kmalloc-512           33 MB   22.41%
+>
+>The patch below checks that a node is not empty before deactivating a
+>slab and trying to allocate it again. With this patch applied we now
+>use about 352MB:
+>
+>Slab:             360192 kB
+>
+>And our efficiency is much better:
+>
+>slab                    mem  objects
+>                       used   active
+>------------------------------------
+>kmalloc-16384         92 MB   74.27%
+>task_struct           23 MB   83.46%
+>idr_layer_cache       18 MB  100.00%
+>pgtable-2^12          17 MB  100.00%
+>kmalloc-65536         15 MB  100.00%
+>inode_cache           14 MB  100.00%
+>kmalloc-256           14 MB   97.81%
+>kmalloc-8192          14 MB   85.71%
+>
+>Signed-off-by: Anton Blanchard <anton@samba.org>
 
-On Mon, Jan 06, 2014 at 06:31:29PM -0800, Luigi Semenzato wrote:
-> I would like to know (and I apologize if there is an obvious answer)
-> if folks on this list have pointers to documents or discussions
-> regarding the long-term evolution of the Linux memory manager.  I
-> realize there is plenty of shorter-term stuff to worry about, but a
-> long-term vision would be helpful---even more so if there is some
-> agreement.
-> 
-> My super-simple view is that when memory reclaim is possible there is
-> a cost attached to it, and the goal is to minimize the cost.  The cost
-> for reclaiming a unit of memory of some kind is a function of various
-> parameters: the CPU cycles, the I/O bandwidth, and the latency, to
-> name the main components.  This function can change a lot depending on
-> the load and in practice it may have to be grossly approximated, but
-> the concept is valid IMO.
-> 
-> For instance, the cost of compressing and decompressing RAM is mainly
-> CPU cycles.  A user program (a browser, for instance :) may be caching
-> decompressed JPEGs into transcendent (discardable) memory, for quick
-> display.  In this case, almost certainly the decompressed JPEGs should
-> be discarded before memory is compressed, under the realistic
-> assumption that one JPEG decompression is cheaper than one LZO
-> compression/decompression.  But there may be situations in which a lot
-> more work has gone into creating the application cache, and then it
-> makes sense to compress/decompress it rather than discard it.  It may
-> be hard for the kernel to figure out how expensive it is to recreate
-> the application cache, so the application should tell it.
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Agreed. It's very hard for kernel to figure it out so VM should depend
-on user's hint. and thing you said is the exact example of volatile
-range system call that I am suggesting.
+>---
+>
+>Thoughts? It seems like we could hit a similar situation if a machine
+>is balanced but we run out of memory on a single node.
+>
+>Index: b/mm/slub.c
+>===================================================================
+>--- a/mm/slub.c
+>+++ b/mm/slub.c
+>@@ -2278,10 +2278,17 @@ redo:
+>
+> 	if (unlikely(!node_match(page, node))) {
+> 		stat(s, ALLOC_NODE_MISMATCH);
+>-		deactivate_slab(s, page, c->freelist);
+>-		c->page = NULL;
+>-		c->freelist = NULL;
+>-		goto new_slab;
+>+
+>+		/*
+>+		 * If the node contains no memory there is no point in trying
+>+		 * to allocate a new node local slab
+>+		 */
+>+		if (node_spanned_pages(node)) {
 
-http://lwn.net/Articles/578761/
+s/node_spanned_pages/node_present_pages 
 
-> 
-> Of course, for a cache the cost needs to be multiplied by the
-> probability that the memory will be used again in the future.  A good
-> part of the Linux VM is dedicated to estimating that probability, for
-> some kinds of memory.  But I don't see simple hooks for describing
-> various costs such as the one I mentioned, and I wonder if this
-> paradigm makes sense in general, or if it is peculiar to Chrome OS.
-
-Your statement makes sense to me but unfortunately, current VM doesn't
-consider everything you mentioned.
-It is just based on page access recency by approximate LRU logic +
-some heuristic(ex, mapped page and VM_EXEC pages are more precious).
-The reason it makes hard is just complexity/overhead of implementation.
-If someone has nice idea to define parameters and implement with
-small overhead, it would be very nice!
-
-
-> 
-> Thanks!
-> ... and Happy New Year
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+>+			deactivate_slab(s, page, c->freelist);
+>+			c->page = NULL;
+>+			c->freelist = NULL;
+>+			goto new_slab;
+>+		}
+> 	}
+>
+> 	/*
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
