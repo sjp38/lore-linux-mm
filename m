@@ -1,51 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 97F226B0069
-	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 11:53:02 -0500 (EST)
-Received: by mail-pd0-f172.google.com with SMTP id g10so590289pdj.3
-        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 08:53:02 -0800 (PST)
-Received: from mail05-md.ns.itscom.net (mail05-md.ns.itscom.net. [175.177.155.115])
-        by mx.google.com with ESMTP id sz7si57352351pab.261.2014.01.07.08.53.00
+Received: from mail-ve0-f175.google.com (mail-ve0-f175.google.com [209.85.128.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BA566B006E
+	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 12:24:09 -0500 (EST)
+Received: by mail-ve0-f175.google.com with SMTP id jx11so363622veb.20
+        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 09:24:09 -0800 (PST)
+Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
+        by mx.google.com with ESMTP id b20si22723860veu.98.2014.01.07.09.24.07
         for <linux-mm@kvack.org>;
-        Tue, 07 Jan 2014 08:53:01 -0800 (PST)
-From: "J. R. Okajima" <hooanon05g@gmail.com>
-Subject: Re: [LSF/MM ATTEND] Stackable Union Filesystem Implementation
-In-Reply-To: <CAK25hWOu-Q0H8_RCejDduuLCA1-135BEp_Cn_njurBA4r7zp5g@mail.gmail.com>
-References: <CAK25hWOu-Q0H8_RCejDduuLCA1-135BEp_Cn_njurBA4r7zp5g@mail.gmail.com>
-Date: Wed, 08 Jan 2014 01:52:59 +0900
-Message-ID: <25625.1389113579@jrobl>
+        Tue, 07 Jan 2014 09:24:07 -0800 (PST)
+Date: Tue, 7 Jan 2014 17:23:38 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH v2 3/5] arm: add early_ioremap support
+Message-ID: <20140107172338.GB6234@arm.com>
+References: <1389062120-31896-1-git-send-email-msalter@redhat.com>
+ <1389062120-31896-4-git-send-email-msalter@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1389062120-31896-4-git-send-email-msalter@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Saket Sinha <saket.sinha89@gmail.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
+To: Mark Salter <msalter@redhat.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "patches@linaro.org" <patches@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Russell King <linux@arm.linux.org.uk>, Will Deacon <Will.Deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>
 
+On Tue, Jan 07, 2014 at 02:35:18AM +0000, Mark Salter wrote:
+> This patch uses the generic early_ioremap code to implement
+> early_ioremap for ARM. The ARM-specific bits come mostly from
+> an earlier patch from Leif Lindholm <leif.lindholm@linaro.org>
+> here:
+> 
+>   https://lkml.org/lkml/2013/10/3/279
+> 
+> Signed-off-by: Mark Salter <msalter@redhat.com>
+> Tested-by: Leif Lindholm <leif.lindholm@linaro.org>
+> CC: linux-arm-kernel@lists.infradead.org
+> CC: Russell King <linux@arm.linux.org.uk>
+> CC: Catalin Marinas <catalin.marinas@arm.com>
+> CC: Will Deacon <will.deacon@arm.com>
+> CC: Arnd Bergmann <arnd@arndb.de>
 
-Saket Sinha:
->  1. VFS-based stacking solution- I would like to cite the work done by
-> Valerie Aurora was closest.
->
->  2. Non-VFS-based stacking solution -  UnionFS, Aufs and the new Overlay FS
-
-Overayfs is essentially a rewrite of UnionMount (implemented in VFS
-layer), to be a filesystem. They both have several unresolved issues by
-design "name-based union", and I have pointed out on LKML several times.
-For example, here is a URL of my last post about it.
-http://marc.info/?l=linux-kernel&m=136310958022160&w=2
-
-
-> The use case that I am looking from the stackable filesystem is  that
-> of "diskless node handling" (for CERN where it is required to provide
-> a faster diskless
-> booting to the Large Hadron Collider Beauty nodes).
-
-Just out of curious, I remember a guy in CERN had posted a message to
-aufs-users ML.
-http://www.mail-archive.com/aufs-users@lists.sourceforge.net/msg04020.html
-
-Are you co-working with him? Or CERN totally stopped using aufs?
-
-
-J. R. Okajima
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
