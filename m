@@ -1,149 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 75CFB6B0031
-	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 02:41:27 -0500 (EST)
-Received: by mail-pb0-f48.google.com with SMTP id md12so19586187pbc.21
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 23:41:27 -0800 (PST)
-Received: from LGEAMRELO02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id l8si57520098pao.7.2014.01.06.23.41.24
-        for <linux-mm@kvack.org>;
-        Mon, 06 Jan 2014 23:41:26 -0800 (PST)
-Date: Tue, 7 Jan 2014 16:41:36 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
- no local memory
-Message-ID: <20140107074136.GA4011@lge.com>
-References: <20140107132100.5b5ad198@kryten>
+Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DD156B0031
+	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 03:34:29 -0500 (EST)
+Received: by mail-ee0-f48.google.com with SMTP id e49so8233829eek.7
+        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 00:34:28 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h45si87829720eeo.172.2014.01.07.00.34.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 07 Jan 2014 00:34:28 -0800 (PST)
+Date: Tue, 7 Jan 2014 09:34:25 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: could you clarify mm/mempolicy: fix !vma in new_vma_page()
+Message-ID: <20140107083425.GB8756@dhcp22.suse.cz>
+References: <20140106112422.GA27602@dhcp22.suse.cz>
+ <CAA_GA1dNdrG9aQ3UKDA0O=BY721rvseORVkc2+RxUpzysp3rYw@mail.gmail.com>
+ <20140106141827.GB27602@dhcp22.suse.cz>
+ <52cb81ed.e3d8420a.72a1.ffffea65SMTPIN_ADDED_BROKEN@mx.google.com>
+ <52cb83e3.c9903c0a.614e.1751SMTPIN_ADDED_BROKEN@mx.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140107132100.5b5ad198@kryten>
+In-Reply-To: <52cb83e3.c9903c0a.614e.1751SMTPIN_ADDED_BROKEN@mx.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Blanchard <anton@samba.org>
-Cc: benh@kernel.crashing.org, paulus@samba.org, cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, nacc@linux.vnet.ibm.com, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Bob Liu <lliubbo@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bob Liu <bob.liu@oracle.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jan 07, 2014 at 01:21:00PM +1100, Anton Blanchard wrote:
-> 
-> We noticed a huge amount of slab memory consumed on a large ppc64 box:
-> 
-> Slab:            2094336 kB
-> 
-> Almost 2GB. This box is not balanced and some nodes do not have local
-> memory, causing slub to be very inefficient in its slab usage.
-> 
-> Each time we call kmem_cache_alloc_node slub checks the per cpu slab,
-> sees it isn't node local, deactivates it and tries to allocate a new
-> slab. On empty nodes we will allocate a new remote slab and use the
-> first slot, but as explained above when we get called a second time
-> we will just deactivate that slab and retry.
-> 
-> As such we end up only using 1 entry in each slab:
-> 
-> slab                    mem  objects
->                        used   active
-> ------------------------------------
-> kmalloc-16384       1404 MB    4.90%
-> task_struct          668 MB    2.90%
-> kmalloc-128          193 MB    3.61%
-> kmalloc-192          152 MB    5.23%
-> kmalloc-8192          72 MB   23.40%
-> kmalloc-16            64 MB    7.43%
-> kmalloc-512           33 MB   22.41%
-> 
-> The patch below checks that a node is not empty before deactivating a
-> slab and trying to allocate it again. With this patch applied we now
-> use about 352MB:
-> 
-> Slab:             360192 kB
-> 
-> And our efficiency is much better:
-> 
-> slab                    mem  objects
->                        used   active
-> ------------------------------------
-> kmalloc-16384         92 MB   74.27%
-> task_struct           23 MB   83.46%
-> idr_layer_cache       18 MB  100.00%
-> pgtable-2^12          17 MB  100.00%
-> kmalloc-65536         15 MB  100.00%
-> inode_cache           14 MB  100.00%
-> kmalloc-256           14 MB   97.81%
-> kmalloc-8192          14 MB   85.71%
-> 
-> Signed-off-by: Anton Blanchard <anton@samba.org>
-> ---
-> 
-> Thoughts? It seems like we could hit a similar situation if a machine
-> is balanced but we run out of memory on a single node.
-> 
-> Index: b/mm/slub.c
-> ===================================================================
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -2278,10 +2278,17 @@ redo:
->  
->  	if (unlikely(!node_match(page, node))) {
->  		stat(s, ALLOC_NODE_MISMATCH);
-> -		deactivate_slab(s, page, c->freelist);
-> -		c->page = NULL;
-> -		c->freelist = NULL;
-> -		goto new_slab;
-> +
-> +		/*
-> +		 * If the node contains no memory there is no point in trying
-> +		 * to allocate a new node local slab
-> +		 */
-> +		if (node_spanned_pages(node)) {
-> +			deactivate_slab(s, page, c->freelist);
-> +			c->page = NULL;
-> +			c->freelist = NULL;
-> +			goto new_slab;
-> +		}
->  	}
->  
->  	/*
+On Tue 07-01-14 12:34:34, Wanpeng Li wrote:
+> Cced Sasha,
+> On Tue, Jan 07, 2014 at 12:26:13PM +0800, Wanpeng Li wrote:
+> >Hi Michal,
+> >On Mon, Jan 06, 2014 at 03:18:27PM +0100, Michal Hocko wrote:
+> >>On Mon 06-01-14 20:45:54, Bob Liu wrote:
+> >>[...]
+> >>>  544         if (PageAnon(page)) {
+> >>>  545                 struct anon_vma *page__anon_vma = page_anon_vma(page);
+> >>>  546                 /*
+> >>>  547                  * Note: swapoff's unuse_vma() is more efficient with this
+> >>>  548                  * check, and needs it to match anon_vma when KSM is active.
+> >>>  549                  */
+> >>>  550                 if (!vma->anon_vma || !page__anon_vma ||
+> >>>  551                     vma->anon_vma->root != page__anon_vma->root)
+> >>>  552                         return -EFAULT;
+> >>>  553         } else if (page->mapping && !(vma->vm_flags & VM_NONLINEAR)) {
+> >>>  554                 if (!vma->vm_file ||
+> >>>  555                     vma->vm_file->f_mapping != page->mapping)
+> >>>  556                         return -EFAULT;
+> >>>  557         } else
+> >>>  558                 return -EFAULT;
+> >>> 
+> >>> That's the "other conditions" and the reason why we can't use
+> >>> BUG_ON(!vma) in new_vma_page().
+> >>
+> >>Sorry, I wasn't clear with my question. I was interested in which of
+> >>these triggered and why only for hugetlb pages?
+> >
+> >Not just for hugetlb pages, sorry for do two things in one patch. The change 
+> >for hugetlb pages is to fix the potential dereference NULL pointer reported 
+> >by Dan. http://marc.info/?l=linux-mm&m=137689530323257&w=2 
+> >
+> >If we should ask Sasha to add more debug information to dump which condition 
+> >is failed in page_address_in_vma() for you?
 
-Hello,
-
-I think that we need more efforts to solve unbalanced node problem.
-
-With this patch, even if node of current cpu slab is not favorable to
-unbalanced node, allocation would proceed and we would get the unintended memory.
-
-And there is one more problem. Even if we have some partial slabs on
-compatible node, we would allocate new slab, because get_partial() cannot handle
-this unbalance node case.
-
-To fix this correctly, how about following patch?
-
-Thanks.
-
-------------->8--------------------
-diff --git a/mm/slub.c b/mm/slub.c
-index c3eb3d3..a1f6dfa 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1672,7 +1672,19 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
- {
-        void *object;
-        int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
-+       struct zonelist *zonelist;
-+       struct zoneref *z;
-+       struct zone *zone;
-+       enum zone_type high_zoneidx = gfp_zone(flags);
- 
-+       if (!node_present_pages(searchnode)) {
-+               zonelist = node_zonelist(searchnode, flags);
-+               for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
-+                       searchnode = zone_to_nid(zone);
-+                       if (node_present_pages(searchnode))
-+                               break;
-+               }
-+       }
-        object = get_partial_node(s, get_node(s, searchnode), c, flags);
-        if (object || node != NUMA_NO_NODE)
-                return object;
+I am always more calm when the removed BUG_ON is properly understood and
+justified.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
