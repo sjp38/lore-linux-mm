@@ -1,55 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A8F36B0062
-	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 10:26:07 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id kp14so507407pab.33
-        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 07:26:06 -0800 (PST)
-Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
-        by mx.google.com with ESMTP id a6si58339616pao.186.2014.01.07.07.26.05
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 97F226B0069
+	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 11:53:02 -0500 (EST)
+Received: by mail-pd0-f172.google.com with SMTP id g10so590289pdj.3
+        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 08:53:02 -0800 (PST)
+Received: from mail05-md.ns.itscom.net (mail05-md.ns.itscom.net. [175.177.155.115])
+        by mx.google.com with ESMTP id sz7si57352351pab.261.2014.01.07.08.53.00
         for <linux-mm@kvack.org>;
-        Tue, 07 Jan 2014 07:26:06 -0800 (PST)
-Date: Tue, 7 Jan 2014 15:25:56 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v2 1/5] mm: create generic early_ioremap() support
-Message-ID: <20140107152555.GB16947@localhost>
-References: <1389062120-31896-1-git-send-email-msalter@redhat.com>
- <1389062120-31896-2-git-send-email-msalter@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1389062120-31896-2-git-send-email-msalter@redhat.com>
+        Tue, 07 Jan 2014 08:53:01 -0800 (PST)
+From: "J. R. Okajima" <hooanon05g@gmail.com>
+Subject: Re: [LSF/MM ATTEND] Stackable Union Filesystem Implementation
+In-Reply-To: <CAK25hWOu-Q0H8_RCejDduuLCA1-135BEp_Cn_njurBA4r7zp5g@mail.gmail.com>
+References: <CAK25hWOu-Q0H8_RCejDduuLCA1-135BEp_Cn_njurBA4r7zp5g@mail.gmail.com>
+Date: Wed, 08 Jan 2014 01:52:59 +0900
+Message-ID: <25625.1389113579@jrobl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Salter <msalter@redhat.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "patches@linaro.org" <patches@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Russell King <linux@arm.linux.org.uk>, Will Deacon <Will.Deacon@arm.com>
+To: Saket Sinha <saket.sinha89@gmail.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
 
-On Tue, Jan 07, 2014 at 02:35:16AM +0000, Mark Salter wrote:
-> This patch creates a generic implementation of early_ioremap() support
-> based on the existing x86 implementation. early_ioremp() is useful for
-> early boot code which needs to temporarily map I/O or memory regions
-> before normal mapping functions such as ioremap() are available.
-> 
-> There is one difference from the existing x86 implementation which
-> should be noted. The generic early_memremap() function does not return
-> an __iomem pointer and a new early_memunmap() function has been added
-> to act as a wrapper for early_iounmap() but with a non __iomem pointer
-> passed in. This is in line with the first patch of this series:
-> 
->   https://lkml.org/lkml/2013/12/22/69
-> 
-> Signed-off-by: Mark Salter <msalter@redhat.com>
-> CC: x86@kernel.org
-> CC: linux-arm-kernel@lists.infradead.org
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: Arnd Bergmann <arnd@arndb.de>
-> CC: Ingo Molnar <mingo@kernel.org>
-> CC: Thomas Gleixner <tglx@linutronix.de>
-> CC: "H. Peter Anvin" <hpa@zytor.com>
-> CC: Russell King <linux@arm.linux.org.uk>
-> CC: Catalin Marinas <catalin.marinas@arm.com>
-> CC: Will Deacon <will.deacon@arm.com>
 
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+Saket Sinha:
+>  1. VFS-based stacking solution- I would like to cite the work done by
+> Valerie Aurora was closest.
+>
+>  2. Non-VFS-based stacking solution -  UnionFS, Aufs and the new Overlay FS
+
+Overayfs is essentially a rewrite of UnionMount (implemented in VFS
+layer), to be a filesystem. They both have several unresolved issues by
+design "name-based union", and I have pointed out on LKML several times.
+For example, here is a URL of my last post about it.
+http://marc.info/?l=linux-kernel&m=136310958022160&w=2
+
+
+> The use case that I am looking from the stackable filesystem is  that
+> of "diskless node handling" (for CERN where it is required to provide
+> a faster diskless
+> booting to the Large Hadron Collider Beauty nodes).
+
+Just out of curious, I remember a guy in CERN had posted a message to
+aufs-users ML.
+http://www.mail-archive.com/aufs-users@lists.sourceforge.net/msg04020.html
+
+Are you co-working with him? Or CERN totally stopped using aufs?
+
+
+J. R. Okajima
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
