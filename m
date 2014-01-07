@@ -1,381 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f173.google.com (mail-ea0-f173.google.com [209.85.215.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 798BF6B003A
-	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 21:35:49 -0500 (EST)
-Received: by mail-ea0-f173.google.com with SMTP id o10so8208426eaj.4
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 18:35:48 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id p46si87000099eem.0.2014.01.06.18.35.47
-        for <linux-mm@kvack.org>;
-        Mon, 06 Jan 2014 18:35:48 -0800 (PST)
-From: Mark Salter <msalter@redhat.com>
-Subject: [PATCH v2 1/5] mm: create generic early_ioremap() support
-Date: Mon,  6 Jan 2014 21:35:16 -0500
-Message-Id: <1389062120-31896-2-git-send-email-msalter@redhat.com>
-In-Reply-To: <1389062120-31896-1-git-send-email-msalter@redhat.com>
-References: <1389062120-31896-1-git-send-email-msalter@redhat.com>
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F6F96B003C
+	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 21:37:08 -0500 (EST)
+Received: by mail-pb0-f46.google.com with SMTP id md12so19455721pbc.33
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 18:37:07 -0800 (PST)
+Received: from g1t0028.austin.hp.com (g1t0028.austin.hp.com. [15.216.28.35])
+        by mx.google.com with ESMTPS id pt8si56784643pac.18.2014.01.06.18.37.06
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 06 Jan 2014 18:37:06 -0800 (PST)
+Message-ID: <1389062214.9937.0.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH v3 13/14] mm, hugetlb: retry if failed to allocate and
+ there is concurrent user
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Mon, 06 Jan 2014 18:36:54 -0800
+In-Reply-To: <20140107015701.GB26726@lge.com>
+References: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>
+	 <1387349640-8071-14-git-send-email-iamjoonsoo.kim@lge.com>
+	 <20131219170202.0df2d82a2adefa3ab616bdaa@linux-foundation.org>
+	 <20131220140153.GC11295@suse.de>
+	 <1387608497.3119.17.camel@buesod1.americas.hpqcorp.net>
+	 <20131223004438.GA19388@lge.com> <20131223021118.GA2487@lge.com>
+	 <1388778945.2956.20.camel@buesod1.americas.hpqcorp.net>
+	 <20140106001938.GB696@lge.com>
+	 <1389010745.14953.5.camel@buesod1.americas.hpqcorp.net>
+	 <20140107015701.GB26726@lge.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-arch@vger.kernel.org, patches@linaro.org, linux-mm@kvack.org, Mark Salter <msalter@redhat.com>, x86@kernel.org, linux-arm-kernel@lists.infradead.org, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Russell King <linux@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh
+ Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>, aswin@hp.com
 
-This patch creates a generic implementation of early_ioremap() support
-based on the existing x86 implementation. early_ioremp() is useful for
-early boot code which needs to temporarily map I/O or memory regions
-before normal mapping functions such as ioremap() are available.
+On Tue, 2014-01-07 at 10:57 +0900, Joonsoo Kim wrote:
+> On Mon, Jan 06, 2014 at 04:19:05AM -0800, Davidlohr Bueso wrote:
+> > On Mon, 2014-01-06 at 09:19 +0900, Joonsoo Kim wrote:
+> > > On Fri, Jan 03, 2014 at 11:55:45AM -0800, Davidlohr Bueso wrote:
+> > > > Hi Joonsoo,
+> > > > 
+> > > > Sorry about the delay...
+> > > > 
+> > > > On Mon, 2013-12-23 at 11:11 +0900, Joonsoo Kim wrote:
+> > > > > On Mon, Dec 23, 2013 at 09:44:38AM +0900, Joonsoo Kim wrote:
+> > > > > > On Fri, Dec 20, 2013 at 10:48:17PM -0800, Davidlohr Bueso wrote:
+> > > > > > > On Fri, 2013-12-20 at 14:01 +0000, Mel Gorman wrote:
+> > > > > > > > On Thu, Dec 19, 2013 at 05:02:02PM -0800, Andrew Morton wrote:
+> > > > > > > > > On Wed, 18 Dec 2013 15:53:59 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> > > > > > > > > 
+> > > > > > > > > > If parallel fault occur, we can fail to allocate a hugepage,
+> > > > > > > > > > because many threads dequeue a hugepage to handle a fault of same address.
+> > > > > > > > > > This makes reserved pool shortage just for a little while and this cause
+> > > > > > > > > > faulting thread who can get hugepages to get a SIGBUS signal.
+> > > > > > > > > > 
+> > > > > > > > > > To solve this problem, we already have a nice solution, that is,
+> > > > > > > > > > a hugetlb_instantiation_mutex. This blocks other threads to dive into
+> > > > > > > > > > a fault handler. This solve the problem clearly, but it introduce
+> > > > > > > > > > performance degradation, because it serialize all fault handling.
+> > > > > > > > > > 
+> > > > > > > > > > Now, I try to remove a hugetlb_instantiation_mutex to get rid of
+> > > > > > > > > > performance degradation.
+> > > > > > > > > 
+> > > > > > > > > So the whole point of the patch is to improve performance, but the
+> > > > > > > > > changelog doesn't include any performance measurements!
+> > > > > > > > > 
+> > > > > > > > 
+> > > > > > > > I don't really deal with hugetlbfs any more and I have not examined this
+> > > > > > > > series but I remember why I never really cared about this mutex. It wrecks
+> > > > > > > > fault scalability but AFAIK fault scalability almost never mattered for
+> > > > > > > > workloads using hugetlbfs.  The most common user of hugetlbfs by far is
+> > > > > > > > sysv shared memory. The memory is faulted early in the lifetime of the
+> > > > > > > > workload and after that it does not matter. At worst, it hurts application
+> > > > > > > > startup time but that is still poor motivation for putting a lot of work
+> > > > > > > > into removing the mutex.
+> > > > > > > 
+> > > > > > > Yep, important hugepage workloads initially pound heavily on this lock,
+> > > > > > > then it naturally decreases.
+> > > > > > > 
+> > > > > > > > Microbenchmarks will be able to trigger problems in this area but it'd
+> > > > > > > > be important to check if any workload that matters is actually hitting
+> > > > > > > > that problem.
+> > > > > > > 
+> > > > > > > I was thinking of writing one to actually get some numbers for this
+> > > > > > > patchset -- I don't know of any benchmark that might stress this lock. 
+> > > > > > > 
+> > > > > > > However I first measured the amount of cycles it costs to start an
+> > > > > > > Oracle DB and things went south with these changes. A simple 'startup
+> > > > > > > immediate' calls hugetlb_fault() ~5000 times. For a vanilla kernel, this
+> > > > > > > costs ~7.5 billion cycles and with this patchset it goes up to ~27.1
+> > > > > > > billion. While there is naturally a fair amount of variation, these
+> > > > > > > changes do seem to do more harm than good, at least in real world
+> > > > > > > scenarios.
+> > > > > > 
+> > > > > > Hello,
+> > > > > > 
+> > > > > > I think that number of cycles is not proper to measure this patchset,
+> > > > > > because cycles would be wasted by fault handling failure. Instead, it
+> > > > > > targeted improved elapsed time. 
+> > > > 
+> > > > Fair enough, however the fact of the matter is this approach does en up
+> > > > hurting performance. Regarding total startup time, I didn't see hardly
+> > > > any differences, with both vanilla and this patchset it takes close to
+> > > > 33.5 seconds.
+> > > > 
+> > > > > Could you tell me how long it
+> > > > > > takes to fault all of it's hugepages?
+> > > > > > 
+> > > > > > Anyway, this order of magnitude still seems a problem. :/
+> > > > > > 
+> > > > > > I guess that cycles are wasted by zeroing hugepage in fault-path like as
+> > > > > > Andrew pointed out.
+> > > > > > 
+> > > > > > I will send another patches to fix this problem.
+> > > > > 
+> > > > > Hello, Davidlohr.
+> > > > > 
+> > > > > Here goes the fix on top of this series.
+> > > > 
+> > > > ... and with this patch we go from 27 down to 11 billion cycles, so this
+> > > > approach still costs more than what we currently have. A perf stat shows
+> > > > that an entire 1Gb huge page aware DB startup costs around ~30 billion
+> > > > cycles on a vanilla kernel, so the impact of hugetlb_fault() is
+> > > > definitely non trivial and IMO worth considering.
+> > > 
+> > > Really thanks for your help. :)
+> > > 
+> > > > 
+> > > > Now, I took my old patchset (https://lkml.org/lkml/2013/7/26/299) for a
+> > > > ride and things do look quite better, which is basically what Andrew was
+> > > > suggesting previously anyway. With the hash table approach the startup
+> > > > time did go down to ~25.1 seconds, which is a nice -24.7% time
+> > > > reduction, with hugetlb_fault() consuming roughly 5.3 billion cycles.
+> > > > This hash table was on a 80 core system, so since we do the power of two
+> > > > round up we end up with 256 entries -- I think we can do better if we
+> > > > enlarger further, maybe something like statically 1024, or probably
+> > > > better, 8-ish * nr cpus.
+> > > > 
+> > > > Thoughts? Is there any reason why we cannot go with this instead? Yes,
+> > > > we still keep the mutex, but the approach is (1) proven better for
+> > > > performance on real world workloads and (2) far less invasive. 
+> > > 
+> > > I have no more idea to improve my patches now, so I agree with your approach.
+> > > When I reviewed your approach last time, I found one race condition. In that
+> > > time, I didn't think of a solution about it. If you resend it, I will review
+> > > and re-think about it.
+> > 
+> > hmm so how do you want to play this? Your first 3 patches basically
+> > deals (more elegantly) with my patch 1/2 which I was on my way of just
+> > changing the lock -- we had agreed that serializing regions was with a
+> > spinlock was better than with a sleeping one as the critical region was
+> > small enough and we just had to deal with that trivial kmalloc case in
+> > region_chg(). So I can pick up your patches 1, 2 & 3 and then add the
+> > instantiation mutex hash table change, sounds good?
+> 
+> Hello,
+> 
+> If Andrew agree, It would be great to merge 1-7 patches into mainline
+> before your mutex approach. There are some of clean-up patches and, IMO,
+> it makes the code more readable and maintainable, so it is worth to merge
+> separately.
 
-There is one difference from the existing x86 implementation which
-should be noted. The generic early_memremap() function does not return
-an __iomem pointer and a new early_memunmap() function has been added
-to act as a wrapper for early_iounmap() but with a non __iomem pointer
-passed in. This is in line with the first patch of this series:
-
-  https://lkml.org/lkml/2013/12/22/69
-
-Signed-off-by: Mark Salter <msalter@redhat.com>
-CC: x86@kernel.org
-CC: linux-arm-kernel@lists.infradead.org
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: Arnd Bergmann <arnd@arndb.de>
-CC: Ingo Molnar <mingo@kernel.org>
-CC: Thomas Gleixner <tglx@linutronix.de>
-CC: "H. Peter Anvin" <hpa@zytor.com>
-CC: Russell King <linux@arm.linux.org.uk>
-CC: Catalin Marinas <catalin.marinas@arm.com>
-CC: Will Deacon <will.deacon@arm.com>
----
- include/asm-generic/early_ioremap.h |  41 ++++++
- mm/Kconfig                          |   3 +
- mm/Makefile                         |   1 +
- mm/early_ioremap.c                  | 249 ++++++++++++++++++++++++++++++++++++
- 4 files changed, 294 insertions(+)
- create mode 100644 include/asm-generic/early_ioremap.h
- create mode 100644 mm/early_ioremap.c
-
-diff --git a/include/asm-generic/early_ioremap.h b/include/asm-generic/early_ioremap.h
-new file mode 100644
-index 0000000..d43e187
---- /dev/null
-+++ b/include/asm-generic/early_ioremap.h
-@@ -0,0 +1,41 @@
-+#ifndef _ASM_EARLY_IOREMAP_H_
-+#define _ASM_EARLY_IOREMAP_H_
-+
-+#include <linux/types.h>
-+
-+#ifdef CONFIG_GENERIC_EARLY_IOREMAP
-+/*
-+ * early_ioremap() and early_iounmap() are for temporary early boot-time
-+ * mappings, before the real ioremap() is functional.
-+ */
-+extern void __iomem *early_ioremap(resource_size_t phys_addr,
-+				   unsigned long size);
-+extern void *early_memremap(resource_size_t phys_addr,
-+			    unsigned long size);
-+extern void early_iounmap(void __iomem *addr, unsigned long size);
-+extern void early_memunmap(void *addr, unsigned long size);
-+
-+/* Arch-specific initialization */
-+extern void early_ioremap_init(void);
-+
-+/* Generic initialization called by architecture code */
-+extern void early_ioremap_setup(void);
-+
-+/*
-+ * Called as last step in paging_init() so library can act
-+ * accordingly for subsequent map/unmap requests.
-+ */
-+extern void early_ioremap_reset(void);
-+
-+/*
-+ * Weak function called by early_ioremap_reset(). It does nothing, but
-+ * architectures may provide their own version to do any needed cleanups.
-+ */
-+extern void early_ioremap_shutdown(void);
-+#else
-+static inline void early_ioremap_init(void) { }
-+static inline void early_ioremap_setup(void) { }
-+static inline void early_ioremap_reset(void) { }
-+#endif
-+
-+#endif /* _ASM_EARLY_IOREMAP_H_ */
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 723bbe0..0dcebf2a 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -552,3 +552,6 @@ config MEM_SOFT_DIRTY
- 	  it can be cleared by hands.
- 
- 	  See Documentation/vm/soft-dirty.txt for more details.
-+
-+config GENERIC_EARLY_IOREMAP
-+	bool
-diff --git a/mm/Makefile b/mm/Makefile
-index 305d10a..4e102e9 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -60,3 +60,4 @@ obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
- obj-$(CONFIG_CLEANCACHE) += cleancache.o
- obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
- obj-$(CONFIG_ZBUD)	+= zbud.o
-+obj-$(CONFIG_GENERIC_EARLY_IOREMAP) += early_ioremap.o
-diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
-new file mode 100644
-index 0000000..8c1ac48
---- /dev/null
-+++ b/mm/early_ioremap.c
-@@ -0,0 +1,249 @@
-+/*
-+ * Provide common bits of early_ioremap() support for architectures needing
-+ * temporary mappings during boot before ioremap() is available.
-+ *
-+ * This is mostly a direct copy of the x86 early_ioremap implementation.
-+ *
-+ * (C) Copyright 1995 1996 Linus Torvalds
-+ *
-+ */
-+#include <linux/init.h>
-+#include <linux/io.h>
-+#include <linux/module.h>
-+#include <linux/slab.h>
-+#include <linux/mm.h>
-+#include <linux/vmalloc.h>
-+#include <asm/fixmap.h>
-+
-+static int early_ioremap_debug __initdata;
-+
-+static int __init early_ioremap_debug_setup(char *str)
-+{
-+	early_ioremap_debug = 1;
-+
-+	return 0;
-+}
-+early_param("early_ioremap_debug", early_ioremap_debug_setup);
-+
-+static int after_paging_init __initdata;
-+
-+void __init __attribute__((weak)) early_ioremap_shutdown(void)
-+{
-+}
-+
-+void __init early_ioremap_reset(void)
-+{
-+	early_ioremap_shutdown();
-+	after_paging_init = 1;
-+}
-+
-+/*
-+ * Generally, ioremap() is available after paging_init() has been called.
-+ * Architectures wanting to allow early_ioremap after paging_init() can
-+ * define __late_set_fixmap and __late_clear_fixmap to do the right thing.
-+ */
-+#ifndef __late_set_fixmap
-+static inline void __init __late_set_fixmap(enum fixed_addresses idx,
-+					    phys_addr_t phys, pgprot_t prot)
-+{
-+	BUG();
-+}
-+#endif
-+
-+#ifndef __late_clear_fixmap
-+static inline void __init __late_clear_fixmap(enum fixed_addresses idx)
-+{
-+	BUG();
-+}
-+#endif
-+
-+static void __iomem *prev_map[FIX_BTMAPS_SLOTS] __initdata;
-+static unsigned long prev_size[FIX_BTMAPS_SLOTS] __initdata;
-+static unsigned long slot_virt[FIX_BTMAPS_SLOTS] __initdata;
-+
-+void __init early_ioremap_setup(void)
-+{
-+	int i;
-+
-+	for (i = 0; i < FIX_BTMAPS_SLOTS; i++) {
-+		if (prev_map[i]) {
-+			WARN_ON(1);
-+			break;
-+		}
-+	}
-+
-+	for (i = 0; i < FIX_BTMAPS_SLOTS; i++)
-+		slot_virt[i] = __fix_to_virt(FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*i);
-+}
-+
-+static int __init check_early_ioremap_leak(void)
-+{
-+	int count = 0;
-+	int i;
-+
-+	for (i = 0; i < FIX_BTMAPS_SLOTS; i++)
-+		if (prev_map[i])
-+			count++;
-+
-+	if (!count)
-+		return 0;
-+	WARN(1, KERN_WARNING
-+	       "Debug warning: early ioremap leak of %d areas detected.\n",
-+		count);
-+	pr_warn("please boot with early_ioremap_debug and report the dmesg.\n");
-+
-+	return 1;
-+}
-+late_initcall(check_early_ioremap_leak);
-+
-+static void __init __iomem *
-+__early_ioremap(resource_size_t phys_addr, unsigned long size, pgprot_t prot)
-+{
-+	unsigned long offset;
-+	resource_size_t last_addr;
-+	unsigned int nrpages;
-+	enum fixed_addresses idx;
-+	int i, slot;
-+
-+	WARN_ON(system_state != SYSTEM_BOOTING);
-+
-+	slot = -1;
-+	for (i = 0; i < FIX_BTMAPS_SLOTS; i++) {
-+		if (!prev_map[i]) {
-+			slot = i;
-+			break;
-+		}
-+	}
-+
-+	if (slot < 0) {
-+		pr_info("%s(%08llx, %08lx) not found slot\n",
-+			__func__, (u64)phys_addr, size);
-+		WARN_ON(1);
-+		return NULL;
-+	}
-+
-+	if (early_ioremap_debug) {
-+		pr_info("%s(%08llx, %08lx) [%d] => ",
-+			__func__, (u64)phys_addr, size, slot);
-+		dump_stack();
-+	}
-+
-+	/* Don't allow wraparound or zero size */
-+	last_addr = phys_addr + size - 1;
-+	if (!size || last_addr < phys_addr) {
-+		WARN_ON(1);
-+		return NULL;
-+	}
-+
-+	prev_size[slot] = size;
-+	/*
-+	 * Mappings have to be page-aligned
-+	 */
-+	offset = phys_addr & ~PAGE_MASK;
-+	phys_addr &= PAGE_MASK;
-+	size = PAGE_ALIGN(last_addr + 1) - phys_addr;
-+
-+	/*
-+	 * Mappings have to fit in the FIX_BTMAP area.
-+	 */
-+	nrpages = size >> PAGE_SHIFT;
-+	if (nrpages > NR_FIX_BTMAPS) {
-+		WARN_ON(1);
-+		return NULL;
-+	}
-+
-+	/*
-+	 * Ok, go for it..
-+	 */
-+	idx = FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*slot;
-+	while (nrpages > 0) {
-+		if (after_paging_init)
-+			__late_set_fixmap(idx, phys_addr, prot);
-+		else
-+			__early_set_fixmap(idx, phys_addr, prot);
-+		phys_addr += PAGE_SIZE;
-+		--idx;
-+		--nrpages;
-+	}
-+	if (early_ioremap_debug)
-+		pr_cont("%08lx + %08lx\n", offset, slot_virt[slot]);
-+
-+	prev_map[slot] = (void __iomem *)(offset + slot_virt[slot]);
-+	return prev_map[slot];
-+}
-+
-+/* Remap an IO device */
-+void __init __iomem *
-+early_ioremap(resource_size_t phys_addr, unsigned long size)
-+{
-+	return __early_ioremap(phys_addr, size, FIXMAP_PAGE_IO);
-+}
-+
-+/* Remap memory */
-+void __init *
-+early_memremap(resource_size_t phys_addr, unsigned long size)
-+{
-+	return (__force void *)__early_ioremap(phys_addr, size,
-+					       FIXMAP_PAGE_NORMAL);
-+}
-+
-+void __init early_iounmap(void __iomem *addr, unsigned long size)
-+{
-+	unsigned long virt_addr;
-+	unsigned long offset;
-+	unsigned int nrpages;
-+	enum fixed_addresses idx;
-+	int i, slot;
-+
-+	slot = -1;
-+	for (i = 0; i < FIX_BTMAPS_SLOTS; i++) {
-+		if (prev_map[i] == addr) {
-+			slot = i;
-+			break;
-+		}
-+	}
-+
-+	if (slot < 0) {
-+		pr_info("early_iounmap(%p, %08lx) not found slot\n",
-+			addr, size);
-+		WARN_ON(1);
-+		return;
-+	}
-+
-+	if (prev_size[slot] != size) {
-+		pr_info("early_iounmap(%p, %08lx) [%d] size not consistent %08lx\n",
-+			addr, size, slot, prev_size[slot]);
-+		WARN_ON(1);
-+		return;
-+	}
-+
-+	if (early_ioremap_debug) {
-+		pr_info("early_iounmap(%p, %08lx) [%d]\n", addr,
-+			size, slot);
-+		dump_stack();
-+	}
-+
-+	virt_addr = (unsigned long)addr;
-+	if (virt_addr < fix_to_virt(FIX_BTMAP_BEGIN)) {
-+		WARN_ON(1);
-+		return;
-+	}
-+	offset = virt_addr & ~PAGE_MASK;
-+	nrpages = PAGE_ALIGN(offset + size) >> PAGE_SHIFT;
-+
-+	idx = FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*slot;
-+	while (nrpages > 0) {
-+		if (after_paging_init)
-+			__late_clear_fixmap(idx);
-+		else
-+			__early_set_fixmap(idx, 0, FIXMAP_PAGE_CLEAR);
-+		--idx;
-+		--nrpages;
-+	}
-+	prev_map[slot] = NULL;
-+}
-+
-+void __init early_memunmap(void *addr, unsigned long size)
-+{
-+	early_iounmap((__force void __iomem *)addr, size);
-+}
--- 
-1.8.3.1
+Fine by me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
