@@ -1,66 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 6268E6B0031
-	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 00:29:33 -0500 (EST)
-Received: by mail-qa0-f49.google.com with SMTP id k4so236962qaq.36
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 21:29:33 -0800 (PST)
-Received: from mail-ve0-x229.google.com (mail-ve0-x229.google.com [2607:f8b0:400c:c01::229])
-        by mx.google.com with ESMTPS id t7si74686209qar.43.2014.01.06.21.29.32
+Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 09BF76B0031
+	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 01:33:13 -0500 (EST)
+Received: by mail-qc0-f178.google.com with SMTP id i17so18366831qcy.37
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 22:33:12 -0800 (PST)
+Received: from mail-ve0-x22b.google.com (mail-ve0-x22b.google.com [2607:f8b0:400c:c01::22b])
+        by mx.google.com with ESMTPS id t1si9052502qch.28.2014.01.06.22.33.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 06 Jan 2014 21:29:32 -0800 (PST)
-Received: by mail-ve0-f169.google.com with SMTP id c14so9918880vea.0
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 21:29:31 -0800 (PST)
+        Mon, 06 Jan 2014 22:33:12 -0800 (PST)
+Received: by mail-ve0-f171.google.com with SMTP id pa12so9737793veb.2
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 22:33:11 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20140106141827.GB27602@dhcp22.suse.cz>
-References: <20140106112422.GA27602@dhcp22.suse.cz>
-	<CAA_GA1dNdrG9aQ3UKDA0O=BY721rvseORVkc2+RxUpzysp3rYw@mail.gmail.com>
-	<20140106141827.GB27602@dhcp22.suse.cz>
-Date: Tue, 7 Jan 2014 13:29:31 +0800
-Message-ID: <CAA_GA1csMEhSYmeS7qgDj7h=Xh2WrsYvirkS55W4Jj3LTHy87A@mail.gmail.com>
-Subject: Re: could you clarify mm/mempolicy: fix !vma in new_vma_page()
+In-Reply-To: <20140107030148.GA24188@bbox>
+References: <CAA25o9Q921VnXvTo2OhXK5taif6MSF6LBtgPKve=kpgeW5XQ9Q@mail.gmail.com>
+	<20140107030148.GA24188@bbox>
+Date: Tue, 7 Jan 2014 14:33:11 +0800
+Message-ID: <CAA_GA1d==iPO_Ne4c5xFBdgUnhsehcod+5ZnZNajWvk8-ak1bg@mail.gmail.com>
+Subject: Re: swap, compress, discard: what's in the future?
 From: Bob Liu <lliubbo@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bob Liu <bob.liu@oracle.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Luigi Semenzato <semenzato@google.com>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 
-On Mon, Jan 6, 2014 at 10:18 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Mon 06-01-14 20:45:54, Bob Liu wrote:
-> [...]
->>  544         if (PageAnon(page)) {
->>  545                 struct anon_vma *page__anon_vma = page_anon_vma(page);
->>  546                 /*
->>  547                  * Note: swapoff's unuse_vma() is more efficient with this
->>  548                  * check, and needs it to match anon_vma when KSM is active.
->>  549                  */
->>  550                 if (!vma->anon_vma || !page__anon_vma ||
->>  551                     vma->anon_vma->root != page__anon_vma->root)
->>  552                         return -EFAULT;
->>  553         } else if (page->mapping && !(vma->vm_flags & VM_NONLINEAR)) {
->>  554                 if (!vma->vm_file ||
->>  555                     vma->vm_file->f_mapping != page->mapping)
->>  556                         return -EFAULT;
->>  557         } else
->>  558                 return -EFAULT;
+On Tue, Jan 7, 2014 at 11:01 AM, Minchan Kim <minchan@kernel.org> wrote:
+> Hello Luigi,
+>
+> On Mon, Jan 06, 2014 at 06:31:29PM -0800, Luigi Semenzato wrote:
+>> I would like to know (and I apologize if there is an obvious answer)
+>> if folks on this list have pointers to documents or discussions
+>> regarding the long-term evolution of the Linux memory manager.  I
+>> realize there is plenty of shorter-term stuff to worry about, but a
+>> long-term vision would be helpful---even more so if there is some
+>> agreement.
 >>
->> That's the "other conditions" and the reason why we can't use
->> BUG_ON(!vma) in new_vma_page().
+>> My super-simple view is that when memory reclaim is possible there is
+>> a cost attached to it, and the goal is to minimize the cost.  The cost
+>> for reclaiming a unit of memory of some kind is a function of various
+>> parameters: the CPU cycles, the I/O bandwidth, and the latency, to
+>> name the main components.  This function can change a lot depending on
+>> the load and in practice it may have to be grossly approximated, but
+>> the concept is valid IMO.
+>>
+>> For instance, the cost of compressing and decompressing RAM is mainly
+>> CPU cycles.  A user program (a browser, for instance :) may be caching
+>> decompressed JPEGs into transcendent (discardable) memory, for quick
+>> display.  In this case, almost certainly the decompressed JPEGs should
+>> be discarded before memory is compressed, under the realistic
+>> assumption that one JPEG decompression is cheaper than one LZO
+>> compression/decompression.  But there may be situations in which a lot
+>> more work has gone into creating the application cache, and then it
+>> makes sense to compress/decompress it rather than discard it.  It may
+>> be hard for the kernel to figure out how expensive it is to recreate
+>> the application cache, so the application should tell it.
 >
-> Sorry, I wasn't clear with my question. I was interested in which of
-> these triggered and why only for hugetlb pages?
+> Agreed. It's very hard for kernel to figure it out so VM should depend
+> on user's hint. and thing you said is the exact example of volatile
+> range system call that I am suggesting.
 >
+> http://lwn.net/Articles/578761/
+>
+>>
+>> Of course, for a cache the cost needs to be multiplied by the
+>> probability that the memory will be used again in the future.  A good
+>> part of the Linux VM is dedicated to estimating that probability, for
+>> some kinds of memory.  But I don't see simple hooks for describing
+>> various costs such as the one I mentioned, and I wonder if this
+>> paradigm makes sense in general, or if it is peculiar to Chrome OS.
+>
+> Your statement makes sense to me but unfortunately, current VM doesn't
+> consider everything you mentioned.
+> It is just based on page access recency by approximate LRU logic +
+> some heuristic(ex, mapped page and VM_EXEC pages are more precious).
 
-Sorry I didn't analyse the root cause. They are several checks in
-page_address_in_vma() so I think it might be not difficult to hit one
-of them. For example, if the page was mapped to vma by nonlinear
-mapping?
-Anyway, some debug code is needed to verify what really happened here.
+It seems that the ARC page replacement algorithm in zfs have good
+performance and more intelligent.
+http://en.wikipedia.org/wiki/Adaptive_replacement_cache
+Is there any history reason of linux didn't implement something like
+ARC as the page cache replacement algorithm?
 
-alloc_page_vma() can handle the vma=NULL case while
-alloc_huge_page_noerr() can't, so we return NULL instead of call down
-to alloc_huge_page().
+> The reason it makes hard is just complexity/overhead of implementation.
+> If someone has nice idea to define parameters and implement with
+> small overhead, it would be very nice!
+>
 
 -- 
 Regards,
