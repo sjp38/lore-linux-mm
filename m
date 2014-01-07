@@ -1,73 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DD156B0031
-	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 03:34:29 -0500 (EST)
-Received: by mail-ee0-f48.google.com with SMTP id e49so8233829eek.7
-        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 00:34:28 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h45si87829720eeo.172.2014.01.07.00.34.28
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 738A36B0031
+	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 03:49:01 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id y10so92622pdj.37
+        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 00:49:01 -0800 (PST)
+Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com. [202.81.31.147])
+        by mx.google.com with ESMTPS id sz7si56099851pab.232.2014.01.07.00.48.58
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 07 Jan 2014 00:34:28 -0800 (PST)
-Date: Tue, 7 Jan 2014 09:34:25 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: could you clarify mm/mempolicy: fix !vma in new_vma_page()
-Message-ID: <20140107083425.GB8756@dhcp22.suse.cz>
-References: <20140106112422.GA27602@dhcp22.suse.cz>
- <CAA_GA1dNdrG9aQ3UKDA0O=BY721rvseORVkc2+RxUpzysp3rYw@mail.gmail.com>
- <20140106141827.GB27602@dhcp22.suse.cz>
- <52cb81ed.e3d8420a.72a1.ffffea65SMTPIN_ADDED_BROKEN@mx.google.com>
- <52cb83e3.c9903c0a.614e.1751SMTPIN_ADDED_BROKEN@mx.google.com>
+        Tue, 07 Jan 2014 00:48:59 -0800 (PST)
+Received: from /spool/local
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Tue, 7 Jan 2014 18:48:56 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id E85A43578052
+	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 19:48:52 +1100 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s078mUMx459244
+	for <linux-mm@kvack.org>; Tue, 7 Jan 2014 19:48:40 +1100
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s078mgtD008689
+	for <linux-mm@kvack.org>; Tue, 7 Jan 2014 19:48:42 +1100
+Date: Tue, 7 Jan 2014 16:48:40 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
+ no local memory
+Message-ID: <52cbbf7b.2792420a.571c.ffffd476SMTPIN_ADDED_BROKEN@mx.google.com>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <20140107132100.5b5ad198@kryten>
+ <20140107074136.GA4011@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <52cb83e3.c9903c0a.614e.1751SMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <20140107074136.GA4011@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Bob Liu <lliubbo@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bob Liu <bob.liu@oracle.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Anton Blanchard <anton@samba.org>, benh@kernel.crashing.org, paulus@samba.org, cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, nacc@linux.vnet.ibm.com, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-On Tue 07-01-14 12:34:34, Wanpeng Li wrote:
-> Cced Sasha,
-> On Tue, Jan 07, 2014 at 12:26:13PM +0800, Wanpeng Li wrote:
-> >Hi Michal,
-> >On Mon, Jan 06, 2014 at 03:18:27PM +0100, Michal Hocko wrote:
-> >>On Mon 06-01-14 20:45:54, Bob Liu wrote:
-> >>[...]
-> >>>  544         if (PageAnon(page)) {
-> >>>  545                 struct anon_vma *page__anon_vma = page_anon_vma(page);
-> >>>  546                 /*
-> >>>  547                  * Note: swapoff's unuse_vma() is more efficient with this
-> >>>  548                  * check, and needs it to match anon_vma when KSM is active.
-> >>>  549                  */
-> >>>  550                 if (!vma->anon_vma || !page__anon_vma ||
-> >>>  551                     vma->anon_vma->root != page__anon_vma->root)
-> >>>  552                         return -EFAULT;
-> >>>  553         } else if (page->mapping && !(vma->vm_flags & VM_NONLINEAR)) {
-> >>>  554                 if (!vma->vm_file ||
-> >>>  555                     vma->vm_file->f_mapping != page->mapping)
-> >>>  556                         return -EFAULT;
-> >>>  557         } else
-> >>>  558                 return -EFAULT;
-> >>> 
-> >>> That's the "other conditions" and the reason why we can't use
-> >>> BUG_ON(!vma) in new_vma_page().
-> >>
-> >>Sorry, I wasn't clear with my question. I was interested in which of
-> >>these triggered and why only for hugetlb pages?
-> >
-> >Not just for hugetlb pages, sorry for do two things in one patch. The change 
-> >for hugetlb pages is to fix the potential dereference NULL pointer reported 
-> >by Dan. http://marc.info/?l=linux-mm&m=137689530323257&w=2 
-> >
-> >If we should ask Sasha to add more debug information to dump which condition 
-> >is failed in page_address_in_vma() for you?
+Hi Joonsoo,
+On Tue, Jan 07, 2014 at 04:41:36PM +0900, Joonsoo Kim wrote:
+>On Tue, Jan 07, 2014 at 01:21:00PM +1100, Anton Blanchard wrote:
+>> 
+[...]
+>Hello,
+>
+>I think that we need more efforts to solve unbalanced node problem.
+>
+>With this patch, even if node of current cpu slab is not favorable to
+>unbalanced node, allocation would proceed and we would get the unintended memory.
+>
 
-I am always more calm when the removed BUG_ON is properly understood and
-justified.
--- 
-Michal Hocko
-SUSE Labs
+We have a machine:
+
+[    0.000000] Node 0 Memory:
+[    0.000000] Node 4 Memory: 0x0-0x10000000 0x20000000-0x60000000 0x80000000-0xc0000000
+[    0.000000] Node 6 Memory: 0x10000000-0x20000000 0x60000000-0x80000000
+[    0.000000] Node 10 Memory: 0xc0000000-0x180000000
+
+[    0.041486] Node 0 CPUs: 0-19
+[    0.041490] Node 4 CPUs:
+[    0.041492] Node 6 CPUs:
+[    0.041495] Node 10 CPUs:
+
+The pages of current cpu slab should be allocated from fallback zones/nodes 
+of the memoryless node in buddy system, how can not favorable happen? 
+
+>And there is one more problem. Even if we have some partial slabs on
+>compatible node, we would allocate new slab, because get_partial() cannot handle
+>this unbalance node case.
+>
+>To fix this correctly, how about following patch?
+>
+
+So I think we should fold both of your two patches to one.
+
+Regards,
+Wanpeng Li 
+
+>Thanks.
+>
+>------------->8--------------------
+>diff --git a/mm/slub.c b/mm/slub.c
+>index c3eb3d3..a1f6dfa 100644
+>--- a/mm/slub.c
+>+++ b/mm/slub.c
+>@@ -1672,7 +1672,19 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
+> {
+>        void *object;
+>        int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
+>+       struct zonelist *zonelist;
+>+       struct zoneref *z;
+>+       struct zone *zone;
+>+       enum zone_type high_zoneidx = gfp_zone(flags);
+>
+>+       if (!node_present_pages(searchnode)) {
+>+               zonelist = node_zonelist(searchnode, flags);
+>+               for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+>+                       searchnode = zone_to_nid(zone);
+>+                       if (node_present_pages(searchnode))
+>+                               break;
+>+               }
+>+       }
+>        object = get_partial_node(s, get_node(s, searchnode), c, flags);
+>        if (object || node != NUMA_NO_NODE)
+>                return object;
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
