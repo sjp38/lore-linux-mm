@@ -1,39 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
-	by kanga.kvack.org (Postfix) with ESMTP id F2A236B004D
-	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 10:19:46 -0500 (EST)
-Received: by mail-qa0-f49.google.com with SMTP id k4so640692qaq.8
-        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 07:19:46 -0800 (PST)
-Received: from mail-qe0-x22e.google.com (mail-qe0-x22e.google.com [2607:f8b0:400d:c02::22e])
-        by mx.google.com with ESMTPS id g6si593804qab.55.2014.01.07.07.19.45
+Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
+	by kanga.kvack.org (Postfix) with ESMTP id D09546B005A
+	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 10:23:32 -0500 (EST)
+Received: by mail-qc0-f177.google.com with SMTP id m20so260159qcx.8
+        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 07:23:32 -0800 (PST)
+Received: from mail-qe0-x22d.google.com (mail-qe0-x22d.google.com [2607:f8b0:400d:c02::22d])
+        by mx.google.com with ESMTPS id nh12si76701109qeb.4.2014.01.07.07.23.31
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 07 Jan 2014 07:19:46 -0800 (PST)
-Received: by mail-qe0-f46.google.com with SMTP id a11so451824qen.5
-        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 07:19:45 -0800 (PST)
-Date: Tue, 7 Jan 2014 10:19:42 -0500
+        Tue, 07 Jan 2014 07:23:32 -0800 (PST)
+Received: by mail-qe0-f45.google.com with SMTP id 6so470439qea.32
+        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 07:23:31 -0800 (PST)
+Date: Tue, 7 Jan 2014 10:23:28 -0500
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 1/2] mm, nobootmem: Add return value check in
- __alloc_memory_core_early()
-Message-ID: <20140107151942.GA3231@htj.dyndns.org>
+Subject: Re: [PATCH 2/2] mm: free memblock.memory in free_all_bootmem
+Message-ID: <20140107152328.GB3231@htj.dyndns.org>
 References: <1389107774-54978-1-git-send-email-phacht@linux.vnet.ibm.com>
- <1389107774-54978-2-git-send-email-phacht@linux.vnet.ibm.com>
+ <1389107774-54978-3-git-send-email-phacht@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1389107774-54978-2-git-send-email-phacht@linux.vnet.ibm.com>
+In-Reply-To: <1389107774-54978-3-git-send-email-phacht@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
 Cc: akpm@linux-foundation.org, jiang.liu@huawei.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, hannes@cmpxchg.org, tangchen@cn.fujitsu.com, toshi.kani@hp.com
 
-On Tue, Jan 07, 2014 at 04:16:13PM +0100, Philipp Hachtmann wrote:
-> When memblock_reserve() fails because memblock.reserved.regions cannot
-> be resized, the caller (e.g. alloc_bootmem()) is not informed of the
-> failed allocation. Therefore alloc_bootmem() silently returns the same
-> pointer again and again.
-> This patch adds a check for the return value of memblock_reserve() in
-> __alloc_memory_core().
+On Tue, Jan 07, 2014 at 04:16:14PM +0100, Philipp Hachtmann wrote:
+> When calling free_all_bootmem() the free areas under memblock's
+> control are released to the buddy allocator. Additionally the
+> reserved list is freed if it was reallocated by memblock.
+> The same should apply for the memory list.
 > 
 > Signed-off-by: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
 
