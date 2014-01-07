@@ -1,62 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f52.google.com (mail-yh0-f52.google.com [209.85.213.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E5166B0035
-	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 21:31:31 -0500 (EST)
-Received: by mail-yh0-f52.google.com with SMTP id i7so3782079yha.11
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 18:31:30 -0800 (PST)
-Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com [2607:f8b0:4001:c05::229])
-        by mx.google.com with ESMTPS id m9si18215644yha.198.2014.01.06.18.31.29
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 06 Jan 2014 18:31:30 -0800 (PST)
-Received: by mail-ig0-f169.google.com with SMTP id hk11so8989136igb.0
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 18:31:29 -0800 (PST)
-MIME-Version: 1.0
-Date: Mon, 6 Jan 2014 18:31:29 -0800
-Message-ID: <CAA25o9Q921VnXvTo2OhXK5taif6MSF6LBtgPKve=kpgeW5XQ9Q@mail.gmail.com>
-Subject: swap, compress, discard: what's in the future?
-From: Luigi Semenzato <semenzato@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail-ea0-f177.google.com (mail-ea0-f177.google.com [209.85.215.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E6326B0031
+	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 21:35:38 -0500 (EST)
+Received: by mail-ea0-f177.google.com with SMTP id n15so8231749ead.36
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 18:35:37 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id v6si86936111eel.112.2014.01.06.18.35.36
+        for <linux-mm@kvack.org>;
+        Mon, 06 Jan 2014 18:35:37 -0800 (PST)
+From: Mark Salter <msalter@redhat.com>
+Subject: [PATCH v2 4/5] arm64: initialize pgprot info earlier in boot
+Date: Mon,  6 Jan 2014 21:35:19 -0500
+Message-Id: <1389062120-31896-5-git-send-email-msalter@redhat.com>
+In-Reply-To: <1389062120-31896-1-git-send-email-msalter@redhat.com>
+References: <1389062120-31896-1-git-send-email-msalter@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-arch@vger.kernel.org, patches@linaro.org, linux-mm@kvack.org, Mark Salter <msalter@redhat.com>, linux-arm-kernel@lists.infradead.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
 
-I would like to know (and I apologize if there is an obvious answer)
-if folks on this list have pointers to documents or discussions
-regarding the long-term evolution of the Linux memory manager.  I
-realize there is plenty of shorter-term stuff to worry about, but a
-long-term vision would be helpful---even more so if there is some
-agreement.
+Presently, paging_init() calls init_mem_pgprot() to initialize pgprot
+values used by macros such as PAGE_KERNEL, PAGE_KERNEL_EXEC, etc. The
+new fixmap and early_ioremap support also needs to use these macros
+before paging_init() is called. This patch moves the init_mem_pgprot()
+call out of paging_init() and into setup_arch() so that pgprot_default
+gets initialized in time for fixmap and early_ioremap.
 
-My super-simple view is that when memory reclaim is possible there is
-a cost attached to it, and the goal is to minimize the cost.  The cost
-for reclaiming a unit of memory of some kind is a function of various
-parameters: the CPU cycles, the I/O bandwidth, and the latency, to
-name the main components.  This function can change a lot depending on
-the load and in practice it may have to be grossly approximated, but
-the concept is valid IMO.
+Signed-off-by: Mark Salter <msalter@redhat.com>
+CC: linux-arm-kernel@lists.infradead.org
+CC: Catalin Marinas <catalin.marinas@arm.com>
+CC: Will Deacon <will.deacon@arm.com>
+---
+ arch/arm64/include/asm/mmu.h | 1 +
+ arch/arm64/kernel/setup.c    | 2 ++
+ arch/arm64/mm/mmu.c          | 3 +--
+ 3 files changed, 4 insertions(+), 2 deletions(-)
 
-For instance, the cost of compressing and decompressing RAM is mainly
-CPU cycles.  A user program (a browser, for instance :) may be caching
-decompressed JPEGs into transcendent (discardable) memory, for quick
-display.  In this case, almost certainly the decompressed JPEGs should
-be discarded before memory is compressed, under the realistic
-assumption that one JPEG decompression is cheaper than one LZO
-compression/decompression.  But there may be situations in which a lot
-more work has gone into creating the application cache, and then it
-makes sense to compress/decompress it rather than discard it.  It may
-be hard for the kernel to figure out how expensive it is to recreate
-the application cache, so the application should tell it.
-
-Of course, for a cache the cost needs to be multiplied by the
-probability that the memory will be used again in the future.  A good
-part of the Linux VM is dedicated to estimating that probability, for
-some kinds of memory.  But I don't see simple hooks for describing
-various costs such as the one I mentioned, and I wonder if this
-paradigm makes sense in general, or if it is peculiar to Chrome OS.
-
-Thanks!
-... and Happy New Year
+diff --git a/arch/arm64/include/asm/mmu.h b/arch/arm64/include/asm/mmu.h
+index 2494fc0..f600d40 100644
+--- a/arch/arm64/include/asm/mmu.h
++++ b/arch/arm64/include/asm/mmu.h
+@@ -27,5 +27,6 @@ typedef struct {
+ extern void paging_init(void);
+ extern void setup_mm_for_reboot(void);
+ extern void __iomem *early_io_map(phys_addr_t phys, unsigned long virt);
++extern void init_mem_pgprot(void);
+ 
+ #endif
+diff --git a/arch/arm64/kernel/setup.c b/arch/arm64/kernel/setup.c
+index bd9bbd0..029ecfe 100644
+--- a/arch/arm64/kernel/setup.c
++++ b/arch/arm64/kernel/setup.c
+@@ -221,6 +221,8 @@ void __init setup_arch(char **cmdline_p)
+ 
+ 	*cmdline_p = boot_command_line;
+ 
++	init_mem_pgprot();
++
+ 	parse_early_param();
+ 
+ 	arm64_memblock_init();
+diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+index f557ebb..541c782 100644
+--- a/arch/arm64/mm/mmu.c
++++ b/arch/arm64/mm/mmu.c
+@@ -125,7 +125,7 @@ early_param("cachepolicy", early_cachepolicy);
+ /*
+  * Adjust the PMD section entries according to the CPU in use.
+  */
+-static void __init init_mem_pgprot(void)
++void __init init_mem_pgprot(void)
+ {
+ 	pteval_t default_pgprot;
+ 	int i;
+@@ -349,7 +349,6 @@ void __init paging_init(void)
+ {
+ 	void *zero_page;
+ 
+-	init_mem_pgprot();
+ 	map_mem();
+ 
+ 	/*
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
