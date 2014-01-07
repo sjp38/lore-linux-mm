@@ -1,279 +1,379 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
-	by kanga.kvack.org (Postfix) with ESMTP id A1BE86B0038
-	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 21:35:46 -0500 (EST)
-Received: by mail-we0-f175.google.com with SMTP id w62so47873wes.34
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 18:35:45 -0800 (PST)
+Received: from mail-ea0-f173.google.com (mail-ea0-f173.google.com [209.85.215.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 798BF6B003A
+	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 21:35:49 -0500 (EST)
+Received: by mail-ea0-f173.google.com with SMTP id o10so8208426eaj.4
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 18:35:48 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id vo5si28289532wjc.58.2014.01.06.18.35.45
+        by mx.google.com with ESMTP id p46si87000099eem.0.2014.01.06.18.35.47
         for <linux-mm@kvack.org>;
-        Mon, 06 Jan 2014 18:35:45 -0800 (PST)
+        Mon, 06 Jan 2014 18:35:48 -0800 (PST)
 From: Mark Salter <msalter@redhat.com>
-Subject: [PATCH v2 3/5] arm: add early_ioremap support
-Date: Mon,  6 Jan 2014 21:35:18 -0500
-Message-Id: <1389062120-31896-4-git-send-email-msalter@redhat.com>
+Subject: [PATCH v2 1/5] mm: create generic early_ioremap() support
+Date: Mon,  6 Jan 2014 21:35:16 -0500
+Message-Id: <1389062120-31896-2-git-send-email-msalter@redhat.com>
 In-Reply-To: <1389062120-31896-1-git-send-email-msalter@redhat.com>
 References: <1389062120-31896-1-git-send-email-msalter@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-arch@vger.kernel.org, patches@linaro.org, linux-mm@kvack.org, Mark Salter <msalter@redhat.com>, linux-arm-kernel@lists.infradead.org, Russell King <linux@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>
+Cc: linux-arch@vger.kernel.org, patches@linaro.org, linux-mm@kvack.org, Mark Salter <msalter@redhat.com>, x86@kernel.org, linux-arm-kernel@lists.infradead.org, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Russell King <linux@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
 
-This patch uses the generic early_ioremap code to implement
-early_ioremap for ARM. The ARM-specific bits come mostly from
-an earlier patch from Leif Lindholm <leif.lindholm@linaro.org>
-here:
+This patch creates a generic implementation of early_ioremap() support
+based on the existing x86 implementation. early_ioremp() is useful for
+early boot code which needs to temporarily map I/O or memory regions
+before normal mapping functions such as ioremap() are available.
 
-  https://lkml.org/lkml/2013/10/3/279
+There is one difference from the existing x86 implementation which
+should be noted. The generic early_memremap() function does not return
+an __iomem pointer and a new early_memunmap() function has been added
+to act as a wrapper for early_iounmap() but with a non __iomem pointer
+passed in. This is in line with the first patch of this series:
+
+  https://lkml.org/lkml/2013/12/22/69
 
 Signed-off-by: Mark Salter <msalter@redhat.com>
-Tested-by: Leif Lindholm <leif.lindholm@linaro.org>
+CC: x86@kernel.org
 CC: linux-arm-kernel@lists.infradead.org
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: Arnd Bergmann <arnd@arndb.de>
+CC: Ingo Molnar <mingo@kernel.org>
+CC: Thomas Gleixner <tglx@linutronix.de>
+CC: "H. Peter Anvin" <hpa@zytor.com>
 CC: Russell King <linux@arm.linux.org.uk>
 CC: Catalin Marinas <catalin.marinas@arm.com>
 CC: Will Deacon <will.deacon@arm.com>
-CC: Arnd Bergmann <arnd@arndb.de>
 ---
- arch/arm/Kconfig              | 11 +++++
- arch/arm/include/asm/Kbuild   |  1 +
- arch/arm/include/asm/fixmap.h | 18 +++++++++
- arch/arm/include/asm/io.h     |  1 +
- arch/arm/kernel/setup.c       |  3 ++
- arch/arm/mm/Makefile          |  1 +
- arch/arm/mm/early_ioremap.c   | 93 +++++++++++++++++++++++++++++++++++++++++++
- arch/arm/mm/mmu.c             |  2 +
- 8 files changed, 130 insertions(+)
- create mode 100644 arch/arm/mm/early_ioremap.c
+ include/asm-generic/early_ioremap.h |  41 ++++++
+ mm/Kconfig                          |   3 +
+ mm/Makefile                         |   1 +
+ mm/early_ioremap.c                  | 249 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 294 insertions(+)
+ create mode 100644 include/asm-generic/early_ioremap.h
+ create mode 100644 mm/early_ioremap.c
 
-diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index c1f1a7e..78a79a6a 100644
---- a/arch/arm/Kconfig
-+++ b/arch/arm/Kconfig
-@@ -1842,6 +1842,17 @@ config UACCESS_WITH_MEMCPY
- 	  However, if the CPU data cache is using a write-allocate mode,
- 	  this option is unlikely to provide any performance gain.
- 
-+config EARLY_IOREMAP
-+	depends on MMU
-+	bool "Provide early_ioremap() support for kernel initialization."
-+	select GENERIC_EARLY_IOREMAP
-+	help
-+	  Provide a mechanism for kernel initialisation code to temporarily
-+	  map, in a highmem-agnostic way, memory pages in before ioremap()
-+	  and friends are available (before paging_init() has run). It uses
-+	  the same virtual memory range as kmap so all early mappings must
-+	  be unapped before paging_init() is called.
-+
- config SECCOMP
- 	bool
- 	prompt "Enable seccomp to safely compute untrusted bytecode"
-diff --git a/arch/arm/include/asm/Kbuild b/arch/arm/include/asm/Kbuild
-index c38b58c..49ec506 100644
---- a/arch/arm/include/asm/Kbuild
-+++ b/arch/arm/include/asm/Kbuild
-@@ -4,6 +4,7 @@ generic-y += auxvec.h
- generic-y += bitsperlong.h
- generic-y += cputime.h
- generic-y += current.h
-+generic-y += early_ioremap.h
- generic-y += emergency-restart.h
- generic-y += errno.h
- generic-y += exec.h
-diff --git a/arch/arm/include/asm/fixmap.h b/arch/arm/include/asm/fixmap.h
-index 68ea615..e92b7a4 100644
---- a/arch/arm/include/asm/fixmap.h
-+++ b/arch/arm/include/asm/fixmap.h
-@@ -21,8 +21,26 @@ enum fixed_addresses {
- 	FIX_KMAP_BEGIN,
- 	FIX_KMAP_END = (FIXADDR_TOP - FIXADDR_START) >> PAGE_SHIFT,
- 	__end_of_fixed_addresses
-+/*
-+ * 224 temporary boot-time mappings, used by early_ioremap(),
-+ * before ioremap() is functional.
-+ *
-+ * (P)re-using the FIXADDR region, which is used for highmem
-+ * later on, and statically aligned to 1MB.
-+ */
-+#define NR_FIX_BTMAPS		32
-+#define FIX_BTMAPS_SLOTS	7
-+#define TOTAL_FIX_BTMAPS	(NR_FIX_BTMAPS * FIX_BTMAPS_SLOTS)
-+#define FIX_BTMAP_END		FIX_KMAP_BEGIN
-+#define FIX_BTMAP_BEGIN		(FIX_BTMAP_END + TOTAL_FIX_BTMAPS - 1)
- };
- 
-+#define FIXMAP_PAGE_NORMAL (L_PTE_MT_WRITEBACK | L_PTE_YOUNG | L_PTE_PRESENT)
-+#define FIXMAP_PAGE_IO (L_PTE_MT_DEV_NONSHARED | L_PTE_YOUNG | L_PTE_PRESENT)
-+
-+extern void __early_set_fixmap(enum fixed_addresses idx,
-+			       phys_addr_t phys, pgprot_t flags);
-+
- #include <asm-generic/fixmap.h>
- 
- #endif
-diff --git a/arch/arm/include/asm/io.h b/arch/arm/include/asm/io.h
-index 3c597c2..131e0ba 100644
---- a/arch/arm/include/asm/io.h
-+++ b/arch/arm/include/asm/io.h
-@@ -28,6 +28,7 @@
- #include <asm/byteorder.h>
- #include <asm/memory.h>
- #include <asm-generic/pci_iomap.h>
-+#include <asm/early_ioremap.h>
- #include <xen/xen.h>
- 
- /*
-diff --git a/arch/arm/kernel/setup.c b/arch/arm/kernel/setup.c
-index 987a7f5..038fb75 100644
---- a/arch/arm/kernel/setup.c
-+++ b/arch/arm/kernel/setup.c
-@@ -36,6 +36,7 @@
- #include <asm/cpu.h>
- #include <asm/cputype.h>
- #include <asm/elf.h>
-+#include <asm/io.h>
- #include <asm/procinfo.h>
- #include <asm/psci.h>
- #include <asm/sections.h>
-@@ -887,6 +888,8 @@ void __init setup_arch(char **cmdline_p)
- 
- 	parse_early_param();
- 
-+	early_ioremap_init();
-+
- 	sort(&meminfo.bank, meminfo.nr_banks, sizeof(meminfo.bank[0]), meminfo_cmp, NULL);
- 
- 	early_paging_init(mdesc, lookup_processor_type(read_cpuid_id()));
-diff --git a/arch/arm/mm/Makefile b/arch/arm/mm/Makefile
-index ecfe6e5..fea855e 100644
---- a/arch/arm/mm/Makefile
-+++ b/arch/arm/mm/Makefile
-@@ -15,6 +15,7 @@ endif
- obj-$(CONFIG_MODULES)		+= proc-syms.o
- 
- obj-$(CONFIG_ALIGNMENT_TRAP)	+= alignment.o
-+obj-$(CONFIG_EARLY_IOREMAP)	+= early_ioremap.o
- obj-$(CONFIG_HIGHMEM)		+= highmem.o
- obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
- 
-diff --git a/arch/arm/mm/early_ioremap.c b/arch/arm/mm/early_ioremap.c
+diff --git a/include/asm-generic/early_ioremap.h b/include/asm-generic/early_ioremap.h
 new file mode 100644
-index 0000000..c3e2bf2
+index 0000000..d43e187
 --- /dev/null
-+++ b/arch/arm/mm/early_ioremap.c
-@@ -0,0 +1,93 @@
-+/*
-+ * early_ioremap() support for ARM
-+ *
-+ * Based on existing support in arch/x86/mm/ioremap.c
-+ *
-+ * Restrictions: currently only functional before paging_init()
-+ */
++++ b/include/asm-generic/early_ioremap.h
+@@ -0,0 +1,41 @@
++#ifndef _ASM_EARLY_IOREMAP_H_
++#define _ASM_EARLY_IOREMAP_H_
 +
++#include <linux/types.h>
++
++#ifdef CONFIG_GENERIC_EARLY_IOREMAP
++/*
++ * early_ioremap() and early_iounmap() are for temporary early boot-time
++ * mappings, before the real ioremap() is functional.
++ */
++extern void __iomem *early_ioremap(resource_size_t phys_addr,
++				   unsigned long size);
++extern void *early_memremap(resource_size_t phys_addr,
++			    unsigned long size);
++extern void early_iounmap(void __iomem *addr, unsigned long size);
++extern void early_memunmap(void *addr, unsigned long size);
++
++/* Arch-specific initialization */
++extern void early_ioremap_init(void);
++
++/* Generic initialization called by architecture code */
++extern void early_ioremap_setup(void);
++
++/*
++ * Called as last step in paging_init() so library can act
++ * accordingly for subsequent map/unmap requests.
++ */
++extern void early_ioremap_reset(void);
++
++/*
++ * Weak function called by early_ioremap_reset(). It does nothing, but
++ * architectures may provide their own version to do any needed cleanups.
++ */
++extern void early_ioremap_shutdown(void);
++#else
++static inline void early_ioremap_init(void) { }
++static inline void early_ioremap_setup(void) { }
++static inline void early_ioremap_reset(void) { }
++#endif
++
++#endif /* _ASM_EARLY_IOREMAP_H_ */
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 723bbe0..0dcebf2a 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -552,3 +552,6 @@ config MEM_SOFT_DIRTY
+ 	  it can be cleared by hands.
+ 
+ 	  See Documentation/vm/soft-dirty.txt for more details.
++
++config GENERIC_EARLY_IOREMAP
++	bool
+diff --git a/mm/Makefile b/mm/Makefile
+index 305d10a..4e102e9 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -60,3 +60,4 @@ obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
+ obj-$(CONFIG_CLEANCACHE) += cleancache.o
+ obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
+ obj-$(CONFIG_ZBUD)	+= zbud.o
++obj-$(CONFIG_GENERIC_EARLY_IOREMAP) += early_ioremap.o
+diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
+new file mode 100644
+index 0000000..8c1ac48
+--- /dev/null
++++ b/mm/early_ioremap.c
+@@ -0,0 +1,249 @@
++/*
++ * Provide common bits of early_ioremap() support for architectures needing
++ * temporary mappings during boot before ioremap() is available.
++ *
++ * This is mostly a direct copy of the x86 early_ioremap implementation.
++ *
++ * (C) Copyright 1995 1996 Linus Torvalds
++ *
++ */
 +#include <linux/init.h>
 +#include <linux/io.h>
-+
++#include <linux/module.h>
++#include <linux/slab.h>
++#include <linux/mm.h>
++#include <linux/vmalloc.h>
 +#include <asm/fixmap.h>
-+#include <asm/pgalloc.h>
-+#include <asm/pgtable.h>
-+#include <asm/tlbflush.h>
 +
-+#include <asm/mach/map.h>
++static int early_ioremap_debug __initdata;
 +
-+static pte_t bm_pte[PTRS_PER_PTE] __aligned(PTE_HWTABLE_SIZE) __initdata;
-+
-+static inline pmd_t * __init early_ioremap_pmd(unsigned long addr)
++static int __init early_ioremap_debug_setup(char *str)
 +{
-+	unsigned int index = pgd_index(addr);
-+	pgd_t *pgd = cpu_get_pgd() + index;
-+	pud_t *pud = pud_offset(pgd, addr);
-+	pmd_t *pmd = pmd_offset(pud, addr);
++	early_ioremap_debug = 1;
 +
-+	return pmd;
++	return 0;
++}
++early_param("early_ioremap_debug", early_ioremap_debug_setup);
++
++static int after_paging_init __initdata;
++
++void __init __attribute__((weak)) early_ioremap_shutdown(void)
++{
 +}
 +
-+static inline pte_t * __init early_ioremap_pte(unsigned long addr)
++void __init early_ioremap_reset(void)
 +{
-+	return &bm_pte[pte_index(addr)];
++	early_ioremap_shutdown();
++	after_paging_init = 1;
 +}
 +
-+void __init early_ioremap_init(void)
++/*
++ * Generally, ioremap() is available after paging_init() has been called.
++ * Architectures wanting to allow early_ioremap after paging_init() can
++ * define __late_set_fixmap and __late_clear_fixmap to do the right thing.
++ */
++#ifndef __late_set_fixmap
++static inline void __init __late_set_fixmap(enum fixed_addresses idx,
++					    phys_addr_t phys, pgprot_t prot)
 +{
-+	pmd_t *pmd;
++	BUG();
++}
++#endif
 +
-+	pmd = early_ioremap_pmd(fix_to_virt(FIX_BTMAP_BEGIN));
++#ifndef __late_clear_fixmap
++static inline void __init __late_clear_fixmap(enum fixed_addresses idx)
++{
++	BUG();
++}
++#endif
 +
-+	pmd_populate_kernel(NULL, pmd, bm_pte);
++static void __iomem *prev_map[FIX_BTMAPS_SLOTS] __initdata;
++static unsigned long prev_size[FIX_BTMAPS_SLOTS] __initdata;
++static unsigned long slot_virt[FIX_BTMAPS_SLOTS] __initdata;
++
++void __init early_ioremap_setup(void)
++{
++	int i;
++
++	for (i = 0; i < FIX_BTMAPS_SLOTS; i++) {
++		if (prev_map[i]) {
++			WARN_ON(1);
++			break;
++		}
++	}
++
++	for (i = 0; i < FIX_BTMAPS_SLOTS; i++)
++		slot_virt[i] = __fix_to_virt(FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*i);
++}
++
++static int __init check_early_ioremap_leak(void)
++{
++	int count = 0;
++	int i;
++
++	for (i = 0; i < FIX_BTMAPS_SLOTS; i++)
++		if (prev_map[i])
++			count++;
++
++	if (!count)
++		return 0;
++	WARN(1, KERN_WARNING
++	       "Debug warning: early ioremap leak of %d areas detected.\n",
++		count);
++	pr_warn("please boot with early_ioremap_debug and report the dmesg.\n");
++
++	return 1;
++}
++late_initcall(check_early_ioremap_leak);
++
++static void __init __iomem *
++__early_ioremap(resource_size_t phys_addr, unsigned long size, pgprot_t prot)
++{
++	unsigned long offset;
++	resource_size_t last_addr;
++	unsigned int nrpages;
++	enum fixed_addresses idx;
++	int i, slot;
++
++	WARN_ON(system_state != SYSTEM_BOOTING);
++
++	slot = -1;
++	for (i = 0; i < FIX_BTMAPS_SLOTS; i++) {
++		if (!prev_map[i]) {
++			slot = i;
++			break;
++		}
++	}
++
++	if (slot < 0) {
++		pr_info("%s(%08llx, %08lx) not found slot\n",
++			__func__, (u64)phys_addr, size);
++		WARN_ON(1);
++		return NULL;
++	}
++
++	if (early_ioremap_debug) {
++		pr_info("%s(%08llx, %08lx) [%d] => ",
++			__func__, (u64)phys_addr, size, slot);
++		dump_stack();
++	}
++
++	/* Don't allow wraparound or zero size */
++	last_addr = phys_addr + size - 1;
++	if (!size || last_addr < phys_addr) {
++		WARN_ON(1);
++		return NULL;
++	}
++
++	prev_size[slot] = size;
++	/*
++	 * Mappings have to be page-aligned
++	 */
++	offset = phys_addr & ~PAGE_MASK;
++	phys_addr &= PAGE_MASK;
++	size = PAGE_ALIGN(last_addr + 1) - phys_addr;
 +
 +	/*
-+	 * Make sure we don't span multiple pmds.
++	 * Mappings have to fit in the FIX_BTMAP area.
 +	 */
-+	BUILD_BUG_ON((__fix_to_virt(FIX_BTMAP_BEGIN) >> PMD_SHIFT)
-+		     != (__fix_to_virt(FIX_BTMAP_END) >> PMD_SHIFT));
-+
-+	if (pmd != early_ioremap_pmd(fix_to_virt(FIX_BTMAP_END))) {
++	nrpages = size >> PAGE_SHIFT;
++	if (nrpages > NR_FIX_BTMAPS) {
 +		WARN_ON(1);
-+		pr_warn("pmd %p != %p\n",
-+			pmd, early_ioremap_pmd(fix_to_virt(FIX_BTMAP_END)));
-+		pr_warn("fix_to_virt(FIX_BTMAP_BEGIN): %08lx\n",
-+			fix_to_virt(FIX_BTMAP_BEGIN));
-+		pr_warn("fix_to_virt(FIX_BTMAP_END):   %08lx\n",
-+			fix_to_virt(FIX_BTMAP_END));
-+		pr_warn("FIX_BTMAP_END:       %d\n", FIX_BTMAP_END);
-+		pr_warn("FIX_BTMAP_BEGIN:     %d\n", FIX_BTMAP_BEGIN);
++		return NULL;
 +	}
 +
-+	early_ioremap_setup();
++	/*
++	 * Ok, go for it..
++	 */
++	idx = FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*slot;
++	while (nrpages > 0) {
++		if (after_paging_init)
++			__late_set_fixmap(idx, phys_addr, prot);
++		else
++			__early_set_fixmap(idx, phys_addr, prot);
++		phys_addr += PAGE_SIZE;
++		--idx;
++		--nrpages;
++	}
++	if (early_ioremap_debug)
++		pr_cont("%08lx + %08lx\n", offset, slot_virt[slot]);
++
++	prev_map[slot] = (void __iomem *)(offset + slot_virt[slot]);
++	return prev_map[slot];
 +}
 +
-+void __init __early_set_fixmap(enum fixed_addresses idx,
-+			       phys_addr_t phys, pgprot_t flags)
++/* Remap an IO device */
++void __init __iomem *
++early_ioremap(resource_size_t phys_addr, unsigned long size)
 +{
-+	unsigned long addr = __fix_to_virt(idx);
-+	pte_t *pte;
-+	u64 desc;
++	return __early_ioremap(phys_addr, size, FIXMAP_PAGE_IO);
++}
 +
-+	if (idx > FIX_KMAP_END) {
-+		BUG();
++/* Remap memory */
++void __init *
++early_memremap(resource_size_t phys_addr, unsigned long size)
++{
++	return (__force void *)__early_ioremap(phys_addr, size,
++					       FIXMAP_PAGE_NORMAL);
++}
++
++void __init early_iounmap(void __iomem *addr, unsigned long size)
++{
++	unsigned long virt_addr;
++	unsigned long offset;
++	unsigned int nrpages;
++	enum fixed_addresses idx;
++	int i, slot;
++
++	slot = -1;
++	for (i = 0; i < FIX_BTMAPS_SLOTS; i++) {
++		if (prev_map[i] == addr) {
++			slot = i;
++			break;
++		}
++	}
++
++	if (slot < 0) {
++		pr_info("early_iounmap(%p, %08lx) not found slot\n",
++			addr, size);
++		WARN_ON(1);
 +		return;
 +	}
-+	pte = early_ioremap_pte(addr);
 +
-+	if (pgprot_val(flags))
-+		set_pte_at(NULL, 0xfff00000, pte,
-+			   pfn_pte(phys >> PAGE_SHIFT, flags));
-+	else
-+		pte_clear(NULL, addr, pte);
-+	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
-+	desc = *pte;
++	if (prev_size[slot] != size) {
++		pr_info("early_iounmap(%p, %08lx) [%d] size not consistent %08lx\n",
++			addr, size, slot, prev_size[slot]);
++		WARN_ON(1);
++		return;
++	}
++
++	if (early_ioremap_debug) {
++		pr_info("early_iounmap(%p, %08lx) [%d]\n", addr,
++			size, slot);
++		dump_stack();
++	}
++
++	virt_addr = (unsigned long)addr;
++	if (virt_addr < fix_to_virt(FIX_BTMAP_BEGIN)) {
++		WARN_ON(1);
++		return;
++	}
++	offset = virt_addr & ~PAGE_MASK;
++	nrpages = PAGE_ALIGN(offset + size) >> PAGE_SHIFT;
++
++	idx = FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*slot;
++	while (nrpages > 0) {
++		if (after_paging_init)
++			__late_clear_fixmap(idx);
++		else
++			__early_set_fixmap(idx, 0, FIXMAP_PAGE_CLEAR);
++		--idx;
++		--nrpages;
++	}
++	prev_map[slot] = NULL;
 +}
 +
-+void __init
-+early_ioremap_shutdown(void)
++void __init early_memunmap(void *addr, unsigned long size)
 +{
-+	pmd_t *pmd;
-+	pmd = early_ioremap_pmd(fix_to_virt(FIX_BTMAP_BEGIN));
-+	pmd_clear(pmd);
++	early_iounmap((__force void __iomem *)addr, size);
 +}
-diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
-index 580ef2d..bef59b9 100644
---- a/arch/arm/mm/mmu.c
-+++ b/arch/arm/mm/mmu.c
-@@ -34,6 +34,7 @@
- #include <asm/mach/arch.h>
- #include <asm/mach/map.h>
- #include <asm/mach/pci.h>
-+#include <asm/early_ioremap.h>
- 
- #include "mm.h"
- #include "tcm.h"
-@@ -1405,6 +1406,7 @@ void __init paging_init(const struct machine_desc *mdesc)
- {
- 	void *zero_page;
- 
-+	early_ioremap_reset();
- 	build_mem_type_table();
- 	prepare_page_table();
- 	map_lowmem();
 -- 
 1.8.3.1
 
