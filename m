@@ -1,81 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f54.google.com (mail-bk0-f54.google.com [209.85.214.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 041326B0036
-	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 05:34:04 -0500 (EST)
-Received: by mail-bk0-f54.google.com with SMTP id v16so168382bkz.41
-        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 02:34:04 -0800 (PST)
-Received: from mail-bk0-x22a.google.com (mail-bk0-x22a.google.com [2a00:1450:4008:c01::22a])
-        by mx.google.com with ESMTPS id qd1si24039338bkb.205.2014.01.07.02.34.04
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id D56646B0031
+	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 07:06:15 -0500 (EST)
+Received: by mail-wi0-f173.google.com with SMTP id hn9so4038764wib.12
+        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 04:06:15 -0800 (PST)
+Received: from mail-wg0-x232.google.com (mail-wg0-x232.google.com [2a00:1450:400c:c00::232])
+        by mx.google.com with ESMTPS id uk10si28860193wjc.165.2014.01.07.04.06.14
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 07 Jan 2014 02:34:04 -0800 (PST)
-Received: by mail-bk0-f42.google.com with SMTP id w11so174012bkz.1
-        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 02:34:03 -0800 (PST)
+        Tue, 07 Jan 2014 04:06:14 -0800 (PST)
+Received: by mail-wg0-f50.google.com with SMTP id a1so48618wgh.17
+        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 04:06:14 -0800 (PST)
 MIME-Version: 1.0
-Date: Tue, 7 Jan 2014 16:04:03 +0530
-Message-ID: <CAK25hWOu-Q0H8_RCejDduuLCA1-135BEp_Cn_njurBA4r7zp5g@mail.gmail.com>
-Subject: [LSF/MM ATTEND] Stackable Union Filesystem Implementation
-From: Saket Sinha <saket.sinha89@gmail.com>
+In-Reply-To: <20140106171324.GA6963@cmpxchg.org>
+References: <CAJrk0BuA2OTfMhmqZ-OFvtbdf_8+O3V77L0mDsoixN+t4A0ASA@mail.gmail.com>
+	<20140106171324.GA6963@cmpxchg.org>
+Date: Tue, 7 Jan 2014 23:06:14 +1100
+Message-ID: <CAJrk0BsiQ6R5utmvQ4NLUKkVg40NtiP2oMStZk-ejt8thbUTdA@mail.gmail.com>
+Subject: Re: [REGRESSION] [BISECTED] MM patch causes kernel lockup with 3.12
+ and acpi_backlight=vendor
+From: Bradley Baetz <bbaetz@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-fsdevel@vger.kernel.org
-Cc: linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: platform-driver-x86@vger.kernel.org, linux-mm@kvack.org, Hans De Goede <hdegoede@redhat.com>
 
-I would like to attend LSF/MM summit. I will like to discuss approach
-to be taken to finally bring up a Union Filesystem for Linux kernel.
+Hi,
 
-My tryst with Union Filesystem began when I was involved developing a
-filesystem as a part of  GSOC2013(Google Summer of Code) for CERN
-called Hepunion Filesystem.
+On Tue, Jan 7, 2014 at 4:13 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> Hi Bradley,
+>
+> On Fri, Dec 27, 2013 at 02:21:21PM +1100, Bradley Baetz wrote:
+>> Hi,
+>>
+>> I have a Dell laptop (Vostro 3560). When I boot Fedora 20 with the
+>> acpi_backlight=vendor option, the kernel locks up hard during the boot
+>> proces, when systemd runs udevadm trigger. This is a hard lockup -
+>> magic-sysrq doesn't work, and neither does caps lock/vt-change/etc.
+>>
+>> I've bisected this to:
+>>
+>> commit 81c0a2bb515fd4daae8cab64352877480792b515
+>> Author: Johannes Weiner <hannes@cmpxchg.org>
+>> Date:   Wed Sep 11 14:20:47 2013 -0700
+>>
+>>     mm: page_alloc: fair zone allocator policy
+>>
+>> which seemed really unrelated, but I've confirmed that:
+>>
+>>  - the commit before this patch doesn't cause the problem, and the commit
+>> afterwrads does
+>>  - reverting that patch from 3.12.0 fixes the problem
+>>  - reverting that patch (and the partial revert
+>> fff4068cba484e6b0abe334ed6b15d5a215a3b25) from master also fixes the problem
+>>  - reverting that patch from the fedora 3.12.5-302.fc20 kernel fixes the
+>> problem
+>>  - applying that patch to 3.11.0 causes the problem
+>>
+>> so I'm pretty sure that that is the patch that causes (or at least
+>> triggers) this issue
+>>
+>> I'm using the acpi_backlight option to get the backlight working - without
+>> this the backlight doesn't work at all. Removing 'acpi_backlight=vendor'
+>> (or blacklisting the dell-laptop module, which is effectively the same
+>> thing) fixes the issue.
+>>
+>> The lockup happens when systemd runs "udevadm trigger", not when the module
+>> is loaded - I can reproduce the issue by booting into emergency mode,
+>> remounting the filesystem as rw, starting up systemd-udevd and running
+>> udevadm trigger manually. It dies a few seconds after loading the
+>> dell-laptop module.
+>>
+>> This happens even if I don't boot into X (using
+>> systemd.unit=multi-user.target)
+>>
+>> Triggering udev individually for each item doesn't trigger the issue ie:
+>>
+>> for i in `udevadm --debug trigger --type=devices --action=add --dry-run
+>> --verbose`; do echo $i; udevadm --debug trigger --type=devices --action=add
+>> --verbose --parent-match=$i; sleep 1; done
+>>
+>> works, so I haven't been able to work out what specific combination of
+>> actions are causing this.
+>>
+>> With the acpi_backlight option, I can manually read/write to the sysfs
+>> dell-laptop backlight file, and it works (and changes the backlight as
+>> expected)
+>>
+>> This is 100% reproducible. I've also tested by powering off the laptop and
+>> pulling the battery just in case one of the previous boots with the bisect
+>> left the hardware in a strange state - no change.
+>
+> My patch aggressively spreads allocations over all zones in the
+> system, but it should still respect dell-laptop's requirements for
+> DMA32 memory.
+>
+> I wonder if the drastic change in allocation placement exposes an
+> existing memory corruption.  In fact, the dell-laptop module is
+> confused when it comes to the page allocator interface, it does
+>
+>   free_page((unsigned long)bufferpage);
+>
+> in the error path, where bufferpage is a page pointer that came out of
+> alloc_page(), which will cause the page allocator to try to free the
+> mem_map(!) page that backs the bufferpage page struct.  So one failed
+> load attempt of the module could plausibly corrupt internal state.
+>
+> Does the following resolve the problem?  And if not, what are the
+> "dell-laptop:" lines in the good and the bad kernel, and does the bad
+> kernel trigger the WARNING?
 
-CERN needs a union filesystem for LHCb to provide fast diskless
-booting for its nodes. For such an implementation, they need a file
-system with two branches a Read-Write and a Read Only so they decided
-to write a completely new union file system called Hepunion. The
-driver was  partially completed and worked somewhat with some issues
-on 2.6.18. since they were using SCL5(Scientific Linux),
+Nope, no luck. I added some more printk's arround the use of SMI. I've
+transcribed the logs from a screenshot for the failing kernel (ie
+master+your patch) ("Sending command" logs class, select, and
+&command.ebx (with the %pa format string):
 
-Now since LHCb is  moving to newer kernels, we ported it to newer
-kernels but this is where the problem started. The design of our
-filesystem was this that we used "path" to map the VFS and the lower
-filesystems. With the addition of RCU-lookup in 2.6.35, a lot of
-locking was added  in kernel functions like kern_path and made our
-driver unstable beyond repair.
+dell-laptop: bufferpage (ffffea000263c680) in node 0 zone 1 (DMA32)
+Sending command: 0, 2, 0x4253493198f1a000
+Command sent
+dell-laptop: getting intensity
+Sending command: 0, 2, 0x4253493198f1a000
+Command sent
+dell-laptop: got intensity
+dell-laptop: Setting intensity
+Sending command: 1, 2, 0x4253493198f1a000
 
-So now we are redesigning the entire thing from scratch.
+and then it locks up before returning from the SMI
 
-We want to develop this Filesystem to finally have a stackable union
-filesystem for the mainline Linux kernel . For such an effort,
-collaborative development and community support is a must.
+So some of the commands work, and they also return the same value for
+the brightness, AND have parsed the same value from the SMBIOS table
+for the ioport/value to use. (I added that later, but didn't take a
+photo - they all return brightness of 2, which is the at-boot default
+value)
 
+Without acpi_backlight=vendor:
 
-For the redesign, AFAIK
-I can think of two ways to do it-
+dell-laptop: bufferpage (ffffea0000fa0dc0) in node 0 zone 1 (DMA32)
 
- 1. VFS-based stacking solution- I would like to cite the work done by
-Valerie Aurora was closest.
+(no other logs, because the module's backlight interface isn't used
+without that boot param)
 
- 2. Non-VFS-based stacking solution -  UnionFS, Aufs and the new Overlay FS
+With your mm patches reverted:
 
-Patches for kernel exists for overlayfs & unionfs.
-What is  communities view like which one would be good fit to go with?
+[   12.773884] dell-laptop: bufferpage (ffffea0000fe0180) in node 0
+zone 1 (DMA32)
+[   12.775502] Sending command: 0, 2, 0x425349313f806000
+[   12.777293] Command sent
+[   12.778950] dell-laptop: getting intensity
+[   12.780589] Sending command: 0, 2, 0x425349313f806000
+[   12.782185] Command sent
+[   12.783679] dell-laptop: got intensity
+[   12.785202] dell-laptop: Setting intensity
+[   12.786715] Sending command: 1, 2, 0x425349313f806000
+[   12.788892] Command sent
+[   12.790379] dell-laptop: set intensity
 
-The use case that I am looking from the stackable filesystem is  that
-of "diskless node handling" (for CERN where it is required to provide
-a faster diskless
-booting to the Large Hadron Collider Beauty nodes).
+(with the get/set repeated a bit later when X starts up)
 
- For this we need a
-1. A global Read Only FIlesystem
-2. A client-specific Read Write FIlesystem via NFS
-3. A local Merged(of the above two) Read Write FIlesystem on ramdisk.
+And on the broken kernel, when I boot into 'emergency' mode, manually
+load dell-laptop, I get the same logs as the 'working' bit (including
+the getting/got/setting/set lines).
 
-Thus to design such a fileystem I need community support and hence
-want to attend LSF/MM summit.
+Looking at the code, I notice a few things odd with the dcdbas code,
+although I don't think that they're the issue here
 
-  Regards,
-  Saket Sinha
+1. dcdbas_smi_request does outb/inb, and marks eax as an input, but
+doesn't mark it as clobbered (I think; I don't have much experience
+with gcc's asm). In practice, I can't see that being an issue
+2. dcdbas_smi_request says that it is "Called with smi_data_lock" but
+that's only true for the calls *within* dcdbas.c. I think that that's
+only a documentation issue, since is protecting a buffer that isn't
+used here. (Dell-laptop has its own buffer and mutex).
+
+I'm still unable to manually reproduce this - the only way to repro is
+'try to boot normally', and while that's 100% reliable, it makes it a
+bit hard to narrow a trigger down...
+
+Bradley
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
