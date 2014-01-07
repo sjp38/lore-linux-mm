@@ -1,89 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A4EC6B0035
-	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 18:24:01 -0500 (EST)
-Received: by mail-pd0-f182.google.com with SMTP id v10so18745796pde.13
-        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 15:24:00 -0800 (PST)
-Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com. [202.81.31.140])
-        by mx.google.com with ESMTPS id ob10si56338887pbb.37.2014.01.06.15.23.58
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 06 Jan 2014 15:23:59 -0800 (PST)
-Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 7 Jan 2014 09:23:54 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 1DD6D2CE8053
-	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 10:23:51 +1100 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s06N55CC48693454
-	for <linux-mm@kvack.org>; Tue, 7 Jan 2014 10:05:06 +1100
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s06NNn4b020170
-	for <linux-mm@kvack.org>; Tue, 7 Jan 2014 10:23:49 +1100
-Date: Tue, 7 Jan 2014 07:23:48 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] sched/auto_group: fix consume memory even if add
- 'noautogroup' in the cmdline
-Message-ID: <52cb3b0f.2a82440a.5285.ffff9642SMTPIN_ADDED_BROKEN@mx.google.com>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1388139751-19632-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20140106121719.GH31570@twins.programming.kicks-ass.net>
- <1389016976.5536.10.camel@marge.simpson.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1389016976.5536.10.camel@marge.simpson.net>
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A69196B0035
+	for <linux-mm@kvack.org>; Mon,  6 Jan 2014 19:09:20 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id up15so19313918pbc.10
+        for <linux-mm@kvack.org>; Mon, 06 Jan 2014 16:09:20 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id l8si56428588pao.152.2014.01.06.16.09.18
+        for <linux-mm@kvack.org>;
+        Mon, 06 Jan 2014 16:09:19 -0800 (PST)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: [PATCH] Add a sysctl for numa_balancing v2
+Date: Mon,  6 Jan 2014 16:08:46 -0800
+Message-Id: <1389053326-29462-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Galbraith <bitbucket@online.de>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
 
-On Mon, Jan 06, 2014 at 03:02:56PM +0100, Mike Galbraith wrote:
->On Mon, 2014-01-06 at 13:17 +0100, Peter Zijlstra wrote: 
->> On Fri, Dec 27, 2013 at 06:22:31PM +0800, Wanpeng Li wrote:
->> > We have a server which have 200 CPUs and 8G memory, there is auto_group creation 
->> 
->> I'm hoping that is 8T, otherwise that's a severely under provisioned
->> system, that's a mere 40M per cpu, does that even work?
->> 
->> > which will almost consume 12MB memory even if add 'noautogroup' in the kernel 
->> > boot parameter. In addtion, SLUB per cpu partial caches freeing that is local to 
->> > a processor which requires the taking of locks at the price of more indeterminism 
->> > in the latency of the free. This patch fix it by check noautogroup earlier to avoid 
->> > free after unnecessary memory consumption.
->> 
->> That's just a bad changelog. It fails to explain the actual problem and
->> it babbles about unrelated things like SLUB details.
->> 
->> Also, I'm not entirely sure what the intention was of this code, I've so
->> far tried to ignore the entire autogroup fest... 
->> 
->> It looks like it creates and maintains the entire autogroup hierarchy,
->> such that if you at runtime enable the sysclt and move tasks 'back' to
->> the root cgroup you get the autogroup behaviour.
->> 
->> Was this intended? Mike?
->
->Yeah, it was intended that autogroups always exist if you config it in.
->We could make is such that noautogroup makes it irreversibly off/dead.  
->
->People with 200 ram starved CPUs can turn it off in their .config too :)
+From: Andi Kleen <ak@linux.intel.com>
 
-Thanks for your great explaination. 
+[It turns out the documentation patch was already merged
+earlier. So just resending without documentation.]
 
-Regards,
-Wanpeng Li 
+As discussed earlier, this adds a working sysctl to enable/disable
+automatic numa memory balancing at runtime.
 
->
->-Mike
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+This allows to track down performance problems with this
+feature and is generally a good idea.
+
+This was possible earlier through debugfs, but only with special
+debugging options set. Also fix the boot message.
+
+v2: Remove documentation as the documentation for this
+sysctl was already merged earlier.
+Acked-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
+---
+ include/linux/sched/sysctl.h |  4 ++++
+ kernel/sched/core.c          | 24 +++++++++++++++++++++++-
+ kernel/sysctl.c              |  9 +++++++++
+ mm/mempolicy.c               |  2 +-
+ 4 files changed, 37 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/sched/sysctl.h b/include/linux/sched/sysctl.h
+index 41467f8..e134535 100644
+--- a/include/linux/sched/sysctl.h
++++ b/include/linux/sched/sysctl.h
+@@ -100,4 +100,8 @@ extern int sched_rt_handler(struct ctl_table *table, int write,
+ 		void __user *buffer, size_t *lenp,
+ 		loff_t *ppos);
+ 
++extern int sched_numa_balancing(struct ctl_table *table, int write,
++				 void __user *buffer, size_t *lenp,
++				 loff_t *ppos);
++
+ #endif /* _SCHED_SYSCTL_H */
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index a88f4a4..4dc22da 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -1763,7 +1763,29 @@ void set_numabalancing_state(bool enabled)
+ 	numabalancing_enabled = enabled;
+ }
+ #endif /* CONFIG_SCHED_DEBUG */
+-#endif /* CONFIG_NUMA_BALANCING */
++
++#ifdef CONFIG_PROC_SYSCTL
++int sched_numa_balancing(struct ctl_table *table, int write,
++			 void __user *buffer, size_t *lenp, loff_t *ppos)
++{
++	struct ctl_table t;
++	int err;
++	int state = numabalancing_enabled;
++
++	if (write && !capable(CAP_SYS_ADMIN))
++		return -EPERM;
++
++	t = *table;
++	t.data = &state;
++	err = proc_dointvec_minmax(&t, write, buffer, lenp, ppos);
++	if (err < 0)
++		return err;
++	if (write)
++		set_numabalancing_state(state);
++	return err;
++}
++#endif
++#endif
+ 
+ /*
+  * fork()/clone()-time setup:
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 34a6047..9e0e790 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -398,6 +398,15 @@ static struct ctl_table kern_table[] = {
+ 		.mode           = 0644,
+ 		.proc_handler   = proc_dointvec,
+ 	},
++	{
++		.procname	= "numa_balancing",
++		.data		= NULL, /* filled in by handler */
++		.maxlen		= sizeof(unsigned int),
++		.mode		= 0644,
++		.proc_handler	= sched_numa_balancing,
++		.extra1		= &zero,
++		.extra2		= &one,
++	},
+ #endif /* CONFIG_NUMA_BALANCING */
+ #endif /* CONFIG_SCHED_DEBUG */
+ 	{
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 0cd2c4d..947293e 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -2668,7 +2668,7 @@ static void __init check_numabalancing_enable(void)
+ 
+ 	if (nr_node_ids > 1 && !numabalancing_override) {
+ 		printk(KERN_INFO "Enabling automatic NUMA balancing. "
+-			"Configure with numa_balancing= or sysctl");
++			"Configure with numa_balancing= or the kernel.numa_balancing sysctl");
+ 		set_numabalancing_state(numabalancing_default);
+ 	}
+ }
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
