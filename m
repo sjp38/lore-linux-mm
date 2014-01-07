@@ -1,139 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D6E916B0031
-	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 05:29:03 -0500 (EST)
-Received: by mail-ob0-f178.google.com with SMTP id uz6so19886261obc.9
-        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 02:29:03 -0800 (PST)
-Received: from e28smtp07.in.ibm.com (e28smtp07.in.ibm.com. [122.248.162.7])
-        by mx.google.com with ESMTPS id ds9si58696893obc.125.2014.01.07.02.28.52
+Received: from mail-bk0-f54.google.com (mail-bk0-f54.google.com [209.85.214.54])
+	by kanga.kvack.org (Postfix) with ESMTP id BFF556B0031
+	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 05:32:49 -0500 (EST)
+Received: by mail-bk0-f54.google.com with SMTP id v16so172325bkz.27
+        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 02:32:49 -0800 (PST)
+Received: from mail-bk0-x229.google.com (mail-bk0-x229.google.com [2a00:1450:4008:c01::229])
+        by mx.google.com with ESMTPS id o5si24026776bkr.320.2014.01.07.02.32.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 07 Jan 2014 02:29:02 -0800 (PST)
-Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 7 Jan 2014 15:58:35 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 67C351258053
-	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 15:59:56 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s07ASKKC51773504
-	for <linux-mm@kvack.org>; Tue, 7 Jan 2014 15:58:20 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s07ASQ7X028748
-	for <linux-mm@kvack.org>; Tue, 7 Jan 2014 15:58:27 +0530
-Date: Tue, 7 Jan 2014 18:28:25 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
- no local memory
-Message-ID: <52cbd6ee.09b5b60a.633e.ffffc915SMTPIN_ADDED_BROKEN@mx.google.com>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <20140107132100.5b5ad198@kryten>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 07 Jan 2014 02:32:48 -0800 (PST)
+Received: by mail-bk0-f41.google.com with SMTP id v15so172081bkz.0
+        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 02:32:48 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140107132100.5b5ad198@kryten>
+Date: Tue, 7 Jan 2014 16:02:48 +0530
+Message-ID: <CAK25hWMoAOXbeuJU73Mcd36KfW=Eam3dEHuyZhdndzEY6dev_g@mail.gmail.com>
+Subject: [LSF/MM ATTEND] Stackable Union Filesystem Implementation
+From: Saket Sinha <saket.sinha89@gmail.com>
+Content-Type: multipart/alternative; boundary=047d7b624eaad305e804ef5ee56c
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Blanchard <anton@samba.org>
-Cc: benh@kernel.crashing.org, paulus@samba.org, cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, nacc@linux.vnet.ibm.com, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andi Kleen <andi@firstfloor.org>
+To: linux-fsdevel@vger.kernel.org
+Cc: linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
 
-On Tue, Jan 07, 2014 at 01:21:00PM +1100, Anton Blanchard wrote:
->
->We noticed a huge amount of slab memory consumed on a large ppc64 box:
->
->Slab:            2094336 kB
->
->Almost 2GB. This box is not balanced and some nodes do not have local
->memory, causing slub to be very inefficient in its slab usage.
->
->Each time we call kmem_cache_alloc_node slub checks the per cpu slab,
->sees it isn't node local, deactivates it and tries to allocate a new
->slab. On empty nodes we will allocate a new remote slab and use the
->first slot, but as explained above when we get called a second time
->we will just deactivate that slab and retry.
->
+--047d7b624eaad305e804ef5ee56c
+Content-Type: text/plain; charset=ISO-8859-1
 
-Deactive cpu slab cache doesn't always mean free the slab cache to buddy system, 
-maybe the slab cache will be putback to the remote node's partial list if there 
-are objects still in used in this unbalance situation. In this case, the slub slow 
-path can freeze the partial slab in remote node again. So why the slab cache is 
-fragmented as below? 
+I would like to attend LSF/MM summit. I will like to discuss approach to be
+taken to finally bring up a Union Filesystem for Linux kernel.
 
-Regards,
-Wanpeng Li 
+My tryst with Union Filesystem began when I was involved developing a
+filesystem as a part of  GSOC2013(Google Summer of Code) for CERN called
+Hepunion Filesystem.
 
->As such we end up only using 1 entry in each slab:
->
->slab                    mem  objects
->                       used   active
->------------------------------------
->kmalloc-16384       1404 MB    4.90%
->task_struct          668 MB    2.90%
->kmalloc-128          193 MB    3.61%
->kmalloc-192          152 MB    5.23%
->kmalloc-8192          72 MB   23.40%
->kmalloc-16            64 MB    7.43%
->kmalloc-512           33 MB   22.41%
->
->The patch below checks that a node is not empty before deactivating a
->slab and trying to allocate it again. With this patch applied we now
->use about 352MB:
->
->Slab:             360192 kB
->
->And our efficiency is much better:
->
->slab                    mem  objects
->                       used   active
->------------------------------------
->kmalloc-16384         92 MB   74.27%
->task_struct           23 MB   83.46%
->idr_layer_cache       18 MB  100.00%
->pgtable-2^12          17 MB  100.00%
->kmalloc-65536         15 MB  100.00%
->inode_cache           14 MB  100.00%
->kmalloc-256           14 MB   97.81%
->kmalloc-8192          14 MB   85.71%
->
->Signed-off-by: Anton Blanchard <anton@samba.org>
->---
->
->Thoughts? It seems like we could hit a similar situation if a machine
->is balanced but we run out of memory on a single node.
->
->Index: b/mm/slub.c
->===================================================================
->--- a/mm/slub.c
->+++ b/mm/slub.c
->@@ -2278,10 +2278,17 @@ redo:
->
-> 	if (unlikely(!node_match(page, node))) {
-> 		stat(s, ALLOC_NODE_MISMATCH);
->-		deactivate_slab(s, page, c->freelist);
->-		c->page = NULL;
->-		c->freelist = NULL;
->-		goto new_slab;
->+
->+		/*
->+		 * If the node contains no memory there is no point in trying
->+		 * to allocate a new node local slab
->+		 */
->+		if (node_spanned_pages(node)) {
->+			deactivate_slab(s, page, c->freelist);
->+			c->page = NULL;
->+			c->freelist = NULL;
->+			goto new_slab;
->+		}
-> 	}
->
-> 	/*
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+CERN needs a union filesystem for LHCb to provide fast diskless booting for
+its nodes. For such an implementation, they need a file system with two
+branches a Read-Write and a Read Only so they decided to write a completely
+new union file system called Hepunion. The driver was  partially completed and
+worked somewhat with some issues on 2.6.18. since they were using
+SCL5(Scientific
+Linux),
+
+Now since LHCb is  moving to newer kernels, we ported it to newer
+kernels but this is where the problem started. The design of our
+filesystem was this that we used "path" to map the VFS and the lower
+filesystems. With the addition of RCU-lookup in 2.6.35, a lot of
+locking was added  in kernel functions like kern_path and made our
+driver unstable beyond repair.
+
+So now we are redesigning the entire thing from scratch.
+
+We want to develop this Filesystem to finally have a stackable union
+filesystem for the mainline Linux kernel . For such an effort,
+collaborative development and community support is a must.
+
+
+For the redesign, AFAIK
+I can think of two ways to do it-
+
+ 1. VFS-based stacking solution- I would like to cite the work done by
+Valerie Aurora was closest.
+
+ 2. Non-VFS-based stacking solution -  UnionFS, Aufs and the new Overlay FS
+
+Patches for kernel exists for overlayfs & unionfs.
+What is  communities view like which one would be good fit to go with?
+
+The use case that I am looking from the stackable filesystem is  that of
+"diskless node handling" (for CERN where it is required to provide a faster
+diskless
+booting to the Large Hadron Collider Beauty nodes).
+
+ For this we need a
+1. A global Read Only FIlesystem
+2. A client-specific Read Write FIlesystem via NFS
+3. A local Merged(of the above two) Read Write FIlesystem on ramdisk.
+
+Thus to design such a fileystem I need community support and hence want to
+attend LSF/MM summit.
+
+  Regards,
+  Saket Sinha
+
+--047d7b624eaad305e804ef5ee56c
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div><br></div><span style=3D"font-family:arial,sans-serif=
+;font-size:13px"><div>I would like=A0<span class=3D"" style=3D"background-c=
+olor:rgb(255,255,204)">to</span>=A0<span class=3D"" style=3D"background-col=
+or:rgb(255,255,204)">attend</span>=A0<span class=3D"" style=3D"background-c=
+olor:rgb(255,255,204)">LSF</span>/<span class=3D"" style=3D"background-colo=
+r:rgb(255,255,204)">MM</span>=A0summit. I will like to discuss approach to =
+be taken to finally bring up a Union Filesystem for Linux kernel.</div>
+<div><br></div><div>My tryst with Union Filesystem began when I was involve=
+d developing a filesystem as a part of =A0GSOC2013(Google Summer of Code) f=
+or CERN called Hepunion Filesystem.</div></span><div><br></div><span style=
+=3D"font-family:arial,sans-serif;font-size:13px">CERN needs a union filesys=
+tem for LHCb to provide fast diskless=A0</span><span style=3D"font-family:a=
+rial,sans-serif;font-size:13px">booting for its nodes. For such an implemen=
+tation, they need a file=A0</span><span style=3D"font-family:arial,sans-ser=
+if;font-size:13px">system with two branches a Read-Write and a Read Only so=
+ they decided=A0</span><span style=3D"font-family:arial,sans-serif;font-siz=
+e:13px">to write a completely new union file system called Hepunion. The dr=
+iver was=A0</span><span style=3D"font-family:arial,sans-serif;font-size:13p=
+x">=A0partially completed</span><span style=3D"font-family:arial,sans-serif=
+;font-size:13px">=A0and worked somewhat with some issues=A0on 2.6.18. </spa=
+n><span style=3D"font-family:arial,sans-serif;font-size:13px">since they we=
+re using=A0</span><span style=3D"font-family:arial,sans-serif;font-size:13p=
+x">SCL5(Scientific Linux),=A0</span><br style=3D"font-family:arial,sans-ser=
+if;font-size:13px">
+<br style=3D"font-family:arial,sans-serif;font-size:13px"><span style=3D"fo=
+nt-family:arial,sans-serif;font-size:13px">Now since LHCb is =A0moving to n=
+ewer kernels, we ported it to newer</span><br style=3D"font-family:arial,sa=
+ns-serif;font-size:13px">
+<span style=3D"font-family:arial,sans-serif;font-size:13px">kernels but thi=
+s is where the problem started. The design of our</span><br style=3D"font-f=
+amily:arial,sans-serif;font-size:13px"><span style=3D"font-family:arial,san=
+s-serif;font-size:13px">filesystem was this that we used &quot;path&quot; t=
+o map the VFS and the lower</span><br style=3D"font-family:arial,sans-serif=
+;font-size:13px">
+<span style=3D"font-family:arial,sans-serif;font-size:13px">filesystems. Wi=
+th the addition of RCU-lookup in 2.6.35, a lot of</span><br style=3D"font-f=
+amily:arial,sans-serif;font-size:13px"><span style=3D"font-family:arial,san=
+s-serif;font-size:13px">locking was added =A0in kernel functions like kern_=
+path and made our</span><br style=3D"font-family:arial,sans-serif;font-size=
+:13px">
+<span style=3D"font-family:arial,sans-serif;font-size:13px">driver unstable=
+ beyond repair.</span><br style=3D"font-family:arial,sans-serif;font-size:1=
+3px"><br>So now we are redesigning the entire thing from scratch.=A0<div><b=
+r>
+<div>We want to develop this Filesystem to finally have a stackable union f=
+ilesystem for the mainline Linux kernel . For such an effort, collaborative=
+ development and community support is a must.</div><div><br></div><div>
+<br><span style=3D"font-family:arial,sans-serif;font-size:13px">For the red=
+esign, AFAIK</span><br style=3D"font-family:arial,sans-serif;font-size:13px=
+"><span style=3D"font-family:arial,sans-serif;font-size:13px">I can think o=
+f two ways to do it-</span><br style=3D"font-family:arial,sans-serif;font-s=
+ize:13px">
+<br style=3D"font-family:arial,sans-serif;font-size:13px"><span style=3D"fo=
+nt-family:arial,sans-serif;font-size:13px">=A01. VFS-based stacking solutio=
+n- I would like to cite the work done by</span><br style=3D"font-family:ari=
+al,sans-serif;font-size:13px">
+<span style=3D"font-family:arial,sans-serif;font-size:13px">Valerie Aurora =
+was closest.</span><br style=3D"font-family:arial,sans-serif;font-size:13px=
+"><br style=3D"font-family:arial,sans-serif;font-size:13px"><span style=3D"=
+font-family:arial,sans-serif;font-size:13px">=A02. Non-VFS-based stacking s=
+olution - =A0UnionFS, Aufs and the new Overlay FS</span><br style=3D"font-f=
+amily:arial,sans-serif;font-size:13px">
+<br style=3D"font-family:arial,sans-serif;font-size:13px"><span style=3D"fo=
+nt-family:arial,sans-serif;font-size:13px">Patches for kernel exists for ov=
+erlayfs &amp; unionfs.</span><br style=3D"font-family:arial,sans-serif;font=
+-size:13px">
+<span style=3D"font-family:arial,sans-serif;font-size:13px">What is =A0comm=
+unities view like which one would be good fit to go with?</span><br style=
+=3D"font-family:arial,sans-serif;font-size:13px"><br style=3D"font-family:a=
+rial,sans-serif;font-size:13px">
+<span style=3D"font-family:arial,sans-serif;font-size:13px">The use case th=
+at I am looking from the stackable filesystem is =A0that of &quot;diskless =
+node=A0</span><span style=3D"font-family:arial,sans-serif;font-size:13px">h=
+andling&quot; (for CERN where it is required to provide a faster diskless</=
+span><br style=3D"font-family:arial,sans-serif;font-size:13px">
+<span style=3D"font-family:arial,sans-serif;font-size:13px">booting to the =
+Large Hadron Collider Beauty nodes).</span><br style=3D"font-family:arial,s=
+ans-serif;font-size:13px"><br style=3D"font-family:arial,sans-serif;font-si=
+ze:13px">
+<span style=3D"font-family:arial,sans-serif;font-size:13px">=A0For this we =
+need a</span><br style=3D"font-family:arial,sans-serif;font-size:13px"><spa=
+n style=3D"font-family:arial,sans-serif;font-size:13px">1. A global Read On=
+ly FIlesystem</span><br style=3D"font-family:arial,sans-serif;font-size:13p=
+x">
+<span style=3D"font-family:arial,sans-serif;font-size:13px">2. A client-spe=
+cific Read Write FIlesystem via NFS</span><br style=3D"font-family:arial,sa=
+ns-serif;font-size:13px"><span style=3D"font-family:arial,sans-serif;font-s=
+ize:13px">3. A local Merged(of the above two) Read Write FIlesystem on ramd=
+isk.</span><br style=3D"font-family:arial,sans-serif;font-size:13px">
+<br>Thus to design such a fileystem I need community support and hence want=
+ to attend=A0<span class=3D"" style=3D"font-family:arial,sans-serif;font-si=
+ze:13px;background-color:rgb(255,255,204)">LSF</span><span style=3D"font-fa=
+mily:arial,sans-serif;font-size:13px">/</span><span class=3D"" style=3D"fon=
+t-family:arial,sans-serif;font-size:13px;background-color:rgb(255,255,204)"=
+>MM</span><span style=3D"font-family:arial,sans-serif;font-size:13px">=A0su=
+mmit.</span><br style=3D"font-family:arial,sans-serif;font-size:13px">
+<br style=3D"font-family:arial,sans-serif;font-size:13px"><span style=3D"fo=
+nt-family:arial,sans-serif;font-size:13px">=A0 Regards,</span><br style=3D"=
+font-family:arial,sans-serif;font-size:13px"><span style=3D"font-family:ari=
+al,sans-serif;font-size:13px">=A0 Saket Sinha</span><br>
+</div></div></div>
+
+--047d7b624eaad305e804ef5ee56c--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
