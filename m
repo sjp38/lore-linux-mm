@@ -1,75 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id B8E4A6B0035
-	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 19:25:27 -0500 (EST)
-Received: by mail-pd0-f176.google.com with SMTP id w10so1040915pde.21
-        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 16:25:27 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id k3si38067961pbb.234.2014.01.07.16.25.05
-        for <linux-mm@kvack.org>;
-        Tue, 07 Jan 2014 16:25:26 -0800 (PST)
-Date: Tue, 7 Jan 2014 16:25:03 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current
- needs access to memory reserves
-Message-Id: <20140107162503.f751e880410f61a109cdcc2b@linux-foundation.org>
-In-Reply-To: <20131219144134.GH10855@dhcp22.suse.cz>
-References: <20131210103827.GB20242@dhcp22.suse.cz>
-	<alpine.DEB.2.02.1312101655430.22701@chino.kir.corp.google.com>
-	<20131211095549.GA18741@dhcp22.suse.cz>
-	<alpine.DEB.2.02.1312111434200.7354@chino.kir.corp.google.com>
-	<20131212103159.GB2630@dhcp22.suse.cz>
-	<alpine.DEB.2.02.1312131551220.28704@chino.kir.corp.google.com>
-	<20131217162342.GG28991@dhcp22.suse.cz>
-	<alpine.DEB.2.02.1312171240541.21640@chino.kir.corp.google.com>
-	<20131218200434.GA4161@dhcp22.suse.cz>
-	<alpine.DEB.2.02.1312182157510.1247@chino.kir.corp.google.com>
-	<20131219144134.GH10855@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-qe0-f45.google.com (mail-qe0-f45.google.com [209.85.128.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 194DC6B0035
+	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 19:56:46 -0500 (EST)
+Received: by mail-qe0-f45.google.com with SMTP id 6so1156960qea.32
+        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 16:56:45 -0800 (PST)
+Received: from mail-vb0-x233.google.com (mail-vb0-x233.google.com [2607:f8b0:400c:c02::233])
+        by mx.google.com with ESMTPS id 10si5103890qai.61.2014.01.07.16.56.44
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 07 Jan 2014 16:56:45 -0800 (PST)
+Received: by mail-vb0-f51.google.com with SMTP id 11so660114vbe.24
+        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 16:56:44 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20140107173034.GE8756@dhcp22.suse.cz>
+References: <20140106112422.GA27602@dhcp22.suse.cz>
+	<CAA_GA1dNdrG9aQ3UKDA0O=BY721rvseORVkc2+RxUpzysp3rYw@mail.gmail.com>
+	<20140106141827.GB27602@dhcp22.suse.cz>
+	<CAA_GA1csMEhSYmeS7qgDj7h=Xh2WrsYvirkS55W4Jj3LTHy87A@mail.gmail.com>
+	<20140107102212.GC8756@dhcp22.suse.cz>
+	<20140107173034.GE8756@dhcp22.suse.cz>
+Date: Wed, 8 Jan 2014 08:56:44 +0800
+Message-ID: <CAA_GA1fN5p3-m40Mf3nqFzRrGcJ9ni9Cjs_q4fm1PCLnzW1cEw@mail.gmail.com>
+Subject: Re: could you clarify mm/mempolicy: fix !vma in new_vma_page()
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bob Liu <bob.liu@oracle.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 19 Dec 2013 15:41:34 +0100 Michal Hocko <mhocko@suse.cz> wrote:
+On Wed, Jan 8, 2014 at 1:30 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Tue 07-01-14 11:22:12, Michal Hocko wrote:
+>> On Tue 07-01-14 13:29:31, Bob Liu wrote:
+>> > On Mon, Jan 6, 2014 at 10:18 PM, Michal Hocko <mhocko@suse.cz> wrote:
+>> > > On Mon 06-01-14 20:45:54, Bob Liu wrote:
+>> > > [...]
+>> > >>  544         if (PageAnon(page)) {
+>> > >>  545                 struct anon_vma *page__anon_vma = page_anon_vma(page);
+>> > >>  546                 /*
+>> > >>  547                  * Note: swapoff's unuse_vma() is more efficient with this
+>> > >>  548                  * check, and needs it to match anon_vma when KSM is active.
+>> > >>  549                  */
+>> > >>  550                 if (!vma->anon_vma || !page__anon_vma ||
+>> > >>  551                     vma->anon_vma->root != page__anon_vma->root)
+>> > >>  552                         return -EFAULT;
+>> > >>  553         } else if (page->mapping && !(vma->vm_flags & VM_NONLINEAR)) {
+>> > >>  554                 if (!vma->vm_file ||
+>> > >>  555                     vma->vm_file->f_mapping != page->mapping)
+>> > >>  556                         return -EFAULT;
+>> > >>  557         } else
+>> > >>  558                 return -EFAULT;
+>> > >>
+>> > >> That's the "other conditions" and the reason why we can't use
+>> > >> BUG_ON(!vma) in new_vma_page().
+>> > >
+>> > > Sorry, I wasn't clear with my question. I was interested in which of
+>> > > these triggered and why only for hugetlb pages?
+>> > >
+>> >
+>> > Sorry I didn't analyse the root cause. They are several checks in
+>> > page_address_in_vma() so I think it might be not difficult to hit one
+>> > of them.
+>>
+>> I would be really curious when anon_vma or f_mapping would be out of
+>> sync, that's why I've asked in the first place.
+>>
+>> > For example, if the page was mapped to vma by nonlinear
+>> > mapping?
+>>
+>> Hmm, ok !private shmem/hugetlbfs might be remapped as non-linear.
+>
+> OK, it didn't let go away from my head so I had to check. hugetlbfs
+> cannot be remmaped as non-linear because it is missing its vm_ops is
+> missing remap_pages implementation. So this case is impossible for these
+> pages. So at least the PageHuge part of the patch is bogus AFAICS.
+>
+> We still have shmem and even then I am curious whether we are doing the
+> right thing. The loop is inteded to handle range spanning multiple VMAs
+> (as per 3ad33b2436b54 (Migration: find correct vma in new_vma_page()))
+> and it doesn't seem to be VM_NONLINEAR aware. It will always fail for
+> shared shmem and so we always fallback to task/system default mempolicy.
+> Whether somebody uses mempolicy on VM_NONLINEAR mappings is hard to
+> tell. I am not familiar with this feature much.
+>
+> That being said. The BUG_ON(!vma) was bogus for VM_NONLINEAR cases.
+> The changed code could keep it for hugetlbfs path because we shouldn't
+> see NULL vma there AFAICS.
+>
 
-> On Wed 18-12-13 22:09:12, David Rientjes wrote:
-> > On Wed, 18 Dec 2013, Michal Hocko wrote:
-> > 
-> > > > For memory isolation, we'd only want to bypass memcg charges when 
-> > > > absolutely necessary and it seems like TIF_MEMDIE is the only case where 
-> > > > that's required.  We don't give processes with pending SIGKILLs or those 
-> > > > in the exit() path access to memory reserves in the page allocator without 
-> > > > first determining that reclaim can't make any progress for the same reason 
-> > > > and then we only do so by setting TIF_MEMDIE when calling the oom killer.  
-> > > 
-> > > While I do understand arguments about isolation I would also like to be
-> > > practical here. How many charges are we talking about? Dozen pages? Much
-> > > more?
-> > 
-> > The PF_EXITING bypass is indeed much less concerning than the 
-> > fatal_signal_pending() bypass.
+Sounds reasonable, but as your said we'd better find out the root
+cause before making any changes.
+Do you think below debug info is enough? If yes, then we can ask Sasha
+help us having a test.
 
-I just spent a happy half hour reliving this thread and ended up
-deciding I agreed with everyone!  I appears that many more emails are
-needed so I think I'll drop
-http://ozlabs.org/~akpm/mmots/broken-out/mm-memcg-avoid-oom-notification-when-current-needs-access-to-memory-reserves.patch
-for now.
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 12733f5..86c5cc0 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1189,11 +1189,21 @@ static struct page *new_vma_page(struct page
+*page, unsigned long private, int *
+ {
+        struct vm_area_struct *vma = (struct vm_area_struct *)private;
+        unsigned long uninitialized_var(address);
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 12733f5..86c5cc0 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1189,11 +1189,21 @@ static struct page *new_vma_page(struct page
+*page, unsigned long private, int *
+ {
+        struct vm_area_struct *vma = (struct vm_area_struct *)private;
+        unsigned long uninitialized_var(address);
++       unsigned long uninitialized_var(address2);
 
-The claim that
-mm-memcg-avoid-oom-notification-when-current-needs-access-to-memory-reserves.patch
-will impact existing userspace seems a bit dubious to me.
+        while (vma) {
+                address = page_address_in_vma(page, vma);
+                if (address != -EFAULT)
+                        break;
++#if 1
++               address2 = vma_address(page, vma);
++               if (address2 >= vma->vm_start && address2 < vma->vm_end) {
++                       printk("other condition happened\n");
++                       if (vma->vm_flags & VM_NONLINEAR)
++                               printk("non linear map\n");
++                       dump_page(page);
++               }
++#endif
+                vma = vma->vm_next;
+        }
+        /*
+diff --git a/mm/rmap.c b/mm/rmap.c
+index d792e71..4d35d5c 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -529,7 +529,7 @@ vma_address(struct page *page, struct vm_area_struct *vma)
+        unsigned long address = __vma_address(page, vma);
 
-> OK, so can we at least agree on the patch posted here:
-> https://lkml.org/lkml/2013/12/12/129. This is a real bug and definitely
-> worth fixing.
+        /* page should be within @vma mapping range */
+-       VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
++       //VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
 
-Yes, can we please get Eric's bug fixed?  I don't believe that Eric has
-tested either https://lkml.org/lkml/2013/12/12/129 or
-http://ozlabs.org/~akpm/mmots/broken-out/mm-memcg-avoid-oom-notification-when-current-needs-access-to-memory-reserves.patch.
-Is he the only person who can reproduce this?
+        return address;
+ }
+
+-- 
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
