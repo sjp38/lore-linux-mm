@@ -1,106 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 618396B0035
-	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 21:52:16 -0500 (EST)
-Received: by mail-pb0-f50.google.com with SMTP id rr13so960499pbb.23
-        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 18:52:16 -0800 (PST)
-Received: from LGEMRELSE6Q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id wm3si60001728pab.252.2014.01.07.18.52.13
-        for <linux-mm@kvack.org>;
-        Tue, 07 Jan 2014 18:52:14 -0800 (PST)
-Date: Wed, 8 Jan 2014 11:52:33 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC PATCHv3 00/11] Intermix Lowmem and vmalloc
-Message-ID: <20140108025233.GA1992@bbox>
-References: <1388699609-18214-1-git-send-email-lauraa@codeaurora.org>
- <52C70024.1060605@sr71.net>
- <52C734F4.5020602@codeaurora.org>
- <20140104073143.GA5594@gmail.com>
- <52CAFF2A.5060407@codeaurora.org>
+Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
+	by kanga.kvack.org (Postfix) with ESMTP id AAB046B0035
+	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 22:59:54 -0500 (EST)
+Received: by mail-qc0-f173.google.com with SMTP id m20so1031013qcx.18
+        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 19:59:54 -0800 (PST)
+Received: from e7.ny.us.ibm.com (e7.ny.us.ibm.com. [32.97.182.137])
+        by mx.google.com with ESMTPS id x4si35319152qad.28.2014.01.07.19.59.53
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 07 Jan 2014 19:59:53 -0800 (PST)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <hanpt@linux.vnet.ibm.com>;
+	Tue, 7 Jan 2014 22:59:53 -0500
+Received: from b01cxnp23034.gho.pok.ibm.com (b01cxnp23034.gho.pok.ibm.com [9.57.198.29])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id B0FD638C803B
+	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 22:59:50 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by b01cxnp23034.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s083xo587930320
+	for <linux-mm@kvack.org>; Wed, 8 Jan 2014 03:59:50 GMT
+Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s083xo5Y007004
+	for <linux-mm@kvack.org>; Tue, 7 Jan 2014 22:59:50 -0500
+Date: Wed, 8 Jan 2014 11:59:46 +0800
+From: Han Pingtian <hanpt@linux.vnet.ibm.com>
+Subject: Re: [RFC] mm: show message when updating min_free_kbytes in thp
+Message-ID: <20140108035946.GI4106@localhost.localdomain>
+References: <20140101002935.GA15683@localhost.localdomain>
+ <52C5AA61.8060701@intel.com>
+ <20140103033303.GB4106@localhost.localdomain>
+ <52C6FED2.7070700@intel.com>
+ <20140105003501.GC4106@localhost.localdomain>
+ <20140106164604.GC27602@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <52CAFF2A.5060407@codeaurora.org>
+In-Reply-To: <20140106164604.GC27602@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>
-Cc: Dave Hansen <dave@sr71.net>, Andrew Morton <akpm@linux-foundation.org>, Kyungmin Park <kmpark@infradead.org>, linux-mm@kvack.org, Russell King <linux@arm.linux.org.uk>, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-Hello,
+On Mon, Jan 06, 2014 at 05:46:04PM +0100, Michal Hocko wrote:
+> On Sun 05-01-14 08:35:01, Han Pingtian wrote:
+> [...]
+> > From f4d085a880dfae7638b33c242554efb0afc0852b Mon Sep 17 00:00:00 2001
+> > From: Han Pingtian <hanpt@linux.vnet.ibm.com>
+> > Date: Fri, 3 Jan 2014 11:10:49 +0800
+> > Subject: [PATCH] mm: show message when raising min_free_kbytes in THP
+> > 
+> > min_free_kbytes may be raised during THP's initialization. Sometimes,
+> > this will change the value being set by user. Showing message will
+> > clarify this confusion.
+> 
+> I do not have anything against informing about changing value
+> set by user but this will inform also when the default value is
+> updated. Is this what you want? Don't you want to check against
+> user_min_free_kbytes? (0 if not set by user)
+> 
+But looks like the user can set min_free_kbytes to 0 by
 
-On Mon, Jan 06, 2014 at 11:08:26AM -0800, Laura Abbott wrote:
-> On 1/3/2014 11:31 PM, Minchan Kim wrote:
-> >Hello,
-> >
-> >On Fri, Jan 03, 2014 at 02:08:52PM -0800, Laura Abbott wrote:
-> >>On 1/3/2014 10:23 AM, Dave Hansen wrote:
-> >>>On 01/02/2014 01:53 PM, Laura Abbott wrote:
-> >>>>The goal here is to allow as much lowmem to be mapped as if the block of memory
-> >>>>was not reserved from the physical lowmem region. Previously, we had been
-> >>>>hacking up the direct virt <-> phys translation to ignore a large region of
-> >>>>memory. This did not scale for multiple holes of memory however.
-> >>>
-> >>>How much lowmem do these holes end up eating up in practice, ballpark?
-> >>>I'm curious how painful this is going to get.
-> >>>
-> >>
-> >>In total, the worst case can be close to 100M with an average case
-> >>around 70M-80M. The split and number of holes vary with the layout
-> >>but end up with 60M-80M one hole and the rest in the other.
-> >
-> >One more thing I'd like to know is how bad direct virt <->phys tranlsation
-> >in scale POV and how often virt<->phys tranlsation is called in your worload
-> >so what's the gain from this patch?
-> >
-> >Thanks.
-> >
-> 
-> With one hole we did
-> 
-> #define __phys_to_virt(phys)
-> 	phys >= mem_hole_end ? mem_hole : normal
-> 
-> We had a single global variable to check for the bounds and to do
-> something similar with multiple holes the worst case would be
-> O(number of holes). This would also all need to be macroized.
-> Detection and accounting for these holes in other data structures
-> (e.g. ARM meminfo) would be increasingly complex and lead to delays
-> in bootup. The error/sanity checking for bad memory configurations
-> would also be messier. Non-linear lowmem mappings also make
-> debugging more difficult.
-> 
-> virt <-> phys translation is used on hot paths in IOMMU mapping so
-> we want to keep virt <-> phys as fast as possible and not have to
-> walk an array of addresses every time.
+    echo 0 > /proc/sys/vm/min_free_kbytes
 
-When you send formal patch, please include things you mentioned
-in the description rather than simple "This did not scale for multiple
-holes of memory however" to justify your motivation and please include
-number you got from this patch because it's mainly performance enhance
-patch but doesn't include any number(yeb, you sent it as RFC so
-I don't care now) so that it could make easy to judge that we need
-this patch or not compared to adding complexity.
+and even set it to -1 the same way. So I think we need to restrict the
+value of min_free_kbytes > 0 first?
 
-Thanks.
-
-
+> Btw. Do we want to restore the original value when khugepaged is
+> disabled?
 > 
-> Thanks,
-> Laura
-> 
-> -- 
-> Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-> hosted by The Linux Foundation
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
