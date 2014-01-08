@@ -1,99 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f54.google.com (mail-oa0-f54.google.com [209.85.219.54])
-	by kanga.kvack.org (Postfix) with ESMTP id CF71F6B0039
-	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 10:27:07 -0500 (EST)
-Received: by mail-oa0-f54.google.com with SMTP id o6so1947718oag.27
-        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 07:27:07 -0800 (PST)
-Received: from bear.ext.ti.com (bear.ext.ti.com. [192.94.94.41])
-        by mx.google.com with ESMTPS id r7si797304oem.136.2014.01.08.07.27.06
+Received: from mail-ea0-f181.google.com (mail-ea0-f181.google.com [209.85.215.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 587B26B003B
+	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 10:43:03 -0500 (EST)
+Received: by mail-ea0-f181.google.com with SMTP id m10so907450eaj.40
+        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 07:43:02 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y48si14346901eew.79.2014.01.08.07.43.02
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 08 Jan 2014 07:27:06 -0800 (PST)
-From: Grygorii Strashko <grygorii.strashko@ti.com>
-Subject: [PATCH] x86/mm: memblock: switch to use NUMA_NO_NODE
-Date: Wed, 8 Jan 2014 18:23:18 +0200
-Message-ID: <1389198198-31027-1-git-send-email-grygorii.strashko@ti.com>
-In-Reply-To: <20140107022559.GE14055@localhost>
-References: <20140107022559.GE14055@localhost>
+        Wed, 08 Jan 2014 07:43:02 -0800 (PST)
+Date: Wed, 8 Jan 2014 15:42:59 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Persistent Memory
+Message-ID: <20140108154259.GJ27046@suse.de>
+References: <20131220170502.GF19166@parisc-linux.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20131220170502.GF19166@parisc-linux.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>, santosh.shilimkar@ti.com
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Grygorii Strashko <grygorii.strashko@ti.com>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Tejun Heo <tj@kernel.org>, Yinghai Lu <yinghai@kernel.org>, David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+To: Matthew Wilcox <matthew@wil.cx>
+Cc: lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-Update X86 code to use NUMA_NO_NODE instead of MAX_NUMNODES while
-calling memblock APIs, because memblock API is changed to use NUMA_NO_NODE and
-will produce warning during boot otherwise.
+On Fri, Dec 20, 2013 at 10:05:02AM -0700, Matthew Wilcox wrote:
+> 
+> I should like to discuss the current situation with Linux support for
+> persistent memory.  While I expect the current discussion to be long
+> over by March, I am certain that there will be topics around persistent
+> memory that have not been settled at that point.
+> 
+> I believe this will mostly be of crossover interest between filesystem
+> and MM people, and of lesser interest to storage people (since we're
+> basically avoiding their code).
+> 
+> Subtopics might include
+>  - Using persistent memory for FS metadata
+>    (The XIP code provides persistent memory to userspace.  The filesystem
+>     still uses BIOs to fetch its metadata)
+>  - Supporting PMD/PGD mappings for userspace
+>    (Not only does the filesystem have to avoid fragmentation to make this
+>     happen, the VM code has to permit these giant mappings)
 
-See:
- https://lkml.org/lkml/2013/12/9/898
+The filesystem would also have to correctly align the data on disk. All
+this implies that the underlying device is byte-addressible, similar access
+speeds to RAM and directly accessible from userspace without the kernel
+being involved. Without those conditions, I find it hard to believe that
+TLB pressure dominates access cost. Then again I have no experience with
+the devices or their intended use case so would not mind an education.
 
-Cc: Santosh Shilimkar <santosh.shilimkar@ti.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Yinghai Lu <yinghai@kernel.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
+However, if you really wanted the device to be accessible like this then
+the shortest solutions (and I want to punch myself for even suggesting
+this) is to extend hugetlbfs to directly access these devices. It's
+almost certainly a bad direction to take though, there would need to be a
+good justification for it. Anything in this direction is pushing usage of
+persistent devices to userspace and the kernel just provides an interface,
+maybe that is desirable maybe not.
 
-Signed-off-by: Grygorii Strashko <grygorii.strashko@ti.com>
----
-Hi Fengguang,
+>  - Persistent page cache
+>    (Another way to take advantage of persstent memory would be to place it
+>     in the page cache.  But we don't have struct pages for it!  What to do?)
 
-This patch should fix these warnings.
+I don't the struct pages are really the problem here. Minimally you could
+bodge it by creating a pgdat structure and allocating the struct pages for it
+similar to how RAM is initialised. However, it completely sucks as a solution
+because it causes all sorts of cache management problems, particularly page
+aging inversion problems when treated as memory like this.  The resulting
+API for userspace would hurt like like.  Think of NUMA problems, but much
+much worse. Don't do this. The only reason I mention it is because so many
+people seem to think it's a great solution at first glance.
 
-Regards,
--grygorii
+Even considering the solution begs the question of "why". Sure, page cache
+would be persistent across reboots but the information is readily available
+on disk and if the data is read-mostly then who cares. If it's read/write,
+making it persistent across a reboot will not improve overall performance. I
+can see the need for some data to be persisted across a reboot (application
+checkpoint, suspend/resume, crash data, something like bcache even if
+sufficiently motivated) but none of that requires page cache support as such.
 
- arch/x86/kernel/check.c |    2 +-
- arch/x86/kernel/e820.c  |    2 +-
- arch/x86/mm/memtest.c   |    2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+I'll throw my hands up and say that my lack of familiarity with the
+expected use cases handicaps me.  We can twist the VM into all sorts of
+circles but it'd be nice to know more about *why* we are doing something
+before worrying about the how. Maybe I'm the only VM person that suffers
+from this particular problem in which case I would appreciate being
+pointed in a sensible direction some time before LSF/MM.
 
-diff --git a/arch/x86/kernel/check.c b/arch/x86/kernel/check.c
-index e2dbcb7..83a7995 100644
---- a/arch/x86/kernel/check.c
-+++ b/arch/x86/kernel/check.c
-@@ -91,7 +91,7 @@ void __init setup_bios_corruption_check(void)
- 
- 	corruption_check_size = round_up(corruption_check_size, PAGE_SIZE);
- 
--	for_each_free_mem_range(i, MAX_NUMNODES, &start, &end, NULL) {
-+	for_each_free_mem_range(i, NUMA_NO_NODE, &start, &end, NULL) {
- 		start = clamp_t(phys_addr_t, round_up(start, PAGE_SIZE),
- 				PAGE_SIZE, corruption_check_size);
- 		end = clamp_t(phys_addr_t, round_down(end, PAGE_SIZE),
-diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
-index 174da5f..988c00a 100644
---- a/arch/x86/kernel/e820.c
-+++ b/arch/x86/kernel/e820.c
-@@ -1120,7 +1120,7 @@ void __init memblock_find_dma_reserve(void)
- 		nr_pages += end_pfn - start_pfn;
- 	}
- 
--	for_each_free_mem_range(u, MAX_NUMNODES, &start, &end, NULL) {
-+	for_each_free_mem_range(u, NUMA_NO_NODE, &start, &end, NULL) {
- 		start_pfn = min_t(unsigned long, PFN_UP(start), MAX_DMA_PFN);
- 		end_pfn = min_t(unsigned long, PFN_DOWN(end), MAX_DMA_PFN);
- 		if (start_pfn < end_pfn)
-diff --git a/arch/x86/mm/memtest.c b/arch/x86/mm/memtest.c
-index 8dabbed..1e9da79 100644
---- a/arch/x86/mm/memtest.c
-+++ b/arch/x86/mm/memtest.c
-@@ -74,7 +74,7 @@ static void __init do_one_pass(u64 pattern, u64 start, u64 end)
- 	u64 i;
- 	phys_addr_t this_start, this_end;
- 
--	for_each_free_mem_range(i, MAX_NUMNODES, &this_start, &this_end, NULL) {
-+	for_each_free_mem_range(i, NUMA_NO_NODE, &this_start, &this_end, NULL) {
- 		this_start = clamp_t(phys_addr_t, this_start, start, end);
- 		this_end = clamp_t(phys_addr_t, this_end, start, end);
- 		if (this_start < this_end) {
 -- 
-1.7.9.5
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
