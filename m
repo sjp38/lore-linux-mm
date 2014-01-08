@@ -1,73 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
-	by kanga.kvack.org (Postfix) with ESMTP id AAB046B0035
-	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 22:59:54 -0500 (EST)
-Received: by mail-qc0-f173.google.com with SMTP id m20so1031013qcx.18
-        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 19:59:54 -0800 (PST)
-Received: from e7.ny.us.ibm.com (e7.ny.us.ibm.com. [32.97.182.137])
-        by mx.google.com with ESMTPS id x4si35319152qad.28.2014.01.07.19.59.53
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BE856B0035
+	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 23:09:02 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id v10so1257905pde.0
+        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 20:09:01 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id vb7si60161663pbc.302.2014.01.07.20.08.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 07 Jan 2014 19:59:53 -0800 (PST)
-Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <hanpt@linux.vnet.ibm.com>;
-	Tue, 7 Jan 2014 22:59:53 -0500
-Received: from b01cxnp23034.gho.pok.ibm.com (b01cxnp23034.gho.pok.ibm.com [9.57.198.29])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id B0FD638C803B
-	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 22:59:50 -0500 (EST)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by b01cxnp23034.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s083xo587930320
-	for <linux-mm@kvack.org>; Wed, 8 Jan 2014 03:59:50 GMT
-Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s083xo5Y007004
-	for <linux-mm@kvack.org>; Tue, 7 Jan 2014 22:59:50 -0500
-Date: Wed, 8 Jan 2014 11:59:46 +0800
-From: Han Pingtian <hanpt@linux.vnet.ibm.com>
-Subject: Re: [RFC] mm: show message when updating min_free_kbytes in thp
-Message-ID: <20140108035946.GI4106@localhost.localdomain>
-References: <20140101002935.GA15683@localhost.localdomain>
- <52C5AA61.8060701@intel.com>
- <20140103033303.GB4106@localhost.localdomain>
- <52C6FED2.7070700@intel.com>
- <20140105003501.GC4106@localhost.localdomain>
- <20140106164604.GC27602@dhcp22.suse.cz>
+        Tue, 07 Jan 2014 20:09:01 -0800 (PST)
+Message-ID: <52CCCF24.4080300@huawei.com>
+Date: Wed, 8 Jan 2014 12:08:04 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140106164604.GC27602@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/2] mm: free memblock.memory in free_all_bootmem
+References: <1389107774-54978-1-git-send-email-phacht@linux.vnet.ibm.com> <1389107774-54978-3-git-send-email-phacht@linux.vnet.ibm.com>
+In-Reply-To: <1389107774-54978-3-git-send-email-phacht@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, jiang.liu@huawei.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, hannes@cmpxchg.org, tangchen@cn.fujitsu.com, tj@kernel.org, toshi.kani@hp.com
 
-On Mon, Jan 06, 2014 at 05:46:04PM +0100, Michal Hocko wrote:
-> On Sun 05-01-14 08:35:01, Han Pingtian wrote:
-> [...]
-> > From f4d085a880dfae7638b33c242554efb0afc0852b Mon Sep 17 00:00:00 2001
-> > From: Han Pingtian <hanpt@linux.vnet.ibm.com>
-> > Date: Fri, 3 Jan 2014 11:10:49 +0800
-> > Subject: [PATCH] mm: show message when raising min_free_kbytes in THP
-> > 
-> > min_free_kbytes may be raised during THP's initialization. Sometimes,
-> > this will change the value being set by user. Showing message will
-> > clarify this confusion.
+On 2014/1/7 23:16, Philipp Hachtmann wrote:
+
+> When calling free_all_bootmem() the free areas under memblock's
+> control are released to the buddy allocator. Additionally the
+> reserved list is freed if it was reallocated by memblock.
+> The same should apply for the memory list.
 > 
-> I do not have anything against informing about changing value
-> set by user but this will inform also when the default value is
-> updated. Is this what you want? Don't you want to check against
-> user_min_free_kbytes? (0 if not set by user)
+> Signed-off-by: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
+> ---
+>  include/linux/memblock.h |  1 +
+>  mm/memblock.c            | 12 ++++++++++++
+>  mm/nobootmem.c           |  7 ++++++-
+>  3 files changed, 19 insertions(+), 1 deletion(-)
 > 
-But looks like the user can set min_free_kbytes to 0 by
+> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> index 77c60e5..d174922 100644
+> --- a/include/linux/memblock.h
+> +++ b/include/linux/memblock.h
+> @@ -52,6 +52,7 @@ phys_addr_t memblock_find_in_range_node(phys_addr_t start, phys_addr_t end,
+>  phys_addr_t memblock_find_in_range(phys_addr_t start, phys_addr_t end,
+>  				   phys_addr_t size, phys_addr_t align);
+>  phys_addr_t get_allocated_memblock_reserved_regions_info(phys_addr_t *addr);
+> +phys_addr_t get_allocated_memblock_memory_regions_info(phys_addr_t *addr);
+>  void memblock_allow_resize(void);
+>  int memblock_add_node(phys_addr_t base, phys_addr_t size, int nid);
+>  int memblock_add(phys_addr_t base, phys_addr_t size);
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index 53e477b..1a11d04 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -271,6 +271,18 @@ phys_addr_t __init_memblock get_allocated_memblock_reserved_regions_info(
+>  			  memblock.reserved.max);
+>  }
+>  
+> +phys_addr_t __init_memblock get_allocated_memblock_memory_regions_info(
+> +					phys_addr_t *addr)
+> +{
+> +	if (memblock.memory.regions == memblock_memory_init_regions)
+> +		return 0;
+> +
+> +	*addr = __pa(memblock.memory.regions);
+> +
+> +	return PAGE_ALIGN(sizeof(struct memblock_region) *
+> +			  memblock.memory.max);
+> +}
+> +
+>  /**
+>   * memblock_double_array - double the size of the memblock regions array
+>   * @type: memblock type of the regions array being doubled
+> diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+> index 3a7e14d..83f36d3 100644
+> --- a/mm/nobootmem.c
+> +++ b/mm/nobootmem.c
+> @@ -122,11 +122,16 @@ static unsigned long __init free_low_memory_core_early(void)
+>  	for_each_free_mem_range(i, MAX_NUMNODES, &start, &end, NULL)
+>  		count += __free_memory_core(start, end);
+>  
+> -	/* free range that is used for reserved array if we allocate it */
+> +	/* Free memblock.reserved array if it was allocated */
+>  	size = get_allocated_memblock_reserved_regions_info(&start);
+>  	if (size)
+>  		count += __free_memory_core(start, start + size);
+>  
+> +	/* Free memblock.memory array if it was allocated */
+> +	size = get_allocated_memblock_memory_regions_info(&start);
+> +	if (size)
+> +		count += __free_memory_core(start, start + size);
+> +
 
-    echo 0 > /proc/sys/vm/min_free_kbytes
+Hi Philipp,
 
-and even set it to -1 the same way. So I think we need to restrict the
-value of min_free_kbytes > 0 first?
+For some archs, like arm64, would use memblock.memory after system booting,
+so we can not simply released to the buddy allocator, maybe need !defined(CONFIG_ARCH_DISCARD_MEMBLOCK).
 
-> Btw. Do we want to restore the original value when khugepaged is
-> disabled?
-> 
+#ifdef CONFIG_HAVE_ARCH_PFN_VALID
+int pfn_valid(unsigned long pfn)
+{
+	return memblock_is_memory(pfn << PAGE_SHIFT);
+}
+EXPORT_SYMBOL(pfn_valid);
+
+Thanks,
+Jianguo Wu
+
+>  	return count;
+>  }
+>  
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
