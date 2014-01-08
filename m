@@ -1,88 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 81E306B0035
-	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 06:14:45 -0500 (EST)
-Received: by mail-pb0-f54.google.com with SMTP id un15so1455271pbc.13
-        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 03:14:45 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id eb3si444263pbd.77.2014.01.08.03.14.43
-        for <linux-mm@kvack.org>;
-        Wed, 08 Jan 2014 03:14:44 -0800 (PST)
-Date: Wed, 8 Jan 2014 19:14:40 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [numa shrinker] 9b17c62382: -36.6% regression on sparse file copy
-Message-ID: <20140108111440.GA10467@localhost>
-References: <20140106082048.GA567@localhost>
- <20140106131042.GA5145@destitution>
+Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 7985E6B0035
+	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 06:16:44 -0500 (EST)
+Received: by mail-ee0-f53.google.com with SMTP id b57so602808eek.26
+        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 03:16:44 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l44si92947391eem.40.2014.01.08.03.16.43
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 08 Jan 2014 03:16:43 -0800 (PST)
+Date: Wed, 8 Jan 2014 12:16:40 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [LSF/MM ATTEND] Stackable Union Filesystem Implementation
+Message-ID: <20140108111640.GD8256@quack.suse.cz>
+References: <CAK25hWOu-Q0H8_RCejDduuLCA1-135BEp_Cn_njurBA4r7zp5g@mail.gmail.com>
+ <20140107122301.GC16640@quack.suse.cz>
+ <CAK25hWMdfSmZLZQugJ3YU=b6nb7ZQzQFw514e=HV91s0Z-W0nQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20140106131042.GA5145@destitution>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAK25hWMdfSmZLZQugJ3YU=b6nb7ZQzQFw514e=HV91s0Z-W0nQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Glauber Costa <glommer@parallels.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, lkp@linux.intel.com
+To: Saket Sinha <saket.sinha89@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
 
-On Tue, Jan 07, 2014 at 12:10:42AM +1100, Dave Chinner wrote:
-> On Mon, Jan 06, 2014 at 04:20:48PM +0800, fengguang.wu@intel.com wrote:
-> > Hi Dave,
-> > 
-> > We noticed throughput drop in test case
-> > 
-> >         vm-scalability/300s-lru-file-readtwice (*)
-> > 
-> > between v3.11 and v3.12, and it's still low as of v3.13-rc6:
-> > 
-> >           v3.11                      v3.12                  v3.13-rc6
-> > ---------------  -------------------------  -------------------------
-> >   14934707 ~ 0%     -48.8%    7647311 ~ 0%     -47.6%    7829487 ~ 0%  vm-scalability.throughput
-> >              ^^     ^^^^^^
-> >         stddev%    change%
+On Wed 08-01-14 01:34:47, Saket Sinha wrote:
+> >   So I'm wondering, have you tried using any of the above mentioned
+> > solutions? I know at least Overlay FS should be pretty usable with any
+> > recent kernel, aufs seems to be ported to recent kernels as well. I'm not
+> > sure how recent patches can you get for unionfs.
+> >
 > 
-> What does this vm-scalability.throughput number mean?
-
-It's the total throughput reported by all the 240 dd:
-
-8781176832 bytes (8.8 GB) copied, 299.97 s, 29.3 MB/s
-2124931+0 records in
-2124930+0 records out
-8703713280 bytes (8.7 GB) copied, 299.97 s, 29.0 MB/s
-2174078+0 records in
-2174077+0 records out
-...
-
-> > (*) The test case basically does
-> > 
-> >         truncate -s 135080058880 /tmp/vm-scalability.img
-> >         mkfs.xfs -q /tmp/vm-scalability.img
-> >         mount -o loop /tmp/vm-scalability.img /tmp/vm-scalability 
-> > 
-> >         nr_cpu=120
-> >         for i in $(seq 1 $nr_cpu)
-> >         do     
-> >                 sparse_file=/tmp/vm-scalability/sparse-lru-file-readtwice-$i
-> >                 truncate $sparse_file -s 36650387592
-> >                 dd if=$sparse_file of=/dev/null &
-> >                 dd if=$sparse_file of=/dev/null &
-> >         done
+> Several implementations of union file system fusion were evaluated.
+> The results of the evaluation is shown at the below link-
+> http://www.4shared.com/download/7IgHqn4tce/1_online.png
 > 
-> So a page cache load of reading 120x36GB files twice concurrently?
-
-Yes.
-
-> There's no increase in system time, so it can't be that the
-> shrinkers are running wild.
+> While evaluating union file systems implementations, it became clear
+> that none was perfect for net booted nodes.
+> All were designed with totally different goals than ours.
 > 
-> FWIW, I'm at LCA right now, so it's going to be a week before I can
-> look at this, so if you can find any behavioural difference in the
-> shrinkers (e.g. from perf profiles, on different filesystems, etc)
-> I'd appreciate it...
+> One of the big problems was that too many copyups were made on the
+> read-write file system. So we decided to implement an union file
+> system designed for diskless systems, with the following
+> functionalities:
+> 
+> 1. union between only one read-only and one read-write file systems
+> 
+> 2. if only the file metadata are modified, then do not
+> copy the whole file on the read-write files system but
+> only the metadata (stored with a file named as the file
+> itself prefixed by '.me.')
+  So do you do anything special at CERN so that metadata is often modified
+without data being changed? Because there are only two operations where I
+can imagine this to be useful:
+1) atime update - but you better turn atime off for unioned filesystem
+   anyway.
+2) xattr update
 
-OK, enjoy your time! I'll try different parameters and check if that
-makes any difference.
+> 3. check when files on the read-write file system can be removed
+  How can that happen?
 
-Thanks,
-Fengguang
+> >Are you missing some  functionality?
+> 
+> The use case of a union type filesystem that I am looking for (CERN)
+> is diskless clients which AFAIR this can not be done in overlayfs.
+> Correct me if I am wrong.
+  Well, I believe all unioning solutions want to support the read-only
+filesystem overlayed by a read-write filesystem. Your points 2. and 3. is
+what makes your requirements non-standard.
+
+> >>  For this we need a
+> >> 1. A global Read Only FIlesystem
+> >> 2. A client-specific Read Write FIlesystem via NFS
+> >> 3. A local Merged(of the above two) Read Write FIlesystem on ramdisk.
+> >   I'm not sure I understand.
+> 
+> Let me answer question one by one to explain
+> >So you have one read-only FS which is exported  to cliens over NFS I presume. Then you have another client specific
+> > filesystem, again mounted over NFS.
+> We first tried to make the union on the nodes during diskless
+> initialisation but finally choose to do it on the
+> server, and NFS exports the a??unioneda?? file system. Client side union
+> was just using too much memory.
+> 
+> >I'm somewhat puzzled by the  'read-write' note there - do you mean that the client-specific filesystem
+> > can be changed while it is mounted by a client? Or do you mean that the
+> > client can change the filesystem to store its data?
+> I mean the client has the permission to change the data and modify it.
+> 
+> 
+>  >And if client can store
+> > data on NFS, what is the purpose of a filesystem on ramdisk?
+> 
+> I am sorry for that I wanted to give that as an alternative to the
+> above approach. Just a typo.
+> A local Merged(of the above two) Read Write FIlesystem on ramdisk is
+> something what happens in Knoppix distro where you get an impression
+> that you are able to change and modify data.
+  OK, that makes sense now. Thanks for explanation.
+
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
