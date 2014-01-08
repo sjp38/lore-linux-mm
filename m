@@ -1,41 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f170.google.com (mail-ea0-f170.google.com [209.85.215.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 179786B0035
-	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 08:54:27 -0500 (EST)
-Received: by mail-ea0-f170.google.com with SMTP id k10so844114eaj.29
-        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 05:54:27 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v6si93348287eel.196.2014.01.08.05.54.22
+Received: from mail-ve0-f176.google.com (mail-ve0-f176.google.com [209.85.128.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 15C226B0035
+	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 09:04:21 -0500 (EST)
+Received: by mail-ve0-f176.google.com with SMTP id oz11so1257577veb.21
+        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 06:04:20 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [2402:b800:7003:1:1::1])
+        by mx.google.com with ESMTPS id t2si1120879qat.147.2014.01.08.06.04.18
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 08 Jan 2014 05:54:22 -0800 (PST)
-Date: Wed, 8 Jan 2014 14:54:22 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: could you clarify mm/mempolicy: fix !vma in new_vma_page()
-Message-ID: <20140108135422.GJ27937@dhcp22.suse.cz>
-References: <CAA_GA1dNdrG9aQ3UKDA0O=BY721rvseORVkc2+RxUpzysp3rYw@mail.gmail.com>
- <20140106141827.GB27602@dhcp22.suse.cz>
- <CAA_GA1csMEhSYmeS7qgDj7h=Xh2WrsYvirkS55W4Jj3LTHy87A@mail.gmail.com>
- <20140107102212.GC8756@dhcp22.suse.cz>
- <20140107173034.GE8756@dhcp22.suse.cz>
- <CAA_GA1fN5p3-m40Mf3nqFzRrGcJ9ni9Cjs_q4fm1PCLnzW1cEw@mail.gmail.com>
- <20140108100859.GC27937@dhcp22.suse.cz>
- <CAA_GA1emcHt+9zOqAKHPoXLd-ofyfYyuQn9fcdLOox5k7BLgww@mail.gmail.com>
- <20140108124240.GH27937@dhcp22.suse.cz>
- <CAA_GA1dh3TtzGnK0HgAb_Sy6ww5JBaFqmf_YViPKpMCEpzFh4w@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAA_GA1dh3TtzGnK0HgAb_Sy6ww5JBaFqmf_YViPKpMCEpzFh4w@mail.gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Jan 2014 06:04:19 -0800 (PST)
+Date: Thu, 9 Jan 2014 01:03:58 +1100
+From: Anton Blanchard <anton@samba.org>
+Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
+ no local memory
+Message-ID: <20140109010358.0f9b30c4@kryten>
+In-Reply-To: <871u0k5lri.fsf@tassilo.jf.intel.com>
+References: <20140107132100.5b5ad198@kryten>
+	<871u0k5lri.fsf@tassilo.jf.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bob Liu <bob.liu@oracle.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Bob Liu <lliubbo@gmail.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: benh@kernel.crashing.org, paulus@samba.org, cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, nacc@linux.vnet.ibm.com, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-Hi Andrew,
-the whole thread started here: http://lkml.org/lkml/2014/1/6/217
-I guess it makes sense to revert part of the already merged commit with
-the following patch. If the BUG_ON triggers again then we should rather
-find out why page_address_in_vma fails on anon_vma or f_mapping checks
-and not simply paper over it.
----
+
+Hi Andi,
+
+> > Thoughts? It seems like we could hit a similar situation if a
+> > machine is balanced but we run out of memory on a single node.
+> 
+> Yes I agree, but your patch doesn't seem to attempt to handle this?
+
+It doesn't. I was hoping someone with more mm knowledge than I could
+suggest a lightweight way of doing this.
+
+Anton
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
