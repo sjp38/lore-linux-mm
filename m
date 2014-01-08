@@ -1,121 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f46.google.com (mail-oa0-f46.google.com [209.85.219.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EE1E6B0035
-	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 08:10:31 -0500 (EST)
-Received: by mail-oa0-f46.google.com with SMTP id l6so1708024oag.5
-        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 05:10:31 -0800 (PST)
-Received: from mail-vb0-x236.google.com (mail-vb0-x236.google.com [2607:f8b0:400c:c02::236])
-        by mx.google.com with ESMTPS id x8si35259605qch.54.2014.01.08.05.10.30
+Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C744C6B0035
+	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 08:42:22 -0500 (EST)
+Received: by mail-ee0-f51.google.com with SMTP id b15so691985eek.38
+        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 05:42:22 -0800 (PST)
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com. [195.75.94.106])
+        by mx.google.com with ESMTPS id r9si93294608eeo.212.2014.01.08.05.42.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 08 Jan 2014 05:10:30 -0800 (PST)
-Received: by mail-vb0-f54.google.com with SMTP id g10so1111922vbg.41
-        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 05:10:30 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20140108124240.GH27937@dhcp22.suse.cz>
-References: <20140106112422.GA27602@dhcp22.suse.cz>
-	<CAA_GA1dNdrG9aQ3UKDA0O=BY721rvseORVkc2+RxUpzysp3rYw@mail.gmail.com>
-	<20140106141827.GB27602@dhcp22.suse.cz>
-	<CAA_GA1csMEhSYmeS7qgDj7h=Xh2WrsYvirkS55W4Jj3LTHy87A@mail.gmail.com>
-	<20140107102212.GC8756@dhcp22.suse.cz>
-	<20140107173034.GE8756@dhcp22.suse.cz>
-	<CAA_GA1fN5p3-m40Mf3nqFzRrGcJ9ni9Cjs_q4fm1PCLnzW1cEw@mail.gmail.com>
-	<20140108100859.GC27937@dhcp22.suse.cz>
-	<CAA_GA1emcHt+9zOqAKHPoXLd-ofyfYyuQn9fcdLOox5k7BLgww@mail.gmail.com>
-	<20140108124240.GH27937@dhcp22.suse.cz>
-Date: Wed, 8 Jan 2014 21:10:29 +0800
-Message-ID: <CAA_GA1dh3TtzGnK0HgAb_Sy6ww5JBaFqmf_YViPKpMCEpzFh4w@mail.gmail.com>
-Subject: Re: could you clarify mm/mempolicy: fix !vma in new_vma_page()
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 08 Jan 2014 05:42:21 -0800 (PST)
+Received: from /spool/local
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <phacht@linux.vnet.ibm.com>;
+	Wed, 8 Jan 2014 13:42:19 -0000
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 5E9F817D805F
+	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 13:42:26 +0000 (GMT)
+Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s08Dg4ae59375770
+	for <linux-mm@kvack.org>; Wed, 8 Jan 2014 13:42:05 GMT
+Received: from d06av02.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av02.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s08DgETx009943
+	for <linux-mm@kvack.org>; Wed, 8 Jan 2014 06:42:16 -0700
+Date: Wed, 8 Jan 2014 14:42:13 +0100
+From: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/2] mm: free memblock.memory in free_all_bootmem
+Message-ID: <20140108144213.4c1995b2@lilie>
+In-Reply-To: <52CCCF24.4080300@huawei.com>
+References: <1389107774-54978-1-git-send-email-phacht@linux.vnet.ibm.com>
+	<1389107774-54978-3-git-send-email-phacht@linux.vnet.ibm.com>
+	<52CCCF24.4080300@huawei.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bob Liu <bob.liu@oracle.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Jianguo Wu <wujianguo@huawei.com>
+Cc: akpm@linux-foundation.org, jiang.liu@huawei.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, hannes@cmpxchg.org, tangchen@cn.fujitsu.com, tj@kernel.org, toshi.kani@hp.com
 
-On Wed, Jan 8, 2014 at 8:42 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Wed 08-01-14 20:09:30, Bob Liu wrote:
->> On Wed, Jan 8, 2014 at 6:08 PM, Michal Hocko <mhocko@suse.cz> wrote:
->>
->> >
->> > If I was debugging this I would simply add printk into page_address_in_vma
->> > error paths.
->> >
->> > Anyway, I think that at least hugetlbfs part should be reverted because
->> > it might paper over real bugs. Although the migration would fail for
->> > such hugetlb page we should catch that a weird page was tried to be
->> > migrated. What about the patch below?
->>
->> Looks good to me. But we need to confirm whether our assumption is right.
->
-> Which assumption you have in mind? non-linear mapping or failing on
-> anon_vma or f_mapping checks?
->
+Am Wed, 8 Jan 2014 12:08:04 +0800
+schrieb Jianguo Wu <wujianguo@huawei.com>:
 
-The assumption that the original BUG_ON(!vma) was triggered by
-non-linear mapping.
+> For some archs, like arm64, would use memblock.memory after system
+> booting, so we can not simply released to the buddy allocator, maybe
+> need !defined(CONFIG_ARCH_DISCARD_MEMBLOCK).
 
->> Sasha, could you please have a test with Michal's patch?
->
-> I obviously doesn't have anything against testing but we should really
-> focus on the original issue. This patch simply restores hugetlb code
+Oh, I see. I have added some ifdefs to prevent memblock.memory from
+being freed when CONFIG_ARCH_DISCARD_MEMBLOCK is not set.
 
-Oh, I see your point.
-Yes, I agree that your patch should be merged and if the BUG_ON() is
-triggered(which is unlikely) again.
-We can open another thread and analysis the root cause.
+Here is a replacement for the patch.
 
->> > ---
->> > From 2d61421f26a3b63b4670d71b7adc67e2191b6157 Mon Sep 17 00:00:00 2001
->> > From: Michal Hocko <mhocko@suse.cz>
->> > Date: Wed, 8 Jan 2014 10:57:41 +0100
->> > Subject: [PATCH] mm: new_vma_page cannot see NULL vma for hugetlb pages
->> >
->> > 11c731e81bb0 (mm/mempolicy: fix !vma in new_vma_page()) has removed
->> > BUG_ON(!vma) from new_vma_page which is partially correct because
->> > page_address_in_vma will return EFAULT for non-linear mappings and at
->> > least shared shmem might be mapped this way.
->> >
->> > The patch also tried to prevent NULL ptr for hugetlb pages which is not
->> > correct AFAICS because hugetlb pages cannot be mapped as VM_NONLINEAR
->> > and other conditions in page_address_in_vma seem to be legit and catch
->> > real bugs.
->> >
->> > This patch restores BUG_ON for PageHuge to catch potential issues when
->> > the to-be-migrated page is not setup properly.
->> >
->> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Kind regards
 
-Reviewed-by: Bob Liu <bob.liu@oracle.com>
+Philipp
 
->> > ---
->> >  mm/mempolicy.c | 6 ++----
->> >  1 file changed, 2 insertions(+), 4 deletions(-)
->> >
->> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
->> > index 9e8d2d86978a..f3f51464a23b 100644
->> > --- a/mm/mempolicy.c
->> > +++ b/mm/mempolicy.c
->> > @@ -1199,10 +1199,8 @@ static struct page *new_vma_page(struct page *page, unsigned long private, int *
->> >         }
->> >
->> >         if (PageHuge(page)) {
->> > -               if (vma)
->> > -                       return alloc_huge_page_noerr(vma, address, 1);
->> > -               else
->> > -                       return NULL;
->> > +               BUG_ON(vma)
->> > +               return alloc_huge_page_noerr(vma, address, 1);
->> >         }
->> >         /*
->> >          * if !vma, alloc_page_vma() will use task or system default policy
->> > --
->> > 1.8.5.2
->> >
+=46rom aca95bcb9d79388b68bf18e7bae4353259b6758f Mon Sep 17 00:00:00 2001
+From: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
+Date: Thu, 19 Dec 2013 15:53:46 +0100
+Subject: [PATCH 2/2] mm: free memblock.memory in free_all_bootmem
 
--- 
-Regards,
---Bob
+When calling free_all_bootmem() the free areas under memblock's
+control are released to the buddy allocator. Additionally the
+reserved list is freed if it was reallocated by memblock.
+The same should apply for the memory list.
+
+Signed-off-by: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
+---
+ include/linux/memblock.h |  1 +
+ mm/memblock.c            | 16 ++++++++++++++++
+ mm/nobootmem.c           | 10 +++++++++-
+ 3 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 77c60e5..d174922 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -52,6 +52,7 @@ phys_addr_t memblock_find_in_range_node(phys_addr_t start=
+, phys_addr_t end,
+ phys_addr_t memblock_find_in_range(phys_addr_t start, phys_addr_t end,
+ 				   phys_addr_t size, phys_addr_t align);
+ phys_addr_t get_allocated_memblock_reserved_regions_info(phys_addr_t *addr=
+);
++phys_addr_t get_allocated_memblock_memory_regions_info(phys_addr_t *addr);
+ void memblock_allow_resize(void);
+ int memblock_add_node(phys_addr_t base, phys_addr_t size, int nid);
+ int memblock_add(phys_addr_t base, phys_addr_t size);
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 53e477b..a78b2e9 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -271,6 +271,22 @@ phys_addr_t __init_memblock get_allocated_memblock_res=
+erved_regions_info(
+ 			  memblock.reserved.max);
+ }
+=20
++#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
++
++phys_addr_t __init_memblock get_allocated_memblock_memory_regions_info(
++					phys_addr_t *addr)
++{
++	if (memblock.memory.regions =3D=3D memblock_memory_init_regions)
++		return 0;
++
++	*addr =3D __pa(memblock.memory.regions);
++
++	return PAGE_ALIGN(sizeof(struct memblock_region) *
++			  memblock.memory.max);
++}
++
++#endif
++
+ /**
+  * memblock_double_array - double the size of the memblock regions array
+  * @type: memblock type of the regions array being doubled
+diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+index 3a7e14d..63ff3f6 100644
+--- a/mm/nobootmem.c
++++ b/mm/nobootmem.c
+@@ -122,11 +122,19 @@ static unsigned long __init free_low_memory_core_earl=
+y(void)
+ 	for_each_free_mem_range(i, MAX_NUMNODES, &start, &end, NULL)
+ 		count +=3D __free_memory_core(start, end);
+=20
+-	/* free range that is used for reserved array if we allocate it */
++	/* Free memblock.reserved array if it was allocated */
+ 	size =3D get_allocated_memblock_reserved_regions_info(&start);
+ 	if (size)
+ 		count +=3D __free_memory_core(start, start + size);
+=20
++#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
++
++	/* Free memblock.memory array if it was allocated */
++	size =3D get_allocated_memblock_memory_regions_info(&start);
++	if (size)
++		count +=3D __free_memory_core(start, start + size);
++#endif
++
+ 	return count;
+ }
+=20
+--=20
+1.8.4.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
