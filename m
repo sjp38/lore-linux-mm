@@ -1,98 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f175.google.com (mail-ea0-f175.google.com [209.85.215.175])
-	by kanga.kvack.org (Postfix) with ESMTP id B37B26B0035
-	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 05:47:16 -0500 (EST)
-Received: by mail-ea0-f175.google.com with SMTP id z10so725452ead.20
-        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 02:47:16 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l44si92769803eem.187.2014.01.08.02.47.15
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 08 Jan 2014 02:47:15 -0800 (PST)
-Date: Wed, 8 Jan 2014 11:47:13 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [RFC PATCH V3] mm readahead: Fix the readahead fail in case of
- empty numa node
-Message-ID: <20140108104713.GB8256@quack.suse.cz>
-References: <1389003715-29733-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
- <20140106141300.4e1c950d45c614d6c29bdd8f@linux-foundation.org>
- <52CD1113.2070003@linux.vnet.ibm.com>
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 81E306B0035
+	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 06:14:45 -0500 (EST)
+Received: by mail-pb0-f54.google.com with SMTP id un15so1455271pbc.13
+        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 03:14:45 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id eb3si444263pbd.77.2014.01.08.03.14.43
+        for <linux-mm@kvack.org>;
+        Wed, 08 Jan 2014 03:14:44 -0800 (PST)
+Date: Wed, 8 Jan 2014 19:14:40 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [numa shrinker] 9b17c62382: -36.6% regression on sparse file copy
+Message-ID: <20140108111440.GA10467@localhost>
+References: <20140106082048.GA567@localhost>
+ <20140106131042.GA5145@destitution>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <52CD1113.2070003@linux.vnet.ibm.com>
+In-Reply-To: <20140106131042.GA5145@destitution>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, jack@suse.cz, Linus <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Glauber Costa <glommer@parallels.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, lkp@linux.intel.com
 
-On Wed 08-01-14 14:19:23, Raghavendra K T wrote:
-> On 01/07/2014 03:43 AM, Andrew Morton wrote:
-> >On Mon,  6 Jan 2014 15:51:55 +0530 Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com> wrote:
-> >
-> >>+	/*
-> >>+	 * Readahead onto remote memory is better than no readahead when local
-> >>+	 * numa node does not have memory. We sanitize readahead size depending
-> >>+	 * on free memory in the local node but limiting to 4k pages.
-> >>+	 */
-> >>+	return local_free_page ? min(sane_nr, local_free_page / 2) : sane_nr;
-> >>  }
-> >
-> >So if the local node has two free pages, we do just one page of
-> >readahead.
-> >
-> >Then the local node has one free page and we do zero pages readahead.
-> >
-> >Assuming that bug(!) is fixed, the local node now has zero free pages
-> >and we suddenly resume doing large readahead.
-> >
-> >This transition from large readahead to very small readahead then back
-> >to large readahead is illogical, surely?
-> >
-> >
+On Tue, Jan 07, 2014 at 12:10:42AM +1100, Dave Chinner wrote:
+> On Mon, Jan 06, 2014 at 04:20:48PM +0800, fengguang.wu@intel.com wrote:
+> > Hi Dave,
+> > 
+> > We noticed throughput drop in test case
+> > 
+> >         vm-scalability/300s-lru-file-readtwice (*)
+> > 
+> > between v3.11 and v3.12, and it's still low as of v3.13-rc6:
+> > 
+> >           v3.11                      v3.12                  v3.13-rc6
+> > ---------------  -------------------------  -------------------------
+> >   14934707 ~ 0%     -48.8%    7647311 ~ 0%     -47.6%    7829487 ~ 0%  vm-scalability.throughput
+> >              ^^     ^^^^^^
+> >         stddev%    change%
 > 
-> You are correct that there is a transition from small readahead to
-> large once we have zero free pages.
-> I am not sure I can defend well, but 'll give a try :).
-> 
-> Hoping that we have evenly distributed cpu/memory load, if we have very
-> less free+inactive memory may be we are in really bad shape already.
-> 
-> But in the case where we have a situation like below [1] (cpu does
-> not have any local memory node populated) I had mentioned
-> earlier where we will have to depend on remote node always,
-> is it not that sanitized readahead onto remote memory seems better?
-> 
-> But having said that I am not able to get an idea of sane implementation
-> to solve this readahead failure bug overcoming the anomaly you pointed
-> :(.  hints/ideas.. ?? please let me know.
-  So if we would be happy with just fixing corner cases like this, we might
-use total node memory size to detect them, can't we? If total node memory
-size is 0, we can use 16 MB (or global number of free pages / 2 if we would
-be uneasy with fixed 16 MB limit) as an upperbound...
+> What does this vm-scalability.throughput number mean?
 
-								Honza
+It's the total throughput reported by all the 240 dd:
+
+8781176832 bytes (8.8 GB) copied, 299.97 s, 29.3 MB/s
+2124931+0 records in
+2124930+0 records out
+8703713280 bytes (8.7 GB) copied, 299.97 s, 29.0 MB/s
+2174078+0 records in
+2174077+0 records out
+...
+
+> > (*) The test case basically does
+> > 
+> >         truncate -s 135080058880 /tmp/vm-scalability.img
+> >         mkfs.xfs -q /tmp/vm-scalability.img
+> >         mount -o loop /tmp/vm-scalability.img /tmp/vm-scalability 
+> > 
+> >         nr_cpu=120
+> >         for i in $(seq 1 $nr_cpu)
+> >         do     
+> >                 sparse_file=/tmp/vm-scalability/sparse-lru-file-readtwice-$i
+> >                 truncate $sparse_file -s 36650387592
+> >                 dd if=$sparse_file of=/dev/null &
+> >                 dd if=$sparse_file of=/dev/null &
+> >         done
 > 
+> So a page cache load of reading 120x36GB files twice concurrently?
+
+Yes.
+
+> There's no increase in system time, so it can't be that the
+> shrinkers are running wild.
 > 
-> [1]: IBM P730
-> ----------------------------------
-> # numactl -H
-> available: 2 nodes (0-1)
-> node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21
-> 22 23 24 25 26 27 28 29 30 31
-> node 0 size: 0 MB
-> node 0 free: 0 MB
-> node 1 cpus:
-> node 1 size: 12288 MB
-> node 1 free: 10440 MB
-> node distances:
-> node   0   1
-> 0:  10  40
-> 1:  40  10
-> 
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+> FWIW, I'm at LCA right now, so it's going to be a week before I can
+> look at this, so if you can find any behavioural difference in the
+> shrinkers (e.g. from perf profiles, on different filesystems, etc)
+> I'd appreciate it...
+
+OK, enjoy your time! I'll try different parameters and check if that
+makes any difference.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
