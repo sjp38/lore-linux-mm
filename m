@@ -1,74 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f179.google.com (mail-ve0-f179.google.com [209.85.128.179])
-	by kanga.kvack.org (Postfix) with ESMTP id E20B36B0036
-	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 03:01:27 -0500 (EST)
-Received: by mail-ve0-f179.google.com with SMTP id jw12so961685veb.24
-        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 00:01:27 -0800 (PST)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:6])
-        by mx.google.com with ESMTP id n7si105442qac.85.2014.01.08.00.01.25
-        for <linux-mm@kvack.org>;
-        Wed, 08 Jan 2014 00:01:27 -0800 (PST)
-Date: Tue, 7 Jan 2014 00:10:42 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [numa shrinker] 9b17c62382: -36.6% regression on sparse file copy
-Message-ID: <20140106131042.GA5145@destitution>
-References: <20140106082048.GA567@localhost>
+Received: from mail-yh0-f44.google.com (mail-yh0-f44.google.com [209.85.213.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 158336B0035
+	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 03:20:09 -0500 (EST)
+Received: by mail-yh0-f44.google.com with SMTP id f64so282723yha.17
+        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 00:20:08 -0800 (PST)
+Received: from e36.co.us.ibm.com (e36.co.us.ibm.com. [32.97.110.154])
+        by mx.google.com with ESMTPS id 44si139891yhf.112.2014.01.08.00.20.07
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 08 Jan 2014 00:20:08 -0800 (PST)
+Received: from /spool/local
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <hanpt@linux.vnet.ibm.com>;
+	Wed, 8 Jan 2014 01:20:07 -0700
+Received: from b03cxnp08026.gho.boulder.ibm.com (b03cxnp08026.gho.boulder.ibm.com [9.17.130.18])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 7EDAC19D8041
+	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 01:19:55 -0700 (MST)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by b03cxnp08026.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s088JtX28847808
+	for <linux-mm@kvack.org>; Wed, 8 Jan 2014 09:19:55 +0100
+Received: from d03av02.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s088K3Oc016849
+	for <linux-mm@kvack.org>; Wed, 8 Jan 2014 01:20:03 -0700
+Date: Wed, 8 Jan 2014 16:20:01 +0800
+From: Han Pingtian <hanpt@linux.vnet.ibm.com>
+Subject: Re: [RFC] mm: show message when updating min_free_kbytes in thp
+Message-ID: <20140108082000.GJ4106@localhost.localdomain>
+References: <20140101002935.GA15683@localhost.localdomain>
+ <52C5AA61.8060701@intel.com>
+ <20140103033303.GB4106@localhost.localdomain>
+ <52C6FED2.7070700@intel.com>
+ <20140105003501.GC4106@localhost.localdomain>
+ <20140106164604.GC27602@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140106082048.GA567@localhost>
+In-Reply-To: <20140106164604.GC27602@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: fengguang.wu@intel.com
-Cc: Glauber Costa <glommer@parallels.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, lkp@linux.intel.com
+To: linux-kernel@vger.kernel.org
+Cc: Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Mon, Jan 06, 2014 at 04:20:48PM +0800, fengguang.wu@intel.com wrote:
-> Hi Dave,
+On Mon, Jan 06, 2014 at 05:46:04PM +0100, Michal Hocko wrote:
+> On Sun 05-01-14 08:35:01, Han Pingtian wrote:
+> [...]
+> > From f4d085a880dfae7638b33c242554efb0afc0852b Mon Sep 17 00:00:00 2001
+> > From: Han Pingtian <hanpt@linux.vnet.ibm.com>
+> > Date: Fri, 3 Jan 2014 11:10:49 +0800
+> > Subject: [PATCH] mm: show message when raising min_free_kbytes in THP
+> > 
+> > min_free_kbytes may be raised during THP's initialization. Sometimes,
+> > this will change the value being set by user. Showing message will
+> > clarify this confusion.
 > 
-> We noticed throughput drop in test case
+> I do not have anything against informing about changing value
+> set by user but this will inform also when the default value is
+> updated. Is this what you want? Don't you want to check against
+> user_min_free_kbytes? (0 if not set by user)
 > 
->         vm-scalability/300s-lru-file-readtwice (*)
-> 
-> between v3.11 and v3.12, and it's still low as of v3.13-rc6:
-> 
->           v3.11                      v3.12                  v3.13-rc6
-> ---------------  -------------------------  -------------------------
->   14934707 ~ 0%     -48.8%    7647311 ~ 0%     -47.6%    7829487 ~ 0%  vm-scalability.throughput
->              ^^     ^^^^^^
->         stddev%    change%
 
-What does this vm-scalability.throughput number mean?
+To use user_min_free_kbytes in mm/huge_memory.c, we need a 
 
-> (*) The test case basically does
-> 
->         truncate -s 135080058880 /tmp/vm-scalability.img
->         mkfs.xfs -q /tmp/vm-scalability.img
->         mount -o loop /tmp/vm-scalability.img /tmp/vm-scalability 
-> 
->         nr_cpu=120
->         for i in $(seq 1 $nr_cpu)
->         do     
->                 sparse_file=/tmp/vm-scalability/sparse-lru-file-readtwice-$i
->                 truncate $sparse_file -s 36650387592
->                 dd if=$sparse_file of=/dev/null &
->                 dd if=$sparse_file of=/dev/null &
->         done
+    extern int user_min_free_kbytes;
 
-So a page cache load of reading 120x36GB files twice concurrently?
-There's no increase in system time, so it can't be that the
-shrinkers are running wild.
+in somewhere? Where should we put it? I guess it is mm/internal.h,
+right?
 
-FWIW, I'm at LCA right now, so it's going to be a week before I can
-look at this, so if you can find any behavioural difference in the
-shrinkers (e.g. from perf profiles, on different filesystems, etc)
-I'd appreciate it...
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
