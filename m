@@ -1,53 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C1C16B0035
-	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 21:44:30 -0500 (EST)
-Received: by mail-wg0-f52.google.com with SMTP id b13so663364wgh.19
-        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 18:44:29 -0800 (PST)
-Received: from mail-ee0-x230.google.com (mail-ee0-x230.google.com [2a00:1450:4013:c00::230])
-        by mx.google.com with ESMTPS id ge7si42898wic.56.2014.01.07.18.44.29
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 07 Jan 2014 18:44:29 -0800 (PST)
-Received: by mail-ee0-f48.google.com with SMTP id e49so399649eek.7
-        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 18:44:28 -0800 (PST)
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 618396B0035
+	for <linux-mm@kvack.org>; Tue,  7 Jan 2014 21:52:16 -0500 (EST)
+Received: by mail-pb0-f50.google.com with SMTP id rr13so960499pbb.23
+        for <linux-mm@kvack.org>; Tue, 07 Jan 2014 18:52:16 -0800 (PST)
+Received: from LGEMRELSE6Q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id wm3si60001728pab.252.2014.01.07.18.52.13
+        for <linux-mm@kvack.org>;
+        Tue, 07 Jan 2014 18:52:14 -0800 (PST)
+Date: Wed, 8 Jan 2014 11:52:33 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC PATCHv3 00/11] Intermix Lowmem and vmalloc
+Message-ID: <20140108025233.GA1992@bbox>
+References: <1388699609-18214-1-git-send-email-lauraa@codeaurora.org>
+ <52C70024.1060605@sr71.net>
+ <52C734F4.5020602@codeaurora.org>
+ <20140104073143.GA5594@gmail.com>
+ <52CAFF2A.5060407@codeaurora.org>
 MIME-Version: 1.0
-In-Reply-To: <52CC16DC.9070308@suse.cz>
-References: <1387267550-8689-1-git-send-email-liwanp@linux.vnet.ibm.com>
-	<52b1138b.0201430a.19a8.605dSMTPIN_ADDED_BROKEN@mx.google.com>
-	<52B11765.8030005@oracle.com>
-	<52b120a5.a3b2440a.3acf.ffffd7c3SMTPIN_ADDED_BROKEN@mx.google.com>
-	<52B166CF.6080300@suse.cz>
-	<52b1699f.87293c0a.75d1.34d3SMTPIN_ADDED_BROKEN@mx.google.com>
-	<20131218134316.977d5049209d9278e1dad225@linux-foundation.org>
-	<52C71ACC.20603@oracle.com>
-	<CA+55aFzDcFyyXwUUu5bLP3fsiuzxU7VPivpTPHgp8smvdTeESg@mail.gmail.com>
-	<52C74972.6050909@suse.cz>
-	<CA+55aFzq1iQqddGo-m=vutwMYn5CPf65Ergov5svKR4AWC3rUQ@mail.gmail.com>
-	<6B2BA408B38BA1478B473C31C3D2074E2BF812BC82@SV-EXCHANGE1.Corp.FC.LOCAL>
-	<52CC16DC.9070308@suse.cz>
-Date: Wed, 8 Jan 2014 10:44:28 +0800
-Message-ID: <CA+55aFzCdGR+cNkvBiwmpgnOwFrVD+K9t4JJnFOL0FE-EtFMwQ@mail.gmail.com>
-Subject: Re: [PATCH] mm/mlock: fix BUG_ON unlocked page for nolinear VMAs
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52CAFF2A.5060407@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Michel Lespinasse <walken@google.com>, Bob Liu <bob.liu@oracle.com>, Nick Piggin <npiggin@suse.de>, Motohiro Kosaki JP <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: Dave Hansen <dave@sr71.net>, Andrew Morton <akpm@linux-foundation.org>, Kyungmin Park <kmpark@infradead.org>, linux-mm@kvack.org, Russell King <linux@arm.linux.org.uk>, linux-kernel@vger.kernel.org
 
-On Tue, Jan 7, 2014 at 11:01 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
->
-> So here's a patch that if accepted should replace the removal of BUG_ON patch in
-> -mm tree: http://ozlabs.org/~akpm/mmots/broken-out/mm-remove-bug_on-from-mlock_vma_page.patch
->
-> The idea is that try_to_unmap_cluster() will try locking the page
-> for mlock, and just leave it alone if lock cannot be obtained. Again
-> that's not fatal, as eventually something will encounter and mlock the page.
+Hello,
 
-This looks sane to me. Andrew?
+On Mon, Jan 06, 2014 at 11:08:26AM -0800, Laura Abbott wrote:
+> On 1/3/2014 11:31 PM, Minchan Kim wrote:
+> >Hello,
+> >
+> >On Fri, Jan 03, 2014 at 02:08:52PM -0800, Laura Abbott wrote:
+> >>On 1/3/2014 10:23 AM, Dave Hansen wrote:
+> >>>On 01/02/2014 01:53 PM, Laura Abbott wrote:
+> >>>>The goal here is to allow as much lowmem to be mapped as if the block of memory
+> >>>>was not reserved from the physical lowmem region. Previously, we had been
+> >>>>hacking up the direct virt <-> phys translation to ignore a large region of
+> >>>>memory. This did not scale for multiple holes of memory however.
+> >>>
+> >>>How much lowmem do these holes end up eating up in practice, ballpark?
+> >>>I'm curious how painful this is going to get.
+> >>>
+> >>
+> >>In total, the worst case can be close to 100M with an average case
+> >>around 70M-80M. The split and number of holes vary with the layout
+> >>but end up with 60M-80M one hole and the rest in the other.
+> >
+> >One more thing I'd like to know is how bad direct virt <->phys tranlsation
+> >in scale POV and how often virt<->phys tranlsation is called in your worload
+> >so what's the gain from this patch?
+> >
+> >Thanks.
+> >
+> 
+> With one hole we did
+> 
+> #define __phys_to_virt(phys)
+> 	phys >= mem_hole_end ? mem_hole : normal
+> 
+> We had a single global variable to check for the bounds and to do
+> something similar with multiple holes the worst case would be
+> O(number of holes). This would also all need to be macroized.
+> Detection and accounting for these holes in other data structures
+> (e.g. ARM meminfo) would be increasingly complex and lead to delays
+> in bootup. The error/sanity checking for bad memory configurations
+> would also be messier. Non-linear lowmem mappings also make
+> debugging more difficult.
+> 
+> virt <-> phys translation is used on hot paths in IOMMU mapping so
+> we want to keep virt <-> phys as fast as possible and not have to
+> walk an array of addresses every time.
 
-            Linus
+When you send formal patch, please include things you mentioned
+in the description rather than simple "This did not scale for multiple
+holes of memory however" to justify your motivation and please include
+number you got from this patch because it's mainly performance enhance
+patch but doesn't include any number(yeb, you sent it as RFC so
+I don't care now) so that it could make easy to judge that we need
+this patch or not compared to adding complexity.
+
+Thanks.
+
+
+> 
+> Thanks,
+> Laura
+> 
+> -- 
+> Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+> hosted by The Linux Foundation
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
