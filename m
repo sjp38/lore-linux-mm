@@ -1,57 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
-	by kanga.kvack.org (Postfix) with ESMTP id A16296B0031
-	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 13:05:37 -0500 (EST)
-Received: by mail-ob0-f169.google.com with SMTP id wm4so2112512obc.28
-        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 10:05:37 -0800 (PST)
-Received: from devils.ext.ti.com (devils.ext.ti.com. [198.47.26.153])
-        by mx.google.com with ESMTPS id ds9si1106146obc.99.2014.01.08.10.05.36
+Received: from mail-bk0-f44.google.com (mail-bk0-f44.google.com [209.85.214.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 104196B0036
+	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 13:06:19 -0500 (EST)
+Received: by mail-bk0-f44.google.com with SMTP id d7so791032bkh.31
+        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 10:06:19 -0800 (PST)
+Received: from mail-bk0-x230.google.com (mail-bk0-x230.google.com [2a00:1450:4008:c01::230])
+        by mx.google.com with ESMTPS id kb4si571553bkb.219.2014.01.08.10.06.18
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 08 Jan 2014 10:05:36 -0800 (PST)
-Message-ID: <52CD9366.2090200@ti.com>
-Date: Wed, 8 Jan 2014 13:05:26 -0500
-From: Santosh Shilimkar <santosh.shilimkar@ti.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 08 Jan 2014 10:06:18 -0800 (PST)
+Received: by mail-bk0-f48.google.com with SMTP id r7so788756bkg.35
+        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 10:06:18 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH] x86/mm: memblock: switch to use NUMA_NO_NODE
-References: <20140107022559.GE14055@localhost> <1389198198-31027-1-git-send-email-grygorii.strashko@ti.com> <52CD8A9A.3010608@ti.com>
-In-Reply-To: <52CD8A9A.3010608@ti.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <6469.1389157809@jrobl>
+References: <CAK25hWOu-Q0H8_RCejDduuLCA1-135BEp_Cn_njurBA4r7zp5g@mail.gmail.com>
+	<20140107122301.GC16640@quack.suse.cz>
+	<CAK25hWMdfSmZLZQugJ3YU=b6nb7ZQzQFw514e=HV91s0Z-W0nQ@mail.gmail.com>
+	<6469.1389157809@jrobl>
+Date: Wed, 8 Jan 2014 23:36:18 +0530
+Message-ID: <CAK25hWOUhV2Ygs-Q3cVN-mio+BHB60zJ7J_wZZKb=hOR9mb0ug@mail.gmail.com>
+Subject: Re: [LSF/MM ATTEND] Stackable Union Filesystem Implementation
+From: Saket Sinha <saket.sinha89@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Grygorii Strashko <grygorii.strashko@ti.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Stephen Rothwell <sfr@canb.auug.org.au>, Tejun Heo <tj@kernel.org>, Yinghai Lu <yinghai@kernel.org>, David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+To: "J. R. Okajima" <hooanon05g@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
 
-On Wednesday 08 January 2014 12:27 PM, Grygorii Strashko wrote:
-> Hi,
-> 
-> On 01/08/2014 06:23 PM, Grygorii Strashko wrote:
->> Update X86 code to use NUMA_NO_NODE instead of MAX_NUMNODES while
->> calling memblock APIs, because memblock API is changed to use NUMA_NO_NODE and
->> will produce warning during boot otherwise.
->>
->> See:
->>   https://lkml.org/lkml/2013/12/9/898
->>
-> [...]
-> 
-> or, there are other 3 patches from Sergey Senozhatsky, which actually fix the same warnings:
->  https://lkml.org/lkml/2014/1/6/277 - [PATCH -next] x86 memtest: use NUMA_NO_NODE in do_one_pass()
->  https://lkml.org/lkml/2014/1/6/280 - [PATCH -next] e820: use NUMA_NO_NODE in memblock_find_dma_reserve()
->  http://comments.gmane.org/gmane.linux.kernel/1623429 - [PATCH -next] check: use NUMA_NO_NODE in setup_bios_corruption_check()
-> 
-Either one should be fine though $subject patch would be my personal preference.
+>> Several implementations of union file system fusion were evaluated.
+>> The results of the evaluation is shown at the below link-
+>> http://www.4shared.com/download/7IgHqn4tce/1_online.png
+>
+> As far as I know, aufs supports NFS branches and also you can export
+> aufs via NFS.
+> For example,
+> http://sourceforge.net/p/aufs/mailman/message/20639513/
+>
+>
+I am not sure of this. These results were given to me by Cern and I
+really have to check this out to make sure it works.
 
-Andrew,
-This should kill at least 3 known memblock users with MAX_NUMNODES. Feel
-free to pick the patch(s) as per your preference.
+
+>> 2. if only the file metadata are modified, then do not
+>> copy the whole file on the read-write files system but
+>> only the metadata (stored with a file named as the file
+>> itself prefixed by '.me.')
+>
+> Once I have considered such approach to implement it in aufs.
+> But I don't think it a good idea to store metadata in multiple places,
+> one in the original file and the other is in .me. file.
+> For such purpose, a "block device level union" (instead of filesystem
+> level union) may be an option for you, such as "dm snapshot".
+>
+I imagine that this would make things more complicated as ideally this
+should be done in a filesystem driver. Again a "block device level
+union" would all the more have lesser chances of getting this
+filesystem driver included in the mainline kernel as kernel
+maintainers prefer the drivers to be as simple as possible.
+
+Before taking any approach I really want to discuss it with kernel
+maintainers as to what solution they are expecting. The truth is that
+the architecture of Linux kernel is such that a stackable filesystem
+implementation would surely involve some vicious hacks.
 
 Regards,
-Santosh
-
-
-
+Saket Sinha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
