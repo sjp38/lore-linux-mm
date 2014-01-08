@@ -1,141 +1,300 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f47.google.com (mail-yh0-f47.google.com [209.85.213.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 622206B0031
-	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 18:30:59 -0500 (EST)
-Received: by mail-yh0-f47.google.com with SMTP id t59so645093yho.34
-        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 15:30:59 -0800 (PST)
-Received: from mail-ie0-x229.google.com (mail-ie0-x229.google.com [2607:f8b0:4001:c03::229])
-        by mx.google.com with ESMTPS id s6si2543259yho.14.2014.01.08.15.30.58
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 08 Jan 2014 15:30:58 -0800 (PST)
-Received: by mail-ie0-f169.google.com with SMTP id e14so2838674iej.0
-        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 15:30:57 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20140108144213.4c1995b2@lilie>
-References: <1389107774-54978-1-git-send-email-phacht@linux.vnet.ibm.com>
-	<1389107774-54978-3-git-send-email-phacht@linux.vnet.ibm.com>
-	<52CCCF24.4080300@huawei.com>
-	<20140108144213.4c1995b2@lilie>
-Date: Wed, 8 Jan 2014 15:30:57 -0800
-Message-ID: <CAE9FiQVhutAGXeQO_fevrJ+wDXgL=x20Gg2Zkk81Lkebwzf_Nw@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm: free memblock.memory in free_all_bootmem
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D3BD56B0031
+	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 18:48:33 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id y10so2431360pdj.9
+        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 15:48:33 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id ek3si1938305pbd.355.2014.01.08.15.48.31
+        for <linux-mm@kvack.org>;
+        Wed, 08 Jan 2014 15:48:32 -0800 (PST)
+Date: Wed, 8 Jan 2014 15:48:29 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 01/11] pagewalk: update page table walker core
+Message-Id: <20140108154829.ee33b0c0bbf652c5795fb525@linux-foundation.org>
+In-Reply-To: <1386799747-31069-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1386799747-31069-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1386799747-31069-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
-Cc: Jianguo Wu <wujianguo@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, Toshi Kani <toshi.kani@hp.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Cliff Wickman <cpw@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@parallels.com>, Rik van Riel <riel@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
 
-On Wed, Jan 8, 2014 at 5:42 AM, Philipp Hachtmann
-<phacht@linux.vnet.ibm.com> wrote:
-> Am Wed, 8 Jan 2014 12:08:04 +0800
-> schrieb Jianguo Wu <wujianguo@huawei.com>:
+On Wed, 11 Dec 2013 17:08:57 -0500 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+
+> This patch updates mm/pagewalk.c to make code less complex and more maintenable.
+> The basic idea is unchanged and there's no userspace visible effect.
+> 
+> Most of existing callback functions need access to vma to handle each entry.
+> So we had better add a new member vma in struct mm_walk instead of using
+> mm_walk->private, which makes code simpler.
+> 
+> One problem in current page table walker is that we check vma in pgd loop.
+> Historically this was introduced to support hugetlbfs in the strange manner.
+> It's better and cleaner to do the vma check outside pgd loop.
+> 
+> Another problem is that many users of page table walker now use only
+> pmd_entry(), although it does both pmd-walk and pte-walk. This makes code
+> duplication and fluctuation among callers, which worsens the maintenability.
+> 
+> One difficulty of code sharing is that the callers want to determine
+> whether they try to walk over a specific vma or not in their own way.
+> To solve this, this patch introduces test_walk() callback.
+> 
+> When we try to use multiple callbacks in different levels, skip control is
+> also important. For example we have thp enabled in normal configuration, and
+> we are interested in doing some work for a thp. But sometimes we want to
+> split it and handle as normal pages, and in another time user would handle
+> both at pmd level and pte level.
+> What we need is that when we've done pmd_entry() we want to decide whether
+> to go down to pte level handling based on the pmd_entry()'s result. So this
+> patch introduces a skip control flag in mm_walk.
+> We can't use the returned value for this purpose, because we already
+> defined the meaning of whole range of returned values (>0 is to terminate
+> page table walk in caller's specific manner, =0 is to continue to walk,
+> and <0 is to abort the walk in the general manner.)
+> 
+> ...
 >
->> For some archs, like arm64, would use memblock.memory after system
->> booting, so we can not simply released to the buddy allocator, maybe
->> need !defined(CONFIG_ARCH_DISCARD_MEMBLOCK).
->
-> Oh, I see. I have added some ifdefs to prevent memblock.memory from
-> being freed when CONFIG_ARCH_DISCARD_MEMBLOCK is not set.
->
-> Here is a replacement for the patch.
->
-> Kind regards
->
-> Philipp
->
-> From aca95bcb9d79388b68bf18e7bae4353259b6758f Mon Sep 17 00:00:00 2001
-> From: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
-> Date: Thu, 19 Dec 2013 15:53:46 +0100
-> Subject: [PATCH 2/2] mm: free memblock.memory in free_all_bootmem
->
-> When calling free_all_bootmem() the free areas under memblock's
-> control are released to the buddy allocator. Additionally the
-> reserved list is freed if it was reallocated by memblock.
-> The same should apply for the memory list.
->
-> Signed-off-by: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
-> ---
->  include/linux/memblock.h |  1 +
->  mm/memblock.c            | 16 ++++++++++++++++
->  mm/nobootmem.c           | 10 +++++++++-
->  3 files changed, 26 insertions(+), 1 deletion(-)
->
-> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> index 77c60e5..d174922 100644
-> --- a/include/linux/memblock.h
-> +++ b/include/linux/memblock.h
-> @@ -52,6 +52,7 @@ phys_addr_t memblock_find_in_range_node(phys_addr_t start, phys_addr_t end,
->  phys_addr_t memblock_find_in_range(phys_addr_t start, phys_addr_t end,
->                                    phys_addr_t size, phys_addr_t align);
->  phys_addr_t get_allocated_memblock_reserved_regions_info(phys_addr_t *addr);
-> +phys_addr_t get_allocated_memblock_memory_regions_info(phys_addr_t *addr);
->  void memblock_allow_resize(void);
->  int memblock_add_node(phys_addr_t base, phys_addr_t size, int nid);
->  int memblock_add(phys_addr_t base, phys_addr_t size);
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 53e477b..a78b2e9 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -271,6 +271,22 @@ phys_addr_t __init_memblock get_allocated_memblock_reserved_regions_info(
->                           memblock.reserved.max);
->  }
->
-> +#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
-> +
-> +phys_addr_t __init_memblock get_allocated_memblock_memory_regions_info(
-> +                                       phys_addr_t *addr)
+> --- v3.13-rc3-mmots-2013-12-10-16-38.orig/mm/pagewalk.c
+> +++ v3.13-rc3-mmots-2013-12-10-16-38/mm/pagewalk.c
+> @@ -3,29 +3,49 @@
+>  #include <linux/sched.h>
+>  #include <linux/hugetlb.h>
+>  
+> -static int walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+> -			  struct mm_walk *walk)
+> +static bool skip_check(struct mm_walk *walk)
+>  {
+> +	if (walk->skip) {
+> +		walk->skip = 0;
+> +		return true;
+> +	}
+> +	return false;
+> +}
+
+It would be nice to have some more documentation around this "skip"
+thing, either here or at its definition site.  When and why is it set,
+what role does it perform, why is it reset after first being tested, etc.
+
+skip_check() is misnamed - it does more than "check" - it also resets
+the field!  I can't think of a better name though - skip_check_once()? 
+skip_check_and_reset()?  Perhaps the name should reflect the function's
+operation at a higher semantic level, but without a description of what
+that is, I con't suggest...
+
+> +static int walk_pte_range(pmd_t *pmd, unsigned long addr,
+> +				unsigned long end, struct mm_walk *walk)
 > +{
-> +       if (memblock.memory.regions == memblock_memory_init_regions)
-> +               return 0;
+> +	struct mm_struct *mm = walk->mm;
+>  	pte_t *pte;
+> +	pte_t *orig_pte;
+> +	spinlock_t *ptl;
+>  	int err = 0;
+>  
+> -	pte = pte_offset_map(pmd, addr);
+> -	for (;;) {
+> +	orig_pte = pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+> +	do {
+> +		if (pte_none(*pte)) {
+> +			if (walk->pte_hole)
+> +				err = walk->pte_hole(addr, addr + PAGE_SIZE,
+> +							walk);
+> +			if (err)
+> +				break;
+> +			continue;
+> +		}
+> +		/*
+> +		 * Callers should have their own way to handle swap entries
+> +		 * in walk->pte_entry().
+> +		 */
+>  		err = walk->pte_entry(pte, addr, addr + PAGE_SIZE, walk);
+>  		if (err)
+>  		       break;
+> -		addr += PAGE_SIZE;
+> -		if (addr == end)
+> -			break;
+> -		pte++;
+> -	}
+> -
+> -	pte_unmap(pte);
+> -	return err;
+> +	} while (pte++, addr += PAGE_SIZE, addr < end);
+> +	pte_unmap_unlock(orig_pte, ptl);
+> +	cond_resched();
+
+Is that cond_resched() a new thing?
+
+> +	return addr == end ? 0 : err;
+>  }
+>  
+> -static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
+> -			  struct mm_walk *walk)
+> +static int walk_pmd_range(pud_t *pud, unsigned long addr,
+> +				unsigned long end, struct mm_walk *walk)
+>  {
+>  	pmd_t *pmd;
+>  	unsigned long next;
+> @@ -35,6 +55,7 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
+>  	do {
+>  again:
+>  		next = pmd_addr_end(addr, end);
 > +
-> +       *addr = __pa(memblock.memory.regions);
+>  		if (pmd_none(*pmd)) {
+>  			if (walk->pte_hole)
+>  				err = walk->pte_hole(addr, next, walk);
+> @@ -42,35 +63,32 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
+>  				break;
+>  			continue;
+>  		}
+> -		/*
+> -		 * This implies that each ->pmd_entry() handler
+> -		 * needs to know about pmd_trans_huge() pmds
+> -		 */
+> -		if (walk->pmd_entry)
+> -			err = walk->pmd_entry(pmd, addr, next, walk);
+> -		if (err)
+> -			break;
+>  
+> -		/*
+> -		 * Check this here so we only break down trans_huge
+> -		 * pages when we _need_ to
+> -		 */
+> -		if (!walk->pte_entry)
+> -			continue;
+> +		if (walk->pmd_entry) {
+> +			err = walk->pmd_entry(pmd, addr, next, walk);
+> +			if (skip_check(walk))
+> +				continue;
+
+skip_check() is quite odd.
+
+> +			if (err)
+> +				break;
+> +		}
+>  
+> -		split_huge_page_pmd_mm(walk->mm, addr, pmd);
+> -		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+> -			goto again;
+> -		err = walk_pte_range(pmd, addr, next, walk);
+> -		if (err)
+> -			break;
+> -	} while (pmd++, addr = next, addr != end);
+> +		if (walk->pte_entry) {
+> +			if (walk->vma) {
+> +				split_huge_page_pmd(walk->vma, addr, pmd);
+> +				if (pmd_trans_unstable(pmd))
+> +					goto again;
+> +			}
+> +			err = walk_pte_range(pmd, addr, next, walk);
+> +			if (err)
+> +				break;
+> +		}
+> +	} while (pmd++, addr = next, addr < end);
+>  
+>  	return err;
+>  }
+>  
+> 
+> ...
+>
+> +/*
+> + * Default check (only VM_PFNMAP check for now) is used only if the caller
+> + * doesn't define test_walk() callback.
+> + */
+
+Documentation is a bit skimpy.  What are the semantics of the return value?
+
+This function is unnecessarily verbose:
+
+> +static int walk_page_test(unsigned long start, unsigned long end,
+> +			struct mm_walk *walk)
+> +{
+> +	int err = 0;
+> +	struct vm_area_struct *vma = walk->vma;
 > +
-> +       return PAGE_ALIGN(sizeof(struct memblock_region) *
-> +                         memblock.memory.max);
+> +	if (walk->test_walk) {
+> +		err = walk->test_walk(start, end, walk);
+> +		return err;
+> +	}
+
+	if (walk->test)
+		return walk->test_walk(start, end, walk);
+
+> +	/*
+> +	 * Do not walk over vma(VM_PFNMAP), because we have no valid struct
+> +	 * page backing a VM_PFNMAP range. See also commit a9ff785e4437.
+> +	 */
+> +	if (vma->vm_flags & VM_PFNMAP) {
+> +		walk->skip = 1;
+> +		return err;
+> +	}
+> +
+> +	return err;
+
+	if (vma->vm_flags & VM_PFNMAP)
+		walk->skip = 1;
+	return 0;
+
+then remove local `err'.
+
 > +}
 > +
-> +#endif
-> +
->  /**
->   * memblock_double_array - double the size of the memblock regions array
->   * @type: memblock type of the regions array being doubled
-> diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-> index 3a7e14d..63ff3f6 100644
-> --- a/mm/nobootmem.c
-> +++ b/mm/nobootmem.c
-> @@ -122,11 +122,19 @@ static unsigned long __init free_low_memory_core_early(void)
->         for_each_free_mem_range(i, MAX_NUMNODES, &start, &end, NULL)
->                 count += __free_memory_core(start, end);
+> 
+> ...
 >
-> -       /* free range that is used for reserved array if we allocate it */
-> +       /* Free memblock.reserved array if it was allocated */
->         size = get_allocated_memblock_reserved_regions_info(&start);
->         if (size)
->                 count += __free_memory_core(start, start + size);
+> -int walk_page_range(unsigned long addr, unsigned long end,
+> +int walk_page_range(unsigned long start, unsigned long end,
+>  		    struct mm_walk *walk)
+>  {
+> -	pgd_t *pgd;
+> -	unsigned long next;
+>  	int err = 0;
+> +	struct vm_area_struct *vma;
+> +	unsigned long next;
+>  
+> -	if (addr >= end)
+> -		return err;
+> +	if (start >= end)
+> +		return -EINVAL;
+>  
+>  	if (!walk->mm)
+>  		return -EINVAL;
+>  
+> +	/* move down_read(&mm->mmap_sem) here? -> NO, caller should do this */
+
+What's this about?
+
+>  	VM_BUG_ON(!rwsem_is_locked(&walk->mm->mmap_sem));
+>  
+> -	pgd = pgd_offset(walk->mm, addr);
+>  	do {
+> -		struct vm_area_struct *vma = NULL;
+> -
+> -		next = pgd_addr_end(addr, end);
+> -
+> -		/*
+> -		 * This function was not intended to be vma based.
+> -		 * But there are vma special cases to be handled:
+> -		 * - hugetlb vma's
+> -		 * - VM_PFNMAP vma's
+> -		 */
+> -		vma = find_vma(walk->mm, addr);
+> -		if (vma) {
+> -			/*
+> -			 * There are no page structures backing a VM_PFNMAP
+> -			 * range, so do not allow split_huge_page_pmd().
+> -			 */
+> -			if ((vma->vm_start <= addr) &&
+> -			    (vma->vm_flags & VM_PFNMAP)) {
+> -				next = vma->vm_end;
+> -				pgd = pgd_offset(walk->mm, next);
+> 
+> ...
 >
-> +#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
-> +
-> +       /* Free memblock.memory array if it was allocated */
-> +       size = get_allocated_memblock_memory_regions_info(&start);
-> +       if (size)
-> +               count += __free_memory_core(start, start + size);
-> +#endif
-> +
->         return count;
->  }
-
-I sent similar before.
-
-http://www.gossamer-threads.com/lists/engine?do=post_attachment;postatt_id=49616;list=linux
-
-http://www.gossamer-threads.com/lists/linux/kernel/1556026?do=post_view_threaded#1556026
-
-Also for arches that do not free memblock, do they still need to access
-memblock.reserved.regions ?
-
-Yinghai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
