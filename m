@@ -1,51 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
-	by kanga.kvack.org (Postfix) with ESMTP id E43606B003D
-	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 11:10:17 -0500 (EST)
-Received: by mail-ob0-f173.google.com with SMTP id gq1so1920997obb.18
-        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 08:10:17 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id 25si1331793yhd.277.2014.01.08.08.10.15
-        for <linux-mm@kvack.org>;
-        Wed, 08 Jan 2014 08:10:16 -0800 (PST)
-Message-ID: <1389197388.29144.37.camel@deneb.redhat.com>
-Subject: Re: [PATCH v2 1/5] mm: create generic early_ioremap() support
-From: Mark Salter <msalter@redhat.com>
-Date: Wed, 08 Jan 2014 11:09:48 -0500
-In-Reply-To: <52CC89B4.4060300@zytor.com>
-References: <1389062120-31896-1-git-send-email-msalter@redhat.com>
-	 <1389062120-31896-2-git-send-email-msalter@redhat.com>
-	 <52CC89B4.4060300@zytor.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from mail-oa0-f54.google.com (mail-oa0-f54.google.com [209.85.219.54])
+	by kanga.kvack.org (Postfix) with ESMTP id A96016B004D
+	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 11:31:14 -0500 (EST)
+Received: by mail-oa0-f54.google.com with SMTP id o6so2028668oag.13
+        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 08:31:14 -0800 (PST)
+Received: from bear.ext.ti.com (bear.ext.ti.com. [192.94.94.41])
+        by mx.google.com with ESMTPS id kv3si931696obb.71.2014.01.08.08.31.13
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 08 Jan 2014 08:31:13 -0800 (PST)
+Message-ID: <52CD8A9A.3010608@ti.com>
+Date: Wed, 8 Jan 2014 19:27:54 +0200
+From: Grygorii Strashko <grygorii.strashko@ti.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] x86/mm: memblock: switch to use NUMA_NO_NODE
+References: <20140107022559.GE14055@localhost> <1389198198-31027-1-git-send-email-grygorii.strashko@ti.com>
+In-Reply-To: <1389198198-31027-1-git-send-email-grygorii.strashko@ti.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, patches@linaro.org, linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Russell King <linux@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Dave Young <dyoung@redhat.com>
+To: Fengguang Wu <fengguang.wu@intel.com>, santosh.shilimkar@ti.com
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Grygorii Strashko <grygorii.strashko@ti.com>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Tejun Heo <tj@kernel.org>, Yinghai Lu <yinghai@kernel.org>, David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 
-On Tue, 2014-01-07 at 15:11 -0800, H. Peter Anvin wrote:
-> On 01/06/2014 06:35 PM, Mark Salter wrote:
-> > 
-> > There is one difference from the existing x86 implementation which
-> > should be noted. The generic early_memremap() function does not return
-> > an __iomem pointer and a new early_memunmap() function has been added
-> > to act as a wrapper for early_iounmap() but with a non __iomem pointer
-> > passed in. This is in line with the first patch of this series:
-> > 
+Hi,
+
+On 01/08/2014 06:23 PM, Grygorii Strashko wrote:
+> Update X86 code to use NUMA_NO_NODE instead of MAX_NUMNODES while
+> calling memblock APIs, because memblock API is changed to use NUMA_NO_NODE and
+> will produce warning during boot otherwise.
 > 
-> This makes a lot of sense.  However, I would suggest that we preface the
-> patch series with a single patch changing the signature for the existing
-> x86 function, that way this change becomes bisectable.
+> See:
+>   https://lkml.org/lkml/2013/12/9/898
+> 
+[...]
 
-Ok, that sounds like a good idea. I'm uncertain how best to coordinate
-with Dave Young's patch series to avoid conflicts. His first patch does
-the signature change (and adds the early_memunmap function but that
-isn't used anywhere):
+or, there are other 3 patches from Sergey Senozhatsky, which actually fix the same warnings:
+ https://lkml.org/lkml/2014/1/6/277 - [PATCH -next] x86 memtest: use NUMA_NO_NODE in do_one_pass()
+ https://lkml.org/lkml/2014/1/6/280 - [PATCH -next] e820: use NUMA_NO_NODE in memblock_find_dma_reserve()
+ http://comments.gmane.org/gmane.linux.kernel/1623429 - [PATCH -next] check: use NUMA_NO_NODE in setup_bios_corruption_check()
 
- https://lkml.org/lkml/2013/12/20/143
+Regards,
+- grygorii
 
-Any thoughts on how best to avoid potential merge conflicts here?
+
+	
 
 
 
