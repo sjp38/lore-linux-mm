@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 9317C6B0031
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 04:08:18 -0500 (EST)
-Received: by mail-wi0-f170.google.com with SMTP id hq4so6379952wib.3
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 01:08:18 -0800 (PST)
-Received: from mail-wg0-x229.google.com (mail-wg0-x229.google.com [2a00:1450:400c:c00::229])
-        by mx.google.com with ESMTPS id r4si896428wjr.86.2014.01.09.01.08.17
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id C42846B0031
+	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 04:18:08 -0500 (EST)
+Received: by mail-wg0-f49.google.com with SMTP id a1so223544wgh.28
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 01:18:08 -0800 (PST)
+Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com [2a00:1450:400c:c05::22d])
+        by mx.google.com with ESMTPS id ap4si916295wjc.64.2014.01.09.01.18.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 09 Jan 2014 01:08:17 -0800 (PST)
-Received: by mail-wg0-f41.google.com with SMTP id y10so5708684wgg.0
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 01:08:17 -0800 (PST)
+        Thu, 09 Jan 2014 01:18:08 -0800 (PST)
+Received: by mail-wi0-f173.google.com with SMTP id hn9so6634505wib.0
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 01:18:08 -0800 (PST)
 From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH 1/7] mm/page_alloc: synchronize get/set pageblock
-In-Reply-To: <1389251087-10224-2-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com> <1389251087-10224-2-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Thu, 09 Jan 2014 10:08:10 +0100
-Message-ID: <xa1teh4hbk05.fsf@mina86.com>
+Subject: Re: [PATCH 5/7] mm/page_alloc: separate interface to set/get migratetype of freepage
+In-Reply-To: <1389251087-10224-6-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com> <1389251087-10224-6-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Thu, 09 Jan 2014 10:18:00 +0100
+Message-ID: <xa1tbnzlbjjr.fsf@mina86.com>
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
@@ -29,33 +29,25 @@ Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
 On Thu, Jan 09 2014, Joonsoo Kim wrote:
-> @@ -5927,15 +5928,19 @@ unsigned long get_pageblock_flags_group(struct pa=
-ge *page,
->  	unsigned long pfn, bitidx;
->  	unsigned long flags =3D 0;
->  	unsigned long value =3D 1;
-> +	unsigned int seq;
->=20=20
->  	zone =3D page_zone(page);
->  	pfn =3D page_to_pfn(page);
->  	bitmap =3D get_pageblock_bitmap(zone, pfn);
->  	bitidx =3D pfn_to_bitidx(zone, pfn);
->=20=20
-> -	for (; start_bitidx <=3D end_bitidx; start_bitidx++, value <<=3D 1)
-> -		if (test_bit(bitidx + start_bitidx, bitmap))
-> -			flags |=3D value;
-> +	do {
+> Currently, we use (set/get)_freepage_migratetype in two use cases.
+> One is to know the buddy list where this page will be linked and
+> the other is to know the buddy list where this page is linked now.
+>
+> But, we should deal these two use cases differently, because information
+> isn't sufficient for the second use case and properly setting this
+> information needs some overhead. Whenever the page is merged or split
+> in buddy, this information isn't properly re-assigned and it may not
+> have enough information for the second use case.
+>
+> This patch just separates interface, so there is no functional change.
+> Following patch will do further steps about this issue.
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-+		flags =3D 0;
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
 
-> +		seq =3D read_seqbegin(&zone->pageblock_seqlock);
-> +		for (; start_bitidx <=3D end_bitidx; start_bitidx++, value <<=3D 1)
-> +			if (test_bit(bitidx + start_bitidx, bitmap))
-> +				flags |=3D value;
-> +	} while (read_seqretry(&zone->pageblock_seqlock, seq));
->=20=20
->  	return flags;
->  }
+I think this patch would be smaller if it was pushed earlier in the
+patchset.
 
 --=20
 Best regards,                                         _     _
@@ -78,19 +70,19 @@ Content-Type: application/pgp-signature; name="signature.asc"
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.11 (GNU/Linux)
 
-iQIcBAEBAgAGBQJSzmb6AAoJECBgQBJQdR/0Ew4P/RsSxW22DyEt524wSIwWSYKS
-aOVMs2Qv/t5xtuW5wHh1rjxmAAIEoZItYYsYaBHr1tbY0X1Uw0OwcZz6DcKBERlm
-hSiAHVbg3K62V4LTq0Dj8QXzEgzQvXh9T8Kvin6QBzZIRHWHTHQZweHyPMDCy5Ny
-4ATCcT8qEvzCTjq584TC1fYPJgG0X+ZjgTpxNdPzFBVXXrZwTrt7DRrlrVQCtdYb
-3OQktscAGv4HlImUJQWRn2pn61eKqoJk4/OcmHQX5EHet2QUZ6Bp0nwy/V2Spyis
-i1+e4OFc245eMTitDeNR6duI7K/n4IOmgsTePmj7C8uVp1XqdToW2Oic9BxN3td6
-4NUw8pIz+f6Fj3BMxYPD5rvBXMAeZ9lxctXT/NTy2EYVWQvVeVN4NApj/WJZ9lD8
-lVxb1f8relKG3xdj73juDaZUg9w/fV3b2fuJAKiybEYa5g23Rm5Xk5elZzT8NZKy
-K5pGBsm18Chr1IZewBfQlVP/MR/M2LO2Dar3q2cTNo+VQJA3a11+gzd9u18hog+m
-BCn4wazugDfhwLIpMNvKPQJbwKgbTRsrzbibSYt6kRUr6DL86Gh6IYcu0PwUivJK
-t+x1yYttyZQAgRxosxkTGxMbqyOXEwo7ux56E1VCHQv9yPfEia9KHv1SiBp12HGT
-D7vD5QTb9GkAlUDykK0o
-=mRRG
+iQIcBAEBAgAGBQJSzmlIAAoJECBgQBJQdR/0aFAP+waDevUQpa9xhmLPbYlXrCpa
+LO3GprL2KYWtpEnjGAkGmI1ywnsbukNNpXg/q9n1xY/fr7SYQlys9TFnPsydRFq7
+R5K3M07ITUEeEl65h269aU86odK1iH246ch3fwjPOrPOz6hmZkwiHUos6dDWE4SN
+Oe8/FzbhLHVXpKrSrnc9rSdArZfUbjSmPx3Np/32WCWTE9nEQxT5G1tLrRMhd2nh
+QAyKS93Z4YDwFGRnniibbfC3lns7lRbSAtUUS+SBNXaqQpa8jPA7rklsuDR8YXw1
+YLY88ojn7pyW8cZsNn93oe9m9O850EbTJOHzVZIgJeRU04pOWRmKF7WYQSq8ZSvo
+MvuRBNXz05huYVwyUKvCUAyNmoDhobOSEFE2Go3vaYcA7dhPYMm00VzIdJI1u/w0
+63zwaWfVUcqFvnnsOZMTHrJlb/U0Cvv8pBUJcSW8uPL3VNl8P5v4jKXaY7gWMEmq
+g8h6Pz8Bv3S9qAnO9YDRaT20jcQjVVRnrxya/ovgwhU8l+/qbWMkCQvcMRXXgY7G
++oBXZwmRYcFGIdrMox2GbtlrQWFj9C8/VrzlqbJNvAOU76t9PJ/429JENp7hjidL
+U9TngSMevAAOgbvZzIchVKLKBLXIiCb+RIf87JEYIdLT3sspRBZwgPiBAn/PYXTL
+kdwG+bGk3CGEGcrT8/Tp
+=19u7
 -----END PGP SIGNATURE-----
 --==-=-=--
 
