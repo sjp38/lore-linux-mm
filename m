@@ -1,83 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 513F16B0035
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 16:16:04 -0500 (EST)
-Received: by mail-qc0-f171.google.com with SMTP id n7so1636516qcx.16
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 13:16:04 -0800 (PST)
-Received: from mail-gg0-x22e.google.com (mail-gg0-x22e.google.com [2607:f8b0:4002:c02::22e])
-        by mx.google.com with ESMTPS id f9si7099661qar.46.2014.01.09.13.15.59
+Received: from mail-gg0-f179.google.com (mail-gg0-f179.google.com [209.85.161.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 506156B0035
+	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 16:34:29 -0500 (EST)
+Received: by mail-gg0-f179.google.com with SMTP id l4so1006703ggi.10
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 13:34:29 -0800 (PST)
+Received: from mail-gg0-x22c.google.com (mail-gg0-x22c.google.com [2607:f8b0:4002:c02::22c])
+        by mx.google.com with ESMTPS id v3si6332203yhd.13.2014.01.09.13.34.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 09 Jan 2014 13:16:01 -0800 (PST)
-Received: by mail-gg0-f174.google.com with SMTP id g10so224087gga.33
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 13:15:57 -0800 (PST)
-Date: Thu, 9 Jan 2014 13:15:54 -0800 (PST)
+        Thu, 09 Jan 2014 13:34:28 -0800 (PST)
+Received: by mail-gg0-f172.google.com with SMTP id q6so999744ggc.31
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 13:34:28 -0800 (PST)
+Date: Thu, 9 Jan 2014 13:34:24 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC] mm: show message when updating min_free_kbytes in thp
-In-Reply-To: <20140109073259.GK4106@localhost.localdomain>
-Message-ID: <alpine.DEB.2.02.1401091310510.31538@chino.kir.corp.google.com>
-References: <20140101002935.GA15683@localhost.localdomain> <52C5AA61.8060701@intel.com> <20140103033303.GB4106@localhost.localdomain> <52C6FED2.7070700@intel.com> <20140105003501.GC4106@localhost.localdomain> <20140106164604.GC27602@dhcp22.suse.cz>
- <20140108101611.GD27937@dhcp22.suse.cz> <20140109073259.GK4106@localhost.localdomain>
+Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
+ access to memory reserves
+In-Reply-To: <20140107162503.f751e880410f61a109cdcc2b@linux-foundation.org>
+Message-ID: <alpine.DEB.2.02.1401091324120.31538@chino.kir.corp.google.com>
+References: <20131210103827.GB20242@dhcp22.suse.cz> <alpine.DEB.2.02.1312101655430.22701@chino.kir.corp.google.com> <20131211095549.GA18741@dhcp22.suse.cz> <alpine.DEB.2.02.1312111434200.7354@chino.kir.corp.google.com> <20131212103159.GB2630@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312131551220.28704@chino.kir.corp.google.com> <20131217162342.GG28991@dhcp22.suse.cz> <alpine.DEB.2.02.1312171240541.21640@chino.kir.corp.google.com> <20131218200434.GA4161@dhcp22.suse.cz> <alpine.DEB.2.02.1312182157510.1247@chino.kir.corp.google.com>
+ <20131219144134.GH10855@dhcp22.suse.cz> <20140107162503.f751e880410f61a109cdcc2b@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave.hansen@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, "Eric W. Biederman" <ebiederm@xmission.com>
 
-On Thu, 9 Jan 2014, Han Pingtian wrote:
+On Tue, 7 Jan 2014, Andrew Morton wrote:
 
-> min_free_kbytes may be raised during THP's initialization. Sometimes,
-> this will change the value being set by user. Showing message will
-> clarify this confusion.
+> I just spent a happy half hour reliving this thread and ended up
+> deciding I agreed with everyone!  I appears that many more emails are
+> needed so I think I'll drop
+> http://ozlabs.org/~akpm/mmots/broken-out/mm-memcg-avoid-oom-notification-when-current-needs-access-to-memory-reserves.patch
+> for now.
 > 
-> Only show this message when changing the value set by user according to
-> Michal Hocko's suggestion.
+> The claim that
+> mm-memcg-avoid-oom-notification-when-current-needs-access-to-memory-reserves.patch
+> will impact existing userspace seems a bit dubious to me.
 > 
-> Showing the old value of min_free_kbytes according to Dave Hansen's
-> suggestion. This will give user the chance to restore old value of
-> min_free_kbytes.
-> 
-> Signed-off-by: Han Pingtian <hanpt@linux.vnet.ibm.com>
-> ---
->  mm/huge_memory.c |    9 ++++++++-
->  mm/page_alloc.c  |    2 +-
->  2 files changed, 9 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 7de1bf8..e0e4e29 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -100,6 +100,7 @@ static struct khugepaged_scan khugepaged_scan = {
->  	.mm_head = LIST_HEAD_INIT(khugepaged_scan.mm_head),
->  };
->  
-> +extern int user_min_free_kbytes;
->  
 
-We don't add extern declarations to .c files.  How many other examples of 
-this can you find in mm/?
+I'm not sure why this was dropped since it's vitally needed for any sane 
+userspace oom handler to be effective.
 
->  static int set_recommended_min_free_kbytes(void)
->  {
-> @@ -130,8 +131,14 @@ static int set_recommended_min_free_kbytes(void)
->  			      (unsigned long) nr_free_buffer_pages() / 20);
->  	recommended_min <<= (PAGE_SHIFT-10);
->  
-> -	if (recommended_min > min_free_kbytes)
-> +	if (recommended_min > min_free_kbytes) {
-> +		if (user_min_free_kbytes >= 0)
-> +			pr_info("raising min_free_kbytes from %d to %lu "
-> +				"to help transparent hugepage allocations\n",
-> +				min_free_kbytes, recommended_min);
-> +
->  		min_free_kbytes = recommended_min;
-> +	}
->  	setup_per_zone_wmarks();
->  	return 0;
->  }
+Without the patch, a userspace oom handler waiting on memory.oom_control 
+will be triggered when any process with a pending SIGKILL or in the exit() 
+path simply needs access to memory reserves to make forward progress.  The 
+kernel oom killer itself is preempted since nothing is actionable other 
+than giving current access to memory reserves by setting the TIF_MEMDIE 
+bit.  Userspace does not have the privilege to set this bit itself, so in 
+such cases there is absolutely nothing actionable for the userspace oom 
+handler.
 
-Does this even ever trigger since set_recommended_min_free_kbytes() is 
-called via late_initcall()?
+The problem is that the userspace oom handler doesn't know that.
+
+It would be ludicrous to require that a userspace oom handler must wait 
+for some arbitrary amount of time to determine if it is actionable or not; 
+what is a sane amount of time to wait?  Should we reliably expect that 
+multiple oom notifications will be sent over a period of time if we are in 
+a situation where current doesn't require memory reserves to make forward 
+progress?  How long should the userspace oom handler store this state to 
+determine how many times it has woken up?
+
+Userspace oom handling implementations are fragile enough as it is, they 
+should be made as trivial as possible to ensure they can do what is needed 
+to make memory available, have the smallest memory footprint possible, and 
+be as reliable as possible.  Requiring them to determine when a 
+notification is actionable is troublesome.
+
+Furthermore, Section 10 of Documentation/cgroups/memory.txt does not imply 
+that any of this checking needs to be done and lists possible actions that 
+a userspace oom handler can do upon being notified such as raising a limit 
+or killing a process itself.  This is what userspace _expects_ to do when 
+notified.
+
+Giving current access to memory reserves so that it may make forward 
+progress is something only the kernel can do and is a part of both the VM 
+and memcg implementations to allow forward progress to be made.  It is not 
+something userspace is involved in.
+
+Additionally, you're not losing any functionality by merging the patch, if 
+you really want to know simply when the limit has been reached and not 
+something actionable as stated by the memcg documentation, you can do so 
+with memory thresholds or VMPRESSURE_CRITICAL.
+
+Google relies on this behavior so that userspace oom handlers can be 
+implemented to respond to oom conditions and not cause unnecessary oom 
+killing.  We'd like to know why you refuse to provide such an interface in 
+a responsible and reliable way.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
