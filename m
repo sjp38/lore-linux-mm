@@ -1,59 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DA9E6B003C
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 02:04:41 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id kl14so2897635pab.41
-        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 23:04:40 -0800 (PST)
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A2496B0031
+	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 02:16:40 -0500 (EST)
+Received: by mail-pd0-f176.google.com with SMTP id w10so2818964pde.7
+        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 23:16:40 -0800 (PST)
 Received: from LGEMRELSE7Q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id sj5si2938579pab.342.2014.01.08.23.04.37
+        by mx.google.com with ESMTP id pt8si3001314pac.134.2014.01.08.23.16.37
         for <linux-mm@kvack.org>;
-        Wed, 08 Jan 2014 23:04:40 -0800 (PST)
+        Wed, 08 Jan 2014 23:16:38 -0800 (PST)
+Date: Thu, 9 Jan 2014 16:16:56 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH 7/7] mm/page_alloc: don't merge MIGRATE_(CMA|ISOLATE) pages on buddy
-Date: Thu,  9 Jan 2014 16:04:47 +0900
-Message-Id: <1389251087-10224-8-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: possible regression on 3.13 when calling flush_dcache_page
+Message-ID: <20140109071656.GA10290@lge.com>
+References: <20131212143618.GJ12099@ldesroches-Latitude-E6320>
+ <20131213015909.GA8845@lge.com>
+ <20131216144343.GD9627@ldesroches-Latitude-E6320>
+ <20131218072117.GA2383@lge.com>
+ <20131220080851.GC16592@ldesroches-Latitude-E6320>
+ <20131223224435.GD16592@ldesroches-Latitude-E6320>
+ <20131224063837.GA27156@lge.com>
+ <20140103145404.GC18002@ldesroches-Latitude-E6320>
+ <20140106002648.GC696@lge.com>
+ <20140106093408.GA2816@ldesroches-Latitude-E6320>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140106093408.GA2816@ldesroches-Latitude-E6320>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jiang Liu <jiang.liu@huawei.com>, Mel Gorman <mgorman@suse.de>, Cody P Schafer <cody@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Andi Kleen <ak@linux.intel.com>, Wei Yongjun <yongjun_wei@trendmicro.com.cn>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-mmc@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>
 
-If (MAX_ORDER-1) is greater than pageblock order, there is a possibility
-to merge different migratetype pages and to be linked in unintended
-freelist.
+On Mon, Jan 06, 2014 at 10:34:09AM +0100, Ludovic Desroches wrote:
+> On Mon, Jan 06, 2014 at 09:26:48AM +0900, Joonsoo Kim wrote:
+> > On Fri, Jan 03, 2014 at 03:54:04PM +0100, Ludovic Desroches wrote:
+> > > Hi,
+> > > 
+> > > On Tue, Dec 24, 2013 at 03:38:37PM +0900, Joonsoo Kim wrote:
+> > > 
+> > > [...]
+> > > 
+> > > > > > > > > I think that this commit may not introduce a bug. This patch remove one
+> > > > > > > > > variable on slab management structure and replace variable name. So there
+> > > > > > > > > is no functional change.
+> > > 
+> > > You are right, the commit given by git bisect was not the good one...
+> > > Since I removed other patches done on top of it, I thought it really was
+> > > this one but in fact it is 8456a64.
+> > 
+> > Okay. It seems more reasonable to me.
+> > I guess that this is the same issue with following link.
+> > http://lkml.org/lkml/2014/1/4/81
+> > 
+> > And, perhaps, that patch solves your problem. But I'm not sure that it is the
+> > best solution for this problem. I should discuss with slab maintainers.
+> 
+> Yes this patch solves my problem.
+> 
+> > 
+> > I will think about this problem more deeply and report the solution to you
+> > as soon as possible.
+> 
+> Ok thanks.
+> 
 
-While I test CMA, CMA pages are merged and linked into MOVABLE freelist
-by above issue and then, the pages change their migratetype to UNMOVABLE by
-try_to_steal_freepages(). After that, CMA to this region always fail.
+Hello,
 
-To prevent this, we should not merge the page on MIGRATE_(CMA|ISOLATE)
-freelist.
+That patch will be merged through Andrew's tree.
+Use it to fix your problem :)
 
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2548b42..ea99cee 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -581,6 +581,15 @@ static inline void __free_one_page(struct page *page,
- 			__mod_zone_freepage_state(zone, 1 << order,
- 						  migratetype);
- 		} else {
-+			int buddy_mt = get_buddy_migratetype(buddy);
-+
-+			/* We don't want to merge cma, isolate pages */
-+			if (unlikely(order >= pageblock_order) &&
-+				migratetype != buddy_mt &&
-+				(migratetype >= MIGRATE_PCPTYPES ||
-+				buddy_mt >= MIGRATE_PCPTYPES)) {
-+				break;
-+			}
- 			list_del(&buddy->lru);
- 			zone->free_area[order].nr_free--;
- 			rmv_page_order(buddy);
--- 
-1.7.9.5
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
