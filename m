@@ -1,118 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B6B76B0037
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 16:40:14 -0500 (EST)
-Received: by mail-qc0-f170.google.com with SMTP id e9so3116415qcy.1
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 13:40:14 -0800 (PST)
-Received: from mail-yh0-x231.google.com (mail-yh0-x231.google.com [2607:f8b0:4002:c01::231])
-        by mx.google.com with ESMTPS id q18si7147499qeu.120.2014.01.09.13.40.13
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 09 Jan 2014 13:40:13 -0800 (PST)
-Received: by mail-yh0-f49.google.com with SMTP id z20so1085618yhz.8
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 13:40:13 -0800 (PST)
-Date: Thu, 9 Jan 2014 13:40:10 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] memcg: Do not hang on OOM when killed by userspace OOM
- access to memory reserves
-In-Reply-To: <20140109143048.GE27538@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.02.1401091335450.31538@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1312111434200.7354@chino.kir.corp.google.com> <20131212103159.GB2630@dhcp22.suse.cz> <alpine.DEB.2.02.1312131551220.28704@chino.kir.corp.google.com> <20131217162342.GG28991@dhcp22.suse.cz> <alpine.DEB.2.02.1312171240541.21640@chino.kir.corp.google.com>
- <20131218200434.GA4161@dhcp22.suse.cz> <alpine.DEB.2.02.1312182157510.1247@chino.kir.corp.google.com> <20131219144134.GH10855@dhcp22.suse.cz> <20140107162503.f751e880410f61a109cdcc2b@linux-foundation.org> <20140108103319.GF27937@dhcp22.suse.cz>
- <20140109143048.GE27538@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EC2F6B0035
+	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 17:48:53 -0500 (EST)
+Received: by mail-pb0-f47.google.com with SMTP id um1so3606609pbc.34
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 14:48:53 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id gx4si5082991pbc.201.2014.01.09.14.47.59
+        for <linux-mm@kvack.org>;
+        Thu, 09 Jan 2014 14:48:29 -0800 (PST)
+Date: Thu, 9 Jan 2014 14:47:57 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current
+ needs access to memory reserves
+Message-Id: <20140109144757.e95616b4280c049b22743a15@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.02.1401091324120.31538@chino.kir.corp.google.com>
+References: <20131210103827.GB20242@dhcp22.suse.cz>
+	<alpine.DEB.2.02.1312101655430.22701@chino.kir.corp.google.com>
+	<20131211095549.GA18741@dhcp22.suse.cz>
+	<alpine.DEB.2.02.1312111434200.7354@chino.kir.corp.google.com>
+	<20131212103159.GB2630@dhcp22.suse.cz>
+	<alpine.DEB.2.02.1312131551220.28704@chino.kir.corp.google.com>
+	<20131217162342.GG28991@dhcp22.suse.cz>
+	<alpine.DEB.2.02.1312171240541.21640@chino.kir.corp.google.com>
+	<20131218200434.GA4161@dhcp22.suse.cz>
+	<alpine.DEB.2.02.1312182157510.1247@chino.kir.corp.google.com>
+	<20131219144134.GH10855@dhcp22.suse.cz>
+	<20140107162503.f751e880410f61a109cdcc2b@linux-foundation.org>
+	<alpine.DEB.2.02.1401091324120.31538@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, "Eric W. Biederman" <ebiederm@xmission.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, "Eric W. Biederman" <ebiederm@xmission.com>
 
-On Thu, 9 Jan 2014, Michal Hocko wrote:
+On Thu, 9 Jan 2014 13:34:24 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
 
-> Eric has reported that he can see task(s) stuck in memcg OOM handler
-> regularly. The only way out is to
-> 	echo 0 > $GROUP/memory.oom_controll
-> His usecase is:
-> - Setup a hierarchy with memory and the freezer
->   (disable kernel oom and have a process watch for oom).
-> - In that memory cgroup add a process with one thread per cpu.
-> - In one thread slowly allocate once per second I think it is 16M of ram
->   and mlock and dirty it (just to force the pages into ram and stay there).
-> - When oom is achieved loop:
->   * attempt to freeze all of the tasks.
->   * if frozen send every task SIGKILL, unfreeze, remove the directory in
->     cgroupfs.
+> On Tue, 7 Jan 2014, Andrew Morton wrote:
 > 
-> Eric has then pinpointed the issue to be memcg specific.
+> > I just spent a happy half hour reliving this thread and ended up
+> > deciding I agreed with everyone!  I appears that many more emails are
+> > needed so I think I'll drop
+> > http://ozlabs.org/~akpm/mmots/broken-out/mm-memcg-avoid-oom-notification-when-current-needs-access-to-memory-reserves.patch
+> > for now.
+> > 
+> > The claim that
+> > mm-memcg-avoid-oom-notification-when-current-needs-access-to-memory-reserves.patch
+> > will impact existing userspace seems a bit dubious to me.
+> > 
 > 
-> All tasks are sitting on the memcg_oom_waitq when memcg oom is disabled.
-> Those that have received fatal signal will bypass the charge and should
-> continue on their way out. The tricky part is that the exit path might
-> trigger a page fault (e.g. exit_robust_list), thus the memcg charge,
-> while its memcg is still under OOM because nobody has released any
-> charges yet.
-> Unlike with the in-kernel OOM handler the exiting task doesn't get
-> TIF_MEMDIE set so it doesn't shortcut futher charges of the killed task
-> and falls to the memcg OOM again without any way out of it as there are
-> no fatal signals pending anymore.
-> 
-> This patch fixes the issue by checking PF_EXITING early in
-> __mem_cgroup_try_charge and bypass the charge same as if it had fatal
-> signal pending or TIF_MEMDIE set.
-> 
-> Normally exiting tasks (aka not killed) will bypass the charge now but
-> this should be OK as the task is leaving and will release memory and
-> increasing the memory pressure just to release it in a moment seems
-> dubious wasting of cycles. Besides that charges after exit_signals
-> should be rare.
-> 
-> Reported-by: Eric W. Biederman <ebiederm@xmission.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> I'm not sure why this was dropped since it's vitally needed for any sane 
+> userspace oom handler to be effective.
 
-Is this tested?
+It was dropped because the other memcg developers disagreed with it.
 
-> ---
->  mm/memcontrol.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index b8dfed1b9d87..b86fbb04b7c6 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2685,7 +2685,8 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
->  	 * MEMDIE process.
->  	 */
->  	if (unlikely(test_thread_flag(TIF_MEMDIE)
-> -		     || fatal_signal_pending(current)))
-> +		     || fatal_signal_pending(current))
-> +		     || current->flags & PF_EXITING)
->  		goto bypass;
->  
->  	if (unlikely(task_in_memcg_oom(current)))
+I'd really prefer not to have to spend a great amount of time parsing
+argumentative and repetitive emails to make a tie-break decision which
+may well be wrong anyway.
 
-This would become problematic if significant amount of memory is charged 
-in the exit() path.  I don't know of an egregious amount of memory being 
-allocated and charged after PF_EXITING is set, but if it happens in the 
-future then this could potentially cause system oom conditions even in 
-memcg configurations that are designed such as the one Tejun suggested to 
-be able to handle such conditions in userspace:
-
-		     ___root___
-		    /	       \
-		user		oom
-		/  \		/ \
-		A  B		C D
-
-where the limit of user is equal to the amount of system memory minus 
-whatever amount of memory is needed by the system oom handler attached as 
-a descendant of oom and still allows the limits of A + B to exceed the 
-limit of user.
-
-So how do we ensure that memory allocations in the exit() path don't cause 
-system oom conditions whereas the above configuration no longer provides 
-any strict guarantee?
-
-Thanks.
+Please work with the other guys to find an acceptable implementation. 
+There must be *something* we can do?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
