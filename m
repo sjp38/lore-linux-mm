@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id E0B246B0031
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 04:06:42 -0500 (EST)
-Received: by mail-wi0-f180.google.com with SMTP id hm19so3166574wib.1
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 01:06:42 -0800 (PST)
-Received: from mail-we0-x230.google.com (mail-we0-x230.google.com [2a00:1450:400c:c03::230])
-        by mx.google.com with ESMTPS id x6si2200249wib.85.2014.01.09.01.06.42
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 9317C6B0031
+	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 04:08:18 -0500 (EST)
+Received: by mail-wi0-f170.google.com with SMTP id hq4so6379952wib.3
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 01:08:18 -0800 (PST)
+Received: from mail-wg0-x229.google.com (mail-wg0-x229.google.com [2a00:1450:400c:c00::229])
+        by mx.google.com with ESMTPS id r4si896428wjr.86.2014.01.09.01.08.17
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 09 Jan 2014 01:06:42 -0800 (PST)
-Received: by mail-we0-f176.google.com with SMTP id p61so2431870wes.21
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 01:06:41 -0800 (PST)
+        Thu, 09 Jan 2014 01:08:17 -0800 (PST)
+Received: by mail-wg0-f41.google.com with SMTP id y10so5708684wgg.0
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 01:08:17 -0800 (PST)
 From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH 0/7] improve robustness on handling migratetype
-In-Reply-To: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Thu, 09 Jan 2014 10:06:34 +0100
-Message-ID: <xa1tha9dbk2t.fsf@mina86.com>
+Subject: Re: [PATCH 1/7] mm/page_alloc: synchronize get/set pageblock
+In-Reply-To: <1389251087-10224-2-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com> <1389251087-10224-2-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Thu, 09 Jan 2014 10:08:10 +0100
+Message-ID: <xa1teh4hbk05.fsf@mina86.com>
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
@@ -28,16 +28,34 @@ Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@r
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
-On Thu, Jan 09 2014, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> Third, there is the problem on buddy allocator. It doesn't consider
-> migratetype when merging buddy, so pages from cma or isolate region can
-> be moved to other migratetype freelist. It makes CMA failed over and over.
-> To prevent it, the buddy allocator should consider migratetype if
-> CMA/ISOLATE is enabled.
+On Thu, Jan 09 2014, Joonsoo Kim wrote:
+> @@ -5927,15 +5928,19 @@ unsigned long get_pageblock_flags_group(struct pa=
+ge *page,
+>  	unsigned long pfn, bitidx;
+>  	unsigned long flags =3D 0;
+>  	unsigned long value =3D 1;
+> +	unsigned int seq;
+>=20=20
+>  	zone =3D page_zone(page);
+>  	pfn =3D page_to_pfn(page);
+>  	bitmap =3D get_pageblock_bitmap(zone, pfn);
+>  	bitidx =3D pfn_to_bitidx(zone, pfn);
+>=20=20
+> -	for (; start_bitidx <=3D end_bitidx; start_bitidx++, value <<=3D 1)
+> -		if (test_bit(bitidx + start_bitidx, bitmap))
+> -			flags |=3D value;
+> +	do {
 
-There should never be situation where a CMA page shares a pageblock (or
-a max-order page) with a non-CMA page though, so this should never be an
-issue.
++		flags =3D 0;
+
+> +		seq =3D read_seqbegin(&zone->pageblock_seqlock);
+> +		for (; start_bitidx <=3D end_bitidx; start_bitidx++, value <<=3D 1)
+> +			if (test_bit(bitidx + start_bitidx, bitmap))
+> +				flags |=3D value;
+> +	} while (read_seqretry(&zone->pageblock_seqlock, seq));
+>=20=20
+>  	return flags;
+>  }
 
 --=20
 Best regards,                                         _     _
@@ -60,19 +78,19 @@ Content-Type: application/pgp-signature; name="signature.asc"
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.11 (GNU/Linux)
 
-iQIcBAEBAgAGBQJSzmaaAAoJECBgQBJQdR/03rwP/A70MFWvk9Zz81DwMlNFZQTi
-jkeQWXQbKlz0Q6W3FPaTZK7nTqIcRQCwfttIGrnvWJOjw9IfLyWNSdzHaI8eQZsB
-2Wyw0jUhhv4ARwOSEopst5Z+oeAmeJKHz4meJObdaH+3szfxNZm5wyl0RaNLqDGd
-8MsfmnmLbgTNE/l/Fl2lNzGod36T51DMfzgTqVnBO3zK7WU8iAO3jP3y99aoijbZ
-TbV3IH12T6heh/bYN9ky/FIxZ9LGI59pr0AvrvHzPEHD3ubE6La/40XCbosjsKif
-MGw+2KmgL4/old+Xdtl6fm1hRAvnjpYk6rBVEzBlSZNcbHu5avfYJjcAfgV9sfMS
-i9E02AuI3muTPvglCtAUtciBMdDcqbR8DLyJO8SYNqPqSZz4LtVz0pBqkpQyq7Uw
-onUiuzlLSYvD7U1v8KfmRmhMkeIvBRGma2ifOoUOMCLIkhbBE0EIFztis/0BcjTf
-CyWHDAMDI2ThkyM+aOgygrS0bnnDCHQDHWv3XvColu+Of6gRQL5gU/KyKI0Mau5T
-Zh8DQKlX0u0BZ9Kt7HZ44SNrwEDzpf7Ov/KBgZF/Meg/fDnL06KJOMWjWG6jjTLp
-1H6mQiqChwyVJ7qS2RoTWtG78sqI/xgBFVGFzogTehypy0UoRB6C64QjfHkg8SIW
-SKevhN+2RDwN3u2FDdC5
-=9KuD
+iQIcBAEBAgAGBQJSzmb6AAoJECBgQBJQdR/0Ew4P/RsSxW22DyEt524wSIwWSYKS
+aOVMs2Qv/t5xtuW5wHh1rjxmAAIEoZItYYsYaBHr1tbY0X1Uw0OwcZz6DcKBERlm
+hSiAHVbg3K62V4LTq0Dj8QXzEgzQvXh9T8Kvin6QBzZIRHWHTHQZweHyPMDCy5Ny
+4ATCcT8qEvzCTjq584TC1fYPJgG0X+ZjgTpxNdPzFBVXXrZwTrt7DRrlrVQCtdYb
+3OQktscAGv4HlImUJQWRn2pn61eKqoJk4/OcmHQX5EHet2QUZ6Bp0nwy/V2Spyis
+i1+e4OFc245eMTitDeNR6duI7K/n4IOmgsTePmj7C8uVp1XqdToW2Oic9BxN3td6
+4NUw8pIz+f6Fj3BMxYPD5rvBXMAeZ9lxctXT/NTy2EYVWQvVeVN4NApj/WJZ9lD8
+lVxb1f8relKG3xdj73juDaZUg9w/fV3b2fuJAKiybEYa5g23Rm5Xk5elZzT8NZKy
+K5pGBsm18Chr1IZewBfQlVP/MR/M2LO2Dar3q2cTNo+VQJA3a11+gzd9u18hog+m
+BCn4wazugDfhwLIpMNvKPQJbwKgbTRsrzbibSYt6kRUr6DL86Gh6IYcu0PwUivJK
+t+x1yYttyZQAgRxosxkTGxMbqyOXEwo7ux56E1VCHQv9yPfEia9KHv1SiBp12HGT
+D7vD5QTb9GkAlUDykK0o
+=mRRG
 -----END PGP SIGNATURE-----
 --==-=-=--
 
