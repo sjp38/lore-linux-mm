@@ -1,79 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-gg0-f175.google.com (mail-gg0-f175.google.com [209.85.161.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 905E86B0036
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 02:33:06 -0500 (EST)
-Received: by mail-gg0-f175.google.com with SMTP id c2so98107ggn.34
-        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 23:33:06 -0800 (PST)
-Received: from e33.co.us.ibm.com (e33.co.us.ibm.com. [32.97.110.151])
-        by mx.google.com with ESMTPS id g6si4494119qab.39.2014.01.08.23.33.04
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 05D6D6B0031
+	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 03:18:55 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id v10so2876264pde.13
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 00:18:55 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id pi8si3170652pac.117.2014.01.09.00.18.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 08 Jan 2014 23:33:05 -0800 (PST)
-Received: from /spool/local
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <hanpt@linux.vnet.ibm.com>;
-	Thu, 9 Jan 2014 00:33:04 -0700
-Received: from b03cxnp07027.gho.boulder.ibm.com (b03cxnp07027.gho.boulder.ibm.com [9.17.130.14])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 0E4593E40026
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 00:33:02 -0700 (MST)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by b03cxnp07027.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s097WoA97602622
-	for <linux-mm@kvack.org>; Thu, 9 Jan 2014 08:32:50 +0100
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s097X1Pk009789
-	for <linux-mm@kvack.org>; Thu, 9 Jan 2014 00:33:01 -0700
-Date: Thu, 9 Jan 2014 15:32:59 +0800
-From: Han Pingtian <hanpt@linux.vnet.ibm.com>
-Subject: Re: [RFC] mm: show message when updating min_free_kbytes in thp
-Message-ID: <20140109073259.GK4106@localhost.localdomain>
-References: <20140101002935.GA15683@localhost.localdomain>
- <52C5AA61.8060701@intel.com>
- <20140103033303.GB4106@localhost.localdomain>
- <52C6FED2.7070700@intel.com>
- <20140105003501.GC4106@localhost.localdomain>
- <20140106164604.GC27602@dhcp22.suse.cz>
- <20140108101611.GD27937@dhcp22.suse.cz>
+        Thu, 09 Jan 2014 00:18:54 -0800 (PST)
+Message-ID: <52CE5B58.8080203@oracle.com>
+Date: Thu, 09 Jan 2014 16:18:32 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140108101611.GD27937@dhcp22.suse.cz>
+Subject: Re: swap, compress, discard: what's in the future?
+References: <CAA25o9Q921VnXvTo2OhXK5taif6MSF6LBtgPKve=kpgeW5XQ9Q@mail.gmail.com>	<20140107030148.GA24188@bbox> <CAA_GA1d==iPO_Ne4c5xFBdgUnhsehcod+5ZnZNajWvk8-ak1bg@mail.gmail.com> <52CC04DD.3020603@redhat.com>
+In-Reply-To: <52CC04DD.3020603@redhat.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Bob Liu <lliubbo@gmail.com>, Minchan Kim <minchan@kernel.org>, Luigi Semenzato <semenzato@google.com>, Linux-MM <linux-mm@kvack.org>, hnaz@cmpxchg.org
 
-On Wed, Jan 08, 2014 at 11:16:11AM +0100, Michal Hocko wrote:
-> On Wed 08-01-14 16:20:01, Han Pingtian wrote:
-> > On Mon, Jan 06, 2014 at 05:46:04PM +0100, Michal Hocko wrote:
-> > > On Sun 05-01-14 08:35:01, Han Pingtian wrote:
-> > > [...]
-> > > > From f4d085a880dfae7638b33c242554efb0afc0852b Mon Sep 17 00:00:00 2001
-> > > > From: Han Pingtian <hanpt@linux.vnet.ibm.com>
-> > > > Date: Fri, 3 Jan 2014 11:10:49 +0800
-> > > > Subject: [PATCH] mm: show message when raising min_free_kbytes in THP
-> > > > 
-> > > > min_free_kbytes may be raised during THP's initialization. Sometimes,
-> > > > this will change the value being set by user. Showing message will
-> > > > clarify this confusion.
-> > > 
-> > > I do not have anything against informing about changing value
-> > > set by user but this will inform also when the default value is
-> > > updated. Is this what you want? Don't you want to check against
-> > > user_min_free_kbytes? (0 if not set by user)
-> > > 
-> > 
-> > To use user_min_free_kbytes in mm/huge_memory.c, we need a 
-> > 
-> >     extern int user_min_free_kbytes;
+
+On 01/07/2014 09:45 PM, Rik van Riel wrote:
+> On 01/07/2014 01:33 AM, Bob Liu wrote:
+>> On Tue, Jan 7, 2014 at 11:01 AM, Minchan Kim <minchan@kernel.org> wrote:
 > 
-> The variable is not defined as static so you can use it outside of
-> mm/page_alloc.c.
+>>> Your statement makes sense to me but unfortunately, current VM doesn't
+>>> consider everything you mentioned.
+>>> It is just based on page access recency by approximate LRU logic +
+>>> some heuristic(ex, mapped page and VM_EXEC pages are more precious).
+>>
+>> It seems that the ARC page replacement algorithm in zfs have good
+>> performance and more intelligent.
+>> http://en.wikipedia.org/wiki/Adaptive_replacement_cache
+>> Is there any history reason of linux didn't implement something like
+>> ARC as the page cache replacement algorithm?
 > 
-> > in somewhere? Where should we put it? I guess it is mm/internal.h,
-> > right?
+> ARC by itself was quickly superceded by CLOCK-Pro, which
+> looks like it would be even better.
 > 
-> I do not think this has to be globaly visible though. Why not just
-> extern declaration in mm/huge_memory.c?
+> Johannes introduces an algorithm with similar properties
+> in his "thrash based page cache replacement" patch series.
 > 
 
-This is the new patch, please review. Thanks.
+But it seems you and Peter have already implemented CLOCK-Pro and CART
+page cache replacement many years ago. Why they were not get merged at
+that time?
+
+I found some information from
+http://linux-mm.org/AdvancedPageReplacement
+
+Linux implementations:
+Rahul Iyer's implementation of CART, RahulIyerCART
+
+Rik van Riel's ClockProApproximation.
+
+Rik van Riel's proposal for the tracking of NonResidentPages, which is
+used by both his ClockProApproximation and by Peter Zijlstra's CART and
+Clock-pro implementations.
+
+Peter Zijlstra's CART PeterZCart
+
+Peter Zijlstra's Clock-Pro PeterZClockPro2
+
+Thanks,
+-Bob
+
+> However, algorithms like ARC and clockpro are best for
+> a cache that caches a large data set (much larger than
+> the cache size), and has to deal with large inter-reference
+> distances.
+> 
+> For anonymous memory, we are dealing with the opposite:
+> the total amount of anonymous memory is on the same
+> order of magnitude as the amount of RAM, and the
+> inter-reference distance will be smaller as a result.
+> 
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
