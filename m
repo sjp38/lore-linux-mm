@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f181.google.com (mail-ea0-f181.google.com [209.85.215.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 5703A6B0039
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 09:35:06 -0500 (EST)
-Received: by mail-ea0-f181.google.com with SMTP id m10so1507677eaj.26
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 06:35:05 -0800 (PST)
+Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CD406B003A
+	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 09:35:07 -0500 (EST)
+Received: by mail-ee0-f51.google.com with SMTP id b15so1377745eek.10
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 06:35:06 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a9si4097337eew.96.2014.01.09.06.35.04
+        by mx.google.com with ESMTPS id p9si4061602eew.181.2014.01.09.06.35.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 09 Jan 2014 06:35:04 -0800 (PST)
+        Thu, 09 Jan 2014 06:35:06 -0800 (PST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 2/5] x86: mm: Clean up inconsistencies when flushing TLB ranges
-Date: Thu,  9 Jan 2014 14:34:55 +0000
-Message-Id: <1389278098-27154-3-git-send-email-mgorman@suse.de>
+Subject: [PATCH 3/5] x86: mm: Eliminate redundant page table walk during TLB range flushing
+Date: Thu,  9 Jan 2014 14:34:56 +0000
+Message-Id: <1389278098-27154-4-git-send-email-mgorman@suse.de>
 In-Reply-To: <1389278098-27154-1-git-send-email-mgorman@suse.de>
 References: <1389278098-27154-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,52 +20,71 @@ List-ID: <linux-mm.kvack.org>
 To: Alex Shi <alex.shi@linaro.org>, Ingo Molnar <mingo@kernel.org>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-NR_TLB_LOCAL_FLUSH_ALL is not always accounted for correctly and the
-comparison with total_vm is done before taking tlb_flushall_shift into
-account. Clean it up.
+When choosing between doing an address space or ranged flush, the x86
+implementation of flush_tlb_mm_range takes into account whether there are
+any large pages in the range. A per-page flush typically requires fewer
+entries than would covered by a single large page and the check is redundant.
+
+There is one potential exception. THP migration flushes single THP entries
+and it conceivably would benefit from flushing a single entry instead
+of the mm. However, this flush is after a THP allocation, copy and page
+table update potentially with any other threads serialised behind it. In
+comparison to that, the flush is noise. It makes more sense to optimise
+balancing to require fewer flushes than to optimise the flush itself.
+
+This patch deletes the redundant huge page check.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
-Reviewed-by: Alex Shi <alex.shi@linaro.org>
 ---
- arch/x86/mm/tlb.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ arch/x86/mm/tlb.c | 28 +---------------------------
+ 1 file changed, 1 insertion(+), 27 deletions(-)
 
 diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 05446c1..5176526 100644
+index 5176526..dd8dda1 100644
 --- a/arch/x86/mm/tlb.c
 +++ b/arch/x86/mm/tlb.c
-@@ -189,6 +189,7 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- {
- 	unsigned long addr;
- 	unsigned act_entries, tlb_entries = 0;
-+	unsigned long nr_base_pages;
+@@ -158,32 +158,6 @@ void flush_tlb_current_task(void)
+ 	preempt_enable();
+ }
  
- 	preempt_disable();
- 	if (current->active_mm != mm)
-@@ -210,18 +211,17 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 		tlb_entries = tlb_lli_4k[ENTRIES];
- 	else
- 		tlb_entries = tlb_lld_4k[ENTRIES];
-+
- 	/* Assume all of TLB entries was occupied by this task */
--	act_entries = mm->total_vm > tlb_entries ? tlb_entries : mm->total_vm;
-+	act_entries = tlb_entries >> tlb_flushall_shift;
-+	act_entries = mm->total_vm > act_entries ? act_entries : mm->total_vm;
-+	nr_base_pages = (end - start) >> PAGE_SHIFT;
+-/*
+- * It can find out the THP large page, or
+- * HUGETLB page in tlb_flush when THP disabled
+- */
+-static inline unsigned long has_large_page(struct mm_struct *mm,
+-				 unsigned long start, unsigned long end)
+-{
+-	pgd_t *pgd;
+-	pud_t *pud;
+-	pmd_t *pmd;
+-	unsigned long addr = ALIGN(start, HPAGE_SIZE);
+-	for (; addr < end; addr += HPAGE_SIZE) {
+-		pgd = pgd_offset(mm, addr);
+-		if (likely(!pgd_none(*pgd))) {
+-			pud = pud_offset(pgd, addr);
+-			if (likely(!pud_none(*pud))) {
+-				pmd = pmd_offset(pud, addr);
+-				if (likely(!pmd_none(*pmd)))
+-					if (pmd_large(*pmd))
+-						return addr;
+-			}
+-		}
+-	}
+-	return 0;
+-}
+-
+ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 				unsigned long end, unsigned long vmflag)
+ {
+@@ -218,7 +192,7 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 	nr_base_pages = (end - start) >> PAGE_SHIFT;
  
  	/* tlb_flushall_shift is on balance point, details in commit log */
--	if ((end - start) >> PAGE_SHIFT > act_entries >> tlb_flushall_shift) {
-+	if (nr_base_pages > act_entries || has_large_page(mm, start, end)) {
+-	if (nr_base_pages > act_entries || has_large_page(mm, start, end)) {
++	if (nr_base_pages > act_entries) {
  		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
  		local_flush_tlb();
  	} else {
--		if (has_large_page(mm, start, end)) {
--			local_flush_tlb();
--			goto flush_all;
--		}
- 		/* flush range by one by one 'invlpg' */
- 		for (addr = start; addr < end;	addr += PAGE_SIZE) {
- 			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
 -- 
 1.8.4
 
