@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A5586B0031
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 04:19:52 -0500 (EST)
-Received: by mail-wi0-f169.google.com with SMTP id q15so150553wie.2
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 01:19:51 -0800 (PST)
-Received: from mail-wi0-x230.google.com (mail-wi0-x230.google.com [2a00:1450:400c:c05::230])
-        by mx.google.com with ESMTPS id b2si2777068wix.13.2014.01.09.01.19.51
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id B993D6B0031
+	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 04:22:11 -0500 (EST)
+Received: by mail-wi0-f176.google.com with SMTP id hq4so6637193wib.15
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 01:22:11 -0800 (PST)
+Received: from mail-we0-x22f.google.com (mail-we0-x22f.google.com [2a00:1450:400c:c03::22f])
+        by mx.google.com with ESMTPS id ui5si930482wjc.22.2014.01.09.01.22.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 09 Jan 2014 01:19:51 -0800 (PST)
-Received: by mail-wi0-f176.google.com with SMTP id hq4so6629025wib.9
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 01:19:51 -0800 (PST)
+        Thu, 09 Jan 2014 01:22:11 -0800 (PST)
+Received: by mail-we0-f175.google.com with SMTP id w62so2464666wes.6
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 01:22:11 -0800 (PST)
 From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH 6/7] mm/page_alloc: store freelist migratetype to the page on buddy properly
-In-Reply-To: <1389251087-10224-7-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com> <1389251087-10224-7-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Thu, 09 Jan 2014 10:19:44 +0100
-Message-ID: <xa1t8uupbjgv.fsf@mina86.com>
+Subject: Re: [PATCH 7/7] mm/page_alloc: don't merge MIGRATE_(CMA|ISOLATE) pages on buddy
+In-Reply-To: <1389251087-10224-8-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com> <1389251087-10224-8-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Thu, 09 Jan 2014 10:22:02 +0100
+Message-ID: <xa1t61ptbjd1.fsf@mina86.com>
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
@@ -29,18 +29,50 @@ Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
 On Thu, Jan 09 2014, Joonsoo Kim wrote:
-> To maintain freelist migratetype information on buddy pages, migratetype
-> should be set again whenever the page order is changed. set_page_order()
-> is the best place to do, because it is called whenever the page order is
-> changed, so this patch adds set_buddy_migratetype() to set_page_order().
+> If (MAX_ORDER-1) is greater than pageblock order, there is a possibility
+> to merge different migratetype pages and to be linked in unintended
+> freelist.
 >
-> And this patch makes set/get_buddy_migratetype() only enabled if it is
-> really needed, because it has some overhead.
+> While I test CMA, CMA pages are merged and linked into MOVABLE freelist
+> by above issue and then, the pages change their migratetype to UNMOVABLE =
+by
+> try_to_steal_freepages(). After that, CMA to this region always fail.
 >
+> To prevent this, we should not merge the page on MIGRATE_(CMA|ISOLATE)
+> freelist.
+
+This is strange.  CMA regions are always multiplies of max-pages (or
+pageblocks whichever is larger), so MOVABLE free pages should never be
+inside of a CMA region.
+
+If what you're describing happens, it looks like an issue somewhere
+else.
+
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
-
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 2548b42..ea99cee 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -581,6 +581,15 @@ static inline void __free_one_page(struct page *page,
+>  			__mod_zone_freepage_state(zone, 1 << order,
+>  						  migratetype);
+>  		} else {
+> +			int buddy_mt =3D get_buddy_migratetype(buddy);
+> +
+> +			/* We don't want to merge cma, isolate pages */
+> +			if (unlikely(order >=3D pageblock_order) &&
+> +				migratetype !=3D buddy_mt &&
+> +				(migratetype >=3D MIGRATE_PCPTYPES ||
+> +				buddy_mt >=3D MIGRATE_PCPTYPES)) {
+> +				break;
+> +			}
+>  			list_del(&buddy->lru);
+>  			zone->free_area[order].nr_free--;
+>  			rmv_page_order(buddy);
+> --=20
+> 1.7.9.5
+>
 
 --=20
 Best regards,                                         _     _
@@ -63,19 +95,19 @@ Content-Type: application/pgp-signature; name="signature.asc"
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.11 (GNU/Linux)
 
-iQIcBAEBAgAGBQJSzmmwAAoJECBgQBJQdR/01c4P/Ane1F6g9Fyos/HioQHFOTyT
-qElpv05RKxm+fQ6zBraYsXxqtybmVeaxm9CLV3ara5lgyFbRlsWYuLGNeVPrs7P9
-4GzdiK1Cd16f6F7ljLQ3SdZO0JgumR0hItG1eV5pR32XGmgZkTPJTfAKBtDNnsO+
-QDW6WqNL4GAK5k5m9PGpj9h0RAdQK/FhiiK00rjiPkCm+tqsHw4rJrBusOwUKPrv
-rRSsLRUTPhFLXM6EEL6+BrrdZ6ONjCci9Gq6PImIElz2+QTkNg5qcEMHeIE7phLQ
-n0LKZ4ojcdTzfRE5vu3w9iCzl8LLlww48HgRcru0faitpNcrs3cVU/h/i4kJ1YWM
-gWx2l+qwi30C5Rxlx6Kg9wJq/rBw+ZZSe/HE3ndbsL55JyQhJFSDkD0JR4OSbJ/d
-nLNJPsU3u0X5stHeDSfNakc2S/drDvNsR0JOWtLmme2ruUBjz2MrYNWqGDAaYcNf
-RkEpln08lsKrNpOdHZK9bUdzVxnADW3nZaJGYu0s1ZNgfg7Ug/CqGg0Mr+uSznW/
-YZSeruDxaMFGlckkkwIkYc7IKRz6/wh3jQ2YxPepPOEw5a6uUxIPXoM19EcsKTh+
-KL7bEp96FhnH1Us3N/cYLqacRlsIARQVXYx7ydLzsRB5UiKnVu/3pDgJDoGVd29c
-ozr6HnxHAPC2a7AaX+js
-=CZkg
+iQIcBAEBAgAGBQJSzmo6AAoJECBgQBJQdR/0hXcP+gNcSKtRGUP6Z1/0L4u+rMIp
+oJqXjZ1M6kSzqPYeTEZhHqJLOMLYJfEmDAzUkP3xeVvnqv0HatHjcn5JDklkv9PT
+gOQ1sflANnIwIw930rVLQQM5s0QhR4gic+CnJ7Sc9YPadopn1l+JQHy/93ylXruU
+/+g23QCFS+uQoQZ6HqhJS2AXXworLMTi9IA/YA1PuMXLDpnlhLFh9tkeJeWIR+rX
+Frr7U35NeZtWyKbHSZttULJGFAtscD0mdHP79Bnqzosyqi92HyjSoIjzOCe4ptkM
+FMie0i9Rx/NiRVRNOzQrsI7ryr1RR/lXhbcmTYyvMfxBuzbXW3/r1gQEIuJvDpJ/
+Us9zl2ayWpFvjgBE9m/4vawZO/+PGVsv74iVcL60KgEuftAPyYHqkYeAf8cI8WOh
+CgKpR6oyUOFp81kX0GeEJ2b5JJh+lOzmufg4Ow1eLgQWpBY/u02hQ/sLyEpHgqiu
+ZfgYBNP5horayy6VqIrnw1/oIBg2CUp31RQtJ5sB+AaGHTtd7cw1X8PblLWRJvsn
+ErdJKRJV1fe/bnwD3EEt5iI8Y9oCOB6mTI5pHWhdIunBEG0//J8qYpqk+U9jfB6Q
+BsLwO55NOyC5MzRmaXLcLGmmn+ENfPDrcugtmwqOK1SNKK2NOKN6Q0cGuu0Sa+8Z
+2fcUX72K8i+6h1sDR1vt
+=vPh+
 -----END PGP SIGNATURE-----
 --==-=-=--
 
