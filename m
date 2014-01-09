@@ -1,92 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id C42846B0031
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 04:18:08 -0500 (EST)
-Received: by mail-wg0-f49.google.com with SMTP id a1so223544wgh.28
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 01:18:08 -0800 (PST)
-Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com [2a00:1450:400c:c05::22d])
-        by mx.google.com with ESMTPS id ap4si916295wjc.64.2014.01.09.01.18.08
+Received: from mail-bk0-f53.google.com (mail-bk0-f53.google.com [209.85.214.53])
+	by kanga.kvack.org (Postfix) with ESMTP id BB06A6B0036
+	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 04:19:01 -0500 (EST)
+Received: by mail-bk0-f53.google.com with SMTP id na10so1042281bkb.12
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 01:19:01 -0800 (PST)
+Received: from mail-bk0-x22b.google.com (mail-bk0-x22b.google.com [2a00:1450:4008:c01::22b])
+        by mx.google.com with ESMTPS id og3si1661608bkb.279.2014.01.09.01.19.00
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 09 Jan 2014 01:18:08 -0800 (PST)
-Received: by mail-wi0-f173.google.com with SMTP id hn9so6634505wib.0
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 01:18:08 -0800 (PST)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH 5/7] mm/page_alloc: separate interface to set/get migratetype of freepage
-In-Reply-To: <1389251087-10224-6-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com> <1389251087-10224-6-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Thu, 09 Jan 2014 10:18:00 +0100
-Message-ID: <xa1tbnzlbjjr.fsf@mina86.com>
+        Thu, 09 Jan 2014 01:19:00 -0800 (PST)
+Received: by mail-bk0-f43.google.com with SMTP id mz12so1025394bkb.2
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 01:19:00 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="=-=-="
+In-Reply-To: <523.1389252725@jrobl>
+References: <CAK25hWOu-Q0H8_RCejDduuLCA1-135BEp_Cn_njurBA4r7zp5g@mail.gmail.com>
+	<20140107122301.GC16640@quack.suse.cz>
+	<CAK25hWMdfSmZLZQugJ3YU=b6nb7ZQzQFw514e=HV91s0Z-W0nQ@mail.gmail.com>
+	<6469.1389157809@jrobl>
+	<CAK25hWOUhV2Ygs-Q3cVN-mio+BHB60zJ7J_wZZKb=hOR9mb0ug@mail.gmail.com>
+	<523.1389252725@jrobl>
+Date: Thu, 9 Jan 2014 14:49:00 +0530
+Message-ID: <CAK25hWNTmn=NL9exT1kG9D4ya=hzXWSZUiOj8iYjEfrf_yNTEQ@mail.gmail.com>
+Subject: Re: [LSF/MM ATTEND] Stackable Union Filesystem Implementation
+From: Saket Sinha <saket.sinha89@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jiang Liu <jiang.liu@huawei.com>, Mel Gorman <mgorman@suse.de>, Cody P Schafer <cody@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Andi Kleen <ak@linux.intel.com>, Wei Yongjun <yongjun_wei@trendmicro.com.cn>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>
+To: "J. R. Okajima" <hooanon05g@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
 
---=-=-=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-
-On Thu, Jan 09 2014, Joonsoo Kim wrote:
-> Currently, we use (set/get)_freepage_migratetype in two use cases.
-> One is to know the buddy list where this page will be linked and
-> the other is to know the buddy list where this page is linked now.
+On Thu, Jan 9, 2014 at 1:02 PM, J. R. Okajima <hooanon05g@gmail.com> wrote:
 >
-> But, we should deal these two use cases differently, because information
-> isn't sufficient for the second use case and properly setting this
-> information needs some overhead. Whenever the page is merged or split
-> in buddy, this information isn't properly re-assigned and it may not
-> have enough information for the second use case.
+> Saket Sinha:
+>> > For such purpose, a "block device level union" (instead of filesystem
+>> > level union) may be an option for you, such as "dm snapshot".
+>> >
+>> I imagine that this would make things more complicated as ideally this
+>> should be done in a filesystem driver. Again a "block device level
+>> union" would all the more have lesser chances of getting this
+>> filesystem driver included in the mainline kernel as kernel
+>> maintainers prefer the drivers to be as simple as possible.
 >
-> This patch just separates interface, so there is no functional change.
-> Following patch will do further steps about this issue.
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ??
+> I am afraid that I cannot fully understand what you wrote.
 
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+I am sorry for not explaining it properly. I was abrupt and hence was
+misunderstood. My fault!.
 
-I think this patch would be smaller if it was pushed earlier in the
-patchset.
+> If you think "dm snapshot" does not exist currently, and you or someone
+> else are going to develop a new feature, that is wrong. You already have
+> "dm snapshot" feature and you can "stack" the block devices by using it.
+> (cf. http://aufs.sourceforge.net/aufs2/report/sq/sq.pdf which is a bit
+> old)
+NO. I know it very much exists.  It forms the foundation of LVM2,
+software RAIDs, dm-crypt disk encryption, and offers additional
+features such as file system snapshots and I do not doubt either its
+functionality or usage.
 
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
+What I am referring here is the topic  <storing metadata in multiple
+places vs  "block device level union">. See DM operates on block
+device/sector, but a stackable =EF=AC=81lesystem operates on =EF=AC=81lesys=
+tem/=EF=AC=81le. My
+point is this that which is the better approach according to the
+kernel maintainers, so that this concept of Unioning gets universally
+accepted and we have a mainline kernel union filesystem.
 
---=-=-=
-Content-Type: multipart/signed; boundary="==-=-=";
-	micalg=pgp-sha1; protocol="application/pgp-signature"
-
---==-=-=
-Content-Type: text/plain
-
-
---==-=-=
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-
-iQIcBAEBAgAGBQJSzmlIAAoJECBgQBJQdR/0aFAP+waDevUQpa9xhmLPbYlXrCpa
-LO3GprL2KYWtpEnjGAkGmI1ywnsbukNNpXg/q9n1xY/fr7SYQlys9TFnPsydRFq7
-R5K3M07ITUEeEl65h269aU86odK1iH246ch3fwjPOrPOz6hmZkwiHUos6dDWE4SN
-Oe8/FzbhLHVXpKrSrnc9rSdArZfUbjSmPx3Np/32WCWTE9nEQxT5G1tLrRMhd2nh
-QAyKS93Z4YDwFGRnniibbfC3lns7lRbSAtUUS+SBNXaqQpa8jPA7rklsuDR8YXw1
-YLY88ojn7pyW8cZsNn93oe9m9O850EbTJOHzVZIgJeRU04pOWRmKF7WYQSq8ZSvo
-MvuRBNXz05huYVwyUKvCUAyNmoDhobOSEFE2Go3vaYcA7dhPYMm00VzIdJI1u/w0
-63zwaWfVUcqFvnnsOZMTHrJlb/U0Cvv8pBUJcSW8uPL3VNl8P5v4jKXaY7gWMEmq
-g8h6Pz8Bv3S9qAnO9YDRaT20jcQjVVRnrxya/ovgwhU8l+/qbWMkCQvcMRXXgY7G
-+oBXZwmRYcFGIdrMox2GbtlrQWFj9C8/VrzlqbJNvAOU76t9PJ/429JENp7hjidL
-U9TngSMevAAOgbvZzIchVKLKBLXIiCb+RIf87JEYIdLT3sspRBZwgPiBAn/PYXTL
-kdwG+bGk3CGEGcrT8/Tp
-=19u7
------END PGP SIGNATURE-----
---==-=-=--
-
---=-=-=--
+Regards,
+Saket Sinha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
