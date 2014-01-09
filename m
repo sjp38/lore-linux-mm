@@ -1,110 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
-	by kanga.kvack.org (Postfix) with ESMTP id EFC896B0031
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 04:27:30 -0500 (EST)
-Received: by mail-we0-f170.google.com with SMTP id u57so2310652wes.1
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 01:27:30 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j47si2663415eeo.116.2014.01.09.01.27.30
+Received: from mail-bk0-f52.google.com (mail-bk0-f52.google.com [209.85.214.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 764486B0031
+	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 05:06:40 -0500 (EST)
+Received: by mail-bk0-f52.google.com with SMTP id u14so1041053bkz.25
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 02:06:39 -0800 (PST)
+Received: from mail-bk0-x229.google.com (mail-bk0-x229.google.com [2a00:1450:4008:c01::229])
+        by mx.google.com with ESMTPS id ch10si1766387bkc.61.2014.01.09.02.06.39
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 09 Jan 2014 01:27:30 -0800 (PST)
-Date: Thu, 9 Jan 2014 09:27:20 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/7] improve robustness on handling migratetype
-Message-ID: <20140109092720.GM27046@suse.de>
-References: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 09 Jan 2014 02:06:39 -0800 (PST)
+Received: by mail-bk0-f41.google.com with SMTP id v15so1057316bkz.14
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 02:06:39 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <20140108212636.GC15313@quack.suse.cz>
+References: <CAK25hWOu-Q0H8_RCejDduuLCA1-135BEp_Cn_njurBA4r7zp5g@mail.gmail.com>
+	<20140107122301.GC16640@quack.suse.cz>
+	<CAK25hWMdfSmZLZQugJ3YU=b6nb7ZQzQFw514e=HV91s0Z-W0nQ@mail.gmail.com>
+	<20140108111640.GD8256@quack.suse.cz>
+	<CAK25hWN_tWu=HrOzs-eu6UFbp-6G=3pZJs+svcBu0hBxErm02g@mail.gmail.com>
+	<20140108212636.GC15313@quack.suse.cz>
+Date: Thu, 9 Jan 2014 15:36:38 +0530
+Message-ID: <CAK25hWO+NjUNYTdD_SFLetchWT+XBq49mn0-hVyiOnmC9vJSDg@mail.gmail.com>
+Subject: Re: [LSF/MM ATTEND] Stackable Union Filesystem Implementation
+From: Saket Sinha <saket.sinha89@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jiang Liu <jiang.liu@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Andi Kleen <ak@linux.intel.com>, Wei Yongjun <yongjun_wei@trendmicro.com.cn>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
 
-On Thu, Jan 09, 2014 at 04:04:40PM +0900, Joonsoo Kim wrote:
-> Hello,
-> 
-> I found some weaknesses on handling migratetype during code review and
-> testing CMA.
-> 
-> First, we don't have any synchronization method on get/set pageblock
-> migratetype. When we change migratetype, we hold the zone lock. So
-> writer-writer race doesn't exist. But while someone changes migratetype,
-> others can get migratetype. This may introduce totally unintended value
-> as migratetype. Although I haven't heard of any problem report about
-> that, it is better to protect properly.
-> 
+>> As already mentioned that the issue that we were facing was that "too
+>> many copyups were made on the  read-write file system".
+>   But my question is: In which cases specifically do you want to avoid
+> copyups as compared to e.g. Overlayfs?
+>
+    To be honest I do not the answer. I had senior kernel developers
+from Cern who guided me when working on this driver. I need to consult
+them in order to answer you correctly. I would try to be bring them in
+this thread to get you the right answer.
 
-This is deliberate. The migratetypes for the majority of users are advisory
-and aimed for fragmentation avoidance. It was important that the cost of
-that be kept as low as possible and the general case is that migration types
-change very rarely. In many cases, the zone lock is held. In other cases,
-such as splitting free pages, the cost is simply not justified.
-
-I doubt there is any amount of data you could add in support that would
-justify hammering the free fast paths (which call get_pageblock_type).
-
-> Second, (get/set)_freepage_migrate isn't used properly. I guess that it
-> would be introduced for per cpu page(pcp) performance, but, it is also
-> used by memory isolation, now. For that case, the information isn't
-> enough to use, so we need to fix it.
-> 
-> Third, there is the problem on buddy allocator. It doesn't consider
-> migratetype when merging buddy, so pages from cma or isolate region can
-> be moved to other migratetype freelist. It makes CMA failed over and over.
-> To prevent it, the buddy allocator should consider migratetype if
-> CMA/ISOLATE is enabled.
-
-Without loioing at the patches, this is likely to add some cost to the
-page free fast path -- heavy cost if it's a pageblock lookup and lighter
-cost if you are using cached page information which is potentially stale.
-Why not force CMA regions to be aligned on MAX_ORDER_NR_PAGES boundary
-instead to avoid any possibility of merging issues?
-
-> This patchset is aimed at fixing these problems and based on v3.13-rc7.
-> 
->   mm/page_alloc: synchronize get/set pageblock
-
-cost with no justification.
-
->   mm/cma: fix cma free page accounting
-
-sounds like it would be a fix but unrelated to the leader and should be
-seperated out on its own
-
->   mm/page_alloc: move set_freepage_migratetype() to better place
-
-Very vague. If this does something useful then it could do with a better
-subject.
-
->   mm/isolation: remove invalid check condition
-
-Looks harmless.
-
->   mm/page_alloc: separate interface to set/get migratetype of freepage
->   mm/page_alloc: store freelist migratetype to the page on buddy
->     properly
-
-Potentially sounds useful
-
->   mm/page_alloc: don't merge MIGRATE_(CMA|ISOLATE) pages on buddy
-> 
-
-Sounds unnecessary if CMA regions were MAX_ORDER_NR_PAGES aligned and
-then the free paths would be unaffected for everybody.
-
-I didn't look at the patches because it felt like cost without any supporting
-justification for the patches. Superficially it looks like patch 1 needs to
-go away and the last patch could be done without affected !CMA users. The
-rest are potentially useful but there should have been some supporting
-data on how it helps CMA with some backup showing that the page allocation
-paths are not impacted as a result.
-
--- 
-Mel Gorman
-SUSE Labs
+Regards,
+Saket Sinha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
