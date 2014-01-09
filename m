@@ -1,65 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CF866B0037
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 09:17:55 -0500 (EST)
-Received: by mail-pd0-f178.google.com with SMTP id y10so3228684pdj.37
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 06:17:54 -0800 (PST)
-Received: from mail03-md.ns.itscom.net (mail03-md.ns.itscom.net. [175.177.155.113])
-        by mx.google.com with ESMTP id y1si4060084pbm.154.2014.01.09.06.17.52
-        for <linux-mm@kvack.org>;
-        Thu, 09 Jan 2014 06:17:53 -0800 (PST)
-From: "J. R. Okajima" <hooanon05g@gmail.com>
-Subject: Re: [LSF/MM ATTEND] Stackable Union Filesystem Implementation
-In-Reply-To: <CAK25hWNTmn=NL9exT1kG9D4ya=hzXWSZUiOj8iYjEfrf_yNTEQ@mail.gmail.com>
-References: <CAK25hWOu-Q0H8_RCejDduuLCA1-135BEp_Cn_njurBA4r7zp5g@mail.gmail.com> <20140107122301.GC16640@quack.suse.cz> <CAK25hWMdfSmZLZQugJ3YU=b6nb7ZQzQFw514e=HV91s0Z-W0nQ@mail.gmail.com> <6469.1389157809@jrobl> <CAK25hWOUhV2Ygs-Q3cVN-mio+BHB60zJ7J_wZZKb=hOR9mb0ug@mail.gmail.com> <523.1389252725@jrobl> <CAK25hWNTmn=NL9exT1kG9D4ya=hzXWSZUiOj8iYjEfrf_yNTEQ@mail.gmail.com>
-Date: Thu, 09 Jan 2014 23:17:51 +0900
-Message-ID: <8411.1389277071@jrobl>
+Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 690726B0037
+	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 09:30:51 -0500 (EST)
+Received: by mail-ee0-f45.google.com with SMTP id d49so1371082eek.4
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 06:30:50 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l2si4107663een.20.2014.01.09.06.30.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 09 Jan 2014 06:30:50 -0800 (PST)
+Date: Thu, 9 Jan 2014 15:30:48 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH] memcg: Do not hang on OOM when killed by userspace OOM
+ access to memory reserves
+Message-ID: <20140109143048.GE27538@dhcp22.suse.cz>
+References: <alpine.DEB.2.02.1312111434200.7354@chino.kir.corp.google.com>
+ <20131212103159.GB2630@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312131551220.28704@chino.kir.corp.google.com>
+ <20131217162342.GG28991@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312171240541.21640@chino.kir.corp.google.com>
+ <20131218200434.GA4161@dhcp22.suse.cz>
+ <alpine.DEB.2.02.1312182157510.1247@chino.kir.corp.google.com>
+ <20131219144134.GH10855@dhcp22.suse.cz>
+ <20140107162503.f751e880410f61a109cdcc2b@linux-foundation.org>
+ <20140108103319.GF27937@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140108103319.GF27937@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Saket Sinha <saket.sinha89@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, "Eric W. Biederman" <ebiederm@xmission.com>
 
+On Wed 08-01-14 11:33:19, Michal Hocko wrote:
+> On Tue 07-01-14 16:25:03, Andrew Morton wrote:
+> [...]
+> > > OK, so can we at least agree on the patch posted here:
+> > > https://lkml.org/lkml/2013/12/12/129. This is a real bug and definitely
+> > > worth fixing.
+> > 
+> > Yes, can we please get Eric's bug fixed?  I don't believe that Eric has
+> > tested either https://lkml.org/lkml/2013/12/12/129 or
+> > http://ozlabs.org/~akpm/mmots/broken-out/mm-memcg-avoid-oom-notification-when-current-needs-access-to-memory-reserves.patch.
+> > Is he the only person who can reproduce this?
+> 
+> I have gathered 3 patches from all the discussion and plan to post them
+> today or tomorrow as the time permits. https://lkml.org/lkml/2013/12/12/129
+> will be a part of it.
 
-Saket,
-Thanks for explanation.
-
-Saket Sinha:
-> What I am referring here is the topic  <storing metadata in multiple
-> places vs  "block device level union">. See DM operates on block
-> device/sector, but a stackable =EF=AC=81lesystem operates on =EF=AC=81lesys=
-> tem/=EF=AC=81le. My
-> point is this that which is the better approach according to the
-> kernel maintainers, so that this concept of Unioning gets universally
-> accepted and we have a mainline kernel union filesystem.
-
-While I don't know who prefers which approach, generally speaking, if
-you get what you want by an existing technology, it must be better to
-use it.
-Your ".me." approach will surely reduce the consumed blocks in the upper
-layer, but it of course contains a new overhead to maintain the
-information stored in ".me.".
-Additionally, as a result of ".me." approach, the upper layer will
-have info as not an ordinary file. I mean, fileA exists on the lower
-layer, but its metadata exists on the upper layer. So if a user
-(regardless within union or out of union) wants a complete fileA, then
-he has to get info from two places and merge them. Such situation looks
-similar to "block device level union".
-
-Currently it is unclear which evolution way hepunion will take, but if
-you want
-- filesystem-type union (instead of mount-type union nor block device
-  level union)
-- and name-based union (insated of inode-based union)
-then the approach is similar to overlayfs's.
-So it might be better to make overlayfs as the base of your development.
-If supporting NFS branch (or exporting hepunion) is important for you,
-then the inode-based solution will be necessary.
-
-
-J. R. Okajima
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+OK, I've decided to post the oom notification parts later because they
+will likely generate some discussion which might distract from the
+actual fix so here it goes (can be applied on both mmotm and the current
+Linus' tree):
+---
