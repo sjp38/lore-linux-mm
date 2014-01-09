@@ -1,107 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 76E156B0031
-	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 19:19:45 -0500 (EST)
-Received: by mail-pd0-f171.google.com with SMTP id z10so2425970pdj.16
-        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 16:19:45 -0800 (PST)
-Received: from LGEMRELSE7Q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id l8si2000797pao.326.2014.01.08.16.19.42
-        for <linux-mm@kvack.org>;
-        Wed, 08 Jan 2014 16:19:44 -0800 (PST)
-Date: Thu, 9 Jan 2014 09:20:00 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
- no local memory
-Message-ID: <20140109002000.GB15738@lge.com>
-References: <20140107132100.5b5ad198@kryten>
- <20140107074136.GA4011@lge.com>
- <52cbce84.aa71b60a.537c.ffffd9efSMTPIN_ADDED_BROKEN@mx.google.com>
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C52F6B0031
+	for <linux-mm@kvack.org>; Wed,  8 Jan 2014 20:35:57 -0500 (EST)
+Received: by mail-pb0-f50.google.com with SMTP id rr13so2326567pbb.23
+        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 17:35:57 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id nu8si2197123pbb.162.2014.01.08.17.35.55
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 08 Jan 2014 17:35:56 -0800 (PST)
+Message-ID: <52CDFCF1.5060107@oracle.com>
+Date: Thu, 09 Jan 2014 09:35:45 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52cbce84.aa71b60a.537c.ffffd9efSMTPIN_ADDED_BROKEN@mx.google.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Persistent Memory
+References: <20131220170502.GF19166@parisc-linux.org> <20140108154259.GJ27046@suse.de>
+In-Reply-To: <20140108154259.GJ27046@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Anton Blanchard <anton@samba.org>, benh@kernel.crashing.org, paulus@samba.org, cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, nacc@linux.vnet.ibm.com, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: Mel Gorman <mgorman@suse.de>, Matthew Wilcox <matthew@wil.cx>
+Cc: lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Jan 07, 2014 at 05:52:31PM +0800, Wanpeng Li wrote:
-> On Tue, Jan 07, 2014 at 04:41:36PM +0900, Joonsoo Kim wrote:
-> >On Tue, Jan 07, 2014 at 01:21:00PM +1100, Anton Blanchard wrote:
 
-> >> Index: b/mm/slub.c
-> >> ===================================================================
-> >> --- a/mm/slub.c
-> >> +++ b/mm/slub.c
-> >> @@ -2278,10 +2278,17 @@ redo:
-> >>  
-> >>  	if (unlikely(!node_match(page, node))) {
-> >>  		stat(s, ALLOC_NODE_MISMATCH);
-> >> -		deactivate_slab(s, page, c->freelist);
-> >> -		c->page = NULL;
-> >> -		c->freelist = NULL;
-> >> -		goto new_slab;
-> >> +
-> >> +		/*
-> >> +		 * If the node contains no memory there is no point in trying
-> >> +		 * to allocate a new node local slab
-> >> +		 */
-> >> +		if (node_spanned_pages(node)) {
-> >> +			deactivate_slab(s, page, c->freelist);
-> >> +			c->page = NULL;
-> >> +			c->freelist = NULL;
-> >> +			goto new_slab;
-> >> +		}
-> >>  	}
-> >>  
-> >>  	/*
-> >
-> >Hello,
-> >
-> >I think that we need more efforts to solve unbalanced node problem.
-> >
-> >With this patch, even if node of current cpu slab is not favorable to
-> >unbalanced node, allocation would proceed and we would get the unintended memory.
-> >
-> >And there is one more problem. Even if we have some partial slabs on
-> >compatible node, we would allocate new slab, because get_partial() cannot handle
-> >this unbalance node case.
-> >
-> >To fix this correctly, how about following patch?
-> >
-> >Thanks.
-> >
-> >------------->8--------------------
-> >diff --git a/mm/slub.c b/mm/slub.c
-> >index c3eb3d3..a1f6dfa 100644
-> >--- a/mm/slub.c
-> >+++ b/mm/slub.c
-> >@@ -1672,7 +1672,19 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
-> > {
-> >        void *object;
-> >        int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
-> >+       struct zonelist *zonelist;
-> >+       struct zoneref *z;
-> >+       struct zone *zone;
-> >+       enum zone_type high_zoneidx = gfp_zone(flags);
-> >
-> >+       if (!node_present_pages(searchnode)) {
-> >+               zonelist = node_zonelist(searchnode, flags);
-> >+               for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
-> >+                       searchnode = zone_to_nid(zone);
-> >+                       if (node_present_pages(searchnode))
-> >+                               break;
-> >+               }
-> >+       }
+On 01/08/2014 11:42 PM, Mel Gorman wrote:
+> On Fri, Dec 20, 2013 at 10:05:02AM -0700, Matthew Wilcox wrote:
+>>
+>> I should like to discuss the current situation with Linux support for
+>> persistent memory.  While I expect the current discussion to be long
+>> over by March, I am certain that there will be topics around persistent
+>> memory that have not been settled at that point.
+>>
+>> I believe this will mostly be of crossover interest between filesystem
+>> and MM people, and of lesser interest to storage people (since we're
+>> basically avoiding their code).
+>>
+>> Subtopics might include
+>>  - Using persistent memory for FS metadata
+>>    (The XIP code provides persistent memory to userspace.  The filesystem
+>>     still uses BIOs to fetch its metadata)
+>>  - Supporting PMD/PGD mappings for userspace
+>>    (Not only does the filesystem have to avoid fragmentation to make this
+>>     happen, the VM code has to permit these giant mappings)
 > 
-> Why change searchnode instead of depending on fallback zones/nodes in 
-> get_any_partial() to allocate partial slabs?
+> The filesystem would also have to correctly align the data on disk. All
+> this implies that the underlying device is byte-addressible, similar access
+> speeds to RAM and directly accessible from userspace without the kernel
+> being involved. Without those conditions, I find it hard to believe that
+> TLB pressure dominates access cost. Then again I have no experience with
+> the devices or their intended use case so would not mind an education.
+> 
+> However, if you really wanted the device to be accessible like this then
+> the shortest solutions (and I want to punch myself for even suggesting
+> this) is to extend hugetlbfs to directly access these devices. It's
+> almost certainly a bad direction to take though, there would need to be a
+> good justification for it. Anything in this direction is pushing usage of
+> persistent devices to userspace and the kernel just provides an interface,
+> maybe that is desirable maybe not.
+> 
+>>  - Persistent page cache
+>>    (Another way to take advantage of persstent memory would be to place it
+>>     in the page cache.  But we don't have struct pages for it!  What to do?)
 > 
 
-If node != NUMA_NO_NODE, get_any_partial() isn't called.
-That's why I change searchnode here instead of get_any_partial().
+I think one potential way is to use persistent memory as a second-level
+clean page cache through the cleancache API.
 
-Thanks.
+-- 
+Regards,
+-Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
