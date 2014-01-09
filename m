@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 229E16B0039
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 02:04:36 -0500 (EST)
-Received: by mail-pd0-f171.google.com with SMTP id z10so2788159pdj.30
-        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 23:04:35 -0800 (PST)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id A20356B0039
+	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 02:04:37 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id lf10so616253pab.35
+        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 23:04:37 -0800 (PST)
 Received: from LGEMRELSE7Q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id sj5si2938579pab.342.2014.01.08.23.04.33
+        by mx.google.com with ESMTP id eb3si2955614pbd.257.2014.01.08.23.04.34
         for <linux-mm@kvack.org>;
-        Wed, 08 Jan 2014 23:04:34 -0800 (PST)
+        Wed, 08 Jan 2014 23:04:36 -0800 (PST)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH 3/7] mm/page_alloc: move set_freepage_migratetype() to better place
-Date: Thu,  9 Jan 2014 16:04:43 +0900
-Message-Id: <1389251087-10224-4-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 4/7] mm/isolation: remove invalid check condition
+Date: Thu,  9 Jan 2014 16:04:44 +0900
+Message-Id: <1389251087-10224-5-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,70 +19,35 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jiang Liu <jiang.liu@huawei.com>, Mel Gorman <mgorman@suse.de>, Cody P Schafer <cody@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Andi Kleen <ak@linux.intel.com>, Wei Yongjun <yongjun_wei@trendmicro.com.cn>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-set_freepage_migratetype() inform us of the buddy freelist where
-the page should be linked when it goes to buddy freelist.
+test_page_isolated() checks stability of pages. It checks two conditions,
+one is that the page is on isolate migratetype and the other is that
+the page is on the buddy and the isolate freelist. With satisfying
+these two conditions, we can determine that the page is stable and then
+go forward.
 
-Now, it has done in rmqueue_bulk() so that we should call
-get_pageblock_migratetype() to know it's migratetype exactly if
-CONFIG_CMA is enabled. That function has some overhead so that
-removing it is preferable.
-
-To remove it, we move set_freepage_migratetype() to __rmqueue_fallback()
-and __rmqueue_smallest(). In those functions, we can know migratetype
-easily so that we don't need to call get_pageblock_migratetype().
-
-Removing is_migrate_isolate() is safe since what we want to ensure is
-that the page from cma will not go to other migratetype freelist.
+__test_page_isolated_in_pageblock() is one of the main functions for this
+test. In that function, if it meets the page with page_count 0 and
+isolate migratetype, it decides that this page is stable. But this is not
+true, because there is possiblity that this kind of page is on the pcp
+and then it can be allocated by other users even though we hold the zone
+lock. So removing this check.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1489c301..4913829 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -903,6 +903,7 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
- 		rmv_page_order(page);
- 		area->nr_free--;
- 		expand(zone, page, order, current_order, area, migratetype);
-+		set_freepage_migratetype(page, migratetype);
- 		return page;
- 	}
- 
-@@ -1093,8 +1094,12 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
- 
- 			/* CMA pages cannot be stolen */
- 			if (is_migrate_cma(migratetype)) {
-+				set_freepage_migratetype(page, migratetype);
- 				__mod_zone_page_state(zone,
- 					NR_FREE_CMA_PAGES, -(1 << order));
-+			} else {
-+				set_freepage_migratetype(page,
-+							start_migratetype);
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index d1473b2..534fb3a 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -199,9 +199,6 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
  			}
- 
- 			/* Remove the page from the freelists */
-@@ -1153,7 +1158,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
- 			unsigned long count, struct list_head *list,
- 			int migratetype, int cold)
- {
--	int mt = migratetype, i;
-+	int i;
- 
- 	spin_lock(&zone->lock);
- 	for (i = 0; i < count; ++i) {
-@@ -1174,12 +1179,6 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
- 			list_add(&page->lru, list);
- 		else
- 			list_add_tail(&page->lru, list);
--		if (IS_ENABLED(CONFIG_CMA)) {
--			mt = get_pageblock_migratetype(page);
--			if (!is_migrate_cma(mt) && !is_migrate_isolate(mt))
--				mt = migratetype;
--		}
--		set_freepage_migratetype(page, mt);
- 		list = &page->lru;
- 	}
- 	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
+ 			pfn += 1 << page_order(page);
+ 		}
+-		else if (page_count(page) == 0 &&
+-			get_freepage_migratetype(page) == MIGRATE_ISOLATE)
+-			pfn += 1;
+ 		else if (skip_hwpoisoned_pages && PageHWPoison(page)) {
+ 			/*
+ 			 * The HWPoisoned page may be not in buddy
 -- 
 1.7.9.5
 
