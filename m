@@ -1,47 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
-	by kanga.kvack.org (Postfix) with ESMTP id C86F96B0031
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 09:05:05 -0500 (EST)
-Received: by mail-we0-f170.google.com with SMTP id u57so2588736wes.29
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 06:05:05 -0800 (PST)
-Received: from mail-wg0-x22c.google.com (mail-wg0-x22c.google.com [2a00:1450:400c:c00::22c])
-        by mx.google.com with ESMTPS id kc5si1382092wjc.145.2014.01.09.06.05.04
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 09 Jan 2014 06:05:04 -0800 (PST)
-Received: by mail-wg0-f44.google.com with SMTP id l18so1862586wgh.23
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 06:05:04 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <xa1tha9dbk2t.fsf@mina86.com>
-References: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<xa1tha9dbk2t.fsf@mina86.com>
-Date: Thu, 9 Jan 2014 23:05:04 +0900
-Message-ID: <CAAmzW4PyCp1Hw1ThHGZV5i1wb9494vgpDhZ4h+Gr3Q=pLOojJA@mail.gmail.com>
-Subject: Re: [PATCH 0/7] improve robustness on handling migratetype
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CF866B0037
+	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 09:17:55 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id y10so3228684pdj.37
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 06:17:54 -0800 (PST)
+Received: from mail03-md.ns.itscom.net (mail03-md.ns.itscom.net. [175.177.155.113])
+        by mx.google.com with ESMTP id y1si4060084pbm.154.2014.01.09.06.17.52
+        for <linux-mm@kvack.org>;
+        Thu, 09 Jan 2014 06:17:53 -0800 (PST)
+From: "J. R. Okajima" <hooanon05g@gmail.com>
+Subject: Re: [LSF/MM ATTEND] Stackable Union Filesystem Implementation
+In-Reply-To: <CAK25hWNTmn=NL9exT1kG9D4ya=hzXWSZUiOj8iYjEfrf_yNTEQ@mail.gmail.com>
+References: <CAK25hWOu-Q0H8_RCejDduuLCA1-135BEp_Cn_njurBA4r7zp5g@mail.gmail.com> <20140107122301.GC16640@quack.suse.cz> <CAK25hWMdfSmZLZQugJ3YU=b6nb7ZQzQFw514e=HV91s0Z-W0nQ@mail.gmail.com> <6469.1389157809@jrobl> <CAK25hWOUhV2Ygs-Q3cVN-mio+BHB60zJ7J_wZZKb=hOR9mb0ug@mail.gmail.com> <523.1389252725@jrobl> <CAK25hWNTmn=NL9exT1kG9D4ya=hzXWSZUiOj8iYjEfrf_yNTEQ@mail.gmail.com>
+Date: Thu, 09 Jan 2014 23:17:51 +0900
+Message-ID: <8411.1389277071@jrobl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jiang Liu <jiang.liu@huawei.com>, Mel Gorman <mgorman@suse.de>, Cody P Schafer <cody@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Andi Kleen <ak@linux.intel.com>, Wei Yongjun <yongjun_wei@trendmicro.com.cn>, Tang Chen <tangchen@cn.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Saket Sinha <saket.sinha89@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
 
-2014/1/9 Michal Nazarewicz <mina86@mina86.com>:
-> On Thu, Jan 09 2014, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
->> Third, there is the problem on buddy allocator. It doesn't consider
->> migratetype when merging buddy, so pages from cma or isolate region can
->> be moved to other migratetype freelist. It makes CMA failed over and over.
->> To prevent it, the buddy allocator should consider migratetype if
->> CMA/ISOLATE is enabled.
->
-> There should never be situation where a CMA page shares a pageblock (or
-> a max-order page) with a non-CMA page though, so this should never be an
-> issue.
 
-Right... It never happens.
-When I ported CMA region reservation code to my own code for testing,
-I made a mistake. Sorry for noise.
+Saket,
+Thanks for explanation.
 
-Thanks.
+Saket Sinha:
+> What I am referring here is the topic  <storing metadata in multiple
+> places vs  "block device level union">. See DM operates on block
+> device/sector, but a stackable =EF=AC=81lesystem operates on =EF=AC=81lesys=
+> tem/=EF=AC=81le. My
+> point is this that which is the better approach according to the
+> kernel maintainers, so that this concept of Unioning gets universally
+> accepted and we have a mainline kernel union filesystem.
+
+While I don't know who prefers which approach, generally speaking, if
+you get what you want by an existing technology, it must be better to
+use it.
+Your ".me." approach will surely reduce the consumed blocks in the upper
+layer, but it of course contains a new overhead to maintain the
+information stored in ".me.".
+Additionally, as a result of ".me." approach, the upper layer will
+have info as not an ordinary file. I mean, fileA exists on the lower
+layer, but its metadata exists on the upper layer. So if a user
+(regardless within union or out of union) wants a complete fileA, then
+he has to get info from two places and merge them. Such situation looks
+similar to "block device level union".
+
+Currently it is unclear which evolution way hepunion will take, but if
+you want
+- filesystem-type union (instead of mount-type union nor block device
+  level union)
+- and name-based union (insated of inode-based union)
+then the approach is similar to overlayfs's.
+So it might be better to make overlayfs as the base of your development.
+If supporting NFS branch (or exporting hepunion) is important for you,
+then the inode-based solution will be necessary.
+
+
+J. R. Okajima
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
