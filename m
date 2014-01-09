@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CD406B003A
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 09:35:07 -0500 (EST)
-Received: by mail-ee0-f51.google.com with SMTP id b15so1377745eek.10
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 06:35:06 -0800 (PST)
+Received: from mail-bk0-f41.google.com (mail-bk0-f41.google.com [209.85.214.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F12C6B003B
+	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 09:35:08 -0500 (EST)
+Received: by mail-bk0-f41.google.com with SMTP id v15so1156203bkz.14
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 06:35:08 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p9si4061602eew.181.2014.01.09.06.35.05
+        by mx.google.com with ESMTPS id p9si4077342eew.139.2014.01.09.06.35.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 09 Jan 2014 06:35:06 -0800 (PST)
+        Thu, 09 Jan 2014 06:35:07 -0800 (PST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 3/5] x86: mm: Eliminate redundant page table walk during TLB range flushing
-Date: Thu,  9 Jan 2014 14:34:56 +0000
-Message-Id: <1389278098-27154-4-git-send-email-mgorman@suse.de>
+Subject: [PATCH 5/5] mm: x86: Revisit tlb_flushall_shift tuning for page flushes except on IvyBridge
+Date: Thu,  9 Jan 2014 14:34:58 +0000
+Message-Id: <1389278098-27154-6-git-send-email-mgorman@suse.de>
 In-Reply-To: <1389278098-27154-1-git-send-email-mgorman@suse.de>
 References: <1389278098-27154-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,71 +20,74 @@ List-ID: <linux-mm.kvack.org>
 To: Alex Shi <alex.shi@linaro.org>, Ingo Molnar <mingo@kernel.org>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-When choosing between doing an address space or ranged flush, the x86
-implementation of flush_tlb_mm_range takes into account whether there are
-any large pages in the range. A per-page flush typically requires fewer
-entries than would covered by a single large page and the check is redundant.
+There was a large ebizzy performance regression that was bisected to commit
+611ae8e3 (x86/tlb: enable tlb flush range support for x86). The problem
+was related to the tlb_flushall_shift tuning for IvyBridge which was
+altered. The problem is that it is not clear if the tuning values for each
+CPU family is correct as the methodology used to tune the values is unclear.
 
-There is one potential exception. THP migration flushes single THP entries
-and it conceivably would benefit from flushing a single entry instead
-of the mm. However, this flush is after a THP allocation, copy and page
-table update potentially with any other threads serialised behind it. In
-comparison to that, the flush is noise. It makes more sense to optimise
-balancing to require fewer flushes than to optimise the flush itself.
+This patch uses a conservative tlb_flushall_shift value for all CPU families
+except IvyBridge so the decision can be revisited if any regression is found
+as a result of this change. IvyBridge is an exception as testing with one
+methodology determined that the value of 2 is acceptable. Details are in the
+changelog for the patch "x86: mm: Change tlb_flushall_shift for IvyBridge".
 
-This patch deletes the redundant huge page check.
+One important aspect of this to watch out for is Xen. The original commit
+log mentioned large performance gains on Xen. It's possible Xen is more
+sensitive to this value if it flushes small ranges of pages more frequently
+than workloads on bare metal typically do.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- arch/x86/mm/tlb.c | 28 +---------------------------
- 1 file changed, 1 insertion(+), 27 deletions(-)
+ arch/x86/kernel/cpu/amd.c   |  5 +----
+ arch/x86/kernel/cpu/intel.c | 10 +++-------
+ 2 files changed, 4 insertions(+), 11 deletions(-)
 
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 5176526..dd8dda1 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -158,32 +158,6 @@ void flush_tlb_current_task(void)
- 	preempt_enable();
+diff --git a/arch/x86/kernel/cpu/amd.c b/arch/x86/kernel/cpu/amd.c
+index bca023b..7aa2545 100644
+--- a/arch/x86/kernel/cpu/amd.c
++++ b/arch/x86/kernel/cpu/amd.c
+@@ -758,10 +758,7 @@ static unsigned int amd_size_cache(struct cpuinfo_x86 *c, unsigned int size)
+ 
+ static void cpu_set_tlb_flushall_shift(struct cpuinfo_x86 *c)
+ {
+-	tlb_flushall_shift = 5;
+-
+-	if (c->x86 <= 0x11)
+-		tlb_flushall_shift = 4;
++	tlb_flushall_shift = 6;
  }
  
--/*
-- * It can find out the THP large page, or
-- * HUGETLB page in tlb_flush when THP disabled
-- */
--static inline unsigned long has_large_page(struct mm_struct *mm,
--				 unsigned long start, unsigned long end)
--{
--	pgd_t *pgd;
--	pud_t *pud;
--	pmd_t *pmd;
--	unsigned long addr = ALIGN(start, HPAGE_SIZE);
--	for (; addr < end; addr += HPAGE_SIZE) {
--		pgd = pgd_offset(mm, addr);
--		if (likely(!pgd_none(*pgd))) {
--			pud = pud_offset(pgd, addr);
--			if (likely(!pud_none(*pud))) {
--				pmd = pmd_offset(pud, addr);
--				if (likely(!pmd_none(*pmd)))
--					if (pmd_large(*pmd))
--						return addr;
--			}
--		}
--	}
--	return 0;
--}
--
- void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 				unsigned long end, unsigned long vmflag)
- {
-@@ -218,7 +192,7 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 	nr_base_pages = (end - start) >> PAGE_SHIFT;
- 
- 	/* tlb_flushall_shift is on balance point, details in commit log */
--	if (nr_base_pages > act_entries || has_large_page(mm, start, end)) {
-+	if (nr_base_pages > act_entries) {
- 		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
- 		local_flush_tlb();
- 	} else {
+ static void cpu_detect_tlb_amd(struct cpuinfo_x86 *c)
+diff --git a/arch/x86/kernel/cpu/intel.c b/arch/x86/kernel/cpu/intel.c
+index bbe1b8b..d358a39 100644
+--- a/arch/x86/kernel/cpu/intel.c
++++ b/arch/x86/kernel/cpu/intel.c
+@@ -615,21 +615,17 @@ static void intel_tlb_flushall_shift_set(struct cpuinfo_x86 *c)
+ 	case 0x61d: /* six-core 45 nm xeon "Dunnington" */
+ 		tlb_flushall_shift = -1;
+ 		break;
++	case 0x63a: /* Ivybridge */
++		tlb_flushall_shift = 2;
++		break;
+ 	case 0x61a: /* 45 nm nehalem, "Bloomfield" */
+ 	case 0x61e: /* 45 nm nehalem, "Lynnfield" */
+ 	case 0x625: /* 32 nm nehalem, "Clarkdale" */
+ 	case 0x62c: /* 32 nm nehalem, "Gulftown" */
+ 	case 0x62e: /* 45 nm nehalem-ex, "Beckton" */
+ 	case 0x62f: /* 32 nm Xeon E7 */
+-		tlb_flushall_shift = 6;
+-		break;
+ 	case 0x62a: /* SandyBridge */
+ 	case 0x62d: /* SandyBridge, "Romely-EP" */
+-		tlb_flushall_shift = 5;
+-		break;
+-	case 0x63a: /* Ivybridge */
+-		tlb_flushall_shift = 2;
+-		break;
+ 	default:
+ 		tlb_flushall_shift = 6;
+ 	}
 -- 
 1.8.4
 
