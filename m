@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 62F1A6B0035
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 15:01:23 -0500 (EST)
-Received: by mail-ee0-f51.google.com with SMTP id b15so1540770eek.24
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 12:01:22 -0800 (PST)
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id A9F656B0035
+	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 15:12:06 -0500 (EST)
+Received: by mail-we0-f181.google.com with SMTP id u56so953963wes.12
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 12:12:06 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id n47si5486197eef.94.2014.01.09.12.01.22
+        by mx.google.com with ESMTP id z12si1964470wjy.72.2014.01.09.12.12.05
         for <linux-mm@kvack.org>;
-        Thu, 09 Jan 2014 12:01:22 -0800 (PST)
-Message-ID: <52CEFFF3.9010709@redhat.com>
-Date: Thu, 09 Jan 2014 15:00:51 -0500
+        Thu, 09 Jan 2014 12:12:05 -0800 (PST)
+Message-ID: <52CEFD4F.3080804@redhat.com>
+Date: Thu, 09 Jan 2014 14:49:35 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/5] mm: x86: Revisit tlb_flushall_shift tuning for page
- flushes except on IvyBridge
-References: <1389278098-27154-1-git-send-email-mgorman@suse.de> <1389278098-27154-6-git-send-email-mgorman@suse.de>
-In-Reply-To: <1389278098-27154-6-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 3/5] x86: mm: Eliminate redundant page table walk during
+ TLB range flushing
+References: <1389278098-27154-1-git-send-email-mgorman@suse.de> <1389278098-27154-4-git-send-email-mgorman@suse.de>
+In-Reply-To: <1389278098-27154-4-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,22 +24,19 @@ To: Mel Gorman <mgorman@suse.de>, Alex Shi <alex.shi@linaro.org>, Ingo Molnar <m
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
 On 01/09/2014 09:34 AM, Mel Gorman wrote:
-> There was a large ebizzy performance regression that was bisected to commit
-> 611ae8e3 (x86/tlb: enable tlb flush range support for x86). The problem
-> was related to the tlb_flushall_shift tuning for IvyBridge which was
-> altered. The problem is that it is not clear if the tuning values for each
-> CPU family is correct as the methodology used to tune the values is unclear.
+> When choosing between doing an address space or ranged flush, the x86
+> implementation of flush_tlb_mm_range takes into account whether there are
+> any large pages in the range. A per-page flush typically requires fewer
+> entries than would covered by a single large page and the check is redundant.
 >
-> This patch uses a conservative tlb_flushall_shift value for all CPU families
-> except IvyBridge so the decision can be revisited if any regression is found
-> as a result of this change. IvyBridge is an exception as testing with one
-> methodology determined that the value of 2 is acceptable. Details are in the
-> changelog for the patch "x86: mm: Change tlb_flushall_shift for IvyBridge".
+> There is one potential exception. THP migration flushes single THP entries
+> and it conceivably would benefit from flushing a single entry instead
+> of the mm. However, this flush is after a THP allocation, copy and page
+> table update potentially with any other threads serialised behind it. In
+> comparison to that, the flush is noise. It makes more sense to optimise
+> balancing to require fewer flushes than to optimise the flush itself.
 >
-> One important aspect of this to watch out for is Xen. The original commit
-> log mentioned large performance gains on Xen. It's possible Xen is more
-> sensitive to this value if it flushes small ranges of pages more frequently
-> than workloads on bare metal typically do.
+> This patch deletes the redundant huge page check.
 >
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
 
