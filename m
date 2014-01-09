@@ -1,81 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id E031E6B0035
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 16:10:40 -0500 (EST)
-Received: by mail-pd0-f169.google.com with SMTP id v10so3688090pde.0
-        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 13:10:40 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id nu8si4883447pbb.342.2014.01.09.13.10.32
+Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 513F16B0035
+	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 16:16:04 -0500 (EST)
+Received: by mail-qc0-f171.google.com with SMTP id n7so1636516qcx.16
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 13:16:04 -0800 (PST)
+Received: from mail-gg0-x22e.google.com (mail-gg0-x22e.google.com [2607:f8b0:4002:c02::22e])
+        by mx.google.com with ESMTPS id f9si7099661qar.46.2014.01.09.13.15.59
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Jan 2014 13:10:39 -0800 (PST)
-Message-ID: <52CF1045.30903@codeaurora.org>
-Date: Thu, 09 Jan 2014 13:10:29 -0800
-From: Laura Abbott <lauraa@codeaurora.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 09 Jan 2014 13:16:01 -0800 (PST)
+Received: by mail-gg0-f174.google.com with SMTP id g10so224087gga.33
+        for <linux-mm@kvack.org>; Thu, 09 Jan 2014 13:15:57 -0800 (PST)
+Date: Thu, 9 Jan 2014 13:15:54 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC] mm: show message when updating min_free_kbytes in thp
+In-Reply-To: <20140109073259.GK4106@localhost.localdomain>
+Message-ID: <alpine.DEB.2.02.1401091310510.31538@chino.kir.corp.google.com>
+References: <20140101002935.GA15683@localhost.localdomain> <52C5AA61.8060701@intel.com> <20140103033303.GB4106@localhost.localdomain> <52C6FED2.7070700@intel.com> <20140105003501.GC4106@localhost.localdomain> <20140106164604.GC27602@dhcp22.suse.cz>
+ <20140108101611.GD27937@dhcp22.suse.cz> <20140109073259.GK4106@localhost.localdomain>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/7] mm/cma: fix cma free page accounting
-References: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com> <1389251087-10224-3-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1389251087-10224-3-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jiang Liu <jiang.liu@huawei.com>, Mel Gorman <mgorman@suse.de>, Cody P Schafer <cody@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Andi Kleen <ak@linux.intel.com>, Wei Yongjun <yongjun_wei@trendmicro.com.cn>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>
+To: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave.hansen@intel.com>
 
-On 1/8/2014 11:04 PM, Joonsoo Kim wrote:
-> Cma pages can be allocated by not only order 0 request but also high order
-> request. So, we should consider to account free cma page in the both
-> places.
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index b36aa5a..1489c301 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1091,6 +1091,12 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
->   							  start_migratetype,
->   							  migratetype);
->
-> +			/* CMA pages cannot be stolen */
-> +			if (is_migrate_cma(migratetype)) {
-> +				__mod_zone_page_state(zone,
-> +					NR_FREE_CMA_PAGES, -(1 << order));
-> +			}
+On Thu, 9 Jan 2014, Han Pingtian wrote:
+
+> min_free_kbytes may be raised during THP's initialization. Sometimes,
+> this will change the value being set by user. Showing message will
+> clarify this confusion.
+> 
+> Only show this message when changing the value set by user according to
+> Michal Hocko's suggestion.
+> 
+> Showing the old value of min_free_kbytes according to Dave Hansen's
+> suggestion. This will give user the chance to restore old value of
+> min_free_kbytes.
+> 
+> Signed-off-by: Han Pingtian <hanpt@linux.vnet.ibm.com>
+> ---
+>  mm/huge_memory.c |    9 ++++++++-
+>  mm/page_alloc.c  |    2 +-
+>  2 files changed, 9 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 7de1bf8..e0e4e29 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -100,6 +100,7 @@ static struct khugepaged_scan khugepaged_scan = {
+>  	.mm_head = LIST_HEAD_INIT(khugepaged_scan.mm_head),
+>  };
+>  
+> +extern int user_min_free_kbytes;
+>  
+
+We don't add extern declarations to .c files.  How many other examples of 
+this can you find in mm/?
+
+>  static int set_recommended_min_free_kbytes(void)
+>  {
+> @@ -130,8 +131,14 @@ static int set_recommended_min_free_kbytes(void)
+>  			      (unsigned long) nr_free_buffer_pages() / 20);
+>  	recommended_min <<= (PAGE_SHIFT-10);
+>  
+> -	if (recommended_min > min_free_kbytes)
+> +	if (recommended_min > min_free_kbytes) {
+> +		if (user_min_free_kbytes >= 0)
+> +			pr_info("raising min_free_kbytes from %d to %lu "
+> +				"to help transparent hugepage allocations\n",
+> +				min_free_kbytes, recommended_min);
 > +
->   			/* Remove the page from the freelists */
->   			list_del(&page->lru);
->   			rmv_page_order(page);
-> @@ -1175,9 +1181,6 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
->   		}
->   		set_freepage_migratetype(page, mt);
->   		list = &page->lru;
-> -		if (is_migrate_cma(mt))
-> -			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
-> -					      -(1 << order));
->   	}
->   	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
->   	spin_unlock(&zone->lock);
->
+>  		min_free_kbytes = recommended_min;
+> +	}
+>  	setup_per_zone_wmarks();
+>  	return 0;
+>  }
 
-Wouldn't this result in double counting? in the buffered_rmqueue non 
-zero ordered request we call __mod_zone_freepage_state which already 
-accounts for CMA pages if the migrate type is CMA so it seems like we 
-would get hit twice:
-
-buffered_rmqueue
-    __rmqueue
-        __rmqueue_fallback
-            decrement
-    __mod_zone_freepage_state
-       decrement
-
-Thanks,
-Laura
--- 
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
+Does this even ever trigger since set_recommended_min_free_kbytes() is 
+called via late_initcall()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
