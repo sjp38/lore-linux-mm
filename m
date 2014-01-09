@@ -1,82 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id ED0526B0031
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 00:41:25 -0500 (EST)
-Received: by mail-pb0-f51.google.com with SMTP id up15so2574610pbc.10
-        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 21:41:25 -0800 (PST)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id ey5si2729452pab.335.2014.01.08.21.41.23
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Wed, 08 Jan 2014 21:41:24 -0800 (PST)
-Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout4.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MZ4003MQD4XOY50@mailout4.samsung.com> for
- linux-mm@kvack.org; Thu, 09 Jan 2014 14:41:21 +0900 (KST)
-From: Weijie Yang <weijie.yang@samsung.com>
-Subject: [PATCH] mm/swap: fix race on swap_info reuse between swapoff and swapon
-Date: Thu, 09 Jan 2014 13:39:55 +0800
-Message-id: <000001cf0cfd$6d251640$476f42c0$%yang@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=UTF-8
-Content-transfer-encoding: 7bit
-Content-language: zh-cn
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id B73366B0031
+	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 02:04:33 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id kx10so2916759pab.36
+        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 23:04:33 -0800 (PST)
+Received: from LGEMRELSE7Q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id eb3si2955614pbd.257.2014.01.08.23.04.30
+        for <linux-mm@kvack.org>;
+        Wed, 08 Jan 2014 23:04:32 -0800 (PST)
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: [PATCH 0/7] improve robustness on handling migratetype
+Date: Thu,  9 Jan 2014 16:04:40 +0900
+Message-Id: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, hughd@google.com, 'Minchan Kim' <minchan@kernel.org>, shli@fusionio.com, 'Bob Liu' <bob.liu@oracle.com>, k.kozlowski@samsung.com, stable@vger.kernel.org, weijie.yang.kh@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jiang Liu <jiang.liu@huawei.com>, Mel Gorman <mgorman@suse.de>, Cody P Schafer <cody@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Andi Kleen <ak@linux.intel.com>, Wei Yongjun <yongjun_wei@trendmicro.com.cn>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-swapoff clear swap_info's SWP_USED flag prematurely and free its resources
-after that. A concurrent swapon will reuse this swap_info while its previous
-resources are not cleared completely.
+Hello,
 
-These late freed resources are:
-- p->percpu_cluster
-- swap_cgroup_ctrl[type]
-- block_device setting
-- inode->i_flags &= ~S_SWAPFILE
+I found some weaknesses on handling migratetype during code review and
+testing CMA.
 
-This patch clear SWP_USED flag after all its resources freed, so that swapon
-can reuse this swap_info by alloc_swap_info() safely.
+First, we don't have any synchronization method on get/set pageblock
+migratetype. When we change migratetype, we hold the zone lock. So
+writer-writer race doesn't exist. But while someone changes migratetype,
+others can get migratetype. This may introduce totally unintended value
+as migratetype. Although I haven't heard of any problem report about
+that, it is better to protect properly.
 
-Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
----
- mm/swapfile.c |   11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+Second, (get/set)_freepage_migrate isn't used properly. I guess that it
+would be introduced for per cpu page(pcp) performance, but, it is also
+used by memory isolation, now. For that case, the information isn't
+enough to use, so we need to fix it.
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 612a7c9..89071c3
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1922,7 +1922,6 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	p->swap_map = NULL;
- 	cluster_info = p->cluster_info;
- 	p->cluster_info = NULL;
--	p->flags = 0;
- 	frontswap_map = frontswap_map_get(p);
- 	spin_unlock(&p->lock);
- 	spin_unlock(&swap_lock);
-@@ -1948,6 +1947,16 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 		mutex_unlock(&inode->i_mutex);
- 	}
- 	filp_close(swap_file, NULL);
-+
-+	/*
-+	* clear SWP_USED flag after all resources freed
-+	* so that swapon can reuse this swap_info in alloc_swap_info() safely
-+	* it is ok to not hold p->lock after we cleared its SWP_WRITEOK
-+	*/
-+	spin_lock(&swap_lock);
-+	p->flags = 0;
-+	spin_unlock(&swap_lock);
-+
- 	err = 0;
- 	atomic_inc(&proc_poll_event);
- 	wake_up_interruptible(&proc_poll_wait);
+Third, there is the problem on buddy allocator. It doesn't consider
+migratetype when merging buddy, so pages from cma or isolate region can
+be moved to other migratetype freelist. It makes CMA failed over and over.
+To prevent it, the buddy allocator should consider migratetype if
+CMA/ISOLATE is enabled.
+
+This patchset is aimed at fixing these problems and based on v3.13-rc7.
+
+Thanks.
+
+Joonsoo Kim (7):
+  mm/page_alloc: synchronize get/set pageblock
+  mm/cma: fix cma free page accounting
+  mm/page_alloc: move set_freepage_migratetype() to better place
+  mm/isolation: remove invalid check condition
+  mm/page_alloc: separate interface to set/get migratetype of freepage
+  mm/page_alloc: store freelist migratetype to the page on buddy
+    properly
+  mm/page_alloc: don't merge MIGRATE_(CMA|ISOLATE) pages on buddy
+
+ include/linux/mm.h             |   35 +++++++++++++++++++++---
+ include/linux/mmzone.h         |    2 ++
+ include/linux/page-isolation.h |    1 -
+ mm/page_alloc.c                |   59 ++++++++++++++++++++++++++--------------
+ mm/page_isolation.c            |    5 +---
+ 5 files changed, 73 insertions(+), 29 deletions(-)
+
 -- 
-1.7.10.4
-
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
