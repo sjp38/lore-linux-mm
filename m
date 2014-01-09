@@ -1,74 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A2496B0031
-	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 02:16:40 -0500 (EST)
-Received: by mail-pd0-f176.google.com with SMTP id w10so2818964pde.7
-        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 23:16:40 -0800 (PST)
-Received: from LGEMRELSE7Q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id pt8si3001314pac.134.2014.01.08.23.16.37
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CE256B0031
+	for <linux-mm@kvack.org>; Thu,  9 Jan 2014 02:32:08 -0500 (EST)
+Received: by mail-pb0-f45.google.com with SMTP id rp16so2681372pbb.32
+        for <linux-mm@kvack.org>; Wed, 08 Jan 2014 23:32:08 -0800 (PST)
+Received: from mail02-md.ns.itscom.net (mail02-md.ns.itscom.net. [175.177.155.112])
+        by mx.google.com with ESMTP id n8si3060749pax.15.2014.01.08.23.32.06
         for <linux-mm@kvack.org>;
-        Wed, 08 Jan 2014 23:16:38 -0800 (PST)
-Date: Thu, 9 Jan 2014 16:16:56 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: possible regression on 3.13 when calling flush_dcache_page
-Message-ID: <20140109071656.GA10290@lge.com>
-References: <20131212143618.GJ12099@ldesroches-Latitude-E6320>
- <20131213015909.GA8845@lge.com>
- <20131216144343.GD9627@ldesroches-Latitude-E6320>
- <20131218072117.GA2383@lge.com>
- <20131220080851.GC16592@ldesroches-Latitude-E6320>
- <20131223224435.GD16592@ldesroches-Latitude-E6320>
- <20131224063837.GA27156@lge.com>
- <20140103145404.GC18002@ldesroches-Latitude-E6320>
- <20140106002648.GC696@lge.com>
- <20140106093408.GA2816@ldesroches-Latitude-E6320>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140106093408.GA2816@ldesroches-Latitude-E6320>
+        Wed, 08 Jan 2014 23:32:07 -0800 (PST)
+From: "J. R. Okajima" <hooanon05g@gmail.com>
+Subject: Re: [LSF/MM ATTEND] Stackable Union Filesystem Implementation
+In-Reply-To: <CAK25hWOUhV2Ygs-Q3cVN-mio+BHB60zJ7J_wZZKb=hOR9mb0ug@mail.gmail.com>
+References: <CAK25hWOu-Q0H8_RCejDduuLCA1-135BEp_Cn_njurBA4r7zp5g@mail.gmail.com> <20140107122301.GC16640@quack.suse.cz> <CAK25hWMdfSmZLZQugJ3YU=b6nb7ZQzQFw514e=HV91s0Z-W0nQ@mail.gmail.com> <6469.1389157809@jrobl> <CAK25hWOUhV2Ygs-Q3cVN-mio+BHB60zJ7J_wZZKb=hOR9mb0ug@mail.gmail.com>
+Date: Thu, 09 Jan 2014 16:32:05 +0900
+Message-ID: <523.1389252725@jrobl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-mmc@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>
+To: Saket Sinha <saket.sinha89@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
 
-On Mon, Jan 06, 2014 at 10:34:09AM +0100, Ludovic Desroches wrote:
-> On Mon, Jan 06, 2014 at 09:26:48AM +0900, Joonsoo Kim wrote:
-> > On Fri, Jan 03, 2014 at 03:54:04PM +0100, Ludovic Desroches wrote:
-> > > Hi,
-> > > 
-> > > On Tue, Dec 24, 2013 at 03:38:37PM +0900, Joonsoo Kim wrote:
-> > > 
-> > > [...]
-> > > 
-> > > > > > > > > I think that this commit may not introduce a bug. This patch remove one
-> > > > > > > > > variable on slab management structure and replace variable name. So there
-> > > > > > > > > is no functional change.
-> > > 
-> > > You are right, the commit given by git bisect was not the good one...
-> > > Since I removed other patches done on top of it, I thought it really was
-> > > this one but in fact it is 8456a64.
-> > 
-> > Okay. It seems more reasonable to me.
-> > I guess that this is the same issue with following link.
-> > http://lkml.org/lkml/2014/1/4/81
-> > 
-> > And, perhaps, that patch solves your problem. But I'm not sure that it is the
-> > best solution for this problem. I should discuss with slab maintainers.
-> 
-> Yes this patch solves my problem.
-> 
-> > 
-> > I will think about this problem more deeply and report the solution to you
-> > as soon as possible.
-> 
-> Ok thanks.
-> 
 
-Hello,
+Saket Sinha:
+> > For such purpose, a "block device level union" (instead of filesystem
+> > level union) may be an option for you, such as "dm snapshot".
+> >
+> I imagine that this would make things more complicated as ideally this
+> should be done in a filesystem driver. Again a "block device level
+> union" would all the more have lesser chances of getting this
+> filesystem driver included in the mainline kernel as kernel
+> maintainers prefer the drivers to be as simple as possible.
 
-That patch will be merged through Andrew's tree.
-Use it to fix your problem :)
+??
+I am afraid that I cannot fully understand what you wrote.
+If you think "dm snapshot" does not exist currently, and you or someone
+else are going to develop a new feature, that is wrong. You already have
+"dm snapshot" feature and you can "stack" the block devices by using it.
+(cf. http://aufs.sourceforge.net/aufs2/report/sq/sq.pdf which is a bit
+old)
 
-Thanks.
+
+J. R. Okajima
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
