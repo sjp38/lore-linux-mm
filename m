@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id DB9266B003A
-	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 16:39:59 -0500 (EST)
-Received: by mail-ig0-f170.google.com with SMTP id k19so2222244igc.1
-        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 13:39:59 -0800 (PST)
-Received: from g4t0017.houston.hp.com (g4t0017.houston.hp.com. [15.201.24.20])
-        by mx.google.com with ESMTPS id mv9si13771175icc.107.2014.01.10.13.39.58
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 6303F6B0039
+	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 16:40:46 -0500 (EST)
+Received: by mail-ig0-f179.google.com with SMTP id hk11so385836igb.0
+        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 13:40:46 -0800 (PST)
+Received: from g4t0015.houston.hp.com (g4t0015.houston.hp.com. [15.201.24.18])
+        by mx.google.com with ESMTPS id h18si4924798igt.26.2014.01.10.13.40.44
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 10 Jan 2014 13:39:58 -0800 (PST)
-Message-ID: <1389389641.1792.173.camel@misato.fc.hp.com>
-Subject: Re: [PATCH 1/2] acpi memory hotplug, add parameter to disable
- memory hotplug [v2]
+        Fri, 10 Jan 2014 13:40:45 -0800 (PST)
+Message-ID: <1389389688.1792.174.camel@misato.fc.hp.com>
+Subject: Re: [PATCH 2/2] x86, e820 disable ACPI Memory Hotplug if memory
+ mapping is specified by user [v2]
 From: Toshi Kani <toshi.kani@hp.com>
-Date: Fri, 10 Jan 2014 14:34:01 -0700
-In-Reply-To: <1389380698-19361-3-git-send-email-prarit@redhat.com>
+Date: Fri, 10 Jan 2014 14:34:48 -0700
+In-Reply-To: <1389380698-19361-4-git-send-email-prarit@redhat.com>
 References: <1389380698-19361-1-git-send-email-prarit@redhat.com>
-	 <1389380698-19361-3-git-send-email-prarit@redhat.com>
+	 <1389380698-19361-4-git-send-email-prarit@redhat.com>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
@@ -27,31 +27,35 @@ Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Mol
 
 On Fri, 2014-01-10 at 14:04 -0500, Prarit Bhargava wrote:
  :
-> ---
->  Documentation/kernel-parameters.txt |    3 +++
->  drivers/acpi/acpi_memhotplug.c      |   12 ++++++++++++
->  2 files changed, 15 insertions(+)
+>  arch/x86/kernel/e820.c         |   10 +++++++++-
+>  drivers/acpi/acpi_memhotplug.c |    7 ++++++-
+>  include/linux/memory_hotplug.h |    3 +++
+>  3 files changed, 18 insertions(+), 2 deletions(-)
 > 
-> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-> index b9e9bd8..41374f9 100644
-> --- a/Documentation/kernel-parameters.txt
-> +++ b/Documentation/kernel-parameters.txt
-> @@ -2117,6 +2117,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+> diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
+> index 174da5f..747f36a 100644
+> --- a/arch/x86/kernel/e820.c
+> +++ b/arch/x86/kernel/e820.c
+> @@ -20,6 +20,7 @@
+>  #include <linux/firmware-map.h>
+>  #include <linux/memblock.h>
+>  #include <linux/sort.h>
+> +#include <linux/memory_hotplug.h>
 >  
->  	nomce		[X86-32] Machine Check Exception
+>  #include <asm/e820.h>
+>  #include <asm/proto.h>
+> @@ -834,6 +835,8 @@ static int __init parse_memopt(char *p)
+>  		return -EINVAL;
+>  	e820_remove_range(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
 >  
-> +	acpi_no_memhotplug [ACPI] Disable memory hotplug.  Useful for kexec
-> +			   and kdump kernels.
+> +	set_acpi_no_memhotplug();
 > +
 
-Please move it to where other acpi_xxx are described.
-
-For kdump kernel, this option will be used when memmap=exactmap is
-deprecated.  IOW, it is not useful yet.  Not sure what you mean by kexec
-kernel.  Memory hotplug does not need to be disabled for kexec reboot.
+It won't build when CONFIG_ACPI_HOTPLUG_MEMORY is not defined.
 
 Thanks,
 -Toshi
+
 
 
 
