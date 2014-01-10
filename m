@@ -1,59 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f176.google.com (mail-ea0-f176.google.com [209.85.215.176])
-	by kanga.kvack.org (Postfix) with ESMTP id A09FF6B0035
-	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 03:30:27 -0500 (EST)
-Received: by mail-ea0-f176.google.com with SMTP id h14so1909949eaj.7
-        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 00:30:27 -0800 (PST)
+Received: from mail-ea0-f174.google.com (mail-ea0-f174.google.com [209.85.215.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F49F6B0035
+	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 03:36:59 -0500 (EST)
+Received: by mail-ea0-f174.google.com with SMTP id b10so1902040eae.19
+        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 00:36:58 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e2si8585612eeg.30.2014.01.10.00.30.26
+        by mx.google.com with ESMTPS id n47si8553283eef.199.2014.01.10.00.36.58
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 10 Jan 2014 00:30:26 -0800 (PST)
-Date: Fri, 10 Jan 2014 09:30:25 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-Message-ID: <20140110083025.GE9437@dhcp22.suse.cz>
-References: <alpine.DEB.2.02.1312131551220.28704@chino.kir.corp.google.com>
- <20131217162342.GG28991@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312171240541.21640@chino.kir.corp.google.com>
- <20131218200434.GA4161@dhcp22.suse.cz>
- <alpine.DEB.2.02.1312182157510.1247@chino.kir.corp.google.com>
- <20131219144134.GH10855@dhcp22.suse.cz>
- <20140107162503.f751e880410f61a109cdcc2b@linux-foundation.org>
- <alpine.DEB.2.02.1401091324120.31538@chino.kir.corp.google.com>
- <20140109144757.e95616b4280c049b22743a15@linux-foundation.org>
- <alpine.DEB.2.02.1401091551390.20263@chino.kir.corp.google.com>
+        Fri, 10 Jan 2014 00:36:58 -0800 (PST)
+Date: Fri, 10 Jan 2014 09:36:56 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [RFC PATCH V4] mm readahead: Fix readahead fail for no local
+ memory and limit readahead pages
+Message-ID: <20140110083656.GC26378@quack.suse.cz>
+References: <1389295490-28707-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1401091551390.20263@chino.kir.corp.google.com>
+In-Reply-To: <1389295490-28707-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, "Eric W. Biederman" <ebiederm@xmission.com>
+To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, jack@suse.cz, Linus <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 09-01-14 16:01:15, David Rientjes wrote:
-> On Thu, 9 Jan 2014, Andrew Morton wrote:
+On Fri 10-01-14 00:54:50, Raghavendra K T wrote:
+> We limit the number of readahead pages to 4k.
 > 
-> > > I'm not sure why this was dropped since it's vitally needed for any sane 
-> > > userspace oom handler to be effective.
-> > 
-> > It was dropped because the other memcg developers disagreed with it.
-> > 
+> max_sane_readahead returns zero on the cpu having no local memory
+> node. Fix that by returning a sanitized number of pages viz.,
+> minimum of (requested pages, 4k, number of local free pages)
 > 
-> It was acked-by Michal.
+> Result:
+> fadvise experiment with FADV_WILLNEED on a x240 machine with 1GB testfile
+> 32GB* 4G RAM  numa machine ( 12 iterations) yielded
+> 
+> kernel       Avg        Stddev
+> base         7.264      0.56%
+> patched      7.285      1.14%
+  OK, looks good to me. You can add:
+Reviewed-by: Jan Kara <jack@suse.cz>
 
-I have already explained why I have acked it. I will not repeat
-it here again. I have also proposed an alternative solution
-(https://lkml.org/lkml/2013/12/12/174) which IMO is more viable because
-it handles both user/kernel memcg OOM consistently. This patch still has
-to be discussed because of other Johannes concerns. I plan to repost it
-in a near future.
+								Honza
 
+> 
+> Signed-off-by: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+> ---
+>  mm/readahead.c | 20 ++++++++++++++++++--
+>  1 file changed, 18 insertions(+), 2 deletions(-)
+> 
+> V4:  incorporated 16MB limit suggested by Linus for readahead and
+> fixed transitioning to large readahead anomaly pointed by Andrew Morton with
+> Honza's suggestion.
+> 
+> Test results shows no significant overhead with the current changes.
+> 
+> (Do I have to break patches into two??)
+> 
+> Suggestions/Comments please let me know.
+> 
+> diff --git a/mm/readahead.c b/mm/readahead.c
+> index 7cdbb44..2f561a0 100644
+> --- a/mm/readahead.c
+> +++ b/mm/readahead.c
+> @@ -237,14 +237,30 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
+>  	return ret;
+>  }
+>  
+> +#define MAX_REMOTE_READAHEAD   4096UL
+>  /*
+>   * Given a desired number of PAGE_CACHE_SIZE readahead pages, return a
+>   * sensible upper limit.
+>   */
+>  unsigned long max_sane_readahead(unsigned long nr)
+>  {
+> -	return min(nr, (node_page_state(numa_node_id(), NR_INACTIVE_FILE)
+> -		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
+> +	unsigned long local_free_page;
+> +	unsigned long sane_nr;
+> +	int nid;
+> +
+> +	nid = numa_node_id();
+> +	sane_nr = min(nr, MAX_REMOTE_READAHEAD);
+> +
+> +	local_free_page = node_page_state(nid, NR_INACTIVE_FILE)
+> +			  + node_page_state(nid, NR_FREE_PAGES);
+> +
+> +	/*
+> +	 * Readahead onto remote memory is better than no readahead when local
+> +	 * numa node does not have memory. We sanitize readahead size depending
+> +	 * on free memory in the local node but limiting to 4k pages.
+> +	 */
+> +	return node_present_pages(nid) ?
+> +				min(sane_nr, local_free_page / 2) : sane_nr;
+>  }
+>  
+>  /*
+> -- 
+> 1.7.11.7
+> 
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
