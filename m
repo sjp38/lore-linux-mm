@@ -1,80 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f44.google.com (mail-qa0-f44.google.com [209.85.216.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 67FBE6B0037
-	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 11:57:11 -0500 (EST)
-Received: by mail-qa0-f44.google.com with SMTP id o15so4343076qap.31
-        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 08:57:11 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id t7si10768515qar.123.2014.01.10.08.57.09
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id F2C3D6B0031
+	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 12:00:24 -0500 (EST)
+Received: by mail-wi0-f175.google.com with SMTP id hi5so8603414wib.8
+        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 09:00:24 -0800 (PST)
+Received: from jenni1.inet.fi (mta-out.inet.fi. [195.156.147.13])
+        by mx.google.com with ESMTP id l2si11141188een.167.2014.01.10.09.00.21
         for <linux-mm@kvack.org>;
-        Fri, 10 Jan 2014 08:57:10 -0800 (PST)
-Date: Fri, 10 Jan 2014 17:57:05 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: set_pte_at_notify regression
-Message-ID: <20140110165705.GE1141@redhat.com>
-References: <52D021EE.3020104@ravellosystems.com>
+        Fri, 10 Jan 2014 09:00:22 -0800 (PST)
+Date: Fri, 10 Jan 2014 19:00:16 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: mm: kernel BUG at mm/huge_memory.c:1440!
+Message-ID: <20140110170016.GA5179@node.dhcp.inet.fi>
+References: <52B88F6E.8070909@oracle.com>
+ <20131223200255.GA18521@node.dhcp.inet.fi>
+ <52B8AAFD.5090401@oracle.com>
+ <52C819E2.8090509@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <52D021EE.3020104@ravellosystems.com>
+In-Reply-To: <52C819E2.8090509@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Izik Eidus <izik.eidus@ravellosystems.com>
-Cc: linux-mm@kvack.org, kvm@vger.kernel.org, Alex Fishman <alex.fishman@ravellosystems.com>, Mike Rapoport <mike.rapoport@ravellosystems.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Haggai Eran <haggaie@mellanox.com>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
 
-Hi!
+On Sat, Jan 04, 2014 at 09:25:38AM -0500, Sasha Levin wrote:
+> On 12/23/2013 04:28 PM, Sasha Levin wrote:
+> >On 12/23/2013 03:02 PM, Kirill A. Shutemov wrote:
+> >>>[  265.474585] kernel BUG at mm/huge_memory.c:1440!
+> >>Could you dump_page() on the bug?
+> >
+> >[  469.007946] page:ffffea0005bd8000 count:3 mapcount:0 mapping:ffff8800bcd3d171 index: 0x7fca81000
+> >[  469.009362] page flags: 0x2afffff80090018(uptodate|dirty|swapcache|swapbacked)
+> 
+> Ping? It still shows up in 3.13-rc6.
 
-On Fri, Jan 10, 2014 at 06:38:06PM +0200, Izik Eidus wrote:
-> It look like commit 6bdb913f0a70a4dfb7f066fb15e2d6f960701d00 break the 
-> semantic of set_pte_at_notify.
-> The change of calling first to mmu_notifier_invalidate_range_start, then 
-> to set_pte_at_notify, and then to mmu_notifier_invalidate_range_end
-> not only increase the amount of locks kvm have to take and release by 
-> factor of 3, but in addition mmu_notifier_invalidate_range_start is zapping
-> the pte entry from kvm, so when set_pte_at_notify get called, it doesn`t 
-> have any spte to set and it acctuly get called for nothing, the result is
-> increasing of vmexits for kvm from both do_wp_page and replace_page, and 
-> broken semantic of set_pte_at_notify.
+Sorry, I don't have a theory why it can happen. And I can't reproduce it.
 
-Agreed.
+Is there chance to get trinity log after the crash?
 
-I would suggest to change set_pte_at_notify to return if change_pte
-was missing in some mmu notifier attached to this mm, so we can do
-something like:
-
-   ptep = page_check_address(page, mm, addr, &ptl, 0);
-   [..]
-   notify_missing = false;
-   if (... ) {
-      	entry = ptep_clear_flush(...);
-        [..]
-	notify_missing = set_pte_at_notify(mm, addr, ptep, entry);
-   }
-   pte_unmap_unlock(ptep, ptl);
-   if (notify_missing)
-   	mmu_notifier_invalidate_page_if_missing_change_pte(mm, addr);
-
-and drop the range calls. This will provide sleepability and at the
-same time it won't screw the ability of change_pte to update sptes (by
-leaving those established by the time change_pte runs).
-
-This assuming the mutex are going to stay mutex for anon_vma lock and
-i_mmap_mutex as I hope. Otherwise the commit could be as well
-reverted, it would be pointless then to try to keep the
-invalidate_page call outside the PT lock if all other invalidate_page
-calls are inside rmap spinlocks.
-
-I think giving a runtime or compiler option to switch the locks to
-spinlocks is just fine, cellphones I think would be better off with
-those locks as spinlocks for example, but completely removing the
-ability to run those locks as mutex even on server setups, doesn't
-look a too attractive development to me. A build option especially
-wouldn't be too painful to maintain. So I'd be positive for an update
-like above to retain the sleeability feature but without harming
-change_pte users like KVM anymore.
-
-Thanks!
-Andrea
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
