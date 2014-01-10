@@ -1,103 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DEEA6B0031
-	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 12:49:12 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id kp14so5073328pab.33
-        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 09:49:12 -0800 (PST)
-Received: from fujitsu24.fnanic.fujitsu.com (fujitsu24.fnanic.fujitsu.com. [192.240.6.14])
-        by mx.google.com with ESMTPS id ey5si7842612pab.74.2014.01.10.09.49.10
+Received: from mail-bk0-f43.google.com (mail-bk0-f43.google.com [209.85.214.43])
+	by kanga.kvack.org (Postfix) with ESMTP id D9CBA6B0031
+	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 13:11:52 -0500 (EST)
+Received: by mail-bk0-f43.google.com with SMTP id mz12so1678963bkb.30
+        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 10:11:52 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id xw1si4461623bkb.278.2014.01.10.10.11.51
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 10 Jan 2014 09:49:11 -0800 (PST)
-From: Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>
-Date: Fri, 10 Jan 2014 09:48:54 -0800
-Subject: RE: [PATCH] mm/mlock: fix BUG_ON unlocked page for nolinear VMAs
-Message-ID: <6B2BA408B38BA1478B473C31C3D2074E2C386DF586@SV-EXCHANGE1.Corp.FC.LOCAL>
-References: <1387267550-8689-1-git-send-email-liwanp@linux.vnet.ibm.com>
-	<52b1138b.0201430a.19a8.605dSMTPIN_ADDED_BROKEN@mx.google.com>
-	<52B11765.8030005@oracle.com>
-	<52b120a5.a3b2440a.3acf.ffffd7c3SMTPIN_ADDED_BROKEN@mx.google.com>
-	<52B166CF.6080300@suse.cz>
-	<52b1699f.87293c0a.75d1.34d3SMTPIN_ADDED_BROKEN@mx.google.com>
-	<20131218134316.977d5049209d9278e1dad225@linux-foundation.org>
-	<52C71ACC.20603@oracle.com>
-	<CA+55aFzDcFyyXwUUu5bLP3fsiuzxU7VPivpTPHgp8smvdTeESg@mail.gmail.com>
-	<52C74972.6050909@suse.cz>
- <CA+55aFzq1iQqddGo-m=vutwMYn5CPf65Ergov5svKR4AWC3rUQ@mail.gmail.com>
- <6B2BA408B38BA1478B473C31C3D2074E2BF812BC82@SV-EXCHANGE1.Corp.FC.LOCAL>
- <52CC16DC.9070308@suse.cz>
-In-Reply-To: <52CC16DC.9070308@suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        Fri, 10 Jan 2014 10:11:51 -0800 (PST)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 3/9] mm: shmem: save one radix tree lookup when truncating swapped pages
+Date: Fri, 10 Jan 2014 13:10:37 -0500
+Message-Id: <1389377443-11755-4-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1389377443-11755-1-git-send-email-hannes@cmpxchg.org>
+References: <1389377443-11755-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Michel Lespinasse <walken@google.com>, Bob Liu <bob.liu@oracle.com>, Nick Piggin <npiggin@suse.de>, Motohiro Kosaki JP <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Bob Liu <bob.liu@oracle.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-PiBkaWZmIC0tZ2l0IGEvbW0vcm1hcC5jIGIvbW0vcm1hcC5jDQo+IGluZGV4IDA2ODUyMmQuLmI5
-OWM3NDIgMTAwNjQ0DQo+IC0tLSBhL21tL3JtYXAuYw0KPiArKysgYi9tbS9ybWFwLmMNCj4gQEAg
-LTEzODksOSArMTM4OSwxOSBAQCBzdGF0aWMgaW50IHRyeV90b191bm1hcF9jbHVzdGVyKHVuc2ln
-bmVkIGxvbmcNCj4gY3Vyc29yLCB1bnNpZ25lZCBpbnQgKm1hcGNvdW50LA0KPiAgCQlCVUdfT04o
-IXBhZ2UgfHwgUGFnZUFub24ocGFnZSkpOw0KPiANCj4gIAkJaWYgKGxvY2tlZF92bWEpIHsNCj4g
-LQkJCW1sb2NrX3ZtYV9wYWdlKHBhZ2UpOyAgIC8qIG5vLW9wIGlmIGFscmVhZHkNCj4gbWxvY2tl
-ZCAqLw0KPiAtCQkJaWYgKHBhZ2UgPT0gY2hlY2tfcGFnZSkNCj4gKwkJCWlmIChwYWdlID09IGNo
-ZWNrX3BhZ2UpIHsNCj4gKwkJCQkvKiB3ZSBrbm93IHdlIGhhdmUgY2hlY2tfcGFnZSBsb2NrZWQg
-Ki8NCj4gKwkJCQltbG9ja192bWFfcGFnZShwYWdlKTsNCj4gIAkJCQlyZXQgPSBTV0FQX01MT0NL
-Ow0KPiArCQkJfSBlbHNlIGlmICh0cnlsb2NrX3BhZ2UocGFnZSkpIHsNCj4gKwkJCQkvKg0KPiAr
-CQkJCSAqIElmIHdlIGNhbiBsb2NrIHRoZSBwYWdlLCBwZXJmb3JtIG1sb2NrLg0KPiArCQkJCSAq
-IE90aGVyd2lzZSBsZWF2ZSB0aGUgcGFnZSBhbG9uZSwgaXQgd2lsbCBiZQ0KPiArCQkJCSAqIGV2
-ZW50dWFsbHkgZW5jb3VudGVyZWQgYWdhaW4gbGF0ZXIuDQo+ICsJCQkJICovDQo+ICsJCQkJbWxv
-Y2tfdm1hX3BhZ2UocGFnZSk7DQo+ICsJCQkJdW5sb2NrX3BhZ2UocGFnZSk7DQo+ICsJCQl9DQo+
-ICAJCQljb250aW51ZTsJLyogZG9uJ3QgdW5tYXAgKi8NCj4gIAkJfQ0KDQpJIGF1ZGl0ZWQgYWxs
-IHJlbGF0ZWQgbW0gY29kZS4gSG93ZXZlciBJIGNvdWxkbid0IGZpbmQgYW55IHJhY2UgdGhhdCBp
-dCBjYW4gY2xvc2UuDQoNCkZpcnN0IG9mZiwgIGN1cnJlbnQgbXVubG9jayBjb2RlIGlzIGNyYXp5
-IHRyaWNreS4NCg0KbXVubG9jaw0KCWRvd25fd3JpdGUobW1hcF9zZW0pDQoJZG9fbWxvY2soKQ0K
-CQltbG9ja19maXh1cA0KCQkJbXVubG9ja192bWFfcGFnZXNfcmFuZ2UNCgkJCQlfX211bmxvY2tf
-cGFnZXZlYw0KCQkJCQlzcGluX2xvY2tfaXJxKHpvbmUtPmxydV9sb2NrKQ0KCQkJCQlUZXN0Q2xl
-YXJQYWdlTWxvY2tlZChwYWdlKQ0KCQkJCQlkZWxfcGFnZV9mcm9tX2xydV9saXN0DQoJCQkJCXNw
-aW5fdW5sb2NrX2lycSh6b25lLT5scnVfbG9jaykNCgkJCQkJbG9ja19wYWdlDQoJCQkJCV9fbXVu
-bG9ja19pc29sYXRlZF9wYWdlDQoJCQkJCXVubG9ja19wYWdlDQoJCQkJDQoJdXBfd3JpdGUobW1h
-cF9zZW0pDQoNCkxvb2ssIFRlc3RDbGVhclBhZ2VNbG9ja2VkKHBhZ2UpIGlzIG5vdCBwcm90ZWN0
-ZWQgYnkgbG9ja19wYWdlLiBCdXQgdGhpcyBpcyBzdGlsbA0Kc2FmZSBiZWNhdXNlIFBhZ2VfbW9j
-a2VkIG1lYW4gb25lIG9yIG1vcmUgdm1hIG1hcmtlZCBWTV9MT0NLRUQgdGhlbiB3ZQ0Kb25seSBu
-ZWVkIGNhcmUgYWJvdXQgdHVybmluZyBkb3duIGZpbmFsIFZNX0xPQ0tFRC4gSS5lLiBtbWFwX3Nl
-bSBwcm90ZWN0IHRoZW0uDQoNCkFuZCwNCg0KCQkJCQlzcGluX2xvY2tfaXJxKHpvbmUtPmxydV9s
-b2NrKQ0KCQkJCQlkZWxfcGFnZV9mcm9tX2xydV9saXN0DQoJCQkJCXNwaW5fdW5sb2NrX2lycSh6
-b25lLT5scnVfbG9jaykNCg0KVGhpcyBpZGlvbSBlbnN1cmVzIEkgb3Igc29tZW9uZSBlbHNlIGlz
-b2xhdGUgdGhlIHBhZ2UgZnJvbSBscnUgYW5kIGlzb2xhdGVkIHBhZ2VzDQp3aWxsIGJlIHB1dCBi
-YWNrIGJ5IHB1dGJhY2tfbHJ1X3BhZ2UgaW4gYW55Y2FzZS4gU28sIHRoZSBwYWdlcyB3aWxsIG1v
-dmUgdGhlIHJpZ2h0DQpscnUgZXZlbnR1YWxseS4NCg0KQW5kIHRoZW4sIHRha2luZyBwYWdlLWxv
-Y2sgZG9lc24ndCBoZWxwIHRvIGNsb3NlIHZzIG11bmxvY2sgcmFjZS4NCg0KT24gdGhlIG90aGVy
-IGhhbmRzLCBwYWdlIG1pZ3JhdGlvbiBoYXMgdGhlIGZvbGxvd2luZyBjYWxsIHN0YWNrLiANCg0K
-c29tZS1jYWxsZXIgW2lzb2xhdGVfbHJ1X3BhZ2VdDQoJdW5tYXBfYW5kX21vdmUNCgkJX191bm1h
-cF9hbmRfbW92ZQ0KCQl0cnlsb2NrX3BhZ2UNCgkJdHJ5X3RvX3VubWFwDQoJCW1vdmVfdG9fbmV3
-X3BhZ2UNCgkJCW1pZ3JhdGVfcGFnZQ0KCQkJCW1pZ3JhdGVfcGFnZV9jb3B5DQoJCXVubG9ja19w
-YWdlDQoNClRoZSBjcml0aWNhbCBwYXJ0IChpLmUuIG1pZ3JhdGVfcGFnZV9jb3B5KSBpcyBwcm90
-ZWN0ZWQgYnkgYm90aCBwYWdlIGlzb2xhdGlvbiBhbmQgcGFnZSBsb2NrLg0KUGFnZSBmYXVsdCBw
-YXRoIHRha2UgbG9jayBwYWdlIGFuZCBkb2Vzbid0IHVzZSBwYWdlIGlzb2xhdGlvbi4gVGhpcyBp
-cyBjb3JyZWN0Lg0KdHJ5X3RvX3VubWFwX2NsdXN0ZXIgZG9lc24ndCB0YWtlIHBhZ2UgbG9jaywg
-YnV0IGl0IGVuc3VyZSB0aGUgcGFnZSBpcyBpc29sYXRlZC4gVGhpcyBpcyBjb3JyZWN0IHRvby4N
-Cg0KUGx1cywgZG9fd3BfcGFnZSgpIGhhcyB0aGUgZm9sbG93aW5nIGNvbW1lbnQuIEJ1dCBpdCBp
-cyB3cm9uZy4gVGhpcyBsb2NrIGlzIG5lY2Vzc2FyeSB0byBwcm90ZWN0IGFnYWluc3QNCnBhZ2Ug
-bWlncmF0aW9uLCBidXQgbm90IGxydSBtYW5pcHVsYXRpb24uDQoNCgkJaWYgKChyZXQgJiBWTV9G
-QVVMVF9XUklURSkgJiYgKHZtYS0+dm1fZmxhZ3MgJiBWTV9MT0NLRUQpKSB7DQoJCQlsb2NrX3Bh
-Z2Uob2xkX3BhZ2UpOwkvKiBMUlUgbWFuaXB1bGF0aW9uICovDQoJCQltdW5sb2NrX3ZtYV9wYWdl
-KG9sZF9wYWdlKTsNCgkJCXVubG9ja19wYWdlKG9sZF9wYWdlKTsNCgkJfQ0KDQoNCkJ1dCwgeW91
-IGtub3csIHRoaXMgaXMgY3JhenkgdWdseSBsb2NrIGRlc2lnbi4gSSdtIG9rIHRvIGNoYW5nZSB0
-aGUgcnVsZSB0byB0aGF0IFBHX21sb2NrZWQgbXVzdCBiZSBwcm90ZWN0ZWQNCnBhZ2UgbG9jay4g
-SWYgc28sIEkgcHJvcG9zZSB0byBhZGQgUGFnZU1sb2NrZWQoKSBsaWtlIHRoaXMNCg0KCQkJfSBl
-bHNlIGlmICghUGFnZU1sb2NrZWQoKSAmJiB0cnlsb2NrX3BhZ2UocGFnZSkpIHsNCgkJCQkvKg0K
-CQkJCSAqIElmIHdlIGNhbiBsb2NrIHRoZSBwYWdlLCBwZXJmb3JtIG1sb2NrLg0KCQkJCSAqIE90
-aGVyd2lzZSBsZWF2ZSB0aGUgcGFnZSBhbG9uZSwgaXQgd2lsbCBiZQ0KCQkJCSAqIGV2ZW50dWFs
-bHkgZW5jb3VudGVyZWQgYWdhaW4gbGF0ZXIuDQoJCQkJICovDQoJCQkJbWxvY2tfdm1hX3BhZ2Uo
-cGFnZSk7DQoJCQkJdW5sb2NrX3BhZ2UocGFnZSk7DQoNClRoaXMgaXMgc2FmZS4gRXZlbiBpZiBy
-YWNlIGlzIGhhcHBlbiBhbmQgdm1zY2FuIGZhaWxlZCB0byBtYXJrIFBHX21sb2NrZWQsIHRoYXQn
-cyBubyBwcm9ibGVtLiBOZXh0IHZtc2NhbiBtYXkNCmRvIHRoZSByaWdodCBqb2IgYW5kIHdpbGwg
-Zml4IHRoZSBtaXN0YWtlLg0KDQpBbnl3YXksICBJJ20gYWxzbyBzdXJlIHRoaXMgaXMgbm90IHJl
-Y2VudCBpc3N1ZS4gSXQgbGl2ZWQgNSB5ZWFycy4gSXQgaXMgbm8gcmVhc29uIHRvIHJ1c2guDQoN
-Cg==
+Page cache radix tree slots are usually stabilized by the page lock,
+but shmem's swap cookies have no such thing.  Because the overall
+truncation loop is lockless, the swap entry is currently confirmed by
+a tree lookup and then deleted by another tree lookup under the same
+tree lock region.
+
+Use radix_tree_delete_item() instead, which does the verification and
+deletion with only one lookup.  This also allows removing the
+delete-only special case from shmem_radix_tree_replace().
+
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Reviewed-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/shmem.c | 25 ++++++++++++-------------
+ 1 file changed, 12 insertions(+), 13 deletions(-)
+
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 8297623fcaed..7c67249d6f28 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -242,19 +242,17 @@ static int shmem_radix_tree_replace(struct address_space *mapping,
+ 			pgoff_t index, void *expected, void *replacement)
+ {
+ 	void **pslot;
+-	void *item = NULL;
++	void *item;
+ 
+ 	VM_BUG_ON(!expected);
++	VM_BUG_ON(!replacement);
+ 	pslot = radix_tree_lookup_slot(&mapping->page_tree, index);
+-	if (pslot)
+-		item = radix_tree_deref_slot_protected(pslot,
+-							&mapping->tree_lock);
++	if (!pslot)
++		return -ENOENT;
++	item = radix_tree_deref_slot_protected(pslot, &mapping->tree_lock);
+ 	if (item != expected)
+ 		return -ENOENT;
+-	if (replacement)
+-		radix_tree_replace_slot(pslot, replacement);
+-	else
+-		radix_tree_delete(&mapping->page_tree, index);
++	radix_tree_replace_slot(pslot, replacement);
+ 	return 0;
+ }
+ 
+@@ -386,14 +384,15 @@ export:
+ static int shmem_free_swap(struct address_space *mapping,
+ 			   pgoff_t index, void *radswap)
+ {
+-	int error;
++	void *old;
+ 
+ 	spin_lock_irq(&mapping->tree_lock);
+-	error = shmem_radix_tree_replace(mapping, index, radswap, NULL);
++	old = radix_tree_delete_item(&mapping->page_tree, index, radswap);
+ 	spin_unlock_irq(&mapping->tree_lock);
+-	if (!error)
+-		free_swap_and_cache(radix_to_swp_entry(radswap));
+-	return error;
++	if (old != radswap)
++		return -ENOENT;
++	free_swap_and_cache(radix_to_swp_entry(radswap));
++	return 0;
+ }
+ 
+ /*
+-- 
+1.8.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
