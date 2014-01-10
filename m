@@ -1,47 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id F2C3D6B0031
-	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 12:00:24 -0500 (EST)
-Received: by mail-wi0-f175.google.com with SMTP id hi5so8603414wib.8
-        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 09:00:24 -0800 (PST)
-Received: from jenni1.inet.fi (mta-out.inet.fi. [195.156.147.13])
-        by mx.google.com with ESMTP id l2si11141188een.167.2014.01.10.09.00.21
-        for <linux-mm@kvack.org>;
-        Fri, 10 Jan 2014 09:00:22 -0800 (PST)
-Date: Fri, 10 Jan 2014 19:00:16 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: mm: kernel BUG at mm/huge_memory.c:1440!
-Message-ID: <20140110170016.GA5179@node.dhcp.inet.fi>
-References: <52B88F6E.8070909@oracle.com>
- <20131223200255.GA18521@node.dhcp.inet.fi>
- <52B8AAFD.5090401@oracle.com>
- <52C819E2.8090509@oracle.com>
+Received: from mail-ea0-f175.google.com (mail-ea0-f175.google.com [209.85.215.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 200056B0031
+	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 12:14:34 -0500 (EST)
+Received: by mail-ea0-f175.google.com with SMTP id z10so2184448ead.20
+        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 09:14:33 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d41si1790076eep.8.2014.01.10.09.14.32
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 10 Jan 2014 09:14:32 -0800 (PST)
+Message-ID: <52D02A76.50005@suse.cz>
+Date: Fri, 10 Jan 2014 18:14:30 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52C819E2.8090509@oracle.com>
+Subject: [LSF/MM ATTEND] Memory management
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 
-On Sat, Jan 04, 2014 at 09:25:38AM -0500, Sasha Levin wrote:
-> On 12/23/2013 04:28 PM, Sasha Levin wrote:
-> >On 12/23/2013 03:02 PM, Kirill A. Shutemov wrote:
-> >>>[  265.474585] kernel BUG at mm/huge_memory.c:1440!
-> >>Could you dump_page() on the bug?
-> >
-> >[  469.007946] page:ffffea0005bd8000 count:3 mapcount:0 mapping:ffff8800bcd3d171 index: 0x7fca81000
-> >[  469.009362] page flags: 0x2afffff80090018(uptodate|dirty|swapcache|swapbacked)
-> 
-> Ping? It still shows up in 3.13-rc6.
+Hi,
 
-Sorry, I don't have a theory why it can happen. And I can't reproduce it.
+I would like to attend LSF/MM. I'm working in the MM area for half a 
+year now, so I'm still learning a lot and hope that the discussions 
+would help me clarify longer-term goals to pursue. In general, I'm (of 
+course) interested in improving performance where possible, perhaps by 
+better use of features the hardware offers. In the past I've been doing 
+academic research on performance modeling on shared caches and hope to 
+put that experience to use somehow.
 
-Is there chance to get trinity log after the crash?
+During the half year in MM so far, I've been improving performance of 
+munlock operations (merged in 3.12), memory compaction effectiveness (in 
+mmotm) and recently helping fix the trinity fallout. Currently I 
+continue investigating memory compaction with the goal of having similar 
+success rates as it used to have around 3.0, but without the associated 
+massive performance penalty.
 
--- 
- Kirill A. Shutemov
+--
+Vlastimil Babka
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
