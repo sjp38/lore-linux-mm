@@ -1,42 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 815C96B0031
-	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 17:39:12 -0500 (EST)
-Received: by mail-ie0-f181.google.com with SMTP id e14so5591462iej.26
-        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 14:39:12 -0800 (PST)
-Received: from relay.sgi.com (relay2.sgi.com. [192.48.179.30])
-        by mx.google.com with ESMTP id jw1si13937039icc.153.2014.01.10.14.39.11
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 5027D6B0031
+	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 17:51:38 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id jt11so5021723pbb.28
+        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 14:51:37 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id sw1si8432417pab.344.2014.01.10.14.51.36
         for <linux-mm@kvack.org>;
-        Fri, 10 Jan 2014 14:39:11 -0800 (PST)
-Date: Fri, 10 Jan 2014 16:39:09 -0600
-From: Alex Thorlton <athorlton@sgi.com>
-Subject: Re: [RFC PATCH] mm: thp: Add per-mm_struct flag to control THP
-Message-ID: <20140110223909.GA8666@sgi.com>
-References: <1389383718-46031-1-git-send-email-athorlton@sgi.com>
- <20140110202310.GB1421@node.dhcp.inet.fi>
- <20140110220155.GD3066@sgi.com>
- <20140110221010.GP31570@twins.programming.kicks-ass.net>
+        Fri, 10 Jan 2014 14:51:36 -0800 (PST)
+Date: Fri, 10 Jan 2014 17:51:16 -0500
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [Lsf-pc] [LSF/MM ATTEND] Memory management -- THP, hugetlb,
+ scalability
+Message-ID: <20140110225116.GA5722@linux.intel.com>
+References: <20140103122509.GA18786@node.dhcp.inet.fi>
+ <20140108151321.GI27046@suse.de>
+ <20140110174204.GA5228@node.dhcp.inet.fi>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140110221010.GP31570@twins.programming.kicks-ass.net>
+In-Reply-To: <20140110174204.GA5228@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Mel Gorman <mgorman@suse.de>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Jan 10, 2014 at 11:10:10PM +0100, Peter Zijlstra wrote:
-> We already have the information to determine if a page is shared across
-> nodes, Mel even had some prototype code to do splits under those
-> conditions.
+On Fri, Jan 10, 2014 at 07:42:04PM +0200, Kirill A. Shutemov wrote:
+> On Wed, Jan 08, 2014 at 03:13:21PM +0000, Mel Gorman wrote:
+> > I think transparent huge pagecache is likely to crop up for more than one
+> > reason. There is the TLB issue and the motivation that i-TLB pressure is
+> > a problem in some specialised cases. Whatever the merits of that case,
+> > transparent hugepage cache has been raised as a potential solution for
+> > some VM scalability problems. I recognise that dealing with large numbers
+> > of struct pages is now a problem on larger machines (although I have not
+> > seen quantified data on the problem nor do I have access to a machine large
+> > enough to measure it myself) but I'm wary of transparent hugepage cache
+> > being treated as a primary solution for VM scalability problems. Lacking
+> > performance data I have no suggestions on what these alternative solutions
+> > might look like.
 
-I'm aware that we can determine if pages are shared across nodes, but I
-thought that Mel's code to split pages under these conditions had some
-performance issues.  I know I've seen the code that Mel wrote to do
-this, but I can't seem to dig it up right now.  Could you point me to
-it?
+Something I'd like to see discussed (but don't have the MM chops to
+lead a discussion on myself) is the PAGE_CACHE_SIZE vs PAGE_SIZE split.
+This needs to be either fixed or removed, IMO.  It's been in the tree
+since before git history began (ie before 2005), it imposes a reasonably
+large cognitive burden on programmers ("what kind of page size do I want
+here?"), it's not intuitively obvious (to a non-mm person) which page
+size is which, and it's never actually bought us anything because it's
+always been the same!
 
-- Alex
+Also, it bitrots.  Look at this:
+
+        pgoff_t pgoff = (((address & PAGE_MASK)
+                        - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+        vmf.pgoff = pgoff;
+        pgoff_t offset = vmf->pgoff;
+        size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+        if (offset >= size)
+                return VM_FAULT_SIGBUS;
+
+That's spread over three functions, but that goes to illustrate my point;
+getting this stuff right is Hard; core mm developers get it wrong, we
+don't have the right types to document whether a variable is in PAGE_SIZE
+or PAGE_CACHE_SIZE units, and we're not getting any benefit from it today.
+
+> Sibling topic is THP for XIP (see Matthew's patchset). Guys want to manage
+> persistent memory in 2M chunks where it's possible. And THP (but without
+> struct page in this case) is the obvious solution.
+
+Not just 2MB, we also want 1GB pages for some special cases.  It looks
+doable (XFS can allocate aligned 1GB blocks).  I've written some
+supporting code that will at least get us to the point where we can
+insert a 1GB page.  I haven't been able to test anything yet.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
