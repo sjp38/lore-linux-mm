@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f47.google.com (mail-qa0-f47.google.com [209.85.216.47])
-	by kanga.kvack.org (Postfix) with ESMTP id B56356B0031
-	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 13:46:43 -0500 (EST)
-Received: by mail-qa0-f47.google.com with SMTP id j5so177897qaq.20
-        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 10:46:43 -0800 (PST)
+Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
+	by kanga.kvack.org (Postfix) with ESMTP id D54E26B0036
+	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 13:46:44 -0500 (EST)
+Received: by mail-qa0-f42.google.com with SMTP id k4so1892460qaq.15
+        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 10:46:44 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id o8si11353897qec.98.2014.01.10.10.46.42
+        by mx.google.com with ESMTP id g2si4565080qaz.129.2014.01.10.10.46.43
         for <linux-mm@kvack.org>;
-        Fri, 10 Jan 2014 10:46:42 -0800 (PST)
+        Fri, 10 Jan 2014 10:46:44 -0800 (PST)
 From: Prarit Bhargava <prarit@redhat.com>
-Subject: [PATCH 1/2] acpi memory hotplug, add parameter to disable memory hotplug
-Date: Fri, 10 Jan 2014 13:46:18 -0500
-Message-Id: <1389379579-18614-2-git-send-email-prarit@redhat.com>
+Subject: [PATCH 2/2] x86, e820 disable ACPI Memory Hotplug if memory mapping is specified by user
+Date: Fri, 10 Jan 2014 13:46:19 -0500
+Message-Id: <1389379579-18614-3-git-send-email-prarit@redhat.com>
 In-Reply-To: <1389379579-18614-1-git-send-email-prarit@redhat.com>
 References: <1389379579-18614-1-git-send-email-prarit@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,102 +19,13 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Prarit Bhargava <prarit@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, =50@, x86@kernel.org, Len Brown <lenb@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Toshi Kani <toshi.kani@hp.com>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, kosaki.motohiro@gmail.com, dyoung@redhat.com, linux-acpi@vger.kernel.org, linux-mm@kvack.org
 
-When booting a kexec/kdump kernel on a system that has specific memory hotplug
-regions the boot will fail with warnings like:
+kdump uses memmap=exactmap and mem=X values to configure the memory
+mapping for the kdump kernel.  If memory is hotadded during the boot of
+the kdump kernel it is possible that the page tables for the new memory
+cause the kdump kernel to run out of memory.
 
-[    2.939467] swapper/0: page allocation failure: order:9, mode:0x84d0
-[    2.946564] CPU: 0 PID: 1 Comm: swapper/0 Not tainted
-3.10.0-65.el7.x86_64 #1
-[    2.954532] Hardware name: QCI QSSC-S4R/QSSC-S4R, BIOS
-QSSC-S4R.QCI.01.00.S013.032920111005 03/29/2011
-[    2.964926]  0000000000000000 ffff8800341bd8c8 ffffffff815bcc67
-ffff8800341bd950
-[    2.973224]  ffffffff8113b1a0 ffff880036339b00 0000000000000009
-00000000000084d0
-[    2.981523]  ffff8800341bd950 ffffffff815b87ee 0000000000000000
-0000000000000200
-[    2.989821] Call Trace:
-[    2.992560]  [<ffffffff815bcc67>] dump_stack+0x19/0x1b
-[    2.998300]  [<ffffffff8113b1a0>] warn_alloc_failed+0xf0/0x160
-[    3.004817]  [<ffffffff815b87ee>] ?
-__alloc_pages_direct_compact+0xac/0x196
-[    3.012594]  [<ffffffff8113f14f>] __alloc_pages_nodemask+0x7ff/0xa00
-[    3.019692]  [<ffffffff815b417c>] vmemmap_alloc_block+0x62/0xba
-[    3.026303]  [<ffffffff815b41e9>] vmemmap_alloc_block_buf+0x15/0x3b
-[    3.033302]  [<ffffffff815b1ff6>] vmemmap_populate+0xb4/0x21b
-[    3.039718]  [<ffffffff815b461d>] sparse_mem_map_populate+0x27/0x35
-[    3.046717]  [<ffffffff815b400f>] sparse_add_one_section+0x7a/0x185
-[    3.053720]  [<ffffffff815a1e9f>] __add_pages+0xaf/0x240
-[    3.059656]  [<ffffffff81047359>] arch_add_memory+0x59/0xd0
-[    3.065877]  [<ffffffff815a21d9>] add_memory+0xb9/0x1b0
-[    3.071713]  [<ffffffff81333b9c>] acpi_memory_device_add+0x18d/0x26d
-[    3.078813]  [<ffffffff81309a01>] acpi_bus_device_attach+0x7d/0xcd
-[    3.085719]  [<ffffffff8132379d>] acpi_ns_walk_namespace+0xc8/0x17f
-[    3.092716]  [<ffffffff81309984>] ? acpi_bus_type_and_status+0x90/0x90
-[    3.100004]  [<ffffffff81309984>] ? acpi_bus_type_and_status+0x90/0x90
-[    3.107293]  [<ffffffff81323c8c>] acpi_walk_namespace+0x95/0xc5
-[    3.113904]  [<ffffffff8130a6d6>] acpi_bus_scan+0x8b/0x9d
-[    3.119933]  [<ffffffff81a2019a>] acpi_scan_init+0x63/0x160
-[    3.126153]  [<ffffffff81a1ffb5>] acpi_init+0x25d/0x2a6
-[    3.131987]  [<ffffffff81a1fd58>] ? acpi_sleep_proc_init+0x2a/0x2a
-[    3.138889]  [<ffffffff810020e2>] do_one_initcall+0xe2/0x190
-[    3.145210]  [<ffffffff819e20c4>] kernel_init_freeable+0x17c/0x207
-[    3.152111]  [<ffffffff819e18d0>] ? do_early_param+0x88/0x88
-[    3.158430]  [<ffffffff8159fea0>] ? rest_init+0x80/0x80
-[    3.164264]  [<ffffffff8159feae>] kernel_init+0xe/0x180
-[    3.170097]  [<ffffffff815cca2c>] ret_from_fork+0x7c/0xb0
-[    3.176123]  [<ffffffff8159fea0>] ? rest_init+0x80/0x80
-[    3.181956] Mem-Info:
-[    3.184490] Node 0 DMA per-cpu:
-[    3.188007] CPU    0: hi:    0, btch:   1 usd:   0
-[    3.193353] Node 0 DMA32 per-cpu:
-[    3.197060] CPU    0: hi:   42, btch:   7 usd:   0
-[    3.202410] active_anon:0 inactive_anon:0 isolated_anon:0
-[    3.202410]  active_file:0 inactive_file:0 isolated_file:0
-[    3.202410]  unevictable:0 dirty:0 writeback:0 unstable:0
-[    3.202410]  free:872 slab_reclaimable:13 slab_unreclaimable:1880
-[    3.202410]  mapped:0 shmem:0 pagetables:0 bounce:0
-[    3.202410]  free_cma:0
-
-because the system has run out of memory at boot time.  This occurs
-because of the following sequence in the boot:
-
-Main kernel boots and sets E820 map.  The second kernel is booted with a
-map generated by the kdump service using memmap= and memmap=exactmap.
-These parameters are added to the kernel parameters of the kexec/kdump
-kernel.   The kexec/kdump kernel has limited memory resources so as not
-to severely impact the main kernel.
-
-The system then panics and the kdump/kexec kernel boots (which is a
-completely new kernel boot).  During this boot ACPI is initialized and the
-kernel (as can be seen above) traverses the ACPI namespace and finds an
-entry for a memory device to be hotadded.
-
-ie)
-
-[    3.053720]  [<ffffffff815a1e9f>] __add_pages+0xaf/0x240
-[    3.059656]  [<ffffffff81047359>] arch_add_memory+0x59/0xd0
-[    3.065877]  [<ffffffff815a21d9>] add_memory+0xb9/0x1b0
-[    3.071713]  [<ffffffff81333b9c>] acpi_memory_device_add+0x18d/0x26d
-[    3.078813]  [<ffffffff81309a01>] acpi_bus_device_attach+0x7d/0xcd
-[    3.085719]  [<ffffffff8132379d>] acpi_ns_walk_namespace+0xc8/0x17f
-[    3.092716]  [<ffffffff81309984>] ? acpi_bus_type_and_status+0x90/0x90
-[    3.100004]  [<ffffffff81309984>] ? acpi_bus_type_and_status+0x90/0x90
-[    3.107293]  [<ffffffff81323c8c>] acpi_walk_namespace+0x95/0xc5
-[    3.113904]  [<ffffffff8130a6d6>] acpi_bus_scan+0x8b/0x9d
-[    3.119933]  [<ffffffff81a2019a>] acpi_scan_init+0x63/0x160
-[    3.126153]  [<ffffffff81a1ffb5>] acpi_init+0x25d/0x2a6
-
-At this point the kernel adds page table information and the the kexec/kdump
-kernel runs out of memory.
-
-This can also be reproduced by using the memmap=exactmap and mem=X
-parameters on the main kernel and booting.
-
-This patchset resolves the problem by adding a kernel parameter,
-acpi_no_memhotplug, to disable ACPI memory hotplug.
-
-[v2]: changed acpi_no_memhotplug to bool
+Since the user has specified a specific mapping ACPI Memory Hotplug should be
+disabled in this case.
 
 Signed-off-by: Prarit Bhargava <prarit@redhat.com>
 Cc: Thomas Gleixner <tglx@linutronix.de>
@@ -137,48 +48,84 @@ Cc: Toshi Kani <toshi.kani@hp.com>
 Cc: linux-acpi@vger.kernel.org
 Cc: linux-mm@kvack.org
 ---
- Documentation/kernel-parameters.txt |    3 +++
- drivers/acpi/acpi_memhotplug.c      |   12 ++++++++++++
- 2 files changed, 15 insertions(+)
+ arch/x86/kernel/e820.c         |    8 +++++++-
+ drivers/acpi/acpi_memhotplug.c |    7 ++++++-
+ include/linux/memory_hotplug.h |    3 +++
+ 3 files changed, 16 insertions(+), 2 deletions(-)
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index b9e9bd8..41374f9 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -2117,6 +2117,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
+index 174da5f..dc1191f 100644
+--- a/arch/x86/kernel/e820.c
++++ b/arch/x86/kernel/e820.c
+@@ -20,6 +20,7 @@
+ #include <linux/firmware-map.h>
+ #include <linux/memblock.h>
+ #include <linux/sort.h>
++#include <linux/memory_hotplug.h>
  
- 	nomce		[X86-32] Machine Check Exception
+ #include <asm/e820.h>
+ #include <asm/proto.h>
+@@ -880,15 +881,20 @@ static int __init parse_memmap_one(char *p)
  
-+	acpi_no_memhotplug [ACPI] Disable memory hotplug.  Useful for kexec
-+			   and kdump kernels.
+ 	return *p == '\0' ? 0 : -EINVAL;
+ }
 +
- 	nomfgpt		[X86-32] Disable Multi-Function General Purpose
- 			Timer usage (for AMD Geode machines).
+ static int __init parse_memmap_opt(char *str)
+ {
++	int ret;
++
+ 	while (str) {
+ 		char *k = strchr(str, ',');
+ 
+ 		if (k)
+ 			*k++ = 0;
+ 
+-		parse_memmap_one(str);
++		ret = parse_memmap_one(str);
++		if (!ret)
++			set_acpi_no_memhotplug();
+ 		str = k;
+ 	}
  
 diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-index 551dad7..4a0fa94 100644
+index 4a0fa94..48b9267 100644
 --- a/drivers/acpi/acpi_memhotplug.c
 +++ b/drivers/acpi/acpi_memhotplug.c
-@@ -361,7 +361,19 @@ static void acpi_memory_device_remove(struct acpi_device *device)
- 	acpi_memory_device_free(mem_device);
- }
+@@ -363,6 +363,11 @@ static void acpi_memory_device_remove(struct acpi_device *device)
  
-+static bool acpi_no_memhotplug;
+ static bool acpi_no_memhotplug;
+ 
++void set_acpi_no_memhotplug(void)
++{
++	acpi_no_memhotplug = true;
++}
 +
  void __init acpi_memory_hotplug_init(void)
  {
-+	if (acpi_no_memhotplug)
-+		return;
-+
- 	acpi_scan_add_handler_with_hotplug(&memory_device_handler, "memory");
+ 	if (acpi_no_memhotplug)
+@@ -373,7 +378,7 @@ void __init acpi_memory_hotplug_init(void)
+ 
+ static int __init disable_acpi_memory_hotplug(char *str)
+ {
+-	acpi_no_memhotplug = true;
++	set_acpi_no_memhotplug();
+ 	return 1;
  }
+ __setup("acpi_no_memhotplug", disable_acpi_memory_hotplug);
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 4ca3d95..80f5a23 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -12,6 +12,9 @@ struct pglist_data;
+ struct mem_section;
+ struct memory_block;
+ 
++/* set flag to disable ACPI memory hotplug */
++extern void set_acpi_no_memhotplug(void);
 +
-+static int __init disable_acpi_memory_hotplug(char *str)
-+{
-+	acpi_no_memhotplug = true;
-+	return 1;
-+}
-+__setup("acpi_no_memhotplug", disable_acpi_memory_hotplug);
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ 
+ /*
 -- 
 1.7.9.3
 
