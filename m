@@ -1,48 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id CE1AC6B0031
-	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 14:59:35 -0500 (EST)
-Received: by mail-wg0-f50.google.com with SMTP id l18so3627959wgh.5
-        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 11:59:35 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id z2si1923968wix.53.2014.01.10.11.59.34
+Received: from mail-ee0-f47.google.com (mail-ee0-f47.google.com [74.125.83.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E00D6B0031
+	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 15:25:56 -0500 (EST)
+Received: by mail-ee0-f47.google.com with SMTP id e51so1734340eek.20
+        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 12:25:56 -0800 (PST)
+Received: from jenni1.inet.fi (mta-out.inet.fi. [195.156.147.13])
+        by mx.google.com with ESMTP id r9si12020537eeo.212.2014.01.10.12.25.55
         for <linux-mm@kvack.org>;
-        Fri, 10 Jan 2014 11:59:35 -0800 (PST)
-Message-ID: <52D0488B.9080806@redhat.com>
-Date: Fri, 10 Jan 2014 14:22:51 -0500
-From: Rik van Riel <riel@redhat.com>
+        Fri, 10 Jan 2014 12:25:56 -0800 (PST)
+Date: Fri, 10 Jan 2014 22:23:10 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC PATCH] mm: thp: Add per-mm_struct flag to control THP
+Message-ID: <20140110202310.GB1421@node.dhcp.inet.fi>
+References: <1389383718-46031-1-git-send-email-athorlton@sgi.com>
 MIME-Version: 1.0
-Subject: Re: [patch 4/9] mm: filemap: move radix tree hole searching here
-References: <1389377443-11755-1-git-send-email-hannes@cmpxchg.org> <1389377443-11755-5-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1389377443-11755-5-git-send-email-hannes@cmpxchg.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1389383718-46031-1-git-send-email-athorlton@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Bob Liu <bob.liu@oracle.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Alex Thorlton <athorlton@sgi.com>
+Cc: linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org
 
-On 01/10/2014 01:10 PM, Johannes Weiner wrote:
-> The radix tree hole searching code is only used for page cache, for
-> example the readahead code trying to get a a picture of the area
-> surrounding a fault.
+On Fri, Jan 10, 2014 at 01:55:18PM -0600, Alex Thorlton wrote:
+> This patch adds an mm flag (MMF_THP_DISABLE) to disable transparent
+> hugepages using prctl.  It is based on my original patch to add a
+> per-task_struct flag to disable THP:
 > 
-> It sufficed to rely on the radix tree definition of holes, which is
-> "empty tree slot".  But this is about to change, though, as shadow
-> page descriptors will be stored in the page cache after the actual
-> pages get evicted from memory.
+> v1 - https://lkml.org/lkml/2013/8/2/671
+> v2 - https://lkml.org/lkml/2013/8/2/703
 > 
-> Move the functions over to mm/filemap.c and make them native page
-> cache operations, where they can later be adapted to handle the new
-> definition of "page cache hole".
+> After looking at alternate methods of modifying how THPs are handed out,
+> it sounds like people might be more in favor of this type of approach,
+> so I'm re-introducing the patch.
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> It seemed that everyone was in favor of moving this control over to the
+> mm_struct, if it is to be implemented.  That's the only major change
+> here, aside from the added ability to both set and clear the flag from
+> prctl.
+> 
+> The main motivation behind this patch is to provide a way to disable THP
+> for jobs where the code cannot be modified and using a malloc hook with
+> madvise is not an option (i.e. statically allocated data).  This patch
+> allows us to do just that, without affecting other jobs running on the
+> system.
+> 
+> Here are some results showing the improvement that my test case gets
+> when the MMF_THP_DISABLE flag is clear vs. set:
+> 
+> MMF_THP_DISABLE clear:
+> 
+> # perf stat -a -r 3 ./prctl_wrapper_mm 0 ./thp_pthread -C 0 -m 0 -c 512 -b 256g
+> 
+>  Performance counter stats for './prctl_wrapper_mm 0 ./thp_pthread -C 0 -m 0 -c 512 -b 256g' (3 runs):
+> 
+>   267694862.049279 task-clock                #  641.100 CPUs utilized            ( +-  0.23% ) [100.00%]
+>            908,846 context-switches          #    0.000 M/sec                    ( +-  0.23% ) [100.00%]
+>                874 CPU-migrations            #    0.000 M/sec                    ( +-  4.01% ) [100.00%]
+>            131,966 page-faults               #    0.000 M/sec                    ( +-  2.75% )
+> 351,127,909,744,906 cycles                    #    1.312 GHz                      ( +-  0.27% ) [100.00%]
+> 523,537,415,562,692 stalled-cycles-frontend   #  149.10% frontend cycles idle     ( +-  0.26% ) [100.00%]
+> 392,400,753,609,156 stalled-cycles-backend    #  111.75% backend  cycles idle     ( +-  0.29% ) [100.00%]
+> 147,467,956,557,895 instructions              #    0.42  insns per cycle
+>                                              #    3.55  stalled cycles per insn  ( +-  0.09% ) [100.00%]
+> 26,922,737,309,021 branches                  #  100.572 M/sec                    ( +-  0.24% ) [100.00%]
+>      1,308,714,545 branch-misses             #    0.00% of all branches          ( +-  0.18% )
+> 
+>      417.555688399 seconds time elapsed                                          ( +-  0.23% )
+> 
+> 
+> MMF_THP_DISABLE set:
+> 
+> # perf stat -a -r 3 ./prctl_wrapper_mm 1 ./thp_pthread -C 0 -m 0 -c 512 -b 256g
+> 
+>  Performance counter stats for './prctl_wrapper_mm 1 ./thp_pthread -C 0 -m 0 -c 512 -b 256g' (3 runs):
+> 
+>   141674994.160138 task-clock                #  642.107 CPUs utilized            ( +-  0.23% ) [100.00%]
+>          1,190,415 context-switches          #    0.000 M/sec                    ( +- 42.87% ) [100.00%]
+>                688 CPU-migrations            #    0.000 M/sec                    ( +-  2.47% ) [100.00%]
+>         62,394,646 page-faults               #    0.000 M/sec                    ( +-  0.00% )
+> 156,748,225,096,919 cycles                    #    1.106 GHz                      ( +-  0.20% ) [100.00%]
+> 211,440,354,290,433 stalled-cycles-frontend   #  134.89% frontend cycles idle     ( +-  0.40% ) [100.00%]
+> 114,304,536,881,102 stalled-cycles-backend    #   72.92% backend  cycles idle     ( +-  0.88% ) [100.00%]
+> 179,939,084,230,732 instructions              #    1.15  insns per cycle
+>                                              #    1.18  stalled cycles per insn  ( +-  0.26% ) [100.00%]
+> 26,659,099,949,509 branches                  #  188.171 M/sec                    ( +-  0.72% ) [100.00%]
+>        762,772,361 branch-misses             #    0.00% of all branches          ( +-  0.97% )
+> 
+>      220.640905073 seconds time elapsed                                          ( +-  0.23% )
+> 
+> As you can see, this particular test gets about a 2x performance boost
+> when THP is turned off. 
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
-
+Do you know what cause the difference? I prefer to fix THP instead of
+adding new knob to disable it.
 
 -- 
-All rights reversed
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
