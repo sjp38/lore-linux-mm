@@ -1,54 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f47.google.com (mail-yh0-f47.google.com [209.85.213.47])
-	by kanga.kvack.org (Postfix) with ESMTP id D8B216B0039
-	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 16:38:54 -0500 (EST)
-Received: by mail-yh0-f47.google.com with SMTP id t59so1502604yho.20
-        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 13:38:54 -0800 (PST)
-Received: from mail-gg0-x234.google.com (mail-gg0-x234.google.com [2607:f8b0:4002:c02::234])
-        by mx.google.com with ESMTPS id z48si10535705yha.6.2014.01.10.13.38.53
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id DB9266B003A
+	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 16:39:59 -0500 (EST)
+Received: by mail-ig0-f170.google.com with SMTP id k19so2222244igc.1
+        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 13:39:59 -0800 (PST)
+Received: from g4t0017.houston.hp.com (g4t0017.houston.hp.com. [15.201.24.20])
+        by mx.google.com with ESMTPS id mv9si13771175icc.107.2014.01.10.13.39.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 10 Jan 2014 13:38:54 -0800 (PST)
-Received: by mail-gg0-f180.google.com with SMTP id q3so825218gge.25
-        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 13:38:53 -0800 (PST)
-Date: Fri, 10 Jan 2014 13:38:50 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-In-Reply-To: <20140110083025.GE9437@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.02.1401101335200.21486@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1312131551220.28704@chino.kir.corp.google.com> <20131217162342.GG28991@dhcp22.suse.cz> <alpine.DEB.2.02.1312171240541.21640@chino.kir.corp.google.com> <20131218200434.GA4161@dhcp22.suse.cz> <alpine.DEB.2.02.1312182157510.1247@chino.kir.corp.google.com>
- <20131219144134.GH10855@dhcp22.suse.cz> <20140107162503.f751e880410f61a109cdcc2b@linux-foundation.org> <alpine.DEB.2.02.1401091324120.31538@chino.kir.corp.google.com> <20140109144757.e95616b4280c049b22743a15@linux-foundation.org>
- <alpine.DEB.2.02.1401091551390.20263@chino.kir.corp.google.com> <20140110083025.GE9437@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 10 Jan 2014 13:39:58 -0800 (PST)
+Message-ID: <1389389641.1792.173.camel@misato.fc.hp.com>
+Subject: Re: [PATCH 1/2] acpi memory hotplug, add parameter to disable
+ memory hotplug [v2]
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Fri, 10 Jan 2014 14:34:01 -0700
+In-Reply-To: <1389380698-19361-3-git-send-email-prarit@redhat.com>
+References: <1389380698-19361-1-git-send-email-prarit@redhat.com>
+	 <1389380698-19361-3-git-send-email-prarit@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, "Eric W. Biederman" <ebiederm@xmission.com>
+To: Prarit Bhargava <prarit@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Len Brown <lenb@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, kosaki.motohiro@gmail.com, dyoung@redhat.com, linux-acpi@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 10 Jan 2014, Michal Hocko wrote:
-
-> I have already explained why I have acked it. I will not repeat
-> it here again. I have also proposed an alternative solution
-> (https://lkml.org/lkml/2013/12/12/174) which IMO is more viable because
-> it handles both user/kernel memcg OOM consistently. This patch still has
-> to be discussed because of other Johannes concerns. I plan to repost it
-> in a near future.
+On Fri, 2014-01-10 at 14:04 -0500, Prarit Bhargava wrote:
+ :
+> ---
+>  Documentation/kernel-parameters.txt |    3 +++
+>  drivers/acpi/acpi_memhotplug.c      |   12 ++++++++++++
+>  2 files changed, 15 insertions(+)
 > 
+> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+> index b9e9bd8..41374f9 100644
+> --- a/Documentation/kernel-parameters.txt
+> +++ b/Documentation/kernel-parameters.txt
+> @@ -2117,6 +2117,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+>  
+>  	nomce		[X86-32] Machine Check Exception
+>  
+> +	acpi_no_memhotplug [ACPI] Disable memory hotplug.  Useful for kexec
+> +			   and kdump kernels.
+> +
 
-This three ring circus has to end.  Really.
+Please move it to where other acpi_xxx are described.
 
-Your patch, which is partially based on my suggestion to move the 
-mem_cgroup_oom_notify() and call it from two places to support both 
-memory.oom_control == 1 and != 1, is something that I liked as you know.  
-It's based on my patch which is now removed from -mm.  So if you want to 
-rebase that patch and propose it, that's great, but this is yet another 
-occurrence of where important patches have been yanked out just before the 
-merge window when the problem they are fixing is real and we depend on 
-them.
+For kdump kernel, this option will be used when memmap=exactmap is
+deprecated.  IOW, it is not useful yet.  Not sure what you mean by kexec
+kernel.  Memory hotplug does not need to be disabled for kexec reboot.
 
-Please post your rebased patch ASAP for the 3.14 merge window.
+Thanks,
+-Toshi
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
