@@ -1,62 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 41C4B6B0031
-	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 16:12:15 -0500 (EST)
-Received: by mail-qa0-f46.google.com with SMTP id ii20so857911qab.19
-        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 13:12:15 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id g15si11830068qej.92.2014.01.10.13.12.13
-        for <linux-mm@kvack.org>;
-        Fri, 10 Jan 2014 13:12:14 -0800 (PST)
-Date: Fri, 10 Jan 2014 16:12:04 -0500
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 2/2] x86, e820 disable ACPI Memory Hotplug if memory
- mapping is specified by user [v2]
-Message-ID: <20140110211204.GC19115@redhat.com>
-References: <1389380698-19361-1-git-send-email-prarit@redhat.com>
- <1389380698-19361-4-git-send-email-prarit@redhat.com>
+Received: from mail-gg0-f178.google.com (mail-gg0-f178.google.com [209.85.161.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 533396B0037
+	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 16:23:26 -0500 (EST)
+Received: by mail-gg0-f178.google.com with SMTP id q2so135184ggc.23
+        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 13:23:26 -0800 (PST)
+Received: from mail-yh0-x22a.google.com (mail-yh0-x22a.google.com [2607:f8b0:4002:c01::22a])
+        by mx.google.com with ESMTPS id g70si9919862yhd.168.2014.01.10.13.23.25
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 10 Jan 2014 13:23:25 -0800 (PST)
+Received: by mail-yh0-f42.google.com with SMTP id z6so1520334yhz.15
+        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 13:23:25 -0800 (PST)
+Date: Fri, 10 Jan 2014 13:23:22 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [LSF/MM ATTEND, TOPIC] memcg topics and user defined oom
+ policies
+In-Reply-To: <20140108151151.GA2720@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.02.1401101318160.21486@chino.kir.corp.google.com>
+References: <20140108151151.GA2720@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1389380698-19361-4-git-send-email-prarit@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Prarit Bhargava <prarit@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Len Brown <lenb@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Toshi Kani <toshi.kani@hp.com>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, kosaki.motohiro@gmail.com, dyoung@redhat.com, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Tim Hockin <thockin@google.com>, Kamil Yurtsever <kyurtsever@google.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
 
-On Fri, Jan 10, 2014 at 02:04:58PM -0500, Prarit Bhargava wrote:
+On Wed, 8 Jan 2014, Michal Hocko wrote:
 
-> kdump uses memmap=exactmap and mem=X values
+> David was proposing memory reserves for memcg userspace OOM handlers.
+> I found the idea interesting at first but I am getting more and more
+> skeptical about fully supporting oom handling from within under-oom
+> group usecase. Google is using this setup and we should discuss what is
+> the best approach longterm because the same thing can be achieved by a
+> proper memcg hierarchy as well.
+> 
+> While we are at memcg OOM it seems that we cannot find an easy consensus
+> on when is the line when the userspace should be notified about OOM [1].
+> 
+> I would also like to continue discussing user defined OOM policies.
+> The last attempt to resurrect the discussion [2] ended up without any
+> strong conclusion but there seem to be some opposition against direct
+> handling of the global OOM from userspace as being too subtle and
+> dangerous. Also using memcg interface doesn't seem to be welcome warmly.
+> This leaves us with either loadable modules approach or a generic filter
+> mechanism which haven't been discussed that much. Or something else?
+> I hope we can move forward finally.
+> 
 
-Minor nit. Kdump only uses memmap=exactmap and not mem=X. mem=X is there
-for debugging. So lets fix the changelog.
+Google is interested in this topic and has been the main motivation for 
+userspace oom handlers; we would like to attend for this discussion.
 
-[..]
->  static int __init parse_memmap_opt(char *str)
->  {
-> +	int ret;
-> +
->  	while (str) {
->  		char *k = strchr(str, ',');
->  
->  		if (k)
->  			*k++ = 0;
->  
-> -		parse_memmap_one(str);
-> +		ret = parse_memmap_one(str);
-> +		if (!ret)
-> +			set_acpi_no_memhotplug();
+David Rientjes <rientjes@google.com>
+Tim Hockin <thockin@google.com>, systems software, senior staff
+Kamil Yurtsever <kyurtsever@google.com>, systems software
 
-We want to call this only in case of memmap=exactmap and not other memmap=
-options. So I think instead of here, call it inside parse_memmap_one()
-where exactmap check is done.
-
-        if (!strncmp(p, "exactmap", 8)) {
-		set_acpi_no_memhotplug();
-	}
-
-Thanks
-Vivek
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
