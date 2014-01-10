@@ -1,63 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 6303F6B0039
-	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 16:40:46 -0500 (EST)
-Received: by mail-ig0-f179.google.com with SMTP id hk11so385836igb.0
-        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 13:40:46 -0800 (PST)
-Received: from g4t0015.houston.hp.com (g4t0015.houston.hp.com. [15.201.24.18])
-        by mx.google.com with ESMTPS id h18si4924798igt.26.2014.01.10.13.40.44
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 10 Jan 2014 13:40:45 -0800 (PST)
-Message-ID: <1389389688.1792.174.camel@misato.fc.hp.com>
-Subject: Re: [PATCH 2/2] x86, e820 disable ACPI Memory Hotplug if memory
- mapping is specified by user [v2]
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Fri, 10 Jan 2014 14:34:48 -0700
-In-Reply-To: <1389380698-19361-4-git-send-email-prarit@redhat.com>
-References: <1389380698-19361-1-git-send-email-prarit@redhat.com>
-	 <1389380698-19361-4-git-send-email-prarit@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 562046B0031
+	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 17:02:00 -0500 (EST)
+Received: by mail-ie0-f176.google.com with SMTP id at1so5870783iec.35
+        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 14:02:00 -0800 (PST)
+Received: from relay.sgi.com (relay3.sgi.com. [192.48.152.1])
+        by mx.google.com with ESMTP id f2si4994979iga.18.2014.01.10.14.01.58
+        for <linux-mm@kvack.org>;
+        Fri, 10 Jan 2014 14:01:59 -0800 (PST)
+Date: Fri, 10 Jan 2014 16:01:55 -0600
+From: Alex Thorlton <athorlton@sgi.com>
+Subject: Re: [RFC PATCH] mm: thp: Add per-mm_struct flag to control THP
+Message-ID: <20140110220155.GD3066@sgi.com>
+References: <1389383718-46031-1-git-send-email-athorlton@sgi.com>
+ <20140110202310.GB1421@node.dhcp.inet.fi>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140110202310.GB1421@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Prarit Bhargava <prarit@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Len Brown <lenb@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, kosaki.motohiro@gmail.com, dyoung@redhat.com, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org
 
-On Fri, 2014-01-10 at 14:04 -0500, Prarit Bhargava wrote:
- :
->  arch/x86/kernel/e820.c         |   10 +++++++++-
->  drivers/acpi/acpi_memhotplug.c |    7 ++++++-
->  include/linux/memory_hotplug.h |    3 +++
->  3 files changed, 18 insertions(+), 2 deletions(-)
-> 
-> diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
-> index 174da5f..747f36a 100644
-> --- a/arch/x86/kernel/e820.c
-> +++ b/arch/x86/kernel/e820.c
-> @@ -20,6 +20,7 @@
->  #include <linux/firmware-map.h>
->  #include <linux/memblock.h>
->  #include <linux/sort.h>
-> +#include <linux/memory_hotplug.h>
->  
->  #include <asm/e820.h>
->  #include <asm/proto.h>
-> @@ -834,6 +835,8 @@ static int __init parse_memopt(char *p)
->  		return -EINVAL;
->  	e820_remove_range(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
->  
-> +	set_acpi_no_memhotplug();
-> +
+On Fri, Jan 10, 2014 at 10:23:10PM +0200, Kirill A. Shutemov wrote:
+> Do you know what cause the difference? I prefer to fix THP instead of
+> adding new knob to disable it.
 
-It won't build when CONFIG_ACPI_HOTPLUG_MEMORY is not defined.
+The issue is that when you touch 1 byte of an untouched, contiguous 2MB
+chunk, a THP will be handed out, and the THP will be stuck on whatever
+node the chunk was originally referenced from.  If many remote nodes
+need to do work on that same chunk, they'll be making remote accesses.
+With THP disabled, 4K pages can be handed out to separate nodes as
+they're needed, greatly reducing the amount of remote accesses to
+memory.  I give a bit better description here:
 
-Thanks,
--Toshi
+https://lkml.org/lkml/2013/8/27/397
 
+I had been looking into better ways to handle this issues, but after
+spinning through a few other ideas:
 
+- Per cpuset flag to control THP:
+https://lkml.org/lkml/2013/6/10/331
 
+- Threshold to determine when to hand out THPs:
+https://lkml.org/lkml/2013/12/12/394
+
+We've arrived back here.  Andrea seemed to think that this is an
+acceptable approach to solve the problem, at least as a starting point:
+
+https://lkml.org/lkml/2013/12/17/397
+
+I agree that we should, ideally, come up with a way to appropriately
+handle this problem in the kernel, but as of right now, it appears that
+that might be a rather large undertaking.
+
+- Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
