@@ -1,38 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f181.google.com (mail-ea0-f181.google.com [209.85.215.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 38E4D6B0031
-	for <linux-mm@kvack.org>; Sat, 11 Jan 2014 11:11:37 -0500 (EST)
-Received: by mail-ea0-f181.google.com with SMTP id m10so2542068eaj.26
-        for <linux-mm@kvack.org>; Sat, 11 Jan 2014 08:11:36 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id e2si17190046eeg.198.2014.01.11.08.11.35
-        for <linux-mm@kvack.org>;
-        Sat, 11 Jan 2014 08:11:36 -0800 (PST)
-Date: Sat, 11 Jan 2014 17:11:25 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [RFC PATCH] mm: thp: Add per-mm_struct flag to control THP
-Message-ID: <20140111161125.GA17160@redhat.com>
-References: <1389383718-46031-1-git-send-email-athorlton@sgi.com> <20140110202310.GB1421@node.dhcp.inet.fi>
+Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
+	by kanga.kvack.org (Postfix) with ESMTP id ABDA36B0031
+	for <linux-mm@kvack.org>; Sat, 11 Jan 2014 11:35:05 -0500 (EST)
+Received: by mail-we0-f170.google.com with SMTP id u57so5018153wes.15
+        for <linux-mm@kvack.org>; Sat, 11 Jan 2014 08:35:05 -0800 (PST)
+Received: from mail-in-08.arcor-online.net (mail-in-08.arcor-online.net. [151.189.21.48])
+        by mx.google.com with ESMTPS id m2si3658950wix.60.2014.01.11.08.35.04
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sat, 11 Jan 2014 08:35:05 -0800 (PST)
+Date: Sat, 11 Jan 2014 16:35:00 +0000 (UTC)
+From: 7eggert@gmx.de
+Subject: Re: [PATCH 2/2] x86, e820 disable ACPI Memory Hotplug if memory
+ mapping is specified by user [v2]
+In-Reply-To: <1389380698-19361-4-git-send-email-prarit@redhat.com>
+Message-ID: <alpine.DEB.2.02.1401111624170.20677@be1.lrz>
+References: <1389380698-19361-1-git-send-email-prarit@redhat.com> <1389380698-19361-4-git-send-email-prarit@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140110202310.GB1421@node.dhcp.inet.fi>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Alex Thorlton <athorlton@sgi.com>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org
+To: Prarit Bhargava <prarit@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Len Brown <lenb@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Toshi Kani <toshi.kani@hp.com>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, kosaki.motohiro@gmail.com, dyoung@redhat.com, linux-acpi@vger.kernel.org, linux-mm@kvack.org
 
-On 01/10, Kirill A. Shutemov wrote:
->
-> I prefer to fix THP instead of
-> adding new knob to disable it.
 
-I agree. But if we have the per-vma MADV/VM_ flags, it looks
-natural to also have the per-mm know which affects all vmas.
 
-Besides this allows to control the thp behaviour after exec.
+On Fri, 10 Jan 2014, Prarit Bhargava wrote:
 
-Oleg.
+> kdump uses memmap=exactmap and mem=X values to configure the memory
+> mapping for the kdump kernel.  If memory is hotadded during the boot of
+> the kdump kernel it is possible that the page tables for the new memory
+> cause the kdump kernel to run out of memory.
+> 
+> Since the user has specified a specific mapping ACPI Memory Hotplug should be
+> disabled in this case.
+
+I'll ask just in case: Is it possible to want memory hotplug in spite of 
+using memmap=exactmap or mem=X?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
