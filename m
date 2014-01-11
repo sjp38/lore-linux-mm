@@ -1,57 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f47.google.com (mail-bk0-f47.google.com [209.85.214.47])
-	by kanga.kvack.org (Postfix) with ESMTP id C91F96B0031
-	for <linux-mm@kvack.org>; Sat, 11 Jan 2014 13:39:00 -0500 (EST)
-Received: by mail-bk0-f47.google.com with SMTP id mx12so1954254bkb.20
-        for <linux-mm@kvack.org>; Sat, 11 Jan 2014 10:38:58 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id lk6si6438131bkb.132.2014.01.11.10.38.58
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 11 Jan 2014 10:38:58 -0800 (PST)
-Date: Sat, 11 Jan 2014 13:38:55 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [Help] Question about vm: fair zone allocator policy
-Message-ID: <20140111183855.GA4407@cmpxchg.org>
-References: <CANwX7LTkb3v6Aq9nqFWN-cykX08+fuAntFMDRu7DM_pcyK9iSw@mail.gmail.com>
+Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 27AE76B0031
+	for <linux-mm@kvack.org>; Sat, 11 Jan 2014 14:30:09 -0500 (EST)
+Received: by mail-ie0-f169.google.com with SMTP id e14so6655541iej.14
+        for <linux-mm@kvack.org>; Sat, 11 Jan 2014 11:30:08 -0800 (PST)
+Received: from relay.sgi.com (relay3.sgi.com. [192.48.152.1])
+        by mx.google.com with ESMTP id r1si9514102igg.39.2014.01.11.11.30.07
+        for <linux-mm@kvack.org>;
+        Sat, 11 Jan 2014 11:30:07 -0800 (PST)
+Date: Sat, 11 Jan 2014 13:30:03 -0600
+From: Alex Thorlton <athorlton@sgi.com>
+Subject: Re: [RFC PATCH] mm: thp: Add per-mm_struct flag to control THP
+Message-ID: <20140111193003.GA10649@sgi.com>
+References: <1389383718-46031-1-git-send-email-athorlton@sgi.com>
+ <20140111155337.GA16003@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CANwX7LTkb3v6Aq9nqFWN-cykX08+fuAntFMDRu7DM_pcyK9iSw@mail.gmail.com>
+In-Reply-To: <20140111155337.GA16003@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yvxiang <linyvxiang@gmail.com>
-Cc: linux-mm@kvack.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org
 
-On Tue, Jan 07, 2014 at 09:37:01AM +0800, yvxiang wrote:
-> Hi, Johannes
+On Sat, Jan 11, 2014 at 04:53:37PM +0100, Oleg Nesterov wrote:
+> On 01/10, Alex Thorlton wrote:
+> >
+> > This patch adds an mm flag (MMF_THP_DISABLE) to disable transparent
+> > hugepages using prctl.  It is based on my original patch to add a
+> > per-task_struct flag to disable THP:
 > 
->      I'm a new comer to vm. And I read your commit 81c0a2bb about fair zone
-> allocator policy,  but I don't quite understand your opinion, especially
-> the words that
+> I leave the "whether we need this feature" to other reviewers, although
+> personally I think it probably makes sense anyway.
 > 
->    "the allocator may keep kswapd running while kswapd reclaim
->     ensures that the page allocator can keep allocating from the first zone
-> in
->     the zonelist for extended periods of time. "
+> But the patch doesn't look nice imho.
 > 
->     Could you or someone else explain me what does this mean in more
-> details? Or could you give me a example?
+> > @@ -373,7 +373,15 @@ extern int get_dumpable(struct mm_struct *mm);
+> >  #define MMF_HAS_UPROBES		19	/* has uprobes */
+> >  #define MMF_RECALC_UPROBES	20	/* MMF_HAS_UPROBES can be wrong */
+> >  
+> > +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> > +#define MMF_THP_DISABLE		21	/* disable THP for this mm */
+> > +#define MMF_THP_DISABLE_MASK	(1 << MMF_THP_DISABLE)
+> > +
+> > +#define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK | MMF_THP_DISABLE_MASK)
+> > +#else
+> >  #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK)
+> > +#endif
+> 
+> It would be nice to lessen the number of ifdef's. Why we can't define
+> MMF_THP_DISABLE unconditionally and include it into MMF_INIT_MASK?
+> Or define it == 0 if !CONFIG_THP. But this is minor.
 
-The page allocator tries to allocate from all zones in order of
-preference: Normal, DMA32, DMA.  If they are all at their low
-watermark, kswapd is woken up and it will reclaim each zone until it's
-back to the high watermark.
+That's a good idea.  I guess I was thinking that we don't want to define
+any THP specific stuff when THP isn't configured, but I guess it doesn't
+make much of a difference since the flag will never be set if THP isn't
+configured.
 
-But as kswapd reclaims the Normal zone, the page allocator can
-continue allocating from it.  If that happens at roughly the same
-pace, the Normal zone's watermark will hover somewhere between the low
-and high watermark.  Kswapd will not go to sleep and the page
-allocator will not use the other zones.
+> > +#define PR_SET_THP_DISABLE	41
+> > +#define PR_CLEAR_THP_DISABLE	42
+> > +#define PR_GET_THP_DISABLE	43
+> 
+> Why we can't add 2 PR_'s, set and get?
 
-The whole workload's memory will be allocated and reclaimed using only
-the Normal zone, which might be only a few (hundred) megabytes, while
-the 4G DMA32 zone is unused.
+See response below.
+
+> > --- a/kernel/fork.c
+> > +++ b/kernel/fork.c
+> > @@ -818,6 +818,7 @@ struct mm_struct *dup_mm(struct task_struct *tsk)
+> >  #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
+> >  	mm->pmd_huge_pte = NULL;
+> >  #endif
+> > +
+> >  	if (!mm_init(mm, tsk))
+> >  		goto fail_nomem;
+> 
+> Why? looks like the accidental change.
+
+Ah, yes.  Didn't catch that when I looked over the patch.  I'll fix
+that.
+
+> 
+> > --- a/kernel/sys.c
+> > +++ b/kernel/sys.c
+> > @@ -1835,6 +1835,42 @@ static int prctl_get_tid_address(struct task_struct *me, int __user **tid_addr)
+> >  }
+> >  #endif
+> >  
+> > +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> > +static int prctl_set_thp_disable(struct task_struct *me)
+> > +{
+> > +	set_bit(MMF_THP_DISABLE, &me->mm->flags);
+> > +	return 0;
+> > +}
+> > +
+> > +static int prctl_clear_thp_disable(struct task_struct *me)
+> > +{
+> > +	clear_bit(MMF_THP_DISABLE, &me->mm->flags);
+> > +	return 0;
+> > +}
+> > +
+> > +static int prctl_get_thp_disable(struct task_struct *me,
+> > +				  int __user *thp_disabled)
+> > +{
+> > +	return put_user(test_bit(MMF_THP_DISABLE, &me->mm->flags), thp_disabled);
+> > +}
+> > +#else
+> > +static int prctl_set_thp_disable(struct task_struct *me)
+> > +{
+> > +	return -EINVAL;
+> > +}
+> > +
+> > +static int prctl_clear_thp_disable(struct task_struct *me)
+> > +{
+> > +	return -EINVAL;
+> > +}
+> > +
+> > +static int prctl_get_thp_disable(struct task_struct *me,
+> > +				  int __user *thp_disabled)
+> > +{
+> > +	return -EINVAL;
+> > +}
+> > +#endif
+> > +
+> >  SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
+> >  		unsigned long, arg4, unsigned long, arg5)
+> >  {
+> > @@ -1998,6 +2034,15 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
+> >  		if (arg2 || arg3 || arg4 || arg5)
+> >  			return -EINVAL;
+> >  		return current->no_new_privs ? 1 : 0;
+> > +	case PR_SET_THP_DISABLE:
+> > +		error = prctl_set_thp_disable(me);
+> > +		break;
+> > +	case PR_CLEAR_THP_DISABLE:
+> > +		error = prctl_clear_thp_disable(me);
+> > +		break;
+> > +	case PR_GET_THP_DISABLE:
+> > +		error = prctl_get_thp_disable(me, (int __user *) arg2);
+> > +		break;
+> >  	default:
+> >  		error = -EINVAL;
+> >  		break;
+> 
+> I simply can't understand, this all looks like overkill. Can't you simply add
+> 
+> 	#idfef CONFIG_TRANSPARENT_HUGEPAGE
+> 	case GET:
+> 		error = test_bit(MMF_THP_DISABLE);
+> 		break;
+> 	case PUT:
+> 		if (arg2)
+> 			set_bit();
+> 		else
+> 			clear_bit();
+> 		break;
+> 	#endif
+> 
+> into sys_prctl() ?	
+
+That's probably a better solution.  I wasn't sure whether or not it was
+better to have two functions to handle this, or to have one function
+handle both.  If you think it's better to just handle both with one,
+that's easy enough to change.
+
+- Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
