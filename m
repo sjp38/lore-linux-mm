@@ -1,42 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
-	by kanga.kvack.org (Postfix) with ESMTP id ABDA36B0031
-	for <linux-mm@kvack.org>; Sat, 11 Jan 2014 11:35:05 -0500 (EST)
-Received: by mail-we0-f170.google.com with SMTP id u57so5018153wes.15
-        for <linux-mm@kvack.org>; Sat, 11 Jan 2014 08:35:05 -0800 (PST)
-Received: from mail-in-08.arcor-online.net (mail-in-08.arcor-online.net. [151.189.21.48])
-        by mx.google.com with ESMTPS id m2si3658950wix.60.2014.01.11.08.35.04
+Received: from mail-bk0-f50.google.com (mail-bk0-f50.google.com [209.85.214.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EA1E6B0031
+	for <linux-mm@kvack.org>; Sat, 11 Jan 2014 12:21:54 -0500 (EST)
+Received: by mail-bk0-f50.google.com with SMTP id e11so1961831bkh.9
+        for <linux-mm@kvack.org>; Sat, 11 Jan 2014 09:21:53 -0800 (PST)
+Received: from mail-bk0-x229.google.com (mail-bk0-x229.google.com [2a00:1450:4008:c01::229])
+        by mx.google.com with ESMTPS id ko10si6359506bkb.76.2014.01.11.09.21.53
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 11 Jan 2014 08:35:05 -0800 (PST)
-Date: Sat, 11 Jan 2014 16:35:00 +0000 (UTC)
-From: 7eggert@gmx.de
-Subject: Re: [PATCH 2/2] x86, e820 disable ACPI Memory Hotplug if memory
- mapping is specified by user [v2]
-In-Reply-To: <1389380698-19361-4-git-send-email-prarit@redhat.com>
-Message-ID: <alpine.DEB.2.02.1401111624170.20677@be1.lrz>
-References: <1389380698-19361-1-git-send-email-prarit@redhat.com> <1389380698-19361-4-git-send-email-prarit@redhat.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 11 Jan 2014 09:21:53 -0800 (PST)
+Received: by mail-bk0-f41.google.com with SMTP id v15so1978257bkz.28
+        for <linux-mm@kvack.org>; Sat, 11 Jan 2014 09:21:53 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <8411.1389277071@jrobl>
+References: <CAK25hWOu-Q0H8_RCejDduuLCA1-135BEp_Cn_njurBA4r7zp5g@mail.gmail.com>
+	<20140107122301.GC16640@quack.suse.cz>
+	<CAK25hWMdfSmZLZQugJ3YU=b6nb7ZQzQFw514e=HV91s0Z-W0nQ@mail.gmail.com>
+	<6469.1389157809@jrobl>
+	<CAK25hWOUhV2Ygs-Q3cVN-mio+BHB60zJ7J_wZZKb=hOR9mb0ug@mail.gmail.com>
+	<523.1389252725@jrobl>
+	<CAK25hWNTmn=NL9exT1kG9D4ya=hzXWSZUiOj8iYjEfrf_yNTEQ@mail.gmail.com>
+	<8411.1389277071@jrobl>
+Date: Sat, 11 Jan 2014 22:51:52 +0530
+Message-ID: <CAK25hWPpgShw_mWcqWrwGifMXdvF4qDyNojsBAA-si6KPNX68A@mail.gmail.com>
+Subject: Re: [LSF/MM ATTEND] Stackable Union Filesystem Implementation
+From: Saket Sinha <saket.sinha89@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Prarit Bhargava <prarit@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Len Brown <lenb@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Toshi Kani <toshi.kani@hp.com>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, kosaki.motohiro@gmail.com, dyoung@redhat.com, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+To: "J. R. Okajima" <hooanon05g@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
+
+> Currently it is unclear which evolution way hepunion will take, but if
+> you want
+> - filesystem-type union (instead of mount-type union nor block device
+>   level union)
+> - and name-based union (insated of inode-based union)
+> then the approach is similar to overlayfs's.
+> So it might be better to make overlayfs as the base of your development.
+> If supporting NFS branch (or exporting hepunion) is important for you,
+> then the inode-based solution will be necessary.
+>
+Thanks for the suggestion. I am looking forward to suggestions like
+these from the community so that we can have a universal union
+filesystem for mainline linux kernel with most of the use
+cases(including Cern's).
 
 
-
-On Fri, 10 Jan 2014, Prarit Bhargava wrote:
-
-> kdump uses memmap=exactmap and mem=X values to configure the memory
-> mapping for the kdump kernel.  If memory is hotadded during the boot of
-> the kdump kernel it is possible that the page tables for the new memory
-> cause the kdump kernel to run out of memory.
-> 
-> Since the user has specified a specific mapping ACPI Memory Hotplug should be
-> disabled in this case.
-
-I'll ask just in case: Is it possible to want memory hotplug in spite of 
-using memmap=exactmap or mem=X?
+Regards,
+Saket Sinha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
