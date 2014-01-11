@@ -1,85 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-gg0-f172.google.com (mail-gg0-f172.google.com [209.85.161.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D2386B0031
-	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 22:27:17 -0500 (EST)
-Received: by mail-gg0-f172.google.com with SMTP id x14so270371ggx.31
-        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 19:27:16 -0800 (PST)
-Received: from e8.ny.us.ibm.com (e8.ny.us.ibm.com. [32.97.182.138])
-        by mx.google.com with ESMTPS id o28si11298327yhd.91.2014.01.10.19.27.15
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id C00946B0031
+	for <linux-mm@kvack.org>; Sat, 11 Jan 2014 02:44:32 -0500 (EST)
+Received: by mail-pd0-f174.google.com with SMTP id w10so835492pde.33
+        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 23:44:32 -0800 (PST)
+Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
+        by mx.google.com with ESMTPS id ll1si9532188pab.173.2014.01.10.23.44.30
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 10 Jan 2014 19:27:15 -0800 (PST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <hanpt@linux.vnet.ibm.com>;
-	Fri, 10 Jan 2014 22:27:14 -0500
-Received: from b01cxnp22035.gho.pok.ibm.com (b01cxnp22035.gho.pok.ibm.com [9.57.198.25])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id B60FF38C8047
-	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 22:27:12 -0500 (EST)
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by b01cxnp22035.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0B3RCmm5964268
-	for <linux-mm@kvack.org>; Sat, 11 Jan 2014 03:27:12 GMT
-Received: from d01av03.pok.ibm.com (localhost [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0B3RCAn020191
-	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 22:27:12 -0500
-Date: Sat, 11 Jan 2014 11:27:08 +0800
-From: Han Pingtian <hanpt@linux.vnet.ibm.com>
-Subject: Re: [RFC] mm: show message when updating min_free_kbytes in thp
-Message-ID: <20140111032708.GL4106@localhost.localdomain>
-References: <52C5AA61.8060701@intel.com>
- <20140103033303.GB4106@localhost.localdomain>
- <52C6FED2.7070700@intel.com>
- <20140105003501.GC4106@localhost.localdomain>
- <20140106164604.GC27602@dhcp22.suse.cz>
- <20140108101611.GD27937@dhcp22.suse.cz>
- <20140110081744.GC9437@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140110081744.GC9437@dhcp22.suse.cz>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Fri, 10 Jan 2014 23:44:31 -0800 (PST)
+Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
+ by mailout4.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MZ80086M864A960@mailout4.samsung.com> for
+ linux-mm@kvack.org; Sat, 11 Jan 2014 16:44:28 +0900 (KST)
+From: Cai Liu <cai.liu@samsung.com>
+Subject: [PATCH] mm/zswap: Check all pool pages instead of one pool pages
+Date: Sat, 11 Jan 2014 15:43:07 +0800
+Message-id: <000101cf0ea0$f4e7c560$deb75020$@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Content-language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+To: sjenning@linux.vnet.ibm.com, akpm@linux-foundation.org, bob.liu@oracle.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, liucai.lfn@gmail.com
 
-On Fri, Jan 10, 2014 at 09:17:44AM +0100, Michal Hocko wrote:
-> On Fri 10-01-14 00:13:44, Andrew Morton wrote:
-> > On Fri, 10 Jan 2014 09:05:04 +0100 Michal Hocko <mhocko@suse.cz> wrote:
-> > 
-> > > > > --- a/mm/huge_memory.c
-> > > > > +++ b/mm/huge_memory.c
-> > > > > @@ -100,6 +100,7 @@ static struct khugepaged_scan khugepaged_scan = {
-> > > > >  	.mm_head = LIST_HEAD_INIT(khugepaged_scan.mm_head),
-> > > > >  };
-> > > > >  
-> > > > > +extern int user_min_free_kbytes;
-> > > > >  
-> > > > 
-> > > > We don't add extern declarations to .c files.  How many other examples of 
-> > > > this can you find in mm/?
-> > > 
-> > > I have suggested this because general visibility is not needed.
-> > 
-> > It's best to use a common declaration which is seen by the definition
-> > site and all references, so everyone agrees on the variable's type. 
-> > Otherwise we could have "long foo;" in one file and "extern char foo;"
-> > in another and the compiler won't tell us.  I think the linker could
-> > tell us, but it doesn't, afaik.  Perhaps there's an option...
-> > 
-> > > But if
-> > > you think that it should then include/linux/mm.h sounds like a proper
-> > > place.
-> > 
-> > mm/internal.h might suit.
-> 
-> min_free_kbytes is in mm.h so I thought having them together would be
-> appropriate.
-> 
+zswap can support multiple swapfiles. So we need to check
+all zbud pool pages in zswap.
 
-At present, we only use user_min_free_kbytes in memory subsystem. So I
-think mm/internal.h is suit.
+Signed-off-by: Cai Liu <cai.liu@samsung.com>
+---
+ mm/zswap.c |   18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)
 
-Thanks.
+diff --git a/mm/zswap.c b/mm/zswap.c
+index d93afa6..2438344 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -291,7 +291,6 @@ static void zswap_free_entry(struct zswap_tree *tree,
+ 	zbud_free(tree->pool, entry->handle);
+ 	zswap_entry_cache_free(entry);
+ 	atomic_dec(&zswap_stored_pages);
+-	zswap_pool_pages = zbud_get_pool_size(tree->pool);
+ }
+ 
+ /* caller must hold the tree lock */
+@@ -405,10 +404,24 @@ cleanup:
+ /*********************************
+ * helpers
+ **********************************/
++static u64 get_zswap_pool_pages(void)
++{
++	int i;
++	u64 pool_pages = 0;
++
++	for (i = 0; i < MAX_SWAPFILES; i++) {
++		if (zswap_trees[i])
++			pool_pages += zbud_get_pool_size(zswap_trees[i]->pool);
++	}
++	zswap_pool_pages = pool_pages;
++
++	return pool_pages;
++}
++
+ static bool zswap_is_full(void)
+ {
+ 	return (totalram_pages * zswap_max_pool_percent / 100 <
+-		zswap_pool_pages);
++		get_zswap_pool_pages());
+ }
+ 
+ /*********************************
+@@ -716,7 +729,6 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+ 
+ 	/* update stats */
+ 	atomic_inc(&zswap_stored_pages);
+-	zswap_pool_pages = zbud_get_pool_size(tree->pool);
+ 
+ 	return 0;
+ 
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
