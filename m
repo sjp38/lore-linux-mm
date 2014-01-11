@@ -1,81 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 59FF06B0031
-	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 19:38:07 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id rq2so5110844pbb.31
-        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 16:38:07 -0800 (PST)
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 525C76B0031
+	for <linux-mm@kvack.org>; Fri, 10 Jan 2014 19:53:18 -0500 (EST)
+Received: by mail-pd0-f172.google.com with SMTP id g10so5222891pdj.31
+        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 16:53:17 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id gm1si8661671pac.216.2014.01.10.16.38.05
+        by mx.google.com with ESMTP id tb5si8704400pac.191.2014.01.10.16.53.16
         for <linux-mm@kvack.org>;
-        Fri, 10 Jan 2014 16:38:06 -0800 (PST)
-Date: Fri, 10 Jan 2014 16:38:03 -0800
+        Fri, 10 Jan 2014 16:53:17 -0800 (PST)
+Date: Fri, 10 Jan 2014 16:53:14 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/swap: fix race on swap_info reuse between swapoff
- and swapon
-Message-Id: <20140110163803.430c8ab05eca9fee19fa7991@linux-foundation.org>
-In-Reply-To: <000001cf0cfd$6d251640$476f42c0$%yang@samsung.com>
-References: <000001cf0cfd$6d251640$476f42c0$%yang@samsung.com>
+Subject: Re: [PATCH v2 08/23] mm/memblock: Add memblock memory allocation
+ apis
+Message-Id: <20140110165314.80adf6b53c310693529c3c80@linux-foundation.org>
+In-Reply-To: <52A0B42C.5080405@ti.com>
+References: <1386037658-3161-1-git-send-email-santosh.shilimkar@ti.com>
+	<1386037658-3161-9-git-send-email-santosh.shilimkar@ti.com>
+	<20131203232445.GX8277@htj.dyndns.org>
+	<529F5047.50309@ti.com>
+	<20131204160730.GQ3158@htj.dyndns.org>
+	<529F5C55.1020707@ti.com>
+	<52A07BBE.7060507@ti.com>
+	<20131205165936.GB24062@mtj.dyndns.org>
+	<52A0B42C.5080405@ti.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang@samsung.com>
-Cc: 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>, hughd@google.com, 'Minchan Kim' <minchan@kernel.org>, shli@fusionio.com, 'Bob Liu' <bob.liu@oracle.com>, k.kozlowski@samsung.com, stable@vger.kernel.org, weijie.yang.kh@gmail.com
+To: Santosh Shilimkar <santosh.shilimkar@ti.com>
+Cc: Tejun Heo <tj@kernel.org>, Grygorii Strashko <grygorii.strashko@ti.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Yinghai Lu <yinghai@kernel.org>
 
-On Thu, 09 Jan 2014 13:39:55 +0800 Weijie Yang <weijie.yang@samsung.com> wrote:
+On Thu, 5 Dec 2013 12:13:16 -0500 Santosh Shilimkar <santosh.shilimkar@ti.com> wrote:
 
-> swapoff clear swap_info's SWP_USED flag prematurely and free its resources
-> after that. A concurrent swapon will reuse this swap_info while its previous
-> resources are not cleared completely.
+> On Thursday 05 December 2013 11:59 AM, Tejun Heo wrote:
+> > Hello,
+> > 
+> > On Thu, Dec 05, 2013 at 03:12:30PM +0200, Grygorii Strashko wrote:
+> >> I'll try to provide more technical details here.
+> >> As Santosh mentioned in previous e-mails, it's not easy to simply
+> >> get rid of using MAX_NUMNODES:
+> >> 1) we introduce new interface memblock_allocX 
+> >> 2) our interface uses memblock APIs __next_free_mem_range_rev()
+> >>    and __next_free_mem_range()
+> >> 3) __next_free_mem_range_rev() and __next_free_mem_range() use MAX_NUMNODES
+> >> 4) _next_free_mem_range_rev() and __next_free_mem_range() are used standalone,
+> >>    outside of our interface as part of *for_each_free_mem_range* or for_each_mem_pfn_range ..
+> >>
+> >> The point [4] leads to necessity to find and correct all places where memmblock APIs
+> >> are used and where it's expected to get MAX_NUMNODES as input parameter.
+> >> The major problem is that simple "grep" will not work, because memmblock APIs calls
+> >> are hidden inside other MM modules and it's not always clear
+> >> what will be passed as input parameters to APIs of these MM modules
+> >> (for example sparse_memory_present_with_active_regions() or sparse.c).
+> > 
+> > Isn't that kinda trivial to work around?  Make those functions accept
+> > both MAX_NUMNODES and NUMA_NO_NODE but emit warning on MAX_NUMNODES
+> > (preferably throttled reasonably).  Given the history of API, we'd
+> > probably want to keep such warning for extended period of time but
+> > that's what we'd need to do no matter what.
+> > 
+> Looks a good idea.
 > 
-> These late freed resources are:
-> - p->percpu_cluster
-> - swap_cgroup_ctrl[type]
-> - block_device setting
-> - inode->i_flags &= ~S_SWAPFILE
+> >> As result, WIP patch, I did, and which was posted by Santosh illustrates
+> >> the probable size and complexity of the change.
+> > 
+> > Again, I don't really mind the order things happen but I don't think
+> > it's a good idea to spread misusage with a new API.  You gotta deal
+> > with it one way or the other.
+> > 
+> >> Sorry, but question here is not "Do or not to do?", but rather 'how to do?",
+> >> taking into account complexity and state of the current MM code.
+> >> For example. would it be ok if I'll workaround the issue as in the attached patch?
+> > 
+> > Well, it's more of when.  It's not really a technically difficult
+> > task and all I'm saying is it better be sooner than later.
+> > 
+> Fair enough. Based on your suggestion, we will try to see if
+> we can proceed with 4) accepting both MAX_NUMNODES and NUMA_NO_NODE.
 > 
-> This patch clear SWP_USED flag after all its resources freed, so that swapon
-> can reuse this swap_info by alloc_swap_info() safely.
-> 
-> ...
->
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -1922,7 +1922,6 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
->  	p->swap_map = NULL;
->  	cluster_info = p->cluster_info;
->  	p->cluster_info = NULL;
-> -	p->flags = 0;
->  	frontswap_map = frontswap_map_get(p);
->  	spin_unlock(&p->lock);
->  	spin_unlock(&swap_lock);
-> @@ -1948,6 +1947,16 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
->  		mutex_unlock(&inode->i_mutex);
->  	}
->  	filp_close(swap_file, NULL);
-> +
-> +	/*
-> +	* clear SWP_USED flag after all resources freed
-> +	* so that swapon can reuse this swap_info in alloc_swap_info() safely
-> +	* it is ok to not hold p->lock after we cleared its SWP_WRITEOK
-> +	*/
-> +	spin_lock(&swap_lock);
-> +	p->flags = 0;
-> +	spin_unlock(&swap_lock);
-> +
->  	err = 0;
->  	atomic_inc(&proc_poll_event);
->  	wake_up_interruptible(&proc_poll_wait);
+> Thanks for the suggestion.
 
-I'm scratching my head over the swap_lock use here.  Is it being used
-appropriately, is it the correct lock, etc.
+So where do we now stand with this MAX_NUMNODES-vs-NUMA_NO_NODE mess? 
+Is the conversion to NUMA_NO_NODE in current linux-next completed and
+nicely tested?
 
-swap_start() and friends are playing with SWP_USED, but they're using
-swapon_mutex.  I wonder if a well-timed read of /proc/swaps could cause
-problems.
-
-The swapfile.c code does not make for pleasant reading :(
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
