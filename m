@@ -1,88 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id C00946B0031
-	for <linux-mm@kvack.org>; Sat, 11 Jan 2014 02:44:32 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id w10so835492pde.33
-        for <linux-mm@kvack.org>; Fri, 10 Jan 2014 23:44:32 -0800 (PST)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id ll1si9532188pab.173.2014.01.10.23.44.30
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id A98906B0031
+	for <linux-mm@kvack.org>; Sat, 11 Jan 2014 04:26:18 -0500 (EST)
+Received: by mail-we0-f182.google.com with SMTP id q59so4858790wes.41
+        for <linux-mm@kvack.org>; Sat, 11 Jan 2014 01:26:18 -0800 (PST)
+Received: from mail-wg0-x231.google.com (mail-wg0-x231.google.com [2a00:1450:400c:c00::231])
+        by mx.google.com with ESMTPS id ys2si5388744wjc.104.2014.01.11.01.26.16
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Fri, 10 Jan 2014 23:44:31 -0800 (PST)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout4.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MZ80086M864A960@mailout4.samsung.com> for
- linux-mm@kvack.org; Sat, 11 Jan 2014 16:44:28 +0900 (KST)
-From: Cai Liu <cai.liu@samsung.com>
-Subject: [PATCH] mm/zswap: Check all pool pages instead of one pool pages
-Date: Sat, 11 Jan 2014 15:43:07 +0800
-Message-id: <000101cf0ea0$f4e7c560$deb75020$@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-Content-language: zh-cn
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 11 Jan 2014 01:26:17 -0800 (PST)
+Received: by mail-wg0-f49.google.com with SMTP id a1so2640386wgh.28
+        for <linux-mm@kvack.org>; Sat, 11 Jan 2014 01:26:16 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <52D0854F.5060102@sr71.net>
+References: <20140103180147.6566F7C1@viggo.jf.intel.com>
+	<20140103141816.20ef2a24c8adffae040e53dc@linux-foundation.org>
+	<20140106043237.GE696@lge.com>
+	<52D05D90.3060809@sr71.net>
+	<20140110153913.844e84755256afd271371493@linux-foundation.org>
+	<52D0854F.5060102@sr71.net>
+Date: Sat, 11 Jan 2014 11:26:16 +0200
+Message-ID: <CAOJsxLE-oMpV2G-gxrhyv0Au1tPd87Ow57VD5CWFo41wF8F4Yw@mail.gmail.com>
+Subject: Re: [PATCH 0/9] re-shrink 'struct page' when SLUB is on.
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sjenning@linux.vnet.ibm.com, akpm@linux-foundation.org, bob.liu@oracle.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, liucai.lfn@gmail.com
+To: Dave Hansen <dave@sr71.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>
 
-zswap can support multiple swapfiles. So we need to check
-all zbud pool pages in zswap.
+On Sat, Jan 11, 2014 at 1:42 AM, Dave Hansen <dave@sr71.net> wrote:
+> On 01/10/2014 03:39 PM, Andrew Morton wrote:
+>>> I tested 4 cases, all of these on the "cache-cold kfree()" case.  The
+>>> first 3 are with vanilla upstream kernel source.  The 4th is patched
+>>> with my new slub code (all single-threaded):
+>>>
+>>>      http://www.sr71.net/~dave/intel/slub/slub-perf-20140109.png
+>>
+>> So we're converging on the most complex option.  argh.
+>
+> Yeah, looks that way.
 
-Signed-off-by: Cai Liu <cai.liu@samsung.com>
----
- mm/zswap.c |   18 +++++++++++++++---
- 1 file changed, 15 insertions(+), 3 deletions(-)
+Seems like a reasonable compromise between memory usage and allocation speed.
 
-diff --git a/mm/zswap.c b/mm/zswap.c
-index d93afa6..2438344 100644
---- a/mm/zswap.c
-+++ b/mm/zswap.c
-@@ -291,7 +291,6 @@ static void zswap_free_entry(struct zswap_tree *tree,
- 	zbud_free(tree->pool, entry->handle);
- 	zswap_entry_cache_free(entry);
- 	atomic_dec(&zswap_stored_pages);
--	zswap_pool_pages = zbud_get_pool_size(tree->pool);
- }
- 
- /* caller must hold the tree lock */
-@@ -405,10 +404,24 @@ cleanup:
- /*********************************
- * helpers
- **********************************/
-+static u64 get_zswap_pool_pages(void)
-+{
-+	int i;
-+	u64 pool_pages = 0;
-+
-+	for (i = 0; i < MAX_SWAPFILES; i++) {
-+		if (zswap_trees[i])
-+			pool_pages += zbud_get_pool_size(zswap_trees[i]->pool);
-+	}
-+	zswap_pool_pages = pool_pages;
-+
-+	return pool_pages;
-+}
-+
- static bool zswap_is_full(void)
- {
- 	return (totalram_pages * zswap_max_pool_percent / 100 <
--		zswap_pool_pages);
-+		get_zswap_pool_pages());
- }
- 
- /*********************************
-@@ -716,7 +729,6 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
- 
- 	/* update stats */
- 	atomic_inc(&zswap_stored_pages);
--	zswap_pool_pages = zbud_get_pool_size(tree->pool);
- 
- 	return 0;
- 
--- 
-1.7.10.4
+Christoph?
+
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
