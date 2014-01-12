@@ -1,59 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D2476B0031
-	for <linux-mm@kvack.org>; Sun, 12 Jan 2014 08:56:10 -0500 (EST)
-Received: by mail-wi0-f177.google.com with SMTP id hm2so1240339wib.10
-        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 05:56:09 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id dt8si5511066wib.9.2014.01.12.05.56.08
-        for <linux-mm@kvack.org>;
-        Sun, 12 Jan 2014 05:56:09 -0800 (PST)
-Date: Sun, 12 Jan 2014 14:56:00 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [RFC PATCH] mm: thp: Add per-mm_struct flag to control THP
-Message-ID: <20140112135600.GA15051@redhat.com>
-References: <1389383718-46031-1-git-send-email-athorlton@sgi.com> <20140111155337.GA16003@redhat.com> <20140111193003.GA10649@sgi.com>
+Received: from mail-yh0-f51.google.com (mail-yh0-f51.google.com [209.85.213.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AF596B0031
+	for <linux-mm@kvack.org>; Sun, 12 Jan 2014 10:42:21 -0500 (EST)
+Received: by mail-yh0-f51.google.com with SMTP id l109so1224647yhq.24
+        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 07:42:20 -0800 (PST)
+Received: from bear.ext.ti.com (bear.ext.ti.com. [192.94.94.41])
+        by mx.google.com with ESMTPS id v3si16978171yhv.269.2014.01.12.07.42.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 12 Jan 2014 07:42:20 -0800 (PST)
+Message-ID: <52D2B7C8.4060103@ti.com>
+Date: Sun, 12 Jan 2014 10:42:00 -0500
+From: Santosh Shilimkar <santosh.shilimkar@ti.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140111193003.GA10649@sgi.com>
+Subject: Re: [PATCH] mm: nobootmem: avoid type warning about alignment value
+References: <1385249326-9089-1-git-send-email-santosh.shilimkar@ti.com> <529217C7.6030304@cogentembedded.com> <52935762.1080409@ti.com> <20131209165044.cf7de2edb8f4205d5ac02ab0@linux-foundation.org> <20131210005454.GX4360@n2100.arm.linux.org.uk> <52A66826.7060204@ti.com> <20140112105958.GA9791@n2100.arm.linux.org.uk>
+In-Reply-To: <20140112105958.GA9791@n2100.arm.linux.org.uk>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Thorlton <athorlton@sgi.com>
-Cc: linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, linux-arm-kernel@lists.infradead.org
 
-On 01/11, Alex Thorlton wrote:
->
-> On Sat, Jan 11, 2014 at 04:53:37PM +0100, Oleg Nesterov wrote:
->
-> > I simply can't understand, this all looks like overkill. Can't you simply add
-> >
-> > 	#idfef CONFIG_TRANSPARENT_HUGEPAGE
-> > 	case GET:
-> > 		error = test_bit(MMF_THP_DISABLE);
-> > 		break;
-> > 	case PUT:
-> > 		if (arg2)
-> > 			set_bit();
-> > 		else
-> > 			clear_bit();
-> > 		break;
-> > 	#endif
-> >
-> > into sys_prctl() ?	
->
-> That's probably a better solution.  I wasn't sure whether or not it was
-> better to have two functions to handle this, or to have one function
-> handle both.  If you think it's better to just handle both with one,
-> that's easy enough to change.
+On Sunday 12 January 2014 05:59 AM, Russell King - ARM Linux wrote:
+> On Mon, Dec 09, 2013 at 08:02:30PM -0500, Santosh Shilimkar wrote:
+>> On Monday 09 December 2013 07:54 PM, Russell King - ARM Linux wrote:
+>>> The underlying reason is that - as I've already explained - ARM's __ffs()
+>>> differs from other architectures in that it ends up being an int, whereas
+>>> almost everyone else is unsigned long.
+>>>
+>>> The fix is to fix ARMs __ffs() to conform to other architectures.
+>>>
+>> I was just about to cross-post your reply here. Obviously I didn't think
+>> this far when I made  $subject fix.
+>>
+>> So lets ignore the $subject patch which is not correct. Sorry for noise
+> 
+> Well, here we are, a month on, and this still remains unfixed despite
+> my comments pointing to what the problem is.  So, here's a patch to fix
+> this problem the correct way.  I took the time to add some comments to
+> these functions as I find that I wonder about their return values, and
+> these comments make the patch a little larger than it otherwise would be.
+> 
+The $subject warning fix [1] is already picked by Andrew with your ack
+and its in his queue [2]
 
-Personally I think sys_prctl() can handle this itself, without a helper.
-But of course I won't argue, this is up to you.
+> This patch makes their types match exactly with x86's definitions of
+> the same, which is the basic problem: on ARM, they all took "int" values
+> and returned "int"s, which leads to min() in nobootmem.c complaining.
+> 
+Not sure if you missed the thread but the right fix was picked. Ofcourse
+you do have additional clz optimisation in updated patch and some comments
+on those functions.
 
-My only point is, the kernel is already huge ;) Imho it makes sense to
-try to lessen the code size, when the logic is simple.
+Regards,
+Santosh
 
-Oleg.
+[1] https://lkml.org/lkml/2013/12/9/811
+[2] http://ozlabs.org/~akpm/mmotm/broken-out/mm-arm-fix-arms-__ffs-to-conform-to-avoid-warning-with-no_bootmem.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
