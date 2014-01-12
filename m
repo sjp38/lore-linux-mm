@@ -1,74 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F4856B0031
-	for <linux-mm@kvack.org>; Sun, 12 Jan 2014 06:34:02 -0500 (EST)
-Received: by mail-ee0-f42.google.com with SMTP id e49so941611eek.15
-        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 03:34:01 -0800 (PST)
-Received: from jenni2.inet.fi (mta-out.inet.fi. [195.156.147.13])
-        by mx.google.com with ESMTP id a9si22055152eew.222.2014.01.12.03.34.00
-        for <linux-mm@kvack.org>;
-        Sun, 12 Jan 2014 03:34:00 -0800 (PST)
-Date: Sun, 12 Jan 2014 13:33:53 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] thp: fix copy_page_rep GPF by testing is_huge_zero_pmd
- once only
-Message-ID: <20140112113353.GA21893@node.dhcp.inet.fi>
-References: <alpine.LSU.2.11.1401120112500.4070@eggly.anvils>
+Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F51E6B0031
+	for <linux-mm@kvack.org>; Sun, 12 Jan 2014 06:56:21 -0500 (EST)
+Received: by mail-ee0-f52.google.com with SMTP id e53so574980eek.11
+        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 03:56:20 -0800 (PST)
+Received: from eu1sys200aog124.obsmtp.com (eu1sys200aog124.obsmtp.com [207.126.144.157])
+        by mx.google.com with SMTP id j47si22207197eeo.95.2014.01.12.03.56.20
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 12 Jan 2014 03:56:20 -0800 (PST)
+Message-ID: <52D282DC.6050902@mellanox.com>
+Date: Sun, 12 Jan 2014 13:56:12 +0200
+From: Haggai Eran <haggaie@mellanox.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1401120112500.4070@eggly.anvils>
+Subject: Re: set_pte_at_notify regression
+References: <52D021EE.3020104@ravellosystems.com> <20140110165705.GE1141@redhat.com>
+In-Reply-To: <20140110165705.GE1141@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Izik Eidus <izik.eidus@ravellosystems.com>, linux-mm@kvack.org, kvm@vger.kernel.org, Alex Fishman <alex.fishman@ravellosystems.com>, Mike Rapoport <mike.rapoport@ravellosystems.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>
 
-On Sun, Jan 12, 2014 at 01:25:21AM -0800, Hugh Dickins wrote:
-> We see General Protection Fault on RSI in copy_page_rep:
-> that RSI is what you get from a NULL struct page pointer.
-> 
-> RIP: 0010:[<ffffffff81154955>]  [<ffffffff81154955>] copy_page_rep+0x5/0x10
-> RSP: 0000:ffff880136e15c00  EFLAGS: 00010286
-> RAX: ffff880000000000 RBX: ffff880136e14000 RCX: 0000000000000200
-> RDX: 6db6db6db6db6db7 RSI: db73880000000000 RDI: ffff880dd0c00000
-> RBP: ffff880136e15c18 R08: 0000000000000200 R09: 000000000005987c
-> R10: 000000000005987c R11: 0000000000000200 R12: 0000000000000001
-> R13: ffffea00305aa000 R14: 0000000000000000 R15: 0000000000000000
-> FS:  00007f195752f700(0000) GS:ffff880c7fc20000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 0000000093010000 CR3: 00000001458e1000 CR4: 00000000000027e0
-> Call Trace:
->  [<ffffffff810f2835>] ? copy_user_highpage.isra.43+0x65/0x80
->  [<ffffffff812654b2>] copy_user_huge_page+0x93/0xab
->  [<ffffffff8127cc76>] do_huge_pmd_wp_page+0x710/0x815
->  [<ffffffff81055ab8>] handle_mm_fault+0x15d8/0x1d70
->  [<ffffffff814f909d>] __do_page_fault+0x14d/0x840
->  [<ffffffff810a13ad>] ? SYSC_recvfrom+0x10d/0x210
->  [<ffffffff814f97bf>] do_page_fault+0x2f/0x90
->  [<ffffffff814f6032>] page_fault+0x22/0x30
-> 
-> do_huge_pmd_wp_page() tests is_huge_zero_pmd(orig_pmd) four times:
-> but since shrink_huge_zero_page() can free the huge_zero_page, and
-> we have no hold of our own on it here (except where the fourth test
-> holds page_table_lock and has checked pmd_same), it's possible for
-> it to answer yes the first time, but no to the second or third test.
-> Change all those last three to tests for NULL page.
-> 
-> (Note: this is not the same issue as trinity's DEBUG_PAGEALLOC BUG
-> in copy_page_rep with RSI: ffff88009c422000, reported by Sasha Levin
-> in https://lkml.org/lkml/2013/3/29/103.  I believe that one is due
-> to the source page being split, and a tail page freed, while copy
-> is in progress; and not a problem without DEBUG_PAGEALLOC, since
-> the pmd_same check will prevent a miscopy from being made visible.)
-> 
-> Fixes: 97ae17497e99 ("thp: implement refcounting for huge zero page")
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> Cc: stable@vger.kernel.org # v3.10 v3.11 v3.12
+Hi,
 
-Reviewed-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+On 10/01/2014 18:57, Andrea Arcangeli wrote:
+> Hi!
+>
+> On Fri, Jan 10, 2014 at 06:38:06PM +0200, Izik Eidus wrote:
+>> It look like commit 6bdb913f0a70a4dfb7f066fb15e2d6f960701d00 break the 
+>> semantic of set_pte_at_notify.
+>> The change of calling first to mmu_notifier_invalidate_range_start, then 
+>> to set_pte_at_notify, and then to mmu_notifier_invalidate_range_end
+>> not only increase the amount of locks kvm have to take and release by 
+>> factor of 3, but in addition mmu_notifier_invalidate_range_start is zapping
+>> the pte entry from kvm, so when set_pte_at_notify get called, it doesn`t 
+>> have any spte to set and it acctuly get called for nothing, the result is
+>> increasing of vmexits for kvm from both do_wp_page and replace_page, and 
+>> broken semantic of set_pte_at_notify.
+>
+> Agreed.
+>
+> I would suggest to change set_pte_at_notify to return if change_pte
+> was missing in some mmu notifier attached to this mm, so we can do
+> something like:
+>
+>    ptep = page_check_address(page, mm, addr, &ptl, 0);
+>    [..]
+>    notify_missing = false;
+>    if (... ) {
+>       	entry = ptep_clear_flush(...);
+>         [..]
+> 	notify_missing = set_pte_at_notify(mm, addr, ptep, entry);
+>    }
+>    pte_unmap_unlock(ptep, ptl);
+>    if (notify_missing)
+>    	mmu_notifier_invalidate_page_if_missing_change_pte(mm, addr);
+>
+> and drop the range calls. This will provide sleepability and at the
+> same time it won't screw the ability of change_pte to update sptes (by
+> leaving those established by the time change_pte runs).
 
--- 
- Kirill A. Shutemov
+I think it would be better for notifiers that do not support change_pte
+to keep getting both range_start and range_end notifiers. Otherwise, the
+invalidate_page notifier might end up marking the old page as dirty
+after it was already replaced in the primary page table.
+
+Perhaps we can have a flag in the mmu_notifier, similar to the
+notify_missing returned value here, that determines in these cases
+whether to call the invalidate_range_start/end pair, or just the
+set_pte_at_notify.
+
+Thanks,
+Haggai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
