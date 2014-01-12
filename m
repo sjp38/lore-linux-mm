@@ -1,79 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F51E6B0031
-	for <linux-mm@kvack.org>; Sun, 12 Jan 2014 06:56:21 -0500 (EST)
-Received: by mail-ee0-f52.google.com with SMTP id e53so574980eek.11
-        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 03:56:20 -0800 (PST)
-Received: from eu1sys200aog124.obsmtp.com (eu1sys200aog124.obsmtp.com [207.126.144.157])
-        by mx.google.com with SMTP id j47si22207197eeo.95.2014.01.12.03.56.20
+Received: from mail-qe0-f49.google.com (mail-qe0-f49.google.com [209.85.128.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C92D6B0031
+	for <linux-mm@kvack.org>; Sun, 12 Jan 2014 08:03:52 -0500 (EST)
+Received: by mail-qe0-f49.google.com with SMTP id w4so3252810qeb.22
+        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 05:03:52 -0800 (PST)
+Received: from mail-qc0-x231.google.com (mail-qc0-x231.google.com [2607:f8b0:400d:c01::231])
+        by mx.google.com with ESMTPS id a3si7250570qey.20.2014.01.12.05.03.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 12 Jan 2014 03:56:20 -0800 (PST)
-Message-ID: <52D282DC.6050902@mellanox.com>
-Date: Sun, 12 Jan 2014 13:56:12 +0200
-From: Haggai Eran <haggaie@mellanox.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 12 Jan 2014 05:03:51 -0800 (PST)
+Received: by mail-qc0-f177.google.com with SMTP id i8so1999337qcq.8
+        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 05:03:51 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: set_pte_at_notify regression
-References: <52D021EE.3020104@ravellosystems.com> <20140110165705.GE1141@redhat.com>
-In-Reply-To: <20140110165705.GE1141@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20140111183855.GA4407@cmpxchg.org>
+References: <CANwX7LTkb3v6Aq9nqFWN-cykX08+fuAntFMDRu7DM_pcyK9iSw@mail.gmail.com>
+	<20140111183855.GA4407@cmpxchg.org>
+Date: Sun, 12 Jan 2014 21:03:51 +0800
+Message-ID: <CANwX7LRPW5b3qy1=0e0OyWo+3bjGHwB-=YpCci+gnNQa9ST3yw@mail.gmail.com>
+Subject: Re: [Help] Question about vm: fair zone allocator policy
+From: yvxiang <linyvxiang@gmail.com>
+Content-Type: multipart/alternative; boundary=001a11c2bd9e34042904efc59719
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Izik Eidus <izik.eidus@ravellosystems.com>, linux-mm@kvack.org, kvm@vger.kernel.org, Alex Fishman <alex.fishman@ravellosystems.com>, Mike Rapoport <mike.rapoport@ravellosystems.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org
 
-Hi,
+--001a11c2bd9e34042904efc59719
+Content-Type: text/plain; charset=ISO-8859-1
 
-On 10/01/2014 18:57, Andrea Arcangeli wrote:
-> Hi!
->
-> On Fri, Jan 10, 2014 at 06:38:06PM +0200, Izik Eidus wrote:
->> It look like commit 6bdb913f0a70a4dfb7f066fb15e2d6f960701d00 break the 
->> semantic of set_pte_at_notify.
->> The change of calling first to mmu_notifier_invalidate_range_start, then 
->> to set_pte_at_notify, and then to mmu_notifier_invalidate_range_end
->> not only increase the amount of locks kvm have to take and release by 
->> factor of 3, but in addition mmu_notifier_invalidate_range_start is zapping
->> the pte entry from kvm, so when set_pte_at_notify get called, it doesn`t 
->> have any spte to set and it acctuly get called for nothing, the result is
->> increasing of vmexits for kvm from both do_wp_page and replace_page, and 
->> broken semantic of set_pte_at_notify.
->
-> Agreed.
->
-> I would suggest to change set_pte_at_notify to return if change_pte
-> was missing in some mmu notifier attached to this mm, so we can do
-> something like:
->
->    ptep = page_check_address(page, mm, addr, &ptl, 0);
->    [..]
->    notify_missing = false;
->    if (... ) {
->       	entry = ptep_clear_flush(...);
->         [..]
-> 	notify_missing = set_pte_at_notify(mm, addr, ptep, entry);
->    }
->    pte_unmap_unlock(ptep, ptl);
->    if (notify_missing)
->    	mmu_notifier_invalidate_page_if_missing_change_pte(mm, addr);
->
-> and drop the range calls. This will provide sleepability and at the
-> same time it won't screw the ability of change_pte to update sptes (by
-> leaving those established by the time change_pte runs).
+OK, I think I got it. Thank you very much!!
 
-I think it would be better for notifiers that do not support change_pte
-to keep getting both range_start and range_end notifiers. Otherwise, the
-invalidate_page notifier might end up marking the old page as dirty
-after it was already replaced in the primary page table.
 
-Perhaps we can have a flag in the mmu_notifier, similar to the
-notify_missing returned value here, that determines in these cases
-whether to call the invalidate_range_start/end pair, or just the
-set_pte_at_notify.
+2014/1/12 Johannes Weiner <hannes@cmpxchg.org>
 
-Thanks,
-Haggai
+> On Tue, Jan 07, 2014 at 09:37:01AM +0800, yvxiang wrote:
+> > Hi, Johannes
+> >
+> >      I'm a new comer to vm. And I read your commit 81c0a2bb about fair
+> zone
+> > allocator policy,  but I don't quite understand your opinion, especially
+> > the words that
+> >
+> >    "the allocator may keep kswapd running while kswapd reclaim
+> >     ensures that the page allocator can keep allocating from the first
+> zone
+> > in
+> >     the zonelist for extended periods of time. "
+> >
+> >     Could you or someone else explain me what does this mean in more
+> > details? Or could you give me a example?
+>
+> The page allocator tries to allocate from all zones in order of
+> preference: Normal, DMA32, DMA.  If they are all at their low
+> watermark, kswapd is woken up and it will reclaim each zone until it's
+> back to the high watermark.
+>
+> But as kswapd reclaims the Normal zone, the page allocator can
+> continue allocating from it.  If that happens at roughly the same
+> pace, the Normal zone's watermark will hover somewhere between the low
+> and high watermark.  Kswapd will not go to sleep and the page
+> allocator will not use the other zones.
+>
+> The whole workload's memory will be allocated and reclaimed using only
+> the Normal zone, which might be only a few (hundred) megabytes, while
+> the 4G DMA32 zone is unused.
+>
+
+--001a11c2bd9e34042904efc59719
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">OK, I think I got it. Thank you very much!!</div><div clas=
+s=3D"gmail_extra"><br><br><div class=3D"gmail_quote">2014/1/12 Johannes Wei=
+ner <span dir=3D"ltr">&lt;<a href=3D"mailto:hannes@cmpxchg.org" target=3D"_=
+blank">hannes@cmpxchg.org</a>&gt;</span><br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex"><div class=3D"HOEnZb"><div class=3D"h5">On T=
+ue, Jan 07, 2014 at 09:37:01AM +0800, yvxiang wrote:<br>
+&gt; Hi, Johannes<br>
+&gt;<br>
+&gt; =A0 =A0 =A0I&#39;m a new comer to vm. And I read your commit 81c0a2bb =
+about fair zone<br>
+&gt; allocator policy, =A0but I don&#39;t quite understand your opinion, es=
+pecially<br>
+&gt; the words that<br>
+&gt;<br>
+&gt; =A0 =A0&quot;the allocator may keep kswapd running while kswapd reclai=
+m<br>
+&gt; =A0 =A0 ensures that the page allocator can keep allocating from the f=
+irst zone<br>
+&gt; in<br>
+&gt; =A0 =A0 the zonelist for extended periods of time. &quot;<br>
+&gt;<br>
+&gt; =A0 =A0 Could you or someone else explain me what does this mean in mo=
+re<br>
+&gt; details? Or could you give me a example?<br>
+<br>
+</div></div>The page allocator tries to allocate from all zones in order of=
+<br>
+preference: Normal, DMA32, DMA. =A0If they are all at their low<br>
+watermark, kswapd is woken up and it will reclaim each zone until it&#39;s<=
+br>
+back to the high watermark.<br>
+<br>
+But as kswapd reclaims the Normal zone, the page allocator can<br>
+continue allocating from it. =A0If that happens at roughly the same<br>
+pace, the Normal zone&#39;s watermark will hover somewhere between the low<=
+br>
+and high watermark. =A0Kswapd will not go to sleep and the page<br>
+allocator will not use the other zones.<br>
+<br>
+The whole workload&#39;s memory will be allocated and reclaimed using only<=
+br>
+the Normal zone, which might be only a few (hundred) megabytes, while<br>
+the 4G DMA32 zone is unused.<br>
+</blockquote></div><br></div>
+
+--001a11c2bd9e34042904efc59719--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
