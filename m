@@ -1,63 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id EC7C66B0035
-	for <linux-mm@kvack.org>; Sun, 12 Jan 2014 17:46:56 -0500 (EST)
-Received: by mail-ie0-f181.google.com with SMTP id e14so7403657iej.12
-        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 14:46:56 -0800 (PST)
-Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id qb5si14741667igc.7.2014.01.12.14.46.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 12 Jan 2014 14:46:54 -0800 (PST)
-Message-ID: <1389566806.4672.108.camel@pasglop>
-Subject: Re: [PATCH -V3 1/2] powerpc: mm: Move ppc64 page table range
- definitions to separate header
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Mon, 13 Jan 2014 09:46:46 +1100
-In-Reply-To: <87mwj8wn3e.fsf@linux.vnet.ibm.com>
-References: 
-	<1388999012-14424-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	 <1389050101.12906.13.camel@pasglop> <87mwj8wn3e.fsf@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id F03DA6B0035
+	for <linux-mm@kvack.org>; Sun, 12 Jan 2014 18:47:04 -0500 (EST)
+Received: by mail-qc0-f180.google.com with SMTP id i17so814818qcy.25
+        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 15:47:04 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id g2si5470477qag.45.2014.01.12.15.47.02
+        for <linux-mm@kvack.org>;
+        Sun, 12 Jan 2014 15:47:02 -0800 (PST)
+Message-ID: <52D32962.5050908@redhat.com>
+Date: Sun, 12 Jan 2014 18:46:42 -0500
+From: Prarit Bhargava <prarit@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/2] x86, e820 disable ACPI Memory Hotplug if memory mapping
+ is specified by user [v2]
+References: <1389380698-19361-1-git-send-email-prarit@redhat.com> <1389380698-19361-4-git-send-email-prarit@redhat.com> <alpine.DEB.2.02.1401111624170.20677@be1.lrz>
+In-Reply-To: <alpine.DEB.2.02.1401111624170.20677@be1.lrz>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: paulus@samba.org, aarcange@redhat.com, kirill.shutemov@linux.intel.com, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: 7eggert@gmx.de
+Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Len Brown <lenb@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Toshi Kani <toshi.kani@hp.com>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, kosaki.motohiro@gmail.com, dyoung@redhat.com, linux-acpi@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 2014-01-07 at 07:49 +0530, Aneesh Kumar K.V wrote:
-> Benjamin Herrenschmidt <benh@kernel.crashing.org> writes:
-> 
-> > On Mon, 2014-01-06 at 14:33 +0530, Aneesh Kumar K.V wrote:
-> >> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> >> 
-> >> This avoid mmu-hash64.h including pagetable-ppc64.h. That inclusion
-> >> cause issues like
-> >
-> > I don't like this. We have that stuff split into too many includes
-> > already it's a mess.
-> 
-> I understand. Let me know, if you have any suggestion on cleaning that
-> up. I can do that.
-> 
-> >
-> > Why do we need to include it from mmu*.h ?
-> 
-> in mmu-hash64.h added by me via 78f1dbde9fd020419313c2a0c3b602ea2427118f
-> 
-> /*
->  * This is necessary to get the definition of PGTABLE_RANGE which we
->  * need for various slices related matters. Note that this isn't the
->  * complete pgtable.h but only a portion of it.
->  */
-> #include <asm/pgtable-ppc64.h>
 
-For now, instead, just do fwd def of the spinlock, I don't like the
-inclusion of spinlock.h there anyway.
 
-Cheers,
-Ben,
+On 01/11/2014 11:35 AM, 7eggert@gmx.de wrote:
+> 
+> 
+> On Fri, 10 Jan 2014, Prarit Bhargava wrote:
+> 
+>> kdump uses memmap=exactmap and mem=X values to configure the memory
+>> mapping for the kdump kernel.  If memory is hotadded during the boot of
+>> the kdump kernel it is possible that the page tables for the new memory
+>> cause the kdump kernel to run out of memory.
+>>
+>> Since the user has specified a specific mapping ACPI Memory Hotplug should be
+>> disabled in this case.
+> 
+> I'll ask just in case: Is it possible to want memory hotplug in spite of 
+> using memmap=exactmap or mem=X?
+
+Good question -- I can't think of a case.  When a user specifies "memmap" or
+"mem" IMO they are asking for a very specific memory configuration.  Having
+extra memory added above what the user has specified seems to defeat the purpose
+of "memmap" and "mem".
+
+P.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
