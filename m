@@ -1,104 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 17DBD6B0031
-	for <linux-mm@kvack.org>; Sun, 12 Jan 2014 12:50:44 -0500 (EST)
-Received: by mail-qa0-f51.google.com with SMTP id f11so1451978qae.24
-        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 09:50:43 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id n9si15368735qas.55.2014.01.12.09.50.42
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 51D7C6B0035
+	for <linux-mm@kvack.org>; Sun, 12 Jan 2014 13:31:05 -0500 (EST)
+Received: by mail-pb0-f54.google.com with SMTP id un15so6435860pbc.13
+        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 10:31:05 -0800 (PST)
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTP id y1si13452454pbm.64.2014.01.12.10.31.03
         for <linux-mm@kvack.org>;
-        Sun, 12 Jan 2014 09:50:43 -0800 (PST)
-Date: Sun, 12 Jan 2014 18:50:31 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: set_pte_at_notify regression
-Message-ID: <20140112175031.GH1141@redhat.com>
-References: <52D021EE.3020104@ravellosystems.com>
- <20140110165705.GE1141@redhat.com>
- <52D282DC.6050902@mellanox.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52D282DC.6050902@mellanox.com>
+        Sun, 12 Jan 2014 10:31:03 -0800 (PST)
+Message-ID: <1389551460.7596.4.camel@dabdike.int.hansenpartnership.com>
+Subject: Re: [Lsf-pc] [LSF/MM ATTEND, TOPIC] memcg topics and user defined
+ oom policies
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Sun, 12 Jan 2014 10:31:00 -0800
+In-Reply-To: <alpine.DEB.2.02.1401101318160.21486@chino.kir.corp.google.com>
+References: <20140108151151.GA2720@dhcp22.suse.cz>
+	 <alpine.DEB.2.02.1401101318160.21486@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-15"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Haggai Eran <haggaie@mellanox.com>
-Cc: Izik Eidus <izik.eidus@ravellosystems.com>, linux-mm@kvack.org, kvm@vger.kernel.org, Alex Fishman <alex.fishman@ravellosystems.com>, Mike Rapoport <mike.rapoport@ravellosystems.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, Tim Hockin <thockin@google.com>, Kamil Yurtsever <kyurtsever@google.com>
 
-On Sun, Jan 12, 2014 at 01:56:12PM +0200, Haggai Eran wrote:
-> Hi,
+On Fri, 2014-01-10 at 13:23 -0800, David Rientjes wrote:
+> On Wed, 8 Jan 2014, Michal Hocko wrote:
 > 
-> On 10/01/2014 18:57, Andrea Arcangeli wrote:
-> > Hi!
-> >
-> > On Fri, Jan 10, 2014 at 06:38:06PM +0200, Izik Eidus wrote:
-> >> It look like commit 6bdb913f0a70a4dfb7f066fb15e2d6f960701d00 break the 
-> >> semantic of set_pte_at_notify.
-> >> The change of calling first to mmu_notifier_invalidate_range_start, then 
-> >> to set_pte_at_notify, and then to mmu_notifier_invalidate_range_end
-> >> not only increase the amount of locks kvm have to take and release by 
-> >> factor of 3, but in addition mmu_notifier_invalidate_range_start is zapping
-> >> the pte entry from kvm, so when set_pte_at_notify get called, it doesn`t 
-> >> have any spte to set and it acctuly get called for nothing, the result is
-> >> increasing of vmexits for kvm from both do_wp_page and replace_page, and 
-> >> broken semantic of set_pte_at_notify.
-> >
-> > Agreed.
-> >
-> > I would suggest to change set_pte_at_notify to return if change_pte
-> > was missing in some mmu notifier attached to this mm, so we can do
-> > something like:
-> >
-> >    ptep = page_check_address(page, mm, addr, &ptl, 0);
-> >    [..]
-> >    notify_missing = false;
-> >    if (... ) {
-> >       	entry = ptep_clear_flush(...);
-> >         [..]
-> > 	notify_missing = set_pte_at_notify(mm, addr, ptep, entry);
-> >    }
-> >    pte_unmap_unlock(ptep, ptl);
-> >    if (notify_missing)
-> >    	mmu_notifier_invalidate_page_if_missing_change_pte(mm, addr);
-> >
-> > and drop the range calls. This will provide sleepability and at the
-> > same time it won't screw the ability of change_pte to update sptes (by
-> > leaving those established by the time change_pte runs).
+> > David was proposing memory reserves for memcg userspace OOM handlers.
+> > I found the idea interesting at first but I am getting more and more
+> > skeptical about fully supporting oom handling from within under-oom
+> > group usecase. Google is using this setup and we should discuss what is
+> > the best approach longterm because the same thing can be achieved by a
+> > proper memcg hierarchy as well.
+> > 
+> > While we are at memcg OOM it seems that we cannot find an easy consensus
+> > on when is the line when the userspace should be notified about OOM [1].
+> > 
+> > I would also like to continue discussing user defined OOM policies.
+> > The last attempt to resurrect the discussion [2] ended up without any
+> > strong conclusion but there seem to be some opposition against direct
+> > handling of the global OOM from userspace as being too subtle and
+> > dangerous. Also using memcg interface doesn't seem to be welcome warmly.
+> > This leaves us with either loadable modules approach or a generic filter
+> > mechanism which haven't been discussed that much. Or something else?
+> > I hope we can move forward finally.
+> > 
 > 
-> I think it would be better for notifiers that do not support change_pte
-> to keep getting both range_start and range_end notifiers. Otherwise, the
-> invalidate_page notifier might end up marking the old page as dirty
-> after it was already replaced in the primary page table.
+> Google is interested in this topic and has been the main motivation for 
+> userspace oom handlers; we would like to attend for this discussion.
+> 
+> David Rientjes <rientjes@google.com>
+> Tim Hockin <thockin@google.com>, systems software, senior staff
+> Kamil Yurtsever <kyurtsever@google.com>, systems software
 
-Ok but why would that be a problem? If the secondary pagetable mapping
-is found dirty, the old page shall be marked dirty as it means it was
-modified through the secondary mmu and is on-disk version may need to
-be updated before discarding the in-ram copy. What the difference
-would be to mark the page dirty in the range_start while the primary
-page table is still established, or after?
+OK, so please don't do this.  Please send in Topic/attend requests as
+per the CFP.  Doing this gives us no way to judge the merits of the
+request and, administratively, it gets lost because the way I populate
+the attendance request table is to filter on the topic/attend requests
+and then fold the threads up to the head.
 
-Here the docs too:
+Please send in one separate topic/attend email authored by the person
+who wants to attend.
 
-	/*
-	 * Before this is invoked any secondary MMU is still ok to
-	 * read/write to the page previously pointed to by the Linux
-	 * pte because the page hasn't been freed yet and it won't be
-	 * freed until this returns. If required set_page_dirty has to
-	 * be called internally to this method.
-	 */
-	void (*invalidate_page)(struct mmu_notifier *mn,
-				struct mm_struct *mm,
-				unsigned long address);
+Thanks,
 
-Why the range_start/end is needed, is only to solve the mess with the
-freeing of the page in those cases were we hold no individual
-reference on the pages and we do tlb gather freeing.
+James
 
-But in places like ksm merging and do_wp_page we hold a page reference
-before we start the primary pagetable updating, until after the mmu
-notifier invalidate.
-
-Thanks!
-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
