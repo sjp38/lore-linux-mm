@@ -1,46 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f48.google.com (mail-qe0-f48.google.com [209.85.128.48])
-	by kanga.kvack.org (Postfix) with ESMTP id DFFA36B0031
-	for <linux-mm@kvack.org>; Sat, 11 Jan 2014 19:58:05 -0500 (EST)
-Received: by mail-qe0-f48.google.com with SMTP id k5so4732147qej.35
-        for <linux-mm@kvack.org>; Sat, 11 Jan 2014 16:58:05 -0800 (PST)
-Received: from qmta12.emeryville.ca.mail.comcast.net (qmta12.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:227])
-        by mx.google.com with ESMTP id ko6si16675160qeb.9.2014.01.11.16.58.04
-        for <linux-mm@kvack.org>;
-        Sat, 11 Jan 2014 16:58:04 -0800 (PST)
-Date: Sat, 11 Jan 2014 18:55:39 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 0/9] re-shrink 'struct page' when SLUB is on.
-In-Reply-To: <CAOJsxLE-oMpV2G-gxrhyv0Au1tPd87Ow57VD5CWFo41wF8F4Yw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.10.1401111854580.6036@nuc>
-References: <20140103180147.6566F7C1@viggo.jf.intel.com> <20140103141816.20ef2a24c8adffae040e53dc@linux-foundation.org> <20140106043237.GE696@lge.com> <52D05D90.3060809@sr71.net> <20140110153913.844e84755256afd271371493@linux-foundation.org> <52D0854F.5060102@sr71.net>
- <CAOJsxLE-oMpV2G-gxrhyv0Au1tPd87Ow57VD5CWFo41wF8F4Yw@mail.gmail.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A3216B0031
+	for <linux-mm@kvack.org>; Sat, 11 Jan 2014 22:39:07 -0500 (EST)
+Received: by mail-qc0-f173.google.com with SMTP id i8so1844295qcq.18
+        for <linux-mm@kvack.org>; Sat, 11 Jan 2014 19:39:07 -0800 (PST)
+Received: from mail-qc0-x230.google.com (mail-qc0-x230.google.com [2607:f8b0:400d:c01::230])
+        by mx.google.com with ESMTPS id n6si172144qcg.5.2014.01.11.19.39.06
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 11 Jan 2014 19:39:06 -0800 (PST)
+Received: by mail-qc0-f176.google.com with SMTP id e16so3066545qcx.35
+        for <linux-mm@kvack.org>; Sat, 11 Jan 2014 19:39:06 -0800 (PST)
+Date: Sat, 11 Jan 2014 22:39:02 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCHv3 03/11] percpu: use VMALLOC_TOTAL instead of
+ VMALLOC_END - VMALLOC_START
+Message-ID: <20140112033902.GC7874@mtj.dyndns.org>
+References: <1388699609-18214-1-git-send-email-lauraa@codeaurora.org>
+ <1388699609-18214-4-git-send-email-lauraa@codeaurora.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1388699609-18214-4-git-send-email-lauraa@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Dave Hansen <dave@sr71.net>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Kyungmin Park <kmpark@infradead.org>, Dave Hansen <dave@sr71.net>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Sat, 11 Jan 2014, Pekka Enberg wrote:
+On Thu, Jan 02, 2014 at 01:53:21PM -0800, Laura Abbott wrote:
+> vmalloc already gives a useful macro to calculate the total vmalloc
+> size. Use it.
+> 
+> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
 
-> On Sat, Jan 11, 2014 at 1:42 AM, Dave Hansen <dave@sr71.net> wrote:
-> > On 01/10/2014 03:39 PM, Andrew Morton wrote:
-> >>> I tested 4 cases, all of these on the "cache-cold kfree()" case.  The
-> >>> first 3 are with vanilla upstream kernel source.  The 4th is patched
-> >>> with my new slub code (all single-threaded):
-> >>>
-> >>>      http://www.sr71.net/~dave/intel/slub/slub-perf-20140109.png
-> >>
-> >> So we're converging on the most complex option.  argh.
-> >
-> > Yeah, looks that way.
->
-> Seems like a reasonable compromise between memory usage and allocation speed.
->
-> Christoph?
+Applied to percpu/for-3.14.  Thanks.
 
-Fundamentally I think this is good. I need to look at the details but I am
-only going to be able to do that next week when I am back in the office.
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
