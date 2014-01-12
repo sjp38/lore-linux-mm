@@ -1,72 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 51D7C6B0035
-	for <linux-mm@kvack.org>; Sun, 12 Jan 2014 13:31:05 -0500 (EST)
-Received: by mail-pb0-f54.google.com with SMTP id un15so6435860pbc.13
-        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 10:31:05 -0800 (PST)
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTP id y1si13452454pbm.64.2014.01.12.10.31.03
-        for <linux-mm@kvack.org>;
-        Sun, 12 Jan 2014 10:31:03 -0800 (PST)
-Message-ID: <1389551460.7596.4.camel@dabdike.int.hansenpartnership.com>
-Subject: Re: [Lsf-pc] [LSF/MM ATTEND, TOPIC] memcg topics and user defined
- oom policies
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Sun, 12 Jan 2014 10:31:00 -0800
-In-Reply-To: <alpine.DEB.2.02.1401101318160.21486@chino.kir.corp.google.com>
-References: <20140108151151.GA2720@dhcp22.suse.cz>
-	 <alpine.DEB.2.02.1401101318160.21486@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-gg0-f175.google.com (mail-gg0-f175.google.com [209.85.161.175])
+	by kanga.kvack.org (Postfix) with ESMTP id E521B6B0035
+	for <linux-mm@kvack.org>; Sun, 12 Jan 2014 17:10:54 -0500 (EST)
+Received: by mail-gg0-f175.google.com with SMTP id c2so1237995ggn.20
+        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 14:10:53 -0800 (PST)
+Received: from mail-yh0-x22b.google.com (mail-yh0-x22b.google.com [2607:f8b0:4002:c01::22b])
+        by mx.google.com with ESMTPS id z48si17964622yha.106.2014.01.12.14.10.52
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 12 Jan 2014 14:10:52 -0800 (PST)
+Received: by mail-yh0-f43.google.com with SMTP id a41so2008374yho.16
+        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 14:10:52 -0800 (PST)
+Date: Sun, 12 Jan 2014 14:10:49 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
+ access to memory reserves
+In-Reply-To: <20140110221432.GD6963@cmpxchg.org>
+Message-ID: <alpine.DEB.2.02.1401121404530.20999@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1312171240541.21640@chino.kir.corp.google.com> <20131218200434.GA4161@dhcp22.suse.cz> <alpine.DEB.2.02.1312182157510.1247@chino.kir.corp.google.com> <20131219144134.GH10855@dhcp22.suse.cz> <20140107162503.f751e880410f61a109cdcc2b@linux-foundation.org>
+ <alpine.DEB.2.02.1401091324120.31538@chino.kir.corp.google.com> <20140109144757.e95616b4280c049b22743a15@linux-foundation.org> <alpine.DEB.2.02.1401091551390.20263@chino.kir.corp.google.com> <20140109161246.57ea590f00ea5b61fdbf5f11@linux-foundation.org>
+ <alpine.DEB.2.02.1401091613560.22649@chino.kir.corp.google.com> <20140110221432.GD6963@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, Tim Hockin <thockin@google.com>, Kamil Yurtsever <kyurtsever@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, "Eric W. Biederman" <ebiederm@xmission.com>
 
-On Fri, 2014-01-10 at 13:23 -0800, David Rientjes wrote:
-> On Wed, 8 Jan 2014, Michal Hocko wrote:
+On Fri, 10 Jan 2014, Johannes Weiner wrote:
+
+> > > > It was acked-by Michal.
 > 
-> > David was proposing memory reserves for memcg userspace OOM handlers.
-> > I found the idea interesting at first but I am getting more and more
-> > skeptical about fully supporting oom handling from within under-oom
-> > group usecase. Google is using this setup and we should discuss what is
-> > the best approach longterm because the same thing can be achieved by a
-> > proper memcg hierarchy as well.
-> > 
-> > While we are at memcg OOM it seems that we cannot find an easy consensus
-> > on when is the line when the userspace should be notified about OOM [1].
-> > 
-> > I would also like to continue discussing user defined OOM policies.
-> > The last attempt to resurrect the discussion [2] ended up without any
-> > strong conclusion but there seem to be some opposition against direct
-> > handling of the global OOM from userspace as being too subtle and
-> > dangerous. Also using memcg interface doesn't seem to be welcome warmly.
-> > This leaves us with either loadable modules approach or a generic filter
-> > mechanism which haven't been discussed that much. Or something else?
-> > I hope we can move forward finally.
-> > 
+> Michal acked it before we had most of the discussions and now he is
+> proposing an alternate version of yours, a patch that you are even
+> discussing with him concurrently in another thread.  To claim he is
+> still backing your patch because of that initial ack is disingenuous.
 > 
-> Google is interested in this topic and has been the main motivation for 
-> userspace oom handlers; we would like to attend for this discussion.
+
+His patch depends on mine, Johannes.
+
+> > Johannes is arguing for the same semantics that VMPRESSURE_CRITICAL and/or 
+> > memory thresholds provides, which disagrees from the list of solutions 
+> > that Documentation/cgroups/memory.txt gives for userspace oom handler 
+> > wakeups and is required for any sane implementation.
 > 
-> David Rientjes <rientjes@google.com>
-> Tim Hockin <thockin@google.com>, systems software, senior staff
-> Kamil Yurtsever <kyurtsever@google.com>, systems software
+> No, he's not and I'm sick of you repeating refuted garbage like this.
+> 
+> You have convinced neither me nor Michal that your problem is entirely
+> real and when confronted with doubt you just repeat the same points
+> over and over.
+> 
 
-OK, so please don't do this.  Please send in Topic/attend requests as
-per the CFP.  Doing this gives us no way to judge the merits of the
-request and, administratively, it gets lost because the way I populate
-the attendance request table is to filter on the topic/attend requests
-and then fold the threads up to the head.
+The conditional to check if current needs access to memory reserves to 
+make forward progress and avoid oom killing anything else is done after 
+the memcg notification.  It's real per section 6.8.4 of the C99 standard 
+which defines how a conditional works.  We do not want a userspace 
+notification in such a case because userspace testing of whether the 
+condition is actionable would be unreliable.  This is not dead code, it 
+does get executed.
 
-Please send in one separate topic/attend email authored by the person
-who wants to attend.
+> The one aspect of your change that we DO agree is valid is now fixed
+> by Michal in a separate attempt because you could not be bothered to
+> incorporate feedback into your patch.
+> 
 
-Thanks,
-
-James
-
+I suggested his patch, Johannes, but his patch depends on mine.  I'm 
+hoping he can rebase his patch and it's done and merged into -mm before 
+the merge window for 3.14 as I've stated.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
