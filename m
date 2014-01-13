@@ -1,56 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AD7E6B0035
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 04:49:25 -0500 (EST)
-Received: by mail-pb0-f53.google.com with SMTP id ma3so7076146pbc.12
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 01:49:24 -0800 (PST)
-Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com. [202.81.31.148])
-        by mx.google.com with ESMTPS id rx8si5094142pac.308.2014.01.13.01.49.06
+Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 4022A6B0035
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 06:37:47 -0500 (EST)
+Received: by mail-ea0-f180.google.com with SMTP id f15so3242396eak.25
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 03:37:46 -0800 (PST)
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com. [195.75.94.108])
+        by mx.google.com with ESMTPS id r41si22673389eem.248.2014.01.13.03.37.46
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 13 Jan 2014 01:49:23 -0800 (PST)
+        Mon, 13 Jan 2014 03:37:46 -0800 (PST)
 Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 13 Jan 2014 19:46:28 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 325EF2CE8052
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 20:46:26 +1100 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0D9RSoK59441398
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 20:27:33 +1100
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0D9kKEx005289
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 20:46:20 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH V4] powerpc: thp: Fix crash on mremap
-In-Reply-To: <1389598587.4672.121.camel@pasglop>
-References: <1389593064-32664-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1389598587.4672.121.camel@pasglop>
-Date: Mon, 13 Jan 2014 15:16:08 +0530
-Message-ID: <87wqi42p0f.fsf@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <phacht@linux.vnet.ibm.com>;
+	Mon, 13 Jan 2014 11:37:45 -0000
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 26F1717D8062
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 11:37:54 +0000 (GMT)
+Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0DBbU3H1638704
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 11:37:30 GMT
+Received: from d06av01.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av01.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0DBbeoP014669
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 04:37:41 -0700
+From: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
+Subject: [PATCH 1/2] mm/nobootmem: free_all_bootmem again
+Date: Mon, 13 Jan 2014 12:37:13 +0100
+Message-Id: <1389613034-35196-2-git-send-email-phacht@linux.vnet.ibm.com>
+In-Reply-To: <1389613034-35196-1-git-send-email-phacht@linux.vnet.ibm.com>
+References: <1389613034-35196-1-git-send-email-phacht@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, aarcange@redhat.com
-Cc: paulus@samba.org, kirill.shutemov@linux.intel.com, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, qiuxishi@huawei.com, dhowells@redhat.com, daeseok.youn@gmail.com, liuj97@gmail.com, yinghai@kernel.org, phacht@linux.vnet.ibm.com, zhangyanfei@cn.fujitsu.com, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, tangchen@cn.fujitsu.com, schwidefsky@de.ibm.com
 
-Benjamin Herrenschmidt <benh@kernel.crashing.org> writes:
+get_allocated_memblock_reserved_regions_info() should work if it is
+compiled in. Extended the ifdef around
+get_allocated_memblock_memory_regions_info() to include
+get_allocated_memblock_reserved_regions_info() as well.
+Similar changes in nobootmem.c/free_low_memory_core_early() where
+the two functions are called.
 
-> On Mon, 2014-01-13 at 11:34 +0530, Aneesh Kumar K.V wrote:
->> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->> 
->> This patch fix the below crash
->
-> Andrea, can you ack the generic bit please ?
->
-> Thanks !
+Signed-off-by: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
+---
+ mm/memblock.c  | 17 ++---------------
+ mm/nobootmem.c |  4 ++--
+ 2 files changed, 4 insertions(+), 17 deletions(-)
 
-Kirill A. Shutemov did ack an earlier version
-
-http://article.gmane.org/gmane.linux.kernel.mm/111368
-
--aneesh
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 64ed243..9c0aeef 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -266,33 +266,20 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
+ 	}
+ }
+ 
++#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
++
+ phys_addr_t __init_memblock get_allocated_memblock_reserved_regions_info(
+ 					phys_addr_t *addr)
+ {
+ 	if (memblock.reserved.regions == memblock_reserved_init_regions)
+ 		return 0;
+ 
+-	/*
+-	 * Don't allow nobootmem allocator to free reserved memory regions
+-	 * array if
+-	 *  - CONFIG_DEBUG_FS is enabled;
+-	 *  - CONFIG_ARCH_DISCARD_MEMBLOCK is not enabled;
+-	 *  - reserved memory regions array have been resized during boot.
+-	 * Otherwise debug_fs entry "sys/kernel/debug/memblock/reserved"
+-	 * will show garbage instead of state of memory reservations.
+-	 */
+-	if (IS_ENABLED(CONFIG_DEBUG_FS) &&
+-	    !IS_ENABLED(CONFIG_ARCH_DISCARD_MEMBLOCK))
+-		return 0;
+-
+ 	*addr = __pa(memblock.reserved.regions);
+ 
+ 	return PAGE_ALIGN(sizeof(struct memblock_region) *
+ 			  memblock.reserved.max);
+ }
+ 
+-#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
+-
+ phys_addr_t __init_memblock get_allocated_memblock_memory_regions_info(
+ 					phys_addr_t *addr)
+ {
+diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+index 17c8902..e2906a5 100644
+--- a/mm/nobootmem.c
++++ b/mm/nobootmem.c
+@@ -122,13 +122,13 @@ static unsigned long __init free_low_memory_core_early(void)
+ 	for_each_free_mem_range(i, NUMA_NO_NODE, &start, &end, NULL)
+ 		count += __free_memory_core(start, end);
+ 
++#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
++
+ 	/* Free memblock.reserved array if it was allocated */
+ 	size = get_allocated_memblock_reserved_regions_info(&start);
+ 	if (size)
+ 		count += __free_memory_core(start, start + size);
+ 
+-#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
+-
+ 	/* Free memblock.memory array if it was allocated */
+ 	size = get_allocated_memblock_memory_regions_info(&start);
+ 	if (size)
+-- 
+1.8.4.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
