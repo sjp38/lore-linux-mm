@@ -1,53 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id DAB2B6B0035
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 08:37:51 -0500 (EST)
-Received: by mail-ie0-f169.google.com with SMTP id at1so255783iec.0
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 05:37:51 -0800 (PST)
-Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id ku5si17898967igb.3.2014.01.13.05.37.49
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 13 Jan 2014 05:37:50 -0800 (PST)
-Message-ID: <1389620262.4672.130.camel@pasglop>
-Subject: Re: [PATCH V4] powerpc: thp: Fix crash on mremap
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Tue, 14 Jan 2014 00:37:42 +1100
-In-Reply-To: <87wqi42p0f.fsf@linux.vnet.ibm.com>
-References: 
-	<1389593064-32664-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	 <1389598587.4672.121.camel@pasglop> <87wqi42p0f.fsf@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 47E106B0035
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 08:46:42 -0500 (EST)
+Received: by mail-pb0-f49.google.com with SMTP id jt11so7259073pbb.22
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 05:46:41 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id eb3si15765303pbd.107.2014.01.13.05.46.40
+        for <linux-mm@kvack.org>;
+        Mon, 13 Jan 2014 05:46:40 -0800 (PST)
+Date: Mon, 13 Jan 2014 21:46:09 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH 0/9] re-shrink 'struct page' when SLUB is on.
+Message-ID: <20140113134609.GB31640@localhost>
+References: <20140103180147.6566F7C1@viggo.jf.intel.com>
+ <20140103141816.20ef2a24c8adffae040e53dc@linux-foundation.org>
+ <20140106043237.GE696@lge.com>
+ <52D05D90.3060809@sr71.net>
+ <20140110153913.844e84755256afd271371493@linux-foundation.org>
+ <52D0854F.5060102@sr71.net>
+ <CAOJsxLE-oMpV2G-gxrhyv0Au1tPd87Ow57VD5CWFo41wF8F4Yw@mail.gmail.com>
+ <alpine.DEB.2.10.1401111854580.6036@nuc>
+ <20140113014408.GA25900@lge.com>
+ <1389584218.11984.0.camel@buesod1.americas.hpqcorp.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1389584218.11984.0.camel@buesod1.americas.hpqcorp.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: aarcange@redhat.com, paulus@samba.org, kirill.shutemov@linux.intel.com, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave@sr71.net>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 2014-01-13 at 15:16 +0530, Aneesh Kumar K.V wrote:
-> Benjamin Herrenschmidt <benh@kernel.crashing.org> writes:
+> > So, I think
+> > that it is better to get more benchmark results to this patchset for convincing
+> > ourselves. If possible, how about asking Fengguang to run whole set of
+> > his benchmarks before going forward?
 > 
-> > On Mon, 2014-01-13 at 11:34 +0530, Aneesh Kumar K.V wrote:
-> >> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> >> 
-> >> This patch fix the below crash
-> >
-> > Andrea, can you ack the generic bit please ?
-> >
-> > Thanks !
-> 
-> Kirill A. Shutemov did ack an earlier version
-> 
-> http://article.gmane.org/gmane.linux.kernel.mm/111368
+> Cc'ing him.
 
-Doesn't help. If I'm going to send Linus a patch with a generic change
-like that, I need an ack of that exact version of the change by a senior
-mm person such as Andrea.
+My pleasure. Is there a git tree for the patches? Git trees
+are most convenient for running automated tests and bisects.
 
-Cheers,
-Ben.
-
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
