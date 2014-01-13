@@ -1,97 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id A211F6B0035
-	for <linux-mm@kvack.org>; Sun, 12 Jan 2014 22:37:05 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id y13so4319897pdi.24
-        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 19:37:05 -0800 (PST)
-Received: from g1t0028.austin.hp.com (g1t0028.austin.hp.com. [15.216.28.35])
-        by mx.google.com with ESMTPS id ot3si14380374pac.50.2014.01.12.19.37.03
+Received: from mail-yh0-f42.google.com (mail-yh0-f42.google.com [209.85.213.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C3726B0035
+	for <linux-mm@kvack.org>; Sun, 12 Jan 2014 22:51:44 -0500 (EST)
+Received: by mail-yh0-f42.google.com with SMTP id z6so2111826yhz.1
+        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 19:51:43 -0800 (PST)
+Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com [2607:f8b0:4001:c05::231])
+        by mx.google.com with ESMTPS id o28si18762910yhd.266.2014.01.12.19.51.42
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 12 Jan 2014 19:37:04 -0800 (PST)
-Message-ID: <1389584218.11984.0.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH 0/9] re-shrink 'struct page' when SLUB is on.
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Sun, 12 Jan 2014 19:36:58 -0800
-In-Reply-To: <20140113014408.GA25900@lge.com>
-References: <20140103180147.6566F7C1@viggo.jf.intel.com>
-	 <20140103141816.20ef2a24c8adffae040e53dc@linux-foundation.org>
-	 <20140106043237.GE696@lge.com> <52D05D90.3060809@sr71.net>
-	 <20140110153913.844e84755256afd271371493@linux-foundation.org>
-	 <52D0854F.5060102@sr71.net>
-	 <CAOJsxLE-oMpV2G-gxrhyv0Au1tPd87Ow57VD5CWFo41wF8F4Yw@mail.gmail.com>
-	 <alpine.DEB.2.10.1401111854580.6036@nuc> <20140113014408.GA25900@lge.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 12 Jan 2014 19:51:43 -0800 (PST)
+Received: by mail-ig0-f177.google.com with SMTP id k19so1730964igc.4
+        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 19:51:42 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20140112192744.9bca5c6d.akpm@linux-foundation.org>
+References: <000001cf0cfd$6d251640$476f42c0$%yang@samsung.com>
+	<20140110171108.32b2be171cd5e54bf22fb2a4@linux-foundation.org>
+	<CAL1ERfPnaROPiRAeWHpvwGezHsqN4R8j=QSyS48xs25ax14AhA@mail.gmail.com>
+	<20140112192744.9bca5c6d.akpm@linux-foundation.org>
+Date: Mon, 13 Jan 2014 11:51:42 +0800
+Message-ID: <CAL1ERfOx7NF-GLuCnK4KXYpunKxQnVmSDA6FkPKXH3CxauzQcQ@mail.gmail.com>
+Subject: Re: [PATCH] mm/swap: fix race on swap_info reuse between swapoff and swapon
+From: Weijie Yang <weijie.yang.kh@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave@sr71.net>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Fengguang Wu <fengguang.wu@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Weijie Yang <weijie.yang@samsung.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fusionio.com>, Bob Liu <bob.liu@oracle.com>, stable@vger.kernel.org, Krzysztof Kozlowski <k.kozlowski@samsung.com>
 
-On Mon, 2014-01-13 at 10:44 +0900, Joonsoo Kim wrote:
-> On Sat, Jan 11, 2014 at 06:55:39PM -0600, Christoph Lameter wrote:
-> > On Sat, 11 Jan 2014, Pekka Enberg wrote:
-> > 
-> > > On Sat, Jan 11, 2014 at 1:42 AM, Dave Hansen <dave@sr71.net> wrote:
-> > > > On 01/10/2014 03:39 PM, Andrew Morton wrote:
-> > > >>> I tested 4 cases, all of these on the "cache-cold kfree()" case.  The
-> > > >>> first 3 are with vanilla upstream kernel source.  The 4th is patched
-> > > >>> with my new slub code (all single-threaded):
-> > > >>>
-> > > >>>      http://www.sr71.net/~dave/intel/slub/slub-perf-20140109.png
-> > > >>
-> > > >> So we're converging on the most complex option.  argh.
-> > > >
-> > > > Yeah, looks that way.
-> > >
-> > > Seems like a reasonable compromise between memory usage and allocation speed.
-> > >
-> > > Christoph?
-> > 
-> > Fundamentally I think this is good. I need to look at the details but I am
-> > only going to be able to do that next week when I am back in the office.
-> 
-> Hello,
-> 
-> I have another guess about the performance result although I didn't look at
-> these patches in detail. I guess that performance win of 64-byte sturct on
-> small allocations can be caused by low latency when accessing slub's metadata,
-> that is, struct page.
-> 
-> Following is pages per slab via '/proc/slabinfo'.
-> 
-> size    pages per slab
-> ...
-> 256     1   
-> 512     1   
-> 1024    2   
-> 2048    4   
-> 4096    8   
-> 8192    8   
-> 
-> We only touch one struct page on small allocation.
-> In 64-byte case, we always use one cacheline for touching struct page, since
-> it is aligned to cacheline size. However, in 56-byte case, we possibly use
-> two cachelines because struct page isn't aligned to cacheline size.
-> 
-> This aspect can change on large allocation cases. For example, consider
-> 4096-byte allocation case. In 64-byte case, it always touches 8 cachelines
-> for metadata, however, in 56-byte case, it touches 7 or 8 cachelines since
-> 8 struct page occupies 8 * 56 bytes memory, that is, 7 cacheline size.
-> 
-> This guess may be wrong, so if you think it wrong, please ignore it. :)
-> 
-> And I have another opinion on this patchset. Diminishing struct page size
-> will affect other usecases beside the slub. As we know, Dave found this
-> by doing sequential 'dd'. I think that it may be the best case for 56-byte case.
-> If we randomly touch the struct page, this un-alignment can cause regression
-> since touching the struct page will cause two cachline misses. So, I think
-> that it is better to get more benchmark results to this patchset for convincing
-> ourselves. If possible, how about asking Fengguang to run whole set of
-> his benchmarks before going forward?
+On Mon, Jan 13, 2014 at 11:27 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Mon, 13 Jan 2014 11:08:58 +0800 Weijie Yang <weijie.yang.kh@gmail.com> wrote:
+>
+>> >> --- a/mm/swapfile.c
+>> >> +++ b/mm/swapfile.c
+>> >> @@ -1922,7 +1922,6 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
+>> >>       p->swap_map = NULL;
+>> >>       cluster_info = p->cluster_info;
+>> >>       p->cluster_info = NULL;
+>> >> -     p->flags = 0;
+>> >>       frontswap_map = frontswap_map_get(p);
+>> >>       spin_unlock(&p->lock);
+>> >>       spin_unlock(&swap_lock);
+>> >> @@ -1948,6 +1947,16 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
+>> >>               mutex_unlock(&inode->i_mutex);
+>> >>       }
+>> >>       filp_close(swap_file, NULL);
+>> >> +
+>> >> +     /*
+>> >> +     * clear SWP_USED flag after all resources freed
+>> >> +     * so that swapon can reuse this swap_info in alloc_swap_info() safely
+>> >> +     * it is ok to not hold p->lock after we cleared its SWP_WRITEOK
+>> >> +     */
+>> >> +     spin_lock(&swap_lock);
+>> >> +     p->flags = 0;
+>> >> +     spin_unlock(&swap_lock);
+>> >> +
+>> >>       err = 0;
+>> >>       atomic_inc(&proc_poll_event);
+>> >>       wake_up_interruptible(&proc_poll_wait);
+>> >
+>> > I didn't look too closely, but this patch might also address the race
+>> > which Krzysztof addressed with
+>> > http://ozlabs.org/~akpm/mmots/broken-out/swap-fix-setting-page_size-blocksize-during-swapoff-swapon-race.patch.
+>> > Can we please check that out?
+>> >
+>> > I do prefer fixing all these swapon-vs-swapoff races with some large,
+>> > simple, wide-scope exclusion scheme.  Perhaps SWP_USED is that scheme.
+>> >
+>> > An alternative would be to add another mutex and just make sys_swapon()
+>> > and sys_swapoff() 100% exclusive.  But that is plastering yet another
+>> > lock over this mess to hide the horrors which lurk within :(
+>> >
+>>
+>> Hi, Andrew. Thanks for your suggestion.
+>>
+>> I checked Krzysztof's patch, it use the global swapon_mutex to protect
+>> race condition among
+>> swapon, swapoff and swap_start(). It is a kind of correct method, but
+>> a heavy method.
+>
+> But do you agree that your
+> http://ozlabs.org/~akpm/mmots/broken-out/mm-swap-fix-race-on-swap_info-reuse-between-swapoff-and-swapon.patch
+> makes Krzysztof's
+> http://ozlabs.org/~akpm/mmots/broken-out/swap-fix-setting-page_size-blocksize-during-swapoff-swapon-race.patch
+> obsolete?
 
-Cc'ing him.
+Yes, I agree.
+
+> I've been sitting on Krzysztof's
+> swap-fix-setting-page_size-blocksize-during-swapoff-swapon-race.patch
+> for several months - Hugh had issues with it so I put it on hold and
+> nothing further happened.
+>
+>> I will try to resend a patchset to make lock usage in swapfile.c clear
+>> and fine grit
+>
+> OK, thanks.  In the meanwhile I'm planning on dropping Krzysztof's
+> patch and merging your patch into 3.14-rc1, which is why I'd like
+> confirmation that your patch addresses the issues which Krzysztof
+> identified?
+>
+
+I think so, Krzysztof and I both try to fix the same issue(reuse
+swap_info while its
+previous resources are not cleared completely). The different is
+Krzysztof's patch
+uses a global swapon_mutex and its commit log only focuses on set_blocksize(),
+while my patch try to maintain the fine grit lock usage.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
