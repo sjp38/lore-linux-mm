@@ -1,48 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 47E106B0035
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 08:46:42 -0500 (EST)
-Received: by mail-pb0-f49.google.com with SMTP id jt11so7259073pbb.22
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 05:46:41 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id eb3si15765303pbd.107.2014.01.13.05.46.40
-        for <linux-mm@kvack.org>;
-        Mon, 13 Jan 2014 05:46:40 -0800 (PST)
-Date: Mon, 13 Jan 2014 21:46:09 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH 0/9] re-shrink 'struct page' when SLUB is on.
-Message-ID: <20140113134609.GB31640@localhost>
-References: <20140103180147.6566F7C1@viggo.jf.intel.com>
- <20140103141816.20ef2a24c8adffae040e53dc@linux-foundation.org>
- <20140106043237.GE696@lge.com>
- <52D05D90.3060809@sr71.net>
- <20140110153913.844e84755256afd271371493@linux-foundation.org>
- <52D0854F.5060102@sr71.net>
- <CAOJsxLE-oMpV2G-gxrhyv0Au1tPd87Ow57VD5CWFo41wF8F4Yw@mail.gmail.com>
- <alpine.DEB.2.10.1401111854580.6036@nuc>
- <20140113014408.GA25900@lge.com>
- <1389584218.11984.0.camel@buesod1.americas.hpqcorp.net>
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id B91AA6B0035
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 09:03:58 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id cc10so1097539wib.16
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 06:03:58 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y48si28894812eew.121.2014.01.13.06.03.57
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 13 Jan 2014 06:03:57 -0800 (PST)
+Message-ID: <52D3F248.7030803@suse.cz>
+Date: Mon, 13 Jan 2014 15:03:52 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1389584218.11984.0.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH] mm/mlock: fix BUG_ON unlocked page for nolinear VMAs
+References: <1387267550-8689-1-git-send-email-liwanp@linux.vnet.ibm.com>	<52b1138b.0201430a.19a8.605dSMTPIN_ADDED_BROKEN@mx.google.com>	<52B11765.8030005@oracle.com>	<52b120a5.a3b2440a.3acf.ffffd7c3SMTPIN_ADDED_BROKEN@mx.google.com>	<52B166CF.6080300@suse.cz>	<52b1699f.87293c0a.75d1.34d3SMTPIN_ADDED_BROKEN@mx.google.com>	<20131218134316.977d5049209d9278e1dad225@linux-foundation.org>	<52C71ACC.20603@oracle.com>	<CA+55aFzDcFyyXwUUu5bLP3fsiuzxU7VPivpTPHgp8smvdTeESg@mail.gmail.com>	<52C74972.6050909@suse.cz> <CA+55aFzq1iQqddGo-m=vutwMYn5CPf65Ergov5svKR4AWC3rUQ@mail.gmail.com> <6B2BA408B38BA1478B473C31C3D2074E2BF812BC82@SV-EXCHANGE1.Corp.FC.LOCAL> <52CC16DC.9070308@suse.cz> <6B2BA408B38BA1478B473C31C3D2074E2C386DF586@SV-EXCHANGE1.Corp.FC.LOCAL>
+In-Reply-To: <6B2BA408B38BA1478B473C31C3D2074E2C386DF586@SV-EXCHANGE1.Corp.FC.LOCAL>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave@sr71.net>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Michel Lespinasse <walken@google.com>, Bob Liu <bob.liu@oracle.com>, Nick Piggin <npiggin@suse.de>, Motohiro Kosaki JP <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-> > So, I think
-> > that it is better to get more benchmark results to this patchset for convincing
-> > ourselves. If possible, how about asking Fengguang to run whole set of
-> > his benchmarks before going forward?
+On 01/10/2014 06:48 PM, Motohiro Kosaki wrote:
+>> diff --git a/mm/rmap.c b/mm/rmap.c
+>> index 068522d..b99c742 100644
+>> --- a/mm/rmap.c
+>> +++ b/mm/rmap.c
+>> @@ -1389,9 +1389,19 @@ static int try_to_unmap_cluster(unsigned long
+>> cursor, unsigned int *mapcount,
+>>   		BUG_ON(!page || PageAnon(page));
+>>
+>>   		if (locked_vma) {
+>> -			mlock_vma_page(page);   /* no-op if already
+>> mlocked */
+>> -			if (page == check_page)
+>> +			if (page == check_page) {
+>> +				/* we know we have check_page locked */
+>> +				mlock_vma_page(page);
+>>   				ret = SWAP_MLOCK;
+>> +			} else if (trylock_page(page)) {
+>> +				/*
+>> +				 * If we can lock the page, perform mlock.
+>> +				 * Otherwise leave the page alone, it will be
+>> +				 * eventually encountered again later.
+>> +				 */
+>> +				mlock_vma_page(page);
+>> +				unlock_page(page);
+>> +			}
+>>   			continue;	/* don't unmap */
+>>   		}
 > 
-> Cc'ing him.
+> I audited all related mm code. However I couldn't find any race that it can close.
 
-My pleasure. Is there a git tree for the patches? Git trees
-are most convenient for running automated tests and bisects.
+Well, I would say the lock here closes the race with page migration, no? (As discussed below)
 
-Thanks,
-Fengguang
+> First off,  current munlock code is crazy tricky.
+
+Oops, that's actually a result of my patches to speed up munlock by batching pages (since 3.12).
+
+> munlock
+> 	down_write(mmap_sem)
+> 	do_mlock()
+> 		mlock_fixup
+> 			munlock_vma_pages_range
+> 				__munlock_pagevec
+> 					spin_lock_irq(zone->lru_lock)
+> 					TestClearPageMlocked(page)
+> 					del_page_from_lru_list
+> 					spin_unlock_irq(zone->lru_lock)
+> 					lock_page
+> 					__munlock_isolated_page
+> 					unlock_page
+> 				
+> 	up_write(mmap_sem)
+> 
+> Look, TestClearPageMlocked(page) is not protected by lock_page.
+
+Right :( That's my fault, when developing the patch series I didn't see the page
+migration race, and it seemed that lock is only needed to protect the rmap operations
+in __munlock_isolated_page()
+
+> But this is still
+> safe because Page_mocked mean one or more vma marked VM_LOCKED then we
+> only need care about turning down final VM_LOCKED. I.e. mmap_sem protect them.
+> 
+> And,
+> 
+> 					spin_lock_irq(zone->lru_lock)
+> 					del_page_from_lru_list
+> 					spin_unlock_irq(zone->lru_lock)
+> 
+> This idiom ensures I or someone else isolate the page from lru and isolated pages
+> will be put back by putback_lru_page in anycase. So, the pages will move the right
+> lru eventually.
+> 
+> And then, taking page-lock doesn't help to close vs munlock race.
+> 
+> On the other hands, page migration has the following call stack.
+> 
+> some-caller [isolate_lru_page]
+> 	unmap_and_move
+> 		__unmap_and_move
+> 		trylock_page
+> 		try_to_unmap
+> 		move_to_new_page
+> 			migrate_page
+> 				migrate_page_copy
+> 		unlock_page
+> 
+> The critical part (i.e. migrate_page_copy) is protected by both page isolation and page lock.
+
+However, none of that protects against setting PG_mlocked in try_to_unmap_cluster() -> mlock_vma_page(),
+or clearing PG_mlocked in __munlock_pagevec().
+
+The race I have in mind for munlock is:
+
+CPU1 does page migration
+ some-caller [isolate_lru_page]
+ 	unmap_and_move
+ 		__unmap_and_move
+ 		trylock_page
+ 		try_to_unmap
+ 		move_to_new_page
+ 			migrate_page
+ 				migrate_page_copy
+					mlock_migrate_page - transfers PG_mlocked from old page to new page
+
+CPU2 does munlock:
+ munlock
+ 	down_write(mmap_sem)
+ 	do_mlock()
+ 		mlock_fixup
+ 			munlock_vma_pages_range
+ 				__munlock_pagevec
+ 					spin_lock_irq(zone->lru_lock)
+ 					TestClearPageMlocked(page) - here it finds PG_mlocked already cleared
+					so it stops, but meanwhile new page already has PG_mlocked set and will
+					stay inevictable
+
+> Page fault path take lock page and doesn't use page isolation. This is correct.
+> try_to_unmap_cluster doesn't take page lock, but it ensure the page is isolated. This is correct too.
+
+I don't see where try_to_unmap_cluster() has guaranteed that pages other than check_page are isolated?
+(I might just be missing that). So in the race example above, CPU2 could be doing try_to_unmap_cluster()
+and set PG_mlocked on old page, with no effect on the new page. Not fatal for the design of lazy mlocking,
+but a distorted accounting anyway.
+
+> Plus, do_wp_page() has the following comment. But it is wrong. This lock is necessary to protect against
+> page migration, but not lru manipulation.
+> 
+> 		if ((ret & VM_FAULT_WRITE) && (vma->vm_flags & VM_LOCKED)) {
+> 			lock_page(old_page);	/* LRU manipulation */
+> 			munlock_vma_page(old_page);
+> 			unlock_page(old_page);
+> 		}
+> 
+> 
+> But, you know, this is crazy ugly lock design. I'm ok to change the rule to that PG_mlocked must be protected
+> page lock. If so, I propose to add PageMlocked() like this
+> 
+> 			} else if (!PageMlocked() && trylock_page(page)) {
+> 				/*
+> 				 * If we can lock the page, perform mlock.
+> 				 * Otherwise leave the page alone, it will be
+> 				 * eventually encountered again later.
+> 				 */
+> 				mlock_vma_page(page);
+> 				unlock_page(page);
+> 
+> This is safe. Even if race is happen and vmscan failed to mark PG_mlocked, that's no problem. Next vmscan may
+> do the right job and will fix the mistake.
+> 
+> Anyway,  I'm also sure this is not recent issue. It lived 5 years. It is no reason to rush.
+ 
+Yeah but there's the new issue with __munlock_pagevec() :( Perhaps a more serious one as it could leave pages inevictable
+when they shouldn't be. I'm not sure if the performance benefits of that could be preserved with full page locking.
+Another option would be that page migration would somehow deal with the race, or just leave the target pages without
+PG_mlocked and let them be dealt with later.
+But if we go with the rule that page lock must protect PG_mlocked, then there's also clear_page_mlock() to consider.
+And finally, we could then at least replace the atomic test and set with faster non-atomic variants.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
