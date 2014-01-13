@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E72A46B0044
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 11:54:41 -0500 (EST)
-Received: by mail-ee0-f51.google.com with SMTP id b15so3312905eek.10
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 08:54:41 -0800 (PST)
+Received: from mail-ea0-f181.google.com (mail-ea0-f181.google.com [209.85.215.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 864566B004D
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 11:54:43 -0500 (EST)
+Received: by mail-ea0-f181.google.com with SMTP id m10so3475065eaj.40
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 08:54:43 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id d41si20275975eep.71.2014.01.13.08.54.40
+        by mx.google.com with ESMTP id n47si29711479eef.157.2014.01.13.08.54.42
         for <linux-mm@kvack.org>;
-        Mon, 13 Jan 2014 08:54:41 -0800 (PST)
+        Mon, 13 Jan 2014 08:54:42 -0800 (PST)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 08/11] madvise: redefine callback functions for page table walker
-Date: Mon, 13 Jan 2014 11:54:08 -0500
-Message-Id: <1389632051-25159-9-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 10/11] pagewalk: remove argument hmask from hugetlb_entry()
+Date: Mon, 13 Jan 2014 11:54:10 -0500
+Message-Id: <1389632051-25159-11-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1389632051-25159-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1389632051-25159-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,81 +19,89 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Cliff Wickman <cpw@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@parallels.com>, Rik van Riel <riel@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
 
-swapin_walk_pmd_entry() is defined as pmd_entry(), but it has no code
-about pmd handling (except pmd_none_or_trans_huge_or_clear_bad, but the
-same check are now done in core page table walk code).
-So let's move this function on pte_entry() as swapin_walk_pte_entry().
+hugetlb_entry() doesn't use the argument hmask any more,
+so let's remove it now.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 ---
- mm/madvise.c | 43 +++++++++++++------------------------------
- 1 file changed, 13 insertions(+), 30 deletions(-)
+ fs/proc/task_mmu.c | 12 ++++++------
+ include/linux/mm.h |  5 ++---
+ mm/pagewalk.c      |  2 +-
+ 3 files changed, 9 insertions(+), 10 deletions(-)
 
-diff --git mmotm-2014-01-09-16-23.orig/mm/madvise.c mmotm-2014-01-09-16-23/mm/madvise.c
-index 539eeb96b323..5e957b984c14 100644
---- mmotm-2014-01-09-16-23.orig/mm/madvise.c
-+++ mmotm-2014-01-09-16-23/mm/madvise.c
-@@ -135,38 +135,22 @@ static long madvise_behavior(struct vm_area_struct *vma,
+diff --git mmotm-2014-01-09-16-23.orig/fs/proc/task_mmu.c mmotm-2014-01-09-16-23/fs/proc/task_mmu.c
+index a1903e4b9514..80507c589d30 100644
+--- mmotm-2014-01-09-16-23.orig/fs/proc/task_mmu.c
++++ mmotm-2014-01-09-16-23/fs/proc/task_mmu.c
+@@ -1030,8 +1030,7 @@ static void huge_pte_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *
  }
  
- #ifdef CONFIG_SWAP
--static int swapin_walk_pmd_entry(pmd_t *pmd, unsigned long start,
-+static int swapin_walk_pte_entry(pte_t *pte, unsigned long start,
- 	unsigned long end, struct mm_walk *walk)
+ /* This function walks within one hugetlb entry in the single call */
+-static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
+-				 unsigned long addr, unsigned long end,
++static int pagemap_hugetlb(pte_t *pte, unsigned long addr, unsigned long end,
+ 				 struct mm_walk *walk)
  {
--	pte_t *orig_pte;
--	struct vm_area_struct *vma = walk->private;
--	unsigned long index;
-+	swp_entry_t entry;
-+	struct page *page;
-+	struct vm_area_struct *vma = walk->vma;
+ 	struct pagemapread *pm = walk->private;
+@@ -1039,6 +1038,7 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
+ 	int err = 0;
+ 	int flags2;
+ 	pagemap_entry_t pme;
++	unsigned long hmask;
  
--	if (pmd_none_or_trans_huge_or_clear_bad(pmd))
-+	if (pte_present(*pte) || pte_none(*pte) || pte_file(*pte))
- 		return 0;
--
--	for (index = start; index != end; index += PAGE_SIZE) {
--		pte_t pte;
--		swp_entry_t entry;
--		struct page *page;
--		spinlock_t *ptl;
--
--		orig_pte = pte_offset_map_lock(vma->vm_mm, pmd, start, &ptl);
--		pte = *(orig_pte + ((index - start) / PAGE_SIZE));
--		pte_unmap_unlock(orig_pte, ptl);
--
--		if (pte_present(pte) || pte_none(pte) || pte_file(pte))
--			continue;
--		entry = pte_to_swp_entry(pte);
--		if (unlikely(non_swap_entry(entry)))
--			continue;
--
--		page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
--								vma, index);
--		if (page)
--			page_cache_release(page);
--	}
--
-+	entry = pte_to_swp_entry(*pte);
-+	if (unlikely(non_swap_entry(entry)))
-+		return 0;
-+	page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
-+				     vma, start);
-+	if (page)
-+		page_cache_release(page);
+ 	WARN_ON_ONCE(!vma);
+ 
+@@ -1300,8 +1300,8 @@ static int gather_pmd_stats(pmd_t *pmd, unsigned long addr,
  	return 0;
  }
- 
-@@ -175,8 +159,7 @@ static void force_swapin_readahead(struct vm_area_struct *vma,
+ #ifdef CONFIG_HUGETLB_PAGE
+-static int gather_hugetlb_stats(pte_t *pte, unsigned long hmask,
+-		unsigned long addr, unsigned long end, struct mm_walk *walk)
++static int gather_hugetlb_stats(pte_t *pte, unsigned long addr,
++				unsigned long end, struct mm_walk *walk)
  {
- 	struct mm_walk walk = {
- 		.mm = vma->vm_mm,
--		.pmd_entry = swapin_walk_pmd_entry,
--		.private = vma,
-+		.pte_entry = swapin_walk_pte_entry,
- 	};
+ 	struct numa_maps *md;
+ 	struct page *page;
+@@ -1319,8 +1319,8 @@ static int gather_hugetlb_stats(pte_t *pte, unsigned long hmask,
+ }
  
- 	walk_page_range(start, end, &walk);
+ #else
+-static int gather_hugetlb_stats(pte_t *pte, unsigned long hmask,
+-		unsigned long addr, unsigned long end, struct mm_walk *walk)
++static int gather_hugetlb_stats(pte_t *pte, unsigned long addr,
++				unsigned long end, struct mm_walk *walk)
+ {
+ 	return 0;
+ }
+diff --git mmotm-2014-01-09-16-23.orig/include/linux/mm.h mmotm-2014-01-09-16-23/include/linux/mm.h
+index 262e9d943533..0601ce59465a 100644
+--- mmotm-2014-01-09-16-23.orig/include/linux/mm.h
++++ mmotm-2014-01-09-16-23/include/linux/mm.h
+@@ -1008,9 +1008,8 @@ struct mm_walk {
+ 			 unsigned long next, struct mm_walk *walk);
+ 	int (*pte_hole)(unsigned long addr, unsigned long next,
+ 			struct mm_walk *walk);
+-	int (*hugetlb_entry)(pte_t *pte, unsigned long hmask,
+-			     unsigned long addr, unsigned long next,
+-			     struct mm_walk *walk);
++	int (*hugetlb_entry)(pte_t *pte, unsigned long addr,
++			unsigned long next, struct mm_walk *walk);
+ 	int (*test_walk)(unsigned long addr, unsigned long next,
+ 			struct mm_walk *walk);
+ 	struct mm_struct *mm;
+diff --git mmotm-2014-01-09-16-23.orig/mm/pagewalk.c mmotm-2014-01-09-16-23/mm/pagewalk.c
+index 98a2385616a2..b639964c7b11 100644
+--- mmotm-2014-01-09-16-23.orig/mm/pagewalk.c
++++ mmotm-2014-01-09-16-23/mm/pagewalk.c
+@@ -198,7 +198,7 @@ static int walk_hugetlb_range(unsigned long addr, unsigned long end,
+ 		 * in walk->hugetlb_entry().
+ 		 */
+ 		if (pte && walk->hugetlb_entry)
+-			err = walk->hugetlb_entry(pte, hmask, addr, next, walk);
++			err = walk->hugetlb_entry(pte, addr, next, walk);
+ 		spin_unlock(ptl);
+ 		if (err)
+ 			break;
 -- 
 1.8.4.2
 
