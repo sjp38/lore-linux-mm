@@ -1,67 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 31DF16B0031
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 13:59:42 -0500 (EST)
-Received: by mail-ig0-f170.google.com with SMTP id m12so5245627iga.1
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 10:59:42 -0800 (PST)
-Received: from relay.sgi.com (relay2.sgi.com. [192.48.179.30])
-        by mx.google.com with ESMTP id mv9si28106780icc.81.2014.01.13.10.59.40
-        for <linux-mm@kvack.org>;
-        Mon, 13 Jan 2014 10:59:41 -0800 (PST)
-Date: Mon, 13 Jan 2014 12:59:44 -0600
-From: Alex Thorlton <athorlton@sgi.com>
-Subject: Re: [RFC PATCH] mm: thp: Add per-mm_struct flag to control THP
-Message-ID: <20140113185944.GD10649@sgi.com>
-References: <1389383718-46031-1-git-send-email-athorlton@sgi.com>
- <20140111155337.GA16003@redhat.com>
- <20140111193003.GA10649@sgi.com>
- <20140112135600.GA15051@redhat.com>
+Received: from mail-qc0-f175.google.com (mail-qc0-f175.google.com [209.85.216.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 953356B0031
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 15:31:26 -0500 (EST)
+Received: by mail-qc0-f175.google.com with SMTP id x13so5743153qcv.6
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 12:31:26 -0800 (PST)
+Received: from mail-oa0-x231.google.com (mail-oa0-x231.google.com [2607:f8b0:4003:c02::231])
+        by mx.google.com with ESMTPS id h1si23465493qew.109.2014.01.13.12.31.25
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 13 Jan 2014 12:31:25 -0800 (PST)
+Received: by mail-oa0-f49.google.com with SMTP id n16so8488889oag.22
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 12:31:25 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140112135600.GA15051@redhat.com>
+In-Reply-To: <52D32962.5050908@redhat.com>
+References: <1389380698-19361-1-git-send-email-prarit@redhat.com>
+ <1389380698-19361-4-git-send-email-prarit@redhat.com> <alpine.DEB.2.02.1401111624170.20677@be1.lrz>
+ <52D32962.5050908@redhat.com>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Mon, 13 Jan 2014 15:31:04 -0500
+Message-ID: <CAHGf_=qWB81f8fdDdjaXXh1JoSDUsJmcEHwH+CEJ2E-5XWz6qA@mail.gmail.com>
+Subject: Re: [PATCH 2/2] x86, e820 disable ACPI Memory Hotplug if memory
+ mapping is specified by user [v2]
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org
+To: Prarit Bhargava <prarit@redhat.com>
+Cc: Bodo Eggert <7eggert@gmx.de>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Len Brown <lenb@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Toshi Kani <toshi.kani@hp.com>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, dyoung@redhat.com, linux-acpi@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Sun, Jan 12, 2014 at 02:56:00PM +0100, Oleg Nesterov wrote:
-> On 01/11, Alex Thorlton wrote:
-> >
-> > On Sat, Jan 11, 2014 at 04:53:37PM +0100, Oleg Nesterov wrote:
-> >
-> > > I simply can't understand, this all looks like overkill. Can't you simply add
-> > >
-> > > 	#idfef CONFIG_TRANSPARENT_HUGEPAGE
-> > > 	case GET:
-> > > 		error = test_bit(MMF_THP_DISABLE);
-> > > 		break;
-> > > 	case PUT:
-> > > 		if (arg2)
-> > > 			set_bit();
-> > > 		else
-> > > 			clear_bit();
-> > > 		break;
-> > > 	#endif
-> > >
-> > > into sys_prctl() ?	
-> >
-> > That's probably a better solution.  I wasn't sure whether or not it was
-> > better to have two functions to handle this, or to have one function
-> > handle both.  If you think it's better to just handle both with one,
-> > that's easy enough to change.
-> 
-> Personally I think sys_prctl() can handle this itself, without a helper.
-> But of course I won't argue, this is up to you.
-> 
-> My only point is, the kernel is already huge ;) Imho it makes sense to
-> try to lessen the code size, when the logic is simple.
+On Sun, Jan 12, 2014 at 6:46 PM, Prarit Bhargava <prarit@redhat.com> wrote:
+>
+>
+> On 01/11/2014 11:35 AM, 7eggert@gmx.de wrote:
+>>
+>>
+>> On Fri, 10 Jan 2014, Prarit Bhargava wrote:
+>>
+>>> kdump uses memmap=exactmap and mem=X values to configure the memory
+>>> mapping for the kdump kernel.  If memory is hotadded during the boot of
+>>> the kdump kernel it is possible that the page tables for the new memory
+>>> cause the kdump kernel to run out of memory.
+>>>
+>>> Since the user has specified a specific mapping ACPI Memory Hotplug should be
+>>> disabled in this case.
+>>
+>> I'll ask just in case: Is it possible to want memory hotplug in spite of
+>> using memmap=exactmap or mem=X?
+>
+> Good question -- I can't think of a case.  When a user specifies "memmap" or
+> "mem" IMO they are asking for a very specific memory configuration.  Having
+> extra memory added above what the user has specified seems to defeat the purpose
+> of "memmap" and "mem".
 
-I agree with you here as well.  There was a mixed bag of PRCTLs using
-helpers vs. ones that put the code right into sys_prctl.  I just
-arbitrarily chose to use a helper here.  I'll switch that over for v2.
+May be yes, may be no.
 
-- Alex
+They are often used for a wrokaround to avoid broken firmware issue.
+If we have no way
+to explicitly enable hotplug. We will lose a workaround.
+
+Perhaps, there is no matter. Today, memory hotplug is only used on
+high-end machine
+and their firmware is carefully developped and don't have a serious
+issue almostly. Though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
