@@ -1,347 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f181.google.com (mail-ea0-f181.google.com [209.85.215.181])
-	by kanga.kvack.org (Postfix) with ESMTP id BC1C26B0055
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 11:54:44 -0500 (EST)
-Received: by mail-ea0-f181.google.com with SMTP id m10so3475075eaj.40
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 08:54:44 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id p46si29680541eem.231.2014.01.13.08.54.43
-        for <linux-mm@kvack.org>;
-        Mon, 13 Jan 2014 08:54:44 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 11/11] mempolicy: apply page table walker on queue_pages_range()
-Date: Mon, 13 Jan 2014 11:54:11 -0500
-Message-Id: <1389632051-25159-12-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1389632051-25159-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1389632051-25159-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from mail-qe0-f50.google.com (mail-qe0-f50.google.com [209.85.128.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 301406B0031
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 12:02:41 -0500 (EST)
+Received: by mail-qe0-f50.google.com with SMTP id 1so7333550qec.37
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 09:02:41 -0800 (PST)
+Received: from mail-qa0-x230.google.com (mail-qa0-x230.google.com [2607:f8b0:400d:c00::230])
+        by mx.google.com with ESMTPS id g2si8797251qag.173.2014.01.13.09.02.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 13 Jan 2014 09:02:40 -0800 (PST)
+Received: by mail-qa0-f48.google.com with SMTP id f11so2381670qae.35
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 09:02:39 -0800 (PST)
+From: William Roberts <bill.c.roberts@gmail.com>
+Subject: [RFC][PATCH v2 1/3] mm: Create utility function for accessing a tasks commandline value
+Date: Mon, 13 Jan 2014 12:02:33 -0500
+Message-Id: <1389632555-7039-1-git-send-email-wroberts@tresys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Cliff Wickman <cpw@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@parallels.com>, Rik van Riel <riel@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
+To: linux-audit@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rgb@redhat.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, sds@tycho.nsa.gov
+Cc: William Roberts <wroberts@tresys.com>
 
-queue_pages_range() does page table walking in its own way now,
-so this patch rewrites it with walk_page_range().
-One difficulty was that queue_pages_range() needed to check vmas
-to determine whether we queue pages from a given vma or skip it.
-Now we have test_walk() callback in mm_walk for that purpose,
-so we can do the replacement cleanly. queue_pages_test_walk()
-depends on not only the current vma but also the previous one,
-so we use queue_pages->prev to keep it.
+introduce get_cmdline() for retreiving the value of a processes
+proc/self/cmdline value.
 
-ChangeLog v2:
-- rebase onto mmots
-- add VM_PFNMAP check on queue_pages_test_walk()
-
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: William Roberts <wroberts@tresys.com>
 ---
- mm/mempolicy.c | 255 ++++++++++++++++++++++-----------------------------------
- 1 file changed, 99 insertions(+), 156 deletions(-)
+ include/linux/mm.h |    1 +
+ mm/util.c          |   48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+)
 
-diff --git mmotm-2014-01-09-16-23.orig/mm/mempolicy.c mmotm-2014-01-09-16-23/mm/mempolicy.c
-index 9bfb1a020aa6..1007bed55678 100644
---- mmotm-2014-01-09-16-23.orig/mm/mempolicy.c
-+++ mmotm-2014-01-09-16-23/mm/mempolicy.c
-@@ -476,140 +476,66 @@ static const struct mempolicy_operations mpol_ops[MPOL_MAX] = {
- static void migrate_page_add(struct page *page, struct list_head *pagelist,
- 				unsigned long flags);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 3552717..01e7970 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1134,6 +1134,7 @@ void account_page_writeback(struct page *page);
+ int set_page_dirty(struct page *page);
+ int set_page_dirty_lock(struct page *page);
+ int clear_page_dirty_for_io(struct page *page);
++int get_cmdline(struct task_struct *task, char *buffer, int buflen);
  
-+struct queue_pages {
-+	struct list_head *pagelist;
-+	unsigned long flags;
-+	nodemask_t *nmask;
-+	struct vm_area_struct *prev;
-+};
-+
- /*
-  * Scan through pages checking if pages follow certain conditions,
-  * and move them to the pagelist if they do.
-  */
--static int queue_pages_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
--		unsigned long addr, unsigned long end,
--		const nodemask_t *nodes, unsigned long flags,
--		void *private)
-+static int queue_pages_pte(pte_t *pte, unsigned long addr,
-+			unsigned long next, struct mm_walk *walk)
- {
--	pte_t *orig_pte;
--	pte_t *pte;
--	spinlock_t *ptl;
--
--	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
--	do {
--		struct page *page;
--		int nid;
-+	struct vm_area_struct *vma = walk->vma;
-+	struct page *page;
-+	struct queue_pages *qp = walk->private;
-+	unsigned long flags = qp->flags;
-+	int nid;
- 
--		if (!pte_present(*pte))
--			continue;
--		page = vm_normal_page(vma, addr, *pte);
--		if (!page)
--			continue;
--		/*
--		 * vm_normal_page() filters out zero pages, but there might
--		 * still be PageReserved pages to skip, perhaps in a VDSO.
--		 */
--		if (PageReserved(page))
--			continue;
--		nid = page_to_nid(page);
--		if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
--			continue;
-+	if (!pte_present(*pte))
-+		return 0;
-+	page = vm_normal_page(vma, addr, *pte);
-+	if (!page)
-+		return 0;
-+	/*
-+	 * vm_normal_page() filters out zero pages, but there might
-+	 * still be PageReserved pages to skip, perhaps in a VDSO.
-+	 */
-+	if (PageReserved(page))
-+		return 0;
-+	nid = page_to_nid(page);
-+	if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
-+		return 0;
- 
--		if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
--			migrate_page_add(page, private, flags);
--		else
--			break;
--	} while (pte++, addr += PAGE_SIZE, addr != end);
--	pte_unmap_unlock(orig_pte, ptl);
--	return addr != end;
-+	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
-+		migrate_page_add(page, qp->pagelist, flags);
-+	return 0;
+ /* Is the vma a continuation of the stack vma above it? */
+ static inline int vma_growsdown(struct vm_area_struct *vma, unsigned long addr)
+diff --git a/mm/util.c b/mm/util.c
+index f7bc209..5285ff0 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -410,6 +410,54 @@ unsigned long vm_commit_limit(void)
+ 		* sysctl_overcommit_ratio / 100) + total_swap_pages;
  }
  
--static void queue_pages_hugetlb_pmd_range(struct vm_area_struct *vma,
--		pmd_t *pmd, const nodemask_t *nodes, unsigned long flags,
--				    void *private)
-+static int queue_pages_hugetlb(pte_t *pte, unsigned long addr,
-+				unsigned long next, struct mm_walk *walk)
- {
- #ifdef CONFIG_HUGETLB_PAGE
-+	struct queue_pages *qp = walk->private;
-+	unsigned long flags = qp->flags;
- 	int nid;
- 	struct page *page;
--	spinlock_t *ptl;
- 
--	ptl = huge_pte_lock(hstate_vma(vma), vma->vm_mm, (pte_t *)pmd);
--	page = pte_page(huge_ptep_get((pte_t *)pmd));
-+	page = pte_page(huge_ptep_get(pte));
- 	nid = page_to_nid(page);
--	if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
--		goto unlock;
-+	if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
-+		return 0;
- 	/* With MPOL_MF_MOVE, we migrate only unshared hugepage. */
- 	if (flags & (MPOL_MF_MOVE_ALL) ||
- 	    (flags & MPOL_MF_MOVE && page_mapcount(page) == 1))
--		isolate_huge_page(page, private);
--unlock:
--	spin_unlock(ptl);
-+		isolate_huge_page(page, qp->pagelist);
- #else
- 	BUG();
- #endif
--}
--
--static inline int queue_pages_pmd_range(struct vm_area_struct *vma, pud_t *pud,
--		unsigned long addr, unsigned long end,
--		const nodemask_t *nodes, unsigned long flags,
--		void *private)
--{
--	pmd_t *pmd;
--	unsigned long next;
--
--	pmd = pmd_offset(pud, addr);
--	do {
--		next = pmd_addr_end(addr, end);
--		if (!pmd_present(*pmd))
--			continue;
--		if (pmd_huge(*pmd) && is_vm_hugetlb_page(vma)) {
--			queue_pages_hugetlb_pmd_range(vma, pmd, nodes,
--						flags, private);
--			continue;
--		}
--		split_huge_page_pmd(vma, addr, pmd);
--		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
--			continue;
--		if (queue_pages_pte_range(vma, pmd, addr, next, nodes,
--				    flags, private))
--			return -EIO;
--	} while (pmd++, addr = next, addr != end);
--	return 0;
--}
--
--static inline int queue_pages_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
--		unsigned long addr, unsigned long end,
--		const nodemask_t *nodes, unsigned long flags,
--		void *private)
--{
--	pud_t *pud;
--	unsigned long next;
--
--	pud = pud_offset(pgd, addr);
--	do {
--		next = pud_addr_end(addr, end);
--		if (pud_huge(*pud) && is_vm_hugetlb_page(vma))
--			continue;
--		if (pud_none_or_clear_bad(pud))
--			continue;
--		if (queue_pages_pmd_range(vma, pud, addr, next, nodes,
--				    flags, private))
--			return -EIO;
--	} while (pud++, addr = next, addr != end);
--	return 0;
--}
--
--static inline int queue_pages_pgd_range(struct vm_area_struct *vma,
--		unsigned long addr, unsigned long end,
--		const nodemask_t *nodes, unsigned long flags,
--		void *private)
--{
--	pgd_t *pgd;
--	unsigned long next;
--
--	pgd = pgd_offset(vma->vm_mm, addr);
--	do {
--		next = pgd_addr_end(addr, end);
--		if (pgd_none_or_clear_bad(pgd))
--			continue;
--		if (queue_pages_pud_range(vma, pgd, addr, next, nodes,
--				    flags, private))
--			return -EIO;
--	} while (pgd++, addr = next, addr != end);
- 	return 0;
- }
- 
-@@ -643,6 +569,45 @@ static unsigned long change_prot_numa(struct vm_area_struct *vma,
- }
- #endif /* CONFIG_ARCH_USES_NUMA_PROT_NONE */
- 
-+static int queue_pages_test_walk(unsigned long start, unsigned long end,
-+				struct mm_walk *walk)
++/**
++ * get_cmdline() - copy the cmdline value to a buffer.
++ * @task:     the task whose cmdline value to copy.
++ * @buffer:   the buffer to copy to.
++ * @buflen:   the length of the buffer. Larger cmdline values are truncated
++ *            to this length.
++ * Returns the size of the cmdline field copied. Note that the copy does
++ * not guarantee an ending NULL byte.
++ */
++int get_cmdline(struct task_struct *task, char *buffer, int buflen)
 +{
-+	struct vm_area_struct *vma = walk->vma;
-+	struct queue_pages *qp = walk->private;
-+	unsigned long endvma = vma->vm_end;
-+	unsigned long flags = qp->flags;
++	int res = 0;
++	unsigned int len;
++	struct mm_struct *mm = get_task_mm(task);
++	if (!mm)
++		goto out;
++	if (!mm->arg_end)
++		goto out_mm;	/* Shh! No looking before we're done */
 +
-+	if (endvma > end)
-+		endvma = end;
-+	if (vma->vm_start > start)
-+		start = vma->vm_start;
++	len = mm->arg_end - mm->arg_start;
 +
-+	if (!(flags & MPOL_MF_DISCONTIG_OK)) {
-+		if (!vma->vm_next && vma->vm_end < end)
-+			return -EFAULT;
-+		if (qp->prev && qp->prev->vm_end < vma->vm_start)
-+			return -EFAULT;
++	if (len > buflen)
++		len = buflen;
++
++	res = access_process_vm(task, mm->arg_start, buffer, len, 0);
++
++	/*
++	 * If the nul at the end of args has been overwritten, then
++	 * assume application is using setproctitle(3).
++	 */
++	if (res > 0 && buffer[res-1] != '\0' && len < buflen) {
++		len = strnlen(buffer, res);
++		if (len < res) {
++			res = len;
++		} else {
++			len = mm->env_end - mm->env_start;
++			if (len > buflen - res)
++				len = buflen - res;
++			res += access_process_vm(task, mm->env_start,
++						 buffer+res, len, 0);
++			res = strnlen(buffer, res);
++		}
 +	}
-+
-+	qp->prev = vma;
-+	walk->skip = 1;
-+
-+	if (vma->vm_flags & VM_PFNMAP)
-+		return 0;
-+
-+	if (flags & MPOL_MF_LAZY) {
-+		change_prot_numa(vma, start, endvma);
-+		return 0;
-+	}
-+
-+	if ((flags & MPOL_MF_STRICT) ||
-+	    ((flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) &&
-+	     vma_migratable(vma)))
-+		/* queue pages from current vma */
-+		walk->skip = 0;
-+	return 0;
++out_mm:
++	mmput(mm);
++out:
++	return res;
 +}
-+
- /*
-  * Walk through page tables and collect pages to be migrated.
-  *
-@@ -652,51 +617,29 @@ static unsigned long change_prot_numa(struct vm_area_struct *vma,
-  */
- static struct vm_area_struct *
- queue_pages_range(struct mm_struct *mm, unsigned long start, unsigned long end,
--		const nodemask_t *nodes, unsigned long flags, void *private)
-+		nodemask_t *nodes, unsigned long flags,
-+		struct list_head *pagelist)
- {
- 	int err;
--	struct vm_area_struct *first, *vma, *prev;
--
--
--	first = find_vma(mm, start);
--	if (!first)
--		return ERR_PTR(-EFAULT);
--	prev = NULL;
--	for (vma = first; vma && vma->vm_start < end; vma = vma->vm_next) {
--		unsigned long endvma = vma->vm_end;
--
--		if (endvma > end)
--			endvma = end;
--		if (vma->vm_start > start)
--			start = vma->vm_start;
--
--		if (!(flags & MPOL_MF_DISCONTIG_OK)) {
--			if (!vma->vm_next && vma->vm_end < end)
--				return ERR_PTR(-EFAULT);
--			if (prev && prev->vm_end < vma->vm_start)
--				return ERR_PTR(-EFAULT);
--		}
--
--		if (flags & MPOL_MF_LAZY) {
--			change_prot_numa(vma, start, endvma);
--			goto next;
--		}
--
--		if ((flags & MPOL_MF_STRICT) ||
--		     ((flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) &&
--		      vma_migratable(vma))) {
--
--			err = queue_pages_pgd_range(vma, start, endvma, nodes,
--						flags, private);
--			if (err) {
--				first = ERR_PTR(err);
--				break;
--			}
--		}
--next:
--		prev = vma;
--	}
--	return first;
-+	struct queue_pages qp = {
-+		.pagelist = pagelist,
-+		.flags = flags,
-+		.nmask = nodes,
-+		.prev = NULL,
-+	};
-+	struct mm_walk queue_pages_walk = {
-+		.hugetlb_entry = queue_pages_hugetlb,
-+		.pte_entry = queue_pages_pte,
-+		.test_walk = queue_pages_test_walk,
-+		.mm = mm,
-+		.private = &qp,
-+	};
-+
-+	err = walk_page_range(start, end, &queue_pages_walk);
-+	if (err < 0)
-+		return ERR_PTR(err);
-+	else
-+		return find_vma(mm, start);
- }
  
- /*
+ /* Tracepoints definitions. */
+ EXPORT_TRACEPOINT_SYMBOL(kmalloc);
 -- 
-1.8.4.2
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
