@@ -1,109 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BD1C6B0036
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 18:34:26 -0500 (EST)
-Received: by mail-pd0-f170.google.com with SMTP id z10so2707726pdj.1
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 15:34:25 -0800 (PST)
-Received: from LGEAMRELO02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id kn7si17057058pbc.6.2014.01.13.15.34.23
+Received: from mail-qe0-f42.google.com (mail-qe0-f42.google.com [209.85.128.42])
+	by kanga.kvack.org (Postfix) with ESMTP id D585E6B0031
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 18:40:08 -0500 (EST)
+Received: by mail-qe0-f42.google.com with SMTP id b4so7975694qen.29
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 15:40:08 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id kb1si25204929qeb.113.2014.01.13.15.40.07
         for <linux-mm@kvack.org>;
-        Mon, 13 Jan 2014 15:34:24 -0800 (PST)
-Date: Tue, 14 Jan 2014 08:35:05 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm/zswap: Check all pool pages instead of one pool pages
-Message-ID: <20140113233505.GS1992@bbox>
-References: <000101cf0ea0$f4e7c560$deb75020$@samsung.com>
+        Mon, 13 Jan 2014 15:40:08 -0800 (PST)
+Message-ID: <52D4793E.8070102@redhat.com>
+Date: Mon, 13 Jan 2014 18:39:42 -0500
+From: Prarit Bhargava <prarit@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <000101cf0ea0$f4e7c560$deb75020$@samsung.com>
+Subject: Re: [PATCH 2/2] x86, e820 disable ACPI Memory Hotplug if memory mapping
+ is specified by user [v2]
+References: <1389380698-19361-1-git-send-email-prarit@redhat.com> <1389380698-19361-4-git-send-email-prarit@redhat.com> <alpine.DEB.2.02.1401111624170.20677@be1.lrz> <52D32962.5050908@redhat.com> <CAHGf_=qWB81f8fdDdjaXXh1JoSDUsJmcEHwH+CEJ2E-5XWz6qA@mail.gmail.com>
+In-Reply-To: <CAHGf_=qWB81f8fdDdjaXXh1JoSDUsJmcEHwH+CEJ2E-5XWz6qA@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cai Liu <cai.liu@samsung.com>
-Cc: sjenning@linux.vnet.ibm.com, akpm@linux-foundation.org, bob.liu@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, liucai.lfn@gmail.com
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Bodo Eggert <7eggert@gmx.de>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Len Brown <lenb@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Toshi Kani <toshi.kani@hp.com>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, dyoung@redhat.com, linux-acpi@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hello,
 
-On Sat, Jan 11, 2014 at 03:43:07PM +0800, Cai Liu wrote:
-> zswap can support multiple swapfiles. So we need to check
-> all zbud pool pages in zswap.
 
-True but this patch is rather costly that we should iterate
-zswap_tree[MAX_SWAPFILES] to check it. SIGH.
-
-How about defining zswap_tress as linked list instead of static
-array? Then, we could reduce unnecessary iteration too much.
-
-Other question:
-Why do we need to update zswap_pool_pages too frequently?
-As I read the code, I think it's okay to update it only when user
-want to see it by debugfs and zswap_is_full is called.
-So could we optimize it out?
-
+On 01/13/2014 03:31 PM, KOSAKI Motohiro wrote:
+> On Sun, Jan 12, 2014 at 6:46 PM, Prarit Bhargava <prarit@redhat.com> wrote:
+>>
+>>
+>> On 01/11/2014 11:35 AM, 7eggert@gmx.de wrote:
+>>>
+>>>
+>>> On Fri, 10 Jan 2014, Prarit Bhargava wrote:
+>>>
+>>>> kdump uses memmap=exactmap and mem=X values to configure the memory
+>>>> mapping for the kdump kernel.  If memory is hotadded during the boot of
+>>>> the kdump kernel it is possible that the page tables for the new memory
+>>>> cause the kdump kernel to run out of memory.
+>>>>
+>>>> Since the user has specified a specific mapping ACPI Memory Hotplug should be
+>>>> disabled in this case.
+>>>
+>>> I'll ask just in case: Is it possible to want memory hotplug in spite of
+>>> using memmap=exactmap or mem=X?
+>>
+>> Good question -- I can't think of a case.  When a user specifies "memmap" or
+>> "mem" IMO they are asking for a very specific memory configuration.  Having
+>> extra memory added above what the user has specified seems to defeat the purpose
+>> of "memmap" and "mem".
 > 
-> Signed-off-by: Cai Liu <cai.liu@samsung.com>
-> ---
->  mm/zswap.c |   18 +++++++++++++++---
->  1 file changed, 15 insertions(+), 3 deletions(-)
+> May be yes, may be no.
 > 
-> diff --git a/mm/zswap.c b/mm/zswap.c
-> index d93afa6..2438344 100644
-> --- a/mm/zswap.c
-> +++ b/mm/zswap.c
-> @@ -291,7 +291,6 @@ static void zswap_free_entry(struct zswap_tree *tree,
->  	zbud_free(tree->pool, entry->handle);
->  	zswap_entry_cache_free(entry);
->  	atomic_dec(&zswap_stored_pages);
-> -	zswap_pool_pages = zbud_get_pool_size(tree->pool);
->  }
->  
->  /* caller must hold the tree lock */
-> @@ -405,10 +404,24 @@ cleanup:
->  /*********************************
->  * helpers
->  **********************************/
-> +static u64 get_zswap_pool_pages(void)
-> +{
-> +	int i;
-> +	u64 pool_pages = 0;
-> +
-> +	for (i = 0; i < MAX_SWAPFILES; i++) {
-> +		if (zswap_trees[i])
-> +			pool_pages += zbud_get_pool_size(zswap_trees[i]->pool);
-> +	}
-> +	zswap_pool_pages = pool_pages;
-> +
-> +	return pool_pages;
-> +}
-> +
->  static bool zswap_is_full(void)
->  {
->  	return (totalram_pages * zswap_max_pool_percent / 100 <
-> -		zswap_pool_pages);
-> +		get_zswap_pool_pages());
->  }
->  
->  /*********************************
-> @@ -716,7 +729,6 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
->  
->  	/* update stats */
->  	atomic_inc(&zswap_stored_pages);
-> -	zswap_pool_pages = zbud_get_pool_size(tree->pool);
->  
->  	return 0;
->  
-> -- 
-> 1.7.10.4
+> They are often used for a wrokaround to avoid broken firmware issue.
+> If we have no way
+> to explicitly enable hotplug. We will lose a workaround.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Perhaps, there is no matter. Today, memory hotplug is only used on
+> high-end machine
+> and their firmware is carefully developped and don't have a serious
+> issue almostly. Though.
 
--- 
-Kind regards,
-Minchan Kim
+Oof -- sorry Kosaki :(  I didn't see this until just now (and your subsequent
+ACK on the updated patch).
+
+I just remembered that we did have a processor vendor's whitebox that would not
+boot unless we specified a specific memmap and we did specify memmap=exactmap to
+boot the system correctly and the system had hotplug memory.
+
+So it means that I should not key off of "memmap=exactmap".
+
+I will self-NAK the updated patch and submit a new one.
+
+P.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
