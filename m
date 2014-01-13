@@ -1,85 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
-	by kanga.kvack.org (Postfix) with ESMTP id C245B6B003A
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 12:02:44 -0500 (EST)
-Received: by mail-qc0-f181.google.com with SMTP id e9so6543587qcy.12
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 09:02:44 -0800 (PST)
-Received: from mail-qc0-x233.google.com (mail-qc0-x233.google.com [2607:f8b0:400d:c01::233])
-        by mx.google.com with ESMTPS id n9si19495675qas.151.2014.01.13.09.02.42
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 6598E6B003A
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 12:03:26 -0500 (EST)
+Received: by mail-wi0-f175.google.com with SMTP id hi5so2542177wib.2
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 09:03:25 -0800 (PST)
+Received: from mail-wi0-x230.google.com (mail-wi0-x230.google.com [2a00:1450:400c:c05::230])
+        by mx.google.com with ESMTPS id m18si7924802wie.85.2014.01.13.09.03.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 13 Jan 2014 09:02:43 -0800 (PST)
-Received: by mail-qc0-f179.google.com with SMTP id e16so4343870qcx.38
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 09:02:41 -0800 (PST)
-From: William Roberts <bill.c.roberts@gmail.com>
-Subject: [RFC][PATCH v2 2/3] proc: Update get proc_pid_cmdline() to use mm.h helpers
-Date: Mon, 13 Jan 2014 12:02:34 -0500
-Message-Id: <1389632555-7039-2-git-send-email-wroberts@tresys.com>
-In-Reply-To: <1389632555-7039-1-git-send-email-wroberts@tresys.com>
-References: <1389632555-7039-1-git-send-email-wroberts@tresys.com>
+        Mon, 13 Jan 2014 09:03:25 -0800 (PST)
+Received: by mail-wi0-f176.google.com with SMTP id hq4so2533547wib.3
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 09:03:25 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20140103151154.GA2940@cerebellum.variantweb.net>
+References: <1387459407-29342-1-git-send-email-ddstreet@ieee.org> <20140103151154.GA2940@cerebellum.variantweb.net>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Mon, 13 Jan 2014 12:03:05 -0500
+Message-ID: <CALZtONB30aBBY=jPJmXJN9gfSwv8Q4i5=VPpa457TtvSEg4yXQ@mail.gmail.com>
+Subject: Re: [PATCH] mm/zswap: add writethrough option
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-audit@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rgb@redhat.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, sds@tycho.nsa.gov
-Cc: William Roberts <wroberts@tresys.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjennings@variantweb.net>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>, Shirish Pargaonkar <spargaonkar@suse.com>, Mel Gorman <mgorman@suse.de>
 
-Re-factor proc_pid_cmdline() to use get_cmdline() helper
-from mm.h.
+Ping to see if this patch can get picked up.
 
-Signed-off-by: William Roberts <wroberts@tresys.com>
----
- fs/proc/base.c |   36 ++----------------------------------
- 1 file changed, 2 insertions(+), 34 deletions(-)
-
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index 03c8d74..cfd178d 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -200,41 +200,9 @@ static int proc_root_link(struct dentry *dentry, struct path *path)
- 	return result;
- }
- 
--static int proc_pid_cmdline(struct task_struct *task, char * buffer)
-+static int proc_pid_cmdline(struct task_struct *task, char *buffer)
- {
--	int res = 0;
--	unsigned int len;
--	struct mm_struct *mm = get_task_mm(task);
--	if (!mm)
--		goto out;
--	if (!mm->arg_end)
--		goto out_mm;	/* Shh! No looking before we're done */
--
-- 	len = mm->arg_end - mm->arg_start;
-- 
--	if (len > PAGE_SIZE)
--		len = PAGE_SIZE;
-- 
--	res = access_process_vm(task, mm->arg_start, buffer, len, 0);
--
--	// If the nul at the end of args has been overwritten, then
--	// assume application is using setproctitle(3).
--	if (res > 0 && buffer[res-1] != '\0' && len < PAGE_SIZE) {
--		len = strnlen(buffer, res);
--		if (len < res) {
--		    res = len;
--		} else {
--			len = mm->env_end - mm->env_start;
--			if (len > PAGE_SIZE - res)
--				len = PAGE_SIZE - res;
--			res += access_process_vm(task, mm->env_start, buffer+res, len, 0);
--			res = strnlen(buffer, res);
--		}
--	}
--out_mm:
--	mmput(mm);
--out:
--	return res;
-+	return get_cmdline(task, buffer, PAGE_SIZE);
- }
- 
- static int proc_pid_auxv(struct task_struct *task, char *buffer)
--- 
-1.7.9.5
+On Fri, Jan 3, 2014 at 10:11 AM, Seth Jennings <sjennings@variantweb.net> wrote:
+> On Thu, Dec 19, 2013 at 08:23:27AM -0500, Dan Streetman wrote:
+>> Currently, zswap is writeback cache; stored pages are not sent
+>> to swap disk, and when zswap wants to evict old pages it must
+>> first write them back to swap cache/disk manually.  This avoids
+>> swap out disk I/O up front, but only moves that disk I/O to
+>> the writeback case (for pages that are evicted), and adds the
+>> overhead of having to uncompress the evicted pages and the
+>> need for an additional free page (to store the uncompressed page).
+>>
+>> This optionally changes zswap to writethrough cache by enabling
+>> frontswap_writethrough() before registering, so that any
+>> successful page store will also be written to swap disk.  The
+>> default remains writeback.  To enable writethrough, the param
+>> zswap.writethrough=1 must be used at boot.
+>>
+>> Whether writeback or writethrough will provide better performance
+>> depends on many factors including disk I/O speed/throughput,
+>> CPU speed(s), system load, etc.  In most cases it is likely
+>> that writeback has better performance than writethrough before
+>> zswap is full, but after zswap fills up writethrough has
+>> better performance than writeback.
+>>
+>> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+>
+> Hey Dan, sorry for the delay on this.  Vacation and busyness.
+>
+> This looks like a good option for those that don't mind having
+> the write overhead to ensure that things don't really bog down
+> if the compress pool overflows, while maintaining the read fault
+> speedup by decompressing from the pool.
+>
+> Acked-by: Seth Jennings <sjennings@variantweb.net>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
