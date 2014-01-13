@@ -1,52 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
-	by kanga.kvack.org (Postfix) with ESMTP id F03DA6B0035
-	for <linux-mm@kvack.org>; Sun, 12 Jan 2014 18:47:04 -0500 (EST)
-Received: by mail-qc0-f180.google.com with SMTP id i17so814818qcy.25
-        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 15:47:04 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id g2si5470477qag.45.2014.01.12.15.47.02
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 02CB36B0035
+	for <linux-mm@kvack.org>; Sun, 12 Jan 2014 20:16:33 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id r10so2769326pdi.34
+        for <linux-mm@kvack.org>; Sun, 12 Jan 2014 17:16:33 -0800 (PST)
+Received: from LGEAMRELO02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id o7si14085624pbb.100.2014.01.12.17.16.31
         for <linux-mm@kvack.org>;
-        Sun, 12 Jan 2014 15:47:02 -0800 (PST)
-Message-ID: <52D32962.5050908@redhat.com>
-Date: Sun, 12 Jan 2014 18:46:42 -0500
-From: Prarit Bhargava <prarit@redhat.com>
+        Sun, 12 Jan 2014 17:16:32 -0800 (PST)
+Date: Mon, 13 Jan 2014 10:17:09 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [patch 1/9] fs: cachefiles: use add_to_page_cache_lru()
+Message-ID: <20140113011709.GM1992@bbox>
+References: <1389377443-11755-1-git-send-email-hannes@cmpxchg.org>
+ <1389377443-11755-2-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] x86, e820 disable ACPI Memory Hotplug if memory mapping
- is specified by user [v2]
-References: <1389380698-19361-1-git-send-email-prarit@redhat.com> <1389380698-19361-4-git-send-email-prarit@redhat.com> <alpine.DEB.2.02.1401111624170.20677@be1.lrz>
-In-Reply-To: <alpine.DEB.2.02.1401111624170.20677@be1.lrz>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1389377443-11755-2-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 7eggert@gmx.de
-Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Len Brown <lenb@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Toshi Kani <toshi.kani@hp.com>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, kosaki.motohiro@gmail.com, dyoung@redhat.com, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Bob Liu <bob.liu@oracle.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-
-
-On 01/11/2014 11:35 AM, 7eggert@gmx.de wrote:
+On Fri, Jan 10, 2014 at 01:10:35PM -0500, Johannes Weiner wrote:
+> This code used to have its own lru cache pagevec up until a0b8cab3
+> ("mm: remove lru parameter from __pagevec_lru_add and remove parts of
+> pagevec API").  Now it's just add_to_page_cache() followed by
+> lru_cache_add(), might as well use add_to_page_cache_lru() directly.
 > 
-> 
-> On Fri, 10 Jan 2014, Prarit Bhargava wrote:
-> 
->> kdump uses memmap=exactmap and mem=X values to configure the memory
->> mapping for the kdump kernel.  If memory is hotadded during the boot of
->> the kdump kernel it is possible that the page tables for the new memory
->> cause the kdump kernel to run out of memory.
->>
->> Since the user has specified a specific mapping ACPI Memory Hotplug should be
->> disabled in this case.
-> 
-> I'll ask just in case: Is it possible to want memory hotplug in spite of 
-> using memmap=exactmap or mem=X?
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Minchan Kim <minchan@kernel.org>
 
-Good question -- I can't think of a case.  When a user specifies "memmap" or
-"mem" IMO they are asking for a very specific memory configuration.  Having
-extra memory added above what the user has specified seems to defeat the purpose
-of "memmap" and "mem".
-
-P.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
