@@ -1,64 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 6598E6B003A
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 12:03:26 -0500 (EST)
-Received: by mail-wi0-f175.google.com with SMTP id hi5so2542177wib.2
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 09:03:25 -0800 (PST)
-Received: from mail-wi0-x230.google.com (mail-wi0-x230.google.com [2a00:1450:400c:c05::230])
-        by mx.google.com with ESMTPS id m18si7924802wie.85.2014.01.13.09.03.25
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 13 Jan 2014 09:03:25 -0800 (PST)
-Received: by mail-wi0-f176.google.com with SMTP id hq4so2533547wib.3
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 09:03:25 -0800 (PST)
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 397B86B0038
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 12:17:36 -0500 (EST)
+Received: by mail-pd0-f170.google.com with SMTP id z10so2301451pdj.15
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 09:17:35 -0800 (PST)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id dv5si16242648pbb.253.2014.01.13.09.17.33
+        for <linux-mm@kvack.org>;
+        Mon, 13 Jan 2014 09:17:33 -0800 (PST)
+Message-ID: <52D41F52.5020805@sr71.net>
+Date: Mon, 13 Jan 2014 09:16:02 -0800
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-In-Reply-To: <20140103151154.GA2940@cerebellum.variantweb.net>
-References: <1387459407-29342-1-git-send-email-ddstreet@ieee.org> <20140103151154.GA2940@cerebellum.variantweb.net>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Mon, 13 Jan 2014 12:03:05 -0500
-Message-ID: <CALZtONB30aBBY=jPJmXJN9gfSwv8Q4i5=VPpa457TtvSEg4yXQ@mail.gmail.com>
-Subject: Re: [PATCH] mm/zswap: add writethrough option
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 0/9] re-shrink 'struct page' when SLUB is on.
+References: <20140103180147.6566F7C1@viggo.jf.intel.com> <20140103141816.20ef2a24c8adffae040e53dc@linux-foundation.org> <20140106043237.GE696@lge.com> <52D05D90.3060809@sr71.net> <20140110153913.844e84755256afd271371493@linux-foundation.org> <52D0854F.5060102@sr71.net> <CAOJsxLE-oMpV2G-gxrhyv0Au1tPd87Ow57VD5CWFo41wF8F4Yw@mail.gmail.com> <alpine.DEB.2.10.1401111854580.6036@nuc> <20140113014408.GA25900@lge.com>
+In-Reply-To: <20140113014408.GA25900@lge.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjennings@variantweb.net>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>, Shirish Pargaonkar <spargaonkar@suse.com>, Mel Gorman <mgorman@suse.de>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Ping to see if this patch can get picked up.
+On 01/12/2014 05:44 PM, Joonsoo Kim wrote:
+> We only touch one struct page on small allocation.
+> In 64-byte case, we always use one cacheline for touching struct page, since
+> it is aligned to cacheline size. However, in 56-byte case, we possibly use
+> two cachelines because struct page isn't aligned to cacheline size.
 
-On Fri, Jan 3, 2014 at 10:11 AM, Seth Jennings <sjennings@variantweb.net> wrote:
-> On Thu, Dec 19, 2013 at 08:23:27AM -0500, Dan Streetman wrote:
->> Currently, zswap is writeback cache; stored pages are not sent
->> to swap disk, and when zswap wants to evict old pages it must
->> first write them back to swap cache/disk manually.  This avoids
->> swap out disk I/O up front, but only moves that disk I/O to
->> the writeback case (for pages that are evicted), and adds the
->> overhead of having to uncompress the evicted pages and the
->> need for an additional free page (to store the uncompressed page).
->>
->> This optionally changes zswap to writethrough cache by enabling
->> frontswap_writethrough() before registering, so that any
->> successful page store will also be written to swap disk.  The
->> default remains writeback.  To enable writethrough, the param
->> zswap.writethrough=1 must be used at boot.
->>
->> Whether writeback or writethrough will provide better performance
->> depends on many factors including disk I/O speed/throughput,
->> CPU speed(s), system load, etc.  In most cases it is likely
->> that writeback has better performance than writethrough before
->> zswap is full, but after zswap fills up writethrough has
->> better performance than writeback.
->>
->> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
->
-> Hey Dan, sorry for the delay on this.  Vacation and busyness.
->
-> This looks like a good option for those that don't mind having
-> the write overhead to ensure that things don't really bog down
-> if the compress pool overflows, while maintaining the read fault
-> speedup by decompressing from the pool.
->
-> Acked-by: Seth Jennings <sjennings@variantweb.net>
+I think you're completely correct that this can _happen_, but I'm a bit
+unconvinced that what you're talking about is the thing which dominates
+the results.  I'm sure it plays a role, but the tests I was doing were
+doing tens of millions of allocations and touching a _lot_ of 'struct
+pages'.  I would not expect these effects to be observable across such a
+large sample of pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
