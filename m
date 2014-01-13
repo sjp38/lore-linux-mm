@@ -1,57 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
-	by kanga.kvack.org (Postfix) with ESMTP id D0F1C6B0031
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 11:33:05 -0500 (EST)
-Received: by mail-ee0-f45.google.com with SMTP id d49so3305041eek.4
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 08:33:05 -0800 (PST)
-Received: from jenni2.inet.fi (mta-out.inet.fi. [195.156.147.13])
-        by mx.google.com with ESMTP id d46si20225397eeo.60.2014.01.13.08.33.01
+Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 192E46B0031
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 11:54:31 -0500 (EST)
+Received: by mail-ee0-f54.google.com with SMTP id e51so2776051eek.13
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 08:54:31 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id l2si29686750een.251.2014.01.13.08.54.29
         for <linux-mm@kvack.org>;
-        Mon, 13 Jan 2014 08:33:05 -0800 (PST)
-Date: Mon, 13 Jan 2014 18:32:54 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH V4] powerpc: thp: Fix crash on mremap
-Message-ID: <20140113163254.GA4658@node.dhcp.inet.fi>
-References: <1389593064-32664-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1389593064-32664-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        Mon, 13 Jan 2014 08:54:30 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 02/11] pagewalk: add walk_page_vma()
+Date: Mon, 13 Jan 2014 11:54:02 -0500
+Message-Id: <1389632051-25159-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1389632051-25159-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1389632051-25159-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, aarcange@redhat.com, kirill.shutemov@linux.intel.com, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Cliff Wickman <cpw@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@parallels.com>, Rik van Riel <riel@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
 
-On Mon, Jan 13, 2014 at 11:34:24AM +0530, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> 
-> This patch fix the below crash
-> 
-> NIP [c00000000004cee4] .__hash_page_thp+0x2a4/0x440
-> LR [c0000000000439ac] .hash_page+0x18c/0x5e0
-> ...
-> Call Trace:
-> [c000000736103c40] [00001ffffb000000] 0x1ffffb000000(unreliable)
-> [437908.479693] [c000000736103d50] [c0000000000439ac] .hash_page+0x18c/0x5e0
-> [437908.479699] [c000000736103e30] [c00000000000924c] .do_hash_page+0x4c/0x58
-> 
-> On ppc64 we use the pgtable for storing the hpte slot information and
-> store address to the pgtable at a constant offset (PTRS_PER_PMD) from
-> pmd. On mremap, when we switch the pmd, we need to withdraw and deposit
-> the pgtable again, so that we find the pgtable at PTRS_PER_PMD offset
-> from new pmd.
-> 
-> We also want to move the withdraw and deposit before the set_pmd so
-> that, when page fault find the pmd as trans huge we can be sure that
-> pgtable can be located at the offset.
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Introduces walk_page_vma(), which is useful for the callers which
+want to walk over a given vma. It's used by later patches.
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+ChangeLog v4:
+- rename skip_check to skip_lower_level_walking
 
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ include/linux/mm.h |  1 +
+ mm/pagewalk.c      | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+)
 
+diff --git mmotm-2014-01-09-16-23.orig/include/linux/mm.h mmotm-2014-01-09-16-23/include/linux/mm.h
+index 4760665f97c5..262e9d943533 100644
+--- mmotm-2014-01-09-16-23.orig/include/linux/mm.h
++++ mmotm-2014-01-09-16-23/include/linux/mm.h
+@@ -1021,6 +1021,7 @@ struct mm_walk {
+ 
+ int walk_page_range(unsigned long addr, unsigned long end,
+ 		struct mm_walk *walk);
++int walk_page_vma(struct vm_area_struct *vma, struct mm_walk *walk);
+ void free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
+ 		unsigned long end, unsigned long floor, unsigned long ceiling);
+ int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
+diff --git mmotm-2014-01-09-16-23.orig/mm/pagewalk.c mmotm-2014-01-09-16-23/mm/pagewalk.c
+index 6b9df0ead2bd..98a2385616a2 100644
+--- mmotm-2014-01-09-16-23.orig/mm/pagewalk.c
++++ mmotm-2014-01-09-16-23/mm/pagewalk.c
+@@ -333,3 +333,21 @@ int walk_page_range(unsigned long start, unsigned long end,
+ 	} while (start = next, start < end);
+ 	return err;
+ }
++
++int walk_page_vma(struct vm_area_struct *vma, struct mm_walk *walk)
++{
++	int err;
++
++	if (!walk->mm)
++		return -EINVAL;
++
++	VM_BUG_ON(!rwsem_is_locked(&walk->mm->mmap_sem));
++	VM_BUG_ON(!vma);
++	walk->vma = vma;
++	err = walk_page_test(vma->vm_start, vma->vm_end, walk);
++	if (skip_lower_level_walking(walk))
++		return 0;
++	if (err)
++		return err;
++	return __walk_page_range(vma->vm_start, vma->vm_end, walk);
++}
 -- 
- Kirill A. Shutemov
+1.8.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
