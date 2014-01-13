@@ -1,64 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f170.google.com (mail-ea0-f170.google.com [209.85.215.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F2C76B0031
+Received: from mail-gg0-f172.google.com (mail-gg0-f172.google.com [209.85.161.172])
+	by kanga.kvack.org (Postfix) with ESMTP id A54596B0037
 	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 11:54:32 -0500 (EST)
-Received: by mail-ea0-f170.google.com with SMTP id k10so3473083eaj.1
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 08:54:31 -0800 (PST)
+Received: by mail-gg0-f172.google.com with SMTP id x14so895156ggx.3
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 08:54:32 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id 45si913281eef.192.2014.01.13.08.54.31
+        by mx.google.com with ESMTP id x47si21434887yhx.35.2014.01.13.08.54.30
         for <linux-mm@kvack.org>;
         Mon, 13 Jan 2014 08:54:31 -0800 (PST)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 00/11 v4] update page table walker
-Date: Mon, 13 Jan 2014 11:54:00 -0500
-Message-Id: <1389632051-25159-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 04/11] clear_refs: redefine callback functions for page table walker
+Date: Mon, 13 Jan 2014 11:54:04 -0500
+Message-Id: <1389632051-25159-5-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1389632051-25159-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1389632051-25159-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Cliff Wickman <cpw@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@parallels.com>, Rik van Riel <riel@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
 
-This is ver.4 of page table walker patchset.
-I rebased it onto mmotm-2014-01-09-16-23, refactored, and commented more.
-Changes since ver.3 are only on 1/11 and 2/11.
+Currently clear_refs_pte_range() is connected to pmd_entry() to split thps
+if found. But now this work can be done in core page table walker code.
+So we have no reason to keep this callback on pmd_entry(). This patch moves
+pte handling code on pte_entry() callback.
 
-As for the motivation and/or brief summary, please refer to patch 1/11
-and/or the cover letter of ver.1.
-- v1: http://article.gmane.org/gmane.linux.kernel.mm/108362
-- v2: http://article.gmane.org/gmane.linux.kernel.mm/108827
-- v3: http://article.gmane.org/gmane.linux.kernel.mm/110561
+clear_refs_write() has some prechecks about if we really walk over a given
+vma. It's fine to let them done by test_walk() callback, so let's define it.
 
-Thanks,
-Naoya Horiguchi
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 ---
-GitHub:
-  git://github.com/Naoya-Horiguchi/linux.git mmotm-2014-01-09-16-23/update_page_table_walker.v4
+ fs/proc/task_mmu.c | 82 ++++++++++++++++++++++--------------------------------
+ 1 file changed, 33 insertions(+), 49 deletions(-)
 
-Test code:
-  git://github.com/Naoya-Horiguchi/test_rewrite_page_table_walker.git
----
-Summary:
-
-Naoya Horiguchi (11):
-      pagewalk: update page table walker core
-      pagewalk: add walk_page_vma()
-      smaps: redefine callback functions for page table walker
-      clear_refs: redefine callback functions for page table walker
-      pagemap: redefine callback functions for page table walker
-      numa_maps: redefine callback functions for page table walker
-      memcg: redefine callback functions for page table walker
-      madvise: redefine callback functions for page table walker
-      arch/powerpc/mm/subpage-prot.c: use walk_page_vma() instead of walk_page_range()
-      pagewalk: remove argument hmask from hugetlb_entry()
-      mempolicy: apply page table walker on queue_pages_range()
-
- arch/powerpc/mm/subpage-prot.c |   6 +-
- fs/proc/task_mmu.c             | 267 ++++++++++++-----------------
- include/linux/mm.h             |  24 ++-
- mm/madvise.c                   |  43 ++---
- mm/memcontrol.c                |  71 +++-----
- mm/mempolicy.c                 | 255 +++++++++++-----------------
- mm/pagewalk.c                  | 377 ++++++++++++++++++++++++++---------------
- 7 files changed, 508 insertions(+), 535 deletions(-)
+diff --git mmotm-2014-01-09-16-23.orig/fs/proc/task_mmu.c mmotm-2014-01-09-16-23/fs/proc/task_mmu.c
+index da4bcedf9656..2d343d909f0b 100644
+--- mmotm-2014-01-09-16-23.orig/fs/proc/task_mmu.c
++++ mmotm-2014-01-09-16-23/fs/proc/task_mmu.c
+@@ -706,7 +706,6 @@ enum clear_refs_types {
+ };
+ 
+ struct clear_refs_private {
+-	struct vm_area_struct *vma;
+ 	enum clear_refs_types type;
+ };
+ 
+@@ -738,41 +737,43 @@ static inline void clear_soft_dirty(struct vm_area_struct *vma,
+ #endif
+ }
+ 
+-static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
++static int clear_refs_pte(pte_t *pte, unsigned long addr,
+ 				unsigned long end, struct mm_walk *walk)
+ {
+ 	struct clear_refs_private *cp = walk->private;
+-	struct vm_area_struct *vma = cp->vma;
+-	pte_t *pte, ptent;
+-	spinlock_t *ptl;
++	struct vm_area_struct *vma = walk->vma;
+ 	struct page *page;
+ 
+-	split_huge_page_pmd(vma, addr, pmd);
+-	if (pmd_trans_unstable(pmd))
++	if (cp->type == CLEAR_REFS_SOFT_DIRTY) {
++		clear_soft_dirty(vma, addr, pte);
+ 		return 0;
++	}
++	if (!pte_present(*pte))
++		return 0;
++	page = vm_normal_page(vma, addr, *pte);
++	if (!page)
++		return 0;
++	/* Clear accessed and referenced bits. */
++	ptep_test_and_clear_young(vma, addr, pte);
++	ClearPageReferenced(page);
++	return 0;
++}
+ 
+-	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+-	for (; addr != end; pte++, addr += PAGE_SIZE) {
+-		ptent = *pte;
+-
+-		if (cp->type == CLEAR_REFS_SOFT_DIRTY) {
+-			clear_soft_dirty(vma, addr, pte);
+-			continue;
+-		}
+-
+-		if (!pte_present(ptent))
+-			continue;
+-
+-		page = vm_normal_page(vma, addr, ptent);
+-		if (!page)
+-			continue;
++static int clear_refs_test_walk(unsigned long start, unsigned long end,
++				struct mm_walk *walk)
++{
++	struct clear_refs_private *cp = walk->private;
++	struct vm_area_struct *vma = walk->vma;
+ 
+-		/* Clear accessed and referenced bits. */
+-		ptep_test_and_clear_young(vma, addr, pte);
+-		ClearPageReferenced(page);
+-	}
+-	pte_unmap_unlock(pte - 1, ptl);
+-	cond_resched();
++	/*
++	 * Writing 1 to /proc/pid/clear_refs affects all pages.
++	 * Writing 2 to /proc/pid/clear_refs only affects anonymous pages.
++	 * Writing 3 to /proc/pid/clear_refs only affects file mapped pages.
++	 */
++	if (cp->type == CLEAR_REFS_ANON && vma->vm_file)
++		walk->skip = 1;
++	if (cp->type == CLEAR_REFS_MAPPED && !vma->vm_file)
++		walk->skip = 1;
+ 	return 0;
+ }
+ 
+@@ -814,33 +815,16 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+ 			.type = type,
+ 		};
+ 		struct mm_walk clear_refs_walk = {
+-			.pmd_entry = clear_refs_pte_range,
++			.pte_entry = clear_refs_pte,
++			.test_walk = clear_refs_test_walk,
+ 			.mm = mm,
+ 			.private = &cp,
+ 		};
+ 		down_read(&mm->mmap_sem);
+ 		if (type == CLEAR_REFS_SOFT_DIRTY)
+ 			mmu_notifier_invalidate_range_start(mm, 0, -1);
+-		for (vma = mm->mmap; vma; vma = vma->vm_next) {
+-			cp.vma = vma;
+-			if (is_vm_hugetlb_page(vma))
+-				continue;
+-			/*
+-			 * Writing 1 to /proc/pid/clear_refs affects all pages.
+-			 *
+-			 * Writing 2 to /proc/pid/clear_refs only affects
+-			 * Anonymous pages.
+-			 *
+-			 * Writing 3 to /proc/pid/clear_refs only affects file
+-			 * mapped pages.
+-			 */
+-			if (type == CLEAR_REFS_ANON && vma->vm_file)
+-				continue;
+-			if (type == CLEAR_REFS_MAPPED && !vma->vm_file)
+-				continue;
+-			walk_page_range(vma->vm_start, vma->vm_end,
+-					&clear_refs_walk);
+-		}
++		for (vma = mm->mmap; vma; vma = vma->vm_next)
++			walk_page_vma(vma, &clear_refs_walk);
+ 		if (type == CLEAR_REFS_SOFT_DIRTY)
+ 			mmu_notifier_invalidate_range_end(mm, 0, -1);
+ 		flush_tlb_mm(mm);
+-- 
+1.8.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
