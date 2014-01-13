@@ -1,64 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id D52F96B0031
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 17:30:36 -0500 (EST)
-Received: by mail-we0-f173.google.com with SMTP id t60so7242188wes.18
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 14:30:36 -0800 (PST)
-Received: from jenni2.inet.fi (mta-out.inet.fi. [195.156.147.13])
-        by mx.google.com with ESMTP id d41si21596824eep.176.2014.01.13.14.30.36
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id C82D46B0031
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 18:05:05 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id bj1so3768416pad.2
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 15:05:05 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id ot3si16988192pac.21.2014.01.13.15.05.03
         for <linux-mm@kvack.org>;
-        Mon, 13 Jan 2014 14:30:36 -0800 (PST)
-Date: Tue, 14 Jan 2014 00:30:28 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] powerpc: thp: Fix crash on mremap
-Message-ID: <20140113223028.GA8488@node.dhcp.inet.fi>
-References: <1388570027-22933-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1388572145.4373.41.camel@pasglop>
- <20140102021951.GA26369@node.dhcp.inet.fi>
- <20140113141748.0b851e1573e41bf26de7c0ae@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140113141748.0b851e1573e41bf26de7c0ae@linux-foundation.org>
+        Mon, 13 Jan 2014 15:05:04 -0800 (PST)
+Date: Mon, 13 Jan 2014 15:05:02 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/5] mm: vmscan: shrink all slab objects if tight on
+ memory
+Message-Id: <20140113150502.4505f661589a4a2d30e6f11d@linux-foundation.org>
+In-Reply-To: <7d37542211678a637dc6b4d995fd6f1e89100538.1389443272.git.vdavydov@parallels.com>
+References: <7d37542211678a637dc6b4d995fd6f1e89100538.1389443272.git.vdavydov@parallels.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, paulus@samba.org, aarcange@redhat.com, kirill.shutemov@linux.intel.com, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@gmail.com>
 
-On Mon, Jan 13, 2014 at 02:17:48PM -0800, Andrew Morton wrote:
-> On Thu, 2 Jan 2014 04:19:51 +0200 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+On Sat, 11 Jan 2014 16:36:31 +0400 Vladimir Davydov <vdavydov@parallels.com> wrote:
+
+> When reclaiming kmem, we currently don't scan slabs that have less than
+> batch_size objects (see shrink_slab_node()):
 > 
-> > On Wed, Jan 01, 2014 at 09:29:05PM +1100, Benjamin Herrenschmidt wrote:
-> > > On Wed, 2014-01-01 at 15:23 +0530, Aneesh Kumar K.V wrote:
-> > > > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> > > > 
-> > > > This patch fix the below crash
-> > > > 
-> > > > NIP [c00000000004cee4] .__hash_page_thp+0x2a4/0x440
-> > > > LR [c0000000000439ac] .hash_page+0x18c/0x5e0
-> > > > ...
-> > > > Call Trace:
-> > > > [c000000736103c40] [00001ffffb000000] 0x1ffffb000000(unreliable)
-> > > > [437908.479693] [c000000736103d50] [c0000000000439ac] .hash_page+0x18c/0x5e0
-> > > > [437908.479699] [c000000736103e30] [c00000000000924c] .do_hash_page+0x4c/0x58
-> > > > 
-> > > > On ppc64 we use the pgtable for storing the hpte slot information and
-> > > > store address to the pgtable at a constant offset (PTRS_PER_PMD) from
-> > > > pmd. On mremap, when we switch the pmd, we need to withdraw and deposit
-> > > > the pgtable again, so that we find the pgtable at PTRS_PER_PMD offset
-> > > > from new pmd.
-> > > > 
-> > > > We also want to move the withdraw and deposit before the set_pmd so
-> > > > that, when page fault find the pmd as trans huge we can be sure that
-> > > > pgtable can be located at the offset.
-> > > > 
+>         while (total_scan >= batch_size) {
+>                 shrinkctl->nr_to_scan = batch_size;
+>                 shrinker->scan_objects(shrinker, shrinkctl);
+>                 total_scan -= batch_size;
+>         }
 > 
-> Did this get fixed?
+> If there are only a few shrinkers available, such a behavior won't cause
+> any problems, because the batch_size is usually small, but if we have a
+> lot of slab shrinkers, which is perfectly possible since FS shrinkers
+> are now per-superblock, we can end up with hundreds of megabytes of
+> practically unreclaimable kmem objects. For instance, mounting a
+> thousand of ext2 FS images with a hundred of files in each and iterating
+> over all the files using du(1) will result in about 200 Mb of FS caches
+> that cannot be dropped even with the aid of the vm.drop_caches sysctl!
 
-New version: http://thread.gmane.org/gmane.linux.kernel.mm/111809
+True.  I suspect this was an accidental consequence of the chosen
+implementation.  As you mentioned, I was thinking that the caches would
+all be large, and the remaining 1 ..  SHRINK_BATCH-1 objects just
+didn't matter.
 
--- 
- Kirill A. Shutemov
+> This problem was initially pointed out by Glauber Costa [*]. Glauber
+> proposed to fix it by making the shrink_slab() always take at least one
+> pass, to put it simply, turning the scan loop above to a do{}while()
+> loop. However, this proposal was rejected, because it could result in
+> more aggressive and frequent slab shrinking even under low memory
+> pressure when total_scan is naturally very small.
+
+Well, it wasn't "rejected" - Mel pointed out that Glauber's change
+could potentially trigger problems which already exist in shrinkers.
+
+The potential issues seem pretty unlikely to me, and they're things we
+can fix up if they eventuate.
+
+So I'm thinking we should at least try Glauber's approach - it's a bit
+weird that we should treat the final 0 ..  batch_size-1 objects in a
+different manner from all the others.
+
+
+That being said, I think I'll schedule this patch as-is for 3.14.  Can
+you please take a look at implementing the simpler approach, send me
+something for 3.15-rc1?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
