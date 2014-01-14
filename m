@@ -1,64 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f48.google.com (mail-yh0-f48.google.com [209.85.213.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BE636B0036
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 09:30:11 -0500 (EST)
-Received: by mail-yh0-f48.google.com with SMTP id f11so109482yha.35
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 06:30:11 -0800 (PST)
-Received: from arroyo.ext.ti.com (arroyo.ext.ti.com. [192.94.94.40])
-        by mx.google.com with ESMTPS id j24si1072101yhb.71.2014.01.14.06.30.10
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 14 Jan 2014 06:30:10 -0800 (PST)
-Message-ID: <52D548B1.8000504@ti.com>
-Date: Tue, 14 Jan 2014 09:24:49 -0500
-From: Santosh Shilimkar <santosh.shilimkar@ti.com>
+Received: from mail-yh0-f54.google.com (mail-yh0-f54.google.com [209.85.213.54])
+	by kanga.kvack.org (Postfix) with ESMTP id D7D386B0031
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 09:38:01 -0500 (EST)
+Received: by mail-yh0-f54.google.com with SMTP id b12so135903yha.27
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 06:38:01 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id s22si1036346yha.251.2014.01.14.06.38.00
+        for <linux-mm@kvack.org>;
+        Tue, 14 Jan 2014 06:38:00 -0800 (PST)
+Date: Tue, 14 Jan 2014 09:37:49 -0500
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH] x86, acpi memory hotplug, add parameter to disable
+ memory hotplug
+Message-ID: <20140114143749.GB3096@redhat.com>
+References: <1389650161-13292-1-git-send-email-prarit@redhat.com>
+ <CAHGf_=pX303E6VAhL+gApSQ1OsEQHqTuCN8ZSdD3E54YAcFQKA@mail.gmail.com>
+ <52D47999.5080905@redhat.com>
+ <52D48EC4.5070400@jp.fujitsu.com>
+ <1389663689.1792.268.camel@misato.fc.hp.com>
+ <52D519EB.3040709@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH V3 2/2] mm/memblock: Add support for excluded memory areas
-References: <1389618217-48166-1-git-send-email-phacht@linux.vnet.ibm.com> <1389618217-48166-3-git-send-email-phacht@linux.vnet.ibm.com> <52D538FD.8010907@ti.com>
-In-Reply-To: <52D538FD.8010907@ti.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52D519EB.3040709@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
-Cc: Grygorii Strashko <grygorii.strashko@ti.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qiuxishi@huawei.com, dhowells@redhat.com, daeseok.youn@gmail.com, liuj97@gmail.com, yinghai@kernel.org, zhangyanfei@cn.fujitsu.com, tangchen@cn.fujitsu.com
+To: Prarit Bhargava <prarit@redhat.com>
+Cc: Toshi Kani <toshi.kani@hp.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Len Brown <lenb@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Dave Young <dyoung@redhat.com>, linux-acpi@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tuesday 14 January 2014 08:17 AM, Grygorii Strashko wrote:
-> Hi Philipp,
-> 
-> On 01/13/2014 03:03 PM, Philipp Hachtmann wrote:
->> Add a new memory state "nomap" to memblock. This can be used to truncate
->> the usable memory in the system without forgetting about what is really
->> installed.
+On Tue, Jan 14, 2014 at 06:05:15AM -0500, Prarit Bhargava wrote:
 > 
 > 
-> Sorry, but this solution looks a bit complex (and probably wrong - from design point of view))
-> if you need just to fix memblock_start_of_DRAM()/memblock_end_of_DRAM() APIs.
+> On 01/13/2014 08:41 PM, Toshi Kani wrote:
+> > On Tue, 2014-01-14 at 10:11 +0900, Yasuaki Ishimatsu wrote:
+> >  :
+> >>>> I think we need a knob manually enable mem-hotplug when specify memmap. But
+> >>>> it is another story.
+> >>>>
+> >>>> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> >>>
+> >>> As mentioned, self-NAK.  I have seen a system that I needed to specify
+> >>> memmap=exactmap & had hotplug memory.  I will only keep the acpi_no_memhotplug
+> >>> option in the next version of the patch.
+> >>
+> >>
+> >> Your following first patch is simply and makes sense.
+> >>
+> >> http://marc.info/?l=linux-acpi&m=138922019607796&w=2
+> >>
+> > 
+> > In this option, it also requires changing kexec-tools to specify the new
+> > option for kdump.  It won't be simpler.
 > 
-> More over, other arches use at least below APIs: 
-> - memblock_is_region_memory() !!!
-> - for_each_memblock(memory, reg) !!!
-> - __next_mem_pfn_range() !!!
-> - memblock_phys_mem_size()
-> - memblock_mem_size()
-> - memblock_start_of_DRAM()
-> - memblock_end_of_DRAM()
-> with assumption that "memory" regions array have been updated
-> when mem block is stolen (no-mapped), as result this change may
-> have unpredictable side effects :( if these new APIs
-> will be re-used (for ARM arch, as example).
+> It will be simpler for the kernel and those of us who have to debug busted e820
+> maps ;)
 > 
-> You can take a look on how ARM is using arm_memblock_steal() - 
-> the stolen memory is not accounted any more.
-> 
-I was also wondering instead of nomap state, the memblock_add/remove()
-will do the same trick. arm_memblock_steal() wrapper does achieve
-similar functionality of reserving the DRAM without mapping it into
-the Linux. Why not just use the same idea ?
+> Unfortunately I may not be able to give you the automatic disable.  I did
+> contemplate adding a !is_kdump_kernel() to the ACPI memory hotplug init call,
+> but it seems like that is unacceptable as well.
 
-Regards,
-Santosh
+Yep, I don't think hotplug feature should be tied to it being a kdump
+kernel.
 
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
