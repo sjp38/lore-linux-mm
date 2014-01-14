@@ -1,269 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f53.google.com (mail-yh0-f53.google.com [209.85.213.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 735506B0031
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 15:42:56 -0500 (EST)
-Received: by mail-yh0-f53.google.com with SMTP id z20so275207yhz.40
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 12:42:56 -0800 (PST)
-Received: from mail-pb0-x231.google.com (mail-pb0-x231.google.com [2607:f8b0:400e:c01::231])
-        by mx.google.com with ESMTPS id r46si2234515yhm.197.2014.01.14.12.42.54
+Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E85A6B0031
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 15:48:19 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id e49so480337eek.28
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 12:48:18 -0800 (PST)
+Received: from mail.windriver.com (mail.windriver.com. [147.11.1.11])
+        by mx.google.com with ESMTPS id j47si3345137eeo.95.2014.01.14.12.48.17
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 14 Jan 2014 12:42:55 -0800 (PST)
-Received: by mail-pb0-f49.google.com with SMTP id jt11so134725pbb.36
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 12:42:54 -0800 (PST)
-Date: Tue, 14 Jan 2014 12:42:28 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 2/3] mm/memcg: fix endless iteration in reclaim
-In-Reply-To: <20140114142610.GF32227@dhcp22.suse.cz>
-Message-ID: <alpine.LSU.2.11.1401141201120.3762@eggly.anvils>
-References: <alpine.LSU.2.11.1401131742370.2229@eggly.anvils> <alpine.LSU.2.11.1401131751080.2229@eggly.anvils> <20140114132727.GB32227@dhcp22.suse.cz> <20140114142610.GF32227@dhcp22.suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 14 Jan 2014 12:48:18 -0800 (PST)
+From: Paul Gortmaker <paul.gortmaker@windriver.com>
+Subject: [PATCH 0/3] kernel/mm -- audit/fix core code using module_init
+Date: Tue, 14 Jan 2014 15:44:45 -0500
+Message-ID: <1389732288-4389-1-git-send-email-paul.gortmaker@windriver.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Gortmaker <paul.gortmaker@windriver.com>
 
-On Tue, 14 Jan 2014, Michal Hocko wrote:
-> On Tue 14-01-14 14:27:27, Michal Hocko wrote:
-> > On Mon 13-01-14 17:52:30, Hugh Dickins wrote:
-> > > On one home machine I can easily reproduce (by rmdir of memcgdir during
-> > > reclaim) multiple processes stuck looping forever in mem_cgroup_iter():
-> > > __mem_cgroup_iter_next() keeps selecting the memcg being destroyed, fails
-> > > to tryget it, returns NULL to mem_cgroup_iter(), which goes around again.
-> > 
-> > So you had a single memcg (without any children) and a limit-reclaim
-> > on it when you removed it, right?
-> 
-> Hmm, thinking about this once more how can this happen? There must be a
-> task to trigger the limit reclaim so the cgroup cannot go away (or is
-> this somehow related to kmem accounting?). Only if the taks was migrated
-> after the reclaim was initiated but before we started iterating?
+This series had an interesting genesis in chain on effects, typical 
+of how things can creep and spill over.
 
-Yes, I believe that's how it comes about (but no kmem accounting:
-it's configured in but I'm not setting limits).
+I wanted to clobber pointless instances of #include <linux/init.h>
+mostly left behind from __cpuinit and __devinit removal.  But to
+fully complete that, I had to plan to move module_init into module.h;
+which meant to get rid of the non-modular callers of module_init().
 
-The "cg" script I run for testing appended below.  Normally I just run
-it as "cg 2" to set up two memcgs, then my dual-tmpfs-kbuild script runs
-one kbuild on tmpfs in cg 1, and another kbuild on ext4 on loop on tmpfs
-in cg 2, mainly to test swapping.  But for this bug I run it as "cg m",
-to repeatedly create new memcg, move running tasks from old to new, and
-remove old.
+But I couldn't replace them with the 1:1 mapping to __initcall(),
+because we aren't supposed to use that anymore.  And finally, I
+couldn't just use the 1:1 mapping of __initcall to device_initcall(),
+because it looks like crap to be using device_initcall in what is
+clearly not device/driver code.  And hence we end up being faced with
+checking and/or changing initcall ordering.
 
-Sometimes I'm doing swapoff and swapon in the background too, but
-that's not needed to see this bug.  And although we're accustomed to
-move_charge_at_immigrate being a beast, for this bug it's much quicker
-to have that turned off.
+Here we fix up kernel/ and mm/ -- the one point of interest was
+uncovering an oops when trying to make ksm_init a subsys_initcall,
+which in turn led to the 1st patch in the series, which reprioritized
+creation of the mm_kobj.
 
-(Until a couple of months ago, I was working in /cg/1 and /cg/2; but
-have now pushed down a level to /cg/cg/1 and /cg/cg/2 after realizing
-that working at the root would miss some important issues - in particular
-the mem_cgroup_reparent_charges wrong-usage hang; but in fact I have
-*never* caught that here, just know that it still exists from some
-Google watchdog dumps, but we've still not identified the cause -
-seen even without MEMCG_SWAP and with Hannes's extra reparent_charges.)
+There are other __initcall in mm/ that we probably want to look at
+and reprioritize in the future.  But for now I just fixed the one that
+was obviously problematic and blocking the other required priority
+changes in ksm.c and huge_memory.c
 
-> 
-> I am confused now and have to rush shortly so I will think about it
-> tomorrow some more.
+Boot tested on today's master, with x86-32 and powerpc (sbc8548).
 
-Thanks, yes, I knew it's one you'd want to think about first: no rush.
+For completeness, here is what happens when one tries to make ksm_init
+as subsys_initcall, if the mm_kobj is created too late in device_initcall.
 
-> 
-> > This is nasty because __mem_cgroup_iter_next will try to skip it but
-> > there is nothing else so it returns NULL. We update iter->generation++
-> > but that doesn't help us as prev = NULL as this is the first iteration
-> > so
-> > 		if (prev && reclaim->generation != iter->generation)
-> > 
-> > break out will not help us.
-> 
-> > You patch will surely help I am just not sure it is the right thing to
-> > do. Let me think about this.
-> 
-> The patch is actually not correct after all. You are returning root
-> memcg without taking a reference. So there is a risk that memcg will
-> disappear. Although, it is true that the race with removal is not that
-> probable because mem_cgroup_css_offline (resp. css_free) will see some
-> pages on LRUs and they will reclaim as well.
-> 
-> Ouch. And thinking about this shows that out_css_put is broken as well
-> for subtree walks (those that do not start at root_mem_cgroup level). We
-> need something like the the snippet bellow.
+Paul.
 
-It's the out_css_put precedent that I was following in not incrementing
-for the root.  I think that's been discussed in the past, and rightly or
-wrongly we've concluded that the caller of mem_cgroup_iter() always has
-some hold on the root, which makes it safe to skip get/put on it here.
-No doubt one of those many short cuts to avoid memcg overhead when
-there's no memcg other than the root_mem_cgroup.
+------------[ cut here ]------------
+kernel BUG at fs/sysfs/group.c:94!
+invalid opcode: 0000 [#1] SMP
+Modules linked in:
+CPU: 0 PID: 1 Comm: swapper/0 Not tainted 3.13.0-rc8+ #12
+Hardware name: Dell Computer Corporation OptiPlex GX270               /0Y1057, BIOS A07 06/26/2006
+task: f5860000 ti: f5846000 task.ti: f5846000
+EIP: 0060:[<c11884d4>] EFLAGS: 00010246 CPU: 0
+EIP is at internal_create_group+0x244/0x270
+EAX: 00000000 EBX: c199e5c9 ECX: c1929f60 EDX: 00000000
+ESI: f59947c0 EDI: 00000000 EBP: f5847ed8 ESP: f5847ea4
+ DS: 007b ES: 007b FS: 00d8 GS: 0000 SS: 0068
+CR0: 8005003b CR2: ffe14000 CR3: 01a2b000 CR4: 000007d0
+Stack:
+ f59947c0 f5847ed4 c106fdfb 00000000 34561000 00000000 00000000 00000000
+ c1929f60 f59947c0 c199e5c9 f59947c0 00000000 f5847ee0 c118852c f5847f00
+ c199e68c c111cde0 00000000 ffffffff c1856da4 c199e5c9 00000004 f5847f70
+Call Trace:
+ [<c106fdfb>] ? try_to_wake_up+0x18b/0x230
+ [<c199e5c9>] ? procswaps_init+0x27/0x27
+ [<c118852c>] sysfs_create_group+0xc/0x10
+ [<c199e68c>] ksm_init+0xc3/0x15b
+ [<c111cde0>] ? run_store+0x2b0/0x2b0
+ [<c199e5c9>] ? procswaps_init+0x27/0x27
+ [<c10004b2>] do_one_initcall+0xe2/0x140
+ [<c1061463>] ? parameq+0x13/0x70
+ [<c197e4cc>] ? do_early_param+0x7a/0x7a
+ [<c1061699>] ? parse_args+0x1d9/0x340
+ [<c107c6a0>] ? __wake_up+0x40/0x50
+ [<c197eb73>] kernel_init_freeable+0x129/0x1cd
+ [<c197e4cc>] ? do_early_param+0x7a/0x7a
+ [<c16bd19b>] kernel_init+0xb/0x100
+ [<c16d44b7>] ret_from_kernel_thread+0x1b/0x28
+ [<c16bd190>] ? rest_init+0x60/0x60
 
-I've not given enough thought to whether that is still a good assumption.
-The try_charge route does a css_tryget, and that will be the hold on the
-root in the reclaim case, won't it?  And its css_tryget succeeding does
-not guarantee that a css_tryget a moment later will also succeed, which
-is what happens in this bug.
+---
 
-But I have not attempted to audit other uses of mem_cgroup_iter() and
-for_each_mem_cgroup_tree().  I've not hit any problems from them, but
-may not have exercised those paths at all.  And the question of
-whether there's a good hold on the root is a separate issue, really.
+Paul Gortmaker (3):
+  mm: make creation of the mm_kobj happen earlier than device_initcall
+  kernel: audit/fix non-modular users of module_init in core code
+  mm: audit/fix non-modular users of module_init in core code
 
-Hugh
+ kernel/hung_task.c      | 3 +--
+ kernel/kexec.c          | 4 ++--
+ kernel/profile.c        | 2 +-
+ kernel/sched/stats.c    | 2 +-
+ kernel/user.c           | 3 +--
+ kernel/user_namespace.c | 2 +-
+ mm/huge_memory.c        | 2 +-
+ mm/ksm.c                | 2 +-
+ mm/mm_init.c            | 3 +--
+ mm/mmap.c               | 6 +++---
+ mm/mmu_notifier.c       | 3 +--
+ 11 files changed, 14 insertions(+), 18 deletions(-)
 
-> I really hate this code, especially when I tried to de-obfuscate it and
-> that introduced other subtle issues.
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 1f9d14e2f8de..f75277b0bf82 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1080,7 +1080,7 @@ skip_node:
->  	if (next_css) {
->  		struct mem_cgroup *mem = mem_cgroup_from_css(next_css);
->  
-> -		if (css_tryget(&mem->css))
-> +		if (mem == root_mem_cgroup || css_tryget(&mem->css))
->  			return mem;
->  		else {
->  			prev_css = next_css;
-> @@ -1219,7 +1219,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->  out_unlock:
->  	rcu_read_unlock();
->  out_css_put:
-> -	if (prev && prev != root)
-> +	if (prev && prev != root_mem_cgroup)
->  		css_put(&prev->css);
->  
->  	return memcg;
-> 
-> > Anyway very well spotted!
-> > 
-> > > It's better to err on the side of leaving the loop too soon than never
-> > > when such races occur: once we've served prev (using root if none),
-> > > get out the next time __mem_cgroup_iter_next() cannot deliver.
-> > > 
-> > > Signed-off-by: Hugh Dickins <hughd@google.com>
-> > > ---
-> > > Securing the tree iterator against such races is difficult, I've
-> > > certainly got it wrong myself before.  Although the bug is real, and
-> > > deserves a Cc stable, you may want to play around with other solutions
-> > > before committing to this one.  The current iterator goes back to v3.12:
-> > > I'm really not sure if v3.11 was good or not - I never saw the problem
-> > > in the vanilla kernel, but with Google mods in we also had to make an
-> > > adjustment, there to stop __mem_cgroup_iter() being called endlessly
-> > > from the reclaim level.
-> > > 
-> > >  mm/memcontrol.c |    5 ++++-
-> > >  1 file changed, 4 insertions(+), 1 deletion(-)
-> > > 
-> > > --- mmotm/mm/memcontrol.c	2014-01-10 18:25:02.236448954 -0800
-> > > +++ linux/mm/memcontrol.c	2014-01-12 22:21:10.700570471 -0800
-> > > @@ -1254,8 +1252,11 @@ struct mem_cgroup *mem_cgroup_iter(struc
-> > >  				reclaim->generation = iter->generation;
-> > >  		}
-> > >  
-> > > -		if (prev && !memcg)
-> > > +		if (!memcg) {
-> > > +			if (!prev)
-> > > +				memcg = root;
-> > >  			goto out_unlock;
-> > > +		}
-> > >  	}
-> > >  out_unlock:
-> > >  	rcu_read_unlock();
-> > 
-> > -- 
-> > Michal Hocko
-> > SUSE Labs
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
-
-#!/bin/sh
-seconds=60
-
-move() {
-	s=$1
-	d=$2
-	mkdir $cg/$d || exit $?
-	echo $mem >$cg/$d/memory.limit_in_bytes || exit $?
-	[ -z "$soft" ] || echo $soft >$cg/$d/memory.soft_limit_in_bytes || exit $?
-	[ -z "$swam" ] || echo $swam >$cg/$d/memory.memsw.limit_in_bytes || exit $?
-#	echo 3 >$cg/$d/memory.move_charge_at_immigrate || exit $?
-	tasks=0
-	while [ $tasks -lt 4 ]
-	do	sleep 1
-		[ -f /tmp/swapswap ] || exit 0
-		set -- `wc -l $cg/$s/tasks`
-		tasks=$1
-	done
-	while :
-	do
-		while :
-		do	read task <$cg/$s/tasks  || break
-			echo $task >$cg/$d/tasks # but might have gone already
-			[ -f /tmp/swapswap ] || exit 0
-		done	2>/dev/null
-		rmdir $cg/$s 2>/dev/null && break
-		sleep 1
-		[ -f /tmp/swapswap ] || exit 0
-	done
-	sleep $seconds
-	[ -f /tmp/swapswap ] || exit 0
-}
-
-case "x$1" in
-x)	mem=700M ; soft=""  ; memcgs=1 ;;
-x1)	mem=700M ; soft=""  ; memcgs=1 ;;
-x2)	mem=300M ; soft=250M; memcgs=2 ;;
-xm)	mem=300M ; soft=250M; memcgs=2 ;;
-*)	mem=$1   ; soft=""  ; memcgs=1 ;;
-esac
-
-> /tmp/swapswap
-mkdir -p /cg || exit $?
-[ -f /cg/memory.usage_in_bytes ] ||
-	mount -t cgroup -o memory cg /cg || exit $?
-[ -f /cg/memory.memsw.usage_in_bytes ] && swam=1000M || swam=""
-echo 1 >/cg/memory.use_hierarchy || exit $?
-
-cg=/cg/cg
-mkdir -p $cg || exit $?
-echo 1000M >$cg/memory.limit_in_bytes
-[ -z "$soft" ] || echo  800M >$cg/memory.soft_limit_in_bytes
-[ -z "$swam" ] || echo 2000M >$cg/memory.memsw.limit_in_bytes
-echo $$ >$cg/tasks
-
-i=0
-while [ $i -lt $memcgs ]
-do	let i=$i+1
-	mkdir -p $cg/$i || exit $?
-	echo $mem >$cg/$i/memory.limit_in_bytes || exit $?
-	[ -z "$soft" ] || echo $soft >$cg/$i/memory.soft_limit_in_bytes || exit $?
-	[ -z "$swam" ] || echo $swam >$cg/$i/memory.memsw.limit_in_bytes || swam=""
-
-	chmod a+w $cg/$i/tasks || exit $?
-done
-while [ $i -lt 4 ]
-do	let i=$i+1
-	[ ! -d $cg/$i ] || rmdir $cg/$i || exit $?
-done
-[ "x$1" = xm ] || exit 0
-
-while :
-do	move 1 3
-	move 2 4
-	move 3 1
-	move 4 2
-done &
+-- 
+1.8.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
