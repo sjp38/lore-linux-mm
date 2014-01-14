@@ -1,51 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f44.google.com (mail-yh0-f44.google.com [209.85.213.44])
-	by kanga.kvack.org (Postfix) with ESMTP id EACFA6B0031
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 20:51:24 -0500 (EST)
-Received: by mail-yh0-f44.google.com with SMTP id f35so804939yha.3
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 17:51:24 -0800 (PST)
-Received: from mail-pb0-x236.google.com (mail-pb0-x236.google.com [2607:f8b0:400e:c01::236])
-        by mx.google.com with ESMTPS id v3si22880889yhv.169.2014.01.13.17.51.23
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 13 Jan 2014 17:51:23 -0800 (PST)
-Received: by mail-pb0-f54.google.com with SMTP id un15so8015284pbc.41
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 17:51:22 -0800 (PST)
-Date: Mon, 13 Jan 2014 17:50:49 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 1/3] mm/memcg: fix last_dead_count memory wastage
-Message-ID: <alpine.LSU.2.11.1401131742370.2229@eggly.anvils>
+Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
+	by kanga.kvack.org (Postfix) with ESMTP id D2D0F6B0036
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 20:51:49 -0500 (EST)
+Received: by mail-qc0-f179.google.com with SMTP id e16so4913735qcx.38
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 17:51:49 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id hj7si25591612qeb.78.2014.01.13.17.51.48
+        for <linux-mm@kvack.org>;
+        Mon, 13 Jan 2014 17:51:49 -0800 (PST)
+Date: Tue, 14 Jan 2014 09:52:02 +0800
+From: Dave Young <dyoung@redhat.com>
+Subject: Re: [PATCH 2/2] x86, e820 disable ACPI Memory Hotplug if memory
+ mapping is specified by user [v2]
+Message-ID: <20140114015202.GD4327@dhcp-16-126.nay.redhat.com>
+References: <1389380698-19361-1-git-send-email-prarit@redhat.com>
+ <1389380698-19361-4-git-send-email-prarit@redhat.com>
+ <alpine.DEB.2.02.1401111624170.20677@be1.lrz>
+ <52D32962.5050908@redhat.com>
+ <CAHGf_=qWB81f8fdDdjaXXh1JoSDUsJmcEHwH+CEJ2E-5XWz6qA@mail.gmail.com>
+ <52D4793E.8070102@redhat.com>
+ <1389659632.1792.247.camel@misato.fc.hp.com>
+ <52D48A9D.7000003@zytor.com>
+ <1389661746.1792.254.camel@misato.fc.hp.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1389661746.1792.254.camel@misato.fc.hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Prarit Bhargava <prarit@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Bodo Eggert <7eggert@gmx.de>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, the arch/x86 maintainers <x86@kernel.org>, Len Brown <lenb@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, linux-acpi@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Shorten mem_cgroup_reclaim_iter.last_dead_count from unsigned long to
-int: it's assigned from an int and compared with an int, and adjacent
-to an unsigned int: so there's no point to it being unsigned long,
-which wasted 104 bytes in every mem_cgroup_per_zone.
-    
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
-Putting this one first as it should be nicely uncontroversial.
-I'm assuming much too late for v3.13, so all 3 diffed against mmotm.
+On 01/13/14 at 06:09pm, Toshi Kani wrote:
+> On Mon, 2014-01-13 at 16:53 -0800, H. Peter Anvin wrote:
+> > On 01/13/2014 04:33 PM, Toshi Kani wrote:
+> > > 
+> > > I do not think it makes sense.  You needed memmap=exactmap as a
+> > > workaround because the kernel did not boot with the firmware's memory
+> > > info.  So, it's broken, and you requested the kernel to ignore the
+> > > firmware info.
+> > > 
+> > > Why do you think memory hotplug needs to be supported under such
+> > > condition, which has to use the broken firmware info?
+> > > 
+> > 
+> > Even more than memory hotplug: what do we do with NUMA?  Since we have
+> > already told the kernel "the firmware is bogus" it would seem that any
+> > NUMA optimizations would be a bit ... cantankerous at best, no?
+> 
+> Agreed that NUMA info can be bogus in this case, but is probably not
+> critical.
+> 
+> In majority of the cases, memmap=exactmap is used for kdump and the
+> firmware info is sane.  So, I think we should keep NUMA enabled since it
+> could be useful when multiple CPUs are enabled for kdump.
 
- mm/memcontrol.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+In Fedora kdump, we by default add numa=off to 2nd kernel cmdline because
+enabling numa will use a lot more memory, at the same time we have only 128M
+reserved by default..
 
---- mmotm/mm/memcontrol.c	2014-01-10 18:25:02.236448954 -0800
-+++ linux/mm/memcontrol.c	2014-01-12 22:21:10.700570471 -0800
-@@ -149,7 +149,7 @@ struct mem_cgroup_reclaim_iter {
- 	 * matches memcg->dead_count of the hierarchy root group.
- 	 */
- 	struct mem_cgroup *last_visited;
--	unsigned long last_dead_count;
-+	int last_dead_count;
- 
- 	/* scan generation, increased every round-trip */
- 	unsigned int generation;
+Thanks
+Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
