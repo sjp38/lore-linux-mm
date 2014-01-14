@@ -1,64 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f43.google.com (mail-qe0-f43.google.com [209.85.128.43])
-	by kanga.kvack.org (Postfix) with ESMTP id AE6D76B0036
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 06:05:31 -0500 (EST)
-Received: by mail-qe0-f43.google.com with SMTP id nc12so1447433qeb.30
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 03:05:31 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id t8si235329qeu.56.2014.01.14.03.05.30
-        for <linux-mm@kvack.org>;
-        Tue, 14 Jan 2014 03:05:31 -0800 (PST)
-Message-ID: <52D519EB.3040709@redhat.com>
-Date: Tue, 14 Jan 2014 06:05:15 -0500
-From: Prarit Bhargava <prarit@redhat.com>
+Received: from mail-gg0-f172.google.com (mail-gg0-f172.google.com [209.85.161.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FA566B0031
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 07:21:39 -0500 (EST)
+Received: by mail-gg0-f172.google.com with SMTP id x14so77846ggx.3
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 04:21:39 -0800 (PST)
+Received: from devils.ext.ti.com (devils.ext.ti.com. [198.47.26.153])
+        by mx.google.com with ESMTPS id t7si450986qar.123.2014.01.14.04.21.38
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 14 Jan 2014 04:21:38 -0800 (PST)
+Message-ID: <52D538FD.8010907@ti.com>
+Date: Tue, 14 Jan 2014 15:17:49 +0200
+From: Grygorii Strashko <grygorii.strashko@ti.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] x86, acpi memory hotplug, add parameter to disable memory
- hotplug
-References: <1389650161-13292-1-git-send-email-prarit@redhat.com>	 <CAHGf_=pX303E6VAhL+gApSQ1OsEQHqTuCN8ZSdD3E54YAcFQKA@mail.gmail.com>	 <52D47999.5080905@redhat.com> <52D48EC4.5070400@jp.fujitsu.com> <1389663689.1792.268.camel@misato.fc.hp.com>
-In-Reply-To: <1389663689.1792.268.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH V3 2/2] mm/memblock: Add support for excluded memory areas
+References: <1389618217-48166-1-git-send-email-phacht@linux.vnet.ibm.com> <1389618217-48166-3-git-send-email-phacht@linux.vnet.ibm.com>
+In-Reply-To: <1389618217-48166-3-git-send-email-phacht@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Len Brown <lenb@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, Dave Young <dyoung@redhat.com>, linux-acpi@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Philipp Hachtmann <phacht@linux.vnet.ibm.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, qiuxishi@huawei.com, dhowells@redhat.com, daeseok.youn@gmail.com, liuj97@gmail.com, yinghai@kernel.org, zhangyanfei@cn.fujitsu.com, santosh.shilimkar@ti.com, tangchen@cn.fujitsu.com
+
+Hi Philipp,
+
+On 01/13/2014 03:03 PM, Philipp Hachtmann wrote:
+> Add a new memory state "nomap" to memblock. This can be used to truncate
+> the usable memory in the system without forgetting about what is really
+> installed.
 
 
+Sorry, but this solution looks a bit complex (and probably wrong - from design point of view))
+if you need just to fix memblock_start_of_DRAM()/memblock_end_of_DRAM() APIs.
 
-On 01/13/2014 08:41 PM, Toshi Kani wrote:
-> On Tue, 2014-01-14 at 10:11 +0900, Yasuaki Ishimatsu wrote:
->  :
->>>> I think we need a knob manually enable mem-hotplug when specify memmap. But
->>>> it is another story.
->>>>
->>>> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->>>
->>> As mentioned, self-NAK.  I have seen a system that I needed to specify
->>> memmap=exactmap & had hotplug memory.  I will only keep the acpi_no_memhotplug
->>> option in the next version of the patch.
->>
->>
->> Your following first patch is simply and makes sense.
->>
->> http://marc.info/?l=linux-acpi&m=138922019607796&w=2
->>
-> 
-> In this option, it also requires changing kexec-tools to specify the new
-> option for kdump.  It won't be simpler.
+More over, other arches use at least below APIs: 
+- memblock_is_region_memory() !!!
+- for_each_memblock(memory, reg) !!!
+- __next_mem_pfn_range() !!!
+- memblock_phys_mem_size()
+- memblock_mem_size()
+- memblock_start_of_DRAM()
+- memblock_end_of_DRAM()
+with assumption that "memory" regions array have been updated
+when mem block is stolen (no-mapped), as result this change may
+have unpredictable side effects :( if these new APIs
+will be re-used (for ARM arch, as example).
 
-It will be simpler for the kernel and those of us who have to debug busted e820
-maps ;)
+You can take a look on how ARM is using arm_memblock_steal() - 
+the stolen memory is not accounted any more.
 
-Unfortunately I may not be able to give you the automatic disable.  I did
-contemplate adding a !is_kdump_kernel() to the ACPI memory hotplug init call,
-but it seems like that is unacceptable as well.
+Seems, it would be safer to track separately memory, available
+for Linux ("memory" regions), and real phys memory. For example:
+- add memblock type "phys_memory" and update it each time
+ memblock_add()/memblock_remove() are called,
+but don't update, if memblock_nomap()/memblock_remap() are called?
 
-P.
+Another question is - Should the real phys memory configuration data be
+a part of memblock or not?
 
-> 
-> Thanks,
-> -Toshi
-> 
+Also, I like more memblock_steal()/memblock_reclaim() names for new APIs )
+
+regards,
+-grygorii
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
