@@ -1,61 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 3822E6B0031
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 04:43:01 -0500 (EST)
-Received: by mail-ee0-f44.google.com with SMTP id c13so86312eek.3
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 01:43:00 -0800 (PST)
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com. [195.75.94.110])
-        by mx.google.com with ESMTPS id i1si33969409eev.152.2014.01.14.01.42.59
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 14 Jan 2014 01:43:00 -0800 (PST)
-Received: from /spool/local
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <phacht@linux.vnet.ibm.com>;
-	Tue, 14 Jan 2014 09:42:59 -0000
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id E17751B08074
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 09:42:17 +0000 (GMT)
-Received: from d06av07.portsmouth.uk.ibm.com (d06av07.portsmouth.uk.ibm.com [9.149.37.248])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0E9ghvE51314750
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 09:42:43 GMT
-Received: from d06av07.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av07.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0E9gtRw021363
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 04:42:55 -0500
-Date: Tue, 14 Jan 2014 10:42:53 +0100
-From: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
-Subject: Re: [PATCH V3 2/2] mm/memblock: Add support for excluded memory
- areas
-Message-ID: <20140114104253.54ea0470@lilie>
-In-Reply-To: <20140113163620.ade5ee9171c5f443a227f8af@linux-foundation.org>
-References: <1389618217-48166-1-git-send-email-phacht@linux.vnet.ibm.com>
-	<1389618217-48166-3-git-send-email-phacht@linux.vnet.ibm.com>
-	<20140113163620.ade5ee9171c5f443a227f8af@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-qe0-f43.google.com (mail-qe0-f43.google.com [209.85.128.43])
+	by kanga.kvack.org (Postfix) with ESMTP id C38E36B0031
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 05:58:31 -0500 (EST)
+Received: by mail-qe0-f43.google.com with SMTP id nc12so1420015qeb.2
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 02:58:31 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id g2si194913qaz.97.2014.01.14.02.58.30
+        for <linux-mm@kvack.org>;
+        Tue, 14 Jan 2014 02:58:30 -0800 (PST)
+Message-ID: <52D5184B.6080406@redhat.com>
+Date: Tue, 14 Jan 2014 05:58:19 -0500
+From: Prarit Bhargava <prarit@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] x86, acpi memory hotplug, add parameter to disable memory
+ hotplug
+References: <1389650161-13292-1-git-send-email-prarit@redhat.com>  <CAHGf_=pX303E6VAhL+gApSQ1OsEQHqTuCN8ZSdD3E54YAcFQKA@mail.gmail.com>  <52D47999.5080905@redhat.com> <52D48EC4.5070400@jp.fujitsu.com> <1389663689.1792.268.camel@misato.fc.hp.com> <52D4A469.9090100@jp.fujitsu.com>
+In-Reply-To: <52D4A469.9090100@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, qiuxishi@huawei.com, dhowells@redhat.com, daeseok.youn@gmail.com, liuj97@gmail.com, yinghai@kernel.org, zhangyanfei@cn.fujitsu.com, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, tangchen@cn.fujitsu.com
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: Toshi Kani <toshi.kani@hp.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Len Brown <lenb@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, Dave Young <dyoung@redhat.com>, linux-acpi@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Am Mon, 13 Jan 2014 16:36:20 -0800
-schrieb Andrew Morton <akpm@linux-foundation.org>:
 
-> Patch is big.  I'll toss this in for some testing but it does look too
-> large and late for 3.14.  How will this affect your s390 development?
 
-It is needed for s390 bootmem -> memblock transition. The s390 dump
-mechanisms cannot be switched to memblock (from using something s390
-specific called memory_chunk) without the nomap list.
-I'm also working on another enhancement on s390 that will rely on a
-clean transition to memblock.
+On 01/13/2014 09:43 PM, Yasuaki Ishimatsu wrote:
+> (2014/01/14 10:41), Toshi Kani wrote:
+>> On Tue, 2014-01-14 at 10:11 +0900, Yasuaki Ishimatsu wrote:
+>>   :
+>>>>> I think we need a knob manually enable mem-hotplug when specify memmap. But
+>>>>> it is another story.
+>>>>>
+>>>>> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>>>>
+>>>> As mentioned, self-NAK.  I have seen a system that I needed to specify
+>>>> memmap=exactmap & had hotplug memory.  I will only keep the acpi_no_memhotplug
+>>>> option in the next version of the patch.
+>>>
+>>>
+>>> Your following first patch is simply and makes sense.
+>>>
+>>> http://marc.info/?l=linux-acpi&m=138922019607796&w=2
+>>>
+>>
+>> In this option, it also requires changing kexec-tools to specify the new
+>> option for kdump.  It won't be simpler.
+> 
+> Hmm.
+> I use memm= boot option and hotplug memory for memory hot-remove.
+> At least, the patch cannot be accepted.
 
-I have written and tested the stuff on top of our local development
-tree. And then realised that it does not fit the linux-next tree. So I
-converted it to fit linux-next and posted it. Have to maintain two
-versions now. 
+Thanks for the information Yasuaki.  I will resubmit my first patch that only
+adds the kernel parameter.
 
+P.
+
+> 
+> Thanks,
+> Yasuaki Ishimatsu
+> 
+>>
+>> Thanks,
+>> -Toshi
+>>
+>> -- 
+>> To unsubscribe from this list: send the line "unsubscribe linux-acpi" in
+>> the body of a message to majordomo@vger.kernel.org
+>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>>
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
