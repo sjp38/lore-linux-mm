@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-gg0-f182.google.com (mail-gg0-f182.google.com [209.85.161.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 609CE6B0031
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 14:49:10 -0500 (EST)
-Received: by mail-gg0-f182.google.com with SMTP id e27so235834gga.13
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 11:49:10 -0800 (PST)
-Received: from qmta11.emeryville.ca.mail.comcast.net (qmta11.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:211])
-        by mx.google.com with ESMTP id e4si1869913qas.153.2014.01.14.11.49.08
+Received: from mail-qc0-f176.google.com (mail-qc0-f176.google.com [209.85.216.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 067876B0035
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 14:49:41 -0500 (EST)
+Received: by mail-qc0-f176.google.com with SMTP id e16so85857qcx.21
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 11:49:41 -0800 (PST)
+Received: from qmta03.emeryville.ca.mail.comcast.net (qmta03.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:32])
+        by mx.google.com with ESMTP id q18si1793702qeu.82.2014.01.14.11.49.40
         for <linux-mm@kvack.org>;
-        Tue, 14 Jan 2014 11:49:09 -0800 (PST)
-Date: Tue, 14 Jan 2014 13:49:06 -0600 (CST)
+        Tue, 14 Jan 2014 11:49:41 -0800 (PST)
+Date: Tue, 14 Jan 2014 13:49:38 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH 3/9] mm: page->pfmemalloc only used by slab/skb
-In-Reply-To: <20140114180051.0181E467@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.10.1401141348130.19618@nuc>
-References: <20140114180042.C1C33F78@viggo.jf.intel.com> <20140114180051.0181E467@viggo.jf.intel.com>
+Subject: Re: [RFC][PATCH 2/9] mm: slub: abstract out double cmpxchg option
+In-Reply-To: <20140114180046.C897727E@viggo.jf.intel.com>
+Message-ID: <alpine.DEB.2.10.1401141346310.19618@nuc>
+References: <20140114180042.C1C33F78@viggo.jf.intel.com> <20140114180046.C897727E@viggo.jf.intel.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -22,11 +22,12 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org,
 
 On Tue, 14 Jan 2014, Dave Hansen wrote:
 
-> page->pfmemalloc does not deserve a spot in 'struct page'.  It is
-> only used transiently _just_ after a page leaves the buddy
-> allocator.
+> I found this useful to have in my testing.  I would like to have
+> it available for a bit, at least until other folks have had a
+> chance to do some testing with it.
 
-Why would we need to do this if we are removing the cmpxchg_double?
+I dont really see the point of this patch since we already have
+CONFIG_HAVE_ALIGNED_STRUCT_PAGE to play with.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
