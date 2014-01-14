@@ -1,72 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 017926B0031
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 10:37:28 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id bj1so5338358pad.22
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 07:37:28 -0800 (PST)
-Received: from g1t0029.austin.hp.com (g1t0029.austin.hp.com. [15.216.28.36])
-        by mx.google.com with ESMTPS id ot3si838966pac.137.2014.01.14.07.37.26
+Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
+	by kanga.kvack.org (Postfix) with ESMTP id A72A66B0031
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 10:45:06 -0500 (EST)
+Received: by mail-ee0-f43.google.com with SMTP id c41so309078eek.2
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 07:45:06 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p9si1836087eew.202.2014.01.14.07.45.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 14 Jan 2014 07:37:27 -0800 (PST)
-Message-ID: <1389713482.1792.281.camel@misato.fc.hp.com>
-Subject: Re: [PATCH] x86, acpi memory hotplug, add parameter to disable
- memory hotplug
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Tue, 14 Jan 2014 08:31:22 -0700
-In-Reply-To: <20140114152627.GD3096@redhat.com>
-References: <1389650161-13292-1-git-send-email-prarit@redhat.com>
-	 <CAHGf_=pX303E6VAhL+gApSQ1OsEQHqTuCN8ZSdD3E54YAcFQKA@mail.gmail.com>
-	 <52D47999.5080905@redhat.com> <52D48EC4.5070400@jp.fujitsu.com>
-	 <1389663689.1792.268.camel@misato.fc.hp.com> <52D519EB.3040709@redhat.com>
-	 <20140114152627.GD3096@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Tue, 14 Jan 2014 07:45:01 -0800 (PST)
+Date: Tue, 14 Jan 2014 15:44:57 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH] mm: thp: Add per-mm_struct flag to control THP
+Message-ID: <20140114154457.GD4963@suse.de>
+References: <1389383718-46031-1-git-send-email-athorlton@sgi.com>
+ <20140110202310.GB1421@node.dhcp.inet.fi>
+ <20140110220155.GD3066@sgi.com>
+ <20140110221010.GP31570@twins.programming.kicks-ass.net>
+ <20140110223909.GA8666@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140110223909.GA8666@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Prarit Bhargava <prarit@redhat.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
- Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Len Brown <lenb@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Dave Young <dyoung@redhat.com>, linux-acpi@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Alex Thorlton <athorlton@sgi.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org
 
-On Tue, 2014-01-14 at 10:26 -0500, Vivek Goyal wrote:
-> On Tue, Jan 14, 2014 at 06:05:15AM -0500, Prarit Bhargava wrote:
+On Fri, Jan 10, 2014 at 04:39:09PM -0600, Alex Thorlton wrote:
+> On Fri, Jan 10, 2014 at 11:10:10PM +0100, Peter Zijlstra wrote:
+> > We already have the information to determine if a page is shared across
+> > nodes, Mel even had some prototype code to do splits under those
+> > conditions.
 > 
-> [..]
-> > >>> As mentioned, self-NAK.  I have seen a system that I needed to specify
-> > >>> memmap=exactmap & had hotplug memory.  I will only keep the acpi_no_memhotplug
-> > >>> option in the next version of the patch.
-> > >>
-> > >>
-> > >> Your following first patch is simply and makes sense.
-> > >>
-> > >> http://marc.info/?l=linux-acpi&m=138922019607796&w=2
-> > >>
-> > > 
-> > > In this option, it also requires changing kexec-tools to specify the new
-> > > option for kdump.  It won't be simpler.
-> > 
-> > It will be simpler for the kernel and those of us who have to debug busted e820
-> > maps ;)
-> > 
-> > Unfortunately I may not be able to give you the automatic disable.  I did
-> > contemplate adding a !is_kdump_kernel() to the ACPI memory hotplug init call,
-> > but it seems like that is unacceptable as well.
+> I'm aware that we can determine if pages are shared across nodes, but I
+> thought that Mel's code to split pages under these conditions had some
+> performance issues.  I know I've seen the code that Mel wrote to do
+> this, but I can't seem to dig it up right now.  Could you point me to
+> it?
 > 
-> I think everybody agrees that there has to be a stand alone command line
-> option to disable memory hotplug.
-> 
-> Whether to tie it into memmap=exactmap and mem=X is the contentious bit.
-> So I would suggest that just post a patch to disable memory hotplut using
-> a command line and later more patches can go in if people strongly feel
-> the need to tie it into memmap=exactmap.
-> 
-> In the mean time, we will modify /etc/sysconfig/kdump to pass
-> acpi_no_memhotplug so that user does not have to worry about passing this
-> parameter and kexec-tools will not have to be modified either.
 
-Fine by me.  Thanks for modifying /etc/sysconfig/kdump file. 
--Toshi
+It was a lot of revisions ago! The git branches no longer exist but the
+diff from the monolithic patches is below. The baseline was v3.10 and
+this will no longer apply but you'll see the two places where I added a
+split_huge_page and prevented khugepaged collapsing them again. At the
+time, the performance with it applied was much worse but it was a 10
+minute patch as a distraction. There was a range of basic problems that
+had to be tackled before there was any point looking at splitting THP due
+to locality. I did not pursue it further and have not revisited it since.
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index c8b25a8..2b80abe 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1317,6 +1317,23 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	last_nidpid = page_nidpid_last(page);
+ 	target_nid = mpol_misplaced(page, vma, haddr);
+ 	if (target_nid == -1) {
++		int last_pid = nidpid_to_pid(last_nidpid);
++
++		/*
++		 * If the fault failed to pass the two-stage filter but is on
++		 * a remote node then it could be due to false sharing of the
++		 * THP page. Remote accesses are more expensive than base
++		 * page TLB accesses so split the huge page and return to
++		 * retry the fault.
++		 */
++		if (!nidpid_nid_unset(last_nidpid) &&
++		    src_nid != page_to_nid(page) &&
++		    last_pid != (current->pid & LAST__PID_MASK)) {
++			spin_unlock(&mm->page_table_lock);
++			split_huge_page(page);
++			put_page(page);
++			return 0;
++		}
+ 		put_page(page);
+ 		goto clear_pmdnuma;
+ 	}
+@@ -2398,6 +2415,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ 	unsigned long _address;
+ 	spinlock_t *ptl;
+ 	int node = NUMA_NO_NODE;
++	int hint_node = NUMA_NO_NODE;
+ 
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+ 
+@@ -2427,8 +2445,20 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ 		 * be more sophisticated and look at more pages,
+ 		 * but isn't for now.
+ 		 */
+-		if (node == NUMA_NO_NODE)
++		if (node == NUMA_NO_NODE) {
++			int nidpid = page_nidpid_last(page);
+ 			node = page_to_nid(page);
++			hint_node = nidpid_to_nid(nidpid);
++		}
++
++		/*
++		 * If the range is receiving hinting faults from CPUs on
++		 * different nodes then prioritise locality over TLB
++		 * misses
++		 */
++		if (nidpid_to_nid(page_nidpid_last(page)) != hint_node)
++			goto out_unmap;
++
+ 		VM_BUG_ON(PageCompound(page));
+ 		if (!PageLRU(page) || PageLocked(page) || !PageAnon(page))
+ 			goto out_unmap;
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
