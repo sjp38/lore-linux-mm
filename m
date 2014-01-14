@@ -1,69 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
-	by kanga.kvack.org (Postfix) with ESMTP id E0E6C6B0031
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 08:30:06 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id e49so224593eek.0
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 05:30:06 -0800 (PST)
+Received: from mail-ea0-f171.google.com (mail-ea0-f171.google.com [209.85.215.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 654256B0031
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 08:34:59 -0500 (EST)
+Received: by mail-ea0-f171.google.com with SMTP id h10so3978526eak.30
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 05:34:58 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d46si1087500eeo.186.2014.01.14.05.30.05
+        by mx.google.com with ESMTPS id n47si1188303eey.56.2014.01.14.05.34.58
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 14 Jan 2014 05:30:05 -0800 (PST)
-Date: Tue, 14 Jan 2014 14:30:05 +0100
+        Tue, 14 Jan 2014 05:34:58 -0800 (PST)
+Date: Tue, 14 Jan 2014 14:34:57 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/3] mm/memcg: iteration skip memcgs not yet fully
- initialized
-Message-ID: <20140114133005.GC32227@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/3] mm/memcg: fix endless iteration in reclaim
+Message-ID: <20140114133457.GD32227@dhcp22.suse.cz>
 References: <alpine.LSU.2.11.1401131742370.2229@eggly.anvils>
- <alpine.LSU.2.11.1401131752360.2229@eggly.anvils>
+ <alpine.LSU.2.11.1401131751080.2229@eggly.anvils>
+ <20140114132727.GB32227@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1401131752360.2229@eggly.anvils>
+In-Reply-To: <20140114132727.GB32227@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>
+To: Hugh Dickins <hughd@google.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 13-01-14 17:54:04, Hugh Dickins wrote:
-> It is surprising that the mem_cgroup iterator can return memcgs which
-> have not yet been fully initialized.  By accident (or trial and error?)
-> this appears not to present an actual problem; but it may be better to
-> prevent such surprises, by skipping memcgs not yet online.
-
-My understanding was that !online cgroups are not visible for the
-iterator. it is css_online that has to be called before they are made
-visible.
-
-Tejun?
- 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
-> Decide for yourself whether to take this or not.  I spent quite a while
-> digging into a mysterious "trying to register non-static key" issue from
-> lockdep, which originated from the iterator returning a vmalloc'ed memcg
-> a moment before the res_counter_init()s had done their spin_lock_init()s.
-> But the backtrace was an odd one of our own mis-devising, not a charge or
-> reclaim or stats trace, so probably it's never been a problem for vanilla.
+On Tue 14-01-14 14:27:27, Michal Hocko wrote:
+> On Mon 13-01-14 17:52:30, Hugh Dickins wrote:
+> > On one home machine I can easily reproduce (by rmdir of memcgdir during
+> > reclaim) multiple processes stuck looping forever in mem_cgroup_iter():
+> > __mem_cgroup_iter_next() keeps selecting the memcg being destroyed, fails
+> > to tryget it, returns NULL to mem_cgroup_iter(), which goes around again.
 > 
->  mm/memcontrol.c |    6 ++----
->  1 file changed, 2 insertions(+), 4 deletions(-)
+> So you had a single memcg (without any children) and a limit-reclaim
+> on it when you removed it, right? This is nasty because
+> __mem_cgroup_iter_next will try to skip it but there is nothing else so
+> it returns NULL. We update iter->generation++ but that doesn't help us
+> as prev = NULL as this is the first iteration so
+> 		if (prev && reclaim->generation != iter->generation)
 > 
-> --- mmotm/mm/memcontrol.c	2014-01-10 18:25:02.236448954 -0800
-> +++ linux/mm/memcontrol.c	2014-01-12 22:21:10.700570471 -0800
-> @@ -1119,10 +1119,8 @@ skip_node:
->  	 * protected by css_get and the tree walk is rcu safe.
->  	 */
->  	if (next_css) {
-> -		struct mem_cgroup *mem = mem_cgroup_from_css(next_css);
-> -
-> -		if (css_tryget(&mem->css))
-> -			return mem;
-> +		if ((next_css->flags & CSS_ONLINE) && css_tryget(next_css))
-> +			return mem_cgroup_from_css(next_css);
->  		else {
->  			prev_css = next_css;
->  			goto skip_node;
+> break out will not help us.
+
+And looking closer at it we even do no need to be in reclaim
+for_each_mem_cgroup_tree is used from more places and that might race as
+well.
+
+> You patch will surely help I am just not
+> sure it is the right thing to do. Let me think about this.
+> 
+> Anyway very well spotted!
+> 
+> > It's better to err on the side of leaving the loop too soon than never
+> > when such races occur: once we've served prev (using root if none),
+> > get out the next time __mem_cgroup_iter_next() cannot deliver.
+> > 
+> > Signed-off-by: Hugh Dickins <hughd@google.com>
+> > ---
+> > Securing the tree iterator against such races is difficult, I've
+> > certainly got it wrong myself before.  Although the bug is real, and
+> > deserves a Cc stable, you may want to play around with other solutions
+> > before committing to this one.  The current iterator goes back to v3.12:
+> > I'm really not sure if v3.11 was good or not - I never saw the problem
+> > in the vanilla kernel, but with Google mods in we also had to make an
+> > adjustment, there to stop __mem_cgroup_iter() being called endlessly
+> > from the reclaim level.
+> > 
+> >  mm/memcontrol.c |    5 ++++-
+> >  1 file changed, 4 insertions(+), 1 deletion(-)
+> > 
+> > --- mmotm/mm/memcontrol.c	2014-01-10 18:25:02.236448954 -0800
+> > +++ linux/mm/memcontrol.c	2014-01-12 22:21:10.700570471 -0800
+> > @@ -1254,8 +1252,11 @@ struct mem_cgroup *mem_cgroup_iter(struc
+> >  				reclaim->generation = iter->generation;
+> >  		}
+> >  
+> > -		if (prev && !memcg)
+> > +		if (!memcg) {
+> > +			if (!prev)
+> > +				memcg = root;
+> >  			goto out_unlock;
+> > +		}
+> >  	}
+> >  out_unlock:
+> >  	rcu_read_unlock();
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Michal Hocko
