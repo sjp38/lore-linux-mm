@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A6796B0038
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 15:48:21 -0500 (EST)
-Received: by mail-we0-f179.google.com with SMTP id w62so932298wes.38
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 12:48:21 -0800 (PST)
-Received: from mail1.windriver.com (mail1.windriver.com. [147.11.146.13])
-        by mx.google.com with ESMTPS id n3si1299811wjr.169.2014.01.14.12.48.20
+Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 3145E6B0038
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 15:48:48 -0500 (EST)
+Received: by mail-ee0-f44.google.com with SMTP id c13so475028eek.3
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 12:48:47 -0800 (PST)
+Received: from mail.windriver.com (mail.windriver.com. [147.11.1.11])
+        by mx.google.com with ESMTPS id p46si3376292eem.42.2014.01.14.12.48.46
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 14 Jan 2014 12:48:20 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 14 Jan 2014 12:48:47 -0800 (PST)
 From: Paul Gortmaker <paul.gortmaker@windriver.com>
-Subject: [PATCH 3/3] mm: audit/fix non-modular users of module_init in core code
-Date: Tue, 14 Jan 2014 15:44:48 -0500
-Message-ID: <1389732288-4389-4-git-send-email-paul.gortmaker@windriver.com>
+Subject: [PATCH 2/3] kernel: audit/fix non-modular users of module_init in core code
+Date: Tue, 14 Jan 2014 15:44:47 -0500
+Message-ID: <1389732288-4389-3-git-send-email-paul.gortmaker@windriver.com>
 In-Reply-To: <1389732288-4389-1-git-send-email-paul.gortmaker@windriver.com>
 References: <1389732288-4389-1-git-send-email-paul.gortmaker@windriver.com>
 MIME-Version: 1.0
@@ -20,7 +20,7 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Gortmaker <paul.gortmaker@windriver.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Gortmaker <paul.gortmaker@windriver.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Eric Biederman <ebiederm@xmission.com>
 
 Code that is obj-y (always built-in) or dependent on a bool Kconfig
 (built-in or absent) can never be modular.  So using module_init as
@@ -32,105 +32,112 @@ have to add module.h to obviously non-modular code, and that
 would be a worse thing.
 
 The audit targets the following module_init users for change:
- mm/ksm.c                       bool KSM
- mm/mmap.c                      bool MMU
- mm/huge_memory.c               bool TRANSPARENT_HUGEPAGE
- mm/mmu_notifier.c              bool MMU_NOTIFIER
+ kernel/user.c                  obj-y
+ kernel/kexec.c                 bool KEXEC (one instance per arch)
+ kernel/profile.c               bool PROFILING
+ kernel/hung_task.c             bool DETECT_HUNG_TASK
+ kernel/sched/stats.c           bool SCHEDSTATS
+ kernel/user_namespace.c        bool USER_NS
 
 Note that direct use of __initcall is discouraged, vs. one
 of the priority categorized subgroups.  As __initcall gets
 mapped onto device_initcall, our use of subsys_initcall (which
 makes sense for these files) will thus change this registration
 from level 6-device to level 4-subsys (i.e. slightly earlier).
-
 However no observable impact of that difference has been observed
 during testing.
 
-One might think that core_initcall (l2) or postcore_initcall (l3)
-would be more appropriate for anything in mm/ but if we look
-at some actual init functions themselves, we see things like:
+Also, two instances of missing ";" at EOL are fixed in kexec.
 
-mm/huge_memory.c --> hugepage_init     --> hugepage_init_sysfs
-mm/mmap.c        --> init_user_reserve --> sysctl_user_reserve_kbytes
-mm/ksm.c         --> ksm_init          --> sysfs_create_group
-
-and hence the choice of subsys_initcall (l4) seems reasonable,
-and at the same time minimizes the risk of changing the priority
-too drastically all at once.  We can adjust further in the future.
-
-Also, several instances of missing ";" at EOL are fixed.
-
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Eric Biederman <ebiederm@xmission.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Paul Gortmaker <paul.gortmaker@windriver.com>
 ---
- mm/huge_memory.c  | 2 +-
- mm/ksm.c          | 2 +-
- mm/mmap.c         | 6 +++---
- mm/mmu_notifier.c | 3 +--
- 4 files changed, 6 insertions(+), 7 deletions(-)
+ kernel/hung_task.c      | 3 +--
+ kernel/kexec.c          | 4 ++--
+ kernel/profile.c        | 2 +-
+ kernel/sched/stats.c    | 2 +-
+ kernel/user.c           | 3 +--
+ kernel/user_namespace.c | 2 +-
+ 6 files changed, 7 insertions(+), 9 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 95d1acb0f3d2..c6e7e0f60708 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -655,7 +655,7 @@ out:
- 	hugepage_exit_sysfs(hugepage_kobj);
- 	return err;
- }
--module_init(hugepage_init)
-+subsys_initcall(hugepage_init);
- 
- static int __init setup_transparent_hugepage(char *str)
- {
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 175fff79dc95..dce1ad1cb696 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -2438,4 +2438,4 @@ out_free:
- out:
- 	return err;
- }
--module_init(ksm_init)
-+subsys_initcall(ksm_init);
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 834b2d785f1e..0a7717664c9e 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3140,7 +3140,7 @@ static int init_user_reserve(void)
- 	sysctl_user_reserve_kbytes = min(free_kbytes / 32, 1UL << 17);
- 	return 0;
- }
--module_init(init_user_reserve)
-+subsys_initcall(init_user_reserve);
- 
- /*
-  * Initialise sysctl_admin_reserve_kbytes.
-@@ -3161,7 +3161,7 @@ static int init_admin_reserve(void)
- 	sysctl_admin_reserve_kbytes = min(free_kbytes / 32, 1UL << 13);
- 	return 0;
- }
--module_init(init_admin_reserve)
-+subsys_initcall(init_admin_reserve);
- 
- /*
-  * Reinititalise user and admin reserves if memory is added or removed.
-@@ -3231,4 +3231,4 @@ static int __meminit init_reserve_notifier(void)
+diff --git a/kernel/hung_task.c b/kernel/hung_task.c
+index 9328b80eaf14..7899ee9dd212 100644
+--- a/kernel/hung_task.c
++++ b/kernel/hung_task.c
+@@ -244,5 +244,4 @@ static int __init hung_task_init(void)
  
  	return 0;
- }
--module_init(init_reserve_notifier)
-+subsys_initcall(init_reserve_notifier);
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index 93e6089cb456..41cefdf0aadd 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -329,5 +329,4 @@ static int __init mmu_notifier_init(void)
- {
- 	return init_srcu_struct(&srcu);
  }
 -
--module_init(mmu_notifier_init);
-+subsys_initcall(mmu_notifier_init);
+-module_init(hung_task_init);
++subsys_initcall(hung_task_init);
+diff --git a/kernel/kexec.c b/kernel/kexec.c
+index 9c970167e402..418f069b0314 100644
+--- a/kernel/kexec.c
++++ b/kernel/kexec.c
+@@ -1234,7 +1234,7 @@ static int __init crash_notes_memory_init(void)
+ 	}
+ 	return 0;
+ }
+-module_init(crash_notes_memory_init)
++subsys_initcall(crash_notes_memory_init);
+ 
+ 
+ /*
+@@ -1628,7 +1628,7 @@ static int __init crash_save_vmcoreinfo_init(void)
+ 	return 0;
+ }
+ 
+-module_init(crash_save_vmcoreinfo_init)
++subsys_initcall(crash_save_vmcoreinfo_init);
+ 
+ /*
+  * Move into place and start executing a preloaded standalone
+diff --git a/kernel/profile.c b/kernel/profile.c
+index 6631e1ef55ab..b37576b22acc 100644
+--- a/kernel/profile.c
++++ b/kernel/profile.c
+@@ -604,5 +604,5 @@ int __ref create_proc_profile(void) /* false positive from hotcpu_notifier */
+ 	hotcpu_notifier(profile_cpu_callback, 0);
+ 	return 0;
+ }
+-module_init(create_proc_profile);
++subsys_initcall(create_proc_profile);
+ #endif /* CONFIG_PROC_FS */
+diff --git a/kernel/sched/stats.c b/kernel/sched/stats.c
+index da98af347e8b..a476bea17fbc 100644
+--- a/kernel/sched/stats.c
++++ b/kernel/sched/stats.c
+@@ -142,4 +142,4 @@ static int __init proc_schedstat_init(void)
+ 	proc_create("schedstat", 0, NULL, &proc_schedstat_operations);
+ 	return 0;
+ }
+-module_init(proc_schedstat_init);
++subsys_initcall(proc_schedstat_init);
+diff --git a/kernel/user.c b/kernel/user.c
+index c006131beb77..294fc6a94168 100644
+--- a/kernel/user.c
++++ b/kernel/user.c
+@@ -222,5 +222,4 @@ static int __init uid_cache_init(void)
+ 
+ 	return 0;
+ }
+-
+-module_init(uid_cache_init);
++subsys_initcall(uid_cache_init);
+diff --git a/kernel/user_namespace.c b/kernel/user_namespace.c
+index 240fb62cf394..4f211868e6a2 100644
+--- a/kernel/user_namespace.c
++++ b/kernel/user_namespace.c
+@@ -902,4 +902,4 @@ static __init int user_namespaces_init(void)
+ 	user_ns_cachep = KMEM_CACHE(user_namespace, SLAB_PANIC);
+ 	return 0;
+ }
+-module_init(user_namespaces_init);
++subsys_initcall(user_namespaces_init);
 -- 
 1.8.5.2
 
