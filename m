@@ -1,54 +1,267 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f45.google.com (mail-qe0-f45.google.com [209.85.128.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A3DC6B0036
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 18:41:46 -0500 (EST)
-Received: by mail-qe0-f45.google.com with SMTP id nd7so2494531qeb.4
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 15:41:46 -0800 (PST)
-Received: from arroyo.ext.ti.com (arroyo.ext.ti.com. [192.94.94.40])
-        by mx.google.com with ESMTPS id t7si25220595qar.59.2014.01.13.15.41.45
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 13 Jan 2014 15:41:45 -0800 (PST)
-Message-ID: <52D479AF.3010302@ti.com>
-Date: Mon, 13 Jan 2014 18:41:35 -0500
-From: Santosh Shilimkar <santosh.shilimkar@ti.com>
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id EA7916B0031
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 19:10:35 -0500 (EST)
+Received: by mail-pd0-f177.google.com with SMTP id q10so7955569pdj.8
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 16:10:35 -0800 (PST)
+Received: from LGEAMRELO01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id m8si17112297pbq.149.2014.01.13.16.10.33
+        for <linux-mm@kvack.org>;
+        Mon, 13 Jan 2014 16:10:34 -0800 (PST)
+Date: Tue, 14 Jan 2014 09:11:15 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm/zswap: add writethrough option
+Message-ID: <20140114001115.GU1992@bbox>
+References: <1387459407-29342-1-git-send-email-ddstreet@ieee.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: nobootmem: avoid type warning about alignment value
-References: <529217C7.6030304@cogentembedded.com> <52935762.1080409@ti.com> <20131209165044.cf7de2edb8f4205d5ac02ab0@linux-foundation.org> <20131210005454.GX4360@n2100.arm.linux.org.uk> <52A66826.7060204@ti.com> <20140112105958.GA9791@n2100.arm.linux.org.uk> <52D2B7C8.4060103@ti.com> <20140113123733.GU15937@n2100.arm.linux.org.uk> <52D3F7E0.3030206@ti.com> <20140113153128.6aaffb9af111ba75a7abd4db@linux-foundation.org> <20140113233326.GG15937@n2100.arm.linux.org.uk>
-In-Reply-To: <20140113233326.GG15937@n2100.arm.linux.org.uk>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1387459407-29342-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, linux-arm-kernel@lists.infradead.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Seth Jennings <sjennings@variantweb.net>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Weijie Yang <weijie.yang@samsung.com>, Shirish Pargaonkar <spargaonkar@suse.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 
-On Monday 13 January 2014 06:33 PM, Russell King - ARM Linux wrote:
-> On Mon, Jan 13, 2014 at 03:31:28PM -0800, Andrew Morton wrote:
->> On Mon, 13 Jan 2014 09:27:44 -0500 Santosh Shilimkar <santosh.shilimkar@ti.com> wrote:
->>
->>>> It seems to me to be absolutely silly to have code introduce a warning
->>>> yet push the fix for the warning via a completely different tree...
->>>>
->>> I mixed it up. Sorry. Some how I thought there was some other build
->>> configuration thrown the same warning with memblock series and hence
->>> suggested the patch to go via Andrew's tree.
->>
->> Yes, I too had assumed that the warning was caused by the bootmem
->> patches in -mm.
->>
->> But it in fact occurs in Linus's current tree.  I'll drop
->> mm-arm-fix-arms-__ffs-to-conform-to-avoid-warning-with-no_bootmem.patch
->> and I'll assume that rmk will fix this up at an appropriate time.
-> 
-> Thanks.  I'll apply my version and then I can pull Santosh's nobootmem
-> changes (which I've had a couple of times already) without adding to
-> the warnings.
-> 
-Thanks Andrew and Russell for sorting out the patch queue.
+Hello Dan,
 
-Regards,
-Santosh
+Sorry for the late response and I didn't look at the code yet
+because I am not convinced. :( 
+
+On Thu, Dec 19, 2013 at 08:23:27AM -0500, Dan Streetman wrote:
+> Currently, zswap is writeback cache; stored pages are not sent
+> to swap disk, and when zswap wants to evict old pages it must
+> first write them back to swap cache/disk manually.  This avoids
+> swap out disk I/O up front, but only moves that disk I/O to
+> the writeback case (for pages that are evicted), and adds the
+> overhead of having to uncompress the evicted pages and the
+> need for an additional free page (to store the uncompressed page).
+> 
+> This optionally changes zswap to writethrough cache by enabling
+> frontswap_writethrough() before registering, so that any
+> successful page store will also be written to swap disk.  The
+> default remains writeback.  To enable writethrough, the param
+> zswap.writethrough=1 must be used at boot.
+> 
+> Whether writeback or writethrough will provide better performance
+> depends on many factors including disk I/O speed/throughput,
+> CPU speed(s), system load, etc.  In most cases it is likely
+> that writeback has better performance than writethrough before
+> zswap is full, but after zswap fills up writethrough has
+> better performance than writeback.
+
+So you claims we should use writeback default but writethrough
+after memory limit is full?
+But it would break LRU ordering and I think better idea is to
+handle it more generic way rather than chaning entire policy.
+
+Now, zswap evict out just *a* page rather than a bunch of pages
+so it stucks every store if many swap write happens continuously.
+It's not efficient so how about adding kswapd's threshold concept
+like min/low/high? So, it could evict early before reaching zswap
+memory pool and stop it reaches high watermark.
+I guess it could be better than now.
+
+Other point: As I read device-mapper/cache.txt, cache operating mode
+already supports writethrough. It means zram zRAM can support
+writeback/writethough with dm-cache.
+Have you tried it? Is there any problem?
+
+Acutally, I really don't know how much benefit we have that in-memory
+swap overcomming to the real storage but if you want, zRAM with dm-cache
+is another option rather than invent new wheel by "just having is better".
+
+Thanks.
+
+> 
+> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+> 
+> ---
+> 
+> Based on specjbb testing on my laptop, the results for both writeback
+> and writethrough are better than not using zswap at all, but writeback
+> does seem to be better than writethrough while zswap isn't full.  Once
+> it fills up, performance for writethrough is essentially close to not
+> using zswap, while writeback seems to be worse than not using zswap.
+> However, I think more testing on a wider span of systems and conditions
+> is needed.  Additionally, I'm not sure that specjbb is measuring true
+> performance under fully loaded cpu conditions, so additional cpu load
+> might need to be added or specjbb parameters modified (I took the
+> values from the 4 "warehouses" test run).
+> 
+> In any case though, I think having writethrough as an option is still
+> useful.  More changes could be made, such as changing from writeback
+> to writethrough based on the zswap % full.  And the patch doesn't
+> change default behavior - writethrough must be specifically enabled.
+> 
+> The %-ized numbers I got from specjbb on average, using the default
+> 20% max_pool_percent and varying the amount of heap used as shown:
+> 
+> ram | no zswap | writeback | writethrough
+> 75     93.08     100         96.90
+> 87     96.58     95.58       96.72
+> 100    92.29     89.73       86.75
+> 112    63.80     38.66       19.66
+> 125    4.79      29.90       15.75
+> 137    4.99      4.50        4.75
+> 150    4.28      4.62        5.01
+> 162    5.20      2.94        4.66
+> 175    5.71      2.11        4.84
+> 
+> 
+> 
+>  mm/zswap.c | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+>  1 file changed, 64 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/zswap.c b/mm/zswap.c
+> index e55bab9..2f919db 100644
+> --- a/mm/zswap.c
+> +++ b/mm/zswap.c
+> @@ -61,6 +61,8 @@ static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
+>  static u64 zswap_pool_limit_hit;
+>  /* Pages written back when pool limit was reached */
+>  static u64 zswap_written_back_pages;
+> +/* Pages evicted when pool limit was reached */
+> +static u64 zswap_evicted_pages;
+>  /* Store failed due to a reclaim failure after pool limit was reached */
+>  static u64 zswap_reject_reclaim_fail;
+>  /* Compressed page was too big for the allocator to (optimally) store */
+> @@ -89,6 +91,10 @@ static unsigned int zswap_max_pool_percent = 20;
+>  module_param_named(max_pool_percent,
+>  			zswap_max_pool_percent, uint, 0644);
+>  
+> +/* Writeback/writethrough mode (fixed at boot for now) */
+> +static bool zswap_writethrough;
+> +module_param_named(writethrough, zswap_writethrough, bool, 0444);
+> +
+>  /*********************************
+>  * compression functions
+>  **********************************/
+> @@ -629,6 +635,48 @@ end:
+>  }
+>  
+>  /*********************************
+> +* evict code
+> +**********************************/
+> +
+> +/*
+> + * This evicts pages that have already been written through to swap.
+> + */
+> +static int zswap_evict_entry(struct zbud_pool *pool, unsigned long handle)
+> +{
+> +	struct zswap_header *zhdr;
+> +	swp_entry_t swpentry;
+> +	struct zswap_tree *tree;
+> +	pgoff_t offset;
+> +	struct zswap_entry *entry;
+> +
+> +	/* extract swpentry from data */
+> +	zhdr = zbud_map(pool, handle);
+> +	swpentry = zhdr->swpentry; /* here */
+> +	zbud_unmap(pool, handle);
+> +	tree = zswap_trees[swp_type(swpentry)];
+> +	offset = swp_offset(swpentry);
+> +	BUG_ON(pool != tree->pool);
+> +
+> +	/* find and ref zswap entry */
+> +	spin_lock(&tree->lock);
+> +	entry = zswap_rb_search(&tree->rbroot, offset);
+> +	if (!entry) {
+> +		/* entry was invalidated */
+> +		spin_unlock(&tree->lock);
+> +		return 0;
+> +	}
+> +
+> +	zswap_evicted_pages++;
+> +
+> +	zswap_rb_erase(&tree->rbroot, entry);
+> +	zswap_entry_put(tree, entry);
+> +
+> +	spin_unlock(&tree->lock);
+> +
+> +	return 0;
+> +}
+> +
+> +/*********************************
+>  * frontswap hooks
+>  **********************************/
+>  /* attempts to compress and store an single page */
+> @@ -744,7 +792,7 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
+>  	spin_lock(&tree->lock);
+>  	entry = zswap_entry_find_get(&tree->rbroot, offset);
+>  	if (!entry) {
+> -		/* entry was written back */
+> +		/* entry was written back or evicted */
+>  		spin_unlock(&tree->lock);
+>  		return -1;
+>  	}
+> @@ -778,7 +826,7 @@ static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
+>  	spin_lock(&tree->lock);
+>  	entry = zswap_rb_search(&tree->rbroot, offset);
+>  	if (!entry) {
+> -		/* entry was written back */
+> +		/* entry was written back or evicted */
+>  		spin_unlock(&tree->lock);
+>  		return;
+>  	}
+> @@ -813,18 +861,26 @@ static void zswap_frontswap_invalidate_area(unsigned type)
+>  	zswap_trees[type] = NULL;
+>  }
+>  
+> -static struct zbud_ops zswap_zbud_ops = {
+> +static struct zbud_ops zswap_zbud_writeback_ops = {
+>  	.evict = zswap_writeback_entry
+>  };
+> +static struct zbud_ops zswap_zbud_writethrough_ops = {
+> +	.evict = zswap_evict_entry
+> +};
+>  
+>  static void zswap_frontswap_init(unsigned type)
+>  {
+>  	struct zswap_tree *tree;
+> +	struct zbud_ops *ops;
+>  
+>  	tree = kzalloc(sizeof(struct zswap_tree), GFP_KERNEL);
+>  	if (!tree)
+>  		goto err;
+> -	tree->pool = zbud_create_pool(GFP_KERNEL, &zswap_zbud_ops);
+> +	if (zswap_writethrough)
+> +		ops = &zswap_zbud_writethrough_ops;
+> +	else
+> +		ops = &zswap_zbud_writeback_ops;
+> +	tree->pool = zbud_create_pool(GFP_KERNEL, ops);
+>  	if (!tree->pool)
+>  		goto freetree;
+>  	tree->rbroot = RB_ROOT;
+> @@ -875,6 +931,8 @@ static int __init zswap_debugfs_init(void)
+>  			zswap_debugfs_root, &zswap_reject_compress_poor);
+>  	debugfs_create_u64("written_back_pages", S_IRUGO,
+>  			zswap_debugfs_root, &zswap_written_back_pages);
+> +	debugfs_create_u64("evicted_pages", S_IRUGO,
+> +			zswap_debugfs_root, &zswap_evicted_pages);
+>  	debugfs_create_u64("duplicate_entry", S_IRUGO,
+>  			zswap_debugfs_root, &zswap_duplicate_entry);
+>  	debugfs_create_u64("pool_pages", S_IRUGO,
+> @@ -919,6 +977,8 @@ static int __init init_zswap(void)
+>  		pr_err("per-cpu initialization failed\n");
+>  		goto pcpufail;
+>  	}
+> +	if (zswap_writethrough)
+> +		frontswap_writethrough(true);
+>  	frontswap_register_ops(&zswap_frontswap_ops);
+>  	if (zswap_debugfs_init())
+>  		pr_warn("debugfs initialization failed\n");
+> -- 
+> 1.8.3.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
