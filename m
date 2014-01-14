@@ -1,82 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id C82706B0031
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 21:44:51 -0500 (EST)
-Received: by mail-pd0-f170.google.com with SMTP id z10so2886505pdj.29
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 18:44:51 -0800 (PST)
-Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
-        by mx.google.com with ESMTPS id nu8si17407954pbb.342.2014.01.13.18.44.49
+Received: from mail-ve0-f174.google.com (mail-ve0-f174.google.com [209.85.128.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 3051A6B0031
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 23:13:48 -0500 (EST)
+Received: by mail-ve0-f174.google.com with SMTP id c14so377787vea.5
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 20:13:47 -0800 (PST)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id dp3si337084vcb.96.2014.01.13.20.13.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 13 Jan 2014 18:44:50 -0800 (PST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 492A43EE1D9
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 11:44:48 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 37CA345DE54
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 11:44:48 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.nic.fujitsu.com [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1DDC845DE4E
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 11:44:48 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A8FD1DB8032
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 11:44:48 +0900 (JST)
-Received: from g01jpfmpwkw01.exch.g01.fujitsu.local (g01jpfmpwkw01.exch.g01.fujitsu.local [10.0.193.38])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B445D1DB803E
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 11:44:47 +0900 (JST)
-Message-ID: <52D4A469.9090100@jp.fujitsu.com>
-Date: Tue, 14 Jan 2014 11:43:53 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] x86, acpi memory hotplug, add parameter to disable memory
- hotplug
-References: <1389650161-13292-1-git-send-email-prarit@redhat.com>  <CAHGf_=pX303E6VAhL+gApSQ1OsEQHqTuCN8ZSdD3E54YAcFQKA@mail.gmail.com>  <52D47999.5080905@redhat.com> <52D48EC4.5070400@jp.fujitsu.com> <1389663689.1792.268.camel@misato.fc.hp.com>
-In-Reply-To: <1389663689.1792.268.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
+        Mon, 13 Jan 2014 20:13:45 -0800 (PST)
+Message-ID: <1389672810.6933.0.camel@pasglop>
+Subject: Re: [PATCH] powerpc: thp: Fix crash on mremap
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Tue, 14 Jan 2014 15:13:30 +1100
+In-Reply-To: <20140113141748.0b851e1573e41bf26de7c0ae@linux-foundation.org>
+References: 
+	<1388570027-22933-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	 <1388572145.4373.41.camel@pasglop>
+	 <20140102021951.GA26369@node.dhcp.inet.fi>
+	 <20140113141748.0b851e1573e41bf26de7c0ae@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>, Prarit Bhargava <prarit@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Len Brown <lenb@kernel.org>, "Rafael J.
- Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, Dave Young <dyoung@redhat.com>, linux-acpi@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, paulus@samba.org, aarcange@redhat.com, kirill.shutemov@linux.intel.com, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-(2014/01/14 10:41), Toshi Kani wrote:
-> On Tue, 2014-01-14 at 10:11 +0900, Yasuaki Ishimatsu wrote:
->   :
->>>> I think we need a knob manually enable mem-hotplug when specify memmap. But
->>>> it is another story.
->>>>
->>>> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->>>
->>> As mentioned, self-NAK.  I have seen a system that I needed to specify
->>> memmap=exactmap & had hotplug memory.  I will only keep the acpi_no_memhotplug
->>> option in the next version of the patch.
->>
->>
->> Your following first patch is simply and makes sense.
->>
->> http://marc.info/?l=linux-acpi&m=138922019607796&w=2
->>
->
-> In this option, it also requires changing kexec-tools to specify the new
-> option for kdump.  It won't be simpler.
+On Mon, 2014-01-13 at 14:17 -0800, Andrew Morton wrote:
 
-Hmm.
-I use memm= boot option and hotplug memory for memory hot-remove.
-At least, the patch cannot be accepted.
+> Did this get fixed?
 
-Thanks,
-Yasuaki Ishimatsu
+Any chance you can Ack the patch on that thread ?
 
->
-> Thanks,
-> -Toshi
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-acpi" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->
+http://thread.gmane.org/gmane.linux.kernel.mm/111809
+
+So I can put it in powerpc -next with a CC stable ? Or if you tell me
+tat Kirill Ack is sufficient then I'll go for it.
+
+Cheers,
+Ben.
 
 
 --
