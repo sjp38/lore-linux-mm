@@ -1,427 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A3F16B0031
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 20:02:47 -0500 (EST)
-Received: by mail-yk0-f177.google.com with SMTP id 19so813094ykq.8
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 17:02:46 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id n2si1177828yho.233.2014.01.13.17.02.45
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id D508E6B0031
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 20:12:32 -0500 (EST)
+Received: by mail-pb0-f49.google.com with SMTP id jt11so8046247pbb.36
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 17:12:32 -0800 (PST)
+Received: from fgwmail6.fujitsu.co.jp (fgwmail6.fujitsu.co.jp. [192.51.44.36])
+        by mx.google.com with ESMTPS id s4si17207460pbg.123.2014.01.13.17.12.30
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 13 Jan 2014 17:02:45 -0800 (PST)
-Message-ID: <52D48C55.3020200@oracle.com>
-Date: Tue, 14 Jan 2014 09:01:09 +0800
-From: Bob Liu <bob.liu@oracle.com>
+        Mon, 13 Jan 2014 17:12:31 -0800 (PST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 84AD03EE0C1
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 10:12:29 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7476B45DE69
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 10:12:26 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.nic.fujitsu.com [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D0A345DE5A
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 10:12:26 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F9DAE08006
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 10:12:26 +0900 (JST)
+Received: from g01jpfmpwyt03.exch.g01.fujitsu.local (g01jpfmpwyt03.exch.g01.fujitsu.local [10.128.193.57])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id EBC7F1DB8047
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 10:12:25 +0900 (JST)
+Message-ID: <52D48EC4.5070400@jp.fujitsu.com>
+Date: Tue, 14 Jan 2014 10:11:32 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [patch 7/9] mm: thrash detection-based file cache sizing
-References: <1389377443-11755-1-git-send-email-hannes@cmpxchg.org> <1389377443-11755-8-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1389377443-11755-8-git-send-email-hannes@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] x86, acpi memory hotplug, add parameter to disable memory
+ hotplug
+References: <1389650161-13292-1-git-send-email-prarit@redhat.com> <CAHGf_=pX303E6VAhL+gApSQ1OsEQHqTuCN8ZSdD3E54YAcFQKA@mail.gmail.com> <52D47999.5080905@redhat.com>
+In-Reply-To: <52D47999.5080905@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Prarit Bhargava <prarit@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Len Brown <lenb@kernel.org>, "Rafael J.
+ Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Toshi Kani <toshi.kani@hp.com>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, Dave Young <dyoung@redhat.com>, linux-acpi@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hi Johannes,
+(2014/01/14 8:41), Prarit Bhargava wrote:
+>
+>
+> On 01/13/2014 05:17 PM, KOSAKI Motohiro wrote:
+>> On Mon, Jan 13, 2014 at 4:56 PM, Prarit Bhargava <prarit@redhat.com> wrote:
+>>> When booting a kexec/kdump kernel on a system that has specific memory hotplug
+>>> regions the boot will fail with warnings like:
+>>>
+>>> [    2.939467] swapper/0: page allocation failure: order:9, mode:0x84d0
+>>> [    2.946564] CPU: 0 PID: 1 Comm: swapper/0 Not tainted
+>>> 3.10.0-65.el7.x86_64 #1
+>>> [    2.954532] Hardware name: QCI QSSC-S4R/QSSC-S4R, BIOS
+>>> QSSC-S4R.QCI.01.00.S013.032920111005 03/29/2011
+>>> [    2.964926]  0000000000000000 ffff8800341bd8c8 ffffffff815bcc67
+>>> ffff8800341bd950
+>>> [    2.973224]  ffffffff8113b1a0 ffff880036339b00 0000000000000009
+>>> 00000000000084d0
+>>> [    2.981523]  ffff8800341bd950 ffffffff815b87ee 0000000000000000
+>>> 0000000000000200
+>>> [    2.989821] Call Trace:
+>>> [    2.992560]  [<ffffffff815bcc67>] dump_stack+0x19/0x1b
+>>> [    2.998300]  [<ffffffff8113b1a0>] warn_alloc_failed+0xf0/0x160
+>>> [    3.004817]  [<ffffffff815b87ee>] ?
+>>> __alloc_pages_direct_compact+0xac/0x196
+>>> [    3.012594]  [<ffffffff8113f14f>] __alloc_pages_nodemask+0x7ff/0xa00
+>>> [    3.019692]  [<ffffffff815b417c>] vmemmap_alloc_block+0x62/0xba
+>>> [    3.026303]  [<ffffffff815b41e9>] vmemmap_alloc_block_buf+0x15/0x3b
+>>> [    3.033302]  [<ffffffff815b1ff6>] vmemmap_populate+0xb4/0x21b
+>>> [    3.039718]  [<ffffffff815b461d>] sparse_mem_map_populate+0x27/0x35
+>>> [    3.046717]  [<ffffffff815b400f>] sparse_add_one_section+0x7a/0x185
+>>> [    3.053720]  [<ffffffff815a1e9f>] __add_pages+0xaf/0x240
+>>> [    3.059656]  [<ffffffff81047359>] arch_add_memory+0x59/0xd0
+>>> [    3.065877]  [<ffffffff815a21d9>] add_memory+0xb9/0x1b0
+>>> [    3.071713]  [<ffffffff81333b9c>] acpi_memory_device_add+0x18d/0x26d
+>>> [    3.078813]  [<ffffffff81309a01>] acpi_bus_device_attach+0x7d/0xcd
+>>> [    3.085719]  [<ffffffff8132379d>] acpi_ns_walk_namespace+0xc8/0x17f
+>>> [    3.092716]  [<ffffffff81309984>] ? acpi_bus_type_and_status+0x90/0x90
+>>> [    3.100004]  [<ffffffff81309984>] ? acpi_bus_type_and_status+0x90/0x90
+>>> [    3.107293]  [<ffffffff81323c8c>] acpi_walk_namespace+0x95/0xc5
+>>> [    3.113904]  [<ffffffff8130a6d6>] acpi_bus_scan+0x8b/0x9d
+>>> [    3.119933]  [<ffffffff81a2019a>] acpi_scan_init+0x63/0x160
+>>> [    3.126153]  [<ffffffff81a1ffb5>] acpi_init+0x25d/0x2a6
+>>> [    3.131987]  [<ffffffff81a1fd58>] ? acpi_sleep_proc_init+0x2a/0x2a
+>>> [    3.138889]  [<ffffffff810020e2>] do_one_initcall+0xe2/0x190
+>>> [    3.145210]  [<ffffffff819e20c4>] kernel_init_freeable+0x17c/0x207
+>>> [    3.152111]  [<ffffffff819e18d0>] ? do_early_param+0x88/0x88
+>>> [    3.158430]  [<ffffffff8159fea0>] ? rest_init+0x80/0x80
+>>> [    3.164264]  [<ffffffff8159feae>] kernel_init+0xe/0x180
+>>> [    3.170097]  [<ffffffff815cca2c>] ret_from_fork+0x7c/0xb0
+>>> [    3.176123]  [<ffffffff8159fea0>] ? rest_init+0x80/0x80
+>>> [    3.181956] Mem-Info:
+>>> [    3.184490] Node 0 DMA per-cpu:
+>>> [    3.188007] CPU    0: hi:    0, btch:   1 usd:   0
+>>> [    3.193353] Node 0 DMA32 per-cpu:
+>>> [    3.197060] CPU    0: hi:   42, btch:   7 usd:   0
+>>> [    3.202410] active_anon:0 inactive_anon:0 isolated_anon:0
+>>> [    3.202410]  active_file:0 inactive_file:0 isolated_file:0
+>>> [    3.202410]  unevictable:0 dirty:0 writeback:0 unstable:0
+>>> [    3.202410]  free:872 slab_reclaimable:13 slab_unreclaimable:1880
+>>> [    3.202410]  mapped:0 shmem:0 pagetables:0 bounce:0
+>>> [    3.202410]  free_cma:0
+>>>
+>>> because the system has run out of memory at boot time.  This occurs
+>>> because of the following sequence in the boot:
+>>>
+>>> Main kernel boots and sets E820 map.  The second kernel is booted with a
+>>> map generated by the kdump service using memmap= and memmap=exactmap.
+>>> These parameters are added to the kernel parameters of the kexec/kdump
+>>> kernel.   The kexec/kdump kernel has limited memory resources so as not
+>>> to severely impact the main kernel.
+>>>
+>>> The system then panics and the kdump/kexec kernel boots (which is a
+>>> completely new kernel boot).  During this boot ACPI is initialized and the
+>>> kernel (as can be seen above) traverses the ACPI namespace and finds an
+>>> entry for a memory device to be hotadded.
+>>>
+>>> ie)
+>>>
+>>> [    3.053720]  [<ffffffff815a1e9f>] __add_pages+0xaf/0x240
+>>> [    3.059656]  [<ffffffff81047359>] arch_add_memory+0x59/0xd0
+>>> [    3.065877]  [<ffffffff815a21d9>] add_memory+0xb9/0x1b0
+>>> [    3.071713]  [<ffffffff81333b9c>] acpi_memory_device_add+0x18d/0x26d
+>>> [    3.078813]  [<ffffffff81309a01>] acpi_bus_device_attach+0x7d/0xcd
+>>> [    3.085719]  [<ffffffff8132379d>] acpi_ns_walk_namespace+0xc8/0x17f
+>>> [    3.092716]  [<ffffffff81309984>] ? acpi_bus_type_and_status+0x90/0x90
+>>> [    3.100004]  [<ffffffff81309984>] ? acpi_bus_type_and_status+0x90/0x90
+>>> [    3.107293]  [<ffffffff81323c8c>] acpi_walk_namespace+0x95/0xc5
+>>> [    3.113904]  [<ffffffff8130a6d6>] acpi_bus_scan+0x8b/0x9d
+>>> [    3.119933]  [<ffffffff81a2019a>] acpi_scan_init+0x63/0x160
+>>> [    3.126153]  [<ffffffff81a1ffb5>] acpi_init+0x25d/0x2a6
+>>>
+>>> At this point the kernel adds page table information and the the kexec/kdump
+>>> kernel runs out of memory.
+>>>
+>>> This can also be reproduced with a "regular" kernel by using the
+>>> memmap=exactmap and mem=X parameters on the main kernel and booting.
+>>>
+>>> This patchset resolves the problem by adding a kernel parameter,
+>>> acpi_no_memhotplug, to disable ACPI memory hotplug.  ACPI memory hotplug
+>>> should also be disabled by default when a user specified a memory mapping with
+>>> "memmap=exactmap" or "mem=X".
+>>>
+>>> Signed-off-by: Prarit Bhargava <prarit@redhat.com>
+>>> Cc: Thomas Gleixner <tglx@linutronix.de>
+>>> Cc: Ingo Molnar <mingo@redhat.com>
+>>> Cc: "H. Peter Anvin" <hpa@zytor.com>
+>>> Cc: x86@kernel.org
+>>> Cc: Len Brown <lenb@kernel.org>
+>>> Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+>>> Cc: Linn Crosetto <linn@hp.com>
+>>> Cc: Pekka Enberg <penberg@kernel.org>
+>>> Cc: Yinghai Lu <yinghai@kernel.org>
+>>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>>> Cc: Toshi Kani <toshi.kani@hp.com>
+>>> Cc: Tang Chen <tangchen@cn.fujitsu.com>
+>>> Cc: Wen Congyang <wency@cn.fujitsu.com>
+>>> Cc: Vivek Goyal <vgoyal@redhat.com>
+>>> Cc: kosaki.motohiro@gmail.com
+>>> Cc: dyoung@redhat.com
+>>> Cc: Toshi Kani <toshi.kani@hp.com>
+>>> Cc: linux-acpi@vger.kernel.org
+>>> Cc: linux-mm@kvack.org
+>>
+>> I think we need a knob manually enable mem-hotplug when specify memmap. But
+>> it is another story.
+>>
+>> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>
+> As mentioned, self-NAK.  I have seen a system that I needed to specify
+> memmap=exactmap & had hotplug memory.  I will only keep the acpi_no_memhotplug
+> option in the next version of the patch.
 
-On 01/11/2014 02:10 AM, Johannes Weiner wrote:
-> The VM maintains cached filesystem pages on two types of lists.  One
-> list holds the pages recently faulted into the cache, the other list
-> holds pages that have been referenced repeatedly on that first list.
-> The idea is to prefer reclaiming young pages over those that have
-> shown to benefit from caching in the past.  We call the recently used
-> list "inactive list" and the frequently used list "active list".
-> 
-> Currently, the VM aims for a 1:1 ratio between the lists, which is the
-> "perfect" trade-off between the ability to *protect* frequently used
-> pages and the ability to *detect* frequently used pages.  This means
-> that working set changes bigger than half of cache memory go
-> undetected and thrash indefinitely, whereas working sets bigger than
-> half of cache memory are unprotected against used-once streams that
-> don't even need caching.
-> 
 
-Good job! This patch looks good to me and with nice descriptions.
-But it seems that this patch only fix the issue "working set changes
-bigger than half of cache memory go undetected and thrash indefinitely".
-My concern is could it be extended easily to address all other issues
-based on this patch set?
+Your following first patch is simply and makes sense.
 
-The other possible way is something like Peter has implemented the CART
-and Clock-Pro which I think may be better because of using advanced
-algorithms and consider the problem as a whole from the beginning.(Sorry
-I haven't get enough time to read the source code, so I'm not 100% sure.)
-http://linux-mm.org/PeterZClockPro2
+http://marc.info/?l=linux-acpi&m=138922019607796&w=2
 
-> Historically, every reclaim scan of the inactive list also took a
-> smaller number of pages from the tail of the active list and moved
-> them to the head of the inactive list.  This model gave established
-> working sets more gracetime in the face of temporary use-once streams,
-> but ultimately was not significantly better than a FIFO policy and
-> still thrashed cache based on eviction speed, rather than actual
-> demand for cache.
-> 
-> This patch solves one half of the problem by decoupling the ability to
-> detect working set changes from the inactive list size.  By
-> maintaining a history of recently evicted file pages it can detect
-> frequently used pages with an arbitrarily small inactive list size,
-> and subsequently apply pressure on the active list based on actual
-> demand for cache, not just overall eviction speed.
-> 
-> Every zone maintains a counter that tracks inactive list aging speed.
-> When a page is evicted, a snapshot of this counter is stored in the
-> now-empty page cache radix tree slot.  On refault, the minimum access
-> distance of the page can be assessed, to evaluate whether the page
-> should be part of the active list or not.
-> 
-> This fixes the VM's blindness towards working set changes in excess of
-> the inactive list.  And it's the foundation to further improve the
-> protection ability and reduce the minimum inactive list size of 50%.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  include/linux/mmzone.h |   5 +
->  include/linux/swap.h   |   5 +
->  mm/Makefile            |   2 +-
->  mm/filemap.c           |  61 ++++++++----
->  mm/swap.c              |   2 +
->  mm/vmscan.c            |  24 ++++-
->  mm/vmstat.c            |   2 +
->  mm/workingset.c        | 253 +++++++++++++++++++++++++++++++++++++++++++++++++
->  8 files changed, 331 insertions(+), 23 deletions(-)
->  create mode 100644 mm/workingset.c
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index bd791e452ad7..118ba9f51e86 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -142,6 +142,8 @@ enum zone_stat_item {
->  	NUMA_LOCAL,		/* allocation from local node */
->  	NUMA_OTHER,		/* allocation from other node */
->  #endif
-> +	WORKINGSET_REFAULT,
-> +	WORKINGSET_ACTIVATE,
->  	NR_ANON_TRANSPARENT_HUGEPAGES,
->  	NR_FREE_CMA_PAGES,
->  	NR_VM_ZONE_STAT_ITEMS };
-> @@ -392,6 +394,9 @@ struct zone {
->  	spinlock_t		lru_lock;
->  	struct lruvec		lruvec;
->  
-> +	/* Evictions & activations on the inactive file list */
-> +	atomic_long_t		inactive_age;
-> +
->  	unsigned long		pages_scanned;	   /* since last reclaim */
->  	unsigned long		flags;		   /* zone flags, see below */
->  
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 46ba0c6c219f..b83cf61403ed 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -260,6 +260,11 @@ struct swap_list_t {
->  	int next;	/* swapfile to be used next */
->  };
->  
-> +/* linux/mm/workingset.c */
-> +void *workingset_eviction(struct address_space *mapping, struct page *page);
-> +bool workingset_refault(void *shadow);
-> +void workingset_activation(struct page *page);
-> +
->  /* linux/mm/page_alloc.c */
->  extern unsigned long totalram_pages;
->  extern unsigned long totalreserve_pages;
-> diff --git a/mm/Makefile b/mm/Makefile
-> index 305d10acd081..b30aeb86abd6 100644
-> --- a/mm/Makefile
-> +++ b/mm/Makefile
-> @@ -17,7 +17,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
->  			   util.o mmzone.o vmstat.o backing-dev.o \
->  			   mm_init.o mmu_context.o percpu.o slab_common.o \
->  			   compaction.o balloon_compaction.o \
-> -			   interval_tree.o list_lru.o $(mmu-y)
-> +			   interval_tree.o list_lru.o workingset.o $(mmu-y)
->  
->  obj-y += init-mm.o
->  
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index d02db5801dda..65a374c0df4f 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -469,7 +469,7 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
->  EXPORT_SYMBOL_GPL(replace_page_cache_page);
->  
->  static int page_cache_tree_insert(struct address_space *mapping,
-> -				  struct page *page)
-> +				  struct page *page, void **shadowp)
->  {
->  	void **slot;
->  	int error;
-> @@ -484,6 +484,8 @@ static int page_cache_tree_insert(struct address_space *mapping,
->  		radix_tree_replace_slot(slot, page);
->  		mapping->nrshadows--;
->  		mapping->nrpages++;
-> +		if (shadowp)
-> +			*shadowp = p;
->  		return 0;
->  	}
->  	error = radix_tree_insert(&mapping->page_tree, page->index, page);
-> @@ -492,18 +494,10 @@ static int page_cache_tree_insert(struct address_space *mapping,
->  	return error;
->  }
->  
-> -/**
-> - * add_to_page_cache_locked - add a locked page to the pagecache
-> - * @page:	page to add
-> - * @mapping:	the page's address_space
-> - * @offset:	page index
-> - * @gfp_mask:	page allocation mode
-> - *
-> - * This function is used to add a page to the pagecache. It must be locked.
-> - * This function does not add the page to the LRU.  The caller must do that.
-> - */
-> -int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
-> -		pgoff_t offset, gfp_t gfp_mask)
-> +static int __add_to_page_cache_locked(struct page *page,
-> +				      struct address_space *mapping,
-> +				      pgoff_t offset, gfp_t gfp_mask,
-> +				      void **shadowp)
->  {
->  	int error;
->  
-> @@ -526,7 +520,7 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
->  	page->index = offset;
->  
->  	spin_lock_irq(&mapping->tree_lock);
-> -	error = page_cache_tree_insert(mapping, page);
-> +	error = page_cache_tree_insert(mapping, page, shadowp);
->  	radix_tree_preload_end();
->  	if (unlikely(error))
->  		goto err_insert;
-> @@ -542,16 +536,49 @@ err_insert:
->  	page_cache_release(page);
->  	return error;
->  }
-> +
-> +/**
-> + * add_to_page_cache_locked - add a locked page to the pagecache
-> + * @page:	page to add
-> + * @mapping:	the page's address_space
-> + * @offset:	page index
-> + * @gfp_mask:	page allocation mode
-> + *
-> + * This function is used to add a page to the pagecache. It must be locked.
-> + * This function does not add the page to the LRU.  The caller must do that.
-> + */
-> +int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
-> +		pgoff_t offset, gfp_t gfp_mask)
-> +{
-> +	return __add_to_page_cache_locked(page, mapping, offset,
-> +					  gfp_mask, NULL);
-> +}
->  EXPORT_SYMBOL(add_to_page_cache_locked);
->  
->  int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
->  				pgoff_t offset, gfp_t gfp_mask)
->  {
-> +	void *shadow = NULL;
->  	int ret;
->  
-> -	ret = add_to_page_cache(page, mapping, offset, gfp_mask);
-> -	if (ret == 0)
-> -		lru_cache_add_file(page);
-> +	__set_page_locked(page);
-> +	ret = __add_to_page_cache_locked(page, mapping, offset,
-> +					 gfp_mask, &shadow);
-> +	if (unlikely(ret))
-> +		__clear_page_locked(page);
-> +	else {
-> +		/*
-> +		 * The page might have been evicted from cache only
-> +		 * recently, in which case it should be activated like
-> +		 * any other repeatedly accessed page.
-> +		 */
-> +		if (shadow && workingset_refault(shadow)) {
-> +			SetPageActive(page);
-> +			workingset_activation(page);
-> +		} else
-> +			ClearPageActive(page);
-> +		lru_cache_add(page);
-> +	}
->  	return ret;
->  }
->  EXPORT_SYMBOL_GPL(add_to_page_cache_lru);
-> diff --git a/mm/swap.c b/mm/swap.c
-> index f624e5b4b724..ece5c49d6364 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -519,6 +519,8 @@ void mark_page_accessed(struct page *page)
->  		else
->  			__lru_cache_activate_page(page);
->  		ClearPageReferenced(page);
-> +		if (page_is_file_cache(page))
-> +			workingset_activation(page);
->  	} else if (!PageReferenced(page)) {
->  		SetPageReferenced(page);
->  	}
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index b954b31602cf..0d3c3d7f8c1b 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -505,7 +505,8 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
->   * Same as remove_mapping, but if the page is removed from the mapping, it
->   * gets returned with a refcount of 0.
->   */
-> -static int __remove_mapping(struct address_space *mapping, struct page *page)
-> +static int __remove_mapping(struct address_space *mapping, struct page *page,
-> +			    bool reclaimed)
->  {
->  	BUG_ON(!PageLocked(page));
->  	BUG_ON(mapping != page_mapping(page));
-> @@ -551,10 +552,23 @@ static int __remove_mapping(struct address_space *mapping, struct page *page)
->  		swapcache_free(swap, page);
->  	} else {
->  		void (*freepage)(struct page *);
-> +		void *shadow = NULL;
->  
->  		freepage = mapping->a_ops->freepage;
-> -
-> -		__delete_from_page_cache(page, NULL);
-> +		/*
-> +		 * Remember a shadow entry for reclaimed file cache in
-> +		 * order to detect refaults, thus thrashing, later on.
-> +		 *
-> +		 * But don't store shadows in an address space that is
-> +		 * already exiting.  This is not just an optizimation,
-> +		 * inode reclaim needs to empty out the radix tree or
-> +		 * the nodes are lost.  Don't plant shadows behind its
-> +		 * back.
-> +		 */
-> +		if (reclaimed && page_is_file_cache(page) &&
-> +		    !mapping_exiting(mapping))
-> +			shadow = workingset_eviction(mapping, page);
-> +		__delete_from_page_cache(page, shadow);
->  		spin_unlock_irq(&mapping->tree_lock);
->  		mem_cgroup_uncharge_cache_page(page);
->  
-> @@ -577,7 +591,7 @@ cannot_free:
->   */
->  int remove_mapping(struct address_space *mapping, struct page *page)
->  {
-> -	if (__remove_mapping(mapping, page)) {
-> +	if (__remove_mapping(mapping, page, false)) {
->  		/*
->  		 * Unfreezing the refcount with 1 rather than 2 effectively
->  		 * drops the pagecache ref for us without requiring another
-> @@ -1047,7 +1061,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  			}
->  		}
->  
-> -		if (!mapping || !__remove_mapping(mapping, page))
-> +		if (!mapping || !__remove_mapping(mapping, page, true))
->  			goto keep_locked;
->  
->  		/*
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 9bb314577911..3ac830d1b533 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -770,6 +770,8 @@ const char * const vmstat_text[] = {
->  	"numa_local",
->  	"numa_other",
->  #endif
-> +	"workingset_refault",
-> +	"workingset_activate",
->  	"nr_anon_transparent_hugepages",
->  	"nr_free_cma",
->  	"nr_dirty_threshold",
-> diff --git a/mm/workingset.c b/mm/workingset.c
-> new file mode 100644
-> index 000000000000..8a6c7cff4923
-> --- /dev/null
-> +++ b/mm/workingset.c
-> @@ -0,0 +1,253 @@
-> +/*
-> + * Workingset detection
-> + *
-> + * Copyright (C) 2013 Red Hat, Inc., Johannes Weiner
-> + */
-> +
-> +#include <linux/memcontrol.h>
-> +#include <linux/writeback.h>
-> +#include <linux/pagemap.h>
-> +#include <linux/atomic.h>
-> +#include <linux/module.h>
-> +#include <linux/swap.h>
-> +#include <linux/fs.h>
-> +#include <linux/mm.h>
-> +
-> +/*
-> + *		Double CLOCK lists
-> + *
-> + * Per zone, two clock lists are maintained for file pages: the
-> + * inactive and the active list.  Freshly faulted pages start out at
-> + * the head of the inactive list and page reclaim scans pages from the
-> + * tail.  Pages that are accessed multiple times on the inactive list
-> + * are promoted to the active list, to protect them from reclaim,
-> + * whereas active pages are demoted to the inactive list when the
-> + * active list grows too big.
-> + *
-> + *   fault ------------------------+
-> + *                                 |
-> + *              +--------------+   |            +-------------+
-> + *   reclaim <- |   inactive   | <-+-- demotion |    active   | <--+
-> + *              +--------------+                +-------------+    |
-> + *                     |                                           |
-> + *                     +-------------- promotion ------------------+
-> + *
-> + *
-> + *		Access frequency and refault distance
-> + *
-> + * A workload is thrashing when its pages are frequently used but they
-> + * are evicted from the inactive list every time before another access
-> + * would have promoted them to the active list.
-> + *
-> + * In cases where the average access distance between thrashing pages
-> + * is bigger than the size of memory there is nothing that can be
-> + * done - the thrashing set could never fit into memory under any
-> + * circumstance.
-> + *
-> + * However, the average access distance could be bigger than the
-> + * inactive list, yet smaller than the size of memory.  In this case,
-> + * the set could fit into memory if it weren't for the currently
-> + * active pages - which may be used more, hopefully less frequently:
-> + *
-> + *      +-memory available to cache-+
-> + *      |                           |
-> + *      +-inactive------+-active----+
-> + *  a b | c d e f g h i | J K L M N |
-> + *      +---------------+-----------+
-> + *
-> + * It is prohibitively expensive to accurately track access frequency
-> + * of pages.  But a reasonable approximation can be made to measure
-> + * thrashing on the inactive list, after which refaulting pages can be
-> + * activated optimistically to compete with the existing active pages.
-> + *
-> + * Approximating inactive page access frequency - Observations:
-> + *
-> + * 1. When a page is accessed for the first time, it is added to the
-> + *    head of the inactive list, slides every existing inactive page
-> + *    towards the tail by one slot, and pushes the current tail page
-> + *    out of memory.
-> + *
-> + * 2. When a page is accessed for the second time, it is promoted to
-> + *    the active list, shrinking the inactive list by one slot.  This
-> + *    also slides all inactive pages that were faulted into the cache
-> + *    more recently than the activated page towards the tail of the
-> + *    inactive list.
-> + *
+Thanks,
+Yasuaki Ishiamtsu
 
-Nitpick, how about the reference bit?
+>
+> P.
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-acpi" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>
 
--- 
-Regards,
--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
