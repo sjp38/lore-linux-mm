@@ -1,298 +1,269 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f46.google.com (mail-qe0-f46.google.com [209.85.128.46])
-	by kanga.kvack.org (Postfix) with ESMTP id B26F66B0035
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 15:07:52 -0500 (EST)
-Received: by mail-qe0-f46.google.com with SMTP id 8so126268qea.5
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 12:07:52 -0800 (PST)
-Received: from qmta01.emeryville.ca.mail.comcast.net (qmta01.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:16])
-        by mx.google.com with ESMTP id o8si1974370qey.43.2014.01.14.12.07.50
-        for <linux-mm@kvack.org>;
-        Tue, 14 Jan 2014 12:07:51 -0800 (PST)
-Date: Tue, 14 Jan 2014 14:07:47 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 0/9] re-shrink 'struct page' when SLUB is on.
-In-Reply-To: <52D41F52.5020805@sr71.net>
-Message-ID: <alpine.DEB.2.10.1401141404190.19618@nuc>
-References: <20140103180147.6566F7C1@viggo.jf.intel.com> <20140103141816.20ef2a24c8adffae040e53dc@linux-foundation.org> <20140106043237.GE696@lge.com> <52D05D90.3060809@sr71.net> <20140110153913.844e84755256afd271371493@linux-foundation.org> <52D0854F.5060102@sr71.net>
- <CAOJsxLE-oMpV2G-gxrhyv0Au1tPd87Ow57VD5CWFo41wF8F4Yw@mail.gmail.com> <alpine.DEB.2.10.1401111854580.6036@nuc> <20140113014408.GA25900@lge.com> <52D41F52.5020805@sr71.net>
+Received: from mail-yh0-f53.google.com (mail-yh0-f53.google.com [209.85.213.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 735506B0031
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 15:42:56 -0500 (EST)
+Received: by mail-yh0-f53.google.com with SMTP id z20so275207yhz.40
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 12:42:56 -0800 (PST)
+Received: from mail-pb0-x231.google.com (mail-pb0-x231.google.com [2607:f8b0:400e:c01::231])
+        by mx.google.com with ESMTPS id r46si2234515yhm.197.2014.01.14.12.42.54
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 14 Jan 2014 12:42:55 -0800 (PST)
+Received: by mail-pb0-f49.google.com with SMTP id jt11so134725pbb.36
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 12:42:54 -0800 (PST)
+Date: Tue, 14 Jan 2014 12:42:28 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 2/3] mm/memcg: fix endless iteration in reclaim
+In-Reply-To: <20140114142610.GF32227@dhcp22.suse.cz>
+Message-ID: <alpine.LSU.2.11.1401141201120.3762@eggly.anvils>
+References: <alpine.LSU.2.11.1401131742370.2229@eggly.anvils> <alpine.LSU.2.11.1401131751080.2229@eggly.anvils> <20140114132727.GB32227@dhcp22.suse.cz> <20140114142610.GF32227@dhcp22.suse.cz>
+MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-One easy way to shrink struct page is to simply remove the feature. The
-patchset looked a bit complicated and does many other things.
+On Tue, 14 Jan 2014, Michal Hocko wrote:
+> On Tue 14-01-14 14:27:27, Michal Hocko wrote:
+> > On Mon 13-01-14 17:52:30, Hugh Dickins wrote:
+> > > On one home machine I can easily reproduce (by rmdir of memcgdir during
+> > > reclaim) multiple processes stuck looping forever in mem_cgroup_iter():
+> > > __mem_cgroup_iter_next() keeps selecting the memcg being destroyed, fails
+> > > to tryget it, returns NULL to mem_cgroup_iter(), which goes around again.
+> > 
+> > So you had a single memcg (without any children) and a limit-reclaim
+> > on it when you removed it, right?
+> 
+> Hmm, thinking about this once more how can this happen? There must be a
+> task to trigger the limit reclaim so the cgroup cannot go away (or is
+> this somehow related to kmem accounting?). Only if the taks was migrated
+> after the reclaim was initiated but before we started iterating?
 
+Yes, I believe that's how it comes about (but no kmem accounting:
+it's configured in but I'm not setting limits).
 
-Subject: slub: Remove struct page alignment restriction by dropping cmpxchg_double on struct page fields
+The "cg" script I run for testing appended below.  Normally I just run
+it as "cg 2" to set up two memcgs, then my dual-tmpfs-kbuild script runs
+one kbuild on tmpfs in cg 1, and another kbuild on ext4 on loop on tmpfs
+in cg 2, mainly to test swapping.  But for this bug I run it as "cg m",
+to repeatedly create new memcg, move running tasks from old to new, and
+remove old.
 
-Remove the logic that will do cmpxchg_doubles on struct page fields with
-the requirement of double word alignment. This allows struct page
-to shrink by 8 bytes.
+Sometimes I'm doing swapoff and swapon in the background too, but
+that's not needed to see this bug.  And although we're accustomed to
+move_charge_at_immigrate being a beast, for this bug it's much quicker
+to have that turned off.
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+(Until a couple of months ago, I was working in /cg/1 and /cg/2; but
+have now pushed down a level to /cg/cg/1 and /cg/cg/2 after realizing
+that working at the root would miss some important issues - in particular
+the mem_cgroup_reparent_charges wrong-usage hang; but in fact I have
+*never* caught that here, just know that it still exists from some
+Google watchdog dumps, but we've still not identified the cause -
+seen even without MEMCG_SWAP and with Hannes's extra reparent_charges.)
 
-Index: linux/include/linux/mm_types.h
-===================================================================
---- linux.orig/include/linux/mm_types.h	2014-01-14 13:55:00.611838185 -0600
-+++ linux/include/linux/mm_types.h	2014-01-14 13:55:00.601838496 -0600
-@@ -73,18 +73,12 @@ struct page {
- 		};
+> 
+> I am confused now and have to rush shortly so I will think about it
+> tomorrow some more.
 
- 		union {
--#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
--	defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
--			/* Used for cmpxchg_double in slub */
--			unsigned long counters;
--#else
- 			/*
- 			 * Keep _count separate from slub cmpxchg_double data.
- 			 * As the rest of the double word is protected by
- 			 * slab_lock but _count is not.
- 			 */
- 			unsigned counters;
--#endif
+Thanks, yes, I knew it's one you'd want to think about first: no rush.
 
- 			struct {
+> 
+> > This is nasty because __mem_cgroup_iter_next will try to skip it but
+> > there is nothing else so it returns NULL. We update iter->generation++
+> > but that doesn't help us as prev = NULL as this is the first iteration
+> > so
+> > 		if (prev && reclaim->generation != iter->generation)
+> > 
+> > break out will not help us.
+> 
+> > You patch will surely help I am just not sure it is the right thing to
+> > do. Let me think about this.
+> 
+> The patch is actually not correct after all. You are returning root
+> memcg without taking a reference. So there is a risk that memcg will
+> disappear. Although, it is true that the race with removal is not that
+> probable because mem_cgroup_css_offline (resp. css_free) will see some
+> pages on LRUs and they will reclaim as well.
+> 
+> Ouch. And thinking about this shows that out_css_put is broken as well
+> for subtree walks (those that do not start at root_mem_cgroup level). We
+> need something like the the snippet bellow.
 
-@@ -195,15 +189,7 @@ struct page {
- #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
- 	int _last_cpupid;
- #endif
--}
--/*
-- * The struct page can be forced to be double word aligned so that atomic ops
-- * on double words work. The SLUB allocator can make use of such a feature.
-- */
--#ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
--	__aligned(2 * sizeof(unsigned long))
--#endif
--;
-+};
+It's the out_css_put precedent that I was following in not incrementing
+for the root.  I think that's been discussed in the past, and rightly or
+wrongly we've concluded that the caller of mem_cgroup_iter() always has
+some hold on the root, which makes it safe to skip get/put on it here.
+No doubt one of those many short cuts to avoid memcg overhead when
+there's no memcg other than the root_mem_cgroup.
 
- struct page_frag {
- 	struct page *page;
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c	2014-01-14 13:55:00.611838185 -0600
-+++ linux/mm/slub.c	2014-01-14 14:03:31.025903976 -0600
-@@ -185,7 +185,6 @@ static inline bool kmem_cache_has_cpu_pa
+I've not given enough thought to whether that is still a good assumption.
+The try_charge route does a css_tryget, and that will be the hold on the
+root in the reclaim case, won't it?  And its css_tryget succeeding does
+not guarantee that a css_tryget a moment later will also succeed, which
+is what happens in this bug.
 
- /* Internal SLUB flags */
- #define __OBJECT_POISON		0x80000000UL /* Poison object */
--#define __CMPXCHG_DOUBLE	0x40000000UL /* Use cmpxchg_double */
+But I have not attempted to audit other uses of mem_cgroup_iter() and
+for_each_mem_cgroup_tree().  I've not hit any problems from them, but
+may not have exercised those paths at all.  And the question of
+whether there's a good hold on the root is a separate issue, really.
 
- #ifdef CONFIG_SMP
- static struct notifier_block slab_notifier;
-@@ -362,34 +361,19 @@ static inline bool __cmpxchg_double_slab
- 		const char *n)
- {
- 	VM_BUG_ON(!irqs_disabled());
--#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
--    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
--	if (s->flags & __CMPXCHG_DOUBLE) {
--		if (cmpxchg_double(&page->freelist, &page->counters,
--			freelist_old, counters_old,
--			freelist_new, counters_new))
--		return 1;
--	} else
--#endif
--	{
--		slab_lock(page);
--		if (page->freelist == freelist_old &&
--					page->counters == counters_old) {
--			page->freelist = freelist_new;
--			page->counters = counters_new;
--			slab_unlock(page);
--			return 1;
--		}
-+
-+	slab_lock(page);
-+	if (page->freelist == freelist_old &&
-+				page->counters == counters_old) {
-+		page->freelist = freelist_new;
-+		page->counters = counters_new;
- 		slab_unlock(page);
-+		return 1;
- 	}
--
--	cpu_relax();
- 	stat(s, CMPXCHG_DOUBLE_FAIL);
--
- #ifdef SLUB_DEBUG_CMPXCHG
- 	printk(KERN_INFO "%s %s: cmpxchg double redo ", n, s->name);
- #endif
--
- 	return 0;
- }
+Hugh
 
-@@ -398,40 +382,14 @@ static inline bool cmpxchg_double_slab(s
- 		void *freelist_new, unsigned long counters_new,
- 		const char *n)
- {
--#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
--    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
--	if (s->flags & __CMPXCHG_DOUBLE) {
--		if (cmpxchg_double(&page->freelist, &page->counters,
--			freelist_old, counters_old,
--			freelist_new, counters_new))
--		return 1;
--	} else
--#endif
--	{
--		unsigned long flags;
--
--		local_irq_save(flags);
--		slab_lock(page);
--		if (page->freelist == freelist_old &&
--					page->counters == counters_old) {
--			page->freelist = freelist_new;
--			page->counters = counters_new;
--			slab_unlock(page);
--			local_irq_restore(flags);
--			return 1;
--		}
--		slab_unlock(page);
--		local_irq_restore(flags);
--	}
--
--	cpu_relax();
--	stat(s, CMPXCHG_DOUBLE_FAIL);
--
--#ifdef SLUB_DEBUG_CMPXCHG
--	printk(KERN_INFO "%s %s: cmpxchg double redo ", n, s->name);
--#endif
-+	unsigned long flags;
-+	int r;
+> I really hate this code, especially when I tried to de-obfuscate it and
+> that introduced other subtle issues.
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 1f9d14e2f8de..f75277b0bf82 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1080,7 +1080,7 @@ skip_node:
+>  	if (next_css) {
+>  		struct mem_cgroup *mem = mem_cgroup_from_css(next_css);
+>  
+> -		if (css_tryget(&mem->css))
+> +		if (mem == root_mem_cgroup || css_tryget(&mem->css))
+>  			return mem;
+>  		else {
+>  			prev_css = next_css;
+> @@ -1219,7 +1219,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>  out_unlock:
+>  	rcu_read_unlock();
+>  out_css_put:
+> -	if (prev && prev != root)
+> +	if (prev && prev != root_mem_cgroup)
+>  		css_put(&prev->css);
+>  
+>  	return memcg;
+> 
+> > Anyway very well spotted!
+> > 
+> > > It's better to err on the side of leaving the loop too soon than never
+> > > when such races occur: once we've served prev (using root if none),
+> > > get out the next time __mem_cgroup_iter_next() cannot deliver.
+> > > 
+> > > Signed-off-by: Hugh Dickins <hughd@google.com>
+> > > ---
+> > > Securing the tree iterator against such races is difficult, I've
+> > > certainly got it wrong myself before.  Although the bug is real, and
+> > > deserves a Cc stable, you may want to play around with other solutions
+> > > before committing to this one.  The current iterator goes back to v3.12:
+> > > I'm really not sure if v3.11 was good or not - I never saw the problem
+> > > in the vanilla kernel, but with Google mods in we also had to make an
+> > > adjustment, there to stop __mem_cgroup_iter() being called endlessly
+> > > from the reclaim level.
+> > > 
+> > >  mm/memcontrol.c |    5 ++++-
+> > >  1 file changed, 4 insertions(+), 1 deletion(-)
+> > > 
+> > > --- mmotm/mm/memcontrol.c	2014-01-10 18:25:02.236448954 -0800
+> > > +++ linux/mm/memcontrol.c	2014-01-12 22:21:10.700570471 -0800
+> > > @@ -1254,8 +1252,11 @@ struct mem_cgroup *mem_cgroup_iter(struc
+> > >  				reclaim->generation = iter->generation;
+> > >  		}
+> > >  
+> > > -		if (prev && !memcg)
+> > > +		if (!memcg) {
+> > > +			if (!prev)
+> > > +				memcg = root;
+> > >  			goto out_unlock;
+> > > +		}
+> > >  	}
+> > >  out_unlock:
+> > >  	rcu_read_unlock();
+> > 
+> > -- 
+> > Michal Hocko
+> > SUSE Labs
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
 
--	return 0;
-+	local_irq_save(flags);
-+	r = __cmpxchg_double_slab(s, page, freelist_old, counters_old,
-+			freelist_new, counters_new, n);
-+	local_irq_restore(flags);
-+	return r;
- }
+#!/bin/sh
+seconds=60
 
- #ifdef CONFIG_SLUB_DEBUG
-@@ -3078,13 +3036,6 @@ static int kmem_cache_open(struct kmem_c
- 		}
- 	}
+move() {
+	s=$1
+	d=$2
+	mkdir $cg/$d || exit $?
+	echo $mem >$cg/$d/memory.limit_in_bytes || exit $?
+	[ -z "$soft" ] || echo $soft >$cg/$d/memory.soft_limit_in_bytes || exit $?
+	[ -z "$swam" ] || echo $swam >$cg/$d/memory.memsw.limit_in_bytes || exit $?
+#	echo 3 >$cg/$d/memory.move_charge_at_immigrate || exit $?
+	tasks=0
+	while [ $tasks -lt 4 ]
+	do	sleep 1
+		[ -f /tmp/swapswap ] || exit 0
+		set -- `wc -l $cg/$s/tasks`
+		tasks=$1
+	done
+	while :
+	do
+		while :
+		do	read task <$cg/$s/tasks  || break
+			echo $task >$cg/$d/tasks # but might have gone already
+			[ -f /tmp/swapswap ] || exit 0
+		done	2>/dev/null
+		rmdir $cg/$s 2>/dev/null && break
+		sleep 1
+		[ -f /tmp/swapswap ] || exit 0
+	done
+	sleep $seconds
+	[ -f /tmp/swapswap ] || exit 0
+}
 
--#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
--    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
--	if (system_has_cmpxchg_double() && (s->flags & SLAB_DEBUG_FLAGS) == 0)
--		/* Enable fast mode */
--		s->flags |= __CMPXCHG_DOUBLE;
--#endif
--
- 	/*
- 	 * The larger the object size is, the more pages we want on the partial
- 	 * list to avoid pounding the page allocator excessively.
-@@ -4608,10 +4559,8 @@ static ssize_t sanity_checks_store(struc
- 				const char *buf, size_t length)
- {
- 	s->flags &= ~SLAB_DEBUG_FREE;
--	if (buf[0] == '1') {
--		s->flags &= ~__CMPXCHG_DOUBLE;
-+	if (buf[0] == '1')
- 		s->flags |= SLAB_DEBUG_FREE;
--	}
- 	return length;
- }
- SLAB_ATTR(sanity_checks);
-@@ -4625,10 +4574,8 @@ static ssize_t trace_store(struct kmem_c
- 							size_t length)
- {
- 	s->flags &= ~SLAB_TRACE;
--	if (buf[0] == '1') {
--		s->flags &= ~__CMPXCHG_DOUBLE;
-+	if (buf[0] == '1')
- 		s->flags |= SLAB_TRACE;
--	}
- 	return length;
- }
- SLAB_ATTR(trace);
-@@ -4645,10 +4592,8 @@ static ssize_t red_zone_store(struct kme
- 		return -EBUSY;
+case "x$1" in
+x)	mem=700M ; soft=""  ; memcgs=1 ;;
+x1)	mem=700M ; soft=""  ; memcgs=1 ;;
+x2)	mem=300M ; soft=250M; memcgs=2 ;;
+xm)	mem=300M ; soft=250M; memcgs=2 ;;
+*)	mem=$1   ; soft=""  ; memcgs=1 ;;
+esac
 
- 	s->flags &= ~SLAB_RED_ZONE;
--	if (buf[0] == '1') {
--		s->flags &= ~__CMPXCHG_DOUBLE;
-+	if (buf[0] == '1')
- 		s->flags |= SLAB_RED_ZONE;
--	}
- 	calculate_sizes(s, -1);
- 	return length;
- }
-@@ -4666,10 +4611,8 @@ static ssize_t poison_store(struct kmem_
- 		return -EBUSY;
+> /tmp/swapswap
+mkdir -p /cg || exit $?
+[ -f /cg/memory.usage_in_bytes ] ||
+	mount -t cgroup -o memory cg /cg || exit $?
+[ -f /cg/memory.memsw.usage_in_bytes ] && swam=1000M || swam=""
+echo 1 >/cg/memory.use_hierarchy || exit $?
 
- 	s->flags &= ~SLAB_POISON;
--	if (buf[0] == '1') {
--		s->flags &= ~__CMPXCHG_DOUBLE;
-+	if (buf[0] == '1')
- 		s->flags |= SLAB_POISON;
--	}
- 	calculate_sizes(s, -1);
- 	return length;
- }
-@@ -4687,10 +4630,9 @@ static ssize_t store_user_store(struct k
- 		return -EBUSY;
+cg=/cg/cg
+mkdir -p $cg || exit $?
+echo 1000M >$cg/memory.limit_in_bytes
+[ -z "$soft" ] || echo  800M >$cg/memory.soft_limit_in_bytes
+[ -z "$swam" ] || echo 2000M >$cg/memory.memsw.limit_in_bytes
+echo $$ >$cg/tasks
 
- 	s->flags &= ~SLAB_STORE_USER;
--	if (buf[0] == '1') {
--		s->flags &= ~__CMPXCHG_DOUBLE;
-+	if (buf[0] == '1')
- 		s->flags |= SLAB_STORE_USER;
--	}
-+
- 	calculate_sizes(s, -1);
- 	return length;
- }
-Index: linux/arch/Kconfig
-===================================================================
---- linux.orig/arch/Kconfig	2014-01-14 13:55:00.611838185 -0600
-+++ linux/arch/Kconfig	2014-01-14 13:55:00.601838496 -0600
-@@ -289,14 +289,6 @@ config HAVE_RCU_TABLE_FREE
- config ARCH_HAVE_NMI_SAFE_CMPXCHG
- 	bool
+i=0
+while [ $i -lt $memcgs ]
+do	let i=$i+1
+	mkdir -p $cg/$i || exit $?
+	echo $mem >$cg/$i/memory.limit_in_bytes || exit $?
+	[ -z "$soft" ] || echo $soft >$cg/$i/memory.soft_limit_in_bytes || exit $?
+	[ -z "$swam" ] || echo $swam >$cg/$i/memory.memsw.limit_in_bytes || swam=""
 
--config HAVE_ALIGNED_STRUCT_PAGE
--	bool
--	help
--	  This makes sure that struct pages are double word aligned and that
--	  e.g. the SLUB allocator can perform double word atomic operations
--	  on a struct page for better performance. However selecting this
--	  might increase the size of a struct page by a word.
--
- config HAVE_CMPXCHG_LOCAL
- 	bool
+	chmod a+w $cg/$i/tasks || exit $?
+done
+while [ $i -lt 4 ]
+do	let i=$i+1
+	[ ! -d $cg/$i ] || rmdir $cg/$i || exit $?
+done
+[ "x$1" = xm ] || exit 0
 
-Index: linux/arch/s390/Kconfig
-===================================================================
---- linux.orig/arch/s390/Kconfig	2014-01-14 13:55:00.611838185 -0600
-+++ linux/arch/s390/Kconfig	2014-01-14 13:55:00.601838496 -0600
-@@ -102,7 +102,6 @@ config S390
- 	select GENERIC_FIND_FIRST_BIT
- 	select GENERIC_SMP_IDLE_THREAD
- 	select GENERIC_TIME_VSYSCALL
--	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
- 	select HAVE_ARCH_JUMP_LABEL if !MARCH_G5
- 	select HAVE_ARCH_SECCOMP_FILTER
- 	select HAVE_ARCH_TRACEHOOK
-Index: linux/arch/x86/Kconfig
-===================================================================
---- linux.orig/arch/x86/Kconfig	2014-01-14 13:55:00.611838185 -0600
-+++ linux/arch/x86/Kconfig	2014-01-14 13:55:00.601838496 -0600
-@@ -77,7 +77,6 @@ config X86
- 	select HAVE_PERF_USER_STACK_DUMP
- 	select HAVE_DEBUG_KMEMLEAK
- 	select ANON_INODES
--	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
- 	select HAVE_CMPXCHG_LOCAL
- 	select HAVE_CMPXCHG_DOUBLE
- 	select HAVE_ARCH_KMEMCHECK
+while :
+do	move 1 3
+	move 2 4
+	move 3 1
+	move 4 2
+done &
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
