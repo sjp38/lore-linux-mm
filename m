@@ -1,170 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 0761C6B0031
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 17:45:32 -0500 (EST)
-Received: by mail-wg0-f42.google.com with SMTP id l18so4505036wgh.5
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 14:45:32 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id ap4si1552871wjc.64.2014.01.14.14.45.31
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 66DA66B0031
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 18:13:44 -0500 (EST)
+Received: by mail-pb0-f54.google.com with SMTP id un15so291688pbc.27
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 15:13:44 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id n8si1850241pax.44.2014.01.14.15.13.41
         for <linux-mm@kvack.org>;
-        Tue, 14 Jan 2014 14:45:32 -0800 (PST)
-Date: Tue, 14 Jan 2014 17:45:23 -0500
-From: Richard Guy Briggs <rgb@redhat.com>
-Subject: Re: [RFC][PATCH 3/3] audit: Audit proc cmdline value
-Message-ID: <20140114224523.GF23577@madcap2.tricolour.ca>
-References: <1389022230-24664-1-git-send-email-wroberts@tresys.com>
- <1389022230-24664-3-git-send-email-wroberts@tresys.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1389022230-24664-3-git-send-email-wroberts@tresys.com>
+        Tue, 14 Jan 2014 15:13:42 -0800 (PST)
+Date: Tue, 14 Jan 2014 15:13:40 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC] hotplug, memory: move register_memory_resource out of the
+ lock_memory_hotplug
+Message-Id: <20140114151340.004d25c00056d88f33cadda0@linux-foundation.org>
+In-Reply-To: <1389723874-32372-1-git-send-email-nzimmer@sgi.com>
+References: <1389723874-32372-1-git-send-email-nzimmer@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: William Roberts <bill.c.roberts@gmail.com>
-Cc: linux-audit@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, sds@tycho.nsa.gov, William Roberts <wroberts@tresys.com>
+To: Nathan Zimmer <nzimmer@sgi.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Hedi <hedi@sgi.com>, Mike Travis <travis@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 14/01/06, William Roberts wrote:
-> During an audit event, cache and print the value of the process's
-> cmdline value (proc/<pid>/cmdline). This is useful in situations
-> where processes are started via fork'd virtual machines where the
-> comm field is incorrect. Often times, setting the comm field still
-> is insufficient as the comm width is not very wide and most
-> virtual machine "package names" do not fit. Also, during execution,
-> many threads have their comm field set as well. By tying it back to
-> the global cmdline value for the process, audit records will be more
-> complete in systems with these properties. An example of where this
-> is useful and applicable is in the realm of Android. With Android,
-> their is no fork/exec for VM instances. The bare, preloaded Dalvik
-> VM listens for a fork and specialize request. When this request comes
-> in, the VM forks, and the loads the specific application (specializing).
-> This was done to take advantage of COW and to not require a load of
-> basic packages by the VM on very app spawn. When this spawn occurs,
-> the package name is set via setproctitle() and shows up in procfs.
-> Many of these package names are longer then 16 bytes, the historical
-> width of task->comm. Having the cmdline in the audit records will
-> couple the application back to the record directly. Also, on my
-> Debian development box, some audit records were more useful then
-> what was printed under comm.
+On Tue, 14 Jan 2014 12:24:34 -0600 Nathan Zimmer <nzimmer@sgi.com> wrote:
 
-So...  What happenned to allocating only what you need instead of the
-full 4k buffer?  Your test results showed promise with only 64 or 128
-bytes allocated.  I recall seeing some discussion about a race between
-testing for the size needed and actually filling the buffer, but was
-hoping that would be worked on rather than reverting back to the full
-4k.
-
-> The cached cmdline is tied to the life-cycle of the audit_context
-> structure and is built on demand.
+> We don't need to do register_memory_resource() since it has its own lock and
+> doesn't make any callbacks.
 > 
-> Example denial prior to patch (Ubuntu):
-> CALL msg=audit(1387828084.070:361): arch=c000003e syscall=82 success=yes exit=0 a0=4184bf a1=418547 a2=0 a3=0 items=0 ppid=1 pid=1329 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 ses=4294967295 tty=(none) comm="console-kit-dae" exe="/usr/sbin/console-kit-daemon" subj=system_u:system_r:consolekit_t:s0-s0:c0.c255 key=(null)
+> Also register_memory_resource return NULL on failure so we don't have anything
+> to cleanup at this point.
 > 
-> After Patches (Ubuntu):
-> type=SYSCALL msg=audit(1387828084.070:361): arch=c000003e syscall=82 success=yes exit=0 a0=4184bf a1=418547 a2=0 a3=0 items=0 ppid=1 pid=1329 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 ses=4294967295 tty=(none) comm="console-kit-dae" exe="/usr/sbin/console-kit-daemon" subj=system_u:system_r:consolekit_t:s0-s0:c0.c255 cmdline="/usr/lib/dbus-1.0/dbus-daemon-launch-helper" key=(null)
 > 
-> Example denial prior to patch (Android):
-> type=1300 msg=audit(248323.940:247): arch=40000028 syscall=54 per=840000 success=yes exit=0 a0=39 a1=540b a2=2 a3=750eecec items=0 ppid=224 pid=1858 auid=4294967295 uid=1002 gid=1002 euid=1002 suid=1002 fsuid=1002 egid=1002 sgid=1002 fsgid=1002 tty=(none) ses=4294967295 comm="bt_hc_worker" exe="/system/bin/app_process" subj=u:r:bluetooth:s0 key=(null)
+> The reason for this rfc is I was doing some experiments with hotplugging of
+> memory on some of our larger systems.  While it seems to work, it can be quite
+> slow.  With some preliminary digging I found that lock_memory_hotplug is
+> clearly ripe for breakup.
 > 
-> After Patches (Android):
-> type=1300 msg=audit(248323.940:247): arch=40000028 syscall=54 per=840000 success=yes exit=0 a0=39 a1=540b a2=2 a3=750eecec items=0 ppid=224 pid=1858 auid=4294967295 uid=1002 gid=1002 euid=1002 suid=1002 fsuid=1002 egid=1002 sgid=1002 fsgid=1002 tty=(none) ses=4294967295 comm="bt_hc_worker" exe="/system/bin/app_process" cmdline="com.android.bluetooth" subj=u:r:bluetooth:s0 key=(null)
+> It could be broken up per nid or something but it also covers the
+> online_page_callback.  The online_page_callback shouldn't be very hard to break
+> out.
 > 
-> Signed-off-by: William Roberts <wroberts@tresys.com>
-> ---
->  kernel/audit.h   |    1 +
->  kernel/auditsc.c |   32 ++++++++++++++++++++++++++++++++
->  2 files changed, 33 insertions(+)
-> 
-> diff --git a/kernel/audit.h b/kernel/audit.h
-> index b779642..bd6211f 100644
-> --- a/kernel/audit.h
-> +++ b/kernel/audit.h
-> @@ -202,6 +202,7 @@ struct audit_context {
->  		} execve;
->  	};
->  	int fds[2];
-> +	char *cmdline;
+> Also there is the issue of various structures(wmarks come to mind) that are
+> only updated under the lock_memory_hotplug that would need to be dealt with.
+>
+> ...
+>
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1097,17 +1097,18 @@ int __ref add_memory(int nid, u64 start, u64 size)
+>  	struct resource *res;
+>  	int ret;
 >  
->  #if AUDIT_DEBUG
->  	int		    put_count;
-> diff --git a/kernel/auditsc.c b/kernel/auditsc.c
-> index 90594c9..a4c2003 100644
-> --- a/kernel/auditsc.c
-> +++ b/kernel/auditsc.c
-> @@ -842,6 +842,12 @@ static inline struct audit_context *audit_get_context(struct task_struct *tsk,
->  	return context;
->  }
+> -	lock_memory_hotplug();
+> -
+>  	res = register_memory_resource(start, size);
+>  	ret = -EEXIST;
+>  	if (!res)
+> -		goto out;
+> +		return ret;
 >  
-> +static inline void audit_cmdline_free(struct audit_context *context)
-> +{
-> +	kfree(context->cmdline);
-> +	context->cmdline = NULL;
-> +}
+>  	{	/* Stupid hack to suppress address-never-null warning */
+>  		void *p = NODE_DATA(nid);
+>  		new_pgdat = !p;
+>  	}
 > +
->  static inline void audit_free_names(struct audit_context *context)
->  {
->  	struct audit_names *n, *next;
-> @@ -955,6 +961,7 @@ static inline void audit_free_context(struct audit_context *context)
->  	audit_free_aux(context);
->  	kfree(context->filterkey);
->  	kfree(context->sockaddr);
-> +	audit_cmdline_free(context);
->  	kfree(context);
->  }
->  
-> @@ -1271,6 +1278,30 @@ static void show_special(struct audit_context *context, int *call_panic)
->  	audit_log_end(ab);
->  }
->  
-> +static void audit_log_cmdline(struct audit_buffer *ab, struct task_struct *tsk,
-> +			 struct audit_context *context)
-> +{
-> +	int res;
-> +	char *buf;
-> +	char *msg = "(null)";
-> +	audit_log_format(ab, " cmdline=");
+> +	lock_memory_hotplug();
 > +
-> +	/* Not  cached */
-> +	if (!context->cmdline) {
-> +		buf = kmalloc(PATH_MAX, GFP_KERNEL);
-> +		if (!buf)
-> +			goto out;
-> +		res = get_cmdline(tsk, buf, PATH_MAX);
-> +		/* Ensure NULL terminated */
-> +		if (buf[res-1] != '\0')
-> +			buf[res-1] = '\0';
-> +		context->cmdline = buf;
-> +	}
-> +	msg = context->cmdline;
-> +out:
-> +	audit_log_untrustedstring(ab, msg);
-> +}
-> +
->  static void audit_log_exit(struct audit_context *context, struct task_struct *tsk)
->  {
->  	int i, call_panic = 0;
-> @@ -1302,6 +1333,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
->  			 context->name_count);
->  
->  	audit_log_task_info(ab, tsk);
-> +	audit_log_cmdline(ab, tsk, context);
->  	audit_log_key(ab, context->filterkey);
->  	audit_log_end(ab);
->  
-> -- 
-> 1.7.9.5
-> 
-> --
-> Linux-audit mailing list
-> Linux-audit@redhat.com
-> https://www.redhat.com/mailman/listinfo/linux-audit
+>  	new_node = !node_online(nid);
+>  	if (new_node) {
+>  		pgdat = hotadd_new_pgdat(nid, start);
 
-- RGB
+Looks sane to me.
 
---
-Richard Guy Briggs <rbriggs@redhat.com>
-Senior Software Engineer, Kernel Security, AMER ENG Base Operating Systems, Red Hat
-Remote, Ottawa, Canada
-Voice: +1.647.777.2635, Internal: (81) 32635, Alt: +1.613.693.0684x3545
+register_memory_resource() makes me cry.  Please review:
+
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: mm/memory_hotplug.c: register_memory_resource() fixes
+
+- register_memory_resource() should not go BUG on ENOMEM.  That's
+  appropriate at system boot time, but not at memory-hotplug time.  Fix.
+
+- register_memory_resource()'s caller is incorrectly replacing
+  request_resource()'s -EBUSY with -EEXIST.  Fix this by propagating
+  errors appropriately.
+
+Cc: "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
+Cc: Hedi <hedi@sgi.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mike Travis <travis@sgi.com>
+Cc: Nathan Zimmer <nzimmer@sgi.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: Wen Congyang <wency@cn.fujitsu.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/memory_hotplug.c |   15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)
+
+diff -puN mm/memory_hotplug.c~mm-memory_hotplugc-register_memory_resource-fixes mm/memory_hotplug.c
+--- a/mm/memory_hotplug.c~mm-memory_hotplugc-register_memory_resource-fixes
++++ a/mm/memory_hotplug.c
+@@ -64,17 +64,21 @@ void unlock_memory_hotplug(void)
+ static struct resource *register_memory_resource(u64 start, u64 size)
+ {
+ 	struct resource *res;
++	int err;
++
+ 	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+-	BUG_ON(!res);
++	if (!res)
++		return ERR_PTR(-ENOMEM);
+ 
+ 	res->name = "System RAM";
+ 	res->start = start;
+ 	res->end = start + size - 1;
+ 	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+-	if (request_resource(&iomem_resource, res) < 0) {
++	err = request_resource(&iomem_resource, res);
++	if (err) {
+ 		pr_debug("System RAM resource %pR cannot be added\n", res);
+ 		kfree(res);
+-		res = NULL;
++		res = ERR_PTR(err);
+ 	}
+ 	return res;
+ }
+@@ -1108,9 +1112,8 @@ int __ref add_memory(int nid, u64 start,
+ 		return ret;
+ 
+ 	res = register_memory_resource(start, size);
+-	ret = -EEXIST;
+-	if (!res)
+-		return ret;
++	if (IS_ERR(res))
++		return PTR_ERR(res);
+ 
+ 	{	/* Stupid hack to suppress address-never-null warning */
+ 		void *p = NODE_DATA(nid);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
