@@ -1,61 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id C43CE6B0031
-	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 20:15:08 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id y10so1150211pdj.38
-        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 17:15:08 -0800 (PST)
-Received: from g1t0027.austin.hp.com (g1t0027.austin.hp.com. [15.216.28.34])
-        by mx.google.com with ESMTPS id sa6si17211452pbb.323.2014.01.13.17.15.06
+Received: from mail-gg0-f177.google.com (mail-gg0-f177.google.com [209.85.161.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DEF16B0031
+	for <linux-mm@kvack.org>; Mon, 13 Jan 2014 20:19:35 -0500 (EST)
+Received: by mail-gg0-f177.google.com with SMTP id f4so647425ggn.22
+        for <linux-mm@kvack.org>; Mon, 13 Jan 2014 17:19:35 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id o28si22759855yhd.216.2014.01.13.17.19.34
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 13 Jan 2014 17:15:07 -0800 (PST)
-Message-ID: <1389661746.1792.254.camel@misato.fc.hp.com>
-Subject: Re: [PATCH 2/2] x86, e820 disable ACPI Memory Hotplug if memory
- mapping is specified by user [v2]
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 13 Jan 2014 18:09:06 -0700
-In-Reply-To: <52D48A9D.7000003@zytor.com>
-References: <1389380698-19361-1-git-send-email-prarit@redhat.com>
-		 <1389380698-19361-4-git-send-email-prarit@redhat.com>
-		 <alpine.DEB.2.02.1401111624170.20677@be1.lrz>
-	 <52D32962.5050908@redhat.com>
-		 <CAHGf_=qWB81f8fdDdjaXXh1JoSDUsJmcEHwH+CEJ2E-5XWz6qA@mail.gmail.com>
-		 <52D4793E.8070102@redhat.com> <1389659632.1792.247.camel@misato.fc.hp.com>
-	 <52D48A9D.7000003@zytor.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        Mon, 13 Jan 2014 17:19:34 -0800 (PST)
+Message-ID: <52D4909B.7070107@oracle.com>
+Date: Tue, 14 Jan 2014 09:19:23 +0800
+From: Bob Liu <bob.liu@oracle.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm/zswap: Check all pool pages instead of one pool pages
+References: <000101cf0ea0$f4e7c560$deb75020$@samsung.com> <20140113233505.GS1992@bbox>
+In-Reply-To: <20140113233505.GS1992@bbox>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Prarit Bhargava <prarit@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Bodo Eggert <7eggert@gmx.de>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, the arch/x86 maintainers <x86@kernel.org>, Len Brown <lenb@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, dyoung@redhat.com, linux-acpi@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Cai Liu <cai.liu@samsung.com>, sjenning@linux.vnet.ibm.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, liucai.lfn@gmail.com
 
-On Mon, 2014-01-13 at 16:53 -0800, H. Peter Anvin wrote:
-> On 01/13/2014 04:33 PM, Toshi Kani wrote:
-> > 
-> > I do not think it makes sense.  You needed memmap=exactmap as a
-> > workaround because the kernel did not boot with the firmware's memory
-> > info.  So, it's broken, and you requested the kernel to ignore the
-> > firmware info.
-> > 
-> > Why do you think memory hotplug needs to be supported under such
-> > condition, which has to use the broken firmware info?
-> > 
+
+On 01/14/2014 07:35 AM, Minchan Kim wrote:
+> Hello,
 > 
-> Even more than memory hotplug: what do we do with NUMA?  Since we have
-> already told the kernel "the firmware is bogus" it would seem that any
-> NUMA optimizations would be a bit ... cantankerous at best, no?
+> On Sat, Jan 11, 2014 at 03:43:07PM +0800, Cai Liu wrote:
+>> zswap can support multiple swapfiles. So we need to check
+>> all zbud pool pages in zswap.
+> 
+> True but this patch is rather costly that we should iterate
+> zswap_tree[MAX_SWAPFILES] to check it. SIGH.
+> 
+> How about defining zswap_tress as linked list instead of static
+> array? Then, we could reduce unnecessary iteration too much.
+> 
 
-Agreed that NUMA info can be bogus in this case, but is probably not
-critical.
+But if use linked list, it might not easy to access the tree like this:
+struct zswap_tree *tree = zswap_trees[type];
 
-In majority of the cases, memmap=exactmap is used for kdump and the
-firmware info is sane.  So, I think we should keep NUMA enabled since it
-could be useful when multiple CPUs are enabled for kdump.
+BTW: I'm still prefer to use dynamic pool size, instead of use
+zswap_is_full(). AFAIR, Seth has a plan to replace the rbtree with radix
+which will be more flexible to support this feature and page migration
+as well.
 
-Thanks,
--Toshi
+> Other question:
+> Why do we need to update zswap_pool_pages too frequently?
+> As I read the code, I think it's okay to update it only when user
+> want to see it by debugfs and zswap_is_full is called.
+> So could we optimize it out?
+> 
+>>
+>> Signed-off-by: Cai Liu <cai.liu@samsung.com>
 
+Reviewed-by: Bob Liu <bob.liu@oracle.com>
+
+>> ---
+>>  mm/zswap.c |   18 +++++++++++++++---
+>>  1 file changed, 15 insertions(+), 3 deletions(-)
+>>
+>> diff --git a/mm/zswap.c b/mm/zswap.c
+>> index d93afa6..2438344 100644
+>> --- a/mm/zswap.c
+>> +++ b/mm/zswap.c
+>> @@ -291,7 +291,6 @@ static void zswap_free_entry(struct zswap_tree *tree,
+>>  	zbud_free(tree->pool, entry->handle);
+>>  	zswap_entry_cache_free(entry);
+>>  	atomic_dec(&zswap_stored_pages);
+>> -	zswap_pool_pages = zbud_get_pool_size(tree->pool);
+>>  }
+>>  
+>>  /* caller must hold the tree lock */
+>> @@ -405,10 +404,24 @@ cleanup:
+>>  /*********************************
+>>  * helpers
+>>  **********************************/
+>> +static u64 get_zswap_pool_pages(void)
+>> +{
+>> +	int i;
+>> +	u64 pool_pages = 0;
+>> +
+>> +	for (i = 0; i < MAX_SWAPFILES; i++) {
+>> +		if (zswap_trees[i])
+>> +			pool_pages += zbud_get_pool_size(zswap_trees[i]->pool);
+>> +	}
+>> +	zswap_pool_pages = pool_pages;
+>> +
+>> +	return pool_pages;
+>> +}
+>> +
+>>  static bool zswap_is_full(void)
+>>  {
+>>  	return (totalram_pages * zswap_max_pool_percent / 100 <
+>> -		zswap_pool_pages);
+>> +		get_zswap_pool_pages());
+>>  }
+>>  
+>>  /*********************************
+>> @@ -716,7 +729,6 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+>>  
+>>  	/* update stats */
+>>  	atomic_inc(&zswap_stored_pages);
+>> -	zswap_pool_pages = zbud_get_pool_size(tree->pool);
+>>  
+>>  	return 0;
+>>  
+>> -- 
+>> 1.7.10.4
+-- 
+Regards,
+-Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
