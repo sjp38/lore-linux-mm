@@ -1,102 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C95F6B0031
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 06:02:31 -0500 (EST)
-Received: by mail-qc0-f173.google.com with SMTP id i8so3994675qcq.4
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 03:02:31 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id ge8si184833qab.146.2014.01.14.03.02.29
-        for <linux-mm@kvack.org>;
-        Tue, 14 Jan 2014 03:02:30 -0800 (PST)
-Message-ID: <52D51938.1090408@redhat.com>
-Date: Tue, 14 Jan 2014 06:02:16 -0500
-From: Prarit Bhargava <prarit@redhat.com>
+Received: from mail-ea0-f170.google.com (mail-ea0-f170.google.com [209.85.215.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 57E5E6B0031
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 06:05:08 -0500 (EST)
+Received: by mail-ea0-f170.google.com with SMTP id k10so3873640eaj.29
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 03:05:07 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y48si353469eew.142.2014.01.14.03.05.07
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 14 Jan 2014 03:05:07 -0800 (PST)
+Message-ID: <52D519DC.9060402@suse.cz>
+Date: Tue, 14 Jan 2014 12:05:00 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] x86, e820 disable ACPI Memory Hotplug if memory mapping
- is specified by user [v2]
-References: <1389380698-19361-1-git-send-email-prarit@redhat.com>	 <1389380698-19361-4-git-send-email-prarit@redhat.com>	 <alpine.DEB.2.02.1401111624170.20677@be1.lrz> <52D32962.5050908@redhat.com>	 <CAHGf_=qWB81f8fdDdjaXXh1JoSDUsJmcEHwH+CEJ2E-5XWz6qA@mail.gmail.com>	 <52D4793E.8070102@redhat.com> <1389659632.1792.247.camel@misato.fc.hp.com>
-In-Reply-To: <1389659632.1792.247.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH] mm/mlock: fix BUG_ON unlocked page for nolinear VMAs
+References: <1387267550-8689-1-git-send-email-liwanp@linux.vnet.ibm.com>	<52b1138b.0201430a.19a8.605dSMTPIN_ADDED_BROKEN@mx.google.com>	<52B11765.8030005@oracle.com>	<52b120a5.a3b2440a.3acf.ffffd7c3SMTPIN_ADDED_BROKEN@mx.google.com>	<52B166CF.6080300@suse.cz>	<52b1699f.87293c0a.75d1.34d3SMTPIN_ADDED_BROKEN@mx.google.com>	<20131218134316.977d5049209d9278e1dad225@linux-foundation.org>	<52C71ACC.20603@oracle.com>	<CA+55aFzDcFyyXwUUu5bLP3fsiuzxU7VPivpTPHgp8smvdTeESg@mail.gmail.com>	<52C74972.6050909@suse.cz> <CA+55aFzq1iQqddGo-m=vutwMYn5CPf65Ergov5svKR4AWC3rUQ@mail.gmail.com> <6B2BA408B38BA1478B473C31C3D2074E2BF812BC82@SV-EXCHANGE1.Corp.FC.LOCAL> <52CC16DC.9070308@suse.cz> <6B2BA408B38BA1478B473C31C3D2074E2C386DF586@SV-EXCHANGE1.Corp.FC.LOCAL> <52D3F248.7030803@suse.cz>
+In-Reply-To: <52D3F248.7030803@suse.cz>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Bodo Eggert <7eggert@gmx.de>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Len Brown <lenb@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linn Crosetto <linn@hp.com>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, dyoung@redhat.com, linux-acpi@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Michel Lespinasse <walken@google.com>, Bob Liu <bob.liu@oracle.com>, Nick Piggin <npiggin@suse.de>, Motohiro Kosaki JP <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-
-
-On 01/13/2014 07:33 PM, Toshi Kani wrote:
-> On Mon, 2014-01-13 at 18:39 -0500, Prarit Bhargava wrote:
->>
->> On 01/13/2014 03:31 PM, KOSAKI Motohiro wrote:
->>> On Sun, Jan 12, 2014 at 6:46 PM, Prarit Bhargava <prarit@redhat.com> wrote:
->>>>
->>>>
->>>> On 01/11/2014 11:35 AM, 7eggert@gmx.de wrote:
->>>>>
->>>>>
->>>>> On Fri, 10 Jan 2014, Prarit Bhargava wrote:
->>>>>
->>>>>> kdump uses memmap=exactmap and mem=X values to configure the memory
->>>>>> mapping for the kdump kernel.  If memory is hotadded during the boot of
->>>>>> the kdump kernel it is possible that the page tables for the new memory
->>>>>> cause the kdump kernel to run out of memory.
->>>>>>
->>>>>> Since the user has specified a specific mapping ACPI Memory Hotplug should be
->>>>>> disabled in this case.
->>>>>
->>>>> I'll ask just in case: Is it possible to want memory hotplug in spite of
->>>>> using memmap=exactmap or mem=X?
->>>>
->>>> Good question -- I can't think of a case.  When a user specifies "memmap" or
->>>> "mem" IMO they are asking for a very specific memory configuration.  Having
->>>> extra memory added above what the user has specified seems to defeat the purpose
->>>> of "memmap" and "mem".
+On 01/13/2014 03:03 PM, Vlastimil Babka wrote:
+> On 01/10/2014 06:48 PM, Motohiro Kosaki wrote:
+>>> diff --git a/mm/rmap.c b/mm/rmap.c
+>>> index 068522d..b99c742 100644
+>>> --- a/mm/rmap.c
+>>> +++ b/mm/rmap.c
+>>> @@ -1389,9 +1389,19 @@ static int try_to_unmap_cluster(unsigned long
+>>> cursor, unsigned int *mapcount,
+>>>    		BUG_ON(!page || PageAnon(page));
 >>>
->>> May be yes, may be no.
->>>
->>> They are often used for a wrokaround to avoid broken firmware issue.
->>> If we have no way
->>> to explicitly enable hotplug. We will lose a workaround.
->>>
->>> Perhaps, there is no matter. Today, memory hotplug is only used on
->>> high-end machine
->>> and their firmware is carefully developped and don't have a serious
->>> issue almostly. Though.
+>>>    		if (locked_vma) {
+>>> -			mlock_vma_page(page);   /* no-op if already
+>>> mlocked */
+>>> -			if (page == check_page)
+>>> +			if (page == check_page) {
+>>> +				/* we know we have check_page locked */
+>>> +				mlock_vma_page(page);
+>>>    				ret = SWAP_MLOCK;
+>>> +			} else if (trylock_page(page)) {
+>>> +				/*
+>>> +				 * If we can lock the page, perform mlock.
+>>> +				 * Otherwise leave the page alone, it will be
+>>> +				 * eventually encountered again later.
+>>> +				 */
+>>> +				mlock_vma_page(page);
+>>> +				unlock_page(page);
+>>> +			}
+>>>    			continue;	/* don't unmap */
+>>>    		}
 >>
->> Oof -- sorry Kosaki :(  I didn't see this until just now (and your subsequent
->> ACK on the updated patch).
+>> I audited all related mm code. However I couldn't find any race that it can close.
+>
+> Well, I would say the lock here closes the race with page migration, no? (As discussed below)
+>
+>> First off,  current munlock code is crazy tricky.
+>
+> Oops, that's actually a result of my patches to speed up munlock by batching pages (since 3.12).
+>
+>> munlock
+>> 	down_write(mmap_sem)
+>> 	do_mlock()
+>> 		mlock_fixup
+>> 			munlock_vma_pages_range
+>> 				__munlock_pagevec
+>> 					spin_lock_irq(zone->lru_lock)
+>> 					TestClearPageMlocked(page)
+>> 					del_page_from_lru_list
+>> 					spin_unlock_irq(zone->lru_lock)
+>> 					lock_page
+>> 					__munlock_isolated_page
+>> 					unlock_page
+>> 				
+>> 	up_write(mmap_sem)
 >>
->> I just remembered that we did have a processor vendor's whitebox that would not
->> boot unless we specified a specific memmap and we did specify memmap=exactmap to
->> boot the system correctly and the system had hotplug memory.
+>> Look, TestClearPageMlocked(page) is not protected by lock_page.
+>
+> Right :( That's my fault, when developing the patch series I didn't see the page
+> migration race, and it seemed that lock is only needed to protect the rmap operations
+> in __munlock_isolated_page()
+>
+>> But this is still
+>> safe because Page_mocked mean one or more vma marked VM_LOCKED then we
+>> only need care about turning down final VM_LOCKED. I.e. mmap_sem protect them.
 >>
->> So it means that I should not key off of "memmap=exactmap".
-> 
-> I do not think it makes sense.  You needed memmap=exactmap as a
-> workaround because the kernel did not boot with the firmware's memory
-> info.  So, it's broken, and you requested the kernel to ignore the
-> firmware info.
-> 
-> Why do you think memory hotplug needs to be supported under such
-> condition, which has to use the broken firmware info?
+>> And,
+>>
+>> 					spin_lock_irq(zone->lru_lock)
+>> 					del_page_from_lru_list
+>> 					spin_unlock_irq(zone->lru_lock)
+>>
+>> This idiom ensures I or someone else isolate the page from lru and isolated pages
+>> will be put back by putback_lru_page in anycase. So, the pages will move the right
+>> lru eventually.
+>>
+>> And then, taking page-lock doesn't help to close vs munlock race.
+>>
+>> On the other hands, page migration has the following call stack.
+>>
+>> some-caller [isolate_lru_page]
+>> 	unmap_and_move
+>> 		__unmap_and_move
+>> 		trylock_page
+>> 		try_to_unmap
+>> 		move_to_new_page
+>> 			migrate_page
+>> 				migrate_page_copy
+>> 		unlock_page
+>>
+>> The critical part (i.e. migrate_page_copy) is protected by both page isolation and page lock.
+>
+> However, none of that protects against setting PG_mlocked in try_to_unmap_cluster() -> mlock_vma_page(),
+> or clearing PG_mlocked in __munlock_pagevec().
+>
+> The race I have in mind for munlock is:
+>
+> CPU1 does page migration
+>   some-caller [isolate_lru_page]
+>   	unmap_and_move
+>   		__unmap_and_move
+>   		trylock_page
+>   		try_to_unmap
+>   		move_to_new_page
+>   			migrate_page
+>   				migrate_page_copy
+> 					mlock_migrate_page - transfers PG_mlocked from old page to new page
+>
+> CPU2 does munlock:
+>   munlock
+>   	down_write(mmap_sem)
+>   	do_mlock()
+>   		mlock_fixup
+>   			munlock_vma_pages_range
+>   				__munlock_pagevec
+>   					spin_lock_irq(zone->lru_lock)
+>   					TestClearPageMlocked(page) - here it finds PG_mlocked already cleared
+> 					so it stops, but meanwhile new page already has PG_mlocked set and will
+> 					stay inevictable
 
-There was a memory address region that was not in the e820 map that had to be
-reserved for a specific device's use.  It was not so we used memmap=exactmap and
-other memmap entries to "rewrite" the e820 map to see if the system would boot;
-then I filed a bug against the hardware vendor ;)
+As Mel pointed out to me, page lock in munlock alone would not help here
+anyway, because munlock would just wait for migration to unlock the old 
+page and then still fail to clear a flag that has been transferred by 
+migration to the new page. So if there was a race, it would be older 
+than __munlock_pagevec() removing TestClearPageMlocked(page) from the 
+page_lock protected section.
 
-So, yes, in that case I did want memory hotplug & memmap=exactmap.  Admittedly
-this was a rare corner case, and I certainly could have recompiled the kernel.
+But then I noticed that migration bails out for pages that have elevated 
+pins, and this is done after making the page unreachable for 
+mlock/munlock via pte migration entries. So this alone should prevent a 
+race with m(un)lock, with three possible scenarios:
+- m(un)lock sees the migration entry and waits for migration to
+   complete (via follow_page_mask), operates on the new page
+- m(un)lock gets the page reference before migration entry is set,
+   finishes before migration checks the page pin count, migration
+   transfers the new PG_mlocked state to the new page
+- m(un)lock doesn't finish that quickly, migration bails out, m(un)lock
+   changes the old page that is mapped back
 
-P.
 
-> 
-> Thanks,
-> -Toshi 
-> 
-> 
-> 
+>> Page fault path take lock page and doesn't use page isolation. This is correct.
+>> try_to_unmap_cluster doesn't take page lock, but it ensure the page is isolated. This is correct too.
+>
+> I don't see where try_to_unmap_cluster() has guaranteed that pages other than check_page are isolated?
+> (I might just be missing that). So in the race example above, CPU2 could be doing try_to_unmap_cluster()
+> and set PG_mlocked on old page, with no effect on the new page. Not fatal for the design of lazy mlocking,
+> but a distorted accounting anyway.
+>
+>> Plus, do_wp_page() has the following comment. But it is wrong. This lock is necessary to protect against
+>> page migration, but not lru manipulation.
+>>
+>> 		if ((ret & VM_FAULT_WRITE) && (vma->vm_flags & VM_LOCKED)) {
+>> 			lock_page(old_page);	/* LRU manipulation */
+>> 			munlock_vma_page(old_page);
+>> 			unlock_page(old_page);
+>> 		}
+>>
+
+So the protection is actually for rmap operations in try_to_munlock.
+The comment could be removed from the caller here and appear just at the 
+PageLocked assertion in munlock_vma_page().
+
+>> But, you know, this is crazy ugly lock design. I'm ok to change the rule to that PG_mlocked must be protected
+>> page lock. If so, I propose to add PageMlocked() like this
+>>
+>> 			} else if (!PageMlocked() && trylock_page(page)) {
+>> 				/*
+>> 				 * If we can lock the page, perform mlock.
+>> 				 * Otherwise leave the page alone, it will be
+>> 				 * eventually encountered again later.
+>> 				 */
+>> 				mlock_vma_page(page);
+>> 				unlock_page(page);
+>>
+>> This is safe. Even if race is happen and vmscan failed to mark PG_mlocked, that's no problem. Next vmscan may
+>> do the right job and will fix the mistake.
+>>
+>> Anyway,  I'm also sure this is not recent issue. It lived 5 years. It is no reason to rush.
+
+If we agree that page migration is safe as explained above, then 
+removing the PageLocked assertion from mlock_vma_page is again an 
+option, instead of making sure that all callers lock?
+
+> Yeah but there's the new issue with __munlock_pagevec() :( Perhaps a more serious one as it could leave pages inevictable
+> when they shouldn't be. I'm not sure if the performance benefits of that could be preserved with full page locking.
+> Another option would be that page migration would somehow deal with the race, or just leave the target pages without
+> PG_mlocked and let them be dealt with later.
+> But if we go with the rule that page lock must protect PG_mlocked, then there's also clear_page_mlock() to consider.
+> And finally, we could then at least replace the atomic test and set with faster non-atomic variants.
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
