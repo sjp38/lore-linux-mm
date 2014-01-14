@@ -1,52 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 196696B0031
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 17:01:21 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id kp14so228568pab.20
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 14:01:20 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id rt6si1659964pbc.348.2014.01.14.14.01.18
+Received: from mail-qe0-f42.google.com (mail-qe0-f42.google.com [209.85.128.42])
+	by kanga.kvack.org (Postfix) with ESMTP id D6EDA6B0031
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 17:06:38 -0500 (EST)
+Received: by mail-qe0-f42.google.com with SMTP id b4so284041qen.29
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 14:06:38 -0800 (PST)
+Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
+        by mx.google.com with ESMTP id o8si2326181qey.119.2014.01.14.14.06.32
         for <linux-mm@kvack.org>;
-        Tue, 14 Jan 2014 14:01:19 -0800 (PST)
-Date: Tue, 14 Jan 2014 14:01:17 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH V3 2/2] mm/memblock: Add support for excluded memory
- areas
-Message-Id: <20140114140117.bff3db92027fea9eb6f2af7f@linux-foundation.org>
-In-Reply-To: <20140114104253.54ea0470@lilie>
-References: <1389618217-48166-1-git-send-email-phacht@linux.vnet.ibm.com>
-	<1389618217-48166-3-git-send-email-phacht@linux.vnet.ibm.com>
-	<20140113163620.ade5ee9171c5f443a227f8af@linux-foundation.org>
-	<20140114104253.54ea0470@lilie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Tue, 14 Jan 2014 14:06:33 -0800 (PST)
+Message-ID: <52D5B48D.30006@sr71.net>
+Date: Tue, 14 Jan 2014 14:05:01 -0800
+From: Dave Hansen <dave@sr71.net>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/9] re-shrink 'struct page' when SLUB is on.
+References: <20140103180147.6566F7C1@viggo.jf.intel.com> <20140103141816.20ef2a24c8adffae040e53dc@linux-foundation.org> <20140106043237.GE696@lge.com> <52D05D90.3060809@sr71.net> <20140110153913.844e84755256afd271371493@linux-foundation.org> <52D0854F.5060102@sr71.net> <CAOJsxLE-oMpV2G-gxrhyv0Au1tPd87Ow57VD5CWFo41wF8F4Yw@mail.gmail.com> <alpine.DEB.2.10.1401111854580.6036@nuc> <20140113014408.GA25900@lge.com> <52D41F52.5020805@sr71.net> <alpine.DEB.2.10.1401141404190.19618@nuc>
+In-Reply-To: <alpine.DEB.2.10.1401141404190.19618@nuc>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, qiuxishi@huawei.com, dhowells@redhat.com, daeseok.youn@gmail.com, liuj97@gmail.com, yinghai@kernel.org, zhangyanfei@cn.fujitsu.com, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, tangchen@cn.fujitsu.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 14 Jan 2014 10:42:53 +0100 Philipp Hachtmann <phacht@linux.vnet.ibm.com> wrote:
+On 01/14/2014 12:07 PM, Christoph Lameter wrote:
+> One easy way to shrink struct page is to simply remove the feature. The
+> patchset looked a bit complicated and does many other things.
 
-> Am Mon, 13 Jan 2014 16:36:20 -0800
-> schrieb Andrew Morton <akpm@linux-foundation.org>:
-> 
-> > Patch is big.  I'll toss this in for some testing but it does look too
-> > large and late for 3.14.  How will this affect your s390 development?
-> 
-> It is needed for s390 bootmem -> memblock transition. The s390 dump
-> mechanisms cannot be switched to memblock (from using something s390
-> specific called memory_chunk) without the nomap list.
-> I'm also working on another enhancement on s390 that will rely on a
-> clean transition to memblock.
-> 
-> I have written and tested the stuff on top of our local development
-> tree. And then realised that it does not fit the linux-next tree. So I
-> converted it to fit linux-next and posted it. Have to maintain two
-> versions now. 
+Sure.  There's a clear path if you only care about 'struct page' size,
+or if you only care about making the slub fast path as fast as possible.
+ We've got three variables, though:
 
-So at 3.14-rc1 everything will come good - get the review issues sorted
-out, add the patch to your tree (and hence linux-next).
+1. slub fast path speed
+2. space overhead from 'struct page'
+3. code complexity.
+
+Arranged in three basic choices:
+
+1. Big 'struct page', fast, medium complexity code
+2. Small 'struct page', slow, lowest complexity
+3. Small 'struct page', fast, highest complexity, risk of new code
+
+The question is what we should do by _default_, and what we should be
+recommending for our customers via the distros.  Are you saying that you
+think we should completely rule out even having option 1 in mainline?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
