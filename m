@@ -1,112 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
-	by kanga.kvack.org (Postfix) with ESMTP id A72A66B0031
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 10:45:06 -0500 (EST)
-Received: by mail-ee0-f43.google.com with SMTP id c41so309078eek.2
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 07:45:06 -0800 (PST)
+Received: from mail-ea0-f176.google.com (mail-ea0-f176.google.com [209.85.215.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 091B26B0031
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 10:48:06 -0500 (EST)
+Received: by mail-ea0-f176.google.com with SMTP id h14so3977004eaj.21
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 07:48:06 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p9si1836087eew.202.2014.01.14.07.45.01
+        by mx.google.com with ESMTPS id d41si1882023eep.155.2014.01.14.07.48.00
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 14 Jan 2014 07:45:01 -0800 (PST)
-Date: Tue, 14 Jan 2014 15:44:57 +0000
+        Tue, 14 Jan 2014 07:48:01 -0800 (PST)
+Date: Tue, 14 Jan 2014 15:47:56 +0000
 From: Mel Gorman <mgorman@suse.de>
 Subject: Re: [RFC PATCH] mm: thp: Add per-mm_struct flag to control THP
-Message-ID: <20140114154457.GD4963@suse.de>
+Message-ID: <20140114154756.GE4963@suse.de>
 References: <1389383718-46031-1-git-send-email-athorlton@sgi.com>
  <20140110202310.GB1421@node.dhcp.inet.fi>
  <20140110220155.GD3066@sgi.com>
- <20140110221010.GP31570@twins.programming.kicks-ass.net>
- <20140110223909.GA8666@sgi.com>
+ <20140110222315.GA7931@node.dhcp.inet.fi>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20140110223909.GA8666@sgi.com>
+In-Reply-To: <20140110222315.GA7931@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Thorlton <athorlton@sgi.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Alex Thorlton <athorlton@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org
 
-On Fri, Jan 10, 2014 at 04:39:09PM -0600, Alex Thorlton wrote:
-> On Fri, Jan 10, 2014 at 11:10:10PM +0100, Peter Zijlstra wrote:
-> > We already have the information to determine if a page is shared across
-> > nodes, Mel even had some prototype code to do splits under those
-> > conditions.
+On Sat, Jan 11, 2014 at 12:23:15AM +0200, Kirill A. Shutemov wrote:
+> On Fri, Jan 10, 2014 at 04:01:55PM -0600, Alex Thorlton wrote:
+> > On Fri, Jan 10, 2014 at 10:23:10PM +0200, Kirill A. Shutemov wrote:
+> > > Do you know what cause the difference? I prefer to fix THP instead of
+> > > adding new knob to disable it.
+> > 
+> > The issue is that when you touch 1 byte of an untouched, contiguous 2MB
+> > chunk, a THP will be handed out, and the THP will be stuck on whatever
+> > node the chunk was originally referenced from.  If many remote nodes
+> > need to do work on that same chunk, they'll be making remote accesses.
+> > With THP disabled, 4K pages can be handed out to separate nodes as
+> > they're needed, greatly reducing the amount of remote accesses to
+> > memory.
 > 
-> I'm aware that we can determine if pages are shared across nodes, but I
-> thought that Mel's code to split pages under these conditions had some
-> performance issues.  I know I've seen the code that Mel wrote to do
-> this, but I can't seem to dig it up right now.  Could you point me to
-> it?
+> I think this problem *potentially* could be fixed by NUMA balancer.
+> (Although, I don't really know how balancer works...)
+> 
+> If we see NUMA hint faults for addresses in different 4k pages inside huge
+> page from more then one node, we could split the huge page.
+> 
+> Mel, is it possible? Do we collect enough info to make the decision?
 > 
 
-It was a lot of revisions ago! The git branches no longer exist but the
-diff from the monolithic patches is below. The baseline was v3.10 and
-this will no longer apply but you'll see the two places where I added a
-split_huge_page and prevented khugepaged collapsing them again. At the
-time, the performance with it applied was much worse but it was a 10
-minute patch as a distraction. There was a range of basic problems that
-had to be tackled before there was any point looking at splitting THP due
-to locality. I did not pursue it further and have not revisited it since.
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index c8b25a8..2b80abe 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1317,6 +1317,23 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	last_nidpid = page_nidpid_last(page);
- 	target_nid = mpol_misplaced(page, vma, haddr);
- 	if (target_nid == -1) {
-+		int last_pid = nidpid_to_pid(last_nidpid);
-+
-+		/*
-+		 * If the fault failed to pass the two-stage filter but is on
-+		 * a remote node then it could be due to false sharing of the
-+		 * THP page. Remote accesses are more expensive than base
-+		 * page TLB accesses so split the huge page and return to
-+		 * retry the fault.
-+		 */
-+		if (!nidpid_nid_unset(last_nidpid) &&
-+		    src_nid != page_to_nid(page) &&
-+		    last_pid != (current->pid & LAST__PID_MASK)) {
-+			spin_unlock(&mm->page_table_lock);
-+			split_huge_page(page);
-+			put_page(page);
-+			return 0;
-+		}
- 		put_page(page);
- 		goto clear_pmdnuma;
- 	}
-@@ -2398,6 +2415,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- 	unsigned long _address;
- 	spinlock_t *ptl;
- 	int node = NUMA_NO_NODE;
-+	int hint_node = NUMA_NO_NODE;
- 
- 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
- 
-@@ -2427,8 +2445,20 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- 		 * be more sophisticated and look at more pages,
- 		 * but isn't for now.
- 		 */
--		if (node == NUMA_NO_NODE)
-+		if (node == NUMA_NO_NODE) {
-+			int nidpid = page_nidpid_last(page);
- 			node = page_to_nid(page);
-+			hint_node = nidpid_to_nid(nidpid);
-+		}
-+
-+		/*
-+		 * If the range is receiving hinting faults from CPUs on
-+		 * different nodes then prioritise locality over TLB
-+		 * misses
-+		 */
-+		if (nidpid_to_nid(page_nidpid_last(page)) != hint_node)
-+			goto out_unmap;
-+
- 		VM_BUG_ON(PageCompound(page));
- 		if (!PageLRU(page) || PageLocked(page) || !PageAnon(page))
- 			goto out_unmap;
+Potentially the hinting faults can be used to decide whether to split or
+not but currently there is only limited information.  You can detect if
+the last faulting process was on the same node but not if the faults were
+in different parts of the THP that would justify a split.
 
 -- 
 Mel Gorman
