@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f171.google.com (mail-ea0-f171.google.com [209.85.215.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 654256B0031
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 08:34:59 -0500 (EST)
-Received: by mail-ea0-f171.google.com with SMTP id h10so3978526eak.30
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 05:34:58 -0800 (PST)
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 3538D6B0031
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 09:26:13 -0500 (EST)
+Received: by mail-wi0-f170.google.com with SMTP id hq4so4487342wib.1
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 06:26:12 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n47si1188303eey.56.2014.01.14.05.34.58
+        by mx.google.com with ESMTPS id i1si1501745eev.5.2014.01.14.06.26.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 14 Jan 2014 05:34:58 -0800 (PST)
-Date: Tue, 14 Jan 2014 14:34:57 +0100
+        Tue, 14 Jan 2014 06:26:11 -0800 (PST)
+Date: Tue, 14 Jan 2014 15:26:10 +0100
 From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: [PATCH 2/3] mm/memcg: fix endless iteration in reclaim
-Message-ID: <20140114133457.GD32227@dhcp22.suse.cz>
+Message-ID: <20140114142610.GF32227@dhcp22.suse.cz>
 References: <alpine.LSU.2.11.1401131742370.2229@eggly.anvils>
  <alpine.LSU.2.11.1401131751080.2229@eggly.anvils>
  <20140114132727.GB32227@dhcp22.suse.cz>
@@ -33,21 +33,62 @@ On Tue 14-01-14 14:27:27, Michal Hocko wrote:
 > > to tryget it, returns NULL to mem_cgroup_iter(), which goes around again.
 > 
 > So you had a single memcg (without any children) and a limit-reclaim
-> on it when you removed it, right? This is nasty because
-> __mem_cgroup_iter_next will try to skip it but there is nothing else so
-> it returns NULL. We update iter->generation++ but that doesn't help us
-> as prev = NULL as this is the first iteration so
+> on it when you removed it, right?
+
+Hmm, thinking about this once more how can this happen? There must be a
+task to trigger the limit reclaim so the cgroup cannot go away (or is
+this somehow related to kmem accounting?). Only if the taks was migrated
+after the reclaim was initiated but before we started iterating?
+
+I am confused now and have to rush shortly so I will think about it
+tomorrow some more.
+
+> This is nasty because __mem_cgroup_iter_next will try to skip it but
+> there is nothing else so it returns NULL. We update iter->generation++
+> but that doesn't help us as prev = NULL as this is the first iteration
+> so
 > 		if (prev && reclaim->generation != iter->generation)
 > 
 > break out will not help us.
 
-And looking closer at it we even do no need to be in reclaim
-for_each_mem_cgroup_tree is used from more places and that might race as
-well.
+> You patch will surely help I am just not sure it is the right thing to
+> do. Let me think about this.
 
-> You patch will surely help I am just not
-> sure it is the right thing to do. Let me think about this.
-> 
+The patch is actually not correct after all. You are returning root
+memcg without taking a reference. So there is a risk that memcg will
+disappear. Although, it is true that the race with removal is not that
+probable because mem_cgroup_css_offline (resp. css_free) will see some
+pages on LRUs and they will reclaim as well.
+
+Ouch. And thinking about this shows that out_css_put is broken as well
+for subtree walks (those that do not start at root_mem_cgroup level). We
+need something like the the snippet bellow.
+I really hate this code, especially when I tried to de-obfuscate it and
+that introduced other subtle issues.
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 1f9d14e2f8de..f75277b0bf82 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1080,7 +1080,7 @@ skip_node:
+ 	if (next_css) {
+ 		struct mem_cgroup *mem = mem_cgroup_from_css(next_css);
+ 
+-		if (css_tryget(&mem->css))
++		if (mem == root_mem_cgroup || css_tryget(&mem->css))
+ 			return mem;
+ 		else {
+ 			prev_css = next_css;
+@@ -1219,7 +1219,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+ out_unlock:
+ 	rcu_read_unlock();
+ out_css_put:
+-	if (prev && prev != root)
++	if (prev && prev != root_mem_cgroup)
+ 		css_put(&prev->css);
+ 
+ 	return memcg;
+
 > Anyway very well spotted!
 > 
 > > It's better to err on the side of leaving the loop too soon than never
