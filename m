@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F72A6B0035
+Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A6796B0038
 	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 15:48:21 -0500 (EST)
-Received: by mail-wg0-f53.google.com with SMTP id y10so953648wgg.32
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 12:48:20 -0800 (PST)
+Received: by mail-we0-f179.google.com with SMTP id w62so932298wes.38
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 12:48:21 -0800 (PST)
 Received: from mail1.windriver.com (mail1.windriver.com. [147.11.146.13])
-        by mx.google.com with ESMTPS id hi2si1305736wjc.149.2014.01.14.12.48.19
+        by mx.google.com with ESMTPS id n3si1299811wjr.169.2014.01.14.12.48.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Tue, 14 Jan 2014 12:48:20 -0800 (PST)
 From: Paul Gortmaker <paul.gortmaker@windriver.com>
-Subject: [PATCH 1/3] mm: make creation of the mm_kobj happen earlier than device_initcall
-Date: Tue, 14 Jan 2014 15:44:46 -0500
-Message-ID: <1389732288-4389-2-git-send-email-paul.gortmaker@windriver.com>
+Subject: [PATCH 3/3] mm: audit/fix non-modular users of module_init in core code
+Date: Tue, 14 Jan 2014 15:44:48 -0500
+Message-ID: <1389732288-4389-4-git-send-email-paul.gortmaker@windriver.com>
 In-Reply-To: <1389732288-4389-1-git-send-email-paul.gortmaker@windriver.com>
 References: <1389732288-4389-1-git-send-email-paul.gortmaker@windriver.com>
 MIME-Version: 1.0
@@ -22,59 +22,115 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Gortmaker <paul.gortmaker@windriver.com>
 
-The use of __initcall is to be eventually replaced by choosing
-one from the prioritized groupings laid out in init.h header:
+Code that is obj-y (always built-in) or dependent on a bool Kconfig
+(built-in or absent) can never be modular.  So using module_init as
+an alias for __initcall can be somewhat misleading.
 
-	pure_initcall               0
-	core_initcall               1
-	postcore_initcall           2
-	arch_initcall               3
-	subsys_initcall             4
-	fs_initcall                 5
-	device_initcall             6
-	late_initcall               7
+Fix these up now, so that we can relocate module_init from
+init.h into module.h in the future.  If we don't do this, we'd
+have to add module.h to obviously non-modular code, and that
+would be a worse thing.
 
-In the interim, all __initcall are mapped onto device_initcall,
-which as can be seen above, comes quite late in the ordering.
+The audit targets the following module_init users for change:
+ mm/ksm.c                       bool KSM
+ mm/mmap.c                      bool MMU
+ mm/huge_memory.c               bool TRANSPARENT_HUGEPAGE
+ mm/mmu_notifier.c              bool MMU_NOTIFIER
 
-Currently the mm_kobj is created with __initcall in mm_sysfs_init().
-This means that any other initcalls that want to reference the
-mm_kobj have to be device_initcall (or later), otherwise we will
-for example, trip the BUG_ON(!kobj) in sysfs's internal_create_group().
-This unfairly restricts those users; for example something that clearly
-makes sense to be an arch_initcall will not be able to choose that.
+Note that direct use of __initcall is discouraged, vs. one
+of the priority categorized subgroups.  As __initcall gets
+mapped onto device_initcall, our use of subsys_initcall (which
+makes sense for these files) will thus change this registration
+from level 6-device to level 4-subsys (i.e. slightly earlier).
 
-However, upon examination, it is only this way for historical
-reasons (i.e. simply not reprioritized yet).  We see that sysfs is
-ready quite earlier in init/main.c via:
+However no observable impact of that difference has been observed
+during testing.
 
- vfs_caches_init
- |_ mnt_init
-    |_ sysfs_init
+One might think that core_initcall (l2) or postcore_initcall (l3)
+would be more appropriate for anything in mm/ but if we look
+at some actual init functions themselves, we see things like:
 
-well ahead of the processing of the prioritized calls listed above.
+mm/huge_memory.c --> hugepage_init     --> hugepage_init_sysfs
+mm/mmap.c        --> init_user_reserve --> sysctl_user_reserve_kbytes
+mm/ksm.c         --> ksm_init          --> sysfs_create_group
 
-So we can recategorize mm_sysfs_init to be a pure_initcall, which
-in turn allows any mm_kobj initcall users a wider range (1 --> 7)
-of initcall priorities to choose from.
+and hence the choice of subsys_initcall (l4) seems reasonable,
+and at the same time minimizes the risk of changing the priority
+too drastically all at once.  We can adjust further in the future.
+
+Also, several instances of missing ";" at EOL are fixed.
 
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Paul Gortmaker <paul.gortmaker@windriver.com>
 ---
- mm/mm_init.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ mm/huge_memory.c  | 2 +-
+ mm/ksm.c          | 2 +-
+ mm/mmap.c         | 6 +++---
+ mm/mmu_notifier.c | 3 +--
+ 4 files changed, 6 insertions(+), 7 deletions(-)
 
-diff --git a/mm/mm_init.c b/mm/mm_init.c
-index 68562e92d50c..857a6434e3a5 100644
---- a/mm/mm_init.c
-+++ b/mm/mm_init.c
-@@ -202,5 +202,4 @@ static int __init mm_sysfs_init(void)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 95d1acb0f3d2..c6e7e0f60708 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -655,7 +655,7 @@ out:
+ 	hugepage_exit_sysfs(hugepage_kobj);
+ 	return err;
+ }
+-module_init(hugepage_init)
++subsys_initcall(hugepage_init);
+ 
+ static int __init setup_transparent_hugepage(char *str)
+ {
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 175fff79dc95..dce1ad1cb696 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -2438,4 +2438,4 @@ out_free:
+ out:
+ 	return err;
+ }
+-module_init(ksm_init)
++subsys_initcall(ksm_init);
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 834b2d785f1e..0a7717664c9e 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -3140,7 +3140,7 @@ static int init_user_reserve(void)
+ 	sysctl_user_reserve_kbytes = min(free_kbytes / 32, 1UL << 17);
+ 	return 0;
+ }
+-module_init(init_user_reserve)
++subsys_initcall(init_user_reserve);
+ 
+ /*
+  * Initialise sysctl_admin_reserve_kbytes.
+@@ -3161,7 +3161,7 @@ static int init_admin_reserve(void)
+ 	sysctl_admin_reserve_kbytes = min(free_kbytes / 32, 1UL << 13);
+ 	return 0;
+ }
+-module_init(init_admin_reserve)
++subsys_initcall(init_admin_reserve);
+ 
+ /*
+  * Reinititalise user and admin reserves if memory is added or removed.
+@@ -3231,4 +3231,4 @@ static int __meminit init_reserve_notifier(void)
  
  	return 0;
  }
+-module_init(init_reserve_notifier)
++subsys_initcall(init_reserve_notifier);
+diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+index 93e6089cb456..41cefdf0aadd 100644
+--- a/mm/mmu_notifier.c
++++ b/mm/mmu_notifier.c
+@@ -329,5 +329,4 @@ static int __init mmu_notifier_init(void)
+ {
+ 	return init_srcu_struct(&srcu);
+ }
 -
--__initcall(mm_sysfs_init);
-+pure_initcall(mm_sysfs_init);
+-module_init(mmu_notifier_init);
++subsys_initcall(mmu_notifier_init);
 -- 
 1.8.5.2
 
