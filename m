@@ -1,141 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f53.google.com (mail-qe0-f53.google.com [209.85.128.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DFBF6B0031
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 22:46:36 -0500 (EST)
-Received: by mail-qe0-f53.google.com with SMTP id t7so580940qeb.12
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 19:46:36 -0800 (PST)
-Received: from relais.videotron.ca (relais.videotron.ca. [24.201.245.36])
-        by mx.google.com with ESMTP id ko6si3474464qeb.9.2014.01.14.19.46.35
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A6376B0031
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 22:54:10 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id lf10so567914pab.7
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 19:54:10 -0800 (PST)
+Received: from song.cn.fujitsu.com ([222.73.24.84])
+        by mx.google.com with ESMTP id y1si2418867pbm.4.2014.01.14.19.54.05
         for <linux-mm@kvack.org>;
-        Tue, 14 Jan 2014 19:46:35 -0800 (PST)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN; CHARSET=US-ASCII
-Received: from yoda.home ([66.130.143.177]) by VL-VM-MR003.ip.videotron.ca
- (Oracle Communications Messaging Exchange Server 7u4-22.01 64bit (built Apr 21
- 2011)) with ESMTP id <0MZF00KZFBTN1W40@VL-VM-MR003.ip.videotron.ca> for
- linux-mm@kvack.org; Tue, 14 Jan 2014 22:46:35 -0500 (EST)
-Date: Tue, 14 Jan 2014 22:46:34 -0500 (EST)
-From: Nicolas Pitre <nico@fluxnic.net>
-Subject: Re: [PATCH] mm: nobootmem: avoid type warning about alignment value
-In-reply-to: <20140112105958.GA9791@n2100.arm.linux.org.uk>
-Message-id: <alpine.LFD.2.10.1401142238110.28907@knanqh.ubzr>
-References: <1385249326-9089-1-git-send-email-santosh.shilimkar@ti.com>
- <529217C7.6030304@cogentembedded.com> <52935762.1080409@ti.com>
- <20131209165044.cf7de2edb8f4205d5ac02ab0@linux-foundation.org>
- <20131210005454.GX4360@n2100.arm.linux.org.uk> <52A66826.7060204@ti.com>
- <20140112105958.GA9791@n2100.arm.linux.org.uk>
+        Tue, 14 Jan 2014 19:54:09 -0800 (PST)
+Message-ID: <52D60607.8040901@cn.fujitsu.com>
+Date: Wed, 15 Jan 2014 11:52:39 +0800
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [patch 7/9] mm: thrash detection-based file cache sizing
+References: <1389377443-11755-1-git-send-email-hannes@cmpxchg.org> <1389377443-11755-8-git-send-email-hannes@cmpxchg.org> <52D48C55.3020200@oracle.com> <20140114191619.GI6963@cmpxchg.org> <52D5F911.1090507@oracle.com>
+In-Reply-To: <52D5F911.1090507@oracle.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Santosh Shilimkar <santosh.shilimkar@ti.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, linux-arm-kernel@lists.infradead.org
+To: Bob Liu <bob.liu@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Sun, 12 Jan 2014, Russell King - ARM Linux wrote:
+Hello
 
-> This patch makes their types match exactly with x86's definitions of
-> the same, which is the basic problem: on ARM, they all took "int" values
-> and returned "int"s, which leads to min() in nobootmem.c complaining.
+On 01/15/2014 10:57 AM, Bob Liu wrote:
 > 
->  arch/arm/include/asm/bitops.h | 54 +++++++++++++++++++++++++++++++++++--------
->  1 file changed, 44 insertions(+), 10 deletions(-)
-
-For the record:
-
-Acked-by: Nicolas Pitre <nico@linaro.org>
-
-The reason why macros were used at the time this was originally written 
-is because gcc used to have issues forwarding the constant nature of a 
-variable down multiple levels of inline functions and 
-__builtin_constant_p() always returned false.  But that was quite a long 
-time ago.
-
-
-> diff --git a/arch/arm/include/asm/bitops.h b/arch/arm/include/asm/bitops.h
-> index e691ec91e4d3..b2e298a90d76 100644
-> --- a/arch/arm/include/asm/bitops.h
-> +++ b/arch/arm/include/asm/bitops.h
-> @@ -254,25 +254,59 @@ static inline int constant_fls(int x)
->  }
->  
->  /*
-> - * On ARMv5 and above those functions can be implemented around
-> - * the clz instruction for much better code efficiency.
-> + * On ARMv5 and above those functions can be implemented around the
-> + * clz instruction for much better code efficiency.  __clz returns
-> + * the number of leading zeros, zero input will return 32, and
-> + * 0x80000000 will return 0.
->   */
-> +static inline unsigned int __clz(unsigned int x)
-> +{
-> +	unsigned int ret;
-> +
-> +	asm("clz\t%0, %1" : "=r" (ret) : "r" (x));
->  
-> +	return ret;
-> +}
-> +
-> +/*
-> + * fls() returns zero if the input is zero, otherwise returns the bit
-> + * position of the last set bit, where the LSB is 1 and MSB is 32.
-> + */
->  static inline int fls(int x)
->  {
-> -	int ret;
-> -
->  	if (__builtin_constant_p(x))
->  	       return constant_fls(x);
->  
-> -	asm("clz\t%0, %1" : "=r" (ret) : "r" (x));
-> -       	ret = 32 - ret;
-> -	return ret;
-> +	return 32 - __clz(x);
-> +}
-> +
-> +/*
-> + * __fls() returns the bit position of the last bit set, where the
-> + * LSB is 0 and MSB is 31.  Zero input is undefined.
-> + */
-> +static inline unsigned long __fls(unsigned long x)
-> +{
-> +	return fls(x) - 1;
-> +}
-> +
-> +/*
-> + * ffs() returns zero if the input was zero, otherwise returns the bit
-> + * position of the first set bit, where the LSB is 1 and MSB is 32.
-> + */
-> +static inline int ffs(int x)
-> +{
-> +	return fls(x & -x);
-> +}
-> +
-> +/*
-> + * __ffs() returns the bit position of the first bit set, where the
-> + * LSB is 0 and MSB is 31.  Zero input is undefined.
-> + */
-> +static inline unsigned long __ffs(unsigned long x)
-> +{
-> +	return ffs(x) - 1;
->  }
->  
-> -#define __fls(x) (fls(x) - 1)
-> -#define ffs(x) ({ unsigned long __t = (x); fls(__t & -__t); })
-> -#define __ffs(x) (ffs(x) - 1)
->  #define ffz(x) __ffs( ~(x) )
->  
->  #endif
+> On 01/15/2014 03:16 AM, Johannes Weiner wrote:
+>> On Tue, Jan 14, 2014 at 09:01:09AM +0800, Bob Liu wrote:
+>>> Hi Johannes,
+>>>
+>>> On 01/11/2014 02:10 AM, Johannes Weiner wrote:
+>>>> The VM maintains cached filesystem pages on two types of lists.  One
+>>>> list holds the pages recently faulted into the cache, the other list
+>>>> holds pages that have been referenced repeatedly on that first list.
+>>>> The idea is to prefer reclaiming young pages over those that have
+>>>> shown to benefit from caching in the past.  We call the recently used
+>>>> list "inactive list" and the frequently used list "active list".
+>>>>
+>>>> Currently, the VM aims for a 1:1 ratio between the lists, which is the
+>>>> "perfect" trade-off between the ability to *protect* frequently used
+>>>> pages and the ability to *detect* frequently used pages.  This means
+>>>> that working set changes bigger than half of cache memory go
+>>>> undetected and thrash indefinitely, whereas working sets bigger than
+>>>> half of cache memory are unprotected against used-once streams that
+>>>> don't even need caching.
+>>>>
+>>>
+>>> Good job! This patch looks good to me and with nice descriptions.
+>>> But it seems that this patch only fix the issue "working set changes
+>>> bigger than half of cache memory go undetected and thrash indefinitely".
+>>> My concern is could it be extended easily to address all other issues
+>>> based on this patch set?
+>>>
+>>> The other possible way is something like Peter has implemented the CART
+>>> and Clock-Pro which I think may be better because of using advanced
+>>> algorithms and consider the problem as a whole from the beginning.(Sorry
+>>> I haven't get enough time to read the source code, so I'm not 100% sure.)
+>>> http://linux-mm.org/PeterZClockPro2
+>>
+>> My patches are moving the VM towards something that is comparable to
+>> how Peter implemented Clock-Pro.  However, the current VM has evolved
+>> over time in small increments based on real life performance
+>> observations.  Rewriting everything in one go would be incredibly
+>> disruptive and I doubt very much we would merge any such proposal in
+>> the first place.  So it's not like I don't see the big picture, it's
+>> just divide and conquer:
+>>
+>> Peter's Clock-Pro implementation was basically a double clock with an
+>> intricate system to classify hotness, augmented by eviction
+>> information to work with reuse distances independent of memory size.
+>>
+>> What we have right now is a double clock with a very rudimentary
+>> system to classify whether a page is hot: it has been accessed twice
+>> while on the inactive clock.  My patches now add eviction information
+>> to this, and improve the classification so that it can work with reuse
+>> distances up to memory size and is no longer dependent on the inactive
+>> clock size.
+>>
+>> This is the smallest imaginable step that is still useful, and even
+>> then we had a lot of discussions about scalability of the data
+>> structures and confusion about how the new data point should be
+>> interpreted.  It also took a long time until somebody read the series
+>> and went, "Ok, this actually makes sense to me."  Now, maybe I suck at
+>> documenting, but maybe this is just complicated stuff.  Either way, we
+>> have to get there collectively, so that the code is maintainable in
+>> the long term.
+>>
+>> Once we have these new concepts established, we can further improve
+>> the hotness detector so that it can classify and order pages with
+>> reuse distances beyond memory size.  But this will come with its own
+>> set of problems.  For example, some time ago we stopped regularly
+>> scanning and rotating active pages because of scalability issues, but
+>> we'll most likely need an uptodate estimate of the reuse distances on
+>> the active list in order to classify refaults properly.
+>>
 > 
+> Thank you for your kindly explanation. It make sense to me please feel
+> free to add my review.
 > 
-> -- 
-> FTTC broadband for 0.8mile line: 5.8Mbps down 500kbps up.  Estimation
-> in database were 13.1 to 19Mbit for a good line, about 7.5+ for a bad.
-> Estimate before purchase was "up to 13.2Mbit".
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+>>>> + * Approximating inactive page access frequency - Observations:
+>>>> + *
+>>>> + * 1. When a page is accessed for the first time, it is added to the
+>>>> + *    head of the inactive list, slides every existing inactive page
+>>>> + *    towards the tail by one slot, and pushes the current tail page
+>>>> + *    out of memory.
+>>>> + *
+>>>> + * 2. When a page is accessed for the second time, it is promoted to
+>>>> + *    the active list, shrinking the inactive list by one slot.  This
+>>>> + *    also slides all inactive pages that were faulted into the cache
+>>>> + *    more recently than the activated page towards the tail of the
+>>>> + *    inactive list.
+>>>> + *
+>>>
+>>> Nitpick, how about the reference bit?
+>>
+>> What do you mean?
+>>
 > 
+> Sorry, I mean the PG_referenced flag. I thought when a page is accessed
+> for the second time only PG_referenced flag  will be set instead of be
+> promoted to active list.
+> 
+
+No. I try to explain a bit. For mapped file pages, if the second access
+occurs on a different page table entry, the page is surely promoted to active
+list. But if the paged is always accessed from the same page table entry, it
+was mistakenly evicted. This was fixed by Johannes already by reusing the
+PG_referenced flag, for details, please refer to commit 64574746
+("vmscan: detect mapped file pages used only once").
+
+Correct me if I am wrong.
+
+-- 
+Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
