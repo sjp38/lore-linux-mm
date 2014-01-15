@@ -1,145 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 078F56B0031
-	for <linux-mm@kvack.org>; Wed, 15 Jan 2014 04:58:31 -0500 (EST)
-Received: by mail-ee0-f52.google.com with SMTP id e53so734736eek.25
-        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 01:58:31 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r41si6827694eem.17.2014.01.15.01.58.30
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id A0D466B0031
+	for <linux-mm@kvack.org>; Wed, 15 Jan 2014 05:27:58 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id p10so932537pdj.40
+        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 02:27:58 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id m8si3291641pbq.149.2014.01.15.02.27.56
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 15 Jan 2014 01:58:30 -0800 (PST)
-Date: Wed, 15 Jan 2014 10:58:29 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/3] mm/memcg: fix endless iteration in reclaim
-Message-ID: <20140115095829.GI8782@dhcp22.suse.cz>
-References: <alpine.LSU.2.11.1401131742370.2229@eggly.anvils>
- <alpine.LSU.2.11.1401131751080.2229@eggly.anvils>
- <20140114132727.GB32227@dhcp22.suse.cz>
- <20140114142610.GF32227@dhcp22.suse.cz>
- <alpine.LSU.2.11.1401141201120.3762@eggly.anvils>
+        Wed, 15 Jan 2014 02:27:57 -0800 (PST)
+Message-ID: <52D662A4.1080502@oracle.com>
+Date: Wed, 15 Jan 2014 18:27:48 +0800
+From: Jeff Liu <jeff.liu@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1401141201120.3762@eggly.anvils>
+Subject: [LSF/MM ATTEND] slab cache extension -- slab cache in fixed size
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 
-On Tue 14-01-14 12:42:28, Hugh Dickins wrote:
-> On Tue, 14 Jan 2014, Michal Hocko wrote:
-> > On Tue 14-01-14 14:27:27, Michal Hocko wrote:
-> > > On Mon 13-01-14 17:52:30, Hugh Dickins wrote:
-> > > > On one home machine I can easily reproduce (by rmdir of memcgdir during
-> > > > reclaim) multiple processes stuck looping forever in mem_cgroup_iter():
-> > > > __mem_cgroup_iter_next() keeps selecting the memcg being destroyed, fails
-> > > > to tryget it, returns NULL to mem_cgroup_iter(), which goes around again.
-> > > 
-> > > So you had a single memcg (without any children) and a limit-reclaim
-> > > on it when you removed it, right?
-> > 
-> > Hmm, thinking about this once more how can this happen? There must be a
-> > task to trigger the limit reclaim so the cgroup cannot go away (or is
-> > this somehow related to kmem accounting?). Only if the taks was migrated
-> > after the reclaim was initiated but before we started iterating?
-> 
-> Yes, I believe that's how it comes about (but no kmem accounting:
-> it's configured in but I'm not setting limits).
+Hello,
 
-OK, then it makes more sense now.
+I'd like to attend LSF/MM summit.  I'm mainly working in XFS, but also spent some
+time in OCFS2 as well as Containers.
 
-> The "cg" script I run for testing appended below.  Normally I just run
-> it as "cg 2" to set up two memcgs, then my dual-tmpfs-kbuild script runs
-> one kbuild on tmpfs in cg 1, and another kbuild on ext4 on loop on tmpfs
-> in cg 2, mainly to test swapping.  But for this bug I run it as "cg m",
-> to repeatedly create new memcg, move running tasks from old to new, and
-> remove old.
+Now one of my wip project is to implement a compressed inode cache for XFS, which
+is designed by Dave Chinner [1].
 
-thanks I will play with it.
+In short, this feature is intend to cache particular inodes in compressed form in
+inode reclaims procedure (about 1.7k on sector size 512 by default, about 380 bytes
+in compression through LZO), hence we can avoid read the inode off disk if it is
+requested again.  In theory, this is similar to zswap/zram to some extent.
 
-> Sometimes I'm doing swapoff and swapon in the background too, but
-> that's not needed to see this bug.  And although we're accustomed to
-> move_charge_at_immigrate being a beast, for this bug it's much quicker
-> to have that turned off.
+For the current design, I also managed to implement the "static slab" which could be
+referred to the "fixed inode cache size" section in [1], since we want to prevent
+the compressed inode cache from consuming excessive amounts of memory in some cases.
 
-yes, that makes sense becuase the task doesn't take its memory with it
-and the reclaim contains even without any task in the group.
+Now I have a rough/stupid idea to add an extension to the slab caches [2], that is
+if the slab cache size is limited which could be determined in cache_grow(), the
+shrinker would be triggered accordingly.  I'd like to learn/know if there are any
+suggestions and similar requirements in other subsystems.
 
-> (Until a couple of months ago, I was working in /cg/1 and /cg/2; but
-> have now pushed down a level to /cg/cg/1 and /cg/cg/2 after realizing
-> that working at the root would miss some important issues - in particular
-> the mem_cgroup_reparent_charges wrong-usage hang; but in fact I have
-> *never* caught that here, just know that it still exists from some
-> Google watchdog dumps, but we've still not identified the cause -
-> seen even without MEMCG_SWAP and with Hannes's extra reparent_charges.)
 
-Interesting. There is another user seeing hangs with the reparent
-workaround as well. I still didn't get to his test case because of other
-interal work that is due.
+Thanks,
+-Jeff
 
-> > I am confused now and have to rush shortly so I will think about it
-> > tomorrow some more.
-> 
-> Thanks, yes, I knew it's one you'd want to think about first: no rush.
-> 
-> > 
-> > > This is nasty because __mem_cgroup_iter_next will try to skip it but
-> > > there is nothing else so it returns NULL. We update iter->generation++
-> > > but that doesn't help us as prev = NULL as this is the first iteration
-> > > so
-> > > 		if (prev && reclaim->generation != iter->generation)
-> > > 
-> > > break out will not help us.
-> > 
-> > > You patch will surely help I am just not sure it is the right thing to
-> > > do. Let me think about this.
-> > 
-> > The patch is actually not correct after all. You are returning root
-> > memcg without taking a reference. So there is a risk that memcg will
-> > disappear. Although, it is true that the race with removal is not that
-> > probable because mem_cgroup_css_offline (resp. css_free) will see some
-> > pages on LRUs and they will reclaim as well.
-> > 
-> > Ouch. And thinking about this shows that out_css_put is broken as well
-> > for subtree walks (those that do not start at root_mem_cgroup level). We
-> > need something like the the snippet bellow.
-> 
-> It's the out_css_put precedent that I was following in not incrementing
-> for the root.  I think that's been discussed in the past, and rightly or
-> wrongly we've concluded that the caller of mem_cgroup_iter() always has
-> some hold on the root, which makes it safe to skip get/put on it here.
-> No doubt one of those many short cuts to avoid memcg overhead when
-> there's no memcg other than the root_mem_cgroup.
 
-That might be true but I guess it makes sense to get rid of some subtle
-assumptions. Especially now that we have an effective per-cpu ref.
-counting for css.
+[1] http://xfs.org/index.php/Improving_inode_Caching#Compressed_Inode_Cache
 
-> I've not given enough thought to whether that is still a good assumption.
-> The try_charge route does a css_tryget, and that will be the hold on the
-> root in the reclaim case, won't it?
+[2] slab cache extension (proof of concept, can not be compiled)
 
-Yes, that is what I realized when looked at the code yesterday and tried
-to handle by the snippet. I will post it as a separate patch.
-
-> And its css_tryget succeeding does not guarantee that a css_tryget a
-> moment later will also succeed, which is what happens in this bug.
-
-Once the tryget succeeds then we get the memcg so another tryget won't
-be needed. Or am I missing something? What I tried to tell is that you
-should do css_get(root) in your escape path.
-
-> But I have not attempted to audit other uses of mem_cgroup_iter() and
-> for_each_mem_cgroup_tree().  I've not hit any problems from them, but
-> may not have exercised those paths at all.  And the question of
-> whether there's a good hold on the root is a separate issue, really.
-> 
-> Hugh
-[...]
--- 
-Michal Hocko
-SUSE Labs
+diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
+index 09bfffb..a68ae1d 100644
+--- a/include/linux/slab_def.h
++++ b/include/linux/slab_def.h
+@@ -10,6 +10,8 @@ struct kmem_cache {
+ 	unsigned int batchcount;
+ 	unsigned int limit;
+ 	unsigned int shared;
++	unsigned int cache_limit;
++	unsigned int cache_size;
+ 
+ 	unsigned int size;
+ 	u32 reciprocal_buffer_size;
+diff --git a/mm/slab.c b/mm/slab.c
+index eb043bf..e7bdc29 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2663,6 +2663,7 @@ static int cache_grow(struct kmem_cache *cachep,
+ 	size_t offset;
+ 	gfp_t local_flags;
+ 	struct kmem_cache_node *n;
++	int ret = 0;
+ 
+ 	/*
+ 	 * Be lazy and only check for valid flags here,  keeping it out of the
+@@ -2700,8 +2701,19 @@ static int cache_grow(struct kmem_cache *cachep,
+ 	 * Get mem for the objs.  Attempt to allocate a physical page from
+ 	 * 'nodeid'.
+ 	 */
+-	if (!page)
+-		page = kmem_getpages(cachep, local_flags, nodeid);
++	if (!page) {
++		if (cachep->cache_limit == 0 ||
++			cachep->cache_size + 1<<cachep->gfporder <= cachep->cache_limit)
++			page = kmem_getpages(cachep, local_flags, nodeid);
++		else {
++			 /* TODO: do slab shrinker, maybe in workqueue, and then try
++			  * alloc object again.
++			  */
++			ret = 1;
++			goto failed;
++		}
++	}
++
+ 	if (!page)
+ 		goto failed;
+ 
+@@ -2711,6 +2723,8 @@ static int cache_grow(struct kmem_cache *cachep,
+ 	if (!freelist)
+ 		goto opps1;
+ 
++	ret = 1;
++	cachep->cache_size += 1<<cachep->gfporder;
+ 	slab_map_pages(cachep, page, freelist);
+ 
+ 	cache_init_objs(cachep, page);
+@@ -2725,13 +2739,13 @@ static int cache_grow(struct kmem_cache *cachep,
+ 	STATS_INC_GROWN(cachep);
+ 	n->free_objects += cachep->num;
+ 	spin_unlock(&n->list_lock);
+-	return 1;
++	return ret;
+ opps1:
+ 	kmem_freepages(cachep, page);
+ failed:
+ 	if (local_flags & __GFP_WAIT)
+ 		local_irq_disable();
+-	return 0;
++	return ret;
+ }
+ 
+ #if DEBUG
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 0b7bb39..12bac87 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -167,7 +167,8 @@ unsigned long calculate_alignment(unsigned long flags,
+ 
+ struct kmem_cache *
+ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
+-			size_t align, unsigned long flags, void (*ctor)(void *),
++			size_t align, unsigned long flags, unsigned long cache_limit,
++			void (*ctor)(void *), void (*shrinker)(void *),
+ 			struct kmem_cache *parent_cache)
+ {
+ 	struct kmem_cache *s = NULL;
+@@ -196,6 +197,7 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
+ 		s->object_size = s->size = size;
+ 		s->align = calculate_alignment(flags, align, size);
+ 		s->ctor = ctor;
++		s->cache_limit = cache_limit;
+ 
+ 		if (memcg_register_cache(memcg, s, parent_cache)) {
+ 			kmem_cache_free(kmem_cache, s);
+@@ -219,6 +221,9 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
+ 			kfree(s->name);
+ 			kmem_cache_free(kmem_cache, s);
+ 		}
++
++		if (shrinker)
++			register_shrinker(shrinker);
+ 	} else
+ 		err = -ENOMEM;
+ 
+@@ -247,7 +252,7 @@ struct kmem_cache *
+ kmem_cache_create(const char *name, size_t size, size_t align,
+ 		  unsigned long flags, void (*ctor)(void *))
+ {
+-	return kmem_cache_create_memcg(NULL, name, size, align, flags, ctor, NULL);
++	return kmem_cache_create_memcg(NULL, name, size, align, flags, 0, ctor, NULL, NULL);
+ }
+ EXPORT_SYMBOL(kmem_cache_create);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
