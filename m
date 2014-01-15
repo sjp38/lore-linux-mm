@@ -1,225 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id F200A6B0031
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 22:44:28 -0500 (EST)
-Received: by mail-wi0-f176.google.com with SMTP id hi8so150984wib.9
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 19:44:28 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id bi9si2100813wjc.121.2014.01.14.19.44.27
+Received: from mail-qe0-f53.google.com (mail-qe0-f53.google.com [209.85.128.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DFBF6B0031
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 22:46:36 -0500 (EST)
+Received: by mail-qe0-f53.google.com with SMTP id t7so580940qeb.12
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 19:46:36 -0800 (PST)
+Received: from relais.videotron.ca (relais.videotron.ca. [24.201.245.36])
+        by mx.google.com with ESMTP id ko6si3474464qeb.9.2014.01.14.19.46.35
         for <linux-mm@kvack.org>;
-        Tue, 14 Jan 2014 19:44:27 -0800 (PST)
-Date: Tue, 14 Jan 2014 22:44:18 -0500
-From: Richard Guy Briggs <rgb@redhat.com>
-Subject: Re: [RFC][PATCH 3/3] audit: Audit proc cmdline value
-Message-ID: <20140115034418.GH23577@madcap2.tricolour.ca>
-References: <1389022230-24664-1-git-send-email-wroberts@tresys.com>
- <1389022230-24664-3-git-send-email-wroberts@tresys.com>
- <20140114224523.GF23577@madcap2.tricolour.ca>
- <CAFftDdpSm=LyWBaMJban+0ZTxR0iS-rvuLELA9Xj936XjL4zLA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAFftDdpSm=LyWBaMJban+0ZTxR0iS-rvuLELA9Xj936XjL4zLA@mail.gmail.com>
+        Tue, 14 Jan 2014 19:46:35 -0800 (PST)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: TEXT/PLAIN; CHARSET=US-ASCII
+Received: from yoda.home ([66.130.143.177]) by VL-VM-MR003.ip.videotron.ca
+ (Oracle Communications Messaging Exchange Server 7u4-22.01 64bit (built Apr 21
+ 2011)) with ESMTP id <0MZF00KZFBTN1W40@VL-VM-MR003.ip.videotron.ca> for
+ linux-mm@kvack.org; Tue, 14 Jan 2014 22:46:35 -0500 (EST)
+Date: Tue, 14 Jan 2014 22:46:34 -0500 (EST)
+From: Nicolas Pitre <nico@fluxnic.net>
+Subject: Re: [PATCH] mm: nobootmem: avoid type warning about alignment value
+In-reply-to: <20140112105958.GA9791@n2100.arm.linux.org.uk>
+Message-id: <alpine.LFD.2.10.1401142238110.28907@knanqh.ubzr>
+References: <1385249326-9089-1-git-send-email-santosh.shilimkar@ti.com>
+ <529217C7.6030304@cogentembedded.com> <52935762.1080409@ti.com>
+ <20131209165044.cf7de2edb8f4205d5ac02ab0@linux-foundation.org>
+ <20131210005454.GX4360@n2100.arm.linux.org.uk> <52A66826.7060204@ti.com>
+ <20140112105958.GA9791@n2100.arm.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: William Roberts <bill.c.roberts@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, William Roberts <wroberts@tresys.com>, linux-audit@redhat.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Santosh Shilimkar <santosh.shilimkar@ti.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, linux-arm-kernel@lists.infradead.org
 
-On 14/01/14, William Roberts wrote:
-> The race was non existent. I had the VMA locked. I switched to this to keep
-> the code that gets the cmdline value almost unchanged to try and reduce
-> bugs. I can still author a patch on top of this later to optimize. However
-> the buffer is smaller. Before it was page size, now its path max....iirc is
-> smaller.
+On Sun, 12 Jan 2014, Russell King - ARM Linux wrote:
 
-Both are 4K on what I'm looking at.
-
-> On Jan 14, 2014 5:45 PM, "Richard Guy Briggs" <rgb@redhat.com> wrote:
+> This patch makes their types match exactly with x86's definitions of
+> the same, which is the basic problem: on ARM, they all took "int" values
+> and returned "int"s, which leads to min() in nobootmem.c complaining.
 > 
-> > On 14/01/06, William Roberts wrote:
-> > > During an audit event, cache and print the value of the process's
-> > > cmdline value (proc/<pid>/cmdline). This is useful in situations
-> > > where processes are started via fork'd virtual machines where the
-> > > comm field is incorrect. Often times, setting the comm field still
-> > > is insufficient as the comm width is not very wide and most
-> > > virtual machine "package names" do not fit. Also, during execution,
-> > > many threads have their comm field set as well. By tying it back to
-> > > the global cmdline value for the process, audit records will be more
-> > > complete in systems with these properties. An example of where this
-> > > is useful and applicable is in the realm of Android. With Android,
-> > > their is no fork/exec for VM instances. The bare, preloaded Dalvik
-> > > VM listens for a fork and specialize request. When this request comes
-> > > in, the VM forks, and the loads the specific application (specializing).
-> > > This was done to take advantage of COW and to not require a load of
-> > > basic packages by the VM on very app spawn. When this spawn occurs,
-> > > the package name is set via setproctitle() and shows up in procfs.
-> > > Many of these package names are longer then 16 bytes, the historical
-> > > width of task->comm. Having the cmdline in the audit records will
-> > > couple the application back to the record directly. Also, on my
-> > > Debian development box, some audit records were more useful then
-> > > what was printed under comm.
-> >
-> > So...  What happenned to allocating only what you need instead of the
-> > full 4k buffer?  Your test results showed promise with only 64 or 128
-> > bytes allocated.  I recall seeing some discussion about a race between
-> > testing for the size needed and actually filling the buffer, but was
-> > hoping that would be worked on rather than reverting back to the full
-> > 4k.
-> >
-> > > The cached cmdline is tied to the life-cycle of the audit_context
-> > > structure and is built on demand.
-> > >
-> > > Example denial prior to patch (Ubuntu):
-> > > CALL msg=audit(1387828084.070:361): arch=c000003e syscall=82 success=yes
-> > exit=0 a0=4184bf a1=418547 a2=0 a3=0 items=0 ppid=1 pid=1329
-> > auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0
-> > ses=4294967295 tty=(none) comm="console-kit-dae"
-> > exe="/usr/sbin/console-kit-daemon"
-> > subj=system_u:system_r:consolekit_t:s0-s0:c0.c255 key=(null)
-> > >
-> > > After Patches (Ubuntu):
-> > > type=SYSCALL msg=audit(1387828084.070:361): arch=c000003e syscall=82
-> > success=yes exit=0 a0=4184bf a1=418547 a2=0 a3=0 items=0 ppid=1 pid=1329
-> > auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0
-> > ses=4294967295 tty=(none) comm="console-kit-dae"
-> > exe="/usr/sbin/console-kit-daemon"
-> > subj=system_u:system_r:consolekit_t:s0-s0:c0.c255
-> > cmdline="/usr/lib/dbus-1.0/dbus-daemon-launch-helper" key=(null)
-> > >
-> > > Example denial prior to patch (Android):
-> > > type=1300 msg=audit(248323.940:247): arch=40000028 syscall=54 per=840000
-> > success=yes exit=0 a0=39 a1=540b a2=2 a3=750eecec items=0 ppid=224 pid=1858
-> > auid=4294967295 uid=1002 gid=1002 euid=1002 suid=1002 fsuid=1002 egid=1002
-> > sgid=1002 fsgid=1002 tty=(none) ses=4294967295 comm="bt_hc_worker"
-> > exe="/system/bin/app_process" subj=u:r:bluetooth:s0 key=(null)
-> > >
-> > > After Patches (Android):
-> > > type=1300 msg=audit(248323.940:247): arch=40000028 syscall=54 per=840000
-> > success=yes exit=0 a0=39 a1=540b a2=2 a3=750eecec items=0 ppid=224 pid=1858
-> > auid=4294967295 uid=1002 gid=1002 euid=1002 suid=1002 fsuid=1002 egid=1002
-> > sgid=1002 fsgid=1002 tty=(none) ses=4294967295 comm="bt_hc_worker"
-> > exe="/system/bin/app_process" cmdline="com.android.bluetooth"
-> > subj=u:r:bluetooth:s0 key=(null)
-> > >
-> > > Signed-off-by: William Roberts <wroberts@tresys.com>
-> > > ---
-> > >  kernel/audit.h   |    1 +
-> > >  kernel/auditsc.c |   32 ++++++++++++++++++++++++++++++++
-> > >  2 files changed, 33 insertions(+)
-> > >
-> > > diff --git a/kernel/audit.h b/kernel/audit.h
-> > > index b779642..bd6211f 100644
-> > > --- a/kernel/audit.h
-> > > +++ b/kernel/audit.h
-> > > @@ -202,6 +202,7 @@ struct audit_context {
-> > >               } execve;
-> > >       };
-> > >       int fds[2];
-> > > +     char *cmdline;
-> > >
-> > >  #if AUDIT_DEBUG
-> > >       int                 put_count;
-> > > diff --git a/kernel/auditsc.c b/kernel/auditsc.c
-> > > index 90594c9..a4c2003 100644
-> > > --- a/kernel/auditsc.c
-> > > +++ b/kernel/auditsc.c
-> > > @@ -842,6 +842,12 @@ static inline struct audit_context
-> > *audit_get_context(struct task_struct *tsk,
-> > >       return context;
-> > >  }
-> > >
-> > > +static inline void audit_cmdline_free(struct audit_context *context)
-> > > +{
-> > > +     kfree(context->cmdline);
-> > > +     context->cmdline = NULL;
-> > > +}
-> > > +
-> > >  static inline void audit_free_names(struct audit_context *context)
-> > >  {
-> > >       struct audit_names *n, *next;
-> > > @@ -955,6 +961,7 @@ static inline void audit_free_context(struct
-> > audit_context *context)
-> > >       audit_free_aux(context);
-> > >       kfree(context->filterkey);
-> > >       kfree(context->sockaddr);
-> > > +     audit_cmdline_free(context);
-> > >       kfree(context);
-> > >  }
-> > >
-> > > @@ -1271,6 +1278,30 @@ static void show_special(struct audit_context
-> > *context, int *call_panic)
-> > >       audit_log_end(ab);
-> > >  }
-> > >
-> > > +static void audit_log_cmdline(struct audit_buffer *ab, struct
-> > task_struct *tsk,
-> > > +                      struct audit_context *context)
-> > > +{
-> > > +     int res;
-> > > +     char *buf;
-> > > +     char *msg = "(null)";
-> > > +     audit_log_format(ab, " cmdline=");
-> > > +
-> > > +     /* Not  cached */
-> > > +     if (!context->cmdline) {
-> > > +             buf = kmalloc(PATH_MAX, GFP_KERNEL);
-> > > +             if (!buf)
-> > > +                     goto out;
-> > > +             res = get_cmdline(tsk, buf, PATH_MAX);
-> > > +             /* Ensure NULL terminated */
-> > > +             if (buf[res-1] != '\0')
-> > > +                     buf[res-1] = '\0';
-> > > +             context->cmdline = buf;
-> > > +     }
-> > > +     msg = context->cmdline;
-> > > +out:
-> > > +     audit_log_untrustedstring(ab, msg);
-> > > +}
-> > > +
-> > >  static void audit_log_exit(struct audit_context *context, struct
-> > task_struct *tsk)
-> > >  {
-> > >       int i, call_panic = 0;
-> > > @@ -1302,6 +1333,7 @@ static void audit_log_exit(struct audit_context
-> > *context, struct task_struct *ts
-> > >                        context->name_count);
-> > >
-> > >       audit_log_task_info(ab, tsk);
-> > > +     audit_log_cmdline(ab, tsk, context);
-> > >       audit_log_key(ab, context->filterkey);
-> > >       audit_log_end(ab);
-> > >
-> > > --
-> > > 1.7.9.5
-> > >
-> > > --
-> > > Linux-audit mailing list
-> > > Linux-audit@redhat.com
-> > > https://www.redhat.com/mailman/listinfo/linux-audit
-> >
-> > - RGB
-> >
-> > --
-> > Richard Guy Briggs <rbriggs@redhat.com>
-> > Senior Software Engineer, Kernel Security, AMER ENG Base Operating
-> > Systems, Red Hat
-> > Remote, Ottawa, Canada
-> > Voice: +1.647.777.2635, Internal: (81) 32635, Alt: +1.613.693.0684x3545
-> >
+>  arch/arm/include/asm/bitops.h | 54 +++++++++++++++++++++++++++++++++++--------
+>  1 file changed, 44 insertions(+), 10 deletions(-)
 
+For the record:
+
+Acked-by: Nicolas Pitre <nico@linaro.org>
+
+The reason why macros were used at the time this was originally written 
+is because gcc used to have issues forwarding the constant nature of a 
+variable down multiple levels of inline functions and 
+__builtin_constant_p() always returned false.  But that was quite a long 
+time ago.
+
+
+> diff --git a/arch/arm/include/asm/bitops.h b/arch/arm/include/asm/bitops.h
+> index e691ec91e4d3..b2e298a90d76 100644
+> --- a/arch/arm/include/asm/bitops.h
+> +++ b/arch/arm/include/asm/bitops.h
+> @@ -254,25 +254,59 @@ static inline int constant_fls(int x)
+>  }
+>  
+>  /*
+> - * On ARMv5 and above those functions can be implemented around
+> - * the clz instruction for much better code efficiency.
+> + * On ARMv5 and above those functions can be implemented around the
+> + * clz instruction for much better code efficiency.  __clz returns
+> + * the number of leading zeros, zero input will return 32, and
+> + * 0x80000000 will return 0.
+>   */
+> +static inline unsigned int __clz(unsigned int x)
+> +{
+> +	unsigned int ret;
+> +
+> +	asm("clz\t%0, %1" : "=r" (ret) : "r" (x));
+>  
+> +	return ret;
+> +}
+> +
+> +/*
+> + * fls() returns zero if the input is zero, otherwise returns the bit
+> + * position of the last set bit, where the LSB is 1 and MSB is 32.
+> + */
+>  static inline int fls(int x)
+>  {
+> -	int ret;
+> -
+>  	if (__builtin_constant_p(x))
+>  	       return constant_fls(x);
+>  
+> -	asm("clz\t%0, %1" : "=r" (ret) : "r" (x));
+> -       	ret = 32 - ret;
+> -	return ret;
+> +	return 32 - __clz(x);
+> +}
+> +
+> +/*
+> + * __fls() returns the bit position of the last bit set, where the
+> + * LSB is 0 and MSB is 31.  Zero input is undefined.
+> + */
+> +static inline unsigned long __fls(unsigned long x)
+> +{
+> +	return fls(x) - 1;
+> +}
+> +
+> +/*
+> + * ffs() returns zero if the input was zero, otherwise returns the bit
+> + * position of the first set bit, where the LSB is 1 and MSB is 32.
+> + */
+> +static inline int ffs(int x)
+> +{
+> +	return fls(x & -x);
+> +}
+> +
+> +/*
+> + * __ffs() returns the bit position of the first bit set, where the
+> + * LSB is 0 and MSB is 31.  Zero input is undefined.
+> + */
+> +static inline unsigned long __ffs(unsigned long x)
+> +{
+> +	return ffs(x) - 1;
+>  }
+>  
+> -#define __fls(x) (fls(x) - 1)
+> -#define ffs(x) ({ unsigned long __t = (x); fls(__t & -__t); })
+> -#define __ffs(x) (ffs(x) - 1)
+>  #define ffz(x) __ffs( ~(x) )
+>  
+>  #endif
+> 
+> 
+> -- 
+> FTTC broadband for 0.8mile line: 5.8Mbps down 500kbps up.  Estimation
+> in database were 13.1 to 19Mbit for a good line, about 7.5+ for a bad.
+> Estimate before purchase was "up to 13.2Mbit".
 > --
-> Linux-audit mailing list
-> Linux-audit@redhat.com
-> https://www.redhat.com/mailman/listinfo/linux-audit
-
-
-- RGB
-
---
-Richard Guy Briggs <rbriggs@redhat.com>
-Senior Software Engineer, Kernel Security, AMER ENG Base Operating Systems, Red Hat
-Remote, Ottawa, Canada
-Voice: +1.647.777.2635, Internal: (81) 32635, Alt: +1.613.693.0684x3545
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
