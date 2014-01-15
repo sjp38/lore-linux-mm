@@ -1,98 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
-	by kanga.kvack.org (Postfix) with ESMTP id D9FCB6B0039
-	for <linux-mm@kvack.org>; Wed, 15 Jan 2014 10:01:46 -0500 (EST)
-Received: by mail-ee0-f52.google.com with SMTP id e53so919124eek.39
-        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 07:01:46 -0800 (PST)
+Received: from mail-ea0-f179.google.com (mail-ea0-f179.google.com [209.85.215.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 742166B0031
+	for <linux-mm@kvack.org>; Wed, 15 Jan 2014 10:22:25 -0500 (EST)
+Received: by mail-ea0-f179.google.com with SMTP id r15so543394ead.38
+        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 07:22:21 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n47si8180169eef.199.2014.01.15.07.01.34
+        by mx.google.com with ESMTPS id n47si8272420eef.220.2014.01.15.07.22.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 15 Jan 2014 07:01:34 -0800 (PST)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [RFC 3/3] memcg,oom: do not check PF_EXITING and do not set TIF_MEMDIE
-Date: Wed, 15 Jan 2014 16:01:08 +0100
-Message-Id: <1389798068-19885-4-git-send-email-mhocko@suse.cz>
-In-Reply-To: <1389798068-19885-1-git-send-email-mhocko@suse.cz>
-References: <1389798068-19885-1-git-send-email-mhocko@suse.cz>
+        Wed, 15 Jan 2014 07:22:21 -0800 (PST)
+Date: Wed, 15 Jan 2014 15:22:18 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC] mm: show message when updating min_free_kbytes in thp
+Message-ID: <20140115152218.GL4963@suse.de>
+References: <20140103033303.GB4106@localhost.localdomain>
+ <52C6FED2.7070700@intel.com>
+ <20140105003501.GC4106@localhost.localdomain>
+ <20140106164604.GC27602@dhcp22.suse.cz>
+ <20140108101611.GD27937@dhcp22.suse.cz>
+ <20140110081744.GC9437@dhcp22.suse.cz>
+ <20140114200720.GM4106@localhost.localdomain>
+ <20140114155241.7891fce1fb2b9dfdcde15a8c@linux-foundation.org>
+ <alpine.DEB.2.02.1401141621560.3375@chino.kir.corp.google.com>
+ <20140114163533.ab191e118e82ca7b4d499551@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140114163533.ab191e118e82ca7b4d499551@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>
 
-Memcg OOM handler mimics the global OOM handler heuristics. One of them
-is to give a dying task (one with either fatal signals pending or
-PF_EXITING set) access to memory reserves via TIF_MEMDIE flag. This is
-not necessary though, because memory allocation has been already done
-when it is charged against a memcg so we do not need to abuse the flag.
+On Tue, Jan 14, 2014 at 04:35:33PM -0800, Andrew Morton wrote:
+> > Would it be overkill to save the kernel default both with and without thp 
+> > and then doing a WARN_ON_ONCE() if a user-written value is ever less?
+> 
+> Well, min_free_kbytes is a userspace thing, not a kernel thing - maybe
+> THP shouldn't be dinking with it.  What effect is THP trying to achieve
+> and can we achieve it by other/better means?
 
-fatal_signal_pending check is a bit tricky because the current task might
-have been killed during reclaim as an action done by vmpressure/thresholds
-handlers and we would definitely want to prevent from OOM kill in such
-situations.
-The current check is incomplete, though, because it only works for
-the current task because oom_scan_process_thread doesn't check for
-fatal_signal_pending. oom_scan_process_thread is shared between
-global and memcg OOM killer so we cannot simply abort scanning
-for killed tasks. We can, instead, move the check downwards in
-mem_cgroup_out_of_memory and break out from the tasks iteration loop
-when a killed task is encountered. We could check for PF_EXITING as well
-but it is dubious whether this would be helpful much more as a task
-should exit quite quickly once it is scheduled.
+It moved logic from hugeadm where few people knew about it to the
+kernel. The value is related to anti-fragmentation. With the recommended
+setting the probability of mixing pages of different mobility within a
+single pageblock is reduced. Very very superficially, it reduces the
+number of instances the mm_page_alloc_extfrag tracepoint is triggered
+with parameters that are considered to be severely fragmenting.
 
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
----
- mm/memcontrol.c | 21 +++++++++++----------
- 1 file changed, 11 insertions(+), 10 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 97ae5cf12f5e..ea9564895f54 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1761,16 +1761,6 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	unsigned int points = 0;
- 	struct task_struct *chosen = NULL;
- 
--	/*
--	 * If current has a pending SIGKILL or is exiting, then automatically
--	 * select it.  The goal is to allow it to allocate so that it may
--	 * quickly exit and free its memory.
--	 */
--	if (fatal_signal_pending(current)) {
--		set_thread_flag(TIF_MEMDIE);
--		return;
--	}
--
- 	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, order, NULL);
- 	totalpages = mem_cgroup_get_limit(memcg) >> PAGE_SHIFT ? : 1;
- 	for_each_mem_cgroup_tree(iter, memcg) {
-@@ -1779,6 +1769,16 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 
- 		css_task_iter_start(&iter->css, &it);
- 		while ((task = css_task_iter_next(&it))) {
-+			/*
-+			 * Killed tasks are selected automatically. The goal is
-+			 * to give the task some more time to exit and release
-+			 * the memory.
-+			 * Unlike for the global OOM handler we do not need
-+			 * access to memory reserves.
-+			 */
-+			if (fatal_signal_pending(task))
-+				goto abort;
-+
- 			switch (oom_scan_process_thread(task, totalpages, NULL,
- 							false)) {
- 			case OOM_SCAN_SELECT:
-@@ -1791,6 +1791,7 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 			case OOM_SCAN_CONTINUE:
- 				continue;
- 			case OOM_SCAN_ABORT:
-+abort:
- 				css_task_iter_end(&it);
- 				mem_cgroup_iter_break(memcg, iter);
- 				if (chosen)
 -- 
-1.8.5.2
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
