@@ -1,64 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-gg0-f179.google.com (mail-gg0-f179.google.com [209.85.161.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A0246B0031
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 19:22:21 -0500 (EST)
-Received: by mail-gg0-f179.google.com with SMTP id e5so311333ggh.24
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 16:22:21 -0800 (PST)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:5])
-        by mx.google.com with ESMTP id e3si2785407yhj.111.2014.01.14.16.22.19
-        for <linux-mm@kvack.org>;
-        Tue, 14 Jan 2014 16:22:20 -0800 (PST)
-Date: Wed, 15 Jan 2014 11:22:15 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 2/3] Add shrink_pagecache_parent
-Message-ID: <20140115002215.GP3469@dastard>
-References: <cover.1388409686.git.liwang@ubuntukylin.com>
- <249cbd3edaa84dd58a0626780fb546ddf7c1dc11.1388409687.git.liwang@ubuntukylin.com>
- <20140102155534.9b0cd498209d835d0c93837e@linux-foundation.org>
- <52CCB2A7.2000300@ubuntukylin.com>
+Received: from mail-yh0-f49.google.com (mail-yh0-f49.google.com [209.85.213.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 654CB6B0031
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 19:25:14 -0500 (EST)
+Received: by mail-yh0-f49.google.com with SMTP id b6so339502yha.22
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 16:25:14 -0800 (PST)
+Received: from mail-yh0-x235.google.com (mail-yh0-x235.google.com [2607:f8b0:4002:c01::235])
+        by mx.google.com with ESMTPS id v1si2788212yhg.124.2014.01.14.16.25.13
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 14 Jan 2014 16:25:13 -0800 (PST)
+Received: by mail-yh0-f53.google.com with SMTP id b20so54185yha.12
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 16:25:13 -0800 (PST)
+Date: Tue, 14 Jan 2014 16:25:10 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC] mm: show message when updating min_free_kbytes in thp
+In-Reply-To: <20140114155241.7891fce1fb2b9dfdcde15a8c@linux-foundation.org>
+Message-ID: <alpine.DEB.2.02.1401141621560.3375@chino.kir.corp.google.com>
+References: <52C5AA61.8060701@intel.com> <20140103033303.GB4106@localhost.localdomain> <52C6FED2.7070700@intel.com> <20140105003501.GC4106@localhost.localdomain> <20140106164604.GC27602@dhcp22.suse.cz> <20140108101611.GD27937@dhcp22.suse.cz>
+ <20140110081744.GC9437@dhcp22.suse.cz> <20140114200720.GM4106@localhost.localdomain> <20140114155241.7891fce1fb2b9dfdcde15a8c@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52CCB2A7.2000300@ubuntukylin.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Wang <liwang@ubuntukylin.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cong Wang <xiyou.wangcong@gmail.com>, Zefan Li <lizefan@huawei.com>, Matthew Wilcox <matthew@wil.cx>, Yunchuan Wen <yunchuanwen@ubuntukylin.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Han Pingtian <hanpt@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>
 
-On Wed, Jan 08, 2014 at 10:06:31AM +0800, Li Wang wrote:
-> Hi,
+On Tue, 14 Jan 2014, Andrew Morton wrote:
+
+> This is all a bit nasty, isn't it?  THP goes and alters min_free_kbytes
+> to improve its own reliability, but min_free_kbytes is also
+> user-modifiable.  And over many years we have trained a *lot* of users
+> to alter min_free_kbytes.  Often to prevent nasty page allocation
+> failure warnings from net drivers.
 > 
-> On 01/03/2014 07:55 AM, Andrew Morton wrote:
-> >On Mon, 30 Dec 2013 21:45:17 +0800 Li Wang <liwang@ubuntukylin.com> wrote:
-> >
-> >>Analogous to shrink_dcache_parent except that it collects inodes.
-> >>It is not very appropriate to be put in dcache.c, but d_walk can only
-> >>be invoked from here.
-> >However...  most inodes will be on an LRU list, won't they?  Doesn't
-> >this reuse of i_lru mean that many inodes will fail to be processed?
-> >If so, we might need to add a new list_head to the inode, which will be
-> >problematic.
-> >
-> As far as I know, fix me if i am wrong, only when inode has zero
-> reference count, it will be put into superblock lru list. For most
-> situations, there is at least a dentry refers to it, so it will not
-> be on any lru list.
 
-Yes, that's when they get added to the LRU, but they don't get
-removed if they are referenced again by a dentry. Hence dentries can
-be reclaimed, which puts the inode on it's LRU, but then the
-directory is read again and a new dentry allocated to point to it.
-We do not remove the inode from the LRU at this point in time.
-Hence you can have referenced inodes that are on the LRU, and in
-many workloads most of the referenced inodes in the system are on
-the LRU....
+I can vouch for kernel logs that are spammed with tons of net page 
+allocation failure warnings, in fact we're going through and adding 
+__GFP_NOWARN to most of these.
 
-Cheers,
+> So there are probably quite a lot of people out there who are manually
+> rubbing out THP's efforts.  And there may also be people who are
+> setting min_free_kbytes to a value which is unnecessarily high for more
+> recent kernels.
+> 
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Indeed, we have initscripts that modified min_free_kbytes before thp was 
+introduced but luckily they were comparing their newly computed value to 
+the existing value and only writing if the new value is greater.  
+Hopefully most users are doing the same thing.
+
+Would it be overkill to save the kernel default both with and without thp 
+and then doing a WARN_ON_ONCE() if a user-written value is ever less?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
