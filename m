@@ -1,55 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f179.google.com (mail-ea0-f179.google.com [209.85.215.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 742166B0031
-	for <linux-mm@kvack.org>; Wed, 15 Jan 2014 10:22:25 -0500 (EST)
-Received: by mail-ea0-f179.google.com with SMTP id r15so543394ead.38
-        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 07:22:21 -0800 (PST)
+Received: from mail-ea0-f181.google.com (mail-ea0-f181.google.com [209.85.215.181])
+	by kanga.kvack.org (Postfix) with ESMTP id CAFAC6B0035
+	for <linux-mm@kvack.org>; Wed, 15 Jan 2014 10:28:49 -0500 (EST)
+Received: by mail-ea0-f181.google.com with SMTP id m10so561259eaj.12
+        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 07:28:49 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n47si8272420eef.220.2014.01.15.07.22.21
+        by mx.google.com with ESMTPS id a9si8267376eem.48.2014.01.15.07.01.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 15 Jan 2014 07:22:21 -0800 (PST)
-Date: Wed, 15 Jan 2014 15:22:18 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC] mm: show message when updating min_free_kbytes in thp
-Message-ID: <20140115152218.GL4963@suse.de>
-References: <20140103033303.GB4106@localhost.localdomain>
- <52C6FED2.7070700@intel.com>
- <20140105003501.GC4106@localhost.localdomain>
- <20140106164604.GC27602@dhcp22.suse.cz>
- <20140108101611.GD27937@dhcp22.suse.cz>
- <20140110081744.GC9437@dhcp22.suse.cz>
- <20140114200720.GM4106@localhost.localdomain>
- <20140114155241.7891fce1fb2b9dfdcde15a8c@linux-foundation.org>
- <alpine.DEB.2.02.1401141621560.3375@chino.kir.corp.google.com>
- <20140114163533.ab191e118e82ca7b4d499551@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20140114163533.ab191e118e82ca7b4d499551@linux-foundation.org>
+        Wed, 15 Jan 2014 07:01:18 -0800 (PST)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [RFC 1/3] memcg: notify userspace about OOM only when and action is due
+Date: Wed, 15 Jan 2014 16:01:06 +0100
+Message-Id: <1389798068-19885-2-git-send-email-mhocko@suse.cz>
+In-Reply-To: <1389798068-19885-1-git-send-email-mhocko@suse.cz>
+References: <1389798068-19885-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>
+To: linux-mm@kvack.org
+Cc: LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Jan 14, 2014 at 04:35:33PM -0800, Andrew Morton wrote:
-> > Would it be overkill to save the kernel default both with and without thp 
-> > and then doing a WARN_ON_ONCE() if a user-written value is ever less?
-> 
-> Well, min_free_kbytes is a userspace thing, not a kernel thing - maybe
-> THP shouldn't be dinking with it.  What effect is THP trying to achieve
-> and can we achieve it by other/better means?
+Userspace is currently notified about OOM condition after reclaim
+fails to uncharge any memory after MEM_CGROUP_RECLAIM_RETRIES rounds.
+This usually means that the memcg is really in troubles and an
+OOM action (either done by userspace or kernel) has to be taken.
+The kernel OOM killer however bails out and doesn't kill anything
+if it sees an already dying/exiting task in a good hope a memory
+will be released and the OOM situation will be resolved.
 
-It moved logic from hugeadm where few people knew about it to the
-kernel. The value is related to anti-fragmentation. With the recommended
-setting the probability of mixing pages of different mobility within a
-single pageblock is reduced. Very very superficially, it reduces the
-number of instances the mm_page_alloc_extfrag tracepoint is triggered
-with parameters that are considered to be severely fragmenting.
+Therefore it makes sense to notify userspace only after really all
+measures have been taken and an userspace action is required or
+the kernel kills a task.
 
+This patch is based on idea by David Rientjes to not notify
+userspace when the current task is killed or in a late exiting.
+The original patch, however, didn't handle in kernel oom killer
+back offs which is implemtented by this patch.
+
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+---
+ include/linux/memcontrol.h | 5 +++++
+ mm/memcontrol.c            | 9 +++++----
+ mm/oom_kill.c              | 3 +++
+ 3 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index abd0113b6620..8aeb7c441533 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -134,6 +134,7 @@ unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list);
+ void mem_cgroup_update_lru_size(struct lruvec *, enum lru_list, int);
+ extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
+ 					struct task_struct *p);
++extern void mem_cgroup_oom_notify(struct mem_cgroup *memcg);
+ extern void mem_cgroup_replace_page_cache(struct page *oldpage,
+ 					struct page *newpage);
+ 
+@@ -369,6 +370,10 @@ mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+ {
+ }
+ 
++static inline void mem_cgroup_oom_notify(struct mem_cgroup *memcg)
++{
++}
++
+ static inline void mem_cgroup_begin_update_page_stat(struct page *page,
+ 					bool *locked, unsigned long *flags)
+ {
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index f016d26adfd3..491d368ae488 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2232,15 +2232,16 @@ bool mem_cgroup_oom_synchronize(bool handle)
+ 
+ 	locked = mem_cgroup_oom_trylock(memcg);
+ 
+-	if (locked)
+-		mem_cgroup_oom_notify(memcg);
+-
+ 	if (locked && !memcg->oom_kill_disable) {
+ 		mem_cgroup_unmark_under_oom(memcg);
+ 		finish_wait(&memcg_oom_waitq, &owait.wait);
++		/* calls mem_cgroup_oom_notify if there is a task to kill */
+ 		mem_cgroup_out_of_memory(memcg, current->memcg_oom.gfp_mask,
+ 					 current->memcg_oom.order);
+ 	} else {
++		if (locked && memcg->oom_kill_disable)
++			mem_cgroup_oom_notify(memcg);
++
+ 		schedule();
+ 		mem_cgroup_unmark_under_oom(memcg);
+ 		finish_wait(&memcg_oom_waitq, &owait.wait);
+@@ -5620,7 +5621,7 @@ static int mem_cgroup_oom_notify_cb(struct mem_cgroup *memcg)
+ 	return 0;
+ }
+ 
+-static void mem_cgroup_oom_notify(struct mem_cgroup *memcg)
++void mem_cgroup_oom_notify(struct mem_cgroup *memcg)
+ {
+ 	struct mem_cgroup *iter;
+ 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 054ff47c4478..96b97027fc4d 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -476,6 +476,9 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 		victim = p;
+ 	}
+ 
++	if (memcg)
++		mem_cgroup_oom_notify(memcg);
++
+ 	/* mm cannot safely be dereferenced after task_unlock(victim) */
+ 	mm = victim->mm;
+ 	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
 -- 
-Mel Gorman
-SUSE Labs
+1.8.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
