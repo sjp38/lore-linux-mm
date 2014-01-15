@@ -1,72 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-gg0-f182.google.com (mail-gg0-f182.google.com [209.85.161.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 21B476B0031
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 19:58:12 -0500 (EST)
-Received: by mail-gg0-f182.google.com with SMTP id e27so322367gga.13
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 16:58:11 -0800 (PST)
-Received: from mail-yh0-x235.google.com (mail-yh0-x235.google.com [2607:f8b0:4002:c01::235])
-        by mx.google.com with ESMTPS id x47si2919557yhx.10.2014.01.14.16.58.10
+Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CB336B0037
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 20:05:47 -0500 (EST)
+Received: by mail-yk0-f174.google.com with SMTP id 10so171547ykt.5
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 17:05:46 -0800 (PST)
+Received: from mail-gg0-x229.google.com (mail-gg0-x229.google.com [2607:f8b0:4002:c02::229])
+        by mx.google.com with ESMTPS id t26si1047582yhg.192.2014.01.14.17.05.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 14 Jan 2014 16:58:11 -0800 (PST)
-Received: by mail-yh0-f53.google.com with SMTP id b20so61495yha.40
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 16:58:10 -0800 (PST)
-Date: Tue, 14 Jan 2014 16:58:07 -0800 (PST)
+        Tue, 14 Jan 2014 17:05:46 -0800 (PST)
+Received: by mail-gg0-f169.google.com with SMTP id j5so327773ggn.0
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 17:05:45 -0800 (PST)
+Date: Tue, 14 Jan 2014 17:05:42 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
 Subject: Re: [RFC] hotplug, memory: move register_memory_resource out of the
  lock_memory_hotplug
-In-Reply-To: <1389723874-32372-1-git-send-email-nzimmer@sgi.com>
-Message-ID: <alpine.DEB.2.02.1401141656030.3375@chino.kir.corp.google.com>
-References: <1389723874-32372-1-git-send-email-nzimmer@sgi.com>
+In-Reply-To: <20140114151340.004d25c00056d88f33cadda0@linux-foundation.org>
+Message-ID: <alpine.DEB.2.02.1401141702450.3375@chino.kir.corp.google.com>
+References: <1389723874-32372-1-git-send-email-nzimmer@sgi.com> <20140114151340.004d25c00056d88f33cadda0@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nathan Zimmer <nzimmer@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Hedi <hedi@sgi.com>, Mike Travis <travis@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nathan Zimmer <nzimmer@sgi.com>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Hedi <hedi@sgi.com>, Mike Travis <travis@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 14 Jan 2014, Nathan Zimmer wrote:
+On Tue, 14 Jan 2014, Andrew Morton wrote:
 
-> We don't need to do register_memory_resource() since it has its own lock and
-> doesn't make any callbacks.
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: mm/memory_hotplug.c: register_memory_resource() fixes
+> 
+> - register_memory_resource() should not go BUG on ENOMEM.  That's
+>   appropriate at system boot time, but not at memory-hotplug time.  Fix.
+> 
+> - register_memory_resource()'s caller is incorrectly replacing
+>   request_resource()'s -EBUSY with -EEXIST.  Fix this by propagating
+>   errors appropriately.
 > 
 
-We need to do it, just not under lock_memory_hotplug() :).
-
-> Also register_memory_resource return NULL on failure so we don't have anything
-> to cleanup at this point.
-> 
-> 
-> The reason for this rfc is I was doing some experiments with hotplugging of
-> memory on some of our larger systems.  While it seems to work, it can be quite
-> slow.  With some preliminary digging I found that lock_memory_hotplug is
-> clearly ripe for breakup.
-> 
-> It could be broken up per nid or something but it also covers the
-> online_page_callback.  The online_page_callback shouldn't be very hard to break
-> out.
-> 
-> Also there is the issue of various structures(wmarks come to mind) that are
-> only updated under the lock_memory_hotplug that would need to be dealt with.
-> 
-> 
-> cc: Andrew Morton <akpm@linux-foundation.org>
-> cc: Tang Chen <tangchen@cn.fujitsu.com>
-> cc: Wen Congyang <wency@cn.fujitsu.com>
-> cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> cc: "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
-> cc: Hedi <hedi@sgi.com>
-> cc: Mike Travis <travis@sgi.com>
-> cc: linux-mm@kvack.org
-> cc: linux-kernel@vger.kernel.org
-
-Looks like you're modifying a pre-3.12 kernel version that doesn't have 
-27356f54c8c3 ("mm/hotplug: verify hotplug memory range").
-
-When your patch is signed off, feel free to add
-
-Acked-by: David Rientjes <rientjes@google.com>
+Unfortunately, -EEXIST is a special case return value for both 
+acpi_memory_enable_device() and hv_mem_hot_add(), so they would need to be 
+modified to agree concurrently with this change.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
