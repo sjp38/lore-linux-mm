@@ -1,70 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f52.google.com (mail-qe0-f52.google.com [209.85.128.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B65616B0031
-	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 21:31:35 -0500 (EST)
-Received: by mail-qe0-f52.google.com with SMTP id s1so505903qeb.25
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 18:31:35 -0800 (PST)
-Received: from mail-gg0-x22f.google.com (mail-gg0-x22f.google.com [2607:f8b0:4002:c02::22f])
-        by mx.google.com with ESMTPS id hi9si1414775qcb.15.2014.01.14.18.31.34
+Received: from mail-gg0-f180.google.com (mail-gg0-f180.google.com [209.85.161.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 515686B0031
+	for <linux-mm@kvack.org>; Tue, 14 Jan 2014 21:37:50 -0500 (EST)
+Received: by mail-gg0-f180.google.com with SMTP id q3so344514gge.11
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 18:37:50 -0800 (PST)
+Received: from mail-yh0-x22b.google.com (mail-yh0-x22b.google.com [2607:f8b0:4002:c01::22b])
+        by mx.google.com with ESMTPS id n44si3160882yhn.140.2014.01.14.18.37.49
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 14 Jan 2014 18:31:35 -0800 (PST)
-Received: by mail-gg0-f175.google.com with SMTP id c2so339148ggn.20
-        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 18:31:34 -0800 (PST)
-Date: Tue, 14 Jan 2014 18:31:31 -0800 (PST)
+        Tue, 14 Jan 2014 18:37:49 -0800 (PST)
+Received: by mail-yh0-f43.google.com with SMTP id a41so375006yho.16
+        for <linux-mm@kvack.org>; Tue, 14 Jan 2014 18:37:49 -0800 (PST)
+Date: Tue, 14 Jan 2014 18:37:45 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC][PATCH 1/9] mm: slab/slub: use page->list consistently
- instead of page->lru
-In-Reply-To: <20140114180044.1E401C47@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.02.1401141829530.32645@chino.kir.corp.google.com>
-References: <20140114180042.C1C33F78@viggo.jf.intel.com> <20140114180044.1E401C47@viggo.jf.intel.com>
+Subject: Re: [RFC][PATCH 2/9] mm: slub: abstract out double cmpxchg option
+In-Reply-To: <52D5AEF7.6020707@sr71.net>
+Message-ID: <alpine.DEB.2.02.1401141832420.32645@chino.kir.corp.google.com>
+References: <20140114180042.C1C33F78@viggo.jf.intel.com> <20140114180046.C897727E@viggo.jf.intel.com> <alpine.DEB.2.10.1401141346310.19618@nuc> <52D5AEF7.6020707@sr71.net>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="531381512-685474905-1389753093=:32645"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Hansen <dave@sr71.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
-
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
-
---531381512-685474905-1389753093=:32645
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: 8BIT
+Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, penberg@kernel.org
 
 On Tue, 14 Jan 2014, Dave Hansen wrote:
 
-> diff -puN include/linux/mm_types.h~make-slab-use-page-lru-vs-list-consistently include/linux/mm_types.h
-> --- a/include/linux/mm_types.h~make-slab-use-page-lru-vs-list-consistently	2014-01-14 09:57:56.099621967 -0800
-> +++ b/include/linux/mm_types.h	2014-01-14 09:57:56.106622281 -0800
-> @@ -124,6 +124,8 @@ struct page {
->  	union {
->  		struct list_head lru;	/* Pageout list, eg. active_list
->  					 * protected by zone->lru_lock !
-> +					 * Can be used as a generic list
-> +					 * by the page owner.
->  					 */
->  		struct {		/* slub per cpu partial pages */
->  			struct page *next;	/* Next partial slab */
-> @@ -136,7 +138,6 @@ struct page {
->  #endif
->  		};
->  
-> -		struct list_head list;	/* slobs list of pages */
->  		struct slab *slab_page; /* slab fields */
->  		struct rcu_head rcu_head;	/* Used by SLAB
->  						 * when destroying via RCU
+> > On Tue, 14 Jan 2014, Dave Hansen wrote:
+> >> I found this useful to have in my testing.  I would like to have
+> >> it available for a bit, at least until other folks have had a
+> >> chance to do some testing with it.
+> > 
+> > I dont really see the point of this patch since we already have
+> > CONFIG_HAVE_ALIGNED_STRUCT_PAGE to play with.
+> 
+> With the current code, if you wanted to turn off the double-cmpxchg abd
+> get a 56-byte 'struct page' how would you do it?  Can you do it with a
+> .config, or do you need to hack the code?
+> 
 
-Did you try with a CONFIG_BLOCK config?
-
-block/blk-mq.c: In function a??blk_mq_free_rq_mapa??:
-block/blk-mq.c:1094:10: error: a??struct pagea?? has no member named a??lista??
-block/blk-mq.c:1094:10: warning: initialization from incompatible pointer type [enabled by default]
-block/blk-mq.c:1094:10: error: a??struct pagea?? has no member named a??lista??
-block/blk-mq.c:1095:22: error: a??struct pagea?? has no member named a??lista??
-block/blk-mq.c: In function a??blk_mq_init_rq_mapa??:
-block/blk-mq.c:1159:22: error: a??struct pagea?? has no member named a??lista??
---531381512-685474905-1389753093=:32645--
+If that's the intention of disabling this new config option, then it 
+should probably mention the savings in the "help" section, similar to what
+CONFIG_HAVE_ALIGNED_STRUCT_PAGE says.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
