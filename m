@@ -1,67 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f42.google.com (mail-bk0-f42.google.com [209.85.214.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 28AC56B0031
-	for <linux-mm@kvack.org>; Wed, 15 Jan 2014 12:57:04 -0500 (EST)
-Received: by mail-bk0-f42.google.com with SMTP id my12so818503bkb.29
-        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 09:57:03 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id km5si3492845bkb.217.2014.01.15.09.57.02
+Received: from mail-vb0-f53.google.com (mail-vb0-f53.google.com [209.85.212.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C2426B0031
+	for <linux-mm@kvack.org>; Wed, 15 Jan 2014 13:02:21 -0500 (EST)
+Received: by mail-vb0-f53.google.com with SMTP id p17so532588vbe.40
+        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 10:02:21 -0800 (PST)
+Received: from mail-qc0-x233.google.com (mail-qc0-x233.google.com [2607:f8b0:400d:c01::233])
+        by mx.google.com with ESMTPS id jx12si6270125qeb.92.2014.01.15.10.02.20
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 15 Jan 2014 09:57:02 -0800 (PST)
-Date: Wed, 15 Jan 2014 12:56:55 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC 1/3] memcg: notify userspace about OOM only when and action
- is due
-Message-ID: <20140115175655.GJ6963@cmpxchg.org>
-References: <1389798068-19885-1-git-send-email-mhocko@suse.cz>
- <1389798068-19885-2-git-send-email-mhocko@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1389798068-19885-2-git-send-email-mhocko@suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 15 Jan 2014 10:02:20 -0800 (PST)
+Received: by mail-qc0-f179.google.com with SMTP id e16so1274456qcx.38
+        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 10:02:20 -0800 (PST)
+From: William Roberts <bill.c.roberts@gmail.com>
+Subject: [PATCH v3 2/3] proc: Update get proc_pid_cmdline() to use mm.h helpers
+Date: Wed, 15 Jan 2014 13:02:13 -0500
+Message-Id: <1389808934-4446-2-git-send-email-wroberts@tresys.com>
+In-Reply-To: <1389808934-4446-1-git-send-email-wroberts@tresys.com>
+References: <1389808934-4446-1-git-send-email-wroberts@tresys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-audit@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rgb@redhat.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, sds@tycho.nsa.gov
+Cc: William Roberts <wroberts@tresys.com>
 
-On Wed, Jan 15, 2014 at 04:01:06PM +0100, Michal Hocko wrote:
-> Userspace is currently notified about OOM condition after reclaim
-> fails to uncharge any memory after MEM_CGROUP_RECLAIM_RETRIES rounds.
-> This usually means that the memcg is really in troubles and an
-> OOM action (either done by userspace or kernel) has to be taken.
-> The kernel OOM killer however bails out and doesn't kill anything
-> if it sees an already dying/exiting task in a good hope a memory
-> will be released and the OOM situation will be resolved.
-> 
-> Therefore it makes sense to notify userspace only after really all
-> measures have been taken and an userspace action is required or
-> the kernel kills a task.
-> 
-> This patch is based on idea by David Rientjes to not notify
-> userspace when the current task is killed or in a late exiting.
-> The original patch, however, didn't handle in kernel oom killer
-> back offs which is implemtented by this patch.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Re-factor proc_pid_cmdline() to use get_cmdline() helper
+from mm.h.
 
-OOM is a temporary state because any task can exit at a time that is
-not under our control and outside our knowledge.  That's why the OOM
-situation is defined by failing an allocation after a certain number
-of reclaim and charge attempts.
+Acked-by: David Rientjes <rientjes@google.com>
+Acked-by: Stephen Smalley <sds@tycho.nsa.gov>
 
-As of right now, the OOM sampling window is MEM_CGROUP_RECLAIM_RETRIES
-loops of charge attempts and reclaim.  If a racing task is exiting and
-releasing memory during that window, the charge will succeed fine.  If
-the sampling window is too short in practice, it will have to be
-extended, preferrably through increasing MEM_CGROUP_RECLAIM_RETRIES.
+Signed-off-by: William Roberts <wroberts@tresys.com>
+---
+ fs/proc/base.c |   36 ++----------------------------------
+ 1 file changed, 2 insertions(+), 34 deletions(-)
 
-But a random task exiting a split second after the sampling window has
-closed will always be a possibility, regardless of how long it is.
-There is nothing to be gained from this layering violation and it's
-mind-boggling that you two still think this is a meaningful change.
-
-Nacked-by: Johannes Weiner <hannes@cmpxchg.org>
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index 03c8d74..cfd178d 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -200,41 +200,9 @@ static int proc_root_link(struct dentry *dentry, struct path *path)
+ 	return result;
+ }
+ 
+-static int proc_pid_cmdline(struct task_struct *task, char * buffer)
++static int proc_pid_cmdline(struct task_struct *task, char *buffer)
+ {
+-	int res = 0;
+-	unsigned int len;
+-	struct mm_struct *mm = get_task_mm(task);
+-	if (!mm)
+-		goto out;
+-	if (!mm->arg_end)
+-		goto out_mm;	/* Shh! No looking before we're done */
+-
+- 	len = mm->arg_end - mm->arg_start;
+- 
+-	if (len > PAGE_SIZE)
+-		len = PAGE_SIZE;
+- 
+-	res = access_process_vm(task, mm->arg_start, buffer, len, 0);
+-
+-	// If the nul at the end of args has been overwritten, then
+-	// assume application is using setproctitle(3).
+-	if (res > 0 && buffer[res-1] != '\0' && len < PAGE_SIZE) {
+-		len = strnlen(buffer, res);
+-		if (len < res) {
+-		    res = len;
+-		} else {
+-			len = mm->env_end - mm->env_start;
+-			if (len > PAGE_SIZE - res)
+-				len = PAGE_SIZE - res;
+-			res += access_process_vm(task, mm->env_start, buffer+res, len, 0);
+-			res = strnlen(buffer, res);
+-		}
+-	}
+-out_mm:
+-	mmput(mm);
+-out:
+-	return res;
++	return get_cmdline(task, buffer, PAGE_SIZE);
+ }
+ 
+ static int proc_pid_auxv(struct task_struct *task, char *buffer)
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
