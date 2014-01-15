@@ -1,68 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f182.google.com (mail-ea0-f182.google.com [209.85.215.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 044806B0031
-	for <linux-mm@kvack.org>; Wed, 15 Jan 2014 09:34:52 -0500 (EST)
-Received: by mail-ea0-f182.google.com with SMTP id a15so517559eae.27
-        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 06:34:50 -0800 (PST)
+Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FCD56B0037
+	for <linux-mm@kvack.org>; Wed, 15 Jan 2014 10:01:24 -0500 (EST)
+Received: by mail-ee0-f51.google.com with SMTP id b57so937279eek.10
+        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 07:01:21 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a9si8106507eew.96.2014.01.15.06.34.49
+        by mx.google.com with ESMTPS id i1si8242164eev.89.2014.01.15.07.01.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 15 Jan 2014 06:34:49 -0800 (PST)
-Date: Wed, 15 Jan 2014 15:34:49 +0100
+        Wed, 15 Jan 2014 07:01:18 -0800 (PST)
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 1/2] mm, memcg: avoid oom notification when current needs
- access to memory reserves
-Message-ID: <20140115143449.GN8782@dhcp22.suse.cz>
-References: <alpine.DEB.2.02.1312182157510.1247@chino.kir.corp.google.com>
- <20131219144134.GH10855@dhcp22.suse.cz>
- <20140107162503.f751e880410f61a109cdcc2b@linux-foundation.org>
- <alpine.DEB.2.02.1401091324120.31538@chino.kir.corp.google.com>
- <20140109144757.e95616b4280c049b22743a15@linux-foundation.org>
- <alpine.DEB.2.02.1401091551390.20263@chino.kir.corp.google.com>
- <20140109161246.57ea590f00ea5b61fdbf5f11@linux-foundation.org>
- <alpine.DEB.2.02.1401091613560.22649@chino.kir.corp.google.com>
- <20140110221432.GD6963@cmpxchg.org>
- <alpine.DEB.2.02.1401121404530.20999@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1401121404530.20999@chino.kir.corp.google.com>
+Subject: [RFC PATCH 0/3] memcg OOM notifications and PF_EXITING checks
+Date: Wed, 15 Jan 2014 16:01:05 +0100
+Message-Id: <1389798068-19885-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, "Eric W. Biederman" <ebiederm@xmission.com>
+To: linux-mm@kvack.org
+Cc: LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Sun 12-01-14 14:10:49, David Rientjes wrote:
-> On Fri, 10 Jan 2014, Johannes Weiner wrote:
-> 
-> > > > > It was acked-by Michal.
-> > 
-> > Michal acked it before we had most of the discussions and now he is
-> > proposing an alternate version of yours, a patch that you are even
-> > discussing with him concurrently in another thread.  To claim he is
-> > still backing your patch because of that initial ack is disingenuous.
-> > 
-> 
-> His patch depends on mine, Johannes.
+Hi,
+this is an attempt to restart discussions regarding memcg OOM
+notifications and break out conditions.
 
-Does it? Are we talking about the same patch here?
-https://lkml.org/lkml/2013/12/12/174
+"memcg: do not hang on OOM when killed by userspace OOM access to memory
+reserves" which was a first patch in the series was already merged to -mm
+tree (http://www.ozlabs.org/~akpm/mmotm/broken-out/memcg-do-not-hang-on-oom-when-killed-by-userspace-oom-access-to-memory-reserves.patch)
+but it didn't see ack from neither David nor Johannes. I would be happy
+if we agreed on that one as well.
 
-Which depends on yours only to revert your part. I plan to repost it but
-that still doesn't mean it will get merged because Johannes still has
-some argumnets against. I would like to start the discussion again
-because now we are so deep in circles that it is hard to come up with a
-reasonable outcome. It is still hard to e.g. agree on an actual fix
-for a real problem https://lkml.org/lkml/2013/12/12/129.
+The first patch in this series implements and extends an idea proposed
+by David to not notify userspace when the OOM killer might back out and
+prevent from killing. Johannes was not fond of the idea because this
+changes userspace interface in a subtle way because somebody might be
+relying on notifications as a signal that the memcg is getting into
+troubles. It has been argued that there are memory thresholds and
+vmpressure notifications for such an use case.
 
-While notification might be an issue as well it is more of a corner case
-than a regular one. So let's try to move on, agree on the "oom vs.
-PF_EXITING) first and lay out discussion for the notification in a new
-threa. Shall we?
--- 
-Michal Hocko
-SUSE Labs
+I am in favor to make change the notification and draw the line when to
+notify to "kernel or userspace has to perform an action". It makes sense
+to me, it is still racy though. Something might have exiting millisecond
+after notification fired but it at least is consistent.
+
+The second patch is trivial and it removes PF_EXITING check for the
+current in mem_cgroup_out_of_memory because it is no longer needed when
+we have the check in the charging path.
+
+The last patch is just an attempt and might be totally wrong. I've
+noticed that we are not checking for the killed tasks in
+mem_cgroup_out_of_memory which might break usecases where a task was
+killed by vmpressure or thresholds handlers but the killed task cannot
+terminate in time. We should rather not kill something else.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
