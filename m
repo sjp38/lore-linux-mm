@@ -1,330 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A6E86B0031
-	for <linux-mm@kvack.org>; Wed, 15 Jan 2014 17:44:30 -0500 (EST)
-Received: by mail-wi0-f172.google.com with SMTP id ex4so4074718wid.11
-        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 14:44:30 -0800 (PST)
-Received: from mail-wi0-x22a.google.com (mail-wi0-x22a.google.com [2a00:1450:400c:c05::22a])
-        by mx.google.com with ESMTPS id hs1si4193060wjb.147.2014.01.15.14.44.29
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 15 Jan 2014 14:44:29 -0800 (PST)
-Received: by mail-wi0-f170.google.com with SMTP id ex4so1329748wid.3
-        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 14:44:29 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <34747889.Jh8c2aBYNA@x2>
-References: <1389808934-4446-1-git-send-email-wroberts@tresys.com>
-	<3556794.adKRynleHP@x2>
-	<CAFftDdrgQiW0e9wiCUjZ3WeiL4L74Zk=Bau1iPknxts4Lr0wXQ@mail.gmail.com>
-	<34747889.Jh8c2aBYNA@x2>
-Date: Wed, 15 Jan 2014 17:44:29 -0500
-Message-ID: <CAFftDdobF51kR6BWn=QpATTXRe7jr69OgcujSL3-jEtZd+ECBw@mail.gmail.com>
-Subject: Re: [PATCH v3 3/3] audit: Audit proc cmdline value
-From: William Roberts <bill.c.roberts@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id F3AA56B0031
+	for <linux-mm@kvack.org>; Wed, 15 Jan 2014 17:53:30 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id r10so1734824pdi.6
+        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 14:53:30 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id tr4si5058158pab.5.2014.01.15.14.53.29
+        for <linux-mm@kvack.org>;
+        Wed, 15 Jan 2014 14:53:29 -0800 (PST)
+Date: Wed, 15 Jan 2014 14:53:27 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/5] mm: vmscan: shrink all slab objects if tight on
+ memory
+Message-Id: <20140115145327.6aae2e13a9a8bba619923ac9@linux-foundation.org>
+In-Reply-To: <52D6AF5F.2040102@parallels.com>
+References: <7d37542211678a637dc6b4d995fd6f1e89100538.1389443272.git.vdavydov@parallels.com>
+	<20140113150502.4505f661589a4a2d30e6f11d@linux-foundation.org>
+	<52D4E5F2.5080205@parallels.com>
+	<20140114141453.374bd18e5290876177140085@linux-foundation.org>
+	<52D64B27.30604@parallels.com>
+	<20140115012541.ad302526.akpm@linux-foundation.org>
+	<52D6AF5F.2040102@parallels.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steve Grubb <sgrubb@redhat.com>
-Cc: "linux-audit@redhat.com" <linux-audit@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Richard Guy Briggs <rgb@redhat.com>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, akpm@linux-foundation.org, Stephen Smalley <sds@tycho.nsa.gov>, William Roberts <wroberts@tresys.com>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@gmail.com>
 
-On Wed, Jan 15, 2014 at 5:33 PM, Steve Grubb <sgrubb@redhat.com> wrote:
-> On Wednesday, January 15, 2014 05:08:13 PM William Roberts wrote:
->> On Wed, Jan 15, 2014 at 4:54 PM, Steve Grubb <sgrubb@redhat.com> wrote:
->> > On Wednesday, January 15, 2014 01:02:14 PM William Roberts wrote:
->> >> During an audit event, cache and print the value of the process's
->> >> cmdline value (proc/<pid>/cmdline). This is useful in situations
->> >> where processes are started via fork'd virtual machines where the
->> >> comm field is incorrect. Often times, setting the comm field still
->> >> is insufficient as the comm width is not very wide and most
->> >> virtual machine "package names" do not fit. Also, during execution,
->> >> many threads have their comm field set as well. By tying it back to
->> >> the global cmdline value for the process, audit records will be more
->> >> complete in systems with these properties. An example of where this
->> >> is useful and applicable is in the realm of Android. With Android,
->> >> their is no fork/exec for VM instances. The bare, preloaded Dalvik
->> >> VM listens for a fork and specialize request. When this request comes
->> >> in, the VM forks, and the loads the specific application (specializing).
->> >> This was done to take advantage of COW and to not require a load of
->> >> basic packages by the VM on very app spawn. When this spawn occurs,
->> >> the package name is set via setproctitle() and shows up in procfs.
->> >> Many of these package names are longer then 16 bytes, the historical
->> >> width of task->comm. Having the cmdline in the audit records will
->> >> couple the application back to the record directly. Also, on my
->> >> Debian development box, some audit records were more useful then
->> >> what was printed under comm.
->> >>
->> >> The cached cmdline is tied to the life-cycle of the audit_context
->> >> structure and is built on demand.
->> >
->> > I don't think its a good idea to do this for a number of reasons.
->> > 1) don't we have a record type for command line and its arguments?
->> > Shouldn't we use that auxiliary record if we do this?
->>
->> Doing this in userspace means each and every user-space would have to be
->> patched to support this. Other people from various systems have jumped in
->> adding how this would be beneficial to their cause. The data is right here in
->> the kernel.
->
-> I don't mean doing it in user space, I was thinking of perhaps using the
-> EXECVE auxiliary record type. It looks something like this:
->
-> type=EXECVE msg=audit(1303335094.212:83): argc=2 a0="ping"
-> a1="koji.fedoraproject.org"
->
-> Its a record type we already have with a format that can be parsed.
->
+On Wed, 15 Jan 2014 19:55:11 +0400 Vladimir Davydov <vdavydov@parallels.com> wrote:
 
-Their is no execve in my use case, so this record would never, ever
-be emitted.
+> >
+> > We could avoid the "scan 32 then scan just 1" issue with something like
+> >
+> > 	if (total_scan > batch_size)
+> > 		total_scan %= batch_size;
+> >
+> > before the loop.  But I expect the effects of that will be unmeasurable
+> > - on average the number of objects which are scanned in the final pass
+> > of the loop will be batch_size/2, yes?  That's still a decent amount.
+> 
+> Let me try to summarize. We want to scan batch_size objects in one pass,
+> not more (to keep latency low) and not less (to avoid cpu cache
+> pollution due to too frequent calls); if the calculated value of
+> nr_to_scan is less than the batch_size we should accumulate it in
+> nr_deferred instead of calling ->scan() and add nr_deferred to
+> nr_to_scan on the next pass, i.e. in pseudo-code:
+> 
+>     /* calculate current nr_to_scan */
+>     max_pass = shrinker->count();
+>     delta = max_pass * nr_user_pages_scanned / nr_user_pages;
+> 
+>     /* add nr_deferred */
+>     total_scan = delta + nr_deferred;
+> 
+>     while (total_scan >= batch_size) {
+>         shrinker->scan(batch_size);
+>         total_scan -= batch_size;
+>     }
+> 
+>     /* save the remainder to nr_deferred  */
+>     nr_deferred = total_scan;
+> 
+> That would work, but if max_pass is < batch_size, it would not scan the
+> objects immediately even if prio is high (we want to scan all objects).
 
+Yes, that's a problem.
 
->
->> > 2) we don't want each and every syscall record to grow huge(r). Remember
->> > the command line can be virtually unlimited in length. Adding this will
->> > consume disk space and we will be able to keep less records than we
->> > currently do.
->> We cap it at 128 chars in v3 patch, and then this value can be altered out
->> of tree and tuned for various systems.
->
-> That still adds up on systems where people really do use audit.
+> For example, dropping caches would not work on the first attempt - the
+> user would have to call it batch_size / max_pass times.
 
-Yes, but is less then setting comm width to 128, and its only
-transient use, not static and un yielding in its use.
+And we do want drop_caches to work immediately.
 
+> This could be
+> fixed by making the code proceed to ->scan() not only if total_scan is
+> >= batch_size, but also if max_pass is < batch_size and total_scan is >=
+> max_pass, i.e.
+> 
+>     while (total_scan >= batch_size ||
+>             (max_pass < batch_size && total_scan >= max_pass)) ...
+> 
+> which is equivalent to
+> 
+>     while (total_scan >= batch_size ||
+>                 total_scan >= max_pass) ...
+> 
+> The latter is the loop condition from the current patch, i.e. this patch
+> would make the trick if shrink_slab() followed the pseudo-code above. In
+> real life, it does not actually - we have to bias total_scan before the
+> while loop in order to avoid dropping fs meta caches on light memory
+> pressure due to a large number being built in nr_deferred:
+> 
+>     if (delta < max_pass / 4)
+>         total_scan = min(total_scan, max_pass / 2);
 
->
->
->> > 3) User space will now have to parse this field, too. If everything is in
->> > 1
->> > field, how can you tell the command from its arguments considering the
->> > command name could have spaces in it. What if the arguments have spaces
->> > in them?
->>
->> How did bash figure this out to run the command?
->
-> It was shell escaped and quoted when bash saw it. Its not when the kernel sees
-> it.
->
->> All the fields in audit are KVP based, the parsing is pretty straight
->> forward.
->
-> Try this,
->
-> cp /bin/ls 'test test test'
-> auditctll -a always,exit -F arch=b64 -S stat -k test
-> ./test\ test\ test './test\ test\ test'
-> auditctl -D
-> ausearch --start recent --key test
->
->
->> On the event of weird chars, it gets hex escaped.
->
-> and its all in 1 lump with no escaping to figure out what is what.
+Oh, is that what's it's for.  Where did you discover this gem?
 
-Un-escape it. ausearch does this with paths. Then if you need to parse
-it, do it.
+>     while (total_scan >= batch_size) ...
+> 
+> With this biasing, it is impossible to achieve the ideal behavior I've
+> described above, because we will never accumulate max_pass objects in
+> nr_deferred if memory pressure is low. So, if applied to the real code,
+> this patch takes on a slightly different sense, which I tried to reflect
+> in the comment to the code: it will call ->scan() with nr_to_scan <
+> batch_size only if:
+> 
+> 1) max_pass < batch_size && total_scan >= max_pass
+> 
+> and
+> 
+> 2) we're tight on memory, i.e. the current delta is high (otherwise
+> total_scan will be biased as max_pass / 2 and condition 1 won't be
+> satisfied).
 
->
->
->> > Its far better to fix cmd to be bigger than 16 characters than add all
->> > this
->> > extra information that is not needed in the audit logs.
->>
->> Rather then use some transient noon-pageable kernel memory for this,
->> you are suggesting using static,
->> non-page-able kernel memory for the whole life of every process? What about
->> cases where audit is disabled. This will greatly bloat the kernel. I
->> have brought up cranking up the
->> width but the general reaction is, this is not a good idea.
->
-> That is what the problem is. 16 bytes is useless for anything.
->
+(is max_pass misnamed?)
 
-Well I agree with that statement, its not going to change anytime
-soon. And also has the
-drawbacks ive mentioned. Also, their is another limitation. What if a
-thread sets its title. Its
-possible for each thread to have its own comm field. This cmdlien
-value ties it back to a global entity. Any
-thread can change it, but the value will be the same across all threads.
+> >From our discussion it seems condition 2 is not necessary at all, but it
+> follows directly from the biasing rule. So I propose to tweak the
+> biasing a bit so that total_scan won't be lowered < batch_size:
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index eea668d..78ddd5e 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -267,7 +267,7 @@ shrink_slab_node(struct shrink_control *shrinkctl,
+> struct shrinker *shrinker,
+>       * a large delta change is calculated directly.
+>       */
+>      if (delta < max_pass / 4)
+> -        total_scan = min(total_scan, max_pass / 2);
+> +        total_scan = min(total_scan, max(max_pass / 2, batch_size));
+>  
+>      /*
+>       * Avoid risking looping forever due to too large nr value:
+> @@ -281,7 +281,7 @@ shrink_slab_node(struct shrink_control *shrinkctl,
+> struct shrinker *shrinker,
+>                  nr_pages_scanned, lru_pages,
+>                  max_pass, delta, total_scan);
+>  
+> -    while (total_scan >= batch_size) {
+> +    while (total_scan >= batch_size || total_scan >= max_pass) {
+>          unsigned long ret;
+>  
+>          shrinkctl->nr_to_scan = batch_size;
+> 
+> The first hunk guarantees that total_scan will always accumulate at
+> least batch_size objects no matter how small max_pass is. That means
+> that when max_pass is < batch_size we will eventually get >= max_pass
+> objects to scan and shrink the slab to 0 as we need. What do you think
+> about that?
 
-
->
->
->> >> Example denial prior to patch (Ubuntu):
->> >> CALL msg=audit(1387828084.070:361): arch=c000003e syscall=82 success=yes
->> >> exit=0 a0=4184bf a1=418547 a2=0 a3=0 items=0 ppid=1 pid=1329
->> >> auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0
->> >> ses=4294967295 tty=(none) comm="console-kit-dae"
->> >> exe="/usr/sbin/console-kit-daemon"
->> >> subj=system_u:system_r:consolekit_t:s0-s0:c0.c255 key=(null)
->> >>
->> >> After Patches (Ubuntu):
->> >> type=SYSCALL msg=audit(1387828084.070:361): arch=c000003e syscall=82
->> >> success=yes exit=0 a0=4184bf a1=418547 a2=0 a3=0 items=0 ppid=1 pid=1329
->> >> auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0
->> >> ses=4294967295 tty=(none) comm="console-kit-dae"
->> >> exe="/usr/sbin/console-kit-daemon"
->> >> subj=system_u:system_r:consolekit_t:s0-s0:c0.c255
->> >> cmdline="/usr/lib/dbus-1.0/dbus-daemon-launch-helper" key=(null)
->> >>
->> >> Example denial prior to patch (Android):
->> >> type=1300 msg=audit(248323.940:247): arch=40000028 syscall=54 per=840000
->> >> success=yes exit=0 a0=39 a1=540b a2=2 a3=750eecec items=0 ppid=224
->> >> pid=1858
->> >> auid=4294967295 uid=1002 gid=1002 euid=1002 suid=1002 fsuid=1002
->> >> egid=1002
->> >> sgid=1002 fsgid=1002 tty=(none) ses=4294967295 comm="bt_hc_worker"
->> >> exe="/system/bin/app_process" subj=u:r:bluetooth:s0 key=(null)
->> >>
->> >> After Patches (Android):
->> >> type=1300 msg=audit(248323.940:247): arch=40000028 syscall=54 per=840000
->> >> success=yes exit=0 a0=39 a1=540b a2=2 a3=750eecec items=0 ppid=224
->> >> pid=1858
->> >> auid=4294967295 uid=1002 gid=1002 euid=1002 suid=1002 fsuid=1002
->> >> egid=1002
->> >> sgid=1002 fsgid=1002 tty=(none) ses=4294967295 comm="bt_hc_worker"
->> >> exe="/system/bin/app_process" cmdline="com.android.bluetooth"
->> >> subj=u:r:bluetooth:s0 key=(null)
->> >>
->> >> Signed-off-by: William Roberts <wroberts@tresys.com>
->> >> ---
->> >>
->> >>  kernel/audit.h   |    1 +
->> >>  kernel/auditsc.c |   46 ++++++++++++++++++++++++++++++++++++++++++++++
->> >>  2 files changed, 47 insertions(+)
->> >>
->> >> diff --git a/kernel/audit.h b/kernel/audit.h
->> >> index b779642..bd6211f 100644
->> >> --- a/kernel/audit.h
->> >> +++ b/kernel/audit.h
->> >> @@ -202,6 +202,7 @@ struct audit_context {
->> >>
->> >>               } execve;
->> >>
->> >>       };
->> >>       int fds[2];
->> >>
->> >> +     char *cmdline;
->> >>
->> >>  #if AUDIT_DEBUG
->> >>
->> >>       int                 put_count;
->> >>
->> >> diff --git a/kernel/auditsc.c b/kernel/auditsc.c
->> >> index 90594c9..cadee2b 100644
->> >> --- a/kernel/auditsc.c
->> >> +++ b/kernel/auditsc.c
->> >> @@ -79,6 +79,9 @@
->> >>
->> >>  /* no execve audit message should be longer than this (userspace limits)
->> >>  */
->> >>
->> >> #define MAX_EXECVE_AUDIT_LEN 7500
->> >>
->> >> +/* max length to print of cmdline value during audit */
->> >> +#define MAX_CMDLINE_AUDIT_LEN 128
->> >> +
->> >>
->> >>  /* number of audit rules */
->> >>  int audit_n_rules;
->> >>
->> >> @@ -842,6 +845,12 @@ static inline struct audit_context
->> >> *audit_get_context(struct task_struct *tsk, return context;
->> >>
->> >>  }
->> >>
->> >> +static inline void audit_cmdline_free(struct audit_context *context)
->> >> +{
->> >> +     kfree(context->cmdline);
->> >> +     context->cmdline = NULL;
->> >> +}
->> >> +
->> >>
->> >>  static inline void audit_free_names(struct audit_context *context)
->> >>  {
->> >>
->> >>       struct audit_names *n, *next;
->> >>
->> >> @@ -955,6 +964,7 @@ static inline void audit_free_context(struct
->> >> audit_context *context) audit_free_aux(context);
->> >>
->> >>       kfree(context->filterkey);
->> >>       kfree(context->sockaddr);
->> >>
->> >> +     audit_cmdline_free(context);
->> >>
->> >>       kfree(context);
->> >>
->> >>  }
->> >>
->> >> @@ -1271,6 +1281,41 @@ static void show_special(struct audit_context
->> >> *context, int *call_panic) audit_log_end(ab);
->> >>
->> >>  }
->> >>
->> >> +static void audit_log_cmdline(struct audit_buffer *ab, struct
->> >> task_struct
->> >> *tsk, +                        struct audit_context *context)
->> >> +{
->> >> +     int res;
->> >> +     char *buf;
->> >> +     char *msg = "(null)";
->> >> +     audit_log_format(ab, " cmdline=");
->> >> +
->> >> +     /* Not  cached */
->> >> +     if (!context->cmdline) {
->> >> +             buf = kmalloc(MAX_CMDLINE_AUDIT_LEN, GFP_KERNEL);
->> >> +             if (!buf)
->> >> +                     goto out;
->> >> +             res = get_cmdline(tsk, buf, MAX_CMDLINE_AUDIT_LEN);
->> >> +             if (res == 0) {
->> >> +                     kfree(buf);
->> >> +                     goto out;
->> >> +             }
->> >> +             /*
->> >> +              * Ensure NULL terminated but don't clobber the end
->> >> +              * unless the buffer is full. Worst case you end up
->> >> +              * with 2 null bytes ending it. By doing it this way
->> >> +              * one avoids additional branching. One checking if the
->> >> +              * end is null and another to check if their should be
->> >> +              * an increment before setting the null byte.
->> >> +              */
->> >> +             res -= res == PATH_MAX;
->> >> +             buf[res] = '\0';
->> >> +             context->cmdline = buf;
->> >> +     }
->> >> +     msg = context->cmdline;
->> >> +out:
->> >> +     audit_log_untrustedstring(ab, msg);
->> >> +}
->> >> +
->> >>
->> >>  static void audit_log_exit(struct audit_context *context, struct
->> >>
->> >> task_struct *tsk) {
->> >>
->> >>       int i, call_panic = 0;
->> >>
->> >> @@ -1303,6 +1348,7 @@ static void audit_log_exit(struct audit_context
->> >> *context, struct task_struct *ts
->> >>
->> >>       audit_log_task_info(ab, tsk);
->> >>       audit_log_key(ab, context->filterkey);
->> >>
->> >> +     audit_log_cmdline(ab, tsk, context);
->> >>
->> >>       audit_log_end(ab);
->> >>
->> >>       for (aux = context->aux; aux; aux = aux->next) {
->
-
-
-
--- 
-Respectfully,
-
-William C Roberts
+I'm a bit lost :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
