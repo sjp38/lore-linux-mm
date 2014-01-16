@@ -1,75 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 36F436B0037
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 11:27:02 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id lf10so610369pab.18
-        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 08:27:01 -0800 (PST)
-Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com. [202.81.31.148])
-        by mx.google.com with ESMTPS id xa2si7487309pab.345.2014.01.16.08.26.58
+Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
+	by kanga.kvack.org (Postfix) with ESMTP id A52F46B0039
+	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 11:37:44 -0500 (EST)
+Received: by mail-we0-f179.google.com with SMTP id w62so3481160wes.10
+        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 08:37:44 -0800 (PST)
+Received: from mail-wg0-x236.google.com (mail-wg0-x236.google.com [2a00:1450:400c:c00::236])
+        by mx.google.com with ESMTPS id cx3si15736275wib.1.2014.01.16.08.37.43
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 16 Jan 2014 08:27:00 -0800 (PST)
-Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <raghavendra.kt@linux.vnet.ibm.com>;
-	Thu, 16 Jan 2014 21:16:08 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id A34BF2CE8040
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 22:16:04 +1100 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0GBFoi87012716
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 22:15:51 +1100
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0GBG393022101
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 22:16:03 +1100
-Message-ID: <52D7C130.3010306@linux.vnet.ibm.com>
-Date: Thu, 16 Jan 2014 16:53:28 +0530
-From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 16 Jan 2014 08:37:43 -0800 (PST)
+Received: by mail-wg0-f54.google.com with SMTP id x13so3468283wgg.9
+        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 08:37:43 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH V4] mm readahead: Fix readahead fail for no local
- memory and limit readahead pages
-References: <1389295490-28707-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com> <20140110083656.GC26378@quack.suse.cz> <20140110095222.GE26378@quack.suse.cz>
-In-Reply-To: <20140110095222.GE26378@quack.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20140116164936.1c6c3274@lilie>
+References: <1389879186-43649-1-git-send-email-phacht@linux.vnet.ibm.com>
+	<CAPp3RGpWhx4uoTTiSkUe9rZ2iJjMW6O2u=xdWL7BSskse=61qw@mail.gmail.com>
+	<20140116164936.1c6c3274@lilie>
+Date: Thu, 16 Jan 2014 10:37:43 -0600
+Message-ID: <CAPp3RGpt+qjFYrA928hBjseJNo4v0RKVnb-BjFJzH0uaVGcX+g@mail.gmail.com>
+Subject: Re: [PATCH] mm/nobootmem: Fix unused variable
+From: Robin Holt <robinmholt@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Linus <torvalds@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, liuj97@gmail.com, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, iamjoonsoo.kim@lge.com, robin.m.holt@gmail.com, yinghai@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 01/10/2014 03:22 PM, Jan Kara wrote:
-> On Fri 10-01-14 09:36:56, Jan Kara wrote:
->> On Fri 10-01-14 00:54:50, Raghavendra K T wrote:
->>> We limit the number of readahead pages to 4k.
->>>
->>> max_sane_readahead returns zero on the cpu having no local memory
->>> node. Fix that by returning a sanitized number of pages viz.,
->>> minimum of (requested pages, 4k, number of local free pages)
->>>
->>> Result:
->>> fadvise experiment with FADV_WILLNEED on a x240 machine with 1GB testfile
->>> 32GB* 4G RAM  numa machine ( 12 iterations) yielded
->>>
->>> kernel       Avg        Stddev
->>> base         7.264      0.56%
->>> patched      7.285      1.14%
->>    OK, looks good to me. You can add:
->> Reviewed-by: Jan Kara <jack@suse.cz>
->    Hum, while doing some other work I've realized there may be still a
-> problem hiding with the 16 MB limitation. E.g. the dynamic linker is
-> doing MADV_WILLNEED on the shared libraries. If the library (or executable)
-> is larger than 16 MB, then it may cause performance problems since access
-> is random in nature and we don't really know which part of the file do we
-> need first.
+Since your patch set is the _ONLY_ thing that introduces #ifdef's
+inside functions within
+this file, I would think you would be better off making
+get_allocated_memblock_reserved_regions_info() and
+get_allocated_memblock_memory_regions_info be static inline functions
+when #ifdef CONFIG_ARCH_DISCARD_MEMBLOCK.
+
+That said, I don't have a fundamental objection to #ifdef's inside
+functions so...
+
+Acked-by: Robin Holt <robinmholt@gmail.com>
+
+On Thu, Jan 16, 2014 at 9:49 AM, Philipp Hachtmann
+<phacht@linux.vnet.ibm.com> wrote:
+> Hi Robin,
 >
-> I'm not sure what others think about this but I'm now more inclined to a
-> bit more careful and introduce the 16 MB limit only for the NUMA case. I.e.
-> something like:
+>>  Maybe you are working off a different repo than
+>> Linus' latest?  Your line 116 is my 114.  Maybe the message needs to
+>> be a bit more descriptive
 >
-
-Hi Linus, Andrew,
-
-Could you please let us know your suggestion or comment?
+> Ah, yes. This fits Andrew's linux-next.
+>
+> Regards
+>
+> Philipp
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
