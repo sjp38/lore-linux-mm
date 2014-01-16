@@ -1,66 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f49.google.com (mail-bk0-f49.google.com [209.85.214.49])
-	by kanga.kvack.org (Postfix) with ESMTP id B7AE46B0031
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 17:10:54 -0500 (EST)
-Received: by mail-bk0-f49.google.com with SMTP id 6so1369197bkj.8
-        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 14:10:54 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id at9si2297882bkc.56.2014.01.16.14.10.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 16 Jan 2014 14:10:53 -0800 (PST)
-Date: Thu, 16 Jan 2014 17:09:51 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 9/9] mm: keep page cache radix tree nodes in check
-Message-ID: <20140116220951.GO6963@cmpxchg.org>
-References: <1389377443-11755-1-git-send-email-hannes@cmpxchg.org>
- <1389377443-11755-10-git-send-email-hannes@cmpxchg.org>
- <52D622B5.6070203@oracle.com>
+Received: from mail-gg0-f170.google.com (mail-gg0-f170.google.com [209.85.161.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A4636B0031
+	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 17:30:48 -0500 (EST)
+Received: by mail-gg0-f170.google.com with SMTP id l4so1094188ggi.1
+        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 14:30:47 -0800 (PST)
+Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
+        by mx.google.com with ESMTP id s6si12147486yho.14.2014.01.16.14.30.41
+        for <linux-mm@kvack.org>;
+        Thu, 16 Jan 2014 14:30:41 -0800 (PST)
+Message-ID: <52D85D33.4080509@sr71.net>
+Date: Thu, 16 Jan 2014 14:29:07 -0800
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52D622B5.6070203@oracle.com>
+Subject: Re: [RFC][PATCH 5/9] mm: rearrange struct page
+References: <20140114180042.C1C33F78@viggo.jf.intel.com> <20140114180055.21691733@viggo.jf.intel.com> <alpine.DEB.2.10.1401161233060.30036@nuc>
+In-Reply-To: <alpine.DEB.2.10.1401161233060.30036@nuc>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <bob.liu@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, penberg@kernel.org
 
-On Wed, Jan 15, 2014 at 01:55:01PM +0800, Bob Liu wrote:
-> Hi Johannes,
+On 01/16/2014 10:34 AM, Christoph Lameter wrote:
+> On Tue, 14 Jan 2014, Dave Hansen wrote:
+>> This makes it *MUCH* more clear how the first few fields of
+>> 'struct page' get used by the slab allocators.
 > 
-> On 01/11/2014 02:10 AM, Johannes Weiner wrote:
-> > Previously, page cache radix tree nodes were freed after reclaim
-> > emptied out their page pointers.  But now reclaim stores shadow
-> > entries in their place, which are only reclaimed when the inodes
-> > themselves are reclaimed.  This is problematic for bigger files that
-> > are still in use after they have a significant amount of their cache
-> > reclaimed, without any of those pages actually refaulting.  The shadow
-> > entries will just sit there and waste memory.  In the worst case, the
-> > shadow entries will accumulate until the machine runs out of memory.
-> > 
-> 
-> I have one more question. It seems that other algorithm only remember
-> history information of a limit number of evicted pages where the number
-> is usually the same as the total cache or memory size.
-> But in your patch, I didn't see a preferred value that how many evicted
-> pages' history information should be recorded. It all depends on the
-> workingset_shadow_shrinker?
+> I think this adds to the confusion. What you want to know is which other
+> fields overlap a certain field. After this patch you wont have that
+> anymore.
 
-That "same as total cache" number is a fairly arbitrary cut-off that
-defines how far we record eviction history.  For this patch set, we
-technically do not need more shadow entries than active pages, but
-strict enforcement would be very expensive.  So we leave it mostly to
-refaults and inode reclaim to keep the number of shadow entries low,
-with the shadow shrinker as an emergency backup.  Keep in mind that
-the shadow entries represent that part of the working set that exceeds
-available memory.  So the only way the number of shadow entries
-exceeds the number of RAM pages in the system is if your workingset is
-more than twice that of memory, otherwise the shadow entries refault
-before they can accumulate.  And because of inode reclaim, that huge
-working set would have to be backed by a very small number of files,
-otherwise the shadow entries are reclaimed along with the inodes.  But
-this theoretical workload would be entirely IO bound and a few extra
-MB wasted on shadow entries should make no difference.
+Why does it matter *specifically* that "index shares space with
+freelist", or that "mapping shares space with s_mem"?  No data is ever
+handed off in those fields.
+
+All that matters is that we know the _set_ of fields that gets reused,
+and that we preserve the ones which *need* their contents preserved
+(only flags and _count as far as I can tell).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
