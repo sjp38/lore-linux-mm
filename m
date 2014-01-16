@@ -1,53 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f48.google.com (mail-qe0-f48.google.com [209.85.128.48])
-	by kanga.kvack.org (Postfix) with ESMTP id F3C4B6B003B
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 11:44:29 -0500 (EST)
-Received: by mail-qe0-f48.google.com with SMTP id ne12so900598qeb.21
-        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 08:44:29 -0800 (PST)
-Received: from qmta13.emeryville.ca.mail.comcast.net (qmta13.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:243])
-        by mx.google.com with ESMTP id t5si10363257qak.16.2014.01.16.08.44.27
+Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B6906B003D
+	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 11:45:50 -0500 (EST)
+Received: by mail-qa0-f52.google.com with SMTP id j15so2313718qaq.39
+        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 08:45:50 -0800 (PST)
+Received: from qmta14.emeryville.ca.mail.comcast.net (qmta14.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:212])
+        by mx.google.com with ESMTP id ib7si4529397qcb.81.2014.01.16.08.45.49
         for <linux-mm@kvack.org>;
-        Thu, 16 Jan 2014 08:44:29 -0800 (PST)
-Date: Thu, 16 Jan 2014 10:44:24 -0600 (CST)
+        Thu, 16 Jan 2014 08:45:49 -0800 (PST)
+Date: Thu, 16 Jan 2014 10:45:47 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 0/9] re-shrink 'struct page' when SLUB is on.
-In-Reply-To: <52D5B48D.30006@sr71.net>
-Message-ID: <alpine.DEB.2.10.1401161041160.29778@nuc>
-References: <20140103180147.6566F7C1@viggo.jf.intel.com> <20140103141816.20ef2a24c8adffae040e53dc@linux-foundation.org> <20140106043237.GE696@lge.com> <52D05D90.3060809@sr71.net> <20140110153913.844e84755256afd271371493@linux-foundation.org> <52D0854F.5060102@sr71.net>
- <CAOJsxLE-oMpV2G-gxrhyv0Au1tPd87Ow57VD5CWFo41wF8F4Yw@mail.gmail.com> <alpine.DEB.2.10.1401111854580.6036@nuc> <20140113014408.GA25900@lge.com> <52D41F52.5020805@sr71.net> <alpine.DEB.2.10.1401141404190.19618@nuc> <52D5B48D.30006@sr71.net>
+Subject: Re: [RFC][PATCH 2/9] mm: slub: abstract out double cmpxchg option
+In-Reply-To: <52D5AEF7.6020707@sr71.net>
+Message-ID: <alpine.DEB.2.10.1401161045180.29778@nuc>
+References: <20140114180042.C1C33F78@viggo.jf.intel.com> <20140114180046.C897727E@viggo.jf.intel.com> <alpine.DEB.2.10.1401141346310.19618@nuc> <52D5AEF7.6020707@sr71.net>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Hansen <dave@sr71.net>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, penberg@kernel.org
 
 On Tue, 14 Jan 2014, Dave Hansen wrote:
 
-> On 01/14/2014 12:07 PM, Christoph Lameter wrote:
-> > One easy way to shrink struct page is to simply remove the feature. The
-> > patchset looked a bit complicated and does many other things.
+> On 01/14/2014 11:49 AM, Christoph Lameter wrote:
+> > On Tue, 14 Jan 2014, Dave Hansen wrote:
+> >> I found this useful to have in my testing.  I would like to have
+> >> it available for a bit, at least until other folks have had a
+> >> chance to do some testing with it.
+> >
+> > I dont really see the point of this patch since we already have
+> > CONFIG_HAVE_ALIGNED_STRUCT_PAGE to play with.
 >
-> Sure.  There's a clear path if you only care about 'struct page' size,
-> or if you only care about making the slub fast path as fast as possible.
->  We've got three variables, though:
->
-> 1. slub fast path speed
+> With the current code, if you wanted to turn off the double-cmpxchg abd
+> get a 56-byte 'struct page' how would you do it?  Can you do it with a
+> .config, or do you need to hack the code?
 
-The fast path does use this_cpu_cmpxchg_double which is something
-different from a cmpxchg_double and its not used on struct page.
-
-> Arranged in three basic choices:
->
-> 1. Big 'struct page', fast, medium complexity code
-> 2. Small 'struct page', slow, lowest complexity
-
-The numbers that I see seem to indicate that a big struct page means slow.
-
-> The question is what we should do by _default_, and what we should be
-> recommending for our customers via the distros.  Are you saying that you
-> think we should completely rule out even having option 1 in mainline?
-
-If option 1 is slower than option 2 then we do not need it.
+Remove HAVE_ALIGNED_STRUCT_PAGE from a Kconfig file.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
