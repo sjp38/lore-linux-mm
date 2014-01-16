@@ -1,38 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 1091F6B0031
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 13:26:56 -0500 (EST)
-Received: by mail-qc0-f179.google.com with SMTP id e16so2611874qcx.38
-        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 10:26:55 -0800 (PST)
-Received: from qmta11.emeryville.ca.mail.comcast.net (qmta11.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:211])
-        by mx.google.com with ESMTP id pg6si10753526qeb.149.2014.01.16.10.26.54
+Received: from mail-qe0-f42.google.com (mail-qe0-f42.google.com [209.85.128.42])
+	by kanga.kvack.org (Postfix) with ESMTP id D10A26B0031
+	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 13:32:36 -0500 (EST)
+Received: by mail-qe0-f42.google.com with SMTP id b4so2975851qen.29
+        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 10:32:36 -0800 (PST)
+Received: from qmta13.emeryville.ca.mail.comcast.net (qmta13.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:243])
+        by mx.google.com with ESMTP id u9si10760815qap.58.2014.01.16.10.32.33
         for <linux-mm@kvack.org>;
-        Thu, 16 Jan 2014 10:26:55 -0800 (PST)
-Date: Thu, 16 Jan 2014 12:26:52 -0600 (CST)
+        Thu, 16 Jan 2014 10:32:34 -0800 (PST)
+Date: Thu, 16 Jan 2014 12:32:31 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 0/9] re-shrink 'struct page' when SLUB is on.
-In-Reply-To: <52D81214.7070608@sr71.net>
-Message-ID: <alpine.DEB.2.10.1401161226170.30036@nuc>
-References: <20140103180147.6566F7C1@viggo.jf.intel.com> <20140103141816.20ef2a24c8adffae040e53dc@linux-foundation.org> <20140106043237.GE696@lge.com> <52D05D90.3060809@sr71.net> <20140110153913.844e84755256afd271371493@linux-foundation.org> <52D0854F.5060102@sr71.net>
- <CAOJsxLE-oMpV2G-gxrhyv0Au1tPd87Ow57VD5CWFo41wF8F4Yw@mail.gmail.com> <alpine.DEB.2.10.1401111854580.6036@nuc> <20140113014408.GA25900@lge.com> <52D41F52.5020805@sr71.net> <alpine.DEB.2.10.1401141404190.19618@nuc> <52D5B48D.30006@sr71.net>
- <alpine.DEB.2.10.1401161041160.29778@nuc> <52D81214.7070608@sr71.net>
+Subject: Re: [RFC][PATCH 4/9] mm: slabs: reset page at free
+In-Reply-To: <20140114180054.20A1B660@viggo.jf.intel.com>
+Message-ID: <alpine.DEB.2.10.1401161232010.30036@nuc>
+References: <20140114180042.C1C33F78@viggo.jf.intel.com> <20140114180054.20A1B660@viggo.jf.intel.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Hansen <dave@sr71.net>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, penberg@kernel.org
 
-On Thu, 16 Jan 2014, Dave Hansen wrote:
+On Tue, 14 Jan 2014, Dave Hansen wrote:
 
-> This was a really tight loop where the caches are really hot, but it did
-> show the large 'struct page' winning:
+> diff -puN include/linux/mm.h~slub-reset-page-at-free include/linux/mm.h
+> --- a/include/linux/mm.h~slub-reset-page-at-free	2014-01-14 09:57:57.099666808 -0800
+> +++ b/include/linux/mm.h	2014-01-14 09:57:57.110667301 -0800
+> @@ -2076,5 +2076,16 @@ static inline void set_page_pfmemalloc(s
+>  	page->index = pfmemalloc;
+>  }
 >
-> 	http://sr71.net/~dave/intel/slub/slub-perf-20140109.png
->
-> As I said in the earlier description, the paravirt code doing interrupt
-> disabling was what really hurt the two spinlock cases.
+> +/*
+> + * Custom allocators (like the slabs) use 'struct page' fields
+> + * for all kinds of things.  This resets the page's state so that
+> + * the buddy allocator will be happy with it.
+> + */
+> +static inline void allocator_reset_page(struct page *page)
+> +{
+> +	page->mapping = NULL;
+> +	page_mapcount_reset(page);
+> +}
+> +
+>  #endif /* __KERNEL__ */
+>  #endif /* _LINUX_MM_H */
 
-Hrm... Ok. in that case the additional complexity may be justified.
+This belongs into mm/slab.h
+
+Otherwise Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
