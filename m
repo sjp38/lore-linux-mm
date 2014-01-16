@@ -1,42 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f172.google.com (mail-ea0-f172.google.com [209.85.215.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C6E56B0036
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 10:50:43 -0500 (EST)
-Received: by mail-ea0-f172.google.com with SMTP id g15so654099eak.3
-        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 07:50:42 -0800 (PST)
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com. [195.75.94.109])
-        by mx.google.com with ESMTPS id d46si15511852eeo.18.2014.01.16.07.50.37
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 9236B6B0031
+	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 10:51:10 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id fb10so1798751wid.4
+        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 07:51:10 -0800 (PST)
+Received: from mail-wi0-x22a.google.com (mail-wi0-x22a.google.com [2a00:1450:400c:c05::22a])
+        by mx.google.com with ESMTPS id k6si6150174wja.131.2014.01.16.07.51.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 16 Jan 2014 07:50:37 -0800 (PST)
-Received: from /spool/local
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <phacht@linux.vnet.ibm.com>;
-	Thu, 16 Jan 2014 15:50:37 -0000
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id ABBD01B0806B
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 15:49:57 +0000 (GMT)
-Received: from d06av10.portsmouth.uk.ibm.com (d06av10.portsmouth.uk.ibm.com [9.149.37.251])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0GFoMeX62062664
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 15:50:22 GMT
-Received: from d06av10.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0GFoYZ0028633
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 08:50:34 -0700
-Date: Thu, 16 Jan 2014 16:50:32 +0100
-From: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
-Subject: Re: [PATCH V4 0/2] mm/memblock: Excluded memory
-Message-ID: <20140116165032.1730c040@lilie>
-In-Reply-To: <1389878827-7827-1-git-send-email-phacht@linux.vnet.ibm.com>
-References: <1389878827-7827-1-git-send-email-phacht@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 16 Jan 2014 07:51:09 -0800 (PST)
+Received: by mail-wi0-f170.google.com with SMTP id ex4so863955wid.3
+        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 07:51:09 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CAPp3RGpWhx4uoTTiSkUe9rZ2iJjMW6O2u=xdWL7BSskse=61qw@mail.gmail.com>
+References: <1389879186-43649-1-git-send-email-phacht@linux.vnet.ibm.com>
+	<CAPp3RGpWhx4uoTTiSkUe9rZ2iJjMW6O2u=xdWL7BSskse=61qw@mail.gmail.com>
+Date: Thu, 16 Jan 2014 09:51:09 -0600
+Message-ID: <CAPp3RGonDThdAAr4c3FVowVHWhE02fHJTG5MH=QbJBNVfgx5Pg@mail.gmail.com>
+Subject: Re: [PATCH] mm/nobootmem: Fix unused variable
+From: Robin Holt <robinmholt@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, tangchen@cn.fujitsu.com, zhangyanfei@cn.fujitsu.com, yinghai@kernel.org, grygorii.strashko@ti.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, liuj97@gmail.com, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, iamjoonsoo.kim@lge.com, robin.m.holt@gmail.com, yinghai@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Patch fits Andrew's linux-next.
+Argh.  Thought I had changed that to plain text mode before sending.
+
+Sorry for the noise,
+Robin
+
+
+On Thu, Jan 16, 2014 at 9:45 AM, Robin Holt <robinmholt@gmail.com> wrote:
+>
+> I can not see how this works.  How is the return from
+> get_allocated_memblock_reserved_regions_info() stored and used without being
+> declared?  Maybe you are working off a different repo than Linus' latest?  Your line
+> 116 is my 114.  Maybe the message needs to be a bit more descriptive and
+> certainly the bit after the '---' should be telling me what this is applying against.
+>
+> Robin
+>
+>
+> On Thu, Jan 16, 2014 at 7:33 AM, Philipp Hachtmann <phacht@linux.vnet.ibm.com> wrote:
+>>
+>> This fixes an unused variable warning in nobootmem.c
+>>
+>> Signed-off-by: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
+>> ---
+>>  mm/nobootmem.c | 6 +++++-
+>>  1 file changed, 5 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+>> index e2906a5..12cbb04 100644
+>> --- a/mm/nobootmem.c
+>> +++ b/mm/nobootmem.c
+>> @@ -116,9 +116,13 @@ static unsigned long __init __free_memory_core(phys_addr_t start,
+>>  static unsigned long __init free_low_memory_core_early(void)
+>>  {
+>>         unsigned long count = 0;
+>> -       phys_addr_t start, end, size;
+>> +       phys_addr_t start, end;
+>>         u64 i;
+>>
+>> +#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
+>> +       phys_addr_t size;
+>> +#endif
+>> +
+>>         for_each_free_mem_range(i, NUMA_NO_NODE, &start, &end, NULL)
+>>                 count += __free_memory_core(start, end);
+>>
+>> --
+>> 1.8.4.5
+>>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
