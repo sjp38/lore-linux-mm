@@ -1,48 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f47.google.com (mail-yh0-f47.google.com [209.85.213.47])
-	by kanga.kvack.org (Postfix) with ESMTP id A165A6B0031
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 17:49:29 -0500 (EST)
-Received: by mail-yh0-f47.google.com with SMTP id c41so1163697yho.6
-        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 14:49:29 -0800 (PST)
-Received: from mail-yk0-x229.google.com (mail-yk0-x229.google.com [2607:f8b0:4002:c07::229])
-        by mx.google.com with ESMTPS id j24si12197649yhb.21.2014.01.16.14.49.28
+Received: from mail-gg0-f172.google.com (mail-gg0-f172.google.com [209.85.161.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 72D6E6B0031
+	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 18:22:18 -0500 (EST)
+Received: by mail-gg0-f172.google.com with SMTP id x14so1087406ggx.3
+        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 15:22:18 -0800 (PST)
+Received: from mail-yh0-x229.google.com (mail-yh0-x229.google.com [2607:f8b0:4002:c01::229])
+        by mx.google.com with ESMTPS id j50si6734010yhc.250.2014.01.16.15.22.16
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 16 Jan 2014 14:49:28 -0800 (PST)
-Received: by mail-yk0-f169.google.com with SMTP id q9so1588960ykb.0
-        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 14:49:28 -0800 (PST)
-Date: Thu, 16 Jan 2014 14:49:25 -0800 (PST)
+        Thu, 16 Jan 2014 15:22:17 -0800 (PST)
+Received: by mail-yh0-f41.google.com with SMTP id i7so438482yha.0
+        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 15:22:16 -0800 (PST)
+Date: Thu, 16 Jan 2014 15:22:12 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2 -mm] mm, oom: prefer thread group leaders for display
- purposes
-In-Reply-To: <20140116142141.GF28157@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.02.1401161447510.31228@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1401151837560.1835@chino.kir.corp.google.com> <20140116070549.GL6963@cmpxchg.org> <alpine.DEB.2.02.1401152344560.14407@chino.kir.corp.google.com> <alpine.DEB.2.02.1401152345330.14407@chino.kir.corp.google.com>
- <20140116142141.GF28157@dhcp22.suse.cz>
+Subject: Re: [PATCH] mm: vmstat: Do not display stats for TLB flushes unless
+ debugging
+In-Reply-To: <20140116111205.GN4963@suse.de>
+Message-ID: <alpine.DEB.2.02.1401161515540.4182@chino.kir.corp.google.com>
+References: <1389278098-27154-1-git-send-email-mgorman@suse.de> <1389278098-27154-2-git-send-email-mgorman@suse.de> <20140116111205.GN4963@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Alex Shi <alex.shi@linaro.org>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 16 Jan 2014, Michal Hocko wrote:
+On Thu, 16 Jan 2014, Mel Gorman wrote:
 
-> > When two threads have the same badness score, it's preferable to kill the 
-> > thread group leader so that the actual process name is printed to the 
-> > kernel log rather than the thread group name which may be shared amongst 
-> > several processes.
-> 
-> I am not sure I understand this. Is this about ->comm? If yes then why
-> couldn't the group leader do PR_SET_NAME?
-> 
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 7249614..def5dd2 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -851,12 +851,14 @@ const char * const vmstat_text[] = {
+>  	"thp_zero_page_alloc",
+>  	"thp_zero_page_alloc_failed",
+>  #endif
+> +#ifdef CONFIG_DEBUG_TLBFLUSH
+>  #ifdef CONFIG_SMP
+>  	"nr_tlb_remote_flush",
+>  	"nr_tlb_remote_flush_received",
+> -#endif
+> +#endif /* CONFIG_SMP */
+>  	"nr_tlb_local_flush_all",
+>  	"nr_tlb_local_flush_one",
+> +#endif /* CONFIG_DEBUG_TLBFLUSH */
+>  
+>  #endif /* CONFIG_VM_EVENTS_COUNTERS */
+>  };
 
-Both comm and pid, we only display thread group leaders in the tasklist 
-dump of eligible processes, we want the killed message to specify from 
-which process.
-
-You're suggesting a thread group leader do PR_SET_NAME of all its threads 
-for readable oom killer output?  Lol.
+Hmm, so why are NR_TLB_REMOTE_FLUSH{,_RECEIVED} defined for !CONFIG_SMP in 
+linux-next?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
