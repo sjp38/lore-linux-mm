@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B4416B006C
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id ACF0C6B006C
 	for <linux-mm@kvack.org>; Wed, 15 Jan 2014 20:25:14 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id r10so1883958pdi.20
-        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 17:25:13 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id ai8si5303034pad.270.2014.01.15.17.25.10
+Received: by mail-pb0-f45.google.com with SMTP id rp16so1938496pbb.32
+        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 17:25:14 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id sa6si5338870pbb.113.2014.01.15.17.25.12
         for <linux-mm@kvack.org>;
-        Wed, 15 Jan 2014 17:25:11 -0800 (PST)
+        Wed, 15 Jan 2014 17:25:12 -0800 (PST)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v5 22/22] XIP: Add support for unwritten extents
-Date: Wed, 15 Jan 2014 20:24:40 -0500
-Message-Id: <21d60639d747cdd683831ce57e7c753c9fa29ac1.1389779962.git.matthew.r.wilcox@intel.com>
+Subject: [PATCH v5 13/22] ext2: Remove ext2_use_xip
+Date: Wed, 15 Jan 2014 20:24:31 -0500
+Message-Id: <ab9788f610ba65673e5cfc8678d536e9254a6474.1389779962.git.matthew.r.wilcox@intel.com>
 In-Reply-To: <cover.1389779961.git.matthew.r.wilcox@intel.com>
 References: <cover.1389779961.git.matthew.r.wilcox@intel.com>
 In-Reply-To: <cover.1389779961.git.matthew.r.wilcox@intel.com>
@@ -21,124 +21,49 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-For read() and pagefault, we treat unwritten extents as holes.
-For write(), we have to zero parts of the block that we're not going to
-write to.  For holepunches, something's gone quite strangely wrong if we
-get an unwritten extent from get_block, considering that the filesystem's
-calling us to write zeroes to a partially written extent ...
+Replace ext2_use_xip() with test_opt(XIP) which expands to the same code
 
 Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
 ---
- Documentation/filesystems/xip.txt |  7 +++----
- fs/xip.c                          | 44 +++++++++++++++++++++++++++------------
- 2 files changed, 34 insertions(+), 17 deletions(-)
+ fs/ext2/inode.c | 2 +-
+ fs/ext2/namei.c | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/Documentation/filesystems/xip.txt b/Documentation/filesystems/xip.txt
-index b158de6..5e9a0c76 100644
---- a/Documentation/filesystems/xip.txt
-+++ b/Documentation/filesystems/xip.txt
-@@ -60,10 +60,9 @@ Filesystem support consists of
-   truncates and page faults
+diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
+index 946ed65..9d6f2e1 100644
+--- a/fs/ext2/inode.c
++++ b/fs/ext2/inode.c
+@@ -1393,7 +1393,7 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
  
- The get_block() callback passed to xip_do_io(), xip_fault(), xip_mkwrite()
--and xip_truncate_page() must not return uninitialised extents.  It must zero
--any blocks that it returns, and it must ensure that simultaneous calls to
--get_block() (for example by a page-fault racing with a read() or a write())
--work correctly.
-+and xip_truncate_page() may return uninitialised extents.  If it does, it
-+must ensure that simultaneous calls to get_block() (for example by a
-+page-fault racing with a read() or a write()) work correctly.
+ 	if (S_ISREG(inode->i_mode)) {
+ 		inode->i_op = &ext2_file_inode_operations;
+-		if (ext2_use_xip(inode->i_sb)) {
++		if (test_opt(inode->i_sb, XIP)) {
+ 			inode->i_mapping->a_ops = &ext2_aops_xip;
+ 			inode->i_fop = &ext2_xip_file_operations;
+ 		} else if (test_opt(inode->i_sb, NOBH)) {
+diff --git a/fs/ext2/namei.c b/fs/ext2/namei.c
+index 256dd5f..0a7697a 100644
+--- a/fs/ext2/namei.c
++++ b/fs/ext2/namei.c
+@@ -105,7 +105,7 @@ static int ext2_create (struct inode * dir, struct dentry * dentry, umode_t mode
+ 		return PTR_ERR(inode);
  
- These filesystems may be used for inspiration:
- - ext2: the second extended filesystem, see Documentation/filesystems/ext2.txt
-diff --git a/fs/xip.c b/fs/xip.c
-index 88a516b..d160320 100644
---- a/fs/xip.c
-+++ b/fs/xip.c
-@@ -79,6 +79,12 @@ static long xip_get_pfn(struct inode *inode, struct buffer_head *bh,
- 	return ops->direct_access(bdev, sector, &addr, pfn, bh->b_size);
- }
+ 	inode->i_op = &ext2_file_inode_operations;
+-	if (ext2_use_xip(inode->i_sb)) {
++	if (test_opt(inode->i_sb, XIP)) {
+ 		inode->i_mapping->a_ops = &ext2_aops_xip;
+ 		inode->i_fop = &ext2_xip_file_operations;
+ 	} else if (test_opt(inode->i_sb, NOBH)) {
+@@ -126,7 +126,7 @@ static int ext2_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+ 		return PTR_ERR(inode);
  
-+/* true if a buffer_head represents written data */
-+static bool buffer_written(struct buffer_head *bh)
-+{
-+	return buffer_mapped(bh) && !buffer_unwritten(bh);
-+}
-+
- static ssize_t xip_io(int rw, struct inode *inode, const struct iovec *iov,
- 			loff_t start, loff_t end, unsigned nr_segs,
- 			get_block_t get_block, struct buffer_head *bh)
-@@ -103,21 +109,29 @@ static ssize_t xip_io(int rw, struct inode *inode, const struct iovec *iov,
- 			retval = get_block(inode, block, bh, rw == WRITE);
- 			if (retval)
- 				break;
--			if (buffer_mapped(bh)) {
--				retval = xip_get_addr(inode, bh, &addr);
--				if (retval < 0)
--					break;
--				addr += offset - (block << inode->i_blkbits);
--				hole = false;
--				size = retval;
--			} else {
--				if (rw == WRITE) {
-+			if (rw == WRITE) {
-+				if (!buffer_mapped(bh)) {
- 					retval = -EIO;
- 					break;
- 				}
-+				hole = false;
-+			} else {
-+				hole = !buffer_written(bh);
-+			}
-+
-+			if (hole) {
- 				addr = NULL;
--				hole = true;
- 				size = bh->b_size;
-+			} else {
-+				unsigned first;
-+				retval = xip_get_addr(inode, bh, &addr);
-+				if (retval < 0)
-+					break;
-+				size = retval;
-+				first = offset - (block << inode->i_blkbits);
-+				if (buffer_unwritten(bh))
-+					memset(addr, 0, first);
-+				addr += first;
- 			}
- 			max = offset + size;
- 		}
-@@ -265,7 +279,7 @@ static int do_xip_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 	if (error || bh.b_size < PAGE_SIZE)
- 		return VM_FAULT_SIGBUS;
- 
--	if (!buffer_mapped(&bh) && !vmf->cow_page) {
-+	if (!buffer_written(&bh) && !vmf->cow_page) {
- 		if (vmf->flags & FAULT_FLAG_WRITE) {
- 			error = get_block(inode, block, &bh, 1);
- 			count_vm_event(PGMAJFAULT);
-@@ -286,7 +300,7 @@ static int do_xip_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 		return VM_FAULT_SIGBUS;
- 	}
- 	if (vmf->cow_page) {
--		if (buffer_mapped(&bh))
-+		if (buffer_written(&bh))
- 			copy_user_bh(vmf->cow_page, inode, &bh, vaddr);
- 		else
- 			clear_user_highpage(vmf->cow_page, vaddr);
-@@ -397,7 +411,11 @@ int xip_zero_page_range(struct inode *inode, loff_t from, unsigned length,
- 	err = get_block(inode, index, &bh, 0);
- 	if (err < 0)
- 		return err;
--	if (buffer_mapped(&bh)) {
-+	if (buffer_written(&bh)) {
-+		/*
-+		 * Should this be BUG_ON(!buffer_mapped)?  Surely we should
-+		 * never be called for an unmapped block ...
-+		 */
- 		void *addr;
- 		err = xip_get_addr(inode, &bh, &addr);
- 		if (err)
+ 	inode->i_op = &ext2_file_inode_operations;
+-	if (ext2_use_xip(inode->i_sb)) {
++	if (test_opt(inode->i_sb, XIP)) {
+ 		inode->i_mapping->a_ops = &ext2_aops_xip;
+ 		inode->i_fop = &ext2_xip_file_operations;
+ 	} else if (test_opt(inode->i_sb, NOBH)) {
 -- 
 1.8.5.2
 
