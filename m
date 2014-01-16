@@ -1,137 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F4AE6B0031
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 09:10:34 -0500 (EST)
-Received: by mail-ee0-f49.google.com with SMTP id d17so1527858eek.22
-        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 06:10:33 -0800 (PST)
+Received: from mail-ea0-f179.google.com (mail-ea0-f179.google.com [209.85.215.179])
+	by kanga.kvack.org (Postfix) with ESMTP id CC0146B0031
+	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 09:21:57 -0500 (EST)
+Received: by mail-ea0-f179.google.com with SMTP id q10so483523ead.10
+        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 06:21:57 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 45si14913320eef.66.2014.01.16.06.10.32
+        by mx.google.com with ESMTPS id l2si1312547een.167.2014.01.16.06.21.48
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 16 Jan 2014 06:10:32 -0800 (PST)
-Date: Thu, 16 Jan 2014 15:10:31 +0100
+        Thu, 16 Jan 2014 06:21:48 -0800 (PST)
+Date: Thu, 16 Jan 2014 15:21:41 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC 1/3] memcg: notify userspace about OOM only when and action
- is due
-Message-ID: <20140116141031.GE28157@dhcp22.suse.cz>
-References: <1389798068-19885-1-git-send-email-mhocko@suse.cz>
- <1389798068-19885-2-git-send-email-mhocko@suse.cz>
- <20140115175655.GJ6963@cmpxchg.org>
- <20140115190015.GA22196@dhcp22.suse.cz>
- <20140115203047.GK6963@cmpxchg.org>
+Subject: Re: [patch v2 -mm] mm, oom: prefer thread group leaders for display
+ purposes
+Message-ID: <20140116142141.GF28157@dhcp22.suse.cz>
+References: <alpine.DEB.2.02.1401151837560.1835@chino.kir.corp.google.com>
+ <20140116070549.GL6963@cmpxchg.org>
+ <alpine.DEB.2.02.1401152344560.14407@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1401152345330.14407@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140115203047.GK6963@cmpxchg.org>
+In-Reply-To: <alpine.DEB.2.02.1401152345330.14407@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 15-01-14 15:30:47, Johannes Weiner wrote:
-> On Wed, Jan 15, 2014 at 08:00:15PM +0100, Michal Hocko wrote:
-> > On Wed 15-01-14 12:56:55, Johannes Weiner wrote:
-> > > On Wed, Jan 15, 2014 at 04:01:06PM +0100, Michal Hocko wrote:
-> > > > Userspace is currently notified about OOM condition after reclaim
-> > > > fails to uncharge any memory after MEM_CGROUP_RECLAIM_RETRIES rounds.
-> > > > This usually means that the memcg is really in troubles and an
-> > > > OOM action (either done by userspace or kernel) has to be taken.
-> > > > The kernel OOM killer however bails out and doesn't kill anything
-> > > > if it sees an already dying/exiting task in a good hope a memory
-> > > > will be released and the OOM situation will be resolved.
-> > > > 
-> > > > Therefore it makes sense to notify userspace only after really all
-> > > > measures have been taken and an userspace action is required or
-> > > > the kernel kills a task.
-> > > > 
-> > > > This patch is based on idea by David Rientjes to not notify
-> > > > userspace when the current task is killed or in a late exiting.
-> > > > The original patch, however, didn't handle in kernel oom killer
-> > > > back offs which is implemtented by this patch.
-> > > > 
-> > > > Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> > > 
-> > > OOM is a temporary state because any task can exit at a time that is
-> > > not under our control and outside our knowledge.  That's why the OOM
-> > > situation is defined by failing an allocation after a certain number
-> > > of reclaim and charge attempts.
-> > > 
-> > > As of right now, the OOM sampling window is MEM_CGROUP_RECLAIM_RETRIES
-> > > loops of charge attempts and reclaim.  If a racing task is exiting and
-> > > releasing memory during that window, the charge will succeed fine.  If
-> > > the sampling window is too short in practice, it will have to be
-> > > extended, preferrably through increasing MEM_CGROUP_RECLAIM_RETRIES.
-> > 
-> > The patch doesn't try to address the above race because that one is
-> > unfixable. I hope that is clear.
-> > 
-> > It just tries to reduce burden on the userspace oom notification
-> > consumers and given them a simple semantic. Notification comes only if
-> > an action will be necessary (either kernel kills something or user space
-> > is expected).
+On Wed 15-01-14 23:46:44, David Rientjes wrote:
+> When two threads have the same badness score, it's preferable to kill the 
+> thread group leader so that the actual process name is printed to the 
+> kernel log rather than the thread group name which may be shared amongst 
+> several processes.
+
+I am not sure I understand this. Is this about ->comm? If yes then why
+couldn't the group leader do PR_SET_NAME?
+
+> This was the behavior when select_bad_process() used to do 
+> for_each_process(), but it now iterates threads instead and leads to 
+> ambiguity.
 > 
-> I.e. turn the OOM notification into an OOM kill event notification.
-
-OK, maybe it's just me but I've considered OOM -> OOM kill. Because if
-we for some reason do not need to perform an action then we are not OOM
-really (one of them is the state the other part is an action).  Maybe
-it's because you cannot find out you are under OOM unless you see the
-OOM killer in action for ages (well memcg has changed that but...)
-
-I might be wrong here of course...
-
-> > E.g. consider a handler which tries to clean up after kernel handled
-> > OOM and killed something. If the kernel could back off and refrain
-> > from killing anything after the norification already fired up then the
-> > userspace has no practical way to detect that (except for checking the
-> > kernel log to search for OOM messages which might get suppressed due to
-> > rate limitting etc.. Nothing I would call optimal).
-> > Or do you think that such a use case doesn't make much sense and it is
-> > an abuse of the notification interface?
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  v2: fixes missing get_task_struct() found by Johannes.
 > 
-> I'm not sure what such a cleanup would be doing, a real life usecase
-> would be useful when we are about to change notification semantics.
-> I've heard "taking down the remaining tasks of the job" before, but
-> that would be better solved by having the OOM killer operate on
-> cgroups as single entities instead of taking out individual tasks.
+>  mm/memcontrol.c | 19 ++++++++++++-------
+>  mm/oom_kill.c   | 12 ++++++++----
+>  2 files changed, 20 insertions(+), 11 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index a815686..d69c4b3 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1841,13 +1841,18 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  				break;
+>  			};
+>  			points = oom_badness(task, memcg, NULL, totalpages);
+> -			if (points > chosen_points) {
+> -				if (chosen)
+> -					put_task_struct(chosen);
+> -				chosen = task;
+> -				chosen_points = points;
+> -				get_task_struct(chosen);
+> -			}
+> +			if (points < chosen_points)
+> +				continue;
+> +			/* Prefer thread group leaders for display purposes */
+> +			if (points == chosen_points &&
+> +			    thread_group_leader(chosen))
+> +				continue;
+> +
+> +			if (chosen)
+> +				put_task_struct(chosen);
+> +			chosen = task;
+> +			chosen_points = points;
+> +			get_task_struct(chosen);
+>  		}
+>  		css_task_iter_end(&it);
+>  	}
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 054ff47..1dca3d8 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -327,10 +327,14 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+>  			break;
+>  		};
+>  		points = oom_badness(p, NULL, nodemask, totalpages);
+> -		if (points > chosen_points) {
+> -			chosen = p;
+> -			chosen_points = points;
+> -		}
+> +		if (points < chosen_points)
+> +			continue;
+> +		/* Prefer thread group leaders for display purposes */
+> +		if (points == chosen_points && thread_group_leader(chosen))
+> +			continue;
+> +
+> +		chosen = p;
+> +		chosen_points = points;
+>  	}
+>  	if (chosen)
+>  		get_task_struct(chosen);
 
-I am not a direct user of the interface myself but I can imagine that
-there might be many clean up actions to be done. The task receives
-SIG_KILL so it doesn't have any chance to do the cleanup itself. This
-might be something like reverting to the last consistent state for the
-internal data or removing temporary files which, for some reason, had to
-be visible througout the process life and many others.
+-- 
+Michal Hocko
+SUSE Labs
 
-> On the other hand, I can see how people use the OOM notification to
-> monitor system/cgroup health.  David argued that vmpressure "critical"
-> would be the same thing.  But first of all, this is not an argument to
-> change semantics of an established interface. And secondly, it only
-> tells you that reclaim is struggling, it doesn't give you the point of
-> failure (the OOM condition), regardless of what the docs claim.
-
-> So, please, if you need a new interface, make a clear case for it and
-> then we can discuss if it's the right way to go.  We do the same for
-> every other user interface, whether it's a syscall, an ioctl, a procfs
-> file etc.  Just taking something existing that is close enough and
-> skewing the semantics in your favor like this is not okay.
-
-Agreed, that's why this has been sent as a request for comments and
-discussion. It is sad that the discussion ended before it started...
-I realize that the previous one was quite frustrating but maybe we can
-do better.
-
-I am not going to push for this very strong because I believe that last
-second back offs before OOM killer fires doesn't happen all that often. 
-Do we have any numbers for that, btw?
-Maybe we should start by adding a counter and report it in (memcg)
-statistics (quick patch on top of mmotm bellow). And base our future
-decisions on those numbers? Because to be honest, something tells me
-that the overall difference will be barely noticeable most workloads.
-
-Anyway, I liked the notification to be tighter to the action because
-it makes userspace notifiers easier to implement because they wouldn't
-have to worry about back offs. Also the semantic is much cleaner IMO
-because you get a notification that the situation is so bad that the
-kernel had to use an emergency measures.
-
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
