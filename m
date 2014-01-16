@@ -1,43 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-gg0-f170.google.com (mail-gg0-f170.google.com [209.85.161.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A4636B0031
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 17:30:48 -0500 (EST)
-Received: by mail-gg0-f170.google.com with SMTP id l4so1094188ggi.1
-        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 14:30:47 -0800 (PST)
-Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
-        by mx.google.com with ESMTP id s6si12147486yho.14.2014.01.16.14.30.41
-        for <linux-mm@kvack.org>;
-        Thu, 16 Jan 2014 14:30:41 -0800 (PST)
-Message-ID: <52D85D33.4080509@sr71.net>
-Date: Thu, 16 Jan 2014 14:29:07 -0800
-From: Dave Hansen <dave@sr71.net>
+Received: from mail-yh0-f46.google.com (mail-yh0-f46.google.com [209.85.213.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 059116B0031
+	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 17:43:15 -0500 (EST)
+Received: by mail-yh0-f46.google.com with SMTP id 29so1160919yhl.5
+        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 14:43:15 -0800 (PST)
+Received: from mail-yk0-x22b.google.com (mail-yk0-x22b.google.com [2607:f8b0:4002:c07::22b])
+        by mx.google.com with ESMTPS id q48si6513876yhb.152.2014.01.16.14.43.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 16 Jan 2014 14:43:15 -0800 (PST)
+Received: by mail-yk0-f171.google.com with SMTP id 142so1581430ykq.2
+        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 14:43:14 -0800 (PST)
+Date: Thu, 16 Jan 2014 14:43:11 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm/nobootmem: Fix unused variable
+In-Reply-To: <1389879186-43649-1-git-send-email-phacht@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.02.1401161438240.31228@chino.kir.corp.google.com>
+References: <1389879186-43649-1-git-send-email-phacht@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 5/9] mm: rearrange struct page
-References: <20140114180042.C1C33F78@viggo.jf.intel.com> <20140114180055.21691733@viggo.jf.intel.com> <alpine.DEB.2.10.1401161233060.30036@nuc>
-In-Reply-To: <alpine.DEB.2.10.1401161233060.30036@nuc>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, penberg@kernel.org
+To: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, hannes@cmpxchg.org, liuj97@gmail.com, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, iamjoonsoo.kim@lge.com, robin.m.holt@gmail.com, yinghai@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 01/16/2014 10:34 AM, Christoph Lameter wrote:
-> On Tue, 14 Jan 2014, Dave Hansen wrote:
->> This makes it *MUCH* more clear how the first few fields of
->> 'struct page' get used by the slab allocators.
-> 
-> I think this adds to the confusion. What you want to know is which other
-> fields overlap a certain field. After this patch you wont have that
-> anymore.
+On Thu, 16 Jan 2014, Philipp Hachtmann wrote:
 
-Why does it matter *specifically* that "index shares space with
-freelist", or that "mapping shares space with s_mem"?  No data is ever
-handed off in those fields.
+> diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+> index e2906a5..12cbb04 100644
+> --- a/mm/nobootmem.c
+> +++ b/mm/nobootmem.c
+> @@ -116,9 +116,13 @@ static unsigned long __init __free_memory_core(phys_addr_t start,
+>  static unsigned long __init free_low_memory_core_early(void)
+>  {
+>  	unsigned long count = 0;
+> -	phys_addr_t start, end, size;
+> +	phys_addr_t start, end;
+>  	u64 i;
+>  
+> +#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
+> +	phys_addr_t size;
+> +#endif
+> +
+>  	for_each_free_mem_range(i, NUMA_NO_NODE, &start, &end, NULL)
+>  		count += __free_memory_core(start, end);
+>  
 
-All that matters is that we know the _set_ of fields that gets reused,
-and that we preserve the ones which *need* their contents preserved
-(only flags and _count as far as I can tell).
+Two options: (1) add a helper function declared for 
+CONFIG_ARCH_DISCARD_MEMBLOCK that returns the count to add and is empty 
+otherwise, or (2) initialize size to zero in its definition.  It's much 
+better than #ifdef's inside the function for a variable declaration.
+
+Also, since this is already in -mm, you'll want this fix folded into the 
+original patch, "mm/nobootmem: free_all_bootmem again", so it's probably 
+best to name it "mm/nobootmem: free_all_bootmem again fix".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
