@@ -1,54 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 32A576B0062
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 12:11:37 -0500 (EST)
-Received: by mail-ee0-f44.google.com with SMTP id c13so1654316eek.3
-        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 09:11:36 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d41si15981815eep.29.2014.01.16.09.11.36
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 16 Jan 2014 09:11:36 -0800 (PST)
-Date: Thu, 16 Jan 2014 17:11:31 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH RESEND part2 v2 1/8] x86: get pg_data_t's memory from
- other node
-Message-ID: <20140116171112.GB24740@suse.de>
-References: <529D3FC0.6000403@cn.fujitsu.com>
- <529D4048.9070000@cn.fujitsu.com>
+Received: from mail-yk0-f173.google.com (mail-yk0-f173.google.com [209.85.160.173])
+	by kanga.kvack.org (Postfix) with ESMTP id ACBE76B0069
+	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 12:15:05 -0500 (EST)
+Received: by mail-yk0-f173.google.com with SMTP id 20so1356945yks.4
+        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 09:15:05 -0800 (PST)
+Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
+        by mx.google.com with ESMTP id v21si5051469yhm.123.2014.01.16.09.14.55
+        for <linux-mm@kvack.org>;
+        Thu, 16 Jan 2014 09:14:57 -0800 (PST)
+Message-ID: <52D81331.5080209@sr71.net>
+Date: Thu, 16 Jan 2014 09:13:21 -0800
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <529D4048.9070000@cn.fujitsu.com>
+Subject: Re: [RFC][PATCH 2/9] mm: slub: abstract out double cmpxchg option
+References: <20140114180042.C1C33F78@viggo.jf.intel.com> <20140114180046.C897727E@viggo.jf.intel.com> <alpine.DEB.2.10.1401141346310.19618@nuc> <52D5AEF7.6020707@sr71.net> <alpine.DEB.2.10.1401161045180.29778@nuc>
+In-Reply-To: <alpine.DEB.2.10.1401161045180.29778@nuc>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Chen Tang <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, penberg@kernel.org
 
-On Tue, Dec 03, 2013 at 10:22:00AM +0800, Zhang Yanfei wrote:
-> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+On 01/16/2014 08:45 AM, Christoph Lameter wrote:
+> On Tue, 14 Jan 2014, Dave Hansen wrote:
+>> With the current code, if you wanted to turn off the double-cmpxchg abd
+>> get a 56-byte 'struct page' how would you do it?  Can you do it with a
+>> .config, or do you need to hack the code?
 > 
-> If system can create movable node which all memory of the node is allocated
-> as ZONE_MOVABLE, setup_node_data() cannot allocate memory for the node's
-> pg_data_t. So, invoke memblock_alloc_nid(...MAX_NUMNODES) again to retry when
-> the first allocation fails. Otherwise, the system could failed to boot.
-> (We don't use memblock_alloc_try_nid() to retry because in this function,
-> if the allocation fails, it will panic the system.)
-> 
+> Remove HAVE_ALIGNED_STRUCT_PAGE from a Kconfig file.
 
-This implies that it is possible to ahve a configuration with a big ratio
-difference between Normal:Movable memory. In such configurations there
-would be a risk that the system will reclaim heavily or go OOM because
-the kernrel cannot allocate memory due to a relatively small Normal
-zone. What protects against that? Is the user ever warned if the ratio
-between Normal:Movable very high? The movable_node boot parameter still
-turns the feature on and off, there appears to be no way of controlling
-the ratio of memory other than booting with the minimum amount of memory
-and manually hot-adding the sections to set the appropriate ratio.
+SLUB 'selects' it, so it seems to pop back up whenever SLUB is on:
 
--- 
-Mel Gorman
-SUSE Labs
+$ grep STRUCT_PAGE ~/build/64bit/.config
+CONFIG_HAVE_ALIGNED_STRUCT_PAGE=y
+$ vi ~/build/64bit/.config
+... remove from Kconfig file
+$ grep STRUCT_PAGE ~/build/64bit/.config
+$ make oldconfig
+... no prompt
+$ grep STRUCT_PAGE ~/build/64bit/.config
+CONFIG_HAVE_ALIGNED_STRUCT_PAGE=y
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
