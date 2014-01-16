@@ -1,79 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 137866B0031
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 08:00:08 -0500 (EST)
-Received: by mail-pd0-f182.google.com with SMTP id v10so2584319pde.27
-        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 05:00:07 -0800 (PST)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
-        by mx.google.com with ESMTPS id ai8si7008932pad.154.2014.01.16.05.00.04
+Received: from mail-ea0-f176.google.com (mail-ea0-f176.google.com [209.85.215.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FE246B0031
+	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 08:27:27 -0500 (EST)
+Received: by mail-ea0-f176.google.com with SMTP id h14so1139034eaj.7
+        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 05:27:26 -0800 (PST)
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com. [195.75.94.106])
+        by mx.google.com with ESMTPS id j47si504728eeo.221.2014.01.16.05.27.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 16 Jan 2014 05:00:06 -0800 (PST)
-Message-ID: <52D7D7AE.8070108@huawei.com>
-Date: Thu, 16 Jan 2014 20:59:26 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm/fs: don't keep pages when receiving a pending SIGKILL
- in __get_user_pages()
-References: <52D65568.6080106@huawei.com> <alpine.DEB.2.02.1401151508370.29404@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1401151508370.29404@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 8bit
+        Thu, 16 Jan 2014 05:27:26 -0800 (PST)
+Received: from /spool/local
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <phacht@linux.vnet.ibm.com>;
+	Thu, 16 Jan 2014 13:27:25 -0000
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id A985A1B0805F
+	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 13:26:44 +0000 (GMT)
+Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0GDR95266846868
+	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 13:27:09 GMT
+Received: from d06av03.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0GDRKwY001432
+	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 06:27:21 -0700
+From: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
+Subject: [PATCH V4 0/2] mm/memblock: Excluded memory
+Date: Thu, 16 Jan 2014 14:27:05 +0100
+Message-Id: <1389878827-7827-1-git-send-email-phacht@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Li Zefan <lizefan@huawei.com>, robin.yb@huawei.com, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: tangchen@cn.fujitsu.com, zhangyanfei@cn.fujitsu.com, phacht@linux.vnet.ibm.com, yinghai@kernel.org, grygorii.strashko@ti.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com
 
-On 2014/1/16 7:15, David Rientjes wrote:
+Here is a new version of the memblock.nomap patch.
 
-> On Wed, 15 Jan 2014, Xishi Qiu wrote:
-> 
->> In the process IO direction, dio_refill_pages will call get_user_pages_fast 
->> to map the page from user space. If ret is less than 0 and IO is write, the 
->> function will create a zero page to fill data. This may work for some file 
->> system, but in some device operate we prefer whole write or fail, not half 
->> data half zero, e.g. fs metadata, like inode, identy.
->> This happens often when kill a process which is doing direct IO. Consider 
->> the following cases, the process A is doing IO process, may enter __get_user_pages 
->> function, if other processes send process A SIG_KILL, A will enter the 
->> following branches 
->> 		/*
->> 		 * If we have a pending SIGKILL, don't keep faulting
->> 		 * pages and potentially allocating memory.
->> 		 */
->> 		if (unlikely(fatal_signal_pending(current)))
->> 			return i ? i : -ERESTARTSYS;
->> Return current pages. direct IO will write the pages, the subsequent pages 
->> which can?t get will use zero page instead. 
->> This patch will modify this judgment, if receive SIG_KILL, release pages and 
->> return an error. Direct IO will find no blocks_available and return error 
->> direct, rather than half IO data and half zero page.
->>
->> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
->> Signed-off-by: Bin Yang <robin.yb@huawei.com>
-> 
-> It's scary to change the behavior of gup when some callers may want the 
-> exact opposite of what you're intending here, which is sane fallback by 
-> mapping the zero page.  In fact, gup never does put_page() itself and 
-> __get_user_pages() always returns the number of pages pinned and may not 
-> equal what is passed.
-> 
-> So, this definitely isn't the right solution for a special-case direct IO.  
-> Instead, it would be better to code this directly in the caller and 
-> compare the return value with nr_pages in dio_refill_pages() and then do 
-> the put_page() itself before falling back to ZERO_PAGE().
+This time without the first patch (that has already been taken by akpm).
 
-Hi Rientjes,
-You are right, we should not change the behavior of gup.
-I have a question, if we only get a part of the pages from get_user_pages_fast(),
-shall we write them to the disk? or add a check before write?
-I'm not familiar with fs.
+The second patch is now split into the functional part (Add support...)
+and the cleanup/refactoring part. This has been done for clarity as
+announced before.
 
-dio_refill_pages()
-	get_user_pages_fast()
+Philipp Hachtmann (2):
+  mm/memblock: Add support for excluded memory areas
+  mm/memblock: Cleanup and refactoring after addition of nomap
 
-Thanks,
-Xishi Qiu
+ include/linux/memblock.h |  57 +++++++++---
+ mm/Kconfig               |   3 +
+ mm/memblock.c            | 233 +++++++++++++++++++++++++++++++++++------------
+ mm/nobootmem.c           |   9 ++
+ 4 files changed, 231 insertions(+), 71 deletions(-)
+
+-- 
+1.8.4.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
