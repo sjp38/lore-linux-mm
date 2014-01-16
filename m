@@ -1,100 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f53.google.com (mail-yh0-f53.google.com [209.85.213.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 709A06B0031
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 02:46:48 -0500 (EST)
-Received: by mail-yh0-f53.google.com with SMTP id b20so571982yha.12
-        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 23:46:48 -0800 (PST)
-Received: from mail-yh0-x233.google.com (mail-yh0-x233.google.com [2607:f8b0:4002:c01::233])
-        by mx.google.com with ESMTPS id s22si8853527yha.226.2014.01.15.23.46.47
+Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 652EC6B0031
+	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 02:52:52 -0500 (EST)
+Received: by mail-ee0-f45.google.com with SMTP id b15so1226662eek.18
+        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 23:52:51 -0800 (PST)
+Received: from eu1sys200aog118.obsmtp.com (eu1sys200aog118.obsmtp.com [207.126.144.145])
+        by mx.google.com with SMTP id 3si204408eeq.122.2014.01.15.23.52.32
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 15 Jan 2014 23:46:47 -0800 (PST)
-Received: by mail-yh0-f51.google.com with SMTP id l109so847445yhq.24
-        for <linux-mm@kvack.org>; Wed, 15 Jan 2014 23:46:47 -0800 (PST)
-Date: Wed, 15 Jan 2014 23:46:44 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch v2 -mm] mm, oom: prefer thread group leaders for display
- purposes
-In-Reply-To: <alpine.DEB.2.02.1401152344560.14407@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.02.1401152345330.14407@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1401151837560.1835@chino.kir.corp.google.com> <20140116070549.GL6963@cmpxchg.org> <alpine.DEB.2.02.1401152344560.14407@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 15 Jan 2014 23:52:32 -0800 (PST)
+Message-ID: <52D78FB6.4020102@mellanox.com>
+Date: Thu, 16 Jan 2014 09:52:22 +0200
+From: Haggai Eran <haggaie@mellanox.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: set_pte_at_notify regression
+References: <52D021EE.3020104@ravellosystems.com> <20140110165705.GE1141@redhat.com> <52D282DC.6050902@mellanox.com> <20140112175031.GH1141@redhat.com>
+In-Reply-To: <20140112175031.GH1141@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Izik Eidus <izik.eidus@ravellosystems.com>, linux-mm@kvack.org, kvm@vger.kernel.org, Alex Fishman <alex.fishman@ravellosystems.com>, Mike Rapoport <mike.rapoport@ravellosystems.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-When two threads have the same badness score, it's preferable to kill the 
-thread group leader so that the actual process name is printed to the 
-kernel log rather than the thread group name which may be shared amongst 
-several processes.
+On 12/01/2014 19:50, Andrea Arcangeli wrote:
+> On Sun, Jan 12, 2014 at 01:56:12PM +0200, Haggai Eran wrote:
+>> Hi,
+>>
+>> On 10/01/2014 18:57, Andrea Arcangeli wrote:
+>>> Hi!
+>>>
+>>> On Fri, Jan 10, 2014 at 06:38:06PM +0200, Izik Eidus wrote:
+>>>> It look like commit 6bdb913f0a70a4dfb7f066fb15e2d6f960701d00 break the 
+>>>> semantic of set_pte_at_notify.
+>>>> The change of calling first to mmu_notifier_invalidate_range_start, then 
+>>>> to set_pte_at_notify, and then to mmu_notifier_invalidate_range_end
+>>>> not only increase the amount of locks kvm have to take and release by 
+>>>> factor of 3, but in addition mmu_notifier_invalidate_range_start is zapping
+>>>> the pte entry from kvm, so when set_pte_at_notify get called, it doesn`t 
+>>>> have any spte to set and it acctuly get called for nothing, the result is
+>>>> increasing of vmexits for kvm from both do_wp_page and replace_page, and 
+>>>> broken semantic of set_pte_at_notify.
+>>>
+>>> Agreed.
+>>>
+>>> I would suggest to change set_pte_at_notify to return if change_pte
+>>> was missing in some mmu notifier attached to this mm, so we can do
+>>> something like:
+>>>
+>>>    ptep = page_check_address(page, mm, addr, &ptl, 0);
+>>>    [..]
+>>>    notify_missing = false;
+>>>    if (... ) {
+>>>       	entry = ptep_clear_flush(...);
+>>>         [..]
+>>> 	notify_missing = set_pte_at_notify(mm, addr, ptep, entry);
+>>>    }
+>>>    pte_unmap_unlock(ptep, ptl);
+>>>    if (notify_missing)
+>>>    	mmu_notifier_invalidate_page_if_missing_change_pte(mm, addr);
+>>>
+>>> and drop the range calls. This will provide sleepability and at the
+>>> same time it won't screw the ability of change_pte to update sptes (by
+>>> leaving those established by the time change_pte runs).
+>>
+>> I think it would be better for notifiers that do not support change_pte
+>> to keep getting both range_start and range_end notifiers. Otherwise, the
+>> invalidate_page notifier might end up marking the old page as dirty
+>> after it was already replaced in the primary page table.
+> 
+> Ok but why would that be a problem? If the secondary pagetable mapping
+> is found dirty, the old page shall be marked dirty as it means it was
+> modified through the secondary mmu and is on-disk version may need to
+> be updated before discarding the in-ram copy. What the difference
+> would be to mark the page dirty in the range_start while the primary
+> page table is still established, or after?
+> 
+> ...
+> 
+> But in places like ksm merging and do_wp_page we hold a page reference
+> before we start the primary pagetable updating, until after the mmu
+> notifier invalidate.
 
-This was the behavior when select_bad_process() used to do 
-for_each_process(), but it now iterates threads instead and leads to 
-ambiguity.
+Right. I missed that page locking.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- v2: fixes missing get_task_struct() found by Johannes.
+Another possible issue is with reads from the secondary page table.
+Given a read-only page, suppose one host thread writes to that page, and
+performs COW, but before it calls the
+mmu_notifier_invalidate_page_if_missing_change_pte function another host
+thread writes to the same page (this time without a page fault). Then we
+have a valid entry in the secondary page table to a stale page, and
+someone may read stale data from there.
 
- mm/memcontrol.c | 19 ++++++++++++-------
- mm/oom_kill.c   | 12 ++++++++----
- 2 files changed, 20 insertions(+), 11 deletions(-)
+Do you agree?
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index a815686..d69c4b3 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1841,13 +1841,18 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 				break;
- 			};
- 			points = oom_badness(task, memcg, NULL, totalpages);
--			if (points > chosen_points) {
--				if (chosen)
--					put_task_struct(chosen);
--				chosen = task;
--				chosen_points = points;
--				get_task_struct(chosen);
--			}
-+			if (points < chosen_points)
-+				continue;
-+			/* Prefer thread group leaders for display purposes */
-+			if (points == chosen_points &&
-+			    thread_group_leader(chosen))
-+				continue;
-+
-+			if (chosen)
-+				put_task_struct(chosen);
-+			chosen = task;
-+			chosen_points = points;
-+			get_task_struct(chosen);
- 		}
- 		css_task_iter_end(&it);
- 	}
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 054ff47..1dca3d8 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -327,10 +327,14 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
- 			break;
- 		};
- 		points = oom_badness(p, NULL, nodemask, totalpages);
--		if (points > chosen_points) {
--			chosen = p;
--			chosen_points = points;
--		}
-+		if (points < chosen_points)
-+			continue;
-+		/* Prefer thread group leaders for display purposes */
-+		if (points == chosen_points && thread_group_leader(chosen))
-+			continue;
-+
-+		chosen = p;
-+		chosen_points = points;
- 	}
- 	if (chosen)
- 		get_task_struct(chosen);
+Thanks,
+Haggai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
