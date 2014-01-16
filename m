@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id B3CA16B006E
-	for <linux-mm@kvack.org>; Wed, 15 Jan 2014 20:25:13 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id r10so1873189pdi.6
+	by kanga.kvack.org (Postfix) with ESMTP id 3B4416B006C
+	for <linux-mm@kvack.org>; Wed, 15 Jan 2014 20:25:14 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id r10so1883958pdi.20
         for <linux-mm@kvack.org>; Wed, 15 Jan 2014 17:25:13 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id sa6si5331861pbb.173.2014.01.15.17.25.11
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id ai8si5303034pad.270.2014.01.15.17.25.10
         for <linux-mm@kvack.org>;
         Wed, 15 Jan 2014 17:25:11 -0800 (PST)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v5 17/22] xip: Add xip_zero_page_range
-Date: Wed, 15 Jan 2014 20:24:35 -0500
-Message-Id: <022dd796862790207b9734143cc5fe85138bc494.1389779962.git.matthew.r.wilcox@intel.com>
+Subject: [PATCH v5 22/22] XIP: Add support for unwritten extents
+Date: Wed, 15 Jan 2014 20:24:40 -0500
+Message-Id: <21d60639d747cdd683831ce57e7c753c9fa29ac1.1389779962.git.matthew.r.wilcox@intel.com>
 In-Reply-To: <cover.1389779961.git.matthew.r.wilcox@intel.com>
 References: <cover.1389779961.git.matthew.r.wilcox@intel.com>
 In-Reply-To: <cover.1389779961.git.matthew.r.wilcox@intel.com>
@@ -19,115 +19,126 @@ References: <cover.1389779961.git.matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-This new function allows us to support hole-punch for XIP files by zeroing
-a partial page, as opposed to the xip_truncate_page() function which can
-only truncate to the end of the page.  Reimplement xip_truncate_page() as
-a macro that calls xip_zero_page_range().
+For read() and pagefault, we treat unwritten extents as holes.
+For write(), we have to zero parts of the block that we're not going to
+write to.  For holepunches, something's gone quite strangely wrong if we
+get an unwritten extent from get_block, considering that the filesystem's
+calling us to write zeroes to a partially written extent ...
 
 Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-[ported to 3.13-rc2]
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- Documentation/filesystems/xip.txt |  1 +
- fs/xip.c                          | 15 +++++++++------
- include/linux/fs.h                | 11 +++++++++--
- 3 files changed, 19 insertions(+), 8 deletions(-)
+ Documentation/filesystems/xip.txt |  7 +++----
+ fs/xip.c                          | 44 +++++++++++++++++++++++++++------------
+ 2 files changed, 34 insertions(+), 17 deletions(-)
 
 diff --git a/Documentation/filesystems/xip.txt b/Documentation/filesystems/xip.txt
-index 520e73a..a8bccb6 100644
+index b158de6..5e9a0c76 100644
 --- a/Documentation/filesystems/xip.txt
 +++ b/Documentation/filesystems/xip.txt
-@@ -55,6 +55,7 @@ Filesystem support consists of
-   for fault and page_mkwrite (which should probably call xip_fault() and
-   xip_mkwrite(), passing the appropriate get_block() callback)
- - calling xip_truncate_page() instead of block_truncate_page() for XIP files
-+- calling xip_zero_page_range() instead of zero_user() for XIP files
- - ensuring that there is sufficient locking between reads, writes,
+@@ -60,10 +60,9 @@ Filesystem support consists of
    truncates and page faults
  
+ The get_block() callback passed to xip_do_io(), xip_fault(), xip_mkwrite()
+-and xip_truncate_page() must not return uninitialised extents.  It must zero
+-any blocks that it returns, and it must ensure that simultaneous calls to
+-get_block() (for example by a page-fault racing with a read() or a write())
+-work correctly.
++and xip_truncate_page() may return uninitialised extents.  If it does, it
++must ensure that simultaneous calls to get_block() (for example by a
++page-fault racing with a read() or a write()) work correctly.
+ 
+ These filesystems may be used for inspiration:
+ - ext2: the second extended filesystem, see Documentation/filesystems/ext2.txt
 diff --git a/fs/xip.c b/fs/xip.c
-index 3f5f081..9087e0f 100644
+index 88a516b..d160320 100644
 --- a/fs/xip.c
 +++ b/fs/xip.c
-@@ -357,13 +357,16 @@ int xip_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
- EXPORT_SYMBOL_GPL(xip_mkwrite);
- 
- /**
-- * xip_truncate_page - handle a partial page being truncated in an XIP file
-+ * xip_zero_page_range - zero a range within a page of an XIP file
-  * @inode: The file being truncated
-  * @from: The file offset that is being truncated to
-+ * @length: The number of bytes to zero
-  * @get_block: The filesystem method used to translate file offsets to blocks
-  *
-- * Similar to block_truncate_page(), this function can be called by a
-- * filesystem when it is truncating an XIP file to handle the partial page.
-+ * This function can be called by a filesystem when it is zeroing part of a
-+ * page in an XIP file.  This is intended for hole-punch operations.  If
-+ * you are truncating a file, the helper function xip_truncate_page() may be
-+ * more convenient.
-  *
-  * We work in terms of PAGE_CACHE_SIZE here for commonality with
-  * block_truncate_page(), but we could go down to PAGE_SIZE if the filesystem
-@@ -371,12 +374,12 @@ EXPORT_SYMBOL_GPL(xip_mkwrite);
-  * block size is smaller than PAGE_SIZE, we have to zero the rest of the page
-  * since the file might be mmaped.
-  */
--int xip_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
-+int xip_zero_page_range(struct inode *inode, loff_t from, unsigned length,
-+							get_block_t get_block)
- {
- 	struct buffer_head bh;
- 	pgoff_t index = from >> PAGE_CACHE_SHIFT;
- 	unsigned offset = from & (PAGE_CACHE_SIZE-1);
--	unsigned length = PAGE_CACHE_ALIGN(from) - from;
- 	int err;
- 
- 	/* Block boundary? Nothing to do */
-@@ -398,4 +401,4 @@ int xip_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
- 
- 	return 0;
- }
--EXPORT_SYMBOL_GPL(xip_truncate_page);
-+EXPORT_SYMBOL_GPL(xip_zero_page_range);
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index c93671a..04338a3 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -2509,7 +2509,7 @@ extern int nonseekable_open(struct inode * inode, struct file * filp);
- 
- #ifdef CONFIG_FS_XIP
- int xip_clear_blocks(struct inode *, sector_t block, long size);
--int xip_truncate_page(struct inode *, loff_t from, get_block_t);
-+int xip_zero_page_range(struct inode *, loff_t from, unsigned len, get_block_t);
- ssize_t xip_do_io(int rw, struct kiocb *, struct inode *, const struct iovec *,
- 		loff_t, unsigned segs, get_block_t, dio_iodone_t, int flags);
- int xip_fault(struct vm_area_struct *, struct vm_fault *, get_block_t);
-@@ -2520,7 +2520,8 @@ static inline int xip_clear_blocks(struct inode *i, sector_t blk, long sz)
- 	return 0;
+@@ -79,6 +79,12 @@ static long xip_get_pfn(struct inode *inode, struct buffer_head *bh,
+ 	return ops->direct_access(bdev, sector, &addr, pfn, bh->b_size);
  }
  
--static inline int xip_truncate_page(struct inode *i, loff_t frm, get_block_t gb)
-+static inline int xip_zero_page_range(struct inode *inode, loff_t from,
-+						unsigned len, get_block_t gb)
- {
- 	return 0;
- }
-@@ -2533,6 +2534,12 @@ static inline ssize_t xip_do_io(int rw, struct kiocb *iocb, struct inode *inode,
- }
- #endif
- 
-+/* Can't be a function because PAGE_CACHE_ALIGN is defined in pagemap.h */
-+#define xip_truncate_page(inode, from, get_block)	\
-+	xip_zero_page_range(inode, from, PAGE_CACHE_ALIGN(from) - from, \
-+					get_block)
++/* true if a buffer_head represents written data */
++static bool buffer_written(struct buffer_head *bh)
++{
++	return buffer_mapped(bh) && !buffer_unwritten(bh);
++}
 +
+ static ssize_t xip_io(int rw, struct inode *inode, const struct iovec *iov,
+ 			loff_t start, loff_t end, unsigned nr_segs,
+ 			get_block_t get_block, struct buffer_head *bh)
+@@ -103,21 +109,29 @@ static ssize_t xip_io(int rw, struct inode *inode, const struct iovec *iov,
+ 			retval = get_block(inode, block, bh, rw == WRITE);
+ 			if (retval)
+ 				break;
+-			if (buffer_mapped(bh)) {
+-				retval = xip_get_addr(inode, bh, &addr);
+-				if (retval < 0)
+-					break;
+-				addr += offset - (block << inode->i_blkbits);
+-				hole = false;
+-				size = retval;
+-			} else {
+-				if (rw == WRITE) {
++			if (rw == WRITE) {
++				if (!buffer_mapped(bh)) {
+ 					retval = -EIO;
+ 					break;
+ 				}
++				hole = false;
++			} else {
++				hole = !buffer_written(bh);
++			}
 +
- #ifdef CONFIG_BLOCK
- typedef void (dio_submit_t)(int rw, struct bio *bio, struct inode *inode,
- 			    loff_t file_offset);
++			if (hole) {
+ 				addr = NULL;
+-				hole = true;
+ 				size = bh->b_size;
++			} else {
++				unsigned first;
++				retval = xip_get_addr(inode, bh, &addr);
++				if (retval < 0)
++					break;
++				size = retval;
++				first = offset - (block << inode->i_blkbits);
++				if (buffer_unwritten(bh))
++					memset(addr, 0, first);
++				addr += first;
+ 			}
+ 			max = offset + size;
+ 		}
+@@ -265,7 +279,7 @@ static int do_xip_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+ 	if (error || bh.b_size < PAGE_SIZE)
+ 		return VM_FAULT_SIGBUS;
+ 
+-	if (!buffer_mapped(&bh) && !vmf->cow_page) {
++	if (!buffer_written(&bh) && !vmf->cow_page) {
+ 		if (vmf->flags & FAULT_FLAG_WRITE) {
+ 			error = get_block(inode, block, &bh, 1);
+ 			count_vm_event(PGMAJFAULT);
+@@ -286,7 +300,7 @@ static int do_xip_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+ 		return VM_FAULT_SIGBUS;
+ 	}
+ 	if (vmf->cow_page) {
+-		if (buffer_mapped(&bh))
++		if (buffer_written(&bh))
+ 			copy_user_bh(vmf->cow_page, inode, &bh, vaddr);
+ 		else
+ 			clear_user_highpage(vmf->cow_page, vaddr);
+@@ -397,7 +411,11 @@ int xip_zero_page_range(struct inode *inode, loff_t from, unsigned length,
+ 	err = get_block(inode, index, &bh, 0);
+ 	if (err < 0)
+ 		return err;
+-	if (buffer_mapped(&bh)) {
++	if (buffer_written(&bh)) {
++		/*
++		 * Should this be BUG_ON(!buffer_mapped)?  Surely we should
++		 * never be called for an unmapped block ...
++		 */
+ 		void *addr;
+ 		err = xip_get_addr(inode, &bh, &addr);
+ 		if (err)
 -- 
 1.8.5.2
 
