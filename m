@@ -1,41 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f53.google.com (mail-yh0-f53.google.com [209.85.213.53])
-	by kanga.kvack.org (Postfix) with ESMTP id E38106B0031
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 13:37:00 -0500 (EST)
-Received: by mail-yh0-f53.google.com with SMTP id b20so803503yha.12
-        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 10:37:00 -0800 (PST)
-Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
-        by mx.google.com with ESMTP id v21si5361559yhm.298.2014.01.16.10.36.53
-        for <linux-mm@kvack.org>;
-        Thu, 16 Jan 2014 10:36:53 -0800 (PST)
-Message-ID: <52D82668.1060400@sr71.net>
-Date: Thu, 16 Jan 2014 10:35:20 -0800
-From: Dave Hansen <dave@sr71.net>
+Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
+	by kanga.kvack.org (Postfix) with ESMTP id A84F76B0031
+	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 13:49:44 -0500 (EST)
+Received: by mail-ea0-f180.google.com with SMTP id f15so1327509eak.11
+        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 10:49:44 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 3si3614363eeq.185.2014.01.16.10.49.43
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 16 Jan 2014 10:49:43 -0800 (PST)
+Date: Thu, 16 Jan 2014 18:49:40 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [TLB range flush] +34.7% hackbench.throughput
+Message-ID: <20140116184940.GR4963@suse.de>
+References: <1389278098-27154-1-git-send-email-mgorman@suse.de>
+ <20140116140118.GA22224@localhost>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 4/9] mm: slabs: reset page at free
-References: <20140114180042.C1C33F78@viggo.jf.intel.com> <20140114180054.20A1B660@viggo.jf.intel.com> <alpine.DEB.2.02.1401141847230.32645@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1401141847230.32645@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140116140118.GA22224@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, penberg@kernel.org, cl@linux-foundation.org
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Alex Shi <alex.shi@linaro.org>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 01/14/2014 06:48 PM, David Rientjes wrote:
->> > +/*
->> > + * Custom allocators (like the slabs) use 'struct page' fields
->> > + * for all kinds of things.  This resets the page's state so that
->> > + * the buddy allocator will be happy with it.
->> > + */
->> > +static inline void allocator_reset_page(struct page *page)
-> This is ambiguous as to what "allocator" you're referring to unless we 
-> look at the comment.  I think it would be better to name it 
-> slab_reset_page() or something similar.
+On Thu, Jan 16, 2014 at 10:01:18PM +0800, Fengguang Wu wrote:
+> Hi Mel,
+> 
+> I applied your patchset on v3.13-rc7 and get some test results. The
+> results are encouraging: hackbench throughput increased by 34.7% with
+> parameters 1600%-threads-pipe on a 2S SNB server.
+> 
+> In case you are interested, here are the full list of changes.
+> kconfig is attached.
+> 
 
-I stuck it in mm.h and deliberately didn't call it 'slab_something' so
-that zsmalloc (in staging) could use this as well.  The "allocator" part
-of the name was to indicate that any allocator could use it.
+I am intersted and thanks very much for the report. It's very encouraging.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
