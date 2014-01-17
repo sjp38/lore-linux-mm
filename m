@@ -1,87 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f175.google.com (mail-ea0-f175.google.com [209.85.215.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 673956B0031
-	for <linux-mm@kvack.org>; Fri, 17 Jan 2014 15:00:04 -0500 (EST)
-Received: by mail-ea0-f175.google.com with SMTP id z10so1967938ead.34
-        for <linux-mm@kvack.org>; Fri, 17 Jan 2014 12:00:03 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d8si2219296eeh.179.2014.01.17.12.00.02
+Received: from mail-qe0-f53.google.com (mail-qe0-f53.google.com [209.85.128.53])
+	by kanga.kvack.org (Postfix) with ESMTP id EE3686B0031
+	for <linux-mm@kvack.org>; Fri, 17 Jan 2014 16:14:06 -0500 (EST)
+Received: by mail-qe0-f53.google.com with SMTP id t7so4445845qeb.26
+        for <linux-mm@kvack.org>; Fri, 17 Jan 2014 13:14:06 -0800 (PST)
+Received: from shelob.surriel.com (shelob.surriel.com. [2002:4a5c:3b41:1:216:3eff:fe57:7f4])
+        by mx.google.com with ESMTPS id t32si3266781qgd.102.2014.01.17.13.14.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 17 Jan 2014 12:00:03 -0800 (PST)
-Date: Fri, 17 Jan 2014 19:59:57 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: Improve documentation of page_order
-Message-ID: <20140117195957.GG4963@suse.de>
-References: <520B0B75.4030708@huawei.com>
- <20130814085711.GK2296@suse.de>
- <20130814155205.GA2706@gmail.com>
- <20130814132602.814a88e991e29c5b93bbe22c@linux-foundation.org>
- <20130814222241.GQ2296@suse.de>
- <20140117143221.GA24851@suse.de>
- <52D97C3E.2080709@codeaurora.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <52D97C3E.2080709@codeaurora.org>
+        Fri, 17 Jan 2014 13:14:05 -0800 (PST)
+From: riel@redhat.com
+Subject: [PATCH v2 0/7] pseudo-interleaving for automatic NUMA balancing
+Date: Fri, 17 Jan 2014 16:12:02 -0500
+Message-Id: <1389993129-28180-1-git-send-email-riel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Xishi Qiu <qiuxishi@huawei.com>, riel@redhat.com, aquini@redhat.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, chegu_vinod@hp.com, peterz@infradead.org, mgorman@suse.de, mingo@redhat.com
 
-On Fri, Jan 17, 2014 at 10:53:50AM -0800, Laura Abbott wrote:
-> On 1/17/2014 6:32 AM, Mel Gorman wrote:
-> >Developers occasionally try and optimise PFN scanners by using page_order
-> >but miss that in general it requires zone->lock. This has happened twice for
-> >compaction.c and rejected both times.  This patch clarifies the documentation
-> >of page_order and adds a note to compaction.c why page_order is not used.
-> >
-> >Signed-off-by: Mel Gorman <mgorman@suse.de>
-> >---
-> >  mm/compaction.c | 5 ++++-
-> >  mm/internal.h   | 8 +++++---
-> >  2 files changed, 9 insertions(+), 4 deletions(-)
-> >
-> >diff --git a/mm/compaction.c b/mm/compaction.c
-> >index f58bcd0..f91d26b 100644
-> >--- a/mm/compaction.c
-> >+++ b/mm/compaction.c
-> >@@ -522,7 +522,10 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-> >  		if (!isolation_suitable(cc, page))
-> >  			goto next_pageblock;
-> >
-> >-		/* Skip if free */
-> >+		/*
-> >+		 * Skip if free. page_order cannot be used without zone->lock
-> >+		 * as nothing prevents parallel allocations or buddy merging.
-> >+		 */
-> >  		if (PageBuddy(page))
-> >  			continue;
-> >
-> >diff --git a/mm/internal.h b/mm/internal.h
-> >index 684f7aa..09cd8be 100644
-> >--- a/mm/internal.h
-> >+++ b/mm/internal.h
-> >@@ -144,9 +144,11 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-> >  #endif
-> >
-> >  /*
-> >- * function for dealing with page's order in buddy system.
-> >- * zone->lock is already acquired when we use these.
-> >- * So, we don't need atomic page->flags operations here.
-> >+ * This functions returns the order of a free page in the buddy system.
-> >+ * In general, page_zone(page)->lock must be held by the caller to prevent
-> >+ * the page being allocated in parallel and returning garbage as the order.
-> >+ * If the caller does not hold page_zone(page), they must guarantee that
->                                   page_zone(page)->lock here?
+The current automatic NUMA balancing code base has issues with
+workloads that do not fit on one NUMA load. Page migration is
+slowed down, but memory distribution between the nodes where
+the workload runs is essentially random, often resulting in a
+suboptimal amount of memory bandwidth being available to the
+workload.
 
-*sigh*
+In order to maximize performance of workloads that do not fit in one NUMA
+node, we want to satisfy the following criteria:
+1) keep private memory local to each thread
+2) avoid excessive NUMA migration of pages
+3) distribute shared memory across the active nodes, to
+   maximize memory bandwidth available to the workload
 
-Yes, thanks.
+This patch series identifies the NUMA nodes on which the workload
+is actively running, and balances (somewhat lazily) the memory
+between those nodes, satisfying the criteria above.
 
--- 
-Mel Gorman
-SUSE Labs
+As usual, the series has had some performance testing, but it
+could always benefit from more testing, on other systems.
+
+Changes since v1:
+ - fix divide by zero found by Chegu Vinod
+ - improve comment, as suggested by Peter Zijlstra
+ - do stats calculations in task_numa_placement in local variables
+
+
+Some performance numbers, with two 40-warehouse specjbb instances
+on an 8 node system with 10 CPU cores per node, using a pre-cleanup
+version of these patches, courtesy of Chegu Vinod:
+
+numactl manual pinning
+spec1.txt:           throughput =     755900.20 SPECjbb2005 bops
+spec2.txt:           throughput =     754914.40 SPECjbb2005 bops
+
+NO-pinning results (Automatic NUMA balancing, with patches)
+spec1.txt:           throughput =     706439.84 SPECjbb2005 bops
+spec2.txt:           throughput =     729347.75 SPECjbb2005 bops
+
+NO-pinning results (Automatic NUMA balancing, without patches)
+spec1.txt:           throughput =     667988.47 SPECjbb2005 bops
+spec2.txt:           throughput =     638220.45 SPECjbb2005 bops
+
+No Automatic NUMA and NO-pinning results
+spec1.txt:           throughput =     544120.97 SPECjbb2005 bops
+spec2.txt:           throughput =     453553.41 SPECjbb2005 bops
+
+
+My own performance numbers are not as relevant, since I have been
+running with a more hostile workload on purpose, and I have run
+into a scheduler issue that caused the workload to run on only
+two of the four NUMA nodes on my test system...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
