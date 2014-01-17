@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id A7C816B0035
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 19:08:21 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id p10so3254199pdj.40
-        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 16:08:21 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id zk9si5155446pac.173.2014.01.16.16.08.19
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id D966B6B0038
+	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 19:08:29 -0500 (EST)
+Received: by mail-pd0-f180.google.com with SMTP id x10so1970947pdj.11
+        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 16:08:29 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id k3si8490788pbb.24.2014.01.16.16.08.28
         for <linux-mm@kvack.org>;
-        Thu, 16 Jan 2014 16:08:20 -0800 (PST)
-Subject: [PATCH v7 1/6] MCS Lock: Restructure the MCS lock defines and
- locking code into its own file
+        Thu, 16 Jan 2014 16:08:28 -0800 (PST)
+Subject: [PATCH v7 3/6] MCS Lock: Move mcs_lock/unlock function into its
+ own file
 From: Tim Chen <tim.c.chen@linux.intel.com>
 In-Reply-To: <cover.1389890175.git.tim.c.chen@linux.intel.com>
 References: <cover.1389890175.git.tim.c.chen@linux.intel.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 16 Jan 2014 16:08:16 -0800
-Message-ID: <1389917296.3138.11.camel@schen9-DESK>
+Date: Thu, 16 Jan 2014 16:08:24 -0800
+Message-ID: <1389917304.3138.13.camel@schen9-DESK>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -23,154 +23,47 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Will Deacon <will.deacon@arm.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Tim Chen <tim.c.chen@linux.intel.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-We will need the MCS lock code for doing optimistic spinning for rwsem
-and queue rwlock.  Extracting the MCS code from mutex.c and put into
-its own file allow us to reuse this code easily.
+The following changes are made:
 
+1) Create a new mcs_spinlock.c file to contain the
+   mcs_spin_lock() and mcs_spin_unlock() function.
+2) Include a number of prerequisite header files and define
+   arch_mutex_cpu_relax(), if not previously defined so the
+   mcs functions can be compiled for multiple architecture without
+   causing problems.
+
+From: Waiman Long <Waiman.Long@hp.com>
+Signed-off-by: Waiman Long <Waiman.Long@hp.com>
 Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
-Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
 ---
- include/linux/mcs_spinlock.h | 64 ++++++++++++++++++++++++++++++++++++++++++++
- include/linux/mutex.h        |  5 ++--
- kernel/locking/mutex.c       | 60 +++++------------------------------------
- 3 files changed, 74 insertions(+), 55 deletions(-)
- create mode 100644 include/linux/mcs_spinlock.h
+ include/linux/mcs_spinlock.h                       | 56 ++--------------------
+ kernel/locking/Makefile                            |  6 +--
+ .../locking/mcs_spinlock.c                         | 33 ++++++-------
+ 3 files changed, 24 insertions(+), 71 deletions(-)
+ copy include/linux/mcs_spinlock.h => kernel/locking/mcs_spinlock.c (75%)
 
 diff --git a/include/linux/mcs_spinlock.h b/include/linux/mcs_spinlock.h
-new file mode 100644
-index 0000000..b5de3b0
---- /dev/null
+index 96f14299..d54bb23 100644
+--- a/include/linux/mcs_spinlock.h
 +++ b/include/linux/mcs_spinlock.h
-@@ -0,0 +1,64 @@
-+/*
-+ * MCS lock defines
-+ *
-+ * This file contains the main data structure and API definitions of MCS lock.
-+ *
-+ * The MCS lock (proposed by Mellor-Crummey and Scott) is a simple spin-lock
-+ * with the desirable properties of being fair, and with each cpu trying
-+ * to acquire the lock spinning on a local variable.
-+ * It avoids expensive cache bouncings that common test-and-set spin-lock
-+ * implementations incur.
-+ */
-+#ifndef __LINUX_MCS_SPINLOCK_H
-+#define __LINUX_MCS_SPINLOCK_H
-+
-+struct mcs_spinlock {
-+	struct mcs_spinlock *next;
-+	int locked; /* 1 if lock acquired */
-+};
-+
-+/*
-+ * We don't inline mcs_spin_lock() so that perf can correctly account for the
-+ * time spent in this lock function.
-+ */
-+static noinline
-+void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
-+{
-+	struct mcs_spinlock *prev;
-+
-+	/* Init node */
-+	node->locked = 0;
-+	node->next   = NULL;
-+
-+	prev = xchg(lock, node);
-+	if (likely(prev == NULL)) {
-+		/* Lock acquired */
-+		node->locked = 1;
-+		return;
-+	}
-+	ACCESS_ONCE(prev->next) = node;
-+	smp_wmb();
-+	/* Wait until the lock holder passes the lock down */
-+	while (!ACCESS_ONCE(node->locked))
-+		arch_mutex_cpu_relax();
-+}
-+
-+static void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
-+{
-+	struct mcs_spinlock *next = ACCESS_ONCE(node->next);
-+
-+	if (likely(!next)) {
-+		/*
-+		 * Release the lock by setting it to NULL
-+		 */
-+		if (cmpxchg(lock, node, NULL) == node)
-+			return;
-+		/* Wait until the next pointer is set */
-+		while (!(next = ACCESS_ONCE(node->next)))
-+			arch_mutex_cpu_relax();
-+	}
-+	ACCESS_ONCE(next->locked) = 1;
-+	smp_wmb();
-+}
-+
-+#endif /* __LINUX_MCS_SPINLOCK_H */
-diff --git a/include/linux/mutex.h b/include/linux/mutex.h
-index d318193..c482e1d 100644
---- a/include/linux/mutex.h
-+++ b/include/linux/mutex.h
-@@ -46,6 +46,7 @@
-  * - detects multi-task circular deadlocks and prints out all affected
-  *   locks and tasks (and only those tasks)
-  */
-+struct mcs_spinlock;
- struct mutex {
- 	/* 1: unlocked, 0: locked, negative: locked, possible waiters */
- 	atomic_t		count;
-@@ -55,7 +56,7 @@ struct mutex {
- 	struct task_struct	*owner;
- #endif
- #ifdef CONFIG_MUTEX_SPIN_ON_OWNER
--	void			*spin_mlock;	/* Spinner MCS lock */
-+	struct mcs_spinlock	*mcs_lock;	/* Spinner MCS lock */
- #endif
- #ifdef CONFIG_DEBUG_MUTEXES
- 	const char 		*name;
-@@ -179,4 +180,4 @@ extern int atomic_dec_and_mutex_lock(atomic_t *cnt, struct mutex *lock);
- # define arch_mutex_cpu_relax() cpu_relax()
- #endif
+@@ -17,57 +17,9 @@ struct mcs_spinlock {
+ 	int locked; /* 1 if lock acquired */
+ };
  
--#endif
-+#endif /* __LINUX_MUTEX_H */
-diff --git a/kernel/locking/mutex.c b/kernel/locking/mutex.c
-index 4dd6e4c..45fe1b5 100644
---- a/kernel/locking/mutex.c
-+++ b/kernel/locking/mutex.c
-@@ -25,6 +25,7 @@
- #include <linux/spinlock.h>
- #include <linux/interrupt.h>
- #include <linux/debug_locks.h>
-+#include <linux/mcs_spinlock.h>
- 
- /*
-  * In the DEBUG case we are using the "NULL fastpath" for mutexes,
-@@ -52,7 +53,7 @@ __mutex_init(struct mutex *lock, const char *name, struct lock_class_key *key)
- 	INIT_LIST_HEAD(&lock->wait_list);
- 	mutex_clear_owner(lock);
- #ifdef CONFIG_MUTEX_SPIN_ON_OWNER
--	lock->spin_mlock = NULL;
-+	lock->mcs_lock = NULL;
- #endif
- 
- 	debug_mutex_init(lock, name, key);
-@@ -111,54 +112,7 @@ EXPORT_SYMBOL(mutex_lock);
-  * more or less simultaneously, the spinners need to acquire a MCS lock
-  * first before spinning on the owner field.
-  *
-- * We don't inline mspin_lock() so that perf can correctly account for the
+-/*
+- * In order to acquire the lock, the caller should declare a local node and
+- * pass a reference of the node to this function in addition to the lock.
+- * If the lock has already been acquired, then this will proceed to spin
+- * on this node->locked until the previous lock holder sets the node->locked
+- * in mcs_spin_unlock().
+- *
+- * We don't inline mcs_spin_lock() so that perf can correctly account for the
 - * time spent in this lock function.
-  */
--struct mspin_node {
--	struct mspin_node *next ;
--	int		  locked;	/* 1 if lock acquired */
--};
--#define	MLOCK(mutex)	((struct mspin_node **)&((mutex)->spin_mlock))
--
+- */
 -static noinline
--void mspin_lock(struct mspin_node **lock, struct mspin_node *node)
+-void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
 -{
--	struct mspin_node *prev;
+-	struct mcs_spinlock *prev;
 -
 -	/* Init node */
 -	node->locked = 0;
@@ -179,7 +72,6 @@ index 4dd6e4c..45fe1b5 100644
 -	prev = xchg(lock, node);
 -	if (likely(prev == NULL)) {
 -		/* Lock acquired */
--		node->locked = 1;
 -		return;
 -	}
 -	ACCESS_ONCE(prev->next) = node;
@@ -189,15 +81,19 @@ index 4dd6e4c..45fe1b5 100644
 -		arch_mutex_cpu_relax();
 -}
 -
--static void mspin_unlock(struct mspin_node **lock, struct mspin_node *node)
+-/*
+- * Releases the lock. The caller should pass in the corresponding node that
+- * was used to acquire the lock.
+- */
+-static void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
 -{
--	struct mspin_node *next = ACCESS_ONCE(node->next);
+-	struct mcs_spinlock *next = ACCESS_ONCE(node->next);
 -
 -	if (likely(!next)) {
 -		/*
 -		 * Release the lock by setting it to NULL
 -		 */
--		if (cmpxchg(lock, node, NULL) == node)
+-		if (likely(cmpxchg(lock, node, NULL) == node))
 -			return;
 -		/* Wait until the next pointer is set */
 -		while (!(next = ACCESS_ONCE(node->next)))
@@ -206,45 +102,109 @@ index 4dd6e4c..45fe1b5 100644
 -	ACCESS_ONCE(next->locked) = 1;
 -	smp_wmb();
 -}
++extern
++void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node);
++extern
++void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *node);
+ 
+ #endif /* __LINUX_MCS_SPINLOCK_H */
+diff --git a/kernel/locking/Makefile b/kernel/locking/Makefile
+index baab8e5..20d9d5c 100644
+--- a/kernel/locking/Makefile
++++ b/kernel/locking/Makefile
+@@ -13,12 +13,12 @@ obj-$(CONFIG_LOCKDEP) += lockdep.o
+ ifeq ($(CONFIG_PROC_FS),y)
+ obj-$(CONFIG_LOCKDEP) += lockdep_proc.o
+ endif
+-obj-$(CONFIG_SMP) += spinlock.o
+-obj-$(CONFIG_PROVE_LOCKING) += spinlock.o
++obj-$(CONFIG_SMP) += spinlock.o mcs_spinlock.o
++obj-$(CONFIG_PROVE_LOCKING) += spinlock.o mcs_spinlock.o
+ obj-$(CONFIG_RT_MUTEXES) += rtmutex.o
+ obj-$(CONFIG_DEBUG_RT_MUTEXES) += rtmutex-debug.o
+ obj-$(CONFIG_RT_MUTEX_TESTER) += rtmutex-tester.o
+-obj-$(CONFIG_DEBUG_SPINLOCK) += spinlock.o
++obj-$(CONFIG_DEBUG_SPINLOCK) += spinlock.o mcs_spinlock.o
+ obj-$(CONFIG_DEBUG_SPINLOCK) += spinlock_debug.o
+ obj-$(CONFIG_RWSEM_GENERIC_SPINLOCK) += rwsem-spinlock.o
+ obj-$(CONFIG_RWSEM_XCHGADD_ALGORITHM) += rwsem-xadd.o
+diff --git a/include/linux/mcs_spinlock.h b/kernel/locking/mcs_spinlock.c
+similarity index 75%
+copy from include/linux/mcs_spinlock.h
+copy to kernel/locking/mcs_spinlock.c
+index 96f14299..44fb092 100644
+--- a/include/linux/mcs_spinlock.h
++++ b/kernel/locking/mcs_spinlock.c
+@@ -1,7 +1,5 @@
+ /*
+- * MCS lock defines
+- *
+- * This file contains the main data structure and API definitions of MCS lock.
++ * MCS lock
+  *
+  * The MCS lock (proposed by Mellor-Crummey and Scott) is a simple spin-lock
+  * with the desirable properties of being fair, and with each cpu trying
+@@ -9,13 +7,20 @@
+  * It avoids expensive cache bouncings that common test-and-set spin-lock
+  * implementations incur.
+  */
+-#ifndef __LINUX_MCS_SPINLOCK_H
+-#define __LINUX_MCS_SPINLOCK_H
++/*
++ * asm/processor.h may define arch_mutex_cpu_relax().
++ * If it is not defined, cpu_relax() will be used.
++ */
++#include <asm/barrier.h>
++#include <asm/cmpxchg.h>
++#include <asm/processor.h>
++#include <linux/compiler.h>
++#include <linux/mcs_spinlock.h>
++#include <linux/export.h>
+ 
+-struct mcs_spinlock {
+-	struct mcs_spinlock *next;
+-	int locked; /* 1 if lock acquired */
+-};
++#ifndef arch_mutex_cpu_relax
++# define arch_mutex_cpu_relax() cpu_relax()
++#endif
  
  /*
-  * Mutex spinning code migrated from kernel/sched/core.c
-@@ -448,7 +402,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
+  * In order to acquire the lock, the caller should declare a local node and
+@@ -23,11 +28,7 @@ struct mcs_spinlock {
+  * If the lock has already been acquired, then this will proceed to spin
+  * on this node->locked until the previous lock holder sets the node->locked
+  * in mcs_spin_unlock().
+- *
+- * We don't inline mcs_spin_lock() so that perf can correctly account for the
+- * time spent in this lock function.
+  */
+-static noinline
+ void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
+ {
+ 	struct mcs_spinlock *prev;
+@@ -47,12 +48,13 @@ void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
+ 	while (!ACCESS_ONCE(node->locked))
+ 		arch_mutex_cpu_relax();
+ }
++EXPORT_SYMBOL_GPL(mcs_spin_lock);
  
- 	for (;;) {
- 		struct task_struct *owner;
--		struct mspin_node  node;
-+		struct mcs_spinlock  node;
+ /*
+  * Releases the lock. The caller should pass in the corresponding node that
+  * was used to acquire the lock.
+  */
+-static void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
++void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
+ {
+ 	struct mcs_spinlock *next = ACCESS_ONCE(node->next);
  
- 		if (use_ww_ctx && ww_ctx->acquired > 0) {
- 			struct ww_mutex *ww;
-@@ -470,10 +424,10 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
- 		 * If there's an owner, wait for it to either
- 		 * release the lock or go to sleep.
- 		 */
--		mspin_lock(MLOCK(lock), &node);
-+		mcs_spin_lock(&lock->mcs_lock, &node);
- 		owner = ACCESS_ONCE(lock->owner);
- 		if (owner && !mutex_spin_on_owner(lock, owner)) {
--			mspin_unlock(MLOCK(lock), &node);
-+			mcs_spin_unlock(&lock->mcs_lock, &node);
- 			goto slowpath;
- 		}
- 
-@@ -488,11 +442,11 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
- 			}
- 
- 			mutex_set_owner(lock);
--			mspin_unlock(MLOCK(lock), &node);
-+			mcs_spin_unlock(&lock->mcs_lock, &node);
- 			preempt_enable();
- 			return 0;
- 		}
--		mspin_unlock(MLOCK(lock), &node);
-+		mcs_spin_unlock(&lock->mcs_lock, &node);
- 
- 		/*
- 		 * When there's no owner, we might have preempted between the
+@@ -69,5 +71,4 @@ static void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *nod
+ 	ACCESS_ONCE(next->locked) = 1;
+ 	smp_wmb();
+ }
+-
+-#endif /* __LINUX_MCS_SPINLOCK_H */
++EXPORT_SYMBOL_GPL(mcs_spin_unlock);
 -- 
 1.7.11.7
 
