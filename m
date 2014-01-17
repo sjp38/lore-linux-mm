@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f43.google.com (mail-qe0-f43.google.com [209.85.128.43])
-	by kanga.kvack.org (Postfix) with ESMTP id B8A376B0031
-	for <linux-mm@kvack.org>; Fri, 17 Jan 2014 16:20:24 -0500 (EST)
-Received: by mail-qe0-f43.google.com with SMTP id nc12so4495598qeb.16
-        for <linux-mm@kvack.org>; Fri, 17 Jan 2014 13:20:24 -0800 (PST)
+Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
+	by kanga.kvack.org (Postfix) with ESMTP id B912A6B0037
+	for <linux-mm@kvack.org>; Fri, 17 Jan 2014 16:21:30 -0500 (EST)
+Received: by mail-qc0-f182.google.com with SMTP id c9so4160574qcz.13
+        for <linux-mm@kvack.org>; Fri, 17 Jan 2014 13:21:30 -0800 (PST)
 Received: from shelob.surriel.com (shelob.surriel.com. [2002:4a5c:3b41:1:216:3eff:fe57:7f4])
-        by mx.google.com with ESMTPS id 75si3279061qgv.147.2014.01.17.13.20.23
+        by mx.google.com with ESMTPS id y1si3580862qal.40.2014.01.17.13.21.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 17 Jan 2014 13:20:23 -0800 (PST)
+        Fri, 17 Jan 2014 13:21:29 -0800 (PST)
 From: riel@redhat.com
-Subject: [PATCH 6/7] numa,sched: normalize faults_from stats and weigh by CPU use
-Date: Fri, 17 Jan 2014 16:12:08 -0500
-Message-Id: <1389993129-28180-7-git-send-email-riel@redhat.com>
+Subject: [PATCH 7/7] numa,sched: do statistics calculation using local variables only
+Date: Fri, 17 Jan 2014 16:12:09 -0500
+Message-Id: <1389993129-28180-8-git-send-email-riel@redhat.com>
 In-Reply-To: <1389993129-28180-1-git-send-email-riel@redhat.com>
 References: <1389993129-28180-1-git-send-email-riel@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,29 +22,16 @@ Cc: linux-mm@kvack.org, chegu_vinod@hp.com, peterz@infradead.org, mgorman@suse.d
 
 From: Rik van Riel <riel@redhat.com>
 
-The tracepoint has made it abundantly clear that the naive
-implementation of the faults_from code has issues.
+The current code in task_numa_placement calculates the difference
+between the old and the new value, but also temporarily stores half
+of the old value in the per-process variables.
 
-Specifically, the garbage collector in some workloads will
-access orders of magnitudes more memory than the threads
-that do all the active work. This resulted in the node with
-the garbage collector being marked the only active node in
-the group.
+The NUMA balancing code looks at those per-process variables, and
+having other tasks temporarily see halved statistics could lead to
+unwanted numa migrations. This can be avoided by doing all the math
+in local variables.
 
-This issue is avoided if we weigh the statistics by CPU use
-of each task in the numa group, instead of by how many faults
-each thread has occurred.
-
-To achieve this, we normalize the number of faults to the
-fraction of faults that occurred on each node, and then
-multiply that fraction by the fraction of CPU time the
-task has used since the last time task_numa_placement was
-invoked.
-
-This way the nodes in the active node mask will be the ones
-where the tasks from the numa group are most actively running,
-and the influence of eg. the garbage collector and other
-do-little threads is properly minimized.
+This change also simplifies the code a little.
 
 Cc: Peter Zijlstra <peterz@infradead.org>
 Cc: Mel Gorman <mgorman@suse.de>
@@ -52,123 +39,44 @@ Cc: Ingo Molnar <mingo@redhat.com>
 Cc: Chegu Vinod <chegu_vinod@hp.com>
 Signed-off-by: Rik van Riel <riel@redhat.com>
 ---
- include/linux/sched.h |  2 ++
- kernel/sched/core.c   |  2 ++
- kernel/sched/fair.c   | 48 ++++++++++++++++++++++++++++++++++++++++++++++--
- 3 files changed, 50 insertions(+), 2 deletions(-)
+ kernel/sched/fair.c | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 0af6c1a..52de567 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1471,6 +1471,8 @@ struct task_struct {
- 	int numa_preferred_nid;
- 	unsigned long numa_migrate_retry;
- 	u64 node_stamp;			/* migration stamp  */
-+	u64 last_task_numa_placement;
-+	u64 last_sum_exec_runtime;
- 	struct callback_head numa_work;
- 
- 	struct list_head numa_entry;
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 7f45fd5..9a0908a 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -1758,6 +1758,8 @@ static void __sched_fork(unsigned long clone_flags, struct task_struct *p)
- 	p->numa_work.next = &p->numa_work;
- 	p->numa_faults = NULL;
- 	p->numa_faults_buffer = NULL;
-+	p->last_task_numa_placement = 0;
-+	p->last_sum_exec_runtime = 0;
- 
- 	INIT_LIST_HEAD(&p->numa_entry);
- 	p->numa_group = NULL;
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 8e0a53a..0d395a0 100644
+index 0d395a0..0f48382 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -1422,11 +1422,41 @@ static void update_task_scan_period(struct task_struct *p,
- 	memset(p->numa_faults_locality, 0, sizeof(p->numa_faults_locality));
- }
- 
-+/*
-+ * Get the fraction of time the task has been running since the last
-+ * NUMA placement cycle. The scheduler keeps similar statistics, but
-+ * decays those on a 32ms period, which is orders of magnitude off
-+ * from the dozens-of-seconds NUMA balancing period. Use the scheduler
-+ * stats only if the task is so new there are no NUMA statistics yet.
-+ */
-+static u64 numa_get_avg_runtime(struct task_struct *p, u64 *period)
-+{
-+	u64 runtime, delta, now;
-+	/* Use the start of this time slice to avoid calculations. */
-+	now = p->se.exec_start;
-+	runtime = p->se.sum_exec_runtime;
-+
-+	if (p->last_task_numa_placement) {
-+		delta = runtime - p->last_sum_exec_runtime;
-+		*period = now - p->last_task_numa_placement;
-+	} else {
-+		delta = p->se.avg.runnable_avg_sum;
-+		*period = p->se.avg.runnable_avg_period;
-+	}
-+
-+	p->last_sum_exec_runtime = runtime;
-+	p->last_task_numa_placement = now;
-+
-+	return delta;
-+}
-+
- static void task_numa_placement(struct task_struct *p)
- {
- 	int seq, nid, max_nid = -1, max_group_nid = -1;
- 	unsigned long max_faults = 0, max_group_faults = 0;
- 	unsigned long fault_types[2] = { 0, 0 };
-+	unsigned long total_faults;
-+	u64 runtime, period;
- 	spinlock_t *group_lock = NULL;
- 
- 	seq = ACCESS_ONCE(p->mm->numa_scan_seq);
-@@ -1435,6 +1465,10 @@ static void task_numa_placement(struct task_struct *p)
- 	p->numa_scan_seq = seq;
- 	p->numa_scan_period_max = task_scan_max(p);
- 
-+	total_faults = p->numa_faults_locality[0] +
-+		       p->numa_faults_locality[1] + 1;
-+	runtime = numa_get_avg_runtime(p, &period);
-+
- 	/* If the task is part of a group prevent parallel updates to group stats */
- 	if (p->numa_group) {
- 		group_lock = &p->numa_group->lock;
-@@ -1447,7 +1481,7 @@ static void task_numa_placement(struct task_struct *p)
- 		int priv, i;
- 
- 		for (priv = 0; priv < 2; priv++) {
--			long diff, f_diff;
-+			long diff, f_diff, f_weight;
+@@ -1484,12 +1484,9 @@ static void task_numa_placement(struct task_struct *p)
+ 			long diff, f_diff, f_weight;
  
  			i = task_faults_idx(nid, priv);
- 			diff = -p->numa_faults[i];
-@@ -1459,8 +1493,18 @@ static void task_numa_placement(struct task_struct *p)
+-			diff = -p->numa_faults[i];
+-			f_diff = -p->numa_faults_from[i];
+ 
+ 			/* Decay existing window, copy faults since last scan */
+-			p->numa_faults[i] >>= 1;
+-			p->numa_faults[i] += p->numa_faults_buffer[i];
++			diff = p->numa_faults_buffer[i] - p->numa_faults[i] / 2;
  			fault_types[priv] += p->numa_faults_buffer[i];
  			p->numa_faults_buffer[i] = 0;
  
-+			/*
-+			 * Normalize the faults_from, so all tasks in a group
-+			 * count according to CPU use, instead of by the raw
-+			 * number of faults. Tasks with little runtime have
-+			 * little over-all impact on throughput, and thus their
-+			 * faults are less important.
-+			 */
-+			f_weight = (1024 * runtime *
-+				   p->numa_faults_from_buffer[i]) /
-+				   (total_faults * period + 1);
- 			p->numa_faults_from[i] >>= 1;
--			p->numa_faults_from[i] += p->numa_faults_from_buffer[i];
-+			p->numa_faults_from[i] += f_weight;
+@@ -1503,13 +1500,12 @@ static void task_numa_placement(struct task_struct *p)
+ 			f_weight = (1024 * runtime *
+ 				   p->numa_faults_from_buffer[i]) /
+ 				   (total_faults * period + 1);
+-			p->numa_faults_from[i] >>= 1;
+-			p->numa_faults_from[i] += f_weight;
++			f_diff = f_weight - p->numa_faults_from[i] / 2;
  			p->numa_faults_from_buffer[i] = 0;
  
++			p->numa_faults[i] += diff;
++			p->numa_faults_from[i] += f_diff;
  			faults += p->numa_faults[i];
+-			diff += p->numa_faults[i];
+-			f_diff += p->numa_faults_from[i];
+ 			p->total_numa_faults += diff;
+ 			if (p->numa_group) {
+ 				/* safe because we can only change our own group */
 -- 
 1.8.4.2
 
