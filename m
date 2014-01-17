@@ -1,84 +1,347 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D394A6B0031
-	for <linux-mm@kvack.org>; Thu, 16 Jan 2014 23:17:09 -0500 (EST)
-Received: by mail-pb0-f48.google.com with SMTP id rr13so3566909pbb.7
-        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 20:17:09 -0800 (PST)
-Received: from zill.ext.symas.net (zill.ext.symas.net. [69.43.206.106])
-        by mx.google.com with ESMTPS id xy6si9005342pab.37.2014.01.16.20.17.07
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 458246B0031
+	for <linux-mm@kvack.org>; Fri, 17 Jan 2014 00:41:36 -0500 (EST)
+Received: by mail-wg0-f45.google.com with SMTP id n12so4026249wgh.0
+        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 21:41:35 -0800 (PST)
+Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com [2a00:1450:400c:c05::229])
+        by mx.google.com with ESMTPS id ne3si587311wic.68.2014.01.16.21.41.35
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 16 Jan 2014 20:17:07 -0800 (PST)
-Message-ID: <52D8AEBF.3090803@symas.com>
-Date: Thu, 16 Jan 2014 20:17:03 -0800
-From: Howard Chu <hyc@symas.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 16 Jan 2014 21:41:35 -0800 (PST)
+Received: by mail-wi0-f169.google.com with SMTP id e4so1582217wiv.0
+        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 21:41:35 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [LSF/MM TOPIC] [ATTEND] Persistent memory
-References: <CALCETrUaotUuzn60-bSt1oUb8+94do2QgiCq_TXhqEHj79DePQ@mail.gmail.com>
-In-Reply-To: <CALCETrUaotUuzn60-bSt1oUb8+94do2QgiCq_TXhqEHj79DePQ@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20140115054208.GL1992@bbox>
+References: <1387459407-29342-1-git-send-email-ddstreet@ieee.org>
+ <20140114001115.GU1992@bbox> <CALZtONCCrckuHxgHB=GQj0tHszLAYTZZLGzFTnRkj9pvxx0dyg@mail.gmail.com>
+ <20140115054208.GL1992@bbox>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Fri, 17 Jan 2014 00:41:15 -0500
+Message-ID: <CALZtONCehE8Td2C2w-fOC596uD54y1-kyc3SiKABBEODMb+a7Q@mail.gmail.com>
+Subject: Re: [PATCH] mm/zswap: add writethrough option
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux FS Devel <linux-fsdevel@vger.kernel.org>, lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Seth Jennings <sjennings@variantweb.net>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Weijie Yang <weijie.yang@samsung.com>, Shirish Pargaonkar <spargaonkar@suse.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 
-Andy Lutomirski wrote:
-> I'm interested in a persistent memory track.  There seems to be plenty
-> of other emails about this, but here's my take:
+On Wed, Jan 15, 2014 at 12:42 AM, Minchan Kim <minchan@kernel.org> wrote:
+> Hello,
+>
+> On Tue, Jan 14, 2014 at 10:10:44AM -0500, Dan Streetman wrote:
+>> On Mon, Jan 13, 2014 at 7:11 PM, Minchan Kim <minchan@kernel.org> wrote:
+>> > Hello Dan,
+>> >
+>> > Sorry for the late response and I didn't look at the code yet
+>> > because I am not convinced. :(
+>> >
+>> > On Thu, Dec 19, 2013 at 08:23:27AM -0500, Dan Streetman wrote:
+>> >> Currently, zswap is writeback cache; stored pages are not sent
+>> >> to swap disk, and when zswap wants to evict old pages it must
+>> >> first write them back to swap cache/disk manually.  This avoids
+>> >> swap out disk I/O up front, but only moves that disk I/O to
+>> >> the writeback case (for pages that are evicted), and adds the
+>> >> overhead of having to uncompress the evicted pages and the
+>> >> need for an additional free page (to store the uncompressed page).
+>> >>
+>> >> This optionally changes zswap to writethrough cache by enabling
+>> >> frontswap_writethrough() before registering, so that any
+>> >> successful page store will also be written to swap disk.  The
+>> >> default remains writeback.  To enable writethrough, the param
+>> >> zswap.writethrough=1 must be used at boot.
+>> >>
+>> >> Whether writeback or writethrough will provide better performance
+>> >> depends on many factors including disk I/O speed/throughput,
+>> >> CPU speed(s), system load, etc.  In most cases it is likely
+>> >> that writeback has better performance than writethrough before
+>> >> zswap is full, but after zswap fills up writethrough has
+>> >> better performance than writeback.
+>> >
+>> > So you claims we should use writeback default but writethrough
+>> > after memory limit is full?
+>> > But it would break LRU ordering and I think better idea is to
+>> > handle it more generic way rather than chaning entire policy.
+>>
+>> This patch only adds the option of using writethrough.  That's all.
+>
+> The point is that please explain that what's the your problem now
+> and prove that adding new option for solve the problem is best.
+> Just "Optionally, having is better" is not good approach to merge/maintain.
 
-I'm also interested in this track. I'm not up on FS development these days, 
-the last time I wrote filesystem code was nearly 20 years ago. But persistent 
-memory is a topic near and dear to my heart, and of great relevance to my 
-current pet project, the LMDB memory-mapped database.
+You may have missed the earlier emails discussing all that, so to
+recap it appears that writeback is (usually) faster before zswap is
+full, while writethrough appears (usually) slightly faster after zswap
+has filled up.  It's highly dependent on the actual system details
+(cpu speed, IO speed, load, etc) though.
 
-In a previous era I also developed block device drivers for battery-backed 
-external DRAM disks. (My ideal would have been systems where all of RAM was 
-persistent. I suppose we can just about get there with mobile phones and 
-tablets these days.)
+>
+>>
+>> > Now, zswap evict out just *a* page rather than a bunch of pages
+>> > so it stucks every store if many swap write happens continuously.
+>> > It's not efficient so how about adding kswapd's threshold concept
+>> > like min/low/high? So, it could evict early before reaching zswap
+>> > memory pool and stop it reaches high watermark.
+>> > I guess it could be better than now.
+>>
+>> Well, I don't think that's related to this patch, but certainly a good idea to
+>> investigate.
+>
+> Why I suggested it that I feel from your description that wb is just
+> slower than wt since zswap memory is pool.
 
-In the context of database engines, I'm interested in leveraging persistent 
-memory for write-back caching and how user level code can be made aware of it. 
-(If all your cache is persistent and guaranteed to eventually reach stable 
-store then you never need to fsync() a transaction.)
+evicting pages early doesn't avoid the overhead of having to
+decompress the pages nor does it avoid having to write them to disk,
+so I don't think it has a direct relation to this patch to add the
+writethrough option.
 
-> First, I'm not an FS expert.  I've never written an FS, touched an
-> on-disk (or on-persistent-memory) FS format.  I have, however, mucked
-> with some low-level x86 details, and I'm a heavy abuser of the Linux
-> page cache.
 >
-> I'm an upcoming user of persistent memory -- I have some (in the form
-> if NV-DIMMs) and I have an application (HFT and a memory-backed
-> database thing) that I'll port to run on pmfs or ext4 w/ XIP once
-> everything is ready.
+>>
+>> >
+>> > Other point: As I read device-mapper/cache.txt, cache operating mode
+>> > already supports writethrough. It means zram zRAM can support
+>> > writeback/writethough with dm-cache.
+>> > Have you tried it? Is there any problem?
+>>
+>> zswap isn't a block device though, so that doesn't apply (unless I'm
+>> missing something).
 >
-> I'm also interested in some of the implementation details.  For this
-> stuff to be reliable on anything resembling commodity hardware, there
-> will be some caching issues to deal with.  For example, I think it
-> would be handy to run things like pmfs on top of write-through
-> mappings.  This is currently barely supportable (and only using
-> mtrrs), but it's not terribly complicated (on new enough hardware) to
-> support real write-through PAT entries.
+> zram is block device so freely you can make it to swap block device
+> and binding it with dm-cache will make what you want.
+> The whole point is we could do what you want without adding new
+> so I hope you prove what's the problem in existing solution so that
+> we could judge and try to solve the pain point with more ideal
+> approach.
+
+Sorry, it seems like you're saying "you can drop zswap and start using
+zram, so this patch isn't needed", which really doesn't actually
+address this patch I don't think.  zswap vs. zram isn't an argument
+I'm trying to get into right now.
+
 >
-> I've written an i2c-imc driver (currently in limbo on the i2c list),
-> which will likely be used for control operations on NV-DIMMs plugged
-> into Intel-based server boards.
+>>
+>> >
+>> > Acutally, I really don't know how much benefit we have that in-memory
+>> > swap overcomming to the real storage but if you want, zRAM with dm-cache
+>> > is another option rather than invent new wheel by "just having is better".
+>>
+>> I'm not sure if this patch is related to the zswap vs. zram discussions.  This
+>> only adds the option of using writethrough to zswap.  It's a first
+>> step to possibly
+>> making zswap work more efficiently using writeback and/or writethrough
+>> depending on
+>> the system and conditions.
 >
-> In principle, I could even bring a working NV-DIMM system to the
-> summit -- it's nearby, and this thing isn't *that* large :)
+> The patch size is small. Okay I don't want to be a party-pooper
+> but at least, I should say my thought for Andrew to help judging.
+
+Sure, I'm glad to have your suggestions.
+
 >
-> --Andy
+>>
+>> >
+>> > Thanks.
+>> >
+>> >>
+>> >> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+>> >>
+>> >> ---
+>> >>
+>> >> Based on specjbb testing on my laptop, the results for both writeback
+>> >> and writethrough are better than not using zswap at all, but writeback
+>> >> does seem to be better than writethrough while zswap isn't full.  Once
+>> >> it fills up, performance for writethrough is essentially close to not
+>> >> using zswap, while writeback seems to be worse than not using zswap.
+>> >> However, I think more testing on a wider span of systems and conditions
+>> >> is needed.  Additionally, I'm not sure that specjbb is measuring true
+>> >> performance under fully loaded cpu conditions, so additional cpu load
+>> >> might need to be added or specjbb parameters modified (I took the
+>> >> values from the 4 "warehouses" test run).
+>> >>
+>> >> In any case though, I think having writethrough as an option is still
+>> >> useful.  More changes could be made, such as changing from writeback
+>> >> to writethrough based on the zswap % full.  And the patch doesn't
+>> >> change default behavior - writethrough must be specifically enabled.
+>> >>
+>> >> The %-ized numbers I got from specjbb on average, using the default
+>> >> 20% max_pool_percent and varying the amount of heap used as shown:
+>> >>
+>> >> ram | no zswap | writeback | writethrough
+>> >> 75     93.08     100         96.90
+>> >> 87     96.58     95.58       96.72
+>> >> 100    92.29     89.73       86.75
+>> >> 112    63.80     38.66       19.66
+>> >> 125    4.79      29.90       15.75
+>> >> 137    4.99      4.50        4.75
+>> >> 150    4.28      4.62        5.01
+>> >> 162    5.20      2.94        4.66
+>> >> 175    5.71      2.11        4.84
+>> >>
+>> >>
+>> >>
+>> >>  mm/zswap.c | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+>> >>  1 file changed, 64 insertions(+), 4 deletions(-)
+>> >>
+>> >> diff --git a/mm/zswap.c b/mm/zswap.c
+>> >> index e55bab9..2f919db 100644
+>> >> --- a/mm/zswap.c
+>> >> +++ b/mm/zswap.c
+>> >> @@ -61,6 +61,8 @@ static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
+>> >>  static u64 zswap_pool_limit_hit;
+>> >>  /* Pages written back when pool limit was reached */
+>> >>  static u64 zswap_written_back_pages;
+>> >> +/* Pages evicted when pool limit was reached */
+>> >> +static u64 zswap_evicted_pages;
+>> >>  /* Store failed due to a reclaim failure after pool limit was reached */
+>> >>  static u64 zswap_reject_reclaim_fail;
+>> >>  /* Compressed page was too big for the allocator to (optimally) store */
+>> >> @@ -89,6 +91,10 @@ static unsigned int zswap_max_pool_percent = 20;
+>> >>  module_param_named(max_pool_percent,
+>> >>                       zswap_max_pool_percent, uint, 0644);
+>> >>
+>> >> +/* Writeback/writethrough mode (fixed at boot for now) */
+>> >> +static bool zswap_writethrough;
+>> >> +module_param_named(writethrough, zswap_writethrough, bool, 0444);
+>> >> +
+>> >>  /*********************************
+>> >>  * compression functions
+>> >>  **********************************/
+>> >> @@ -629,6 +635,48 @@ end:
+>> >>  }
+>> >>
+>> >>  /*********************************
+>> >> +* evict code
+>> >> +**********************************/
+>> >> +
+>> >> +/*
+>> >> + * This evicts pages that have already been written through to swap.
+>> >> + */
+>> >> +static int zswap_evict_entry(struct zbud_pool *pool, unsigned long handle)
+>> >> +{
+>> >> +     struct zswap_header *zhdr;
+>> >> +     swp_entry_t swpentry;
+>> >> +     struct zswap_tree *tree;
+>> >> +     pgoff_t offset;
+>> >> +     struct zswap_entry *entry;
+>> >> +
+>> >> +     /* extract swpentry from data */
+>> >> +     zhdr = zbud_map(pool, handle);
+>> >> +     swpentry = zhdr->swpentry; /* here */
+>> >> +     zbud_unmap(pool, handle);
+>> >> +     tree = zswap_trees[swp_type(swpentry)];
+>> >> +     offset = swp_offset(swpentry);
+>> >> +     BUG_ON(pool != tree->pool);
+>> >> +
+>> >> +     /* find and ref zswap entry */
+>> >> +     spin_lock(&tree->lock);
+>> >> +     entry = zswap_rb_search(&tree->rbroot, offset);
+>> >> +     if (!entry) {
+>> >> +             /* entry was invalidated */
+>> >> +             spin_unlock(&tree->lock);
+>> >> +             return 0;
+>> >> +     }
+>> >> +
+>> >> +     zswap_evicted_pages++;
+>> >> +
+>> >> +     zswap_rb_erase(&tree->rbroot, entry);
+>> >> +     zswap_entry_put(tree, entry);
+>> >> +
+>> >> +     spin_unlock(&tree->lock);
+>> >> +
+>> >> +     return 0;
+>> >> +}
+>> >> +
+>> >> +/*********************************
+>> >>  * frontswap hooks
+>> >>  **********************************/
+>> >>  /* attempts to compress and store an single page */
+>> >> @@ -744,7 +792,7 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
+>> >>       spin_lock(&tree->lock);
+>> >>       entry = zswap_entry_find_get(&tree->rbroot, offset);
+>> >>       if (!entry) {
+>> >> -             /* entry was written back */
+>> >> +             /* entry was written back or evicted */
+>> >>               spin_unlock(&tree->lock);
+>> >>               return -1;
+>> >>       }
+>> >> @@ -778,7 +826,7 @@ static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
+>> >>       spin_lock(&tree->lock);
+>> >>       entry = zswap_rb_search(&tree->rbroot, offset);
+>> >>       if (!entry) {
+>> >> -             /* entry was written back */
+>> >> +             /* entry was written back or evicted */
+>> >>               spin_unlock(&tree->lock);
+>> >>               return;
+>> >>       }
+>> >> @@ -813,18 +861,26 @@ static void zswap_frontswap_invalidate_area(unsigned type)
+>> >>       zswap_trees[type] = NULL;
+>> >>  }
+>> >>
+>> >> -static struct zbud_ops zswap_zbud_ops = {
+>> >> +static struct zbud_ops zswap_zbud_writeback_ops = {
+>> >>       .evict = zswap_writeback_entry
+>> >>  };
+>> >> +static struct zbud_ops zswap_zbud_writethrough_ops = {
+>> >> +     .evict = zswap_evict_entry
+>> >> +};
+>> >>
+>> >>  static void zswap_frontswap_init(unsigned type)
+>> >>  {
+>> >>       struct zswap_tree *tree;
+>> >> +     struct zbud_ops *ops;
+>> >>
+>> >>       tree = kzalloc(sizeof(struct zswap_tree), GFP_KERNEL);
+>> >>       if (!tree)
+>> >>               goto err;
+>> >> -     tree->pool = zbud_create_pool(GFP_KERNEL, &zswap_zbud_ops);
+>> >> +     if (zswap_writethrough)
+>> >> +             ops = &zswap_zbud_writethrough_ops;
+>> >> +     else
+>> >> +             ops = &zswap_zbud_writeback_ops;
+>> >> +     tree->pool = zbud_create_pool(GFP_KERNEL, ops);
+>> >>       if (!tree->pool)
+>> >>               goto freetree;
+>> >>       tree->rbroot = RB_ROOT;
+>> >> @@ -875,6 +931,8 @@ static int __init zswap_debugfs_init(void)
+>> >>                       zswap_debugfs_root, &zswap_reject_compress_poor);
+>> >>       debugfs_create_u64("written_back_pages", S_IRUGO,
+>> >>                       zswap_debugfs_root, &zswap_written_back_pages);
+>> >> +     debugfs_create_u64("evicted_pages", S_IRUGO,
+>> >> +                     zswap_debugfs_root, &zswap_evicted_pages);
+>> >>       debugfs_create_u64("duplicate_entry", S_IRUGO,
+>> >>                       zswap_debugfs_root, &zswap_duplicate_entry);
+>> >>       debugfs_create_u64("pool_pages", S_IRUGO,
+>> >> @@ -919,6 +977,8 @@ static int __init init_zswap(void)
+>> >>               pr_err("per-cpu initialization failed\n");
+>> >>               goto pcpufail;
+>> >>       }
+>> >> +     if (zswap_writethrough)
+>> >> +             frontswap_writethrough(true);
+>> >>       frontswap_register_ops(&zswap_frontswap_ops);
+>> >>       if (zswap_debugfs_init())
+>> >>               pr_warn("debugfs initialization failed\n");
+>> >> --
+>> >> 1.8.3.1
+>> >>
+>> >> --
+>> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> >> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> >> see: http://www.linux-mm.org/ .
+>> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>> >
+>> > --
+>> > Kind regards,
+>> > Minchan Kim
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 > --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->
-
-
--- 
-   -- Howard Chu
-   CTO, Symas Corp.           http://www.symas.com
-   Director, Highland Sun     http://highlandsun.com/hyc/
-   Chief Architect, OpenLDAP  http://www.openldap.org/project/
+> Kind regards,
+> Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
