@@ -1,347 +1,262 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 458246B0031
-	for <linux-mm@kvack.org>; Fri, 17 Jan 2014 00:41:36 -0500 (EST)
-Received: by mail-wg0-f45.google.com with SMTP id n12so4026249wgh.0
-        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 21:41:35 -0800 (PST)
-Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com [2a00:1450:400c:c05::229])
-        by mx.google.com with ESMTPS id ne3si587311wic.68.2014.01.16.21.41.35
+Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
+	by kanga.kvack.org (Postfix) with ESMTP id DD9EB6B0031
+	for <linux-mm@kvack.org>; Fri, 17 Jan 2014 03:53:11 -0500 (EST)
+Received: by mail-ee0-f49.google.com with SMTP id d17so1988397eek.36
+        for <linux-mm@kvack.org>; Fri, 17 Jan 2014 00:53:11 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l44si6150668eem.124.2014.01.17.00.53.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 16 Jan 2014 21:41:35 -0800 (PST)
-Received: by mail-wi0-f169.google.com with SMTP id e4so1582217wiv.0
-        for <linux-mm@kvack.org>; Thu, 16 Jan 2014 21:41:35 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 17 Jan 2014 00:53:09 -0800 (PST)
+Date: Fri, 17 Jan 2014 08:53:05 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: vmstat: Do not display stats for TLB flushes unless
+ debugging
+Message-ID: <20140117085305.GS4963@suse.de>
+References: <1389278098-27154-1-git-send-email-mgorman@suse.de>
+ <1389278098-27154-2-git-send-email-mgorman@suse.de>
+ <20140116111205.GN4963@suse.de>
+ <alpine.DEB.2.02.1401161515540.4182@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20140115054208.GL1992@bbox>
-References: <1387459407-29342-1-git-send-email-ddstreet@ieee.org>
- <20140114001115.GU1992@bbox> <CALZtONCCrckuHxgHB=GQj0tHszLAYTZZLGzFTnRkj9pvxx0dyg@mail.gmail.com>
- <20140115054208.GL1992@bbox>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Fri, 17 Jan 2014 00:41:15 -0500
-Message-ID: <CALZtONCehE8Td2C2w-fOC596uD54y1-kyc3SiKABBEODMb+a7Q@mail.gmail.com>
-Subject: Re: [PATCH] mm/zswap: add writethrough option
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1401161515540.4182@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Seth Jennings <sjennings@variantweb.net>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Weijie Yang <weijie.yang@samsung.com>, Shirish Pargaonkar <spargaonkar@suse.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Alex Shi <alex.shi@linaro.org>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, H Peter Anvin <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jan 15, 2014 at 12:42 AM, Minchan Kim <minchan@kernel.org> wrote:
-> Hello,
->
-> On Tue, Jan 14, 2014 at 10:10:44AM -0500, Dan Streetman wrote:
->> On Mon, Jan 13, 2014 at 7:11 PM, Minchan Kim <minchan@kernel.org> wrote:
->> > Hello Dan,
->> >
->> > Sorry for the late response and I didn't look at the code yet
->> > because I am not convinced. :(
->> >
->> > On Thu, Dec 19, 2013 at 08:23:27AM -0500, Dan Streetman wrote:
->> >> Currently, zswap is writeback cache; stored pages are not sent
->> >> to swap disk, and when zswap wants to evict old pages it must
->> >> first write them back to swap cache/disk manually.  This avoids
->> >> swap out disk I/O up front, but only moves that disk I/O to
->> >> the writeback case (for pages that are evicted), and adds the
->> >> overhead of having to uncompress the evicted pages and the
->> >> need for an additional free page (to store the uncompressed page).
->> >>
->> >> This optionally changes zswap to writethrough cache by enabling
->> >> frontswap_writethrough() before registering, so that any
->> >> successful page store will also be written to swap disk.  The
->> >> default remains writeback.  To enable writethrough, the param
->> >> zswap.writethrough=1 must be used at boot.
->> >>
->> >> Whether writeback or writethrough will provide better performance
->> >> depends on many factors including disk I/O speed/throughput,
->> >> CPU speed(s), system load, etc.  In most cases it is likely
->> >> that writeback has better performance than writethrough before
->> >> zswap is full, but after zswap fills up writethrough has
->> >> better performance than writeback.
->> >
->> > So you claims we should use writeback default but writethrough
->> > after memory limit is full?
->> > But it would break LRU ordering and I think better idea is to
->> > handle it more generic way rather than chaning entire policy.
->>
->> This patch only adds the option of using writethrough.  That's all.
->
-> The point is that please explain that what's the your problem now
-> and prove that adding new option for solve the problem is best.
-> Just "Optionally, having is better" is not good approach to merge/maintain.
+On Thu, Jan 16, 2014 at 03:22:12PM -0800, David Rientjes wrote:
+> On Thu, 16 Jan 2014, Mel Gorman wrote:
+> 
+> > diff --git a/mm/vmstat.c b/mm/vmstat.c
+> > index 7249614..def5dd2 100644
+> > --- a/mm/vmstat.c
+> > +++ b/mm/vmstat.c
+> > @@ -851,12 +851,14 @@ const char * const vmstat_text[] = {
+> >  	"thp_zero_page_alloc",
+> >  	"thp_zero_page_alloc_failed",
+> >  #endif
+> > +#ifdef CONFIG_DEBUG_TLBFLUSH
+> >  #ifdef CONFIG_SMP
+> >  	"nr_tlb_remote_flush",
+> >  	"nr_tlb_remote_flush_received",
+> > -#endif
+> > +#endif /* CONFIG_SMP */
+> >  	"nr_tlb_local_flush_all",
+> >  	"nr_tlb_local_flush_one",
+> > +#endif /* CONFIG_DEBUG_TLBFLUSH */
+> >  
+> >  #endif /* CONFIG_VM_EVENTS_COUNTERS */
+> >  };
+> 
+> Hmm, so why are NR_TLB_REMOTE_FLUSH{,_RECEIVED} defined for !CONFIG_SMP in 
+> linux-next?
 
-You may have missed the earlier emails discussing all that, so to
-recap it appears that writeback is (usually) faster before zswap is
-full, while writethrough appears (usually) slightly faster after zswap
-has filled up.  It's highly dependent on the actual system details
-(cpu speed, IO speed, load, etc) though.
+Because there are times when I am a complete muppet and this
+is one of them. This is a revised version of the patch "x86:
+mm: Account for TLB flushes only when debugging" which is
+x86-mm-account-for-tlb-flushes-only-when-debugging.patch in mmotm
 
->
->>
->> > Now, zswap evict out just *a* page rather than a bunch of pages
->> > so it stucks every store if many swap write happens continuously.
->> > It's not efficient so how about adding kswapd's threshold concept
->> > like min/low/high? So, it could evict early before reaching zswap
->> > memory pool and stop it reaches high watermark.
->> > I guess it could be better than now.
->>
->> Well, I don't think that's related to this patch, but certainly a good idea to
->> investigate.
->
-> Why I suggested it that I feel from your description that wb is just
-> slower than wt since zswap memory is pool.
+Thanks David.
 
-evicting pages early doesn't avoid the overhead of having to
-decompress the pages nor does it avoid having to write them to disk,
-so I don't think it has a direct relation to this patch to add the
-writethrough option.
+---8<---
+x86: mm: Account for TLB flushes only when debugging
 
->
->>
->> >
->> > Other point: As I read device-mapper/cache.txt, cache operating mode
->> > already supports writethrough. It means zram zRAM can support
->> > writeback/writethough with dm-cache.
->> > Have you tried it? Is there any problem?
->>
->> zswap isn't a block device though, so that doesn't apply (unless I'm
->> missing something).
->
-> zram is block device so freely you can make it to swap block device
-> and binding it with dm-cache will make what you want.
-> The whole point is we could do what you want without adding new
-> so I hope you prove what's the problem in existing solution so that
-> we could judge and try to solve the pain point with more ideal
-> approach.
+Bisection between 3.11 and 3.12 fingered commit 9824cf97 (mm: vmstats:
+tlb flush counters).  The counters are undeniably useful but how often
+do we really need to debug TLB flush related issues? It does not justify
+taking the penalty everywhere so make it a debugging option.
 
-Sorry, it seems like you're saying "you can drop zswap and start using
-zram, so this patch isn't needed", which really doesn't actually
-address this patch I don't think.  zswap vs. zram isn't an argument
-I'm trying to get into right now.
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+---
+ arch/x86/include/asm/tlbflush.h    |  6 +++---
+ arch/x86/kernel/cpu/mtrr/generic.c |  4 ++--
+ arch/x86/mm/tlb.c                  | 14 +++++++-------
+ include/linux/vm_event_item.h      |  4 +++-
+ include/linux/vmstat.h             |  8 ++++++++
+ mm/vmstat.c                        |  4 +++-
+ 6 files changed, 26 insertions(+), 14 deletions(-)
 
->
->>
->> >
->> > Acutally, I really don't know how much benefit we have that in-memory
->> > swap overcomming to the real storage but if you want, zRAM with dm-cache
->> > is another option rather than invent new wheel by "just having is better".
->>
->> I'm not sure if this patch is related to the zswap vs. zram discussions.  This
->> only adds the option of using writethrough to zswap.  It's a first
->> step to possibly
->> making zswap work more efficiently using writeback and/or writethrough
->> depending on
->> the system and conditions.
->
-> The patch size is small. Okay I don't want to be a party-pooper
-> but at least, I should say my thought for Andrew to help judging.
-
-Sure, I'm glad to have your suggestions.
-
->
->>
->> >
->> > Thanks.
->> >
->> >>
->> >> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
->> >>
->> >> ---
->> >>
->> >> Based on specjbb testing on my laptop, the results for both writeback
->> >> and writethrough are better than not using zswap at all, but writeback
->> >> does seem to be better than writethrough while zswap isn't full.  Once
->> >> it fills up, performance for writethrough is essentially close to not
->> >> using zswap, while writeback seems to be worse than not using zswap.
->> >> However, I think more testing on a wider span of systems and conditions
->> >> is needed.  Additionally, I'm not sure that specjbb is measuring true
->> >> performance under fully loaded cpu conditions, so additional cpu load
->> >> might need to be added or specjbb parameters modified (I took the
->> >> values from the 4 "warehouses" test run).
->> >>
->> >> In any case though, I think having writethrough as an option is still
->> >> useful.  More changes could be made, such as changing from writeback
->> >> to writethrough based on the zswap % full.  And the patch doesn't
->> >> change default behavior - writethrough must be specifically enabled.
->> >>
->> >> The %-ized numbers I got from specjbb on average, using the default
->> >> 20% max_pool_percent and varying the amount of heap used as shown:
->> >>
->> >> ram | no zswap | writeback | writethrough
->> >> 75     93.08     100         96.90
->> >> 87     96.58     95.58       96.72
->> >> 100    92.29     89.73       86.75
->> >> 112    63.80     38.66       19.66
->> >> 125    4.79      29.90       15.75
->> >> 137    4.99      4.50        4.75
->> >> 150    4.28      4.62        5.01
->> >> 162    5.20      2.94        4.66
->> >> 175    5.71      2.11        4.84
->> >>
->> >>
->> >>
->> >>  mm/zswap.c | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++----
->> >>  1 file changed, 64 insertions(+), 4 deletions(-)
->> >>
->> >> diff --git a/mm/zswap.c b/mm/zswap.c
->> >> index e55bab9..2f919db 100644
->> >> --- a/mm/zswap.c
->> >> +++ b/mm/zswap.c
->> >> @@ -61,6 +61,8 @@ static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
->> >>  static u64 zswap_pool_limit_hit;
->> >>  /* Pages written back when pool limit was reached */
->> >>  static u64 zswap_written_back_pages;
->> >> +/* Pages evicted when pool limit was reached */
->> >> +static u64 zswap_evicted_pages;
->> >>  /* Store failed due to a reclaim failure after pool limit was reached */
->> >>  static u64 zswap_reject_reclaim_fail;
->> >>  /* Compressed page was too big for the allocator to (optimally) store */
->> >> @@ -89,6 +91,10 @@ static unsigned int zswap_max_pool_percent = 20;
->> >>  module_param_named(max_pool_percent,
->> >>                       zswap_max_pool_percent, uint, 0644);
->> >>
->> >> +/* Writeback/writethrough mode (fixed at boot for now) */
->> >> +static bool zswap_writethrough;
->> >> +module_param_named(writethrough, zswap_writethrough, bool, 0444);
->> >> +
->> >>  /*********************************
->> >>  * compression functions
->> >>  **********************************/
->> >> @@ -629,6 +635,48 @@ end:
->> >>  }
->> >>
->> >>  /*********************************
->> >> +* evict code
->> >> +**********************************/
->> >> +
->> >> +/*
->> >> + * This evicts pages that have already been written through to swap.
->> >> + */
->> >> +static int zswap_evict_entry(struct zbud_pool *pool, unsigned long handle)
->> >> +{
->> >> +     struct zswap_header *zhdr;
->> >> +     swp_entry_t swpentry;
->> >> +     struct zswap_tree *tree;
->> >> +     pgoff_t offset;
->> >> +     struct zswap_entry *entry;
->> >> +
->> >> +     /* extract swpentry from data */
->> >> +     zhdr = zbud_map(pool, handle);
->> >> +     swpentry = zhdr->swpentry; /* here */
->> >> +     zbud_unmap(pool, handle);
->> >> +     tree = zswap_trees[swp_type(swpentry)];
->> >> +     offset = swp_offset(swpentry);
->> >> +     BUG_ON(pool != tree->pool);
->> >> +
->> >> +     /* find and ref zswap entry */
->> >> +     spin_lock(&tree->lock);
->> >> +     entry = zswap_rb_search(&tree->rbroot, offset);
->> >> +     if (!entry) {
->> >> +             /* entry was invalidated */
->> >> +             spin_unlock(&tree->lock);
->> >> +             return 0;
->> >> +     }
->> >> +
->> >> +     zswap_evicted_pages++;
->> >> +
->> >> +     zswap_rb_erase(&tree->rbroot, entry);
->> >> +     zswap_entry_put(tree, entry);
->> >> +
->> >> +     spin_unlock(&tree->lock);
->> >> +
->> >> +     return 0;
->> >> +}
->> >> +
->> >> +/*********************************
->> >>  * frontswap hooks
->> >>  **********************************/
->> >>  /* attempts to compress and store an single page */
->> >> @@ -744,7 +792,7 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
->> >>       spin_lock(&tree->lock);
->> >>       entry = zswap_entry_find_get(&tree->rbroot, offset);
->> >>       if (!entry) {
->> >> -             /* entry was written back */
->> >> +             /* entry was written back or evicted */
->> >>               spin_unlock(&tree->lock);
->> >>               return -1;
->> >>       }
->> >> @@ -778,7 +826,7 @@ static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
->> >>       spin_lock(&tree->lock);
->> >>       entry = zswap_rb_search(&tree->rbroot, offset);
->> >>       if (!entry) {
->> >> -             /* entry was written back */
->> >> +             /* entry was written back or evicted */
->> >>               spin_unlock(&tree->lock);
->> >>               return;
->> >>       }
->> >> @@ -813,18 +861,26 @@ static void zswap_frontswap_invalidate_area(unsigned type)
->> >>       zswap_trees[type] = NULL;
->> >>  }
->> >>
->> >> -static struct zbud_ops zswap_zbud_ops = {
->> >> +static struct zbud_ops zswap_zbud_writeback_ops = {
->> >>       .evict = zswap_writeback_entry
->> >>  };
->> >> +static struct zbud_ops zswap_zbud_writethrough_ops = {
->> >> +     .evict = zswap_evict_entry
->> >> +};
->> >>
->> >>  static void zswap_frontswap_init(unsigned type)
->> >>  {
->> >>       struct zswap_tree *tree;
->> >> +     struct zbud_ops *ops;
->> >>
->> >>       tree = kzalloc(sizeof(struct zswap_tree), GFP_KERNEL);
->> >>       if (!tree)
->> >>               goto err;
->> >> -     tree->pool = zbud_create_pool(GFP_KERNEL, &zswap_zbud_ops);
->> >> +     if (zswap_writethrough)
->> >> +             ops = &zswap_zbud_writethrough_ops;
->> >> +     else
->> >> +             ops = &zswap_zbud_writeback_ops;
->> >> +     tree->pool = zbud_create_pool(GFP_KERNEL, ops);
->> >>       if (!tree->pool)
->> >>               goto freetree;
->> >>       tree->rbroot = RB_ROOT;
->> >> @@ -875,6 +931,8 @@ static int __init zswap_debugfs_init(void)
->> >>                       zswap_debugfs_root, &zswap_reject_compress_poor);
->> >>       debugfs_create_u64("written_back_pages", S_IRUGO,
->> >>                       zswap_debugfs_root, &zswap_written_back_pages);
->> >> +     debugfs_create_u64("evicted_pages", S_IRUGO,
->> >> +                     zswap_debugfs_root, &zswap_evicted_pages);
->> >>       debugfs_create_u64("duplicate_entry", S_IRUGO,
->> >>                       zswap_debugfs_root, &zswap_duplicate_entry);
->> >>       debugfs_create_u64("pool_pages", S_IRUGO,
->> >> @@ -919,6 +977,8 @@ static int __init init_zswap(void)
->> >>               pr_err("per-cpu initialization failed\n");
->> >>               goto pcpufail;
->> >>       }
->> >> +     if (zswap_writethrough)
->> >> +             frontswap_writethrough(true);
->> >>       frontswap_register_ops(&zswap_frontswap_ops);
->> >>       if (zswap_debugfs_init())
->> >>               pr_warn("debugfs initialization failed\n");
->> >> --
->> >> 1.8.3.1
->> >>
->> >> --
->> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> >> the body to majordomo@kvack.org.  For more info on Linux MM,
->> >> see: http://www.linux-mm.org/ .
->> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->> >
->> > --
->> > Kind regards,
->> > Minchan Kim
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
-> --
-> Kind regards,
-> Minchan Kim
+diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+index e6d90ba..04905bf 100644
+--- a/arch/x86/include/asm/tlbflush.h
++++ b/arch/x86/include/asm/tlbflush.h
+@@ -62,7 +62,7 @@ static inline void __flush_tlb_all(void)
+ 
+ static inline void __flush_tlb_one(unsigned long addr)
+ {
+-	count_vm_event(NR_TLB_LOCAL_FLUSH_ONE);
++	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
+ 	__flush_tlb_single(addr);
+ }
+ 
+@@ -93,13 +93,13 @@ static inline void __flush_tlb_one(unsigned long addr)
+  */
+ static inline void __flush_tlb_up(void)
+ {
+-	count_vm_event(NR_TLB_LOCAL_FLUSH_ALL);
++	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+ 	__flush_tlb();
+ }
+ 
+ static inline void flush_tlb_all(void)
+ {
+-	count_vm_event(NR_TLB_LOCAL_FLUSH_ALL);
++	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+ 	__flush_tlb_all();
+ }
+ 
+diff --git a/arch/x86/kernel/cpu/mtrr/generic.c b/arch/x86/kernel/cpu/mtrr/generic.c
+index ce2d0a2..0e25a1b 100644
+--- a/arch/x86/kernel/cpu/mtrr/generic.c
++++ b/arch/x86/kernel/cpu/mtrr/generic.c
+@@ -683,7 +683,7 @@ static void prepare_set(void) __acquires(set_atomicity_lock)
+ 	}
+ 
+ 	/* Flush all TLBs via a mov %cr3, %reg; mov %reg, %cr3 */
+-	count_vm_event(NR_TLB_LOCAL_FLUSH_ALL);
++	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+ 	__flush_tlb();
+ 
+ 	/* Save MTRR state */
+@@ -697,7 +697,7 @@ static void prepare_set(void) __acquires(set_atomicity_lock)
+ static void post_set(void) __releases(set_atomicity_lock)
+ {
+ 	/* Flush TLBs (no need to flush caches - they are disabled) */
+-	count_vm_event(NR_TLB_LOCAL_FLUSH_ALL);
++	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+ 	__flush_tlb();
+ 
+ 	/* Intel (P6) standard MTRRs */
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index ae699b3..05446c1 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -103,7 +103,7 @@ static void flush_tlb_func(void *info)
+ 	if (f->flush_mm != this_cpu_read(cpu_tlbstate.active_mm))
+ 		return;
+ 
+-	count_vm_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
++	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
+ 	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK) {
+ 		if (f->flush_end == TLB_FLUSH_ALL)
+ 			local_flush_tlb();
+@@ -131,7 +131,7 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
+ 	info.flush_start = start;
+ 	info.flush_end = end;
+ 
+-	count_vm_event(NR_TLB_REMOTE_FLUSH);
++	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH);
+ 	if (is_uv_system()) {
+ 		unsigned int cpu;
+ 
+@@ -151,7 +151,7 @@ void flush_tlb_current_task(void)
+ 
+ 	preempt_disable();
+ 
+-	count_vm_event(NR_TLB_LOCAL_FLUSH_ALL);
++	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+ 	local_flush_tlb();
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+ 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
+@@ -215,7 +215,7 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 
+ 	/* tlb_flushall_shift is on balance point, details in commit log */
+ 	if ((end - start) >> PAGE_SHIFT > act_entries >> tlb_flushall_shift) {
+-		count_vm_event(NR_TLB_LOCAL_FLUSH_ALL);
++		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+ 		local_flush_tlb();
+ 	} else {
+ 		if (has_large_page(mm, start, end)) {
+@@ -224,7 +224,7 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 		}
+ 		/* flush range by one by one 'invlpg' */
+ 		for (addr = start; addr < end;	addr += PAGE_SIZE) {
+-			count_vm_event(NR_TLB_LOCAL_FLUSH_ONE);
++			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
+ 			__flush_tlb_single(addr);
+ 		}
+ 
+@@ -262,7 +262,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
+ 
+ static void do_flush_tlb_all(void *info)
+ {
+-	count_vm_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
++	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
+ 	__flush_tlb_all();
+ 	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_LAZY)
+ 		leave_mm(smp_processor_id());
+@@ -270,7 +270,7 @@ static void do_flush_tlb_all(void *info)
+ 
+ void flush_tlb_all(void)
+ {
+-	count_vm_event(NR_TLB_REMOTE_FLUSH);
++	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH);
+ 	on_each_cpu(do_flush_tlb_all, NULL, 1);
+ }
+ 
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index c557c6d..3a712e2 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -71,12 +71,14 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		THP_ZERO_PAGE_ALLOC,
+ 		THP_ZERO_PAGE_ALLOC_FAILED,
+ #endif
++#ifdef CONFIG_DEBUG_TLBFLUSH
+ #ifdef CONFIG_SMP
+ 		NR_TLB_REMOTE_FLUSH,	/* cpu tried to flush others' tlbs */
+ 		NR_TLB_REMOTE_FLUSH_RECEIVED,/* cpu received ipi for flush */
+-#endif
++#endif /* CONFIG_SMP */
+ 		NR_TLB_LOCAL_FLUSH_ALL,
+ 		NR_TLB_LOCAL_FLUSH_ONE,
++#endif /* CONFIG_DEBUG_TLBFLUSH */
+ 		NR_VM_EVENT_ITEMS
+ };
+ 
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index e4b9480..80ebba9 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -83,6 +83,14 @@ static inline void vm_events_fold_cpu(int cpu)
+ #define count_vm_numa_events(x, y) do { (void)(y); } while (0)
+ #endif /* CONFIG_NUMA_BALANCING */
+ 
++#ifdef CONFIG_DEBUG_TLBFLUSH
++#define count_vm_tlb_event(x)	   count_vm_event(x)
++#define count_vm_tlb_events(x, y)  count_vm_events(x, y)
++#else
++#define count_vm_tlb_event(x)     do {} while (0)
++#define count_vm_tlb_events(x, y) do { (void)(y); } while (0)
++#endif
++
+ #define __count_zone_vm_events(item, zone, delta) \
+ 		__count_vm_events(item##_NORMAL - ZONE_NORMAL + \
+ 		zone_idx(zone), delta)
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 7249614..def5dd2 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -851,12 +851,14 @@ const char * const vmstat_text[] = {
+ 	"thp_zero_page_alloc",
+ 	"thp_zero_page_alloc_failed",
+ #endif
++#ifdef CONFIG_DEBUG_TLBFLUSH
+ #ifdef CONFIG_SMP
+ 	"nr_tlb_remote_flush",
+ 	"nr_tlb_remote_flush_received",
+-#endif
++#endif /* CONFIG_SMP */
+ 	"nr_tlb_local_flush_all",
+ 	"nr_tlb_local_flush_one",
++#endif /* CONFIG_DEBUG_TLBFLUSH */
+ 
+ #endif /* CONFIG_VM_EVENTS_COUNTERS */
+ };
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
