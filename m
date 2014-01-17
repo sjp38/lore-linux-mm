@@ -1,136 +1,227 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 2275B6B0035
-	for <linux-mm@kvack.org>; Fri, 17 Jan 2014 10:18:43 -0500 (EST)
-Received: by mail-qa0-f43.google.com with SMTP id o15so3380893qap.2
-        for <linux-mm@kvack.org>; Fri, 17 Jan 2014 07:18:43 -0800 (PST)
-Received: from qmta08.emeryville.ca.mail.comcast.net (qmta08.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:80])
-        by mx.google.com with ESMTP id v1si1599830qcl.21.2014.01.17.07.18.41
-        for <linux-mm@kvack.org>;
-        Fri, 17 Jan 2014 07:18:42 -0800 (PST)
-Message-Id: <20140117151835.920139508@linux.com>
-Date: Fri, 17 Jan 2014 09:18:27 -0600
-From: Christoph Lameter <cl@linux.com>
-Subject: [PATCH 15/41] mm: Use raw_cpu ops for determining current NUMA node
-References: <20140117151812.770437629@linux.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=preempt_fix_numa_node
+Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B5326B0031
+	for <linux-mm@kvack.org>; Fri, 17 Jan 2014 10:41:46 -0500 (EST)
+Received: by mail-ee0-f48.google.com with SMTP id t10so2160053eei.35
+        for <linux-mm@kvack.org>; Fri, 17 Jan 2014 07:41:45 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g41si21291779eem.204.2014.01.17.07.41.44
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 17 Jan 2014 07:41:44 -0800 (PST)
+Date: Fri, 17 Jan 2014 16:41:43 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 2/3] mm/memcg: fix endless iteration in reclaim
+Message-ID: <20140117154143.GF5356@dhcp22.suse.cz>
+References: <alpine.LSU.2.11.1401131751080.2229@eggly.anvils>
+ <20140114132727.GB32227@dhcp22.suse.cz>
+ <20140114142610.GF32227@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1401141201120.3762@eggly.anvils>
+ <20140115095829.GI8782@dhcp22.suse.cz>
+ <20140115121728.GJ8782@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1401151241280.9004@eggly.anvils>
+ <20140116081738.GA28157@dhcp22.suse.cz>
+ <20140116152259.GG28157@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1401161011110.1321@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1401161011110.1321@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: akpm@linuxfoundation.org, rostedt@goodmis.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Alex Shi <alex.shi@intel.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-[Patch depends on another patch in this series that introduces raw_cpu_ops]
+On Thu 16-01-14 11:15:36, Hugh Dickins wrote:
+> On Thu, 16 Jan 2014, Michal Hocko wrote:
+> > From 543df5c82f6eec622f669ea322ba6ff03924fded Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.cz>
+> > Date: Thu, 16 Jan 2014 16:17:13 +0100
+> > Subject: [PATCH] memcg: fix css reference leak from mem_cgroup_iter
+> > 
+> > 19f39402864e (memcg: simplify mem_cgroup_iter) has introduced a css
+> > refrence leak (thus memory leak) because mem_cgroup_iter makes sure it
+> > doesn't put a css reference on the root of the tree walk. The mentioned
+> > commit however dropped the root check when the css reference is taken
+> > while it keept the css_put optimization fora the root in place.
+> 
+> I don't think that's quite right, actually - and I think it's all
+> so confusing that we do need to be pedantic and set it down right.
 
-With the preempt checking logic for __this_cpu_ops we will get false
-positives from locations in the code that use numa_node_id.
+You are right!
 
-Before the  __this_cpu ops where introduced there were
-no checks for preemption present either. smp_raw_processor_id()
-was used. See http://www.spinics.net/lists/linux-numa/msg00641.html
+> I spent quite a while yesterday trying out my "cg m" on 3.10, 3.11,
 
-Therefore we need to use raw_cpu_read here to avoid false postives.
+I have done the same now (with a different test - simple mem_eater
+with hard_limit really low to trigger reclaim and trace_printk in both
+mem_cgroup_css_{alloc,free}) and you are right that 3.10 and 3.11 were
+OK regarding the leak. Which is a relief...
+3.12 resp. mmotm which I was testing on previously has the leak though.
+So there must have been some other escape part which didn't allow
+css_tryget on the root.
 
-Note that this issue has been discussed in prior years.
-If the process changes nodes after retrieving the current numa node then
-that is acceptable since most uses of numa_node etc are for optimization
-and not for correctness.
+> 3.12 and 3.13-rc8 on this laptop: first just counting mem_cgroup_allocs
+> and frees (if I could get that far without hanging or crashing), then
+> also with your patch in (on 3.12 and 3.13-rc8) or the completely
+> different patch appended at the bottom (on 3.10 and 3.11), checking
+> for leftover mem_cgroups afterwards.
+> 
+> I saw no evidence of mem_cgroup leakage on 3.10 and 3.11, which had
+> 	/*
+> 	 * Root is not visited by cgroup iterators so it needs an
+> 	 * explicit visit.
+> 	 */
+> 	if (!last_visited)
+> 		return root;
+> at the head of __mem_cgroup_iter_next(), removed around the same
+> time as changeover from prev_cgroup etc to prev_css etc in 3.12.
 
-There were suggestions to implement a raw_numa_node_id in order to
-do preempt checks for numa_node_id as well. But I think we better
-defer that to another patch since that would mean investigating
-how numa_node_id() is used throughout the kernel which would increase
-the scope of this patchset significantly. After all preemption was never
-checked before when numa_node_id() was used.
+Ohh, now I get it. Cgroup iterators originally didn't visit the root and
+all the callers had to special case it. Then Tejun changed them to visit
+root as well by bd8815a6d802 (cgroup: make css_for_each_descendant() and
+friends include the origin css in the iteration) which was a good change
+but I didn't realize it would be a problem when I reviewed it. Now it
+makes sense again.
 
-Some sample traces:
+> I don't believe 19f39402864e was responsible for a reference leak,
+> that came later.  But I think it was responsible for the original
+> endless iteration (shrink_zone going around and around getting root
+> again and again from mem_cgroup_iter).
 
-__this_cpu_read operation in preemptible [00000000] code: login/1456
-caller is __this_cpu_preempt_check+0x2b/0x2d
-CPU: 0 PID: 1456 Comm: login Not tainted 3.12.0-rc4-cl-00062-g2fe80d3-dirty #185
-Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
- 000000000000013c ffff88001f31ba58 ffffffff8147cf5e ffff88001f31bfd8
- ffff88001f31ba88 ffffffff8127eea9 0000000000000000 ffff88001f3975c0
- 00000000f7707000 ffff88001f3975c0 ffff88001f31bac0 ffffffff8127eeef
-Call Trace:
- [<ffffffff8147cf5e>] dump_stack+0x4e/0x82
- [<ffffffff8127eea9>] check_preemption_disabled+0xc5/0xe0
- [<ffffffff8127eeef>] __this_cpu_preempt_check+0x2b/0x2d
- [<ffffffff81030ff5>] ? show_stack+0x3b/0x3d
- [<ffffffff810ebee3>] get_task_policy+0x1d/0x49
- [<ffffffff810ed705>] get_vma_policy+0x14/0x76
- [<ffffffff810ed8ff>] alloc_pages_vma+0x35/0xff
- [<ffffffff810dad97>] handle_mm_fault+0x290/0x73b
- [<ffffffff810503da>] __do_page_fault+0x3fe/0x44d
- [<ffffffff8109b360>] ? trace_hardirqs_on_caller+0x142/0x19e
- [<ffffffff8109b3c9>] ? trace_hardirqs_on+0xd/0xf
- [<ffffffff81278bed>] ? trace_hardirqs_off_thunk+0x3a/0x3c
- [<ffffffff810be97f>] ? find_get_pages_contig+0x18e/0x18e
- [<ffffffff810be97f>] ? find_get_pages_contig+0x18e/0x18e
- [<ffffffff81050451>] do_page_fault+0x9/0xc
- [<ffffffff81483602>] page_fault+0x22/0x30
- [<ffffffff810be97f>] ? find_get_pages_contig+0x18e/0x18e
- [<ffffffff810be97f>] ? find_get_pages_contig+0x18e/0x18e
- [<ffffffff810be4c3>] ? file_read_actor+0x3a/0x15a
- [<ffffffff810be97f>] ? find_get_pages_contig+0x18e/0x18e
- [<ffffffff810bffab>] generic_file_aio_read+0x38e/0x624
- [<ffffffff810f6d69>] do_sync_read+0x54/0x73
- [<ffffffff810f7890>] vfs_read+0x9d/0x12a
- [<ffffffff810f7a59>] SyS_read+0x47/0x7e
- [<ffffffff81484f21>] cstar_dispatch+0x7/0x23
+So your hang is not within mem_cgroup_iter but you are getting root all
+the time without any way out?
 
+[3.10 code base]
+shrink_zone
+						[rmdir root]
+  mem_cgroup_iter(root, NULL, reclaim)
+    // prev = NULL
+    rcu_read_lock()
+    last_visited = iter->last_visited	// gets root || NULL
+    css_tryget(last_visited) 		// failed
+    last_visited = NULL			[1]
+    memcg = root = __mem_cgroup_iter_next(root, NULL)
+    iter->last_visited = root;
+    reclaim->generation = iter->generation
 
-caller is __this_cpu_preempt_check+0x2b/0x2d
-CPU: 0 PID: 1456 Comm: login Not tainted 3.12.0-rc4-cl-00062-g2fe80d3-dirty #185
-Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
- 00000000000000e8 ffff88001f31bbf8 ffffffff8147cf5e ffff88001f31bfd8
- ffff88001f31bc28 ffffffff8127eea9 ffffffff823c5c40 00000000000213da
- 0000000000000000 0000000000000000 ffff88001f31bc60 ffffffff8127eeef
-Call Trace:
- [<ffffffff8147cf5e>] dump_stack+0x4e/0x82
- [<ffffffff8127eea9>] check_preemption_disabled+0xc5/0xe0
- [<ffffffff8127eeef>] __this_cpu_preempt_check+0x2b/0x2d
- [<ffffffff810e006e>] ? install_special_mapping+0x11/0xe4
- [<ffffffff810ec8a8>] alloc_pages_current+0x8f/0xbc
- [<ffffffff810bec6b>] __page_cache_alloc+0xb/0xd
- [<ffffffff810c7e90>] __do_page_cache_readahead+0xf4/0x219
- [<ffffffff810c7e0e>] ? __do_page_cache_readahead+0x72/0x219
- [<ffffffff810c827c>] ra_submit+0x1c/0x20
- [<ffffffff810c850c>] ondemand_readahead+0x28c/0x2b4
- [<ffffffff810c85e9>] page_cache_sync_readahead+0x38/0x3a
- [<ffffffff810bfe7e>] generic_file_aio_read+0x261/0x624
- [<ffffffff810f6d69>] do_sync_read+0x54/0x73
- [<ffffffff810f7890>] vfs_read+0x9d/0x12a
- [<ffffffff810f7a59>] SyS_read+0x47/0x7e
- [<ffffffff81484f21>] cstar_dispatch+0x7/0x23
+ mem_cgroup_iter(root, root, reclaim)
+   // prev = root
+   rcu_read_lock
+    last_visited = iter->last_visited	// gets root
+    css_tryget(last_visited) 		// failed
+    [1]
 
-Cc: linux-mm@kvack.org
-Cc: Alex Shi <alex.shi@intel.com>
-Acked-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Christoph Lameter <cl@linux.com>
+So we indeed can loop here without any progress. I just fail
+to see how my patch could help. We even do not get down to
+cgroup_next_descendant_pre.
 
-Index: linux/include/linux/topology.h
-===================================================================
---- linux.orig/include/linux/topology.h	2013-12-02 16:07:51.304591590 -0600
-+++ linux/include/linux/topology.h	2013-12-02 16:07:51.304591590 -0600
-@@ -188,7 +188,7 @@ DECLARE_PER_CPU(int, numa_node);
- /* Returns the number of the current Node. */
- static inline int numa_node_id(void)
- {
--	return __this_cpu_read(numa_node);
-+	return raw_cpu_read(numa_node);
- }
- #endif
+Or am I missing something?
+
+The following should fix this kind of endless loop:
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 194721839cf5..168e5abcca92 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1221,7 +1221,8 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+ 				smp_rmb();
+ 				last_visited = iter->last_visited;
+ 				if (last_visited &&
+-				    !css_tryget(&last_visited->css))
++				    last_visited != root &&
++				     !css_tryget(&last_visited->css))
+ 					last_visited = NULL;
+ 			}
+ 		}
+@@ -1229,7 +1230,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+ 		memcg = __mem_cgroup_iter_next(root, last_visited);
  
-@@ -245,7 +245,7 @@ static inline void set_numa_mem(int node
- /* Returns the number of the nearest Node with memory */
- static inline int numa_mem_id(void)
- {
--	return __this_cpu_read(_numa_mem_);
-+	return raw_cpu_read(_numa_mem_);
- }
- #endif
+ 		if (reclaim) {
+-			if (last_visited)
++			if (last_visited && last_visited != root)
+ 				css_put(&last_visited->css);
  
+ 			iter->last_visited = memcg;
+
+Not that I like it much :/
+
+> But beware of my conclusion, please check for yourself: with my
+> separate kbuilds in separate /cg/cg/? memcgs, what "cg m" is doing
+> is very simple and segregated, can hardly be called testing reclaim
+> iteration, so I hope you have something better to check it.  Plus
+> I was testing on 3.10 and 3.11 vanilla, not latest stable versions.
+> 
+> (If I'm very honest, I'll admit that I still did not see that hang
+> on 3.11 vanilla:
+
+But I assume you can still reproduce it with 3.10, right?
+I am sorry but I didn't get to run your script yet.
+
+> what I hit was a crash in kfree instead, but the
+> same patch got rid of that too. 
+
+Care to post an oops?
+
+> Of course I ought to investigate
+> further, but at some point I just have to give up and move on,
+> there's just too much breakage to chase all over the kernel...)
+> 
+> > This means that css_put is not called and so css along with mem_cgroup
+> > and other cgroup internal object tied by css lifetime are never freed.
+> > 
+> > Fix the issue by reintroducing root check in __mem_cgroup_iter_next.
+> > 
+> > This patch also fixes issue reported by Hugh Dickins when
+> > mem_cgroup_iter might end up in an endless loop because a group which is
+> > under hard limit reclaim is removed in parallel with iteration.
+> > __mem_cgroup_iter_next would always return NULL because css_tryget on
+> > the root (reclaimed memcg) would fail and there are no other memcg in
+> > the hierarchy. prev == NULL in mem_cgroup_iter would prevent break out
+> > from the root and so the while (!memcg) loop would never terminate.
+> > as css_tryget is no longer called for the root of the tree walk this
+> > doesn't happen anymore.
+> > 
+> > [hughd@google.com: Fixed root vs. root->css fix]
+> > [hughd@google.com: Get rid of else branch because it is ugly]
+> 
+> Thanks for your courtesy!  But let's not clutter it with those two.
+> 
+> > <Hugh's-selection>-by: Hugh Dickins <hughd@google.com>
+> 
+> You already credited me above, but "Reported-by:" here if you insist.
+> 
+> > Cc: stable@vger.kernel.org # 3.10+
+> 
+> Well, I'm okay with that, if we use that as a way to shoehorn in the
+> patch at the bottom instead for 3.10 and 3.11 stables.
+
+So far I do not see how it would make a change for those two kernels as
+they have the special handling for root.
+
+[...]
+> "Equivalent" patch for 3.10 or 3.11: fixing similar hangs but no leakage.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> 
+> --- v3.10/mm/memcontrol.c	2013-06-30 15:13:29.000000000 -0700
+> +++ linux/mm/memcontrol.c	2014-01-15 18:18:24.476566659 -0800
+> @@ -1226,7 +1226,8 @@ struct mem_cgroup *mem_cgroup_iter(struc
+>  			}
+>  		}
+>  
+> -		memcg = __mem_cgroup_iter_next(root, last_visited);
+> +		if (!prev || last_visited)
+> +			memcg = __mem_cgroup_iter_next(root, last_visited);
+
+I am confused. What would change between those two calls to change the
+outcome? The function doesn't have any internal state.
+
+>  
+>  		if (reclaim) {
+>  			if (last_visited)
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
