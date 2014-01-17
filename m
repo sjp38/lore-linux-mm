@@ -1,88 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 70BAF6B0031
-	for <linux-mm@kvack.org>; Fri, 17 Jan 2014 13:53:53 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id fa1so2149136pad.14
-        for <linux-mm@kvack.org>; Fri, 17 Jan 2014 10:53:53 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id s7si10915635pae.156.2014.01.17.10.53.51
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id BAA756B0031
+	for <linux-mm@kvack.org>; Fri, 17 Jan 2014 14:22:23 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id v10so4345602pde.41
+        for <linux-mm@kvack.org>; Fri, 17 Jan 2014 11:22:23 -0800 (PST)
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+        by mx.google.com with ESMTPS id fu1si10978225pbc.134.2014.01.17.11.22.21
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Jan 2014 10:53:52 -0800 (PST)
-Message-ID: <52D97C3E.2080709@codeaurora.org>
-Date: Fri, 17 Jan 2014 10:53:50 -0800
-From: Laura Abbott <lauraa@codeaurora.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 17 Jan 2014 11:22:22 -0800 (PST)
+Received: by mail-pb0-f46.google.com with SMTP id ma3so4515443pbc.33
+        for <linux-mm@kvack.org>; Fri, 17 Jan 2014 11:22:21 -0800 (PST)
+Message-ID: <52D982EB.6010507@amacapital.net>
+Date: Fri, 17 Jan 2014 11:22:19 -0800
+From: Andy Lutomirski <luto@amacapital.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: Improve documentation of page_order
-References: <520B0B75.4030708@huawei.com> <20130814085711.GK2296@suse.de> <20130814155205.GA2706@gmail.com> <20130814132602.814a88e991e29c5b93bbe22c@linux-foundation.org> <20130814222241.GQ2296@suse.de> <20140117143221.GA24851@suse.de>
-In-Reply-To: <20140117143221.GA24851@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Subject: Re: [LSF/MM TOPIC] [ATTEND] Persistent memory
+References: <CALCETrUaotUuzn60-bSt1oUb8+94do2QgiCq_TXhqEHj79DePQ@mail.gmail.com> <52D8AEBF.3090803@symas.com>
+In-Reply-To: <52D8AEBF.3090803@symas.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, Xishi Qiu <qiuxishi@huawei.com>, riel@redhat.com, aquini@redhat.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Howard Chu <hyc@symas.com>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 1/17/2014 6:32 AM, Mel Gorman wrote:
-> Developers occasionally try and optimise PFN scanners by using page_order
-> but miss that in general it requires zone->lock. This has happened twice for
-> compaction.c and rejected both times.  This patch clarifies the documentation
-> of page_order and adds a note to compaction.c why page_order is not used.
->
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->   mm/compaction.c | 5 ++++-
->   mm/internal.h   | 8 +++++---
->   2 files changed, 9 insertions(+), 4 deletions(-)
->
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index f58bcd0..f91d26b 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -522,7 +522,10 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->   		if (!isolation_suitable(cc, page))
->   			goto next_pageblock;
->
-> -		/* Skip if free */
-> +		/*
-> +		 * Skip if free. page_order cannot be used without zone->lock
-> +		 * as nothing prevents parallel allocations or buddy merging.
-> +		 */
->   		if (PageBuddy(page))
->   			continue;
->
-> diff --git a/mm/internal.h b/mm/internal.h
-> index 684f7aa..09cd8be 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -144,9 +144,11 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->   #endif
->
->   /*
-> - * function for dealing with page's order in buddy system.
-> - * zone->lock is already acquired when we use these.
-> - * So, we don't need atomic page->flags operations here.
-> + * This functions returns the order of a free page in the buddy system.
-> + * In general, page_zone(page)->lock must be held by the caller to prevent
-> + * the page being allocated in parallel and returning garbage as the order.
-> + * If the caller does not hold page_zone(page), they must guarantee that
-                                   page_zone(page)->lock here?
-> + * the page cannot be allocated or merged in parallel.
->    */
->   static inline unsigned long page_order(struct page *page)
->   {
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+On 01/16/2014 08:17 PM, Howard Chu wrote:
+> Andy Lutomirski wrote:
+>> I'm interested in a persistent memory track.  There seems to be plenty
+>> of other emails about this, but here's my take:
+> 
+> I'm also interested in this track. I'm not up on FS development these
+> days, the last time I wrote filesystem code was nearly 20 years ago. But
+> persistent memory is a topic near and dear to my heart, and of great
+> relevance to my current pet project, the LMDB memory-mapped database.
+> 
+> In a previous era I also developed block device drivers for
+> battery-backed external DRAM disks. (My ideal would have been systems
+> where all of RAM was persistent. I suppose we can just about get there
+> with mobile phones and tablets these days.)
+> 
+> In the context of database engines, I'm interested in leveraging
+> persistent memory for write-back caching and how user level code can be
+> made aware of it. (If all your cache is persistent and guaranteed to
+> eventually reach stable store then you never need to fsync() a
+> transaction.)
 
+Hmm.  Presumably that would work by actually allocating cache pages in
+persistent memory.  I don't think that anything like the current XIP
+interfaces can do that, but it's certainly an interesting thought for
+(complicated) future work.
 
--- 
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
+This might not be pretty in conjunction with something like my
+writethrough mapping idea -- read(2) and write(2) would be fine (well,
+write(2) might need to use streaming loads), but mmap users who weren't
+expecting it might have truly awful performance.  That especially
+includes things like databases that aren't expecting this behavior.
+
+--Andy
+
+> 
+>> First, I'm not an FS expert.  I've never written an FS, touched an
+>> on-disk (or on-persistent-memory) FS format.  I have, however, mucked
+>> with some low-level x86 details, and I'm a heavy abuser of the Linux
+>> page cache.
+>>
+>> I'm an upcoming user of persistent memory -- I have some (in the form
+>> if NV-DIMMs) and I have an application (HFT and a memory-backed
+>> database thing) that I'll port to run on pmfs or ext4 w/ XIP once
+>> everything is ready.
+>>
+>> I'm also interested in some of the implementation details.  For this
+>> stuff to be reliable on anything resembling commodity hardware, there
+>> will be some caching issues to deal with.  For example, I think it
+>> would be handy to run things like pmfs on top of write-through
+>> mappings.  This is currently barely supportable (and only using
+>> mtrrs), but it's not terribly complicated (on new enough hardware) to
+>> support real write-through PAT entries.
+>>
+>> I've written an i2c-imc driver (currently in limbo on the i2c list),
+>> which will likely be used for control operations on NV-DIMMs plugged
+>> into Intel-based server boards.
+>>
+>> In principle, I could even bring a working NV-DIMM system to the
+>> summit -- it's nearby, and this thing isn't *that* large :)
+>>
+>> --Andy
+>> -- 
+>> To unsubscribe from this list: send the line "unsubscribe
+>> linux-fsdevel" in
+>> the body of a message to majordomo@vger.kernel.org
+>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>>
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
