@@ -1,50 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
-	by kanga.kvack.org (Postfix) with ESMTP id EA0876B0035
-	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 04:22:06 -0500 (EST)
-Received: by mail-la0-f44.google.com with SMTP id hm7so3069334lab.3
-        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 01:22:06 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id du1si240168lac.153.2014.01.20.01.22.05
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 3056F6B0035
+	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 05:37:41 -0500 (EST)
+Received: by mail-pb0-f45.google.com with SMTP id un15so3157212pbc.18
+        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 02:37:40 -0800 (PST)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id ot3si925436pac.137.2014.01.20.02.37.35
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 20 Jan 2014 01:22:05 -0800 (PST)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH TRIVIAL] memcg: remove unused code from kmem_cache_destroy_work_func
-Date: Mon, 20 Jan 2014 13:22:03 +0400
-Message-ID: <1390209723-11869-1-git-send-email-vdavydov@parallels.com>
+        Mon, 20 Jan 2014 02:37:39 -0800 (PST)
+Message-ID: <52DCFC33.80008@huawei.com>
+Date: Mon, 20 Jan 2014 18:36:35 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: [question] how to figure out OOM reason? should dump slab/vmalloc
+ info when OOM?
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
----
- mm/memcontrol.c |    6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+When OOM happen, will dump buddy free areas info, hugetlb pages info,
+memory state of all eligible tasks, per-cpu memory info.
+But do not dump slab/vmalloc info, sometime, it's not enough to figure out the
+reason OOM happened.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 7f1a356..7f1511d 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3311,11 +3311,9 @@ static void kmem_cache_destroy_work_func(struct work_struct *w)
- 	 * So if we aren't down to zero, we'll just schedule a worker and try
- 	 * again
- 	 */
--	if (atomic_read(&cachep->memcg_params->nr_pages) != 0) {
-+	if (atomic_read(&cachep->memcg_params->nr_pages) != 0)
- 		kmem_cache_shrink(cachep);
--		if (atomic_read(&cachep->memcg_params->nr_pages) == 0)
--			return;
--	} else
-+	else
- 		kmem_cache_destroy(cachep);
- }
- 
--- 
-1.7.10.4
+So, my questions are:
+1. Should dump slab/vmalloc info when OOM happen? Though we can get these from proc file,
+but usually we do not monitor the logs and check proc file immediately when OOM happened.
+
+2. /proc/$pid/smaps and pagecache info also helpful when OOM, should also be dumped?
+
+3. Without these info, usually how to figure out OOM reason?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
