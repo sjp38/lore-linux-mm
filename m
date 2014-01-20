@@ -1,66 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 736FE6B0035
+Received: from mail-ea0-f169.google.com (mail-ea0-f169.google.com [209.85.215.169])
+	by kanga.kvack.org (Postfix) with ESMTP id D29A46B0037
 	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 06:33:05 -0500 (EST)
-Received: by mail-ee0-f44.google.com with SMTP id c13so3350039eek.31
-        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 03:33:04 -0800 (PST)
+Received: by mail-ea0-f169.google.com with SMTP id l9so2655754eaj.0
+        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 03:33:05 -0800 (PST)
 Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com. [195.75.94.108])
-        by mx.google.com with ESMTPS id e2si1743158eeg.198.2014.01.20.03.33.04
+        by mx.google.com with ESMTPS id g47si1833741eet.45.2014.01.20.03.33.04
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 20 Jan 2014 03:33:04 -0800 (PST)
+        Mon, 20 Jan 2014 03:33:05 -0800 (PST)
 Received: from /spool/local
 	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <phacht@linux.vnet.ibm.com>;
 	Mon, 20 Jan 2014 11:33:03 -0000
 Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 8896717D8059
-	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 11:33:15 +0000 (GMT)
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 3A69717D8062
+	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 11:33:16 +0000 (GMT)
 Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0KBWmSa27132052
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0KBWmVF54984748
 	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 11:32:48 GMT
 Received: from d06av03.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0KBWrkk018377
-	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 04:32:59 -0700
+	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0KBWtDq018436
+	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 04:33:00 -0700
 From: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
-Subject: [PATCH V5 0/3] mm/memblock: Excluded memory
-Date: Mon, 20 Jan 2014 12:32:36 +0100
-Message-Id: <1390217559-14691-1-git-send-email-phacht@linux.vnet.ibm.com>
+Subject: [PATCH V5 1/3] mm/nobootmem: Fix unused variable
+Date: Mon, 20 Jan 2014 12:32:37 +0100
+Message-Id: <1390217559-14691-2-git-send-email-phacht@linux.vnet.ibm.com>
+In-Reply-To: <1390217559-14691-1-git-send-email-phacht@linux.vnet.ibm.com>
+References: <1390217559-14691-1-git-send-email-phacht@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: hannes@cmpxchg.org, liuj97@gmail.com, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, iamjoonsoo.kim@lge.com, robin.m.holt@gmail.com, tangchen@cn.fujitsu.com, yinghai@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Philipp Hachtmann <phacht@linux.vnet.ibm.com>
 
-This all fits linux-next.
+This fixes an unused variable warning in nobootmem.c
 
-The first patch is a fix (not a replacement) to a patch that has already 
-been put into linux-next. The original patch generates a warning for an
-unused variable in case that CONFIG_ARCH_DISCARD_MEMBLOCK is not set.
-It's now made the way Andrew suggested. 
+Signed-off-by: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
+---
+ mm/nobootmem.c | 28 +++++++++++++++++-----------
+ 1 file changed, 17 insertions(+), 11 deletions(-)
 
-The second patch adds support for exluded memory region handling in
-memblock. This is needed by the current s390 development in conjunction
-with kdump.
-The patch is straightforward and adds some redundancy. This has been 
-done to clarify that this patch does not intend to change any of
-the current memblock API's behaviour.
-
-The third patch does some cleanup and refactoring to memblock. It removes
-the redundancies introduced by the patch before. It also is not intended
-to change or break any behaviour or API of memblock.
-
-
-Philipp Hachtmann (3):
-  mm/nobootmem: Fix unused variable
-  mm/memblock: Add support for excluded memory areas
-  mm/memblock: Cleanup and refactoring after addition of nomap
-
- include/linux/memblock.h |  57 +++++++++---
- mm/Kconfig               |   3 +
- mm/memblock.c            | 233 +++++++++++++++++++++++++++++++++++------------
- mm/nobootmem.c           |  30 ++++--
- 4 files changed, 243 insertions(+), 80 deletions(-)
-
+diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+index e2906a5..0215c77 100644
+--- a/mm/nobootmem.c
++++ b/mm/nobootmem.c
+@@ -116,23 +116,29 @@ static unsigned long __init __free_memory_core(phys_addr_t start,
+ static unsigned long __init free_low_memory_core_early(void)
+ {
+ 	unsigned long count = 0;
+-	phys_addr_t start, end, size;
++	phys_addr_t start, end;
+ 	u64 i;
+ 
++#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
++	phys_addr_t size;
++#endif
++
+ 	for_each_free_mem_range(i, NUMA_NO_NODE, &start, &end, NULL)
+ 		count += __free_memory_core(start, end);
+ 
+ #ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
+-
+-	/* Free memblock.reserved array if it was allocated */
+-	size = get_allocated_memblock_reserved_regions_info(&start);
+-	if (size)
+-		count += __free_memory_core(start, start + size);
+-
+-	/* Free memblock.memory array if it was allocated */
+-	size = get_allocated_memblock_memory_regions_info(&start);
+-	if (size)
+-		count += __free_memory_core(start, start + size);
++	{
++		phys_addr_t size;
++		/* Free memblock.reserved array if it was allocated */
++		size = get_allocated_memblock_reserved_regions_info(&start);
++		if (size)
++			count += __free_memory_core(start, start + size);
++		
++		/* Free memblock.memory array if it was allocated */
++		size = get_allocated_memblock_memory_regions_info(&start);
++		if (size)
++			count += __free_memory_core(start, start + size);
++	}
+ #endif
+ 
+ 	return count;
 -- 
 1.8.4.5
 
