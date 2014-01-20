@@ -1,130 +1,324 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qe0-f54.google.com (mail-qe0-f54.google.com [209.85.128.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 523406B0035
-	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 17:13:35 -0500 (EST)
-Received: by mail-qe0-f54.google.com with SMTP id df13so6472825qeb.27
-        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 14:13:35 -0800 (PST)
-Received: from qmta14.emeryville.ca.mail.comcast.net (qmta14.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:212])
-        by mx.google.com with ESMTP id ge8si1581554qab.146.2014.01.20.14.13.33
-        for <linux-mm@kvack.org>;
-        Mon, 20 Jan 2014 14:13:34 -0800 (PST)
-Date: Mon, 20 Jan 2014 16:13:30 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
- no local memory
-In-Reply-To: <52dce7fe.e5e6420a.5ff6.ffff84a0SMTPIN_ADDED_BROKEN@mx.google.com>
-Message-ID: <alpine.DEB.2.10.1401201612340.28048@nuc>
-References: <20140107132100.5b5ad198@kryten> <20140107074136.GA4011@lge.com> <52dce7fe.e5e6420a.5ff6.ffff84a0SMTPIN_ADDED_BROKEN@mx.google.com>
-Content-Type: MULTIPART/Mixed; BOUNDARY=XsQoSWH+UP9D9v3l
-Content-ID: <alpine.DEB.2.10.1401201612341.28048@nuc>
-Content-Disposition: INLINE
+Received: from mail-bk0-f41.google.com (mail-bk0-f41.google.com [209.85.214.41])
+	by kanga.kvack.org (Postfix) with ESMTP id C34D36B0035
+	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 18:18:35 -0500 (EST)
+Received: by mail-bk0-f41.google.com with SMTP id na10so423141bkb.0
+        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 15:18:35 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id yk3si2623188bkb.71.2014.01.20.15.18.34
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 20 Jan 2014 15:18:34 -0800 (PST)
+Date: Mon, 20 Jan 2014 18:17:37 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 9/9] mm: keep page cache radix tree nodes in check
+Message-ID: <20140120231737.GS6963@cmpxchg.org>
+References: <1389377443-11755-1-git-send-email-hannes@cmpxchg.org>
+ <1389377443-11755-10-git-send-email-hannes@cmpxchg.org>
+ <20140117000517.GB18112@dastard>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140117000517.GB18112@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, benh@kernel.crashing.org, paulus@samba.org, penberg@kernel.org, mpm@selenic.com, nacc@linux.vnet.ibm.com, Anton Blanchard <anton@samba.org>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Han Pingtian <hanpt@linux.vnet.ibm.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Bob Liu <bob.liu@oracle.com>, Christoph Hellwig <hch@infradead.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Fri, Jan 17, 2014 at 11:05:17AM +1100, Dave Chinner wrote:
+> On Fri, Jan 10, 2014 at 01:10:43PM -0500, Johannes Weiner wrote:
+> > Previously, page cache radix tree nodes were freed after reclaim
+> > emptied out their page pointers.  But now reclaim stores shadow
+> > entries in their place, which are only reclaimed when the inodes
+> > themselves are reclaimed.  This is problematic for bigger files that
+> > are still in use after they have a significant amount of their cache
+> > reclaimed, without any of those pages actually refaulting.  The shadow
+> > entries will just sit there and waste memory.  In the worst case, the
+> > shadow entries will accumulate until the machine runs out of memory.
+> > 
+> > To get this under control, the VM will track radix tree nodes
+> > exclusively containing shadow entries on a per-NUMA node list.
+> > Per-NUMA rather than global because we expect the radix tree nodes
+> > themselves to be allocated node-locally and we want to reduce
+> > cross-node references of otherwise independent cache workloads.  A
+> > simple shrinker will then reclaim these nodes on memory pressure.
+> > 
+> > A few things need to be stored in the radix tree node to implement the
+> > shadow node LRU and allow tree deletions coming from the list:
+> 
+> Just a couple of things with the list_lru interfaces.
+> 
+> ....
+> > @@ -123,9 +129,39 @@ static void page_cache_tree_delete(struct address_space *mapping,
+> >  		 * same time and miss a shadow entry.
+> >  		 */
+> >  		smp_wmb();
+> > -	} else
+> > -		radix_tree_delete(&mapping->page_tree, page->index);
+> > +	}
+> >  	mapping->nrpages--;
+> > +
+> > +	if (!node) {
+> > +		/* Clear direct pointer tags in root node */
+> > +		mapping->page_tree.gfp_mask &= __GFP_BITS_MASK;
+> > +		radix_tree_replace_slot(slot, shadow);
+> > +		return;
+> > +	}
+> > +
+> > +	/* Clear tree tags for the removed page */
+> > +	index = page->index;
+> > +	offset = index & RADIX_TREE_MAP_MASK;
+> > +	for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++) {
+> > +		if (test_bit(offset, node->tags[tag]))
+> > +			radix_tree_tag_clear(&mapping->page_tree, index, tag);
+> > +	}
+> > +
+> > +	/* Delete page, swap shadow entry */
+> > +	radix_tree_replace_slot(slot, shadow);
+> > +	node->count--;
+> > +	if (shadow)
+> > +		node->count += 1U << RADIX_TREE_COUNT_SHIFT;
+> > +	else
+> > +		if (__radix_tree_delete_node(&mapping->page_tree, node))
+> > +			return;
+> > +
+> > +	/* Only shadow entries in there, keep track of this node */
+> > +	if (!(node->count & RADIX_TREE_COUNT_MASK) &&
+> > +	    list_empty(&node->private_list)) {
+> > +		node->private_data = mapping;
+> > +		list_lru_add(&workingset_shadow_nodes, &node->private_list);
+> > +	}
+> 
+> You can't do this list_empty(&node->private_list) check safely
+> externally to the list_lru code - only time that entry can be
+> checked safely is under the LRU list locks. This is the reason that
+> list_lru_add/list_lru_del return a boolean to indicate is the object
+> was added/removed from the list - they do this list_empty() check
+> internally. i.e. the correct, safe way to do conditionally update
+> state iff the object was added to the LRU is:
+> 
+> 	if (!(node->count & RADIX_TREE_COUNT_MASK)) {
+> 		if (list_lru_add(&workingset_shadow_nodes, &node->private_list))
+> 			node->private_data = mapping;
+> 	}
+> 
+> > +	radix_tree_replace_slot(slot, page);
+> > +	mapping->nrpages++;
+> > +	if (node) {
+> > +		node->count++;
+> > +		/* Installed page, can't be shadow-only anymore */
+> > +		if (!list_empty(&node->private_list))
+> > +			list_lru_del(&workingset_shadow_nodes,
+> > +				     &node->private_list);
+> > +	}
+> 
+> Same issue here:
+> 
+> 	if (node) {
+> 		node->count++;
+> 		list_lru_del(&workingset_shadow_nodes, &node->private_list);
+> 	}
 
---XsQoSWH+UP9D9v3l
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
-Content-ID: <alpine.DEB.2.10.1401201612342.28048@nuc>
-Content-Disposition: INLINE
+All modifications to node->private_list happen under
+mapping->tree_lock, and modifications of a neighboring link should not
+affect the outcome of the list_empty(), so I don't think the lru lock
+is necessary.
 
-On Mon, 20 Jan 2014, Wanpeng Li wrote:
+It would be cleaner to take it of course, but that would mean adding
+an unconditional NUMAnode-wide lock to every page cache population.
 
-> >+       enum zone_type high_zoneidx = gfp_zone(flags);
-> >
-> >+       if (!node_present_pages(searchnode)) {
-> >+               zonelist = node_zonelist(searchnode, flags);
-> >+               for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
-> >+                       searchnode = zone_to_nid(zone);
-> >+                       if (node_present_pages(searchnode))
-> >+                               break;
-> >+               }
-> >+       }
-> >        object = get_partial_node(s, get_node(s, searchnode), c, flags);
-> >        if (object || node != NUMA_NO_NODE)
-> >                return object;
-> >
->
-> The patch fix the bug. However, the kernel crashed very quickly after running
-> stress tests for a short while:
+> >  static int __add_to_page_cache_locked(struct page *page,
+> > diff --git a/mm/list_lru.c b/mm/list_lru.c
+> > index 72f9decb0104..47a9faf4070b 100644
+> > --- a/mm/list_lru.c
+> > +++ b/mm/list_lru.c
+> > @@ -88,10 +88,18 @@ restart:
+> >  		ret = isolate(item, &nlru->lock, cb_arg);
+> >  		switch (ret) {
+> >  		case LRU_REMOVED:
+> > +		case LRU_REMOVED_RETRY:
+> >  			if (--nlru->nr_items == 0)
+> >  				node_clear(nid, lru->active_nodes);
+> >  			WARN_ON_ONCE(nlru->nr_items < 0);
+> >  			isolated++;
+> > +			/*
+> > +			 * If the lru lock has been dropped, our list
+> > +			 * traversal is now invalid and so we have to
+> > +			 * restart from scratch.
+> > +			 */
+> > +			if (ret == LRU_REMOVED_RETRY)
+> > +				goto restart;
+> >  			break;
+> >  		case LRU_ROTATE:
+> >  			list_move_tail(item, &nlru->list);
+> 
+> I think that we need to assert that the list lru lock is correctly
+> held here on return with LRU_REMOVED_RETRY. i.e.
+> 
+> 		case LRU_REMOVED_RETRY:
+> 			assert_spin_locked(&nlru->lock);
+> 		case LRU_REMOVED:
 
-This is not a good way of fixing it. How about not asking for memory from
-nodes that are memoryless? Use numa_mem_id() which gives you the next node
-that has memory instead of numa_node_id() (gives you the current node
-regardless if it has memory or not).
+Ah, good idea.  How about adding it to LRU_RETRY as well?
 
---XsQoSWH+UP9D9v3l
-Content-Type: TEXT/PLAIN; CHARSET=us-ascii
-Content-ID: <alpine.DEB.2.10.1401201612343.28048@nuc>
-Content-Description: 
-Content-Disposition: ATTACHMENT; FILENAME=oops
+> > +/*
+> > + * Page cache radix tree nodes containing only shadow entries can grow
+> > + * excessively on certain workloads.  That's why they are tracked on
+> > + * per-(NUMA)node lists and pushed back by a shrinker, but with a
+> > + * slightly higher threshold than regular shrinkers so we don't
+> > + * discard the entries too eagerly - after all, during light memory
+> > + * pressure is exactly when we need them.
+> > + */
+> > +
+> > +struct list_lru workingset_shadow_nodes;
+> > +
+> > +static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+> > +					struct shrink_control *sc)
+> > +{
+> > +	return list_lru_count_node(&workingset_shadow_nodes, sc->nid);
+> > +}
+> > +
+> > +static enum lru_status shadow_lru_isolate(struct list_head *item,
+> > +					  spinlock_t *lru_lock,
+> > +					  void *arg)
+> > +{
+> > +	unsigned long *nr_reclaimed = arg;
+> > +	struct address_space *mapping;
+> > +	struct radix_tree_node *node;
+> > +	unsigned int i;
+> > +	int ret;
+> > +
+> > +	/*
+> > +	 * Page cache insertions and deletions synchroneously maintain
+> > +	 * the shadow node LRU under the mapping->tree_lock and the
+> > +	 * lru_lock.  Because the page cache tree is emptied before
+> > +	 * the inode can be destroyed, holding the lru_lock pins any
+> > +	 * address_space that has radix tree nodes on the LRU.
+> > +	 *
+> > +	 * We can then safely transition to the mapping->tree_lock to
+> > +	 * pin only the address_space of the particular node we want
+> > +	 * to reclaim, take the node off-LRU, and drop the lru_lock.
+> > +	 */
+> > +
+> > +	node = container_of(item, struct radix_tree_node, private_list);
+> > +	mapping = node->private_data;
+> > +
+> > +	/* Coming from the list, invert the lock order */
+> > +	if (!spin_trylock_irq(&mapping->tree_lock)) {
+> > +		spin_unlock(lru_lock);
+> > +		ret = LRU_RETRY;
+> > +		goto out;
+> > +	}
+> > +
+> > +	list_del_init(item);
+> > +	spin_unlock(lru_lock);
+> > +
+> > +	/*
+> > +	 * The nodes should only contain one or more shadow entries,
+> > +	 * no pages, so we expect to be able to remove them all and
+> > +	 * delete and free the empty node afterwards.
+> > +	 */
+> > +
+> > +	BUG_ON(!node->count);
+> > +	BUG_ON(node->count & RADIX_TREE_COUNT_MASK);
+> > +
+> > +	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
+> > +		if (node->slots[i]) {
+> > +			BUG_ON(!radix_tree_exceptional_entry(node->slots[i]));
+> > +			node->slots[i] = NULL;
+> > +			BUG_ON(node->count < (1U << RADIX_TREE_COUNT_SHIFT));
+> > +			node->count -= 1U << RADIX_TREE_COUNT_SHIFT;
+> > +			BUG_ON(!mapping->nrshadows);
+> > +			mapping->nrshadows--;
+> > +		}
+> > +	}
+> > +	BUG_ON(node->count);
+> > +	inc_zone_state(page_zone(virt_to_page(node)), WORKINGSET_NODERECLAIM);
+> > +	if (!__radix_tree_delete_node(&mapping->page_tree, node))
+> > +		BUG();
+> > +	(*nr_reclaimed)++;
+> > +
+> > +	spin_unlock_irq(&mapping->tree_lock);
+> > +	ret = LRU_REMOVED_RETRY;
+> > +out:
+> > +	cond_resched();
+> > +	spin_lock(lru_lock);
+> > +	return ret;
+> > +}
+> > +
+> > +static unsigned long scan_shadow_nodes(struct shrinker *shrinker,
+> > +				       struct shrink_control *sc)
+> > +{
+> > +	unsigned long nr_reclaimed = 0;
+> > +
+> > +	list_lru_walk_node(&workingset_shadow_nodes, sc->nid,
+> > +			   shadow_lru_isolate, &nr_reclaimed, &sc->nr_to_scan);
+> > +
+> > +	return nr_reclaimed;
+> 
+> list_lru_walk_node() returns the number of reclaimed objects (i.e.
+> the number of objects that returned LRU_REMOVED/LRU_REMOVED_RETRY
+> from the ->isolate callback). You don't need to count nr_reclaimed
+> yourself.
 
-[  287.464285] Unable to handle kernel paging request for data at address 0x00000001
-[  287.464289] Faulting instruction address: 0xc000000000445af8
-[  287.464294] Oops: Kernel access of bad area, sig: 11 [#1]
-[  287.464296] SMP NR_CPUS=2048 NUMA pSeries
-[  287.464301] Modules linked in: btrfs raid6_pq xor dm_service_time sg nfsv3 arc4 md4 rpcsec_gss_krb5 nfsv4 nls_utf8 cifs nfs fscache dns_resolver nf_conntrack_netbios_ns nf_conntrack_broadcast ipt_MASQUERADE ip6t_REJECT ipt_REJECT xt_conntrack ebtable_nat ebtable_broute bridge stp llc ebtable_filter ebtables ip6table_nat nf_conntrack_ipv6 nf_defrag_ipv6 nf_nat_ipv6 ip6table_mangle ip6table_security ip6table_raw ip6table_filter ip6_tables iptable_nat nf_conntrack_ipv4 nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack iptable_mangle iptable_security iptable_raw iptable_filter ip_tables ext4 mbcache jbd2 ibmvfc scsi_transport_fc ibmveth nx_crypto pseries_rng nfsd auth_rpcgss nfs_acl lockd binfmt_misc sunrpc uinput dm_multipath xfs libcrc32c sd_mod crc_t10dif crct10dif_common ibmvscsi scsi_transport_srp scsi_tgt dm_mirror dm_region_hash dm_log dm_mod
-[  287.464374] CPU: 0 PID: 0 Comm: swapper/0 Not tainted 3.10.0-71.el7.91831.ppc64 #1
-[  287.464378] task: c000000000fde590 ti: c0000001fffd0000 task.ti: c0000000010a4000
-[  287.464382] NIP: c000000000445af8 LR: c000000000445bcc CTR: c000000000445b90
-[  287.464385] REGS: c0000001fffd38e0 TRAP: 0300   Not tainted  (3.10.0-71.el7.91831.ppc64)
-[  287.464388] MSR: 8000000000009032 <SF,EE,ME,IR,DR,RI>  CR: 88002084  XER: 00000001
-[  287.464397] SOFTE: 0
-[  287.464398] CFAR: c00000000000908c
-[  287.464401] DAR: 0000000000000001, DSISR: 40000000
-[  287.464403]
-GPR00: d000000003649a04 c0000001fffd3b60 c0000000010a94d0 0000000000000003
-GPR04: c00000018d841048 c0000001fffd3bd0 0000000000000012 d00000000364eff0
-GPR08: c0000001fffd3bd0 0000000000000001 d00000000364d688 c000000000445b90
-GPR12: d00000000364b960 c000000007e00000 00000000042ac510 0000000000000060
-GPR16: 0000000000200000 00000000fffffb19 c000000001122100 0000000000000000
-GPR20: c000000000a94680 c000000001122180 c000000000a94680 000000000000000a
-GPR24: 0000000000000100 0000000000000000 0000000000000001 c0000001ef900000
-GPR28: c0000001d6c066f0 c0000001aea03520 c0000001bc9a2640 c00000018d841680
-[  287.464447] NIP [c000000000445af8] .__dev_printk+0x28/0xc0
-[  287.464450] LR [c000000000445bcc] .dev_printk+0x3c/0x50
-[  287.464453] PACATMSCRATCH [8000000000009032]
-[  287.464455] Call Trace:
-[  287.464458] [c0000001fffd3b60] [c0000001fffd3c00] 0xc0000001fffd3c00 (unreliable)
-[  287.464467] [c0000001fffd3bf0] [d000000003649a04] .ibmvfc_scsi_done+0x334/0x3e0 [ibmvfc]
-[  287.464474] [c0000001fffd3cb0] [d0000000036495b8] .ibmvfc_handle_crq+0x2e8/0x320 [ibmvfc]
-[  287.464488] [c0000001fffd3d30] [d000000003649fe4] .ibmvfc_tasklet+0xd4/0x250 [ibmvfc]
-[  287.464494] [c0000001fffd3de0] [c00000000009b46c] .tasklet_action+0xcc/0x1b0
-[  287.464498] [c0000001fffd3e90] [c00000000009a668] .__do_softirq+0x148/0x360
-[  287.464503] [c0000001fffd3f90] [c0000000000218a8] .call_do_softirq+0x14/0x24
-[  287.464507] [c0000001fffcfdf0] [c0000000000107e0] .do_softirq+0xd0/0x100
-[  287.464511] [c0000001fffcfe80] [c00000000009aba8] .irq_exit+0x1b8/0x1d0
-[  287.464514] [c0000001fffcff10] [c000000000010410] .__do_irq+0xc0/0x1e0
-[  287.464518] [c0000001fffcff90] [c0000000000218cc] .call_do_irq+0x14/0x24
-[  287.464522] [c0000000010a76d0] [c0000000000105bc] .do_IRQ+0x8c/0x100
-[  287.464527] --- Exception: 501 at 0xffff
-[  287.464527]     LR = .arch_local_irq_restore+0x74/0x90
-[  287.464533] [c0000000010a7770] [c000000000002494] hardware_interrupt_common+0x114/0x180 (unreliable)
-[  287.464540] --- Exception: 501 at .plpar_hcall_norets+0x84/0xd4
-[  287.464540]     LR = .check_and_cede_processor+0x24/0x40
-[  287.464546] [c0000000010a7a60] [0000000000000001] 0x1 (unreliable)
-[  287.464550] [c0000000010a7ad0] [c000000000074ecc] .shared_cede_loop+0x2c/0x70
-[  287.464555] [c0000000010a7b50] [c0000000005538f4] .cpuidle_enter_state+0x64/0x150
-[  287.464559] [c0000000010a7c10] [c000000000553ad0] .cpuidle_idle_call+0xf0/0x300
-[  287.464563] [c0000000010a7cc0] [c0000000000695c0] .pseries_lpar_idle+0x10/0x50
-[  287.464568] [c0000000010a7d30] [c000000000016ee4] .arch_cpu_idle+0x64/0x150
-[  287.464572] [c0000000010a7db0] [c0000000000f6504] .cpu_startup_entry+0x1a4/0x2d0
-[  287.464577] [c0000000010a7e80] [c00000000000bd04] .rest_init+0x94/0xb0
-[  287.464582] [c0000000010a7ef0] [c000000000a044d0] .start_kernel+0x4b0/0x4cc
-[  287.464586] [c0000000010a7f90] [c000000000009d30] .start_here_common+0x20/0x70
-[  287.464589] Instruction dump:
-[  287.464591] 60000000 60420000 2c240000 7c6a1b78 41c20088 e9240090 88630001 7ca82b78
-[  287.464598] 2fa90000 3863ffd0 7c6307b4 419e002c <e8c90000> e8e40050 2fa70000 419e004c
-[  287.464606] ---[ end trace c469801a8c53d8f1 ]---
-[  287.466576]
-[  287.466582] Sending IPI to other CPUs
-[  287.468526] IPI complete
+Good catch, this is a leftover from before LRU_REMOVED_RETRY.  Removed
+the ad-hoc counter altogether.
 
+> > +static struct shrinker workingset_shadow_shrinker = {
+> > +	.count_objects = count_shadow_nodes,
+> > +	.scan_objects = scan_shadow_nodes,
+> > +	.seeks = DEFAULT_SEEKS * 4,
+> > +	.flags = SHRINKER_NUMA_AWARE,
+> > +};
+> 
+> Can you add a comment explaining how you calculated the .seeks
+> value? It's important to document the weighings/importance
+> we give to slab reclaim so we can determine if it's actually
+> acheiving the desired balance under different loads...
 
---XsQoSWH+UP9D9v3l--
+This is not an exact science, to say the least.
+
+The shadow entries are mostly self-regulated, so I don't want the
+shrinker to interfere while the machine is just regularly trimming
+caches during normal operation.
+
+It should only kick in when either a) reclaim is picking up and the
+scan-to-reclaim ratio increases due to mapped pages, dirty cache,
+swapping etc. or b) the number of objects compared to LRU pages
+becomes excessive.
+
+I think that is what most shrinkers with an elevated seeks value want,
+but this translates very awkwardly (and not completely) to the current
+cost model, and we should probably rework that interface.
+
+"Seeks" currently encodes 3 ratios:
+
+  1. the cost of creating an object vs. a page
+
+  2. the expected number of objects vs. pages
+
+  3. the cost of reclaiming an object vs. a page
+
+but they are not necessarily correlated.  How I would like to
+configure the shadow shrinker instead is:
+
+  o scan objects when reclaim efficiency is down to 75%, because they
+    are more valuable than use-once cache but less than workingset
+
+  o scan objects when the ratio between them and the number of pages
+    exceeds 1/32 (one shadow entry for each resident page, up to 64
+    entries per shrinkable object, assume 50% packing for robustness)
+
+  o as the expected balance between objects and lru pages is 1:32,
+    reclaim one object for every 32 reclaimed LRU pages, instead of
+    assuming that number of scanned pages corresponds meaningfully to
+    number of objects to scan.
+
+"4" just doesn't have the same ring to it.
+
+It would be great if we could eliminate the reclaim cost assumption by
+turning the nr_to_scan into a nr_to_reclaim, and then set the other
+two ratios independently.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
