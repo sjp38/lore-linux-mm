@@ -1,184 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id E83B56B0035
-	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 09:31:20 -0500 (EST)
-Received: by mail-pd0-f172.google.com with SMTP id p10so2641387pdj.17
-        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 06:31:20 -0800 (PST)
-Received: from m50-135.163.com (m50-135.163.com. [123.125.50.135])
-        by mx.google.com with ESMTP id gm1si1706784pac.100.2014.01.20.06.31.17
-        for <linux-mm@kvack.org>;
-        Mon, 20 Jan 2014 06:31:19 -0800 (PST)
-Message-ID: <52DD332D.4010206@163.com>
-Date: Mon, 20 Jan 2014 22:31:09 +0800
-From: Li Wang <dragonylffly@163.com>
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E6906B0035
+	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 10:14:18 -0500 (EST)
+Received: by mail-wi0-f178.google.com with SMTP id cc10so3273033wib.17
+        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 07:14:17 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ib3si946589wjb.48.2014.01.20.07.14.16
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 20 Jan 2014 07:14:17 -0800 (PST)
+Date: Mon, 20 Jan 2014 15:14:09 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH RESEND part2 v2 1/8] x86: get pg_data_t's memory from
+ other node
+Message-ID: <20140120151409.GU4963@suse.de>
+References: <529D3FC0.6000403@cn.fujitsu.com>
+ <529D4048.9070000@cn.fujitsu.com>
+ <20140116171112.GB24740@suse.de>
+ <52DCD065.7040408@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: [LSF/MM ATTEND] Fadvise Extensions for Directory Level Cache Cleaning
- and POSIX_FADV_NOREUSE
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <52DCD065.7040408@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Chen Tang <imtangchen@gmail.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>
 
-Hello,
-   It will be appreciated if I have a chance to discuss the fadvise 
-extension topic at
-the incoming LSF/MM summit. I am also very interested in the topics on
-VFS, MM, SSD optimization as well as ext4, xfs, ceph and so on.
-  In the last year, I have been involved in Ceph development, the 
-features done/ongoing include
-punch hole support, inline data support, cephfs quota support, cephfs 
-fuse file lock support etc,
-as well as some bug fixes and performance evaluations.
+On Mon, Jan 20, 2014 at 03:29:41PM +0800, Tang Chen wrote:
+> Hi Mel,
+> 
+> On 01/17/2014 01:11 AM, Mel Gorman wrote:
+> >On Tue, Dec 03, 2013 at 10:22:00AM +0800, Zhang Yanfei wrote:
+> >>From: Yasuaki Ishimatsu<isimatu.yasuaki@jp.fujitsu.com>
+> >>
+> >>If system can create movable node which all memory of the node is allocated
+> >>as ZONE_MOVABLE, setup_node_data() cannot allocate memory for the node's
+> >>pg_data_t. So, invoke memblock_alloc_nid(...MAX_NUMNODES) again to retry when
+> >>the first allocation fails. Otherwise, the system could failed to boot.
+> >>(We don't use memblock_alloc_try_nid() to retry because in this function,
+> >>if the allocation fails, it will panic the system.)
+> >>
+> >
+> >This implies that it is possible to ahve a configuration with a big ratio
+> >difference between Normal:Movable memory. In such configurations there
+> >would be a risk that the system will reclaim heavily or go OOM because
+> >the kernrel cannot allocate memory due to a relatively small Normal
+> >zone. What protects against that? Is the user ever warned if the ratio
+> >between Normal:Movable very high?
+> 
+> For now, there is no way protecting against this. But on a modern
+> server, it won't be
+> that easy running out of memory when booting, I think.
+> 
 
-The proposal is below, comments/suggestions are welcome.
 
-Fadvise Extensions for Directory Level Cache Cleaning and POSIX_FADV_NOREUSE
+Booting is a basic functional requirement and I'm more concerned about the
+behaviour of the kernel when the machine is running.  If the kernel trashes
+heavily or goes OOM when a workload starts then the fact the machine booted
+is not much comfort.
 
-1 Motivation
+> The current implementation will set any node the kernel resides in
+> as unhotpluggable,
+> which means normal zone here. And for nowadays server, especially
+> memory hotplug server,
+> each node would have at least 16GB memory, which is enough for the
+> kernel to boot.
+> 
 
-1.1 Directory Level Cache Cleaning
+Again, booting is fine but least say it's an 8-node machine then that
+implies the Normal:Movable ratio will be 1:8. All page table pages, inode,
+dentries etc will have to fit in that 1/8th of memory with all the associated
+costs including remote access penalties.  In extreme cases it may not be
+possible to use all of memory because the management structures cannot be
+allocated. Users may want the option of adjusting what this ratio is so
+they can unplug some memory while not completely sacrificing performance.
 
-VFS relies on LRU-like page cache eviction algorithm to reclaim cache space,
-since LRU is not aware of application semantics, it may incorrectly evict
-going-to-be referenced pages out, resulting in severe performance degradation
-due to cache thrashing, especially under high memory pressure situation.
-Applications have the most semantic knowledge, they can always do better if
-they are given a chance. This motivates to endow the applications more abilities
-to manipulate the vfs cache.
+Minimally, the kernel should print a big fat warning if the ratio is equal
+or more than 1:3 Normal:Movable. That ratio selection is arbitrary. I do not
+recall ever seeing any major Normal:Highmem bugs on 4G 32-bit machines so it
+is a conservative choice. The last Normal:Highmem bug I remember was related
+to a 16G 32-bit machine (https://bugzilla.kernel.org/show_bug.cgi?id=42578)
+a 1:15 ratio feels very optimistic for a very large machine.
 
-Currently, Linux support file system wide cache cleaning by virtue of
-proc interface 'drop-caches', but it is very coarse granularity and
-was originally proposed for debugging. The other is to do file-level
-page cache cleaning through 'fadvise', however, since there is no way of
-determining whether a path name is in the dentry cache,
-simply calling fadvise(name, DONTNEED) will very likely pollute the cache rather
-than cleaning it. Even there is a cache query API available,
-it will incur heavy system call overhead, especially in massive small-file
-situations. This motivates to extend fadvise() to support directory level
-cache cleaning. Currently, the original implementation is available at
-https://lkml.org/lkml/2013/12/30/147, and received some constructive comments.
-We think there are some designs need be put under discussion, and we summarize
-them in Section 2.1.
+> We can add a patch to make it return to the original path if we run
+> out of memory,
+> which means turn off the functionality and warn users in log.
+> 
+> How do you think ?
+> 
 
-1.2 POSIX_FADV_NOREUSE
+I think that will allow the machine to boot but that there still will be a
+large number of bugs filed with these machines due to high Normal:Movable
+ratios. The shape of the bug reports will be similar to the Normal:Highmem
+ratio bugs that existed years ago.
 
-POSIX_FADV_NOREUSE is useful for backup and data streaming applications.
-There are already some efforts on POSIX_FADV_NOREUSE implementation, the latest
-seems to be https://lkml.org/lkml/2012/2/11/133. The alternative ways can be
-(a) Use fadvise(DONTNEED) instead; (b) Use container-based approach, such as
-setting memory.file.limit_in_bytes. However, both (a) and (b) have limitations.
-(a) may impolitely destroy other application's work set, which is not a desirable
-behavior; (b) is kind of rude, and the threshold may have to be carefully tuned,
-otherwise it may cause applications to start swapping or even worse. In addition,
-we are not sure if it shares the same issue with (a). This motivates to develop a
-simple yet efficient POSIX_FADV_NOREUSE implementation.
+> > The movable_node boot parameter still
+> >turns the feature on and off, there appears to be no way of controlling
+> >the ratio of memory other than booting with the minimum amount of memory
+> >and manually hot-adding the sections to set the appropriate ratio.
+> 
+> For now, yes. We expect firmware and hardware to give the basic
+> ratio (how much memory
+> is hotpluggable), and the user decides how to arrange the memory
+> (decide the size of
+> normal zone and movable zone).
+> 
 
-2 Designs to be discussed
+There seems to be big gaps in the configuration options here. The user
+can either ask it to be automatically assigned and have no control of
+the ratio or manually hot-add the memory which is a relatively heavy
+administrative burden.
 
-Since these are both suggestive interfaces, the overall idea behind our design
-is to minimize the modification to current MM magic, stay the implementation as
-simple as possible.
+I think they should be warned if the ratio is high and have an option of
+specifying a ratio manually even if that means that additional nodes
+will not be hot-removable.
 
-2.1 Directory Level Cache Cleaning
+This is all still a kludge around the fact that node memory hot-remove
+did not try and cope with full migration by breaking some of the 1:1
+virt:phys mapping assumptions when hot-remove was enabled.
 
-For directory level cache cleaning, fadivse(fd, DONTNEED) will clean all the page
-caches as well as unreferenced dentry caches and inode caches inside the directory fd.
-  
-(1) For page cache cleaning, the policy in our original design is to collect those
-inodes not on any LRU list into our private list for further cleaning. However, as
-pointed out by Andrew and Dave, most inodes are actually on the LRU list, hence this
-policy will leave many inodes fail to be processed. And, since we want to reuse the
-inode->i_lru rather than adding a new list_head field into inode, we will encounter a
-problem that we can not determine whether an inode is on superblock LRU list or on our
-private list. While a fadvise() caller A is trying to collect an inode, it may happen
-that another fadvise() caller B has already gathered the inode into his private LRU
-list, then it will end up that A grabs inode from B's list, and the worse thing is,
-the operations on B'list are not synchronized within multiple fadvise() callers.
-To address this, We have two candidates,
-
-(a) Introduce a new inode state I_PRIVATE, indicating the inode is on a private list.
-While collecting one inode into private list, the flag is set on it, and cleared after
-finishing page cache invalidation. Fadvise() caller will check the flag prior to
-collecting one inode into his private list. This avoids the race between one fadvise()
-caller is adding a new inode to his list and another caller is grabbing a inode from
-this list.
-
-(b) Introduce a global list as well as a global lock. The inodes to be manipulated are
-always collected into the global list, protected by the global lock. Given the cache
-cleaning is not a frequent operation, the performance impact is negligible.
-
-(2) For dentry cache cleaning, shrink_dcache_parent() meets most of our demands except
-it does not take permission into account, the caller should not touch the dentries and
-inodes which he does not own appropriate permission. There are also two ways to perform
-the check,
-
-(a) Check if the caller has permission on parent directory, i.e,
-inode_permission(dentry->d_parent->d_inode, MAY_WRITE | MAY_EXEC)
-
-(b) Check if the caller has permission on corresponding inode, i.e,
-(inode_owner_or_capable(dentry->d_inode) || capable(CAP_SYS_ADMIN))
-
-(3) For dentry cache cleaning, if dentries are freed, there seems no easy way to walk
-all inodes inside a specific directory, our idea lies in that before freeing those
-unreferenced dentries, gather the inodes referenced by them into a private list, __iget()
-the inodes and mark I_PRIVATE on (if the I_PRIVATE scheme is acceptable). Thereafter from
-where we can still find those inodes to further free them.
-
-(4) For inode cache cleaning, in most situations, iput_final() will put unreferenced
-inodes into superblock lru list rather than freeing them. To free the inodes in our
-private list, it seems there is not a handy API to use. The process could be, for each
-inode in our list, hold the inode lock, clear I_PRIVATE, detach from list, atomic decrease
-its reference count. If the reference count reaches zero, there are two possible ways,
-
-(a) Introduce a new inode state I_FORCE_FREE, and mark it on, then pass the inode into
-iput_final(). iput_final() is with tiny modifications to be able to recognize the flag,
-who will then invoke evict() to free the inode rather than adding it to super block LRU list.
-
-(b) Wrap iput_final() into __iput_final(struct inode *inode, bool force_free), we call
-__iput_final(inode, TRUE), define iput_final() to static inline __iput_final(inode, FALSE).
-
-2.2 POSIX_FADV_NOREUSE Implementation
-
-Our key idea behind is to translate 'The application will access the page once' into
-'The access leaves no side-effect on the page'. For current MM implementation, normal access
-will has side-effect on the page accessed, i.e, it will increase the temperature of the page,
-in a way of from inactive to active or from unreferenced to referenced. Against normal
-access, NOREUSE is intended to tell the MM system that the access will leave the page as it
-is. This can be detailed as follows,
-
-(a) If a page is accessed for the first time, after NOREUSE access, it is kept inactive
-and unreferenced, then it will potentially get reclaimed soon since it has a lowest
-temperature, unless a later NON-NOREUSE access increases its temperature. Here we do not
-explicitly immediately free the page after access, this is for three reasons, the first is
-the semantics of NOREUSE differs from DONTNEED, NOREUSE does not mean the page should
-be dropped  immediately; the second is synchronously freeing the page will more or less
-slow down the read performance; And the last, a near-future reference of the page by
-other applications will have a chance to hit in the cache.
-
-(b) If a page is accessed before, in other words, it is active or referenced, then it may
-belong to the work set of other applications, and will very likely be accessed again.
-NOREUSE just makes a silent access, without changing any status of the page.
-
-Another assumption is that file wide NOREUSE is enough to capture most of the usages, the
-fine granularity of interval-level NOREUSE is not desirable given its rare use and its
-implementation complexity. So this results in the following simple NOREUSE implementation,
-
-(1) Introduce a new fmode FMODE_NOREUSE, set it on when calling fadvise(NOREUSE)
-(2) do_generic_file_read():
-From:
-if (prev_index != index || offset != prev_offset)
-     mark_page_accessed(page);
-To:
-if ((prev_index != index || offset != prev_offset) && !(filp->f_mode & FMODE_NOREUSE))
-     mark_page_accessed(page);
-     
-There are no more than ten LOC to go.
-
-Cheers,
-Li Wang
-
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
