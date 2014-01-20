@@ -1,58 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 754BE6B0035
-	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 09:13:50 -0500 (EST)
-Received: by mail-wg0-f54.google.com with SMTP id x13so6808126wgg.21
-        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 06:13:49 -0800 (PST)
-Received: from cam-admin0.cambridge.arm.com (cam-admin0.cambridge.arm.com. [217.140.96.50])
-        by mx.google.com with ESMTP id cc14si940682wib.54.2014.01.20.06.13.48
-        for <linux-mm@kvack.org>;
-        Mon, 20 Jan 2014 06:13:48 -0800 (PST)
-Date: Mon, 20 Jan 2014 14:11:57 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v7 5/6] MCS Lock: allow architectures to hook in to
- contended paths
-Message-ID: <20140120141157.GC9868@mudshark.cambridge.arm.com>
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 10E6E6B0035
+	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 09:22:25 -0500 (EST)
+Received: by mail-wg0-f45.google.com with SMTP id n12so6842895wgh.0
+        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 06:22:25 -0800 (PST)
+Received: from mail-ee0-x235.google.com (mail-ee0-x235.google.com [2a00:1450:4013:c00::235])
+        by mx.google.com with ESMTPS id g6si829403wjb.159.2014.01.20.06.22.25
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 20 Jan 2014 06:22:25 -0800 (PST)
+Received: by mail-ee0-f53.google.com with SMTP id t10so3444432eei.26
+        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 06:22:24 -0800 (PST)
+Date: Mon, 20 Jan 2014 15:22:21 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v7 0/6] MCS Lock: MCS lock code cleanup and optimizations
+Message-ID: <20140120142221.GA12626@gmail.com>
 References: <cover.1389890175.git.tim.c.chen@linux.intel.com>
- <1389917311.3138.15.camel@schen9-DESK>
- <20140120121948.GD31570@twins.programming.kicks-ass.net>
+ <1389917284.3138.10.camel@schen9-DESK>
+ <20140120135847.GG31570@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140120121948.GD31570@twins.programming.kicks-ass.net>
+In-Reply-To: <20140120135847.GG31570@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Mon, Jan 20, 2014 at 12:19:48PM +0000, Peter Zijlstra wrote:
-> On Thu, Jan 16, 2014 at 04:08:31PM -0800, Tim Chen wrote:
-> > +#ifndef arch_mcs_spin_lock_contended
-> > +/*
-> > + * Using smp_load_acquire() provides a memory barrier that ensures
-> > + * subsequent operations happen after the lock is acquired.
-> > + */
-> > +#define arch_mcs_spin_lock_contended(l)					\
-> > +	while (!(smp_load_acquire(l))) {				\
-> > +		arch_mutex_cpu_relax();					\
-> > +	}
-> > +#endif
+
+* Peter Zijlstra <peterz@infradead.org> wrote:
+
+> On Thu, Jan 16, 2014 at 04:08:04PM -0800, Tim Chen wrote:
+> > This is an update of the MCS lock patch series posted in November.
 > 
-> I think that wants to be:
+> Aside from the smallish gripes I posted about;
 > 
-> #define arch_mcs_spin_lock_contended(l)				\
-> do {								\
-> 	while (!smp_load_acquire(l))				\
-> 		arch_mutex_cpu_relax();				\
-> } while (0)
-> 
-> So that we properly eat the ';' in: arch_mcs_spin_lock_contended(l);.
+> Acked-by: Peter Zijlstra <peterz@infradead.org>
 
-Yeah, that's better.
+Okay - can apply them to the locking tree once those gripes (and any 
+other review feedback) are fixed and if no-one is unhappy with the 
+patches.
 
-Tim: are you happy making that change please?
+Thanks,
 
-Will
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
