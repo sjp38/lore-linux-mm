@@ -1,64 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f41.google.com (mail-bk0-f41.google.com [209.85.214.41])
-	by kanga.kvack.org (Postfix) with ESMTP id D0BAF6B0035
-	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 11:31:23 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id na10so287143bkb.0
-        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 08:31:23 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id qw9si2050101bkb.1.2014.01.20.08.31.21
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Jan 2014 08:31:21 -0800 (PST)
-Date: Mon, 20 Jan 2014 17:31:03 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 3/7] numa,sched: build per numa_group active node mask
- from faults_from statistics
-Message-ID: <20140120163103.GI31570@twins.programming.kicks-ass.net>
-References: <1389993129-28180-1-git-send-email-riel@redhat.com>
- <1389993129-28180-4-git-send-email-riel@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1389993129-28180-4-git-send-email-riel@redhat.com>
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 712A96B0035
+	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 11:44:00 -0500 (EST)
+Received: by mail-pb0-f53.google.com with SMTP id md12so2185467pbc.40
+        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 08:44:00 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id qv10si2061303pbb.52.2014.01.20.08.43.58
+        for <linux-mm@kvack.org>;
+        Mon, 20 Jan 2014 08:43:59 -0800 (PST)
+Subject: Re: [PATCH v7 5/6] MCS Lock: allow architectures to hook in to
+ contended paths
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <20140120141157.GC9868@mudshark.cambridge.arm.com>
+References: <cover.1389890175.git.tim.c.chen@linux.intel.com>
+	 <1389917311.3138.15.camel@schen9-DESK>
+	 <20140120121948.GD31570@twins.programming.kicks-ass.net>
+	 <20140120141157.GC9868@mudshark.cambridge.arm.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 20 Jan 2014 08:43:45 -0800
+Message-ID: <1390236225.3138.21.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: riel@redhat.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, chegu_vinod@hp.com, mgorman@suse.de, mingo@redhat.com
+To: Will Deacon <will.deacon@arm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Fri, Jan 17, 2014 at 04:12:05PM -0500, riel@redhat.com wrote:
->  /*
-> + * Iterate over the nodes from which NUMA hinting faults were triggered, in
-> + * other words where the CPUs that incurred NUMA hinting faults are. The
-> + * bitmask is used to limit NUMA page migrations, and spread out memory
-> + * between the actively used nodes. To prevent flip-flopping, and excessive
-> + * page migrations, nodes are added when they cause over 40% of the maximum
-> + * number of faults, but only removed when they drop below 20%.
-> + */
-> +static void update_numa_active_node_mask(struct task_struct *p)
-> +{
-> +	unsigned long faults, max_faults = 0;
-> +	struct numa_group *numa_group = p->numa_group;
-> +	int nid;
-> +
-> +	for_each_online_node(nid) {
-> +		faults = numa_group->faults_from[task_faults_idx(nid, 0)] +
-> +			 numa_group->faults_from[task_faults_idx(nid, 1)];
-> +		if (faults > max_faults)
-> +			max_faults = faults;
-> +	}
-> +
-> +	for_each_online_node(nid) {
-> +		faults = numa_group->faults_from[task_faults_idx(nid, 0)] +
-> +			 numa_group->faults_from[task_faults_idx(nid, 1)];
-> +		if (!node_isset(nid, numa_group->active_nodes)) {
-> +			if (faults > max_faults * 4 / 10)
-> +				node_set(nid, numa_group->active_nodes);
-> +		} else if (faults < max_faults * 2 / 10)
-> +			node_clear(nid, numa_group->active_nodes);
-> +	}
-> +}
+On Mon, 2014-01-20 at 14:11 +0000, Will Deacon wrote:
+> On Mon, Jan 20, 2014 at 12:19:48PM +0000, Peter Zijlstra wrote:
+> > On Thu, Jan 16, 2014 at 04:08:31PM -0800, Tim Chen wrote:
+> > > +#ifndef arch_mcs_spin_lock_contended
+> > > +/*
+> > > + * Using smp_load_acquire() provides a memory barrier that ensures
+> > > + * subsequent operations happen after the lock is acquired.
+> > > + */
+> > > +#define arch_mcs_spin_lock_contended(l)					\
+> > > +	while (!(smp_load_acquire(l))) {				\
+> > > +		arch_mutex_cpu_relax();					\
+> > > +	}
+> > > +#endif
+> > 
+> > I think that wants to be:
+> > 
+> > #define arch_mcs_spin_lock_contended(l)				\
+> > do {								\
+> > 	while (!smp_load_acquire(l))				\
+> > 		arch_mutex_cpu_relax();				\
+> > } while (0)
+> > 
+> > So that we properly eat the ';' in: arch_mcs_spin_lock_contended(l);.
+> 
+> Yeah, that's better.
+> 
+> Tim: are you happy making that change please?
+> 
+> Will
 
-Why not use 6/16 and 3/16 resp.? That avoids an actual division.
+Sure, will do.
+
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
