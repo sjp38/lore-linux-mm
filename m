@@ -1,64 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 712A96B0035
-	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 11:44:00 -0500 (EST)
-Received: by mail-pb0-f53.google.com with SMTP id md12so2185467pbc.40
-        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 08:44:00 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id qv10si2061303pbb.52.2014.01.20.08.43.58
-        for <linux-mm@kvack.org>;
-        Mon, 20 Jan 2014 08:43:59 -0800 (PST)
-Subject: Re: [PATCH v7 5/6] MCS Lock: allow architectures to hook in to
- contended paths
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <20140120141157.GC9868@mudshark.cambridge.arm.com>
-References: <cover.1389890175.git.tim.c.chen@linux.intel.com>
-	 <1389917311.3138.15.camel@schen9-DESK>
-	 <20140120121948.GD31570@twins.programming.kicks-ass.net>
-	 <20140120141157.GC9868@mudshark.cambridge.arm.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 20 Jan 2014 08:43:45 -0800
-Message-ID: <1390236225.3138.21.camel@schen9-DESK>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E60A6B0037
+	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 11:48:03 -0500 (EST)
+Received: by mail-we0-f171.google.com with SMTP id w61so7179404wes.16
+        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 08:48:02 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ci3si1236942wib.74.2014.01.20.08.48.02
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 20 Jan 2014 08:48:02 -0800 (PST)
+Date: Mon, 20 Jan 2014 17:48:01 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH TRIVIAL] memcg: remove unused code from
+ kmem_cache_destroy_work_func
+Message-ID: <20140120164801.GF2626@dhcp22.suse.cz>
+References: <1390209723-11869-1-git-send-email-vdavydov@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1390209723-11869-1-git-send-email-vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 2014-01-20 at 14:11 +0000, Will Deacon wrote:
-> On Mon, Jan 20, 2014 at 12:19:48PM +0000, Peter Zijlstra wrote:
-> > On Thu, Jan 16, 2014 at 04:08:31PM -0800, Tim Chen wrote:
-> > > +#ifndef arch_mcs_spin_lock_contended
-> > > +/*
-> > > + * Using smp_load_acquire() provides a memory barrier that ensures
-> > > + * subsequent operations happen after the lock is acquired.
-> > > + */
-> > > +#define arch_mcs_spin_lock_contended(l)					\
-> > > +	while (!(smp_load_acquire(l))) {				\
-> > > +		arch_mutex_cpu_relax();					\
-> > > +	}
-> > > +#endif
-> > 
-> > I think that wants to be:
-> > 
-> > #define arch_mcs_spin_lock_contended(l)				\
-> > do {								\
-> > 	while (!smp_load_acquire(l))				\
-> > 		arch_mutex_cpu_relax();				\
-> > } while (0)
-> > 
-> > So that we properly eat the ';' in: arch_mcs_spin_lock_contended(l);.
-> 
-> Yeah, that's better.
-> 
-> Tim: are you happy making that change please?
-> 
-> Will
+OK, it seems as a left over from an earlier code reworks but
+22933152934f3 doesn't seem to contain any code following that if-else
+so maybe review driven changes.
 
-Sure, will do.
+On Mon 20-01-14 13:22:03, Vladimir Davydov wrote:
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 
-Tim
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  mm/memcontrol.c |    6 ++----
+>  1 file changed, 2 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 7f1a356..7f1511d 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3311,11 +3311,9 @@ static void kmem_cache_destroy_work_func(struct work_struct *w)
+>  	 * So if we aren't down to zero, we'll just schedule a worker and try
+>  	 * again
+>  	 */
+> -	if (atomic_read(&cachep->memcg_params->nr_pages) != 0) {
+> +	if (atomic_read(&cachep->memcg_params->nr_pages) != 0)
+>  		kmem_cache_shrink(cachep);
+> -		if (atomic_read(&cachep->memcg_params->nr_pages) == 0)
+> -			return;
+> -	} else
+> +	else
+>  		kmem_cache_destroy(cachep);
+>  }
+>  
+> -- 
+> 1.7.10.4
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
