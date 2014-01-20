@@ -1,187 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
-	by kanga.kvack.org (Postfix) with ESMTP id B44B56B0031
-	for <linux-mm@kvack.org>; Sat, 18 Jan 2014 17:06:05 -0500 (EST)
-Received: by mail-ob0-f175.google.com with SMTP id wn1so206673obc.20
-        for <linux-mm@kvack.org>; Sat, 18 Jan 2014 14:06:05 -0800 (PST)
-Received: from g4t0014.houston.hp.com (g4t0014.houston.hp.com. [15.201.24.17])
-        by mx.google.com with ESMTPS id ds9si14092174obc.60.2014.01.18.14.06.03
+Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
+	by kanga.kvack.org (Postfix) with ESMTP id F40BD6B0035
+	for <linux-mm@kvack.org>; Sun, 19 Jan 2014 20:05:55 -0500 (EST)
+Received: by mail-yk0-f174.google.com with SMTP id 10so3021390ykt.5
+        for <linux-mm@kvack.org>; Sun, 19 Jan 2014 17:05:55 -0800 (PST)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id 69si19069790yhc.66.2014.01.19.17.05.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 18 Jan 2014 14:06:04 -0800 (PST)
-Message-ID: <52DAFAC7.7080307@hp.com>
-Date: Sat, 18 Jan 2014 14:05:59 -0800
-From: Chegu Vinod <chegu_vinod@hp.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 19 Jan 2014 17:05:54 -0800 (PST)
+Received: by mail-pa0-f51.google.com with SMTP id ld10so4003771pab.24
+        for <linux-mm@kvack.org>; Sun, 19 Jan 2014 17:05:53 -0800 (PST)
+Date: Mon, 20 Jan 2014 09:05:33 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [Resend] Puzzling behaviour with multiple swap targets
+Message-ID: <20140120010533.GA24605@kernel.org>
+References: <52D9248F.6030901@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 0/7] pseudo-interleaving for automatic NUMA balancing
-References: <1389993129-28180-1-git-send-email-riel@redhat.com>
-In-Reply-To: <1389993129-28180-1-git-send-email-riel@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52D9248F.6030901@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: riel@redhat.com, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, peterz@infradead.org, mgorman@suse.de, mingo@redhat.com
+To: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Christian Borntraeger <borntraeger@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Eberhard Pasch <epasch@de.ibm.com>
 
-On 1/17/2014 1:12 PM, riel@redhat.com wrote:
-> The current automatic NUMA balancing code base has issues with
-> workloads that do not fit on one NUMA load. Page migration is
-> slowed down, but memory distribution between the nodes where
-> the workload runs is essentially random, often resulting in a
-> suboptimal amount of memory bandwidth being available to the
-> workload.
->
-> In order to maximize performance of workloads that do not fit in one NUMA
-> node, we want to satisfy the following criteria:
-> 1) keep private memory local to each thread
-> 2) avoid excessive NUMA migration of pages
-> 3) distribute shared memory across the active nodes, to
->     maximize memory bandwidth available to the workload
->
-> This patch series identifies the NUMA nodes on which the workload
-> is actively running, and balances (somewhat lazily) the memory
-> between those nodes, satisfying the criteria above.
->
-> As usual, the series has had some performance testing, but it
-> could always benefit from more testing, on other systems.
->
-> Changes since v1:
->   - fix divide by zero found by Chegu Vinod
->   - improve comment, as suggested by Peter Zijlstra
->   - do stats calculations in task_numa_placement in local variables
->
->
-> Some performance numbers, with two 40-warehouse specjbb instances
-> on an 8 node system with 10 CPU cores per node, using a pre-cleanup
-> version of these patches, courtesy of Chegu Vinod:
->
-> numactl manual pinning
-> spec1.txt:           throughput =     755900.20 SPECjbb2005 bops
-> spec2.txt:           throughput =     754914.40 SPECjbb2005 bops
->
-> NO-pinning results (Automatic NUMA balancing, with patches)
-> spec1.txt:           throughput =     706439.84 SPECjbb2005 bops
-> spec2.txt:           throughput =     729347.75 SPECjbb2005 bops
->
-> NO-pinning results (Automatic NUMA balancing, without patches)
-> spec1.txt:           throughput =     667988.47 SPECjbb2005 bops
-> spec2.txt:           throughput =     638220.45 SPECjbb2005 bops
->
-> No Automatic NUMA and NO-pinning results
-> spec1.txt:           throughput =     544120.97 SPECjbb2005 bops
-> spec2.txt:           throughput =     453553.41 SPECjbb2005 bops
->
->
-> My own performance numbers are not as relevant, since I have been
-> running with a more hostile workload on purpose, and I have run
-> into a scheduler issue that caused the workload to run on only
-> two of the four NUMA nodes on my test system...
->
-> .
->
+On Fri, Jan 17, 2014 at 01:39:43PM +0100, Christian Ehrhardt wrote:
+> Hi,
+> 
+> /*
+>  * RESEND - due the vacation time we all hopefully shared this might
+>  * have slipped through mail filters and mass deletes - so I wanted to
+>  * give the question another chance.
+>  */
+> 
+> I've analyzed swapping for a while now. I made some progress tuning
+> my system for better, faster and more efficient swapping. However
+> one thing still eludes me.
+> I think by asking here we can only win. Either it is trivial to you
+> and I get a better understanding or you can take it as brain teaser
+> over Christmas time :-)
+> 
+> Long Story Short - the Issue:
+> The more Swap targets I use, the slower the swapping becomes.
+> 
+> 
+> Details - Issue:
+> As mentioned before I made a lot of analysis already including
+> simplifications of the testcase.
+> Therefore I only describe the most simplified setup and scenario.
+> I run a testcase (see below) accessing overcommitted (1.25:1) memory
+> in 4k chunks selecting the offset randomly.
+> When swapping to a single disk I achieve about 20% more throughput
+> compared to just taking this disk, partitioning it into 4 equal
+> pieces and activate those as swap.
+> The workload does read only in that overcommitted memory.
+> 
+> According to my understanding for read only the exact location
+> shouldn't matter.
+> The fault will find a page that was swapped out and discarded, start
+> the I/O to bring it back going via the swap extends.
+> There is just no code caring a lot about the partitions in the
+> fault-IN path.
+> Also as the workload is uniform random locality on disk should be
+> irrelevant as the accesses to the four partitions will be mapped to
+> just the same disk.
+> 
+> Still the number of partitions on the same physical resource changes
+> the throughput I can achieve on memory.
+> 
+> 
+> 
+> Details - Setup
+> My Main System is a System zEnterprise zEC12 s390 machine with 10GB Memory.
+> I have 2 CPUs (FYI the issue appears no matter how much cpus - tested 1-64).
+> The working set of the workload is 12.5 GB,so the overcommit ratio
+> is a light 1.25:1 (also tested from 1.02 up to 3:1 - it was visible
+> in each case, but 1.25:1 was the most stable)
+> As swap device I use 1 FCP attached Disk served by a IBM DS8870
+> attached via 8x8Gb FCP adapters on Server and Storage Server.
+> The disk holds 256GB which leaves my case far away from 50% swap.
+> Initially I used multiple disks, but the problem is more puzzling
+> (as it leaves less room for speculation) when just changing the
+> #partitions on the same physical resource.
+> 
+> I verified it on an IBM X5 (Xeon X7560) and while the (local raid 5)
+> disk devices there are much slower, they still show the same issue
+> when comparing 1 disk 1 partition vs the same 1 disk 4 partitions.
+> 
+> 
+> 
+> Remaining Leads:
+> Using iostat to compare swap disk activity vs what my testcase can
+> achieve in memory identified that the "bad case" is less efficient.
+> That means it doesn't have less/slower disk I/O, no in fact it has
+> usually slightly more disk I/O at about the same performance
+> characteristics than the "good case".
+> That implies that the "efficiency" in the good case is better
+> meaning that it is more likely to have the "correct next page" at
+> hand and in swap cache.
+> That is confirmed by the fact that setting page_cluster to 0
+> eliminates the difference of 1 to many partitions.
+> Unfortunately the meet at the lower throughput level.
+> Also I don't see what the mm/swap code can make right/wrong for a
+> workload accessing 4k pages in a randomized way.
+> There should be no statistically relevant value in the locality of
+> the workload that can be handled right.
+> 
+> 
+> 
+> Rejected theories:
+> I tested a lot of things already and some made it into tunings (IO
+> scheduler, page_cluster, ...), but non of them fixed the "more swap
+> targets -> slower" issue.
+> - locking: Lockstat showed nothing changing a lot between 1 and 4
+> partitions. In fact the 5 most busy locks were related to huge pages
+> and disabling those got rid of the locks in lockstat, but didn't
+> affect the throughput at all.
+> - scsi/blkdev: as complex multipath setups can often be a source of
+> issues I used a special s390 only memory device called xpram. It
+> essentially is a block device that fulfils I/O requests at
+> make_request level at memory speed. That sped up my test a lot, but
+> taking the same xpram memory once in one chunk and once broken into
+> 4 pieces it still was worse with the four pieces.
+> - already fixed: there was an upstream patch commit ec8acf20 "swap:
+> add per-partition lock for swapfile" from "Shaohua Li
+> <shli@kernel.org>" that pretty much sounds like the same issue. But
+> it was already applied.
+> - Kernel Versions: while the majority of my tests were on 3.10.7 I
+> tested up to 3.12.2 and still saw the same issue.
+> - Scaling in general: when I go from 1 to 4 partitions on a single
+> disk I see the mentioned ~20% drop in throughput.
+>   But going further like 6 disks with 4 partitions each is at almost
+> the same level.
+>   So it gets a bit worse, but the black magic seems to happen between 1->4.
 
+Is the swap disk a SSD? If not, there is no point to partition the disk. Do you
+see any changes in iostat in the bad/good case, for example, request size,
+iodepth? 
 
-Acked-by:  Chegu Vinod <chegu_vinod@hp.com>
+There is one patch can avoid swapin reads more than swapout for random case,
+but still not in upstream yet. You can try it here:
+https://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/mm/swap_state.c?id=5d19b04a2dae73382fb607f16e2acfb594d1c63f
 
-----
-
-Here are some results using the v2 version of the patches
-on an 8 socket box using SPECjbb2005 as a workload :
-
-I) Eight 1-socket wide instances(10 warehouse threads each) :
-
-                                                              Without 
-patches    With patches
---------------------    ----------------
-a) numactl pinning results
-spec1.txt:           throughput =                     270620.04 273675.10
-spec2.txt:           throughput =                     274115.33 272845.17
-spec3.txt:           throughput =                     277830.09 272057.33
-spec4.txt:           throughput =                     270898.52 270670.54
-spec5.txt:           throughput =                     270397.30 270906.82
-spec6.txt:           throughput =                     270451.93 268217.55
-spec7.txt:           throughput =                     269511.07 269354.46
-spec8.txt:           throughput =                     269386.06 270540.00
-
-b)Automatic NUMA balancing results
-spec1.txt:           throughput =                     244333.41 248072.72
-spec2.txt:           throughput =                     252166.99 251818.30
-spec3.txt:           throughput =                     251365.58 258266.24
-spec4.txt:           throughput =                     245247.91 256873.51
-spec5.txt:           throughput =                     245579.68 247743.18
-spec6.txt:           throughput =                     249767.38 256285.86
-spec7.txt:           throughput =                     244570.64 255343.99
-spec8.txt:           throughput =                     245703.60 254434.36
-
-c)NO Automatic NUMA balancing and NO-pinning results
-spec1.txt:           throughput =                     132959.73 136957.12
-spec2.txt:           throughput =                     127937.11 129326.23
-spec3.txt:           throughput =                     130697.10 125772.11
-spec4.txt:           throughput =                     134978.49 141607.58
-spec5.txt:           throughput =                     127574.34 126748.18
-spec6.txt:           throughput =                     138699.99 128597.95
-spec7.txt:           throughput =                     133247.25 137344.57
-spec8.txt:           throughput =                     124548.00 139040.98
-
-------
-
-II) Four 2-socket wide instances(20 warehouse threads each) :
-
-                                                              Without 
-patches    With patches
---------------------    ----------------
-a) numactl pinning results
-spec1.txt:           throughput =                     479931.16 472467.58
-spec2.txt:           throughput =                     466652.15 466237.10
-spec3.txt:           throughput =                     473591.51 466891.98
-spec4.txt:           throughput =                     462346.62 466891.98
-
-b)Automatic NUMA balancing results
-spec1.txt:           throughput =                     383758.29 437489.99
-spec2.txt:           throughput =                     370926.06 435692.97
-spec3.txt:           throughput =                     368872.72 444615.08
-spec4.txt:           throughput =                     404422.82 435236.20
-
-c)NO Automatic NUMA balancing and NO-pinning results
-spec1.txt:           throughput =                     252752.12 231762.30
-spec2.txt:           throughput =                     255391.51 253250.95
-spec3.txt:           throughput =                     264764.00 263721.03
-spec4.txt:           throughput =                     254833.39 242892.72
-
-------
-
-III) Two 4-socket wide instances(40 warehouse threads each)
-
-                                                              Without 
-patches    With patches
---------------------    ----------------
-a) numactl pinning results
-spec1.txt:           throughput =                     771340.84 769039.53
-spec2.txt:           throughput =                     762184.48 760745.65
-
-b)Automatic NUMA balancing results
-spec1.txt:           throughput =                     667182.98 720197.01
-spec2.txt:           throughput =                     692564.11 739872.51
-
-c)NO Automatic NUMA balancing and NO-pinning results
-spec1.txt:           throughput = 457079.28      467199.30
-spec2.txt:           throughput = 479790.47      456279.07
-
------
-
-IV) One 8-socket wide instance(80 warehouse threads)
-
-                                                              Without 
-patches    With patches
---------------------    ----------------
-a) numactl pinning results
-spec1.txt:           throughput =                     982113.03 985836.96
-
-b)Automatic NUMA balancing results
-spec1.txt:           throughput =                     755615.94 843632.09
-
-c)NO Automatic NUMA balancing and NO-pinning results
-spec1.txt:           throughput =                     671583.26 661768.54
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
