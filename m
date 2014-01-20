@@ -1,38 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 3056F6B0035
-	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 05:37:41 -0500 (EST)
-Received: by mail-pb0-f45.google.com with SMTP id un15so3157212pbc.18
-        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 02:37:40 -0800 (PST)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id ot3si925436pac.137.2014.01.20.02.37.35
+Received: from mail-ea0-f177.google.com (mail-ea0-f177.google.com [209.85.215.177])
+	by kanga.kvack.org (Postfix) with ESMTP id E87E36B0035
+	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 06:28:44 -0500 (EST)
+Received: by mail-ea0-f177.google.com with SMTP id n15so3057939ead.8
+        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 03:28:44 -0800 (PST)
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com. [195.75.94.107])
+        by mx.google.com with ESMTPS id n47si1762162eey.119.2014.01.20.03.28.43
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 20 Jan 2014 02:37:39 -0800 (PST)
-Message-ID: <52DCFC33.80008@huawei.com>
-Date: Mon, 20 Jan 2014 18:36:35 +0800
-From: Jianguo Wu <wujianguo@huawei.com>
-MIME-Version: 1.0
-Subject: [question] how to figure out OOM reason? should dump slab/vmalloc
- info when OOM?
-Content-Type: text/plain; charset="UTF-8"
+        Mon, 20 Jan 2014 03:28:43 -0800 (PST)
+Received: from /spool/local
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <phacht@linux.vnet.ibm.com>;
+	Mon, 20 Jan 2014 11:28:42 -0000
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id C39F82190069
+	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 11:28:37 +0000 (GMT)
+Received: from d06av11.portsmouth.uk.ibm.com (d06av11.portsmouth.uk.ibm.com [9.149.37.252])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0KBSRnM36831314
+	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 11:28:27 GMT
+Received: from d06av11.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av11.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0KBScPl013271
+	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 04:28:38 -0700
+Date: Mon, 20 Jan 2014 12:28:35 +0100
+From: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm/nobootmem: Fix unused variable
+Message-ID: <20140120122835.35e6d366@lilie>
+In-Reply-To: <20140117133831.2a9306a03f9c6174ff096e48@linux-foundation.org>
+References: <1389879186-43649-1-git-send-email-phacht@linux.vnet.ibm.com>
+	<20140117133831.2a9306a03f9c6174ff096e48@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: hannes@cmpxchg.org, liuj97@gmail.com, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, iamjoonsoo.kim@lge.com, robin.m.holt@gmail.com, yinghai@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>
 
-When OOM happen, will dump buddy free areas info, hugetlb pages info,
-memory state of all eligible tasks, per-cpu memory info.
-But do not dump slab/vmalloc info, sometime, it's not enough to figure out the
-reason OOM happened.
 
-So, my questions are:
-1. Should dump slab/vmalloc info when OOM happen? Though we can get these from proc file,
-but usually we do not monitor the logs and check proc file immediately when OOM happened.
+Am Fri, 17 Jan 2014 13:38:31 -0800
+schrieb Andrew Morton <akpm@linux-foundation.org>:
 
-2. /proc/$pid/smaps and pagecache info also helpful when OOM, should also be dumped?
+> Yes, that is a bit of an eyesore.  We often approach the problem this
+> way, which is nicer:
 
-3. Without these info, usually how to figure out OOM reason?
+> [ ... ]
+> #ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
+> 	{
+> 		phys_addr_t size;
+> 
+> 		[ ... ]
+>	}
+> #endif
+
+This is a very nice idea! I have updated my fix. This leads to a V5
+patch series (which I will post now) because the following to patches
+had to be slightly updated
+to fit on top of the fix.
+
+Kind regards
+
+Philipp
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
