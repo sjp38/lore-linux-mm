@@ -1,77 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 499ED6B0035
-	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 02:27:20 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id kq14so6700747pab.3
-        for <linux-mm@kvack.org>; Sun, 19 Jan 2014 23:27:19 -0800 (PST)
-Received: from song.cn.fujitsu.com ([222.73.24.84])
-        by mx.google.com with ESMTP id sa6si172525pbb.353.2014.01.19.23.27.11
-        for <linux-mm@kvack.org>;
-        Sun, 19 Jan 2014 23:27:18 -0800 (PST)
-Message-ID: <52DCD065.7040408@cn.fujitsu.com>
-Date: Mon, 20 Jan 2014 15:29:41 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH RESEND part2 v2 1/8] x86: get pg_data_t's memory from
- other node
-References: <529D3FC0.6000403@cn.fujitsu.com> <529D4048.9070000@cn.fujitsu.com> <20140116171112.GB24740@suse.de>
-In-Reply-To: <20140116171112.GB24740@suse.de>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 89C056B0035
+	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 02:51:24 -0500 (EST)
+Received: by mail-pb0-f48.google.com with SMTP id rr13so6637764pbb.7
+        for <linux-mm@kvack.org>; Sun, 19 Jan 2014 23:51:24 -0800 (PST)
+Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
+        by mx.google.com with ESMTPS id ad3si325921pad.90.2014.01.19.23.51.22
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Sun, 19 Jan 2014 23:51:23 -0800 (PST)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout4.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MZO00826WHK0Q80@mailout4.samsung.com> for
+ linux-mm@kvack.org; Mon, 20 Jan 2014 16:51:20 +0900 (KST)
+From: Cai Liu <cai.liu@samsung.com>
+Subject: [PATCH v2]  mm/zswap: Check all pool pages instead of one pool pages
+Date: Mon, 20 Jan 2014 15:50:18 +0800
+Message-id: <000701cf15b4$6822c740$386855c0$@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Content-language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Chen Tang <imtangchen@gmail.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>
+To: 'Minchan Kim' <minchan@kernel.org>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Seth Jennings' <sjenning@linux.vnet.ibm.com>, 'Bob Liu' <bob.liu@oracle.com>
+Cc: 'Linux-MM' <linux-mm@kvack.org>, 'Linux-Kernel' <linux-kernel@vger.kernel.org>, liucai.lfn@gmail.com, cai.liu@samsung.com
 
-Hi Mel,
+zswap can support multiple swapfiles. So we need to check
+all zbud pool pages in zswap.
 
-On 01/17/2014 01:11 AM, Mel Gorman wrote:
-> On Tue, Dec 03, 2013 at 10:22:00AM +0800, Zhang Yanfei wrote:
->> From: Yasuaki Ishimatsu<isimatu.yasuaki@jp.fujitsu.com>
->>
->> If system can create movable node which all memory of the node is allocated
->> as ZONE_MOVABLE, setup_node_data() cannot allocate memory for the node's
->> pg_data_t. So, invoke memblock_alloc_nid(...MAX_NUMNODES) again to retry when
->> the first allocation fails. Otherwise, the system could failed to boot.
->> (We don't use memblock_alloc_try_nid() to retry because in this function,
->> if the allocation fails, it will panic the system.)
->>
->
-> This implies that it is possible to ahve a configuration with a big ratio
-> difference between Normal:Movable memory. In such configurations there
-> would be a risk that the system will reclaim heavily or go OOM because
-> the kernrel cannot allocate memory due to a relatively small Normal
-> zone. What protects against that? Is the user ever warned if the ratio
-> between Normal:Movable very high?
+Version 2:
+  * add *total_zbud_pages* in zbud to record all the pages in pools
+  * move the updating of pool pages statistics to
+    alloc_zbud_page/free_zbud_page to hide the details
 
-For now, there is no way protecting against this. But on a modern 
-server, it won't be
-that easy running out of memory when booting, I think.
+Signed-off-by: Cai Liu <cai.liu@samsung.com>
+---
+ include/linux/zbud.h |    2 +-
+ mm/zbud.c            |   44 ++++++++++++++++++++++++++++++++------------
+ mm/zswap.c           |    4 ++--
+ 3 files changed, 35 insertions(+), 15 deletions(-)
 
-The current implementation will set any node the kernel resides in as 
-unhotpluggable,
-which means normal zone here. And for nowadays server, especially memory 
-hotplug server,
-each node would have at least 16GB memory, which is enough for the 
-kernel to boot.
-
-We can add a patch to make it return to the original path if we run out 
-of memory,
-which means turn off the functionality and warn users in log.
-
-How do you think ?
-
->  The movable_node boot parameter still
-> turns the feature on and off, there appears to be no way of controlling
-> the ratio of memory other than booting with the minimum amount of memory
-> and manually hot-adding the sections to set the appropriate ratio.
-
-For now, yes. We expect firmware and hardware to give the basic ratio 
-(how much memory
-is hotpluggable), and the user decides how to arrange the memory (decide 
-the size of
-normal zone and movable zone).
-
+diff --git a/include/linux/zbud.h b/include/linux/zbud.h
+index 2571a5c..1dbc13e 100644
+--- a/include/linux/zbud.h
++++ b/include/linux/zbud.h
+@@ -17,6 +17,6 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle);
+ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries);
+ void *zbud_map(struct zbud_pool *pool, unsigned long handle);
+ void zbud_unmap(struct zbud_pool *pool, unsigned long handle);
+-u64 zbud_get_pool_size(struct zbud_pool *pool);
++u64 zbud_get_pool_size(void);
+ 
+ #endif /* _ZBUD_H_ */
+diff --git a/mm/zbud.c b/mm/zbud.c
+index 9451361..711aaf4 100644
+--- a/mm/zbud.c
++++ b/mm/zbud.c
+@@ -52,6 +52,13 @@
+ #include <linux/spinlock.h>
+ #include <linux/zbud.h>
+ 
++/*********************************
++* statistics
++**********************************/
++
++/* zbud pages in all pools */
++static u64 total_zbud_pages;
++
+ /*****************
+  * Structures
+ *****************/
+@@ -142,10 +149,28 @@ static struct zbud_header *init_zbud_page(struct page *page)
+ 	return zhdr;
+ }
+ 
++static struct page *alloc_zbud_page(struct zbud_pool *pool, gfp_t gfp)
++{
++	struct page *page;
++
++	page = alloc_page(gfp);
++
++	if (page) {
++		pool->pages_nr++;
++		total_zbud_pages++;
++	}
++
++	return page;
++}
++
++
+ /* Resets the struct page fields and frees the page */
+-static void free_zbud_page(struct zbud_header *zhdr)
++static void free_zbud_page(struct zbud_pool *pool, struct zbud_header *zhdr)
+ {
+ 	__free_page(virt_to_page(zhdr));
++
++	pool->pages_nr--;
++	total_zbud_pages--;
+ }
+ 
+ /*
+@@ -279,11 +304,10 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+ 
+ 	/* Couldn't find unbuddied zbud page, create new one */
+ 	spin_unlock(&pool->lock);
+-	page = alloc_page(gfp);
++	page = alloc_zbud_page(pool, gfp);
+ 	if (!page)
+ 		return -ENOMEM;
+ 	spin_lock(&pool->lock);
+-	pool->pages_nr++;
+ 	zhdr = init_zbud_page(page);
+ 	bud = FIRST;
+ 
+@@ -349,8 +373,7 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
+ 	if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
+ 		/* zbud page is empty, free */
+ 		list_del(&zhdr->lru);
+-		free_zbud_page(zhdr);
+-		pool->pages_nr--;
++		free_zbud_page(pool, zhdr);
+ 	} else {
+ 		/* Add to unbuddied list */
+ 		freechunks = num_free_chunks(zhdr);
+@@ -447,8 +470,7 @@ next:
+ 			 * Both buddies are now free, free the zbud page and
+ 			 * return success.
+ 			 */
+-			free_zbud_page(zhdr);
+-			pool->pages_nr--;
++			free_zbud_page(pool, zhdr);
+ 			spin_unlock(&pool->lock);
+ 			return 0;
+ 		} else if (zhdr->first_chunks == 0 ||
+@@ -496,14 +518,12 @@ void zbud_unmap(struct zbud_pool *pool, unsigned long handle)
+ 
+ /**
+  * zbud_get_pool_size() - gets the zbud pool size in pages
+- * @pool:	pool whose size is being queried
+  *
+- * Returns: size in pages of the given pool.  The pool lock need not be
+- * taken to access pages_nr.
++ * Returns: size in pages of all the zbud pools.
+  */
+-u64 zbud_get_pool_size(struct zbud_pool *pool)
++u64 zbud_get_pool_size(void)
+ {
+-	return pool->pages_nr;
++	return total_zbud_pages;
+ }
+ 
+ static int __init init_zbud(void)
+diff --git a/mm/zswap.c b/mm/zswap.c
+index 5a63f78..ef44d9d 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -291,7 +291,7 @@ static void zswap_free_entry(struct zswap_tree *tree,
+ 	zbud_free(tree->pool, entry->handle);
+ 	zswap_entry_cache_free(entry);
+ 	atomic_dec(&zswap_stored_pages);
+-	zswap_pool_pages = zbud_get_pool_size(tree->pool);
++	zswap_pool_pages = zbud_get_pool_size();
+ }
+ 
+ /* caller must hold the tree lock */
+@@ -716,7 +716,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+ 
+ 	/* update stats */
+ 	atomic_inc(&zswap_stored_pages);
+-	zswap_pool_pages = zbud_get_pool_size(tree->pool);
++	zswap_pool_pages = zbud_get_pool_size();
+ 
+ 	return 0;
+ 
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
