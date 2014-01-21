@@ -1,77 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 754106B0075
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 16:24:01 -0500 (EST)
-Received: by mail-wg0-f46.google.com with SMTP id x12so8390429wgg.13
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 13:24:00 -0800 (PST)
-Received: from mail.windriver.com (mail.windriver.com. [147.11.1.11])
-        by mx.google.com with ESMTPS id u7si4537667wia.23.2014.01.21.13.23.59
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 21 Jan 2014 13:24:00 -0800 (PST)
-From: Paul Gortmaker <paul.gortmaker@windriver.com>
-Subject: [PATCH 02/73] mm: replace module_init usages with subsys_initcall in nommu.c
-Date: Tue, 21 Jan 2014 16:22:05 -0500
-Message-ID: <1390339396-3479-3-git-send-email-paul.gortmaker@windriver.com>
-In-Reply-To: <1390339396-3479-1-git-send-email-paul.gortmaker@windriver.com>
-References: <1390339396-3479-1-git-send-email-paul.gortmaker@windriver.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id ED4076B0078
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 16:39:46 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id y10so5169743pdj.12
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 13:39:46 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id xy6si6951551pab.298.2014.01.21.13.39.43
+        for <linux-mm@kvack.org>;
+        Tue, 21 Jan 2014 13:39:45 -0800 (PST)
+Subject: Re: [PATCH v8 3/6] MCS Lock: optimizations and extra comments
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <CAGQ1y=6SDNen_w4AVdbmvwat5RjuDb7OCtb_aUQzfqwJU3fMDw@mail.gmail.com>
+References: <cover.1390239879.git.tim.c.chen@linux.intel.com>
+	 <1390267468.3138.37.camel@schen9-DESK>
+	 <CAGQ1y=6SDNen_w4AVdbmvwat5RjuDb7OCtb_aUQzfqwJU3fMDw@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 21 Jan 2014 13:39:02 -0800
+Message-ID: <1390340342.3138.59.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-arch@vger.kernel.org, Paul Gortmaker <paul.gortmaker@windriver.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Jason Low <jason.low2@hp.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Will Deacon <will.deacon@arm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-Compiling some arm/m68k configs with "# CONFIG_MMU is not set" reveals
-two more instances of module_init being used for code that can't
-possibly be modular, as CONFIG_MMU is either on or off.
+On Tue, 2014-01-21 at 13:01 -0800, Jason Low wrote:
+> /*
+>  * Lock acquired, don't need to set node->locked to 1. Threads
+>  * only spin on its own node->locked value for lock acquisition.
+>  * However, since this thread can immediately acquire the lock
+>  * and does not proceed to spin on its own node->locked, this
+>  * value won't be used. If a debug mode is needed to
+>  * audit lock status, then set node->locked value here.
+>  */ 
 
-We replace them with subsys_initcall as per what was done in other
-mmu-enabled code.
+I'll update the comment accordingly.
 
-Note that direct use of __initcall is discouraged, vs.  one of the
-priority categorized subgroups.  As __initcall gets mapped onto
-device_initcall, our use of subsys_initcall (which makes sense for these
-files) will thus change this registration from level 6-device to level
-4-subsys (i.e.  slightly earlier).
-
-One might think that core_initcall (l2) or postcore_initcall (l3) would
-be more appropriate for anything in mm/ but if we look at the actual init
-functions themselves, we see they are just sysctl setup stuff, and
-hence the choice of subsys_initcall (l4) seems reasonable.  At the same
-time it minimizes the risk of changing the priority too drastically all
-at once.  We can adjust further in the future.
-
-Also, a couple instances of missing ";" at EOL are fixed.
-
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
-Signed-off-by: Paul Gortmaker <paul.gortmaker@windriver.com>
----
- mm/nommu.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 8740213..37b04f8 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -2144,7 +2144,7 @@ static int __meminit init_user_reserve(void)
- 	sysctl_user_reserve_kbytes = min(free_kbytes / 32, 1UL << 17);
- 	return 0;
- }
--module_init(init_user_reserve)
-+subsys_initcall(init_user_reserve);
- 
- /*
-  * Initialise sysctl_admin_reserve_kbytes.
-@@ -2165,4 +2165,4 @@ static int __meminit init_admin_reserve(void)
- 	sysctl_admin_reserve_kbytes = min(free_kbytes / 32, 1UL << 13);
- 	return 0;
- }
--module_init(init_admin_reserve)
-+subsys_initcall(init_admin_reserve);
--- 
-1.8.4.1
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
