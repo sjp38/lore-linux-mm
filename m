@@ -1,54 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 360D06B0035
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 05:45:29 -0500 (EST)
-Received: by mail-wi0-f182.google.com with SMTP id ex4so4159708wid.15
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 02:45:28 -0800 (PST)
-Received: from mail-ee0-x234.google.com (mail-ee0-x234.google.com [2a00:1450:4013:c00::234])
-        by mx.google.com with ESMTPS id cu5si2963306wjc.50.2014.01.21.02.45.28
+Received: from mail-ee0-f47.google.com (mail-ee0-f47.google.com [74.125.83.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 006996B0036
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 05:45:58 -0500 (EST)
+Received: by mail-ee0-f47.google.com with SMTP id d49so3180788eek.6
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 02:45:58 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l2si8535741een.167.2014.01.21.02.45.57
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 21 Jan 2014 02:45:28 -0800 (PST)
-Received: by mail-ee0-f52.google.com with SMTP id e53so3929361eek.25
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 02:45:28 -0800 (PST)
-Date: Tue, 21 Jan 2014 11:45:21 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v8 6/6] MCS Lock: Allow architecture specific asm files
- to be used for contended case
-Message-ID: <20140121104521.GA4105@gmail.com>
-References: <cover.1390239879.git.tim.c.chen@linux.intel.com>
- <1390267479.3138.40.camel@schen9-DESK>
- <20140121102000.GT31570@twins.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140121102000.GT31570@twins.programming.kicks-ass.net>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 21 Jan 2014 02:45:58 -0800 (PST)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH -mm 1/2] memcg: fix endless loop caused by mem_cgroup_iter
+Date: Tue, 21 Jan 2014 11:45:42 +0100
+Message-Id: <1390301143-9541-1-git-send-email-mhocko@suse.cz>
+In-Reply-To: <20140121083454.GA1894@dhcp22.suse.cz>
+References: <20140121083454.GA1894@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
+Hugh has reported an endless loop when the hardlimit reclaim sees the
+same group all the time. This might happen when the reclaim races with
+the memcg removal.
 
-* Peter Zijlstra <peterz@infradead.org> wrote:
+shrink_zone
+                                                [rmdir root]
+  mem_cgroup_iter(root, NULL, reclaim)
+    // prev = NULL
+    rcu_read_lock()
+    mem_cgroup_iter_load
+      last_visited = iter->last_visited   // gets root || NULL
+      css_tryget(last_visited)            // failed
+      last_visited = NULL                 [1]
+    memcg = root = __mem_cgroup_iter_next(root, NULL)
+    mem_cgroup_iter_update
+      iter->last_visited = root;
+    reclaim->generation = iter->generation
 
-> On Mon, Jan 20, 2014 at 05:24:39PM -0800, Tim Chen wrote:
-> > diff --git a/arch/alpha/include/asm/Kbuild b/arch/alpha/include/asm/Kbuild
-> > index f01fb50..14cbbbc 100644
-> > --- a/arch/alpha/include/asm/Kbuild
-> > +++ b/arch/alpha/include/asm/Kbuild
-> > @@ -4,3 +4,4 @@ generic-y += clkdev.h
-> >  generic-y += exec.h
-> >  generic-y += trace_clock.h
-> >  generic-y += preempt.h
-> > +generic-y += mcs_spinlock.h
-> 
-> m < p
+ mem_cgroup_iter(root, root, reclaim)
+   // prev = root
+   rcu_read_lock
+    mem_cgroup_iter_load
+      last_visited = iter->last_visited   // gets root
+      css_tryget(last_visited)            // failed
+    [1]
 
-Hm, did your script not work?
+The issue seemed to be introduced by 5f5781619718 (memcg: relax memcg
+iter caching) which has replaced unconditional css_get/css_put by
+css_tryget/css_put for the cached iterator.
 
-Thanks,
+This patch fixes the issue by skipping css_tryget on the root of the
+tree walk in mem_cgroup_iter_load and symmetrically doesn't release it
+in mem_cgroup_iter_update.
 
-	Ingo
+Stable: stable@vger.kernel.org # 3.10+
+Reported-by: Hugh Dickins <hughd@google.com>
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+---
+ mm/memcontrol.c | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index f016d26adfd3..45786dc129dc 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1117,7 +1117,15 @@ mem_cgroup_iter_load(struct mem_cgroup_reclaim_iter *iter,
+ 	if (iter->last_dead_count == *sequence) {
+ 		smp_rmb();
+ 		position = iter->last_visited;
+-		if (position && !css_tryget(&position->css))
++
++		/*
++		 * We cannot take a reference to root because we might race
++		 * with root removal and returning NULL would end up in
++		 * an endless loop on the iterator user level when root
++		 * would be returned all the time.
++		 */
++		if (position && position != root &&
++				!css_tryget(&position->css))
+ 			position = NULL;
+ 	}
+ 	return position;
+@@ -1126,9 +1134,11 @@ mem_cgroup_iter_load(struct mem_cgroup_reclaim_iter *iter,
+ static void mem_cgroup_iter_update(struct mem_cgroup_reclaim_iter *iter,
+ 				   struct mem_cgroup *last_visited,
+ 				   struct mem_cgroup *new_position,
++				   struct mem_cgroup *root,
+ 				   int sequence)
+ {
+-	if (last_visited)
++	/* root reference counting symmetric to mem_cgroup_iter_load */
++	if (last_visited && last_visited != root)
+ 		css_put(&last_visited->css);
+ 	/*
+ 	 * We store the sequence count from the time @last_visited was
+@@ -1203,7 +1213,8 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+ 		memcg = __mem_cgroup_iter_next(root, last_visited);
+ 
+ 		if (reclaim) {
+-			mem_cgroup_iter_update(iter, last_visited, memcg, seq);
++			mem_cgroup_iter_update(iter, last_visited, memcg, root,
++					seq);
+ 
+ 			if (!memcg)
+ 				iter->generation++;
+-- 
+1.8.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
