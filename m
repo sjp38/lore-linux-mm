@@ -1,87 +1,279 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-gg0-f169.google.com (mail-gg0-f169.google.com [209.85.161.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 17C7F6B0035
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 01:16:38 -0500 (EST)
-Received: by mail-gg0-f169.google.com with SMTP id j5so2468096ggn.14
-        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 22:16:37 -0800 (PST)
-Received: from mail-yk0-x22a.google.com (mail-yk0-x22a.google.com [2607:f8b0:4002:c07::22a])
-        by mx.google.com with ESMTPS id v21si4356824yhm.173.2014.01.20.22.16.36
+Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C3E76B0035
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 01:35:09 -0500 (EST)
+Received: by mail-qc0-f179.google.com with SMTP id e16so6643177qcx.38
+        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 22:35:09 -0800 (PST)
+Received: from mail-qe0-x236.google.com (mail-qe0-x236.google.com [2607:f8b0:400d:c02::236])
+        by mx.google.com with ESMTPS id 75si2364360qgv.97.2014.01.20.22.35.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 20 Jan 2014 22:16:37 -0800 (PST)
-Received: by mail-yk0-f170.google.com with SMTP id 9so2135384ykp.1
-        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 22:16:36 -0800 (PST)
-Date: Mon, 20 Jan 2014 22:16:33 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH V5 1/3] mm/nobootmem: Fix unused variable
-In-Reply-To: <1390217559-14691-2-git-send-email-phacht@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.02.1401202214540.21729@chino.kir.corp.google.com>
-References: <1390217559-14691-1-git-send-email-phacht@linux.vnet.ibm.com> <1390217559-14691-2-git-send-email-phacht@linux.vnet.ibm.com>
+        Mon, 20 Jan 2014 22:35:08 -0800 (PST)
+Received: by mail-qe0-f54.google.com with SMTP id df13so6784071qeb.27
+        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 22:35:07 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20140121050439.GA16664@bbox>
+References: <CAFLCcBqyhL=wfC4uJmpp9MkGExBuPJC4EqY2RHRngnEn_1ytSA@mail.gmail.com>
+	<20140121050439.GA16664@bbox>
+Date: Tue, 21 Jan 2014 14:35:07 +0800
+Message-ID: <CAFLCcBr1_=i3Pdh8_MToS0Dc1UGruviMiydF5c-vX2Bv8AfeAw@mail.gmail.com>
+Subject: Re: [PATCH v2] mm/zswap: Check all pool pages instead of one pool pages
+From: Cai Liu <liucai.lfn@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, liuj97@gmail.com, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, iamjoonsoo.kim@lge.com, robin.m.holt@gmail.com, tangchen@cn.fujitsu.com, yinghai@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Bob Liu <bob.liu@oracle.com>, Cai Liu <cai.liu@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
-On Mon, 20 Jan 2014, Philipp Hachtmann wrote:
+2014/1/21 Minchan Kim <minchan@kernel.org>:
+> Please check your MUA and don't break thread.
+>
+> On Tue, Jan 21, 2014 at 11:07:42AM +0800, Cai Liu wrote:
+>> Thanks for your review.
+>>
+>> 2014/1/21 Minchan Kim <minchan@kernel.org>:
+>> > Hello Cai,
+>> >
+>> > On Mon, Jan 20, 2014 at 03:50:18PM +0800, Cai Liu wrote:
+>> >> zswap can support multiple swapfiles. So we need to check
+>> >> all zbud pool pages in zswap.
+>> >>
+>> >> Version 2:
+>> >>   * add *total_zbud_pages* in zbud to record all the pages in pools
+>> >>   * move the updating of pool pages statistics to
+>> >>     alloc_zbud_page/free_zbud_page to hide the details
+>> >>
+>> >> Signed-off-by: Cai Liu <cai.liu@samsung.com>
+>> >> ---
+>> >>  include/linux/zbud.h |    2 +-
+>> >>  mm/zbud.c            |   44 ++++++++++++++++++++++++++++++++------------
+>> >>  mm/zswap.c           |    4 ++--
+>> >>  3 files changed, 35 insertions(+), 15 deletions(-)
+>> >>
+>> >> diff --git a/include/linux/zbud.h b/include/linux/zbud.h
+>> >> index 2571a5c..1dbc13e 100644
+>> >> --- a/include/linux/zbud.h
+>> >> +++ b/include/linux/zbud.h
+>> >> @@ -17,6 +17,6 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle);
+>> >>  int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries);
+>> >>  void *zbud_map(struct zbud_pool *pool, unsigned long handle);
+>> >>  void zbud_unmap(struct zbud_pool *pool, unsigned long handle);
+>> >> -u64 zbud_get_pool_size(struct zbud_pool *pool);
+>> >> +u64 zbud_get_pool_size(void);
+>> >>
+>> >>  #endif /* _ZBUD_H_ */
+>> >> diff --git a/mm/zbud.c b/mm/zbud.c
+>> >> index 9451361..711aaf4 100644
+>> >> --- a/mm/zbud.c
+>> >> +++ b/mm/zbud.c
+>> >> @@ -52,6 +52,13 @@
+>> >>  #include <linux/spinlock.h>
+>> >>  #include <linux/zbud.h>
+>> >>
+>> >> +/*********************************
+>> >> +* statistics
+>> >> +**********************************/
+>> >> +
+>> >> +/* zbud pages in all pools */
+>> >> +static u64 total_zbud_pages;
+>> >> +
+>> >>  /*****************
+>> >>   * Structures
+>> >>  *****************/
+>> >> @@ -142,10 +149,28 @@ static struct zbud_header *init_zbud_page(struct page *page)
+>> >>       return zhdr;
+>> >>  }
+>> >>
+>> >> +static struct page *alloc_zbud_page(struct zbud_pool *pool, gfp_t gfp)
+>> >> +{
+>> >> +     struct page *page;
+>> >> +
+>> >> +     page = alloc_page(gfp);
+>> >> +
+>> >> +     if (page) {
+>> >> +             pool->pages_nr++;
+>> >> +             total_zbud_pages++;
+>> >
+>> > Who protect race?
+>>
+>> Yes, here the pool->pages_nr and also the total_zbud_pages are not protected.
+>> I will re-do it.
+>>
+>> I will change *total_zbud_pages* to atomic type.
+>
+> Wait, it doesn't make sense. Now, you assume zbud allocator would be used
+> for only zswap. It's true until now but we couldn't make sure it in future.
+> If other user start to use zbud allocator, total_zbud_pages would be pointless.
 
-> diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-> index e2906a5..0215c77 100644
-> --- a/mm/nobootmem.c
-> +++ b/mm/nobootmem.c
-> @@ -116,23 +116,29 @@ static unsigned long __init __free_memory_core(phys_addr_t start,
->  static unsigned long __init free_low_memory_core_early(void)
->  {
->  	unsigned long count = 0;
-> -	phys_addr_t start, end, size;
-> +	phys_addr_t start, end;
->  	u64 i;
->  
-> +#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
-> +	phys_addr_t size;
-> +#endif
-> +
->  	for_each_free_mem_range(i, NUMA_NO_NODE, &start, &end, NULL)
->  		count += __free_memory_core(start, end);
->  
->  #ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
-> -
-> -	/* Free memblock.reserved array if it was allocated */
-> -	size = get_allocated_memblock_reserved_regions_info(&start);
-> -	if (size)
-> -		count += __free_memory_core(start, start + size);
-> -
-> -	/* Free memblock.memory array if it was allocated */
-> -	size = get_allocated_memblock_memory_regions_info(&start);
-> -	if (size)
-> -		count += __free_memory_core(start, start + size);
-> +	{
-> +		phys_addr_t size;
+Yes, you are right.  ZBUD is a common module. So in this patch calculate the
+zswap pool size in zbud is not suitable.
 
-I think you may have misunderstood Andrew's suggestion: "size" here is 
-overloading the "size" you have already declared for this configuration.
+>
+> Another concern is that what's your scenario for above two swap?
+> How often we need to call zbud_get_pool_size?
+> In previous your patch, you reduced the number of call so IIRC,
+> we only called it in zswap_is_full and for debugfs.
 
-Not sure why you don't just do a one line patch:
+zbud_get_pool_size() is called frequently when adding/freeing zswap
+entry happen in zswap . This is why in this patch I added a counter in zbud,
+and then in zswap the iteration of zswap_list to calculate the pool size will
+not be needed.
 
--	phys_addr_t size;
-+	phys_addr_t size __maybe_unused;
+> Of course, it would need some lock or refcount to prevent destroy
+> of zswap_tree in parallel with zswap_frontswap_invalidate_area but
+> zswap_is_full doesn't need to be exact so RCU would be good fit.
+>
+> Most important point is that now zswap doesn't consider multiple swap.
+> For example, Let's assume you uses two swap A and B with different priority
+> and A already has charged 19% long time ago and let's assume that A swap is
+> full now so VM start to use B so that B has charged 1% recently.
+> It menas zswap charged (19% + 1%)i is full by default.
+>
+> Then, if VM want to swap out more pages into B, zbud_reclaim_page
+> would be evict one of pages in B's pool and it would be repeated
+> continuously. It's totally LRU reverse problem and swap thrashing in B
+> would happen.
+>
 
-to fix it.
+The scenario is below:
+There are 2 swap A, B in system. If pool size of A reach 19% of ram
+size and swap A
+is also full. Then swap B will be used. Pool size of B will be
+increased until it hit
+the 20% of the ram size. By now zswap pool size is about 39% of ram size.
+If there are more than 2 swap file/device,  zswap pool will expand out
+of control
+and there may be no swapout happened.
 
-> +		/* Free memblock.reserved array if it was allocated */
-> +		size = get_allocated_memblock_reserved_regions_info(&start);
-> +		if (size)
-> +			count += __free_memory_core(start, start + size);
-> +		
-> +		/* Free memblock.memory array if it was allocated */
-> +		size = get_allocated_memblock_memory_regions_info(&start);
-> +		if (size)
-> +			count += __free_memory_core(start, start + size);
-> +	}
->  #endif
->  
->  	return count;
+I think the original intention of zswap designer is to keep the total
+zswap pools size below
+20% of RAM size.
+
+Thanks.
+
+> Please say your usecase scenario and if it's really problem,
+> we need more surgery.
+>
+> Thanks.
+>
+>> For *pool->pages_nr*, one way is to use pool->lock to protect. But I
+>> think it is too heavy.
+>> So does it ok to change pages_nr to atomic type too?
+>>
+>>
+>> >
+>> >> +     }
+>> >> +
+>> >> +     return page;
+>> >> +}
+>> >> +
+>> >> +
+>> >>  /* Resets the struct page fields and frees the page */
+>> >> -static void free_zbud_page(struct zbud_header *zhdr)
+>> >> +static void free_zbud_page(struct zbud_pool *pool, struct zbud_header *zhdr)
+>> >>  {
+>> >>       __free_page(virt_to_page(zhdr));
+>> >> +
+>> >> +     pool->pages_nr--;
+>> >> +     total_zbud_pages--;
+>> >>  }
+>> >>
+>> >>  /*
+>> >> @@ -279,11 +304,10 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+>> >>
+>> >>       /* Couldn't find unbuddied zbud page, create new one */
+>> >>       spin_unlock(&pool->lock);
+>> >> -     page = alloc_page(gfp);
+>> >> +     page = alloc_zbud_page(pool, gfp);
+>> >>       if (!page)
+>> >>               return -ENOMEM;
+>> >>       spin_lock(&pool->lock);
+>> >> -     pool->pages_nr++;
+>> >>       zhdr = init_zbud_page(page);
+>> >>       bud = FIRST;
+>> >>
+>> >> @@ -349,8 +373,7 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
+>> >>       if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
+>> >>               /* zbud page is empty, free */
+>> >>               list_del(&zhdr->lru);
+>> >> -             free_zbud_page(zhdr);
+>> >> -             pool->pages_nr--;
+>> >> +             free_zbud_page(pool, zhdr);
+>> >>       } else {
+>> >>               /* Add to unbuddied list */
+>> >>               freechunks = num_free_chunks(zhdr);
+>> >> @@ -447,8 +470,7 @@ next:
+>> >>                        * Both buddies are now free, free the zbud page and
+>> >>                        * return success.
+>> >>                        */
+>> >> -                     free_zbud_page(zhdr);
+>> >> -                     pool->pages_nr--;
+>> >> +                     free_zbud_page(pool, zhdr);
+>> >>                       spin_unlock(&pool->lock);
+>> >>                       return 0;
+>> >>               } else if (zhdr->first_chunks == 0 ||
+>> >> @@ -496,14 +518,12 @@ void zbud_unmap(struct zbud_pool *pool, unsigned long handle)
+>> >>
+>> >>  /**
+>> >>   * zbud_get_pool_size() - gets the zbud pool size in pages
+>> >> - * @pool:    pool whose size is being queried
+>> >>   *
+>> >> - * Returns: size in pages of the given pool.  The pool lock need not be
+>> >> - * taken to access pages_nr.
+>> >> + * Returns: size in pages of all the zbud pools.
+>> >>   */
+>> >> -u64 zbud_get_pool_size(struct zbud_pool *pool)
+>> >> +u64 zbud_get_pool_size(void)
+>> >>  {
+>> >> -     return pool->pages_nr;
+>> >> +     return total_zbud_pages;
+>> >>  }
+>> >>
+>> >>  static int __init init_zbud(void)
+>> >> diff --git a/mm/zswap.c b/mm/zswap.c
+>> >> index 5a63f78..ef44d9d 100644
+>> >> --- a/mm/zswap.c
+>> >> +++ b/mm/zswap.c
+>> >> @@ -291,7 +291,7 @@ static void zswap_free_entry(struct zswap_tree *tree,
+>> >>       zbud_free(tree->pool, entry->handle);
+>> >>       zswap_entry_cache_free(entry);
+>> >>       atomic_dec(&zswap_stored_pages);
+>> >> -     zswap_pool_pages = zbud_get_pool_size(tree->pool);
+>> >> +     zswap_pool_pages = zbud_get_pool_size();
+>> >>  }
+>> >>
+>> >>  /* caller must hold the tree lock */
+>> >> @@ -716,7 +716,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+>> >>
+>> >>       /* update stats */
+>> >>       atomic_inc(&zswap_stored_pages);
+>> >> -     zswap_pool_pages = zbud_get_pool_size(tree->pool);
+>> >> +     zswap_pool_pages = zbud_get_pool_size();
+>> >>
+>> >>       return 0;
+>> >>
+>> >> --
+>> >> 1.7.10.4
+>> >>
+>> >> --
+>> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> >> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> >> see: http://www.linux-mm.org/ .
+>> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>> >
+>> > --
+>> > Kind regards,
+>> > Minchan Kim
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+> --
+> Kind regards,
+> Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
