@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f172.google.com (mail-yk0-f172.google.com [209.85.160.172])
-	by kanga.kvack.org (Postfix) with ESMTP id EA9456B0096
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 17:20:32 -0500 (EST)
-Received: by mail-yk0-f172.google.com with SMTP id 200so5318360ykr.3
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 14:20:32 -0800 (PST)
+Received: from mail-gg0-f169.google.com (mail-gg0-f169.google.com [209.85.161.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BE826B0096
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 17:20:33 -0500 (EST)
+Received: by mail-gg0-f169.google.com with SMTP id j5so2800991ggn.14
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 14:20:33 -0800 (PST)
 Received: from shelob.surriel.com (shelob.surriel.com. [2002:4a5c:3b41:1:216:3eff:fe57:7f4])
-        by mx.google.com with ESMTPS id q69si7742742yhd.145.2014.01.21.14.20.28
+        by mx.google.com with ESMTPS id t26si7720915yhl.230.2014.01.21.14.20.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 21 Jan 2014 14:20:30 -0800 (PST)
+        Tue, 21 Jan 2014 14:20:29 -0800 (PST)
 From: riel@redhat.com
-Subject: [PATCH 5/9] numa,sched,mm: use active_nodes nodemask to limit numa migrations
-Date: Tue, 21 Jan 2014 17:20:07 -0500
-Message-Id: <1390342811-11769-6-git-send-email-riel@redhat.com>
+Subject: [PATCH 9/9] numa,sched: define some magic numbers
+Date: Tue, 21 Jan 2014 17:20:11 -0500
+Message-Id: <1390342811-11769-10-git-send-email-riel@redhat.com>
 In-Reply-To: <1390342811-11769-1-git-send-email-riel@redhat.com>
 References: <1390342811-11769-1-git-send-email-riel@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,181 +22,110 @@ Cc: linux-mm@kvack.org, peterz@infradead.org, mgorman@suse.de, mingo@redhat.com,
 
 From: Rik van Riel <riel@redhat.com>
 
-Use the active_nodes nodemask to make smarter decisions on NUMA migrations.
+Cleanup suggested by Mel Gorman. Now the code contains some more
+hints on what statistics go where.
 
-In order to maximize performance of workloads that do not fit in one NUMA
-node, we want to satisfy the following criteria:
-1) keep private memory local to each thread
-2) avoid excessive NUMA migration of pages
-3) distribute shared memory across the active nodes, to
-   maximize memory bandwidth available to the workload
-
-This patch accomplishes that by implementing the following policy for
-NUMA migrations:
-1) always migrate on a private fault
-2) never migrate to a node that is not in the set of active nodes
-   for the numa_group
-3) always migrate from a node outside of the set of active nodes,
-   to a node that is in that set
-4) within the set of active nodes in the numa_group, only migrate
-   from a node with more NUMA page faults, to a node with fewer
-   NUMA page faults, with a 25% margin to avoid ping-ponging
-
-This results in most pages of a workload ending up on the actively
-used nodes, with reduced ping-ponging of pages between those nodes.
-
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Chegu Vinod <chegu_vinod@hp.com>
+Suggested-by: Mel Gorman <mgorman@suse.de>
 Signed-off-by: Rik van Riel <riel@redhat.com>
 ---
- include/linux/sched.h |  7 ++++++
- kernel/sched/fair.c   | 62 +++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/mempolicy.c        | 29 +-----------------------
- 3 files changed, 70 insertions(+), 28 deletions(-)
+ kernel/sched/fair.c | 34 +++++++++++++++++++++++++---------
+ 1 file changed, 25 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index d14d9fe..0bf4ac2 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1602,6 +1602,8 @@ extern void task_numa_fault(int last_node, int node, int pages, int flags);
- extern pid_t task_numa_group_id(struct task_struct *p);
- extern void set_numabalancing_state(bool enabled);
- extern void task_numa_free(struct task_struct *p);
-+extern bool should_numa_migrate_memory(struct task_struct *p, struct page *page,
-+					int src_nid, int dst_nid);
- #else
- static inline void task_numa_fault(int last_node, int node, int pages,
- 				   int flags)
-@@ -1617,6 +1619,11 @@ static inline void set_numabalancing_state(bool enabled)
- static inline void task_numa_free(struct task_struct *p)
- {
- }
-+static inline bool should_numa_migrate_memory(struct task_struct *p,
-+				struct page *page, int src_nid, int dst_nid)
-+{
-+	return true;
-+}
- #endif
- 
- static inline struct pid *task_pid(struct task_struct *task)
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index d4f6df5..ddbf20c 100644
+index 43ca8c4..6b9d27c 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -954,6 +954,68 @@ static inline unsigned long group_weight(struct task_struct *p, int nid)
- 	return 1000 * group_faults(p, nid) / p->numa_group->total_faults;
+@@ -896,6 +896,15 @@ struct numa_group {
+ 	unsigned long faults[0];
+ };
+ 
++/* Shared or private faults. */
++#define NR_NUMA_HINT_FAULT_TYPES 2
++
++/* Memory and CPU locality */
++#define NR_NUMA_HINT_FAULT_STATS (NR_NUMA_HINT_FAULT_TYPES * 2)
++
++/* Averaged statistics, and temporary buffers. */
++#define NR_NUMA_HINT_BUCKETS (NUMA_HINT_FAULT_STATS * 2)
++
+ pid_t task_numa_group_id(struct task_struct *p)
+ {
+ 	return p->numa_group ? p->numa_group->gid : 0;
+@@ -903,7 +912,7 @@ pid_t task_numa_group_id(struct task_struct *p)
+ 
+ static inline int task_faults_idx(int nid, int priv)
+ {
+-	return 2 * nid + priv;
++	return NR_NUMA_HINT_FAULT_TYPES * nid + priv;
  }
  
-+bool should_numa_migrate_memory(struct task_struct *p, struct page * page,
-+				int src_nid, int dst_nid)
-+{
-+	struct numa_group *ng = p->numa_group;
-+	int last_cpupid, this_cpupid;
-+
-+	this_cpupid = cpu_pid_to_cpupid(dst_nid, current->pid);
-+	last_cpupid = page_cpupid_xchg_last(page, this_cpupid);
-+
-+	/*
-+	 * Multi-stage node selection is used in conjunction with a periodic
-+	 * migration fault to build a temporal task<->page relation. By using
-+	 * a two-stage filter we remove short/unlikely relations.
-+	 *
-+	 * Using P(p) ~ n_p / n_t as per frequentist probability, we can equate
-+	 * a task's usage of a particular page (n_p) per total usage of this
-+	 * page (n_t) (in a given time-span) to a probability.
-+	 *
-+	 * Our periodic faults will sample this probability and getting the
-+	 * same result twice in a row, given these samples are fully
-+	 * independent, is then given by P(n)^2, provided our sample period
-+	 * is sufficiently short compared to the usage pattern.
-+	 *
-+	 * This quadric squishes small probabilities, making it less likely we
-+	 * act on an unlikely task<->page relation.
-+	 */
-+	if (!cpupid_pid_unset(last_cpupid) &&
-+				cpupid_to_nid(last_cpupid) != dst_nid)
-+		return false;
-+
-+	/* Always allow migrate on private faults */
-+	if (cpupid_match_pid(p, last_cpupid))
-+		return true;
-+
-+	/* A shared fault, but p->numa_group has not been set up yet. */
-+	if (!ng)
-+		return true;
-+
-+	/*
-+	 * Do not migrate if the destination is not a node that
-+	 * is actively used by this numa group.
-+	 */
-+	if (!node_isset(dst_nid, ng->active_nodes))
-+		return false;
-+
-+	/*
-+	 * Source is a node that is not actively used by this
-+	 * numa group, while the destination is. Migrate.
-+	 */
-+	if (!node_isset(src_nid, ng->active_nodes))
-+		return true;
-+
-+	/*
-+	 * Both source and destination are nodes in active
-+	 * use by this numa group. Maximize memory bandwidth
-+	 * by migrating from more heavily used groups, to less
-+	 * heavily used ones, spreading the load around.
-+	 * Use a 1/4 hysteresis to avoid spurious page movement.
-+	 */
-+	return group_faults(p, dst_nid) < (group_faults(p, src_nid) * 3 / 4);
-+}
-+
- static unsigned long weighted_cpuload(const int cpu);
- static unsigned long source_load(int cpu, int type);
- static unsigned long target_load(int cpu, int type);
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 052abac..95cdfe5 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -2374,37 +2374,10 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
+ static inline unsigned long task_faults(struct task_struct *p, int nid)
+@@ -1514,7 +1523,7 @@ static void task_numa_placement(struct task_struct *p)
+ 		unsigned long faults = 0, group_faults = 0;
+ 		int priv, i;
  
- 	/* Migrate the page towards the node whose CPU is referencing it */
- 	if (pol->flags & MPOL_F_MORON) {
--		int last_cpupid;
--		int this_cpupid;
--
- 		polnid = thisnid;
--		this_cpupid = cpu_pid_to_cpupid(thiscpu, current->pid);
+-		for (priv = 0; priv < 2; priv++) {
++		for (priv = 0; priv < NR_NUMA_HINT_FAULT_TYPES; priv++) {
+ 			long diff, f_diff, f_weight;
  
--		/*
--		 * Multi-stage node selection is used in conjunction
--		 * with a periodic migration fault to build a temporal
--		 * task<->page relation. By using a two-stage filter we
--		 * remove short/unlikely relations.
--		 *
--		 * Using P(p) ~ n_p / n_t as per frequentist
--		 * probability, we can equate a task's usage of a
--		 * particular page (n_p) per total usage of this
--		 * page (n_t) (in a given time-span) to a probability.
--		 *
--		 * Our periodic faults will sample this probability and
--		 * getting the same result twice in a row, given these
--		 * samples are fully independent, is then given by
--		 * P(n)^2, provided our sample period is sufficiently
--		 * short compared to the usage pattern.
--		 *
--		 * This quadric squishes small probabilities, making
--		 * it less likely we act on an unlikely task<->page
--		 * relation.
--		 */
--		last_cpupid = page_cpupid_xchg_last(page, this_cpupid);
--		if (!cpupid_pid_unset(last_cpupid) && cpupid_to_nid(last_cpupid) != thisnid) {
-+		if (!should_numa_migrate_memory(current, page, curnid, polnid))
- 			goto out;
--		}
+ 			i = task_faults_idx(nid, priv);
+@@ -1625,11 +1634,12 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
+ 		INIT_LIST_HEAD(&grp->task_list);
+ 		grp->gid = p->pid;
+ 		/* Second half of the array tracks nids where faults happen */
+-		grp->faults_cpu = grp->faults + 2 * nr_node_ids;
++		grp->faults_cpu = grp->faults + NR_NUMA_HINT_FAULT_TYPES *
++						nr_node_ids;
+ 
+ 		node_set(task_node(current), grp->active_nodes);
+ 
+-		for (i = 0; i < 4*nr_node_ids; i++)
++		for (i = 0; i < NR_NUMA_HINT_FAULT_STATS * nr_node_ids; i++)
+ 			grp->faults[i] = p->numa_faults_memory[i];
+ 
+ 		grp->total_faults = p->total_numa_faults;
+@@ -1687,7 +1697,7 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
+ 
+ 	double_lock(&my_grp->lock, &grp->lock);
+ 
+-	for (i = 0; i < 4*nr_node_ids; i++) {
++	for (i = 0; i < NR_NUMA_HINT_FAULT_STATS * nr_node_ids; i++) {
+ 		my_grp->faults[i] -= p->numa_faults_memory[i];
+ 		grp->faults[i] += p->numa_faults_memory[i];
  	}
+@@ -1726,7 +1736,7 @@ void task_numa_free(struct task_struct *p)
  
- 	if (curnid != polnid)
+ 	if (grp) {
+ 		spin_lock(&grp->lock);
+-		for (i = 0; i < 4*nr_node_ids; i++)
++		for (i = 0; i < NR_NUMA_HINT_FAULT_STATS * nr_node_ids; i++)
+ 			grp->faults[i] -= p->numa_faults_memory[i];
+ 		grp->total_faults -= p->total_numa_faults;
+ 
+@@ -1767,14 +1777,20 @@ void task_numa_fault(int last_cpupid, int mem_node, int pages, int flags)
+ 
+ 	/* Allocate buffer to track faults on a per-node basis */
+ 	if (unlikely(!p->numa_faults_memory)) {
+-		int size = sizeof(*p->numa_faults_memory) * 4 * nr_node_ids;
++		int size = sizeof(*p->numa_faults_memory) *
++			   NR_NUMA_HINT_FAULT_BUCKETS * nr_node_ids;
+ 
+-		/* numa_faults and numa_faults_buffer share the allocation */
+-		p->numa_faults_memory = kzalloc(size * 2, GFP_KERNEL|__GFP_NOWARN);
++		p->numa_faults_memory = kzalloc(size, GFP_KERNEL|__GFP_NOWARN);
+ 		if (!p->numa_faults_memory)
+ 			return;
+ 
+ 		BUG_ON(p->numa_faults_buffer_memory);
++		/*
++		 * The averaged statistics, shared & private, memory & cpu,
++		 * occupy the first half of the array. The second half of the
++		 * array is for current counters, which are averaged into the
++		 * first set by task_numa_placement.
++		 */
+ 		p->numa_faults_cpu = p->numa_faults_memory + (2 * nr_node_ids);
+ 		p->numa_faults_buffer_memory = p->numa_faults_memory + (4 * nr_node_ids);
+ 		p->numa_faults_buffer_cpu = p->numa_faults_memory + (6 * nr_node_ids);
 -- 
 1.8.4.2
 
