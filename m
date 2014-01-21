@@ -1,28 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 8939A6B0035
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 05:42:04 -0500 (EST)
-Received: by mail-wi0-f173.google.com with SMTP id d13so4204726wiw.0
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 02:41:47 -0800 (PST)
-Received: from mail-ea0-x22a.google.com (mail-ea0-x22a.google.com [2a00:1450:4013:c01::22a])
-        by mx.google.com with ESMTPS id hm6si2965199wjb.5.2014.01.21.02.41.47
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 360D06B0035
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 05:45:29 -0500 (EST)
+Received: by mail-wi0-f182.google.com with SMTP id ex4so4159708wid.15
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 02:45:28 -0800 (PST)
+Received: from mail-ee0-x234.google.com (mail-ee0-x234.google.com [2a00:1450:4013:c00::234])
+        by mx.google.com with ESMTPS id cu5si2963306wjc.50.2014.01.21.02.45.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 21 Jan 2014 02:41:47 -0800 (PST)
-Received: by mail-ea0-f170.google.com with SMTP id k10so3673031eaj.1
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 02:41:47 -0800 (PST)
-Date: Tue, 21 Jan 2014 11:41:40 +0100
+        Tue, 21 Jan 2014 02:45:28 -0800 (PST)
+Received: by mail-ee0-f52.google.com with SMTP id e53so3929361eek.25
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 02:45:28 -0800 (PST)
+Date: Tue, 21 Jan 2014 11:45:21 +0100
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v8 4/6] MCS Lock: Move mcs_lock/unlock function into its
- own
-Message-ID: <20140121104140.GA4092@gmail.com>
+Subject: Re: [PATCH v8 6/6] MCS Lock: Allow architecture specific asm files
+ to be used for contended case
+Message-ID: <20140121104521.GA4105@gmail.com>
 References: <cover.1390239879.git.tim.c.chen@linux.intel.com>
- <1390267471.3138.38.camel@schen9-DESK>
- <20140121101915.GS31570@twins.programming.kicks-ass.net>
+ <1390267479.3138.40.camel@schen9-DESK>
+ <20140121102000.GT31570@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140121101915.GS31570@twins.programming.kicks-ass.net>
+In-Reply-To: <20140121102000.GT31570@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>
@@ -31,23 +31,20 @@ Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew M
 
 * Peter Zijlstra <peterz@infradead.org> wrote:
 
-> On Mon, Jan 20, 2014 at 05:24:31PM -0800, Tim Chen wrote:
-> > +EXPORT_SYMBOL_GPL(mcs_spin_lock);
-> > +EXPORT_SYMBOL_GPL(mcs_spin_unlock);
+> On Mon, Jan 20, 2014 at 05:24:39PM -0800, Tim Chen wrote:
+> > diff --git a/arch/alpha/include/asm/Kbuild b/arch/alpha/include/asm/Kbuild
+> > index f01fb50..14cbbbc 100644
+> > --- a/arch/alpha/include/asm/Kbuild
+> > +++ b/arch/alpha/include/asm/Kbuild
+> > @@ -4,3 +4,4 @@ generic-y += clkdev.h
+> >  generic-y += exec.h
+> >  generic-y += trace_clock.h
+> >  generic-y += preempt.h
+> > +generic-y += mcs_spinlock.h
 > 
-> Do we really need the EXPORTs? The only user so far is mutex and that's
-> core code. The other planned users are rwsems and rwlocks, for both it
-> would be in the slow path, which is also core code.
->
-> We should generally only add EXPORTs once theres a need.
+> m < p
 
-In fact I'd argue the hot path needs to be inlined.
-
-We only don't inline regular locking primitives because it would blow 
-up the kernel's size in too many critical places.
-
-But inlining an _internal_ locking implementation used in just a 
-handful of places is a no-brainer...
+Hm, did your script not work?
 
 Thanks,
 
