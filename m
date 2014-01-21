@@ -1,87 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 816716B0035
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 08:57:21 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id kq14so8439659pab.31
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 05:57:21 -0800 (PST)
-Received: from zill.ext.symas.net (zill.ext.symas.net. [69.43.206.106])
-        by mx.google.com with ESMTPS id tb5si5603775pac.46.2014.01.21.05.57.18
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 05B046B0035
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 09:00:28 -0500 (EST)
+Received: by mail-wi0-f170.google.com with SMTP id ex4so5562744wid.3
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 06:00:28 -0800 (PST)
+Received: from mail-ea0-x234.google.com (mail-ea0-x234.google.com [2a00:1450:4013:c01::234])
+        by mx.google.com with ESMTPS id gk11si3506014wic.71.2014.01.21.06.00.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 21 Jan 2014 05:57:19 -0800 (PST)
-Message-ID: <52DE7CBA.8020206@symas.com>
-Date: Tue, 21 Jan 2014 05:57:14 -0800
-From: Howard Chu <hyc@symas.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 21 Jan 2014 06:00:28 -0800 (PST)
+Received: by mail-ea0-f180.google.com with SMTP id f15so3786447eak.11
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 06:00:27 -0800 (PST)
+Date: Tue, 21 Jan 2014 15:00:23 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v8 6/6] MCS Lock: Allow architecture specific asm files
+ to be used for contended case
+Message-ID: <20140121140023.GA4537@gmail.com>
+References: <cover.1390239879.git.tim.c.chen@linux.intel.com>
+ <1390267479.3138.40.camel@schen9-DESK>
+ <20140121102000.GT31570@twins.programming.kicks-ass.net>
+ <20140121104521.GA4105@gmail.com>
+ <20140121105916.GW31570@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] [ATTEND] Persistent memory
-References: <CALCETrUaotUuzn60-bSt1oUb8+94do2QgiCq_TXhqEHj79DePQ@mail.gmail.com> <52D8AEBF.3090803@symas.com> <52D982EB.6010507@amacapital.net> <52DE23E8.9010608@symas.com> <20140121111727.GB13997@dastard>
-In-Reply-To: <20140121111727.GB13997@dastard>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140121105916.GW31570@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Andy Lutomirski <luto@amacapital.net>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-Dave Chinner wrote:
-> On Mon, Jan 20, 2014 at 11:38:16PM -0800, Howard Chu wrote:
->> Andy Lutomirski wrote:
->>> On 01/16/2014 08:17 PM, Howard Chu wrote:
->>>> Andy Lutomirski wrote:
->>>>> I'm interested in a persistent memory track.  There seems to be plenty
->>>>> of other emails about this, but here's my take:
->>>>
->>>> I'm also interested in this track. I'm not up on FS development these
->>>> days, the last time I wrote filesystem code was nearly 20 years ago. But
->>>> persistent memory is a topic near and dear to my heart, and of great
->>>> relevance to my current pet project, the LMDB memory-mapped database.
->>>>
->>>> In a previous era I also developed block device drivers for
->>>> battery-backed external DRAM disks. (My ideal would have been systems
->>>> where all of RAM was persistent. I suppose we can just about get there
->>>> with mobile phones and tablets these days.)
->>>>
->>>> In the context of database engines, I'm interested in leveraging
->>>> persistent memory for write-back caching and how user level code can be
->>>> made aware of it. (If all your cache is persistent and guaranteed to
->>>> eventually reach stable store then you never need to fsync() a
->>>> transaction.)
->
-> I don't think that is true -  your still going to need fsync to get
-> the CPU to flush it's caches and filesystem metadata into the
-> persistent domain....
->
->>> Hmm.  Presumably that would work by actually allocating cache pages in
->>> persistent memory.  I don't think that anything like the current XIP
->>> interfaces can do that, but it's certainly an interesting thought for
->>> (complicated) future work.
->>>
->>> This might not be pretty in conjunction with something like my
->>> writethrough mapping idea -- read(2) and write(2) would be fine (well,
->>> write(2) might need to use streaming loads), but mmap users who weren't
->>> expecting it might have truly awful performance.  That especially
->>> includes things like databases that aren't expecting this behavior.
->>
->> At the moment all I can suggest is a new mmap() flag, e.g.
->> MAP_PERSISTENT. Not sure how a user or app should discover that it's
->> supported though.
->
-> The point of using the XIP interface with filesystems that are
-> backed by persistent memory is that mmap() gives userspace
-> applications direct acess to the persistent memory directly without
-> needing any modifications.  It's just a really, really fast file...
 
-OK, I see that now. But that only works well when your persistent memory size 
-is >= the size of the file(s) you want to work with.
+* Peter Zijlstra <peterz@infradead.org> wrote:
 
-If you use persistent memory for the page cache, then you can use it with any 
-filesystem of any arbitrary size.
+> On Tue, Jan 21, 2014 at 11:45:21AM +0100, Ingo Molnar wrote:
+> > 
+> > * Peter Zijlstra <peterz@infradead.org> wrote:
+> > 
+> > > On Mon, Jan 20, 2014 at 05:24:39PM -0800, Tim Chen wrote:
+> > > > diff --git a/arch/alpha/include/asm/Kbuild b/arch/alpha/include/asm/Kbuild
+> > > > index f01fb50..14cbbbc 100644
+> > > > --- a/arch/alpha/include/asm/Kbuild
+> > > > +++ b/arch/alpha/include/asm/Kbuild
+> > > > @@ -4,3 +4,4 @@ generic-y += clkdev.h
+> > > >  generic-y += exec.h
+> > > >  generic-y += trace_clock.h
+> > > >  generic-y += preempt.h
+> > > > +generic-y += mcs_spinlock.h
+> > > 
+> > > m < p
+> > 
+> > Hm, did your script not work?
+> 
+> It wasn't used, afaict.
 
--- 
-   -- Howard Chu
-   CTO, Symas Corp.           http://www.symas.com
-   Director, Highland Sun     http://highlandsun.com/hyc/
-   Chief Architect, OpenLDAP  http://www.openldap.org/project/
+Something to keep in mind for the next version of this series I 
+suspect ;-)
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
