@@ -1,68 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E89D6B0092
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 17:20:31 -0500 (EST)
-Received: by mail-yk0-f177.google.com with SMTP id 19so6112489ykq.8
+Received: from mail-gg0-f172.google.com (mail-gg0-f172.google.com [209.85.161.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 212F16B0093
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 17:20:32 -0500 (EST)
+Received: by mail-gg0-f172.google.com with SMTP id x14so2823644ggx.31
         for <linux-mm@kvack.org>; Tue, 21 Jan 2014 14:20:31 -0800 (PST)
 Received: from shelob.surriel.com (shelob.surriel.com. [2002:4a5c:3b41:1:216:3eff:fe57:7f4])
-        by mx.google.com with ESMTPS id f67si7758510yhd.82.2014.01.21.14.20.27
+        by mx.google.com with ESMTPS id t26si7733454yhl.180.2014.01.21.14.20.27
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 21 Jan 2014 14:20:27 -0800 (PST)
+        Tue, 21 Jan 2014 14:20:28 -0800 (PST)
 From: riel@redhat.com
-Subject: [PATCH 8/9] numa,sched: rename variables in task_numa_fault
-Date: Tue, 21 Jan 2014 17:20:10 -0500
-Message-Id: <1390342811-11769-9-git-send-email-riel@redhat.com>
-In-Reply-To: <1390342811-11769-1-git-send-email-riel@redhat.com>
-References: <1390342811-11769-1-git-send-email-riel@redhat.com>
+Subject: [PATCH v4 0/9] pseudo-interleaving for automatic NUMA balancing
+Date: Tue, 21 Jan 2014 17:20:02 -0500
+Message-Id: <1390342811-11769-1-git-send-email-riel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, peterz@infradead.org, mgorman@suse.de, mingo@redhat.com, chegu_vinod@hp.com
 
-From: Rik van Riel <riel@redhat.com>
+The current automatic NUMA balancing code base has issues with
+workloads that do not fit on one NUMA load. Page migration is
+slowed down, but memory distribution between the nodes where
+the workload runs is essentially random, often resulting in a
+suboptimal amount of memory bandwidth being available to the
+workload.
 
-We track both the node of the memory after a NUMA fault, and the node
-of the CPU on which the fault happened. Rename the local variables in
-task_numa_fault to make things more explicit.
+In order to maximize performance of workloads that do not fit in one NUMA
+node, we want to satisfy the following criteria:
+1) keep private memory local to each thread
+2) avoid excessive NUMA migration of pages
+3) distribute shared memory across the active nodes, to
+   maximize memory bandwidth available to the workload
 
-Suggested-by: Mel Gorman <mgorman@suse.de>
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- kernel/sched/fair.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+This patch series identifies the NUMA nodes on which the workload
+is actively running, and balances (somewhat lazily) the memory
+between those nodes, satisfying the criteria above.
 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index f713f3a..43ca8c4 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -1747,11 +1747,11 @@ void task_numa_free(struct task_struct *p)
- /*
-  * Got a PROT_NONE fault for a page on @node.
-  */
--void task_numa_fault(int last_cpupid, int node, int pages, int flags)
-+void task_numa_fault(int last_cpupid, int mem_node, int pages, int flags)
- {
- 	struct task_struct *p = current;
- 	bool migrated = flags & TNF_MIGRATED;
--	int this_node = task_node(current);
-+	int cpu_node = task_node(current);
- 	int priv;
- 
- 	if (!numabalancing_enabled)
-@@ -1806,8 +1806,8 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
- 	if (migrated)
- 		p->numa_pages_migrated += pages;
- 
--	p->numa_faults_buffer_memory[task_faults_idx(node, priv)] += pages;
--	p->numa_faults_buffer_cpu[task_faults_idx(this_node, priv)] += pages;
-+	p->numa_faults_buffer_memory[task_faults_idx(mem_node, priv)] += pages;
-+	p->numa_faults_buffer_cpu[task_faults_idx(cpu_node, priv)] += pages;
- 	p->numa_faults_locality[!!(flags & TNF_FAULT_LOCAL)] += pages;
- }
- 
--- 
-1.8.4.2
+As usual, the series has had some performance testing, but it
+could always benefit from more testing, on other systems.
+
+Changes since v3:
+ - various code cleanups suggested by Mel Gorman (some in their own patches)
+ - after some testing, switch back to the NUMA specific CPU use stats,
+   since that results in a 1% performance increase for two 8-warehouse
+   specjbb instances on a 4-node system, and reduced page migration across
+   the board
+Changes since v2:
+ - dropped tracepoint (for now?)
+ - implement obvious improvements suggested by Peter
+ - use the scheduler maintained CPU use statistics, drop
+   the NUMA specific ones for now. We can add those later
+   if they turn out to be beneficial
+Changes since v1:
+ - fix divide by zero found by Chegu Vinod
+ - improve comment, as suggested by Peter Zijlstra
+ - do stats calculations in task_numa_placement in local variables
+
+
+Some performance numbers, with two 40-warehouse specjbb instances
+on an 8 node system with 10 CPU cores per node, using a pre-cleanup
+version of these patches, courtesy of Chegu Vinod:
+
+numactl manual pinning
+spec1.txt:           throughput =     755900.20 SPECjbb2005 bops
+spec2.txt:           throughput =     754914.40 SPECjbb2005 bops
+
+NO-pinning results (Automatic NUMA balancing, with patches)
+spec1.txt:           throughput =     706439.84 SPECjbb2005 bops
+spec2.txt:           throughput =     729347.75 SPECjbb2005 bops
+
+NO-pinning results (Automatic NUMA balancing, without patches)
+spec1.txt:           throughput =     667988.47 SPECjbb2005 bops
+spec2.txt:           throughput =     638220.45 SPECjbb2005 bops
+
+No Automatic NUMA and NO-pinning results
+spec1.txt:           throughput =     544120.97 SPECjbb2005 bops
+spec2.txt:           throughput =     453553.41 SPECjbb2005 bops
+
+
+My own performance numbers are not as relevant, since I have been
+running with a more hostile workload on purpose, and I have run
+into a scheduler issue that caused the workload to run on only
+two of the four NUMA nodes on my test system...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
