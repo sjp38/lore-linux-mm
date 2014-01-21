@@ -1,194 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 29E726B0035
-	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 21:31:29 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id z10so2296841pdj.19
-        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 18:31:28 -0800 (PST)
-Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
-        by mx.google.com with ESMTP id sa6si3240741pbb.323.2014.01.20.18.31.25
+Received: from mail-yk0-f173.google.com (mail-yk0-f173.google.com [209.85.160.173])
+	by kanga.kvack.org (Postfix) with ESMTP id AB0FA6B0035
+	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 22:04:33 -0500 (EST)
+Received: by mail-yk0-f173.google.com with SMTP id 20so3300630yks.4
+        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 19:04:33 -0800 (PST)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [2001:44b8:8060:ff02:300:1:2:7])
+        by mx.google.com with ESMTP id 49si1643937yhj.263.2014.01.20.19.04.30
         for <linux-mm@kvack.org>;
-        Mon, 20 Jan 2014 18:31:26 -0800 (PST)
-Date: Tue, 21 Jan 2014 11:32:33 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2]  mm/zswap: Check all pool pages instead of one pool
- pages
-Message-ID: <20140121023233.GI28712@bbox>
-References: <000701cf15b4$6822c740$386855c0$@samsung.com>
+        Mon, 20 Jan 2014 19:04:32 -0800 (PST)
+Date: Tue, 21 Jan 2014 14:03:58 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [patch 9/9] mm: keep page cache radix tree nodes in check
+Message-ID: <20140121030358.GN18112@dastard>
+References: <1389377443-11755-1-git-send-email-hannes@cmpxchg.org>
+ <1389377443-11755-10-git-send-email-hannes@cmpxchg.org>
+ <20140117000517.GB18112@dastard>
+ <20140120231737.GS6963@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <000701cf15b4$6822c740$386855c0$@samsung.com>
+In-Reply-To: <20140120231737.GS6963@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cai Liu <cai.liu@samsung.com>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Seth Jennings' <sjenning@linux.vnet.ibm.com>, 'Bob Liu' <bob.liu@oracle.com>, 'Linux-MM' <linux-mm@kvack.org>, 'Linux-Kernel' <linux-kernel@vger.kernel.org>, liucai.lfn@gmail.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Bob Liu <bob.liu@oracle.com>, Christoph Hellwig <hch@infradead.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hello Cai,
-
-On Mon, Jan 20, 2014 at 03:50:18PM +0800, Cai Liu wrote:
-> zswap can support multiple swapfiles. So we need to check
-> all zbud pool pages in zswap.
+On Mon, Jan 20, 2014 at 06:17:37PM -0500, Johannes Weiner wrote:
+> On Fri, Jan 17, 2014 at 11:05:17AM +1100, Dave Chinner wrote:
+> > On Fri, Jan 10, 2014 at 01:10:43PM -0500, Johannes Weiner wrote:
+> > > +	/* Only shadow entries in there, keep track of this node */
+> > > +	if (!(node->count & RADIX_TREE_COUNT_MASK) &&
+> > > +	    list_empty(&node->private_list)) {
+> > > +		node->private_data = mapping;
+> > > +		list_lru_add(&workingset_shadow_nodes, &node->private_list);
+> > > +	}
+> > 
+> > You can't do this list_empty(&node->private_list) check safely
+> > externally to the list_lru code - only time that entry can be
+> > checked safely is under the LRU list locks. This is the reason that
+> > list_lru_add/list_lru_del return a boolean to indicate is the object
+> > was added/removed from the list - they do this list_empty() check
+> > internally. i.e. the correct, safe way to do conditionally update
+> > state iff the object was added to the LRU is:
+> > 
+> > 	if (!(node->count & RADIX_TREE_COUNT_MASK)) {
+> > 		if (list_lru_add(&workingset_shadow_nodes, &node->private_list))
+> > 			node->private_data = mapping;
+> > 	}
+> > 
+> > > +	radix_tree_replace_slot(slot, page);
+> > > +	mapping->nrpages++;
+> > > +	if (node) {
+> > > +		node->count++;
+> > > +		/* Installed page, can't be shadow-only anymore */
+> > > +		if (!list_empty(&node->private_list))
+> > > +			list_lru_del(&workingset_shadow_nodes,
+> > > +				     &node->private_list);
+> > > +	}
+> > 
+> > Same issue here:
+> > 
+> > 	if (node) {
+> > 		node->count++;
+> > 		list_lru_del(&workingset_shadow_nodes, &node->private_list);
+> > 	}
 > 
-> Version 2:
->   * add *total_zbud_pages* in zbud to record all the pages in pools
->   * move the updating of pool pages statistics to
->     alloc_zbud_page/free_zbud_page to hide the details
-> 
-> Signed-off-by: Cai Liu <cai.liu@samsung.com>
-> ---
->  include/linux/zbud.h |    2 +-
->  mm/zbud.c            |   44 ++++++++++++++++++++++++++++++++------------
->  mm/zswap.c           |    4 ++--
->  3 files changed, 35 insertions(+), 15 deletions(-)
-> 
-> diff --git a/include/linux/zbud.h b/include/linux/zbud.h
-> index 2571a5c..1dbc13e 100644
-> --- a/include/linux/zbud.h
-> +++ b/include/linux/zbud.h
-> @@ -17,6 +17,6 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle);
->  int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries);
->  void *zbud_map(struct zbud_pool *pool, unsigned long handle);
->  void zbud_unmap(struct zbud_pool *pool, unsigned long handle);
-> -u64 zbud_get_pool_size(struct zbud_pool *pool);
-> +u64 zbud_get_pool_size(void);
->  
->  #endif /* _ZBUD_H_ */
-> diff --git a/mm/zbud.c b/mm/zbud.c
-> index 9451361..711aaf4 100644
-> --- a/mm/zbud.c
-> +++ b/mm/zbud.c
-> @@ -52,6 +52,13 @@
->  #include <linux/spinlock.h>
->  #include <linux/zbud.h>
->  
-> +/*********************************
-> +* statistics
-> +**********************************/
-> +
-> +/* zbud pages in all pools */
-> +static u64 total_zbud_pages;
-> +
->  /*****************
->   * Structures
->  *****************/
-> @@ -142,10 +149,28 @@ static struct zbud_header *init_zbud_page(struct page *page)
->  	return zhdr;
->  }
->  
-> +static struct page *alloc_zbud_page(struct zbud_pool *pool, gfp_t gfp)
-> +{
-> +	struct page *page;
-> +
-> +	page = alloc_page(gfp);
-> +
-> +	if (page) {
-> +		pool->pages_nr++;
-> +		total_zbud_pages++;
+> All modifications to node->private_list happen under
+> mapping->tree_lock, and modifications of a neighboring link should not
+> affect the outcome of the list_empty(), so I don't think the lru lock
+> is necessary.
 
-Who protect race?
+Can you please add that as a comment somewhere explaining why it is
+safe to do this?
 
-> +	}
-> +
-> +	return page;
-> +}
-> +
-> +
->  /* Resets the struct page fields and frees the page */
-> -static void free_zbud_page(struct zbud_header *zhdr)
-> +static void free_zbud_page(struct zbud_pool *pool, struct zbud_header *zhdr)
->  {
->  	__free_page(virt_to_page(zhdr));
-> +
-> +	pool->pages_nr--;
-> +	total_zbud_pages--;
->  }
->  
->  /*
-> @@ -279,11 +304,10 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
->  
->  	/* Couldn't find unbuddied zbud page, create new one */
->  	spin_unlock(&pool->lock);
-> -	page = alloc_page(gfp);
-> +	page = alloc_zbud_page(pool, gfp);
->  	if (!page)
->  		return -ENOMEM;
->  	spin_lock(&pool->lock);
-> -	pool->pages_nr++;
->  	zhdr = init_zbud_page(page);
->  	bud = FIRST;
->  
-> @@ -349,8 +373,7 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
->  	if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
->  		/* zbud page is empty, free */
->  		list_del(&zhdr->lru);
-> -		free_zbud_page(zhdr);
-> -		pool->pages_nr--;
-> +		free_zbud_page(pool, zhdr);
->  	} else {
->  		/* Add to unbuddied list */
->  		freechunks = num_free_chunks(zhdr);
-> @@ -447,8 +470,7 @@ next:
->  			 * Both buddies are now free, free the zbud page and
->  			 * return success.
->  			 */
-> -			free_zbud_page(zhdr);
-> -			pool->pages_nr--;
-> +			free_zbud_page(pool, zhdr);
->  			spin_unlock(&pool->lock);
->  			return 0;
->  		} else if (zhdr->first_chunks == 0 ||
-> @@ -496,14 +518,12 @@ void zbud_unmap(struct zbud_pool *pool, unsigned long handle)
->  
->  /**
->   * zbud_get_pool_size() - gets the zbud pool size in pages
-> - * @pool:	pool whose size is being queried
->   *
-> - * Returns: size in pages of the given pool.  The pool lock need not be
-> - * taken to access pages_nr.
-> + * Returns: size in pages of all the zbud pools.
->   */
-> -u64 zbud_get_pool_size(struct zbud_pool *pool)
-> +u64 zbud_get_pool_size(void)
->  {
-> -	return pool->pages_nr;
-> +	return total_zbud_pages;
->  }
->  
->  static int __init init_zbud(void)
-> diff --git a/mm/zswap.c b/mm/zswap.c
-> index 5a63f78..ef44d9d 100644
-> --- a/mm/zswap.c
-> +++ b/mm/zswap.c
-> @@ -291,7 +291,7 @@ static void zswap_free_entry(struct zswap_tree *tree,
->  	zbud_free(tree->pool, entry->handle);
->  	zswap_entry_cache_free(entry);
->  	atomic_dec(&zswap_stored_pages);
-> -	zswap_pool_pages = zbud_get_pool_size(tree->pool);
-> +	zswap_pool_pages = zbud_get_pool_size();
->  }
->  
->  /* caller must hold the tree lock */
-> @@ -716,7 +716,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
->  
->  	/* update stats */
->  	atomic_inc(&zswap_stored_pages);
-> -	zswap_pool_pages = zbud_get_pool_size(tree->pool);
-> +	zswap_pool_pages = zbud_get_pool_size();
->  
->  	return 0;
->  
-> -- 
-> 1.7.10.4
+> > > +		case LRU_REMOVED_RETRY:
+> > >  			if (--nlru->nr_items == 0)
+> > >  				node_clear(nid, lru->active_nodes);
+> > >  			WARN_ON_ONCE(nlru->nr_items < 0);
+> > >  			isolated++;
+> > > +			/*
+> > > +			 * If the lru lock has been dropped, our list
+> > > +			 * traversal is now invalid and so we have to
+> > > +			 * restart from scratch.
+> > > +			 */
+> > > +			if (ret == LRU_REMOVED_RETRY)
+> > > +				goto restart;
+> > >  			break;
+> > >  		case LRU_ROTATE:
+> > >  			list_move_tail(item, &nlru->list);
+> > 
+> > I think that we need to assert that the list lru lock is correctly
+> > held here on return with LRU_REMOVED_RETRY. i.e.
+> > 
+> > 		case LRU_REMOVED_RETRY:
+> > 			assert_spin_locked(&nlru->lock);
+> > 		case LRU_REMOVED:
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Ah, good idea.  How about adding it to LRU_RETRY as well?
 
+Yup, good idea.
+
+> > > +static struct shrinker workingset_shadow_shrinker = {
+> > > +	.count_objects = count_shadow_nodes,
+> > > +	.scan_objects = scan_shadow_nodes,
+> > > +	.seeks = DEFAULT_SEEKS * 4,
+> > > +	.flags = SHRINKER_NUMA_AWARE,
+> > > +};
+> > 
+> > Can you add a comment explaining how you calculated the .seeks
+> > value? It's important to document the weighings/importance
+> > we give to slab reclaim so we can determine if it's actually
+> > acheiving the desired balance under different loads...
+> 
+> This is not an exact science, to say the least.
+
+I know, that's why I asked it be documented rather than be something
+kept in your head.
+
+> The shadow entries are mostly self-regulated, so I don't want the
+> shrinker to interfere while the machine is just regularly trimming
+> caches during normal operation.
+> 
+> It should only kick in when either a) reclaim is picking up and the
+> scan-to-reclaim ratio increases due to mapped pages, dirty cache,
+> swapping etc. or b) the number of objects compared to LRU pages
+> becomes excessive.
+> 
+> I think that is what most shrinkers with an elevated seeks value want,
+> but this translates very awkwardly (and not completely) to the current
+> cost model, and we should probably rework that interface.
+> 
+> "Seeks" currently encodes 3 ratios:
+> 
+>   1. the cost of creating an object vs. a page
+> 
+>   2. the expected number of objects vs. pages
+
+It doesn't encode that at all. If it did, then the default value
+wouldn't be "2".
+
+>   3. the cost of reclaiming an object vs. a page
+
+Which, when you consider #3 in conjunction with #1, the actual
+intended meaning of .seeks is "the cost of replacing this object in
+the cache compared to the cost of replacing a page cache page."
+
+> but they are not necessarily correlated.  How I would like to
+> configure the shadow shrinker instead is:
+> 
+>   o scan objects when reclaim efficiency is down to 75%, because they
+>     are more valuable than use-once cache but less than workingset
+> 
+>   o scan objects when the ratio between them and the number of pages
+>     exceeds 1/32 (one shadow entry for each resident page, up to 64
+>     entries per shrinkable object, assume 50% packing for robustness)
+> 
+>   o as the expected balance between objects and lru pages is 1:32,
+>     reclaim one object for every 32 reclaimed LRU pages, instead of
+>     assuming that number of scanned pages corresponds meaningfully to
+>     number of objects to scan.
+
+You're assuming that every radix tree node has a full population of
+pages. This only occurs on sequential read and write workloads, and
+so isn't going tobe true for things like mapped executables or any
+semi-randomly accessed data set...
+
+> "4" just doesn't have the same ring to it.
+
+Right, but you still haven't explained how you came to the value of
+"4"....
+
+> It would be great if we could eliminate the reclaim cost assumption by
+> turning the nr_to_scan into a nr_to_reclaim, and then set the other
+> two ratios independently.
+
+That doesn't work for caches that are full of objects that can't (or
+won't) be reclaimed immediately. The CPU cost of repeatedly scanning
+to find N reclaimable objects when you have millions of objects in
+the cache is prohibitive.
+
+Cheers,
+
+Dave.
 -- 
-Kind regards,
-Minchan Kim
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
