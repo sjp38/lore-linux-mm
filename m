@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 44C106B00B8
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 18:36:22 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id lj1so9068495pab.40
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 15:36:21 -0800 (PST)
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 6931F6B00B9
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 18:36:29 -0500 (EST)
+Received: by mail-pd0-f177.google.com with SMTP id x10so7512696pdj.36
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 15:36:29 -0800 (PST)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id p3si7240633pbj.248.2014.01.21.15.36.19
+        by mx.google.com with ESMTP id ln7si7210133pab.323.2014.01.21.15.36.27
         for <linux-mm@kvack.org>;
-        Tue, 21 Jan 2014 15:36:20 -0800 (PST)
-Subject: [PATCH v9 5/6] MCS Lock: Order the header files in Kbuild of each
- architecture in alphabetical order
+        Tue, 21 Jan 2014 15:36:28 -0800 (PST)
+Subject: [PATCH v9 6/6] MCS Lock: Allow architecture specific asm files to
+ be used for contended case
 From: Tim Chen <tim.c.chen@linux.intel.com>
 In-Reply-To: <cover.1390320729.git.tim.c.chen@linux.intel.com>
 References: <cover.1390320729.git.tim.c.chen@linux.intel.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 21 Jan 2014 15:36:16 -0800
-Message-ID: <1390347376.3138.66.camel@schen9-DESK>
+Date: Tue, 21 Jan 2014 15:36:22 -0800
+Message-ID: <1390347382.3138.67.camel@schen9-DESK>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -25,658 +25,423 @@ Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger
 
 From: Peter Zijlstra <peterz@infradead.org>
 
-We perform a clean up of the Kbuid files in each architecture.
-We order the files in each Kbuild in alphabetical order
-by running the below script on each Kbuild file:
-
-gawk '/^generic-y/ {
-        i = 3;
-        do {
-                for (; i<=NF; i++) {
-                        if ($i == "\\") {
-                                getline;
-                                i=1;
-                                continue;
-                        }
-                        if ($i != "")
-                                hdr[$i] = $i;
-                }
-                break;
-        } while (1);
-        next;
-}
-END {
-        n = asort(hdr);
-        for (i=1; i<=n; i++)
-                print "generic-y += " hdr[i];
-}'
+This patch allows each architecture to add its specific assembly optimized
+arch_mcs_spin_lock_contended and arch_mcs_spinlock_uncontended for
+MCS lock and unlock functions.
 
 Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
 ---
- arch/alpha/include/asm/Kbuild      |  4 ++--
- arch/arc/include/asm/Kbuild        |  6 +++---
- arch/arm/include/asm/Kbuild        |  2 +-
- arch/arm64/include/asm/Kbuild      |  4 ++--
- arch/avr32/include/asm/Kbuild      | 38 +++++++++++++++++++-------------------
- arch/blackfin/include/asm/Kbuild   |  4 ++--
- arch/c6x/include/asm/Kbuild        |  2 +-
- arch/cris/include/asm/Kbuild       |  2 +-
- arch/frv/include/asm/Kbuild        |  2 +-
- arch/hexagon/include/asm/Kbuild    |  6 +++---
- arch/ia64/include/asm/Kbuild       |  4 ++--
- arch/m32r/include/asm/Kbuild       |  2 +-
- arch/m68k/include/asm/Kbuild       |  4 ++--
- arch/metag/include/asm/Kbuild      |  2 +-
- arch/microblaze/include/asm/Kbuild |  4 ++--
- arch/mips/include/asm/Kbuild       |  2 +-
- arch/mn10300/include/asm/Kbuild    |  2 +-
- arch/openrisc/include/asm/Kbuild   |  8 ++++----
- arch/parisc/include/asm/Kbuild     | 26 +++++++++++++++++++++-----
- arch/powerpc/include/asm/Kbuild    |  4 ++--
- arch/s390/include/asm/Kbuild       |  2 +-
- arch/score/include/asm/Kbuild      |  2 +-
- arch/sh/include/asm/Kbuild         |  6 +++---
- arch/sparc/include/asm/Kbuild      |  8 ++++----
- arch/tile/include/asm/Kbuild       |  2 +-
- arch/um/include/asm/Kbuild         | 29 ++++++++++++++++++++++++-----
- arch/unicore32/include/asm/Kbuild  |  2 +-
- arch/xtensa/include/asm/Kbuild     |  2 +-
- 28 files changed, 108 insertions(+), 73 deletions(-)
+ arch/alpha/include/asm/Kbuild      |  1 +
+ arch/arc/include/asm/Kbuild        |  1 +
+ arch/arm/include/asm/Kbuild        |  1 +
+ arch/arm64/include/asm/Kbuild      |  1 +
+ arch/avr32/include/asm/Kbuild      |  1 +
+ arch/blackfin/include/asm/Kbuild   |  1 +
+ arch/c6x/include/asm/Kbuild        |  1 +
+ arch/cris/include/asm/Kbuild       |  1 +
+ arch/frv/include/asm/Kbuild        |  1 +
+ arch/hexagon/include/asm/Kbuild    |  1 +
+ arch/ia64/include/asm/Kbuild       |  1 +
+ arch/m32r/include/asm/Kbuild       |  1 +
+ arch/m68k/include/asm/Kbuild       |  1 +
+ arch/metag/include/asm/Kbuild      |  1 +
+ arch/microblaze/include/asm/Kbuild |  1 +
+ arch/mips/include/asm/Kbuild       |  1 +
+ arch/mn10300/include/asm/Kbuild    |  1 +
+ arch/openrisc/include/asm/Kbuild   |  1 +
+ arch/parisc/include/asm/Kbuild     |  1 +
+ arch/powerpc/include/asm/Kbuild    |  4 +++-
+ arch/s390/include/asm/Kbuild       |  1 +
+ arch/score/include/asm/Kbuild      |  1 +
+ arch/sh/include/asm/Kbuild         |  1 +
+ arch/sparc/include/asm/Kbuild      |  1 +
+ arch/tile/include/asm/Kbuild       |  1 +
+ arch/um/include/asm/Kbuild         |  1 +
+ arch/unicore32/include/asm/Kbuild  |  1 +
+ arch/x86/include/asm/Kbuild        |  1 +
+ arch/xtensa/include/asm/Kbuild     |  1 +
+ include/asm-generic/mcs_spinlock.h | 13 +++++++++++++
+ include/linux/mcs_spinlock.h       |  2 ++
+ 31 files changed, 46 insertions(+), 1 deletion(-)
+ create mode 100644 include/asm-generic/mcs_spinlock.h
 
 diff --git a/arch/alpha/include/asm/Kbuild b/arch/alpha/include/asm/Kbuild
-index f01fb50..532356b 100644
+index 532356b..a8a45e1 100644
 --- a/arch/alpha/include/asm/Kbuild
 +++ b/arch/alpha/include/asm/Kbuild
-@@ -1,6 +1,6 @@
+@@ -2,5 +2,6 @@
  
--generic-y += clkdev.h
- 
-+generic-y += clkdev.h
+ generic-y += clkdev.h
  generic-y += exec.h
--generic-y += trace_clock.h
++generic-y += mcs_spinlock.h
  generic-y += preempt.h
-+generic-y += trace_clock.h
+ generic-y += trace_clock.h
 diff --git a/arch/arc/include/asm/Kbuild b/arch/arc/include/asm/Kbuild
-index 9ae21c1..4348dbc 100644
+index 4348dbc..58fe4b5 100644
 --- a/arch/arc/include/asm/Kbuild
 +++ b/arch/arc/include/asm/Kbuild
-@@ -1,15 +1,15 @@
- generic-y += auxvec.h
- generic-y += barrier.h
--generic-y += bugs.h
- generic-y += bitsperlong.h
-+generic-y += bugs.h
- generic-y += clkdev.h
- generic-y += cputime.h
- generic-y += device.h
- generic-y += div64.h
- generic-y += emergency-restart.h
- generic-y += errno.h
--generic-y += fcntl.h
- generic-y += fb.h
-+generic-y += fcntl.h
- generic-y += ftrace.h
- generic-y += hardirq.h
- generic-y += hw_irq.h
-@@ -29,6 +29,7 @@ generic-y += pci.h
- generic-y += percpu.h
- generic-y += poll.h
- generic-y += posix_types.h
-+generic-y += preempt.h
- generic-y += resource.h
- generic-y += scatterlist.h
- generic-y += sembuf.h
-@@ -47,4 +48,3 @@ generic-y += ucontext.h
- generic-y += user.h
- generic-y += vga.h
- generic-y += xor.h
--generic-y += preempt.h
+@@ -21,6 +21,7 @@ generic-y += kmap_types.h
+ generic-y += kvm_para.h
+ generic-y += local.h
+ generic-y += local64.h
++generic-y += mcs_spinlock.h
+ generic-y += mman.h
+ generic-y += msgbuf.h
+ generic-y += param.h
 diff --git a/arch/arm/include/asm/Kbuild b/arch/arm/include/asm/Kbuild
-index c38b58c..8f37076 100644
+index 8f37076..3df7d62 100644
 --- a/arch/arm/include/asm/Kbuild
 +++ b/arch/arm/include/asm/Kbuild
-@@ -17,6 +17,7 @@ generic-y += msgbuf.h
+@@ -13,6 +13,7 @@ generic-y += irq_regs.h
+ generic-y += kdebug.h
+ generic-y += local.h
+ generic-y += local64.h
++generic-y += mcs_spinlock.h
+ generic-y += msgbuf.h
  generic-y += param.h
  generic-y += parport.h
- generic-y += poll.h
-+generic-y += preempt.h
- generic-y += resource.h
- generic-y += sections.h
- generic-y += segment.h
-@@ -33,4 +34,3 @@ generic-y += termios.h
- generic-y += timex.h
- generic-y += trace_clock.h
- generic-y += unaligned.h
--generic-y += preempt.h
 diff --git a/arch/arm64/include/asm/Kbuild b/arch/arm64/include/asm/Kbuild
-index 519f89f..a14534d 100644
+index a14534d..3b99d2b 100644
 --- a/arch/arm64/include/asm/Kbuild
 +++ b/arch/arm64/include/asm/Kbuild
-@@ -29,6 +29,7 @@ generic-y += pci.h
- generic-y += percpu.h
- generic-y += poll.h
- generic-y += posix_types.h
-+generic-y += preempt.h
- generic-y += resource.h
- generic-y += scatterlist.h
- generic-y += sections.h
-@@ -39,8 +40,8 @@ generic-y += shmbuf.h
- generic-y += sizes.h
- generic-y += socket.h
- generic-y += sockios.h
--generic-y += switch_to.h
- generic-y += swab.h
-+generic-y += switch_to.h
- generic-y += termbits.h
- generic-y += termios.h
- generic-y += topology.h
-@@ -50,4 +51,3 @@ generic-y += unaligned.h
- generic-y += user.h
- generic-y += vga.h
- generic-y += xor.h
--generic-y += preempt.h
-diff --git a/arch/avr32/include/asm/Kbuild b/arch/avr32/include/asm/Kbuild
-index 658001b..d831429 100644
---- a/arch/avr32/include/asm/Kbuild
-+++ b/arch/avr32/include/asm/Kbuild
-@@ -1,20 +1,20 @@
- 
--generic-y	+= clkdev.h
--generic-y       += cputime.h
--generic-y       += delay.h
--generic-y       += device.h
--generic-y       += div64.h
--generic-y       += emergency-restart.h
--generic-y	+= exec.h
--generic-y       += futex.h
--generic-y	+= preempt.h
--generic-y       += irq_regs.h
--generic-y	+= param.h
--generic-y       += local.h
--generic-y       += local64.h
--generic-y       += percpu.h
--generic-y       += scatterlist.h
--generic-y       += sections.h
--generic-y       += topology.h
--generic-y	+= trace_clock.h
--generic-y       += xor.h
-+generic-y += clkdev.h
-+generic-y += cputime.h
-+generic-y += delay.h
-+generic-y += device.h
-+generic-y += div64.h
-+generic-y += emergency-restart.h
-+generic-y += exec.h
-+generic-y += futex.h
-+generic-y += irq_regs.h
-+generic-y += local.h
-+generic-y += local64.h
-+generic-y += param.h
-+generic-y += percpu.h
-+generic-y += preempt.h
-+generic-y += scatterlist.h
-+generic-y += sections.h
-+generic-y += topology.h
-+generic-y += trace_clock.h
-+generic-y += xor.h
-diff --git a/arch/blackfin/include/asm/Kbuild b/arch/blackfin/include/asm/Kbuild
-index f2b4347..37b9282 100644
---- a/arch/blackfin/include/asm/Kbuild
-+++ b/arch/blackfin/include/asm/Kbuild
-@@ -17,14 +17,15 @@ generic-y += irq_regs.h
- generic-y += kdebug.h
- generic-y += kmap_types.h
+@@ -22,6 +22,7 @@ generic-y += kmap_types.h
  generic-y += kvm_para.h
--generic-y += local64.h
  generic-y += local.h
-+generic-y += local64.h
+ generic-y += local64.h
++generic-y += mcs_spinlock.h
  generic-y += mman.h
  generic-y += msgbuf.h
  generic-y += mutex.h
+diff --git a/arch/avr32/include/asm/Kbuild b/arch/avr32/include/asm/Kbuild
+index d831429..29cb2c6 100644
+--- a/arch/avr32/include/asm/Kbuild
++++ b/arch/avr32/include/asm/Kbuild
+@@ -10,6 +10,7 @@ generic-y += futex.h
+ generic-y += irq_regs.h
+ generic-y += local.h
+ generic-y += local64.h
++generic-y += mcs_spinlock.h
  generic-y += param.h
  generic-y += percpu.h
- generic-y += pgalloc.h
-+generic-y += preempt.h
- generic-y += resource.h
- generic-y += scatterlist.h
- generic-y += sembuf.h
-@@ -44,4 +45,3 @@ generic-y += ucontext.h
- generic-y += unaligned.h
- generic-y += user.h
- generic-y += xor.h
--generic-y += preempt.h
+ generic-y += preempt.h
+diff --git a/arch/blackfin/include/asm/Kbuild b/arch/blackfin/include/asm/Kbuild
+index 37b9282..ebaccbb 100644
+--- a/arch/blackfin/include/asm/Kbuild
++++ b/arch/blackfin/include/asm/Kbuild
+@@ -19,6 +19,7 @@ generic-y += kmap_types.h
+ generic-y += kvm_para.h
+ generic-y += local.h
+ generic-y += local64.h
++generic-y += mcs_spinlock.h
+ generic-y += mman.h
+ generic-y += msgbuf.h
+ generic-y += mutex.h
 diff --git a/arch/c6x/include/asm/Kbuild b/arch/c6x/include/asm/Kbuild
-index fc0b3c3..4b3f516 100644
+index 4b3f516..d09762e 100644
 --- a/arch/c6x/include/asm/Kbuild
 +++ b/arch/c6x/include/asm/Kbuild
-@@ -34,6 +34,7 @@ generic-y += percpu.h
- generic-y += pgalloc.h
- generic-y += poll.h
- generic-y += posix_types.h
-+generic-y += preempt.h
- generic-y += resource.h
- generic-y += scatterlist.h
- generic-y += segment.h
-@@ -56,4 +57,3 @@ generic-y += ucontext.h
- generic-y += user.h
- generic-y += vga.h
- generic-y += xor.h
--generic-y += preempt.h
+@@ -24,6 +24,7 @@ generic-y += irq_regs.h
+ generic-y += kdebug.h
+ generic-y += kmap_types.h
+ generic-y += local.h
++generic-y += mcs_spinlock.h
+ generic-y += mman.h
+ generic-y += mmu.h
+ generic-y += mmu_context.h
 diff --git a/arch/cris/include/asm/Kbuild b/arch/cris/include/asm/Kbuild
-index 199b1a9..85c090d 100644
+index 85c090d..d8e20e9 100644
 --- a/arch/cris/include/asm/Kbuild
 +++ b/arch/cris/include/asm/Kbuild
-@@ -9,7 +9,7 @@ generic-y += exec.h
+@@ -8,6 +8,7 @@ generic-y += clkdev.h
+ generic-y += exec.h
  generic-y += kvm_para.h
  generic-y += linkage.h
++generic-y += mcs_spinlock.h
  generic-y += module.h
-+generic-y += preempt.h
+ generic-y += preempt.h
  generic-y += trace_clock.h
- generic-y += vga.h
- generic-y += xor.h
--generic-y += preempt.h
 diff --git a/arch/frv/include/asm/Kbuild b/arch/frv/include/asm/Kbuild
-index 74742dc..695246e 100644
+index 695246e..5e1442b 100644
 --- a/arch/frv/include/asm/Kbuild
 +++ b/arch/frv/include/asm/Kbuild
-@@ -1,5 +1,5 @@
+@@ -1,5 +1,6 @@
  
  generic-y += clkdev.h
  generic-y += exec.h
--generic-y += trace_clock.h
++generic-y += mcs_spinlock.h
  generic-y += preempt.h
-+generic-y += trace_clock.h
+ generic-y += trace_clock.h
 diff --git a/arch/hexagon/include/asm/Kbuild b/arch/hexagon/include/asm/Kbuild
-index ada843c..17f3996 100644
+index 17f3996..55888ca 100644
 --- a/arch/hexagon/include/asm/Kbuild
 +++ b/arch/hexagon/include/asm/Kbuild
-@@ -24,14 +24,15 @@ generic-y += ipcbuf.h
- generic-y += irq_regs.h
- generic-y += kdebug.h
+@@ -26,6 +26,7 @@ generic-y += kdebug.h
  generic-y += kmap_types.h
--generic-y += local64.h
  generic-y += local.h
-+generic-y += local64.h
+ generic-y += local64.h
++generic-y += mcs_spinlock.h
  generic-y += mman.h
  generic-y += msgbuf.h
  generic-y += pci.h
- generic-y += percpu.h
- generic-y += poll.h
- generic-y += posix_types.h
-+generic-y += preempt.h
- generic-y += resource.h
- generic-y += rwsem.h
- generic-y += scatterlist.h
-@@ -44,8 +45,8 @@ generic-y += siginfo.h
- generic-y += sizes.h
- generic-y += socket.h
- generic-y += sockios.h
--generic-y += statfs.h
- generic-y += stat.h
-+generic-y += statfs.h
- generic-y += termbits.h
- generic-y += termios.h
- generic-y += topology.h
-@@ -54,4 +55,3 @@ generic-y += types.h
- generic-y += ucontext.h
- generic-y += unaligned.h
- generic-y += xor.h
--generic-y += preempt.h
 diff --git a/arch/ia64/include/asm/Kbuild b/arch/ia64/include/asm/Kbuild
-index f93ee08..6f1de3b 100644
+index 6f1de3b..cf1f005 100644
 --- a/arch/ia64/include/asm/Kbuild
 +++ b/arch/ia64/include/asm/Kbuild
-@@ -2,6 +2,6 @@
+@@ -2,6 +2,7 @@
  generic-y += clkdev.h
  generic-y += exec.h
  generic-y += kvm_para.h
--generic-y += trace_clock.h
++generic-y += mcs_spinlock.h
  generic-y += preempt.h
--generic-y += vtime.h
-\ No newline at end of file
-+generic-y += trace_clock.h
-+generic-y += vtime.h
+ generic-y += trace_clock.h
+ generic-y += vtime.h
 diff --git a/arch/m32r/include/asm/Kbuild b/arch/m32r/include/asm/Kbuild
-index 2b58c5f..5cfbdd4 100644
+index 5cfbdd4..e26e8dd 100644
 --- a/arch/m32r/include/asm/Kbuild
 +++ b/arch/m32r/include/asm/Kbuild
-@@ -2,5 +2,5 @@
+@@ -1,6 +1,7 @@
+ 
  generic-y += clkdev.h
  generic-y += exec.h
++generic-y += mcs_spinlock.h
  generic-y += module.h
--generic-y += trace_clock.h
  generic-y += preempt.h
-+generic-y += trace_clock.h
+ generic-y += trace_clock.h
 diff --git a/arch/m68k/include/asm/Kbuild b/arch/m68k/include/asm/Kbuild
-index a5d27f2..c690a6f 100644
+index c690a6f..d9b0785 100644
 --- a/arch/m68k/include/asm/Kbuild
 +++ b/arch/m68k/include/asm/Kbuild
-@@ -13,11 +13,12 @@ generic-y += irq_regs.h
- generic-y += kdebug.h
- generic-y += kmap_types.h
+@@ -15,6 +15,7 @@ generic-y += kmap_types.h
  generic-y += kvm_para.h
--generic-y += local64.h
  generic-y += local.h
-+generic-y += local64.h
+ generic-y += local64.h
++generic-y += mcs_spinlock.h
  generic-y += mman.h
  generic-y += mutex.h
  generic-y += percpu.h
-+generic-y += preempt.h
- generic-y += resource.h
- generic-y += scatterlist.h
- generic-y += sections.h
-@@ -31,4 +32,3 @@ generic-y += trace_clock.h
- generic-y += types.h
- generic-y += word-at-a-time.h
- generic-y += xor.h
--generic-y += preempt.h
 diff --git a/arch/metag/include/asm/Kbuild b/arch/metag/include/asm/Kbuild
-index 84d0c1d..3fc4a2e 100644
+index 3fc4a2e..eb6d376 100644
 --- a/arch/metag/include/asm/Kbuild
 +++ b/arch/metag/include/asm/Kbuild
-@@ -30,6 +30,7 @@ generic-y += pci.h
- generic-y += percpu.h
- generic-y += poll.h
- generic-y += posix_types.h
-+generic-y += preempt.h
- generic-y += scatterlist.h
- generic-y += sections.h
- generic-y += sembuf.h
-@@ -52,4 +53,3 @@ generic-y += unaligned.h
- generic-y += user.h
- generic-y += vga.h
- generic-y += xor.h
--generic-y += preempt.h
-diff --git a/arch/microblaze/include/asm/Kbuild b/arch/microblaze/include/asm/Kbuild
-index a824265..88968fa 100644
---- a/arch/microblaze/include/asm/Kbuild
-+++ b/arch/microblaze/include/asm/Kbuild
-@@ -2,6 +2,6 @@
- generic-y += barrier.h
- generic-y += clkdev.h
- generic-y += exec.h
--generic-y += trace_clock.h
--generic-y += syscalls.h
- generic-y += preempt.h
-+generic-y += syscalls.h
-+generic-y += trace_clock.h
-diff --git a/arch/mips/include/asm/Kbuild b/arch/mips/include/asm/Kbuild
-index 1acbb8b..ef38961 100644
---- a/arch/mips/include/asm/Kbuild
-+++ b/arch/mips/include/asm/Kbuild
-@@ -6,11 +6,11 @@ generic-y += local64.h
- generic-y += mutex.h
- generic-y += parport.h
- generic-y += percpu.h
-+generic-y += preempt.h
- generic-y += scatterlist.h
- generic-y += sections.h
- generic-y += segment.h
- generic-y += serial.h
- generic-y += trace_clock.h
--generic-y += preempt.h
- generic-y += ucontext.h
- generic-y += xor.h
-diff --git a/arch/mn10300/include/asm/Kbuild b/arch/mn10300/include/asm/Kbuild
-index 032143e..6fb781f 100644
---- a/arch/mn10300/include/asm/Kbuild
-+++ b/arch/mn10300/include/asm/Kbuild
-@@ -2,5 +2,5 @@
- generic-y += barrier.h
- generic-y += clkdev.h
- generic-y += exec.h
--generic-y += trace_clock.h
- generic-y += preempt.h
-+generic-y += trace_clock.h
-diff --git a/arch/openrisc/include/asm/Kbuild b/arch/openrisc/include/asm/Kbuild
-index da1951a..32b5562 100644
---- a/arch/openrisc/include/asm/Kbuild
-+++ b/arch/openrisc/include/asm/Kbuild
-@@ -10,8 +10,8 @@ generic-y += bugs.h
- generic-y += cacheflush.h
- generic-y += checksum.h
- generic-y += clkdev.h
--generic-y += cmpxchg.h
- generic-y += cmpxchg-local.h
-+generic-y += cmpxchg.h
- generic-y += cputime.h
- generic-y += current.h
- generic-y += device.h
-@@ -41,6 +41,7 @@ generic-y += pci.h
- generic-y += percpu.h
- generic-y += poll.h
- generic-y += posix_types.h
-+generic-y += preempt.h
- generic-y += resource.h
- generic-y += scatterlist.h
- generic-y += sections.h
-@@ -53,11 +54,11 @@ generic-y += siginfo.h
- generic-y += signal.h
- generic-y += socket.h
- generic-y += sockios.h
--generic-y += statfs.h
- generic-y += stat.h
-+generic-y += statfs.h
- generic-y += string.h
--generic-y += switch_to.h
- generic-y += swab.h
-+generic-y += switch_to.h
- generic-y += termbits.h
- generic-y += termios.h
- generic-y += topology.h
-@@ -68,4 +69,3 @@ generic-y += user.h
- generic-y += vga.h
- generic-y += word-at-a-time.h
- generic-y += xor.h
--generic-y += preempt.h
-diff --git a/arch/parisc/include/asm/Kbuild b/arch/parisc/include/asm/Kbuild
-index 34b0be4..bb0d9ebb 100644
---- a/arch/parisc/include/asm/Kbuild
-+++ b/arch/parisc/include/asm/Kbuild
-@@ -1,8 +1,24 @@
- 
-+generic-y += auxvec.h
- generic-y += barrier.h
--generic-y += word-at-a-time.h auxvec.h user.h cputime.h emergency-restart.h \
--	  segment.h topology.h vga.h device.h percpu.h hw_irq.h mutex.h \
--	  div64.h irq_regs.h kdebug.h kvm_para.h local64.h local.h param.h \
--	  poll.h xor.h clkdev.h exec.h
--generic-y += trace_clock.h
-+generic-y += clkdev.h
-+generic-y += cputime.h
-+generic-y += device.h
-+generic-y += emergency-restart.h
-+generic-y += exec.h
-+generic-y += hw_irq.h
-+generic-y += irq_regs.h
-+generic-y += kdebug.h
-+generic-y += kvm_para.h
-+generic-y += local.h
-+generic-y += local64.h
-+generic-y += mutex.h
-+generic-y += param.h
-+generic-y += percpu.h
- generic-y += preempt.h
-+generic-y += topology.h
-+generic-y += trace_clock.h
-+generic-y += user.h
-+generic-y += vga.h
-+generic-y += word-at-a-time.h
-+generic-y += xor.h
-diff --git a/arch/powerpc/include/asm/Kbuild b/arch/powerpc/include/asm/Kbuild
-index d8f9d2f..8b19a80 100644
---- a/arch/powerpc/include/asm/Kbuild
-+++ b/arch/powerpc/include/asm/Kbuild
-@@ -1,6 +1,6 @@
- 
- generic-y += clkdev.h
-+generic-y += preempt.h
- generic-y += rwsem.h
- generic-y += trace_clock.h
--generic-y += preempt.h
--generic-y += vtime.h
-\ No newline at end of file
-+generic-y += vtime.h
-diff --git a/arch/s390/include/asm/Kbuild b/arch/s390/include/asm/Kbuild
-index 7a5288f..6bd5f27 100644
---- a/arch/s390/include/asm/Kbuild
-+++ b/arch/s390/include/asm/Kbuild
-@@ -1,5 +1,5 @@
- 
-
- generic-y += clkdev.h
--generic-y += trace_clock.h
- generic-y += preempt.h
-+generic-y += trace_clock.h
-diff --git a/arch/score/include/asm/Kbuild b/arch/score/include/asm/Kbuild
-index fe7471e..064b55f 100644
---- a/arch/score/include/asm/Kbuild
-+++ b/arch/score/include/asm/Kbuild
-@@ -3,6 +3,6 @@ header-y +=
- 
- generic-y += barrier.h
- generic-y += clkdev.h
-+generic-y += preempt.h
- generic-y += trace_clock.h
- generic-y += xor.h
--generic-y += preempt.h
-diff --git a/arch/sh/include/asm/Kbuild b/arch/sh/include/asm/Kbuild
-index 231efbb..8856e73 100644
---- a/arch/sh/include/asm/Kbuild
-+++ b/arch/sh/include/asm/Kbuild
-@@ -14,12 +14,13 @@ generic-y += irq_regs.h
+@@ -23,6 +23,7 @@ generic-y += kmap_types.h
  generic-y += kvm_para.h
  generic-y += local.h
  generic-y += local64.h
-+generic-y += mman.h
-+generic-y += msgbuf.h
++generic-y += mcs_spinlock.h
+ generic-y += msgbuf.h
+ generic-y += mutex.h
  generic-y += param.h
- generic-y += parport.h
- generic-y += percpu.h
- generic-y += poll.h
--generic-y += mman.h
--generic-y += msgbuf.h
-+generic-y += preempt.h
- generic-y += resource.h
- generic-y += scatterlist.h
- generic-y += sembuf.h
-@@ -34,4 +35,3 @@ generic-y += termios.h
- generic-y += trace_clock.h
- generic-y += ucontext.h
- generic-y += xor.h
--generic-y += preempt.h
-diff --git a/arch/sparc/include/asm/Kbuild b/arch/sparc/include/asm/Kbuild
-index bf39066..3e78fda 100644
---- a/arch/sparc/include/asm/Kbuild
-+++ b/arch/sparc/include/asm/Kbuild
-@@ -6,14 +6,14 @@ generic-y += cputime.h
- generic-y += div64.h
- generic-y += emergency-restart.h
+diff --git a/arch/microblaze/include/asm/Kbuild b/arch/microblaze/include/asm/Kbuild
+index 88968fa..3088588 100644
+--- a/arch/microblaze/include/asm/Kbuild
++++ b/arch/microblaze/include/asm/Kbuild
+@@ -2,6 +2,7 @@
+ generic-y += barrier.h
+ generic-y += clkdev.h
  generic-y += exec.h
--generic-y += linkage.h
--generic-y += local64.h
--generic-y += mutex.h
- generic-y += irq_regs.h
-+generic-y += linkage.h
- generic-y += local.h
-+generic-y += local64.h
- generic-y += module.h
-+generic-y += mutex.h
-+generic-y += preempt.h
- generic-y += serial.h
- generic-y += trace_clock.h
- generic-y += types.h
- generic-y += word-at-a-time.h
--generic-y += preempt.h
-diff --git a/arch/tile/include/asm/Kbuild b/arch/tile/include/asm/Kbuild
-index 22f3bd1..948549c 100644
---- a/arch/tile/include/asm/Kbuild
-+++ b/arch/tile/include/asm/Kbuild
-@@ -24,6 +24,7 @@ generic-y += param.h
- generic-y += parport.h
- generic-y += poll.h
- generic-y += posix_types.h
-+generic-y += preempt.h
- generic-y += resource.h
- generic-y += scatterlist.h
- generic-y += sembuf.h
-@@ -38,4 +39,3 @@ generic-y += termios.h
- generic-y += trace_clock.h
- generic-y += types.h
- generic-y += xor.h
--generic-y += preempt.h
-diff --git a/arch/um/include/asm/Kbuild b/arch/um/include/asm/Kbuild
-index fdde187..1cfae1f 100644
---- a/arch/um/include/asm/Kbuild
-+++ b/arch/um/include/asm/Kbuild
-@@ -1,6 +1,25 @@
--generic-y += bug.h cputime.h device.h emergency-restart.h futex.h hardirq.h
--generic-y += hw_irq.h irq_regs.h kdebug.h percpu.h sections.h topology.h xor.h
--generic-y += ftrace.h pci.h io.h param.h delay.h mutex.h current.h exec.h
--generic-y += switch_to.h clkdev.h
--generic-y += trace_clock.h
-+generic-y += bug.h
-+generic-y += clkdev.h
-+generic-y += cputime.h
-+generic-y += current.h
-+generic-y += delay.h
-+generic-y += device.h
-+generic-y += emergency-restart.h
-+generic-y += exec.h
-+generic-y += ftrace.h
-+generic-y += futex.h
-+generic-y += hardirq.h
-+generic-y += hw_irq.h
-+generic-y += io.h
-+generic-y += irq_regs.h
-+generic-y += kdebug.h
-+generic-y += mutex.h
-+generic-y += param.h
-+generic-y += pci.h
-+generic-y += percpu.h
++generic-y += mcs_spinlock.h
  generic-y += preempt.h
-+generic-y += sections.h
-+generic-y += switch_to.h
-+generic-y += topology.h
-+generic-y += trace_clock.h
-+generic-y += xor.h
-diff --git a/arch/unicore32/include/asm/Kbuild b/arch/unicore32/include/asm/Kbuild
-index 00045cb..a61f73a 100644
---- a/arch/unicore32/include/asm/Kbuild
-+++ b/arch/unicore32/include/asm/Kbuild
-@@ -32,6 +32,7 @@ generic-y += parport.h
+ generic-y += syscalls.h
+ generic-y += trace_clock.h
+diff --git a/arch/mips/include/asm/Kbuild b/arch/mips/include/asm/Kbuild
+index ef38961..8aa9b1b 100644
+--- a/arch/mips/include/asm/Kbuild
++++ b/arch/mips/include/asm/Kbuild
+@@ -3,6 +3,7 @@ generic-y += cputime.h
+ generic-y += current.h
+ generic-y += emergency-restart.h
+ generic-y += local64.h
++generic-y += mcs_spinlock.h
+ generic-y += mutex.h
+ generic-y += parport.h
  generic-y += percpu.h
- generic-y += poll.h
- generic-y += posix_types.h
-+generic-y += preempt.h
- generic-y += resource.h
- generic-y += scatterlist.h
- generic-y += sections.h
-@@ -60,4 +61,3 @@ generic-y += unaligned.h
- generic-y += user.h
- generic-y += vga.h
- generic-y += xor.h
--generic-y += preempt.h
-diff --git a/arch/xtensa/include/asm/Kbuild b/arch/xtensa/include/asm/Kbuild
-index 228d6ae..68da9d4 100644
---- a/arch/xtensa/include/asm/Kbuild
-+++ b/arch/xtensa/include/asm/Kbuild
-@@ -19,6 +19,7 @@ generic-y += linkage.h
+diff --git a/arch/mn10300/include/asm/Kbuild b/arch/mn10300/include/asm/Kbuild
+index 6fb781f..97abbe7 100644
+--- a/arch/mn10300/include/asm/Kbuild
++++ b/arch/mn10300/include/asm/Kbuild
+@@ -2,5 +2,6 @@
+ generic-y += barrier.h
+ generic-y += clkdev.h
+ generic-y += exec.h
++generic-y += mcs_spinlock.h
+ generic-y += preempt.h
+ generic-y += trace_clock.h
+diff --git a/arch/openrisc/include/asm/Kbuild b/arch/openrisc/include/asm/Kbuild
+index 32b5562..6bf2601 100644
+--- a/arch/openrisc/include/asm/Kbuild
++++ b/arch/openrisc/include/asm/Kbuild
+@@ -34,6 +34,7 @@ generic-y += kdebug.h
+ generic-y += kmap_types.h
+ generic-y += kvm_para.h
+ generic-y += local.h
++generic-y += mcs_spinlock.h
+ generic-y += mman.h
+ generic-y += module.h
+ generic-y += msgbuf.h
+diff --git a/arch/parisc/include/asm/Kbuild b/arch/parisc/include/asm/Kbuild
+index bb0d9ebb..fa6065d 100644
+--- a/arch/parisc/include/asm/Kbuild
++++ b/arch/parisc/include/asm/Kbuild
+@@ -12,6 +12,7 @@ generic-y += kdebug.h
+ generic-y += kvm_para.h
  generic-y += local.h
  generic-y += local64.h
++generic-y += mcs_spinlock.h
+ generic-y += mutex.h
+ generic-y += param.h
  generic-y += percpu.h
-+generic-y += preempt.h
- generic-y += resource.h
- generic-y += scatterlist.h
- generic-y += sections.h
-@@ -28,4 +29,3 @@ generic-y += termios.h
- generic-y += topology.h
+diff --git a/arch/powerpc/include/asm/Kbuild b/arch/powerpc/include/asm/Kbuild
+index 8b19a80..24027ce 100644
+--- a/arch/powerpc/include/asm/Kbuild
++++ b/arch/powerpc/include/asm/Kbuild
+@@ -1,6 +1,8 @@
+ 
++generic-y += +=
+ generic-y += clkdev.h
++generic-y += mcs_spinlock.h
+ generic-y += preempt.h
+ generic-y += rwsem.h
+ generic-y += trace_clock.h
+-generic-y += vtime.h
++generic-y += vtime.hgeneric-y
+diff --git a/arch/s390/include/asm/Kbuild b/arch/s390/include/asm/Kbuild
+index 6bd5f27..52bb0ba 100644
+--- a/arch/s390/include/asm/Kbuild
++++ b/arch/s390/include/asm/Kbuild
+@@ -1,5 +1,6 @@
+ 
+
+ generic-y += clkdev.h
++generic-y += mcs_spinlock.h
+ generic-y += preempt.h
+ generic-y += trace_clock.h
+diff --git a/arch/score/include/asm/Kbuild b/arch/score/include/asm/Kbuild
+index 064b55f..fc22db4 100644
+--- a/arch/score/include/asm/Kbuild
++++ b/arch/score/include/asm/Kbuild
+@@ -3,6 +3,7 @@ header-y +=
+ 
+ generic-y += barrier.h
+ generic-y += clkdev.h
++generic-y += mcs_spinlock.h
+ generic-y += preempt.h
  generic-y += trace_clock.h
  generic-y += xor.h
--generic-y += preempt.h
+diff --git a/arch/sh/include/asm/Kbuild b/arch/sh/include/asm/Kbuild
+index 8856e73..d5baf96 100644
+--- a/arch/sh/include/asm/Kbuild
++++ b/arch/sh/include/asm/Kbuild
+@@ -14,6 +14,7 @@ generic-y += irq_regs.h
+ generic-y += kvm_para.h
+ generic-y += local.h
+ generic-y += local64.h
++generic-y += mcs_spinlock.h
+ generic-y += mman.h
+ generic-y += msgbuf.h
+ generic-y += param.h
+diff --git a/arch/sparc/include/asm/Kbuild b/arch/sparc/include/asm/Kbuild
+index 3e78fda..793dbb0 100644
+--- a/arch/sparc/include/asm/Kbuild
++++ b/arch/sparc/include/asm/Kbuild
+@@ -10,6 +10,7 @@ generic-y += irq_regs.h
+ generic-y += linkage.h
+ generic-y += local.h
+ generic-y += local64.h
++generic-y += mcs_spinlock.h
+ generic-y += module.h
+ generic-y += mutex.h
+ generic-y += preempt.h
+diff --git a/arch/tile/include/asm/Kbuild b/arch/tile/include/asm/Kbuild
+index 948549c..f5433e0 100644
+--- a/arch/tile/include/asm/Kbuild
++++ b/arch/tile/include/asm/Kbuild
+@@ -18,6 +18,7 @@ generic-y += ipcbuf.h
+ generic-y += irq_regs.h
+ generic-y += local.h
+ generic-y += local64.h
++generic-y += mcs_spinlock.h
+ generic-y += msgbuf.h
+ generic-y += mutex.h
+ generic-y += param.h
+diff --git a/arch/um/include/asm/Kbuild b/arch/um/include/asm/Kbuild
+index 1cfae1f..82aed2d 100644
+--- a/arch/um/include/asm/Kbuild
++++ b/arch/um/include/asm/Kbuild
+@@ -13,6 +13,7 @@ generic-y += hw_irq.h
+ generic-y += io.h
+ generic-y += irq_regs.h
+ generic-y += kdebug.h
++generic-y += mcs_spinlock.h
+ generic-y += mutex.h
+ generic-y += param.h
+ generic-y += pci.h
+diff --git a/arch/unicore32/include/asm/Kbuild b/arch/unicore32/include/asm/Kbuild
+index a61f73a..9de88a5 100644
+--- a/arch/unicore32/include/asm/Kbuild
++++ b/arch/unicore32/include/asm/Kbuild
+@@ -24,6 +24,7 @@ generic-y += irq_regs.h
+ generic-y += kdebug.h
+ generic-y += kmap_types.h
+ generic-y += local.h
++generic-y += mcs_spinlock.h
+ generic-y += mman.h
+ generic-y += module.h
+ generic-y += msgbuf.h
+diff --git a/arch/x86/include/asm/Kbuild b/arch/x86/include/asm/Kbuild
+index 7f66985..a8fee07 100644
+--- a/arch/x86/include/asm/Kbuild
++++ b/arch/x86/include/asm/Kbuild
+@@ -5,3 +5,4 @@ genhdr-y += unistd_64.h
+ genhdr-y += unistd_x32.h
+ 
+ generic-y += clkdev.h
++generic-y += mcs_spinlock.h
+diff --git a/arch/xtensa/include/asm/Kbuild b/arch/xtensa/include/asm/Kbuild
+index 68da9d4..1c8455c 100644
+--- a/arch/xtensa/include/asm/Kbuild
++++ b/arch/xtensa/include/asm/Kbuild
+@@ -18,6 +18,7 @@ generic-y += kvm_para.h
+ generic-y += linkage.h
+ generic-y += local.h
+ generic-y += local64.h
++generic-y += mcs_spinlock.h
+ generic-y += percpu.h
+ generic-y += preempt.h
+ generic-y += resource.h
+diff --git a/include/asm-generic/mcs_spinlock.h b/include/asm-generic/mcs_spinlock.h
+new file mode 100644
+index 0000000..10cd4ff
+--- /dev/null
++++ b/include/asm-generic/mcs_spinlock.h
+@@ -0,0 +1,13 @@
++#ifndef __ASM_MCS_SPINLOCK_H
++#define __ASM_MCS_SPINLOCK_H
++
++/*
++ * Architectures can define their own:
++ *
++ *   arch_mcs_spin_lock_contended(l)
++ *   arch_mcs_spin_unlock_contended(l)
++ *
++ * See kernel/locking/mcs_spinlock.c.
++ */
++
++#endif /* __ASM_MCS_SPINLOCK_H */
+diff --git a/include/linux/mcs_spinlock.h b/include/linux/mcs_spinlock.h
+index e9a4d74..f2a5c63 100644
+--- a/include/linux/mcs_spinlock.h
++++ b/include/linux/mcs_spinlock.h
+@@ -12,6 +12,8 @@
+ #ifndef __LINUX_MCS_SPINLOCK_H
+ #define __LINUX_MCS_SPINLOCK_H
+ 
++#include <asm/mcs_spinlock.h>
++
+ struct mcs_spinlock {
+ 	struct mcs_spinlock *next;
+ 	int locked; /* 1 if lock acquired */
 -- 
 1.7.11.7
-
 
 
 --
