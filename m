@@ -1,126 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f175.google.com (mail-ve0-f175.google.com [209.85.128.175])
-	by kanga.kvack.org (Postfix) with ESMTP id DD8DE6B0035
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 00:30:45 -0500 (EST)
-Received: by mail-ve0-f175.google.com with SMTP id c14so1015935vea.6
-        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 21:30:45 -0800 (PST)
-Received: from mail-ve0-f171.google.com (mail-ve0-f171.google.com [209.85.128.171])
-        by mx.google.com with ESMTPS id k6si1307763veh.55.2014.01.20.21.30.44
+Received: from mail-yh0-f47.google.com (mail-yh0-f47.google.com [209.85.213.47])
+	by kanga.kvack.org (Postfix) with ESMTP id C9C6D6B0035
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 00:34:48 -0500 (EST)
+Received: by mail-yh0-f47.google.com with SMTP id c41so771204yho.34
+        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 21:34:48 -0800 (PST)
+Received: from mail-yk0-x230.google.com (mail-yk0-x230.google.com [2607:f8b0:4002:c07::230])
+        by mx.google.com with ESMTPS id 21si1947098yhx.156.2014.01.20.21.34.47
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 20 Jan 2014 21:30:44 -0800 (PST)
-Received: by mail-ve0-f171.google.com with SMTP id pa12so1318225veb.2
-        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 21:30:44 -0800 (PST)
+        Mon, 20 Jan 2014 21:34:47 -0800 (PST)
+Received: by mail-yk0-f176.google.com with SMTP id 131so5453512ykp.7
+        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 21:34:47 -0800 (PST)
+Date: Mon, 20 Jan 2014 21:34:44 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [question] how to figure out OOM reason? should dump slab/vmalloc
+ info when OOM?
+In-Reply-To: <52DCFC33.80008@huawei.com>
+Message-ID: <alpine.DEB.2.02.1401202130590.21729@chino.kir.corp.google.com>
+References: <52DCFC33.80008@huawei.com>
 MIME-Version: 1.0
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 20 Jan 2014 21:30:24 -0800
-Message-ID: <CALCETrVLF_1d5cg5izPLmZa_e7bxHH-rrgp-m0uGFmuVwO_73w@mail.gmail.com>
-Subject: [BTRFS-specific] Re: Dirty deleted files cause pointless I/O storms
- (unless truncated first)
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>, linux-btrfs@vger.kernel.org
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>
+To: Jianguo Wu <wujianguo@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-[cc: btrfs]
+On Mon, 20 Jan 2014, Jianguo Wu wrote:
 
-On Mon, Jan 20, 2014 at 8:46 PM, Dave Chinner <david@fromorbit.com> wrote:
-> On Mon, Jan 20, 2014 at 04:59:23PM -0800, Andy Lutomirski wrote:
->> The code below runs quickly for a few iterations, and then it slows
->> down and the whole system becomes laggy for far too long.
->>
->> Removing the sync_file_range call results in no I/O being performed at
->> all (which means that the kernel isn't totally screwing this up), and
->> changing "4096" to SIZE causes lots of I/O but without
->> the going-out-to-lunch bit (unsurprisingly).
->
-> More details please. hardware, storage, kernel version, etc.
+> When OOM happen, will dump buddy free areas info, hugetlb pages info,
+> memory state of all eligible tasks, per-cpu memory info.
+> But do not dump slab/vmalloc info, sometime, it's not enough to figure out the
+> reason OOM happened.
+> 
+> So, my questions are:
+> 1. Should dump slab/vmalloc info when OOM happen? Though we can get these from proc file,
+> but usually we do not monitor the logs and check proc file immediately when OOM happened.
+> 
 
-The kernel is 3.11.10-301.fc20.x86_64.  It's an excessively fast CPU
-(Intel i7-3930K) with 16GB RAM and a Corsair Force 3 SSD (6Gb/s SATA)
-SSD.  The FS is btrfs on LVM on dm-crypt.
+The problem is that slabinfo becomes excessively verbose and dumping it 
+all to the kernel log often times causes important messages to be lost.  
+This is why we control things like the tasklist dump with a VM sysctl.  It 
+would be possible to dump, say, the top ten slab caches with the highest 
+memory usage, but it will only be helpful for slab leaks.  Typically there 
+are better debugging tools available than analyzing the kernel log; if you 
+see unusually high slab memory in the meminfo dump, you can enable it.
 
-In that setup, this thing goes quickly for 100 iterations or so, at
-which point even trying to Ctrl-C it lags out for ten seconds or so.
+> 2. /proc/$pid/smaps and pagecache info also helpful when OOM, should also be dumped?
+> 
 
-I clearly should have tested more thoroughly, though -- I can't
-reproduce this problem on ext4.
+Also very verbose and would cause important messages to be lost, we try to 
+avoid spamming the kernel log with all of this information as much as 
+possible.
 
->
-> I can't reproduce any slowdown with the code as posted on a VM
-> running 3.31-rc5 with 16GB RAM and an SSD w/ ext4 or XFS. The
-> workload is only generating about 80 IOPS on ext4 so even a slow
-> spindle should be able handle this without problems...
->
->> Surprisingly, uncommenting the ftruncate call seems to fix the
->> problem.  This suggests that all the necessary infrastructure to avoid
->> wasting time writing to deleted files is there but that it's not
->> getting used.
->
-> Not surprising at all - if it's stuck in a writeback loop somewhere,
-> truncating the file will terminate writeback because it end up being
-> past EOF and so stops immediately...
+> 3. Without these info, usually how to figure out OOM reason?
+> 
 
-Presumably ext4 and xfs are smart enough to stop writeback when the
-inode is gone, but btrfs is still either keeping the inode alive or
-just finishes writeback anyway.
-
---Andy
-
-#define _GNU_SOURCE
-#include <sys/mman.h>
-#include <err.h>
-#include <fcntl.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <string.h>
-
-#define SIZE (16 * 1048576)
-
-static void hammer(const char *name)
-{
-  int fd = open(name, O_RDWR | O_CREAT | O_EXCL, 0600);
-  if (fd == -1)
-    err(1, "open");
-
-  fallocate(fd, 0, 0, SIZE);
-
-  void *addr = mmap(NULL, SIZE, PROT_WRITE, MAP_SHARED, fd, 0);
-  if (addr == MAP_FAILED)
-    err(1, "mmap");
-
-  memset(addr, 0, SIZE);
-
-  if (munmap(addr, SIZE) != 0)
-    err(1, "munmap");
-
-  if (sync_file_range(fd, 0, 4096,
-              SYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE |
-              SYNC_FILE_RANGE_WAIT_AFTER) != 0)
-    err(1, "sync_file_range");
-
-  if (unlink(name) != 0)
-    err(1, "unlink");
-
-  //  if (ftruncate(fd, 0) != 0)
-  //    err(1, "ftruncate");
-
-  close(fd);
-}
-
-int main(int argc, char **argv)
-{
-  if (argc != 2) {
-    printf("Usage: hammer_and_delete FILENAME\n");
-    return 1;
-  }
-
-  while (true) {
-    hammer(argv[1]);
-    write(1, ".", 1);
-  }
-}
+Analyze the memory usage in the meminfo and determine what is unusually 
+high; if it's mostly anonymous memory, you can usually correlate it back 
+to a high rss for a process in the tasklist that you didn't suspect to be 
+using that much memory, for example.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
