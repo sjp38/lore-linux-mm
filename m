@@ -1,113 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C3146B0035
-	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 22:58:48 -0500 (EST)
-Received: by mail-qc0-f169.google.com with SMTP id w7so6734044qcr.14
-        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 19:58:48 -0800 (PST)
-Received: from mail-vc0-x22f.google.com (mail-vc0-x22f.google.com [2607:f8b0:400c:c03::22f])
-        by mx.google.com with ESMTPS id r15si2135524qeu.6.2014.01.20.19.58.47
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 20 Jan 2014 19:58:47 -0800 (PST)
-Received: by mail-vc0-f175.google.com with SMTP id ij19so3262245vcb.34
-        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 19:58:46 -0800 (PST)
+Received: from mail-yh0-f54.google.com (mail-yh0-f54.google.com [209.85.213.54])
+	by kanga.kvack.org (Postfix) with ESMTP id A88366B0035
+	for <linux-mm@kvack.org>; Mon, 20 Jan 2014 23:46:38 -0500 (EST)
+Received: by mail-yh0-f54.google.com with SMTP id z6so622749yhz.13
+        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 20:46:38 -0800 (PST)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [2001:44b8:8060:ff02:300:1:2:7])
+        by mx.google.com with ESMTP id v1si4087284yhg.149.2014.01.20.20.46.36
+        for <linux-mm@kvack.org>;
+        Mon, 20 Jan 2014 20:46:37 -0800 (PST)
+Date: Tue, 21 Jan 2014 15:46:32 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Dirty deleted files cause pointless I/O storms (unless truncated
+ first)
+Message-ID: <20140121044632.GA25923@dastard>
+References: <CALCETrVT29DULWg16_oKpGgSSBwZh-yWtygV1oYjH5iQH5jGyg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAFLCcBqyhL=wfC4uJmpp9MkGExBuPJC4EqY2RHRngnEn_1ytSA@mail.gmail.com>
-References: <CAFLCcBqyhL=wfC4uJmpp9MkGExBuPJC4EqY2RHRngnEn_1ytSA@mail.gmail.com>
-Date: Tue, 21 Jan 2014 11:58:46 +0800
-Message-ID: <CAA_GA1eR++9u+WrCnv-eLoAa-6K18aQwLJ+TkpC8LGQPEeHGSQ@mail.gmail.com>
-Subject: Re: [PATCH v2] mm/zswap: Check all pool pages instead of one pool pages
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrVT29DULWg16_oKpGgSSBwZh-yWtygV1oYjH5iQH5jGyg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cai Liu <liucai.lfn@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Bob Liu <bob.liu@oracle.com>, Cai Liu <cai.liu@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>
 
-On Tue, Jan 21, 2014 at 11:07 AM, Cai Liu <liucai.lfn@gmail.com> wrote:
-> Thanks for your review.
->
-> 2014/1/21 Minchan Kim <minchan@kernel.org>:
->> Hello Cai,
->>
->> On Mon, Jan 20, 2014 at 03:50:18PM +0800, Cai Liu wrote:
->>> zswap can support multiple swapfiles. So we need to check
->>> all zbud pool pages in zswap.
->>>
->>> Version 2:
->>>   * add *total_zbud_pages* in zbud to record all the pages in pools
->>>   * move the updating of pool pages statistics to
->>>     alloc_zbud_page/free_zbud_page to hide the details
->>>
->>> Signed-off-by: Cai Liu <cai.liu@samsung.com>
->>> ---
->>>  include/linux/zbud.h |    2 +-
->>>  mm/zbud.c            |   44 ++++++++++++++++++++++++++++++++------------
->>>  mm/zswap.c           |    4 ++--
->>>  3 files changed, 35 insertions(+), 15 deletions(-)
->>>
->>> diff --git a/include/linux/zbud.h b/include/linux/zbud.h
->>> index 2571a5c..1dbc13e 100644
->>> --- a/include/linux/zbud.h
->>> +++ b/include/linux/zbud.h
->>> @@ -17,6 +17,6 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle);
->>>  int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries);
->>>  void *zbud_map(struct zbud_pool *pool, unsigned long handle);
->>>  void zbud_unmap(struct zbud_pool *pool, unsigned long handle);
->>> -u64 zbud_get_pool_size(struct zbud_pool *pool);
->>> +u64 zbud_get_pool_size(void);
->>>
->>>  #endif /* _ZBUD_H_ */
->>> diff --git a/mm/zbud.c b/mm/zbud.c
->>> index 9451361..711aaf4 100644
->>> --- a/mm/zbud.c
->>> +++ b/mm/zbud.c
->>> @@ -52,6 +52,13 @@
->>>  #include <linux/spinlock.h>
->>>  #include <linux/zbud.h>
->>>
->>> +/*********************************
->>> +* statistics
->>> +**********************************/
->>> +
->>> +/* zbud pages in all pools */
->>> +static u64 total_zbud_pages;
->>> +
->>>  /*****************
->>>   * Structures
->>>  *****************/
->>> @@ -142,10 +149,28 @@ static struct zbud_header *init_zbud_page(struct page *page)
->>>       return zhdr;
->>>  }
->>>
->>> +static struct page *alloc_zbud_page(struct zbud_pool *pool, gfp_t gfp)
->>> +{
->>> +     struct page *page;
->>> +
->>> +     page = alloc_page(gfp);
->>> +
->>> +     if (page) {
->>> +             pool->pages_nr++;
->>> +             total_zbud_pages++;
->>
->> Who protect race?
->
-> Yes, here the pool->pages_nr and also the total_zbud_pages are not protected.
-> I will re-do it.
->
-> I will change *total_zbud_pages* to atomic type.
+On Mon, Jan 20, 2014 at 04:59:23PM -0800, Andy Lutomirski wrote:
+> The code below runs quickly for a few iterations, and then it slows
+> down and the whole system becomes laggy for far too long.
+> 
+> Removing the sync_file_range call results in no I/O being performed at
+> all (which means that the kernel isn't totally screwing this up), and
+> changing "4096" to SIZE causes lots of I/O but without
+> the going-out-to-lunch bit (unsurprisingly).
 
-And how about just add total_zbud_pages++ and leave pool->pages_nr in
-its original place which already protected by pool->lock?
+More details please. hardware, storage, kernel version, etc.
 
-> For *pool->pages_nr*, one way is to use pool->lock to protect. But I
-> think it is too heavy.
-> So does it ok to change pages_nr to atomic type too?
->
+I can't reproduce any slowdown with the code as posted on a VM
+running 3.31-rc5 with 16GB RAM and an SSD w/ ext4 or XFS. The
+workload is only generating about 80 IOPS on ext4 so even a slow
+spindle should be able handle this without problems...
 
+> Surprisingly, uncommenting the ftruncate call seems to fix the
+> problem.  This suggests that all the necessary infrastructure to avoid
+> wasting time writing to deleted files is there but that it's not
+> getting used.
+
+Not surprising at all - if it's stuck in a writeback loop somewhere,
+truncating the file will terminate writeback because it end up being
+past EOF and so stops immediately...
+
+Cheers,
+
+Dave.
 -- 
-Regards,
---Bob
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
