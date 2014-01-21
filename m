@@ -1,49 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-gg0-f174.google.com (mail-gg0-f174.google.com [209.85.161.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 898C76B0035
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 04:51:57 -0500 (EST)
-Received: by mail-gg0-f174.google.com with SMTP id g10so2515146gga.19
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 01:51:57 -0800 (PST)
-Received: from mail-yh0-x22c.google.com (mail-yh0-x22c.google.com [2607:f8b0:4002:c01::22c])
-        by mx.google.com with ESMTPS id k66si5028942yhc.186.2014.01.21.01.51.56
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 21 Jan 2014 01:51:56 -0800 (PST)
-Received: by mail-yh0-f44.google.com with SMTP id f73so1787222yha.31
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 01:51:56 -0800 (PST)
-Date: Tue, 21 Jan 2014 01:51:52 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH V5 1/3] mm/nobootmem: Fix unused variable
-In-Reply-To: <20140121075738.771d29b3@lilie>
-Message-ID: <alpine.DEB.2.02.1401210150220.29987@chino.kir.corp.google.com>
-References: <1390217559-14691-1-git-send-email-phacht@linux.vnet.ibm.com> <1390217559-14691-2-git-send-email-phacht@linux.vnet.ibm.com> <alpine.DEB.2.02.1401202214540.21729@chino.kir.corp.google.com> <20140121075738.771d29b3@lilie>
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D5686B0035
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 05:13:53 -0500 (EST)
+Received: by mail-wg0-f42.google.com with SMTP id l18so4801526wgh.3
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 02:13:53 -0800 (PST)
+Received: from cam-admin0.cambridge.arm.com (cam-admin0.cambridge.arm.com. [217.140.96.50])
+        by mx.google.com with ESMTP id n2si3036752wiz.53.2014.01.21.02.13.52
+        for <linux-mm@kvack.org>;
+        Tue, 21 Jan 2014 02:13:52 -0800 (PST)
+Date: Tue, 21 Jan 2014 10:12:11 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v8 5/6] MCS Lock: allow architectures to hook in to
+ contended
+Message-ID: <20140121101211.GC30706@mudshark.cambridge.arm.com>
+References: <cover.1390239879.git.tim.c.chen@linux.intel.com>
+ <1390267475.3138.39.camel@schen9-DESK>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1390267475.3138.39.camel@schen9-DESK>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, liuj97@gmail.com, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, iamjoonsoo.kim@lge.com, robin.m.holt@gmail.com, tangchen@cn.fujitsu.com, yinghai@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Tue, 21 Jan 2014, Philipp Hachtmann wrote:
+Hi Tim,
 
-> > Not sure why you don't just do a one line patch:
-> > 
-> > -	phys_addr_t size;
-> > +	phys_addr_t size __maybe_unused;
-> > to fix it.
+On Tue, Jan 21, 2014 at 01:24:35AM +0000, Tim Chen wrote:
+> From: Will Deacon <will.deacon@arm.com>
 > 
-> Just because I did not know that __maybe_unused thing.
+> When contended, architectures may be able to reduce the polling overhead
+> in ways which aren't expressible using a simple relax() primitive.
 > 
+> This patch allows architectures to hook into the mcs_{lock,unlock}
+> functions for the contended cases only.
+> 
+> Signed-off-by: Will Deacon <will.deacon@arm.com>
+> Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
 
--	phys_addr_t size;
-+	phys_addr_t size = 0;
+Not a huge problem, but the subject for this patch seem to have been
+truncated (should be "... contended paths").
 
-would have done the same thing.
-
-The compiler generated code isn't going to change with either of these, so 
-we're only talking about how the source code is structured.  If you and 
-Andrew believe that adding block scope to something so trivial then that's 
-your taste.  Looks ugly to me.
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
