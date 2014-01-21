@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f173.google.com (mail-yk0-f173.google.com [209.85.160.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 01D486B0088
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 17:20:29 -0500 (EST)
-Received: by mail-yk0-f173.google.com with SMTP id 20so4594699yks.4
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 14:20:29 -0800 (PST)
+Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
+	by kanga.kvack.org (Postfix) with ESMTP id B25C96B0089
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 17:20:30 -0500 (EST)
+Received: by mail-yk0-f169.google.com with SMTP id q9so6649812ykb.0
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 14:20:30 -0800 (PST)
 Received: from shelob.surriel.com (shelob.surriel.com. [2002:4a5c:3b41:1:216:3eff:fe57:7f4])
-        by mx.google.com with ESMTPS id s22si7747306yha.126.2014.01.21.14.20.27
+        by mx.google.com with ESMTPS id n44si7762126yhn.65.2014.01.21.14.20.27
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
         Tue, 21 Jan 2014 14:20:27 -0800 (PST)
 From: riel@redhat.com
-Subject: [PATCH 3/9] numa,sched: track from which nodes NUMA faults are triggered
-Date: Tue, 21 Jan 2014 17:20:05 -0500
-Message-Id: <1390342811-11769-4-git-send-email-riel@redhat.com>
+Subject: [PATCH 4/9] numa,sched: build per numa_group active node mask from numa_faults_cpu statistics
+Date: Tue, 21 Jan 2014 17:20:06 -0500
+Message-Id: <1390342811-11769-5-git-send-email-riel@redhat.com>
 In-Reply-To: <1390342811-11769-1-git-send-email-riel@redhat.com>
 References: <1390342811-11769-1-git-send-email-riel@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,12 +22,8 @@ Cc: linux-mm@kvack.org, peterz@infradead.org, mgorman@suse.de, mingo@redhat.com,
 
 From: Rik van Riel <riel@redhat.com>
 
-Track which nodes NUMA faults are triggered from, in other words
-the CPUs on which the NUMA faults happened. This uses a similar
-mechanism to what is used to track the memory involved in numa faults.
-
-The next patches use this to build up a bitmap of which nodes a
-workload is actively running on.
+The numa_faults_cpu statistics are used to maintain an active_nodes nodemask
+per numa_group. This allows us to be smarter about when to do numa migrations.
 
 Cc: Peter Zijlstra <peterz@infradead.org>
 Cc: Mel Gorman <mgorman@suse.de>
@@ -35,165 +31,105 @@ Cc: Ingo Molnar <mingo@redhat.com>
 Cc: Chegu Vinod <chegu_vinod@hp.com>
 Signed-off-by: Rik van Riel <riel@redhat.com>
 ---
- include/linux/sched.h | 10 ++++++++--
- kernel/sched/fair.c   | 30 +++++++++++++++++++++++-------
- 2 files changed, 31 insertions(+), 9 deletions(-)
+ kernel/sched/fair.c | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index b8f8476..d14d9fe 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1492,6 +1492,14 @@ struct task_struct {
- 	unsigned long *numa_faults_buffer_memory;
- 
- 	/*
-+	 * Track the nodes where faults are incurred. This is not very
-+	 * interesting on a per-task basis, but it help with smarter
-+	 * numa memory placement for groups of processes.
-+	 */
-+	unsigned long *numa_faults_cpu;
-+	unsigned long *numa_faults_buffer_cpu;
-+
-+	/*
- 	 * numa_faults_locality tracks if faults recorded during the last
- 	 * scan window were remote/local. The task scan period is adapted
- 	 * based on the locality of the faults with different weights
-@@ -1594,8 +1602,6 @@ extern void task_numa_fault(int last_node, int node, int pages, int flags);
- extern pid_t task_numa_group_id(struct task_struct *p);
- extern void set_numabalancing_state(bool enabled);
- extern void task_numa_free(struct task_struct *p);
--
--extern unsigned int sysctl_numa_balancing_migrate_deferred;
- #else
- static inline void task_numa_fault(int last_node, int node, int pages,
- 				   int flags)
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 6560145..b98ed61 100644
+index b98ed61..d4f6df5 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -886,6 +886,7 @@ struct numa_group {
+@@ -885,6 +885,7 @@ struct numa_group {
+ 	struct list_head task_list;
  
  	struct rcu_head rcu;
++	nodemask_t active_nodes;
  	unsigned long total_faults;
-+	unsigned long *faults_cpu;
+ 	unsigned long *faults_cpu;
  	unsigned long faults[0];
- };
+@@ -918,6 +919,12 @@ static inline unsigned long group_faults(struct task_struct *p, int nid)
+ 		p->numa_group->faults[task_faults_idx(nid, 1)];
+ }
  
-@@ -1372,10 +1373,11 @@ static void task_numa_placement(struct task_struct *p)
- 		int priv, i;
- 
- 		for (priv = 0; priv < 2; priv++) {
--			long diff;
-+			long diff, f_diff;
- 
- 			i = task_faults_idx(nid, priv);
- 			diff = -p->numa_faults_memory[i];
-+			f_diff = -p->numa_faults_cpu[i];
- 
- 			/* Decay existing window, copy faults since last scan */
- 			p->numa_faults_memory[i] >>= 1;
-@@ -1383,12 +1385,18 @@ static void task_numa_placement(struct task_struct *p)
- 			fault_types[priv] += p->numa_faults_buffer_memory[i];
- 			p->numa_faults_buffer_memory[i] = 0;
- 
-+			p->numa_faults_cpu[i] >>= 1;
-+			p->numa_faults_cpu[i] += p->numa_faults_buffer_cpu[i];
-+			p->numa_faults_buffer_cpu[i] = 0;
++static inline unsigned long group_faults_cpu(struct numa_group *group, int nid)
++{
++	return group->faults_cpu[task_faults_idx(nid, 0)] +
++		group->faults_cpu[task_faults_idx(nid, 1)];
++}
 +
- 			faults += p->numa_faults_memory[i];
- 			diff += p->numa_faults_memory[i];
-+			f_diff += p->numa_faults_cpu[i];
- 			p->total_numa_faults += diff;
- 			if (p->numa_group) {
- 				/* safe because we can only change our own group */
- 				p->numa_group->faults[i] += diff;
-+				p->numa_group->faults_cpu[i] += f_diff;
- 				p->numa_group->total_faults += diff;
- 				group_faults += p->numa_group->faults[i];
- 			}
-@@ -1457,7 +1465,7 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
+ /*
+  * These return the fraction of accesses done by a particular task, or
+  * task group, on a particular numa node.  The group weight is given a
+@@ -1275,6 +1282,40 @@ static void numa_migrate_preferred(struct task_struct *p)
+ }
  
- 	if (unlikely(!p->numa_group)) {
- 		unsigned int size = sizeof(struct numa_group) +
--				    2*nr_node_ids*sizeof(unsigned long);
-+				    4*nr_node_ids*sizeof(unsigned long);
+ /*
++ * Find the nodes on which the workload is actively running. We do this by
++ * tracking the nodes from which NUMA hinting faults are triggered. This can
++ * be different from the set of nodes where the workload's memory is currently
++ * located.
++ *
++ * The bitmask is used to make smarter decisions on when to do NUMA page
++ * migrations, To prevent flip-flopping, and excessive page migrations, nodes
++ * are added when they cause over 6/16 of the maximum number of faults, but
++ * only removed when they drop below 3/16.
++ */
++static void update_numa_active_node_mask(struct numa_group *numa_group)
++{
++	unsigned long faults, max_faults = 0;
++	int nid;
++
++	for_each_online_node(nid) {
++		faults = numa_group->faults_cpu[task_faults_idx(nid, 0)] +
++			 numa_group->faults_cpu[task_faults_idx(nid, 1)];
++		if (faults > max_faults)
++			max_faults = faults;
++	}
++
++	for_each_online_node(nid) {
++		faults = numa_group->faults_cpu[task_faults_idx(nid, 0)] +
++			 numa_group->faults_cpu[task_faults_idx(nid, 1)];
++		if (!node_isset(nid, numa_group->active_nodes)) {
++			if (faults > max_faults * 6 / 16)
++				node_set(nid, numa_group->active_nodes);
++		} else if (faults < max_faults * 3 / 16)
++			node_clear(nid, numa_group->active_nodes);
++	}
++}
++
++/*
+  * When adapting the scan rate, the period is divided into NUMA_PERIOD_SLOTS
+  * increments. The more local the fault statistics are, the higher the scan
+  * period will be for the next scan window. If local/remote ratio is below
+@@ -1416,6 +1457,7 @@ static void task_numa_placement(struct task_struct *p)
+ 	update_task_scan_period(p, fault_types[0], fault_types[1]);
  
- 		grp = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
- 		if (!grp)
-@@ -1467,8 +1475,10 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
- 		spin_lock_init(&grp->lock);
- 		INIT_LIST_HEAD(&grp->task_list);
- 		grp->gid = p->pid;
-+		/* Second half of the array tracks nids where faults happen */
-+		grp->faults_cpu = grp->faults + 2 * nr_node_ids;
+ 	if (p->numa_group) {
++		update_numa_active_node_mask(p->numa_group);
+ 		/*
+ 		 * If the preferred task and group nids are different,
+ 		 * iterate over the nodes again to find the best place.
+@@ -1478,6 +1520,8 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
+ 		/* Second half of the array tracks nids where faults happen */
+ 		grp->faults_cpu = grp->faults + 2 * nr_node_ids;
  
--		for (i = 0; i < 2*nr_node_ids; i++)
-+		for (i = 0; i < 4*nr_node_ids; i++)
++		node_set(task_node(current), grp->active_nodes);
++
+ 		for (i = 0; i < 4*nr_node_ids; i++)
  			grp->faults[i] = p->numa_faults_memory[i];
  
- 		grp->total_faults = p->total_numa_faults;
-@@ -1526,7 +1536,7 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
+@@ -1547,6 +1591,13 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
+ 	my_grp->nr_tasks--;
+ 	grp->nr_tasks++;
  
- 	double_lock(&my_grp->lock, &grp->lock);
- 
--	for (i = 0; i < 2*nr_node_ids; i++) {
-+	for (i = 0; i < 4*nr_node_ids; i++) {
- 		my_grp->faults[i] -= p->numa_faults_memory[i];
- 		grp->faults[i] += p->numa_faults_memory[i];
- 	}
-@@ -1558,7 +1568,7 @@ void task_numa_free(struct task_struct *p)
- 
- 	if (grp) {
- 		spin_lock(&grp->lock);
--		for (i = 0; i < 2*nr_node_ids; i++)
-+		for (i = 0; i < 4*nr_node_ids; i++)
- 			grp->faults[i] -= p->numa_faults_memory[i];
- 		grp->total_faults -= p->total_numa_faults;
- 
-@@ -1571,6 +1581,8 @@ void task_numa_free(struct task_struct *p)
- 
- 	p->numa_faults_memory = NULL;
- 	p->numa_faults_buffer_memory = NULL;
-+	p->numa_faults_cpu= NULL;
-+	p->numa_faults_buffer_cpu = NULL;
- 	kfree(numa_faults);
- }
- 
-@@ -1581,6 +1593,7 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
- {
- 	struct task_struct *p = current;
- 	bool migrated = flags & TNF_MIGRATED;
-+	int this_node = task_node(current);
- 	int priv;
- 
- 	if (!numabalancing_enabled)
-@@ -1596,7 +1609,7 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
- 
- 	/* Allocate buffer to track faults on a per-node basis */
- 	if (unlikely(!p->numa_faults_memory)) {
--		int size = sizeof(*p->numa_faults_memory) * 2 * nr_node_ids;
-+		int size = sizeof(*p->numa_faults_memory) * 4 * nr_node_ids;
- 
- 		/* numa_faults and numa_faults_buffer share the allocation */
- 		p->numa_faults_memory = kzalloc(size * 2, GFP_KERNEL|__GFP_NOWARN);
-@@ -1604,7 +1617,9 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
- 			return;
- 
- 		BUG_ON(p->numa_faults_buffer_memory);
--		p->numa_faults_buffer_memory = p->numa_faults_memory + (2 * nr_node_ids);
-+		p->numa_faults_cpu = p->numa_faults_memory + (2 * nr_node_ids);
-+		p->numa_faults_buffer_memory = p->numa_faults_memory + (4 * nr_node_ids);
-+		p->numa_faults_buffer_cpu = p->numa_faults_memory + (6 * nr_node_ids);
- 		p->total_numa_faults = 0;
- 		memset(p->numa_faults_locality, 0, sizeof(p->numa_faults_locality));
- 	}
-@@ -1634,6 +1649,7 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
- 		p->numa_pages_migrated += pages;
- 
- 	p->numa_faults_buffer_memory[task_faults_idx(node, priv)] += pages;
-+	p->numa_faults_buffer_cpu[task_faults_idx(this_node, priv)] += pages;
- 	p->numa_faults_locality[!!(flags & TNF_FAULT_LOCAL)] += pages;
- }
++	/*
++	 * We just joined a new group, the set of active nodes may have
++	 * changed. Do not update the nodemask of the old group, since
++	 * the tasks in that group will probably join the new group soon.
++	 */
++	update_numa_active_node_mask(grp);
++
+ 	spin_unlock(&my_grp->lock);
+ 	spin_unlock(&grp->lock);
  
 -- 
 1.8.4.2
