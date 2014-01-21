@@ -1,84 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f173.google.com (mail-ea0-f173.google.com [209.85.215.173])
-	by kanga.kvack.org (Postfix) with ESMTP id D86FA6B0035
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 06:05:20 -0500 (EST)
-Received: by mail-ea0-f173.google.com with SMTP id d10so883260eaj.32
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 03:05:20 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n47si8678603eey.119.2014.01.21.03.05.19
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 21 Jan 2014 03:05:19 -0800 (PST)
-Date: Tue, 21 Jan 2014 11:05:15 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: Improve documentation of page_order v2
-Message-ID: <20140121110515.GA14687@suse.de>
-References: <520B0B75.4030708@huawei.com>
- <20130814085711.GK2296@suse.de>
- <20130814155205.GA2706@gmail.com>
- <20130814132602.814a88e991e29c5b93bbe22c@linux-foundation.org>
- <20130814222241.GQ2296@suse.de>
- <20140117143221.GA24851@suse.de>
- <52D97C3E.2080709@codeaurora.org>
- <20140117195957.GG4963@suse.de>
+Received: from mail-gg0-f173.google.com (mail-gg0-f173.google.com [209.85.161.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 764266B0035
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 06:17:33 -0500 (EST)
+Received: by mail-gg0-f173.google.com with SMTP id n5so2503257ggj.4
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 03:17:33 -0800 (PST)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [2001:44b8:8060:ff02:300:1:2:7])
+        by mx.google.com with ESMTP id v21si5281807yhm.273.2014.01.21.03.17.31
+        for <linux-mm@kvack.org>;
+        Tue, 21 Jan 2014 03:17:32 -0800 (PST)
+Date: Tue, 21 Jan 2014 22:17:27 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] [ATTEND] Persistent memory
+Message-ID: <20140121111727.GB13997@dastard>
+References: <CALCETrUaotUuzn60-bSt1oUb8+94do2QgiCq_TXhqEHj79DePQ@mail.gmail.com>
+ <52D8AEBF.3090803@symas.com>
+ <52D982EB.6010507@amacapital.net>
+ <52DE23E8.9010608@symas.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140117195957.GG4963@suse.de>
+In-Reply-To: <52DE23E8.9010608@symas.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, Xishi Qiu <qiuxishi@huawei.com>, Laura Abbott <lauraa@codeaurora.org>, riel@redhat.com, aquini@redhat.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Howard Chu <hyc@symas.com>
+Cc: Andy Lutomirski <luto@amacapital.net>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Developers occasionally try and optimise PFN scanners by using page_order
-but miss that in general it requires zone->lock. This has happened twice for
-compaction.c and rejected both times.  This patch clarifies the documentation
-of page_order and adds a note to compaction.c why page_order is not used.
+On Mon, Jan 20, 2014 at 11:38:16PM -0800, Howard Chu wrote:
+> Andy Lutomirski wrote:
+> >On 01/16/2014 08:17 PM, Howard Chu wrote:
+> >>Andy Lutomirski wrote:
+> >>>I'm interested in a persistent memory track.  There seems to be plenty
+> >>>of other emails about this, but here's my take:
+> >>
+> >>I'm also interested in this track. I'm not up on FS development these
+> >>days, the last time I wrote filesystem code was nearly 20 years ago. But
+> >>persistent memory is a topic near and dear to my heart, and of great
+> >>relevance to my current pet project, the LMDB memory-mapped database.
+> >>
+> >>In a previous era I also developed block device drivers for
+> >>battery-backed external DRAM disks. (My ideal would have been systems
+> >>where all of RAM was persistent. I suppose we can just about get there
+> >>with mobile phones and tablets these days.)
+> >>
+> >>In the context of database engines, I'm interested in leveraging
+> >>persistent memory for write-back caching and how user level code can be
+> >>made aware of it. (If all your cache is persistent and guaranteed to
+> >>eventually reach stable store then you never need to fsync() a
+> >>transaction.)
 
-[lauraa@codeaurora.org: Corrected a page_zone(page)->lock reference]
-Signed-off-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Rafael Aquini <aquini@redhat.com>
-Acked-by: Minchan Kim <minchan@kernel.org>
----
- mm/compaction.c | 5 ++++-
- mm/internal.h   | 8 +++++---
- 2 files changed, 9 insertions(+), 4 deletions(-)
+I don't think that is true -  your still going to need fsync to get
+the CPU to flush it's caches and filesystem metadata into the
+persistent domain....
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index f58bcd0..f91d26b 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -522,7 +522,10 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 		if (!isolation_suitable(cc, page))
- 			goto next_pageblock;
- 
--		/* Skip if free */
-+		/*
-+		 * Skip if free. page_order cannot be used without zone->lock
-+		 * as nothing prevents parallel allocations or buddy merging.
-+		 */
- 		if (PageBuddy(page))
- 			continue;
- 
-diff --git a/mm/internal.h b/mm/internal.h
-index 684f7aa..09cd8be 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -144,9 +144,11 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- #endif
- 
- /*
-- * function for dealing with page's order in buddy system.
-- * zone->lock is already acquired when we use these.
-- * So, we don't need atomic page->flags operations here.
-+ * This functions returns the order of a free page in the buddy system. In
-+ * general, page_zone(page)->lock must be held by the caller to prevent the
-+ * page being allocated in parallel and returning garbage as the order. If the
-+ * caller does not hold page_zone(page)->lock, they must guarantee that the
-+ * page cannot be allocated or merged in parallel.
-  */
- static inline unsigned long page_order(struct page *page)
- {
+> >Hmm.  Presumably that would work by actually allocating cache pages in
+> >persistent memory.  I don't think that anything like the current XIP
+> >interfaces can do that, but it's certainly an interesting thought for
+> >(complicated) future work.
+> >
+> >This might not be pretty in conjunction with something like my
+> >writethrough mapping idea -- read(2) and write(2) would be fine (well,
+> >write(2) might need to use streaming loads), but mmap users who weren't
+> >expecting it might have truly awful performance.  That especially
+> >includes things like databases that aren't expecting this behavior.
+> 
+> At the moment all I can suggest is a new mmap() flag, e.g.
+> MAP_PERSISTENT. Not sure how a user or app should discover that it's
+> supported though.
+
+The point of using the XIP interface with filesystems that are
+backed by persistent memory is that mmap() gives userspace
+applications direct acess to the persistent memory directly without
+needing any modifications.  It's just a really, really fast file...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
