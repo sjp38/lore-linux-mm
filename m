@@ -1,64 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f42.google.com (mail-yh0-f42.google.com [209.85.213.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FF636B0085
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 17:14:55 -0500 (EST)
-Received: by mail-yh0-f42.google.com with SMTP id a41so1295660yho.1
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 14:14:55 -0800 (PST)
-Received: from mail-yh0-x229.google.com (mail-yh0-x229.google.com [2607:f8b0:4002:c01::229])
-        by mx.google.com with ESMTPS id r4si7757105yhg.10.2014.01.21.14.14.53
+Received: from mail-yk0-f173.google.com (mail-yk0-f173.google.com [209.85.160.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 01D486B0088
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 17:20:29 -0500 (EST)
+Received: by mail-yk0-f173.google.com with SMTP id 20so4594699yks.4
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 14:20:29 -0800 (PST)
+Received: from shelob.surriel.com (shelob.surriel.com. [2002:4a5c:3b41:1:216:3eff:fe57:7f4])
+        by mx.google.com with ESMTPS id s22si7747306yha.126.2014.01.21.14.20.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 21 Jan 2014 14:14:54 -0800 (PST)
-Received: by mail-yh0-f41.google.com with SMTP id i7so2308487yha.28
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 14:14:53 -0800 (PST)
-Date: Tue, 21 Jan 2014 14:14:51 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: slub: fix ALLOC_SLOWPATH stat
-In-Reply-To: <alpine.DEB.2.02.1401081824170.15616@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.02.1401211413440.1666@chino.kir.corp.google.com>
-References: <20140106204300.DE79BA86@viggo.jf.intel.com> <alpine.DEB.2.02.1401081824170.15616@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 21 Jan 2014 14:20:27 -0800 (PST)
+From: riel@redhat.com
+Subject: [PATCH 3/9] numa,sched: track from which nodes NUMA faults are triggered
+Date: Tue, 21 Jan 2014 17:20:05 -0500
+Message-Id: <1390342811-11769-4-git-send-email-riel@redhat.com>
+In-Reply-To: <1390342811-11769-1-git-send-email-riel@redhat.com>
+References: <1390342811-11769-1-git-send-email-riel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, peterz@infradead.org, mgorman@suse.de, mingo@redhat.com, chegu_vinod@hp.com
 
-On Wed, 8 Jan 2014, David Rientjes wrote:
+From: Rik van Riel <riel@redhat.com>
 
-> > There used to be only one path out of __slab_alloc(), and
-> > ALLOC_SLOWPATH got bumped in that exit path.  Now there are two,
-> > and a bunch of gotos.  ALLOC_SLOWPATH can now get set more than once
-> > during a single call to __slab_alloc() which is pretty bogus.
-> > Here's the sequence:
-> > 
-> > 1. Enter __slab_alloc(), fall through all the way to the
-> >    stat(s, ALLOC_SLOWPATH);
-> > 2. hit 'if (!freelist)', and bump DEACTIVATE_BYPASS, jump to
-> >    new_slab (goto #1)
-> > 3. Hit 'if (c->partial)', bump CPU_PARTIAL_ALLOC, goto redo
-> >    (goto #2)
-> > 4. Fall through in the same path we did before all the way to
-> >    stat(s, ALLOC_SLOWPATH)
-> > 5. bump ALLOC_REFILL stat, then return
-> > 
-> > Doing this is obviously bogus.  It keeps us from being able to
-> > accurately compare ALLOC_SLOWPATH vs. ALLOC_FASTPATH.  It also
-> > means that the total number of allocs always exceeds the total
-> > number of frees.
-> > 
-> > This patch moves stat(s, ALLOC_SLOWPATH) to be called from the
-> > same place that __slab_alloc() is.  This makes it much less
-> > likely that ALLOC_SLOWPATH will get botched again in the
-> > spaghetti-code inside __slab_alloc().
-> > 
-> > Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> Acked-by: David Rientjes <rientjes@google.com>
-> 
+Track which nodes NUMA faults are triggered from, in other words
+the CPUs on which the NUMA faults happened. This uses a similar
+mechanism to what is used to track the memory involved in numa faults.
 
-Pekka, are you going to pick this up for linux-next?  I think it would be 
-nice to have for 3.14 for those of us who use the stats.
+The next patches use this to build up a bitmap of which nodes a
+workload is actively running on.
+
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: Chegu Vinod <chegu_vinod@hp.com>
+Signed-off-by: Rik van Riel <riel@redhat.com>
+---
+ include/linux/sched.h | 10 ++++++++--
+ kernel/sched/fair.c   | 30 +++++++++++++++++++++++-------
+ 2 files changed, 31 insertions(+), 9 deletions(-)
+
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index b8f8476..d14d9fe 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1492,6 +1492,14 @@ struct task_struct {
+ 	unsigned long *numa_faults_buffer_memory;
+ 
+ 	/*
++	 * Track the nodes where faults are incurred. This is not very
++	 * interesting on a per-task basis, but it help with smarter
++	 * numa memory placement for groups of processes.
++	 */
++	unsigned long *numa_faults_cpu;
++	unsigned long *numa_faults_buffer_cpu;
++
++	/*
+ 	 * numa_faults_locality tracks if faults recorded during the last
+ 	 * scan window were remote/local. The task scan period is adapted
+ 	 * based on the locality of the faults with different weights
+@@ -1594,8 +1602,6 @@ extern void task_numa_fault(int last_node, int node, int pages, int flags);
+ extern pid_t task_numa_group_id(struct task_struct *p);
+ extern void set_numabalancing_state(bool enabled);
+ extern void task_numa_free(struct task_struct *p);
+-
+-extern unsigned int sysctl_numa_balancing_migrate_deferred;
+ #else
+ static inline void task_numa_fault(int last_node, int node, int pages,
+ 				   int flags)
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 6560145..b98ed61 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -886,6 +886,7 @@ struct numa_group {
+ 
+ 	struct rcu_head rcu;
+ 	unsigned long total_faults;
++	unsigned long *faults_cpu;
+ 	unsigned long faults[0];
+ };
+ 
+@@ -1372,10 +1373,11 @@ static void task_numa_placement(struct task_struct *p)
+ 		int priv, i;
+ 
+ 		for (priv = 0; priv < 2; priv++) {
+-			long diff;
++			long diff, f_diff;
+ 
+ 			i = task_faults_idx(nid, priv);
+ 			diff = -p->numa_faults_memory[i];
++			f_diff = -p->numa_faults_cpu[i];
+ 
+ 			/* Decay existing window, copy faults since last scan */
+ 			p->numa_faults_memory[i] >>= 1;
+@@ -1383,12 +1385,18 @@ static void task_numa_placement(struct task_struct *p)
+ 			fault_types[priv] += p->numa_faults_buffer_memory[i];
+ 			p->numa_faults_buffer_memory[i] = 0;
+ 
++			p->numa_faults_cpu[i] >>= 1;
++			p->numa_faults_cpu[i] += p->numa_faults_buffer_cpu[i];
++			p->numa_faults_buffer_cpu[i] = 0;
++
+ 			faults += p->numa_faults_memory[i];
+ 			diff += p->numa_faults_memory[i];
++			f_diff += p->numa_faults_cpu[i];
+ 			p->total_numa_faults += diff;
+ 			if (p->numa_group) {
+ 				/* safe because we can only change our own group */
+ 				p->numa_group->faults[i] += diff;
++				p->numa_group->faults_cpu[i] += f_diff;
+ 				p->numa_group->total_faults += diff;
+ 				group_faults += p->numa_group->faults[i];
+ 			}
+@@ -1457,7 +1465,7 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
+ 
+ 	if (unlikely(!p->numa_group)) {
+ 		unsigned int size = sizeof(struct numa_group) +
+-				    2*nr_node_ids*sizeof(unsigned long);
++				    4*nr_node_ids*sizeof(unsigned long);
+ 
+ 		grp = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
+ 		if (!grp)
+@@ -1467,8 +1475,10 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
+ 		spin_lock_init(&grp->lock);
+ 		INIT_LIST_HEAD(&grp->task_list);
+ 		grp->gid = p->pid;
++		/* Second half of the array tracks nids where faults happen */
++		grp->faults_cpu = grp->faults + 2 * nr_node_ids;
+ 
+-		for (i = 0; i < 2*nr_node_ids; i++)
++		for (i = 0; i < 4*nr_node_ids; i++)
+ 			grp->faults[i] = p->numa_faults_memory[i];
+ 
+ 		grp->total_faults = p->total_numa_faults;
+@@ -1526,7 +1536,7 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
+ 
+ 	double_lock(&my_grp->lock, &grp->lock);
+ 
+-	for (i = 0; i < 2*nr_node_ids; i++) {
++	for (i = 0; i < 4*nr_node_ids; i++) {
+ 		my_grp->faults[i] -= p->numa_faults_memory[i];
+ 		grp->faults[i] += p->numa_faults_memory[i];
+ 	}
+@@ -1558,7 +1568,7 @@ void task_numa_free(struct task_struct *p)
+ 
+ 	if (grp) {
+ 		spin_lock(&grp->lock);
+-		for (i = 0; i < 2*nr_node_ids; i++)
++		for (i = 0; i < 4*nr_node_ids; i++)
+ 			grp->faults[i] -= p->numa_faults_memory[i];
+ 		grp->total_faults -= p->total_numa_faults;
+ 
+@@ -1571,6 +1581,8 @@ void task_numa_free(struct task_struct *p)
+ 
+ 	p->numa_faults_memory = NULL;
+ 	p->numa_faults_buffer_memory = NULL;
++	p->numa_faults_cpu= NULL;
++	p->numa_faults_buffer_cpu = NULL;
+ 	kfree(numa_faults);
+ }
+ 
+@@ -1581,6 +1593,7 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
+ {
+ 	struct task_struct *p = current;
+ 	bool migrated = flags & TNF_MIGRATED;
++	int this_node = task_node(current);
+ 	int priv;
+ 
+ 	if (!numabalancing_enabled)
+@@ -1596,7 +1609,7 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
+ 
+ 	/* Allocate buffer to track faults on a per-node basis */
+ 	if (unlikely(!p->numa_faults_memory)) {
+-		int size = sizeof(*p->numa_faults_memory) * 2 * nr_node_ids;
++		int size = sizeof(*p->numa_faults_memory) * 4 * nr_node_ids;
+ 
+ 		/* numa_faults and numa_faults_buffer share the allocation */
+ 		p->numa_faults_memory = kzalloc(size * 2, GFP_KERNEL|__GFP_NOWARN);
+@@ -1604,7 +1617,9 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
+ 			return;
+ 
+ 		BUG_ON(p->numa_faults_buffer_memory);
+-		p->numa_faults_buffer_memory = p->numa_faults_memory + (2 * nr_node_ids);
++		p->numa_faults_cpu = p->numa_faults_memory + (2 * nr_node_ids);
++		p->numa_faults_buffer_memory = p->numa_faults_memory + (4 * nr_node_ids);
++		p->numa_faults_buffer_cpu = p->numa_faults_memory + (6 * nr_node_ids);
+ 		p->total_numa_faults = 0;
+ 		memset(p->numa_faults_locality, 0, sizeof(p->numa_faults_locality));
+ 	}
+@@ -1634,6 +1649,7 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
+ 		p->numa_pages_migrated += pages;
+ 
+ 	p->numa_faults_buffer_memory[task_faults_idx(node, priv)] += pages;
++	p->numa_faults_buffer_cpu[task_faults_idx(this_node, priv)] += pages;
+ 	p->numa_faults_locality[!!(flags & TNF_FAULT_LOCAL)] += pages;
+ }
+ 
+-- 
+1.8.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
