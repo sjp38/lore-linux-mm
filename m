@@ -1,56 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 595826B006E
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 16:01:07 -0500 (EST)
-Received: by mail-wi0-f181.google.com with SMTP id hi8so4872900wib.14
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 13:01:06 -0800 (PST)
-Received: from mail-ea0-x22b.google.com (mail-ea0-x22b.google.com [2a00:1450:4013:c01::22b])
-        by mx.google.com with ESMTPS id gg4si4335815wjc.150.2014.01.21.13.01.06
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 21 Jan 2014 13:01:06 -0800 (PST)
-Received: by mail-ea0-f171.google.com with SMTP id h10so4007091eak.16
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 13:01:06 -0800 (PST)
+Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B82D6B0071
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 16:05:49 -0500 (EST)
+Received: by mail-qc0-f171.google.com with SMTP id n7so7783977qcx.30
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 13:05:49 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id c3si4030330qee.57.2014.01.21.13.05.47
+        for <linux-mm@kvack.org>;
+        Tue, 21 Jan 2014 13:05:48 -0800 (PST)
+Message-ID: <52DEE10C.6030907@redhat.com>
+Date: Tue, 21 Jan 2014 16:05:16 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1390267468.3138.37.camel@schen9-DESK>
-References: <cover.1390239879.git.tim.c.chen@linux.intel.com>
-	<1390267468.3138.37.camel@schen9-DESK>
-Date: Tue, 21 Jan 2014 13:01:05 -0800
-Message-ID: <CAGQ1y=6SDNen_w4AVdbmvwat5RjuDb7OCtb_aUQzfqwJU3fMDw@mail.gmail.com>
-Subject: Re: [PATCH v8 3/6] MCS Lock: optimizations and extra comments
-From: Jason Low <jason.low2@hp.com>
+Subject: Re: [PATCH 5/6] numa,sched: normalize faults_from stats and weigh
+ by CPU use
+References: <1390245667-24193-1-git-send-email-riel@redhat.com> <1390245667-24193-6-git-send-email-riel@redhat.com> <20140121155652.GL4963@suse.de>
+In-Reply-To: <20140121155652.GL4963@suse.de>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Will Deacon <will.deacon@arm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, mingo@redhat.com, chegu_vinod@hp.com
 
-On Mon, Jan 20, 2014 at 5:24 PM, Tim Chen <tim.c.chen@linux.intel.com> wrote:
-> From: Jason Low <jason.low2@hp.com>
+On 01/21/2014 10:56 AM, Mel Gorman wrote:
+> On Mon, Jan 20, 2014 at 02:21:06PM -0500, riel@redhat.com wrote:
 
-> @@ -41,8 +47,11 @@ void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
->
->         prev = xchg(lock, node);
->         if (likely(prev == NULL)) {
-> -               /* Lock acquired */
-> -               node->locked = 1;
-> +               /* Lock acquired, don't need to set node->locked to 1
-> +                * as lock owner and other contenders won't check this value.
-> +                * If a debug mode is needed to audit lock status, then
-> +                * set node->locked value here.
-> +                */
+>> @@ -1434,6 +1436,11 @@ static void task_numa_placement(struct task_struct *p)
+>>  	p->numa_scan_seq = seq;
+>>  	p->numa_scan_period_max = task_scan_max(p);
+>>  
+>> +	total_faults = p->numa_faults_locality[0] +
+>> +		       p->numa_faults_locality[1] + 1;
+> 
+> Depending on how you reacted to the review of other patches this may or
+> may not have a helper now.
 
-It would also be good to mention why the value is not checked
-in this comment. Perhaps something like the following:
+This is a faults "buffer", zeroed quickly after we take these
+faults, so we should probably not tempt others by having a helper
+function to get these numbers...
 
-/*
- * Lock acquired, don't need to set node->locked to 1. Threads
- * only spin on its own node->locked value for lock acquisition.
- * However, since this thread can immediately acquire the lock
- * and does not proceed to spin on its own node->locked, this
- * value won't be used. If a debug mode is needed to
- * audit lock status, then set node->locked value here.
- */
+>> +	runtime = p->se.avg.runnable_avg_sum;
+>> +	period = p->se.avg.runnable_avg_period;
+>> +
+> 
+> Ok, IIRC these stats are based a decaying average based on recent
+> history so heavy activity followed by long periods of idle will not skew
+> the stats.
+
+Turns out that using a longer time statistic results in a 1% performance
+gain, so expect this code to change again in the next version :)
+
+>> @@ -1458,8 +1465,18 @@ static void task_numa_placement(struct task_struct *p)
+>>  			fault_types[priv] += p->numa_faults_buffer[i];
+>>  			p->numa_faults_buffer[i] = 0;
+>>  
+>> +			/*
+>> +			 * Normalize the faults_from, so all tasks in a group
+>> +			 * count according to CPU use, instead of by the raw
+>> +			 * number of faults. Tasks with little runtime have
+>> +			 * little over-all impact on throughput, and thus their
+>> +			 * faults are less important.
+>> +			 */
+>> +			f_weight = (16384 * runtime *
+>> +				   p->numa_faults_from_buffer[i]) /
+>> +				   (total_faults * period + 1);
+> 
+> Why 16384? It looks like a scaling factor to deal with integer approximations
+> but I'm not 100% sure and I do not see how you arrived at that value.
+
+Indeed, it is simply a fixed point math scaling factor.
+
+I used 1024 before, but that is kind of a small number when we could
+be dealing with a node that has 20% of the accesses, and a task that
+used 10% CPU time.
+
+Having the numbers a little larger could help, and certainly should
+not hurt, as long as we keep the number small enough to avoid overflows.
+
+>>  			p->numa_faults_from[i] >>= 1;
+>> -			p->numa_faults_from[i] += p->numa_faults_from_buffer[i];
+>> +			p->numa_faults_from[i] += f_weight;
+>>  			p->numa_faults_from_buffer[i] = 0;
+>>  
+> 
+> numa_faults_from needs a big comment that it's no longer about the
+> number of faults in it. It's the sum of faults measured by the group
+> weighted by the CPU
+
+Agreed.
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
