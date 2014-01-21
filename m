@@ -1,109 +1,304 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 793ED6B0035
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 02:38:25 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id kq14so8041539pab.17
-        for <linux-mm@kvack.org>; Mon, 20 Jan 2014 23:38:25 -0800 (PST)
-Received: from zill.ext.symas.net (zill.ext.symas.net. [69.43.206.106])
-        by mx.google.com with ESMTPS id i3si4176353pbe.319.2014.01.20.23.38.23
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 20 Jan 2014 23:38:23 -0800 (PST)
-Message-ID: <52DE23E8.9010608@symas.com>
-Date: Mon, 20 Jan 2014 23:38:16 -0800
-From: Howard Chu <hyc@symas.com>
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id B2DC26B0035
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 03:17:14 -0500 (EST)
+Received: by mail-pd0-f170.google.com with SMTP id p10so3629264pdj.29
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 00:17:14 -0800 (PST)
+Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
+        by mx.google.com with ESMTP id xy6si4372106pab.95.2014.01.21.00.17.11
+        for <linux-mm@kvack.org>;
+        Tue, 21 Jan 2014 00:17:13 -0800 (PST)
+Date: Tue, 21 Jan 2014 17:18:20 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2] mm/zswap: Check all pool pages instead of one pool
+ pages
+Message-ID: <20140121081820.GA31230@bbox>
+References: <CAFLCcBqyhL=wfC4uJmpp9MkGExBuPJC4EqY2RHRngnEn_1ytSA@mail.gmail.com>
+ <20140121050439.GA16664@bbox>
+ <CAFLCcBr1_=i3Pdh8_MToS0Dc1UGruviMiydF5c-vX2Bv8AfeAw@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [LSF/MM TOPIC] [ATTEND] Persistent memory
-References: <CALCETrUaotUuzn60-bSt1oUb8+94do2QgiCq_TXhqEHj79DePQ@mail.gmail.com> <52D8AEBF.3090803@symas.com> <52D982EB.6010507@amacapital.net>
-In-Reply-To: <52D982EB.6010507@amacapital.net>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAFLCcBr1_=i3Pdh8_MToS0Dc1UGruviMiydF5c-vX2Bv8AfeAw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Cai Liu <liucai.lfn@gmail.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Bob Liu <bob.liu@oracle.com>, Cai Liu <cai.liu@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
-Andy Lutomirski wrote:
-> On 01/16/2014 08:17 PM, Howard Chu wrote:
->> Andy Lutomirski wrote:
->>> I'm interested in a persistent memory track.  There seems to be plenty
->>> of other emails about this, but here's my take:
->>
->> I'm also interested in this track. I'm not up on FS development these
->> days, the last time I wrote filesystem code was nearly 20 years ago. But
->> persistent memory is a topic near and dear to my heart, and of great
->> relevance to my current pet project, the LMDB memory-mapped database.
->>
->> In a previous era I also developed block device drivers for
->> battery-backed external DRAM disks. (My ideal would have been systems
->> where all of RAM was persistent. I suppose we can just about get there
->> with mobile phones and tablets these days.)
->>
->> In the context of database engines, I'm interested in leveraging
->> persistent memory for write-back caching and how user level code can be
->> made aware of it. (If all your cache is persistent and guaranteed to
->> eventually reach stable store then you never need to fsync() a
->> transaction.)
->
-> Hmm.  Presumably that would work by actually allocating cache pages in
-> persistent memory.  I don't think that anything like the current XIP
-> interfaces can do that, but it's certainly an interesting thought for
-> (complicated) future work.
->
-> This might not be pretty in conjunction with something like my
-> writethrough mapping idea -- read(2) and write(2) would be fine (well,
-> write(2) might need to use streaming loads), but mmap users who weren't
-> expecting it might have truly awful performance.  That especially
-> includes things like databases that aren't expecting this behavior.
+Hello,
 
-At the moment all I can suggest is a new mmap() flag, e.g. MAP_PERSISTENT. Not 
-sure how a user or app should discover that it's supported though.
->
-> --Andy
->
->>
->>> First, I'm not an FS expert.  I've never written an FS, touched an
->>> on-disk (or on-persistent-memory) FS format.  I have, however, mucked
->>> with some low-level x86 details, and I'm a heavy abuser of the Linux
->>> page cache.
->>>
->>> I'm an upcoming user of persistent memory -- I have some (in the form
->>> if NV-DIMMs) and I have an application (HFT and a memory-backed
->>> database thing) that I'll port to run on pmfs or ext4 w/ XIP once
->>> everything is ready.
->>>
->>> I'm also interested in some of the implementation details.  For this
->>> stuff to be reliable on anything resembling commodity hardware, there
->>> will be some caching issues to deal with.  For example, I think it
->>> would be handy to run things like pmfs on top of write-through
->>> mappings.  This is currently barely supportable (and only using
->>> mtrrs), but it's not terribly complicated (on new enough hardware) to
->>> support real write-through PAT entries.
->>>
->>> I've written an i2c-imc driver (currently in limbo on the i2c list),
->>> which will likely be used for control operations on NV-DIMMs plugged
->>> into Intel-based server boards.
->>>
->>> In principle, I could even bring a working NV-DIMM system to the
->>> summit -- it's nearby, and this thing isn't *that* large :)
->>>
->>> --Andy
->>> --
->>> To unsubscribe from this list: send the line "unsubscribe
->>> linux-fsdevel" in
->>> the body of a message to majordomo@vger.kernel.org
->>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->>>
->>
->>
->
->
+On Tue, Jan 21, 2014 at 02:35:07PM +0800, Cai Liu wrote:
+> 2014/1/21 Minchan Kim <minchan@kernel.org>:
+> > Please check your MUA and don't break thread.
+> >
+> > On Tue, Jan 21, 2014 at 11:07:42AM +0800, Cai Liu wrote:
+> >> Thanks for your review.
+> >>
+> >> 2014/1/21 Minchan Kim <minchan@kernel.org>:
+> >> > Hello Cai,
+> >> >
+> >> > On Mon, Jan 20, 2014 at 03:50:18PM +0800, Cai Liu wrote:
+> >> >> zswap can support multiple swapfiles. So we need to check
+> >> >> all zbud pool pages in zswap.
+> >> >>
+> >> >> Version 2:
+> >> >>   * add *total_zbud_pages* in zbud to record all the pages in pools
+> >> >>   * move the updating of pool pages statistics to
+> >> >>     alloc_zbud_page/free_zbud_page to hide the details
+> >> >>
+> >> >> Signed-off-by: Cai Liu <cai.liu@samsung.com>
+> >> >> ---
+> >> >>  include/linux/zbud.h |    2 +-
+> >> >>  mm/zbud.c            |   44 ++++++++++++++++++++++++++++++++------------
+> >> >>  mm/zswap.c           |    4 ++--
+> >> >>  3 files changed, 35 insertions(+), 15 deletions(-)
+> >> >>
+> >> >> diff --git a/include/linux/zbud.h b/include/linux/zbud.h
+> >> >> index 2571a5c..1dbc13e 100644
+> >> >> --- a/include/linux/zbud.h
+> >> >> +++ b/include/linux/zbud.h
+> >> >> @@ -17,6 +17,6 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle);
+> >> >>  int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries);
+> >> >>  void *zbud_map(struct zbud_pool *pool, unsigned long handle);
+> >> >>  void zbud_unmap(struct zbud_pool *pool, unsigned long handle);
+> >> >> -u64 zbud_get_pool_size(struct zbud_pool *pool);
+> >> >> +u64 zbud_get_pool_size(void);
+> >> >>
+> >> >>  #endif /* _ZBUD_H_ */
+> >> >> diff --git a/mm/zbud.c b/mm/zbud.c
+> >> >> index 9451361..711aaf4 100644
+> >> >> --- a/mm/zbud.c
+> >> >> +++ b/mm/zbud.c
+> >> >> @@ -52,6 +52,13 @@
+> >> >>  #include <linux/spinlock.h>
+> >> >>  #include <linux/zbud.h>
+> >> >>
+> >> >> +/*********************************
+> >> >> +* statistics
+> >> >> +**********************************/
+> >> >> +
+> >> >> +/* zbud pages in all pools */
+> >> >> +static u64 total_zbud_pages;
+> >> >> +
+> >> >>  /*****************
+> >> >>   * Structures
+> >> >>  *****************/
+> >> >> @@ -142,10 +149,28 @@ static struct zbud_header *init_zbud_page(struct page *page)
+> >> >>       return zhdr;
+> >> >>  }
+> >> >>
+> >> >> +static struct page *alloc_zbud_page(struct zbud_pool *pool, gfp_t gfp)
+> >> >> +{
+> >> >> +     struct page *page;
+> >> >> +
+> >> >> +     page = alloc_page(gfp);
+> >> >> +
+> >> >> +     if (page) {
+> >> >> +             pool->pages_nr++;
+> >> >> +             total_zbud_pages++;
+> >> >
+> >> > Who protect race?
+> >>
+> >> Yes, here the pool->pages_nr and also the total_zbud_pages are not protected.
+> >> I will re-do it.
+> >>
+> >> I will change *total_zbud_pages* to atomic type.
+> >
+> > Wait, it doesn't make sense. Now, you assume zbud allocator would be used
+> > for only zswap. It's true until now but we couldn't make sure it in future.
+> > If other user start to use zbud allocator, total_zbud_pages would be pointless.
+> 
+> Yes, you are right.  ZBUD is a common module. So in this patch calculate the
+> zswap pool size in zbud is not suitable.
+> 
+> >
+> > Another concern is that what's your scenario for above two swap?
+> > How often we need to call zbud_get_pool_size?
+> > In previous your patch, you reduced the number of call so IIRC,
+> > we only called it in zswap_is_full and for debugfs.
+> 
+> zbud_get_pool_size() is called frequently when adding/freeing zswap
+> entry happen in zswap . This is why in this patch I added a counter in zbud,
+> and then in zswap the iteration of zswap_list to calculate the pool size will
+> not be needed.
 
+We can remove updating zswap_pool_pages in zswap_frontswap_store and
+zswap_free_entry as I said. So zswap_is_full is only hot spot.
+Do you think it's still big overhead? Why? Maybe locking to prevent
+destroying? Then, we can use RCU to minimize the overhead as I mentioned.
+
+> 
+> > Of course, it would need some lock or refcount to prevent destroy
+> > of zswap_tree in parallel with zswap_frontswap_invalidate_area but
+> > zswap_is_full doesn't need to be exact so RCU would be good fit.
+> >
+> > Most important point is that now zswap doesn't consider multiple swap.
+> > For example, Let's assume you uses two swap A and B with different priority
+> > and A already has charged 19% long time ago and let's assume that A swap is
+> > full now so VM start to use B so that B has charged 1% recently.
+> > It menas zswap charged (19% + 1%)i is full by default.
+> >
+> > Then, if VM want to swap out more pages into B, zbud_reclaim_page
+> > would be evict one of pages in B's pool and it would be repeated
+> > continuously. It's totally LRU reverse problem and swap thrashing in B
+> > would happen.
+> >
+> 
+> The scenario is below:
+> There are 2 swap A, B in system. If pool size of A reach 19% of ram
+> size and swap A
+> is also full. Then swap B will be used. Pool size of B will be
+> increased until it hit
+> the 20% of the ram size. By now zswap pool size is about 39% of ram size.
+> If there are more than 2 swap file/device,  zswap pool will expand out
+> of control
+> and there may be no swapout happened.
+
+I know.
+
+> 
+> I think the original intention of zswap designer is to keep the total
+> zswap pools size below
+> 20% of RAM size.
+
+My point is your patch still doesn't solve the example I mentioned.
+
+> 
+> Thanks.
+> 
+> > Please say your usecase scenario and if it's really problem,
+> > we need more surgery.
+> >
+> > Thanks.
+> >
+> >> For *pool->pages_nr*, one way is to use pool->lock to protect. But I
+> >> think it is too heavy.
+> >> So does it ok to change pages_nr to atomic type too?
+> >>
+> >>
+> >> >
+> >> >> +     }
+> >> >> +
+> >> >> +     return page;
+> >> >> +}
+> >> >> +
+> >> >> +
+> >> >>  /* Resets the struct page fields and frees the page */
+> >> >> -static void free_zbud_page(struct zbud_header *zhdr)
+> >> >> +static void free_zbud_page(struct zbud_pool *pool, struct zbud_header *zhdr)
+> >> >>  {
+> >> >>       __free_page(virt_to_page(zhdr));
+> >> >> +
+> >> >> +     pool->pages_nr--;
+> >> >> +     total_zbud_pages--;
+> >> >>  }
+> >> >>
+> >> >>  /*
+> >> >> @@ -279,11 +304,10 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
+> >> >>
+> >> >>       /* Couldn't find unbuddied zbud page, create new one */
+> >> >>       spin_unlock(&pool->lock);
+> >> >> -     page = alloc_page(gfp);
+> >> >> +     page = alloc_zbud_page(pool, gfp);
+> >> >>       if (!page)
+> >> >>               return -ENOMEM;
+> >> >>       spin_lock(&pool->lock);
+> >> >> -     pool->pages_nr++;
+> >> >>       zhdr = init_zbud_page(page);
+> >> >>       bud = FIRST;
+> >> >>
+> >> >> @@ -349,8 +373,7 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
+> >> >>       if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
+> >> >>               /* zbud page is empty, free */
+> >> >>               list_del(&zhdr->lru);
+> >> >> -             free_zbud_page(zhdr);
+> >> >> -             pool->pages_nr--;
+> >> >> +             free_zbud_page(pool, zhdr);
+> >> >>       } else {
+> >> >>               /* Add to unbuddied list */
+> >> >>               freechunks = num_free_chunks(zhdr);
+> >> >> @@ -447,8 +470,7 @@ next:
+> >> >>                        * Both buddies are now free, free the zbud page and
+> >> >>                        * return success.
+> >> >>                        */
+> >> >> -                     free_zbud_page(zhdr);
+> >> >> -                     pool->pages_nr--;
+> >> >> +                     free_zbud_page(pool, zhdr);
+> >> >>                       spin_unlock(&pool->lock);
+> >> >>                       return 0;
+> >> >>               } else if (zhdr->first_chunks == 0 ||
+> >> >> @@ -496,14 +518,12 @@ void zbud_unmap(struct zbud_pool *pool, unsigned long handle)
+> >> >>
+> >> >>  /**
+> >> >>   * zbud_get_pool_size() - gets the zbud pool size in pages
+> >> >> - * @pool:    pool whose size is being queried
+> >> >>   *
+> >> >> - * Returns: size in pages of the given pool.  The pool lock need not be
+> >> >> - * taken to access pages_nr.
+> >> >> + * Returns: size in pages of all the zbud pools.
+> >> >>   */
+> >> >> -u64 zbud_get_pool_size(struct zbud_pool *pool)
+> >> >> +u64 zbud_get_pool_size(void)
+> >> >>  {
+> >> >> -     return pool->pages_nr;
+> >> >> +     return total_zbud_pages;
+> >> >>  }
+> >> >>
+> >> >>  static int __init init_zbud(void)
+> >> >> diff --git a/mm/zswap.c b/mm/zswap.c
+> >> >> index 5a63f78..ef44d9d 100644
+> >> >> --- a/mm/zswap.c
+> >> >> +++ b/mm/zswap.c
+> >> >> @@ -291,7 +291,7 @@ static void zswap_free_entry(struct zswap_tree *tree,
+> >> >>       zbud_free(tree->pool, entry->handle);
+> >> >>       zswap_entry_cache_free(entry);
+> >> >>       atomic_dec(&zswap_stored_pages);
+> >> >> -     zswap_pool_pages = zbud_get_pool_size(tree->pool);
+> >> >> +     zswap_pool_pages = zbud_get_pool_size();
+> >> >>  }
+> >> >>
+> >> >>  /* caller must hold the tree lock */
+> >> >> @@ -716,7 +716,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+> >> >>
+> >> >>       /* update stats */
+> >> >>       atomic_inc(&zswap_stored_pages);
+> >> >> -     zswap_pool_pages = zbud_get_pool_size(tree->pool);
+> >> >> +     zswap_pool_pages = zbud_get_pool_size();
+> >> >>
+> >> >>       return 0;
+> >> >>
+> >> >> --
+> >> >> 1.7.10.4
+> >> >>
+> >> >> --
+> >> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> >> >> the body to majordomo@kvack.org.  For more info on Linux MM,
+> >> >> see: http://www.linux-mm.org/ .
+> >> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> >> >
+> >> > --
+> >> > Kind regards,
+> >> > Minchan Kim
+> >>
+> >> --
+> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> >> the body to majordomo@kvack.org.  For more info on Linux MM,
+> >> see: http://www.linux-mm.org/ .
+> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> >
+> > --
+> > Kind regards,
+> > Minchan Kim
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-   -- Howard Chu
-   CTO, Symas Corp.           http://www.symas.com
-   Director, Highland Sun     http://highlandsun.com/hyc/
-   Chief Architect, OpenLDAP  http://www.openldap.org/project/
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
