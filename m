@@ -1,93 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
-	by kanga.kvack.org (Postfix) with ESMTP id D37106B0037
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 05:46:16 -0500 (EST)
-Received: by mail-ee0-f42.google.com with SMTP id e49so3957778eek.15
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 02:46:16 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l44si8628356eem.19.2014.01.21.02.46.15
+Received: from mail-qa0-f47.google.com (mail-qa0-f47.google.com [209.85.216.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 24BC06B0035
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 05:59:56 -0500 (EST)
+Received: by mail-qa0-f47.google.com with SMTP id j5so6313151qaq.6
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 02:59:55 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id j77si2799830qge.144.2014.01.21.02.59.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 21 Jan 2014 02:46:16 -0800 (PST)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH -mm 2/2] memcg: fix css reference leak and endless loop in mem_cgroup_iter
-Date: Tue, 21 Jan 2014 11:45:43 +0100
-Message-Id: <1390301143-9541-2-git-send-email-mhocko@suse.cz>
-In-Reply-To: <1390301143-9541-1-git-send-email-mhocko@suse.cz>
-References: <20140121083454.GA1894@dhcp22.suse.cz>
- <1390301143-9541-1-git-send-email-mhocko@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Jan 2014 02:59:55 -0800 (PST)
+Date: Tue, 21 Jan 2014 11:59:16 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v8 6/6] MCS Lock: Allow architecture specific asm files
+ to be used for contended case
+Message-ID: <20140121105916.GW31570@twins.programming.kicks-ass.net>
+References: <cover.1390239879.git.tim.c.chen@linux.intel.com>
+ <1390267479.3138.40.camel@schen9-DESK>
+ <20140121102000.GT31570@twins.programming.kicks-ass.net>
+ <20140121104521.GA4105@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140121104521.GA4105@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-19f39402864e (memcg: simplify mem_cgroup_iter) has reorganized
-mem_cgroup_iter code in order to simplify it. A part of that change was
-dropping an optimization which didn't call css_tryget on the root of
-the walked tree. The patch however didn't change the css_put part in
-mem_cgroup_iter which excludes root.
-This wasn't an issue at the time because __mem_cgroup_iter_next bailed
-out for root early without taking a reference as cgroup iterators
-(css_next_descendant_pre) didn't visit root themselves.
+On Tue, Jan 21, 2014 at 11:45:21AM +0100, Ingo Molnar wrote:
+> 
+> * Peter Zijlstra <peterz@infradead.org> wrote:
+> 
+> > On Mon, Jan 20, 2014 at 05:24:39PM -0800, Tim Chen wrote:
+> > > diff --git a/arch/alpha/include/asm/Kbuild b/arch/alpha/include/asm/Kbuild
+> > > index f01fb50..14cbbbc 100644
+> > > --- a/arch/alpha/include/asm/Kbuild
+> > > +++ b/arch/alpha/include/asm/Kbuild
+> > > @@ -4,3 +4,4 @@ generic-y += clkdev.h
+> > >  generic-y += exec.h
+> > >  generic-y += trace_clock.h
+> > >  generic-y += preempt.h
+> > > +generic-y += mcs_spinlock.h
+> > 
+> > m < p
+> 
+> Hm, did your script not work?
 
-Nevertheless cgroup iterators have been reworked to visit root by
-bd8815a6d802 (cgroup: make css_for_each_descendant() and friends include
-the origin css in the iteration) when the root bypass have been dropped
-in __mem_cgroup_iter_next. This means that css_put is not called for
-root and so css along with mem_cgroup and other cgroup internal object
-tied by css lifetime are never freed.
-
-Fix the issue by reintroducing root check in __mem_cgroup_iter_next
-and do not take css reference for it.
-
-This reference counting magic protects us also from another issue, an
-endless loop reported by Hugh Dickins when reclaim races with root
-removal and css_tryget called by iterator internally would fail. There
-would be no other nodes to visit so __mem_cgroup_iter_next would return
-NULL and mem_cgroup_iter would interpret it as "start looping from root
-again" and so mem_cgroup_iter would loop forever internally.
-
-Cc: stable@vger.kernel.org # mem_leak part 3.12+
-Reported-by: Hugh Dickins <hughd@google.com>
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
----
- mm/memcontrol.c | 18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 45786dc129dc..55bb1f8c6907 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1076,14 +1076,22 @@ skip_node:
- 	 * skipped and we should continue the tree walk.
- 	 * last_visited css is safe to use because it is
- 	 * protected by css_get and the tree walk is rcu safe.
-+	 *
-+	 * We do not take a reference on the root of the tree walk
-+	 * because we might race with the root removal when it would
-+	 * be the only node in the iterated hierarchy and mem_cgroup_iter
-+	 * would end up in an endless loop because it expects that at
-+	 * least one valid node will be returned. Root cannot disappear
-+	 * because caller of the iterator should hold it already so
-+	 * skipping css reference should be safe.
- 	 */
- 	if (next_css) {
--		if ((next_css->flags & CSS_ONLINE) && css_tryget(next_css))
-+		if ((next_css->flags & CSS_ONLINE) &&
-+				(next_css == &root->css || css_tryget(next_css)))
- 			return mem_cgroup_from_css(next_css);
--		else {
--			prev_css = next_css;
--			goto skip_node;
--		}
-+
-+		prev_css = next_css;
-+		goto skip_node;
- 	}
- 
- 	return NULL;
--- 
-1.8.5.2
+It wasn't used, afaict.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
