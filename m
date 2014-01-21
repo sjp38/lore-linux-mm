@@ -1,64 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id A25E06B003D
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 14:42:22 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id q10so6585110pdj.10
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 11:42:22 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id zk9si6668835pac.260.2014.01.21.11.42.20
+Received: from mail-gg0-f180.google.com (mail-gg0-f180.google.com [209.85.161.180])
+	by kanga.kvack.org (Postfix) with ESMTP id E3DEC6B004D
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 15:20:50 -0500 (EST)
+Received: by mail-gg0-f180.google.com with SMTP id q3so2756492gge.11
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 12:20:50 -0800 (PST)
+Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:4])
+        by mx.google.com with ESMTP id k66si7351622yhc.36.2014.01.21.12.20.48
         for <linux-mm@kvack.org>;
-        Tue, 21 Jan 2014 11:42:21 -0800 (PST)
-Date: Tue, 21 Jan 2014 11:42:19 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm 2/2] memcg: fix css reference leak and endless loop
- in mem_cgroup_iter
-Message-Id: <20140121114219.8c34256dfbe7c2470b36ced8@linux-foundation.org>
-In-Reply-To: <1390301143-9541-2-git-send-email-mhocko@suse.cz>
-References: <20140121083454.GA1894@dhcp22.suse.cz>
-	<1390301143-9541-1-git-send-email-mhocko@suse.cz>
-	<1390301143-9541-2-git-send-email-mhocko@suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 21 Jan 2014 12:20:49 -0800 (PST)
+Date: Wed, 22 Jan 2014 07:20:43 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] [ATTEND] Persistent memory
+Message-ID: <20140121202043.GC13997@dastard>
+References: <CALCETrUaotUuzn60-bSt1oUb8+94do2QgiCq_TXhqEHj79DePQ@mail.gmail.com>
+ <52D8AEBF.3090803@symas.com>
+ <52D982EB.6010507@amacapital.net>
+ <52DE23E8.9010608@symas.com>
+ <20140121111727.GB13997@dastard>
+ <52DE7CBA.8020206@symas.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52DE7CBA.8020206@symas.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Howard Chu <hyc@symas.com>
+Cc: Linux FS Devel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, lsf-pc@lists.linux-foundation.org, Andy Lutomirski <luto@amacapital.net>
 
-On Tue, 21 Jan 2014 11:45:43 +0100 Michal Hocko <mhocko@suse.cz> wrote:
-
-> 19f39402864e (memcg: simplify mem_cgroup_iter) has reorganized
-> mem_cgroup_iter code in order to simplify it. A part of that change was
-> dropping an optimization which didn't call css_tryget on the root of
-> the walked tree. The patch however didn't change the css_put part in
-> mem_cgroup_iter which excludes root.
-> This wasn't an issue at the time because __mem_cgroup_iter_next bailed
-> out for root early without taking a reference as cgroup iterators
-> (css_next_descendant_pre) didn't visit root themselves.
+On Tue, Jan 21, 2014 at 05:57:14AM -0800, Howard Chu wrote:
+> Dave Chinner wrote:
+> >On Mon, Jan 20, 2014 at 11:38:16PM -0800, Howard Chu wrote:
+> >>Andy Lutomirski wrote:
+> >>>On 01/16/2014 08:17 PM, Howard Chu wrote:
+> >>>>Andy Lutomirski wrote:
+> >>>>>I'm interested in a persistent memory track.  There seems to be plenty
+> >>>>>of other emails about this, but here's my take:
+> >>>>
+> >>>>I'm also interested in this track. I'm not up on FS development these
+> >>>>days, the last time I wrote filesystem code was nearly 20 years ago. But
+> >>>>persistent memory is a topic near and dear to my heart, and of great
+> >>>>relevance to my current pet project, the LMDB memory-mapped database.
+> >>>>
+> >>>>In a previous era I also developed block device drivers for
+> >>>>battery-backed external DRAM disks. (My ideal would have been systems
+> >>>>where all of RAM was persistent. I suppose we can just about get there
+> >>>>with mobile phones and tablets these days.)
+> >>>>
+> >>>>In the context of database engines, I'm interested in leveraging
+> >>>>persistent memory for write-back caching and how user level code can be
+> >>>>made aware of it. (If all your cache is persistent and guaranteed to
+> >>>>eventually reach stable store then you never need to fsync() a
+> >>>>transaction.)
+> >
+> >I don't think that is true -  your still going to need fsync to get
+> >the CPU to flush it's caches and filesystem metadata into the
+> >persistent domain....
+> >
+> >>>Hmm.  Presumably that would work by actually allocating cache pages in
+> >>>persistent memory.  I don't think that anything like the current XIP
+> >>>interfaces can do that, but it's certainly an interesting thought for
+> >>>(complicated) future work.
+> >>>
+> >>>This might not be pretty in conjunction with something like my
+> >>>writethrough mapping idea -- read(2) and write(2) would be fine (well,
+> >>>write(2) might need to use streaming loads), but mmap users who weren't
+> >>>expecting it might have truly awful performance.  That especially
+> >>>includes things like databases that aren't expecting this behavior.
+> >>
+> >>At the moment all I can suggest is a new mmap() flag, e.g.
+> >>MAP_PERSISTENT. Not sure how a user or app should discover that it's
+> >>supported though.
+> >
+> >The point of using the XIP interface with filesystems that are
+> >backed by persistent memory is that mmap() gives userspace
+> >applications direct acess to the persistent memory directly without
+> >needing any modifications.  It's just a really, really fast file...
 > 
-> Nevertheless cgroup iterators have been reworked to visit root by
-> bd8815a6d802 (cgroup: make css_for_each_descendant() and friends include
-> the origin css in the iteration) when the root bypass have been dropped
-> in __mem_cgroup_iter_next. This means that css_put is not called for
-> root and so css along with mem_cgroup and other cgroup internal object
-> tied by css lifetime are never freed.
-> 
-> Fix the issue by reintroducing root check in __mem_cgroup_iter_next
-> and do not take css reference for it.
-> 
-> This reference counting magic protects us also from another issue, an
-> endless loop reported by Hugh Dickins when reclaim races with root
-> removal and css_tryget called by iterator internally would fail. There
-> would be no other nodes to visit so __mem_cgroup_iter_next would return
-> NULL and mem_cgroup_iter would interpret it as "start looping from root
-> again" and so mem_cgroup_iter would loop forever internally.
+> OK, I see that now. But that only works well when your persistent
+> memory size is >= the size of the file(s) you want to work with.
 
-I grabbed these two patches but I will sit on them for a week or so,
-pending review-n-test.
+It assumes that you have a persistent memory block device. If you
+have a persistent memory block device, then if you want persistent
+caching on top of the filesystem, use dm-cache or bcache to stack
+the persistent memory on top of the slow block device. i.e. we
+already have solutions to this problem.
 
-> Cc: stable@vger.kernel.org # mem_leak part 3.12+
+> If you use persistent memory for the page cache, then you can use it
+> with any filesystem of any arbitrary size.
 
-What does this mean?
+We don't actually need (or, IMO, want) a the page
+cache to have to be aware of persistent memory state. If the page
+cache is persistent, then we need to store that persistent state
+somewhere so that when the machine crashes and reboots, we can bring
+the persistent page cache back up. That involves metadata to hold
+state, crash recovery, etc. We've already got all that persistence
+management in our filesystem implementations.
+
+IOWs, persistent data and it's state belongs in the filesystem
+domain, not the page cache domain.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
