@@ -1,35 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f177.google.com (mail-ea0-f177.google.com [209.85.215.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BAD56B0035
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 09:19:24 -0500 (EST)
-Received: by mail-ea0-f177.google.com with SMTP id n15so3774917ead.22
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 06:19:24 -0800 (PST)
+Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
+	by kanga.kvack.org (Postfix) with ESMTP id D4D476B0035
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 10:08:38 -0500 (EST)
+Received: by mail-ee0-f42.google.com with SMTP id e49so4171623eek.29
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 07:08:38 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y48si9832602eew.121.2014.01.21.06.19.23
+        by mx.google.com with ESMTPS id h9si10085921eev.189.2014.01.21.07.08.36
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 21 Jan 2014 06:19:23 -0800 (PST)
-Date: Tue, 21 Jan 2014 14:19:19 +0000
+        Tue, 21 Jan 2014 07:08:37 -0800 (PST)
+Date: Tue, 21 Jan 2014 15:08:33 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 3/6] numa,sched: build per numa_group active node mask
- from faults_from statistics
-Message-ID: <20140121141919.GH4963@suse.de>
+Subject: Re: [PATCH 4/6] numa,sched,mm: use active_nodes nodemask to limit
+ numa migrations
+Message-ID: <20140121150833.GI4963@suse.de>
 References: <1390245667-24193-1-git-send-email-riel@redhat.com>
- <1390245667-24193-4-git-send-email-riel@redhat.com>
+ <1390245667-24193-5-git-send-email-riel@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1390245667-24193-4-git-send-email-riel@redhat.com>
+In-Reply-To: <1390245667-24193-5-git-send-email-riel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: riel@redhat.com
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, mingo@redhat.com, chegu_vinod@hp.com
 
-On Mon, Jan 20, 2014 at 02:21:04PM -0500, riel@redhat.com wrote:
+On Mon, Jan 20, 2014 at 02:21:05PM -0500, riel@redhat.com wrote:
 > From: Rik van Riel <riel@redhat.com>
 > 
-> The faults_from statistics are used to maintain an active_nodes nodemask
-> per numa_group. This allows us to be smarter about when to do numa migrations.
+> Use the active_nodes nodemask to make smarter decisions on NUMA migrations.
+> 
+> In order to maximize performance of workloads that do not fit in one NUMA
+> node, we want to satisfy the following criteria:
+> 1) keep private memory local to each thread
+> 2) avoid excessive NUMA migration of pages
+> 3) distribute shared memory across the active nodes, to
+>    maximize memory bandwidth available to the workload
+> 
+> This patch accomplishes that by implementing the following policy for
+> NUMA migrations:
+> 1) always migrate on a private fault
+
+Makes sense
+
+> 2) never migrate to a node that is not in the set of active nodes
+>    for the numa_group
+
+This will work out in every case *except* where we miss an active node
+because the task running there is faulting a very small number of pages.
+Worth recording that in case we ever see a bug that could be explained
+by it.
+
+> 3) always migrate from a node outside of the set of active nodes,
+>    to a node that is in that set
+
+Clever
+
+A *potential* consequence of this is that we may see large amounts of
+migration traffic if we ever implement something that causes tasks to
+enter/leave numa groups frequently.
+
+> 4) within the set of active nodes in the numa_group, only migrate
+>    from a node with more NUMA page faults, to a node with fewer
+>    NUMA page faults, with a 25% margin to avoid ping-ponging
+> 
+
+Of the four, this is the highest risk again because we might miss tasks
+in an active node due to them accessing a small number of pages.
+
+Not suggesting you change the policy at this point, we should just keep
+an eye out for it. It could be argued that a task accessing a small amount
+of memory on a large NUMA machine is not a task we care about anyway :/
+
+> This results in most pages of a workload ending up on the actively
+> used nodes, with reduced ping-ponging of pages between those nodes.
 > 
 > Cc: Peter Zijlstra <peterz@infradead.org>
 > Cc: Mel Gorman <mgorman@suse.de>
@@ -37,164 +81,143 @@ On Mon, Jan 20, 2014 at 02:21:04PM -0500, riel@redhat.com wrote:
 > Cc: Chegu Vinod <chegu_vinod@hp.com>
 > Signed-off-by: Rik van Riel <riel@redhat.com>
 > ---
->  kernel/sched/fair.c | 41 +++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 41 insertions(+)
+>  include/linux/sched.h |  7 +++++++
+>  kernel/sched/fair.c   | 37 +++++++++++++++++++++++++++++++++++++
+>  mm/mempolicy.c        |  3 +++
+>  3 files changed, 47 insertions(+)
 > 
+> diff --git a/include/linux/sched.h b/include/linux/sched.h
+> index a9f7f05..0af6c1a 100644
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -1602,6 +1602,8 @@ extern void task_numa_fault(int last_node, int node, int pages, int flags);
+>  extern pid_t task_numa_group_id(struct task_struct *p);
+>  extern void set_numabalancing_state(bool enabled);
+>  extern void task_numa_free(struct task_struct *p);
+> +extern bool should_numa_migrate(struct task_struct *p, int last_cpupid,
+> +				int src_nid, int dst_nid);
+>  #else
+>  static inline void task_numa_fault(int last_node, int node, int pages,
+>  				   int flags)
+> @@ -1617,6 +1619,11 @@ static inline void set_numabalancing_state(bool enabled)
+>  static inline void task_numa_free(struct task_struct *p)
+>  {
+>  }
+> +static inline bool should_numa_migrate(struct task_struct *p, int last_cpupid,
+> +				       int src_nid, int dst_nid)
+> +{
+> +	return true;
+> +}
+>  #endif
+>  
+>  static inline struct pid *task_pid(struct task_struct *task)
 > diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-> index 1945ddc..ea8b2ae 100644
+> index ea8b2ae..ea873b6 100644
 > --- a/kernel/sched/fair.c
 > +++ b/kernel/sched/fair.c
-> @@ -885,6 +885,7 @@ struct numa_group {
->  	struct list_head task_list;
->  
->  	struct rcu_head rcu;
-> +	nodemask_t active_nodes;
->  	unsigned long total_faults;
->  	unsigned long *faults_from;
->  	unsigned long faults[0];
-
-It's not a concern for now but in the land of unicorns and ponies we'll
-relook at the size of some of these structures and see what can be
-optimised.
-
-Similar to my comment on faults_from I think we could potentially evaluate
-the fitness of the automatic NUMA balancing feature by looking at the
-weight of the active_nodes for a numa_group. If
-bitmask_weight(active_nodes) == nr_online_nodes
-for all numa_groups in the system then I think it would be an indication
-that the algorithm has collapsed.
-
-It's not a comment on the patch itself. We could could just do with more
-metrics that help analyse this thing when debugging problems.
-
-> @@ -1275,6 +1276,41 @@ static void numa_migrate_preferred(struct task_struct *p)
+> @@ -948,6 +948,43 @@ static inline unsigned long group_weight(struct task_struct *p, int nid)
+>  	return 1000 * group_faults(p, nid) / p->numa_group->total_faults;
 >  }
 >  
->  /*
-> + * Find the nodes on which the workload is actively running. We do this by
-
-hmm, it's not the workload though, it's a single NUMA group and a workload
-may consist of multiple NUMA groups. For example, in an ideal world and
-a JVM-based workload the application threads and the GC threads would be
-in different NUMA groups.
-
-The signature is even more misleading because the signature implies that
-the function is concerned with tasks. Pass in p->numa_group
-
-
-> + * tracking the nodes from which NUMA hinting faults are triggered. This can
-> + * be different from the set of nodes where the workload's memory is currently
-> + * located.
-> + *
-> + * The bitmask is used to make smarter decisions on when to do NUMA page
-> + * migrations, To prevent flip-flopping, and excessive page migrations, nodes
-> + * are added when they cause over 6/16 of the maximum number of faults, but
-> + * only removed when they drop below 3/16.
-> + */
-
-Looking at the values, I'm guessing you did it this way to use shifts
-instead of divides. That's fine, but how did you arrive at those values?
-Experimentally or just felt reasonable?
-
-> +static void update_numa_active_node_mask(struct task_struct *p)
+> +bool should_numa_migrate(struct task_struct *p, int last_cpupid,
+> +			 int src_nid, int dst_nid)
 > +{
-> +	unsigned long faults, max_faults = 0;
-> +	struct numa_group *numa_group = p->numa_group;
-> +	int nid;
+
+In light of the memory/data distinction, how about
+
+should_numa_migrate_memory?
+
+> +	struct numa_group *ng = p->numa_group;
 > +
-> +	for_each_online_node(nid) {
-> +		faults = numa_group->faults_from[task_faults_idx(nid, 0)] +
-> +			 numa_group->faults_from[task_faults_idx(nid, 1)];
-
-task_faults() implements a helper for p->numa_faults equivalent of this.
-Just as with the other renaming, it would not hurt to rename task_faults()
-to something like task_faults_memory() and add a task_faults_cpu() for
-this. The objective again is to be clear about whether we care about CPU
-or memory locality information.
-
-> +		if (faults > max_faults)
-> +			max_faults = faults;
-> +	}
-> +
-> +	for_each_online_node(nid) {
-> +		faults = numa_group->faults_from[task_faults_idx(nid, 0)] +
-> +			 numa_group->faults_from[task_faults_idx(nid, 1)];
-
-group_faults would need similar adjustment.
-
-> +		if (!node_isset(nid, numa_group->active_nodes)) {
-> +			if (faults > max_faults * 6 / 16)
-> +				node_set(nid, numa_group->active_nodes);
-> +		} else if (faults < max_faults * 3 / 16)
-> +			node_clear(nid, numa_group->active_nodes);
-> +	}
-> +}
+> +	/* Always allow migrate on private faults */
+> +	if (cpupid_match_pid(p, last_cpupid))
+> +		return true;
 > +
 
-I think there is a subtle problem here
+We now have the two-stage filter detection in mpol_misplaced and the rest
+of the migration decision logic here. Keep them in the same place? It
+might necessitate passing in the page being faulted as well but then the
+return value will be clearer
 
 /*
- * Be mindful that this is subject to sampling error. As we only have
- * data on hinting faults active_nodes may miss a heavily referenced
- * node due to the references being to a small number of pages. If
- * there is a large linear scanner in the same numa group as a
- * task operating on a small amount of memory then the latter task
- * may be ignored.
+ * This function returns true if the @page is misplaced and should be
+ * migrated.
  */
 
-I have no suggestion on how to handle this because we're vulnerable to
-sampling errors in a number of places but it does not hurt to be reminded
-of that in a few places.
+It may need a name change as well if you decide to move everything into
+this function including the call to page_cpupid_xchg_last
 
-> +/*
->   * When adapting the scan rate, the period is divided into NUMA_PERIOD_SLOTS
->   * increments. The more local the fault statistics are, the higher the scan
->   * period will be for the next scan window. If local/remote ratio is below
-> @@ -1416,6 +1452,7 @@ static void task_numa_placement(struct task_struct *p)
->  	update_task_scan_period(p, fault_types[0], fault_types[1]);
->  
->  	if (p->numa_group) {
-> +		update_numa_active_node_mask(p);
-
-We are updating that thing once per scan window, that's fine. There is
-potentially a wee issue though. If all the tasks in the group are threads
-then they share p->mm->numa_scan_seq and only one task does the update
-per scan window. If they are different processes then we could be updating
-more frequently than necessary.
-
-Functionally it'll be fine but higher cost than necessary. I do not have a
-better suggestion right now as superficially a numa_scan_seq per numa_group
-would not be a good fit.
-
-If we think of nothing better and the issue is real then we can at least
-stick a comment there for future reference.
-
->  		/*
->  		 * If the preferred task and group nids are different,
->  		 * iterate over the nodes again to find the best place.
-> @@ -1478,6 +1515,8 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
->  		/* Second half of the array tracks where faults come from */
->  		grp->faults_from = grp->faults + 2 * nr_node_ids;
->  
-> +		node_set(task_node(current), grp->active_nodes);
+> +	/* A shared fault, but p->numa_group has not been set up yet. */
+> +	if (!ng)
+> +		return true;
 > +
->  		for (i = 0; i < 4*nr_node_ids; i++)
->  			grp->faults[i] = p->numa_faults[i];
->  
-> @@ -1547,6 +1586,8 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
->  	my_grp->nr_tasks--;
->  	grp->nr_tasks++;
->  
-> +	update_numa_active_node_mask(p);
+> +	/*
+> +	 * Do not migrate if the destination is not a node that
+> +	 * is actively used by this numa group.
+> +	 */
+> +	if (!node_isset(dst_nid, ng->active_nodes))
+> +		return false;
 > +
 
-This may be subtle enough to deserve a comment
+If I'm right about the sampling error potentially missing tasks accessing a
+small number of pages then a reminder about the sampling error would not hurt
 
-/* Tasks have joined/left groups and the active_mask is no longer valid */
+> +	/*
+> +	 * Source is a node that is not actively used by this
+> +	 * numa group, while the destination is. Migrate.
+> +	 */
+> +	if (!node_isset(src_nid, ng->active_nodes))
+> +		return true;
+> +
+> +	/*
+> +	 * Both source and destination are nodes in active
+> +	 * use by this numa group. Maximize memory bandwidth
+> +	 * by migrating from more heavily used groups, to less
+> +	 * heavily used ones, spreading the load around.
+> +	 * Use a 1/4 hysteresis to avoid spurious page movement.
+> +	 */
+> +	return group_faults(p, dst_nid) < (group_faults(p, src_nid) * 3 / 4);
+> +}
 
-If we left a group, we update our new group. Is the old group now out of
-date and in need of updating too? If so, then we should update both and
-only update the old group if it still has tasks in it.
+I worried initially about how this would interact with the scheduler
+placement which is concerned with the number of faults per node. I think
+it's ok though because it should flatten out and the interleaved nodes
+should not look like good scheduling candidates. Something to keep in
+mind in the future.
+
+I do not see why this is a 1/4 hysteresis though. It looks more like a
+threshold based on the number of faults than anything to do with
+hysteresis.
+
+Finally, something like this is approximately the same as three-quarters
+but does not use divides as a micro-optimisation. The approximation will
+always be a greater value but the difference in error is marginal
+
+src_group_faults = group_faults(p, src_nid);
+src_group_faults -= src_group_faults >> 2;
+
+
+> +
+>  static unsigned long weighted_cpuload(const int cpu);
+>  static unsigned long source_load(int cpu, int type);
+>  static unsigned long target_load(int cpu, int type);
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index 052abac..050962b 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -2405,6 +2405,9 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
+>  		if (!cpupid_pid_unset(last_cpupid) && cpupid_to_nid(last_cpupid) != thisnid) {
+>  			goto out;
+>  		}
+> +
+> +		if (!should_numa_migrate(current, last_cpupid, curnid, polnid))
+> +			goto out;
+>  	}
+>  
+>  	if (curnid != polnid)
+> -- 
+> 1.8.4.2
+> 
 
 -- 
 Mel Gorman
