@@ -1,304 +1,287 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id B2DC26B0035
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 03:17:14 -0500 (EST)
-Received: by mail-pd0-f170.google.com with SMTP id p10so3629264pdj.29
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 00:17:14 -0800 (PST)
-Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
-        by mx.google.com with ESMTP id xy6si4372106pab.95.2014.01.21.00.17.11
-        for <linux-mm@kvack.org>;
-        Tue, 21 Jan 2014 00:17:13 -0800 (PST)
-Date: Tue, 21 Jan 2014 17:18:20 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2] mm/zswap: Check all pool pages instead of one pool
- pages
-Message-ID: <20140121081820.GA31230@bbox>
-References: <CAFLCcBqyhL=wfC4uJmpp9MkGExBuPJC4EqY2RHRngnEn_1ytSA@mail.gmail.com>
- <20140121050439.GA16664@bbox>
- <CAFLCcBr1_=i3Pdh8_MToS0Dc1UGruviMiydF5c-vX2Bv8AfeAw@mail.gmail.com>
+Received: from mail-ea0-f172.google.com (mail-ea0-f172.google.com [209.85.215.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EF576B0035
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 03:34:57 -0500 (EST)
+Received: by mail-ea0-f172.google.com with SMTP id g15so2999774eak.17
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 00:34:56 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h45si7738504eeo.214.2014.01.21.00.34.55
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 21 Jan 2014 00:34:56 -0800 (PST)
+Date: Tue, 21 Jan 2014 09:34:54 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 2/3] mm/memcg: fix endless iteration in reclaim
+Message-ID: <20140121083454.GA1894@dhcp22.suse.cz>
+References: <20140114142610.GF32227@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1401141201120.3762@eggly.anvils>
+ <20140115095829.GI8782@dhcp22.suse.cz>
+ <20140115121728.GJ8782@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1401151241280.9004@eggly.anvils>
+ <20140116081738.GA28157@dhcp22.suse.cz>
+ <20140116152259.GG28157@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1401161011110.1321@eggly.anvils>
+ <20140117154143.GF5356@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1401201958330.1155@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAFLCcBr1_=i3Pdh8_MToS0Dc1UGruviMiydF5c-vX2Bv8AfeAw@mail.gmail.com>
+In-Reply-To: <alpine.LSU.2.11.1401201958330.1155@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cai Liu <liucai.lfn@gmail.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Bob Liu <bob.liu@oracle.com>, Cai Liu <cai.liu@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello,
+On Mon 20-01-14 21:16:36, Hugh Dickins wrote:
+> On Fri, 17 Jan 2014, Michal Hocko wrote:
+> > On Thu 16-01-14 11:15:36, Hugh Dickins wrote:
+> > 
+> > > I don't believe 19f39402864e was responsible for a reference leak,
+> > > that came later.  But I think it was responsible for the original
+> > > endless iteration (shrink_zone going around and around getting root
+> > > again and again from mem_cgroup_iter).
+> > 
+> > So your hang is not within mem_cgroup_iter but you are getting root all
+> > the time without any way out?
+> 
+> In the 3.10 and 3.11 cases, yes.
 
-On Tue, Jan 21, 2014 at 02:35:07PM +0800, Cai Liu wrote:
-> 2014/1/21 Minchan Kim <minchan@kernel.org>:
-> > Please check your MUA and don't break thread.
-> >
-> > On Tue, Jan 21, 2014 at 11:07:42AM +0800, Cai Liu wrote:
-> >> Thanks for your review.
-> >>
-> >> 2014/1/21 Minchan Kim <minchan@kernel.org>:
-> >> > Hello Cai,
-> >> >
-> >> > On Mon, Jan 20, 2014 at 03:50:18PM +0800, Cai Liu wrote:
-> >> >> zswap can support multiple swapfiles. So we need to check
-> >> >> all zbud pool pages in zswap.
-> >> >>
-> >> >> Version 2:
-> >> >>   * add *total_zbud_pages* in zbud to record all the pages in pools
-> >> >>   * move the updating of pool pages statistics to
-> >> >>     alloc_zbud_page/free_zbud_page to hide the details
-> >> >>
-> >> >> Signed-off-by: Cai Liu <cai.liu@samsung.com>
-> >> >> ---
-> >> >>  include/linux/zbud.h |    2 +-
-> >> >>  mm/zbud.c            |   44 ++++++++++++++++++++++++++++++++------------
-> >> >>  mm/zswap.c           |    4 ++--
-> >> >>  3 files changed, 35 insertions(+), 15 deletions(-)
-> >> >>
-> >> >> diff --git a/include/linux/zbud.h b/include/linux/zbud.h
-> >> >> index 2571a5c..1dbc13e 100644
-> >> >> --- a/include/linux/zbud.h
-> >> >> +++ b/include/linux/zbud.h
-> >> >> @@ -17,6 +17,6 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle);
-> >> >>  int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries);
-> >> >>  void *zbud_map(struct zbud_pool *pool, unsigned long handle);
-> >> >>  void zbud_unmap(struct zbud_pool *pool, unsigned long handle);
-> >> >> -u64 zbud_get_pool_size(struct zbud_pool *pool);
-> >> >> +u64 zbud_get_pool_size(void);
-> >> >>
-> >> >>  #endif /* _ZBUD_H_ */
-> >> >> diff --git a/mm/zbud.c b/mm/zbud.c
-> >> >> index 9451361..711aaf4 100644
-> >> >> --- a/mm/zbud.c
-> >> >> +++ b/mm/zbud.c
-> >> >> @@ -52,6 +52,13 @@
-> >> >>  #include <linux/spinlock.h>
-> >> >>  #include <linux/zbud.h>
-> >> >>
-> >> >> +/*********************************
-> >> >> +* statistics
-> >> >> +**********************************/
-> >> >> +
-> >> >> +/* zbud pages in all pools */
-> >> >> +static u64 total_zbud_pages;
-> >> >> +
-> >> >>  /*****************
-> >> >>   * Structures
-> >> >>  *****************/
-> >> >> @@ -142,10 +149,28 @@ static struct zbud_header *init_zbud_page(struct page *page)
-> >> >>       return zhdr;
-> >> >>  }
-> >> >>
-> >> >> +static struct page *alloc_zbud_page(struct zbud_pool *pool, gfp_t gfp)
-> >> >> +{
-> >> >> +     struct page *page;
-> >> >> +
-> >> >> +     page = alloc_page(gfp);
-> >> >> +
-> >> >> +     if (page) {
-> >> >> +             pool->pages_nr++;
-> >> >> +             total_zbud_pages++;
-> >> >
-> >> > Who protect race?
-> >>
-> >> Yes, here the pool->pages_nr and also the total_zbud_pages are not protected.
-> >> I will re-do it.
-> >>
-> >> I will change *total_zbud_pages* to atomic type.
-> >
-> > Wait, it doesn't make sense. Now, you assume zbud allocator would be used
-> > for only zswap. It's true until now but we couldn't make sure it in future.
-> > If other user start to use zbud allocator, total_zbud_pages would be pointless.
+OK, that makes sense.
+ 
+> > [3.10 code base]
+> > shrink_zone
+> > 						[rmdir root]
+> >   mem_cgroup_iter(root, NULL, reclaim)
+> >     // prev = NULL
+> >     rcu_read_lock()
+> >     last_visited = iter->last_visited	// gets root || NULL
+> >     css_tryget(last_visited) 		// failed
+> >     last_visited = NULL			[1]
+> >     memcg = root = __mem_cgroup_iter_next(root, NULL)
+> >     iter->last_visited = root;
+> >     reclaim->generation = iter->generation
+> > 
+> >  mem_cgroup_iter(root, root, reclaim)
+> >    // prev = root
+> >    rcu_read_lock
+> >     last_visited = iter->last_visited	// gets root
+> >     css_tryget(last_visited) 		// failed
+> >     [1]
+> > 
+> > So we indeed can loop here without any progress. I just fail
+> > to see how my patch could help. We even do not get down to
+> > cgroup_next_descendant_pre.
+> > 
+> > Or am I missing something?
 > 
-> Yes, you are right.  ZBUD is a common module. So in this patch calculate the
-> zswap pool size in zbud is not suitable.
+> Your patch to 3.12 and 3.13 mem_cgroup_iter_next() doesn't help
+> in 3.10 and 3.11, correct.  That's why I appended a different patch,
+> to mem_cgroup_iter(), for the 3.10 and 3.11 versions of the hang.
 > 
-> >
-> > Another concern is that what's your scenario for above two swap?
-> > How often we need to call zbud_get_pool_size?
-> > In previous your patch, you reduced the number of call so IIRC,
-> > we only called it in zswap_is_full and for debugfs.
+> > 
+> > The following should fix this kind of endless loop:
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 194721839cf5..168e5abcca92 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -1221,7 +1221,8 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+> >  				smp_rmb();
+> >  				last_visited = iter->last_visited;
+> >  				if (last_visited &&
+> > -				    !css_tryget(&last_visited->css))
+> > +				    last_visited != root &&
+> > +				     !css_tryget(&last_visited->css))
+> >  					last_visited = NULL;
+> >  			}
+> >  		}
+> > @@ -1229,7 +1230,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+> >  		memcg = __mem_cgroup_iter_next(root, last_visited);
+> >  
+> >  		if (reclaim) {
+> > -			if (last_visited)
+> > +			if (last_visited && last_visited != root)
+> >  				css_put(&last_visited->css);
+> >  
+> >  			iter->last_visited = memcg;
 > 
-> zbud_get_pool_size() is called frequently when adding/freeing zswap
-> entry happen in zswap . This is why in this patch I added a counter in zbud,
-> and then in zswap the iteration of zswap_list to calculate the pool size will
-> not be needed.
+> Right, that appears to fix 3.10, and seems a better alternative to the
+> patch I suggested.  I say "appears" because my success in reproducing
+> the hang is variable, so when I see that it's "fixed" I cannot be
+> quite sure. 
 
-We can remove updating zswap_pool_pages in zswap_frontswap_store and
-zswap_free_entry as I said. So zswap_is_full is only hot spot.
-Do you think it's still big overhead? Why? Maybe locking to prevent
-destroying? Then, we can use RCU to minimize the overhead as I mentioned.
+Understood.
 
+> I say "seems" because I think yours respects the intention
+> of the iterator better than mine, but I've never been convinced that
+> the iterator is as sensible as it intends in the face of races.
 > 
-> > Of course, it would need some lock or refcount to prevent destroy
-> > of zswap_tree in parallel with zswap_frontswap_invalidate_area but
-> > zswap_is_full doesn't need to be exact so RCU would be good fit.
-> >
-> > Most important point is that now zswap doesn't consider multiple swap.
-> > For example, Let's assume you uses two swap A and B with different priority
-> > and A already has charged 19% long time ago and let's assume that A swap is
-> > full now so VM start to use B so that B has charged 1% recently.
-> > It menas zswap charged (19% + 1%)i is full by default.
-> >
-> > Then, if VM want to swap out more pages into B, zbud_reclaim_page
-> > would be evict one of pages in B's pool and it would be repeated
-> > continuously. It's totally LRU reverse problem and swap thrashing in B
-> > would happen.
-> >
-> 
-> The scenario is below:
-> There are 2 swap A, B in system. If pool size of A reach 19% of ram
-> size and swap A
-> is also full. Then swap B will be used. Pool size of B will be
-> increased until it hit
-> the 20% of the ram size. By now zswap pool size is about 39% of ram size.
-> If there are more than 2 swap file/device,  zswap pool will expand out
-> of control
-> and there may be no swapout happened.
+> At the bottom I've appended the version of yours that I've been trying
+> on 3.11.  I did succeed in reproducing the hang twice on 3.11.10.3
+> (which I don't think differs in any essential from 3.11.0 for this issue,
+> but after my lack of success with 3.11.0 I tried harder with that.)
 
-I know.
+git log points only at 3 patches in mm/memcontrol.c and all of them seem
+unrelated.
 
-> 
-> I think the original intention of zswap designer is to keep the total
-> zswap pools size below
-> 20% of RAM size.
+> More so than in the 3.10 case, I haven't really given it long enough
+> with the patch to really assert that it's good; and Greg Thelen came
+> across a different reproduction case that I've yet to remind myself
+> of and try, I'll have to report back to you later in the week when
+> I've run that with your fix.
 
-My point is your patch still doesn't solve the example I mentioned.
+Great, thanks a lot for your testing. It is really appreciated
+especially now that I am quite busy with other internal stuff.
 
+> > Not that I like it much :/
 > 
-> Thanks.
-> 
-> > Please say your usecase scenario and if it's really problem,
-> > we need more surgery.
-> >
-> > Thanks.
-> >
-> >> For *pool->pages_nr*, one way is to use pool->lock to protect. But I
-> >> think it is too heavy.
-> >> So does it ok to change pages_nr to atomic type too?
-> >>
-> >>
-> >> >
-> >> >> +     }
-> >> >> +
-> >> >> +     return page;
-> >> >> +}
-> >> >> +
-> >> >> +
-> >> >>  /* Resets the struct page fields and frees the page */
-> >> >> -static void free_zbud_page(struct zbud_header *zhdr)
-> >> >> +static void free_zbud_page(struct zbud_pool *pool, struct zbud_header *zhdr)
-> >> >>  {
-> >> >>       __free_page(virt_to_page(zhdr));
-> >> >> +
-> >> >> +     pool->pages_nr--;
-> >> >> +     total_zbud_pages--;
-> >> >>  }
-> >> >>
-> >> >>  /*
-> >> >> @@ -279,11 +304,10 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
-> >> >>
-> >> >>       /* Couldn't find unbuddied zbud page, create new one */
-> >> >>       spin_unlock(&pool->lock);
-> >> >> -     page = alloc_page(gfp);
-> >> >> +     page = alloc_zbud_page(pool, gfp);
-> >> >>       if (!page)
-> >> >>               return -ENOMEM;
-> >> >>       spin_lock(&pool->lock);
-> >> >> -     pool->pages_nr++;
-> >> >>       zhdr = init_zbud_page(page);
-> >> >>       bud = FIRST;
-> >> >>
-> >> >> @@ -349,8 +373,7 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
-> >> >>       if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
-> >> >>               /* zbud page is empty, free */
-> >> >>               list_del(&zhdr->lru);
-> >> >> -             free_zbud_page(zhdr);
-> >> >> -             pool->pages_nr--;
-> >> >> +             free_zbud_page(pool, zhdr);
-> >> >>       } else {
-> >> >>               /* Add to unbuddied list */
-> >> >>               freechunks = num_free_chunks(zhdr);
-> >> >> @@ -447,8 +470,7 @@ next:
-> >> >>                        * Both buddies are now free, free the zbud page and
-> >> >>                        * return success.
-> >> >>                        */
-> >> >> -                     free_zbud_page(zhdr);
-> >> >> -                     pool->pages_nr--;
-> >> >> +                     free_zbud_page(pool, zhdr);
-> >> >>                       spin_unlock(&pool->lock);
-> >> >>                       return 0;
-> >> >>               } else if (zhdr->first_chunks == 0 ||
-> >> >> @@ -496,14 +518,12 @@ void zbud_unmap(struct zbud_pool *pool, unsigned long handle)
-> >> >>
-> >> >>  /**
-> >> >>   * zbud_get_pool_size() - gets the zbud pool size in pages
-> >> >> - * @pool:    pool whose size is being queried
-> >> >>   *
-> >> >> - * Returns: size in pages of the given pool.  The pool lock need not be
-> >> >> - * taken to access pages_nr.
-> >> >> + * Returns: size in pages of all the zbud pools.
-> >> >>   */
-> >> >> -u64 zbud_get_pool_size(struct zbud_pool *pool)
-> >> >> +u64 zbud_get_pool_size(void)
-> >> >>  {
-> >> >> -     return pool->pages_nr;
-> >> >> +     return total_zbud_pages;
-> >> >>  }
-> >> >>
-> >> >>  static int __init init_zbud(void)
-> >> >> diff --git a/mm/zswap.c b/mm/zswap.c
-> >> >> index 5a63f78..ef44d9d 100644
-> >> >> --- a/mm/zswap.c
-> >> >> +++ b/mm/zswap.c
-> >> >> @@ -291,7 +291,7 @@ static void zswap_free_entry(struct zswap_tree *tree,
-> >> >>       zbud_free(tree->pool, entry->handle);
-> >> >>       zswap_entry_cache_free(entry);
-> >> >>       atomic_dec(&zswap_stored_pages);
-> >> >> -     zswap_pool_pages = zbud_get_pool_size(tree->pool);
-> >> >> +     zswap_pool_pages = zbud_get_pool_size();
-> >> >>  }
-> >> >>
-> >> >>  /* caller must hold the tree lock */
-> >> >> @@ -716,7 +716,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
-> >> >>
-> >> >>       /* update stats */
-> >> >>       atomic_inc(&zswap_stored_pages);
-> >> >> -     zswap_pool_pages = zbud_get_pool_size(tree->pool);
-> >> >> +     zswap_pool_pages = zbud_get_pool_size();
-> >> >>
-> >> >>       return 0;
-> >> >>
-> >> >> --
-> >> >> 1.7.10.4
-> >> >>
-> >> >> --
-> >> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >> >> the body to majordomo@kvack.org.  For more info on Linux MM,
-> >> >> see: http://www.linux-mm.org/ .
-> >> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> >> >
-> >> > --
-> >> > Kind regards,
-> >> > Minchan Kim
-> >>
-> >> --
-> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >> the body to majordomo@kvack.org.  For more info on Linux MM,
-> >> see: http://www.linux-mm.org/ .
-> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> >
-> > --
-> > Kind regards,
-> > Minchan Kim
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Well, I'm not in love with it, but I do think it's more appropriate
+> than mine, if it really does fix the issues.
 
+It fixes a potential endless loop. It is a question it is the one you
+are seeing.
+
+> It was only under questioning from you that we arrived at the belief
+> that the problem is with the css_tryget of a root being removed: my
+> patch was vaguer than that, not identifying the root cause.
+> 
+> I suspect that the underlying problem is actually the "do {} while ()"
+> nature of the iteration loops, instead of "while () {}"s. 
+
+I think the outside caller shouldn't care much. The iterator code has to
+make sure that it doesn't loop itself. Doing while () {} has some issues
+as well. Having a reason to reclaim but hen do not reclaim anything
+might pop out as an issue upper in the calling stack.
+
+> That places us (not for the first time) in the awkward position of
+> having to supply something once (and once only) even when it doesn't
+> really fit.
+>
+> (I have wondered whether making mem_cgroup_invalidate_reclaim_iterators
+> visit the memcg as well as its parents, might provide another fix; nice
+> if it did, but I doubt it, and have spent so much time fiddling around
+> here that I've lost the will to try anything else.)
+
+I do not see it as an easier alternative.
+
+[...]
+> > > > Cc: stable@vger.kernel.org # 3.10+
+> > > 
+> > > Well, I'm okay with that, if we use that as a way to shoehorn in the
+> > > patch at the bottom instead for 3.10 and 3.11 stables.
+> > 
+> > So far I do not see how it would make a change for those two kernels as
+> > they have the special handling for root.
+> 
+> That was my point: that patch does not fix 3.10 and 3.11 at all,
+> but they suffer from the same problem (manifesting in a slightly
+> different way, the hang revisiting mem_cgroup_iter repeatedly instead
+> of being trapped inside it); so it may not be inappropriate to say 3.10+
+> even though that particular patch will not apply and would not fix them.
+
+OK, understood now. I will repost that patch with updated changelog
+later.
+ 
+> > [...]
+> > > "Equivalent" patch for 3.10 or 3.11: fixing similar hangs but no leakage.
+> > > 
+> > > Signed-off-by: Hugh Dickins <hughd@google.com>
+> > > 
+> > > --- v3.10/mm/memcontrol.c	2013-06-30 15:13:29.000000000 -0700
+> > > +++ linux/mm/memcontrol.c	2014-01-15 18:18:24.476566659 -0800
+> > > @@ -1226,7 +1226,8 @@ struct mem_cgroup *mem_cgroup_iter(struc
+> > >  			}
+> > >  		}
+> > >  
+> > > -		memcg = __mem_cgroup_iter_next(root, last_visited);
+> > > +		if (!prev || last_visited)
+> > > +			memcg = __mem_cgroup_iter_next(root, last_visited);
+> > 
+> > I am confused. What would change between those two calls to change the
+> > outcome? The function doesn't have any internal state.
+> 
+> I don't understand your question (what two calls?).
+
+OK, it was my selective blindness that stroke again here. Sorry about
+the confusion.
+
+With fresh eyes. Yes it would work as well.
+
+> The 3.10 or 3.11
+> __mem_cgroup_iter_next() begins with "if (!last_visited) return root;",
+> which was problematic because again and again it would return root.
+> Originally I passed in prev, and returned NULL instead of root if prev
+> but !last_visited; but I've an aversion to passing a function an extra
+> argument to say it shouldn't have been called, so in this version I'm
+> testing !prev || last_visited before calling it.  Perhaps your "two
+> calls" are the first with prev == NULL and the second with prev == root.
+> 
+> But I say I prefer your fix because mine above says nothing about root,
+> which we now believe is the only problematic case.  Mine would leave
+> memcg NULL whenever a change resets last_visited to NULL (once one memcg
+> has been delivered): which is simple, but not what the iterator intends
+> (if I read it right, it wants to start again from the beginning, whereas
+> I'm hastening it to the end).  In practice mine works well, and I haven't
+> seen the premature OOMs that you might suppose it leads to; but let's go
+> for yours as more in keeping with the spirit of the iterator.
+
+OK, let's keep it consistently ugly.
+
+> "The spirit of the iterator", now that's a fine phrase.
+
+:)
+
+> Here's my 3.11 version of your 3.10, in case you spot something silly.
+> I'll give it a try on Greg's testcase in coming days and report back.
+> (Greg did suggest a different fix from mine back when he hit the issue,
+> I'll also look that one out again in case it offers something better.)
+> 
+> --- v3.11/mm/memcontrol.c	2014-01-19 14:16:38.656701990 -0800
+> +++ linux/mm/memcontrol.c	2014-01-20 19:04:50.635637615 -0800
+> @@ -1148,19 +1148,17 @@ mem_cgroup_iter_load(struct mem_cgroup_r
+>  	if (iter->last_dead_count == *sequence) {
+>  		smp_rmb();
+>  		position = iter->last_visited;
+> -		if (position && !css_tryget(&position->css))
+> +		if (position && position != root &&
+> +		    !css_tryget(&position->css))
+>  			position = NULL;
+>  	}
+>  	return position;
+>  }
+>  
+>  static void mem_cgroup_iter_update(struct mem_cgroup_reclaim_iter *iter,
+> -				   struct mem_cgroup *last_visited,
+>  				   struct mem_cgroup *new_position,
+>  				   int sequence)
+>  {
+> -	if (last_visited)
+> -		css_put(&last_visited->css);
+>  	/*
+>  	 * We store the sequence count from the time @last_visited was
+>  	 * loaded successfully instead of rereading it here so that we
+> @@ -1234,7 +1232,10 @@ struct mem_cgroup *mem_cgroup_iter(struc
+>  		memcg = __mem_cgroup_iter_next(root, last_visited);
+>  
+>  		if (reclaim) {
+> -			mem_cgroup_iter_update(iter, last_visited, memcg, seq);
+> +			if (last_visited && last_visited != root)
+> +				css_put(&last_visited->css);
+> +
+> +			mem_cgroup_iter_update(iter, memcg, seq);
+>  
+>  			if (!memcg)
+>  				iter->generation++;
+
+Yes it looks good. Although I would probably go and add root into
+mem_cgroup_iter_update and do the check and css_put there to have
+it symmetric with mem_cgroup_iter_load. I will cook up a changelog for
+this one as well (for both 3.10 and 3.11 because they share fail on root
+case).
+
+Thanks a lot!
 -- 
-Kind regards,
-Minchan Kim
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
