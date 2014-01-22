@@ -1,84 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f53.google.com (mail-bk0-f53.google.com [209.85.214.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 7774B6B0035
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 17:33:27 -0500 (EST)
-Received: by mail-bk0-f53.google.com with SMTP id my13so96650bkb.12
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 14:33:26 -0800 (PST)
-Received: from mail-lb0-x235.google.com (mail-lb0-x235.google.com [2a00:1450:4010:c04::235])
-        by mx.google.com with ESMTPS id kt1si8163857bkb.328.2014.01.22.14.33.26
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E6096B0035
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 17:45:58 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id g10so972745pdj.2
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 14:45:57 -0800 (PST)
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+        by mx.google.com with ESMTPS id x3si5276670pbf.31.2014.01.22.14.45.56
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 22 Jan 2014 14:33:26 -0800 (PST)
-Received: by mail-lb0-f181.google.com with SMTP id z5so856181lbh.12
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 14:33:25 -0800 (PST)
-Date: Thu, 23 Jan 2014 02:33:25 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
+        Wed, 22 Jan 2014 14:45:56 -0800 (PST)
+Received: by mail-pd0-f177.google.com with SMTP id x10so972133pdj.36
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 14:45:56 -0800 (PST)
+Message-ID: <52E04A21.3050101@mit.edu>
+Date: Wed, 22 Jan 2014 14:45:53 -0800
+From: Andy Lutomirski <luto@amacapital.net>
+MIME-Version: 1.0
 Subject: Re: [Bug 67651] Bisected: Lots of fragmented mmaps cause gimp to
  fail in 3.12 after exceeding vm_max_map_count
-Message-ID: <20140122223325.GA30637@moon>
 References: <20140122190816.GB4963@suse.de>
- <20140122191928.GQ1574@moon>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140122191928.GQ1574@moon>
+In-Reply-To: <20140122190816.GB4963@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
+To: Mel Gorman <mgorman@suse.de>, Cyrill Gorcunov <gorcunov@gmail.com>
 Cc: Pavel Emelyanov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, gnome@rvzt.net, drawoc@darkrefraction.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
 
-On Wed, Jan 22, 2014 at 11:19:28PM +0400, Cyrill Gorcunov wrote:
-> > commit. Test case was simple -- try and open the large file described in
-> > the bug. I did not investigate the patch itself as I'm just reporting
-> > the results of the bisection. If I had to guess, I'd say that VMA
-> > merging has been affected.
+On 01/22/2014 11:08 AM, Mel Gorman wrote:
+> Cyrill,
 > 
-> Thanks a lot for report, Mel! I'm investigating...
+> Gimp is broken due to a kernel bug included in 3.12. It cannot open
+> large files without failing memory allocations due to exceeding
+> vm.max_map_count. The relevant bugzilla entries are
+> 
+> https://bugzilla.kernel.org/show_bug.cgi?id=67651
+> https://bugzilla.gnome.org/show_bug.cgi?id=719619#c0
+> 
+> They include details on how to reproduce the issue. In my case, a
+> failure shows messages like this
+> 
+> 	(gimp:11768): GLib-ERROR **: gmem.c:110: failed to allocate 4096 bytes
+> 
+> 	(file-tiff-load:12038): LibGimpBase-WARNING **: file-tiff-load: gimp_wire_read(): error
+> 	xinit: connection to X server lost
+> 
+> 	waiting for X server to shut down
+> 	/usr/lib64/gimp/2.0/plug-ins/file-tiff-load terminated: Hangup
+> 	/usr/lib64/gimp/2.0/plug-ins/script-fu terminated: Hangup
+> 	/usr/lib64/gimp/2.0/plug-ins/script-fu terminated: Hangup
+> 
+> X-related junk is there was because I was using a headless server and
+> xinit directly to launch gimp to reproduce the bug.
+> 
+> Automated bisection using mmtests (https://github.com/gormanm/mmtests)
+> and the configuration file configs/config-global-dhp__gimp-simple (needs
+> local web server with a copy of the image file) identified the following
+> commit. Test case was simple -- try and open the large file described in
+> the bug. I did not investigate the patch itself as I'm just reporting
+> the results of the bisection. If I had to guess, I'd say that VMA
+> merging has been affected.
+> 
+> d9104d1ca9662498339c0de975b4666c30485f4e is the first bad commit
+> commit d9104d1ca9662498339c0de975b4666c30485f4e
+> Author: Cyrill Gorcunov <gorcunov@gmail.com>
+> Date:   Wed Sep 11 14:22:24 2013 -0700
+> 
+>     mm: track vma changes with VM_SOFTDIRTY bit
+>     
+>     Pavel reported that in case if vma area get unmapped and then mapped (or
+>     expanded) in-place, the soft dirty tracker won't be able to recognize this
+>     situation since it works on pte level and ptes are get zapped on unmap,
+>     loosing soft dirty bit of course.
+>     
+>     So to resolve this situation we need to track actions on vma level, there
+>     VM_SOFTDIRTY flag comes in.  When new vma area created (or old expanded)
+>     we set this bit, and keep it here until application calls for clearing
+>     soft dirty bit.
+>     
+>     Thus when user space application track memory changes now it can detect if
+>     vma area is renewed.
 
-Mel, here is a quick fix for bring merging back (just in case if you
-have a minute to test it and confirm the merging were affected). It
-seems I've lost setting up vma-softdirty bit somewhere and procedure
-which tests vma flags mathcing fails, will continue investigating/testing
-tomorrow.
----
- mm/mmap.c |   14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+Presumably some path is failing to set VM_SOFTDIRTY, thus preventing mms
+from being merged.
 
-Index: linux-2.6.git/mm/mmap.c
-===================================================================
---- linux-2.6.git.orig/mm/mmap.c
-+++ linux-2.6.git/mm/mmap.c
-@@ -893,8 +893,18 @@ again:			remove_next = 1 + (end > next->
- static inline int is_mergeable_vma(struct vm_area_struct *vma,
- 			struct file *file, unsigned long vm_flags)
- {
-+	/*
-+	 * VM_SOFTDIRTY should not prevent from VMA merging, if we
-+	 * match the flags but dirty bit -- just mark merged one as
-+	 * a dirty then.
-+	 */
-+#ifdef CONFIG_MEM_SOFT_DIRTY
-+	if ((vma->vm_flags ^ vm_flags) & ~VM_SOFTDIRTY)
-+		return 0;
-+#else
- 	if (vma->vm_flags ^ vm_flags)
- 		return 0;
-+#endif
- 	if (vma->vm_file != file)
- 		return 0;
- 	if (vma->vm_ops && vma->vm_ops->close)
-@@ -1082,7 +1092,11 @@ static int anon_vma_compatible(struct vm
- 	return a->vm_end == b->vm_start &&
- 		mpol_equal(vma_policy(a), vma_policy(b)) &&
- 		a->vm_file == b->vm_file &&
-+#ifdef CONFIG_MEM_SOFT_DIRTY
-+		!((a->vm_flags ^ b->vm_flags) & ~(VM_READ|VM_WRITE|VM_EXEC|VM_SOFTDIRTY)) &&
-+#else
- 		!((a->vm_flags ^ b->vm_flags) & ~(VM_READ|VM_WRITE|VM_EXEC)) &&
-+#endif
- 		b->vm_pgoff == a->vm_pgoff + ((b->vm_start - a->vm_start) >> PAGE_SHIFT);
- }
- 
+That being said, this could cause vma blowups for programs that are
+actually using this thing.
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
