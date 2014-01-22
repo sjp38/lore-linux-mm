@@ -1,112 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 988516B0035
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 12:00:38 -0500 (EST)
-Received: by mail-pb0-f42.google.com with SMTP id jt11so642366pbb.1
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 09:00:38 -0800 (PST)
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTP id oq9si9905883pac.238.2014.01.22.09.00.35
+Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 52A306B0037
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 12:02:30 -0500 (EST)
+Received: by mail-ie0-f170.google.com with SMTP id u16so10145724iet.15
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 09:02:30 -0800 (PST)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTP id ri9si1772291igc.25.2014.01.22.09.02.28
         for <linux-mm@kvack.org>;
-        Wed, 22 Jan 2014 09:00:36 -0800 (PST)
-Message-ID: <1390410033.2372.28.camel@dabdike.int.hansenpartnership.com>
+        Wed, 22 Jan 2014 09:02:29 -0800 (PST)
+From: Chris Mason <clm@fb.com>
 Subject: Re: [Lsf-pc] [LSF/MM TOPIC] really large storage sectors - going
  beyond 4096 bytes
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Wed, 22 Jan 2014 09:00:33 -0800
-In-Reply-To: <52DFF5A8.1090002@redhat.com>
+Date: Wed, 22 Jan 2014 17:02:22 +0000
+Message-ID: <1390410233.1198.7.camel@ret.masoncoding.com>
 References: <20131220093022.GV11295@suse.de> <52DF353D.6050300@redhat.com>
-		 <20140122093435.GS4963@suse.de>
-		 <1390403770.1198.4.camel@ret.masoncoding.com>
-	 <1390406584.2372.7.camel@dabdike.int.hansenpartnership.com>
-	 <52DFF5A8.1090002@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	 <20140122093435.GS4963@suse.de> <52DFD168.8080001@redhat.com>
+	 <20140122143452.GW4963@suse.de> <52DFDCA6.1050204@redhat.com>
+	 <20140122151913.GY4963@suse.de>
+In-Reply-To: <20140122151913.GY4963@suse.de>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-7"
+Content-ID: <4E67A8110517DE4EBE4C6EAB2166FDA1@fb.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ric Wheeler <rwheeler@redhat.com>
-Cc: Chris Mason <clm@fb.com>, "mgorman@suse.de" <mgorman@suse.de>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, "linux-ide@vger.kernel.org" <linux-ide@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
+To: "mgorman@suse.de" <mgorman@suse.de>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-ide@vger.kernel.org" <linux-ide@vger.kernel.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "rwheeler@redhat.com" <rwheeler@redhat.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 
-On Wed, 2014-01-22 at 11:45 -0500, Ric Wheeler wrote:
-> On 01/22/2014 11:03 AM, James Bottomley wrote:
-> > On Wed, 2014-01-22 at 15:14 +0000, Chris Mason wrote:
-> >> On Wed, 2014-01-22 at 09:34 +0000, Mel Gorman wrote:
-> >>> On Tue, Jan 21, 2014 at 10:04:29PM -0500, Ric Wheeler wrote:
-> >>>> One topic that has been lurking forever at the edges is the current
-> >>>> 4k limitation for file system block sizes. Some devices in
-> >>>> production today and others coming soon have larger sectors and it
-> >>>> would be interesting to see if it is time to poke at this topic
-> >>>> again.
-> >>>>
-> >>> Large block support was proposed years ago by Christoph Lameter
-> >>> (http://lwn.net/Articles/232757/). I think I was just getting started
-> >>> in the community at the time so I do not recall any of the details. I do
-> >>> believe it motivated an alternative by Nick Piggin called fsblock though
-> >>> (http://lwn.net/Articles/321390/). At the very least it would be nice to
-> >>> know why neither were never merged for those of us that were not around
-> >>> at the time and who may not have the chance to dive through mailing list
-> >>> archives between now and March.
-> >>>
-> >>> FWIW, I would expect that a show-stopper for any proposal is requiring
-> >>> high-order allocations to succeed for the system to behave correctly.
-> >>>
-> >> My memory is that Nick's work just didn't have the momentum to get
-> >> pushed in.  It all seemed very reasonable though, I think our hatred of
-> >> buffered heads just wasn't yet bigger than the fear of moving away.
-> >>
-> >> But, the bigger question is how big are the blocks going to be?  At some
-> >> point (64K?) we might as well just make a log structured dm target and
-> >> have a single setup for both shingled and large sector drives.
-> > There is no real point.  Even with 4k drives today using 4k sectors in
-> > the filesystem, we still get 512 byte writes because of journalling and
-> > the buffer cache.
-> 
-> I think that you are wrong here James. Even with 512 byte drives, the IO's we 
-> send down tend to be 4k or larger. Do you have traces that show this and details?
+On Wed, 2014-01-22 at 15:19 +-0000, Mel Gorman wrote:
++AD4- On Wed, Jan 22, 2014 at 09:58:46AM -0500, Ric Wheeler wrote:
++AD4- +AD4- On 01/22/2014 09:34 AM, Mel Gorman wrote:
++AD4- +AD4- +AD4-On Wed, Jan 22, 2014 at 09:10:48AM -0500, Ric Wheeler wrot=
+e:
++AD4- +AD4- +AD4APg-On 01/22/2014 04:34 AM, Mel Gorman wrote:
++AD4- +AD4- +AD4APgA+-On Tue, Jan 21, 2014 at 10:04:29PM -0500, Ric Wheeler=
+ wrote:
++AD4- +AD4- +AD4APgA+AD4-One topic that has been lurking forever at the edg=
+es is the current
++AD4- +AD4- +AD4APgA+AD4-4k limitation for file system block sizes. Some de=
+vices in
++AD4- +AD4- +AD4APgA+AD4-production today and others coming soon have large=
+r sectors and it
++AD4- +AD4- +AD4APgA+AD4-would be interesting to see if it is time to poke =
+at this topic
++AD4- +AD4- +AD4APgA+AD4-again.
++AD4- +AD4- +AD4APgA+AD4-
++AD4- +AD4- +AD4APgA+-Large block support was proposed years ago by Christo=
+ph Lameter
++AD4- +AD4- +AD4APgA+-(http://lwn.net/Articles/232757/). I think I was just=
+ getting started
++AD4- +AD4- +AD4APgA+-in the community at the time so I do not recall any o=
+f the details. I do
++AD4- +AD4- +AD4APgA+-believe it motivated an alternative by Nick Piggin ca=
+lled fsblock though
++AD4- +AD4- +AD4APgA+-(http://lwn.net/Articles/321390/). At the very least =
+it would be nice to
++AD4- +AD4- +AD4APgA+-know why neither were never merged for those of us th=
+at were not around
++AD4- +AD4- +AD4APgA+-at the time and who may not have the chance to dive t=
+hrough mailing list
++AD4- +AD4- +AD4APgA+-archives between now and March.
++AD4- +AD4- +AD4APgA+-
++AD4- +AD4- +AD4APgA+-FWIW, I would expect that a show-stopper for any prop=
+osal is requiring
++AD4- +AD4- +AD4APgA+-high-order allocations to succeed for the system to b=
+ehave correctly.
++AD4- +AD4- +AD4APgA+-
++AD4- +AD4- +AD4APg-I have a somewhat hazy memory of Andrew warning us that=
+ touching
++AD4- +AD4- +AD4APg-this code takes us into dark and scary places.
++AD4- +AD4- +AD4APg-
++AD4- +AD4- +AD4-That is a light summary. As Andrew tends to reject patches=
+ with poor
++AD4- +AD4- +AD4-documentation in case we forget the details in 6 months, I=
+'m going to guess
++AD4- +AD4- +AD4-that he does not remember the details of a discussion from=
+ 7ish years ago.
++AD4- +AD4- +AD4-This is where Andrew swoops in with a dazzling display of =
+his eidetic
++AD4- +AD4- +AD4-memory just to prove me wrong.
++AD4- +AD4- +AD4-
++AD4- +AD4- +AD4-Ric, are there any storage vendor that is pushing for this=
+ right now?
++AD4- +AD4- +AD4-Is someone working on this right now or planning to? If th=
+ey are, have they
++AD4- +AD4- +AD4-looked into the history of fsblock (Nick) and large block =
+support (Christoph)
++AD4- +AD4- +AD4-to see if they are candidates for forward porting or reimp=
+lementation?
++AD4- +AD4- +AD4-I ask because without that person there is a risk that the=
+ discussion
++AD4- +AD4- +AD4-will go as follows
++AD4- +AD4- +AD4-
++AD4- +AD4- +AD4-Topic leader: Does anyone have an objection to supporting =
+larger block
++AD4- +AD4- +AD4-	sizes than the page size?
++AD4- +AD4- +AD4-Room: Send patches and we'll talk.
++AD4- +AD4- +AD4-
++AD4- +AD4-=20
++AD4- +AD4- I will have to see if I can get a storage vendor to make a publ=
+ic
++AD4- +AD4- statement, but there are vendors hoping to see this land in Lin=
+ux in
++AD4- +AD4- the next few years.
++AD4-=20
++AD4- What about the second and third questions -- is someone working on th=
+is
++AD4- right now or planning to? Have they looked into the history of fsbloc=
+k
++AD4- (Nick) and large block support (Christoph) to see if they are candida=
+tes
++AD4- for forward porting or reimplementation?
 
-It's mostly an ext3 journalling issue ... and it's only metadata and
-mostly the ioschedulers can elevate it into 4k chunks, so yes, most of
-our writes are 4k+, so this is a red herring, yes.
+I really think that if we want to make progress on this one, we need
+code and someone that owns it.  Nick's work was impressive, but it was
+mostly there for getting rid of buffer heads.  If we have a device that
+needs it and someone working to enable that device, we'll go forward
+much faster.
 
-> >
-> > The question is what would we need to do to support these devices and
-> > the answer is "try to send IO in x byte multiples x byte aligned" this
-> > really becomes an ioscheduler problem, not a supporting large page
-> > problem.
-> >
-> > James
-> >
-> 
-> Not that simple.
-> 
-> The requirement of some of these devices are that you *never* send down a 
-> partial write or an unaligned write.
-
-But this is the million dollar question.  That was originally going to
-be the requirement of the 4k sector devices but look what happened in
-the market.
-
-> Also keep in mind that larger block sizes allow us to track larger
-> files with 
-> smaller amounts of metadata which is a second win.
-
-Larger file block sizes are completely independent from larger device
-block sizes (we can have 16k file block sizes on 4k or even 512b
-devices).  The questions on larger block size devices are twofold:
-
-     1. If manufacturers tell us that they'll only support I/O on the
-        physical sector size, do we believe them, given that they said
-        this before on 4k and then backed down.  All the logical vs
-        physical sector stuff is now in T10 standards, why would they
-        try to go all physical again, especially as they've now all
-        written firmware that does the necessary RMW?
-     2. If we agree they'll do RMW in Firmware again, what do we have to
-        do to take advantage of larger sector sizes beyond what we
-        currently do in alignment and chunking?  There may still be
-        issues in FS journal and data layouts.
-
-James
-
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
