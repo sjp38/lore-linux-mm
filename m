@@ -1,70 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 90FD06B0035
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 13:25:34 -0500 (EST)
-Received: by mail-yk0-f169.google.com with SMTP id q9so928731ykb.0
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 10:25:34 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id 69si11920455yhc.166.2014.01.22.10.25.32
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jan 2014 10:25:33 -0800 (PST)
-Date: Wed, 22 Jan 2014 19:25:01 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v9 5/6] MCS Lock: Order the header files in Kbuild of
- each architecture in alphabetical order
-Message-ID: <20140122182501.GJ3694@twins.programming.kicks-ass.net>
-References: <cover.1390320729.git.tim.c.chen@linux.intel.com>
- <1390347376.3138.66.camel@schen9-DESK>
- <20140122130818.GP31570@twins.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140122130818.GP31570@twins.programming.kicks-ass.net>
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 36A666B0035
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 13:35:08 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id up15so749323pbc.28
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 10:35:07 -0800 (PST)
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTP id nu8si10851817pbb.162.2014.01.22.10.35.05
+        for <linux-mm@kvack.org>;
+        Wed, 22 Jan 2014 10:35:06 -0800 (PST)
+Message-ID: <1390415703.2372.62.camel@dabdike.int.hansenpartnership.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] really large storage sectors - going
+ beyond 4096 bytes
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Wed, 22 Jan 2014 10:35:03 -0800
+In-Reply-To: <52E00B28.3060609@redhat.com>
+References: <20131220093022.GV11295@suse.de> <52DF353D.6050300@redhat.com>
+		 <20140122093435.GS4963@suse.de> <52DFD168.8080001@redhat.com>
+		 <20140122143452.GW4963@suse.de> <52DFDCA6.1050204@redhat.com>
+		 <20140122151913.GY4963@suse.de>
+		 <1390410233.1198.7.camel@ret.masoncoding.com>
+		 <1390411300.2372.33.camel@dabdike.int.hansenpartnership.com>
+		 <1390413819.1198.20.camel@ret.masoncoding.com>
+	 <1390414439.2372.53.camel@dabdike.int.hansenpartnership.com>
+	 <52E00B28.3060609@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-15"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>, sfr@canb.auug.org.au
+To: Ric Wheeler <rwheeler@redhat.com>
+Cc: Chris Mason <clm@fb.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-ide@vger.kernel.org" <linux-ide@vger.kernel.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "mgorman@suse.de" <mgorman@suse.de>
 
-On Wed, Jan 22, 2014 at 02:08:18PM +0100, Peter Zijlstra wrote:
-> On Tue, Jan 21, 2014 at 03:36:16PM -0800, Tim Chen wrote:
-> > From: Peter Zijlstra <peterz@infradead.org>
-> > 
-> > We perform a clean up of the Kbuid files in each architecture.
-> > We order the files in each Kbuild in alphabetical order
-> > by running the below script on each Kbuild file:
-> > 
+On Wed, 2014-01-22 at 13:17 -0500, Ric Wheeler wrote:
+> On 01/22/2014 01:13 PM, James Bottomley wrote:
+> > On Wed, 2014-01-22 at 18:02 +0000, Chris Mason wrote:
+> >> On Wed, 2014-01-22 at 09:21 -0800, James Bottomley wrote:
+> >>> On Wed, 2014-01-22 at 17:02 +0000, Chris Mason wrote:
+> >> [ I like big sectors and I cannot lie ]
+> > I think I might be sceptical, but I don't think that's showing in my
+> > concerns ...
+> >
+> >>>> I really think that if we want to make progress on this one, we need
+> >>>> code and someone that owns it.  Nick's work was impressive, but it was
+> >>>> mostly there for getting rid of buffer heads.  If we have a device that
+> >>>> needs it and someone working to enable that device, we'll go forward
+> >>>> much faster.
+> >>> Do we even need to do that (eliminate buffer heads)?  We cope with 4k
+> >>> sector only devices just fine today because the bh mechanisms now
+> >>> operate on top of the page cache and can do the RMW necessary to update
+> >>> a bh in the page cache itself which allows us to do only 4k chunked
+> >>> writes, so we could keep the bh system and just alter the granularity of
+> >>> the page cache.
+> >>>
+> >> We're likely to have people mixing 4K drives and <fill in some other
+> >> size here> on the same box.  We could just go with the biggest size and
+> >> use the existing bh code for the sub-pagesized blocks, but I really
+> >> hesitate to change VM fundamentals for this.
+> > If the page cache had a variable granularity per device, that would cope
+> > with this.  It's the variable granularity that's the VM problem.
+> >
+> >>  From a pure code point of view, it may be less work to change it once in
+> >> the VM.  But from an overall system impact point of view, it's a big
+> >> change in how the system behaves just for filesystem metadata.
+> > Agreed, but only if we don't do RMW in the buffer cache ... which may be
+> > a good reason to keep it.
+> >
+> >>> The other question is if the drive does RMW between 4k and whatever its
+> >>> physical sector size, do we need to do anything to take advantage of
+> >>> it ... as in what would altering the granularity of the page cache buy
+> >>> us?
+> >> The real benefit is when and how the reads get scheduled.  We're able to
+> >> do a much better job pipelining the reads, controlling our caches and
+> >> reducing write latency by having the reads done up in the OS instead of
+> >> the drive.
+> > I agree with all of that, but my question is still can we do this by
+> > propagating alignment and chunk size information (i.e. the physical
+> > sector size) like we do today.  If the FS knows the optimal I/O patterns
+> > and tries to follow them, the odd cockup won't impact performance
+> > dramatically.  The real question is can the FS make use of this layout
+> > information *without* changing the page cache granularity?  Only if you
+> > answer me "no" to this do I think we need to worry about changing page
+> > cache granularity.
+> >
+> > Realistically, if you look at what the I/O schedulers output on a
+> > standard (spinning rust) workload, it's mostly large transfers.
+> > Obviously these are misalgned at the ends, but we can fix some of that
+> > in the scheduler.  Particularly if the FS helps us with layout.  My
+> > instinct tells me that we can fix 99% of this with layout on the FS + io
+> > schedulers ... the remaining 1% goes to the drive as needing to do RMW
+> > in the device, but the net impact to our throughput shouldn't be that
+> > great.
+> >
+> > James
+> >
+> 
+> I think that the key to having the file system work with larger
+> sectors is to 
+> create them properly aligned and use the actual, native sector size as
+> their FS 
+> block size. Which is pretty much back the original challenge.
 
-Amended the Changelog to read:
+Only if you think laying out stuff requires block size changes.  If a 4k
+block filesystem's allocation algorithm tried to allocate on a 16k
+boundary for instance, that gets us a lot of the performance without
+needing a lot of alteration.
 
-for i in arch/*/include/asm/Kbuild
-do
-        cat $i | gawk '/^generic-y/ {
-                i = 3;
-                do {
-                        for (; i <= NF; i++) {
-                                if ($i == "\\") {
-                                        getline;
-                                        i = 1;
-                                        continue;
-                                }
-                                if ($i != "")
-                                        hdr[$i] = $i;
-                        }
-                        break;
-                } while (1);
-                next;
-        }
-        // {
-                print $0;
-        }
-        END {
-                n = asort(hdr);
-                for (i = 1; i <= n; i++)
-                        print "generic-y += " hdr[i];
-        }' > ${i}.sorted;
-        mv ${i}.sorted $i;
-done
+It's not even obvious that an ignorant 4k layout is going to be so
+bad ... the RMW occurs only at the ends of the transfers, not in the
+middle.  If we say 16k physical block and average 128k transfers,
+probabalistically we misalign on 6 out of 31 sectors (or 19% of the
+time).  We can make that better by increasing the transfer size (it
+comes down to 10% for 256k transfers.
+
+> Teaching each and every file system to be aligned at the storage 
+> granularity/minimum IO size when that is larger than the physical
+> sector size is 
+> harder I think.
+
+But you're making assumptions about needing larger block sizes.  I'm
+asking what can we do with what we currently have?  Increasing the
+transfer size is a way of mitigating the problem with no FS support
+whatever.  Adding alignment to the FS layout algorithm is another.  When
+you've done both of those, I think you're already at the 99% aligned
+case, which is "do we need to bother any more" territory for me.
+
+James
 
 
 --
