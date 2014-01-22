@@ -1,82 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id E64C06B0035
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 17:51:50 -0500 (EST)
-Received: by mail-pd0-f171.google.com with SMTP id g10so975629pdj.30
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 14:51:50 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id qx4si11491915pbc.225.2014.01.22.14.51.48
-        for <linux-mm@kvack.org>;
-        Wed, 22 Jan 2014 14:51:49 -0800 (PST)
-Date: Wed, 22 Jan 2014 15:51:56 -0700 (MST)
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v5 22/22] XIP: Add support for unwritten extents
-In-Reply-To: <CEFD7DAD.22F65%matthew.r.wilcox@intel.com>
-Message-ID: <alpine.OSX.2.00.1401221546240.70541@scrumpy>
-References: <cover.1389779961.git.matthew.r.wilcox@intel.com> <CEFD7DAD.22F65%matthew.r.wilcox@intel.com>
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id AE9A46B0035
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 18:45:22 -0500 (EST)
+Received: by mail-pb0-f54.google.com with SMTP id uo5so1061815pbc.41
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 15:45:22 -0800 (PST)
+Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com. [202.81.31.142])
+        by mx.google.com with ESMTPS id if4si11579700pbc.346.2014.01.22.15.45.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 22 Jan 2014 15:45:21 -0800 (PST)
+Received: from /spool/local
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Thu, 23 Jan 2014 09:45:18 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 17C9B2BB0053
+	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 10:45:16 +1100 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0MNQC5x5964098
+	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 10:26:12 +1100
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0MNjFZw019954
+	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 10:45:15 +1100
+Date: Thu, 23 Jan 2014 07:45:13 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: OOM-killer and strange RSS value in 3.9-rc7
+Message-ID: <52e05811.a4c3440a.6f6c.1db4SMTPIN_ADDED_BROKEN@mx.google.com>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <20130429145711.GC1172@dhcp22.suse.cz>
+ <20130502105637.GD4441@localhost.localdomain>
+ <0000013e65cb32b3-047cd2d6-dfc8-41d2-a792-9b398f9a1baf-000000@email.amazonses.com>
+ <20130503030345.GE4441@localhost.localdomain>
+ <0000013e6aff6f95-b8fa366e-51a5-4632-962e-1b990520f5a8-000000@email.amazonses.com>
+ <20130503153450.GA18709@dhcp22.suse.cz>
+ <0000013e6b2e06ab-a26ffcc5-a52d-4165-9be0-025ae813da00-000000@email.amazonses.com>
+ <52bd58da.2501440a.6368.16ddSMTPIN_ADDED_BROKEN@mx.google.com>
+ <52caac5c.27cb440a.533d.ffffbbd2SMTPIN_ADDED_BROKEN@mx.google.com>
+ <alpine.DEB.2.02.1401211411140.1666@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1401211411140.1666@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.cz>, Han Pingtian <hanpt@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org
 
-On Wed, 15 Jan 2014, Matthew Wilcox wrote:
+Hi David,
+On Tue, Jan 21, 2014 at 02:12:45PM -0800, David Rientjes wrote:
+>On Mon, 6 Jan 2014, Wanpeng Li wrote:
+>
+>> >Is there any progress against slub's fix?
+>> >
+>> >MemTotal:        7760960 kB
+>> >Slab:            7064448 kB
+>> >SReclaimable:     143936 kB
+>> >SUnreclaim:      6920512 kB
+>> >
+>> >112084  10550   9%   16.00K   3507       32   1795584K kmalloc-16384
+>> >2497920  48092   1%    0.50K  19515      128   1248960K kmalloc-512 
+>> >6058888  89363   1%    0.19K  17768      341   1137152K kmalloc-192
+>> >114468  13719  11%    4.58K   2082       55    532992K task_struct 
+>> >
+>> 
+>> This machine has 200 CPUs and 8G memory. There is an oom storm, we are
+>> seeing OOM even in boot process.
+>> 
+>
+>Is this still a problem with 3.9 and later kernels?  Please try to 
+>reproduce it on 3.13.
+>
+>If it does reproduce, could you try to pinpoint the problem with kmemleak?  
+>Look into Documentation/kmemleak.txt which should identify where these 
+>leaks are coming from with your slab allocator of choice. 
 
->  static ssize_t xip_io(int rw, struct inode *inode, const struct iovec
-> *iov,
->  			loff_t start, loff_t end, unsigned nr_segs,
->  			get_block_t get_block, struct buffer_head *bh)
-> @@ -103,21 +109,29 @@ static ssize_t xip_io(int rw, struct inode *inode,
-> const struct iovec *iov,
->  			retval = get_block(inode, block, bh, rw == WRITE);
->  			if (retval)
->  				break;
-> -			if (buffer_mapped(bh)) {
-> -				retval = xip_get_addr(inode, bh, &addr);
-> -				if (retval < 0)
-> -					break;
-> -				addr += offset - (block << inode->i_blkbits);
-> -				hole = false;
-> -				size = retval;
-> -			} else {
-> -				if (rw == WRITE) {
-> +			if (rw == WRITE) {
-> +				if (!buffer_mapped(bh)) {
->  					retval = -EIO;
->  					break;
->  				}
-> +				hole = false;
-> +			} else {
-> +				hole = !buffer_written(bh);
-> +			}
-> +
-> +			if (hole) {
->  				addr = NULL;
-> -				hole = true;
->  				size = bh->b_size;
-> +			} else {
-> +				unsigned first;
-> +				retval = xip_get_addr(inode, bh, &addr);
-> +				if (retval < 0)
-> +					break;
-> +				size = retval;
-> +				first = offset - (block << inode->i_blkbits);
-> +				if (buffer_unwritten(bh))
-> +					memset(addr, 0, first);
-> +				addr += first;
+We figure out the root issue caused by memoryless node and the patch is 
+under testing. 
 
-+                               size -= first;
-
-This is needed so that we don't overrun the XIP buffer we are given in the
-event that our user buffer >= our XIP buffer and the start of our I/O isn't
-block aligned.
-
-You can add my 
-Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com> 
-
-Thanks,
-- Ross
+Regards,
+Wanpeng Li 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
