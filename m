@@ -1,78 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f170.google.com (mail-ea0-f170.google.com [209.85.215.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 270186B0035
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 03:27:27 -0500 (EST)
-Received: by mail-ea0-f170.google.com with SMTP id k10so4380336eaj.1
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 00:27:26 -0800 (PST)
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id BB57C6B0035
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 04:34:40 -0500 (EST)
+Received: by mail-wg0-f49.google.com with SMTP id a1so113427wgh.16
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 01:34:40 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e2si15586975eeg.240.2014.01.22.00.27.25
+        by mx.google.com with ESMTPS id cs3si6015237wjc.60.2014.01.22.01.34.39
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 22 Jan 2014 00:27:26 -0800 (PST)
-Date: Wed, 22 Jan 2014 09:27:23 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -mm 2/2] memcg: fix css reference leak and endless loop
- in mem_cgroup_iter
-Message-ID: <20140122082723.GB18154@dhcp22.suse.cz>
-References: <20140121083454.GA1894@dhcp22.suse.cz>
- <1390301143-9541-1-git-send-email-mhocko@suse.cz>
- <1390301143-9541-2-git-send-email-mhocko@suse.cz>
- <20140121114219.8c34256dfbe7c2470b36ced8@linux-foundation.org>
- <alpine.LSU.2.11.1401211218010.5688@eggly.anvils>
+        Wed, 22 Jan 2014 01:34:39 -0800 (PST)
+Date: Wed, 22 Jan 2014 09:34:36 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] really large storage sectors - going
+ beyond 4096 bytes
+Message-ID: <20140122093435.GS4963@suse.de>
+References: <20131220093022.GV11295@suse.de>
+ <52DF353D.6050300@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1401211218010.5688@eggly.anvils>
+In-Reply-To: <52DF353D.6050300@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Ric Wheeler <rwheeler@redhat.com>
+Cc: linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org, linux-kernel@vger.kernel.org
 
-On Tue 21-01-14 13:18:42, Hugh Dickins wrote:
-[...]
-> We do have a confusing situation.  The hang goes back to 3.10 but takes
-> two different forms, because of intervening changes: in 3.10 and 3.11
-> mem_cgroup_iter repeatedly returns root memcg to its caller, in 3.12 and
-> 3.13 mem_cgroup_iter repeatedly gets NULL memcg from mem_cgroup_iter_next
-> and cannot return to its caller.
+On Tue, Jan 21, 2014 at 10:04:29PM -0500, Ric Wheeler wrote:
+> One topic that has been lurking forever at the edges is the current
+> 4k limitation for file system block sizes. Some devices in
+> production today and others coming soon have larger sectors and it
+> would be interesting to see if it is time to poke at this topic
+> again.
 > 
-> Patch 1/2 is what's needed to fix 3.10 and 3.11 (and applies correctly
-> to 3.11, but will have to be rediffed for 3.10 because of rearrangement
-> in between). 
 
-I will backport it when it reaches stable queue.
+Large block support was proposed years ago by Christoph Lameter
+(http://lwn.net/Articles/232757/). I think I was just getting started
+in the community at the time so I do not recall any of the details. I do
+believe it motivated an alternative by Nick Piggin called fsblock though
+(http://lwn.net/Articles/321390/). At the very least it would be nice to
+know why neither were never merged for those of us that were not around
+at the time and who may not have the chance to dive through mailing list
+archives between now and March.
 
-> Patch 2/2 is what's needed to fix 3.12 and 3.13 (but applies
-> correctly to neither of them because it's diffed on top of my CSS_ONLINE
-> fix).  Patch 1/2 is correct but unnecessary in 3.12 and 3.13: I'm unclear
-> whether Michal is claiming that it would also fix the hang in 3.12 and
-> 3.13 if we didn't have 2/2: I doubt that, and haven't tested that.
-
-Actually both patches are needed. If we had only 2/2 then we wouldn't
-endless loop inside mem_cgroup_iter but we could still return root to
-caller all the time because mem_cgroup_iter_load would return NULL on
-css_tryget failure on the cached root. Or am I missing something that
-would prevent that?
-
-> Given how Michal has diffed this patch on top of my CSS_ONLINE one
-> (mm-memcg-iteration-skip-memcgs-not-yet-fully-initialized.patch),
-> it would be helpful if you could mark that one also for stable 3.12+,
-> to save us from having to rediff this one for stable.  We don't have
-> a concrete example of a problem it solves in the vanilla kernel, but
-> it makes more sense to include it than to exclude it.
-
-Yes, I think it makes sense to queue it for 3.12+ as well because it is
-non intrusive and potential issues would be really subtle.
-
-> (You would be right to point out that the CSS_ONLINE one fixes
-> something that goes back to 3.10: I'm saying 3.12+ because I'm not
-> motivated to rediff it for 3.10 and 3.11 when there's nothing to
-> go on top; but that's not a very good reason to lie - overrule me.)
-> 
-> Hugh
+FWIW, I would expect that a show-stopper for any proposal is requiring
+high-order allocations to succeed for the system to behave correctly.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
