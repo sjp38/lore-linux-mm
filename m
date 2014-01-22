@@ -1,50 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 77ADB6B0035
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 15:41:10 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id kq14so900784pab.3
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 12:41:10 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id g6si1152535pad.227.2014.01.22.12.41.08
-        for <linux-mm@kvack.org>;
-        Wed, 22 Jan 2014 12:41:09 -0800 (PST)
-Date: Wed, 22 Jan 2014 12:41:07 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH V5 2/3] mm/memblock: Add support for excluded memory
- areas
-Message-Id: <20140122124107.ef0ceac16be17c165de56308@linux-foundation.org>
-In-Reply-To: <20140122121821.6da53a02@lilie>
-References: <1390217559-14691-1-git-send-email-phacht@linux.vnet.ibm.com>
-	<1390217559-14691-3-git-send-email-phacht@linux.vnet.ibm.com>
-	<20140122121821.6da53a02@lilie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 0910A6B0035
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 15:47:20 -0500 (EST)
+Received: by mail-ie0-f178.google.com with SMTP id x13so78650ief.37
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 12:47:19 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id 9si16080095igo.72.2014.01.22.12.47.18
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 22 Jan 2014 12:47:18 -0800 (PST)
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] really large storage sectors - going beyond 4096 bytes
+From: "Martin K. Petersen" <martin.petersen@oracle.com>
+References: <20131220093022.GV11295@suse.de> <52DF353D.6050300@redhat.com>
+	<20140122093435.GS4963@suse.de> <52DFD168.8080001@redhat.com>
+	<20140122143452.GW4963@suse.de> <52DFDCA6.1050204@redhat.com>
+Date: Wed, 22 Jan 2014 15:47:12 -0500
+In-Reply-To: <52DFDCA6.1050204@redhat.com> (Ric Wheeler's message of "Wed, 22
+	Jan 2014 09:58:46 -0500")
+Message-ID: <yq138kfbv73.fsf@sermon.lab.mkp.net>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Philipp Hachtmann <phacht@linux.vnet.ibm.com>
-Cc: hannes@cmpxchg.org, liuj97@gmail.com, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, iamjoonsoo.kim@lge.com, robin.m.holt@gmail.com, tangchen@cn.fujitsu.com, yinghai@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ric Wheeler <rwheeler@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-scsi@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ide@vger.kernel.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, lsf-pc@lists.linux-foundation.org
 
-On Wed, 22 Jan 2014 12:18:21 +0100 Philipp Hachtmann <phacht@linux.vnet.ibm.com> wrote:
+>>>>> "Ric" == Ric Wheeler <rwheeler@redhat.com> writes:
 
-> Hi again,
-> 
-> I'd like to remind that the s390 development relies on this patch
-> (and the next one, for cleanliness, of course) being added. It would be
-> very good to see it being added to the -mm tree resp. linux-next.
-> 
+Ric> I will have to see if I can get a storage vendor to make a public
+Ric> statement, but there are vendors hoping to see this land in Linux
+Ric> in the next few years. I assume that anyone with a shipping device
+Ric> will have to at least emulate the 4KB sector size for years to
+Ric> come, but that there might be a significant performance win for
+Ric> platforms that can do a larger block.
 
-Once the patch has passed review (hopefully by yinghai, who reviews
-very well) I'd ask you to include it in the s390 tree which actually
-uses it.
+I am aware of two companies that already created devices with 8KB
+logical blocks and expected Linux to work. I had to do some explaining.
 
-Patch 2/3 would benefit from a more complete changelog.  Why does s390
-need CONFIG_ARCH_MEMBLOCK_NOMAP?  How is it used and how does it work? 
-Do we expect other architectures to use it?  If so, how?  etcetera.
+I agree with Ric that this is something we'll need to address sooner
+rather than later.
 
-btw, you have a "#ifdef ARCH_MEMBLOCK_NOMAP" in there which should be
-CONFIG_ARCH_MEMBLOCK_NOMAP.  I don't see how the code could have
-compiled as-is - __next_mapped_mem_range() will be omitted?
+-- 
+Martin K. Petersen	Oracle Linux Engineering
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
