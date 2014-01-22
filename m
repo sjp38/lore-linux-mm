@@ -1,94 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 82F506B005A
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 09:01:36 -0500 (EST)
-Received: by mail-ee0-f53.google.com with SMTP id t10so4946766eei.12
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 06:01:35 -0800 (PST)
-Received: from eu1sys200aog118.obsmtp.com (eu1sys200aog118.obsmtp.com [207.126.144.145])
-        by mx.google.com with SMTP id p9si17565989eew.244.2014.01.22.06.01.35
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 22 Jan 2014 06:01:35 -0800 (PST)
-Message-ID: <52DFCF2B.1010603@mellanox.com>
-Date: Wed, 22 Jan 2014 16:01:15 +0200
-From: Haggai Eran <haggaie@mellanox.com>
+Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 5417A6B0069
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 09:11:55 -0500 (EST)
+Received: by mail-we0-f169.google.com with SMTP id u57so358754wes.28
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 06:11:54 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id cm11si6786621wjb.17.2014.01.22.06.11.39
+        for <linux-mm@kvack.org>;
+        Wed, 22 Jan 2014 06:11:40 -0800 (PST)
+Message-ID: <52DFD168.8080001@redhat.com>
+Date: Wed, 22 Jan 2014 09:10:48 -0500
+From: Ric Wheeler <rwheeler@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/mmu_notifier: restore set_pte_at_notify semantics
-References: <1389778834-21200-1-git-send-email-mike.rapoport@ravellosystems.com> <20140122131046.GF14193@redhat.com>
-In-Reply-To: <20140122131046.GF14193@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] really large storage sectors - going
+ beyond 4096 bytes
+References: <20131220093022.GV11295@suse.de> <52DF353D.6050300@redhat.com> <20140122093435.GS4963@suse.de>
+In-Reply-To: <20140122093435.GS4963@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Mike Rapoport <mike.rapoport@ravellosystems.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Izik Eidus <izik.eidus@ravellosystems.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On 22/01/2014 15:10, Andrea Arcangeli wrote:
-> On Wed, Jan 15, 2014 at 11:40:34AM +0200, Mike Rapoport wrote:
->> Commit 6bdb913f0a70a4dfb7f066fb15e2d6f960701d00 (mm: wrap calls to
->> set_pte_at_notify with invalidate_range_start and invalidate_range_end)
->> breaks semantics of set_pte_at_notify. When calls to set_pte_at_notify
->> are wrapped with mmu_notifier_invalidate_range_start and
->> mmu_notifier_invalidate_range_end, KVM zaps pte during
->> mmu_notifier_invalidate_range_start callback and set_pte_at_notify has
->> no spte to update and therefore it's called for nothing.
+On 01/22/2014 04:34 AM, Mel Gorman wrote:
+> On Tue, Jan 21, 2014 at 10:04:29PM -0500, Ric Wheeler wrote:
+>> One topic that has been lurking forever at the edges is the current
+>> 4k limitation for file system block sizes. Some devices in
+>> production today and others coming soon have larger sectors and it
+>> would be interesting to see if it is time to poke at this topic
+>> again.
 >>
->> As Andrea suggested (1), the problem is resolved by calling
->> mmu_notifier_invalidate_page after PT lock has been released and only
->> for mmu_notifiers that do not implement change_ptr callback.
->>
->> (1) http://thread.gmane.org/gmane.linux.kernel.mm/111710/focus=111711
->>
->> Reported-by: Izik Eidus <izik.eidus@ravellosystems.com>
->> Signed-off-by: Mike Rapoport <mike.rapoport@ravellosystems.com>
->> Cc: Andrea Arcangeli <aarcange@redhat.com>
->> Cc: Haggai Eran <haggaie@mellanox.com>
->> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
->> ---
->>  include/linux/mmu_notifier.h | 31 ++++++++++++++++++++++++++-----
->>  kernel/events/uprobes.c      | 12 ++++++------
->>  mm/ksm.c                     | 15 +++++----------
->>  mm/memory.c                  | 14 +++++---------
->>  mm/mmu_notifier.c            | 24 ++++++++++++++++++++++--
->>  5 files changed, 64 insertions(+), 32 deletions(-)
-> 
-> Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
-> 
+> Large block support was proposed years ago by Christoph Lameter
+> (http://lwn.net/Articles/232757/). I think I was just getting started
+> in the community at the time so I do not recall any of the details. I do
+> believe it motivated an alternative by Nick Piggin called fsblock though
+> (http://lwn.net/Articles/321390/). At the very least it would be nice to
+> know why neither were never merged for those of us that were not around
+> at the time and who may not have the chance to dive through mailing list
+> archives between now and March.
+>
+> FWIW, I would expect that a show-stopper for any proposal is requiring
+> high-order allocations to succeed for the system to behave correctly.
+>
 
-Hi Andrea, Mike,
+I have a somewhat hazy memory of Andrew warning us that touching this code takes 
+us into dark and scary places.
 
-Did you get a chance to consider the scenario I wrote about in the other
-thread?
-
-I'm worried about the following scenario:
-
-Given a read-only page, suppose one host thread (thread 1) writes to
-that page, and performs COW, but before it calls the
-mmu_notifier_invalidate_page_if_missing_change_pte function another host
-thread (thread 2) writes to the same page (this time without a page
-fault). Then we have a valid entry in the secondary page table to a
-stale page, and someone (thread 3) may read stale data from there.
-
-Here's a diagram that shows this scenario:
-
-Thread 1                                | Thread 2        | Thread 3
-========================================================================
-do_wp_page(page 1)                      |                 |
-  ...                                   |                 |
-  set_pte_at_notify                     |                 |
-  ...                                   | write to page 1 |
-                                        |                 | stale access
-  pte_unmap_unlock                      |                 |
-  invalidate_page_if_missing_change_pte |                 |
-
-This is currently prevented by the use of the range start and range end
-notifiers.
-
-Do you agree that this scenario is possible with the new patch, or am I
-missing something?
-
-Regards,
-Haggai
+ric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
