@@ -1,115 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 02DB26B0035
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 16:05:28 -0500 (EST)
-Received: by mail-ee0-f54.google.com with SMTP id e53so31357eek.13
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 13:05:28 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l44si19843968eem.187.2014.01.22.13.05.27
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FB1A6B0035
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 16:15:52 -0500 (EST)
+Received: by mail-wg0-f42.google.com with SMTP id l18so9856wgh.3
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 13:15:51 -0800 (PST)
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+        by mx.google.com with ESMTPS id ka5si7642339wjc.46.2014.01.22.13.15.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 22 Jan 2014 13:05:27 -0800 (PST)
-Date: Wed, 22 Jan 2014 22:05:24 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] really large storage sectors - going
- beyond 4096 bytes
-Message-ID: <20140122210524.GA27916@quack.suse.cz>
-References: <20131220093022.GV11295@suse.de>
- <52DF353D.6050300@redhat.com>
- <20140122093435.GS4963@suse.de>
- <1390403770.1198.4.camel@ret.masoncoding.com>
- <1390406584.2372.7.camel@dabdike.int.hansenpartnership.com>
- <52DFF5A8.1090002@redhat.com>
- <1390410033.2372.28.camel@dabdike.int.hansenpartnership.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 22 Jan 2014 13:15:51 -0800 (PST)
+Received: by mail-wg0-f45.google.com with SMTP id n12so849043wgh.12
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 13:15:51 -0800 (PST)
+From: James Hogan <james.hogan@imgtec.com>
+Subject: Re: [PATCH v8 6/6] MCS Lock: Allow architecture specific asm files to be used for contended case
+Date: Wed, 22 Jan 2014 21:15:40 +0000
+Message-ID: <26254409.YmoYKsf1IQ@radagast>
+In-Reply-To: <1390267479.3138.40.camel@schen9-DESK>
+References: <cover.1390239879.git.tim.c.chen@linux.intel.com> <1390267479.3138.40.camel@schen9-DESK>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1390410033.2372.28.camel@dabdike.int.hansenpartnership.com>
+Content-Type: multipart/signed; boundary="nextPart1685149.4BrWz72eY4"; micalg="pgp-sha1"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Ric Wheeler <rwheeler@redhat.com>, "linux-ide@vger.kernel.org" <linux-ide@vger.kernel.org>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, Chris Mason <clm@fb.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mgorman@suse.de" <mgorman@suse.de>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Wed 22-01-14 09:00:33, James Bottomley wrote:
-> On Wed, 2014-01-22 at 11:45 -0500, Ric Wheeler wrote:
-> > On 01/22/2014 11:03 AM, James Bottomley wrote:
-> > > On Wed, 2014-01-22 at 15:14 +0000, Chris Mason wrote:
-> > >> On Wed, 2014-01-22 at 09:34 +0000, Mel Gorman wrote:
-> > >>> On Tue, Jan 21, 2014 at 10:04:29PM -0500, Ric Wheeler wrote:
-> > >>>> One topic that has been lurking forever at the edges is the current
-> > >>>> 4k limitation for file system block sizes. Some devices in
-> > >>>> production today and others coming soon have larger sectors and it
-> > >>>> would be interesting to see if it is time to poke at this topic
-> > >>>> again.
-> > >>>>
-> > >>> Large block support was proposed years ago by Christoph Lameter
-> > >>> (http://lwn.net/Articles/232757/). I think I was just getting started
-> > >>> in the community at the time so I do not recall any of the details. I do
-> > >>> believe it motivated an alternative by Nick Piggin called fsblock though
-> > >>> (http://lwn.net/Articles/321390/). At the very least it would be nice to
-> > >>> know why neither were never merged for those of us that were not around
-> > >>> at the time and who may not have the chance to dive through mailing list
-> > >>> archives between now and March.
-> > >>>
-> > >>> FWIW, I would expect that a show-stopper for any proposal is requiring
-> > >>> high-order allocations to succeed for the system to behave correctly.
-> > >>>
-> > >> My memory is that Nick's work just didn't have the momentum to get
-> > >> pushed in.  It all seemed very reasonable though, I think our hatred of
-> > >> buffered heads just wasn't yet bigger than the fear of moving away.
-> > >>
-> > >> But, the bigger question is how big are the blocks going to be?  At some
-> > >> point (64K?) we might as well just make a log structured dm target and
-> > >> have a single setup for both shingled and large sector drives.
-> > > There is no real point.  Even with 4k drives today using 4k sectors in
-> > > the filesystem, we still get 512 byte writes because of journalling and
-> > > the buffer cache.
-> > 
-> > I think that you are wrong here James. Even with 512 byte drives, the IO's we 
-> > send down tend to be 4k or larger. Do you have traces that show this and details?
-> 
-> It's mostly an ext3 journalling issue ... and it's only metadata and
-> mostly the ioschedulers can elevate it into 4k chunks, so yes, most of
-> our writes are 4k+, so this is a red herring, yes.
-  ext3 (similarly as ext4) does block level journalling meaning that it
-journals *only* full blocks. So an ext3/4 filesystem with 4 KB blocksize
-will never journal anything else than full 4 KB blocks. So I'm not sure
-where this 512-byte writes idea came from..
 
-> > Also keep in mind that larger block sizes allow us to track larger
-> > files with 
-> > smaller amounts of metadata which is a second win.
-> 
-> Larger file block sizes are completely independent from larger device
-> block sizes (we can have 16k file block sizes on 4k or even 512b
-> devices).  The questions on larger block size devices are twofold:
-> 
->      1. If manufacturers tell us that they'll only support I/O on the
->         physical sector size, do we believe them, given that they said
->         this before on 4k and then backed down.  All the logical vs
->         physical sector stuff is now in T10 standards, why would they
->         try to go all physical again, especially as they've now all
->         written firmware that does the necessary RMW?
->      2. If we agree they'll do RMW in Firmware again, what do we have to
->         do to take advantage of larger sector sizes beyond what we
->         currently do in alignment and chunking?  There may still be
->         issues in FS journal and data layouts.
-  I also believe drives will support smaller-than-blocksize writes. But
-supporting larger fs blocksize can sometimes be beneficial for other
-reasons (think performance with specialized workloads because amount of
-metadata is smaller, fragmentation is smaller, ...). Currently ocfs2, ext4,
-and possibly others go through the hoops to support allocating file data in
-chunks larger than fs blocksize - at the first sight that should be
-straightforward but if you look at the code you find out there are nasty
-corner cases which make it pretty ugly. And each fs doing these large data
-allocations currently invents its own way to deal with the problems. So
-providing some common infrastructure for dealing with blocks larger than
-page size would definitely relieve some pain.
+--nextPart1685149.4BrWz72eY4
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Hi,
+
+On Monday 20 January 2014 17:24:39 Tim Chen wrote:
+> From: Peter Zijlstra <peterz@infradead.org>
+> 
+> This patch allows each architecture to add its specific assembly optimized
+> arch_mcs_spin_lock_contended and arch_mcs_spinlock_uncontended for
+> MCS lock and unlock functions.
+> 
+> Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+
+Where possible can you try and maintain the sort order in the Kbuild files?
+
+Cheers
+James
+--nextPart1685149.4BrWz72eY4
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part.
+Content-Transfer-Encoding: 7Bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.22 (GNU/Linux)
+
+iQIcBAABAgAGBQJS4DUEAAoJEKHZs+irPybfVl8P/2gAXU9shCLWJ4waYAvVavNp
+Sdy+1TO16jc4vs+R7XAdeAwVZDH1an2uu8q6lE8+J4fXo7kiYolNTiivFQUy+7g3
+MWUDuukDM+A5RyDPkjUxgM+1F4br8HoRa4rWH4lB4AW3ceOlA2erLj7rJat8ZetD
+RSipQNzjkA5xibteRVeifA++QAQlTBxzDZPkP61YB8OcKpQhldK2I6T8nt/C6WYH
+fcsTFKZ+f0/N84IiJTNolWVcxB0ZWWWrlNxbqcQBXTHzPcPka4K341UFkO3nwFwu
+V/YY7gup6LSnomN7lue0quQnhul4MOiu85E33LSzMBDiYuDV6mbsJYjj62RcDymy
+69v0Pj1Z/NKb0+M5qT/TvHvFTS0rb1j8MSw8PwjpcrhJL2kyYC8kTip++3govhFT
+ffLLNou/XReHM5e7UnVrn8pdnH+6ABV1vqH8quFmEOOrZtIxqOtr40T/EIoYI9wT
+evYJSfsBi0Yhiw37wAep4tNuDxUyDddxhGHrt75aSKq+PCfstvoDRgW1MFUntcP5
+VUN69DRU0IXoZTMavnX66DE/Oa2FC4ZO350bsxXR4IFvWkrGQbqPCuWKhwViawZf
+FuAI5HaMk59FBhTLKQuYwaV8L7mxQFJ/huV/+MMI9fAKyPsNovbG8mDbalzxNSjI
+SWps+aGNHg6q4de46SQv
+=ml5/
+-----END PGP SIGNATURE-----
+
+--nextPart1685149.4BrWz72eY4--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
