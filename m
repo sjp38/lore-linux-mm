@@ -1,67 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f174.google.com (mail-ve0-f174.google.com [209.85.128.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 814CF6B0035
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 15:13:28 -0500 (EST)
-Received: by mail-ve0-f174.google.com with SMTP id pa12so546434veb.19
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 12:13:28 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTP id x3si5180591vcn.84.2014.01.22.12.13.26
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 625F36B0035
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 15:34:01 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id g10so843263pdj.30
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 12:34:01 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id ek3si11145619pbd.235.2014.01.22.12.33.59
         for <linux-mm@kvack.org>;
-        Wed, 22 Jan 2014 12:13:27 -0800 (PST)
-From: Chris Mason <clm@fb.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] really large storage sectors - going
- beyond 4096 bytes
-Date: Wed, 22 Jan 2014 20:13:20 +0000
-Message-ID: <1390421691.1198.43.camel@ret.masoncoding.com>
-References: <20131220093022.GV11295@suse.de> <52DF353D.6050300@redhat.com>
-	 <20140122093435.GS4963@suse.de> <52DFD168.8080001@redhat.com>
-	 <20140122143452.GW4963@suse.de> <52DFDCA6.1050204@redhat.com>
-	 <20140122151913.GY4963@suse.de>
-	 <1390410233.1198.7.camel@ret.masoncoding.com>
-	 <1390411300.2372.33.camel@dabdike.int.hansenpartnership.com>
-	 <1390413819.1198.20.camel@ret.masoncoding.com>
-	 <1390414439.2372.53.camel@dabdike.int.hansenpartnership.com>
-	 <52E00B28.3060609@redhat.com>
-	 <1390415703.2372.62.camel@dabdike.int.hansenpartnership.com>
-	 <52E0106B.5010604@redhat.com>
-	 <1390419019.2372.89.camel@dabdike.int.hansenpartnership.com>
-	 <20140122115002.bb5d01dee836b567a7aad157@linux-foundation.org>
-In-Reply-To: <20140122115002.bb5d01dee836b567a7aad157@linux-foundation.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-7"
-Content-ID: <4377FC09DDDAD244BD307A4929AD8592@fb.com>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        Wed, 22 Jan 2014 12:33:59 -0800 (PST)
+Date: Wed, 22 Jan 2014 12:33:58 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/zswap: add writethrough option
+Message-Id: <20140122123358.a65c42605513fc8466152801@linux-foundation.org>
+In-Reply-To: <CALZtONAaPCi8eUhSmdXSxWbeFFN=ChsfL9OurSZUsSPo-_gnfg@mail.gmail.com>
+References: <1387459407-29342-1-git-send-email-ddstreet@ieee.org>
+	<20140114001115.GU1992@bbox>
+	<CALZtONCCrckuHxgHB=GQj0tHszLAYTZZLGzFTnRkj9pvxx0dyg@mail.gmail.com>
+	<20140115054208.GL1992@bbox>
+	<CALZtONCehE8Td2C2w-fOC596uD54y1-kyc3SiKABBEODMb+a7Q@mail.gmail.com>
+	<CALZtONAaPCi8eUhSmdXSxWbeFFN=ChsfL9OurSZUsSPo-_gnfg@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-ide@vger.kernel.org" <linux-ide@vger.kernel.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, "rwheeler@redhat.com" <rwheeler@redhat.com>, "James.Bottomley@hansenpartnership.com" <James.Bottomley@hansenpartnership.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "mgorman@suse.de" <mgorman@suse.de>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Seth Jennings <sjennings@variantweb.net>, Minchan Kim <minchan@kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Weijie Yang <weijie.yang@samsung.com>, Shirish Pargaonkar <spargaonkar@suse.com>, Mel Gorman <mgorman@suse.de>
 
-On Wed, 2014-01-22 at 11:50 -0800, Andrew Morton wrote:
-+AD4- On Wed, 22 Jan 2014 11:30:19 -0800 James Bottomley +ADw-James.Bottoml=
-ey+AEA-hansenpartnership.com+AD4- wrote:
-+AD4-=20
-+AD4- +AD4- But this, I think, is the fundamental point for debate.  If we =
-can pull
-+AD4- +AD4- alignment and other tricks to solve 99+ACU- of the problem is t=
-here a need
-+AD4- +AD4- for radical VM surgery?  Is there anything coming down the pipe=
- in the
-+AD4- +AD4- future that may move the devices ahead of the tricks?
-+AD4-=20
-+AD4- I expect it would be relatively simple to get large blocksizes workin=
-g
-+AD4- on powerpc with 64k PAGE+AF8-SIZE.  So before diving in and doing hug=
-e
-+AD4- amounts of work, perhaps someone can do a proof-of-concept on powerpc
-+AD4- (or ia64) with 64k blocksize.
+On Wed, 22 Jan 2014 09:19:58 -0500 Dan Streetman <ddstreet@ieee.org> wrote:
 
+> >>> > Acutally, I really don't know how much benefit we have that in-memory
+> >>> > swap overcomming to the real storage but if you want, zRAM with dm-cache
+> >>> > is another option rather than invent new wheel by "just having is better".
+> >>>
+> >>> I'm not sure if this patch is related to the zswap vs. zram discussions.  This
+> >>> only adds the option of using writethrough to zswap.  It's a first
+> >>> step to possibly
+> >>> making zswap work more efficiently using writeback and/or writethrough
+> >>> depending on
+> >>> the system and conditions.
+> >>
+> >> The patch size is small. Okay I don't want to be a party-pooper
+> >> but at least, I should say my thought for Andrew to help judging.
+> >
+> > Sure, I'm glad to have your suggestions.
+> 
+> To give this a bump - Andrew do you have any concerns about this
+> patch?  Or can you pick this up?
 
-Maybe 5 drives in raid5 on MD, with 4K coming from each drive.  Well
-aligned 16K IO will work, everything else will about the same as a rmw
-from a single drive.
+I don't pay much attention to new features during the merge window,
+preferring to shove them into a folder to look at later.  Often they
+have bitrotted by the time -rc1 comes around.
 
--chris
+I'm not sure that this review discussion has played out yet - is
+Minchan happy?
+
+Please update the changelog so that it reflects the questions Minchan
+asked (any reviewer question should be regarded as an inadequacy in
+either the code commenting or the changelog - people shouldn't need to
+ask the programmer why he did something!) and resend for -rc1?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
