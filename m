@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E121D6B0035
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 13:19:40 -0500 (EST)
-Received: by mail-wg0-f51.google.com with SMTP id z12so628574wgg.18
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 10:19:40 -0800 (PST)
+Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 90FD06B0035
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 13:25:34 -0500 (EST)
+Received: by mail-yk0-f169.google.com with SMTP id q9so928731ykb.0
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 10:25:34 -0800 (PST)
 Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id ct4si7445428wib.2.2014.01.22.10.19.39
+        by mx.google.com with ESMTPS id 69si11920455yhc.166.2014.01.22.10.25.32
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jan 2014 10:19:39 -0800 (PST)
-Date: Wed, 22 Jan 2014 19:18:56 +0100
+        Wed, 22 Jan 2014 10:25:33 -0800 (PST)
+Date: Wed, 22 Jan 2014 19:25:01 +0100
 From: Peter Zijlstra <peterz@infradead.org>
 Subject: Re: [PATCH v9 5/6] MCS Lock: Order the header files in Kbuild of
  each architecture in alphabetical order
-Message-ID: <20140122181856.GI3694@twins.programming.kicks-ass.net>
+Message-ID: <20140122182501.GJ3694@twins.programming.kicks-ass.net>
 References: <cover.1390320729.git.tim.c.chen@linux.intel.com>
  <1390347376.3138.66.camel@schen9-DESK>
  <20140122130818.GP31570@twins.programming.kicks-ass.net>
@@ -34,34 +34,38 @@ On Wed, Jan 22, 2014 at 02:08:18PM +0100, Peter Zijlstra wrote:
 > > We order the files in each Kbuild in alphabetical order
 > > by running the below script on each Kbuild file:
 > > 
-> > gawk '/^generic-y/ {
-> >         i = 3;
-> >         do {
-> >                 for (; i<=NF; i++) {
-> >                         if ($i == "\\") {
-> >                                 getline;
-> >                                 i=1;
-> >                                 continue;
-> >                         }
-> >                         if ($i != "")
-> >                                 hdr[$i] = $i;
-> >                 }
-> >                 break;
-> >         } while (1);
-> >         next;
-> > }
 
-// { print $0 }
+Amended the Changelog to read:
 
-> > END {
-> >         n = asort(hdr);
-> >         for (i=1; i<=n; i++)
-> >                 print "generic-y += " hdr[i];
-> > }'
-> > 
+for i in arch/*/include/asm/Kbuild
+do
+        cat $i | gawk '/^generic-y/ {
+                i = 3;
+                do {
+                        for (; i <= NF; i++) {
+                                if ($i == "\\") {
+                                        getline;
+                                        i = 1;
+                                        continue;
+                                }
+                                if ($i != "")
+                                        hdr[$i] = $i;
+                        }
+                        break;
+                } while (1);
+                next;
+        }
+        // {
+                print $0;
+        }
+        END {
+                n = asort(hdr);
+                for (i = 1; i <= n; i++)
+                        print "generic-y += " hdr[i];
+        }' > ${i}.sorted;
+        mv ${i}.sorted $i;
+done
 
-Just noticed you lost that rule, without that we'll loose !genericy-y
-lines.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
