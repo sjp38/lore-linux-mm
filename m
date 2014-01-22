@@ -1,73 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f173.google.com (mail-yk0-f173.google.com [209.85.160.173])
-	by kanga.kvack.org (Postfix) with ESMTP id CC37F6B0073
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 08:09:08 -0500 (EST)
-Received: by mail-yk0-f173.google.com with SMTP id 20so347387yks.4
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 05:09:08 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id 21si8495488yhx.156.2014.01.22.05.09.07
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jan 2014 05:09:07 -0800 (PST)
-Date: Wed, 22 Jan 2014 14:08:18 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v9 5/6] MCS Lock: Order the header files in Kbuild of
- each architecture in alphabetical order
-Message-ID: <20140122130818.GP31570@twins.programming.kicks-ass.net>
-References: <cover.1390320729.git.tim.c.chen@linux.intel.com>
- <1390347376.3138.66.camel@schen9-DESK>
+Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 95F566B0074
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 08:10:58 -0500 (EST)
+Received: by mail-qa0-f43.google.com with SMTP id o15so371979qap.2
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 05:10:58 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id x4si5666924qad.92.2014.01.22.05.10.56
+        for <linux-mm@kvack.org>;
+        Wed, 22 Jan 2014 05:10:57 -0800 (PST)
+Date: Wed, 22 Jan 2014 14:10:46 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] mm/mmu_notifier: restore set_pte_at_notify semantics
+Message-ID: <20140122131046.GF14193@redhat.com>
+References: <1389778834-21200-1-git-send-email-mike.rapoport@ravellosystems.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1390347376.3138.66.camel@schen9-DESK>
+In-Reply-To: <1389778834-21200-1-git-send-email-mike.rapoport@ravellosystems.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>, sfr@canb.auug.org.au
+To: Mike Rapoport <mike.rapoport@ravellosystems.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Izik Eidus <izik.eidus@ravellosystems.com>, Haggai Eran <haggaie@mellanox.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Tue, Jan 21, 2014 at 03:36:16PM -0800, Tim Chen wrote:
-> From: Peter Zijlstra <peterz@infradead.org>
+On Wed, Jan 15, 2014 at 11:40:34AM +0200, Mike Rapoport wrote:
+> Commit 6bdb913f0a70a4dfb7f066fb15e2d6f960701d00 (mm: wrap calls to
+> set_pte_at_notify with invalidate_range_start and invalidate_range_end)
+> breaks semantics of set_pte_at_notify. When calls to set_pte_at_notify
+> are wrapped with mmu_notifier_invalidate_range_start and
+> mmu_notifier_invalidate_range_end, KVM zaps pte during
+> mmu_notifier_invalidate_range_start callback and set_pte_at_notify has
+> no spte to update and therefore it's called for nothing.
 > 
-> We perform a clean up of the Kbuid files in each architecture.
-> We order the files in each Kbuild in alphabetical order
-> by running the below script on each Kbuild file:
+> As Andrea suggested (1), the problem is resolved by calling
+> mmu_notifier_invalidate_page after PT lock has been released and only
+> for mmu_notifiers that do not implement change_ptr callback.
 > 
-> gawk '/^generic-y/ {
->         i = 3;
->         do {
->                 for (; i<=NF; i++) {
->                         if ($i == "\\") {
->                                 getline;
->                                 i=1;
->                                 continue;
->                         }
->                         if ($i != "")
->                                 hdr[$i] = $i;
->                 }
->                 break;
->         } while (1);
->         next;
-> }
-> END {
->         n = asort(hdr);
->         for (i=1; i<=n; i++)
->                 print "generic-y += " hdr[i];
-> }'
+> (1) http://thread.gmane.org/gmane.linux.kernel.mm/111710/focus=111711
 > 
+> Reported-by: Izik Eidus <izik.eidus@ravellosystems.com>
+> Signed-off-by: Mike Rapoport <mike.rapoport@ravellosystems.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Haggai Eran <haggaie@mellanox.com>
+> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> ---
+>  include/linux/mmu_notifier.h | 31 ++++++++++++++++++++++++++-----
+>  kernel/events/uprobes.c      | 12 ++++++------
+>  mm/ksm.c                     | 15 +++++----------
+>  mm/memory.c                  | 14 +++++---------
+>  mm/mmu_notifier.c            | 24 ++++++++++++++++++++++--
+>  5 files changed, 64 insertions(+), 32 deletions(-)
 
-I'll probably have to regenerate this patch once the merge window is
-done, but that's no biggie.
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
 
-sfr, you might want to keep this script handy and distribute to others
-who are lazy and don't want to sort by hand.
-
-I suppose running it requires a little something like:
-
-for i in arch/*/include/asm/Kbuild
-do
-	cat $i | gawk .... > ${i}.sorted;
-	mv ${i}.sorted $i;
-done
+Thanks!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
