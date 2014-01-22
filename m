@@ -1,53 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f46.google.com (mail-bk0-f46.google.com [209.85.214.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F5BB6B0035
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 16:19:38 -0500 (EST)
-Received: by mail-bk0-f46.google.com with SMTP id r7so69287bkg.19
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 13:19:37 -0800 (PST)
-Received: from mail-bk0-f46.google.com (mail-bk0-f46.google.com [209.85.214.46])
-        by mx.google.com with ESMTPS id dh4si8027805bkc.334.2014.01.22.13.19.37
+Received: from mail-yh0-f47.google.com (mail-yh0-f47.google.com [209.85.213.47])
+	by kanga.kvack.org (Postfix) with ESMTP id D26D86B0035
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 16:46:10 -0500 (EST)
+Received: by mail-yh0-f47.google.com with SMTP id c41so391756yho.6
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 13:46:10 -0800 (PST)
+Received: from mail-yh0-x234.google.com (mail-yh0-x234.google.com [2607:f8b0:4002:c01::234])
+        by mx.google.com with ESMTPS id f25si12557884yho.278.2014.01.22.13.46.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 22 Jan 2014 13:19:37 -0800 (PST)
-Received: by mail-bk0-f46.google.com with SMTP id r7so69284bkg.19
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 13:19:37 -0800 (PST)
+        Wed, 22 Jan 2014 13:46:09 -0800 (PST)
+Received: by mail-yh0-f52.google.com with SMTP id v1so395026yhn.39
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 13:46:08 -0800 (PST)
+Date: Wed, 22 Jan 2014 13:46:04 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC PATCH] mm: thp: Add per-mm_struct flag to control THP
+In-Reply-To: <20140122175328.GO18196@sgi.com>
+Message-ID: <alpine.DEB.2.02.1401221343580.22014@chino.kir.corp.google.com>
+References: <1389383718-46031-1-git-send-email-athorlton@sgi.com> <20140110202310.GB1421@node.dhcp.inet.fi> <20140110220155.GD3066@sgi.com> <20140110221010.GP31570@twins.programming.kicks-ass.net> <20140110223909.GA8666@sgi.com> <20140114154457.GD4963@suse.de>
+ <20140114193801.GV10649@sgi.com> <20140122102621.GU4963@suse.de> <20140122175328.GO18196@sgi.com>
 MIME-Version: 1.0
-In-Reply-To: <26254409.YmoYKsf1IQ@radagast>
-References: <cover.1390239879.git.tim.c.chen@linux.intel.com>
-	<1390267479.3138.40.camel@schen9-DESK>
-	<26254409.YmoYKsf1IQ@radagast>
-Date: Wed, 22 Jan 2014 21:19:36 +0000
-Message-ID: <CAAG0J98eyP8Jy9P1iQ0eO6UCJ6fdqD7V-f0TaoT-LegyYGTEgA@mail.gmail.com>
-Subject: Re: [PATCH v8 6/6] MCS Lock: Allow architecture specific asm files to
- be used for contended case
-From: James Hogan <james.hogan@imgtec.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Will Deacon <will.deacon@arm.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: Alex Thorlton <athorlton@sgi.com>
+Cc: Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andy Lutomirski <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org
 
-On 22 January 2014 21:15, James Hogan <james.hogan@imgtec.com> wrote:
-> Hi,
->
-> On Monday 20 January 2014 17:24:39 Tim Chen wrote:
->> From: Peter Zijlstra <peterz@infradead.org>
->>
->> This patch allows each architecture to add its specific assembly optimized
->> arch_mcs_spin_lock_contended and arch_mcs_spinlock_uncontended for
->> MCS lock and unlock functions.
->>
->> Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
->
-> Where possible can you try and maintain the sort order in the Kbuild files?
+On Wed, 22 Jan 2014, Alex Thorlton wrote:
 
+> > I would expect that the alternative solution to a per-mm switch is to
+> > reserve the naturally aligned pages for a THP promotion. Have a threshold
+> > of pages pages that must be faulted before the full THP's worth of pages
+> > is allocated, zero'd and a huge pmd established. That would defer the
+> > THP setup costs until it was detected that it was necessary.
+> 
+> I have some half-finished patches that I was working on a month or so
+> ago, to do exactly this (I think you were involved with some of the
+> discussion, maybe?  I'd have to dig up the e-mails to be sure).  After
+> cycling through numerous other methods of handling this problem, I still
+> like that idea, but I think it's going to require a decent amount of
+> effort to get finished.  
+> 
 
-Sorry for the noise, I see this is already taken care of. These emails
-got filtered funny without any of the replies so I didn't see straight
-away.
-
-Cheers
-James
+If you're going to go this route, I think a sane value would be 
+max_ptes_none that controls when khugepaged would re-collapse a split 
+hugepage into another hugepage after something does madvise(MADV_DONTNEED) 
+to a region, for example.  Otherwise it could collapse that memory into a 
+hugepage even though it wasn't faulted as huge.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
