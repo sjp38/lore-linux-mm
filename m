@@ -1,88 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F6FE6B0039
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 13:49:16 -0500 (EST)
-Received: by mail-wg0-f44.google.com with SMTP id l18so679446wgh.35
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 10:49:15 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id be10si7374803wjc.54.2014.01.22.10.49.14
+Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
+	by kanga.kvack.org (Postfix) with ESMTP id E8D2F6B0035
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 14:08:23 -0500 (EST)
+Received: by mail-ea0-f180.google.com with SMTP id f15so4829292eak.25
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 11:08:23 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 3si19269217eeq.227.2014.01.22.11.08.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 22 Jan 2014 10:49:15 -0800 (PST)
-Date: Wed, 22 Jan 2014 13:48:36 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 9/9] mm: keep page cache radix tree nodes in check
-Message-ID: <20140122184836.GE4407@cmpxchg.org>
-References: <1389377443-11755-1-git-send-email-hannes@cmpxchg.org>
- <1389377443-11755-10-git-send-email-hannes@cmpxchg.org>
- <20140117000517.GB18112@dastard>
- <20140120231737.GS6963@cmpxchg.org>
- <20140121030358.GN18112@dastard>
- <20140121055017.GT6963@cmpxchg.org>
- <20140122030607.GB27606@dastard>
- <20140122065714.GU6963@cmpxchg.org>
+        Wed, 22 Jan 2014 11:08:22 -0800 (PST)
+Date: Wed, 22 Jan 2014 19:08:16 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: [Bug 67651] Bisected: Lots of fragmented mmaps cause gimp to fail in
+ 3.12 after exceeding vm_max_map_count
+Message-ID: <20140122190816.GB4963@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20140122065714.GU6963@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Bob Liu <bob.liu@oracle.com>, Christoph Hellwig <hch@infradead.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: Pavel Emelyanov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, gnome@rvzt.net, drawoc@darkrefraction.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
 
-On Wed, Jan 22, 2014 at 01:57:14AM -0500, Johannes Weiner wrote:
-> Not at this time, I'll try to look into that.  For now, I am updating
-> the patch to revert the shrinker back to DEFAULT_SEEKS and change the
-> object count to only include objects above a certain threshold, which
-> assumes a worst-case population of 4 in 64 slots.  It's not perfect,
-> but neither was the seeks magic, and it's easier to reason about what
-> it's actually doing.
+Cyrill,
 
-Ah, the quality of 2am submissions...  8 out of 64 of course.
+Gimp is broken due to a kernel bug included in 3.12. It cannot open
+large files without failing memory allocations due to exceeding
+vm.max_map_count. The relevant bugzilla entries are
 
-> @@ -266,14 +269,38 @@ struct list_lru workingset_shadow_nodes;
->  static unsigned long count_shadow_nodes(struct shrinker *shrinker,
->  					struct shrink_control *sc)
->  {
-> -	return list_lru_count_node(&workingset_shadow_nodes, sc->nid);
-> +	unsigned long shadow_nodes;
-> +	unsigned long max_nodes;
-> +	unsigned long pages;
-> +
-> +	shadow_nodes = list_lru_count_node(&workingset_shadow_nodes, sc->nid);
-> +	pages = node_present_pages(sc->nid);
-> +	/*
-> +	 * Active cache pages are limited to 50% of memory, and shadow
-> +	 * entries that represent a refault distance bigger than that
-> +	 * do not have any effect.  Limit the number of shadow nodes
-> +	 * such that shadow entries do not exceed the number of active
-> +	 * cache pages, assuming a worst-case node population density
-> +	 * of 1/16th on average.
+https://bugzilla.kernel.org/show_bug.cgi?id=67651
+https://bugzilla.gnome.org/show_bug.cgi?id=719619#c0
 
-1/8th.  The actual code is consistent:
+They include details on how to reproduce the issue. In my case, a
+failure shows messages like this
 
-> +	 * On 64-bit with 7 radix_tree_nodes per page and 64 slots
-> +	 * each, this will reclaim shadow entries when they consume
-> +	 * ~2% of available memory:
-> +	 *
-> +	 * PAGE_SIZE / radix_tree_nodes / node_entries / PAGE_SIZE
-> +	 */
-> +	max_nodes = pages >> (1 + RADIX_TREE_MAP_SHIFT - 3);
-> +
-> +	if (shadow_nodes <= max_nodes)
-> +		return 0;
-> +
-> +	return shadow_nodes - max_nodes;
->  }
->  
->  static enum lru_status shadow_lru_isolate(struct list_head *item,
->  					  spinlock_t *lru_lock,
->  					  void *arg)
->  {
-> -	unsigned long *nr_reclaimed = arg;
->  	struct address_space *mapping;
->  	struct radix_tree_node *node;
->  	unsigned int i;
+	(gimp:11768): GLib-ERROR **: gmem.c:110: failed to allocate 4096 bytes
+
+	(file-tiff-load:12038): LibGimpBase-WARNING **: file-tiff-load: gimp_wire_read(): error
+	xinit: connection to X server lost
+
+	waiting for X server to shut down
+	/usr/lib64/gimp/2.0/plug-ins/file-tiff-load terminated: Hangup
+	/usr/lib64/gimp/2.0/plug-ins/script-fu terminated: Hangup
+	/usr/lib64/gimp/2.0/plug-ins/script-fu terminated: Hangup
+
+X-related junk is there was because I was using a headless server and
+xinit directly to launch gimp to reproduce the bug.
+
+Automated bisection using mmtests (https://github.com/gormanm/mmtests)
+and the configuration file configs/config-global-dhp__gimp-simple (needs
+local web server with a copy of the image file) identified the following
+commit. Test case was simple -- try and open the large file described in
+the bug. I did not investigate the patch itself as I'm just reporting
+the results of the bisection. If I had to guess, I'd say that VMA
+merging has been affected.
+
+d9104d1ca9662498339c0de975b4666c30485f4e is the first bad commit
+commit d9104d1ca9662498339c0de975b4666c30485f4e
+Author: Cyrill Gorcunov <gorcunov@gmail.com>
+Date:   Wed Sep 11 14:22:24 2013 -0700
+
+    mm: track vma changes with VM_SOFTDIRTY bit
+    
+    Pavel reported that in case if vma area get unmapped and then mapped (or
+    expanded) in-place, the soft dirty tracker won't be able to recognize this
+    situation since it works on pte level and ptes are get zapped on unmap,
+    loosing soft dirty bit of course.
+    
+    So to resolve this situation we need to track actions on vma level, there
+    VM_SOFTDIRTY flag comes in.  When new vma area created (or old expanded)
+    we set this bit, and keep it here until application calls for clearing
+    soft dirty bit.
+    
+    Thus when user space application track memory changes now it can detect if
+    vma area is renewed.
+    
+    Reported-by: Pavel Emelyanov <xemul@parallels.com>
+    Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
+    Cc: Andy Lutomirski <luto@amacapital.net>
+    Cc: Matt Mackall <mpm@selenic.com>
+    Cc: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+    Cc: Marcelo Tosatti <mtosatti@redhat.com>
+    Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+    Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+    Cc: Peter Zijlstra <peterz@infradead.org>
+    Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+    Cc: Rob Landley <rob@landley.net>
+    Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+    Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
