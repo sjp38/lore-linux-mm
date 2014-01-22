@@ -1,57 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f173.google.com (mail-yk0-f173.google.com [209.85.160.173])
-	by kanga.kvack.org (Postfix) with ESMTP id BDE286B0035
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 23:53:11 -0500 (EST)
-Received: by mail-yk0-f173.google.com with SMTP id 20so4961167yks.4
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 20:53:11 -0800 (PST)
-Received: from mail-gg0-x22f.google.com (mail-gg0-x22f.google.com [2607:f8b0:4002:c02::22f])
-        by mx.google.com with ESMTPS id r4si9065399yhg.235.2014.01.21.20.53.10
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id B9B596B0035
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 00:20:57 -0500 (EST)
+Received: by mail-wi0-f175.google.com with SMTP id hr1so5230726wib.14
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 21:20:57 -0800 (PST)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [2002:c35c:fd02::1])
+        by mx.google.com with ESMTPS id mg5si5370044wic.40.2014.01.21.21.20.56
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 21 Jan 2014 20:53:10 -0800 (PST)
-Received: by mail-gg0-f175.google.com with SMTP id c2so2916577ggn.34
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 20:53:10 -0800 (PST)
-Date: Tue, 21 Jan 2014 20:53:07 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm: oom_kill: revert 3% system memory bonus for privileged
- tasks
-In-Reply-To: <20140116070709.GM6963@cmpxchg.org>
-Message-ID: <alpine.DEB.2.02.1401212050340.8512@chino.kir.corp.google.com>
-References: <20140115234308.GB4407@cmpxchg.org> <alpine.DEB.2.02.1401151614480.15665@chino.kir.corp.google.com> <20140116070709.GM6963@cmpxchg.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 21 Jan 2014 21:20:56 -0800 (PST)
+Date: Wed, 22 Jan 2014 05:20:53 +0000
+From: Joel Becker <jlbec@evilplan.org>
+Subject: Re: [LSF/MM TOPIC] really large storage sectors - going beyond 4096
+ bytes
+Message-ID: <20140122052052.GM10565@ZenIV.linux.org.uk>
+References: <20131220093022.GV11295@suse.de>
+ <52DF353D.6050300@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52DF353D.6050300@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ric Wheeler <rwheeler@redhat.com>
+Cc: linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org, linux-kernel@vger.kernel.org
 
-On Thu, 16 Jan 2014, Johannes Weiner wrote:
-
-> > Unfortunately, I think this could potentially be too much of a bonus.  On 
-> > your same 32GB machine, if a root process is using 18GB and a user process 
-> > is using 14GB, the user process ends up getting selected while the current 
-> > discount of 3% still selects the root process.
-> > 
-> > I do like the idea of scaling this bonus depending on points, however.  I 
-> > think it would be better if we could scale the discount but also limit it 
-> > to some sane value.
+On Tue, Jan 21, 2014 at 10:04:29PM -0500, Ric Wheeler wrote:
+> One topic that has been lurking forever at the edges is the current
+> 4k limitation for file system block sizes. Some devices in
+> production today and others coming soon have larger sectors and it
+> would be interesting to see if it is time to poke at this topic
+> again.
 > 
-> I just reverted to the /= 4 because we had that for a long time and it
-> seemed to work.  I don't really mind either way as long as we get rid
-> of that -3%.  Do you have a suggestion?
-> 
+> LSF/MM seems to be pretty much the only event of the year that most
+> of the key people will be present, so should be a great topic for a
+> joint session.
 
-How about simply using 3% of the root process's points so that root 
-processes get some bonus compared to non-root processes with the same 
-memory usage and it's scaled to the usage rather than amount of available 
-memory?
+Oh yes, I want in on this.  We handle 4k/16k/64k pages "seamlessly," and
+we would want to do the same for larger sectors.  In theory, our code
+should handle it with the appropriate defines updated.
 
-So rather than points /= 4, we do
+Joel
 
-	if (has_capability_noaudit(p, CAP_SYS_ADMIN))
-		points -= (points * 3) / 100;
-
-instead.  Sound good?
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
