@@ -1,66 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id A35056B0035
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 04:40:58 -0500 (EST)
-Received: by mail-wg0-f46.google.com with SMTP id x12so116495wgg.1
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 01:40:58 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t13si6031723wju.91.2014.01.22.01.40.57
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 22 Jan 2014 01:40:57 -0800 (PST)
-Date: Wed, 22 Jan 2014 09:40:53 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC] restore user defined min_free_kbytes when disabling thp
-Message-ID: <20140122094053.GT4963@suse.de>
-References: <20140121093859.GA7546@localhost.localdomain>
- <20140121102351.GD4963@suse.de>
- <20140122060506.GA2657@localhost.localdomain>
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BCB66B0035
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 05:14:53 -0500 (EST)
+Received: by mail-wi0-f169.google.com with SMTP id e4so6512419wiv.0
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 02:14:53 -0800 (PST)
+Received: from cam-admin0.cambridge.arm.com (cam-admin0.cambridge.arm.com. [217.140.96.50])
+        by mx.google.com with ESMTP id mg5si6257454wic.40.2014.01.22.02.14.52
+        for <linux-mm@kvack.org>;
+        Wed, 22 Jan 2014 02:14:52 -0800 (PST)
+Date: Wed, 22 Jan 2014 10:13:01 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v9 1/6] MCS Lock: Barrier corrections
+Message-ID: <20140122101301.GA1621@mudshark.cambridge.arm.com>
+References: <cover.1390320729.git.tim.c.chen@linux.intel.com>
+ <1390347353.3138.62.camel@schen9-DESK>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140122060506.GA2657@localhost.localdomain>
+In-Reply-To: <1390347353.3138.62.camel@schen9-DESK>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Wed, Jan 22, 2014 at 02:05:06PM +0800, Han Pingtian wrote:
-> On Tue, Jan 21, 2014 at 10:23:51AM +0000, Mel Gorman wrote:
-> > On Tue, Jan 21, 2014 at 05:38:59PM +0800, Han Pingtian wrote:
-> > > The testcase 'thp04' of LTP will enable THP, do some testing, then
-> > > disable it if it wasn't enabled. But this will leave a different value
-> > > of min_free_kbytes if it has been set by admin. So I think it's better
-> > > to restore the user defined value after disabling THP.
-> > > 
-> > 
-> > Then have LTP record what min_free_kbytes was at the same time THP was
-> > enabled by the test and restore both settings. It leaves a window where
-> > an admin can set an alternative value during the test but that would also
-> > invalidate the test in same cases and gets filed under "don't do that".
-> > 
+On Tue, Jan 21, 2014 at 11:35:53PM +0000, Tim Chen wrote:
+> From: Waiman Long <Waiman.Long@hp.com>
 > 
-> Because the value is changed in kernel, so it would be better to 
-> restore it in kernel, right? :)  I have a v2 patch which will restore
-> the value only if it isn't set again by user after THP's initialization.
-> This v2 patch is dependent on the patch 'mm: show message when updating
-> min_free_kbytes in thp' which has been added to -mm tree, can be found
-> here:
+> This patch corrects the way memory barriers are used in the MCS lock
+> with smp_load_acquire and smp_store_release fucnctions.  The previous
+> barriers could leak critical sections if mcs lock is used by itself.
+> It is not a problem when mcs lock is embedded in mutex but will be an
+> issue when the mcs_lock is used elsewhere.
 > 
+> The patch removes the incorrect barriers and put in correct
+> barriers with the pair of functions smp_load_acquire and smp_store_release.
+> 
+> Suggested-by: Michel Lespinasse <walken@google.com>
+> Reviewed-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+> Signed-off-by: Waiman Long <Waiman.Long@hp.com>
+> Signed-off-by: Jason Low <jason.low2@hp.com>
+> Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+> ---
+>  kernel/locking/mutex.c | 18 +++++++++++++-----
+>  1 file changed, 13 insertions(+), 5 deletions(-)
 
-It still feels like the type of scenario that only shows up during tests
-that modify kernel parameters as part of the test. I do not consider it
-normal operation for THP to be enabled and disabled multiple types during
-the lifetime of the system. If the system started with THP disabled, ran
-for a long period of time then the benefit of having min_free_kbytes at
-a higher value is already lost due to the system being potentially in a
-fragmented state already.
+Reviewed-by: Will Deacon <will.deacon@arm.com>
 
-I'm ok with the warning being displayed if min_free_kbytes is updated
-but I'm not convinced that further trickery is necessary.
-
--- 
-Mel Gorman
-SUSE Labs
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
