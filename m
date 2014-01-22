@@ -1,58 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 23E726B007B
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 08:28:09 -0500 (EST)
-Received: by mail-wi0-f182.google.com with SMTP id ex4so584419wid.15
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 05:28:08 -0800 (PST)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id kj1si4995281wjc.162.2014.01.22.05.28.06
+Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 82F506B005A
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 09:01:36 -0500 (EST)
+Received: by mail-ee0-f53.google.com with SMTP id t10so4946766eei.12
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 06:01:35 -0800 (PST)
+Received: from eu1sys200aog118.obsmtp.com (eu1sys200aog118.obsmtp.com [207.126.144.145])
+        by mx.google.com with SMTP id p9si17565989eew.244.2014.01.22.06.01.35
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 22 Jan 2014 05:28:06 -0800 (PST)
-Date: Wed, 22 Jan 2014 13:27:34 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH 2/3] ARM: kexec: copying code to ioremapped area
-Message-ID: <20140122132734.GB15937@n2100.arm.linux.org.uk>
-References: <1390389916-8711-1-git-send-email-wangnan0@huawei.com> <1390389916-8711-3-git-send-email-wangnan0@huawei.com>
+        Wed, 22 Jan 2014 06:01:35 -0800 (PST)
+Message-ID: <52DFCF2B.1010603@mellanox.com>
+Date: Wed, 22 Jan 2014 16:01:15 +0200
+From: Haggai Eran <haggaie@mellanox.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1390389916-8711-3-git-send-email-wangnan0@huawei.com>
+Subject: Re: [PATCH] mm/mmu_notifier: restore set_pte_at_notify semantics
+References: <1389778834-21200-1-git-send-email-mike.rapoport@ravellosystems.com> <20140122131046.GF14193@redhat.com>
+In-Reply-To: <20140122131046.GF14193@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wang Nan <wangnan0@huawei.com>
-Cc: kexec@lists.infradead.org, Eric Biederman <ebiederm@xmission.com>, Andrew Morton <akpm@linux-foundation.org>, Geng Hui <hui.geng@huawei.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>, Mike Rapoport <mike.rapoport@ravellosystems.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Izik Eidus <izik.eidus@ravellosystems.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>
 
-On Wed, Jan 22, 2014 at 07:25:15PM +0800, Wang Nan wrote:
-> ARM's kdump is actually corrupted (at least for omap4460), mainly because of
-> cache problem: flush_icache_range can't reliably ensure the copied data
-> correctly goes into RAM.
+On 22/01/2014 15:10, Andrea Arcangeli wrote:
+> On Wed, Jan 15, 2014 at 11:40:34AM +0200, Mike Rapoport wrote:
+>> Commit 6bdb913f0a70a4dfb7f066fb15e2d6f960701d00 (mm: wrap calls to
+>> set_pte_at_notify with invalidate_range_start and invalidate_range_end)
+>> breaks semantics of set_pte_at_notify. When calls to set_pte_at_notify
+>> are wrapped with mmu_notifier_invalidate_range_start and
+>> mmu_notifier_invalidate_range_end, KVM zaps pte during
+>> mmu_notifier_invalidate_range_start callback and set_pte_at_notify has
+>> no spte to update and therefore it's called for nothing.
+>>
+>> As Andrea suggested (1), the problem is resolved by calling
+>> mmu_notifier_invalidate_page after PT lock has been released and only
+>> for mmu_notifiers that do not implement change_ptr callback.
+>>
+>> (1) http://thread.gmane.org/gmane.linux.kernel.mm/111710/focus=111711
+>>
+>> Reported-by: Izik Eidus <izik.eidus@ravellosystems.com>
+>> Signed-off-by: Mike Rapoport <mike.rapoport@ravellosystems.com>
+>> Cc: Andrea Arcangeli <aarcange@redhat.com>
+>> Cc: Haggai Eran <haggaie@mellanox.com>
+>> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+>> ---
+>>  include/linux/mmu_notifier.h | 31 ++++++++++++++++++++++++++-----
+>>  kernel/events/uprobes.c      | 12 ++++++------
+>>  mm/ksm.c                     | 15 +++++----------
+>>  mm/memory.c                  | 14 +++++---------
+>>  mm/mmu_notifier.c            | 24 ++++++++++++++++++++++--
+>>  5 files changed, 64 insertions(+), 32 deletions(-)
+> 
+> Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+> 
 
-Quite right too.  You're mistake here is thinking that flush_icache_range()
-should push it to RAM.  That's incorrect.
+Hi Andrea, Mike,
 
-flush_icache_range() is there to deal with such things as loadable modules
-and self modifying code, where the MMU is not being turned off.  Hence, it
-only flushes to the point of coherency between the I and D caches, and
-any further levels of cache between that point and memory are not touched.
-Why should it touch any more levels - it's not the function's purpose.
+Did you get a chance to consider the scenario I wrote about in the other
+thread?
 
-> After mmu turned off and jump to the trampoline, kexec always failed due
-> to random undef instructions.
+I'm worried about the following scenario:
 
-We already have code in the kernel which deals with shutting the MMU off.
-An instance of how this can be done is illustrated in the soft_restart()
-code path, and kexec already uses this.
+Given a read-only page, suppose one host thread (thread 1) writes to
+that page, and performs COW, but before it calls the
+mmu_notifier_invalidate_page_if_missing_change_pte function another host
+thread (thread 2) writes to the same page (this time without a page
+fault). Then we have a valid entry in the secondary page table to a
+stale page, and someone (thread 3) may read stale data from there.
 
-One of the first things soft_restart() does is turn off the outer cache -
-which OMAP4 does have, but this can only be done if there is a single CPU
-running.  If there's multiple CPUs running, then the outer cache can't be
-disabled, and that's the most likely cause of the problem you're seeing.
+Here's a diagram that shows this scenario:
 
--- 
-FTTC broadband for 0.8mile line: 5.8Mbps down 500kbps up.  Estimation
-in database were 13.1 to 19Mbit for a good line, about 7.5+ for a bad.
-Estimate before purchase was "up to 13.2Mbit".
+Thread 1                                | Thread 2        | Thread 3
+========================================================================
+do_wp_page(page 1)                      |                 |
+  ...                                   |                 |
+  set_pte_at_notify                     |                 |
+  ...                                   | write to page 1 |
+                                        |                 | stale access
+  pte_unmap_unlock                      |                 |
+  invalidate_page_if_missing_change_pte |                 |
+
+This is currently prevented by the use of the range start and range end
+notifiers.
+
+Do you agree that this scenario is possible with the new patch, or am I
+missing something?
+
+Regards,
+Haggai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
