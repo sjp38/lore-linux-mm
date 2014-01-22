@@ -1,63 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f44.google.com (mail-yh0-f44.google.com [209.85.213.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 403916B0035
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 01:05:15 -0500 (EST)
-Received: by mail-yh0-f44.google.com with SMTP id f73so2248832yha.17
-        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 22:05:14 -0800 (PST)
-Received: from e32.co.us.ibm.com (e32.co.us.ibm.com. [32.97.110.150])
-        by mx.google.com with ESMTPS id r4si9353122yhg.85.2014.01.21.22.05.13
+Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D51AC6B0037
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 01:11:24 -0500 (EST)
+Received: by mail-la0-f51.google.com with SMTP id c6so7425971lan.10
+        for <linux-mm@kvack.org>; Tue, 21 Jan 2014 22:11:24 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id ya3si3953827lbb.86.2014.01.21.22.11.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 21 Jan 2014 22:05:13 -0800 (PST)
-Received: from /spool/local
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <hanpt@linux.vnet.ibm.com>;
-	Tue, 21 Jan 2014 23:05:12 -0700
-Received: from b03cxnp07029.gho.boulder.ibm.com (b03cxnp07029.gho.boulder.ibm.com [9.17.130.16])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id B4DCE19D803E
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 23:05:00 -0700 (MST)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by b03cxnp07029.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0M42iJ49306452
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 05:02:44 +0100
-Received: from d03av03.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0M659Sw024051
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2014 23:05:09 -0700
-Date: Wed, 22 Jan 2014 14:05:06 +0800
-From: Han Pingtian <hanpt@linux.vnet.ibm.com>
-Subject: Re: [RFC] restore user defined min_free_kbytes when disabling thp
-Message-ID: <20140122060506.GA2657@localhost.localdomain>
-References: <20140121093859.GA7546@localhost.localdomain>
- <20140121102351.GD4963@suse.de>
+        Tue, 21 Jan 2014 22:11:23 -0800 (PST)
+Message-ID: <52DF6100.4060402@parallels.com>
+Date: Wed, 22 Jan 2014 10:11:12 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140121102351.GD4963@suse.de>
+Subject: Re: [PATCH 1/3] mm: vmscan: shrink_slab: rename max_pass -> freeable
+References: <4e2efebe688e06574f6495c634ac45d799e1518d.1389982079.git.vdavydov@parallels.com> <alpine.DEB.2.02.1401211420460.1666@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1401211420460.1666@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@gmail.com>
 
-On Tue, Jan 21, 2014 at 10:23:51AM +0000, Mel Gorman wrote:
-> On Tue, Jan 21, 2014 at 05:38:59PM +0800, Han Pingtian wrote:
-> > The testcase 'thp04' of LTP will enable THP, do some testing, then
-> > disable it if it wasn't enabled. But this will leave a different value
-> > of min_free_kbytes if it has been set by admin. So I think it's better
-> > to restore the user defined value after disabling THP.
-> > 
-> 
-> Then have LTP record what min_free_kbytes was at the same time THP was
-> enabled by the test and restore both settings. It leaves a window where
-> an admin can set an alternative value during the test but that would also
-> invalidate the test in same cases and gets filed under "don't do that".
-> 
+On 01/22/2014 02:22 AM, David Rientjes wrote:
+> On Fri, 17 Jan 2014, Vladimir Davydov wrote:
+>
+>> The name `max_pass' is misleading, because this variable actually keeps
+>> the estimate number of freeable objects, not the maximal number of
+>> objects we can scan in this pass, which can be twice that. Rename it to
+>> reflect its actual meaning.
+>>
+>> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Cc: Mel Gorman <mgorman@suse.de>
+>> Cc: Michal Hocko <mhocko@suse.cz>
+>> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> Cc: Rik van Riel <riel@redhat.com>
+>> Cc: Dave Chinner <dchinner@redhat.com>
+>> Cc: Glauber Costa <glommer@gmail.com>
+> This doesn't compile on linux-next:
+>
+> mm/vmscan.c: In function a??shrink_slab_nodea??:
+> mm/vmscan.c:300:23: error: a??max_passa?? undeclared (first use in this function)
+> mm/vmscan.c:300:23: note: each undeclared identifier is reported only once for each function it appears in
+>
+> because of b01fa2357bca ("mm: vmscan: shrink all slab objects if tight on 
+> memory") from an author with a name remarkably similar to yours.
 
-Because the value is changed in kernel, so it would be better to 
-restore it in kernel, right? :)  I have a v2 patch which will restore
-the value only if it isn't set again by user after THP's initialization.
-This v2 patch is dependent on the patch 'mm: show message when updating
-min_free_kbytes in thp' which has been added to -mm tree, can be found
-here:
+Oh, sorry. I thought it hadn't been committed there yet.
 
-http://ozlabs.org/~akpm/mmotm/broken-out/mm-show-message-when-updating-min_free_kbytes-in-thp.patch
+> Could you rebase this series on top of your previous work that is already in -mm?
 
-please have a look. Thanks.
+Sure.
+
+Thanks.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
