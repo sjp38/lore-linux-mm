@@ -1,65 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f54.google.com (mail-yh0-f54.google.com [209.85.213.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 9155E6B0069
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 07:56:54 -0500 (EST)
-Received: by mail-yh0-f54.google.com with SMTP id z6so92017yhz.41
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 04:56:54 -0800 (PST)
-Received: from mail-qc0-x22d.google.com (mail-qc0-x22d.google.com [2607:f8b0:400d:c01::22d])
-        by mx.google.com with ESMTPS id s6si10732707yho.164.2014.01.22.04.56.53
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id EBBE26B006E
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 08:06:24 -0500 (EST)
+Received: by mail-wg0-f45.google.com with SMTP id n12so291496wgh.0
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 05:06:24 -0800 (PST)
+Received: from mail-ee0-x229.google.com (mail-ee0-x229.google.com [2a00:1450:4013:c00::229])
+        by mx.google.com with ESMTPS id ce1si6758768wib.20.2014.01.22.05.06.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 22 Jan 2014 04:56:53 -0800 (PST)
-Received: by mail-qc0-f173.google.com with SMTP id i8so379767qcq.18
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 04:56:52 -0800 (PST)
+        Wed, 22 Jan 2014 05:06:23 -0800 (PST)
+Received: by mail-ee0-f41.google.com with SMTP id e49so4892059eek.14
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 05:06:23 -0800 (PST)
+Date: Wed, 22 Jan 2014 14:06:19 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v8 4/6] MCS Lock: Move mcs_lock/unlock function into its
+ own
+Message-ID: <20140122130619.GA9429@gmail.com>
+References: <cover.1390239879.git.tim.c.chen@linux.intel.com>
+ <1390267471.3138.38.camel@schen9-DESK>
+ <20140121101915.GS31570@twins.programming.kicks-ass.net>
+ <20140121104140.GA4092@gmail.com>
+ <1390330623.3138.56.camel@schen9-DESK>
+ <20140121190658.GA5862@gmail.com>
+ <1390331671.3138.58.camel@schen9-DESK>
 MIME-Version: 1.0
-In-Reply-To: <1390389916-8711-3-git-send-email-wangnan0@huawei.com>
-References: <1390389916-8711-1-git-send-email-wangnan0@huawei.com>
-	<1390389916-8711-3-git-send-email-wangnan0@huawei.com>
-Date: Wed, 22 Jan 2014 07:56:52 -0500
-Message-ID: <CANacCWz2DdLvns9htszpwWnASrYGXQt+tHMsw4aBbjoyw-DmeQ@mail.gmail.com>
-Subject: Re: [PATCH 2/3] ARM: kexec: copying code to ioremapped area
-From: Vaibhav Bedia <vaibhav.bedia@gmail.com>
-Content-Type: multipart/alternative; boundary=001a11c128c6aebd2104f08ea8e1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1390331671.3138.58.camel@schen9-DESK>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wang Nan <wangnan0@huawei.com>
-Cc: kexec@lists.infradead.org, stable@vger.kernel.org, linux-kernel@vger.kernel.org, Geng Hui <hui.geng@huawei.com>, linux-mm@kvack.org, Eric Biederman <ebiederm@xmission.com>, Russell King <rmk+kernel@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Linux ARM Kernel List <linux-arm-kernel@lists.infradead.org>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
---001a11c128c6aebd2104f08ea8e1
-Content-Type: text/plain; charset=ISO-8859-1
 
-On Wed, Jan 22, 2014 at 6:25 AM, Wang Nan <wangnan0@huawei.com> wrote:
+* Tim Chen <tim.c.chen@linux.intel.com> wrote:
 
-> ARM's kdump is actually corrupted (at least for omap4460), mainly because
-> of
-> cache problem: flush_icache_range can't reliably ensure the copied data
-> correctly goes into RAM. After mmu turned off and jump to the trampoline,
-> kexec
-> always failed due to random undef instructions.
->
-> This patch use ioremap to make sure the destnation of all memcpy() is
-> uncachable memory, including copying of target kernel and trampoline.
->
+> > > For the time being, I'll just remove the EXPORT.  If people feel 
+> > > that inline is the right way to go, then we'll leave the 
+> > > function in mcs_spin_lock.h and not create mcs_spin_lock.c.
+> > 
+> > Well, 'people' could be you, the person touching the code? This is 
+> > really something that is discoverable: look at the critical path 
+> > in the inlined and the out of line case, and compare the number of 
+> > instructions. This can be done based on disassembly of the 
+> > affected code.
+> 
+> Okay, will make it inline function and drop the move of to 
+> mcs_spin_lock.c
 
-AFAIK ioremap on RAM in forbidden in ARM and device memory that ioremap()
-ends up creating is not meant for executable code.
+Only if I'm right! I was speculating.
 
-Doesn't this trigger the WARN_ON() in _arm_ioremap_pfn_caller)?
+Thanks,
 
---001a11c128c6aebd2104f08ea8e1
-Content-Type: text/html; charset=ISO-8859-1
-
-<div dir="ltr"><div class="gmail_extra"><div class="gmail_quote">On Wed, Jan 22, 2014 at 6:25 AM, Wang Nan <span dir="ltr">&lt;<a href="mailto:wangnan0@huawei.com" target="_blank">wangnan0@huawei.com</a>&gt;</span> wrote:<br>
-<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">ARM&#39;s kdump is actually corrupted (at least for omap4460), mainly because of<br>
-cache problem: flush_icache_range can&#39;t reliably ensure the copied data<br>
-correctly goes into RAM. After mmu turned off and jump to the trampoline, kexec<br>
-always failed due to random undef instructions.<br>
-<br>
-This patch use ioremap to make sure the destnation of all memcpy() is<br>
-uncachable memory, including copying of target kernel and trampoline.<br></blockquote><div><br></div><div>AFAIK ioremap on RAM in forbidden in ARM and device memory that ioremap()</div><div>ends up creating is not meant for executable code.</div>
-<div><br></div><div>Doesn&#39;t this trigger the WARN_ON() in _arm_ioremap_pfn_caller)?</div></div></div></div>
-
---001a11c128c6aebd2104f08ea8e1--
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
