@@ -1,104 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A5576B0035
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 17:19:52 -0500 (EST)
-Received: by mail-we0-f172.google.com with SMTP id q58so560712wes.31
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 14:19:51 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id j10si7736810wjw.161.2014.01.22.14.19.50
-        for <linux-mm@kvack.org>;
-        Wed, 22 Jan 2014 14:19:51 -0800 (PST)
-Date: Wed, 22 Jan 2014 23:19:41 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm/mmu_notifier: restore set_pte_at_notify semantics
-Message-ID: <20140122221941.GJ14193@redhat.com>
-References: <1389778834-21200-1-git-send-email-mike.rapoport@ravellosystems.com>
- <20140122135459.120a50ecec95d0e3cf017586@linux-foundation.org>
+Received: from mail-bk0-f53.google.com (mail-bk0-f53.google.com [209.85.214.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 7774B6B0035
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 17:33:27 -0500 (EST)
+Received: by mail-bk0-f53.google.com with SMTP id my13so96650bkb.12
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 14:33:26 -0800 (PST)
+Received: from mail-lb0-x235.google.com (mail-lb0-x235.google.com [2a00:1450:4010:c04::235])
+        by mx.google.com with ESMTPS id kt1si8163857bkb.328.2014.01.22.14.33.26
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 22 Jan 2014 14:33:26 -0800 (PST)
+Received: by mail-lb0-f181.google.com with SMTP id z5so856181lbh.12
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 14:33:25 -0800 (PST)
+Date: Thu, 23 Jan 2014 02:33:25 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [Bug 67651] Bisected: Lots of fragmented mmaps cause gimp to
+ fail in 3.12 after exceeding vm_max_map_count
+Message-ID: <20140122223325.GA30637@moon>
+References: <20140122190816.GB4963@suse.de>
+ <20140122191928.GQ1574@moon>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140122135459.120a50ecec95d0e3cf017586@linux-foundation.org>
+In-Reply-To: <20140122191928.GQ1574@moon>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mike Rapoport <mike.rapoport@ravellosystems.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Izik Eidus <izik.eidus@ravellosystems.com>, Haggai Eran <haggaie@mellanox.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Pavel Emelyanov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, gnome@rvzt.net, drawoc@darkrefraction.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
 
-On Wed, Jan 22, 2014 at 01:54:59PM -0800, Andrew Morton wrote:
-> The changelog fails to describe the end-user visible effects of the
-> bug, so I (and others) will be unable to decide which kernel versions
-> need patching
+On Wed, Jan 22, 2014 at 11:19:28PM +0400, Cyrill Gorcunov wrote:
+> > commit. Test case was simple -- try and open the large file described in
+> > the bug. I did not investigate the patch itself as I'm just reporting
+> > the results of the bisection. If I had to guess, I'd say that VMA
+> > merging has been affected.
 > 
-> Given that the bug has been around for 1.5 years I assume the priority
-> is low.
+> Thanks a lot for report, Mel! I'm investigating...
 
-The priority is low, it's about a performance optimization
-only.
+Mel, here is a quick fix for bring merging back (just in case if you
+have a minute to test it and confirm the merging were affected). It
+seems I've lost setting up vma-softdirty bit somewhere and procedure
+which tests vma flags mathcing fails, will continue investigating/testing
+tomorrow.
+---
+ mm/mmap.c |   14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
 
-change_pte avoids a vmexit when the guest first access the page after
-a KSM cow break, or after a KSM merge.
-
-But the change_pte method become worthless, it was still called but it
-did nothing with the current common code in memory.c and ksm.c.
-
-In the old days KVM would call gup_fast(write=1). These days write=1
-is not forced always on and a secondary MMU read fault calls gup_fast
-with write=0. So in the old days without a fully functional change_pte
-invocation, KSM merged pages could never be read from the guest
-without first breaking them with a COW. So it would have been a
-showstopper if change_pte wouldn't work.
-
-These days the KVM secondary MMU page fault handler become more
-advanced and it's just a vmexit optimization.
-
-> Generally, the patch is really ugly :( We have a nice consistent and
-
-It would get even uglier once we'd fix the problem Haggai pointed out
-in another email on this thread, by keeping the pte wrprotected until
-we call the mmu_notifier invalidate and in short doing 1 more TLB
-flush to convert it to a writable pte, if the change_pte method wasn't
-implemented for some registered mmu notifier for the mm.
-
-That problem isn't the end of the world and is fixable but the
-do_wp_page code gets even more hairy after fixing it with this
-approach.
-
-> symmetrical pattern of calling
-> ->invalidate_range_start()/->invalidate_range_end() and this patch
-> comes along and tears great holes in it by removing those calls from a
-> subset of places and replacing them with open-coded calls to
-> single-page ->invalidate_page().  Isn't there some (much) nicer way of
-> doing all this?
-
-The fundamental problem is that change_pte acts only on established on
-secondary MMU mappings. So if we teardown the secondary mmu mappings
-with invalidate_range_start, we can as well skip calling change_pte in
-set_pte_at_notify, and just use set_pte_at instead.
-
-Something must be done about it because current code just doesn't make
-sense to keep as is.
-
-Possible choices:
-
-1) we drop change_pte completely (not fully evaluated the impact vs
-   current production code where change_pte was in full effect and
-   skipping some vmexit with KSM activity). It won't be slower than
-   current upstream, it may be slower than current production code
-   with KSM in usage. We need to benchmark it to see if it's
-   measurable...
-
-2) we fix it with this patch, plus adding a further step to keep the
-   pte wrprotected until we flush the secondary mmu mapping.
-
-3) we change the semantics of ->change_pte not to just change, but to
-   establish not-existent secondary mmu mappings. So far the only way
-   to establish secondary mmu mappings would have been outside of the
-   mmu notifier, through regular secondary MMU page faults invoking
-   gup_fast or one of the gup variants. That may be tricky as
-   change_pte must be non blocking so it cannot reliably allocate
-   memory.
-
-Comments welcome,
-Andrea
+Index: linux-2.6.git/mm/mmap.c
+===================================================================
+--- linux-2.6.git.orig/mm/mmap.c
++++ linux-2.6.git/mm/mmap.c
+@@ -893,8 +893,18 @@ again:			remove_next = 1 + (end > next->
+ static inline int is_mergeable_vma(struct vm_area_struct *vma,
+ 			struct file *file, unsigned long vm_flags)
+ {
++	/*
++	 * VM_SOFTDIRTY should not prevent from VMA merging, if we
++	 * match the flags but dirty bit -- just mark merged one as
++	 * a dirty then.
++	 */
++#ifdef CONFIG_MEM_SOFT_DIRTY
++	if ((vma->vm_flags ^ vm_flags) & ~VM_SOFTDIRTY)
++		return 0;
++#else
+ 	if (vma->vm_flags ^ vm_flags)
+ 		return 0;
++#endif
+ 	if (vma->vm_file != file)
+ 		return 0;
+ 	if (vma->vm_ops && vma->vm_ops->close)
+@@ -1082,7 +1092,11 @@ static int anon_vma_compatible(struct vm
+ 	return a->vm_end == b->vm_start &&
+ 		mpol_equal(vma_policy(a), vma_policy(b)) &&
+ 		a->vm_file == b->vm_file &&
++#ifdef CONFIG_MEM_SOFT_DIRTY
++		!((a->vm_flags ^ b->vm_flags) & ~(VM_READ|VM_WRITE|VM_EXEC|VM_SOFTDIRTY)) &&
++#else
+ 		!((a->vm_flags ^ b->vm_flags) & ~(VM_READ|VM_WRITE|VM_EXEC)) &&
++#endif
+ 		b->vm_pgoff == a->vm_pgoff + ((b->vm_start - a->vm_start) >> PAGE_SHIFT);
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
