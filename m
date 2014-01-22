@@ -1,49 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id BB57C6B0035
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 04:34:40 -0500 (EST)
-Received: by mail-wg0-f49.google.com with SMTP id a1so113427wgh.16
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 01:34:40 -0800 (PST)
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id A35056B0035
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 04:40:58 -0500 (EST)
+Received: by mail-wg0-f46.google.com with SMTP id x12so116495wgg.1
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 01:40:58 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cs3si6015237wjc.60.2014.01.22.01.34.39
+        by mx.google.com with ESMTPS id t13si6031723wju.91.2014.01.22.01.40.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 22 Jan 2014 01:34:39 -0800 (PST)
-Date: Wed, 22 Jan 2014 09:34:36 +0000
+        Wed, 22 Jan 2014 01:40:57 -0800 (PST)
+Date: Wed, 22 Jan 2014 09:40:53 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] really large storage sectors - going
- beyond 4096 bytes
-Message-ID: <20140122093435.GS4963@suse.de>
-References: <20131220093022.GV11295@suse.de>
- <52DF353D.6050300@redhat.com>
+Subject: Re: [RFC] restore user defined min_free_kbytes when disabling thp
+Message-ID: <20140122094053.GT4963@suse.de>
+References: <20140121093859.GA7546@localhost.localdomain>
+ <20140121102351.GD4963@suse.de>
+ <20140122060506.GA2657@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <52DF353D.6050300@redhat.com>
+In-Reply-To: <20140122060506.GA2657@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ric Wheeler <rwheeler@redhat.com>
-Cc: linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>
 
-On Tue, Jan 21, 2014 at 10:04:29PM -0500, Ric Wheeler wrote:
-> One topic that has been lurking forever at the edges is the current
-> 4k limitation for file system block sizes. Some devices in
-> production today and others coming soon have larger sectors and it
-> would be interesting to see if it is time to poke at this topic
-> again.
+On Wed, Jan 22, 2014 at 02:05:06PM +0800, Han Pingtian wrote:
+> On Tue, Jan 21, 2014 at 10:23:51AM +0000, Mel Gorman wrote:
+> > On Tue, Jan 21, 2014 at 05:38:59PM +0800, Han Pingtian wrote:
+> > > The testcase 'thp04' of LTP will enable THP, do some testing, then
+> > > disable it if it wasn't enabled. But this will leave a different value
+> > > of min_free_kbytes if it has been set by admin. So I think it's better
+> > > to restore the user defined value after disabling THP.
+> > > 
+> > 
+> > Then have LTP record what min_free_kbytes was at the same time THP was
+> > enabled by the test and restore both settings. It leaves a window where
+> > an admin can set an alternative value during the test but that would also
+> > invalidate the test in same cases and gets filed under "don't do that".
+> > 
+> 
+> Because the value is changed in kernel, so it would be better to 
+> restore it in kernel, right? :)  I have a v2 patch which will restore
+> the value only if it isn't set again by user after THP's initialization.
+> This v2 patch is dependent on the patch 'mm: show message when updating
+> min_free_kbytes in thp' which has been added to -mm tree, can be found
+> here:
 > 
 
-Large block support was proposed years ago by Christoph Lameter
-(http://lwn.net/Articles/232757/). I think I was just getting started
-in the community at the time so I do not recall any of the details. I do
-believe it motivated an alternative by Nick Piggin called fsblock though
-(http://lwn.net/Articles/321390/). At the very least it would be nice to
-know why neither were never merged for those of us that were not around
-at the time and who may not have the chance to dive through mailing list
-archives between now and March.
+It still feels like the type of scenario that only shows up during tests
+that modify kernel parameters as part of the test. I do not consider it
+normal operation for THP to be enabled and disabled multiple types during
+the lifetime of the system. If the system started with THP disabled, ran
+for a long period of time then the benefit of having min_free_kbytes at
+a higher value is already lost due to the system being potentially in a
+fragmented state already.
 
-FWIW, I would expect that a show-stopper for any proposal is requiring
-high-order allocations to succeed for the system to behave correctly.
+I'm ok with the warning being displayed if min_free_kbytes is updated
+but I'm not convinced that further trickery is necessary.
 
 -- 
 Mel Gorman
