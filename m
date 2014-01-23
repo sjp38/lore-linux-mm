@@ -1,72 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f41.google.com (mail-bk0-f41.google.com [209.85.214.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 143676B0031
-	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 15:43:59 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id na10so658716bkb.14
-        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 12:43:59 -0800 (PST)
-Received: from mail-bk0-x229.google.com (mail-bk0-x229.google.com [2a00:1450:4008:c01::229])
-        by mx.google.com with ESMTPS id cq2si233005bkc.108.2014.01.23.12.43.58
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 23 Jan 2014 12:43:59 -0800 (PST)
-Received: by mail-bk0-f41.google.com with SMTP id na10so658708bkb.14
-        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 12:43:58 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20140122123358.a65c42605513fc8466152801@linux-foundation.org>
-References: <1387459407-29342-1-git-send-email-ddstreet@ieee.org>
- <20140114001115.GU1992@bbox> <CALZtONCCrckuHxgHB=GQj0tHszLAYTZZLGzFTnRkj9pvxx0dyg@mail.gmail.com>
- <20140115054208.GL1992@bbox> <CALZtONCehE8Td2C2w-fOC596uD54y1-kyc3SiKABBEODMb+a7Q@mail.gmail.com>
- <CALZtONAaPCi8eUhSmdXSxWbeFFN=ChsfL9OurSZUsSPo-_gnfg@mail.gmail.com> <20140122123358.a65c42605513fc8466152801@linux-foundation.org>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Thu, 23 Jan 2014 15:43:37 -0500
-Message-ID: <CALZtONCteZPFaAG0oXQGnmDocnVmpmxBeGzYMa3B_4QpGSgCvw@mail.gmail.com>
-Subject: Re: [PATCH] mm/zswap: add writethrough option
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-bk0-f52.google.com (mail-bk0-f52.google.com [209.85.214.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 0ED006B0031
+	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 15:47:14 -0500 (EST)
+Received: by mail-bk0-f52.google.com with SMTP id e11so645772bkh.25
+        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 12:47:14 -0800 (PST)
+Received: from qmta10.emeryville.ca.mail.comcast.net (qmta10.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:17])
+        by mx.google.com with ESMTP id no1si18495bkb.312.2014.01.23.12.47.12
+        for <linux-mm@kvack.org>;
+        Thu, 23 Jan 2014 12:47:13 -0800 (PST)
+Date: Thu, 23 Jan 2014 14:47:10 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] really large storage sectors - going
+ beyond 4096 bytes
+In-Reply-To: <20140122093435.GS4963@suse.de>
+Message-ID: <alpine.DEB.2.10.1401231436300.8031@nuc>
+References: <20131220093022.GV11295@suse.de> <52DF353D.6050300@redhat.com> <20140122093435.GS4963@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Seth Jennings <sjennings@variantweb.net>, Minchan Kim <minchan@kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Weijie Yang <weijie.yang@samsung.com>, Shirish Pargaonkar <spargaonkar@suse.com>, Mel Gorman <mgorman@suse.de>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Ric Wheeler <rwheeler@redhat.com>, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org, linux-kernel@vger.kernel.org
 
-On Wed, Jan 22, 2014 at 3:33 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Wed, 22 Jan 2014 09:19:58 -0500 Dan Streetman <ddstreet@ieee.org> wrote:
->
->> >>> > Acutally, I really don't know how much benefit we have that in-memory
->> >>> > swap overcomming to the real storage but if you want, zRAM with dm-cache
->> >>> > is another option rather than invent new wheel by "just having is better".
->> >>>
->> >>> I'm not sure if this patch is related to the zswap vs. zram discussions.  This
->> >>> only adds the option of using writethrough to zswap.  It's a first
->> >>> step to possibly
->> >>> making zswap work more efficiently using writeback and/or writethrough
->> >>> depending on
->> >>> the system and conditions.
->> >>
->> >> The patch size is small. Okay I don't want to be a party-pooper
->> >> but at least, I should say my thought for Andrew to help judging.
->> >
->> > Sure, I'm glad to have your suggestions.
->>
->> To give this a bump - Andrew do you have any concerns about this
->> patch?  Or can you pick this up?
->
-> I don't pay much attention to new features during the merge window,
-> preferring to shove them into a folder to look at later.  Often they
-> have bitrotted by the time -rc1 comes around.
->
-> I'm not sure that this review discussion has played out yet - is
-> Minchan happy?
+On Wed, 22 Jan 2014, Mel Gorman wrote:
 
-I think so, or at least ok enough to not block it, but please correct
-me if I am wrong, Minchan.
+> Large block support was proposed years ago by Christoph Lameter
+> (http://lwn.net/Articles/232757/). I think I was just getting started
+> in the community at the time so I do not recall any of the details. I do
+> believe it motivated an alternative by Nick Piggin called fsblock though
+> (http://lwn.net/Articles/321390/). At the very least it would be nice to
+> know why neither were never merged for those of us that were not around
+> at the time and who may not have the chance to dive through mailing list
+> archives between now and March.
 
->
-> Please update the changelog so that it reflects the questions Minchan
-> asked (any reviewer question should be regarded as an inadequacy in
-> either the code commenting or the changelog - people shouldn't need to
-> ask the programmer why he did something!) and resend for -rc1?
+It was rejected first because of the necessity of higher order page
+allocations. Nick and I then added ways to virtually map higher order
+pages if the page allocator could no longe provide those.
 
-OK I'll update and resend.
+All of this required changes to the basic page cache operations. I added a
+way for the mapping to indicate an order for an address range and then
+modified the page cache operations to be able to operate on any order
+pages.
+
+The patchset that introduced the ability to specify different orders for
+the pagecache address ranges was not accepted by Andrew because he thought
+there was no chance for the rest of the modifications to become
+acceptable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
