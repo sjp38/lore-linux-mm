@@ -1,140 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f45.google.com (mail-bk0-f45.google.com [209.85.214.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 58A7F6B0037
-	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 07:15:59 -0500 (EST)
-Received: by mail-bk0-f45.google.com with SMTP id v16so314206bkz.4
-        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 04:15:58 -0800 (PST)
-Received: from mail-lb0-x234.google.com (mail-lb0-x234.google.com [2a00:1450:4010:c04::234])
-        by mx.google.com with ESMTPS id kn2si10018617bkb.289.2014.01.23.04.15.58
+Received: from mail-bk0-f42.google.com (mail-bk0-f42.google.com [209.85.214.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CBA86B0037
+	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 07:23:54 -0500 (EST)
+Received: by mail-bk0-f42.google.com with SMTP id 6so328367bkj.1
+        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 04:23:53 -0800 (PST)
+Received: from mail-pd0-x22c.google.com (mail-pd0-x22c.google.com [2607:f8b0:400e:c02::22c])
+        by mx.google.com with ESMTPS id kr4si10068013bkb.137.2014.01.23.04.23.52
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 23 Jan 2014 04:15:58 -0800 (PST)
-Received: by mail-lb0-f180.google.com with SMTP id n15so1345176lbi.39
-        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 04:15:57 -0800 (PST)
-Date: Thu, 23 Jan 2014 16:15:55 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [Bug 67651] Bisected: Lots of fragmented mmaps cause gimp to
- fail in 3.12 after exceeding vm_max_map_count
-Message-ID: <20140123121555.GV1574@moon>
-References: <20140122190816.GB4963@suse.de>
- <20140122191928.GQ1574@moon>
- <20140122223325.GA30637@moon>
- <20140123095541.GD4963@suse.de>
- <20140123103606.GU1574@moon>
+        Thu, 23 Jan 2014 04:23:53 -0800 (PST)
+Received: by mail-pd0-f172.google.com with SMTP id p10so1714666pdj.17
+        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 04:23:51 -0800 (PST)
+Date: Thu, 23 Jan 2014 04:23:04 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: [LSF/MM ATTEND] persistent transparent large
+Message-ID: <alpine.LSU.2.11.1401230334110.1414@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140123103606.GU1574@moon>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Pavel Emelyanov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: gnome@rvzt.net, drawoc@darkrefraction.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Thu, Jan 23, 2014 at 02:36:06PM +0400, Cyrill Gorcunov wrote:
-> > The test case passes with this patch applied to 3.13 so that appears
-> > to confirm that this is related to VM_SOFTDIRTY preventing merges.
-> > Unfortunately I did not have slabinfo tracking enabled to double check
-> > the number of vm_area_structs in teh system.
-> 
-> Thanks a lot, Mel! I'm testing the patch as well (manually though :).
-> I'll send the final fix today.
+I'm eager to participate in this year's LSF/MM, but no topics of my
+own to propose: I need to listen to what other people are suggesting.
 
-The patch below should fix the problem. I would really appreaciate
-some additional testing.
----
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: [PATCH] mm: Ignore VM_SOFTDIRTY on VMA merging
+Topics of most interest to me span mm and fs: persistent memory and
+xip, transparent huge pagecache, large sectors, mm scalability.
+Volatile ranges, memcg lowlimits, those should be on the list too.
 
-VM_SOFTDIRTY bit affects vma merge routine: if two VMAs has all
-bits in vm_flags matched except dirty bit the kernel can't longer
-merge them and this forces the kernel to generate new VMAs instead.
+Plus I'm concerned at the way mm is now exploding: how to handle the
+volume.  I hope most of the useful new contributors to mm can be there.
 
-It finally may lead to the situation when userspace application
-reaches vm.max_map_count limit and get crashed in worse case
-
- | (gimp:11768): GLib-ERROR **: gmem.c:110: failed to allocate 4096 bytes
- |
- | (file-tiff-load:12038): LibGimpBase-WARNING **: file-tiff-load: gimp_wire_read(): error
- | xinit: connection to X server lost
- |
- | waiting for X server to shut down
- | /usr/lib64/gimp/2.0/plug-ins/file-tiff-load terminated: Hangup
- | /usr/lib64/gimp/2.0/plug-ins/script-fu terminated: Hangup
- | /usr/lib64/gimp/2.0/plug-ins/script-fu terminated: Hangup
-
-https://bugzilla.kernel.org/show_bug.cgi?id=67651
-https://bugzilla.gnome.org/show_bug.cgi?id=719619#c0
-
-Initial problem came from missed VM_SOFTDIRTY in do_brk() routine
-but even if we would set up VM_SOFTDIRTY here, there is still a way to
-prevent VMAs from merging: one can call
-
- | echo 4 > /proc/$PID/clear_refs
-
-and clear all VM_SOFTDIRTY over all VMAs presented in memory map,
-then new do_brk() will try to extend old VMA and finds that dirty
-bit doesn't match thus new VMA will be generated.
-
-As discussed to Pavel, the right approach should be to ignore
-VM_SOFTDIRTY bit when we're trying to merge VMAs and if merged
-successed we mark extended VMA with dirty bit.
-
-Reported-by: Mel Gorman <mgorman@suse.de>
-Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
-CC: Pavel Emelyanov <xemul@parallels.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
----
- mm/mmap.c |   16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
-
-Index: linux-2.6.git/mm/mmap.c
-===================================================================
---- linux-2.6.git.orig/mm/mmap.c
-+++ linux-2.6.git/mm/mmap.c
-@@ -893,7 +893,15 @@ again:			remove_next = 1 + (end > next->
- static inline int is_mergeable_vma(struct vm_area_struct *vma,
- 			struct file *file, unsigned long vm_flags)
- {
--	if (vma->vm_flags ^ vm_flags)
-+	/*
-+	 * VM_SOFTDIRTY should not prevent from VMA merging, if we
-+	 * match the flags but dirty bit -- the caller should mark
-+	 * merged VMA as dirty. If dirty bit won't be excluded from
-+	 * comparison, we increase pressue on the memory system forcing
-+	 * the kernel to generate new VMAs when old one could be extended
-+	 * instead.
-+	 */
-+	if ((vma->vm_flags ^ vm_flags) & VM_SOFTDIRTY)
- 		return 0;
- 	if (vma->vm_file != file)
- 		return 0;
-@@ -1038,6 +1046,8 @@ struct vm_area_struct *vma_merge(struct
- 				end, prev->vm_pgoff, NULL);
- 		if (err)
- 			return NULL;
-+		else
-+			prev->vm_flags |= VM_SOFTDIRTY;
- 		khugepaged_enter_vma_merge(prev);
- 		return prev;
- 	}
-@@ -1057,6 +1067,8 @@ struct vm_area_struct *vma_merge(struct
- 				next->vm_pgoff - pglen, NULL);
- 		if (err)
- 			return NULL;
-+		else
-+			area->vm_flags |= VM_SOFTDIRTY;
- 		khugepaged_enter_vma_merge(area);
- 		return area;
- 	}
-@@ -1082,7 +1094,7 @@ static int anon_vma_compatible(struct vm
- 	return a->vm_end == b->vm_start &&
- 		mpol_equal(vma_policy(a), vma_policy(b)) &&
- 		a->vm_file == b->vm_file &&
--		!((a->vm_flags ^ b->vm_flags) & ~(VM_READ|VM_WRITE|VM_EXEC)) &&
-+		!((a->vm_flags ^ b->vm_flags) & ~(VM_READ|VM_WRITE|VM_EXEC|VM_SOFTDIRTY)) &&
- 		b->vm_pgoff == a->vm_pgoff + ((b->vm_start - a->vm_start) >> PAGE_SHIFT);
- }
- 
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
