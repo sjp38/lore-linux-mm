@@ -1,113 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C5DE6B0031
-	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 10:47:58 -0500 (EST)
-Received: by mail-pb0-f53.google.com with SMTP id md12so1986708pbc.40
-        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 07:47:58 -0800 (PST)
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTP id ot3si14580558pac.224.2014.01.23.07.47.56
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B53B6B0031
+	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 11:27:56 -0500 (EST)
+Received: by mail-la0-f47.google.com with SMTP id hr17so1628311lab.6
+        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 08:27:56 -0800 (PST)
+Received: from akado.ru (fe01x03-cgp.akado.ru. [77.232.31.164])
+        by mx.google.com with ESMTP id b8si7106169lah.83.2014.01.23.08.27.55
         for <linux-mm@kvack.org>;
-        Thu, 23 Jan 2014 07:47:56 -0800 (PST)
-Message-ID: <1390492073.2372.118.camel@dabdike.int.hansenpartnership.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] really large storage sectors - going
- beyond 4096 bytes
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Thu, 23 Jan 2014 07:47:53 -0800
-In-Reply-To: <20140123082734.GP13997@dastard>
-References: <52DF353D.6050300@redhat.com> <20140122093435.GS4963@suse.de>
-	 <52DFD168.8080001@redhat.com> <20140122143452.GW4963@suse.de>
-	 <52DFDCA6.1050204@redhat.com> <20140122151913.GY4963@suse.de>
-	 <1390410233.1198.7.camel@ret.masoncoding.com>
-	 <1390411300.2372.33.camel@dabdike.int.hansenpartnership.com>
-	 <1390413819.1198.20.camel@ret.masoncoding.com>
-	 <1390414439.2372.53.camel@dabdike.int.hansenpartnership.com>
-	 <20140123082734.GP13997@dastard>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Thu, 23 Jan 2014 08:27:56 -0800 (PST)
+Date: Thu, 23 Jan 2014 20:27:29 +0400 (MSK)
+From: malc <av1474@comtv.ru>
+Subject: [PATCH] Revert "mm/vmalloc: interchage the implementation of
+ vmalloc_to_{pfn,page}"
+Message-ID: <alpine.LNX.2.00.1401232025400.1392@linmac>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Chris Mason <clm@fb.com>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-ide@vger.kernel.org" <linux-ide@vger.kernel.org>, "mgorman@suse.de" <mgorman@suse.de>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, "rwheeler@redhat.com" <rwheeler@redhat.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 
-On Thu, 2014-01-23 at 19:27 +1100, Dave Chinner wrote:
-> On Wed, Jan 22, 2014 at 10:13:59AM -0800, James Bottomley wrote:
-> > On Wed, 2014-01-22 at 18:02 +0000, Chris Mason wrote:
-> > > On Wed, 2014-01-22 at 09:21 -0800, James Bottomley wrote:
-> > > > On Wed, 2014-01-22 at 17:02 +0000, Chris Mason wrote:
-> > > 
-> > > [ I like big sectors and I cannot lie ]
-> > 
-> > I think I might be sceptical, but I don't think that's showing in my
-> > concerns ...
-> > 
-> > > > > I really think that if we want to make progress on this one, we need
-> > > > > code and someone that owns it.  Nick's work was impressive, but it was
-> > > > > mostly there for getting rid of buffer heads.  If we have a device that
-> > > > > needs it and someone working to enable that device, we'll go forward
-> > > > > much faster.
-> > > > 
-> > > > Do we even need to do that (eliminate buffer heads)?  We cope with 4k
-> > > > sector only devices just fine today because the bh mechanisms now
-> > > > operate on top of the page cache and can do the RMW necessary to update
-> > > > a bh in the page cache itself which allows us to do only 4k chunked
-> > > > writes, so we could keep the bh system and just alter the granularity of
-> > > > the page cache.
-> > > > 
-> > > 
-> > > We're likely to have people mixing 4K drives and <fill in some other
-> > > size here> on the same box.  We could just go with the biggest size and
-> > > use the existing bh code for the sub-pagesized blocks, but I really
-> > > hesitate to change VM fundamentals for this.
-> > 
-> > If the page cache had a variable granularity per device, that would cope
-> > with this.  It's the variable granularity that's the VM problem.
-> > 
-> > > From a pure code point of view, it may be less work to change it once in
-> > > the VM.  But from an overall system impact point of view, it's a big
-> > > change in how the system behaves just for filesystem metadata.
-> > 
-> > Agreed, but only if we don't do RMW in the buffer cache ... which may be
-> > a good reason to keep it.
-> > 
-> > > > The other question is if the drive does RMW between 4k and whatever its
-> > > > physical sector size, do we need to do anything to take advantage of
-> > > > it ... as in what would altering the granularity of the page cache buy
-> > > > us?
-> > > 
-> > > The real benefit is when and how the reads get scheduled.  We're able to
-> > > do a much better job pipelining the reads, controlling our caches and
-> > > reducing write latency by having the reads done up in the OS instead of
-> > > the drive.
-> > 
-> > I agree with all of that, but my question is still can we do this by
-> > propagating alignment and chunk size information (i.e. the physical
-> > sector size) like we do today.  If the FS knows the optimal I/O patterns
-> > and tries to follow them, the odd cockup won't impact performance
-> > dramatically.  The real question is can the FS make use of this layout
-> > information *without* changing the page cache granularity?  Only if you
-> > answer me "no" to this do I think we need to worry about changing page
-> > cache granularity.
-> 
-> We already do this today.
-> 
-> The problem is that we are limited by the page cache assumption that
-> the block device/filesystem never need to manage multiple pages as
-> an atomic unit of change. Hence we can't use the generic
-> infrastructure as it stands to handle block/sector sizes larger than
-> a page size...
+Sep 17 00:00:00 2001
+From: Vladimir Murzin <murzin.v@gmail.com>
+Date: Thu, 23 Jan 2014 14:54:20 +0400
+Subject: [PATCH] Revert "mm/vmalloc: interchage the implementation of
+ vmalloc_to_{pfn,page}"
 
-If the compound page infrastructure exists today and is usable for this,
-what else do we need to do? ... because if it's a couple of trivial
-changes and a few minor patches to filesystems to take advantage of it,
-we might as well do it anyway.  I was only objecting on the grounds that
-the last time we looked at it, it was major VM surgery.  Can someone
-give a summary of how far we are away from being able to do this with
-the VM system today and what extra work is needed (and how big is this
-piece of work)?
+This reverts commit ece86e222db48d04bda218a2be70e384518bb08c.
 
-James
+Despite being claimed that patch doesn't introduce any functional
+changes in fact it does.
 
+The "no page" path behaves different now. Originally, vmalloc_to_page
+might return NULL under some conditions, with new implementation it returns
+pfn_to_page(0) which is not the same as NULL.
+
+Simple test shows the difference.
+
+test.c
+
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/vmalloc.h>
+#include <linux/mm.h>
+
+int __init myi(void)
+{
+	struct page *p;
+	void *v;
+
+	v = vmalloc(PAGE_SIZE);
+	/* trigger the "no page" path in vmalloc_to_page*/
+	vfree(v);
+
+	p = vmalloc_to_page(v);
+
+	pr_err("expected val = NULL, returned val = %p", p);
+
+	return -EBUSY;
+}
+
+void __exit mye(void)
+{
+
+}
+module_init(myi)
+module_exit(mye)
+
+Before interchange:
+expected val = NULL, returned val =   (null)
+
+After interchange:
+expected val = NULL, returned val = c7ebe000
+
+Signed-off-by: Vladimir Murzin <murzin.v@gmail.com>
+Cc: Jianyu Zhan <nasa4836@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+---
+
+I'm a bit surprised to see this patch merged because I've already pointed [1]
+at difference in behaviour introduced by the patch.
+
+If I've lost the point here or misunderstand the patch or abuse vmalloc_to_*
+interface I'd be grateful if someone let me know.
+
+[1] https://lkml.org/lkml/2013/12/1/76
+
+Thanks
+Vladimir
+
+
+ mm/vmalloc.c |   20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index e4f0db2..0fdf968 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -220,12 +220,12 @@ int is_vmalloc_or_module_addr(const void *x)
+ }
+ 
+ /*
+- * Walk a vmap address to the physical pfn it maps to.
++ * Walk a vmap address to the struct page it maps.
+  */
+-unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
++struct page *vmalloc_to_page(const void *vmalloc_addr)
+ {
+ 	unsigned long addr = (unsigned long) vmalloc_addr;
+-	unsigned long pfn = 0;
++	struct page *page = NULL;
+ 	pgd_t *pgd = pgd_offset_k(addr);
+ 
+ 	/*
+@@ -244,23 +244,23 @@ unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
+ 				ptep = pte_offset_map(pmd, addr);
+ 				pte = *ptep;
+ 				if (pte_present(pte))
+-					pfn = pte_pfn(pte);
++					page = pte_page(pte);
+ 				pte_unmap(ptep);
+ 			}
+ 		}
+ 	}
+-	return pfn;
++	return page;
+ }
+-EXPORT_SYMBOL(vmalloc_to_pfn);
++EXPORT_SYMBOL(vmalloc_to_page);
+ 
+ /*
+- * Map a vmalloc()-space virtual address to the struct page.
++ * Map a vmalloc()-space virtual address to the physical page frame number.
+  */
+-struct page *vmalloc_to_page(const void *vmalloc_addr)
++unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
+ {
+-	return pfn_to_page(vmalloc_to_pfn(vmalloc_addr));
++	return page_to_pfn(vmalloc_to_page(vmalloc_addr));
+ }
+-EXPORT_SYMBOL(vmalloc_to_page);
++EXPORT_SYMBOL(vmalloc_to_pfn);
+ 
+ 
+ /*** Global kva allocator ***/
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
