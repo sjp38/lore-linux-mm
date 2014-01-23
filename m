@@ -1,84 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f41.google.com (mail-bk0-f41.google.com [209.85.214.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 2131B6B0031
-	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 14:49:40 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id na10so624727bkb.28
-        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 11:49:39 -0800 (PST)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:4])
-        by mx.google.com with ESMTP id qf7si50025bkb.275.2014.01.23.11.49.37
-        for <linux-mm@kvack.org>;
-        Thu, 23 Jan 2014 11:49:38 -0800 (PST)
-Date: Fri, 24 Jan 2014 06:49:31 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] really large storage sectors - going
- beyond 4096 bytes
-Message-ID: <20140123194931.GS13997@dastard>
-References: <1390411300.2372.33.camel@dabdike.int.hansenpartnership.com>
- <1390413819.1198.20.camel@ret.masoncoding.com>
- <1390414439.2372.53.camel@dabdike.int.hansenpartnership.com>
- <52E00B28.3060609@redhat.com>
- <1390415703.2372.62.camel@dabdike.int.hansenpartnership.com>
- <52E0106B.5010604@redhat.com>
- <1390419019.2372.89.camel@dabdike.int.hansenpartnership.com>
- <20140122115002.bb5d01dee836b567a7aad157@linux-foundation.org>
- <20140123083558.GQ13997@dastard>
- <20140123125550.GB6853@thunk.org>
+Received: from mail-ve0-f177.google.com (mail-ve0-f177.google.com [209.85.128.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DE9B6B0031
+	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 14:54:44 -0500 (EST)
+Received: by mail-ve0-f177.google.com with SMTP id jz11so1397284veb.36
+        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 11:54:44 -0800 (PST)
+Received: from mail-vc0-f180.google.com (mail-vc0-f180.google.com [209.85.220.180])
+        by mx.google.com with ESMTPS id uq6si7195150vcb.75.2014.01.23.11.54.42
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 23 Jan 2014 11:54:43 -0800 (PST)
+Received: by mail-vc0-f180.google.com with SMTP id ks9so1325105vcb.39
+        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 11:54:42 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140123125550.GB6853@thunk.org>
+In-Reply-To: <52DF7D9B.20904@symas.com>
+References: <CALCETrUaotUuzn60-bSt1oUb8+94do2QgiCq_TXhqEHj79DePQ@mail.gmail.com>
+ <52D8AEBF.3090803@symas.com> <52D982EB.6010507@amacapital.net>
+ <52DE23E8.9010608@symas.com> <20140121111727.GB13997@dastard>
+ <CALCETrUWhWDSJNHT5OEmNSyBuGx4-AxqeS3YBcKL0nejZ6kQ4w@mail.gmail.com>
+ <20140121203620.GD13997@dastard> <CALCETrV3jL-m74apTyEN+vb0vFQqoCnCrtJVW3_MWk57WS0kqw@mail.gmail.com>
+ <20140121230333.GH13997@dastard> <52DF7D9B.20904@symas.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Thu, 23 Jan 2014 11:54:22 -0800
+Message-ID: <CALCETrU=WNbpoNyNFZOw94B=1y6ad=dASgAmOGLuKp5k2cdD4g@mail.gmail.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] [ATTEND] Persistent memory
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Chris Mason <clm@fb.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, "linux-ide@vger.kernel.org" <linux-ide@vger.kernel.org>, "mgorman@suse.de" <mgorman@suse.de>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, Ric Wheeler <rwheeler@redhat.com>
+To: Howard Chu <hyc@symas.com>
+Cc: Dave Chinner <david@fromorbit.com>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, Jan 23, 2014 at 07:55:50AM -0500, Theodore Ts'o wrote:
-> On Thu, Jan 23, 2014 at 07:35:58PM +1100, Dave Chinner wrote:
-> > > 
-> > > I expect it would be relatively simple to get large blocksizes working
-> > > on powerpc with 64k PAGE_SIZE.  So before diving in and doing huge
-> > > amounts of work, perhaps someone can do a proof-of-concept on powerpc
-> > > (or ia64) with 64k blocksize.
-> > 
-> > Reality check: 64k block sizes on 64k page Linux machines has been
-> > used in production on XFS for at least 10 years. It's exactly the
-> > same case as 4k block size on 4k page size - one page, one buffer
-> > head, one filesystem block.
-> 
-> This is true for ext4 as well.  Block size == page size support is
-> pretty easy; the hard part is when block size > page size, due to
-> assumptions in the VM layer that requires that FS system needs to do a
-> lot of extra work to fudge around.  So the real problem comes with
-> trying to support 64k block sizes on a 4k page architecture, and can
-> we do it in a way where every single file system doesn't have to do
-> their own specific hacks to work around assumptions made in the VM
-> layer.
-> 
-> Some of the problems include handling the case where you get someone
-> dirties a single block in a sparse page, and the FS needs to manually
-> fault in the other 56k pages around that single page.  Or the VM not
-> understanding that page eviction needs to be done in chunks of 64k so
-> we don't have part of the block evicted but not all of it, etc.
+On Wed, Jan 22, 2014 at 12:13 AM, Howard Chu <hyc@symas.com> wrote:
+> Dave Chinner wrote:
+>>
+>> On Tue, Jan 21, 2014 at 12:59:42PM -0800, Andy Lutomirski wrote:
+>>>
+>>> On Tue, Jan 21, 2014 at 12:36 PM, Dave Chinner <david@fromorbit.com>
+>
+>>> If we're using dm-crypt using an NV-DIMM "block" device as cache and a
+>>> real disk as backing store, then ideally mmap would map the NV-DIMM
+>>> directly if the data in question lives there.
+>>
+>>
+>> dm-crypt does not use any block device as a cache. You're thinking
+>> about dm-cache or bcache. And neither of them are operating at the
+>> filesystem level or are aware of the difference between fileystem
+>> metadata and user data.
+>
+>
+> Why should that layer need to be aware? A page is a page, as far as they're
+> concerned.
 
-Right, this is part of the problem that fsblock tried to handle, and
-some of the nastiness it had was that a page fault only resulted in
-the individual page being read from the underlying block. This means
-that it was entirely possible that the filesystem would need to do
-RMW cycles in the writeback path itself to handle things like block
-checksums, copy-on-write, unwritten extent conversion, etc. i.e. all
-the stuff that the page cache currently handles by doing RMW cycles
-at the page level.
+I think that, ideally, the awareness would go the other way.
 
-The method of using compound pages in the page cache so that the
-page cache could do 64k RMW cycles so that a filesystem never had to
-deal with new issues like the above was one of the reasons that
-approach is so appealing to us filesystem people. ;)
+dm-cache (where the backing store is a normal disk but the cache
+storage is persistent memory) should not care what kind of page it's
+caching.  On the other hand, the filesystem sitting on top of dm-cache
+should be able to tell when a page (in the device exposed by dm-cache)
+is actually CPU-addressable so it can avoid allocating yet another
+copy in pagecache.  Similarly, it should be able to be notified when
+that page is about to stop being cpu-addressable.
 
-Cheers,
+This might be an argument to have, in addition (or as a replacement
+to) direct_access, XIP ops that ask for a reference to a page, are
+permitted to fail (i.e. say "sorry, not CPU addressable right now),
+and a way to be notified when a page is going away.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+(This is totally unnecessary if using something like an NV-DIMM
+directly -- it's only important for more complicated things like
+dm-cache.)
+
+>
+>
+>> But talking about non-existent block layer
+>> functionality doesn't answer my the question about keeping user data
+>> and filesystem metadata needed to reference that user data
+>> coherent in persistent memory...
+>
+>
+> One of the very useful tools for PCs in the '80s was reset-survivable
+> RAMdisks. Given the existence of persistent memory in a machine, this is a
+> pretty obvious feature to provide.
+
+I think that a file on pmfs or ext4-xip will work like this.  Ideally
+/dev/loop will be XIP-capable if the file it's sitting on top of is
+XIP.
+
+>
+>
+>>> If that's happening,
+>>> then, assuming that there are no metadata changes, you could just
+>>> flush the relevant hw caches.  This assumes, of course, no dm-crypt,
+>>> no btrfs-style checksumming, and, in general, nothing else that would
+>>> require stable pages or similar things.
+>>
+>>
+>> Well yes. Data IO path transformations are another reason why we'll
+>> need the volatile page cache involved in the persistent memory IO
+>> path. It follows immediately from this that applicaitons will still
+>> require fsync() and other data integrity operations because they
+>> have no idea where the persistence domain boundary lives in the IO
+>> stack.
+>
+>
+> And my point, stated a few times now, is there should be a way for
+> applications to discover the existence and characteristics of persistent
+> memory being used in the system.
+
+Agreed.  Or maybe just some very low-level library that exposes a more
+useful interface (e.g. sync this domain) to applications.
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
