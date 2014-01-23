@@ -1,43 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f46.google.com (mail-bk0-f46.google.com [209.85.214.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 908E56B0031
-	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 15:54:41 -0500 (EST)
-Received: by mail-bk0-f46.google.com with SMTP id r7so659110bkg.19
-        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 12:54:41 -0800 (PST)
-Received: from qmta10.emeryville.ca.mail.comcast.net (qmta10.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:17])
-        by mx.google.com with ESMTP id ko10si197268bkb.252.2014.01.23.12.54.39
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id CB8D26B0031
+	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 16:02:38 -0500 (EST)
+Received: by mail-pd0-f172.google.com with SMTP id p10so2269763pdj.3
+        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 13:02:38 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id g5si15407990pav.201.2014.01.23.13.02.36
         for <linux-mm@kvack.org>;
-        Thu, 23 Jan 2014 12:54:40 -0800 (PST)
-Date: Thu, 23 Jan 2014 14:54:37 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] really large storage sectors - going
- beyond 4096 bytes
-In-Reply-To: <1390492073.2372.118.camel@dabdike.int.hansenpartnership.com>
-Message-ID: <alpine.DEB.2.10.1401231450550.8031@nuc>
-References: <52DF353D.6050300@redhat.com> <20140122093435.GS4963@suse.de> <52DFD168.8080001@redhat.com> <20140122143452.GW4963@suse.de> <52DFDCA6.1050204@redhat.com> <20140122151913.GY4963@suse.de> <1390410233.1198.7.camel@ret.masoncoding.com>
- <1390411300.2372.33.camel@dabdike.int.hansenpartnership.com> <1390413819.1198.20.camel@ret.masoncoding.com> <1390414439.2372.53.camel@dabdike.int.hansenpartnership.com> <20140123082734.GP13997@dastard>
- <1390492073.2372.118.camel@dabdike.int.hansenpartnership.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Thu, 23 Jan 2014 13:02:37 -0800 (PST)
+Date: Thu, 23 Jan 2014 13:02:35 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Ignore VM_SOFTDIRTY on VMA merging, v2
+Message-Id: <20140123130235.61e2eca44d92b37936955ff1@linux-foundation.org>
+In-Reply-To: <20140123151445.GX1574@moon>
+References: <20140122190816.GB4963@suse.de>
+	<20140122191928.GQ1574@moon>
+	<20140122223325.GA30637@moon>
+	<20140123095541.GD4963@suse.de>
+	<20140123103606.GU1574@moon>
+	<20140123121555.GV1574@moon>
+	<20140123125543.GW1574@moon>
+	<20140123151445.GX1574@moon>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Dave Chinner <david@fromorbit.com>, Chris Mason <clm@fb.com>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-ide@vger.kernel.org" <linux-ide@vger.kernel.org>, "mgorman@suse.de" <mgorman@suse.de>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, "rwheeler@redhat.com" <rwheeler@redhat.com>
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: Pavel Emelyanov <xemul@parallels.com>, Mel Gorman <mgorman@suse.de>, gnome@rvzt.net, grawoc@darkrefraction.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
 
-On Thu, 23 Jan 2014, James Bottomley wrote:
+On Thu, 23 Jan 2014 19:14:45 +0400 Cyrill Gorcunov <gorcunov@gmail.com> wrote:
 
-> If the compound page infrastructure exists today and is usable for this,
-> what else do we need to do? ... because if it's a couple of trivial
-> changes and a few minor patches to filesystems to take advantage of it,
-> we might as well do it anyway.  I was only objecting on the grounds that
-> the last time we looked at it, it was major VM surgery.  Can someone
-> give a summary of how far we are away from being able to do this with
-> the VM system today and what extra work is needed (and how big is this
-> piece of work)?
+> VM_SOFTDIRTY bit affects vma merge routine: if two VMAs has all
+> bits in vm_flags matched except dirty bit the kernel can't longer
+> merge them and this forces the kernel to generate new VMAs instead.
 
-The main problem for me was the page cache. The VM would not be such a
-problem. Changing the page cache function required updates to many
-filesystems.
-
+Do you intend to alter the brk() and binprm code to set VM_SOFTDIRTY?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
