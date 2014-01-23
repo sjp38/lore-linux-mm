@@ -1,49 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id AA8D86B0035
-	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 01:20:14 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id fa1so1446425pad.14
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 22:20:14 -0800 (PST)
-Received: from LGEMRELSE6Q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id p3si12680609pbj.278.2014.01.22.22.20.11
-        for <linux-mm@kvack.org>;
-        Wed, 22 Jan 2014 22:20:13 -0800 (PST)
-Date: Thu, 23 Jan 2014 15:21:28 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: [LSF/MM TOPIC] volatile range: part 2
-Message-ID: <20140123062128.GB14369@bbox>
+Received: from mail-bk0-f47.google.com (mail-bk0-f47.google.com [209.85.214.47])
+	by kanga.kvack.org (Postfix) with ESMTP id DAC976B0035
+	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 01:27:50 -0500 (EST)
+Received: by mail-bk0-f47.google.com with SMTP id d7so201118bkh.20
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 22:27:50 -0800 (PST)
+Received: from mail-la0-x231.google.com (mail-la0-x231.google.com [2a00:1450:4010:c03::231])
+        by mx.google.com with ESMTPS id pj2si8993098bkb.195.2014.01.22.22.27.49
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 22 Jan 2014 22:27:50 -0800 (PST)
+Received: by mail-la0-f49.google.com with SMTP id y1so1096555lam.22
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 22:27:49 -0800 (PST)
+Date: Thu, 23 Jan 2014 10:27:46 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [Bug 67651] Bisected: Lots of fragmented mmaps cause gimp to
+ fail in 3.12 after exceeding vm_max_map_count
+Message-ID: <20140123062746.GT1574@moon>
+References: <20140122190816.GB4963@suse.de>
+ <52E04A21.3050101@mit.edu>
+ <20140123055906.GS1574@moon>
+ <20140122220910.198121ee.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20140122220910.198121ee.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org, John Stultz <john.stultz@linaro.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@amacapital.net>, Mel Gorman <mgorman@suse.de>, Pavel Emelyanov <xemul@parallels.com>, gnome@rvzt.net, drawoc@darkrefraction.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
 
-Last year, there was discussion about volatile range but it seems
-there wasn't no progress because John and I were stucked other
-urgent works.
+On Wed, Jan 22, 2014 at 10:09:10PM -0800, Andrew Morton wrote:
+> > > 
+> > > That being said, this could cause vma blowups for programs that are
+> > > actually using this thing.
+> > 
+> > Hi Andy, indeed, this could happen. The easiest way is to ignore softdirty bit
+> > when we're trying to merge vmas and set it one new merged. I think this should
+> > be correct. Once I finish I'll send the patch.
+> 
+> Hang on.  We think the problem is that gimp is generating vmas which
+> *should* be merged, but for unknown reasons they differ in
+> VM_SOFTDIRTY, yes?
 
-Recently, we modified many part of volatile range and submit
-test code for volatile range anonymous part.
+Yes. One place where I forgot to set softdirty bit is setup_arg_pages. But
+it called once on elf load, so it can't cause such effect (but should be
+fixed too). Also there is do_brk where vmasoftdirty is missed too :/
 
-http://lwn.net/Articles/578761/
+Another problem is the potential scenario when we have a bunch of vmas
+and clear vma-softdirty bit on them, then we try to map new one, flags
+won't match and instead of extending old vma the new one will be created.
+I think (if only I'm not missing something) that vma-softdirty should
+be ignored in such case (ie inside is_mergeable_vma) and once vma extended
+it should be marked as dirty one. Again, I need to think and test more.
 
-But still we didn't get indepth code review and many feedback.
-It makes very hard to proceed that work.
+> Shouldn't we work out where we're forgetting to set VM_SOFTDIRTY? 
+> Putting bandaids over this error when we come to trying to merge the
+> vmas sounds very wrong?
 
-I believe it's really nice concept and other OSes already similar
-system call so lack of interesting from other MM guys is totally
-my fault.
+I'm looking into this as well.
 
-In this summit, I will summarize current status and known problems
-I'm thinking so I hope lots of feedback and you guys will give a
-time slot to review.
-
-Thanks.
--- 
-Kind regards,
-Minchan Kim
+	Cyrill
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
