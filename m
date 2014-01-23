@@ -1,80 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 7377A6B0036
-	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 07:12:48 -0500 (EST)
-Received: by mail-pd0-f177.google.com with SMTP id x10so1701361pdj.36
-        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 04:12:48 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id fv4si13896717pbd.242.2014.01.23.04.12.46
-        for <linux-mm@kvack.org>;
-        Thu, 23 Jan 2014 04:12:46 -0800 (PST)
-From: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
-Subject: RE: [PATCH v5 00/22] Rewrite XIP code and add XIP support to ext4
-Date: Thu, 23 Jan 2014 12:12:43 +0000
-Message-ID: <100D68C7BA14664A8938383216E40DE04061DF33@FMSMSX114.amr.corp.intel.com>
-References: <cover.1389779961.git.matthew.r.wilcox@intel.com>,<20140123090133.GR13997@dastard>
-In-Reply-To: <20140123090133.GR13997@dastard>
-Content-Language: en-CA
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-bk0-f45.google.com (mail-bk0-f45.google.com [209.85.214.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 58A7F6B0037
+	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 07:15:59 -0500 (EST)
+Received: by mail-bk0-f45.google.com with SMTP id v16so314206bkz.4
+        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 04:15:58 -0800 (PST)
+Received: from mail-lb0-x234.google.com (mail-lb0-x234.google.com [2a00:1450:4010:c04::234])
+        by mx.google.com with ESMTPS id kn2si10018617bkb.289.2014.01.23.04.15.58
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 23 Jan 2014 04:15:58 -0800 (PST)
+Received: by mail-lb0-f180.google.com with SMTP id n15so1345176lbi.39
+        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 04:15:57 -0800 (PST)
+Date: Thu, 23 Jan 2014 16:15:55 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [Bug 67651] Bisected: Lots of fragmented mmaps cause gimp to
+ fail in 3.12 after exceeding vm_max_map_count
+Message-ID: <20140123121555.GV1574@moon>
+References: <20140122190816.GB4963@suse.de>
+ <20140122191928.GQ1574@moon>
+ <20140122223325.GA30637@moon>
+ <20140123095541.GD4963@suse.de>
+ <20140123103606.GU1574@moon>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140123103606.GU1574@moon>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>, Pavel Emelyanov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: gnome@rvzt.net, drawoc@darkrefraction.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
 
-Are you hitting the same problems with ext4 fsck that we did?  Version 1.42=
-.8 reports spurious corruption.  From the 1.42.9 changelog:=0A=
-=0A=
-  * Fixed a regression introduced in 1.42.8 which would cause e2fsck to=0A=
-    erroneously report uninitialized extents past i_size to be invalid.=0A=
-=0A=
-________________________________________=0A=
-From: Dave Chinner [david@fromorbit.com]=0A=
-Sent: January 23, 2014 1:01 AM=0A=
-To: Wilcox, Matthew R=0A=
-Cc: linux-kernel@vger.kernel.org; linux-fsdevel@vger.kernel.org; linux-mm@k=
-vack.org; linux-ext4@vger.kernel.org=0A=
-Subject: Re: [PATCH v5 00/22] Rewrite XIP code and add XIP support to ext4=
-=0A=
-=0A=
-On Wed, Jan 15, 2014 at 08:24:18PM -0500, Matthew Wilcox wrote:=0A=
-> This series of patches add support for XIP to ext4.  Unfortunately,=0A=
-> it turns out to be necessary to rewrite the existing XIP support code=0A=
-> first due to races that are unfixable in the current design.=0A=
->=0A=
-> Since v4 of this patchset, I've improved the documentation, fixed a=0A=
-> couple of warnings that a newer version of gcc emitted, and fixed a=0A=
-> bug where we would read/write the wrong address for I/Os that were not=0A=
-> aligned to PAGE_SIZE.=0A=
->=0A=
-> I've dropped the PMD fault patch from this set since there are some=0A=
-> places where we would need to split a PMD page and there's no way to do=
-=0A=
-> that right now.  In its place, I've added a patch which attempts to add=
-=0A=
-> support for unwritten extents.  I'm still in two minds about this; on the=
-=0A=
-> one hand, it's clearly a win for reads and writes.  On the other hand,=0A=
-> it adds a lot of complexity, and it probably isn't a win for pagefaults.=
-=0A=
-=0A=
-I ran this through xfstests, but ext4 in default configuration fails=0A=
-too many of the tests with filesystem corruption and other cascading=0A=
-failures on the quick group tests (generic/013, generic/070,=0A=
-generic/075, generic/091, etc)  for me to be able to tell if adding=0A=
-MOUNT_OPTIONS=3D"-o xip" adds any problems or not....=0A=
-=0A=
-XIP definitely caused generic/001 to fail, but other than that I=0A=
-can't really tell. Still, it looks like it functions enough to be=0A=
-able to add XFS support on top of. I'll get back to you with that ;)=0A=
-=0A=
-Cheers,=0A=
-=0A=
-Dave.=0A=
---=0A=
-Dave Chinner=0A=
-david@fromorbit.com=0A=
+On Thu, Jan 23, 2014 at 02:36:06PM +0400, Cyrill Gorcunov wrote:
+> > The test case passes with this patch applied to 3.13 so that appears
+> > to confirm that this is related to VM_SOFTDIRTY preventing merges.
+> > Unfortunately I did not have slabinfo tracking enabled to double check
+> > the number of vm_area_structs in teh system.
+> 
+> Thanks a lot, Mel! I'm testing the patch as well (manually though :).
+> I'll send the final fix today.
+
+The patch below should fix the problem. I would really appreaciate
+some additional testing.
+---
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: [PATCH] mm: Ignore VM_SOFTDIRTY on VMA merging
+
+VM_SOFTDIRTY bit affects vma merge routine: if two VMAs has all
+bits in vm_flags matched except dirty bit the kernel can't longer
+merge them and this forces the kernel to generate new VMAs instead.
+
+It finally may lead to the situation when userspace application
+reaches vm.max_map_count limit and get crashed in worse case
+
+ | (gimp:11768): GLib-ERROR **: gmem.c:110: failed to allocate 4096 bytes
+ |
+ | (file-tiff-load:12038): LibGimpBase-WARNING **: file-tiff-load: gimp_wire_read(): error
+ | xinit: connection to X server lost
+ |
+ | waiting for X server to shut down
+ | /usr/lib64/gimp/2.0/plug-ins/file-tiff-load terminated: Hangup
+ | /usr/lib64/gimp/2.0/plug-ins/script-fu terminated: Hangup
+ | /usr/lib64/gimp/2.0/plug-ins/script-fu terminated: Hangup
+
+https://bugzilla.kernel.org/show_bug.cgi?id=67651
+https://bugzilla.gnome.org/show_bug.cgi?id=719619#c0
+
+Initial problem came from missed VM_SOFTDIRTY in do_brk() routine
+but even if we would set up VM_SOFTDIRTY here, there is still a way to
+prevent VMAs from merging: one can call
+
+ | echo 4 > /proc/$PID/clear_refs
+
+and clear all VM_SOFTDIRTY over all VMAs presented in memory map,
+then new do_brk() will try to extend old VMA and finds that dirty
+bit doesn't match thus new VMA will be generated.
+
+As discussed to Pavel, the right approach should be to ignore
+VM_SOFTDIRTY bit when we're trying to merge VMAs and if merged
+successed we mark extended VMA with dirty bit.
+
+Reported-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
+CC: Pavel Emelyanov <xemul@parallels.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
+---
+ mm/mmap.c |   16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
+
+Index: linux-2.6.git/mm/mmap.c
+===================================================================
+--- linux-2.6.git.orig/mm/mmap.c
++++ linux-2.6.git/mm/mmap.c
+@@ -893,7 +893,15 @@ again:			remove_next = 1 + (end > next->
+ static inline int is_mergeable_vma(struct vm_area_struct *vma,
+ 			struct file *file, unsigned long vm_flags)
+ {
+-	if (vma->vm_flags ^ vm_flags)
++	/*
++	 * VM_SOFTDIRTY should not prevent from VMA merging, if we
++	 * match the flags but dirty bit -- the caller should mark
++	 * merged VMA as dirty. If dirty bit won't be excluded from
++	 * comparison, we increase pressue on the memory system forcing
++	 * the kernel to generate new VMAs when old one could be extended
++	 * instead.
++	 */
++	if ((vma->vm_flags ^ vm_flags) & VM_SOFTDIRTY)
+ 		return 0;
+ 	if (vma->vm_file != file)
+ 		return 0;
+@@ -1038,6 +1046,8 @@ struct vm_area_struct *vma_merge(struct
+ 				end, prev->vm_pgoff, NULL);
+ 		if (err)
+ 			return NULL;
++		else
++			prev->vm_flags |= VM_SOFTDIRTY;
+ 		khugepaged_enter_vma_merge(prev);
+ 		return prev;
+ 	}
+@@ -1057,6 +1067,8 @@ struct vm_area_struct *vma_merge(struct
+ 				next->vm_pgoff - pglen, NULL);
+ 		if (err)
+ 			return NULL;
++		else
++			area->vm_flags |= VM_SOFTDIRTY;
+ 		khugepaged_enter_vma_merge(area);
+ 		return area;
+ 	}
+@@ -1082,7 +1094,7 @@ static int anon_vma_compatible(struct vm
+ 	return a->vm_end == b->vm_start &&
+ 		mpol_equal(vma_policy(a), vma_policy(b)) &&
+ 		a->vm_file == b->vm_file &&
+-		!((a->vm_flags ^ b->vm_flags) & ~(VM_READ|VM_WRITE|VM_EXEC)) &&
++		!((a->vm_flags ^ b->vm_flags) & ~(VM_READ|VM_WRITE|VM_EXEC|VM_SOFTDIRTY)) &&
+ 		b->vm_pgoff == a->vm_pgoff + ((b->vm_start - a->vm_start) >> PAGE_SHIFT);
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
