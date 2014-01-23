@@ -1,62 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f44.google.com (mail-bk0-f44.google.com [209.85.214.44])
-	by kanga.kvack.org (Postfix) with ESMTP id E49806B0031
-	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 16:21:45 -0500 (EST)
-Received: by mail-bk0-f44.google.com with SMTP id mz12so678880bkb.31
-        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 13:21:45 -0800 (PST)
+Received: from mail-bk0-f48.google.com (mail-bk0-f48.google.com [209.85.214.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 0ED876B0031
+	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 16:27:25 -0500 (EST)
+Received: by mail-bk0-f48.google.com with SMTP id ej10so672351bkb.21
+        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 13:27:25 -0800 (PST)
 Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [2002:c35c:fd02::1])
-        by mx.google.com with ESMTPS id ec9si303643bkc.211.2014.01.23.13.21.43
+        by mx.google.com with ESMTPS id ar3si294516bkc.311.2014.01.23.13.27.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 23 Jan 2014 13:21:43 -0800 (PST)
-Date: Thu, 23 Jan 2014 13:21:26 -0800
+        Thu, 23 Jan 2014 13:27:25 -0800 (PST)
+Date: Thu, 23 Jan 2014 13:27:14 -0800
 From: Joel Becker <jlbec@evilplan.org>
 Subject: Re: [Lsf-pc] [LSF/MM TOPIC] really large storage sectors - going
  beyond 4096 bytes
-Message-ID: <20140123212125.GA25376@localhost>
-References: <1390411300.2372.33.camel@dabdike.int.hansenpartnership.com>
+Message-ID: <20140123212714.GB25376@localhost>
+References: <52DFD168.8080001@redhat.com>
+ <20140122143452.GW4963@suse.de>
+ <52DFDCA6.1050204@redhat.com>
+ <20140122151913.GY4963@suse.de>
+ <1390410233.1198.7.camel@ret.masoncoding.com>
+ <1390411300.2372.33.camel@dabdike.int.hansenpartnership.com>
  <1390413819.1198.20.camel@ret.masoncoding.com>
  <1390414439.2372.53.camel@dabdike.int.hansenpartnership.com>
- <52E00B28.3060609@redhat.com>
- <1390415703.2372.62.camel@dabdike.int.hansenpartnership.com>
- <52E0106B.5010604@redhat.com>
- <1390419019.2372.89.camel@dabdike.int.hansenpartnership.com>
- <20140122115002.bb5d01dee836b567a7aad157@linux-foundation.org>
- <20140123083558.GQ13997@dastard>
- <20140123125550.GB6853@thunk.org>
+ <1390415924.1198.36.camel@ret.masoncoding.com>
+ <1390416421.2372.68.camel@dabdike.int.hansenpartnership.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140123125550.GB6853@thunk.org>
+In-Reply-To: <1390416421.2372.68.camel@dabdike.int.hansenpartnership.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Chris Mason <clm@fb.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, "linux-ide@vger.kernel.org" <linux-ide@vger.kernel.org>, "mgorman@suse.de" <mgorman@suse.de>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, Ric Wheeler <rwheeler@redhat.com>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Chris Mason <clm@fb.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-ide@vger.kernel.org" <linux-ide@vger.kernel.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "rwheeler@redhat.com" <rwheeler@redhat.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "mgorman@suse.de" <mgorman@suse.de>
 
-On Thu, Jan 23, 2014 at 07:55:50AM -0500, Theodore Ts'o wrote:
-> On Thu, Jan 23, 2014 at 07:35:58PM +1100, Dave Chinner wrote:
-> > > 
-> > > I expect it would be relatively simple to get large blocksizes working
-> > > on powerpc with 64k PAGE_SIZE.  So before diving in and doing huge
-> > > amounts of work, perhaps someone can do a proof-of-concept on powerpc
-> > > (or ia64) with 64k blocksize.
+On Wed, Jan 22, 2014 at 10:47:01AM -0800, James Bottomley wrote:
+> On Wed, 2014-01-22 at 18:37 +0000, Chris Mason wrote:
+> > On Wed, 2014-01-22 at 10:13 -0800, James Bottomley wrote:
+> > > On Wed, 2014-01-22 at 18:02 +0000, Chris Mason wrote:
+> [agreement cut because it's boring for the reader]
+> > > Realistically, if you look at what the I/O schedulers output on a
+> > > standard (spinning rust) workload, it's mostly large transfers.
+> > > Obviously these are misalgned at the ends, but we can fix some of that
+> > > in the scheduler.  Particularly if the FS helps us with layout.  My
+> > > instinct tells me that we can fix 99% of this with layout on the FS + io
+> > > schedulers ... the remaining 1% goes to the drive as needing to do RMW
+> > > in the device, but the net impact to our throughput shouldn't be that
+> > > great.
 > > 
-> > Reality check: 64k block sizes on 64k page Linux machines has been
-> > used in production on XFS for at least 10 years. It's exactly the
-> > same case as 4k block size on 4k page size - one page, one buffer
-> > head, one filesystem block.
+> > There are a few workloads where the VM and the FS would team up to make
+> > this fairly miserable
+> > 
+> > Small files.  Delayed allocation fixes a lot of this, but the VM doesn't
+> > realize that fileA, fileB, fileC, and fileD all need to be written at
+> > the same time to avoid RMW.  Btrfs and MD have setup plugging callbacks
+> > to accumulate full stripes as much as possible, but it still hurts.
+> > 
+> > Metadata.  These writes are very latency sensitive and we'll gain a lot
+> > if the FS is explicitly trying to build full sector IOs.
 > 
-> This is true for ext4 as well.  Block size == page size support is
-> pretty easy; the hard part is when block size > page size, due to
-> assumptions in the VM layer that requires that FS system needs to do a
-> lot of extra work to fudge around.  So the real problem comes with
-> trying to support 64k block sizes on a 4k page architecture, and can
-> we do it in a way where every single file system doesn't have to do
-> their own specific hacks to work around assumptions made in the VM
-> layer.
+> OK, so these two cases I buy ... the question is can we do something
+> about them today without increasing the block size?
+> 
+> The metadata problem, in particular, might be block independent: we
+> still have a lot of small chunks to write out at fractured locations.
+> With a large block size, the FS knows it's been bad and can expect the
+> rolled up newspaper, but it's not clear what it could do about it.
+> 
+> The small files issue looks like something we should be tackling today
+> since writing out adjacent files would actually help us get bigger
+> transfers.
 
-Yup, ditto for ocfs2.
+ocfs2 can actually take significant advantage here, because we store
+small file data in-inode.  This would grow our in-inode size from ~3K to
+~15K or ~63K.  We'd actually have to do more work to start putting more
+than one inode in a block (thought that would be a promising avenue too
+once the coordination is solved generically.
 
 Joel
+
 
 -- 
 
