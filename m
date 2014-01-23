@@ -1,156 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f45.google.com (mail-bk0-f45.google.com [209.85.214.45])
-	by kanga.kvack.org (Postfix) with ESMTP id F29816B0031
-	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 14:18:55 -0500 (EST)
-Received: by mail-bk0-f45.google.com with SMTP id v16so586577bkz.4
-        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 11:18:55 -0800 (PST)
-Received: from mail-bk0-x22b.google.com (mail-bk0-x22b.google.com [2a00:1450:4008:c01::22b])
-        by mx.google.com with ESMTPS id dj8si11310249bkc.267.2014.01.23.11.18.54
+Received: from mail-bk0-f48.google.com (mail-bk0-f48.google.com [209.85.214.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D83F6B0031
+	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 14:23:20 -0500 (EST)
+Received: by mail-bk0-f48.google.com with SMTP id ej10so586401bkb.7
+        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 11:23:19 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id pj2si11316089bkb.195.2014.01.23.11.23.18
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 23 Jan 2014 11:18:54 -0800 (PST)
-Received: by mail-bk0-f43.google.com with SMTP id mx11so597289bkb.30
-        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 11:18:54 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 23 Jan 2014 11:23:18 -0800 (PST)
+Date: Thu, 23 Jan 2014 14:22:12 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 9/9] mm: keep page cache radix tree nodes in check
+Message-ID: <20140123192212.GW6963@cmpxchg.org>
+References: <1389377443-11755-1-git-send-email-hannes@cmpxchg.org>
+ <1389377443-11755-10-git-send-email-hannes@cmpxchg.org>
+ <20140113073947.GR1992@bbox>
+ <20140122184217.GD4407@cmpxchg.org>
+ <20140123052014.GC28732@bbox>
 MIME-Version: 1.0
-In-Reply-To: <20140123001806.GF31230@bbox>
-References: <1387459407-29342-1-git-send-email-ddstreet@ieee.org>
- <20140114001115.GU1992@bbox> <CALZtONCCrckuHxgHB=GQj0tHszLAYTZZLGzFTnRkj9pvxx0dyg@mail.gmail.com>
- <20140115054208.GL1992@bbox> <CALZtONCehE8Td2C2w-fOC596uD54y1-kyc3SiKABBEODMb+a7Q@mail.gmail.com>
- <CALZtONAaPCi8eUhSmdXSxWbeFFN=ChsfL9OurSZUsSPo-_gnfg@mail.gmail.com>
- <20140122123358.a65c42605513fc8466152801@linux-foundation.org> <20140123001806.GF31230@bbox>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Thu, 23 Jan 2014 14:18:33 -0500
-Message-ID: <CALZtONCQFwWFwc++MkTwcouTjMe4c69q2jXLrNG97qm31fk_FQ@mail.gmail.com>
-Subject: Re: [PATCH] mm/zswap: add writethrough option
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140123052014.GC28732@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjennings@variantweb.net>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Weijie Yang <weijie.yang@samsung.com>, Shirish Pargaonkar <spargaonkar@suse.com>, Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Bob Liu <bob.liu@oracle.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Jan 22, 2014 at 7:18 PM, Minchan Kim <minchan@kernel.org> wrote:
-> Hello all,
->
-> On Wed, Jan 22, 2014 at 12:33:58PM -0800, Andrew Morton wrote:
->> On Wed, 22 Jan 2014 09:19:58 -0500 Dan Streetman <ddstreet@ieee.org> wrote:
->>
->> > >>> > Acutally, I really don't know how much benefit we have that in-memory
->> > >>> > swap overcomming to the real storage but if you want, zRAM with dm-cache
->> > >>> > is another option rather than invent new wheel by "just having is better".
->> > >>>
->> > >>> I'm not sure if this patch is related to the zswap vs. zram discussions.  This
->> > >>> only adds the option of using writethrough to zswap.  It's a first
->> > >>> step to possibly
->> > >>> making zswap work more efficiently using writeback and/or writethrough
->> > >>> depending on
->> > >>> the system and conditions.
->> > >>
->> > >> The patch size is small. Okay I don't want to be a party-pooper
->> > >> but at least, I should say my thought for Andrew to help judging.
->> > >
->> > > Sure, I'm glad to have your suggestions.
->> >
->> > To give this a bump - Andrew do you have any concerns about this
->> > patch?  Or can you pick this up?
->>
->> I don't pay much attention to new features during the merge window,
->> preferring to shove them into a folder to look at later.  Often they
->> have bitrotted by the time -rc1 comes around.
->>
->> I'm not sure that this review discussion has played out yet - is
->> Minchan happy?
->
-> From the beginning, zswap is for reducing swap I/O but if workingset
-> overflows, it should write back rather than OOM with expecting a small
-> number of writeback would make the system happy because the high memory
-> pressure is temporal so soon most of workload would be hit in zswap
-> without further writeback.
->
-> If memory pressure continues and writeback steadily, it means zswap's
-> benefit would be mitigated, even worse by addding comp/decomp overhead.
-> In that case, it would be better to disable zswap, even.
->
-> Dan said writethrough supporting is first step to make zswap smart
-> but anybody didn't say further words to step into the smart and
-> what's the *real* workload want it and what's the *real* number from
-> that because dm-cache/zram might be a good fit.
-> (I don't intend to argue zram VS zswap. If the concern is solved by
-> existing solution, why should we invent new function and
-> have maintenace cost?) so it's very hard for me to judge that we should
-> accept and maintain it.
->
-> We need blueprint for the future and make an agreement on the
-> direction before merging this patch.
+On Thu, Jan 23, 2014 at 02:20:14PM +0900, Minchan Kim wrote:
+> On Wed, Jan 22, 2014 at 01:42:17PM -0500, Johannes Weiner wrote:
+> > On Mon, Jan 13, 2014 at 04:39:47PM +0900, Minchan Kim wrote:
+> > > On Fri, Jan 10, 2014 at 01:10:43PM -0500, Johannes Weiner wrote:
+> > > > @@ -123,9 +129,39 @@ static void page_cache_tree_delete(struct address_space *mapping,
+> > > >  		 * same time and miss a shadow entry.
+> > > >  		 */
+> > > >  		smp_wmb();
+> > > > -	} else
+> > > > -		radix_tree_delete(&mapping->page_tree, page->index);
+> > > > +	}
+> > > >  	mapping->nrpages--;
+> > > > +
+> > > > +	if (!node) {
+> > > > +		/* Clear direct pointer tags in root node */
+> > > > +		mapping->page_tree.gfp_mask &= __GFP_BITS_MASK;
+> > > > +		radix_tree_replace_slot(slot, shadow);
+> > > > +		return;
+> > > > +	}
+> > > > +
+> > > > +	/* Clear tree tags for the removed page */
+> > > > +	index = page->index;
+> > > > +	offset = index & RADIX_TREE_MAP_MASK;
+> > > > +	for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++) {
+> > > > +		if (test_bit(offset, node->tags[tag]))
+> > > > +			radix_tree_tag_clear(&mapping->page_tree, index, tag);
+> > > > +	}
+> > > > +
+> > > > +	/* Delete page, swap shadow entry */
+> > > > +	radix_tree_replace_slot(slot, shadow);
+> > > > +	node->count--;
+> > > > +	if (shadow)
+> > > > +		node->count += 1U << RADIX_TREE_COUNT_SHIFT;
+> > > 
+> > > Nitpick2:
+> > > It should be a function of workingset.c rather than exposing
+> > > RADIX_TREE_COUNT_SHIFT?
+> > > 
+> > > IMO, It would be better to provide some accessor functions here, too.
+> > 
+> > The shadow maintenance and node lifetime management are pretty
+> > interwoven to share branches and reduce instructions as these are
+> > common paths.  I don't see how this could result in cleaner code while
+> > keeping these advantages.
+> 
+> What I want is just put a inline accessor in somewhere like workingset.h
+> 
+> static inline void inc_shadow_entry(struct radix_tree_node *node)
+> {
+>     node->count += 1U << RADIX_TREE_COUNT_MASK;
+> }
+> 
+> So, anyone don't need to know that node->count upper bits present
+> count of shadow entry.
 
-Well, I believe there are some cases where writeback will be better
-and other cases where writethrough is better.  If we wait to add
-writethrough until I or someone shows they have a specific use case
-that performs better consistently with writethrough instead of
-writeback, then of course I can try to find it, but I'm just one guy,
-who has (relatively) very limited access to systems to test on.
-Whereas if writethrough is in the kernel, anyone who wants to can test
-to see if their workload performs better with writethrough.
+Okay, but then you have to cover lower bits as well, without explicit
+higher bit access it would be confusing to use the mask for lower
+bits.
 
-Additionally, I think that it's possible to improve performance by
-dynamically choosing wback or wthru - for example proactively wthru
-swapping while there is not much IO and no immediate need for free
-pages - the extra IO of wthru shouldn't really matter, but will help
-if the swapped out page is eventually dropped from the zswap pool to
-make room for more pages; while wback swapping makes more sense where
-there's an immediate need for free pages and/or a high IO load.  Now
-that zswap can significantly reduce the time to restore a swapped out
-page, proactive swapping makes (IMHO) much more sense.
+Something like the following?
 
-So I guess what I'm not clear on is, what level of blueprint do you
-want to see?  I think that any more work will require a certain amount
-of prototyping and testing, as well as a lot of feedback and
-discussion...and to me, it makes more sense to add now this relatively
-simple patch that, by default, changes nothing, so that more detailed
-discussions and patches can follow without having to include this.
+---
 
->
-> But code size is not much and Seth already gave an his Ack so I don't
-> want to hurt Dan any more(Sorry for Dan) and wasting my time so pass
-> the decision to others(ex, Seth and Bob).
-> If they insist on, I don't object any more.
-
-Well I certainly don't want to insist on anything, I'd like to address
-your concern about it.  If you would like to get deeper into
-discussions about future possibilities before adding this patch, then
-that's fine with me, as I don't think anyone is actually waiting to
-use the patch by itself.  But I also don't want to waste your time, as
-you said, with premature discussions before I've had a chance to do
-any more investigation/prototyping work for whatever might follow onto
-this.
-
-Since you've said twice now you don't object as long as Seth, Bob, et.
-al. are ok with the patch, I will assume you're still ok with adding
-it also, but if you do want to discuss the future work now please do
-let me know.
-
->
-> Sorry for bothering Dan.
-
-No bother at all.  Thanks for pushing me to clarify my thoughts!
-
->
-> Thanks.
->
->>
->> Please update the changelog so that it reflects the questions Minchan
->> asked (any reviewer question should be regarded as an inadequacy in
->> either the code commenting or the changelog - people shouldn't need to
->> ask the programmer why he did something!) and resend for -rc1?
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
-> --
-> Kind regards,
-> Minchan Kim
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 102e37bc82d5..b33171a3673c 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -266,6 +266,36 @@ bool workingset_refault(void *shadow);
+ void workingset_activation(struct page *page);
+ extern struct list_lru workingset_shadow_nodes;
+ 
++static inline unsigned int workingset_node_pages(struct radix_tree_node *node)
++{
++	return node->count & RADIX_TREE_COUNT_MASK;
++}
++
++static inline void workingset_node_pages_inc(struct radix_tree_node *node)
++{
++	return node->count++;
++}
++
++static inline void workingset_node_pages_dec(struct radix_tree_node *node)
++{
++	return node->count--;
++}
++
++static inline unsigned int workingset_node_shadows(struct radix_tree_node *node)
++{
++	return node->count >> RADIX_TREE_COUNT_SHIFT;
++}
++
++static inline void workingset_node_shadows_inc(struct radix_tree_node *node)
++{
++	node->count += 1U << RADIX_TREE_COUNT_SHIFT;
++}
++
++static inline void workingset_node_shadows_dec(struct radix_tree_node *node)
++{
++	node->count -= 1U << RADIX_TREE_COUNT_SHIFT;
++}
++
+ /* linux/mm/page_alloc.c */
+ extern unsigned long totalram_pages;
+ extern unsigned long totalreserve_pages;
+diff --git a/mm/filemap.c b/mm/filemap.c
+index a63e89484d18..ac7f62db9ccd 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -149,9 +149,9 @@ static void page_cache_tree_delete(struct address_space *mapping,
+ 
+ 	/* Delete page, swap shadow entry */
+ 	radix_tree_replace_slot(slot, shadow);
+-	node->count--;
++	workingset_node_pages_dec(node);
+ 	if (shadow)
+-		node->count += 1U << RADIX_TREE_COUNT_SHIFT;
++		workingset_node_shadow_inc(node);
+ 	else
+ 		if (__radix_tree_delete_node(&mapping->page_tree, node))
+ 			return;
+@@ -163,7 +163,7 @@ static void page_cache_tree_delete(struct address_space *mapping,
+ 	 * list_empty() test is safe as node->private_list is
+ 	 * protected by mapping->tree_lock.
+ 	 */
+-	if (!(node->count & RADIX_TREE_COUNT_MASK) &&
++	if (!workingset_node_pages(node) &&
+ 	    list_empty(&node->private_list)) {
+ 		node->private_data = mapping;
+ 		list_lru_add(&workingset_shadow_nodes, &node->private_list);
+@@ -531,12 +531,12 @@ static int page_cache_tree_insert(struct address_space *mapping,
+ 			*shadowp = p;
+ 		mapping->nrshadows--;
+ 		if (node)
+-			node->count -= 1U << RADIX_TREE_COUNT_SHIFT;
++			workingset_node_shadows_dec(node);
+ 	}
+ 	radix_tree_replace_slot(slot, page);
+ 	mapping->nrpages++;
+ 	if (node) {
+-		node->count++;
++		workingset_node_pages_inc(node);
+ 		/*
+ 		 * Don't track node that contains actual pages.
+ 		 *
+diff --git a/mm/truncate.c b/mm/truncate.c
+index c7a0d02a03eb..9cb54b7525dc 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -46,7 +46,7 @@ static void clear_exceptional_entry(struct address_space *mapping,
+ 	mapping->nrshadows--;
+ 	if (!node)
+ 		goto unlock;
+-	node->count -= 1U << RADIX_TREE_COUNT_SHIFT;
++	workingset_node_shadows_dec(node);
+ 	/*
+ 	 * Don't track node without shadow entries.
+ 	 *
+@@ -54,7 +54,7 @@ static void clear_exceptional_entry(struct address_space *mapping,
+ 	 * The list_empty() test is safe as node->private_list is
+ 	 * protected by mapping->tree_lock.
+ 	 */
+-	if (!(node->count >> RADIX_TREE_COUNT_SHIFT) &&
++	if (!workingset_node_shadows(node) &&
+ 	    !list_empty(&node->private_list))
+ 		list_lru_del(&workingset_shadow_nodes, &node->private_list);
+ 	__radix_tree_delete_node(&mapping->page_tree, node);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
