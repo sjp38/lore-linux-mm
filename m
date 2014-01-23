@@ -1,54 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
-	by kanga.kvack.org (Postfix) with ESMTP id BBBCB6B0035
-	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 03:36:03 -0500 (EST)
-Received: by mail-yk0-f177.google.com with SMTP id 19so1994913ykq.8
-        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 00:36:03 -0800 (PST)
+Received: from mail-yh0-f54.google.com (mail-yh0-f54.google.com [209.85.213.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 51C686B0035
+	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 04:01:42 -0500 (EST)
+Received: by mail-yh0-f54.google.com with SMTP id z6so597375yhz.13
+        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 01:01:42 -0800 (PST)
 Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:4])
-        by mx.google.com with ESMTP id t26si4569525yht.238.2014.01.23.00.36.01
+        by mx.google.com with ESMTP id g10si14599958yhn.9.2014.01.23.01.01.38
         for <linux-mm@kvack.org>;
-        Thu, 23 Jan 2014 00:36:02 -0800 (PST)
-Date: Thu, 23 Jan 2014 19:35:58 +1100
+        Thu, 23 Jan 2014 01:01:40 -0800 (PST)
+Date: Thu, 23 Jan 2014 20:01:34 +1100
 From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] really large storage sectors - going
- beyond 4096 bytes
-Message-ID: <20140123083558.GQ13997@dastard>
-References: <20140122151913.GY4963@suse.de>
- <1390410233.1198.7.camel@ret.masoncoding.com>
- <1390411300.2372.33.camel@dabdike.int.hansenpartnership.com>
- <1390413819.1198.20.camel@ret.masoncoding.com>
- <1390414439.2372.53.camel@dabdike.int.hansenpartnership.com>
- <52E00B28.3060609@redhat.com>
- <1390415703.2372.62.camel@dabdike.int.hansenpartnership.com>
- <52E0106B.5010604@redhat.com>
- <1390419019.2372.89.camel@dabdike.int.hansenpartnership.com>
- <20140122115002.bb5d01dee836b567a7aad157@linux-foundation.org>
+Subject: Re: [PATCH v5 00/22] Rewrite XIP code and add XIP support to ext4
+Message-ID: <20140123090133.GR13997@dastard>
+References: <cover.1389779961.git.matthew.r.wilcox@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140122115002.bb5d01dee836b567a7aad157@linux-foundation.org>
+In-Reply-To: <cover.1389779961.git.matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: James Bottomley <James.Bottomley@hansenpartnership.com>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, "linux-ide@vger.kernel.org" <linux-ide@vger.kernel.org>, Chris Mason <clm@fb.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mgorman@suse.de" <mgorman@suse.de>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, Ric Wheeler <rwheeler@redhat.com>
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
 
-On Wed, Jan 22, 2014 at 11:50:02AM -0800, Andrew Morton wrote:
-> On Wed, 22 Jan 2014 11:30:19 -0800 James Bottomley <James.Bottomley@hansenpartnership.com> wrote:
+On Wed, Jan 15, 2014 at 08:24:18PM -0500, Matthew Wilcox wrote:
+> This series of patches add support for XIP to ext4.  Unfortunately,
+> it turns out to be necessary to rewrite the existing XIP support code
+> first due to races that are unfixable in the current design.
 > 
-> > But this, I think, is the fundamental point for debate.  If we can pull
-> > alignment and other tricks to solve 99% of the problem is there a need
-> > for radical VM surgery?  Is there anything coming down the pipe in the
-> > future that may move the devices ahead of the tricks?
+> Since v4 of this patchset, I've improved the documentation, fixed a
+> couple of warnings that a newer version of gcc emitted, and fixed a
+> bug where we would read/write the wrong address for I/Os that were not
+> aligned to PAGE_SIZE.
 > 
-> I expect it would be relatively simple to get large blocksizes working
-> on powerpc with 64k PAGE_SIZE.  So before diving in and doing huge
-> amounts of work, perhaps someone can do a proof-of-concept on powerpc
-> (or ia64) with 64k blocksize.
+> I've dropped the PMD fault patch from this set since there are some
+> places where we would need to split a PMD page and there's no way to do
+> that right now.  In its place, I've added a patch which attempts to add
+> support for unwritten extents.  I'm still in two minds about this; on the
+> one hand, it's clearly a win for reads and writes.  On the other hand,
+> it adds a lot of complexity, and it probably isn't a win for pagefaults.
 
-Reality check: 64k block sizes on 64k page Linux machines has been
-used in production on XFS for at least 10 years. It's exactly the
-same case as 4k block size on 4k page size - one page, one buffer
-head, one filesystem block.
+I ran this through xfstests, but ext4 in default configuration fails
+too many of the tests with filesystem corruption and other cascading
+failures on the quick group tests (generic/013, generic/070,
+generic/075, generic/091, etc)  for me to be able to tell if adding
+MOUNT_OPTIONS="-o xip" adds any problems or not....
+
+XIP definitely caused generic/001 to fail, but other than that I
+can't really tell. Still, it looks like it functions enough to be
+able to add XFS support on top of. I'll get back to you with that ;)
 
 Cheers,
 
