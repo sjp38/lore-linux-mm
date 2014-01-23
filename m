@@ -1,49 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-gg0-f171.google.com (mail-gg0-f171.google.com [209.85.161.171])
-	by kanga.kvack.org (Postfix) with ESMTP id C305E6B0036
-	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 00:56:35 -0500 (EST)
-Received: by mail-gg0-f171.google.com with SMTP id q4so200502ggn.30
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 21:56:35 -0800 (PST)
-Received: from mail-gg0-x231.google.com (mail-gg0-x231.google.com [2607:f8b0:4002:c02::231])
-        by mx.google.com with ESMTPS id q69si14068977yhd.70.2014.01.22.21.56.34
+Received: from mail-bk0-f52.google.com (mail-bk0-f52.google.com [209.85.214.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 318FF6B0035
+	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 00:59:11 -0500 (EST)
+Received: by mail-bk0-f52.google.com with SMTP id e11so189258bkh.25
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 21:59:10 -0800 (PST)
+Received: from mail-la0-x22a.google.com (mail-la0-x22a.google.com [2a00:1450:4010:c03::22a])
+        by mx.google.com with ESMTPS id aq8si8912758bkc.329.2014.01.22.21.59.09
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 22 Jan 2014 21:56:34 -0800 (PST)
-Received: by mail-gg0-f177.google.com with SMTP id f4so198324ggn.8
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 21:56:34 -0800 (PST)
-Date: Wed, 22 Jan 2014 21:56:31 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, compaction: ignore pageblock skip when manually invoking
- compaction
-Message-ID: <alpine.DEB.2.02.1401222154220.7503@chino.kir.corp.google.com>
+        Wed, 22 Jan 2014 21:59:09 -0800 (PST)
+Received: by mail-la0-f42.google.com with SMTP id hr13so1122868lab.29
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 21:59:09 -0800 (PST)
+Date: Thu, 23 Jan 2014 09:59:06 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [Bug 67651] Bisected: Lots of fragmented mmaps cause gimp to
+ fail in 3.12 after exceeding vm_max_map_count
+Message-ID: <20140123055906.GS1574@moon>
+References: <20140122190816.GB4963@suse.de>
+ <52E04A21.3050101@mit.edu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52E04A21.3050101@mit.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Mel Gorman <mgorman@suse.de>, Pavel Emelyanov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, gnome@rvzt.net, drawoc@darkrefraction.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
 
-The cached pageblock hint should be ignored when triggering compaction
-through /proc/sys/vm/compact_memory so all eligible memory is isolated.  
-Manually invoking compaction is known to be expensive, there's no need to
-skip pageblocks based on heuristics (mainly for debugging).
+On Wed, Jan 22, 2014 at 02:45:53PM -0800, Andy Lutomirski wrote:
+> >     
+> >     Thus when user space application track memory changes now it can detect if
+> >     vma area is renewed.
+> 
+> Presumably some path is failing to set VM_SOFTDIRTY, thus preventing mms
+> from being merged.
+> 
+> That being said, this could cause vma blowups for programs that are
+> actually using this thing.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/compaction.c | 1 +
- 1 file changed, 1 insertion(+)
+Hi Andy, indeed, this could happen. The easiest way is to ignore softdirty bit
+when we're trying to merge vmas and set it one new merged. I think this should
+be correct. Once I finish I'll send the patch.
 
-diff --git a/mm/compaction.c b/mm/compaction.c
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1177,6 +1177,7 @@ static void compact_node(int nid)
- 	struct compact_control cc = {
- 		.order = -1,
- 		.sync = true,
-+		.ignore_skip_hint = true,
- 	};
- 
- 	__compact_pgdat(NODE_DATA(nid), &cc);
+	Cyrill
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
