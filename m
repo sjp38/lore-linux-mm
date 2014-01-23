@@ -1,132 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f44.google.com (mail-bk0-f44.google.com [209.85.214.44])
-	by kanga.kvack.org (Postfix) with ESMTP id CC47B6B0035
-	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 10:14:49 -0500 (EST)
-Received: by mail-bk0-f44.google.com with SMTP id mz12so422865bkb.3
-        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 07:14:49 -0800 (PST)
-Received: from mail-la0-x230.google.com (mail-la0-x230.google.com [2a00:1450:4010:c03::230])
-        by mx.google.com with ESMTPS id no1si10606074bkb.48.2014.01.23.07.14.48
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 23 Jan 2014 07:14:48 -0800 (PST)
-Received: by mail-la0-f48.google.com with SMTP id mc6so1536054lab.7
-        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 07:14:48 -0800 (PST)
-Date: Thu, 23 Jan 2014 19:14:45 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: [PATCH] mm: Ignore VM_SOFTDIRTY on VMA merging, v2
-Message-ID: <20140123151445.GX1574@moon>
-References: <20140122190816.GB4963@suse.de>
- <20140122191928.GQ1574@moon>
- <20140122223325.GA30637@moon>
- <20140123095541.GD4963@suse.de>
- <20140123103606.GU1574@moon>
- <20140123121555.GV1574@moon>
- <20140123125543.GW1574@moon>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140123125543.GW1574@moon>
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C5DE6B0031
+	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 10:47:58 -0500 (EST)
+Received: by mail-pb0-f53.google.com with SMTP id md12so1986708pbc.40
+        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 07:47:58 -0800 (PST)
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTP id ot3si14580558pac.224.2014.01.23.07.47.56
+        for <linux-mm@kvack.org>;
+        Thu, 23 Jan 2014 07:47:56 -0800 (PST)
+Message-ID: <1390492073.2372.118.camel@dabdike.int.hansenpartnership.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] really large storage sectors - going
+ beyond 4096 bytes
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Thu, 23 Jan 2014 07:47:53 -0800
+In-Reply-To: <20140123082734.GP13997@dastard>
+References: <52DF353D.6050300@redhat.com> <20140122093435.GS4963@suse.de>
+	 <52DFD168.8080001@redhat.com> <20140122143452.GW4963@suse.de>
+	 <52DFDCA6.1050204@redhat.com> <20140122151913.GY4963@suse.de>
+	 <1390410233.1198.7.camel@ret.masoncoding.com>
+	 <1390411300.2372.33.camel@dabdike.int.hansenpartnership.com>
+	 <1390413819.1198.20.camel@ret.masoncoding.com>
+	 <1390414439.2372.53.camel@dabdike.int.hansenpartnership.com>
+	 <20140123082734.GP13997@dastard>
+Content-Type: text/plain; charset="ISO-8859-15"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@parallels.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, gnome@rvzt.net, grawoc@darkrefraction.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Chris Mason <clm@fb.com>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-ide@vger.kernel.org" <linux-ide@vger.kernel.org>, "mgorman@suse.de" <mgorman@suse.de>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, "rwheeler@redhat.com" <rwheeler@redhat.com>
 
-On Thu, Jan 23, 2014 at 04:55:43PM +0400, Cyrill Gorcunov wrote:
-> On Thu, Jan 23, 2014 at 04:15:55PM +0400, Cyrill Gorcunov wrote:
+On Thu, 2014-01-23 at 19:27 +1100, Dave Chinner wrote:
+> On Wed, Jan 22, 2014 at 10:13:59AM -0800, James Bottomley wrote:
+> > On Wed, 2014-01-22 at 18:02 +0000, Chris Mason wrote:
+> > > On Wed, 2014-01-22 at 09:21 -0800, James Bottomley wrote:
+> > > > On Wed, 2014-01-22 at 17:02 +0000, Chris Mason wrote:
 > > > 
-> > > Thanks a lot, Mel! I'm testing the patch as well (manually though :).
-> > > I'll send the final fix today.
+> > > [ I like big sectors and I cannot lie ]
 > > 
-> > The patch below should fix the problem. I would really appreaciate
-> > some additional testing.
+> > I think I might be sceptical, but I don't think that's showing in my
+> > concerns ...
+> > 
+> > > > > I really think that if we want to make progress on this one, we need
+> > > > > code and someone that owns it.  Nick's work was impressive, but it was
+> > > > > mostly there for getting rid of buffer heads.  If we have a device that
+> > > > > needs it and someone working to enable that device, we'll go forward
+> > > > > much faster.
+> > > > 
+> > > > Do we even need to do that (eliminate buffer heads)?  We cope with 4k
+> > > > sector only devices just fine today because the bh mechanisms now
+> > > > operate on top of the page cache and can do the RMW necessary to update
+> > > > a bh in the page cache itself which allows us to do only 4k chunked
+> > > > writes, so we could keep the bh system and just alter the granularity of
+> > > > the page cache.
+> > > > 
+> > > 
+> > > We're likely to have people mixing 4K drives and <fill in some other
+> > > size here> on the same box.  We could just go with the biggest size and
+> > > use the existing bh code for the sub-pagesized blocks, but I really
+> > > hesitate to change VM fundamentals for this.
+> > 
+> > If the page cache had a variable granularity per device, that would cope
+> > with this.  It's the variable granularity that's the VM problem.
+> > 
+> > > From a pure code point of view, it may be less work to change it once in
+> > > the VM.  But from an overall system impact point of view, it's a big
+> > > change in how the system behaves just for filesystem metadata.
+> > 
+> > Agreed, but only if we don't do RMW in the buffer cache ... which may be
+> > a good reason to keep it.
+> > 
+> > > > The other question is if the drive does RMW between 4k and whatever its
+> > > > physical sector size, do we need to do anything to take advantage of
+> > > > it ... as in what would altering the granularity of the page cache buy
+> > > > us?
+> > > 
+> > > The real benefit is when and how the reads get scheduled.  We're able to
+> > > do a much better job pipelining the reads, controlling our caches and
+> > > reducing write latency by having the reads done up in the OS instead of
+> > > the drive.
+> > 
+> > I agree with all of that, but my question is still can we do this by
+> > propagating alignment and chunk size information (i.e. the physical
+> > sector size) like we do today.  If the FS knows the optimal I/O patterns
+> > and tries to follow them, the odd cockup won't impact performance
+> > dramatically.  The real question is can the FS make use of this layout
+> > information *without* changing the page cache granularity?  Only if you
+> > answer me "no" to this do I think we need to worry about changing page
+> > cache granularity.
 > 
-> Forgot to refresh the patch, sorry.
-> ---
+> We already do this today.
+> 
+> The problem is that we are limited by the page cache assumption that
+> the block device/filesystem never need to manage multiple pages as
+> an atomic unit of change. Hence we can't use the generic
+> infrastructure as it stands to handle block/sector sizes larger than
+> a page size...
 
-I think setting up dirty bit inside vma_merge() body is a big hammer
-which should not be used, but it's up to caller of vma_merge() to figure
-out if dirty bit should be set or not if merge successed. Thus softdirty
-vma bit should be (and it already is) set at the end of mmap_region and do_brk
-routines. So patch could be simplified (below). Pavel, what do you think?
----
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: [PATCH] mm: Ignore VM_SOFTDIRTY on VMA merging, v2
+If the compound page infrastructure exists today and is usable for this,
+what else do we need to do? ... because if it's a couple of trivial
+changes and a few minor patches to filesystems to take advantage of it,
+we might as well do it anyway.  I was only objecting on the grounds that
+the last time we looked at it, it was major VM surgery.  Can someone
+give a summary of how far we are away from being able to do this with
+the VM system today and what extra work is needed (and how big is this
+piece of work)?
 
-VM_SOFTDIRTY bit affects vma merge routine: if two VMAs has all
-bits in vm_flags matched except dirty bit the kernel can't longer
-merge them and this forces the kernel to generate new VMAs instead.
+James
 
-It finally may lead to the situation when userspace application
-reaches vm.max_map_count limit and get crashed in worse case
-
- | (gimp:11768): GLib-ERROR **: gmem.c:110: failed to allocate 4096 bytes
- |
- | (file-tiff-load:12038): LibGimpBase-WARNING **: file-tiff-load: gimp_wire_read(): error
- | xinit: connection to X server lost
- |
- | waiting for X server to shut down
- | /usr/lib64/gimp/2.0/plug-ins/file-tiff-load terminated: Hangup
- | /usr/lib64/gimp/2.0/plug-ins/script-fu terminated: Hangup
- | /usr/lib64/gimp/2.0/plug-ins/script-fu terminated: Hangup
-
-https://bugzilla.kernel.org/show_bug.cgi?id=67651
-https://bugzilla.gnome.org/show_bug.cgi?id=719619#c0
-
-Initial problem came from missed VM_SOFTDIRTY in do_brk() routine
-but even if we would set up VM_SOFTDIRTY here, there is still a way to
-prevent VMAs from merging: one can call
-
- | echo 4 > /proc/$PID/clear_refs
-
-and clear all VM_SOFTDIRTY over all VMAs presented in memory map,
-then new do_brk() will try to extend old VMA and finds that dirty
-bit doesn't match thus new VMA will be generated.
-
-As discussed to Pavel, the right approach should be to ignore
-VM_SOFTDIRTY bit when we're trying to merge VMAs and if merge
-successed we mark extended VMA with dirty bit where needed.
-
-v2: Don't mark VMA as dirty inside vma_merge() body, it's up
-    to calling code to set up dirty bit where needed.
-
-Reported-by: Mel Gorman <mgorman@suse.de>
-Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
-CC: Pavel Emelyanov <xemul@parallels.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
----
- mm/mmap.c |   12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
-
-Index: linux-2.6.git/mm/mmap.c
-===================================================================
---- linux-2.6.git.orig/mm/mmap.c
-+++ linux-2.6.git/mm/mmap.c
-@@ -893,7 +893,15 @@ again:			remove_next = 1 + (end > next->
- static inline int is_mergeable_vma(struct vm_area_struct *vma,
- 			struct file *file, unsigned long vm_flags)
- {
--	if (vma->vm_flags ^ vm_flags)
-+	/*
-+	 * VM_SOFTDIRTY should not prevent from VMA merging, if we
-+	 * match the flags but dirty bit -- the caller should mark
-+	 * merged VMA as dirty. If dirty bit won't be excluded from
-+	 * comparison, we increase pressue on the memory system forcing
-+	 * the kernel to generate new VMAs when old one could be
-+	 * extended instead.
-+	 */
-+	if ((vma->vm_flags ^ vm_flags) & ~VM_SOFTDIRTY)
- 		return 0;
- 	if (vma->vm_file != file)
- 		return 0;
-@@ -1082,7 +1090,7 @@ static int anon_vma_compatible(struct vm
- 	return a->vm_end == b->vm_start &&
- 		mpol_equal(vma_policy(a), vma_policy(b)) &&
- 		a->vm_file == b->vm_file &&
--		!((a->vm_flags ^ b->vm_flags) & ~(VM_READ|VM_WRITE|VM_EXEC)) &&
-+		!((a->vm_flags ^ b->vm_flags) & ~(VM_READ|VM_WRITE|VM_EXEC|VM_SOFTDIRTY)) &&
- 		b->vm_pgoff == a->vm_pgoff + ((b->vm_start - a->vm_start) >> PAGE_SHIFT);
- }
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
