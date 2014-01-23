@@ -1,60 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f54.google.com (mail-yh0-f54.google.com [209.85.213.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 51C686B0035
-	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 04:01:42 -0500 (EST)
-Received: by mail-yh0-f54.google.com with SMTP id z6so597375yhz.13
-        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 01:01:42 -0800 (PST)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:4])
-        by mx.google.com with ESMTP id g10si14599958yhn.9.2014.01.23.01.01.38
-        for <linux-mm@kvack.org>;
-        Thu, 23 Jan 2014 01:01:40 -0800 (PST)
-Date: Thu, 23 Jan 2014 20:01:34 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v5 00/22] Rewrite XIP code and add XIP support to ext4
-Message-ID: <20140123090133.GR13997@dastard>
-References: <cover.1389779961.git.matthew.r.wilcox@intel.com>
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id BFCA46B0035
+	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 04:55:47 -0500 (EST)
+Received: by mail-we0-f181.google.com with SMTP id u56so882112wes.26
+        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 01:55:47 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id la8si8715995wjb.94.2014.01.23.01.55.46
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 23 Jan 2014 01:55:46 -0800 (PST)
+Date: Thu, 23 Jan 2014 09:55:41 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [Bug 67651] Bisected: Lots of fragmented mmaps cause gimp to
+ fail in 3.12 after exceeding vm_max_map_count
+Message-ID: <20140123095541.GD4963@suse.de>
+References: <20140122190816.GB4963@suse.de>
+ <20140122191928.GQ1574@moon>
+ <20140122223325.GA30637@moon>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <cover.1389779961.git.matthew.r.wilcox@intel.com>
+In-Reply-To: <20140122223325.GA30637@moon>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: Pavel Emelyanov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, gnome@rvzt.net, drawoc@darkrefraction.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
 
-On Wed, Jan 15, 2014 at 08:24:18PM -0500, Matthew Wilcox wrote:
-> This series of patches add support for XIP to ext4.  Unfortunately,
-> it turns out to be necessary to rewrite the existing XIP support code
-> first due to races that are unfixable in the current design.
+On Thu, Jan 23, 2014 at 02:33:25AM +0400, Cyrill Gorcunov wrote:
+> On Wed, Jan 22, 2014 at 11:19:28PM +0400, Cyrill Gorcunov wrote:
+> > > commit. Test case was simple -- try and open the large file described in
+> > > the bug. I did not investigate the patch itself as I'm just reporting
+> > > the results of the bisection. If I had to guess, I'd say that VMA
+> > > merging has been affected.
+> > 
+> > Thanks a lot for report, Mel! I'm investigating...
 > 
-> Since v4 of this patchset, I've improved the documentation, fixed a
-> couple of warnings that a newer version of gcc emitted, and fixed a
-> bug where we would read/write the wrong address for I/Os that were not
-> aligned to PAGE_SIZE.
-> 
-> I've dropped the PMD fault patch from this set since there are some
-> places where we would need to split a PMD page and there's no way to do
-> that right now.  In its place, I've added a patch which attempts to add
-> support for unwritten extents.  I'm still in two minds about this; on the
-> one hand, it's clearly a win for reads and writes.  On the other hand,
-> it adds a lot of complexity, and it probably isn't a win for pagefaults.
+> Mel, here is a quick fix for bring merging back (just in case if you
+> have a minute to test it and confirm the merging were affected). It
+> seems I've lost setting up vma-softdirty bit somewhere and procedure
+> which tests vma flags mathcing fails, will continue investigating/testing
+> tomorrow.
 
-I ran this through xfstests, but ext4 in default configuration fails
-too many of the tests with filesystem corruption and other cascading
-failures on the quick group tests (generic/013, generic/070,
-generic/075, generic/091, etc)  for me to be able to tell if adding
-MOUNT_OPTIONS="-o xip" adds any problems or not....
+The test case passes with this patch applied to 3.13 so that appears
+to confirm that this is related to VM_SOFTDIRTY preventing merges.
+Unfortunately I did not have slabinfo tracking enabled to double check
+the number of vm_area_structs in teh system.
 
-XIP definitely caused generic/001 to fail, but other than that I
-can't really tell. Still, it looks like it functions enough to be
-able to add XFS support on top of. I'll get back to you with that ;)
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
