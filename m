@@ -1,58 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F50E6B0035
-	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 21:23:44 -0500 (EST)
-Received: by mail-ie0-f178.google.com with SMTP id x13so459167ief.23
-        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 18:23:43 -0800 (PST)
+Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id D015F6B0035
+	for <linux-mm@kvack.org>; Wed, 22 Jan 2014 21:38:56 -0500 (EST)
+Received: by mail-ie0-f169.google.com with SMTP id tq11so502333ieb.0
+        for <linux-mm@kvack.org>; Wed, 22 Jan 2014 18:38:56 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id v3si1467150ice.85.2014.01.22.18.23.42
+        by mx.google.com with ESMTP id n9si17283526iga.52.2014.01.22.18.38.54
         for <linux-mm@kvack.org>;
-        Wed, 22 Jan 2014 18:23:43 -0800 (PST)
-Date: Wed, 22 Jan 2014 20:52:41 -0500
+        Wed, 22 Jan 2014 18:38:55 -0800 (PST)
+Date: Wed, 22 Jan 2014 21:21:47 -0500
 From: Dave Jones <davej@redhat.com>
 Subject: Re: mm: BUG: Bad rss-counter state
-Message-ID: <20140123015241.GA947@redhat.com>
+Message-ID: <20140123022147.GA3221@redhat.com>
 References: <52E06B6F.90808@oracle.com>
  <alpine.DEB.2.02.1401221735450.26172@chino.kir.corp.google.com>
+ <20140123015241.GA947@redhat.com>
+ <52E07B63.1070400@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1401221735450.26172@chino.kir.corp.google.com>
+In-Reply-To: <52E07B63.1070400@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, khlebnikov@openvz.org, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: David Rientjes <rientjes@google.com>, khlebnikov@openvz.org, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jan 22, 2014 at 05:39:25PM -0800, David Rientjes wrote:
- 
- > > While fuzzing with trinity running inside a KVM tools guest using latest -next
- > > kernel,
- > > I've stumbled on a "mm: BUG: Bad rss-counter state" error which was pretty
- > > non-obvious
- > > in the mix of the kernel spew (why?).
- > > 
+On Wed, Jan 22, 2014 at 09:16:03PM -0500, Sasha Levin wrote:
+ > On 01/22/2014 08:52 PM, Dave Jones wrote:
+ > > Sasha, is this the current git tree version of Trinity ?
+ > > (I'm wondering if yesterdays munmap changes might be tickling this bug).
  > 
- > It's not a fatal condition and there's only a few possible stack traces 
- > that could be emitted during the exit() path.  I don't see how we could 
- > make it more visible other than its log-level which is already KERN_ALERT.
- > 
- > > I've added a small BUG() after the printk() in check_mm(), and here's the full
- > > output:
- > > 
- > 
- > Worst place to add it :)  At line 562 of kernel/fork.c in linux-next 
- > you're going to hit BUG() when there may be other counters that are also 
- > bad and they don't get printed.  
- > 
- > > [  318.334905] BUG: Bad rss-counter state mm:ffff8801e6dec000 idx:0 val:1
- > 
- > So our mm has a non-zero MM_FILEPAGES count, but there's nothing that was 
- > cited that would tell us what that is so there's not much to go on, unless 
- > someone already recognizes this as another issue.  Is this reproducible on 
- > 3.13 or only on linux-next?
+ > Ah yes, my tree has the munmap patch from yesterday, which would explain why we
+ > started seeing this issue just now.
 
-Sasha, is this the current git tree version of Trinity ?
-(I'm wondering if yesterdays munmap changes might be tickling this bug).
+So that change is basically allowing trinity to munmap just part of a prior mmap.
+So it may do things like..
+
+mmap   |--------------|
+
+munmap |----XXX-------|
+
+munmap |------XXX-----|
+
+ie, it might try unmapping some pages more than once, and may even overlap prior munmaps.
+
+until yesterdays change, it would only munmap the entire mmap.
+
+There's no easy way to tell exactly what happened without a trinity log of course.
 
 	Dave
 
