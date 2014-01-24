@@ -1,59 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f176.google.com (mail-ea0-f176.google.com [209.85.215.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 20AA16B0036
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 18:27:01 -0500 (EST)
-Received: by mail-ea0-f176.google.com with SMTP id h14so1271590eaj.7
-        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 15:27:00 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id 43si4834926eeh.94.2014.01.24.15.26.58
-        for <linux-mm@kvack.org>;
-        Fri, 24 Jan 2014 15:26:59 -0800 (PST)
-Message-ID: <52E2F6B7.3050304@redhat.com>
-Date: Fri, 24 Jan 2014 18:26:47 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-oa0-f43.google.com (mail-oa0-f43.google.com [209.85.219.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CB4D6B0031
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 18:29:25 -0500 (EST)
+Received: by mail-oa0-f43.google.com with SMTP id h16so4544126oag.30
+        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 15:29:25 -0800 (PST)
+Received: from e31.co.us.ibm.com (e31.co.us.ibm.com. [32.97.110.149])
+        by mx.google.com with ESMTPS id iz10si1310641obb.104.2014.01.24.15.29.23
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 24 Jan 2014 15:29:24 -0800 (PST)
+Received: from /spool/local
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Fri, 24 Jan 2014 16:29:23 -0700
+Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 0E41A1FF0027
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 16:28:48 -0700 (MST)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by b03cxnp08025.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0ONTKfV2490738
+	for <linux-mm@kvack.org>; Sat, 25 Jan 2014 00:29:20 +0100
+Received: from d03av02.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0ONTK0d028531
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 16:29:20 -0700
+Date: Fri, 24 Jan 2014 15:29:02 -0800
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
+ no local memory
+Message-ID: <20140124232902.GB30361@linux.vnet.ibm.com>
+References: <20140107132100.5b5ad198@kryten>
+ <20140107074136.GA4011@lge.com>
+ <52dce7fe.e5e6420a.5ff6.ffff84a0SMTPIN_ADDED_BROKEN@mx.google.com>
+ <alpine.DEB.2.10.1401201612340.28048@nuc>
+ <52e1d960.2715420a.3569.1013SMTPIN_ADDED_BROKEN@mx.google.com>
+ <52e1da8f.86f7440a.120f.25f3SMTPIN_ADDED_BROKEN@mx.google.com>
+ <alpine.DEB.2.10.1401240946530.12886@nuc>
+ <alpine.DEB.2.02.1401241301120.10968@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [patch 0/2] mm: reduce reclaim stalls with heavy anon and dirty
- cache
-References: <1390600984-13925-1-git-send-email-hannes@cmpxchg.org> <20140124143003.2629e9c2c8c2595e805c8c25@linux-foundation.org> <20140124225156.GG4407@cmpxchg.org>
-In-Reply-To: <20140124225156.GG4407@cmpxchg.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1401241301120.10968@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Christoph Lameter <cl@linux.com>, penberg@kernel.org, linux-mm@kvack.org, Han Pingtian <hanpt@linux.vnet.ibm.com>, paulus@samba.org, Anton Blanchard <anton@samba.org>, mpm@selenic.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On 01/24/2014 05:51 PM, Johannes Weiner wrote:
-> On Fri, Jan 24, 2014 at 02:30:03PM -0800, Andrew Morton wrote:
->> On Fri, 24 Jan 2014 17:03:02 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
->>
->>> Tejun reported stuttering and latency spikes on a system where random
->>> tasks would enter direct reclaim and get stuck on dirty pages.  Around
->>> 50% of memory was occupied by tmpfs backed by an SSD, and another disk
->>> (rotating) was reading and writing at max speed to shrink a partition.
->>
->> Do you think this is serious enough to squeeze these into 3.14?
+On 24.01.2014 [13:03:13 -0800], David Rientjes wrote:
+> On Fri, 24 Jan 2014, Christoph Lameter wrote:
 > 
-> We have been biasing towards cache reclaim at least as far back as the
-> LRU split and we always considered anon dirtyable, so it's not really
-> a *new* problem.  And there is a chance of regressing write bandwidth
-> for certain workloads by effectively shrinking their dirty limit -
-> although that is easily fixed by changing dirty_ratio.
+> > On Fri, 24 Jan 2014, Wanpeng Li wrote:
+> > 
+> > > >
+> > > >diff --git a/mm/slub.c b/mm/slub.c
+> > > >index 545a170..a1c6040 100644
+> > > >--- a/mm/slub.c
+> > > >+++ b/mm/slub.c
+> > > >@@ -1700,6 +1700,9 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
+> > > > 	void *object;
+> > > >	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
+> > 
+> > This needs to be numa_mem_id() and numa_mem_id would need to be
+> > consistently used.
+> > 
+> > > >
+> > > >+	if (!node_present_pages(searchnode))
+> > > >+		searchnode = numa_mem_id();
+> > 
+> > Probably wont need that?
+> > 
 > 
-> On the other hand, the stuttering is pretty nasty (could reproduce it
-> locally too) and the workload is not exactly esoteric.  Plus, I'm not
-> sure if waiting will increase the test exposure.
-> 
-> So 3.14 would work for me, unless Mel and Rik have concerns.
+> I think the problem is a memoryless node being used for kmalloc_node() so 
+> we need to decide where to enforce node_present_pages().  __slab_alloc() 
+> seems like the best candidate when !node_match().
 
-3.14 would be fine, indeed.
+Actually, this is effectively what Anton's patch does, except with
+Wanpeng's adjustment to use node_present_pages(). Does that seem
+sufficient to you?
 
-On the other hand, if there are enough user reports of the stuttering
-problem on older kernels, a -stable backport could be appropriate
-too...
+It does only cover the memoryless node case (not the exhausted node
+case), but I think that shouldn't block the fix (and it does fix the
+issue we've run across in our testing).
 
--- 
-All rights reversed
+-Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
