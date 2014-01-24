@@ -1,58 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f49.google.com (mail-bk0-f49.google.com [209.85.214.49])
-	by kanga.kvack.org (Postfix) with ESMTP id EEFB96B0031
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 10:50:22 -0500 (EST)
-Received: by mail-bk0-f49.google.com with SMTP id v15so1237422bkz.36
-        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 07:50:22 -0800 (PST)
-Received: from qmta13.emeryville.ca.mail.comcast.net (qmta13.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:243])
-        by mx.google.com with ESMTP id qd4si3328674bkb.293.2014.01.24.07.50.20
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 3767A6B0031
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 12:03:57 -0500 (EST)
+Received: by mail-pb0-f54.google.com with SMTP id uo5so3461737pbc.41
+        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 09:03:56 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id i3si1808090pbe.199.2014.01.24.09.03.54
         for <linux-mm@kvack.org>;
-        Fri, 24 Jan 2014 07:50:21 -0800 (PST)
-Date: Fri, 24 Jan 2014 09:50:17 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
- no local memory
-In-Reply-To: <52e1da8f.86f7440a.120f.25f3SMTPIN_ADDED_BROKEN@mx.google.com>
-Message-ID: <alpine.DEB.2.10.1401240946530.12886@nuc>
-References: <20140107132100.5b5ad198@kryten> <20140107074136.GA4011@lge.com> <52dce7fe.e5e6420a.5ff6.ffff84a0SMTPIN_ADDED_BROKEN@mx.google.com> <alpine.DEB.2.10.1401201612340.28048@nuc> <52e1d960.2715420a.3569.1013SMTPIN_ADDED_BROKEN@mx.google.com>
- <52e1da8f.86f7440a.120f.25f3SMTPIN_ADDED_BROKEN@mx.google.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Fri, 24 Jan 2014 09:03:55 -0800 (PST)
+Subject: Re: [PATCH v9 6/6] MCS Lock: Allow architecture specific asm files
+ to be used for contended case
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <20140122183539.GM30183@twins.programming.kicks-ass.net>
+References: <cover.1390320729.git.tim.c.chen@linux.intel.com>
+	 <1390347382.3138.67.camel@schen9-DESK>
+	 <20140122183539.GM30183@twins.programming.kicks-ass.net>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 24 Jan 2014 09:03:49 -0800
+Message-ID: <1390583029.3138.78.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, benh@kernel.crashing.org, paulus@samba.org, penberg@kernel.org, mpm@selenic.com, nacc@linux.vnet.ibm.com, Anton Blanchard <anton@samba.org>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Han Pingtian <hanpt@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
 
-On Fri, 24 Jan 2014, Wanpeng Li wrote:
+On Wed, 2014-01-22 at 19:35 +0100, Peter Zijlstra wrote:
+> On Tue, Jan 21, 2014 at 03:36:22PM -0800, Tim Chen wrote:
+> > diff --git a/arch/powerpc/include/asm/Kbuild b/arch/powerpc/include/asm/Kbuild
+> > index 8b19a80..24027ce 100644
+> > --- a/arch/powerpc/include/asm/Kbuild
+> > +++ b/arch/powerpc/include/asm/Kbuild
+> > @@ -1,6 +1,8 @@
+> >  
+> > +generic-y += +=
+> >  generic-y += clkdev.h
+> > +generic-y += mcs_spinlock.h
+> >  generic-y += preempt.h
+> >  generic-y += rwsem.h
+> >  generic-y += trace_clock.h
+> > -generic-y += vtime.h
+> > +generic-y += vtime.hgeneric-y
+> 
+> Something went funny there, fixed it.
 
-> >
-> >diff --git a/mm/slub.c b/mm/slub.c
-> >index 545a170..a1c6040 100644
-> >--- a/mm/slub.c
-> >+++ b/mm/slub.c
-> >@@ -1700,6 +1700,9 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
-> > 	void *object;
-> >	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
+Thanks for fixing it.  I assume Peter you have picked up
+the patch series and merged them?
 
-This needs to be numa_mem_id() and numa_mem_id would need to be
-consistently used.
-
-> >
-> >+	if (!node_present_pages(searchnode))
-> >+		searchnode = numa_mem_id();
-
-Probably wont need that?
-
-> >+
-> >	object = get_partial_node(s, get_node(s, searchnode), c, flags);
-> >	if (object || node != NUMA_NO_NODE)
-> >		return object;
-> >
->
-> The bug still can't be fixed w/ this patch.
-
-Some more detail would be good. If memory is requested from a particular
-node then it would be best to use one that has memory. Callers also may
-have used numa_node_id() and that also would need to be fixed.
+Tim
 
 
 --
