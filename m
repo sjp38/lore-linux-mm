@@ -1,138 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f171.google.com (mail-yk0-f171.google.com [209.85.160.171])
-	by kanga.kvack.org (Postfix) with ESMTP id D6A506B0031
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 02:54:54 -0500 (EST)
-Received: by mail-yk0-f171.google.com with SMTP id 142so4559691ykq.2
-        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 23:54:54 -0800 (PST)
-Received: from comal.ext.ti.com (comal.ext.ti.com. [198.47.26.152])
-        by mx.google.com with ESMTPS id g10si89801yhn.9.2014.01.23.23.54.53
+Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
+	by kanga.kvack.org (Postfix) with ESMTP id C02DD6B0031
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 05:14:21 -0500 (EST)
+Received: by mail-we0-f169.google.com with SMTP id u57so2455798wes.28
+        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 02:14:21 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e3si268867wja.28.2014.01.24.02.14.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 23 Jan 2014 23:54:53 -0800 (PST)
-Message-ID: <52E21C3B.50107@ti.com>
-Date: Fri, 24 Jan 2014 02:54:35 -0500
-From: Santosh Shilimkar <santosh.shilimkar@ti.com>
+        Fri, 24 Jan 2014 02:14:20 -0800 (PST)
+Date: Fri, 24 Jan 2014 10:14:16 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: Ignore VM_SOFTDIRTY on VMA merging, v2
+Message-ID: <20140124101416.GP4963@suse.de>
+References: <20140122190816.GB4963@suse.de>
+ <20140122191928.GQ1574@moon>
+ <20140122223325.GA30637@moon>
+ <20140123095541.GD4963@suse.de>
+ <20140123103606.GU1574@moon>
+ <20140123121555.GV1574@moon>
+ <20140123125543.GW1574@moon>
+ <20140123151445.GX1574@moon>
 MIME-Version: 1.0
-Subject: Re: Panic on 8-node system in memblock_virt_alloc_try_nid()
-References: <52E19C7D.7050603@intel.com> <CAE9FiQX9kTxnaqpWNgg3dUzr7+60YCrEx3q3xxO-G1n6z64xVQ@mail.gmail.com> <52E20A56.1000507@ti.com> <52E20E98.7010703@ti.com> <CAE9FiQWRkP1Hir6UFuPRGu6bXNd_SHonuaC-MG1UD-tSeE0teQ@mail.gmail.com> <52E214C7.9050309@ti.com> <CAE9FiQXEYb5bkLTS9oMUWB_tQ=2-0EUeRDb0DHPS_YH83CC7nA@mail.gmail.com>
-In-Reply-To: <CAE9FiQXEYb5bkLTS9oMUWB_tQ=2-0EUeRDb0DHPS_YH83CC7nA@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140123151445.GX1574@moon>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@elte.hu>, Grygorii Strashko <grygorii.strashko@ti.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: Pavel Emelyanov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, gnome@rvzt.net, grawoc@darkrefraction.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
 
-On Friday 24 January 2014 02:46 AM, Yinghai Lu wrote:
->> OK. So we need '__alloc_bootmem_low()' equivalent memblock API. We will try
->> > to come up with a patch for the same. Thanks for inputs.
-> Yes,
+On Thu, Jan 23, 2014 at 07:14:45PM +0400, Cyrill Gorcunov wrote:
+> On Thu, Jan 23, 2014 at 04:55:43PM +0400, Cyrill Gorcunov wrote:
+> > On Thu, Jan 23, 2014 at 04:15:55PM +0400, Cyrill Gorcunov wrote:
+> > > > 
+> > > > Thanks a lot, Mel! I'm testing the patch as well (manually though :).
+> > > > I'll send the final fix today.
+> > > 
+> > > The patch below should fix the problem. I would really appreaciate
+> > > some additional testing.
+> > 
+> > Forgot to refresh the patch, sorry.
+> > ---
 > 
-> Andrew, can you try attached two patches in your setup?
-> 
-> Assume your system does not have intel iommu support?
-> 
-You are fast.. I was cooking up very similar patch as yours.
-Thanks for help. Its should mostly fix the issue on Andrew's
-box after the revert of commit 5b6e529521
- 
-> 
+> I think setting up dirty bit inside vma_merge() body is a big hammer
+> which should not be used, but it's up to caller of vma_merge() to figure
+> out if dirty bit should be set or not if merge successed. Thus softdirty
+> vma bit should be (and it already is) set at the end of mmap_region and do_brk
+> routines. So patch could be simplified (below). Pavel, what do you think?
 > ---
->  arch/arm/kernel/setup.c |    2 +-
->  include/linux/bootmem.h |   37 +++++++++++++++++++++++++++++++++++++
->  lib/swiotlb.c           |    4 ++--
->  3 files changed, 40 insertions(+), 3 deletions(-)
+> From: Cyrill Gorcunov <gorcunov@gmail.com>
+> Subject: [PATCH] mm: Ignore VM_SOFTDIRTY on VMA merging, v2
 > 
-> Index: linux-2.6/include/linux/bootmem.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/bootmem.h
-> +++ linux-2.6/include/linux/bootmem.h
-> @@ -175,6 +175,27 @@ static inline void * __init memblock_vir
->  						    NUMA_NO_NODE);
->  }
->  
-> +#ifndef ARCH_LOW_ADDRESS_LIMIT
-> +#define ARCH_LOW_ADDRESS_LIMIT  0xffffffffUL
-> +#endif
-> +
-> +static inline void * __init memblock_virt_alloc_low(
-> +                                        phys_addr_t size, phys_addr_t align)
-> +{
-> +        return memblock_virt_alloc_try_nid(size, align,
-> +						   BOOTMEM_LOW_LIMIT,
-> +						   ARCH_LOW_ADDRESS_LIMIT,
-> +						   NUMA_NO_NODE);
-> +}
-> +static inline void * __init memblock_virt_alloc_low_nopanic(
-> +                                        phys_addr_t size, phys_addr_t align)
-> +{
-> +        return memblock_virt_alloc_try_nid_nopanic(size, align,
-> +						   BOOTMEM_LOW_LIMIT,
-> +						   ARCH_LOW_ADDRESS_LIMIT,
-> +						   NUMA_NO_NODE);
-> +}
-> +
->  static inline void * __init memblock_virt_alloc_from_nopanic(
->  		phys_addr_t size, phys_addr_t align, phys_addr_t min_addr)
->  {
-> @@ -238,6 +259,22 @@ static inline void * __init memblock_vir
->  	return __alloc_bootmem_nopanic(size, align, BOOTMEM_LOW_LIMIT);
->  }
->  
-> +static inline void * __init memblock_virt_alloc_low(
-> +                                        phys_addr_t size, phys_addr_t align)
-> +{
-> +	if (!align)
-> +		align = SMP_CACHE_BYTES;
-> +	return __alloc_bootmem_low(size, align, BOOTMEM_LOW_LIMIT);
-> +}
-> +
-> +static inline void * __init memblock_virt_alloc_low_nopanic(
-> +                                        phys_addr_t size, phys_addr_t align)
-> +{
-> +	if (!align)
-> +		align = SMP_CACHE_BYTES;
-> +	return __alloc_bootmem_low_nopanic(size, align, BOOTMEM_LOW_LIMIT);
-> +}
-> +
->  static inline void * __init memblock_virt_alloc_from_nopanic(
->  		phys_addr_t size, phys_addr_t align, phys_addr_t min_addr)
->  {
-> Index: linux-2.6/lib/swiotlb.c
-> ===================================================================
-> --- linux-2.6.orig/lib/swiotlb.c
-> +++ linux-2.6/lib/swiotlb.c
-> @@ -172,7 +172,7 @@ int __init swiotlb_init_with_tbl(char *t
->  	/*
->  	 * Get the overflow emergency buffer
->  	 */
-> -	v_overflow_buffer = memblock_virt_alloc_nopanic(
-> +	v_overflow_buffer = memblock_virt_alloc_low_nopanic(
->  						PAGE_ALIGN(io_tlb_overflow),
->  						PAGE_SIZE);
->  	if (!v_overflow_buffer)
-> @@ -220,7 +220,7 @@ swiotlb_init(int verbose)
->  	bytes = io_tlb_nslabs << IO_TLB_SHIFT;
->  
->  	/* Get IO TLB memory from the low pages */
-> -	vstart = memblock_virt_alloc_nopanic(PAGE_ALIGN(bytes), PAGE_SIZE);
-> +	vstart = memblock_virt_alloc_low_nopanic(PAGE_ALIGN(bytes), PAGE_SIZE);
->  	if (vstart && !swiotlb_init_with_tbl(vstart, io_tlb_nslabs, verbose))
->  		return;
->  
-> Index: linux-2.6/arch/arm/kernel/setup.c
-> ===================================================================
-> --- linux-2.6.orig/arch/arm/kernel/setup.c
-> +++ linux-2.6/arch/arm/kernel/setup.c
-> @@ -717,7 +717,7 @@ static void __init request_standard_reso
->  	kernel_data.end     = virt_to_phys(_end - 1);
->  
->  	for_each_memblock(memory, region) {
-> -		res = memblock_virt_alloc(sizeof(*res), 0);
-> +		res = memblock_virt_alloc_low(sizeof(*res), 0);
->  		res->name  = "System RAM";
->  		res->start = __pfn_to_phys(memblock_region_memory_base_pfn(region));
->  		res->end = __pfn_to_phys(memblock_region_memory_end_pfn(region)) - 1;
+
+It passed the gimp launching test. Patch looks sane but I confess I did
+not put a whole lot of thought into it because I see that Andrew is
+already reviewing it so
+
+Tested-by: Mel Gorman <mgorman@suse.de>
+
+If this is merged then remember that it should be tagged for 3.12-stable
+as 3.12.7 and 3.12.8 are affected by this bug.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
