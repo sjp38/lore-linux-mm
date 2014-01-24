@@ -1,51 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 21BE86B0031
-	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 20:49:20 -0500 (EST)
-Received: by mail-pb0-f53.google.com with SMTP id md12so2588860pbc.26
-        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 17:49:19 -0800 (PST)
-Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
-        by mx.google.com with ESMTPS id mj6si16068972pab.130.2014.01.23.17.49.17
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 053C36B0031
+	for <linux-mm@kvack.org>; Thu, 23 Jan 2014 22:09:21 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id lf10so2692872pab.32
+        for <linux-mm@kvack.org>; Thu, 23 Jan 2014 19:09:21 -0800 (PST)
+Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com. [202.81.31.140])
+        by mx.google.com with ESMTPS id s7si16286122pae.40.2014.01.23.19.09.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 23 Jan 2014 17:49:18 -0800 (PST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 826AD3EE19D
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 10:49:16 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 51E9A45DE5B
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 10:49:16 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.nic.fujitsu.com [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 82E9245DE51
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 10:49:14 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 721331DB803E
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 10:49:14 +0900 (JST)
-Received: from g01jpfmpwkw02.exch.g01.fujitsu.local (g01jpfmpwkw02.exch.g01.fujitsu.local [10.0.193.56])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2035D1DB8032
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 10:49:14 +0900 (JST)
-Message-ID: <52E1C674.1070406@jp.fujitsu.com>
-Date: Fri, 24 Jan 2014 10:48:36 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+        Thu, 23 Jan 2014 19:09:20 -0800 (PST)
+Received: from /spool/local
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Fri, 24 Jan 2014 13:09:14 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id BB0192BB005A
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 14:09:10 +1100 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0O2o59O8258002
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 13:50:05 +1100
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0O399lv029085
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 14:09:09 +1100
+Date: Fri, 24 Jan 2014 11:09:07 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
+ no local memory
+Message-ID: <52e1d960.2715420a.3569.1013SMTPIN_ADDED_BROKEN@mx.google.com>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <20140107132100.5b5ad198@kryten>
+ <20140107074136.GA4011@lge.com>
+ <52dce7fe.e5e6420a.5ff6.ffff84a0SMTPIN_ADDED_BROKEN@mx.google.com>
+ <alpine.DEB.2.10.1401201612340.28048@nuc>
 MIME-Version: 1.0
-Subject: [LSF/MM ATTEND]  Memory management - memory hotplug, page migration,
- persistent memory
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1401201612340.28048@nuc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, benh@kernel.crashing.org, paulus@samba.org, penberg@kernel.org, mpm@selenic.com, nacc@linux.vnet.ibm.com, Anton Blanchard <anton@samba.org>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Han Pingtian <hanpt@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>
 
-I'd like to attend this year's LSF/MM summit. I'm interested in memory
-hotoplug, page migration, and persistent memory, and want to discuss them.
+Hi Christoph,
+On Mon, Jan 20, 2014 at 04:13:30PM -0600, Christoph Lameter wrote:
+>On Mon, 20 Jan 2014, Wanpeng Li wrote:
+>
+>> >+       enum zone_type high_zoneidx = gfp_zone(flags);
+>> >
+>> >+       if (!node_present_pages(searchnode)) {
+>> >+               zonelist = node_zonelist(searchnode, flags);
+>> >+               for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+>> >+                       searchnode = zone_to_nid(zone);
+>> >+                       if (node_present_pages(searchnode))
+>> >+                               break;
+>> >+               }
+>> >+       }
+>> >        object = get_partial_node(s, get_node(s, searchnode), c, flags);
+>> >        if (object || node != NUMA_NO_NODE)
+>> >                return object;
+>> >
+>>
+>> The patch fix the bug. However, the kernel crashed very quickly after running
+>> stress tests for a short while:
+>
+>This is not a good way of fixing it. How about not asking for memory from
+>nodes that are memoryless? Use numa_mem_id() which gives you the next node
+>that has memory instead of numa_node_id() (gives you the current node
+>regardless if it has memory or not).
 
->From 2012, I'm developing memory hotplug. Currently my focus are shifting
-to persistent memory. By participating in the summit, I'd like to know latest
-status of persistent memory on linux kernel and join the development.
+diff --git a/mm/slub.c b/mm/slub.c
+index 545a170..a1c6040 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1700,6 +1700,9 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
+ 	void *object;
+	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
 
-Thanks,
-Yasuaki Ishimatsu
++	if (!node_present_pages(searchnode))
++		searchnode = numa_mem_id();
++
+	object = get_partial_node(s, get_node(s, searchnode), c, flags);
+	if (object || node != NUMA_NO_NODE)
+		return object;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
