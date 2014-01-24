@@ -1,141 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f49.google.com (mail-bk0-f49.google.com [209.85.214.49])
-	by kanga.kvack.org (Postfix) with ESMTP id EA9816B0038
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 17:03:22 -0500 (EST)
-Received: by mail-bk0-f49.google.com with SMTP id v15so1498889bkz.8
-        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 14:03:22 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id k2si4490346bkr.273.2014.01.24.14.03.21
+Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
+	by kanga.kvack.org (Postfix) with ESMTP id B24716B0031
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 17:20:05 -0500 (EST)
+Received: by mail-ob0-f175.google.com with SMTP id wn1so4252540obc.34
+        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 14:20:05 -0800 (PST)
+Received: from e36.co.us.ibm.com (e36.co.us.ibm.com. [32.97.110.154])
+        by mx.google.com with ESMTPS id co8si1252511oec.21.2014.01.24.14.20.03
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 24 Jan 2014 14:03:22 -0800 (PST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 2/2] mm: page-writeback: do not count anon pages as dirtyable memory
-Date: Fri, 24 Jan 2014 17:03:04 -0500
-Message-Id: <1390600984-13925-3-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1390600984-13925-1-git-send-email-hannes@cmpxchg.org>
-References: <1390600984-13925-1-git-send-email-hannes@cmpxchg.org>
+        Fri, 24 Jan 2014 14:20:04 -0800 (PST)
+Received: from /spool/local
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Fri, 24 Jan 2014 15:20:03 -0700
+Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 828D21FF001B
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 15:19:28 -0700 (MST)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by b03cxnp07028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0OMJgoj1835382
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 23:19:42 +0100
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0OMK0gg023080
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 15:20:01 -0700
+Date: Fri, 24 Jan 2014 14:19:42 -0800
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
+ no local memory
+Message-ID: <20140124221942.GA30361@linux.vnet.ibm.com>
+References: <20140107132100.5b5ad198@kryten>
+ <20140107074136.GA4011@lge.com>
+ <52dce7fe.e5e6420a.5ff6.ffff84a0SMTPIN_ADDED_BROKEN@mx.google.com>
+ <alpine.DEB.2.10.1401201612340.28048@nuc>
+ <52e1d960.2715420a.3569.1013SMTPIN_ADDED_BROKEN@mx.google.com>
+ <52e1da8f.86f7440a.120f.25f3SMTPIN_ADDED_BROKEN@mx.google.com>
+ <alpine.DEB.2.10.1401240946530.12886@nuc>
+ <alpine.DEB.2.02.1401241301120.10968@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1401241301120.10968@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Christoph Lameter <cl@linux.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, benh@kernel.crashing.org, paulus@samba.org, penberg@kernel.org, mpm@selenic.com, Anton Blanchard <anton@samba.org>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Han Pingtian <hanpt@linux.vnet.ibm.com>
 
-The VM is currently heavily tuned to avoid swapping.  Whether that is
-good or bad is a separate discussion, but as long as the VM won't swap
-to make room for dirty cache, we can not consider anonymous pages when
-calculating the amount of dirtyable memory, the baseline to which
-dirty_background_ratio and dirty_ratio are applied.
+On 24.01.2014 [13:03:13 -0800], David Rientjes wrote:
+> On Fri, 24 Jan 2014, Christoph Lameter wrote:
+> 
+> > On Fri, 24 Jan 2014, Wanpeng Li wrote:
+> > 
+> > > >
+> > > >diff --git a/mm/slub.c b/mm/slub.c
+> > > >index 545a170..a1c6040 100644
+> > > >--- a/mm/slub.c
+> > > >+++ b/mm/slub.c
+> > > >@@ -1700,6 +1700,9 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
+> > > > 	void *object;
+> > > >	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
+> > 
+> > This needs to be numa_mem_id() and numa_mem_id would need to be
+> > consistently used.
+> > 
+> > > >
+> > > >+	if (!node_present_pages(searchnode))
+> > > >+		searchnode = numa_mem_id();
+> > 
+> > Probably wont need that?
+> > 
+> 
+> I think the problem is a memoryless node being used for kmalloc_node() so 
+> we need to decide where to enforce node_present_pages().  __slab_alloc() 
+> seems like the best candidate when !node_match().
+> 
 
-A simple workload that occupies a significant size (40+%, depending on
-memory layout, storage speeds etc.) of memory with anon/tmpfs pages
-and uses the remainder for a streaming writer demonstrates this
-problem.  In that case, the actual cache pages are a small fraction of
-what is considered dirtyable overall, which results in an relatively
-large portion of the cache pages to be dirtied.  As kswapd starts
-rotating these, random tasks enter direct reclaim and stall on IO.
+Yep, I'm looking through callers and such right now and came to a
+similar conclusion. I should have a patch soon.
 
-Only consider free pages and file pages dirtyable.
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/vmstat.h |  2 --
- mm/internal.h          |  1 -
- mm/page-writeback.c    |  6 ++++--
- mm/vmscan.c            | 23 +----------------------
- 4 files changed, 5 insertions(+), 27 deletions(-)
-
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index e4b948080d20..a67b38415768 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -142,8 +142,6 @@ static inline unsigned long zone_page_state_snapshot(struct zone *zone,
- 	return x;
- }
- 
--extern unsigned long global_reclaimable_pages(void);
--
- #ifdef CONFIG_NUMA
- /*
-  * Determine the per node value of a stat item. This function
-diff --git a/mm/internal.h b/mm/internal.h
-index 684f7aa9692a..8b6cfd63b5a5 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -85,7 +85,6 @@ extern unsigned long highest_memmap_pfn;
-  */
- extern int isolate_lru_page(struct page *page);
- extern void putback_lru_page(struct page *page);
--extern unsigned long zone_reclaimable_pages(struct zone *zone);
- extern bool zone_reclaimable(struct zone *zone);
- 
- /*
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 79cf52b058a7..29e129478644 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -205,7 +205,8 @@ static unsigned long zone_dirtyable_memory(struct zone *zone)
- 	nr_pages = zone_page_state(zone, NR_FREE_PAGES);
- 	nr_pages -= min(nr_pages, zone->dirty_balance_reserve);
- 
--	nr_pages += zone_reclaimable_pages(zone);
-+	nr_pages += zone_page_state(zone, NR_INACTIVE_FILE);
-+	nr_pages += zone_page_state(zone, NR_ACTIVE_FILE);
- 
- 	return nr_pages;
- }
-@@ -259,7 +260,8 @@ static unsigned long global_dirtyable_memory(void)
- 	x = global_page_state(NR_FREE_PAGES);
- 	x -= min(x, dirty_balance_reserve);
- 
--	x += global_reclaimable_pages();
-+	x += global_page_state(NR_INACTIVE_FILE);
-+	x += global_page_state(NR_ACTIVE_FILE);
- 
- 	if (!vm_highmem_is_dirtyable)
- 		x -= highmem_dirtyable_memory(x);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index eea668d9cff6..05e6095159dc 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -147,7 +147,7 @@ static bool global_reclaim(struct scan_control *sc)
- }
- #endif
- 
--unsigned long zone_reclaimable_pages(struct zone *zone)
-+static unsigned long zone_reclaimable_pages(struct zone *zone)
- {
- 	int nr;
- 
-@@ -3297,27 +3297,6 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
- 	wake_up_interruptible(&pgdat->kswapd_wait);
- }
- 
--/*
-- * The reclaimable count would be mostly accurate.
-- * The less reclaimable pages may be
-- * - mlocked pages, which will be moved to unevictable list when encountered
-- * - mapped pages, which may require several travels to be reclaimed
-- * - dirty pages, which is not "instantly" reclaimable
-- */
--unsigned long global_reclaimable_pages(void)
--{
--	int nr;
--
--	nr = global_page_state(NR_ACTIVE_FILE) +
--	     global_page_state(NR_INACTIVE_FILE);
--
--	if (get_nr_swap_pages() > 0)
--		nr += global_page_state(NR_ACTIVE_ANON) +
--		      global_page_state(NR_INACTIVE_ANON);
--
--	return nr;
--}
--
- #ifdef CONFIG_HIBERNATION
- /*
-  * Try to free `nr_to_reclaim' of memory, system-wide, and return the number of
--- 
-1.8.4.2
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
