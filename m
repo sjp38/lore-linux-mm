@@ -1,70 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f42.google.com (mail-bk0-f42.google.com [209.85.214.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 696046B0037
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 13:51:43 -0500 (EST)
-Received: by mail-bk0-f42.google.com with SMTP id 6so1384410bkj.15
-        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 10:51:42 -0800 (PST)
-Received: from mail-ig0-x234.google.com (mail-ig0-x234.google.com [2607:f8b0:4001:c05::234])
-        by mx.google.com with ESMTPS id q2si4045106bkr.171.2014.01.24.10.51.42
+Received: from mail-bk0-f49.google.com (mail-bk0-f49.google.com [209.85.214.49])
+	by kanga.kvack.org (Postfix) with ESMTP id E03B36B0031
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 16:03:20 -0500 (EST)
+Received: by mail-bk0-f49.google.com with SMTP id v15so1462250bkz.8
+        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 13:03:20 -0800 (PST)
+Received: from mail-bk0-x232.google.com (mail-bk0-x232.google.com [2a00:1450:4008:c01::232])
+        by mx.google.com with ESMTPS id q2si4329155bkr.347.2014.01.24.13.03.19
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 24 Jan 2014 10:51:42 -0800 (PST)
-Received: by mail-ig0-f180.google.com with SMTP id m12so3349270iga.1
-        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 10:51:41 -0800 (PST)
+        Fri, 24 Jan 2014 13:03:19 -0800 (PST)
+Received: by mail-bk0-f50.google.com with SMTP id w16so1473164bkz.23
+        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 13:03:19 -0800 (PST)
+Date: Fri, 24 Jan 2014 13:03:13 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
+ no local memory
+In-Reply-To: <alpine.DEB.2.10.1401240946530.12886@nuc>
+Message-ID: <alpine.DEB.2.02.1401241301120.10968@chino.kir.corp.google.com>
+References: <20140107132100.5b5ad198@kryten> <20140107074136.GA4011@lge.com> <52dce7fe.e5e6420a.5ff6.ffff84a0SMTPIN_ADDED_BROKEN@mx.google.com> <alpine.DEB.2.10.1401201612340.28048@nuc> <52e1d960.2715420a.3569.1013SMTPIN_ADDED_BROKEN@mx.google.com>
+ <52e1da8f.86f7440a.120f.25f3SMTPIN_ADDED_BROKEN@mx.google.com> <alpine.DEB.2.10.1401240946530.12886@nuc>
 MIME-Version: 1.0
-In-Reply-To: <52E2B431.5090705@intel.com>
-References: <52E19C7D.7050603@intel.com>
-	<CAE9FiQX9kTxnaqpWNgg3dUzr7+60YCrEx3q3xxO-G1n6z64xVQ@mail.gmail.com>
-	<52E28067.1060507@intel.com>
-	<CAE9FiQVy+8CF5qwnyL8YGzqwKOJF+y7N_+reAXWw7p8-BaVQPg@mail.gmail.com>
-	<52E2AC5A.3000005@intel.com>
-	<CAE9FiQW3DrGjKHLhwBgcK076g7z-6_-0EN2HwtVBLSpKO4m6-Q@mail.gmail.com>
-	<52E2AEA3.2020907@intel.com>
-	<CAE9FiQU795SWFfnQU=0STbQconSraac8heCNnkMpynY6fbi-4w@mail.gmail.com>
-	<52E2B431.5090705@intel.com>
-Date: Fri, 24 Jan 2014 10:51:40 -0800
-Message-ID: <CAE9FiQUiFpBh3q9L9dDQymLor0hwoLy92aEU30vZ5Ga9p=zSNg@mail.gmail.com>
-Subject: Re: Panic on 8-node system in memblock_virt_alloc_try_nid()
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@elte.hu>, Grygorii Strashko <grygorii.strashko@ti.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Santosh Shilimkar <santosh.shilimkar@ti.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, benh@kernel.crashing.org, paulus@samba.org, penberg@kernel.org, mpm@selenic.com, nacc@linux.vnet.ibm.com, Anton Blanchard <anton@samba.org>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Han Pingtian <hanpt@linux.vnet.ibm.com>
 
-On Fri, Jan 24, 2014 at 10:42 AM, Dave Hansen <dave.hansen@intel.com> wrote:
-> On 01/24/2014 10:24 AM, Yinghai Lu wrote:
->> On Fri, Jan 24, 2014 at 10:19 AM, Dave Hansen <dave.hansen@intel.com> wrote:
->>> FWIW, I did turn of memblock=debug.  It eventually booted, but
->>> slooooooooooowly.
->>
->> then that is not a problem, as you are using 4k page mapping only.
->> and that printout is too spew...
->
-> This means that, essentially, memblock=debug and
-> KMEMCHECK/DEBUG_PAGEALLOC can't be used together.  That's a shame
-> because my DEBUG_PAGEALLOC config *broke* this code a few months ago,
-> right?  Oh well.
+On Fri, 24 Jan 2014, Christoph Lameter wrote:
 
-should only be broken when MOVABLE_NODE is enabled on big system.
+> On Fri, 24 Jan 2014, Wanpeng Li wrote:
+> 
+> > >
+> > >diff --git a/mm/slub.c b/mm/slub.c
+> > >index 545a170..a1c6040 100644
+> > >--- a/mm/slub.c
+> > >+++ b/mm/slub.c
+> > >@@ -1700,6 +1700,9 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
+> > > 	void *object;
+> > >	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
+> 
+> This needs to be numa_mem_id() and numa_mem_id would need to be
+> consistently used.
+> 
+> > >
+> > >+	if (!node_present_pages(searchnode))
+> > >+		searchnode = numa_mem_id();
+> 
+> Probably wont need that?
+> 
 
->
->>> How many problems in this code are we tracking, btw?  This is at least
->>> 3, right?
->>
->> two problems:
->> 1. big numa system.
->> 2. Andrew's system with swiotlb.
->
-> Can I ask politely for some more caution on your part in this area?
-> This is two consecutive kernels where this code has broken my system.
-
-I agree, the code get messy as now we have top_down and bottom up
-mapping for different configuration.
-
-I already tried hard to make parsing srat early solution instead that split.
-
-Yinghai
+I think the problem is a memoryless node being used for kmalloc_node() so 
+we need to decide where to enforce node_present_pages().  __slab_alloc() 
+seems like the best candidate when !node_match().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
