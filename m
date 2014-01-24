@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 890966B0031
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 18:05:25 -0500 (EST)
-Received: by mail-ee0-f43.google.com with SMTP id c41so1229033eek.16
-        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 15:05:25 -0800 (PST)
+Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 590A46B0031
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 18:26:06 -0500 (EST)
+Received: by mail-we0-f171.google.com with SMTP id w61so3264407wes.2
+        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 15:26:05 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id d41si4697252eep.197.2014.01.24.15.05.23
+        by mx.google.com with ESMTP id t6si2209116wiy.23.2014.01.24.15.26.04
         for <linux-mm@kvack.org>;
-        Fri, 24 Jan 2014 15:05:24 -0800 (PST)
-Message-ID: <52E2F1A5.7010907@redhat.com>
-Date: Fri, 24 Jan 2014 18:05:09 -0500
+        Fri, 24 Jan 2014 15:26:05 -0800 (PST)
+Message-ID: <52E2F680.10409@redhat.com>
+Date: Fri, 24 Jan 2014 18:25:52 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [patch 1/2] mm: page-writeback: fix dirty_balance_reserve subtraction
- from dirtyable memory
-References: <1390600984-13925-1-git-send-email-hannes@cmpxchg.org> <1390600984-13925-2-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1390600984-13925-2-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [patch 2/2] mm: page-writeback: do not count anon pages as dirtyable
+ memory
+References: <1390600984-13925-1-git-send-email-hannes@cmpxchg.org> <1390600984-13925-3-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1390600984-13925-3-git-send-email-hannes@cmpxchg.org>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,24 +24,26 @@ To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.o
 Cc: Tejun Heo <tj@kernel.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
 On 01/24/2014 05:03 PM, Johannes Weiner wrote:
-> The dirty_balance_reserve is an approximation of the fraction of free
-> pages that the page allocator does not make available for page cache
-> allocations.  As a result, it has to be taken into account when
-> calculating the amount of "dirtyable memory", the baseline to which
+> The VM is currently heavily tuned to avoid swapping.  Whether that is
+> good or bad is a separate discussion, but as long as the VM won't swap
+> to make room for dirty cache, we can not consider anonymous pages when
+> calculating the amount of dirtyable memory, the baseline to which
 > dirty_background_ratio and dirty_ratio are applied.
 > 
-> However, currently the reserve is subtracted from the sum of free and
-> reclaimable pages, which is non-sensical and leads to erroneous
-> results when the system is dominated by unreclaimable pages and the
-> dirty_balance_reserve is bigger than free+reclaimable.  In that case,
-> at least the already allocated cache should be considered dirtyable.
+> A simple workload that occupies a significant size (40+%, depending on
+> memory layout, storage speeds etc.) of memory with anon/tmpfs pages
+> and uses the remainder for a streaming writer demonstrates this
+> problem.  In that case, the actual cache pages are a small fraction of
+> what is considered dirtyable overall, which results in an relatively
+> large portion of the cache pages to be dirtied.  As kswapd starts
+> rotating these, random tasks enter direct reclaim and stall on IO.
 > 
-> Fix the calculation by subtracting the reserve from the amount of free
-> pages, then adding the reclaimable pages on top.
+> Only consider free pages and file pages dirtyable.
 > 
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
+
 
 -- 
 All rights reversed
