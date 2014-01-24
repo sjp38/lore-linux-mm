@@ -1,53 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id EFF4D6B0031
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 12:38:59 -0500 (EST)
-Received: by mail-wg0-f48.google.com with SMTP id x13so3253905wgg.3
-        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 09:38:59 -0800 (PST)
-Received: from cam-admin0.cambridge.arm.com (cam-admin0.cambridge.arm.com. [217.140.96.50])
-        by mx.google.com with ESMTP id gq3si995177wjc.3.2014.01.24.09.38.58
-        for <linux-mm@kvack.org>;
-        Fri, 24 Jan 2014 09:38:59 -0800 (PST)
-Date: Fri, 24 Jan 2014 17:37:13 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v9 6/6] MCS Lock: Allow architecture specific asm files
- to be used for contended case
-Message-ID: <20140124173713.GO31040@mudshark.cambridge.arm.com>
-References: <cover.1390320729.git.tim.c.chen@linux.intel.com>
- <1390347382.3138.67.camel@schen9-DESK>
- <20140122183539.GM30183@twins.programming.kicks-ass.net>
- <1390583029.3138.78.camel@schen9-DESK>
- <20140124170727.GG31570@twins.programming.kicks-ass.net>
- <CA+55aFzRq8ixqSAm9+iO6-m5agJG0xDt9gZJ_vXpyppePoSxaA@mail.gmail.com>
+Received: from mail-bk0-f49.google.com (mail-bk0-f49.google.com [209.85.214.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 78FB96B0037
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 12:45:20 -0500 (EST)
+Received: by mail-bk0-f49.google.com with SMTP id v15so1313061bkz.22
+        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 09:45:19 -0800 (PST)
+Received: from mail-ie0-x22e.google.com (mail-ie0-x22e.google.com [2607:f8b0:4001:c03::22e])
+        by mx.google.com with ESMTPS id om1si3842351bkb.219.2014.01.24.09.45.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 24 Jan 2014 09:45:19 -0800 (PST)
+Received: by mail-ie0-f174.google.com with SMTP id tp5so3204490ieb.19
+        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 09:45:18 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFzRq8ixqSAm9+iO6-m5agJG0xDt9gZJ_vXpyppePoSxaA@mail.gmail.com>
+In-Reply-To: <52E28067.1060507@intel.com>
+References: <52E19C7D.7050603@intel.com>
+	<CAE9FiQX9kTxnaqpWNgg3dUzr7+60YCrEx3q3xxO-G1n6z64xVQ@mail.gmail.com>
+	<52E28067.1060507@intel.com>
+Date: Fri, 24 Jan 2014 09:45:17 -0800
+Message-ID: <CAE9FiQVy+8CF5qwnyL8YGzqwKOJF+y7N_+reAXWw7p8-BaVQPg@mail.gmail.com>
+Subject: Re: Panic on 8-node system in memblock_virt_alloc_try_nid()
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.McKenney" <paulmck@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Waiman Long <waiman.long@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Alex Shi <alex.shi@linaro.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Matthew R Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, "H. Peter Anvin" <hpa@zytor.com>, Arnd Bergmann <arnd@arndb.de>, Aswin Chandramouleeswaran <aswin@hp.com>, Scott J Norton <scott.norton@hp.com>, "Figo.zhang" <figo1802@gmail.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@elte.hu>, Grygorii Strashko <grygorii.strashko@ti.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Santosh Shilimkar <santosh.shilimkar@ti.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, Jan 24, 2014 at 05:33:10PM +0000, Linus Torvalds wrote:
-> On Fri, Jan 24, 2014 at 9:07 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> >
-> > I have picked up, Ingo generally doesn't merge new patches until after
-> > -rc1 closes though, with the obvious exception to 'urgent' patches that
-> > fix problems stemming from the merge window.
-> 
-> Considering how long this has been brewing, I'd argue that we can just
-> merge it during this merge window unless there are actual problems in
-> testing.
-> 
-> Sure, there may still be details that need sorting out, but by now I
-> think they might as well be handled in mainline.
-> 
-> But hey, I'm not going to force it either, so it's up to how comfy you
-> guys are about the code.
+On Fri, Jan 24, 2014 at 7:01 AM, Dave Hansen <dave.hansen@intel.com> wrote:
+> There are two failure modes I'm seeing: one when (failing to) allocate
+> the first node's mem_map[], and a second where it oopses accessing the
+> numa_distance[] table.  This is the numa_distance[] one, and it happens
+> even with the patch you suggested applied.
+>
+>> [    0.000000] memblock_find_in_range_node():239
+>> [    0.000000] __memblock_find_range_top_down():150
+>> [    0.000000] __memblock_find_range_top_down():152 i: 600000001
+>> [    0.000000] memblock_find_in_range_node():241 ret: 2147479552
+>> [    0.000000] memblock_reserve: [0x0000007ffff000-0x0000007ffff03f] flags 0x0 numa_set_distance+0xd2/0x252
 
-Suits me, then I can get the ARM parts in for 3.15.
+that address is wrong.
 
-Will
+Can you post whole log with current linus' tree + two patches that I
+sent out yesterday?
+
+>> [    0.000000] numa_distance phys: 7ffff000
+>> [    0.000000] numa_distance virt: ffff88007ffff000
+>> [    0.000000] numa_distance size: 64
+>> [    0.000000] numa_alloc_distance() accessing numa_distance[] at byte: 0
+>> [    0.000000] BUG: unable to handle kernel paging request at ffff88007ffff000
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
