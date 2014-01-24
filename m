@@ -1,220 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f43.google.com (mail-bk0-f43.google.com [209.85.214.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 97C996B0031
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 18:31:59 -0500 (EST)
-Received: by mail-bk0-f43.google.com with SMTP id mx11so1562409bkb.2
-        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 15:31:59 -0800 (PST)
-Received: from mail-qa0-x232.google.com (mail-qa0-x232.google.com [2607:f8b0:400d:c00::232])
-        by mx.google.com with ESMTPS id tq3si4676354bkb.315.2014.01.24.15.31.58
+Received: from mail-bk0-f50.google.com (mail-bk0-f50.google.com [209.85.214.50])
+	by kanga.kvack.org (Postfix) with ESMTP id C70796B0031
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 18:49:40 -0500 (EST)
+Received: by mail-bk0-f50.google.com with SMTP id w16so1592865bkz.9
+        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 15:49:40 -0800 (PST)
+Received: from mail-bk0-x234.google.com (mail-bk0-x234.google.com [2a00:1450:4008:c01::234])
+        by mx.google.com with ESMTPS id qg10si4769016bkb.79.2014.01.24.15.49.39
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 24 Jan 2014 15:31:58 -0800 (PST)
-Received: by mail-qa0-f50.google.com with SMTP id cm18so4750781qab.9
-        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 15:31:57 -0800 (PST)
-Date: Fri, 24 Jan 2014 18:31:53 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [patch 0/2] mm: reduce reclaim stalls with heavy anon and dirty
- cache
-Message-ID: <20140124233153.GA3422@htj.dyndns.org>
-References: <1390600984-13925-1-git-send-email-hannes@cmpxchg.org>
- <20140124222144.GA3197@htj.dyndns.org>
+        Fri, 24 Jan 2014 15:49:39 -0800 (PST)
+Received: by mail-bk0-f52.google.com with SMTP id e11so1583378bkh.39
+        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 15:49:39 -0800 (PST)
+Date: Fri, 24 Jan 2014 15:49:33 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
+ no local memory
+In-Reply-To: <20140124232902.GB30361@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.02.1401241543100.18620@chino.kir.corp.google.com>
+References: <20140107132100.5b5ad198@kryten> <20140107074136.GA4011@lge.com> <52dce7fe.e5e6420a.5ff6.ffff84a0SMTPIN_ADDED_BROKEN@mx.google.com> <alpine.DEB.2.10.1401201612340.28048@nuc> <52e1d960.2715420a.3569.1013SMTPIN_ADDED_BROKEN@mx.google.com>
+ <52e1da8f.86f7440a.120f.25f3SMTPIN_ADDED_BROKEN@mx.google.com> <alpine.DEB.2.10.1401240946530.12886@nuc> <alpine.DEB.2.02.1401241301120.10968@chino.kir.corp.google.com> <20140124232902.GB30361@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="7JfCtLOvnd9MIVvH"
-Content-Disposition: inline
-In-Reply-To: <20140124222144.GA3197@htj.dyndns.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: Christoph Lameter <cl@linux.com>, penberg@kernel.org, linux-mm@kvack.org, Han Pingtian <hanpt@linux.vnet.ibm.com>, paulus@samba.org, Anton Blanchard <anton@samba.org>, mpm@selenic.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
+On Fri, 24 Jan 2014, Nishanth Aravamudan wrote:
 
---7JfCtLOvnd9MIVvH
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+> > I think the problem is a memoryless node being used for kmalloc_node() so 
+> > we need to decide where to enforce node_present_pages().  __slab_alloc() 
+> > seems like the best candidate when !node_match().
+> 
+> Actually, this is effectively what Anton's patch does, except with
+> Wanpeng's adjustment to use node_present_pages(). Does that seem
+> sufficient to you?
+> 
 
-On Fri, Jan 24, 2014 at 05:21:44PM -0500, Tejun Heo wrote:
-> The trigger conditions seem quite plausible - high anon memory usage
-> w/ heavy buffered IO and swap configured - and it's highly likely that
-> this is happening in the wild too.  (this can happen with copying
-> large files to usb sticks too, right?)
+I don't see that as being the effect of Anton's patch.  We need to use 
+numa_mem_id() as Christoph mentioned when a memoryless node is passed for 
+the best NUMA locality.  Something like this:
 
-So, just tested with the usb stick and these two patches, while not
-perfect, make a world of difference.  The problem is really easy to
-reproduce on my machine which has 8gig of memory with the two attached
-test programs.
+diff --git a/mm/slub.c b/mm/slub.c
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2278,10 +2278,14 @@ redo:
+ 
+ 	if (unlikely(!node_match(page, node))) {
+ 		stat(s, ALLOC_NODE_MISMATCH);
+-		deactivate_slab(s, page, c->freelist);
+-		c->page = NULL;
+-		c->freelist = NULL;
+-		goto new_slab;
++		if (unlikely(!node_present_pages(node)))
++			node = numa_mem_id();
++		if (!node_match(page, node)) {
++			deactivate_slab(s, page, c->freelist);
++			c->page = NULL;
++			c->freelist = NULL;
++			goto new_slab;
++		}
+ 	}
+ 
+ 	/*
 
-* run "test-membloat 4300" and wait for it to report completion.
+> It does only cover the memoryless node case (not the exhausted node
+> case), but I think that shouldn't block the fix (and it does fix the
+> issue we've run across in our testing).
+> 
 
-* run "test-latency"
-
-Mount a slow USB stick and copy a large (multi-gig) file to it.
-test-latency tries to print out a dot every 10ms but will report a
-log2 number if the latency becomes more than twice high - ie. 4 means
-it took 2^4 * 10ms to complete a loop which is supposed to take
-slightly longer than 10ms (10ms sleep + 4 page fault).  My USB stick
-only can do a couple mbytes/s and without these patches the machine
-becomes basically useless.  It's just not useable, it stutters more
-than it runs until the whole file finishes copying.
-
-Because I've been using tmpfs as build target for a while, I've been
-experiencing this occassionally and secretly growing bitter
-disappointment towards the linux kernel which developed into
-self-loathing to the point where I found booting into win8 consoling
-after looking at my machine stuttering for 45mins while it was
-repartitioning the hard drive to make room for steamos.  Oh the irony.
-I had to stay in fetal position for a while afterwards.  It was a
-crisis.
-
-With the patches applied, for both heavy harddrive IO and
-copy-large-file-to-slow-USB cases, the behavior is vastly improved.
-It does stutter for a while once memory is filled up but stabilizes in
-somewhere above ten seconds and then stays responsive.  While it isn't
-perfect, it's not completely ridiculous as before.
-
-So, lots of kudos to Johannes for *finally* fixing the issue and I
-strongly believe this is something we should consider for -stable even
-if that takes considerable amount of effort to verify it's not too
-harmful for other workloads.
-
-Thanks a lot.
-
--- 
-tejun
-
---7JfCtLOvnd9MIVvH
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="test-latency.c"
-
-#include <stdio.h>
-#include <sys/time.h>
-#include <sys/mman.h>
-#include <time.h>
-#include <math.h>
-#include <stdlib.h>
-#include <unistd.h>
-
-#define NR_ALPHAS	('z' - 'a' + 1)
-
-int main(int argc, char **argv)
-{
-	struct timespec intv_ts = { }, ts;
-	unsigned long long time0, time1;
-	long long msecs = 10;
-	const size_t map_size = 4096 * 4;
-
-	if (argc > 1) {
-		msecs = atoll(argv[1]);
-		if (msecs <= 0) {
-			fprintf(stderr, "test-latency [interval-in-msecs]\n");
-			return 1;
-		}
-	}
-
-	intv_ts.tv_sec = msecs / 1000;
-	intv_ts.tv_nsec = (msecs % 1000) * 1000000;
-
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-	time1 = ts.tv_sec * 1000000000LLU + ts.tv_nsec;
-
-	while (1) {
-		void *map, *p;
-		int idx;
-		char c;
-
-		nanosleep(&intv_ts, NULL);
-		map = mmap(NULL, map_size, PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-		if (map == MAP_FAILED) {
-			perror("mmap");
-			return 1;
-		}
-
-		for (p = map; p < map + map_size; p += 4096)
-			*(volatile unsigned long *)p = 0xdeadbeef;
-
-		munmap(map, map_size);
-
-		time0 = time1;
-		clock_gettime(CLOCK_MONOTONIC, &ts);
-		time1 = ts.tv_sec * 1000000000LLU + ts.tv_nsec;
-
-		idx = (time1 - time0) / msecs / 1000000;
-		idx = log2(idx);
-		if (idx <= 1) {
-			c = '.';
-		} else {
-			if (idx > 9)
-				idx = 9;
-			c = '0' + idx;
-		}
-		write(1, &c, 1);
-	}
-}
-
---7JfCtLOvnd9MIVvH
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="test-membloat.c"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/mman.h>
-#include <time.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-
-int main(int argc, char **argv)
-{
-	struct timespec ts_100s = { .tv_sec = 100 };
-	long mbytes, cnt;
-	void *map, *p;
-	int fd = -1;
-	int flags;
-
-	if (argc < 2 || (mbytes = atol(argv[1])) <= 0) {
-		fprintf(stderr, "test-membloat SIZE_IN_MBYTES [FILENAME]\n");
-		return 1;
-	}
-
-	if (argc >= 3) {
-		fd = open(argv[2], O_CREAT|O_TRUNC|O_RDWR, S_IRWXU);
-		if (fd < 0) {
-			perror("open");
-			return 1;
-		}
-
-		if (ftruncate(fd, mbytes << 20)) {
-			perror("ftruncate");
-			return 1;
-		}
-
-		flags = MAP_SHARED;
-	} else {
-		flags = MAP_ANONYMOUS | MAP_PRIVATE;
-	}
-
-	map = mmap(NULL, (size_t)mbytes << 20, PROT_READ | PROT_WRITE,
-		   flags, fd, 0);
-	if (map == MAP_FAILED) {
-		perror("mmap");
-		return 1;
-	}
-
-	for (p = map, cnt = 0; p < map + (mbytes << 20); p += 4096) {
-		*(volatile unsigned long *)p = 0xdeadbeef;
-		cnt++;
-	}
-
-	printf("faulted in %ld mbytes, %ld pages\n", mbytes, cnt);
-
-	while (1)
-		nanosleep(&ts_100s, NULL);
-
-	return 0;
-}
-
---7JfCtLOvnd9MIVvH--
+kmalloc_node(nid) and kmem_cache_alloc_node(nid) should fallback to nodes 
+other than nid when memory can't be allocated, these functions only 
+indicate a preference.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
