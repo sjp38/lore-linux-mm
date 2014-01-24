@@ -1,51 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f43.google.com (mail-bk0-f43.google.com [209.85.214.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 359A36B0031
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 17:52:08 -0500 (EST)
-Received: by mail-bk0-f43.google.com with SMTP id mx11so1543180bkb.2
-        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 14:52:07 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id ti7si4596017bkb.291.2014.01.24.14.52.06
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 24 Jan 2014 14:52:06 -0800 (PST)
-Date: Fri, 24 Jan 2014 17:51:56 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 0/2] mm: reduce reclaim stalls with heavy anon and dirty
- cache
-Message-ID: <20140124225156.GG4407@cmpxchg.org>
-References: <1390600984-13925-1-git-send-email-hannes@cmpxchg.org>
- <20140124143003.2629e9c2c8c2595e805c8c25@linux-foundation.org>
+Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 890966B0031
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 18:05:25 -0500 (EST)
+Received: by mail-ee0-f43.google.com with SMTP id c41so1229033eek.16
+        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 15:05:25 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id d41si4697252eep.197.2014.01.24.15.05.23
+        for <linux-mm@kvack.org>;
+        Fri, 24 Jan 2014 15:05:24 -0800 (PST)
+Message-ID: <52E2F1A5.7010907@redhat.com>
+Date: Fri, 24 Jan 2014 18:05:09 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140124143003.2629e9c2c8c2595e805c8c25@linux-foundation.org>
+Subject: Re: [patch 1/2] mm: page-writeback: fix dirty_balance_reserve subtraction
+ from dirtyable memory
+References: <1390600984-13925-1-git-send-email-hannes@cmpxchg.org> <1390600984-13925-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1390600984-13925-2-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Tejun Heo <tj@kernel.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Jan 24, 2014 at 02:30:03PM -0800, Andrew Morton wrote:
-> On Fri, 24 Jan 2014 17:03:02 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
+On 01/24/2014 05:03 PM, Johannes Weiner wrote:
+> The dirty_balance_reserve is an approximation of the fraction of free
+> pages that the page allocator does not make available for page cache
+> allocations.  As a result, it has to be taken into account when
+> calculating the amount of "dirtyable memory", the baseline to which
+> dirty_background_ratio and dirty_ratio are applied.
 > 
-> > Tejun reported stuttering and latency spikes on a system where random
-> > tasks would enter direct reclaim and get stuck on dirty pages.  Around
-> > 50% of memory was occupied by tmpfs backed by an SSD, and another disk
-> > (rotating) was reading and writing at max speed to shrink a partition.
+> However, currently the reserve is subtracted from the sum of free and
+> reclaimable pages, which is non-sensical and leads to erroneous
+> results when the system is dominated by unreclaimable pages and the
+> dirty_balance_reserve is bigger than free+reclaimable.  In that case,
+> at least the already allocated cache should be considered dirtyable.
 > 
-> Do you think this is serious enough to squeeze these into 3.14?
+> Fix the calculation by subtracting the reserve from the amount of free
+> pages, then adding the reclaimable pages on top.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-We have been biasing towards cache reclaim at least as far back as the
-LRU split and we always considered anon dirtyable, so it's not really
-a *new* problem.  And there is a chance of regressing write bandwidth
-for certain workloads by effectively shrinking their dirty limit -
-although that is easily fixed by changing dirty_ratio.
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-On the other hand, the stuttering is pretty nasty (could reproduce it
-locally too) and the workload is not exactly esoteric.  Plus, I'm not
-sure if waiting will increase the test exposure.
-
-So 3.14 would work for me, unless Mel and Rik have concerns.
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
