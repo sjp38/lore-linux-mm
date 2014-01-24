@@ -1,66 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BAD86B0031
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 10:21:32 -0500 (EST)
-Received: by mail-pd0-f176.google.com with SMTP id w10so3242805pde.35
-        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 07:21:32 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id bq5si1537986pbb.108.2014.01.24.07.20.47
-        for <linux-mm@kvack.org>;
-        Fri, 24 Jan 2014 07:20:48 -0800 (PST)
-Subject: [linux-next][PATCH] mm: slub: work around unneeded lockdep warning
-From: Dave Hansen <dave@sr71.net>
-Date: Fri, 24 Jan 2014 07:20:23 -0800
-Message-Id: <20140124152023.A450E599@viggo.jf.intel.com>
+Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B9FC6B0031
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 10:25:12 -0500 (EST)
+Received: by mail-we0-f171.google.com with SMTP id w61so2841340wes.30
+        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 07:25:12 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n3si738217wjr.169.2014.01.24.07.25.12
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 24 Jan 2014 07:25:12 -0800 (PST)
+Date: Fri, 24 Jan 2014 15:25:09 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 2/9] rename p->numa_faults to numa_faults_memory
+Message-ID: <20140124152509.GY4963@suse.de>
+References: <1390342811-11769-1-git-send-email-riel@redhat.com>
+ <1390342811-11769-3-git-send-email-riel@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1390342811-11769-3-git-send-email-riel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Dave Hansen <dave@sr71.net>, peterz@infradead.org, penberg@kernel.org, linux@arm.linux.org.uk
+To: riel@redhat.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, mingo@redhat.com, chegu_vinod@hp.com
 
+On Tue, Jan 21, 2014 at 05:20:04PM -0500, riel@redhat.com wrote:
+> From: Rik van Riel <riel@redhat.com>
+> 
+> In order to get a more consistent naming scheme, making it clear
+> which fault statistics track memory locality, and which track
+> CPU locality, rename the memory fault statistics.
+> 
+> Suggested-by: Mel Gorman <mgorman@suse.de>
+> Signed-off-by: Rik van Riel <riel@redhat.com>
 
-I think this is a next-only thing.  Pekka, can you pick this up,
-please?
+Thanks.
 
---
+Acked-by: Mel Gorman <mgorman@suse.de>
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
-
-The slub code does some setup during early boot in
-early_kmem_cache_node_alloc() with some local data.  There is no
-possible way that another CPU can see this data, so the slub code
-doesn't unnecessarily lock it.  However, some new lockdep asserts
-check to make sure that add_partial() _always_ has the list_lock
-held.
-
-Just add the locking, even though it is technically unnecessary.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: Russell King <linux@arm.linux.org.uk>
----
-
- b/mm/slub.c |    6 ++++++
- 1 file changed, 6 insertions(+)
-
-diff -puN mm/slub.c~slub-lockdep-workaround mm/slub.c
---- a/mm/slub.c~slub-lockdep-workaround	2014-01-24 07:19:23.794069012 -0800
-+++ b/mm/slub.c	2014-01-24 07:19:23.799069236 -0800
-@@ -2890,7 +2890,13 @@ static void early_kmem_cache_node_alloc(
- 	init_kmem_cache_node(n);
- 	inc_slabs_node(kmem_cache_node, node, page->objects);
- 
-+	/*
-+	 * the lock is for lockdep's sake, not for any actual
-+	 * race protection
-+	 */
-+	spin_lock(&n->list_lock);
- 	add_partial(n, page, DEACTIVATE_TO_HEAD);
-+	spin_unlock(&n->list_lock);
- }
- 
- static void free_kmem_cache_nodes(struct kmem_cache *s)
-_
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
