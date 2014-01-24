@@ -1,66 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
-	by kanga.kvack.org (Postfix) with ESMTP id C02DD6B0031
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 05:14:21 -0500 (EST)
-Received: by mail-we0-f169.google.com with SMTP id u57so2455798wes.28
-        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 02:14:21 -0800 (PST)
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 42B156B0031
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 05:57:55 -0500 (EST)
+Received: by mail-we0-f180.google.com with SMTP id q59so2450374wes.39
+        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 02:57:54 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e3si268867wja.28.2014.01.24.02.14.20
+        by mx.google.com with ESMTPS id hy4si314866wjb.102.2014.01.24.02.57.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 24 Jan 2014 02:14:20 -0800 (PST)
-Date: Fri, 24 Jan 2014 10:14:16 +0000
+        Fri, 24 Jan 2014 02:57:54 -0800 (PST)
+Date: Fri, 24 Jan 2014 10:57:48 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: Ignore VM_SOFTDIRTY on VMA merging, v2
-Message-ID: <20140124101416.GP4963@suse.de>
-References: <20140122190816.GB4963@suse.de>
- <20140122191928.GQ1574@moon>
- <20140122223325.GA30637@moon>
- <20140123095541.GD4963@suse.de>
- <20140123103606.GU1574@moon>
- <20140123121555.GV1574@moon>
- <20140123125543.GW1574@moon>
- <20140123151445.GX1574@moon>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] really large storage sectors - going
+ beyond 4096 bytes
+Message-ID: <20140124105748.GQ4963@suse.de>
+References: <52DFDCA6.1050204@redhat.com>
+ <20140122151913.GY4963@suse.de>
+ <1390410233.1198.7.camel@ret.masoncoding.com>
+ <1390411300.2372.33.camel@dabdike.int.hansenpartnership.com>
+ <1390413819.1198.20.camel@ret.masoncoding.com>
+ <1390414439.2372.53.camel@dabdike.int.hansenpartnership.com>
+ <20140123082734.GP13997@dastard>
+ <1390492073.2372.118.camel@dabdike.int.hansenpartnership.com>
+ <20140123164438.GL4963@suse.de>
+ <1390506935.2402.8.camel@dabdike>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20140123151445.GX1574@moon>
+In-Reply-To: <1390506935.2402.8.camel@dabdike>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: Pavel Emelyanov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, gnome@rvzt.net, grawoc@darkrefraction.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, Chris Mason <clm@fb.com>, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-ide@vger.kernel.org" <linux-ide@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, "rwheeler@redhat.com" <rwheeler@redhat.com>
 
-On Thu, Jan 23, 2014 at 07:14:45PM +0400, Cyrill Gorcunov wrote:
-> On Thu, Jan 23, 2014 at 04:55:43PM +0400, Cyrill Gorcunov wrote:
-> > On Thu, Jan 23, 2014 at 04:15:55PM +0400, Cyrill Gorcunov wrote:
+On Thu, Jan 23, 2014 at 11:55:35AM -0800, James Bottomley wrote:
+> > > > > > <SNIP>
+> > > > > > The real benefit is when and how the reads get scheduled.  We're able to
+> > > > > > do a much better job pipelining the reads, controlling our caches and
+> > > > > > reducing write latency by having the reads done up in the OS instead of
+> > > > > > the drive.
+> > > > > 
+> > > > > I agree with all of that, but my question is still can we do this by
+> > > > > propagating alignment and chunk size information (i.e. the physical
+> > > > > sector size) like we do today.  If the FS knows the optimal I/O patterns
+> > > > > and tries to follow them, the odd cockup won't impact performance
+> > > > > dramatically.  The real question is can the FS make use of this layout
+> > > > > information *without* changing the page cache granularity?  Only if you
+> > > > > answer me "no" to this do I think we need to worry about changing page
+> > > > > cache granularity.
 > > > > 
-> > > > Thanks a lot, Mel! I'm testing the patch as well (manually though :).
-> > > > I'll send the final fix today.
+> > > > We already do this today.
+> > > > 
+> > > > The problem is that we are limited by the page cache assumption that
+> > > > the block device/filesystem never need to manage multiple pages as
+> > > > an atomic unit of change. Hence we can't use the generic
+> > > > infrastructure as it stands to handle block/sector sizes larger than
+> > > > a page size...
 > > > 
-> > > The patch below should fix the problem. I would really appreaciate
-> > > some additional testing.
+> > > If the compound page infrastructure exists today and is usable for this,
+> > > what else do we need to do? ... because if it's a couple of trivial
+> > > changes and a few minor patches to filesystems to take advantage of it,
+> > > we might as well do it anyway. 
 > > 
-> > Forgot to refresh the patch, sorry.
-> > ---
+> > Do not do this as there is no guarantee that a compound allocation will
+> > succeed.
 > 
-> I think setting up dirty bit inside vma_merge() body is a big hammer
-> which should not be used, but it's up to caller of vma_merge() to figure
-> out if dirty bit should be set or not if merge successed. Thus softdirty
-> vma bit should be (and it already is) set at the end of mmap_region and do_brk
-> routines. So patch could be simplified (below). Pavel, what do you think?
-> ---
-> From: Cyrill Gorcunov <gorcunov@gmail.com>
-> Subject: [PATCH] mm: Ignore VM_SOFTDIRTY on VMA merging, v2
+> I presume this is because in the current implementation compound pages
+> have to be physically contiguous.
+
+Well.... yes. In VM terms, a compound page is a high-order physically
+contiguous page that has additional metadata and a destructor. A potentially
+discontiguous buffer would need a different structure and always be accessed
+with base-page-sized iterators.
+
+> For increasing granularity in the
+> page cache, we don't necessarily need this ... however, getting write
+> out to work properly without physically contiguous pages would be a bit
+> more challenging (but not impossible) to solve.
 > 
 
-It passed the gimp launching test. Patch looks sane but I confess I did
-not put a whole lot of thought into it because I see that Andrew is
-already reviewing it so
+Every filesystem would have to be aware of this potentially discontiguous
+buffer. I do not know what the mechanics of fsblock were but I bet it
+had to handle some sort of multiple page read/write when block size was
+bigger than PAGE_SIZE.
 
-Tested-by: Mel Gorman <mgorman@suse.de>
+> >  If the allocation fails then it is potentially unrecoverable
+> > because we can no longer write to storage then you're hosed. If you are
+> > now thinking mempool then the problem becomes that the system will be
+> > in a state of degraded performance for an unknowable length of time and
+> > may never recover fully. 64K MMU page size systems get away with this
+> > because the blocksize is still <= PAGE_SIZE and no core VM changes are
+> > necessary. Critically, pages like the page table pages are the same size as
+> > the basic unit of allocation used by the kernel so external fragmentation
+> > simply is not a severe problem.
+> 
+> Right, I understand this ... but we still need to wonder about what it
+> would take.
 
-If this is merged then remember that it should be tagged for 3.12-stable
-as 3.12.7 and 3.12.8 are affected by this bug.
+So far on the table is
+
+1. major filesystem overhawl
+2. major vm overhawl
+3. use compound pages as they are today and hope it does not go
+   completely to hell, reboot when it does
+
+>  Even the simple fail a compound page allocation gets
+> treated in the kernel the same way as failing a single page allocation
+> in the page cache.
+> 
+
+The percentages of failures are the problem here. If an order-0 allocation
+fails then any number of actions the kernel takes will result in a free
+page that can be used to satisfy the allocation. At worst, OOM killing a
+process is guaranteed to free up order-0 pages but the same is not true
+for compaction. Anti-fragmentation and compaction make this very difficult
+and they go a long way here but it is not a 100% guarantee a compound
+allocation will succeed in the future or be a cheap allocation.
+
+> > > I was only objecting on the grounds that
+> > > the last time we looked at it, it was major VM surgery.  Can someone
+> > > give a summary of how far we are away from being able to do this with
+> > > the VM system today and what extra work is needed (and how big is this
+> > > piece of work)?
+> > > 
+> > 
+> > Offhand no idea. For fsblock, probably a similar amount of work than
+> > had to be done in 2007 and I'd expect it would still require filesystem
+> > awareness problems that Dave Chinner pointer out earlier. For large block,
+> > it'd hit into the same wall that allocations must always succeed.
+> 
+> I don't understand this.  Why must they succeed?  4k page allocations
+> don't have to succeed today in the page cache, so why would compound
+> page allocations have to succeed?
+> 
+
+4K page allocations can temporarily fail but almost any reclaim action
+with the exception of slab reclaim will result in 4K allocation requests
+succeeding again. The same is not true of compound pages. An adverse workload
+could potentially use page table pages (unreclaimable other than OOM kill)
+to prevent compound allocations ever succeeding.
+
+That's why I suggested that it may be necessary to change the basic unit of
+allocation the kernel uses to be larger than the MMU page size and restrict
+how the sub pages are used. The requirement is to preserve the property that
+"with the exception of slab reclaim that any reclaim action will result
+in K-sized allocation succeeding" where K is the largest blocksize used by
+any underlying storage device. From an FS perspective then certain things
+would look similar to what they do today. Block data would be on physically
+contiguous pages, buffer_heads would still manage the case where block_size
+<= PAGEALLOC_PAGE_SIZE (as opposed to MMU_PAGE_SIZE), particularly for
+dirty tracking and so on. The VM perspective is different because now it
+has to handle MMU_PAGE_SIZE in a very different way, page reclaim of a page
+becomes multiple unmap events and so on. There would also be anomalies such
+as mlock of a range smaller than PAGEALLOC_PAGE_SIZE becomes difficult if
+not impossible to sensibly manage because mlock of a 4K page effectively
+pins the rest and it's not obvious how we would deal with the VMAs in that
+case. It would get more than just the storage gains though. Some of the
+scalability problems that deal with massive amount of struct pages may
+magically go away if the base unit of allocation and management changes.
+
+> >  If we
+> > want to break the connection between the basic unit of memory managed
+> > by the kernel and the MMU page size then I don't know but it would be a
+> > fairly large amount of surgery and need a lot of design work. Minimally,
+> > anything dealing with an MMU-sized amount of memory would now need to
+> > deal with sub-pages and there would need to be some restrictions on how
+> > sub-pages were used to mitigate the risk of external fragmentation -- do not
+> > mix page table page allocations with pages mapped into the address space,
+> > do not allow sub pages to be used by different processes etc. At the very
+> > least there would be a performance impact because PAGE_SIZE is no longer a
+> > compile-time constant. However, it would potentially allow the block size
+> > to be at least the same size as this new basic allocation unit.
+> 
+> Hm, OK, so less appealing then.
+> 
+
+Yes. On the plus side, you get the type of compound pages you want. On the
+negative side this would be a massive overhawl of a large chunk of the VM
+with lots of nasty details.
 
 -- 
 Mel Gorman
