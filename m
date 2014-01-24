@@ -2,7 +2,7 @@ From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
  no local memory
 Date: Fri, 24 Jan 2014 11:14:12 +0800
-Message-ID: <43448.5480575406$1390533292@news.gmane.org>
+Message-ID: <48808.3763783381$1390533301@news.gmane.org>
 References: <20140107132100.5b5ad198@kryten> <20140107074136.GA4011@lge.com>
  <52dce7fe.e5e6420a.5ff6.ffff84a0SMTPIN_ADDED_BROKEN@mx.google.com>
  <alpine.DEB.2.10.1401201612340.28048@nuc>
@@ -11,7 +11,7 @@ Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: 7bit
-Return-path: <linuxppc-dev-bounces+glppe-linuxppc-embedded-2=m.gmane.org@lists.ozlabs.org>
+Return-path: <linuxppc-dev-bounces+glppd-linuxppc64-dev=m.gmane.org@lists.ozlabs.org>
 Content-Disposition: inline
 In-Reply-To: <52e1d960.2715420a.3569.1013SMTPIN_ADDED_BROKEN@mx.google.com>
 List-Unsubscribe: <https://lists.ozlabs.org/options/linuxppc-dev>,
@@ -21,9 +21,9 @@ List-Post: <mailto:linuxppc-dev@lists.ozlabs.org>
 List-Help: <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=help>
 List-Subscribe: <https://lists.ozlabs.org/listinfo/linuxppc-dev>,
  <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=subscribe>
-Errors-To: linuxppc-dev-bounces+glppe-linuxppc-embedded-2=m.gmane.org@lists.ozlabs.org
+Errors-To: linuxppc-dev-bounces+glppd-linuxppc64-dev=m.gmane.org@lists.ozlabs.org
 Sender: "Linuxppc-dev"
- <linuxppc-dev-bounces+glppe-linuxppc-embedded-2=m.gmane.org@lists.ozlabs.org>
+ <linuxppc-dev-bounces+glppd-linuxppc64-dev=m.gmane.org@lists.ozlabs.org>
 To: Christoph Lameter <cl@linux.com>
 Cc: nacc@linux.vnet.ibm.com, David Rientjes <rientjes@google.com>, penberg@kernel.org, linux-mm@kvack.org, Han Pingtian <hanpt@linux.vnet.ibm.com>, paulus@samba.org, Anton Blanchard <anton@samba.org>, mpm@selenic.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linuxppc-dev@lists.ozlabs.org
 List-Id: linux-mm.kvack.org
