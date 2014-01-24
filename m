@@ -1,83 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
-	by kanga.kvack.org (Postfix) with ESMTP id B24716B0031
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 17:20:05 -0500 (EST)
-Received: by mail-ob0-f175.google.com with SMTP id wn1so4252540obc.34
-        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 14:20:05 -0800 (PST)
-Received: from e36.co.us.ibm.com (e36.co.us.ibm.com. [32.97.110.154])
-        by mx.google.com with ESMTPS id co8si1252511oec.21.2014.01.24.14.20.03
+Received: from mail-bk0-f49.google.com (mail-bk0-f49.google.com [209.85.214.49])
+	by kanga.kvack.org (Postfix) with ESMTP id DD78E6B0031
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 17:21:49 -0500 (EST)
+Received: by mail-bk0-f49.google.com with SMTP id v15so1531703bkz.36
+        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 14:21:49 -0800 (PST)
+Received: from mail-qa0-x235.google.com (mail-qa0-x235.google.com [2607:f8b0:400d:c00::235])
+        by mx.google.com with ESMTPS id pd9si4594794bkb.0.2014.01.24.14.21.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 24 Jan 2014 14:20:04 -0800 (PST)
-Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Fri, 24 Jan 2014 15:20:03 -0700
-Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 828D21FF001B
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 15:19:28 -0700 (MST)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by b03cxnp07028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0OMJgoj1835382
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 23:19:42 +0100
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0OMK0gg023080
-	for <linux-mm@kvack.org>; Fri, 24 Jan 2014 15:20:01 -0700
-Date: Fri, 24 Jan 2014 14:19:42 -0800
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
- no local memory
-Message-ID: <20140124221942.GA30361@linux.vnet.ibm.com>
-References: <20140107132100.5b5ad198@kryten>
- <20140107074136.GA4011@lge.com>
- <52dce7fe.e5e6420a.5ff6.ffff84a0SMTPIN_ADDED_BROKEN@mx.google.com>
- <alpine.DEB.2.10.1401201612340.28048@nuc>
- <52e1d960.2715420a.3569.1013SMTPIN_ADDED_BROKEN@mx.google.com>
- <52e1da8f.86f7440a.120f.25f3SMTPIN_ADDED_BROKEN@mx.google.com>
- <alpine.DEB.2.10.1401240946530.12886@nuc>
- <alpine.DEB.2.02.1401241301120.10968@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 24 Jan 2014 14:21:48 -0800 (PST)
+Received: by mail-qa0-f53.google.com with SMTP id cm18so4562682qab.40
+        for <linux-mm@kvack.org>; Fri, 24 Jan 2014 14:21:47 -0800 (PST)
+Date: Fri, 24 Jan 2014 17:21:44 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [patch 0/2] mm: reduce reclaim stalls with heavy anon and dirty
+ cache
+Message-ID: <20140124222144.GA3197@htj.dyndns.org>
+References: <1390600984-13925-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1401241301120.10968@chino.kir.corp.google.com>
+In-Reply-To: <1390600984-13925-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Christoph Lameter <cl@linux.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, benh@kernel.crashing.org, paulus@samba.org, penberg@kernel.org, mpm@selenic.com, Anton Blanchard <anton@samba.org>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Han Pingtian <hanpt@linux.vnet.ibm.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 24.01.2014 [13:03:13 -0800], David Rientjes wrote:
-> On Fri, 24 Jan 2014, Christoph Lameter wrote:
-> 
-> > On Fri, 24 Jan 2014, Wanpeng Li wrote:
-> > 
-> > > >
-> > > >diff --git a/mm/slub.c b/mm/slub.c
-> > > >index 545a170..a1c6040 100644
-> > > >--- a/mm/slub.c
-> > > >+++ b/mm/slub.c
-> > > >@@ -1700,6 +1700,9 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
-> > > > 	void *object;
-> > > >	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
-> > 
-> > This needs to be numa_mem_id() and numa_mem_id would need to be
-> > consistently used.
-> > 
-> > > >
-> > > >+	if (!node_present_pages(searchnode))
-> > > >+		searchnode = numa_mem_id();
-> > 
-> > Probably wont need that?
-> > 
-> 
-> I think the problem is a memoryless node being used for kmalloc_node() so 
-> we need to decide where to enforce node_present_pages().  __slab_alloc() 
-> seems like the best candidate when !node_match().
-> 
+Hello,
 
-Yep, I'm looking through callers and such right now and came to a
-similar conclusion. I should have a patch soon.
+On Fri, Jan 24, 2014 at 05:03:02PM -0500, Johannes Weiner wrote:
+> These two patches fix the dirtyable memory calculation to acknowledge
+> the fact that the VM does not really replace anon with dirty cache.
+> As such, anon memory can no longer be considered "dirtyable."
+> 
+> Longer term we probably want to look into reducing some of the bias
+> towards cache.  The problematic workload in particular was not even
+> using any of the anon pages, one swap burst could have resolved it.
 
-Thanks,
-Nish
+For both patches,
+
+ Tested-by: Tejun Heo <tj@kernel.org>
+
+I don't have much idea what's going on here, but the problem was
+pretty ridiculous.  It's a 8gig machine w/ one ssd and 10k rpm
+harddrive and I could reliably reproduce constant stuttering every
+several seconds for as long as buffered IO was going on on the hard
+drive either with tmpfs occupying somewhere above 4gig or a test
+program which allocates about the same amount of anon memory.
+Although swap usage was zero, turning off swap also made the problem
+go away too.
+
+The trigger conditions seem quite plausible - high anon memory usage
+w/ heavy buffered IO and swap configured - and it's highly likely that
+this is happening in the wild too.  (this can happen with copying
+large files to usb sticks too, right?)
+
+So, if this is the right fix && can be determined not to cause
+noticeable regressions, it probably is worthwhile to cc -stable.
+
+Thanks a lot!
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
