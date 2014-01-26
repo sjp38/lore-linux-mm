@@ -1,46 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f206.google.com (mail-ob0-f206.google.com [209.85.214.206])
-	by kanga.kvack.org (Postfix) with ESMTP id 34AE66B0031
-	for <linux-mm@kvack.org>; Sat, 25 Jan 2014 14:39:31 -0500 (EST)
-Received: by mail-ob0-f206.google.com with SMTP id vb8so99902obc.5
-        for <linux-mm@kvack.org>; Sat, 25 Jan 2014 11:39:30 -0800 (PST)
-Received: from qmta15.emeryville.ca.mail.comcast.net (qmta15.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:228])
-        by mx.google.com with ESMTP id ql3si3485829bkb.110.2014.01.24.07.44.23
-        for <linux-mm@kvack.org>;
-        Fri, 24 Jan 2014 07:44:23 -0800 (PST)
-Date: Fri, 24 Jan 2014 09:44:20 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] really large storage sectors - going
- beyond 4096 bytes
-In-Reply-To: <20140124110928.GR4963@suse.de>
-Message-ID: <alpine.DEB.2.10.1401240941190.12665@nuc>
-References: <20131220093022.GV11295@suse.de> <52DF353D.6050300@redhat.com> <20140122093435.GS4963@suse.de> <alpine.DEB.2.10.1401231436300.8031@nuc> <20140124110928.GR4963@suse.de>
+Received: from mail-bk0-f50.google.com (mail-bk0-f50.google.com [209.85.214.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 792E06B0035
+	for <linux-mm@kvack.org>; Sat, 25 Jan 2014 22:12:42 -0500 (EST)
+Received: by mail-bk0-f50.google.com with SMTP id w16so2117459bkz.37
+        for <linux-mm@kvack.org>; Sat, 25 Jan 2014 19:12:41 -0800 (PST)
+Received: from mail-bk0-x22b.google.com (mail-bk0-x22b.google.com [2a00:1450:4008:c01::22b])
+        by mx.google.com with ESMTPS id ch10si8901117bkc.237.2014.01.25.19.12.41
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 25 Jan 2014 19:12:41 -0800 (PST)
+Received: by mail-bk0-f43.google.com with SMTP id mx11so2110316bkb.16
+        for <linux-mm@kvack.org>; Sat, 25 Jan 2014 19:12:41 -0800 (PST)
+Date: Sat, 25 Jan 2014 19:12:35 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch for-3.14] mm, mempolicy: fix mempolicy printing in
+ numa_maps
+Message-ID: <alpine.DEB.2.02.1401251902180.3140@chino.kir.corp.google.com>
+MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Ric Wheeler <rwheeler@redhat.com>, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 24 Jan 2014, Mel Gorman wrote:
+As a result of commit 5606e3877ad8 ("mm: numa: Migrate on reference 
+policy"), /proc/<pid>/numa_maps prints the mempolicy for any <pid> as 
+"prefer:N" for the local node, N, of the process reading the file.
 
-> That'd be okish for 64-bit at least although it would show up as
-> degraded performance in some cases when virtually contiguous buffers were
-> used. Aside from the higher setup, access costs and teardown costs of a
-> virtual contiguous buffer, the underlying storage would no longer gets
-> a single buffer as part of the IO request. Would that not offset many of
-> the advantages?
+This should only be printed when the mempolicy of <pid> is MPOL_PREFERRED 
+for node N.
 
-It would offset some of that. But the major benefit of large order page
-cache was the reduction of the number of operations that the kernel has to
-perform. A 64k page contains 16 4k pages. So there is only one kernel
-operation required instead of 16. If the page is virtually allocated then
-the higher level kernel functions still only operate on one page struct.
-The lower levels (bio) then will have to deal with the virtuall mappings
-and create a scatter gather list. This is some more overhead but not much.
+If the process is actually only using the default mempolicy for local node 
+allocation, make sure "default" is printed as expected.
 
-Doing something like this will put more stress on the defragmentation
-logic in the kernel. In general I think we need more contiguous physical
-memory.
+Reported-by: Robert Lippert <rlippert@google.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ This affects all 3.7+ kernels and is intended for stable but will need to
+ be rebased after it's merged since mpol_to_str() has subsequently
+ changed.  I'll rebase and propose it separately.
+
+ mm/mempolicy.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -2926,7 +2926,7 @@ void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
+ 	unsigned short mode = MPOL_DEFAULT;
+ 	unsigned short flags = 0;
+ 
+-	if (pol && pol != &default_policy) {
++	if (pol && pol != &default_policy && !(pol->flags & MPOL_F_MORON)) {
+ 		mode = pol->mode;
+ 		flags = pol->flags;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
