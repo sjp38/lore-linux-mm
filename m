@@ -1,109 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id D93EF6B0035
-	for <linux-mm@kvack.org>; Sun, 26 Jan 2014 03:15:40 -0500 (EST)
-Received: by mail-lb0-f174.google.com with SMTP id l4so3596852lbv.5
-        for <linux-mm@kvack.org>; Sun, 26 Jan 2014 00:15:39 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id ya3si3025554lbb.116.2014.01.26.00.15.39
+Received: from mail-bk0-f46.google.com (mail-bk0-f46.google.com [209.85.214.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 70FDD6B0035
+	for <linux-mm@kvack.org>; Sun, 26 Jan 2014 10:27:35 -0500 (EST)
+Received: by mail-bk0-f46.google.com with SMTP id r7so2285314bkg.5
+        for <linux-mm@kvack.org>; Sun, 26 Jan 2014 07:27:34 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id on6si10793795bkb.55.2014.01.26.07.27.34
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 26 Jan 2014 00:15:39 -0800 (PST)
-Message-ID: <52E4C420.8020800@parallels.com>
-Date: Sun, 26 Jan 2014 12:15:28 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
+        Sun, 26 Jan 2014 07:27:34 -0800 (PST)
+Date: Sun, 26 Jan 2014 10:27:28 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch] mm, oom: base root bonus on current usage
+Message-ID: <20140126152728.GY6963@cmpxchg.org>
+References: <20140115234308.GB4407@cmpxchg.org>
+ <alpine.DEB.2.02.1401151614480.15665@chino.kir.corp.google.com>
+ <20140116070709.GM6963@cmpxchg.org>
+ <alpine.DEB.2.02.1401212050340.8512@chino.kir.corp.google.com>
+ <20140124040531.GF4407@cmpxchg.org>
+ <alpine.DEB.2.02.1401251942510.3140@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] slab: fix wrong retval on kmem_cache_create_memcg error
- path
-References: <1390598126-4332-1-git-send-email-vdavydov@parallels.com> <alpine.DEB.2.02.1401252036410.10325@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1401252036410.10325@chino.kir.corp.google.com>
-Content-Type: multipart/mixed;
-	boundary="------------010306060909040309010806"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1401251942510.3140@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Jones <davej@redhat.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
---------------010306060909040309010806
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+On Sat, Jan 25, 2014 at 07:48:32PM -0800, David Rientjes wrote:
+> A 3% of system memory bonus is sometimes too excessive in comparison to 
+> other processes and can yield poor results when all processes on the 
+> system are root and none of them use over 3% of memory.
+> 
+> Replace the 3% of system memory bonus with a 3% of current memory usage 
+> bonus.
+> 
+> Reported-by: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-On 01/26/2014 08:39 AM, David Rientjes wrote:
-> On Sat, 25 Jan 2014, Vladimir Davydov wrote:
->
->> diff --git a/mm/slab_common.c b/mm/slab_common.c
->> index 8e40321..499b53c 100644
->> --- a/mm/slab_common.c
->> +++ b/mm/slab_common.c
->> @@ -249,7 +249,6 @@ out_unlock:
->>  				name, err);
->>  			dump_stack();
->>  		}
->> -		return NULL;
->>  	}
->>  	return s;
->>  
->> @@ -257,6 +256,7 @@ out_free_cache:
->>  	memcg_free_cache_params(s);
->>  	kfree(s->name);
->>  	kmem_cache_free(kmem_cache, s);
->> +	s = NULL;
->>  	goto out_unlock;
->>  }
->>  
-> I thought I left spaghetti code back in my BASIC 2.0 days.  It should be 
-> much more readable to just do
->
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -233,14 +233,15 @@ out_unlock:
->  	mutex_unlock(&slab_mutex);
->  	put_online_cpus();
->  
-> -	/*
-> -	 * There is no point in flooding logs with warnings or especially
-> -	 * crashing the system if we fail to create a cache for a memcg. In
-> -	 * this case we will be accounting the memcg allocation to the root
-> -	 * cgroup until we succeed to create its own cache, but it isn't that
-> -	 * critical.
-> -	 */
-> -	if (err && !memcg) {
-> +	if (err) {
-> +		/*
-> +		 * There is no point in flooding logs with warnings or
-> +		 * especially crashing the system if we fail to create a cache
-> +		 * for a memcg.
-> +		 */
-> +		if (memcg)
-> +			return NULL;
-> +
->  		if (flags & SLAB_PANIC)
->  			panic("kmem_cache_create: Failed to create slab '%s'. Error %d\n",
->  				name, err);
->
-> and stop trying to remember what err, memcg, and s are in all possible 
-> contexts.  Sheesh.
+Looks good, thanks a lot!
 
-Hi, David,
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Although it's rather a matter of personal preference, I tend to agree
-with you.
-
-Andrew,
-
-The fix by David Rientjes is attached. It's up to you to decide, which
-one looks better.
-
-Thank you and sorry about the noise.
-
---------------010306060909040309010806
-Content-Type: text/x-patch;
-	name="0001-slab-fix-wrong-retval-on-kmem_cache_create_memcg-err.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
-	filename*0="0001-slab-fix-wrong-retval-on-kmem_cache_create_memcg-err.pa";
-	filename*1="tch"
-
-
---------------010306060909040309010806--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
