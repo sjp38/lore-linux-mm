@@ -1,39 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f53.google.com (mail-bk0-f53.google.com [209.85.214.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F5DC6B0031
-	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 11:24:35 -0500 (EST)
-Received: by mail-bk0-f53.google.com with SMTP id my13so2948530bkb.12
-        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 08:24:35 -0800 (PST)
-Received: from qmta08.emeryville.ca.mail.comcast.net (qmta08.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:80])
-        by mx.google.com with ESMTP id dg6si14883176bkc.242.2014.01.27.08.24.33
-        for <linux-mm@kvack.org>;
-        Mon, 27 Jan 2014 08:24:34 -0800 (PST)
-Date: Mon, 27 Jan 2014 10:24:31 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
- no local memory
-In-Reply-To: <20140125001643.GA25344@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.10.1401271022510.6125@nuc>
-References: <20140107132100.5b5ad198@kryten> <20140107074136.GA4011@lge.com> <52dce7fe.e5e6420a.5ff6.ffff84a0SMTPIN_ADDED_BROKEN@mx.google.com> <alpine.DEB.2.10.1401201612340.28048@nuc> <52e1d960.2715420a.3569.1013SMTPIN_ADDED_BROKEN@mx.google.com>
- <52e1da8f.86f7440a.120f.25f3SMTPIN_ADDED_BROKEN@mx.google.com> <alpine.DEB.2.10.1401240946530.12886@nuc> <alpine.DEB.2.02.1401241301120.10968@chino.kir.corp.google.com> <20140124232902.GB30361@linux.vnet.ibm.com> <alpine.DEB.2.02.1401241543100.18620@chino.kir.corp.google.com>
- <20140125001643.GA25344@linux.vnet.ibm.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-bk0-f46.google.com (mail-bk0-f46.google.com [209.85.214.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 87B656B0031
+	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 12:57:19 -0500 (EST)
+Received: by mail-bk0-f46.google.com with SMTP id r7so3027787bkg.33
+        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 09:57:18 -0800 (PST)
+Received: from mail-pb0-x232.google.com (mail-pb0-x232.google.com [2607:f8b0:400e:c01::232])
+        by mx.google.com with ESMTPS id e5si59511bko.56.2014.01.27.09.57.17
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 27 Jan 2014 09:57:18 -0800 (PST)
+Received: by mail-pb0-f50.google.com with SMTP id rq2so6163069pbb.23
+        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 09:57:16 -0800 (PST)
+From: Masanari Iida <standby24x7@gmail.com>
+Subject: [PATCH] [trivial] mm: Fix warning on make htmldocs caused by slab.c
+Date: Tue, 28 Jan 2014 02:57:08 +0900
+Message-Id: <1390845428-6289-1-git-send-email-standby24x7@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, penberg@kernel.org, linux-mm@kvack.org, paulus@samba.org, Anton Blanchard <anton@samba.org>, mpm@selenic.com, linuxppc-dev@lists.ozlabs.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, trivial@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Masanari Iida <standby24x7@gmail.com>
 
-On Fri, 24 Jan 2014, Nishanth Aravamudan wrote:
+This patch fixed following errors while make htmldocs
+Warning(/mm/slab.c:1956): No description found for parameter 'page'
+Warning(/mm/slab.c:1956): Excess function parameter 'slabp' description in 'slab_destroy'
 
-> What I find odd is that there are only 2 nodes on this system, node 0
-> (empty) and node 1. So won't numa_mem_id() always be 1? And every page
-> should be coming from node 1 (thus node_match() should always be true?)
+Incorrect function parameter "slabp" was set instead of "page"
 
-Well yes that occurs if you specify the node or just always use the
-default memory allocation policy.
+Signed-off-by: Masanari Iida <standby24x7@gmail.com>
+---
+ mm/slab.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-In order to spread the allocatios over both node you would have to set the
-tasks memory allocation policy to MPOL_INTERLEAVE.
+diff --git a/mm/slab.c b/mm/slab.c
+index eb043bf..b264214 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1946,7 +1946,7 @@ static void slab_destroy_debugcheck(struct kmem_cache *cachep,
+ /**
+  * slab_destroy - destroy and release all objects in a slab
+  * @cachep: cache pointer being destroyed
+- * @slabp: slab pointer being destroyed
++ * @page: page pointer being destroyed
+  *
+  * Destroy all the objs in a slab, and release the mem back to the system.
+  * Before calling the slab must have been unlinked from the cache.  The
+-- 
+1.9.rc0.19.gb594c97
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
