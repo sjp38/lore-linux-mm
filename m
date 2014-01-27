@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 827236B0037
-	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 16:03:08 -0500 (EST)
-Received: by mail-qc0-f170.google.com with SMTP id e9so9095758qcy.1
-        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 13:03:08 -0800 (PST)
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 89BDA6B0038
+	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 16:03:25 -0500 (EST)
+Received: by mail-qc0-f172.google.com with SMTP id c9so8767321qcz.17
+        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 13:03:25 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id v1si4202029qcl.79.2014.01.27.13.03.07
+        by mx.google.com with ESMTP id ew5si8156064qab.135.2014.01.27.13.03.23
         for <linux-mm@kvack.org>;
-        Mon, 27 Jan 2014 13:03:07 -0800 (PST)
-Date: Mon, 27 Jan 2014 16:02:56 -0500
+        Mon, 27 Jan 2014 13:03:24 -0800 (PST)
+Date: Mon, 27 Jan 2014 16:03:08 -0500
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1390856576-ud1qp3fm-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1390794746-16755-4-git-send-email-davidlohr@hp.com>
+Message-ID: <1390856588-jyjp0cd0-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1390794746-16755-5-git-send-email-davidlohr@hp.com>
 References: <1390794746-16755-1-git-send-email-davidlohr@hp.com>
- <1390794746-16755-4-git-send-email-davidlohr@hp.com>
-Subject: Re: [PATCH 3/8] mm, hugetlb: fix race in region tracking
+ <1390794746-16755-5-git-send-email-davidlohr@hp.com>
+Subject: Re: [PATCH 4/8] mm, hugetlb: remove resv_map_put
 Mime-Version: 1.0
 Content-Type: text/plain;
  charset=iso-2022-jp
@@ -25,59 +25,19 @@ List-ID: <linux-mm.kvack.org>
 To: Davidlohr Bueso <davidlohr@hp.com>
 Cc: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, riel@redhat.com, mgorman@suse.de, mhocko@suse.cz, aneesh.kumar@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, hughd@google.com, david@gibson.dropbear.id.au, js1304@gmail.com, liwanp@linux.vnet.ibm.com, dhillf@gmail.com, rientjes@google.com, aswin@hp.com, scott.norton@hp.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, Jan 26, 2014 at 07:52:21PM -0800, Davidlohr Bueso wrote:
+On Sun, Jan 26, 2014 at 07:52:22PM -0800, Davidlohr Bueso wrote:
 > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
-> There is a race condition if we map a same file on different processes.
-> Region tracking is protected by mmap_sem and hugetlb_instantiation_mutex.
-> When we do mmap, we don't grab a hugetlb_instantiation_mutex, but only the,
-> mmap_sem (exclusively). This doesn't prevent other tasks from modifying the
-> region structure, so it can be modified by two processes concurrently.
+> This is a preparation patch to unify the use of vma_resv_map() regardless
+> of the map type. This patch prepares it by removing resv_map_put(), which
+> only works for HPAGE_RESV_OWNER's resv_map, not for all resv_maps.
 > 
-> To solve this, introduce a spinlock to resv_map and make region manipulation
-> function grab it before they do actual work.
-> 
-> Acked-by: David Gibson <david@gibson.dropbear.id.au>
+> Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > [Updated changelog]
 > Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
-> ---
-...
-> @@ -203,15 +200,23 @@ static long region_chg(struct resv_map *resv, long f, long t)
->  	 * Subtle, allocate a new region at the position but make it zero
->  	 * size such that we can guarantee to record the reservation. */
->  	if (&rg->link == head || t < rg->from) {
-> -		nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
-> -		if (!nrg)
-> -			return -ENOMEM;
-> +		if (!nrg) {
-> +			spin_unlock(&resv->lock);
 
-I think that doing kmalloc() inside the lock is simpler.
-Why do you unlock and retry here?
-
-Thanks,
-Naoya Horiguchi
-
-> +			nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
-> +			if (!nrg)
-> +				return -ENOMEM;
-> +
-> +			goto retry;
-> +		}
-> +
->  		nrg->from = f;
->  		nrg->to   = f;
->  		INIT_LIST_HEAD(&nrg->link);
->  		list_add(&nrg->link, rg->link.prev);
-> +		nrg = NULL;
->  
-> -		return t - f;
-> +		chg = t - f;
-> +		goto out_locked;
->  	}
->  
->  	/* Round our left edge to the current segment if it encloses us. */
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
