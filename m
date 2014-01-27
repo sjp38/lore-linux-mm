@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F17086B003C
-	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 17:06:32 -0500 (EST)
-Received: by mail-qa0-f51.google.com with SMTP id f11so8317227qae.10
-        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 14:06:32 -0800 (PST)
+Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 59BF76B0044
+	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 17:06:33 -0500 (EST)
+Received: by mail-qa0-f42.google.com with SMTP id k4so8335929qaq.29
+        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 14:06:33 -0800 (PST)
 Received: from shelob.surriel.com (shelob.surriel.com. [74.92.59.67])
-        by mx.google.com with ESMTPS id j4si8371553qao.104.2014.01.27.14.06.11
+        by mx.google.com with ESMTPS id l52si6376789qge.135.2014.01.27.14.06.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 27 Jan 2014 14:06:11 -0800 (PST)
+        Mon, 27 Jan 2014 14:06:09 -0800 (PST)
 From: riel@redhat.com
-Subject: [PATCH 9/9] numa,sched: turn some magic numbers into defines
-Date: Mon, 27 Jan 2014 17:03:48 -0500
-Message-Id: <1390860228-21539-10-git-send-email-riel@redhat.com>
+Subject: [PATCH 8/9] numa,sched: rename variables in task_numa_fault
+Date: Mon, 27 Jan 2014 17:03:47 -0500
+Message-Id: <1390860228-21539-9-git-send-email-riel@redhat.com>
 In-Reply-To: <1390860228-21539-1-git-send-email-riel@redhat.com>
 References: <1390860228-21539-1-git-send-email-riel@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,8 +22,9 @@ Cc: linux-mm@kvack.org, peterz@infradead.org, mgorman@suse.de, mingo@redhat.com,
 
 From: Rik van Riel <riel@redhat.com>
 
-Cleanup suggested by Mel Gorman. Now the code contains some more
-hints on what statistics go where.
+We track both the node of the memory after a NUMA fault, and the node
+of the CPU on which the fault happened. Rename the local variables in
+task_numa_fault to make things more explicit.
 
 Cc: Peter Zijlstra <peterz@infradead.org>
 Cc: Mel Gorman <mgorman@suse.de>
@@ -31,105 +32,40 @@ Cc: Ingo Molnar <mingo@redhat.com>
 Cc: Chegu Vinod <chegu_vinod@hp.com>
 Suggested-by: Mel Gorman <mgorman@suse.de>
 Signed-off-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mgorman@suse.de>
 ---
- kernel/sched/fair.c | 34 +++++++++++++++++++++++++---------
- 1 file changed, 25 insertions(+), 9 deletions(-)
+ kernel/sched/fair.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 54408e4..c4001c4 100644
+index eb32b3e..54408e4 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -896,6 +896,15 @@ struct numa_group {
- 	unsigned long faults[0];
- };
- 
-+/* Shared or private faults. */
-+#define NR_NUMA_HINT_FAULT_TYPES 2
-+
-+/* Memory and CPU locality */
-+#define NR_NUMA_HINT_FAULT_STATS (NR_NUMA_HINT_FAULT_TYPES * 2)
-+
-+/* Averaged statistics, and temporary buffers. */
-+#define NR_NUMA_HINT_FAULT_BUCKETS (NR_NUMA_HINT_FAULT_STATS * 2)
-+
- pid_t task_numa_group_id(struct task_struct *p)
+@@ -1735,11 +1735,11 @@ void task_numa_free(struct task_struct *p)
+ /*
+  * Got a PROT_NONE fault for a page on @node.
+  */
+-void task_numa_fault(int last_cpupid, int node, int pages, int flags)
++void task_numa_fault(int last_cpupid, int mem_node, int pages, int flags)
  {
- 	return p->numa_group ? p->numa_group->gid : 0;
-@@ -903,7 +912,7 @@ pid_t task_numa_group_id(struct task_struct *p)
+ 	struct task_struct *p = current;
+ 	bool migrated = flags & TNF_MIGRATED;
+-	int this_node = task_node(current);
++	int cpu_node = task_node(current);
+ 	int priv;
  
- static inline int task_faults_idx(int nid, int priv)
- {
--	return 2 * nid + priv;
-+	return NR_NUMA_HINT_FAULT_TYPES * nid + priv;
+ 	if (!numabalancing_enabled)
+@@ -1794,8 +1794,8 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
+ 	if (migrated)
+ 		p->numa_pages_migrated += pages;
+ 
+-	p->numa_faults_buffer_memory[task_faults_idx(node, priv)] += pages;
+-	p->numa_faults_buffer_cpu[task_faults_idx(this_node, priv)] += pages;
++	p->numa_faults_buffer_memory[task_faults_idx(mem_node, priv)] += pages;
++	p->numa_faults_buffer_cpu[task_faults_idx(cpu_node, priv)] += pages;
+ 	p->numa_faults_locality[!!(flags & TNF_FAULT_LOCAL)] += pages;
  }
  
- static inline unsigned long task_faults(struct task_struct *p, int nid)
-@@ -1509,7 +1518,7 @@ static void task_numa_placement(struct task_struct *p)
- 		unsigned long faults = 0, group_faults = 0;
- 		int priv, i;
- 
--		for (priv = 0; priv < 2; priv++) {
-+		for (priv = 0; priv < NR_NUMA_HINT_FAULT_TYPES; priv++) {
- 			long diff, f_diff, f_weight;
- 
- 			i = task_faults_idx(nid, priv);
-@@ -1620,11 +1629,12 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
- 		INIT_LIST_HEAD(&grp->task_list);
- 		grp->gid = p->pid;
- 		/* Second half of the array tracks nids where faults happen */
--		grp->faults_cpu = grp->faults + 2 * nr_node_ids;
-+		grp->faults_cpu = grp->faults + NR_NUMA_HINT_FAULT_TYPES *
-+						nr_node_ids;
- 
- 		node_set(task_node(current), grp->active_nodes);
- 
--		for (i = 0; i < 4*nr_node_ids; i++)
-+		for (i = 0; i < NR_NUMA_HINT_FAULT_STATS * nr_node_ids; i++)
- 			grp->faults[i] = p->numa_faults_memory[i];
- 
- 		grp->total_faults = p->total_numa_faults;
-@@ -1682,7 +1692,7 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
- 
- 	double_lock(&my_grp->lock, &grp->lock);
- 
--	for (i = 0; i < 4*nr_node_ids; i++) {
-+	for (i = 0; i < NR_NUMA_HINT_FAULT_STATS * nr_node_ids; i++) {
- 		my_grp->faults[i] -= p->numa_faults_memory[i];
- 		grp->faults[i] += p->numa_faults_memory[i];
- 	}
-@@ -1714,7 +1724,7 @@ void task_numa_free(struct task_struct *p)
- 
- 	if (grp) {
- 		spin_lock(&grp->lock);
--		for (i = 0; i < 4*nr_node_ids; i++)
-+		for (i = 0; i < NR_NUMA_HINT_FAULT_STATS * nr_node_ids; i++)
- 			grp->faults[i] -= p->numa_faults_memory[i];
- 		grp->total_faults -= p->total_numa_faults;
- 
-@@ -1755,14 +1765,20 @@ void task_numa_fault(int last_cpupid, int mem_node, int pages, int flags)
- 
- 	/* Allocate buffer to track faults on a per-node basis */
- 	if (unlikely(!p->numa_faults_memory)) {
--		int size = sizeof(*p->numa_faults_memory) * 4 * nr_node_ids;
-+		int size = sizeof(*p->numa_faults_memory) *
-+			   NR_NUMA_HINT_FAULT_BUCKETS * nr_node_ids;
- 
--		/* numa_faults and numa_faults_buffer share the allocation */
--		p->numa_faults_memory = kzalloc(size * 2, GFP_KERNEL|__GFP_NOWARN);
-+		p->numa_faults_memory = kzalloc(size, GFP_KERNEL|__GFP_NOWARN);
- 		if (!p->numa_faults_memory)
- 			return;
- 
- 		BUG_ON(p->numa_faults_buffer_memory);
-+		/*
-+		 * The averaged statistics, shared & private, memory & cpu,
-+		 * occupy the first half of the array. The second half of the
-+		 * array is for current counters, which are averaged into the
-+		 * first set by task_numa_placement.
-+		 */
- 		p->numa_faults_cpu = p->numa_faults_memory + (2 * nr_node_ids);
- 		p->numa_faults_buffer_memory = p->numa_faults_memory + (4 * nr_node_ids);
- 		p->numa_faults_buffer_cpu = p->numa_faults_memory + (6 * nr_node_ids);
 -- 
 1.8.4.2
 
