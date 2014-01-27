@@ -1,99 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 52A716B0036
-	for <linux-mm@kvack.org>; Sun, 26 Jan 2014 21:29:44 -0500 (EST)
-Received: by mail-pd0-f173.google.com with SMTP id y10so5139057pdj.18
-        for <linux-mm@kvack.org>; Sun, 26 Jan 2014 18:29:43 -0800 (PST)
-Received: from LGEAMRELO02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id qx4si9348914pbc.345.2014.01.26.18.29.41
-        for <linux-mm@kvack.org>;
-        Sun, 26 Jan 2014 18:29:42 -0800 (PST)
-Date: Mon, 27 Jan 2014 11:31:12 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [patch 9/9] mm: keep page cache radix tree nodes in check
-Message-ID: <20140127023112.GF14369@bbox>
-References: <1389377443-11755-1-git-send-email-hannes@cmpxchg.org>
- <1389377443-11755-10-git-send-email-hannes@cmpxchg.org>
- <20140113073947.GR1992@bbox>
- <20140122184217.GD4407@cmpxchg.org>
- <20140123052014.GC28732@bbox>
- <20140123192212.GW6963@cmpxchg.org>
+Received: from mail-bk0-f49.google.com (mail-bk0-f49.google.com [209.85.214.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F3EB6B0031
+	for <linux-mm@kvack.org>; Sun, 26 Jan 2014 21:53:15 -0500 (EST)
+Received: by mail-bk0-f49.google.com with SMTP id v15so2527186bkz.22
+        for <linux-mm@kvack.org>; Sun, 26 Jan 2014 18:53:14 -0800 (PST)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id aq8si12284257bkc.241.2014.01.26.18.53.13
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 26 Jan 2014 18:53:14 -0800 (PST)
+Received: by mail-pa0-f46.google.com with SMTP id rd3so5305072pab.5
+        for <linux-mm@kvack.org>; Sun, 26 Jan 2014 18:53:12 -0800 (PST)
+Date: Sun, 26 Jan 2014 18:52:33 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] mm: bring back /sys/kernel/mm
+Message-ID: <alpine.LSU.2.11.1401261849120.1259@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140123192212.GW6963@cmpxchg.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Bob Liu <bob.liu@oracle.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jan 23, 2014 at 02:22:12PM -0500, Johannes Weiner wrote:
-> On Thu, Jan 23, 2014 at 02:20:14PM +0900, Minchan Kim wrote:
-> > On Wed, Jan 22, 2014 at 01:42:17PM -0500, Johannes Weiner wrote:
-> > > On Mon, Jan 13, 2014 at 04:39:47PM +0900, Minchan Kim wrote:
-> > > > On Fri, Jan 10, 2014 at 01:10:43PM -0500, Johannes Weiner wrote:
-> > > > > @@ -123,9 +129,39 @@ static void page_cache_tree_delete(struct address_space *mapping,
-> > > > >  		 * same time and miss a shadow entry.
-> > > > >  		 */
-> > > > >  		smp_wmb();
-> > > > > -	} else
-> > > > > -		radix_tree_delete(&mapping->page_tree, page->index);
-> > > > > +	}
-> > > > >  	mapping->nrpages--;
-> > > > > +
-> > > > > +	if (!node) {
-> > > > > +		/* Clear direct pointer tags in root node */
-> > > > > +		mapping->page_tree.gfp_mask &= __GFP_BITS_MASK;
-> > > > > +		radix_tree_replace_slot(slot, shadow);
-> > > > > +		return;
-> > > > > +	}
-> > > > > +
-> > > > > +	/* Clear tree tags for the removed page */
-> > > > > +	index = page->index;
-> > > > > +	offset = index & RADIX_TREE_MAP_MASK;
-> > > > > +	for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++) {
-> > > > > +		if (test_bit(offset, node->tags[tag]))
-> > > > > +			radix_tree_tag_clear(&mapping->page_tree, index, tag);
-> > > > > +	}
-> > > > > +
-> > > > > +	/* Delete page, swap shadow entry */
-> > > > > +	radix_tree_replace_slot(slot, shadow);
-> > > > > +	node->count--;
-> > > > > +	if (shadow)
-> > > > > +		node->count += 1U << RADIX_TREE_COUNT_SHIFT;
-> > > > 
-> > > > Nitpick2:
-> > > > It should be a function of workingset.c rather than exposing
-> > > > RADIX_TREE_COUNT_SHIFT?
-> > > > 
-> > > > IMO, It would be better to provide some accessor functions here, too.
-> > > 
-> > > The shadow maintenance and node lifetime management are pretty
-> > > interwoven to share branches and reduce instructions as these are
-> > > common paths.  I don't see how this could result in cleaner code while
-> > > keeping these advantages.
-> > 
-> > What I want is just put a inline accessor in somewhere like workingset.h
-> > 
-> > static inline void inc_shadow_entry(struct radix_tree_node *node)
-> > {
-> >     node->count += 1U << RADIX_TREE_COUNT_MASK;
-> > }
-> > 
-> > So, anyone don't need to know that node->count upper bits present
-> > count of shadow entry.
-> 
-> Okay, but then you have to cover lower bits as well, without explicit
-> higher bit access it would be confusing to use the mask for lower
-> bits.
-> 
-> Something like the following?
+Commit da29bd36224b ("mm/mm_init.c: make creation of the mm_kobj happen
+earlier than device_initcall") changed to pure_initcall(mm_sysfs_init).
 
-LGTM.
+That's too early: mm_sysfs_init() depends on core_initcall(ksysfs_init)
+to have made the kernel_kobj directory "kernel" in which to create "mm".
 
--- 
-Kind regards,
-Minchan Kim
+Make it postcore_initcall(mm_sysfs_init).  We could use core_initcall(),
+and depend upon Makefile link order kernel/ mm/ fs/ ipc/ security/ ...
+as core_initcall(debugfs_init) and core_initcall(securityfs_init) do;
+but better not.
+
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+
+ mm/mm_init.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- 3.13.0+/mm/mm_init.c	2014-01-23 21:51:26.004001378 -0800
++++ linux/mm/mm_init.c	2014-01-26 18:06:40.488488209 -0800
+@@ -202,4 +202,4 @@ static int __init mm_sysfs_init(void)
+ 
+ 	return 0;
+ }
+-pure_initcall(mm_sysfs_init);
++postcore_initcall(mm_sysfs_init);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
