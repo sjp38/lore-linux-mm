@@ -1,73 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 59BF76B0044
-	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 17:06:33 -0500 (EST)
-Received: by mail-qa0-f42.google.com with SMTP id k4so8335929qaq.29
-        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 14:06:33 -0800 (PST)
-Received: from shelob.surriel.com (shelob.surriel.com. [74.92.59.67])
-        by mx.google.com with ESMTPS id l52si6376789qge.135.2014.01.27.14.06.08
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 27 Jan 2014 14:06:09 -0800 (PST)
-From: riel@redhat.com
-Subject: [PATCH 8/9] numa,sched: rename variables in task_numa_fault
-Date: Mon, 27 Jan 2014 17:03:47 -0500
-Message-Id: <1390860228-21539-9-git-send-email-riel@redhat.com>
-In-Reply-To: <1390860228-21539-1-git-send-email-riel@redhat.com>
-References: <1390860228-21539-1-git-send-email-riel@redhat.com>
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 06E2A6B0031
+	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 17:12:56 -0500 (EST)
+Received: by mail-wg0-f41.google.com with SMTP id n12so4847179wgh.0
+        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 14:12:56 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id n18si7034860wij.19.2014.01.27.14.12.55
+        for <linux-mm@kvack.org>;
+        Mon, 27 Jan 2014 14:12:56 -0800 (PST)
+Message-ID: <52E6D9D8.2060205@redhat.com>
+Date: Mon, 27 Jan 2014 17:12:40 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: numa: Initialse numa balancing after jump label initialisation
+References: <20140127155127.GJ4963@suse.de>
+In-Reply-To: <20140127155127.GJ4963@suse.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, peterz@infradead.org, mgorman@suse.de, mingo@redhat.com, chegu_vinod@hp.com
+To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Rik van Riel <riel@redhat.com>
+On 01/27/2014 10:51 AM, Mel Gorman wrote:
+> The command line parsing takes place before jump labels are initialised which
+> generates a warning if numa_balancing= is specified and CONFIG_JUMP_LABEL
+> is set. On older kernls before commit c4b2c0c5 (static_key: WARN on
+> usage before jump_label_init was called) the kernel would have crashed.
+> This patch enables automatic numa balancing later in the initialisation
+> process if numa_balancing= is specified.
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Cc: Stable <stable@vger.kernel.org>
 
-We track both the node of the memory after a NUMA fault, and the node
-of the CPU on which the fault happened. Rename the local variables in
-task_numa_fault to make things more explicit.
+Acked-by: Rik van Riel <riel@redhat.com>
 
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Chegu Vinod <chegu_vinod@hp.com>
-Suggested-by: Mel Gorman <mgorman@suse.de>
-Signed-off-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
----
- kernel/sched/fair.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
-
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index eb32b3e..54408e4 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -1735,11 +1735,11 @@ void task_numa_free(struct task_struct *p)
- /*
-  * Got a PROT_NONE fault for a page on @node.
-  */
--void task_numa_fault(int last_cpupid, int node, int pages, int flags)
-+void task_numa_fault(int last_cpupid, int mem_node, int pages, int flags)
- {
- 	struct task_struct *p = current;
- 	bool migrated = flags & TNF_MIGRATED;
--	int this_node = task_node(current);
-+	int cpu_node = task_node(current);
- 	int priv;
- 
- 	if (!numabalancing_enabled)
-@@ -1794,8 +1794,8 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
- 	if (migrated)
- 		p->numa_pages_migrated += pages;
- 
--	p->numa_faults_buffer_memory[task_faults_idx(node, priv)] += pages;
--	p->numa_faults_buffer_cpu[task_faults_idx(this_node, priv)] += pages;
-+	p->numa_faults_buffer_memory[task_faults_idx(mem_node, priv)] += pages;
-+	p->numa_faults_buffer_cpu[task_faults_idx(cpu_node, priv)] += pages;
- 	p->numa_faults_locality[!!(flags & TNF_FAULT_LOCAL)] += pages;
- }
- 
 -- 
-1.8.4.2
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
