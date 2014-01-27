@@ -1,57 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C67F6B0036
-	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 05:11:15 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id w10so5503999pde.6
-        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 02:11:14 -0800 (PST)
-Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
-        by mx.google.com with ESMTPS id zk9si10747626pac.289.2014.01.27.02.05.08
+Received: from mail-bk0-f43.google.com (mail-bk0-f43.google.com [209.85.214.43])
+	by kanga.kvack.org (Postfix) with ESMTP id E6E6B6B0031
+	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 05:50:17 -0500 (EST)
+Received: by mail-bk0-f43.google.com with SMTP id mx11so2747830bkb.30
+        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 02:50:17 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id qk2si3687058bkb.312.2014.01.27.02.50.16
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Mon, 27 Jan 2014 02:05:09 -0800 (PST)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0N0200ES91CGKE70@mailout1.samsung.com> for
- linux-mm@kvack.org; Mon, 27 Jan 2014 19:05:04 +0900 (KST)
-From: Weijie Yang <weijie.yang@samsung.com>
-Subject: [PATCH 7/8] mm/swap: check swapfile blocksize greater than PAGE_SIZE
-Date: Mon, 27 Jan 2014 18:03:04 +0800
-Message-id: <000801cf1b47$3fcab170$bf601450$%yang@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8
-Content-transfer-encoding: 7bit
-Content-language: zh-cn
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Jan 2014 02:50:16 -0800 (PST)
+Date: Mon, 27 Jan 2014 11:50:11 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [patch for-3.14] mm, mempolicy: fix mempolicy printing in
+ numa_maps
+Message-ID: <20140127105011.GB11314@laptop.programming.kicks-ass.net>
+References: <alpine.DEB.2.02.1401251902180.3140@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1401251902180.3140@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hughd@google.com
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Minchan Kim' <minchan@kernel.org>, shli@kernel.org, 'Bob Liu' <bob.liu@oracle.com>, weijie.yang.kh@gmail.com, 'Heesub Shin' <heesub.shin@samsung.com>, mquzik@redhat.com, 'Linux-MM' <linux-mm@kvack.org>, 'linux-kernel' <linux-kernel@vger.kernel.org>, stable@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-If S_ISREG swapfile's blocksize > PAGE_SIZE, it is not suitable to be
-a swapfile, because swap slot is fixed to PAGE_SIZE.
+On Sat, Jan 25, 2014 at 07:12:35PM -0800, David Rientjes wrote:
+> As a result of commit 5606e3877ad8 ("mm: numa: Migrate on reference 
+> policy"), /proc/<pid>/numa_maps prints the mempolicy for any <pid> as 
+> "prefer:N" for the local node, N, of the process reading the file.
+> 
+> This should only be printed when the mempolicy of <pid> is MPOL_PREFERRED 
+> for node N.
+> 
+> If the process is actually only using the default mempolicy for local node 
+> allocation, make sure "default" is printed as expected.
 
-This patch check this situation and return -EINVAL if it happens.
-
-Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
----
- mm/page_io.c |    2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/mm/page_io.c b/mm/page_io.c
-index 7247be6..3d9bd12 100644
---- a/mm/page_io.c
-+++ b/mm/page_io.c
-@@ -150,6 +150,8 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
- 	int ret;
- 
- 	blkbits = inode->i_blkbits;
-+	if(blkbits > PAGE_SHIFT)
-+		return -EINVAL;
- 	blocks_per_page = PAGE_SIZE >> blkbits;
- 
- 	/*
--- 
-1.7.10.4
+Should we also consider printing the MOF and MORON states so we get a
+better view of what the actual policy is?
 
 
 --
