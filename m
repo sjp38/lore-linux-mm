@@ -1,98 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 310556B0031
-	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 07:09:54 -0500 (EST)
-Received: by mail-pd0-f182.google.com with SMTP id v10so5676237pde.27
-        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 04:09:52 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id bq5si11175403pbb.348.2014.01.27.04.09.48
-        for <linux-mm@kvack.org>;
-        Mon, 27 Jan 2014 04:09:49 -0800 (PST)
-Date: Mon, 27 Jan 2014 20:09:43 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [numa shrinker] 9b17c62382: -36.6% regression on sparse file copy
-Message-ID: <20140127120943.GA17055@localhost>
-References: <20140106082048.GA567@localhost>
- <20140106131042.GA5145@destitution>
- <20140109025715.GA11984@localhost>
- <20140115001827.GO3469@dastard>
+Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B3D46B0031
+	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 08:09:19 -0500 (EST)
+Received: by mail-we0-f173.google.com with SMTP id t60so5168660wes.18
+        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 05:09:18 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ux10si5305427wjc.81.2014.01.27.05.09.18
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 27 Jan 2014 05:09:18 -0800 (PST)
+Date: Mon, 27 Jan 2014 13:09:15 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch for-3.14] mm, mempolicy: fix mempolicy printing in
+ numa_maps
+Message-ID: <20140127130914.GI4963@suse.de>
+References: <alpine.DEB.2.02.1401251902180.3140@chino.kir.corp.google.com>
+ <20140127105011.GB11314@laptop.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20140115001827.GO3469@dastard>
+In-Reply-To: <20140127105011.GB11314@laptop.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Glauber Costa <glommer@parallels.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, lkp@linux.intel.com, "Chen, Tim C" <tim.c.chen@intel.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Dave,
-
-On Wed, Jan 15, 2014 at 11:18:27AM +1100, Dave Chinner wrote:
-> On Thu, Jan 09, 2014 at 10:57:15AM +0800, Fengguang Wu wrote:
-> > Hi Dave,
+On Mon, Jan 27, 2014 at 11:50:11AM +0100, Peter Zijlstra wrote:
+> On Sat, Jan 25, 2014 at 07:12:35PM -0800, David Rientjes wrote:
+> > As a result of commit 5606e3877ad8 ("mm: numa: Migrate on reference 
+> > policy"), /proc/<pid>/numa_maps prints the mempolicy for any <pid> as 
+> > "prefer:N" for the local node, N, of the process reading the file.
 > > 
-> > As you suggested, I added tests for ext4 and btrfs, the results are
-> > the same.
+> > This should only be printed when the mempolicy of <pid> is MPOL_PREFERRED 
+> > for node N.
 > > 
-> > Then I tried running perf record for 10 seconds starting from 200s.
-> > (The test runs for 410s). I see several warning messages and hope
-> > they do not impact the accuracy too much:
-> > 
-> > [  252.608069] perf samples too long (2532 > 2500), lowering kernel.perf_event_max_sample_rate to 50000
-> > [  252.608863] perf samples too long (2507 > 2500), lowering kernel.perf_event_max_sample_rate to 25000
-> > [  252.609422] INFO: NMI handler (perf_event_nmi_handler) took too long to run: 1.389 msecs
-> > 
-> > Anyway the noticeable perf change are:
-> > 
-> > 1d3d4437eae1bb2  9b17c62382dd2e7507984b989  
-> > ---------------  -------------------------  
-> >      12.15 ~10%    +209.8%      37.63 ~ 2%  brickland2/debug2/vm-scalability/300s-btrfs-lru-file-readtwice
-> >      12.88 ~16%    +189.4%      37.27 ~ 0%  brickland2/debug2/vm-scalability/300s-ext4-lru-file-readtwice
-> >      15.24 ~ 9%    +146.0%      37.50 ~ 1%  brickland2/debug2/vm-scalability/300s-xfs-lru-file-readtwice
-> >      40.27         +179.1%     112.40       TOTAL perf-profile.cpu-cycles._raw_spin_lock.grab_super_passive.super_cache_count.shrink_slab.do_try_to_free_pages
-> > 
-> > 1d3d4437eae1bb2  9b17c62382dd2e7507984b989  
-> > ---------------  -------------------------  
-> >      11.91 ~12%    +218.2%      37.89 ~ 2%  brickland2/debug2/vm-scalability/300s-btrfs-lru-file-readtwice
-> >      12.47 ~16%    +200.3%      37.44 ~ 0%  brickland2/debug2/vm-scalability/300s-ext4-lru-file-readtwice
-> >      15.36 ~11%    +145.4%      37.68 ~ 1%  brickland2/debug2/vm-scalability/300s-xfs-lru-file-readtwice
-> >      39.73         +184.5%     113.01       TOTAL perf-profile.cpu-cycles._raw_spin_lock.put_super.drop_super.super_cache_count.shrink_slab
-> > 
-> > perf report for 9b17c62382dd2e7507984b989:
-> > 
-> > # Overhead          Command       Shared Object                                          Symbol
-> > # ........  ...............  ..................  ..............................................
-> > #
-> >     77.74%               dd  [kernel.kallsyms]   [k] _raw_spin_lock                            
-> >                          |
-> >                          --- _raw_spin_lock
-> >                             |          
-> >                             |--47.65%-- grab_super_passive
+> > If the process is actually only using the default mempolicy for local node 
+> > allocation, make sure "default" is printed as expected.
 > 
-> Oh, it's superblock lock contention, probably caused by an increase
-> in shrinker calls (i.e. per-node rather than global). I think we've
-> seen this before - can you try the two patches from Tim Chen here:
+> Should we also consider printing the MOF and MORON states so we get a
+> better view of what the actual policy is?
 > 
-> https://lkml.org/lkml/2013/9/6/353
-> https://lkml.org/lkml/2013/9/6/356
-> 
-> If they fix the problem, I'll get them into 3.14 and pushed back to
-> the relevant stable kernels.
 
-Yes, the two patches help a lot:
+MOF and MORON are separate issues because MOF is exposed to the userspace
+API but not the policies that make up MORON. For MORON, I concluded that
+we should not expose that via numa_maps unless it can be controlled from
+userspace.
 
-9b17c62382dd2e7  8401edd4b12960c703233f4ed
----------------  -------------------------  
-   6748913 ~ 2%     +37.5%    9281049 ~ 1%  brickland2/debug2/vm-scalability/300s-btrfs-lru-file-readtwice
-   8417200 ~ 0%     +56.5%   13172417 ~ 0%  brickland2/debug2/vm-scalability/300s-ext4-lru-file-readtwice
-   8333983 ~ 1%     +56.9%   13078610 ~ 0%  brickland2/debug2/vm-scalability/300s-xfs-lru-file-readtwice
-  23500096 ~ 1%     +51.2%   35532077 ~ 0%  TOTAL vm-scalability.throughput
-
-They restore performance numbers back to 1d3d4437eae1bb2's level
-(which is 9b17c62382's parent commit).
-
-Thanks,
-Fengguang
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
