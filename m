@@ -1,86 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A0FA6B0031
-	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 10:51:31 -0500 (EST)
-Received: by mail-wg0-f48.google.com with SMTP id x13so5652941wgg.15
-        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 07:51:30 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fk8si977415wib.80.2014.01.27.07.51.29
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 27 Jan 2014 07:51:29 -0800 (PST)
-Date: Mon, 27 Jan 2014 15:51:27 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: numa: Initialse numa balancing after jump label
- initialisation
-Message-ID: <20140127155127.GJ4963@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
+Received: from mail-bk0-f52.google.com (mail-bk0-f52.google.com [209.85.214.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 8823D6B0031
+	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 11:16:26 -0500 (EST)
+Received: by mail-bk0-f52.google.com with SMTP id e11so2939147bkh.39
+        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 08:16:26 -0800 (PST)
+Received: from qmta09.emeryville.ca.mail.comcast.net (qmta09.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:96])
+        by mx.google.com with ESMTP id on6si14874802bkb.143.2014.01.27.08.16.23
+        for <linux-mm@kvack.org>;
+        Mon, 27 Jan 2014 08:16:25 -0800 (PST)
+Date: Mon, 27 Jan 2014 10:16:20 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
+ no local memory
+In-Reply-To: <alpine.DEB.2.02.1401241543100.18620@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.10.1401271014340.2215@nuc>
+References: <20140107132100.5b5ad198@kryten> <20140107074136.GA4011@lge.com> <52dce7fe.e5e6420a.5ff6.ffff84a0SMTPIN_ADDED_BROKEN@mx.google.com> <alpine.DEB.2.10.1401201612340.28048@nuc> <52e1d960.2715420a.3569.1013SMTPIN_ADDED_BROKEN@mx.google.com>
+ <52e1da8f.86f7440a.120f.25f3SMTPIN_ADDED_BROKEN@mx.google.com> <alpine.DEB.2.10.1401240946530.12886@nuc> <alpine.DEB.2.02.1401241301120.10968@chino.kir.corp.google.com> <20140124232902.GB30361@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1401241543100.18620@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, penberg@kernel.org, linux-mm@kvack.org, Han Pingtian <hanpt@linux.vnet.ibm.com>, paulus@samba.org, Anton Blanchard <anton@samba.org>, mpm@selenic.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-The command line parsing takes place before jump labels are initialised which
-generates a warning if numa_balancing= is specified and CONFIG_JUMP_LABEL
-is set. On older kernls before commit c4b2c0c5 (static_key: WARN on
-usage before jump_label_init was called) the kernel would have crashed.
-This patch enables automatic numa balancing later in the initialisation
-process if numa_balancing= is specified.
+On Fri, 24 Jan 2014, David Rientjes wrote:
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
-Cc: Stable <stable@vger.kernel.org>
----
- mm/mempolicy.c | 16 ++++++++++------
- 1 file changed, 10 insertions(+), 6 deletions(-)
+> kmalloc_node(nid) and kmem_cache_alloc_node(nid) should fallback to nodes
+> other than nid when memory can't be allocated, these functions only
+> indicate a preference.
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 0cd2c4d..5223684 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -2657,7 +2657,7 @@ void mpol_free_shared_policy(struct shared_policy *p)
- }
- 
- #ifdef CONFIG_NUMA_BALANCING
--static bool __initdata numabalancing_override;
-+static int __initdata numabalancing_override;
- 
- static void __init check_numabalancing_enable(void)
- {
-@@ -2666,9 +2666,14 @@ static void __init check_numabalancing_enable(void)
- 	if (IS_ENABLED(CONFIG_NUMA_BALANCING_DEFAULT_ENABLED))
- 		numabalancing_default = true;
- 
-+	/* Parsed by setup_numabalancing. override == 1 enables, -1 disables */
-+	if (numabalancing_override)
-+		set_numabalancing_state(numabalancing_override == 1);
-+
- 	if (nr_node_ids > 1 && !numabalancing_override) {
--		printk(KERN_INFO "Enabling automatic NUMA balancing. "
--			"Configure with numa_balancing= or sysctl");
-+		printk(KERN_INFO "%s automatic NUMA balancing. "
-+			"Configure with numa_balancing= or sysctl",
-+			numabalancing_default ? "Enabling" : "Disabling");
- 		set_numabalancing_state(numabalancing_default);
- 	}
- }
-@@ -2678,13 +2683,12 @@ static int __init setup_numabalancing(char *str)
- 	int ret = 0;
- 	if (!str)
- 		goto out;
--	numabalancing_override = true;
- 
- 	if (!strcmp(str, "enable")) {
--		set_numabalancing_state(true);
-+		numabalancing_override = 1;
- 		ret = 1;
- 	} else if (!strcmp(str, "disable")) {
--		set_numabalancing_state(false);
-+		numabalancing_override = -1;
- 		ret = 1;
- 	}
- out:
+The nid passed indicated a preference unless __GFP_THIS_NODE is specified.
+Then the allocation must occur on that node.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
