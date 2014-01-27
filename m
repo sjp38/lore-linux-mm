@@ -1,54 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B3D46B0031
-	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 08:09:19 -0500 (EST)
-Received: by mail-we0-f173.google.com with SMTP id t60so5168660wes.18
-        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 05:09:18 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ux10si5305427wjc.81.2014.01.27.05.09.18
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 27 Jan 2014 05:09:18 -0800 (PST)
-Date: Mon, 27 Jan 2014 13:09:15 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [patch for-3.14] mm, mempolicy: fix mempolicy printing in
- numa_maps
-Message-ID: <20140127130914.GI4963@suse.de>
-References: <alpine.DEB.2.02.1401251902180.3140@chino.kir.corp.google.com>
- <20140127105011.GB11314@laptop.programming.kicks-ass.net>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CBBB66B0031
+	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 08:18:54 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id ld10so5909401pab.38
+        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 05:18:54 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id gx4si11406202pbc.261.2014.01.27.05.18.46
+        for <linux-mm@kvack.org>;
+        Mon, 27 Jan 2014 05:18:47 -0800 (PST)
+Date: Mon, 27 Jan 2014 05:19:50 -0800
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH 0/8] mm/swap: fix some rare issues in swap subsystem
+Message-ID: <20140127131950.GD16027@kroah.com>
+References: <000501cf1b46$b899edb0$29cdc910$%yang@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140127105011.GB11314@laptop.programming.kicks-ass.net>
+In-Reply-To: <000501cf1b46$b899edb0$29cdc910$%yang@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Weijie Yang <weijie.yang@samsung.com>
+Cc: hughd@google.com, 'Andrew Morton' <akpm@linux-foundation.org>, 'Minchan Kim' <minchan@kernel.org>, shli@kernel.org, 'Bob Liu' <bob.liu@oracle.com>, weijie.yang.kh@gmail.com, 'Seth Jennings' <sjennings@variantweb.net>, 'Linux-MM' <linux-mm@kvack.org>, 'linux-kernel' <linux-kernel@vger.kernel.org>, stable@vger.kernel.org, 'Heesub Shin' <heesub.shin@samsung.com>, mguzik@redhat.com
 
-On Mon, Jan 27, 2014 at 11:50:11AM +0100, Peter Zijlstra wrote:
-> On Sat, Jan 25, 2014 at 07:12:35PM -0800, David Rientjes wrote:
-> > As a result of commit 5606e3877ad8 ("mm: numa: Migrate on reference 
-> > policy"), /proc/<pid>/numa_maps prints the mempolicy for any <pid> as 
-> > "prefer:N" for the local node, N, of the process reading the file.
-> > 
-> > This should only be printed when the mempolicy of <pid> is MPOL_PREFERRED 
-> > for node N.
-> > 
-> > If the process is actually only using the default mempolicy for local node 
-> > allocation, make sure "default" is printed as expected.
+On Mon, Jan 27, 2014 at 06:00:03PM +0800, Weijie Yang wrote:
+> This patch series focus on some tiny and rare issues in swap subsystem.
+> These issues happen rarely, so it is just for the correctness of the code.
 > 
-> Should we also consider printing the MOF and MORON states so we get a
-> better view of what the actual policy is?
+> It firstly add some comments to try to make swap flag/lock usage in
+> swapfile.c more clear and readable,
+> and fix some rare issues in swap subsystem that cause race condition among
+> swapon, swapoff and frontswap_register_ops.
+> and fix some not race issues.
 > 
+> Please see individual patch for details, any complaint and suggestion
+> are welcome.
+> 
+> Regards
+> 
+> patch 1/8: add some comments for swap flag/lock usage
+> 
+> patch 2/8: fix race on swap_info reuse between swapoff and swapon
+> 	This patch has been in akpm -mm tree, however I improve it according
+> 	to Heesub Shin and Mateusz Guzik's suggestion. So, that old patch need
+> 	to be dropped.
+> 
+> patch 3/8: prevent concurrent swapon on the same S_ISBLK blockdev
+> 
+> patch 4/8: fix race among frontswap_register_ops, swapoff and swapon
+> 
+> patch 5/8: drop useless and bug frontswap_shrink codes
+> 
+> patch 6/8: remove swap_lock to simplify si_swapinfo()
+> 
+> patch 7/8: check swapfile blocksize greater than PAGE_SIZE
+> 
+> patch 8/8: add missing handle on a dup-store failure
+> 
+>  include/linux/blkdev.h    |    4 +++-
+>  include/linux/frontswap.h |    2 --
+>  include/linux/swapfile.h  |    4 +---
+>  mm/frontswap.c            |  127 +++++++------------------------------------------------------------------------------------------------------------------------
+>  mm/page_io.c              |    2 ++
+>  mm/rmap.c                 |    2 +-
+>  mm/swapfile.c             |  138 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++----------------------------------------
+>  7 files changed, 112 insertions(+), 167 deletions(-)
 
-MOF and MORON are separate issues because MOF is exposed to the userspace
-API but not the policies that make up MORON. For MORON, I concluded that
-we should not expose that via numa_maps unless it can be controlled from
-userspace.
 
--- 
-Mel Gorman
-SUSE Labs
+<formletter>
+
+This is not the correct way to submit patches for inclusion in the
+stable kernel tree.  Please read Documentation/stable_kernel_rules.txt
+for how to do this properly.
+
+</formletter>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
