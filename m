@@ -1,78 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CBBB66B0031
-	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 08:18:54 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id ld10so5909401pab.38
-        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 05:18:54 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id gx4si11406202pbc.261.2014.01.27.05.18.46
-        for <linux-mm@kvack.org>;
-        Mon, 27 Jan 2014 05:18:47 -0800 (PST)
-Date: Mon, 27 Jan 2014 05:19:50 -0800
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 0/8] mm/swap: fix some rare issues in swap subsystem
-Message-ID: <20140127131950.GD16027@kroah.com>
-References: <000501cf1b46$b899edb0$29cdc910$%yang@samsung.com>
+Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
+	by kanga.kvack.org (Postfix) with ESMTP id AA0F56B0031
+	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 08:26:50 -0500 (EST)
+Received: by mail-yk0-f177.google.com with SMTP id 19so10487388ykq.8
+        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 05:26:50 -0800 (PST)
+Received: from mail.parisc-linux.org (palinux.external.hp.com. [192.25.206.14])
+        by mx.google.com with ESMTPS id v1si8621263yhg.224.2014.01.27.05.26.48
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 27 Jan 2014 05:26:49 -0800 (PST)
+Date: Mon, 27 Jan 2014 06:26:45 -0700
+From: Matthew Wilcox <matthew@wil.cx>
+Subject: Re: [PATCH v5 10/22] Remove get_xip_mem
+Message-ID: <20140127132644.GB20939@parisc-linux.org>
+References: <cover.1389779961.git.matthew.r.wilcox@intel.com> <557203b474f633a59f32fee1f624a5239effcab7.1389779961.git.matthew.r.wilcox@intel.com> <52D739F4.8060108@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <000501cf1b46$b899edb0$29cdc910$%yang@samsung.com>
+In-Reply-To: <52D739F4.8060108@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang@samsung.com>
-Cc: hughd@google.com, 'Andrew Morton' <akpm@linux-foundation.org>, 'Minchan Kim' <minchan@kernel.org>, shli@kernel.org, 'Bob Liu' <bob.liu@oracle.com>, weijie.yang.kh@gmail.com, 'Seth Jennings' <sjennings@variantweb.net>, 'Linux-MM' <linux-mm@kvack.org>, 'linux-kernel' <linux-kernel@vger.kernel.org>, stable@vger.kernel.org, 'Heesub Shin' <heesub.shin@samsung.com>, mguzik@redhat.com
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
 
-On Mon, Jan 27, 2014 at 06:00:03PM +0800, Weijie Yang wrote:
-> This patch series focus on some tiny and rare issues in swap subsystem.
-> These issues happen rarely, so it is just for the correctness of the code.
+On Wed, Jan 15, 2014 at 05:46:28PM -0800, Randy Dunlap wrote:
+> > +In order to support this method, the storage must be byte-accessable by
 > 
-> It firstly add some comments to try to make swap flag/lock usage in
-> swapfile.c more clear and readable,
-> and fix some rare issues in swap subsystem that cause race condition among
-> swapon, swapoff and frontswap_register_ops.
-> and fix some not race issues.
-> 
-> Please see individual patch for details, any complaint and suggestion
-> are welcome.
-> 
-> Regards
-> 
-> patch 1/8: add some comments for swap flag/lock usage
-> 
-> patch 2/8: fix race on swap_info reuse between swapoff and swapon
-> 	This patch has been in akpm -mm tree, however I improve it according
-> 	to Heesub Shin and Mateusz Guzik's suggestion. So, that old patch need
-> 	to be dropped.
-> 
-> patch 3/8: prevent concurrent swapon on the same S_ISBLK blockdev
-> 
-> patch 4/8: fix race among frontswap_register_ops, swapoff and swapon
-> 
-> patch 5/8: drop useless and bug frontswap_shrink codes
-> 
-> patch 6/8: remove swap_lock to simplify si_swapinfo()
-> 
-> patch 7/8: check swapfile blocksize greater than PAGE_SIZE
-> 
-> patch 8/8: add missing handle on a dup-store failure
-> 
->  include/linux/blkdev.h    |    4 +++-
->  include/linux/frontswap.h |    2 --
->  include/linux/swapfile.h  |    4 +---
->  mm/frontswap.c            |  127 +++++++------------------------------------------------------------------------------------------------------------------------
->  mm/page_io.c              |    2 ++
->  mm/rmap.c                 |    2 +-
->  mm/swapfile.c             |  138 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++----------------------------------------
->  7 files changed, 112 insertions(+), 167 deletions(-)
+>                                                         byte-accessible
 
+Thanks.  Fixed.
 
-<formletter>
+> > +- ensuring that there is sufficient locking between reads, writes,
+> > +  truncates and page faults
+> 
+>      truncates, and
+> but that's up to you and your editor/proofreader etc.  :)
 
-This is not the correct way to submit patches for inclusion in the
-stable kernel tree.  Please read Documentation/stable_kernel_rules.txt
-for how to do this properly.
+Ooh, do we really get to have a discussion about the Oxford Comma on
+linux-kernel?  :-)
 
-</formletter>
+I haven't actually run this material past my editor (who is my wife, so
+I need really convincing arguments to do it your way instead of hers),
+but funnily we had a conversation about the Oxford Comma while on holiday
+last week.  http://en.wikipedia.org/wiki/Serial_comma has a reasonably
+exhaustive discourse on the subject, and I learned that she's probably
+primarily against it because of her journalism degree.
+
+> > +Even if the kernel or its modules are stored on an filesystem that supports
+> 
+>                                                    a
+
+Good catch.  I think I started out with 'an fs', then expanded it to
+"an filesystem" which of course is nonsense.
+
+-- 
+Matthew Wilcox				Intel Open Source Technology Centre
+"Bill, look, we understand that you're interested in selling us this
+operating system, but compare it to ours.  We can't possibly take such
+a retrograde step."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
