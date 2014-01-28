@@ -1,186 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f44.google.com (mail-bk0-f44.google.com [209.85.214.44])
-	by kanga.kvack.org (Postfix) with ESMTP id A18226B0037
-	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 01:03:26 -0500 (EST)
-Received: by mail-bk0-f44.google.com with SMTP id mz12so134798bkb.17
-        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 22:03:26 -0800 (PST)
-Received: from mail-qa0-x22c.google.com (mail-qa0-x22c.google.com [2607:f8b0:400d:c00::22c])
-        by mx.google.com with ESMTPS id k2si16628929bkr.185.2014.01.27.22.03.25
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 27 Jan 2014 22:03:25 -0800 (PST)
-Received: by mail-qa0-f44.google.com with SMTP id w5so8780326qac.31
-        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 22:03:24 -0800 (PST)
-From: William Roberts <bill.c.roberts@gmail.com>
-Subject: [PATCH v4 3/3] audit: Audit proc cmdline value
-Date: Mon, 27 Jan 2014 22:03:23 -0800
-Message-Id: <1390889003-5058-3-git-send-email-wroberts@tresys.com>
-In-Reply-To: <1390889003-5058-1-git-send-email-wroberts@tresys.com>
-References: <1390889003-5058-1-git-send-email-wroberts@tresys.com>
+Received: from mail-bk0-f43.google.com (mail-bk0-f43.google.com [209.85.214.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BF7D6B0031
+	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 01:07:19 -0500 (EST)
+Received: by mail-bk0-f43.google.com with SMTP id mx11so139208bkb.16
+        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 22:07:18 -0800 (PST)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [2001:44b8:8060:ff02:300:1:2:6])
+        by mx.google.com with ESMTP id pf10si16629198bkb.249.2014.01.27.22.07.16
+        for <linux-mm@kvack.org>;
+        Mon, 27 Jan 2014 22:07:18 -0800 (PST)
+Date: Tue, 28 Jan 2014 17:06:52 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v5 00/22] Rewrite XIP code and add XIP support to ext4
+Message-ID: <20140128060652.GZ13997@dastard>
+References: <cover.1389779961.git.matthew.r.wilcox@intel.com>
+ <20140123090133.GR13997@dastard>
+ <100D68C7BA14664A8938383216E40DE04061DF33@FMSMSX114.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <100D68C7BA14664A8938383216E40DE04061DF33@FMSMSX114.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-audit@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rgb@redhat.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, sds@tycho.nsa.gov
-Cc: William Roberts <wroberts@tresys.com>
+To: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
 
-During an audit event, cache and print the value of the process's
-cmdline value (proc/<pid>/cmdline). This is useful in situations
-where processes are started via fork'd virtual machines where the
-comm field is incorrect. Often times, setting the comm field still
-is insufficient as the comm width is not very wide and most
-virtual machine "package names" do not fit. Also, during execution,
-many threads have their comm field set as well. By tying it back to
-the global cmdline value for the process, audit records will be more
-complete in systems with these properties. An example of where this
-is useful and applicable is in the realm of Android. With Android,
-their is no fork/exec for VM instances. The bare, preloaded Dalvik
-VM listens for a fork and specialize request. When this request comes
-in, the VM forks, and the loads the specific application (specializing).
-This was done to take advantage of COW and to not require a load of
-basic packages by the VM on very app spawn. When this spawn occurs,
-the package name is set via setproctitle() and shows up in procfs.
-Many of these package names are longer then 16 bytes, the historical
-width of task->comm. Having the cmdline in the audit records will
-couple the application back to the record directly. Also, on my
-Debian development box, some audit records were more useful then
-what was printed under comm.
+On Thu, Jan 23, 2014 at 12:12:43PM +0000, Wilcox, Matthew R wrote:
+> Are you hitting the same problems with ext4 fsck that we did?  Version 1.42.8 reports spurious corruption.  From the 1.42.9 changelog:
+> 
+>   * Fixed a regression introduced in 1.42.8 which would cause e2fsck to
+>     erroneously report uninitialized extents past i_size to be invalid.
 
-The cached cmdline is tied to the life-cycle of the audit_context
-structure and is built on demand.
+Don't think so - I'm running 1.42.9 on my test VM.
 
-Example denial prior to patch (Ubuntu):
-CALL msg=audit(1387828084.070:361): arch=c000003e syscall=82 success=yes exit=0 a0=4184bf a1=418547 a2=0 a3=0 items=0 ppid=1 pid=1329 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 ses=4294967295 tty=(none) comm="console-kit-dae" exe="/usr/sbin/console-kit-daemon" subj=system_u:system_r:consolekit_t:s0-s0:c0.c255 key=(null)
+Cheers,
 
-After Patches (Ubuntu):
-type=SYSCALL msg=audit(1387828084.070:361): arch=c000003e syscall=82 success=yes exit=0 a0=4184bf a1=418547 a2=0 a3=0 items=0 ppid=1 pid=1329 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 ses=4294967295 tty=(none) comm="console-kit-dae" exe="/usr/sbin/console-kit-daemon" subj=system_u:system_r:consolekit_t:s0-s0:c0.c255 cmdline="/usr/lib/dbus-1.0/dbus-daemon-launch-helper" key=(null)
-
-Example denial prior to patch (Android):
-type=1300 msg=audit(248323.940:247): arch=40000028 syscall=54 per=840000 success=yes exit=0 a0=39 a1=540b a2=2 a3=750eecec items=0 ppid=224 pid=1858 auid=4294967295 uid=1002 gid=1002 euid=1002 suid=1002 fsuid=1002 egid=1002 sgid=1002 fsgid=1002 tty=(none) ses=4294967295 comm="bt_hc_worker" exe="/system/bin/app_process" subj=u:r:bluetooth:s0 key=(null)
-
-After Patches (Android):
-type=1300 msg=audit(248323.940:247): arch=40000028 syscall=54 per=840000 success=yes exit=0 a0=39 a1=540b a2=2 a3=750eecec items=0 ppid=224 pid=1858 auid=4294967295 uid=1002 gid=1002 euid=1002 suid=1002 fsuid=1002 egid=1002 sgid=1002 fsgid=1002 tty=(none) ses=4294967295 comm="bt_hc_worker" exe="/system/bin/app_process" cmdline="com.android.bluetooth" subj=u:r:bluetooth:s0 key=(null)
-
-Signed-off-by: William Roberts <wroberts@tresys.com>
----
- kernel/audit.h   |    6 ++++++
- kernel/auditsc.c |   51 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 57 insertions(+)
-
-diff --git a/kernel/audit.h b/kernel/audit.h
-index 57cc64d..aae1b21 100644
---- a/kernel/audit.h
-+++ b/kernel/audit.h
-@@ -106,6 +106,11 @@ struct audit_names {
- 	bool			should_free;
- };
- 
-+struct audit_cmdline {
-+	int	len;	/* length of the cmdline field. */
-+	char	*value;	/* the cmdline field */
-+};
-+
- /* The per-task audit context. */
- struct audit_context {
- 	int		    dummy;	/* must be the first element */
-@@ -202,6 +207,7 @@ struct audit_context {
- 		} execve;
- 	};
- 	int fds[2];
-+	struct audit_cmdline cmdline;
- 
- #if AUDIT_DEBUG
- 	int		    put_count;
-diff --git a/kernel/auditsc.c b/kernel/auditsc.c
-index 10176cd..2a5d2ef 100644
---- a/kernel/auditsc.c
-+++ b/kernel/auditsc.c
-@@ -79,6 +79,9 @@
- /* no execve audit message should be longer than this (userspace limits) */
- #define MAX_EXECVE_AUDIT_LEN 7500
- 
-+/* max length to print of cmdline value during audit */
-+#define MAX_CMDLINE_AUDIT_LEN 128
-+
- /* number of audit rules */
- int audit_n_rules;
- 
-@@ -842,6 +845,13 @@ static inline struct audit_context *audit_get_context(struct task_struct *tsk,
- 	return context;
- }
- 
-+static inline void audit_cmdline_free(struct audit_context *context)
-+{
-+	kfree(context->cmdline.value);
-+	context->cmdline.value = NULL;
-+	context->cmdline.len = 0;
-+}
-+
- static inline void audit_free_names(struct audit_context *context)
- {
- 	struct audit_names *n, *next;
-@@ -955,6 +965,7 @@ static inline void audit_free_context(struct audit_context *context)
- 	audit_free_aux(context);
- 	kfree(context->filterkey);
- 	kfree(context->sockaddr);
-+	audit_cmdline_free(context);
- 	kfree(context);
- }
- 
-@@ -1271,6 +1282,45 @@ static void show_special(struct audit_context *context, int *call_panic)
- 	audit_log_end(ab);
- }
- 
-+static void audit_log_cmdline(struct audit_buffer *ab, struct task_struct *tsk,
-+			 struct audit_context *context)
-+{
-+	int res;
-+	char *buf;
-+	char *msg = "(null)";
-+	int len = strlen(msg);
-+
-+	audit_log_format(ab, " cmdline=");
-+
-+	/* Not  cached */
-+	if (!context->cmdline.value) {
-+		buf = kmalloc(MAX_CMDLINE_AUDIT_LEN, GFP_KERNEL);
-+		if (!buf)
-+			goto out;
-+		res = get_cmdline(tsk, buf, MAX_CMDLINE_AUDIT_LEN);
-+		if (res == 0) {
-+			kfree(buf);
-+			goto out;
-+		}
-+		/*
-+		 * Ensure NULL terminated but don't clobber the end
-+		 * unless the buffer is full. Worst case you end up
-+		 * with 2 null bytes ending it. By doing it this way
-+		 * one avoids additional branching. One checking if the
-+		 * end is null and another to check if their should be
-+		 * an increment before setting the null byte.
-+		 */
-+		res -= res == MAX_CMDLINE_AUDIT_LEN;
-+		buf[res] = '\0';
-+		context->cmdline.value = buf;
-+		context->cmdline.len = res;
-+	}
-+	msg = context->cmdline.value;
-+	len = context->cmdline.len;
-+out:
-+	audit_log_n_untrustedstring(ab, msg, len);
-+}
-+
- static void audit_log_exit(struct audit_context *context, struct task_struct *tsk)
- {
- 	int i, call_panic = 0;
-@@ -1303,6 +1353,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
- 
- 	audit_log_task_info(ab, tsk);
- 	audit_log_key(ab, context->filterkey);
-+	audit_log_cmdline(ab, tsk, context);
- 	audit_log_end(ab);
- 
- 	for (aux = context->aux; aux; aux = aux->next) {
+Dave.
 -- 
-1.7.9.5
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
