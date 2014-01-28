@@ -1,54 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 2250B6B0037
-	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 14:47:25 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id kl14so789646pab.15
-        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 11:47:24 -0800 (PST)
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-        by mx.google.com with ESMTPS id cf2si10108497pad.227.2014.01.28.11.47.23
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 35AB36B0039
+	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 14:56:59 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id kq14so801803pab.17
+        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 11:56:58 -0800 (PST)
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+        by mx.google.com with ESMTPS id fl7si16538046pad.316.2014.01.28.11.56.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 28 Jan 2014 11:47:23 -0800 (PST)
-Received: by mail-pb0-f43.google.com with SMTP id md12so789278pbc.16
-        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 11:47:23 -0800 (PST)
-Message-ID: <52E80943.3060806@linaro.org>
-Date: Tue, 28 Jan 2014 11:47:15 -0800
+        Tue, 28 Jan 2014 11:56:57 -0800 (PST)
+Received: by mail-pb0-f48.google.com with SMTP id rr13so795111pbb.35
+        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 11:56:57 -0800 (PST)
+Message-ID: <52E80B85.8020302@linaro.org>
+Date: Tue, 28 Jan 2014 11:56:53 -0800
 From: John Stultz <john.stultz@linaro.org>
 MIME-Version: 1.0
 Subject: Re: [RFC] shmgetfd idea
-References: <52E709C0.1050006@linaro.org> <CAPXgP10j5MVwhbkhOqx2z4SX-zAniNbZmk6jcK74Y_kMSN4SOA@mail.gmail.com>
-In-Reply-To: <CAPXgP10j5MVwhbkhOqx2z4SX-zAniNbZmk6jcK74Y_kMSN4SOA@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
+References: <52E709C0.1050006@linaro.org> <52E7298D.5020001@zytor.com>
+In-Reply-To: <52E7298D.5020001@zytor.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kay Sievers <kay@vrfy.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg KH <gregkh@linuxfoundation.org>, Android Kernel Team <kernel-team@android.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Johannes Weiner <hannes@cmpxchg.org>, "H. Peter Anvin" <hpa@linux.intel.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Takahiro Akashi <takahiro.akashi@linaro.org>, Minchan Kim <minchan@kernel.org>, Lennart Poettering <mzxreary@0pointer.de>
+To: "H. Peter Anvin" <hpa@zytor.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Greg KH <gregkh@linuxfoundation.org>, Kay Sievers <kay@vrfy.org>, Android Kernel Team <kernel-team@android.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Takahiro Akashi <takahiro.akashi@linaro.org>, Minchan Kim <minchan@kernel.org>, Lennart Poettering <mzxreary@0pointer.de>
 
-On 01/27/2014 05:53 PM, Kay Sievers wrote:
-> On Tue, Jan 28, 2014 at 2:37 AM, John Stultz <john.stultz@linaro.org> wrote:
->> Anyway, I just wanted to submit this sketched out idea as food for
->> thought to see if there was any objection or interest (I've got a draft
->> patch I'll send out once I get a chance to test it). So let me know if
->> you have any feedback or comments.
-> The reason "kdbus-memfd" exists is primarily the sealing.
-[snip]
-> It would be nice if we can generalize the whole memfd logic, but the
-> shmem allocation facility alone, without the sealing function cannot
-> replace kdbus-memfd.
+On 01/27/2014 07:52 PM, H. Peter Anvin wrote:
+> On 01/27/2014 05:37 PM, John Stultz wrote:
+>> In the Android case, its important to have this interface to atomically
+>> provide these unlinked tmpfs fds, because they'd like to avoid having
+>> tmpfs mounts that are writable by applications (since that creates a
+>> potential DOS on the system by applications writing random files that
+>> persist after the process has been killed). It also provides better
+>> life-cycle management for resources, since as the fds never have named
+>> links in the filesystem, their resources are automatically cleaned up
+>> when the last process with the fd dies, and there's no potential races
+>> between create and unlink with processes being terminated, which avoids
+>> the need for cleanup management.
+>>
+> What about if tmpfs could be restricted to only only O_TMPFILE open()s?
+>  This pretty much amounts to an option to prevent tmpfs from creating
+> new directory entries.
 
-Yes. Quite understood. And I too hope to discuss how the sealing feature
-could be generalized when the code is submitted for review. I just
-figured I'd start here, so when that time comes we have a sketch for
-what the rest of the parts that would be needed are.
+Thanks for reminding me about O_TMPFILE.. I have it on my list to look
+into how it could be used.
 
+As for the O_TMPFILE only tmpfs option, it seems maybe a little clunky
+to me, but possible. If others think this would be preferred over a new
+syscall, I'll dig in deeper.
 
-> We would need secure sealing right from the start for the kdbus use
-> case; other than that, there are no specific requirements from the
-> kdbus side.
-
-Thanks for the clarifications!
-
+thanks
 -john
 
 --
