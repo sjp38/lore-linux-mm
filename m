@@ -1,73 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 551366B0031
-	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 05:01:35 -0500 (EST)
-Received: by mail-wg0-f43.google.com with SMTP id y10so343753wgg.22
-        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 02:01:34 -0800 (PST)
+Received: from mail-ee0-f47.google.com (mail-ee0-f47.google.com [74.125.83.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C8296B0031
+	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 08:48:51 -0500 (EST)
+Received: by mail-ee0-f47.google.com with SMTP id d49so244099eek.20
+        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 05:48:50 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n5si7309439wjw.76.2014.01.28.02.01.34
+        by mx.google.com with ESMTPS id 43si27773916eeh.136.2014.01.28.05.48.49
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 28 Jan 2014 02:01:34 -0800 (PST)
-Date: Tue, 28 Jan 2014 10:01:31 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 6/9] numa,sched: normalize faults_cpu stats and weigh by
- CPU use
-Message-ID: <20140128100131.GS4963@suse.de>
-References: <1390860228-21539-1-git-send-email-riel@redhat.com>
- <1390860228-21539-7-git-send-email-riel@redhat.com>
+        Tue, 28 Jan 2014 05:48:50 -0800 (PST)
+Date: Tue, 28 Jan 2014 14:48:49 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 1/2] mm: page-writeback: fix dirty_balance_reserve
+ subtraction from dirtyable memory
+Message-ID: <20140128134849.GA4625@dhcp22.suse.cz>
+References: <1390600984-13925-1-git-send-email-hannes@cmpxchg.org>
+ <1390600984-13925-2-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1390860228-21539-7-git-send-email-riel@redhat.com>
+In-Reply-To: <1390600984-13925-2-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: riel@redhat.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, mingo@redhat.com, chegu_vinod@hp.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Jan 27, 2014 at 05:03:45PM -0500, riel@redhat.com wrote:
-> From: Rik van Riel <riel@redhat.com>
+On Fri 24-01-14 17:03:03, Johannes Weiner wrote:
+> The dirty_balance_reserve is an approximation of the fraction of free
+> pages that the page allocator does not make available for page cache
+> allocations.  As a result, it has to be taken into account when
+> calculating the amount of "dirtyable memory", the baseline to which
+> dirty_background_ratio and dirty_ratio are applied.
 > 
-> Tracing the code that decides the active nodes has made it abundantly clear
-> that the naive implementation of the faults_from code has issues.
+> However, currently the reserve is subtracted from the sum of free and
+> reclaimable pages, which is non-sensical and leads to erroneous
+> results when the system is dominated by unreclaimable pages and the
+> dirty_balance_reserve is bigger than free+reclaimable.  In that case,
+> at least the already allocated cache should be considered dirtyable.
 > 
-> Specifically, the garbage collector in some workloads will access orders
-> of magnitudes more memory than the threads that do all the active work.
-> This resulted in the node with the garbage collector being marked the only
-> active node in the group.
+> Fix the calculation by subtracting the reserve from the amount of free
+> pages, then adding the reclaimable pages on top.
 > 
-> This issue is avoided if we weigh the statistics by CPU use of each task in
-> the numa group, instead of by how many faults each thread has occurred.
-> 
-> To achieve this, we normalize the number of faults to the fraction of faults
-> that occurred on each node, and then multiply that fraction by the fraction
-> of CPU time the task has used since the last time task_numa_placement was
-> invoked.
-> 
-> This way the nodes in the active node mask will be the ones where the tasks
-> from the numa group are most actively running, and the influence of eg. the
-> garbage collector and other do-little threads is properly minimized.
-> 
-> On a 4 node system, using CPU use statistics calculated over a longer interval
-> results in about 1% fewer page migrations with two 32-warehouse specjbb runs
-> on a 4 node system, and about 5% fewer page migrations, as well as 1% better
-> throughput, with two 8-warehouse specjbb runs, as compared with the shorter
-> term statistics kept by the scheduler.
-> 
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: Chegu Vinod <chegu_vinod@hp.com>
-> Signed-off-by: Rik van Riel <riel@redhat.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Major changes are related to the weight calculations to avoid overflow
-and the avg runtime is calculated based on a longer runtime than the v4
-version. Both seem sane so
+Makes sense
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-Acked-by: Mel Gorman <mgorman@suse>
+> ---
+>  mm/page-writeback.c | 52 +++++++++++++++++++++++-----------------------------
+>  1 file changed, 23 insertions(+), 29 deletions(-)
+> 
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index 63807583d8e8..79cf52b058a7 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -191,6 +191,25 @@ static unsigned long writeout_period_time = 0;
+>   * global dirtyable memory first.
+>   */
+>  
+> +/**
+> + * zone_dirtyable_memory - number of dirtyable pages in a zone
+> + * @zone: the zone
+> + *
+> + * Returns the zone's number of pages potentially available for dirty
+> + * page cache.  This is the base value for the per-zone dirty limits.
+> + */
+> +static unsigned long zone_dirtyable_memory(struct zone *zone)
+> +{
+> +	unsigned long nr_pages;
+> +
+> +	nr_pages = zone_page_state(zone, NR_FREE_PAGES);
+> +	nr_pages -= min(nr_pages, zone->dirty_balance_reserve);
+> +
+> +	nr_pages += zone_reclaimable_pages(zone);
+> +
+> +	return nr_pages;
+> +}
+> +
+>  static unsigned long highmem_dirtyable_memory(unsigned long total)
+>  {
+>  #ifdef CONFIG_HIGHMEM
+> @@ -201,8 +220,7 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
+>  		struct zone *z =
+>  			&NODE_DATA(node)->node_zones[ZONE_HIGHMEM];
+>  
+> -		x += zone_page_state(z, NR_FREE_PAGES) +
+> -		     zone_reclaimable_pages(z) - z->dirty_balance_reserve;
+> +		x += zone_dirtyable_memory(zone);
+>  	}
+>  	/*
+>  	 * Unreclaimable memory (kernel memory or anonymous memory
+> @@ -238,9 +256,11 @@ static unsigned long global_dirtyable_memory(void)
+>  {
+>  	unsigned long x;
+>  
+> -	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
+> +	x = global_page_state(NR_FREE_PAGES);
+>  	x -= min(x, dirty_balance_reserve);
+>  
+> +	x += global_reclaimable_pages();
+> +
+>  	if (!vm_highmem_is_dirtyable)
+>  		x -= highmem_dirtyable_memory(x);
+>  
+> @@ -289,32 +309,6 @@ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
+>  }
+>  
+>  /**
+> - * zone_dirtyable_memory - number of dirtyable pages in a zone
+> - * @zone: the zone
+> - *
+> - * Returns the zone's number of pages potentially available for dirty
+> - * page cache.  This is the base value for the per-zone dirty limits.
+> - */
+> -static unsigned long zone_dirtyable_memory(struct zone *zone)
+> -{
+> -	/*
+> -	 * The effective global number of dirtyable pages may exclude
+> -	 * highmem as a big-picture measure to keep the ratio between
+> -	 * dirty memory and lowmem reasonable.
+> -	 *
+> -	 * But this function is purely about the individual zone and a
+> -	 * highmem zone can hold its share of dirty pages, so we don't
+> -	 * care about vm_highmem_is_dirtyable here.
+> -	 */
+> -	unsigned long nr_pages = zone_page_state(zone, NR_FREE_PAGES) +
+> -		zone_reclaimable_pages(zone);
+> -
+> -	/* don't allow this to underflow */
+> -	nr_pages -= min(nr_pages, zone->dirty_balance_reserve);
+> -	return nr_pages;
+> -}
+> -
+> -/**
+>   * zone_dirty_limit - maximum number of dirty pages allowed in a zone
+>   * @zone: the zone
+>   *
+> -- 
+> 1.8.4.2
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
