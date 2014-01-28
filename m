@@ -1,55 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 179626B0031
-	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 04:58:32 -0500 (EST)
-Received: by mail-wg0-f41.google.com with SMTP id n12so5660079wgh.0
-        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 01:58:32 -0800 (PST)
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 551366B0031
+	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 05:01:35 -0500 (EST)
+Received: by mail-wg0-f43.google.com with SMTP id y10so343753wgg.22
+        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 02:01:34 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id yx1si4368540wjc.16.2014.01.28.01.58.31
+        by mx.google.com with ESMTPS id n5si7309439wjw.76.2014.01.28.02.01.34
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 28 Jan 2014 01:58:31 -0800 (PST)
-Date: Tue, 28 Jan 2014 09:58:28 +0000
+        Tue, 28 Jan 2014 02:01:34 -0800 (PST)
+Date: Tue, 28 Jan 2014 10:01:31 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 5/9] numa,sched,mm: use active_nodes nodemask to limit
- numa migrations
-Message-ID: <20140128095828.GR4963@suse.de>
+Subject: Re: [PATCH 6/9] numa,sched: normalize faults_cpu stats and weigh by
+ CPU use
+Message-ID: <20140128100131.GS4963@suse.de>
 References: <1390860228-21539-1-git-send-email-riel@redhat.com>
- <1390860228-21539-6-git-send-email-riel@redhat.com>
+ <1390860228-21539-7-git-send-email-riel@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1390860228-21539-6-git-send-email-riel@redhat.com>
+In-Reply-To: <1390860228-21539-7-git-send-email-riel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: riel@redhat.com
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, mingo@redhat.com, chegu_vinod@hp.com
 
-On Mon, Jan 27, 2014 at 05:03:44PM -0500, riel@redhat.com wrote:
+On Mon, Jan 27, 2014 at 05:03:45PM -0500, riel@redhat.com wrote:
 > From: Rik van Riel <riel@redhat.com>
 > 
-> Use the active_nodes nodemask to make smarter decisions on NUMA migrations.
+> Tracing the code that decides the active nodes has made it abundantly clear
+> that the naive implementation of the faults_from code has issues.
 > 
-> In order to maximize performance of workloads that do not fit in one NUMA
-> node, we want to satisfy the following criteria:
-> 1) keep private memory local to each thread
-> 2) avoid excessive NUMA migration of pages
-> 3) distribute shared memory across the active nodes, to
->    maximize memory bandwidth available to the workload
+> Specifically, the garbage collector in some workloads will access orders
+> of magnitudes more memory than the threads that do all the active work.
+> This resulted in the node with the garbage collector being marked the only
+> active node in the group.
 > 
-> This patch accomplishes that by implementing the following policy for
-> NUMA migrations:
-> 1) always migrate on a private fault
-> 2) never migrate to a node that is not in the set of active nodes
->    for the numa_group
-> 3) always migrate from a node outside of the set of active nodes,
->    to a node that is in that set
-> 4) within the set of active nodes in the numa_group, only migrate
->    from a node with more NUMA page faults, to a node with fewer
->    NUMA page faults, with a 25% margin to avoid ping-ponging
+> This issue is avoided if we weigh the statistics by CPU use of each task in
+> the numa group, instead of by how many faults each thread has occurred.
 > 
-> This results in most pages of a workload ending up on the actively
-> used nodes, with reduced ping-ponging of pages between those nodes.
+> To achieve this, we normalize the number of faults to the fraction of faults
+> that occurred on each node, and then multiply that fraction by the fraction
+> of CPU time the task has used since the last time task_numa_placement was
+> invoked.
+> 
+> This way the nodes in the active node mask will be the ones where the tasks
+> from the numa group are most actively running, and the influence of eg. the
+> garbage collector and other do-little threads is properly minimized.
+> 
+> On a 4 node system, using CPU use statistics calculated over a longer interval
+> results in about 1% fewer page migrations with two 32-warehouse specjbb runs
+> on a 4 node system, and about 5% fewer page migrations, as well as 1% better
+> throughput, with two 8-warehouse specjbb runs, as compared with the shorter
+> term statistics kept by the scheduler.
 > 
 > Cc: Peter Zijlstra <peterz@infradead.org>
 > Cc: Mel Gorman <mgorman@suse.de>
@@ -57,7 +60,11 @@ On Mon, Jan 27, 2014 at 05:03:44PM -0500, riel@redhat.com wrote:
 > Cc: Chegu Vinod <chegu_vinod@hp.com>
 > Signed-off-by: Rik van Riel <riel@redhat.com>
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+Major changes are related to the weight calculations to avoid overflow
+and the avg runtime is calculated based on a longer runtime than the v4
+version. Both seem sane so
+
+Acked-by: Mel Gorman <mgorman@suse>
 
 -- 
 Mel Gorman
