@@ -1,32 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 507E96B0031
-	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 15:30:37 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id kp14so822178pab.34
-        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 12:30:36 -0800 (PST)
-Received: from g4t0015.houston.hp.com (g4t0015.houston.hp.com. [15.201.24.18])
-        by mx.google.com with ESMTPS id i4si4970002pad.170.2014.01.28.12.30.35
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 595D76B0037
+	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 15:37:53 -0500 (EST)
+Received: by mail-wg0-f52.google.com with SMTP id b13so1837977wgh.7
+        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 12:37:52 -0800 (PST)
+Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
+        by mx.google.com with ESMTPS id s4si8493130wjq.83.2014.01.28.12.37.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 28 Jan 2014 12:30:35 -0800 (PST)
-Message-ID: <52E81369.1040100@hp.com>
-Date: Tue, 28 Jan 2014 15:30:33 -0500
-From: Linda Knippers <linda.knippers@hp.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Jan 2014 12:37:52 -0800 (PST)
+Message-ID: <52E814FF.6060403@zytor.com>
+Date: Tue, 28 Jan 2014 12:37:19 -0800
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Subject: [LSF/MM ATTEND] Persistent memory
+Subject: Re: [RFC] shmgetfd idea
+References: <52E709C0.1050006@linaro.org> <52E7298D.5020001@zytor.com> <52E80B85.8020302@linaro.org>
+In-Reply-To: <52E80B85.8020302@linaro.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: John Stultz <john.stultz@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Greg KH <gregkh@linuxfoundation.org>, Kay Sievers <kay@vrfy.org>, Android Kernel Team <kernel-team@android.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Takahiro Akashi <takahiro.akashi@linaro.org>, Minchan Kim <minchan@kernel.org>, Lennart Poettering <mzxreary@0pointer.de>
 
-I would like to attend to participate in discussions related to persistent memory.
+On 01/28/2014 11:56 AM, John Stultz wrote:
+> 
+> Thanks for reminding me about O_TMPFILE.. I have it on my list to look
+> into how it could be used.
+> 
+> As for the O_TMPFILE only tmpfs option, it seems maybe a little clunky
+> to me, but possible. If others think this would be preferred over a new
+> syscall, I'll dig in deeper.
+> 
 
-I realize that I don't meet Willy's criteria, which I totally understand,
-but I'd like to ramp up some work inside my company and attending would be
-helpful.
+What is clunky about it?  It reuses an existing interface and still
+points to the specific tmpfs instance that should be populated.
 
--- ljk
+	-hpa
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
