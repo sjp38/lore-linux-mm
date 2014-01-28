@@ -1,86 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DC476B0037
-	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 20:21:44 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id rd3so6647808pab.16
-        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 17:21:43 -0800 (PST)
-Received: from LGEMRELSE6Q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id va10si13327636pbc.188.2014.01.27.17.21.41
-        for <linux-mm@kvack.org>;
-        Mon, 27 Jan 2014 17:21:42 -0800 (PST)
-Date: Tue, 28 Jan 2014 10:23:15 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v10 00/16] Volatile Ranges v10
-Message-ID: <20140128012315.GE25066@bbox>
-References: <1388646744-15608-1-git-send-email-minchan@kernel.org>
- <CAHGf_=qiQtG_7W=SfKfGHgV6p6aT3==Wnj65UAegejeoS6fLBA@mail.gmail.com>
- <20140128001244.GB25066@bbox>
- <52E6FCF3.6010009@linaro.org>
- <52E70367.1080504@mozilla.com>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 797BF6B0031
+	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 20:37:10 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fa1so6691379pad.14
+        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 17:37:10 -0800 (PST)
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+        by mx.google.com with ESMTPS id nf8si13341666pbc.330.2014.01.27.17.37.08
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 27 Jan 2014 17:37:08 -0800 (PST)
+Received: by mail-pd0-f173.google.com with SMTP id y10so6442108pdj.32
+        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 17:37:08 -0800 (PST)
+Message-ID: <52E709C0.1050006@linaro.org>
+Date: Mon, 27 Jan 2014 17:37:04 -0800
+From: John Stultz <john.stultz@linaro.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52E70367.1080504@mozilla.com>
+Subject: [RFC] shmgetfd idea
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Taras Glek <tglek@mozilla.com>
-Cc: John Stultz <john.stultz@linaro.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Dhaval Giani <dhaval.giani@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Jan Kara <jack@suse.cz>, Rob Clark <robdclark@gmail.com>, Jason Evans <je@fb.com>, pliard@google.com
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Greg KH <gregkh@linuxfoundation.org>, Kay Sievers <kay@vrfy.org>, Android Kernel Team <kernel-team@android.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Johannes Weiner <hannes@cmpxchg.org>, "H. Peter Anvin" <hpa@linux.intel.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Takahiro Akashi <takahiro.akashi@linaro.org>, Minchan Kim <minchan@kernel.org>, Lennart Poettering <mzxreary@0pointer.de>
 
-On Mon, Jan 27, 2014 at 05:09:59PM -0800, Taras Glek wrote:
-> 
-> 
-> John Stultz wrote:
-> >On 01/27/2014 04:12 PM, Minchan Kim wrote:
-> >>On Mon, Jan 27, 2014 at 05:23:17PM -0500, KOSAKI Motohiro wrote:
-> >>>- Your number only claimed the effectiveness anon vrange, but not file vrange.
-> >>Yes. It's really problem as I said.
-> >> From the beginning, John Stultz wanted to promote vrange-file to replace
-> >>android's ashmem and when I heard usecase of vrange-file, it does make sense
-> >>to me so that's why I'd like to unify them in a same interface.
-> >>
-> >>But the problem is lack of interesting from others and lack of time to
-> >>test/evaluate it. I'm not an expert of userspace so actually I need a bit
-> >>help from them who require the feature but at a moment,
-> >>but I don't know who really want or/and help it.
-> >>
-> >>Even, Android folks didn't have any interest on vrange-file.
-> >
-> >Just as a correction here. I really don't think this is the case, as
-> >Android's use definitely relies on file based volatility. It might be
-> >more fair to say there hasn't been very much discussion from Android
-> >developers on the particulars of the file volatility semantics (out
-> >possibly not having any particular objections, or more-likely, being a
-> >bit too busy to follow the all various theoretical tangents we've
-> >discussed).
-> >
-> >But I'd not want anyone to get the impression that anonymous-only
-> >volatility would be sufficient for Android's needs.
-> Mozilla is starting to use android's ashmem for discardable memory
-> within a single process:
-> https://bugzilla.mozilla.org/show_bug.cgi?id=748598 .
-> 
-> Volatile ranges do help with that specific(uncommon?) use of ashmem.
+In working with ashmem and looking briefly at kdbus' memfd ideas,
+there's a commonality that both basically act as a method to provide
+applications with unlinked tmpfs/shmem fds.
 
-Thanks for the info.
+In the Android case, its important to have this interface to atomically
+provide these unlinked tmpfs fds, because they'd like to avoid having
+tmpfs mounts that are writable by applications (since that creates a
+potential DOS on the system by applications writing random files that
+persist after the process has been killed). It also provides better
+life-cycle management for resources, since as the fds never have named
+links in the filesystem, their resources are automatically cleaned up
+when the last process with the fd dies, and there's no potential races
+between create and unlink with processes being terminated, which avoids
+the need for cleanup management.
 
-I'd like to ask a question.
-Do you prefer fvrange(fd, offset, len) or fadvise(fd, offset, len, advise)
-inteface rather than current vrange syscall interface for vrange-file?
+I won't speak for the kdbus use, but my understanding is memfds address
+similar needs along with being something to connect with other features.
 
-Because I think it would remove unnecessary mmap/munmap syscall for vrange
-interface as well as out of address space in 32bit machine.
 
-> 
-> For Mozilla sharing memory across processes via ashmem is not a
-> nearterm project. It's something that is likely to require
-> significant rework. Process-local discardable memory can be
-> retrofited in a more straight-forward fashion.
-> 
-> Taras
+So one idea was maybe we need a new interface. Something like:
 
--- 
-Kind regards,
-Minchan Kim
+int shmgetfd(char* name, size_t size, int shmflg);
+
+
+Basically this would be very similar to shmget, but would return a file
+descriptor which could be mapped and passed to other processes to map.
+Basically very similar to the in-kernel shmem_file_setup() interface.
+
+(Thanks to Akashi-san for initially pointing out the similarity to shmget.)
+
+Of course, shmgetfd on its own wouldn't address the quota issue right
+away, but it would be fairly easy have a limit for the total number of
+bytes a process could generate, or some other limiting mechanism.
+
+
+The probably more major drawback here is that both ashmem and memfd tack
+on additional features that can be done to the fds.
+
+In ashmems' case it allows for changing the segment's name, and
+unpinning regions which can then be lazily discarded by the kernel.
+
+For memfd, the extra feature is sealing, which prevents modification of
+the file when its shared.
+
+In ashmem's case, both vma-naming and volatile ranges are trying to
+address how the needed features would be generically applied to tmpfs
+fds (as well as potentially wider uses as well) - so with something like
+shmgetfd it would provide all the functionality needed. I am not aware
+of any current plans for memfd's sealing to be similarly worked into a
+generic concept - the code hasn't even been submitted, so this is too
+early - but in any case, its important to note none of these plans for
+generic functionality have been merged or even received with much
+interest, so I do understand how a proposal for a new interface that
+only solves half of the needed infrastructure may not be particularly
+welcome.
+
+So while I do understand the difficulty of trying to create more generic
+interfaces rather then just creating a new chardev/ioctl interface to a
+more limited subset of functionality, I do think its worth exploring if
+we can find a way to share infrastructure at some level (even if its
+just due-diligence to prove if the more limited scope chardev/ioctl
+interfaces are widely agreed to be better).
+
+Anyway, I just wanted to submit this sketched out idea as food for
+thought to see if there was any objection or interest (I've got a draft
+patch I'll send out once I get a chance to test it). So let me know if
+you have any feedback or comments.
+
+thanks
+-john
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
