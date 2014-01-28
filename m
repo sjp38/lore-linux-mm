@@ -1,73 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B78A76B0031
-	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 22:49:03 -0500 (EST)
-Received: by mail-yk0-f177.google.com with SMTP id 19so14837395ykq.8
-        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 19:49:03 -0800 (PST)
-Received: from mail.parisc-linux.org (palinux.external.hp.com. [192.25.206.14])
-        by mx.google.com with ESMTPS id t26si10578862yht.138.2014.01.27.19.49.01
+Received: from mail-bk0-f47.google.com (mail-bk0-f47.google.com [209.85.214.47])
+	by kanga.kvack.org (Postfix) with ESMTP id C1F126B0031
+	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 22:53:14 -0500 (EST)
+Received: by mail-bk0-f47.google.com with SMTP id d7so85445bkh.20
+        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 19:53:14 -0800 (PST)
+Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
+        by mx.google.com with ESMTPS id q2si16216861bkr.259.2014.01.27.19.53.12
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 27 Jan 2014 19:49:02 -0800 (PST)
-Date: Mon, 27 Jan 2014 20:49:00 -0700
-From: Matthew Wilcox <matthew@wil.cx>
-Subject: Re: [PATCH v5 22/22] XIP: Add support for unwritten extents
-Message-ID: <20140128034859.GC20939@parisc-linux.org>
-References: <cover.1389779961.git.matthew.r.wilcox@intel.com> <CEFD7DAD.22F65%matthew.r.wilcox@intel.com> <alpine.OSX.2.00.1401221546240.70541@scrumpy> <CF0C370C.235F1%willy@linux.intel.com> <alpine.OSX.2.00.1401271617570.9254@scrumpy>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Jan 2014 19:53:13 -0800 (PST)
+Message-ID: <52E7298D.5020001@zytor.com>
+Date: Mon, 27 Jan 2014 19:52:45 -0800
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.OSX.2.00.1401271617570.9254@scrumpy>
+Subject: Re: [RFC] shmgetfd idea
+References: <52E709C0.1050006@linaro.org>
+In-Reply-To: <52E709C0.1050006@linaro.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Matthew Wilcox <willy@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
+To: John Stultz <john.stultz@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Greg KH <gregkh@linuxfoundation.org>, Kay Sievers <kay@vrfy.org>, Android Kernel Team <kernel-team@android.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Takahiro Akashi <takahiro.akashi@linaro.org>, Minchan Kim <minchan@kernel.org>, Lennart Poettering <mzxreary@0pointer.de>
 
-On Mon, Jan 27, 2014 at 04:32:07PM -0700, Ross Zwisler wrote:
-> It looks like we have an additional bit of complexity with the hole case.  The
-> issue is that for holes, bh->b_size is just the full size of the write as set
-> earlier in the function:
+On 01/27/2014 05:37 PM, John Stultz wrote:
 > 
->                         bh->b_size = ALIGN(end - offset, PAGE_SIZE);
+> In the Android case, its important to have this interface to atomically
+> provide these unlinked tmpfs fds, because they'd like to avoid having
+> tmpfs mounts that are writable by applications (since that creates a
+> potential DOS on the system by applications writing random files that
+> persist after the process has been killed). It also provides better
+> life-cycle management for resources, since as the fds never have named
+> links in the filesystem, their resources are automatically cleaned up
+> when the last process with the fd dies, and there's no potential races
+> between create and unlink with processes being terminated, which avoids
+> the need for cleanup management.
 > 
-> >From this code it seems like you hoped the call into get_block() would adjust
-> bh->b_size to the size of the hole, allowing you to zero just the hole space
-> in the user buffer.  It doesn't look like it does, though, at least for ext4.
 
-Argh.  I got confused.  ext4 *has* this information, it just doesn't
-propagate it into the bh if it's a hole!  Should it?  The comments in
-the direct IO code imply that it *may*, but doesn't *have* to.  What it's
-doing now (not touching it) is probably wrong.
+What about if tmpfs could be restricted to only only O_TMPFILE open()s?
+ This pretty much amounts to an option to prevent tmpfs from creating
+new directory entries.
 
-> To just assume the current FS block is a hole, we can do something like this:
-
-Yes, this should fix things on an interim basis.  Bit inefficient,
-but it'll work.
-
-> diff --git a/fs/xip.c b/fs/xip.c
-> index 35e401e..e902593 100644
-> --- a/fs/xip.c
-> +++ b/fs/xip.c
-> @@ -122,7 +122,7 @@ static ssize_t xip_io(int rw, struct inode *inode, const struct
->  
->                         if (hole) {
->                                 addr = NULL;
-> -                               size = bh->b_size - first;
-> +                               size = (1 << inode->i_blkbits) - first;
->                         } else {
->                                 retval = xip_get_addr(inode, bh, &addr);
->                                 if (retval < 0)
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-ext4" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-
--- 
-Matthew Wilcox				Intel Open Source Technology Centre
-"Bill, look, we understand that you're interested in selling us this
-operating system, but compare it to ours.  We can't possibly take such
-a retrograde step."
+	-hpa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
