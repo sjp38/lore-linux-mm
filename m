@@ -1,65 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 45D4F6B0031
-	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 16:28:43 -0500 (EST)
-Received: by mail-qc0-f178.google.com with SMTP id m20so1513057qcx.9
-        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 13:28:43 -0800 (PST)
-Received: from mail-qc0-x230.google.com (mail-qc0-x230.google.com [2607:f8b0:400d:c01::230])
-        by mx.google.com with ESMTPS id g48si12323135qge.133.2014.01.28.13.28.41
+Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
+	by kanga.kvack.org (Postfix) with ESMTP id D99C16B0038
+	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 16:45:30 -0500 (EST)
+Received: by mail-qa0-f49.google.com with SMTP id w8so1312767qac.8
+        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 13:45:30 -0800 (PST)
+Received: from mail-qa0-x22a.google.com (mail-qa0-x22a.google.com [2607:f8b0:400d:c00::22a])
+        by mx.google.com with ESMTPS id x4si12353265qad.140.2014.01.28.13.45.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 28 Jan 2014 13:28:42 -0800 (PST)
-Received: by mail-qc0-f176.google.com with SMTP id e16so1464659qcx.21
-        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 13:28:41 -0800 (PST)
+        Tue, 28 Jan 2014 13:45:28 -0800 (PST)
+Received: by mail-qa0-f42.google.com with SMTP id k4so1364799qaq.1
+        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 13:45:28 -0800 (PST)
+Date: Tue, 28 Jan 2014 16:45:24 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Please revert 4fd466eb46a6 ("HWPOISON: add memory cgroup filter")
+Message-ID: <20140128214524.GA16060@mtj.dyndns.org>
 MIME-Version: 1.0
-In-Reply-To: <52E81BB3.6060306@linaro.org>
-References: <52E709C0.1050006@linaro.org> <52E7298D.5020001@zytor.com>
- <52E80B85.8020302@linaro.org> <52E814FF.6060403@zytor.com>
- <52E819F0.6040806@linaro.org> <CAPXgP11Fv6TU+o2Eui5rVW0A37U7KjwC0DZYbQOJJ8rEAYOiJg@mail.gmail.com>
- <52E81BB3.6060306@linaro.org>
-From: Kay Sievers <kay@vrfy.org>
-Date: Tue, 28 Jan 2014 22:28:21 +0100
-Message-ID: <CAPXgP13oad-UKtvNzu-Wk4oBojc7kQRUe4-QQrr1g3E0TT8P_A@mail.gmail.com>
-Subject: Re: [RFC] shmgetfd idea
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg KH <gregkh@linuxfoundation.org>, Android Kernel Team <kernel-team@android.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Takahiro Akashi <takahiro.akashi@linaro.org>, Minchan Kim <minchan@kernel.org>, Lennart Poettering <mzxreary@0pointer.de>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Li Zefan <lizefan@huawei.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jan 28, 2014 at 10:05 PM, John Stultz <john.stultz@linaro.org> wrote:
-> On 01/28/2014 01:01 PM, Kay Sievers wrote:
->> On Tue, Jan 28, 2014 at 9:58 PM, John Stultz <john.stultz@linaro.org> wrote:
->>> On 01/28/2014 12:37 PM, H. Peter Anvin wrote:
->>>> On 01/28/2014 11:56 AM, John Stultz wrote:
->>>>> Thanks for reminding me about O_TMPFILE.. I have it on my list to look
->>>>> into how it could be used.
->>>>>
->>>>> As for the O_TMPFILE only tmpfs option, it seems maybe a little clunky
->>>>> to me, but possible. If others think this would be preferred over a new
->>>>> syscall, I'll dig in deeper.
->>>>>
->>>> What is clunky about it?  It reuses an existing interface and still
->>>> points to the specific tmpfs instance that should be populated.
->>> It would require new mount point convention that userland would have to
->>> standardize.  To me (and admittedly its a taste thing), a new
->>> O_TMPFILE-only tmpfs mount point seems to be to be a bigger interface
->>> change from an application writers perspective then a new syscall.
->>>
->>> But maybe I'm misunderstanding your suggestion?
->> General purpose Linux has /dev/shm/ for that already, which will not
->> go away anytime soon..
->
-> Right, though making /dev/shm/ O_TMPFILE only would likely break things, no?
+Hello, Andi, Wu.
 
-Right, general purpose Linux could not mount with that option without
-expecting major breakage, see: man shm_overview. But a custom OS could
-just define that, I guess.
+Can you guys please revert 4fd466eb46a6 ("HWPOISON: add memory cgroup
+filter"), which reaches into cgroup to extract the inode number and
+uses that for filtering?  Nobody outside cgroup proper should be
+reaching into that.  In fact, the hard association between vfs objects
+and cgroup objects are going away in the upcoming devel cycle.  If you
+want to tag on memcg for filtering, please introduce a proper memcg
+knob.
 
-The current /dev/shm/ semantics and the shm apis in general are a kind
-of a broken idea from the very beginning.
+Thank you.
 
-Kay
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
