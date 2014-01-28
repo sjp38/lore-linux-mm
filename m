@@ -1,107 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E32E6B0031
-	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 14:03:56 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id hz1so738726pad.22
-        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 11:03:55 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id gx4si16426047pbc.231.2014.01.28.11.03.47
-        for <linux-mm@kvack.org>;
-        Tue, 28 Jan 2014 11:03:48 -0800 (PST)
-Subject: Re: [numa shrinker] 9b17c62382: -36.6% regression on sparse file
- copy
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <20140127120943.GA17055@localhost>
-References: <20140106082048.GA567@localhost>
-	 <20140106131042.GA5145@destitution> <20140109025715.GA11984@localhost>
-	 <20140115001827.GO3469@dastard>  <20140127120943.GA17055@localhost>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 28 Jan 2014 11:03:30 -0800
-Message-ID: <1390935810.3138.80.camel@schen9-DESK>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C4906B0037
+	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 14:38:40 -0500 (EST)
+Received: by mail-wg0-f50.google.com with SMTP id l18so1702038wgh.29
+        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 11:38:39 -0800 (PST)
+Received: from mail.parisc-linux.org (palinux.external.hp.com. [192.25.206.14])
+        by mx.google.com with ESMTPS id l14si907126wjq.66.2014.01.28.11.38.36
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 28 Jan 2014 11:38:36 -0800 (PST)
+Date: Tue, 28 Jan 2014 12:38:33 -0700
+From: Matthew Wilcox <matthew@wil.cx>
+Subject: Re: [LSF/MM ATTEND] persistent transparent large
+Message-ID: <20140128193833.GD20939@parisc-linux.org>
+References: <alpine.LSU.2.11.1401230334110.1414@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1401230334110.1414@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Dave Chinner <david@fromorbit.com>, Glauber Costa <glommer@parallels.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, lkp@linux.intel.com, "Chen, Tim C" <tim.c.chen@intel.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Mon, 2014-01-27 at 20:09 +0800, Fengguang Wu wrote:
-> Hi Dave,
+On Thu, Jan 23, 2014 at 04:23:04AM -0800, Hugh Dickins wrote:
+> I'm eager to participate in this year's LSF/MM, but no topics of my
+> own to propose: I need to listen to what other people are suggesting.
 > 
-> On Wed, Jan 15, 2014 at 11:18:27AM +1100, Dave Chinner wrote:
-> > On Thu, Jan 09, 2014 at 10:57:15AM +0800, Fengguang Wu wrote:
-> > > Hi Dave,
-> > > 
-> > > As you suggested, I added tests for ext4 and btrfs, the results are
-> > > the same.
-> > > 
-> > > Then I tried running perf record for 10 seconds starting from 200s.
-> > > (The test runs for 410s). I see several warning messages and hope
-> > > they do not impact the accuracy too much:
-> > > 
-> > > [  252.608069] perf samples too long (2532 > 2500), lowering kernel.perf_event_max_sample_rate to 50000
-> > > [  252.608863] perf samples too long (2507 > 2500), lowering kernel.perf_event_max_sample_rate to 25000
-> > > [  252.609422] INFO: NMI handler (perf_event_nmi_handler) took too long to run: 1.389 msecs
-> > > 
-> > > Anyway the noticeable perf change are:
-> > > 
-> > > 1d3d4437eae1bb2  9b17c62382dd2e7507984b989  
-> > > ---------------  -------------------------  
-> > >      12.15 ~10%    +209.8%      37.63 ~ 2%  brickland2/debug2/vm-scalability/300s-btrfs-lru-file-readtwice
-> > >      12.88 ~16%    +189.4%      37.27 ~ 0%  brickland2/debug2/vm-scalability/300s-ext4-lru-file-readtwice
-> > >      15.24 ~ 9%    +146.0%      37.50 ~ 1%  brickland2/debug2/vm-scalability/300s-xfs-lru-file-readtwice
-> > >      40.27         +179.1%     112.40       TOTAL perf-profile.cpu-cycles._raw_spin_lock.grab_super_passive.super_cache_count.shrink_slab.do_try_to_free_pages
-> > > 
-> > > 1d3d4437eae1bb2  9b17c62382dd2e7507984b989  
-> > > ---------------  -------------------------  
-> > >      11.91 ~12%    +218.2%      37.89 ~ 2%  brickland2/debug2/vm-scalability/300s-btrfs-lru-file-readtwice
-> > >      12.47 ~16%    +200.3%      37.44 ~ 0%  brickland2/debug2/vm-scalability/300s-ext4-lru-file-readtwice
-> > >      15.36 ~11%    +145.4%      37.68 ~ 1%  brickland2/debug2/vm-scalability/300s-xfs-lru-file-readtwice
-> > >      39.73         +184.5%     113.01       TOTAL perf-profile.cpu-cycles._raw_spin_lock.put_super.drop_super.super_cache_count.shrink_slab
-> > > 
-> > > perf report for 9b17c62382dd2e7507984b989:
-> > > 
-> > > # Overhead          Command       Shared Object                                          Symbol
-> > > # ........  ...............  ..................  ..............................................
-> > > #
-> > >     77.74%               dd  [kernel.kallsyms]   [k] _raw_spin_lock                            
-> > >                          |
-> > >                          --- _raw_spin_lock
-> > >                             |          
-> > >                             |--47.65%-- grab_super_passive
-> > 
-> > Oh, it's superblock lock contention, probably caused by an increase
-> > in shrinker calls (i.e. per-node rather than global). I think we've
-> > seen this before - can you try the two patches from Tim Chen here:
-> > 
-> > https://lkml.org/lkml/2013/9/6/353
-> > https://lkml.org/lkml/2013/9/6/356
-> > 
-> > If they fix the problem, I'll get them into 3.14 and pushed back to
-> > the relevant stable kernels.
-> 
-> Yes, the two patches help a lot:
-> 
-> 9b17c62382dd2e7  8401edd4b12960c703233f4ed
-> ---------------  -------------------------  
->    6748913 ~ 2%     +37.5%    9281049 ~ 1%  brickland2/debug2/vm-scalability/300s-btrfs-lru-file-readtwice
->    8417200 ~ 0%     +56.5%   13172417 ~ 0%  brickland2/debug2/vm-scalability/300s-ext4-lru-file-readtwice
->    8333983 ~ 1%     +56.9%   13078610 ~ 0%  brickland2/debug2/vm-scalability/300s-xfs-lru-file-readtwice
->   23500096 ~ 1%     +51.2%   35532077 ~ 0%  TOTAL vm-scalability.throughput
-> 
-> They restore performance numbers back to 1d3d4437eae1bb2's level
-> (which is 9b17c62382's parent commit).
-> 
-> Thanks,
-> Fengguang
+> Topics of most interest to me span mm and fs: persistent memory and
+> xip, transparent huge pagecache, large sectors, mm scalability.
 
-Dave,
+I don't want to particularly pick on Hugh here; indeed, I know he won't
+take it personally which is why I've chosen to respoond to Hugh's message
+rather than any of the others.  I'm rather annoyed at the huge disrepancy
+between the number of people who are *saying* they're interested in
+persistent memory and the number of people who are reviewing patches
+relating to persistent memory.
 
-You're going to merge the two patches to 3.14?
+As far as I'm concerned, the only people who have "earned" their way into
+attending the Summit based on contributing to persistent memory work
+would be Dave Chinner (er ... on the ctte already), Ted Ts'o (ditto),
+Jan Kara (ditto), Kirill Shutemov, Dave Hansen (who's not looking to
+attend this year), Ross Zwisler (ditto), and Andreas Dilger.
 
-Thanks.
+I'd particularly like a VM person to review these two patches:
 
-Tim
+http://marc.info/?l=linux-fsdevel&m=138983598101510&w=2
+http://marc.info/?l=linux-fsdevel&m=138983600001513&w=2
+
+-- 
+Matthew Wilcox				Intel Open Source Technology Centre
+"Bill, look, we understand that you're interested in selling us this
+operating system, but compare it to ours.  We can't possibly take such
+a retrograde step."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
