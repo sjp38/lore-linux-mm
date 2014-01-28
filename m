@@ -1,73 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id E32556B0031
-	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 03:57:56 -0500 (EST)
-Received: by mail-wg0-f43.google.com with SMTP id y10so206611wgg.10
-        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 00:57:56 -0800 (PST)
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 179626B0031
+	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 04:58:32 -0500 (EST)
+Received: by mail-wg0-f41.google.com with SMTP id n12so5660079wgh.0
+        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 01:58:32 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bf6si7157602wjc.14.2014.01.28.00.57.55
+        by mx.google.com with ESMTPS id yx1si4368540wjc.16.2014.01.28.01.58.31
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 28 Jan 2014 00:57:55 -0800 (PST)
-Date: Tue, 28 Jan 2014 08:57:53 +0000
+        Tue, 28 Jan 2014 01:58:31 -0800 (PST)
+Date: Tue, 28 Jan 2014 09:58:28 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [patch for-3.14] mm, mempolicy: fix mempolicy printing in
- numa_maps
-Message-ID: <20140128085753.GN4963@suse.de>
-References: <alpine.DEB.2.02.1401251902180.3140@chino.kir.corp.google.com>
- <20140127110330.GH4963@suse.de>
- <alpine.DEB.2.02.1401271526010.17114@chino.kir.corp.google.com>
+Subject: Re: [PATCH 5/9] numa,sched,mm: use active_nodes nodemask to limit
+ numa migrations
+Message-ID: <20140128095828.GR4963@suse.de>
+References: <1390860228-21539-1-git-send-email-riel@redhat.com>
+ <1390860228-21539-6-git-send-email-riel@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1401271526010.17114@chino.kir.corp.google.com>
+In-Reply-To: <1390860228-21539-6-git-send-email-riel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: riel@redhat.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, mingo@redhat.com, chegu_vinod@hp.com
 
-On Mon, Jan 27, 2014 at 03:31:32PM -0800, David Rientjes wrote:
-> On Mon, 27 Jan 2014, Mel Gorman wrote:
+On Mon, Jan 27, 2014 at 05:03:44PM -0500, riel@redhat.com wrote:
+> From: Rik van Riel <riel@redhat.com>
 > 
-> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> > index c2ccec0..c1a2573 100644
-> > --- a/mm/mempolicy.c
-> > +++ b/mm/mempolicy.c
-> > @@ -120,6 +120,14 @@ static struct mempolicy default_policy = {
-> >  
-> >  static struct mempolicy preferred_node_policy[MAX_NUMNODES];
-> >  
-> > +/* Returns true if the policy is the default policy */
-> > +static bool mpol_is_default(struct mempolicy *pol)
-> > +{
-> > +	return !pol ||
-> > +		pol == &default_policy ||
-> > +		pol == &preferred_node_policy[numa_node_id()];
-> > +}
-> > +
-> >  static struct mempolicy *get_task_policy(struct task_struct *p)
-> >  {
-> >  	struct mempolicy *pol = p->mempolicy;
+> Use the active_nodes nodemask to make smarter decisions on NUMA migrations.
 > 
-> I was trying to avoid doing this because numa_node_id() of process A 
-> reading numa_maps for process B has nothing to do with the policy of the 
-> process A and I thought MPOL_F_MORON's purpose was exactly for what it is 
-> used for today. It works today since you initialize preferred_node_policy 
-> for all nodes, but could this ever change to only be valid for N_MEMORY 
-> node states, for example?
+> In order to maximize performance of workloads that do not fit in one NUMA
+> node, we want to satisfy the following criteria:
+> 1) keep private memory local to each thread
+> 2) avoid excessive NUMA migration of pages
+> 3) distribute shared memory across the active nodes, to
+>    maximize memory bandwidth available to the workload
 > 
-
-You're right about the numa_node_id() usage, I should have called
-task_node(p) to read the node it's currently running but that is potentially
-obscure for different reasons.
-
-> I'm not sure what the harm in updating mpol_to_str() would be if 
-> MPOL_F_MORON is to change in the future?
-
-It just has to be caught correctly and handled and it's a little non-obvious
-but ok if I see a patch that modifies how MPOL_F_MORON is used in the
-future I should remember to check for this.  I withdraw my objection for
-your patch so
+> This patch accomplishes that by implementing the following policy for
+> NUMA migrations:
+> 1) always migrate on a private fault
+> 2) never migrate to a node that is not in the set of active nodes
+>    for the numa_group
+> 3) always migrate from a node outside of the set of active nodes,
+>    to a node that is in that set
+> 4) within the set of active nodes in the numa_group, only migrate
+>    from a node with more NUMA page faults, to a node with fewer
+>    NUMA page faults, with a 25% margin to avoid ping-ponging
+> 
+> This results in most pages of a workload ending up on the actively
+> used nodes, with reduced ping-ponging of pages between those nodes.
+> 
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: Chegu Vinod <chegu_vinod@hp.com>
+> Signed-off-by: Rik van Riel <riel@redhat.com>
 
 Acked-by: Mel Gorman <mgorman@suse.de>
 
