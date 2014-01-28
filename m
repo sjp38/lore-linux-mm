@@ -1,117 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vb0-f53.google.com (mail-vb0-f53.google.com [209.85.212.53])
-	by kanga.kvack.org (Postfix) with ESMTP id B84066B0037
-	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 20:53:40 -0500 (EST)
-Received: by mail-vb0-f53.google.com with SMTP id p17so3875704vbe.40
-        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 17:53:40 -0800 (PST)
-Received: from mail-qc0-x22b.google.com (mail-qc0-x22b.google.com [2607:f8b0:400d:c01::22b])
-        by mx.google.com with ESMTPS id eb8si135129vdb.21.2014.01.27.17.53.39
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 27 Jan 2014 17:53:39 -0800 (PST)
-Received: by mail-qc0-f171.google.com with SMTP id n7so9459532qcx.30
-        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 17:53:39 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <52E709C0.1050006@linaro.org>
-References: <52E709C0.1050006@linaro.org>
-From: Kay Sievers <kay@vrfy.org>
-Date: Tue, 28 Jan 2014 02:53:18 +0100
-Message-ID: <CAPXgP10j5MVwhbkhOqx2z4SX-zAniNbZmk6jcK74Y_kMSN4SOA@mail.gmail.com>
-Subject: Re: [RFC] shmgetfd idea
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D9E96B0038
+	for <linux-mm@kvack.org>; Mon, 27 Jan 2014 20:54:02 -0500 (EST)
+Received: by mail-qa0-f46.google.com with SMTP id ii20so8216475qab.5
+        for <linux-mm@kvack.org>; Mon, 27 Jan 2014 17:54:01 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id fg9si4424754qcb.105.2014.01.27.17.54.00
+        for <linux-mm@kvack.org>;
+        Mon, 27 Jan 2014 17:54:01 -0800 (PST)
+Date: Mon, 27 Jan 2014 20:53:41 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1390874021-48f5mo0m-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1390859042.27421.4.camel@buesod1.americas.hpqcorp.net>
+References: <1390794746-16755-1-git-send-email-davidlohr@hp.com>
+ <1390794746-16755-4-git-send-email-davidlohr@hp.com>
+ <1390856576-ud1qp3fm-mutt-n-horiguchi@ah.jp.nec.com>
+ <1390859042.27421.4.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH 3/8] mm, hugetlb: fix race in region tracking
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg KH <gregkh@linuxfoundation.org>, Android Kernel Team <kernel-team@android.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Johannes Weiner <hannes@cmpxchg.org>, "H. Peter Anvin" <hpa@linux.intel.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Takahiro Akashi <takahiro.akashi@linaro.org>, Minchan Kim <minchan@kernel.org>, Lennart Poettering <mzxreary@0pointer.de>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, riel@redhat.com, mgorman@suse.de, mhocko@suse.cz, aneesh.kumar@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, hughd@google.com, david@gibson.dropbear.id.au, js1304@gmail.com, liwanp@linux.vnet.ibm.com, dhillf@gmail.com, rientjes@google.com, aswin@hp.com, scott.norton@hp.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jan 28, 2014 at 2:37 AM, John Stultz <john.stultz@linaro.org> wrote:
-> In working with ashmem and looking briefly at kdbus' memfd ideas,
-> there's a commonality that both basically act as a method to provide
-> applications with unlinked tmpfs/shmem fds.
->
-> In the Android case, its important to have this interface to atomically
-> provide these unlinked tmpfs fds, because they'd like to avoid having
-> tmpfs mounts that are writable by applications (since that creates a
-> potential DOS on the system by applications writing random files that
-> persist after the process has been killed). It also provides better
-> life-cycle management for resources, since as the fds never have named
-> links in the filesystem, their resources are automatically cleaned up
-> when the last process with the fd dies, and there's no potential races
-> between create and unlink with processes being terminated, which avoids
-> the need for cleanup management.
->
-> I won't speak for the kdbus use, but my understanding is memfds address
-> similar needs along with being something to connect with other features.
->
->
-> So one idea was maybe we need a new interface. Something like:
->
-> int shmgetfd(char* name, size_t size, int shmflg);
->
->
-> Basically this would be very similar to shmget, but would return a file
-> descriptor which could be mapped and passed to other processes to map.
-> Basically very similar to the in-kernel shmem_file_setup() interface.
->
-> (Thanks to Akashi-san for initially pointing out the similarity to shmget.)
->
-> Of course, shmgetfd on its own wouldn't address the quota issue right
-> away, but it would be fairly easy have a limit for the total number of
-> bytes a process could generate, or some other limiting mechanism.
->
->
-> The probably more major drawback here is that both ashmem and memfd tack
-> on additional features that can be done to the fds.
->
-> In ashmems' case it allows for changing the segment's name, and
-> unpinning regions which can then be lazily discarded by the kernel.
->
-> For memfd, the extra feature is sealing, which prevents modification of
-> the file when its shared.
->
-> In ashmem's case, both vma-naming and volatile ranges are trying to
-> address how the needed features would be generically applied to tmpfs
-> fds (as well as potentially wider uses as well) - so with something like
-> shmgetfd it would provide all the functionality needed. I am not aware
-> of any current plans for memfd's sealing to be similarly worked into a
-> generic concept - the code hasn't even been submitted, so this is too
-> early - but in any case, its important to note none of these plans for
-> generic functionality have been merged or even received with much
-> interest, so I do understand how a proposal for a new interface that
-> only solves half of the needed infrastructure may not be particularly
-> welcome.
->
-> So while I do understand the difficulty of trying to create more generic
-> interfaces rather then just creating a new chardev/ioctl interface to a
-> more limited subset of functionality, I do think its worth exploring if
-> we can find a way to share infrastructure at some level (even if its
-> just due-diligence to prove if the more limited scope chardev/ioctl
-> interfaces are widely agreed to be better).
->
-> Anyway, I just wanted to submit this sketched out idea as food for
-> thought to see if there was any objection or interest (I've got a draft
-> patch I'll send out once I get a chance to test it). So let me know if
-> you have any feedback or comments.
+Hi Davidlohr,
 
-The reason "kdbus-memfd" exists is primarily the sealing.
+On Mon, Jan 27, 2014 at 01:44:02PM -0800, Davidlohr Bueso wrote:
+> On Mon, 2014-01-27 at 16:02 -0500, Naoya Horiguchi wrote:
+> > On Sun, Jan 26, 2014 at 07:52:21PM -0800, Davidlohr Bueso wrote:
+> > > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > > 
+> > > There is a race condition if we map a same file on different processes.
+> > > Region tracking is protected by mmap_sem and hugetlb_instantiation_mutex.
+> > > When we do mmap, we don't grab a hugetlb_instantiation_mutex, but only the,
+> > > mmap_sem (exclusively). This doesn't prevent other tasks from modifying the
+> > > region structure, so it can be modified by two processes concurrently.
+> > > 
+> > > To solve this, introduce a spinlock to resv_map and make region manipulation
+> > > function grab it before they do actual work.
+> > > 
+> > > Acked-by: David Gibson <david@gibson.dropbear.id.au>
+> > > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > > [Updated changelog]
+> > > Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+> > > ---
+> > ...
+> > > @@ -203,15 +200,23 @@ static long region_chg(struct resv_map *resv, long f, long t)
+> > >  	 * Subtle, allocate a new region at the position but make it zero
+> > >  	 * size such that we can guarantee to record the reservation. */
+> > >  	if (&rg->link == head || t < rg->from) {
+> > > -		nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
+> > > -		if (!nrg)
+> > > -			return -ENOMEM;
+> > > +		if (!nrg) {
+> > > +			spin_unlock(&resv->lock);
+> > 
+> > I think that doing kmalloc() inside the lock is simpler.
+> > Why do you unlock and retry here?
+> 
+> This is a spinlock, no can do -- we've previously debated this and since
+> the critical region is quite small, a non blocking lock is better suited
+> here. We do the retry so we don't race once the new region is allocated
+> after the lock is dropped.
 
-We need a way to pass possibly large areas of memory from one process
-to another, without requiring any trust relation between the two
-processes; there cannot be an assumption about trusted vs. untrusted
-or creator vs. consumer; all variations must be able to mix in all
-combinations, and still be safe
-A sender of the message must be sure that the receiver cannot alter
-the message, the same way the receiver must be sure that the sender
-cannot alter the message content it just sent.
+Using spinlock instead of rw_sem makes sense.
+But I'm not sure how the retry is essential to fix the race.
+(Sorry I can't find the discussion log about this.)
+As you did in your ver.1 (https://lkml.org/lkml/2013/7/26/296),
+simply doing like below seems to be fine to me, is it right?
 
-It would be nice if we can generalize the whole memfd logic, but the
-shmem allocation facility alone, without the sealing function cannot
-replace kdbus-memfd.
-We would need secure sealing right from the start for the kdbus use
-case; other than that, there are no specific requirements from the
-kdbus side.
+        if (&rg->link == head || t < rg->from) {
+		nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
+		if (!nrg) {
+			chg = -ENOMEM;
+			goto out_locked;
+		}
+		nrg->from = f;
+		...
+	}
 
-Kay
+In the current version nrg is initialized to NULL, so we always do retry
+once when adding new file_region. That's not optimal to me.
+
+If this retry is really essential for the fix, please comment the reason
+both in patch description and inline comment. It's very important for
+future code maintenance.
+
+And I noticed another point. I don't think the name of new goto label
+'out_locked' is a good one. 'out_unlock' or 'unlock' is better.
+
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
