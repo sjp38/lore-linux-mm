@@ -1,54 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 60C3E6B0037
-	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 16:01:22 -0500 (EST)
-Received: by mail-qa0-f54.google.com with SMTP id i13so1269621qae.13
-        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 13:01:22 -0800 (PST)
-Received: from mail-qc0-x22c.google.com (mail-qc0-x22c.google.com [2607:f8b0:400d:c01::22c])
-        by mx.google.com with ESMTPS id ds9si3310240qcb.15.2014.01.28.13.01.21
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 28 Jan 2014 13:01:21 -0800 (PST)
-Received: by mail-qc0-f172.google.com with SMTP id c9so1450012qcz.31
-        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 13:01:21 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <52E819F0.6040806@linaro.org>
-References: <52E709C0.1050006@linaro.org> <52E7298D.5020001@zytor.com>
- <52E80B85.8020302@linaro.org> <52E814FF.6060403@zytor.com> <52E819F0.6040806@linaro.org>
-From: Kay Sievers <kay@vrfy.org>
-Date: Tue, 28 Jan 2014 22:01:00 +0100
-Message-ID: <CAPXgP11Fv6TU+o2Eui5rVW0A37U7KjwC0DZYbQOJJ8rEAYOiJg@mail.gmail.com>
-Subject: Re: [RFC] shmgetfd idea
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 634CB6B0037
+	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 16:04:17 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id y10so829215pdj.40
+        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 13:04:17 -0800 (PST)
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTP id yy4si16808786pbc.69.2014.01.28.13.04.15
+        for <linux-mm@kvack.org>;
+        Tue, 28 Jan 2014 13:04:15 -0800 (PST)
+Message-ID: <1390943052.16253.31.camel@dabdike>
+Subject: Re: [Lsf-pc] [LSF/MM ATTEND] persistent transparent large
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Tue, 28 Jan 2014 13:04:12 -0800
+In-Reply-To: <20140128193833.GD20939@parisc-linux.org>
+References: <alpine.LSU.2.11.1401230334110.1414@eggly.anvils>
+	 <20140128193833.GD20939@parisc-linux.org>
+Content-Type: text/plain; charset="ISO-8859-15"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg KH <gregkh@linuxfoundation.org>, Android Kernel Team <kernel-team@android.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Takahiro Akashi <takahiro.akashi@linaro.org>, Minchan Kim <minchan@kernel.org>, Lennart Poettering <mzxreary@0pointer.de>
+To: Matthew Wilcox <matthew@wil.cx>
+Cc: Hugh Dickins <hughd@google.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
 
-On Tue, Jan 28, 2014 at 9:58 PM, John Stultz <john.stultz@linaro.org> wrote:
-> On 01/28/2014 12:37 PM, H. Peter Anvin wrote:
->> On 01/28/2014 11:56 AM, John Stultz wrote:
->>> Thanks for reminding me about O_TMPFILE.. I have it on my list to look
->>> into how it could be used.
->>>
->>> As for the O_TMPFILE only tmpfs option, it seems maybe a little clunky
->>> to me, but possible. If others think this would be preferred over a new
->>> syscall, I'll dig in deeper.
->>>
->> What is clunky about it?  It reuses an existing interface and still
->> points to the specific tmpfs instance that should be populated.
->
-> It would require new mount point convention that userland would have to
-> standardize.  To me (and admittedly its a taste thing), a new
-> O_TMPFILE-only tmpfs mount point seems to be to be a bigger interface
-> change from an application writers perspective then a new syscall.
->
-> But maybe I'm misunderstanding your suggestion?
+On Tue, 2014-01-28 at 12:38 -0700, Matthew Wilcox wrote:
+> On Thu, Jan 23, 2014 at 04:23:04AM -0800, Hugh Dickins wrote:
+> > I'm eager to participate in this year's LSF/MM, but no topics of my
+> > own to propose: I need to listen to what other people are suggesting.
+> > 
+> > Topics of most interest to me span mm and fs: persistent memory and
+> > xip, transparent huge pagecache, large sectors, mm scalability.
+> 
+> I don't want to particularly pick on Hugh here; indeed, I know he won't
+> take it personally which is why I've chosen to respoond to Hugh's message
+> rather than any of the others.  I'm rather annoyed at the huge disrepancy
+> between the number of people who are *saying* they're interested in
+> persistent memory and the number of people who are reviewing patches
+> relating to persistent memory.
+> 
+> As far as I'm concerned, the only people who have "earned" their way into
+> attending the Summit based on contributing to persistent memory work
+> would be Dave Chinner (er ... on the ctte already), Ted Ts'o (ditto),
+> Jan Kara (ditto), Kirill Shutemov, Dave Hansen (who's not looking to
+> attend this year), Ross Zwisler (ditto), and Andreas Dilger.
 
-General purpose Linux has /dev/shm/ for that already, which will not
-go away anytime soon..
+That rather depends on whether you think Execute In Place is the correct
+way to handle persistent memory, I think?  I fully accept that it looks
+like a good place to start since it's how all embedded systems handle
+flash ... although looking at the proliferation of XIP hacks and
+filesystems certainly doesn't give one confidence that they actually got
+it right.
 
-Kay
+Fixing XIP looks like a good thing independent of whether it's the right
+approach for persistent memory.  However, one thing that's missing for
+the current patch sets is any buy in from the existing users ... can
+they be persuaded to drop their hacks and adopt it (possibly even losing
+some of the XIP specific filesystems), or will this end up as yet
+another XIP hack?
+
+Then there's the meta problem of is XIP the right approach.  Using
+persistence within the current memory address space as XIP is a natural
+fit for mixed volatile/NV systems, but what happens when they're all NV
+memory?  Should we be discussing some VM based handling mechanisms for
+persistent memory?
+
+James
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
