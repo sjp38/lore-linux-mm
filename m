@@ -1,68 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 850696B0036
-	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 18:14:43 -0500 (EST)
-Received: by mail-qa0-f48.google.com with SMTP id f11so1443479qae.21
-        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 15:14:43 -0800 (PST)
-Received: from mail-qc0-x231.google.com (mail-qc0-x231.google.com [2607:f8b0:400d:c01::231])
-        by mx.google.com with ESMTPS id i3si71101qcn.71.2014.01.28.15.14.42
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 28 Jan 2014 15:14:42 -0800 (PST)
-Received: by mail-qc0-f177.google.com with SMTP id i8so1625516qcq.8
-        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 15:14:42 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <52E83719.9060709@zytor.com>
-References: <52E709C0.1050006@linaro.org> <52E7298D.5020001@zytor.com>
- <52E80B85.8020302@linaro.org> <52E814FF.6060403@zytor.com>
- <52E819F0.6040806@linaro.org> <CAPXgP11Fv6TU+o2Eui5rVW0A37U7KjwC0DZYbQOJJ8rEAYOiJg@mail.gmail.com>
- <52E81BB3.6060306@linaro.org> <52E81CE2.3030304@zytor.com>
- <52E8271B.4030201@linaro.org> <CAPXgP13G14B3YFpaE+m_AtFfFR6NRVSi1JYAvLZSsfftSkgwBQ@mail.gmail.com>
- <52E83719.9060709@zytor.com>
-From: Kay Sievers <kay@vrfy.org>
-Date: Wed, 29 Jan 2014 00:14:22 +0100
-Message-ID: <CAPXgP116TBZx82=J_pKxgSqJsy4HY1nofMOkUtZELBYvcFhDcw@mail.gmail.com>
-Subject: Re: [RFC] shmgetfd idea
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E4DC6B0031
+	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 18:17:57 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id w10so958074pde.20
+        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 15:17:57 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id tq3si173908pab.299.2014.01.28.15.17.51
+        for <linux-mm@kvack.org>;
+        Tue, 28 Jan 2014 15:17:52 -0800 (PST)
+Subject: [PATCH] mm: slub: fix page->_count corruption (again)
+From: Dave Hansen <dave@sr71.net>
+Date: Tue, 28 Jan 2014 15:17:22 -0800
+Message-Id: <20140128231722.E7387E6B@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: John Stultz <john.stultz@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg KH <gregkh@linuxfoundation.org>, Android Kernel Team <kernel-team@android.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Takahiro Akashi <takahiro.akashi@linaro.org>, Minchan Kim <minchan@kernel.org>, Lennart Poettering <mzxreary@0pointer.de>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Dave Hansen <dave@sr71.net>, cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, akpm@linux-foundation.org, pshelar@nicira.com
 
-On Wed, Jan 29, 2014 at 12:02 AM, H. Peter Anvin <hpa@zytor.com> wrote:
-> On 01/28/2014 02:14 PM, Kay Sievers wrote:
->>>
->>> But yes, alternatively classic systems may be able to get around the
->>> issues via tmpfs quotas and convincing applications to use O_TMPFILE
->>> there. But to me this seems less ideal then the Android approach, where
->>> the lifecycle of the tmpfs fds more limited and clear.
->>
->> Tmpfs supports no quota, it's all a huge hole and unsafe in that
->> regard on every system today. But ashmem and kdbus, as they are today,
->> are not better.
->
-> We can fix that aspect in tmpfs.  Creating new file objcts outside of
-> filesystems really doesn't make things any better, since our toolbox
-> around this stuff largely revolves around filesystems.
 
-Sure, it should be fixed, not doubt, even when not in this context,
-it's something that we should have.
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Back to the topic, let's say, if we would require a tmpfs mount to get
-to an unlinked shmemfd, which sounds acceptable if we can solve the
-other features in a nice way.
+Commit abca7c496 notes that we can not _set_ a page->counters
+directly, except when using a real double-cmpxchg.  Doing so can
+lose updates to ->_count.
 
-What would be the interface for additional functionality like
-sealing/unsealing that thing, that no operation can destruct its
-content as long as there is more than a single owner? That would be a
-new syscall or fcntl() with specific shmemfd options?
+That an absolute rule:
 
-We also need to solve the problem that the inode does not show up in
-/proc/$PID/fd/, so that nothing can create a new file for it which we
-don't catch with the "single owner" logic. Or we could determine the
-"single owner" state from the inode itself?
+        You may not *set* page->counters except via a cmpxchg.
 
-Kay
+Commit abca7c496 fixed this for the folks who have the slub
+cmpxchg_double code turned off at compile time, but it left the
+bad alone.  It can still be reached, and the same bug triggered
+in two cases:
+1. Turning on slub debugging at runtime, which is available on
+   the distro kernels that I looked at.
+2. On 64-bit CPUs with no CMPXCHG16B (some early AMD x86-64
+   cpus, evidently)
+
+There are at least 3 ways we could fix this:
+
+1. Take all of the exising calls to cmpxchg_double_slab() and
+   __cmpxchg_double_slab() and convert them to take an old, new
+   and target 'struct page'.
+2. Do (1), but with the newly-introduced 'slub_data'.
+3. Do some magic inside the two cmpxchg...slab() functions to
+   pull the counters out of new_counters and only set those
+   fields in page->{inuse,frozen,objects}.
+
+I've done (2) as well, but it's a bunch more code.  This patch
+is an attempt at (3).  This was the most straightforward and
+foolproof way that I could think to do this.
+
+This would also technically allow us to get rid of the ugly
+
+#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
+       defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
+
+in 'struct page', but leaving it alone has the added benefit that
+'counters' stays 'unsigned' instead of 'unsigned long', so all
+the copies that the slub code does stay a bit smaller.
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: Matt Mackall <mpm@selenic.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Pravin B Shelar <pshelar@nicira.com>
+
+---
+
+ b/mm/slub.c |   19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)
+
+diff -puN mm/slub.c~slub-never-set-counters-except-via-cmpxchg mm/slub.c
+--- a/mm/slub.c~slub-never-set-counters-except-via-cmpxchg	2014-01-28 14:48:26.420339269 -0800
++++ b/mm/slub.c	2014-01-28 15:09:37.410864843 -0800
+@@ -355,6 +355,21 @@ static __always_inline void slab_unlock(
+ 	__bit_spin_unlock(PG_locked, &page->flags);
+ }
+ 
++static inline void set_page_slub_counters(struct page *page, unsigned long counters_new)
++{
++	struct page tmp;
++	tmp.counters = counters_new;
++	/*
++	 * page->counters can cover frozen/inuse/objects as well
++	 * as page->_count.  If we assign to ->counters directly
++	 * we run the risk of losing updates to page->_count, so
++	 * be careful and only assign to the fields we need.
++	 */
++	page->frozen  = tmp.frozen;
++	page->inuse   = tmp.inuse;
++	page->objects = tmp.objects;
++}
++
+ /* Interrupts must be disabled (for the fallback code to work right) */
+ static inline bool __cmpxchg_double_slab(struct kmem_cache *s, struct page *page,
+ 		void *freelist_old, unsigned long counters_old,
+@@ -376,7 +391,7 @@ static inline bool __cmpxchg_double_slab
+ 		if (page->freelist == freelist_old &&
+ 					page->counters == counters_old) {
+ 			page->freelist = freelist_new;
+-			page->counters = counters_new;
++			set_page_slub_counters(page, counters_new);
+ 			slab_unlock(page);
+ 			return 1;
+ 		}
+@@ -415,7 +430,7 @@ static inline bool cmpxchg_double_slab(s
+ 		if (page->freelist == freelist_old &&
+ 					page->counters == counters_old) {
+ 			page->freelist = freelist_new;
+-			page->counters = counters_new;
++			set_page_slub_counters(page, counters_new);
+ 			slab_unlock(page);
+ 			local_irq_restore(flags);
+ 			return 1;
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
