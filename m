@@ -1,69 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com [209.85.160.178])
-	by kanga.kvack.org (Postfix) with ESMTP id BA52E6B0031
-	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 13:38:19 -0500 (EST)
-Received: by mail-yk0-f178.google.com with SMTP id 79so3376172ykr.9
-        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 10:38:19 -0800 (PST)
-Received: from e39.co.us.ibm.com (e39.co.us.ibm.com. [32.97.110.160])
-        by mx.google.com with ESMTPS id j67si12402291yha.137.2014.01.28.10.38.17
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 28 Jan 2014 10:38:18 -0800 (PST)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Tue, 28 Jan 2014 11:38:17 -0700
-Received: from b01cxnp23034.gho.pok.ibm.com (b01cxnp23034.gho.pok.ibm.com [9.57.198.29])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 853716E804C
-	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 13:38:09 -0500 (EST)
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by b01cxnp23034.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0SIcDXI7930204
-	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 18:38:13 GMT
-Received: from d01av03.pok.ibm.com (localhost [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0SIcCS5011498
-	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 13:38:13 -0500
-Date: Tue, 28 Jan 2014 10:38:08 -0800
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: [PATCH] kthread: ensure locality of task_struct allocations
-Message-ID: <20140128183808.GB9315@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E32E6B0031
+	for <linux-mm@kvack.org>; Tue, 28 Jan 2014 14:03:56 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id hz1so738726pad.22
+        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 11:03:55 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id gx4si16426047pbc.231.2014.01.28.11.03.47
+        for <linux-mm@kvack.org>;
+        Tue, 28 Jan 2014 11:03:48 -0800 (PST)
+Subject: Re: [numa shrinker] 9b17c62382: -36.6% regression on sparse file
+ copy
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <20140127120943.GA17055@localhost>
+References: <20140106082048.GA567@localhost>
+	 <20140106131042.GA5145@destitution> <20140109025715.GA11984@localhost>
+	 <20140115001827.GO3469@dastard>  <20140127120943.GA17055@localhost>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 28 Jan 2014 11:03:30 -0800
+Message-ID: <1390935810.3138.80.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: Anton Blanchard <anton@samba.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Jan Kara <jack@suse.cz>, David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ben Herrenschmidt <benh@kernel.crashing.org>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Dave Chinner <david@fromorbit.com>, Glauber Costa <glommer@parallels.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, lkp@linux.intel.com, "Chen, Tim C" <tim.c.chen@intel.com>
 
-In the presence of memoryless nodes, numa_node_id()/cpu_to_node() will
-return the current CPU's NUMA node, but that may not be where we expect
-to allocate from memory from. Instead, we should use
-numa_mem_id()/cpu_to_mem(). On one ppc64 system with a memoryless Node
-0, this ends up saving nearly 500M of slab due to less fragmentation.
+On Mon, 2014-01-27 at 20:09 +0800, Fengguang Wu wrote:
+> Hi Dave,
+> 
+> On Wed, Jan 15, 2014 at 11:18:27AM +1100, Dave Chinner wrote:
+> > On Thu, Jan 09, 2014 at 10:57:15AM +0800, Fengguang Wu wrote:
+> > > Hi Dave,
+> > > 
+> > > As you suggested, I added tests for ext4 and btrfs, the results are
+> > > the same.
+> > > 
+> > > Then I tried running perf record for 10 seconds starting from 200s.
+> > > (The test runs for 410s). I see several warning messages and hope
+> > > they do not impact the accuracy too much:
+> > > 
+> > > [  252.608069] perf samples too long (2532 > 2500), lowering kernel.perf_event_max_sample_rate to 50000
+> > > [  252.608863] perf samples too long (2507 > 2500), lowering kernel.perf_event_max_sample_rate to 25000
+> > > [  252.609422] INFO: NMI handler (perf_event_nmi_handler) took too long to run: 1.389 msecs
+> > > 
+> > > Anyway the noticeable perf change are:
+> > > 
+> > > 1d3d4437eae1bb2  9b17c62382dd2e7507984b989  
+> > > ---------------  -------------------------  
+> > >      12.15 ~10%    +209.8%      37.63 ~ 2%  brickland2/debug2/vm-scalability/300s-btrfs-lru-file-readtwice
+> > >      12.88 ~16%    +189.4%      37.27 ~ 0%  brickland2/debug2/vm-scalability/300s-ext4-lru-file-readtwice
+> > >      15.24 ~ 9%    +146.0%      37.50 ~ 1%  brickland2/debug2/vm-scalability/300s-xfs-lru-file-readtwice
+> > >      40.27         +179.1%     112.40       TOTAL perf-profile.cpu-cycles._raw_spin_lock.grab_super_passive.super_cache_count.shrink_slab.do_try_to_free_pages
+> > > 
+> > > 1d3d4437eae1bb2  9b17c62382dd2e7507984b989  
+> > > ---------------  -------------------------  
+> > >      11.91 ~12%    +218.2%      37.89 ~ 2%  brickland2/debug2/vm-scalability/300s-btrfs-lru-file-readtwice
+> > >      12.47 ~16%    +200.3%      37.44 ~ 0%  brickland2/debug2/vm-scalability/300s-ext4-lru-file-readtwice
+> > >      15.36 ~11%    +145.4%      37.68 ~ 1%  brickland2/debug2/vm-scalability/300s-xfs-lru-file-readtwice
+> > >      39.73         +184.5%     113.01       TOTAL perf-profile.cpu-cycles._raw_spin_lock.put_super.drop_super.super_cache_count.shrink_slab
+> > > 
+> > > perf report for 9b17c62382dd2e7507984b989:
+> > > 
+> > > # Overhead          Command       Shared Object                                          Symbol
+> > > # ........  ...............  ..................  ..............................................
+> > > #
+> > >     77.74%               dd  [kernel.kallsyms]   [k] _raw_spin_lock                            
+> > >                          |
+> > >                          --- _raw_spin_lock
+> > >                             |          
+> > >                             |--47.65%-- grab_super_passive
+> > 
+> > Oh, it's superblock lock contention, probably caused by an increase
+> > in shrinker calls (i.e. per-node rather than global). I think we've
+> > seen this before - can you try the two patches from Tim Chen here:
+> > 
+> > https://lkml.org/lkml/2013/9/6/353
+> > https://lkml.org/lkml/2013/9/6/356
+> > 
+> > If they fix the problem, I'll get them into 3.14 and pushed back to
+> > the relevant stable kernels.
+> 
+> Yes, the two patches help a lot:
+> 
+> 9b17c62382dd2e7  8401edd4b12960c703233f4ed
+> ---------------  -------------------------  
+>    6748913 ~ 2%     +37.5%    9281049 ~ 1%  brickland2/debug2/vm-scalability/300s-btrfs-lru-file-readtwice
+>    8417200 ~ 0%     +56.5%   13172417 ~ 0%  brickland2/debug2/vm-scalability/300s-ext4-lru-file-readtwice
+>    8333983 ~ 1%     +56.9%   13078610 ~ 0%  brickland2/debug2/vm-scalability/300s-xfs-lru-file-readtwice
+>   23500096 ~ 1%     +51.2%   35532077 ~ 0%  TOTAL vm-scalability.throughput
+> 
+> They restore performance numbers back to 1d3d4437eae1bb2's level
+> (which is 9b17c62382's parent commit).
+> 
+> Thanks,
+> Fengguang
 
-Signed-off-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Dave,
 
-diff --git a/kernel/kthread.c b/kernel/kthread.c
-index b5ae3ee..8573e4e 100644
---- a/kernel/kthread.c
-+++ b/kernel/kthread.c
-@@ -217,7 +217,7 @@ int tsk_fork_get_node(struct task_struct *tsk)
- 	if (tsk == kthreadd_task)
- 		return tsk->pref_node_fork;
- #endif
--	return numa_node_id();
-+	return numa_mem_id();
- }
- 
- static void create_kthread(struct kthread_create_info *create)
-@@ -369,7 +369,7 @@ struct task_struct *kthread_create_on_cpu(int (*threadfn)(void *data),
- {
- 	struct task_struct *p;
- 
--	p = kthread_create_on_node(threadfn, data, cpu_to_node(cpu), namefmt,
-+	p = kthread_create_on_node(threadfn, data, cpu_to_mem(cpu), namefmt,
- 				   cpu);
- 	if (IS_ERR(p))
- 		return p;
+You're going to merge the two patches to 3.14?
+
+Thanks.
+
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
