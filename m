@@ -1,59 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id DFE886B0037
-	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 01:43:56 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id hz1so1382450pad.8
-        for <linux-mm@kvack.org>; Tue, 28 Jan 2014 22:43:56 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [143.182.124.37])
-        by mx.google.com with ESMTP id if4si1299423pbc.346.2014.01.28.22.43.55
-        for <linux-mm@kvack.org>;
-        Tue, 28 Jan 2014 22:43:55 -0800 (PST)
-Date: Wed, 29 Jan 2014 14:43:50 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH] mm: slub: fix page->_count corruption (again)
-Message-ID: <20140129064350.GA20252@localhost>
-References: <20140128231722.E7387E6B@viggo.jf.intel.com>
- <20140128152956.d5659f56ae279856731a1ac5@linux-foundation.org>
- <52E842CF.7090102@sr71.net>
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id CBC406B0031
+	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 03:13:50 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id y10so1397900pdj.26
+        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 00:13:50 -0800 (PST)
+Received: from mail-pb0-x22b.google.com (mail-pb0-x22b.google.com [2607:f8b0:400e:c01::22b])
+        by mx.google.com with ESMTPS id s7si1627101pae.156.2014.01.29.00.13.49
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 29 Jan 2014 00:13:49 -0800 (PST)
+Received: by mail-pb0-f43.google.com with SMTP id md12so1456262pbc.30
+        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 00:13:49 -0800 (PST)
+Date: Wed, 29 Jan 2014 00:13:47 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] kthread: ensure locality of task_struct allocations
+In-Reply-To: <20140128183808.GB9315@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.02.1401290012460.10268@chino.kir.corp.google.com>
+References: <20140128183808.GB9315@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52E842CF.7090102@sr71.net>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, pshelar@nicira.com
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Anton Blanchard <anton@samba.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Jan Kara <jack@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ben Herrenschmidt <benh@kernel.crashing.org>
 
-On Tue, Jan 28, 2014 at 03:52:47PM -0800, Dave Hansen wrote:
-> On 01/28/2014 03:29 PM, Andrew Morton wrote:
-> > On Tue, 28 Jan 2014 15:17:22 -0800 Dave Hansen <dave@sr71.net> wrote:
-> > This code is borderline insane.
-> 
-> No argument here.
-> 
-> > Yes, struct page is special and it's worth spending time and doing
-> > weird things to optimise it.  But sheesh.
-> > 
-> > An alternative is to make that cmpxchg quietly go away.  Is it more
-> > trouble than it is worth?
-> 
-> It has measurable performance benefits, and the benefits go up as the
-> cost of en/disabling interrupts goes up (like if it takes you a hypercall).
-> 
-> Fengguang, could you run a set of tests for the top patch in this branch
-> to see if we'd be giving much up by axing the code?
-> 
-> 	https://github.com/hansendc/linux/tree/slub-nocmpxchg-for-Fengguang-20140128
+On Tue, 28 Jan 2014, Nishanth Aravamudan wrote:
 
-Sure, I've queued tests for the branch. Will report back after 1-2
-days.
+> In the presence of memoryless nodes, numa_node_id()/cpu_to_node() will
+> return the current CPU's NUMA node, but that may not be where we expect
+> to allocate from memory from. Instead, we should use
+> numa_mem_id()/cpu_to_mem(). On one ppc64 system with a memoryless Node
+> 0, this ends up saving nearly 500M of slab due to less fragmentation.
+> 
+> Signed-off-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
 
-Thanks,
-Fengguang
+Acked-by: David Rientjes <rientjes@google.com>
 
-> I was talking with one of the distros about turning it off as well.
-> They mentioned that they saw a few performance regressions when it was
-> turned off.  I'll share details when I get them.
+> diff --git a/kernel/kthread.c b/kernel/kthread.c
+> index b5ae3ee..8573e4e 100644
+> --- a/kernel/kthread.c
+> +++ b/kernel/kthread.c
+> @@ -217,7 +217,7 @@ int tsk_fork_get_node(struct task_struct *tsk)
+>  	if (tsk == kthreadd_task)
+>  		return tsk->pref_node_fork;
+>  #endif
+> -	return numa_node_id();
+> +	return numa_mem_id();
+
+I'm wondering why return NUMA_NO_NODE wouldn't have the same effect and 
+prefer the local node?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
