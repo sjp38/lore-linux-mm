@@ -1,113 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 836356B0031
-	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 15:28:16 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id fa1so2228188pad.28
-        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 12:28:16 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id zk9si3798712pac.231.2014.01.29.12.28.15
-        for <linux-mm@kvack.org>;
-        Wed, 29 Jan 2014 12:28:15 -0800 (PST)
-Date: Wed, 29 Jan 2014 12:28:13 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] mm, oom: base root bonus on current usage
-Message-Id: <20140129122813.59d32e5c5dad3efc2248bc60@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.02.1401251942510.3140@chino.kir.corp.google.com>
-References: <20140115234308.GB4407@cmpxchg.org>
-	<alpine.DEB.2.02.1401151614480.15665@chino.kir.corp.google.com>
-	<20140116070709.GM6963@cmpxchg.org>
-	<alpine.DEB.2.02.1401212050340.8512@chino.kir.corp.google.com>
-	<20140124040531.GF4407@cmpxchg.org>
-	<alpine.DEB.2.02.1401251942510.3140@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 2224A6B0031
+	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 17:36:50 -0500 (EST)
+Received: by mail-yk0-f170.google.com with SMTP id 9so12171913ykp.1
+        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 14:36:49 -0800 (PST)
+Received: from e9.ny.us.ibm.com (e9.ny.us.ibm.com. [32.97.182.139])
+        by mx.google.com with ESMTPS id f67si3305699yhd.32.2014.01.29.14.36.49
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 29 Jan 2014 14:36:49 -0800 (PST)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Wed, 29 Jan 2014 17:36:49 -0500
+Received: from b01cxnp22033.gho.pok.ibm.com (b01cxnp22033.gho.pok.ibm.com [9.57.198.23])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 4EE9838C803B
+	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 17:36:47 -0500 (EST)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by b01cxnp22033.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s0TMalqZ6881556
+	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 22:36:47 GMT
+Received: from d01av01.pok.ibm.com (localhost [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s0TMakm8004448
+	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 17:36:46 -0500
+Date: Wed, 29 Jan 2014 14:36:40 -0800
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
+ no local memory
+Message-ID: <20140129223640.GA10101@linux.vnet.ibm.com>
+References: <52e1da8f.86f7440a.120f.25f3SMTPIN_ADDED_BROKEN@mx.google.com>
+ <alpine.DEB.2.10.1401240946530.12886@nuc>
+ <alpine.DEB.2.02.1401241301120.10968@chino.kir.corp.google.com>
+ <20140124232902.GB30361@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1401241543100.18620@chino.kir.corp.google.com>
+ <20140125001643.GA25344@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1401241618500.20466@chino.kir.corp.google.com>
+ <20140125011041.GB25344@linux.vnet.ibm.com>
+ <20140127055805.GA2471@lge.com>
+ <20140128182947.GA1591@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140128182947.GA1591@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, penberg@kernel.org, linux-mm@kvack.org, paulus@samba.org, Anton Blanchard <anton@samba.org>, mpm@selenic.com, Christoph Lameter <cl@linux.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, cody@linux.vnet.ibm.com
 
-On Sat, 25 Jan 2014 19:48:32 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
-
-> A 3% of system memory bonus is sometimes too excessive in comparison to 
-> other processes and can yield poor results when all processes on the 
-> system are root and none of them use over 3% of memory.
+On 28.01.2014 [10:29:47 -0800], Nishanth Aravamudan wrote:
+> On 27.01.2014 [14:58:05 +0900], Joonsoo Kim wrote:
+> > On Fri, Jan 24, 2014 at 05:10:42PM -0800, Nishanth Aravamudan wrote:
+> > > On 24.01.2014 [16:25:58 -0800], David Rientjes wrote:
+> > > > On Fri, 24 Jan 2014, Nishanth Aravamudan wrote:
+> > > > 
+> > > > > Thank you for clarifying and providing  a test patch. I ran with this on
+> > > > > the system showing the original problem, configured to have 15GB of
+> > > > > memory.
+> > > > > 
+> > > > > With your patch after boot:
+> > > > > 
+> > > > > MemTotal:       15604736 kB
+> > > > > MemFree:         8768192 kB
+> > > > > Slab:            3882560 kB
+> > > > > SReclaimable:     105408 kB
+> > > > > SUnreclaim:      3777152 kB
+> > > > > 
+> > > > > With Anton's patch after boot:
+> > > > > 
+> > > > > MemTotal:       15604736 kB
+> > > > > MemFree:        11195008 kB
+> > > > > Slab:            1427968 kB
+> > > > > SReclaimable:     109184 kB
+> > > > > SUnreclaim:      1318784 kB
+> > > > > 
+> > > > > 
+> > > > > I know that's fairly unscientific, but the numbers are reproducible. 
+> > > > > 
+> > 
+> > Hello,
+> > 
+> > I think that there is one mistake on David's patch although I'm not sure
+> > that it is the reason for this result.
+> > 
+> > With David's patch, get_partial() in new_slab_objects() doesn't work
+> > properly, because we only change node id in !node_match() case. If we
+> > meet just !freelist case, we pass node id directly to
+> > new_slab_objects(), so we always try to allocate new slab page
+> > regardless existence of partial pages. We should solve it.
+> > 
+> > Could you try this one?
 > 
-> Replace the 3% of system memory bonus with a 3% of current memory usage 
-> bonus.
+> This helps about the same as David's patch -- but I found the reason
+> why! ppc64 doesn't set CONFIG_HAVE_MEMORYLESS_NODES :) Expect a patch
+> shortly for that and one other case I found.
+> 
+> This patch on its own seems to help on our test system by saving around
+> 1.5GB of slab.
+> 
+> Tested-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+> Acked-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+> 
+> with the caveat below.
+> 
+> Thanks,
+> Nish
+> 
+> > 
+> > Thanks.
+> > 
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -1698,8 +1698,10 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
+> >                 struct kmem_cache_cpu *c)
+> >  {
+> >         void *object;
+> > -       int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
+> > +       int searchnode = (node == NUMA_NO_NODE) ? numa_mem_id() : node;
+> > 
+> > +       if (node != NUMA_NO_NODE && !node_present_pages(node))
+> > +               searchnode = numa_mem_id();
+> 
+> This might be clearer as:
+> 
+> int searchnode = node;
+> if (node == NUMA_NO_NODE || !node_present_pages(node))
+> 	searchnode = numa_mem_id();
 
-This changelog has deteriorated :( We should provide sufficient info so
-that people will be able to determine whether this patch will fix a
-problem they or their customers are observing.  And so that people who
-maintain -stable and its derivatives can decide whether to backport it.
+Cody Schafer mentioned to me on IRC that this may not always reflect
+exactly what the caller intends.
 
-I went back and stole some text from the v1 patch.  Please review the
-result.  The changelog would be even better if it were to describe the
-new behaviour under the problematic workloads.
+int searchnode = node;
+if (node == NUMA_NO_NODE)
+	searchnode = numa_mem_id();
+if (!node_present_pages(node))
+	searchnode = local_memory_node(node);
 
-We don't think -stable needs this?
+The difference in semantics from the previous is that here, if we have a
+memoryless node, rather than using the CPU's nearest NUMA node, we use
+the NUMA node closest to the requested one?
 
+> >         object = get_partial_node(s, get_node(s, searchnode), c, flags);
+> >         if (object || node != NUMA_NO_NODE)
+> >                 return object;
+> > @@ -2278,10 +2280,14 @@ redo:
+> > 
+> >         if (unlikely(!node_match(page, node))) {
+> >                 stat(s, ALLOC_NODE_MISMATCH);
+> > -               deactivate_slab(s, page, c->freelist);
+> > -               c->page = NULL;
+> > -               c->freelist = NULL;
+> > -               goto new_slab;
+> > +               if (unlikely(!node_present_pages(node)))
+> > +                       node = numa_mem_id();
 
-From: David Rientjes <rientjes@google.com>
-Subject: mm, oom: base root bonus on current usage
+Similarly here?
 
-A 3% of system memory bonus is sometimes too excessive in comparison to
-other processes.
+-Nish
 
-With a63d83f427fb ("oom: badness heuristic rewrite"), the OOM killer tries
-to avoid killing privileged tasks by subtracting 3% of overall memory
-(system or cgroup) from their per-task consumption.  But as a result, all
-root tasks that consume less than 3% of overall memory are considered
-equal, and so it only takes 33+ privileged tasks pushing the system out of
-memory for the OOM killer to do something stupid and kill sshd or
-dhclient.  For example, on a 32G machine it can't tell the difference
-between the 1M agetty and the 10G fork bomb member.
-
-The changelog describes this 3% boost as the equivalent to the global
-overcommit limit being 3% higher for privileged tasks, but this is not the
-same as discounting 3% of overall memory from _every privileged task
-individually_ during OOM selection.
-
-Replace the 3% of system memory bonus with a 3% of current memory usage
-bonus.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
-Reported-by: Johannes Weiner <hannes@cmpxchg.org>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- Documentation/filesystems/proc.txt |    4 ++--
- mm/oom_kill.c                      |    2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
-
-diff -puN Documentation/filesystems/proc.txt~mm-oom-base-root-bonus-on-current-usage Documentation/filesystems/proc.txt
---- a/Documentation/filesystems/proc.txt~mm-oom-base-root-bonus-on-current-usage
-+++ a/Documentation/filesystems/proc.txt
-@@ -1386,8 +1386,8 @@ may allocate from based on an estimation
- For example, if a task is using all allowed memory, its badness score will be
- 1000.  If it is using half of its allowed memory, its score will be 500.
- 
--There is an additional factor included in the badness score: root
--processes are given 3% extra memory over other tasks.
-+There is an additional factor included in the badness score: the current memory
-+and swap usage is discounted by 3% for root processes.
- 
- The amount of "allowed" memory depends on the context in which the oom killer
- was called.  If it is due to the memory assigned to the allocating task's cpuset
-diff -puN mm/oom_kill.c~mm-oom-base-root-bonus-on-current-usage mm/oom_kill.c
---- a/mm/oom_kill.c~mm-oom-base-root-bonus-on-current-usage
-+++ a/mm/oom_kill.c
-@@ -178,7 +178,7 @@ unsigned long oom_badness(struct task_st
- 	 * implementation used by LSMs.
- 	 */
- 	if (has_capability_noaudit(p, CAP_SYS_ADMIN))
--		adj -= 30;
-+		points -= (points * 3) / 100;
- 
- 	/* Normalize to oom_score_adj units */
- 	adj *= totalpages / 1000;
-_
+> > +               if (!node_match(page, node)) {
+> > +                       deactivate_slab(s, page, c->freelist);
+> > +                       c->page = NULL;
+> > +                       c->freelist = NULL;
+> > +                       goto new_slab;
+> > +               }
+> >         }
+> > 
+> >         /*
+> > 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
