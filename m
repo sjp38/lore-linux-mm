@@ -1,89 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f169.google.com (mail-vc0-f169.google.com [209.85.220.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 5029A6B0031
-	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 15:07:48 -0500 (EST)
-Received: by mail-vc0-f169.google.com with SMTP id hq11so1482207vcb.14
-        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 12:07:48 -0800 (PST)
-Received: from mail-vb0-f50.google.com (mail-vb0-f50.google.com [209.85.212.50])
-        by mx.google.com with ESMTPS id d1si1116402vck.125.2014.01.29.12.07.47
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 29 Jan 2014 12:07:47 -0800 (PST)
-Received: by mail-vb0-f50.google.com with SMTP id w8so1471411vbj.37
-        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 12:07:47 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20140129101631.GC6732@suse.de>
-References: <CALCETrV2mtkKCMp6H+5gzoxi9kj9mx0GgsfiXqgn53AikCzFMw@mail.gmail.com>
- <20140129101631.GC6732@suse.de>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 29 Jan 2014 12:07:27 -0800
-Message-ID: <CALCETrWE6-tjUkUfyPso65otidk5tg73ZSUkthYsnE6U+G-LJQ@mail.gmail.com>
-Subject: Re: [Lsf-pc] [LSF/MM ATTEND] Other tracks I'm interested in (was Re:
- Persistent memory)
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 836356B0031
+	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 15:28:16 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fa1so2228188pad.28
+        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 12:28:16 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id zk9si3798712pac.231.2014.01.29.12.28.15
+        for <linux-mm@kvack.org>;
+        Wed, 29 Jan 2014 12:28:15 -0800 (PST)
+Date: Wed, 29 Jan 2014 12:28:13 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm, oom: base root bonus on current usage
+Message-Id: <20140129122813.59d32e5c5dad3efc2248bc60@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.02.1401251942510.3140@chino.kir.corp.google.com>
+References: <20140115234308.GB4407@cmpxchg.org>
+	<alpine.DEB.2.02.1401151614480.15665@chino.kir.corp.google.com>
+	<20140116070709.GM6963@cmpxchg.org>
+	<alpine.DEB.2.02.1401212050340.8512@chino.kir.corp.google.com>
+	<20140124040531.GF4407@cmpxchg.org>
+	<alpine.DEB.2.02.1401251942510.3140@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux FS Devel <linux-fsdevel@vger.kernel.org>, lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jan 29, 2014 at 2:16 AM, Mel Gorman <mgorman@suse.de> wrote:
-> On Tue, Jan 28, 2014 at 09:30:25AM -0800, Andy Lutomirski wrote:
->> On Thu, Jan 16, 2014 at 4:56 PM, Andy Lutomirski <luto@amacapital.net> wrote:
->> > I'm interested in a persistent memory track.  There seems to be plenty
->> > of other emails about this, but here's my take:
->>
->> I should add that I'm also interested in topics relating to the
->> performance of mm and page cache under various abusive workloads.
->> These include database-like things and large amounts of locked memory.
->>
->
-> Out of curiousity, is there any data available on this against a recent
-> kernel? Locked memory should not cause the kernel to go to hell as the
-> pages should end up on the unevictable LRU list. If that is not happening,
-> it could be a bug. More details on the database configuration and test
-> case would also be welcome as it would help establish if the problem is
-> a large amount of memory being dirtied and then an fsync destroying the
-> world or something else.
->
+On Sat, 25 Jan 2014 19:48:32 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
 
-On (IIRC) 3.5, this stuff worked very poorly.  On 3.9, with a lot of
-extra memory in the system, I seem to do okay.  I'm planning on trying
-3.13 with a more moderate amount of memory soon.
+> A 3% of system memory bonus is sometimes too excessive in comparison to 
+> other processes and can yield poor results when all processes on the 
+> system are root and none of them use over 3% of memory.
+> 
+> Replace the 3% of system memory bonus with a 3% of current memory usage 
+> bonus.
 
-On 3.11, with normal amounts of memory, something is still not so
-good.  I'm seeing this on development boxes, so it may be
-filesystem-dependent.
+This changelog has deteriorated :( We should provide sufficient info so
+that people will be able to determine whether this patch will fix a
+problem they or their customers are observing.  And so that people who
+maintain -stable and its derivatives can decide whether to backport it.
 
-The performance things I actually care about lately are more in the
-category of getting decent page-fault performance on locked pages.
-Even better would be no page faults at all, but that may be a large
-project.
+I went back and stole some text from the v1 patch.  Please review the
+result.  The changelog would be even better if it were to describe the
+new behaviour under the problematic workloads.
 
-The database in question is a proprietary thing (which I hope to
-open-source some day) that creates and fallocates 10-20MB files,
-mlocks them, reads a byte from every page to prefault them, then
-writes them once, reads them quite a few times, and, after a while,
-reads them one last time and deletes them.  At any given time, there
-are a couple GB of these files open and mlocked.  Performance seems to
-be okay (modulo page faults) once everything is up and running, but,
-at startup, the system can go out to lunch for a while.
-
-On a completely different workload (Mozilla Thunderbird's "Compact
-Now" button on btrfs), something certainly still destroys the world.
-I suspect that complaining about pathological cases in btrfs will get
-me nowhere, though... :-/.
-
---Andy
-
-> --
-> Mel Gorman
-> SUSE Labs
+We don't think -stable needs this?
 
 
+From: David Rientjes <rientjes@google.com>
+Subject: mm, oom: base root bonus on current usage
 
--- 
-Andy Lutomirski
-AMA Capital Management, LLC
+A 3% of system memory bonus is sometimes too excessive in comparison to
+other processes.
+
+With a63d83f427fb ("oom: badness heuristic rewrite"), the OOM killer tries
+to avoid killing privileged tasks by subtracting 3% of overall memory
+(system or cgroup) from their per-task consumption.  But as a result, all
+root tasks that consume less than 3% of overall memory are considered
+equal, and so it only takes 33+ privileged tasks pushing the system out of
+memory for the OOM killer to do something stupid and kill sshd or
+dhclient.  For example, on a 32G machine it can't tell the difference
+between the 1M agetty and the 10G fork bomb member.
+
+The changelog describes this 3% boost as the equivalent to the global
+overcommit limit being 3% higher for privileged tasks, but this is not the
+same as discounting 3% of overall memory from _every privileged task
+individually_ during OOM selection.
+
+Replace the 3% of system memory bonus with a 3% of current memory usage
+bonus.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+Reported-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ Documentation/filesystems/proc.txt |    4 ++--
+ mm/oom_kill.c                      |    2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff -puN Documentation/filesystems/proc.txt~mm-oom-base-root-bonus-on-current-usage Documentation/filesystems/proc.txt
+--- a/Documentation/filesystems/proc.txt~mm-oom-base-root-bonus-on-current-usage
++++ a/Documentation/filesystems/proc.txt
+@@ -1386,8 +1386,8 @@ may allocate from based on an estimation
+ For example, if a task is using all allowed memory, its badness score will be
+ 1000.  If it is using half of its allowed memory, its score will be 500.
+ 
+-There is an additional factor included in the badness score: root
+-processes are given 3% extra memory over other tasks.
++There is an additional factor included in the badness score: the current memory
++and swap usage is discounted by 3% for root processes.
+ 
+ The amount of "allowed" memory depends on the context in which the oom killer
+ was called.  If it is due to the memory assigned to the allocating task's cpuset
+diff -puN mm/oom_kill.c~mm-oom-base-root-bonus-on-current-usage mm/oom_kill.c
+--- a/mm/oom_kill.c~mm-oom-base-root-bonus-on-current-usage
++++ a/mm/oom_kill.c
+@@ -178,7 +178,7 @@ unsigned long oom_badness(struct task_st
+ 	 * implementation used by LSMs.
+ 	 */
+ 	if (has_capability_noaudit(p, CAP_SYS_ADMIN))
+-		adj -= 30;
++		points -= (points * 3) / 100;
+ 
+ 	/* Normalize to oom_score_adj units */
+ 	adj *= totalpages / 1000;
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
