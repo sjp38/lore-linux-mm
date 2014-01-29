@@ -1,129 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 49C196B0031
-	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 14:08:49 -0500 (EST)
-Received: by mail-ie0-f180.google.com with SMTP id at1so2496706iec.39
-        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 11:08:49 -0800 (PST)
-Received: from mail-ie0-x249.google.com (mail-ie0-x249.google.com [2607:f8b0:4001:c03::249])
-        by mx.google.com with ESMTPS id l1si31289233igx.29.2014.01.29.11.08.48
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A3AB6B0031
+	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 14:24:29 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id rd3so2152671pab.30
+        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 11:24:28 -0800 (PST)
+Received: from g4t0015.houston.hp.com (g4t0015.houston.hp.com. [15.201.24.18])
+        by mx.google.com with ESMTPS id ln7si3661702pab.149.2014.01.29.11.24.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 29 Jan 2014 11:08:48 -0800 (PST)
-Received: by mail-ie0-f201.google.com with SMTP id tp5so460985ieb.0
-        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 11:08:48 -0800 (PST)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [RFC 0/4] memcg: Low-limit reclaim
-References: <1386771355-21805-1-git-send-email-mhocko@suse.cz>
-Date: Wed, 29 Jan 2014 11:08:46 -0800
-In-Reply-To: <1386771355-21805-1-git-send-email-mhocko@suse.cz> (Michal
-	Hocko's message of "Wed, 11 Dec 2013 15:15:51 +0100")
-Message-ID: <xr93sis6obb5.fsf@gthelen.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 29 Jan 2014 11:24:28 -0800 (PST)
+Message-ID: <1391023456.18140.8.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH 6/8] mm, hugetlb: remove vma_has_reserves
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Wed, 29 Jan 2014 11:24:16 -0800
+In-Reply-To: <1390856653-v1nkcg1e-mutt-n-horiguchi@ah.jp.nec.com>
+References: <1390794746-16755-1-git-send-email-davidlohr@hp.com>
+	 <1390794746-16755-7-git-send-email-davidlohr@hp.com>
+	 <1390856653-v1nkcg1e-mutt-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, riel@redhat.com, mgorman@suse.de, mhocko@suse.cz, aneesh.kumar@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, hughd@google.com, david@gibson.dropbear.id.au, js1304@gmail.com, liwanp@linux.vnet.ibm.com, dhillf@gmail.com, rientjes@google.com, aswin@hp.com, scott.norton@hp.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Dec 11 2013, Michal Hocko wrote:
+On Mon, 2014-01-27 at 16:04 -0500, Naoya Horiguchi wrote:
+> On Sun, Jan 26, 2014 at 07:52:24PM -0800, Davidlohr Bueso wrote:
+> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > 
+> > vma_has_reserves() can be substituted by using return value of
+> > vma_needs_reservation(). If chg returned by vma_needs_reservation()
+> > is 0, it means that vma has reserves. Otherwise, it means that vma don't
+> > have reserves and need a hugepage outside of reserve pool. This definition
+> > is perfectly same as vma_has_reserves(), so remove vma_has_reserves().
+> 
+> I'm concerned that this patch doesn't work when VM_NORESERVE is set.
+> vma_needs_reservation() doesn't check VM_NORESERVE and this patch changes
+> dequeue_huge_page_vma() not to check it. So no one seems to check it any more.
 
-> Hi,
-> previous discussions have shown that soft limits cannot be reformed
-> (http://lwn.net/Articles/555249/). This series introduces an alternative
-> approach to protecting memory allocated to processes executing within
-> a memory cgroup controller. It is based on a new tunable that was
-> discussed with Johannes and Tejun held during the last kernel summit.
->
-> This patchset introduces such low limit that is functionally similar to a
-> minimum guarantee. Memcgs which are under their lowlimit are not considered
-> eligible for the reclaim (both global and hardlimit). The default value of
-> the limit is 0 so all groups are eligible by default and an interested
-> party has to explicitly set the limit.
->
-> The primary use case is to protect an amount of memory allocated to a
-> workload without it being reclaimed by an unrelated activity. In some
-> cases this requirement can be fulfilled by mlock but it is not suitable
-> for many loads and generally requires application awareness. Such
-> application awareness can be complex. It effectively forbids the
-> use of memory overcommit as the application must explicitly manage
-> memory residency.
-> With low limits, such workloads can be placed in a memcg with a low
-> limit that protects the estimated working set.
->
-> Another use case might be unreclaimable groups. Some loads might be so
-> sensitive to reclaim that it is better to kill and start it again (or
-> since checkpoint) rather than trash. This would be trivial with low
-> limit set to unlimited and the OOM killer will handle the situation as
-> required (e.g. kill and restart).
->
-> The hierarchical behavior of the lowlimit is described in the first
-> patch. It is followed by a direct reclaim fix which is necessary to
-> handle situation when a no group is eligible because all groups are
-> below low limit. This is not a big deal for hardlimit reclaim because
-> we simply retry the reclaim few times and then trigger memcg OOM killer
-> path. It would blow up in the global case when we would loop without
-> doing any progress or trigger OOM killer. I would consider configuration
-> leading to this state invalid but we should handle that gracefully.
->
-> The third patch finally allows setting the lowlimit.
->
-> The last patch tries expedites OOM if it is clear that no group is
-> eligible for reclaim. It basically breaks out of loops in the direct
-> reclaim and lets kswapd sleep because it wouldn't do any progress anyway.
->
-> Thoughts?
->
-> Short log says:
-> Michal Hocko (4):
->       memcg, mm: introduce lowlimit reclaim
->       mm, memcg: allow OOM if no memcg is eligible during direct reclaim
->       memcg: Allow setting low_limit
->       mm, memcg: expedite OOM if no memcg is reclaimable
->
-> And a diffstat
->  include/linux/memcontrol.h  | 14 +++++++++++
->  include/linux/res_counter.h | 40 ++++++++++++++++++++++++++++++
->  kernel/res_counter.c        |  2 ++
->  mm/memcontrol.c             | 60 ++++++++++++++++++++++++++++++++++++++++++++-
->  mm/vmscan.c                 | 59 +++++++++++++++++++++++++++++++++++++++++---
->  5 files changed, 170 insertions(+), 5 deletions(-)
+Good catch. I agree, this is new behavior and quite frankly not worth
+changing just for a cleanup - the code is subtle enough as it is. I'm
+dropping this patch and #7 which depends on this one, if Joonsoo wants
+to later pursue this, he can.
 
-The series looks useful.  We (Google) have been using something similar.
-In practice such a low_limit (or memory guarantee), doesn't nest very
-well.
-
-Example:
-  - parent_memcg: limit 500, low_limit 500, usage 500
-    1 privately charged non-reclaimable page (e.g. mlock, slab)
-  - child_memcg: limit 500, low_limit 500, usage 499
-
-If a streaming file cache workload (e.g. sha1sum) starts gobbling up
-page cache it will lead to an oom kill instead of reclaiming.  One could
-argue that this is working as intended because child_memcg was promised
-500 but can only get 499.  So child_memcg is oom killed rather than
-being forced to operate below its promised low limit.
-
-This has led to various internal workarounds like:
-- don't charge any memory to interior tree nodes (e.g. parent_memcg);
-  only charge memory to cgroup leafs.  This gets tricky when dealing
-  with reparented memory inherited to parent from child during cgroup
-  deletion.
-- don't set low_limit on non leafs (e.g. do not set low limit on
-  parent_memcg).  This constrains the cgroup layout a bit.  Some
-  customers want to purchase $MEM and setup their workload with a few
-  child cgroups.  A system daemon hands out $MEM by setting low_limit
-  for top-level containers (e.g. parent_memcg).  Thereafter such
-  customers are able to partition their workload with sub memcg below
-  child_memcg.  Example:
-     parent_memcg
-         \
-          child_memcg
-            /     \
-        server   backup
-  Thereafter customers often want some weak isolation between server and
-  backup.  To avoid undesired oom kills the server/backup isolation is
-  provided with a softer memory guarantee (e.g. soft_limit).  The soft
-  limit acts like the low_limit until priority becomes desperate.
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
