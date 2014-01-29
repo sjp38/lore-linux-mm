@@ -1,46 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C0CE6B0031
-	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 03:30:27 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id z10so1424608pdj.19
-        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 00:30:27 -0800 (PST)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id mj6si1677121pab.188.2014.01.29.00.30.26
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 379506B0031
+	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 05:16:36 -0500 (EST)
+Received: by mail-wg0-f43.google.com with SMTP id y10so3062628wgg.10
+        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 02:16:35 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gg4si874193wjc.150.2014.01.29.02.16.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 29 Jan 2014 00:30:26 -0800 (PST)
-Received: by mail-pa0-f47.google.com with SMTP id kp14so1478170pab.6
-        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 00:30:26 -0800 (PST)
-Date: Wed, 29 Jan 2014 00:30:19 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: slub: fix page->_count corruption (again)
-In-Reply-To: <52E842CF.7090102@sr71.net>
-Message-ID: <alpine.DEB.2.02.1401290029120.12210@chino.kir.corp.google.com>
-References: <20140128231722.E7387E6B@viggo.jf.intel.com> <20140128152956.d5659f56ae279856731a1ac5@linux-foundation.org> <52E842CF.7090102@sr71.net>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 29 Jan 2014 02:16:34 -0800 (PST)
+Date: Wed, 29 Jan 2014 10:16:31 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [Lsf-pc] [LSF/MM ATTEND] Other tracks I'm interested in (was Re:
+ Persistent memory)
+Message-ID: <20140129101631.GC6732@suse.de>
+References: <CALCETrV2mtkKCMp6H+5gzoxi9kj9mx0GgsfiXqgn53AikCzFMw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CALCETrV2mtkKCMp6H+5gzoxi9kj9mx0GgsfiXqgn53AikCzFMw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, pshelar@nicira.com, Wu Fengguang <fengguang.wu@intel.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Linux FS Devel <linux-fsdevel@vger.kernel.org>, lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, 28 Jan 2014, Dave Hansen wrote:
-
-> It has measurable performance benefits, and the benefits go up as the
-> cost of en/disabling interrupts goes up (like if it takes you a hypercall).
+On Tue, Jan 28, 2014 at 09:30:25AM -0800, Andy Lutomirski wrote:
+> On Thu, Jan 16, 2014 at 4:56 PM, Andy Lutomirski <luto@amacapital.net> wrote:
+> > I'm interested in a persistent memory track.  There seems to be plenty
+> > of other emails about this, but here's my take:
 > 
-> Fengguang, could you run a set of tests for the top patch in this branch
-> to see if we'd be giving much up by axing the code?
-> 
-> 	https://github.com/hansendc/linux/tree/slub-nocmpxchg-for-Fengguang-20140128
-> 
-> I was talking with one of the distros about turning it off as well.
-> They mentioned that they saw a few performance regressions when it was
-> turned off.  I'll share details when I get them.
+> I should add that I'm also interested in topics relating to the
+> performance of mm and page cache under various abusive workloads.
+> These include database-like things and large amounts of locked memory.
 > 
 
-FWIW, I've compared netperf TCP_RR on all machine types I have available 
-with and without cmpxchg_double and I've never measured a regression.
+Out of curiousity, is there any data available on this against a recent
+kernel? Locked memory should not cause the kernel to go to hell as the
+pages should end up on the unevictable LRU list. If that is not happening,
+it could be a bug. More details on the database configuration and test
+case would also be welcome as it would help establish if the problem is
+a large amount of memory being dirtied and then an fsync destroying the
+world or something else.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
