@@ -1,83 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id DB55D6B0031
-	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 18:00:44 -0500 (EST)
-Received: by mail-pb0-f49.google.com with SMTP id up15so2361605pbc.36
-        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 15:00:44 -0800 (PST)
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTP id tq3si4153566pab.125.2014.01.29.15.00.43
-        for <linux-mm@kvack.org>;
-        Wed, 29 Jan 2014 15:00:43 -0800 (PST)
-Message-ID: <1391036440.2181.52.camel@dabdike.int.hansenpartnership.com>
-Subject: Re: [Lsf-pc] [LSF/MM ATTEND] persistent transparent large
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Wed, 29 Jan 2014 15:00:40 -0800
-In-Reply-To: <20140129023903.GF20939@parisc-linux.org>
-References: <alpine.LSU.2.11.1401230334110.1414@eggly.anvils>
-	 <20140128193833.GD20939@parisc-linux.org>
-	 <1390943052.16253.31.camel@dabdike>
-	 <20140129023903.GF20939@parisc-linux.org>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id C060F6B0031
+	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 18:48:39 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id kl14so2427142pab.1
+        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 15:48:39 -0800 (PST)
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+        by mx.google.com with ESMTPS id n8si4275793pax.44.2014.01.29.15.48.38
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 29 Jan 2014 15:48:38 -0800 (PST)
+Received: by mail-pb0-f52.google.com with SMTP id jt11so2408072pbb.39
+        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 15:48:38 -0800 (PST)
+From: Sebastian Capella <sebastian.capella@linaro.org>
+Subject: [PATCH v4 0/2] PM / Hibernate: sysfs resume
+Date: Wed, 29 Jan 2014 15:48:22 -0800
+Message-Id: <1391039304-3172-1-git-send-email-sebastian.capella@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew@wil.cx>
-Cc: Hugh Dickins <hughd@google.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org
 
-On Tue, 2014-01-28 at 19:39 -0700, Matthew Wilcox wrote:
-> On Tue, Jan 28, 2014 at 01:04:12PM -0800, James Bottomley wrote:
-> > That rather depends on whether you think Execute In Place is the correct
-> > way to handle persistent memory, I think?  I fully accept that it looks
-> > like a good place to start since it's how all embedded systems handle
-> > flash ... although looking at the proliferation of XIP hacks and
-> > filesystems certainly doesn't give one confidence that they actually got
-> > it right.
-> 
-> One of the things I don't like about the current patch is that XIP
-> has two completely unrelated meanings.  The embedded people use it
-> for eXecuting the kernel in-place, whereas the CONFIG_FS_XIP code is
-> all about avoiding the page cache (for both executables and data).
-> I'd love to rename it to prevent this confusion ... I just have no idea
-> what to call it.  Somebody suggested Map In Place (MIP).  Maybe MAXIP
-> (Map And eXecute In Place)?  I'd rather something that was a TLA though.
+Patchset related to hibernation resume:
+  - enhancement to make the use of an existing resume file more general
+  - add kstrimdup function which trims and duplicates a string
 
-I understand; essentially it's about inserting existing pages into the
-page cache as mappings.  Curiously it's not unlike one of the user space
-APIs the database people have requested.
+  Both patches are based on the 3.13 tag.  This was tested on a
+  Beaglebone black with partial hibernation support, and compiled for
+  x86_64.
 
-> > Fixing XIP looks like a good thing independent of whether it's the right
-> > approach for persistent memory.  However, one thing that's missing for
-> > the current patch sets is any buy in from the existing users ... can
-> > they be persuaded to drop their hacks and adopt it (possibly even losing
-> > some of the XIP specific filesystems), or will this end up as yet
-> > another XIP hack?
-> 
-> There's only one in-tree filesystem using the current interfaces (ext2)
-> and it's converted as part of the patchset.  And there're only three
-> devices drivers implementing the current interface (dcssblk, axonram
-> and brd).  The MTD XIP is completely unrelated to this, and doesn't need
-> to be converted.
+[PATCH v4 1/2] mm: add kstrimdup function
+  include/linux/string.h |    1 +
+  mm/util.c              |   19 +++++++++++++++++++
+  2 files changed, 20 insertions(+)
 
-Quite a few of the MTD XIP patches have been *application* not kernel;
-those should be convertible to your patches.
+  Adds the kstrimdup function to duplicate and trim whitespace
+  from a string.  This is useful for working with user input to
+  sysfs.
 
-> > Then there's the meta problem of is XIP the right approach.  Using
-> > persistence within the current memory address space as XIP is a natural
-> > fit for mixed volatile/NV systems, but what happens when they're all NV
-> > memory?  Should we be discussing some VM based handling mechanisms for
-> > persistent memory?
-> 
-> I think this discussion would be more related to checkpointing than it
-> is VM, so we probably wouldn't have the right people in the room for that.
-> It would probably have been a good discussion to have at kernel summit.
+[PATCH v4 2/2] PM / Hibernate: use name_to_dev_t to parse resume
+  kernel/power/hibernate.c |   33
+  +++++++++++++++++----------------
+  1 file changed, 17 insertions(+), 16 deletions(-)
 
-Actually, since all the checkpointing guys are mad russians and mostly
-happen to work for Parallels I can see whom I can provide (I was
-planning to poke them with a big stick to attend, anyway).
+  Use name_to_dev_t to parse the /sys/power/resume file making the
+  syntax more flexible.  It supports the previous use syntax
+  and additionally can support other formats such as
+  /dev/devicenode and UUID= formats.
+
+  By changing /sys/debug/resume to accept the same syntax as
+  the resume=device parameter, we can parse the resume=device
+  in the initrd init script and use the resume device directly
+  from the kernel command line.
+
+Changes in v4:
+--------------
+* Dropped name_to_dev_t rework in favor of adding kstrimdup
+* adjusted resume_store
+
+Changes in v3:
+--------------
+* Dropped documentation patch as it went in through trivial
+* Added patch for name_to_dev_t to support directly parsing userspace
+  buffer
+
+Changes in v2:
+--------------
+* Added check for null return of kstrndup in hibernate.c
 
 
-James
+Thanks,
+
+Sebastian
 
 
 --
