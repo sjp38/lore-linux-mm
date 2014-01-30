@@ -1,52 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B0076B0039
-	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 16:09:55 -0500 (EST)
-Received: by mail-pd0-f171.google.com with SMTP id g10so3469141pdj.16
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 13:09:55 -0800 (PST)
-Received: from mail-pd0-x230.google.com (mail-pd0-x230.google.com [2607:f8b0:400e:c02::230])
-        by mx.google.com with ESMTPS id yh9si7890793pab.63.2014.01.30.13.09.54
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 325B86B0039
+	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 16:12:15 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id un15so3633113pbc.10
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 13:12:14 -0800 (PST)
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+        by mx.google.com with ESMTPS id yh9si7877998pab.150.2014.01.30.13.12.13
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 30 Jan 2014 13:09:54 -0800 (PST)
-Received: by mail-pd0-f176.google.com with SMTP id w10so3463569pde.21
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 13:09:54 -0800 (PST)
-Date: Thu, 30 Jan 2014 13:09:52 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] memcg: fix mutex not unlocked on memcg_create_kmem_cache
- fail path
-In-Reply-To: <1391097693-31401-1-git-send-email-vdavydov@parallels.com>
-Message-ID: <alpine.DEB.2.02.1401301301000.15271@chino.kir.corp.google.com>
-References: <1391097693-31401-1-git-send-email-vdavydov@parallels.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Thu, 30 Jan 2014 13:12:13 -0800 (PST)
+Received: by mail-pb0-f53.google.com with SMTP id md12so3597230pbc.40
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 13:12:13 -0800 (PST)
+From: Sebastian Capella <sebastian.capella@linaro.org>
+Subject: 
+Date: Thu, 30 Jan 2014 13:11:56 -0800
+Message-Id: <1391116318-17253-1-git-send-email-sebastian.capella@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org
 
-On Thu, 30 Jan 2014, Vladimir Davydov wrote:
+Patchset related to hibernation resume:
+  - enhancement to make the use of an existing resume file more general
+  - add kstrimdup function which trims and duplicates a string
 
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+  Both patches are based on the 3.13 tag.  This was tested on a
+  Beaglebone black with partial hibernation support, and compiled for
+  x86_64.
 
-Some changelog would be helpful since this fixes an issue already in 
-Linus's tree.
+[PATCH v5 1/2] mm: add kstrimdup function
+  include/linux/string.h |    1 +
+  mm/util.c              |   30 ++++++++++++++++++++++++++++++
+  2 files changed, 31 insertions(+)
 
-Commit 842e2873697e ("memcg: get rid of kmem_cache_dup()") introduced a 
-mutex for memcg_create_kmem_cache() to protect the tmp_name buffer that 
-holds the memcg name.  It failed to unlock the mutex if this buffer could 
-not be allocated.
+  Adds the kstrimdup function to duplicate and trim whitespace
+  from a string.  This is useful for working with user input to
+  sysfs.
 
-This patch fixes the issue by appropriately unlocking the mutex if the 
-allocation fails.
+[PATCH v5 2/2] PM / Hibernate: use name_to_dev_t to parse resume
+  kernel/power/hibernate.c |   33
+  +++++++++++++++++----------------
+  1 file changed, 17 insertions(+), 16 deletions(-)
 
-Acked-by: David Rientjes <rientjes@google.com>
+  Use name_to_dev_t to parse the /sys/power/resume file making the
+  syntax more flexible.  It supports the previous use syntax
+  and additionally can support other formats such as
+  /dev/devicenode and UUID= formats.
+
+  By changing /sys/debug/resume to accept the same syntax as
+  the resume=device parameter, we can parse the resume=device
+  in the initrd init script and use the resume device directly
+  from the kernel command line.
+
+Changes in v5:
+--------------
+* Change kstrimdup to minimize allocated memory.  Now allocates only
+  the memory needed for the string instead of using strim.
+
+Changes in v4:
+--------------
+* Dropped name_to_dev_t rework in favor of adding kstrimdup
+* adjusted resume_store
+
+Changes in v3:
+--------------
+* Dropped documentation patch as it went in through trivial
+* Added patch for name_to_dev_t to support directly parsing userspace
+  buffer
+
+Changes in v2:
+--------------
+* Added check for null return of kstrndup in hibernate.c
 
 
-That said, this tmp_name stuff seems totally unnecessary.  
-kmem_cache_create_memcg() already does the kstrdup() so why not just pass 
-in a pointer to already allocated memory for s->name rather than having 
-this mutex or global buffer at all?
+Thanks,
+
+Sebastian
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
