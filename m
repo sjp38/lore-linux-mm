@@ -1,61 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
-	by kanga.kvack.org (Postfix) with ESMTP id E04A56B0035
-	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 11:26:54 -0500 (EST)
-Received: by mail-qc0-f171.google.com with SMTP id n7so5334972qcx.30
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 08:26:54 -0800 (PST)
-Received: from qmta11.emeryville.ca.mail.comcast.net (qmta11.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:211])
-        by mx.google.com with ESMTP id e60si4914217qgf.32.2014.01.30.08.26.53
-        for <linux-mm@kvack.org>;
-        Thu, 30 Jan 2014 08:26:54 -0800 (PST)
-Date: Thu, 30 Jan 2014 10:26:51 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
- no local memory
-In-Reply-To: <20140129223640.GA10101@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.10.1401301017590.29392@nuc>
-References: <52e1da8f.86f7440a.120f.25f3SMTPIN_ADDED_BROKEN@mx.google.com> <alpine.DEB.2.10.1401240946530.12886@nuc> <alpine.DEB.2.02.1401241301120.10968@chino.kir.corp.google.com> <20140124232902.GB30361@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1401241543100.18620@chino.kir.corp.google.com> <20140125001643.GA25344@linux.vnet.ibm.com> <alpine.DEB.2.02.1401241618500.20466@chino.kir.corp.google.com> <20140125011041.GB25344@linux.vnet.ibm.com> <20140127055805.GA2471@lge.com>
- <20140128182947.GA1591@linux.vnet.ibm.com> <20140129223640.GA10101@linux.vnet.ibm.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-oa0-f44.google.com (mail-oa0-f44.google.com [209.85.219.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 92D416B0035
+	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 12:15:34 -0500 (EST)
+Received: by mail-oa0-f44.google.com with SMTP id g12so3973256oah.3
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 09:15:34 -0800 (PST)
+Received: from g5t0006.atlanta.hp.com (g5t0006.atlanta.hp.com. [15.192.0.43])
+        by mx.google.com with ESMTPS id co8si3274048oec.47.2014.01.30.09.15.33
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 30 Jan 2014 09:15:33 -0800 (PST)
+Message-ID: <1391102130.2931.14.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH] mm, hugetlb: gimme back my page
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Thu, 30 Jan 2014 09:15:30 -0800
+In-Reply-To: <20140130095907.GA13574@dhcp22.suse.cz>
+References: <1391063823.2931.3.camel@buesod1.americas.hpqcorp.net>
+	 <20140130095907.GA13574@dhcp22.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, penberg@kernel.org, linux-mm@kvack.org, paulus@samba.org, Anton Blanchard <anton@samba.org>, mpm@selenic.com, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, cody@linux.vnet.ibm.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jonathan Gonzalez <jgonzalez@linets.cl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 29 Jan 2014, Nishanth Aravamudan wrote:
+On Thu, 2014-01-30 at 10:59 +0100, Michal Hocko wrote:
+> On Wed 29-01-14 22:37:03, Davidlohr Bueso wrote:
+> > From: Davidlohr Bueso <davidlohr@hp.com>
+> > 
+> > While testing some changes, I noticed an issue triggered by the libhugetlbfs
+> > test-suite. This is caused by commit 309381fe (mm: dump page when hitting a
+> > VM_BUG_ON using VM_BUG_ON_PAGE), where an application can unexpectedly OOM due
+> > to another program that using, or reserving, pool_size-1 pages later triggers
+> > a VM_BUG_ON_PAGE and thus greedly leaves no memory to the rest of the hugetlb
+> > aware tasks. For example, in libhugetlbfs 2.14:
+> > 
+> > mmap-gettest 10 32783 (2M: 64): <---- hit VM_BUG_ON_PAGE
+> > mmap-cow 32782 32783 (2M: 32):  FAIL    Failed to create shared mapping: Cannot allocate memory
+> > mmap-cow 32782 32783 (2M: 64):  FAIL    Failed to create shared mapping: Cannot allocate memory
+> > 
+> > While I have not looked into why 'mmap-gettest' keeps failing, it is of no
+> > importance to this particular issue. This problem is similar to why we have
+> > the hugetlb_instantiation_mutex, hugepages are quite finite.
+> > 
+> > Revert the use of VM_BUG_ON_PAGE back to just VM_BUG_ON.
+> 
+> I do not understand what VM_BUG_ON_PAGE has to do with the above
+> failure. Could you be more specific.
+> 
+> Hmm, now that I am looking into dump_page_badflags it shouldn't call
+> mem_cgroup_print_bad_page for hugetlb pages because it doesn't make any
+> sense. I will post a patch for that but that still doesn't explain the
+> above changelog.
 
-> exactly what the caller intends.
->
-> int searchnode = node;
-> if (node == NUMA_NO_NODE)
-> 	searchnode = numa_mem_id();
-> if (!node_present_pages(node))
-> 	searchnode = local_memory_node(node);
->
-> The difference in semantics from the previous is that here, if we have a
-> memoryless node, rather than using the CPU's nearest NUMA node, we use
-> the NUMA node closest to the requested one?
-
-The idea here is that the page allocator will do the fallback to other
-nodes. This check for !node_present should not be necessary. SLUB needs to
-accept the page from whatever node the page allocator returned and work
-with that.
-
-The problem is the check for having a slab from the "right" node may fall
-again after another attempt to allocate from the same node. SLUB will then
-push the slab from the *wrong* node back to the partial lists and may
-attempt another allocation that will again be successful but return memory
-from another node. That way the partial lists from a particular node are
-growing uselessly.
-
-One way to solve this may be to check if memory is actually allocated
-from the requested node and fallback to NUMA_NO_NODE (which will use the
-last allocated slab) for future allocs if the page allocator returned
-memory from a different node (unless GFP_THIS_NODE is set of course).
-Otherwise we end up replicating  the page allocator logic in slub like in
-slab. That is what I wanted to
-avoid.
+Yeah, I then looked closer at it and realized it doesn't make much
+sense. I don't know why I thought a new page was being used. In any
+case, bisection still shows the commit in question as the cause of the
+regression. I will continue looking into it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
