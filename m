@@ -1,43 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E19C6B0037
-	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 01:14:55 -0500 (EST)
-Received: by mail-pd0-f170.google.com with SMTP id p10so2658919pdj.29
-        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 22:14:55 -0800 (PST)
-Received: from mail-pb0-x235.google.com (mail-pb0-x235.google.com [2607:f8b0:400e:c01::235])
-        by mx.google.com with ESMTPS id l8si5125717pao.152.2014.01.29.22.14.54
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 08A556B0031
+	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 01:35:01 -0500 (EST)
+Received: by mail-pb0-f46.google.com with SMTP id um1so2732469pbc.5
+        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 22:35:01 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [2402:b800:7003:1:1::1])
+        by mx.google.com with ESMTPS id sj5si5171652pab.197.2014.01.29.22.35.00
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 29 Jan 2014 22:14:54 -0800 (PST)
-Received: by mail-pb0-f53.google.com with SMTP id md12so2729217pbc.40
-        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 22:14:54 -0800 (PST)
-Message-ID: <1391062491.28432.68.camel@edumazet-glaptop2.roam.corp.google.com>
-Subject: Re: [PATCH] kthread: ensure locality of task_struct allocations
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Date: Wed, 29 Jan 2014 22:14:51 -0800
-In-Reply-To: <alpine.DEB.2.02.1401291622550.22974@chino.kir.corp.google.com>
-References: <20140128183808.GB9315@linux.vnet.ibm.com>
-	 <alpine.DEB.2.02.1401290012460.10268@chino.kir.corp.google.com>
-	 <alpine.DEB.2.10.1401290957350.23856@nuc>
-	 <alpine.DEB.2.02.1401291622550.22974@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 Jan 2014 22:35:00 -0800 (PST)
+Date: Thu, 30 Jan 2014 17:34:57 +1100
+From: Anton Blanchard <anton@samba.org>
+Subject: /proc/pid/numa_maps no longer shows "default" policy
+Message-ID: <20140130173457.115a30f8@kryten>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Christoph Lameter <cl@linux.com>, Eric Dumazet <edumazet@google.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Anton Blanchard <anton@samba.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Jan Kara <jack@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ben Herrenschmidt <benh@kernel.crashing.org>
-
-On Wed, 2014-01-29 at 16:27 -0800, David Rientjes wrote:
-
-> Eric, did you try this when writing 207205a2ba26 ("kthread: NUMA aware 
-> kthread_create_on_node()") or was it always numa_node_id() from the 
-> beginning?
-
-Hmm, I think I did not try this, its absolutely possible NUMA_NO_NODE
-was better here.
+To: mgorman@suse.de
+Cc: linux-mm@kvack.org
 
 
+Hi Mel,
+
+We recently noticed that /proc/pid/numa_maps used to show default
+policy mappings as such:
+
+cat /proc/self/numa_maps 
+00100000 default mapped=1 mapmax=339 active=0 N0=1
+
+But now it shows them as prefer:X:
+
+cat /proc/self/numa_maps
+10000000 prefer:1 file=/usr/bin/cat mapped=1 N0=1
+
+It looks like this was caused by 5606e387 (mm: numa: Migrate on
+reference policy). I'm not sure if this is expected, but we don't have
+CONFIG_NUMA_BALANCING enabled on ppc64 so I wasn't expecting processes
+to have a particular node affinity by default.
+
+Anton
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
