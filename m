@@ -1,59 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id AFC4B6B0031
-	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 08:46:31 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id up15so3136741pbc.14
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 05:46:31 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id rx8si6572211pac.18.2014.01.30.05.46.30
+Received: from mail-la0-f46.google.com (mail-la0-f46.google.com [209.85.215.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 076876B0035
+	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 11:01:51 -0500 (EST)
+Received: by mail-la0-f46.google.com with SMTP id b8so2727353lan.33
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 08:01:51 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id ya3si3312594lbb.56.2014.01.30.08.01.35
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 30 Jan 2014 05:46:30 -0800 (PST)
-Message-ID: <52EA57AC.3090700@oracle.com>
-Date: Thu, 30 Jan 2014 08:46:20 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Jan 2014 08:01:35 -0800 (PST)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH] memcg: fix mutex not unlocked on memcg_create_kmem_cache fail path
+Date: Thu, 30 Jan 2014 20:01:33 +0400
+Message-ID: <1391097693-31401-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm, hugetlb: gimme back my page
-References: <1391063823.2931.3.camel@buesod1.americas.hpqcorp.net>
-In-Reply-To: <1391063823.2931.3.camel@buesod1.americas.hpqcorp.net>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Jonathan Gonzalez <jgonzalez@linets.cl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 01/30/2014 01:37 AM, Davidlohr Bueso wrote:
-> From: Davidlohr Bueso<davidlohr@hp.com>
->
-> While testing some changes, I noticed an issue triggered by the libhugetlbfs
-> test-suite. This is caused by commit 309381fe (mm: dump page when hitting a
-> VM_BUG_ON using VM_BUG_ON_PAGE), where an application can unexpectedly OOM due
-> to another program that using, or reserving, pool_size-1 pages later triggers
-> a VM_BUG_ON_PAGE and thus greedly leaves no memory to the rest of the hugetlb
-> aware tasks. For example, in libhugetlbfs 2.14:
->
-> mmap-gettest 10 32783 (2M: 64): <---- hit VM_BUG_ON_PAGE
-> mmap-cow 32782 32783 (2M: 32):  FAIL    Failed to create shared mapping: Cannot allocate memory
-> mmap-cow 32782 32783 (2M: 64):  FAIL    Failed to create shared mapping: Cannot allocate memory
->
-> While I have not looked into why 'mmap-gettest' keeps failing, it is of no
-> importance to this particular issue. This problem is similar to why we have
-> the hugetlb_instantiation_mutex, hugepages are quite finite.
->
-> Revert the use of VM_BUG_ON_PAGE back to just VM_BUG_ON.
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+---
+ mm/memcontrol.c |    7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
-VM_BUG_ON_PAGE is just a VM_BUG_ON that does dump_page before the BUG().
-
-The only reason to use VM_BUG_ON instead of VM_BUG_ON_PAGE is if the page you're working
-with doesn't make sense/isn't useful as debug output.
-
-If doing a dump_page is causing issues somewhere then dump_pages should be fixed - instead
-of hiding the problem under the rug by not using it.
-
-
-Thanks,
-sasha
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 19d5d4274e22..53385cd4e6f0 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3400,7 +3400,7 @@ void mem_cgroup_destroy_cache(struct kmem_cache *cachep)
+ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
+ 						  struct kmem_cache *s)
+ {
+-	struct kmem_cache *new;
++	struct kmem_cache *new = NULL;
+ 	static char *tmp_name = NULL;
+ 	static DEFINE_MUTEX(mutex);	/* protects tmp_name */
+ 
+@@ -3416,7 +3416,7 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
+ 	if (!tmp_name) {
+ 		tmp_name = kmalloc(PATH_MAX, GFP_KERNEL);
+ 		if (!tmp_name)
+-			return NULL;
++			goto out;
+ 	}
+ 
+ 	rcu_read_lock();
+@@ -3426,12 +3426,11 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
+ 
+ 	new = kmem_cache_create_memcg(memcg, tmp_name, s->object_size, s->align,
+ 				      (s->flags & ~SLAB_PANIC), s->ctor, s);
+-
+ 	if (new)
+ 		new->allocflags |= __GFP_KMEMCG;
+ 	else
+ 		new = s;
+-
++out:
+ 	mutex_unlock(&mutex);
+ 	return new;
+ }
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
