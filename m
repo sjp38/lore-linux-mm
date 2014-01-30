@@ -1,66 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
-	by kanga.kvack.org (Postfix) with ESMTP id D43C06B0031
-	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 07:40:35 -0500 (EST)
-Received: by mail-lb0-f169.google.com with SMTP id q8so2541451lbi.28
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 04:40:34 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id 6si2942580laq.40.2014.01.30.04.40.33
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id AFC4B6B0031
+	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 08:46:31 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id up15so3136741pbc.14
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 05:46:31 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id rx8si6572211pac.18.2014.01.30.05.46.30
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Jan 2014 04:40:33 -0800 (PST)
-Message-ID: <52EA483F.50105@parallels.com>
-Date: Thu, 30 Jan 2014 16:40:31 +0400
-From: Maxim Patlasov <mpatlasov@parallels.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 30 Jan 2014 05:46:30 -0800 (PST)
+Message-ID: <52EA57AC.3090700@oracle.com>
+Date: Thu, 30 Jan 2014 08:46:20 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Subject: [LSF/MM TOPIC] balancing dirty pages - how to keep growing dirty
- memory in reasonable limits
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: Re: [PATCH] mm, hugetlb: gimme back my page
+References: <1391063823.2931.3.camel@buesod1.americas.hpqcorp.net>
+In-Reply-To: <1391063823.2931.3.camel@buesod1.americas.hpqcorp.net>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "fuse-devel@lists.sourceforge.net" <fuse-devel@lists.sourceforge.net>, linux-mm@kvack.org
+To: Davidlohr Bueso <davidlohr@hp.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Jonathan Gonzalez <jgonzalez@linets.cl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi,
+On 01/30/2014 01:37 AM, Davidlohr Bueso wrote:
+> From: Davidlohr Bueso<davidlohr@hp.com>
+>
+> While testing some changes, I noticed an issue triggered by the libhugetlbfs
+> test-suite. This is caused by commit 309381fe (mm: dump page when hitting a
+> VM_BUG_ON using VM_BUG_ON_PAGE), where an application can unexpectedly OOM due
+> to another program that using, or reserving, pool_size-1 pages later triggers
+> a VM_BUG_ON_PAGE and thus greedly leaves no memory to the rest of the hugetlb
+> aware tasks. For example, in libhugetlbfs 2.14:
+>
+> mmap-gettest 10 32783 (2M: 64): <---- hit VM_BUG_ON_PAGE
+> mmap-cow 32782 32783 (2M: 32):  FAIL    Failed to create shared mapping: Cannot allocate memory
+> mmap-cow 32782 32783 (2M: 64):  FAIL    Failed to create shared mapping: Cannot allocate memory
+>
+> While I have not looked into why 'mmap-gettest' keeps failing, it is of no
+> importance to this particular issue. This problem is similar to why we have
+> the hugetlb_instantiation_mutex, hugepages are quite finite.
+>
+> Revert the use of VM_BUG_ON_PAGE back to just VM_BUG_ON.
 
-A recent patch from Linus limiting global_dirtyable_memory to 1GB (see 
-"Disabling in-memory write cache for x86-64 in Linux" thread) drew 
-attention to a long-standing problem: on a node with a huge amount of 
-RAM installed, the global dirty threshold is high, and existing 
-behaviour of balance_dirty_pages() skips throttling until the global 
-limit is reached. So, by the time balance_dirty_pages() starts 
-throttling, you can easily end up in a huge amount of dirty pages backed 
-up by some (e.g. slow USB) device.
+VM_BUG_ON_PAGE is just a VM_BUG_ON that does dump_page before the BUG().
 
-A lot of ideas were proposed, but no conclusion was made. In particular, 
-one of suggested approaches is to develop per-BDI time-based limits and 
-to enable them for all: don't allow dirty cache of BDI to grow over 5s 
-of measured writeback speed. The approach looks pretty straightforward, 
-but in practice it may be tricky to implement: you cannot discover how 
-fast a device is until you load it heavily enough, and conversely, you 
-must go far beyond current per-BDI limit to load the device heavily. And 
-other approaches have other caveats as usual.
+The only reason to use VM_BUG_ON instead of VM_BUG_ON_PAGE is if the page you're working
+with doesn't make sense/isn't useful as debug output.
 
-I'm interested in attending upcoming LSF/MM to discuss the topic above 
-as well as two other unrelated ones:
+If doing a dump_page is causing issues somewhere then dump_pages should be fixed - instead
+of hiding the problem under the rug by not using it.
 
-* future improvements of FUSE. Having "write-back cache policy" 
-patch-set almost adopted and patches for synchronous close(2) and 
-umount(2) in queue, I'd like to keep my efforts in sync with other FUSE 
-developers.
-
-* reboot-less kernel updates. Since memory reset can be avoided by 
-booting the new kernel using Kexec, and almost any application can be 
-checkpointed and then restored by CRIU, the downtime can be diminished 
-significantly by keeping userspace processes' working set in memory 
-while the system gets updated. Questions to discuss are how to prevent 
-the kernel from using some memory regions on boot, what interface can be 
-reused/introduced for managing the regions and how they can be 
-re-installed back into processes' address space on restore.
 
 Thanks,
-Maxim
+sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
