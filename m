@@ -1,93 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B6706B0036
-	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 18:48:58 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id kx10so2413950pab.35
-        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 15:48:58 -0800 (PST)
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-        by mx.google.com with ESMTPS id k3si4233173pbb.264.2014.01.29.15.48.57
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A14D6B0031
+	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 19:27:25 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id kq14so2455227pab.3
+        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 16:27:24 -0800 (PST)
+Received: from mail-pb0-x22b.google.com (mail-pb0-x22b.google.com [2607:f8b0:400e:c01::22b])
+        by mx.google.com with ESMTPS id s4si4295598pbg.333.2014.01.29.16.27.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 29 Jan 2014 15:48:57 -0800 (PST)
-Received: by mail-pb0-f44.google.com with SMTP id rq2so2412644pbb.3
-        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 15:48:57 -0800 (PST)
-From: Sebastian Capella <sebastian.capella@linaro.org>
-Subject: [PATCH v4 2/2] PM / Hibernate: use name_to_dev_t to parse resume
-Date: Wed, 29 Jan 2014 15:48:24 -0800
-Message-Id: <1391039304-3172-3-git-send-email-sebastian.capella@linaro.org>
-In-Reply-To: <1391039304-3172-1-git-send-email-sebastian.capella@linaro.org>
-References: <1391039304-3172-1-git-send-email-sebastian.capella@linaro.org>
+        Wed, 29 Jan 2014 16:27:24 -0800 (PST)
+Received: by mail-pb0-f43.google.com with SMTP id md12so2447357pbc.2
+        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 16:27:23 -0800 (PST)
+Date: Wed, 29 Jan 2014 16:27:22 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] kthread: ensure locality of task_struct allocations
+In-Reply-To: <alpine.DEB.2.10.1401290957350.23856@nuc>
+Message-ID: <alpine.DEB.2.02.1401291622550.22974@chino.kir.corp.google.com>
+References: <20140128183808.GB9315@linux.vnet.ibm.com> <alpine.DEB.2.02.1401290012460.10268@chino.kir.corp.google.com> <alpine.DEB.2.10.1401290957350.23856@nuc>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org
-Cc: Sebastian Capella <sebastian.capella@linaro.org>, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Christoph Lameter <cl@linux.com>, Eric Dumazet <edumazet@google.com>
+Cc: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Anton Blanchard <anton@samba.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Jan Kara <jack@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ben Herrenschmidt <benh@kernel.crashing.org>
 
-Use the name_to_dev_t call to parse the device name echo'd to
-to /sys/power/resume.  This imitates the method used in hibernate.c
-in software_resume, and allows the resume partition to be specified
-using other equivalent device formats as well.  By allowing
-/sys/debug/resume to accept the same syntax as the resume=device
-parameter, we can parse the resume=device in the init script and
-use the resume device directly from the kernel command line.
+On Wed, 29 Jan 2014, Christoph Lameter wrote:
 
-Signed-off-by: Sebastian Capella <sebastian.capella@linaro.org>
-Cc: Pavel Machek <pavel@ucw.cz>
-Cc: Len Brown <len.brown@intel.com>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
----
- kernel/power/hibernate.c |   33 +++++++++++++++++----------------
- 1 file changed, 17 insertions(+), 16 deletions(-)
+> > > diff --git a/kernel/kthread.c b/kernel/kthread.c
+> > > index b5ae3ee..8573e4e 100644
+> > > --- a/kernel/kthread.c
+> > > +++ b/kernel/kthread.c
+> > > @@ -217,7 +217,7 @@ int tsk_fork_get_node(struct task_struct *tsk)
+> > >  	if (tsk == kthreadd_task)
+> > >  		return tsk->pref_node_fork;
+> > >  #endif
+> > > -	return numa_node_id();
+> > > +	return numa_mem_id();
+> >
+> > I'm wondering why return NUMA_NO_NODE wouldn't have the same effect and
+> > prefer the local node?
+> >
+> 
+> The idea here seems to be that the allocation may occur from a cpu that is
+> different from where the process will run later on.
+> 
 
-diff --git a/kernel/power/hibernate.c b/kernel/power/hibernate.c
-index 37170d4..b4a3e0b 100644
---- a/kernel/power/hibernate.c
-+++ b/kernel/power/hibernate.c
-@@ -973,26 +973,27 @@ static ssize_t resume_show(struct kobject *kobj, struct kobj_attribute *attr,
- static ssize_t resume_store(struct kobject *kobj, struct kobj_attribute *attr,
- 			    const char *buf, size_t n)
- {
--	unsigned int maj, min;
- 	dev_t res;
--	int ret = -EINVAL;
-+	char *name = kstrimdup(buf, GFP_KERNEL);
- 
--	if (sscanf(buf, "%u:%u", &maj, &min) != 2)
--		goto out;
-+	if (name == NULL)
-+		return -ENOMEM;
- 
--	res = MKDEV(maj,min);
--	if (maj != MAJOR(res) || min != MINOR(res))
--		goto out;
-+	res = name_to_dev_t(name);
- 
--	lock_system_sleep();
--	swsusp_resume_device = res;
--	unlock_system_sleep();
--	printk(KERN_INFO "PM: Starting manual resume from disk\n");
--	noresume = 0;
--	software_resume();
--	ret = n;
-- out:
--	return ret;
-+	if (res != 0) {
-+		lock_system_sleep();
-+		swsusp_resume_device = res;
-+		unlock_system_sleep();
-+		printk(KERN_INFO "PM: Starting manual resume from disk\n");
-+		noresume = 0;
-+		software_resume();
-+	} else {
-+		n = -EINVAL;
-+	}
-+
-+	kfree(name);
-+	return n;
- }
- 
- power_attr(resume);
--- 
-1.7.9.5
+Yeah, that makes sense for kthreadd, but I'm wondering why we have to 
+return numa_mem_id() rather than just NUMA_NO_NODE.  Sorry for not being 
+specific about doing s/numa_mem_id/NUMA_NO_NODE/ here.
+
+That should just turn kmem_cache_alloc_node() into kmem_cache_alloc() and 
+alloc_pages_node() into alloc_pages() for the allocators that use this 
+return value, task_struct and thread_info.  If that's not allocating local 
+memory, if possible, and numa_mem_id() magically does, then there's a 
+problem.
+
+Eric, did you try this when writing 207205a2ba26 ("kthread: NUMA aware 
+kthread_create_on_node()") or was it always numa_node_id() from the 
+beginning?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
