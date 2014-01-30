@@ -1,106 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 898FD6B003A
-	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 16:12:19 -0500 (EST)
-Received: by mail-pd0-f173.google.com with SMTP id y10so3494603pdj.4
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 13:12:19 -0800 (PST)
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-        by mx.google.com with ESMTPS id eb3si7843269pbc.326.2014.01.30.13.12.18
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A39D6B003B
+	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 16:12:23 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id y13so3480502pdi.37
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 13:12:23 -0800 (PST)
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+        by mx.google.com with ESMTPS id r7si7875539pbk.147.2014.01.30.13.12.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 30 Jan 2014 13:12:18 -0800 (PST)
-Received: by mail-pb0-f49.google.com with SMTP id up15so3605789pbc.36
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 13:12:18 -0800 (PST)
+        Thu, 30 Jan 2014 13:12:23 -0800 (PST)
+Received: by mail-pa0-f42.google.com with SMTP id kl14so3641265pab.1
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 13:12:22 -0800 (PST)
 From: Sebastian Capella <sebastian.capella@linaro.org>
-Subject: [PATCH v5 1/2] mm: add kstrimdup function
-Date: Thu, 30 Jan 2014 13:11:57 -0800
-Message-Id: <1391116318-17253-2-git-send-email-sebastian.capella@linaro.org>
+Subject: [PATCH v5 2/2] PM / Hibernate: use name_to_dev_t to parse resume
+Date: Thu, 30 Jan 2014 13:11:58 -0800
+Message-Id: <1391116318-17253-3-git-send-email-sebastian.capella@linaro.org>
 In-Reply-To: <1391116318-17253-1-git-send-email-sebastian.capella@linaro.org>
 References: <1391116318-17253-1-git-send-email-sebastian.capella@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org
-Cc: Sebastian Capella <sebastian.capella@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Joe Perches <joe@perches.com>, Mikulas Patocka <mpatocka@redhat.com>, Michel Lespinasse <walken@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Sebastian Capella <sebastian.capella@linaro.org>, Len Brown <len.brown@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>
 
-kstrimdup will duplicate and trim spaces from the passed in
-null terminated string.  This is useful for strings coming from
-sysfs that often include trailing whitespace due to user input.
+Use the name_to_dev_t call to parse the device name echo'd to
+to /sys/power/resume.  This imitates the method used in hibernate.c
+in software_resume, and allows the resume partition to be specified
+using other equivalent device formats as well.  By allowing
+/sys/debug/resume to accept the same syntax as the resume=device
+parameter, we can parse the resume=device in the init script and
+use the resume device directly from the kernel command line.
 
 Signed-off-by: Sebastian Capella <sebastian.capella@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joe Perches <joe@perches.com>
-Cc: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Rik van Riel <riel@redhat.com> (commit_signer:5/10=50%)
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Jerome Marchand <jmarchan@redhat.com>
-Cc: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Acked-by: Pavel Machek <pavel@ucw.cz>
+Cc: Len Brown <len.brown@intel.com>
+Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
 ---
- include/linux/string.h |    1 +
- mm/util.c              |   30 ++++++++++++++++++++++++++++++
- 2 files changed, 31 insertions(+)
+ kernel/power/hibernate.c |   33 +++++++++++++++++----------------
+ 1 file changed, 17 insertions(+), 16 deletions(-)
 
-diff --git a/include/linux/string.h b/include/linux/string.h
-index ac889c5..f29f9a0 100644
---- a/include/linux/string.h
-+++ b/include/linux/string.h
-@@ -114,6 +114,7 @@ void *memchr_inv(const void *s, int c, size_t n);
+diff --git a/kernel/power/hibernate.c b/kernel/power/hibernate.c
+index 0121dab..49d7a37 100644
+--- a/kernel/power/hibernate.c
++++ b/kernel/power/hibernate.c
+@@ -972,26 +972,27 @@ static ssize_t resume_show(struct kobject *kobj, struct kobj_attribute *attr,
+ static ssize_t resume_store(struct kobject *kobj, struct kobj_attribute *attr,
+ 			    const char *buf, size_t n)
+ {
+-	unsigned int maj, min;
+ 	dev_t res;
+-	int ret = -EINVAL;
++	char *name = kstrimdup(buf, GFP_KERNEL);
  
- extern char *kstrdup(const char *s, gfp_t gfp);
- extern char *kstrndup(const char *s, size_t len, gfp_t gfp);
-+extern char *kstrimdup(const char *s, gfp_t gfp);
- extern void *kmemdup(const void *src, size_t len, gfp_t gfp);
+-	if (sscanf(buf, "%u:%u", &maj, &min) != 2)
+-		goto out;
++	if (name == NULL)
++		return -ENOMEM;
  
- extern char **argv_split(gfp_t gfp, const char *str, int *argcp);
-diff --git a/mm/util.c b/mm/util.c
-index 808f375..2066b33 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -1,6 +1,7 @@
- #include <linux/mm.h>
- #include <linux/slab.h>
- #include <linux/string.h>
-+#include <linux/ctype.h>
- #include <linux/export.h>
- #include <linux/err.h>
- #include <linux/sched.h>
-@@ -63,6 +64,35 @@ char *kstrndup(const char *s, size_t max, gfp_t gfp)
- EXPORT_SYMBOL(kstrndup);
+-	res = MKDEV(maj,min);
+-	if (maj != MAJOR(res) || min != MINOR(res))
+-		goto out;
++	res = name_to_dev_t(name);
  
- /**
-+ * kstrimdup - Trim and copy a %NUL terminated string.
-+ * @s: the string to trim and duplicate
-+ * @gfp: the GFP mask used in the kmalloc() call when allocating memory
-+ *
-+ * Returns an address, which the caller must kfree, containing
-+ * a duplicate of the passed string with leading and/or trailing
-+ * whitespace (as defined by isspace) removed.
-+ */
-+char *kstrimdup(const char *s, gfp_t gfp)
-+{
-+	char *buf;
-+	char *begin = skip_spaces(s);
-+	size_t len = strlen(begin);
+-	lock_system_sleep();
+-	swsusp_resume_device = res;
+-	unlock_system_sleep();
+-	printk(KERN_INFO "PM: Starting manual resume from disk\n");
+-	noresume = 0;
+-	software_resume();
+-	ret = n;
+- out:
+-	return ret;
++	if (res != 0) {
++		lock_system_sleep();
++		swsusp_resume_device = res;
++		unlock_system_sleep();
++		printk(KERN_INFO "PM: Starting manual resume from disk\n");
++		noresume = 0;
++		software_resume();
++	} else {
++		n = -EINVAL;
++	}
 +
-+	while (len > 1 && isspace(begin[len - 1]))
-+		len--;
-+
-+	buf = kmalloc_track_caller(len + 1, gfp);
-+	if (!buf)
-+		return NULL;
-+
-+	memcpy(buf, begin, len);
-+	buf[len] = '\0';
-+
-+	return buf;
-+}
-+EXPORT_SYMBOL(kstrimdup);
-+
-+/**
-  * kmemdup - duplicate region of memory
-  *
-  * @src: memory region to duplicate
++	kfree(name);
++	return n;
+ }
+ 
+ power_attr(resume);
 -- 
 1.7.9.5
 
