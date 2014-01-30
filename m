@@ -1,54 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 2580F6B0035
-	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 17:15:41 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id lf10so3659745pab.18
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 14:15:40 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id rx8si8016241pac.250.2014.01.30.14.15.39
-        for <linux-mm@kvack.org>;
-        Thu, 30 Jan 2014 14:15:40 -0800 (PST)
-Date: Thu, 30 Jan 2014 14:15:38 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] memcg: fix mutex not unlocked on
- memcg_create_kmem_cache fail path
-Message-Id: <20140130141538.a9e3977b5e7b76bdcf59a15f@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.02.1401301411590.15271@chino.kir.corp.google.com>
-References: <1391097693-31401-1-git-send-email-vdavydov@parallels.com>
-	<20140130130129.6f8bd7fd9da55d17a9338443@linux-foundation.org>
-	<alpine.DEB.2.02.1401301310270.15271@chino.kir.corp.google.com>
-	<20140130132939.96a25a37016a12f9a0093a90@linux-foundation.org>
-	<alpine.DEB.2.02.1401301336530.15271@chino.kir.corp.google.com>
-	<20140130135002.22ce1c12b7136f75e5985df6@linux-foundation.org>
-	<alpine.DEB.2.02.1401301403090.15271@chino.kir.corp.google.com>
-	<20140130140902.93d35d866f9ea1c697811f6e@linux-foundation.org>
-	<alpine.DEB.2.02.1401301411590.15271@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id B9AB56B0035
+	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 17:17:31 -0500 (EST)
+Received: by mail-pb0-f43.google.com with SMTP id md12so3680087pbc.2
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 14:17:31 -0800 (PST)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id s4si8048722pbg.93.2014.01.30.14.17.30
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 30 Jan 2014 14:17:30 -0800 (PST)
+Received: by mail-pa0-f45.google.com with SMTP id lf10so3693257pab.4
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 14:17:30 -0800 (PST)
+Date: Thu, 30 Jan 2014 14:17:28 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [BUG] Description for memmap in kernel-parameters.txt is wrong
+In-Reply-To: <52EAB56E.2030102@infradead.org>
+Message-ID: <alpine.DEB.2.02.1401301416030.15271@chino.kir.corp.google.com>
+References: <CAOvWMLa334E8CYJLrHy6-0ZXBRneoMf-05v422SQw+dbGRubow@mail.gmail.com> <52EAA714.3080809@infradead.org> <CAOvWMLbs-sP+gJHV_5O6ZbV8eTpEKPVRVR238gFcPQeqhCjT3A@mail.gmail.com> <52EAB56E.2030102@infradead.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: Andiry Xu <andiry@gmail.com>, linux-kernel@vger.kernel.org, Andiry Xu <andiry.xu@gmail.com>, Linux MM <linux-mm@kvack.org>
 
-On Thu, 30 Jan 2014 14:13:18 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
+On Thu, 30 Jan 2014, Randy Dunlap wrote:
 
-> On Thu, 30 Jan 2014, Andrew Morton wrote:
+> >>> Hi,
+> >>>
+> >>> In kernel-parameters.txt, there is following description:
+> >>>
+> >>> memmap=nn[KMG]$ss[KMG]
+> >>>                         [KNL,ACPI] Mark specific memory as reserved.
+> >>>                         Region of memory to be used, from ss to ss+nn.
+> >>
+> >> Should be:
+> >>                           Region of memory to be reserved, from ss to ss+nn.
+> >>
+> >> but that doesn't help with the problem that you describe, does it?
+> >>
+> > 
+> > Actually it should be:
+> >                              Region of memory to be reserved, from nn to nn+ss.
+> > 
+> > That is, exchange nn and ss.
 > 
-> > > Why?  We already construct the name in memcg_create_kmem_cache() 
-> > > appropriately, we just want to avoid the kstrdup() in 
-> > > kmem_cache_create_memcg() since it's pointless like my patch does.
-> > 
-> > oh, OK, missed that.
-> > 
-> > The problem now is that the string at kmem_cache.name is PATH_MAX
-> > bytes, and PATH_MAX is huuuuuuuge.
-> > 
+> Yes, I understand that that's what you are reporting.  I just haven't yet
+> worked out how the code manages to exchange those 2 values.
 > 
-> It always was.
 
-eh?  kmem_cache_create_memcg()'s kstrdup() will allocate the minimum
-needed amount of memory.
+It doesn't, the documentation is correct as written and could be improved 
+by your suggestion of "Region of memory to be reserved, from ss to ss+nn."  
+I think Andiry probably is having a problem with his bootloader 
+interpreting the '$' incorrectly (or variable expansion if coming from the 
+shell) or interpreting the resulting user-defined e820 map incorrectly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
