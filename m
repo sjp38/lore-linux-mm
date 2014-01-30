@@ -1,62 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f44.google.com (mail-oa0-f44.google.com [209.85.219.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 92D416B0035
-	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 12:15:34 -0500 (EST)
-Received: by mail-oa0-f44.google.com with SMTP id g12so3973256oah.3
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 09:15:34 -0800 (PST)
-Received: from g5t0006.atlanta.hp.com (g5t0006.atlanta.hp.com. [15.192.0.43])
-        by mx.google.com with ESMTPS id co8si3274048oec.47.2014.01.30.09.15.33
+Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
+	by kanga.kvack.org (Postfix) with ESMTP id B02B26B0035
+	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 12:18:48 -0500 (EST)
+Received: by mail-ee0-f49.google.com with SMTP id d17so1736907eek.8
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 09:18:48 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id k3si12143787eep.183.2014.01.30.09.18.46
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 30 Jan 2014 09:15:33 -0800 (PST)
-Message-ID: <1391102130.2931.14.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH] mm, hugetlb: gimme back my page
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Thu, 30 Jan 2014 09:15:30 -0800
-In-Reply-To: <20140130095907.GA13574@dhcp22.suse.cz>
-References: <1391063823.2931.3.camel@buesod1.americas.hpqcorp.net>
-	 <20140130095907.GA13574@dhcp22.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Thu, 30 Jan 2014 09:18:47 -0800 (PST)
+Date: Thu, 30 Jan 2014 12:18:37 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC 1/5] memcg: cleanup charge routines
+Message-ID: <20140130171837.GD6963@cmpxchg.org>
+References: <1387295130-19771-1-git-send-email-mhocko@suse.cz>
+ <1387295130-19771-2-git-send-email-mhocko@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1387295130-19771-2-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jonathan Gonzalez <jgonzalez@linets.cl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Thu, 2014-01-30 at 10:59 +0100, Michal Hocko wrote:
-> On Wed 29-01-14 22:37:03, Davidlohr Bueso wrote:
-> > From: Davidlohr Bueso <davidlohr@hp.com>
-> > 
-> > While testing some changes, I noticed an issue triggered by the libhugetlbfs
-> > test-suite. This is caused by commit 309381fe (mm: dump page when hitting a
-> > VM_BUG_ON using VM_BUG_ON_PAGE), where an application can unexpectedly OOM due
-> > to another program that using, or reserving, pool_size-1 pages later triggers
-> > a VM_BUG_ON_PAGE and thus greedly leaves no memory to the rest of the hugetlb
-> > aware tasks. For example, in libhugetlbfs 2.14:
-> > 
-> > mmap-gettest 10 32783 (2M: 64): <---- hit VM_BUG_ON_PAGE
-> > mmap-cow 32782 32783 (2M: 32):  FAIL    Failed to create shared mapping: Cannot allocate memory
-> > mmap-cow 32782 32783 (2M: 64):  FAIL    Failed to create shared mapping: Cannot allocate memory
-> > 
-> > While I have not looked into why 'mmap-gettest' keeps failing, it is of no
-> > importance to this particular issue. This problem is similar to why we have
-> > the hugetlb_instantiation_mutex, hugepages are quite finite.
-> > 
-> > Revert the use of VM_BUG_ON_PAGE back to just VM_BUG_ON.
+On Tue, Dec 17, 2013 at 04:45:26PM +0100, Michal Hocko wrote:
+> The current core of memcg charging is wild to say the least.
+> __mem_cgroup_try_charge which is in the center tries to be too clever
+> and it handles two independent cases
+> 	* when the memcg to be charged is known in advance
+> 	* when the given mm_struct is charged
+> The resulting callchains are quite complex:
 > 
-> I do not understand what VM_BUG_ON_PAGE has to do with the above
-> failure. Could you be more specific.
+> memcg_charge_kmem(mm=NULL, memcg)  mem_cgroup_newpage_charge(mm)
+>  |                                | _________________________________________ mem_cgroup_cache_charge(current->mm)
+>  |                                |/                                            |
+>  | ______________________________ mem_cgroup_charge_common(mm, memcg=NULL)      |
+>  |/                                                                             /
+>  |                                                                             /
+>  | ____________________________ mem_cgroup_try_charge_swapin(mm, memcg=NULL)  /
+>  |/                               | _________________________________________/
+>  |                                |/
+>  |                                |                         /* swap accounting */   /* no swap accounting */
+>  | _____________________________  __mem_cgroup_try_charge_swapin(mm=NULL, memcg) || (mm, memcg=NULL)
+>  |/
+>  | ____________________________ mem_cgroup_do_precharge(mm=NULL, memcg)
+>  |/
+> __mem_cgroup_try_charge
+>   mem_cgroup_do_charge
+>     res_counter_charge
+>     mem_cgroup_reclaim
+>     mem_cgroup_wait_acct_move
+>     mem_cgroup_oom
 > 
-> Hmm, now that I am looking into dump_page_badflags it shouldn't call
-> mem_cgroup_print_bad_page for hugetlb pages because it doesn't make any
-> sense. I will post a patch for that but that still doesn't explain the
-> above changelog.
+> This patch splits __mem_cgroup_try_charge into two logical parts.
+> mem_cgroup_try_charge_mm which is responsible for charges for the given
+> mm_struct and it returns the charged memcg or NULL under OOM while
+> mem_cgroup_try_charge_memcg charges a known memcg and returns an error
+> code.
+> 
+> The only tricky part which remains is __mem_cgroup_try_charge_swapin
+> because it can return 0 if PageCgroupUsed is already set and then we do
+> not want to commit the charge. This is done with a magic combination of
+> memcg = NULL and ret = 0. So the function preserves its memcgp parameter
+> and sets the given memcg to NULL when it sees PageCgroupUsed
+> (__mem_cgroup_commit_charge_swapin then ignores such a commit).
+> 
+> Not only the code is easier to follow the change reduces the code size
+> too:
+> $ size mm/built-in.o.before
+>    text	   data	    bss	    dec	    hex	filename
+>  457463	  83162	  49824	 590449	  90271	mm/built-in.o.before
+> 
+> $ size mm/built-in.o.after
+>    text	   data	    bss	    dec	    hex	filename
+>  456794	  83162	  49824	 589780	  8ffd4	mm/built-in.o.after
 
-Yeah, I then looked closer at it and realized it doesn't make much
-sense. I don't know why I thought a new page was being used. In any
-case, bisection still shows the commit in question as the cause of the
-regression. I will continue looking into it.
+Nice!
+
+> @@ -2655,37 +2655,68 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  }
+>  
+>  /*
+> - * __mem_cgroup_try_charge() does
+> - * 1. detect memcg to be charged against from passed *mm and *ptr,
+> - * 2. update res_counter
+> - * 3. call memory reclaim if necessary.
+> + * __mem_cgroup_try_charge_memcg - core of the memcg charging code. The caller
+> + * keeps a css reference to the given memcg. We do not charge root_mem_cgroup.
+> + * OOM is triggered only if allowed by the given oom parameter (except for
+> + * __GFP_NOFAIL when it is ignored).
+>   *
+> - * In some special case, if the task is fatal, fatal_signal_pending() or
+> - * has TIF_MEMDIE, this function returns -EINTR while writing root_mem_cgroup
+> - * to *ptr. There are two reasons for this. 1: fatal threads should quit as soon
+> - * as possible without any hazards. 2: all pages should have a valid
+> - * pc->mem_cgroup. If mm is NULL and the caller doesn't pass a valid memcg
+> - * pointer, that is treated as a charge to root_mem_cgroup.
+> - *
+> - * So __mem_cgroup_try_charge() will return
+> - *  0       ...  on success, filling *ptr with a valid memcg pointer.
+> - *  -ENOMEM ...  charge failure because of resource limits.
+> - *  -EINTR  ...  if thread is fatal. *ptr is filled with root_mem_cgroup.
+> - *
+> - * Unlike the exported interface, an "oom" parameter is added. if oom==true,
+> - * the oom-killer can be invoked.
+> + * Returns 0 on success, -ENOMEM when the given memcg is under OOM and -EINTR
+> + * when the charge is bypassed (either when fatal signals are pending or
+> + * __GFP_NOFAIL allocation cannot be charged).
+>   */
+> -static int __mem_cgroup_try_charge(struct mm_struct *mm,
+> -				   gfp_t gfp_mask,
+> +static int __mem_cgroup_try_charge_memcg(gfp_t gfp_mask,
+>  				   unsigned int nr_pages,
+> -				   struct mem_cgroup **ptr,
+> +				   struct mem_cgroup *memcg,
+>  				   bool oom)
+
+Why not keep the __mem_cgroup_try_charge() name?  It's shorter and
+just as descriptive.
+
+>  {
+>  	unsigned int batch = max(CHARGE_BATCH, nr_pages);
+>  	int nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
+> -	struct mem_cgroup *memcg = NULL;
+>  	int ret;
+>  
+> +	VM_BUG_ON(!memcg || memcg == root_mem_cgroup);
+> +
+> +	if (unlikely(task_in_memcg_oom(current)))
+> +		goto nomem;
+> +
+> +	if (gfp_mask & __GFP_NOFAIL)
+> +		oom = false;
+> +
+> +	do {
+> +		bool invoke_oom = oom && !nr_oom_retries;
+> +
+> +		/* If killed, bypass charge */
+> +		if (fatal_signal_pending(current))
+> +			goto bypass;
+> +
+> +		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch,
+> +					   nr_pages, invoke_oom);
+> +		switch (ret) {
+> +		case CHARGE_RETRY: /* not in OOM situation but retry */
+> +			batch = nr_pages;
+> +			break;
+> +		case CHARGE_WOULDBLOCK: /* !__GFP_WAIT */
+> +			goto nomem;
+> +		case CHARGE_NOMEM: /* OOM routine works */
+> +			if (!oom || invoke_oom)
+> +				goto nomem;
+> +			nr_oom_retries--;
+> +			break;
+> +		}
+> +	} while (ret != CHARGE_OK);
+> +
+> +	if (batch > nr_pages)
+> +		refill_stock(memcg, batch - nr_pages);
+> +
+> +	return 0;
+> +nomem:
+> +	if (!(gfp_mask & __GFP_NOFAIL))
+> +		return -ENOMEM;
+> +bypass:
+> +	return -EINTR;
+> +}
+> +
+> +static bool mem_cgroup_bypass_charge(void)
+
+The name and parameter list suggests this consults some global memory
+cgroup state.  current_bypass_charge()?  I think ultimately we want to
+move away from all these mem_cgroup prefixes of static functions in
+there, they add nothing of value.
+
+> +{
+>  	/*
+>  	 * Unlike gloval-vm's OOM-kill, we're not in memory shortage
+>  	 * in system level. So, allow to go ahead dying process in addition to
+> @@ -2693,13 +2724,23 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
+>  	 */
+>  	if (unlikely(test_thread_flag(TIF_MEMDIE)
+>  		     || fatal_signal_pending(current)))
+> -		goto bypass;
+> +		return true;
+>  
+> -	if (unlikely(task_in_memcg_oom(current)))
+> -		goto nomem;
+> +	return false;
+> +}
+>  
+> -	if (gfp_mask & __GFP_NOFAIL)
+> -		oom = false;
+> +/*
+> + * Charges and returns memcg associated with the given mm (or root_mem_cgroup
+> + * if mm is NULL). Returns NULL if memcg is under OOM.
+> + */
+> +static struct mem_cgroup *mem_cgroup_try_charge_mm(struct mm_struct *mm,
+> +				   gfp_t gfp_mask,
+> +				   unsigned int nr_pages,
+> +				   bool oom)
+
+We already have a try_get_mem_cgroup_from_mm().  After this series,
+this function basically duplicates that and it would be much cleaner
+if we only had one try_charge() function and let all the callers use
+the appropriate try_get_mem_cgroup_from_wherever() themselves.
+
+If you pull the patch that moves consume_stock() back into
+try_charge() up front, I think this cleanup would be more obvious and
+the result even better.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
