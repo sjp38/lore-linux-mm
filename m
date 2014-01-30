@@ -1,70 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E5B56B0036
-	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 16:51:14 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id kx10so3636486pab.21
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 13:51:14 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id k3si7960873pbb.264.2014.01.30.13.51.13
-        for <linux-mm@kvack.org>;
-        Thu, 30 Jan 2014 13:51:13 -0800 (PST)
-Date: Thu, 30 Jan 2014 13:51:11 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5 1/2] mm: add kstrimdup function
-Message-Id: <20140130135111.cffc7d8852dd38545bddeb75@linux-foundation.org>
-In-Reply-To: <20140130214545.18296.69349@capellas-linux>
-References: <1391116318-17253-1-git-send-email-sebastian.capella@linaro.org>
-	<1391116318-17253-2-git-send-email-sebastian.capella@linaro.org>
-	<20140130132251.4f662aeddc09d8410dee4490@linux-foundation.org>
-	<20140130214545.18296.69349@capellas-linux>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E6FD6B0035
+	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 17:04:15 -0500 (EST)
+Received: by mail-pb0-f49.google.com with SMTP id up15so3622600pbc.8
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 14:04:15 -0800 (PST)
+Received: from mail-pb0-x233.google.com (mail-pb0-x233.google.com [2607:f8b0:400e:c01::233])
+        by mx.google.com with ESMTPS id yg10si1704152pbc.272.2014.01.30.14.04.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 30 Jan 2014 14:04:14 -0800 (PST)
+Received: by mail-pb0-f51.google.com with SMTP id un15so3634253pbc.24
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 14:04:14 -0800 (PST)
+Date: Thu, 30 Jan 2014 14:04:12 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] memcg: fix mutex not unlocked on memcg_create_kmem_cache
+ fail path
+In-Reply-To: <20140130135002.22ce1c12b7136f75e5985df6@linux-foundation.org>
+Message-ID: <alpine.DEB.2.02.1401301403090.15271@chino.kir.corp.google.com>
+References: <1391097693-31401-1-git-send-email-vdavydov@parallels.com> <20140130130129.6f8bd7fd9da55d17a9338443@linux-foundation.org> <alpine.DEB.2.02.1401301310270.15271@chino.kir.corp.google.com> <20140130132939.96a25a37016a12f9a0093a90@linux-foundation.org>
+ <alpine.DEB.2.02.1401301336530.15271@chino.kir.corp.google.com> <20140130135002.22ce1c12b7136f75e5985df6@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Capella <sebastian.capella@linaro.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Joe Perches <joe@perches.com>, Mikulas Patocka <mpatocka@redhat.com>, Michel Lespinasse <walken@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 30 Jan 2014 13:45:45 -0800 Sebastian Capella <sebastian.capella@linaro.org> wrote:
+On Thu, 30 Jan 2014, Andrew Morton wrote:
 
-> Quoting Andrew Morton (2014-01-30 13:22:51)
-> > On Thu, 30 Jan 2014 13:11:57 -0800 Sebastian Capella <sebastian.capella@linaro.org> wrote:
-> > > +char *kstrimdup(const char *s, gfp_t gfp)
-> > > +{
-> > > +     char *buf;
-> > > +     char *begin = skip_spaces(s);
-> > > +     size_t len = strlen(begin);
-> > > +
-> > > +     while (len > 1 && isspace(begin[len - 1]))
-> > > +             len--;
-> > 
-> > That's off-by-one isn't it?  kstrimdup("   ") should return "", not " ".
-> > 
-> > > +     buf = kmalloc_track_caller(len + 1, gfp);
-> > > +     if (!buf)
-> > > +             return NULL;
-> > > +
-> > > +     memcpy(buf, begin, len);
-> > > +     buf[len] = '\0';
-> > > +
-> > > +     return buf;
-> > > +}
+> > Yeah, it shouldn't be temporary it should be the one and only allocation.  
+> > We should construct the name in memcg_create_kmem_cache() and be done with 
+> > it.
 > 
-> Hi Andrew,
+> Could.  That would require converting memcg_create_kmem_cache() to take 
+> a va_list and call kasprintf() on it.
 > 
-> I think this is a little tricky.
-> 
-> For an empty string, the function relies on skip_spaces to point begin
-> at the \0'.
-> 
-> Alternately, if we don't have an empty string, we know we have at least 1
-> non-space, non-null character at begin[0], and there's no need to check it,
-> so the loop stops at [1].  If there's a space at 1, we just put the '\0'
-> there.
-> 
-> We could check at [0], but I think its already been checked by skip_spaces.
 
-heh, OK, tricky.
+Why?  We already construct the name in memcg_create_kmem_cache() 
+appropriately, we just want to avoid the kstrdup() in 
+kmem_cache_create_memcg() since it's pointless like my patch does.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
