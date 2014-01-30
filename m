@@ -1,92 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 55B1C6B0035
-	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 17:39:54 -0500 (EST)
-Received: by mail-pb0-f47.google.com with SMTP id rp16so3699190pbb.20
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 14:39:53 -0800 (PST)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id g5si8093045pav.114.2014.01.30.14.39.53
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B2586B0036
+	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 17:47:08 -0500 (EST)
+Received: by mail-pd0-f174.google.com with SMTP id z10so3595317pdj.33
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 14:47:08 -0800 (PST)
+Received: from mail-pb0-x22b.google.com (mail-pb0-x22b.google.com [2607:f8b0:400e:c01::22b])
+        by mx.google.com with ESMTPS id l8si8118554pao.94.2014.01.30.14.47.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 30 Jan 2014 14:39:53 -0800 (PST)
-Received: by mail-pa0-f43.google.com with SMTP id rd3so3688230pab.16
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 14:39:53 -0800 (PST)
-Date: Thu, 30 Jan 2014 14:39:51 -0800 (PST)
+        Thu, 30 Jan 2014 14:47:07 -0800 (PST)
+Received: by mail-pb0-f43.google.com with SMTP id md12so3697402pbc.16
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 14:47:07 -0800 (PST)
+Date: Thu, 30 Jan 2014 14:47:05 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] memcg: fix mutex not unlocked on memcg_create_kmem_cache
- fail path
-In-Reply-To: <20140130141538.a9e3977b5e7b76bdcf59a15f@linux-foundation.org>
-Message-ID: <alpine.DEB.2.02.1401301438500.12223@chino.kir.corp.google.com>
-References: <1391097693-31401-1-git-send-email-vdavydov@parallels.com> <20140130130129.6f8bd7fd9da55d17a9338443@linux-foundation.org> <alpine.DEB.2.02.1401301310270.15271@chino.kir.corp.google.com> <20140130132939.96a25a37016a12f9a0093a90@linux-foundation.org>
- <alpine.DEB.2.02.1401301336530.15271@chino.kir.corp.google.com> <20140130135002.22ce1c12b7136f75e5985df6@linux-foundation.org> <alpine.DEB.2.02.1401301403090.15271@chino.kir.corp.google.com> <20140130140902.93d35d866f9ea1c697811f6e@linux-foundation.org>
- <alpine.DEB.2.02.1401301411590.15271@chino.kir.corp.google.com> <20140130141538.a9e3977b5e7b76bdcf59a15f@linux-foundation.org>
+Subject: Re: [PATCH] kthread: ensure locality of task_struct allocations
+In-Reply-To: <1391062491.28432.68.camel@edumazet-glaptop2.roam.corp.google.com>
+Message-ID: <alpine.DEB.2.02.1401301446320.12223@chino.kir.corp.google.com>
+References: <20140128183808.GB9315@linux.vnet.ibm.com> <alpine.DEB.2.02.1401290012460.10268@chino.kir.corp.google.com> <alpine.DEB.2.10.1401290957350.23856@nuc> <alpine.DEB.2.02.1401291622550.22974@chino.kir.corp.google.com>
+ <1391062491.28432.68.camel@edumazet-glaptop2.roam.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, Eric Dumazet <edumazet@google.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Anton Blanchard <anton@samba.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Jan Kara <jack@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ben Herrenschmidt <benh@kernel.crashing.org>
 
-On Thu, 30 Jan 2014, Andrew Morton wrote:
+On Wed, 29 Jan 2014, Eric Dumazet wrote:
 
-> > It always was.
+> > Eric, did you try this when writing 207205a2ba26 ("kthread: NUMA aware 
+> > kthread_create_on_node()") or was it always numa_node_id() from the 
+> > beginning?
 > 
-> eh?  kmem_cache_create_memcg()'s kstrdup() will allocate the minimum
-> needed amount of memory.
+> Hmm, I think I did not try this, its absolutely possible NUMA_NO_NODE
+> was better here.
 > 
 
-Ah, good point.  We could this incrementally on my patch:
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -637,6 +637,9 @@ int memcg_limited_groups_array_size;
-  * better kept as an internal representation in cgroup.c. In any case, the
-  * cgrp_id space is not getting any smaller, and we don't have to necessarily
-  * increase ours as well if it increases.
-+ *
-+ * Updates to MAX_SIZE should update the space for the memcg name in
-+ * memcg_create_kmem_cache().
-  */
- #define MEMCG_CACHES_MIN_SIZE 4
- #define MEMCG_CACHES_MAX_SIZE MEM_CGROUP_ID_MAX
-@@ -3400,8 +3403,10 @@ void mem_cgroup_destroy_cache(struct kmem_cache *cachep)
- static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
- 						  struct kmem_cache *s)
- {
--	char *name = NULL;
- 	struct kmem_cache *new;
-+	const char *cgrp_name;
-+	char *name = NULL;
-+	size_t len;
- 
- 	BUG_ON(!memcg_can_account_kmem(memcg));
- 
-@@ -3409,9 +3414,22 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
- 	if (unlikely(!name))
- 		return NULL;
- 
-+	/*
-+	 * Format of a memcg's kmem cache name:
-+	 * <cache-name>(<memcg-id>:<cgroup-name>)
-+	 */
-+	len = strlen(s->name);
-+	/* Space for parentheses, colon, terminator */
-+	len += 4;
-+	/* MEMCG_CACHES_MAX_SIZE is USHRT_MAX */
-+	len += 5;
-+	BUILD_BUG_ON(MEMCG_CACHES_MAX_SIZE > USHRT_MAX);
-+
- 	rcu_read_lock();
--	snprintf(name, PATH_MAX, "%s(%d:%s)", s->name, memcg_cache_id(memcg),
--		 cgroup_name(memcg->css.cgroup));
-+	cgrp_name = cgroup_name(memcg->css.cgroup);
-+	len += strlen(cgrp_name);
-+	snprintf(name, len, "%s(%d:%s)", s->name, memcg_cache_id(memcg),
-+		 cgrp_name);
- 	rcu_read_unlock();
- 
- 	new = kmem_cache_create_memcg(memcg, name, s->object_size, s->align,
+Nishanth, could you change your patch to just return NUMA_NO_NODE for the 
+non-kthreadd case?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
