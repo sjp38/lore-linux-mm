@@ -1,52 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 5607D6B0031
-	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 19:35:41 -0500 (EST)
-Received: by mail-pb0-f46.google.com with SMTP id um1so2436817pbc.19
-        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 16:35:40 -0800 (PST)
-Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com [2607:f8b0:400e:c03::231])
-        by mx.google.com with ESMTPS id if4si4375862pbc.16.2014.01.29.16.35.39
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 29 Jan 2014 16:35:40 -0800 (PST)
-Received: by mail-pa0-f49.google.com with SMTP id hz1so2434899pad.8
-        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 16:35:39 -0800 (PST)
-Date: Wed, 29 Jan 2014 16:35:36 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, oom: base root bonus on current usage
-In-Reply-To: <20140129122813.59d32e5c5dad3efc2248bc60@linux-foundation.org>
-Message-ID: <alpine.DEB.2.02.1401291628340.22974@chino.kir.corp.google.com>
-References: <20140115234308.GB4407@cmpxchg.org> <alpine.DEB.2.02.1401151614480.15665@chino.kir.corp.google.com> <20140116070709.GM6963@cmpxchg.org> <alpine.DEB.2.02.1401212050340.8512@chino.kir.corp.google.com> <20140124040531.GF4407@cmpxchg.org>
- <alpine.DEB.2.02.1401251942510.3140@chino.kir.corp.google.com> <20140129122813.59d32e5c5dad3efc2248bc60@linux-foundation.org>
+Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 037F56B0031
+	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 19:58:42 -0500 (EST)
+Received: by mail-qc0-f171.google.com with SMTP id n7so4052707qcx.30
+        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 16:58:42 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id j78si3106282qgd.62.2014.01.29.16.58.42
+        for <linux-mm@kvack.org>;
+        Wed, 29 Jan 2014 16:58:42 -0800 (PST)
+Date: Wed, 29 Jan 2014 19:58:36 -0500 (EST)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH v4 1/2] mm: add kstrimdup function
+In-Reply-To: <1391039304-3172-2-git-send-email-sebastian.capella@linaro.org>
+Message-ID: <alpine.LRH.2.02.1401291956510.8304@file01.intranet.prod.int.rdu2.redhat.com>
+References: <1391039304-3172-1-git-send-email-sebastian.capella@linaro.org> <1391039304-3172-2-git-send-email-sebastian.capella@linaro.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sebastian Capella <sebastian.capella@linaro.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Wed, 29 Jan 2014, Andrew Morton wrote:
 
-> This changelog has deteriorated :( We should provide sufficient info so
-> that people will be able to determine whether this patch will fix a
-> problem they or their customers are observing.  And so that people who
-> maintain -stable and its derivatives can decide whether to backport it.
+
+On Wed, 29 Jan 2014, Sebastian Capella wrote:
+
+> kstrimdup will duplicate and trim spaces from the passed in
+> null terminated string.  This is useful for strings coming from
+> sysfs that often include trailing whitespace due to user input.
 > 
-> I went back and stole some text from the v1 patch.  Please review the
-> result.  The changelog would be even better if it were to describe the
-> new behaviour under the problematic workloads.
+> Signed-off-by: Sebastian Capella <sebastian.capella@linaro.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Rik van Riel <riel@redhat.com> (commit_signer:5/10=50%)
+> Cc: Michel Lespinasse <walken@google.com>
+> Cc: Shaohua Li <shli@kernel.org>
+> Cc: Jerome Marchand <jmarchan@redhat.com>
+> Cc: Mikulas Patocka <mpatocka@redhat.com>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+>  include/linux/string.h |    1 +
+>  mm/util.c              |   19 +++++++++++++++++++
+>  2 files changed, 20 insertions(+)
 > 
+> diff --git a/include/linux/string.h b/include/linux/string.h
+> index ac889c5..f29f9a0 100644
+> --- a/include/linux/string.h
+> +++ b/include/linux/string.h
+> @@ -114,6 +114,7 @@ void *memchr_inv(const void *s, int c, size_t n);
+>  
+>  extern char *kstrdup(const char *s, gfp_t gfp);
+>  extern char *kstrndup(const char *s, size_t len, gfp_t gfp);
+> +extern char *kstrimdup(const char *s, gfp_t gfp);
+>  extern void *kmemdup(const void *src, size_t len, gfp_t gfp);
+>  
+>  extern char **argv_split(gfp_t gfp, const char *str, int *argcp);
+> diff --git a/mm/util.c b/mm/util.c
+> index a24aa22..da17de5 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -63,6 +63,25 @@ char *kstrndup(const char *s, size_t max, gfp_t gfp)
+>  EXPORT_SYMBOL(kstrndup);
+>  
+>  /**
+> + * kstrimdup - Trim and copy a %NUL terminated string.
+> + * @s: the string to trim and duplicate
+> + * @gfp: the GFP mask used in the kmalloc() call when allocating memory
+> + *
+> + * Returns an address, which the caller must kfree, containing
+> + * a duplicate of the passed string with leading and/or trailing
+> + * whitespace (as defined by isspace) removed.
 
-The new changelog looks fine with the exception of the mention of sshd 
-which typically sets itself to be disabled from oom killing altogether.
+It doesn't remove leading whitespace. To remove them, you need to do
 
-> We don't think -stable needs this?
+char *p = strim(ret);
+memmove(ret, p, strlen(p) + 1);
+
+Mikulas
+
+> + */
+> +char *kstrimdup(const char *s, gfp_t gfp)
+> +{
+> +	char *ret = kstrdup(skip_spaces(s), gfp);
+> +
+> +	if (ret)
+> +		strim(ret);
+> +	return ret;
+> +}
+> +EXPORT_SYMBOL(kstrimdup);
+> +
+> +/**
+>   * kmemdup - duplicate region of memory
+>   *
+>   * @src: memory region to duplicate
+> -- 
+> 1.7.9.5
 > 
-
-Nobody has reported it in over three years as causing an issue, probably 
-because people typically have enough memory that oom kills don't come from 
-a ton of small processes allocating memory that can't be reclaimed, 
-there's usually at least one large process to kill.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
