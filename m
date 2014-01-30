@@ -1,85 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B7586B0031
-	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 20:24:35 -0500 (EST)
-Received: by mail-ie0-f170.google.com with SMTP id u16so2912466iet.29
-        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 17:24:35 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0080.hostedemail.com. [216.40.44.80])
-        by mx.google.com with ESMTP id g19si6666259igf.37.2014.01.29.17.24.33
-        for <linux-mm@kvack.org>;
-        Wed, 29 Jan 2014 17:24:34 -0800 (PST)
-Message-ID: <1391045068.2422.30.camel@joe-AO722>
-Subject: Re: [PATCH v4 1/2] mm: add kstrimdup function
-From: Joe Perches <joe@perches.com>
-Date: Wed, 29 Jan 2014 17:24:28 -0800
-In-Reply-To: <alpine.LRH.2.02.1401291956510.8304@file01.intranet.prod.int.rdu2.redhat.com>
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 350C26B0037
+	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 20:27:47 -0500 (EST)
+Received: by mail-pb0-f52.google.com with SMTP id jt11so2494637pbb.39
+        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 17:27:46 -0800 (PST)
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+        by mx.google.com with ESMTPS id r7si4469471pbk.87.2014.01.29.17.27.46
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 29 Jan 2014 17:27:46 -0800 (PST)
+Received: by mail-pd0-f172.google.com with SMTP id p10so2419906pdj.3
+        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 17:27:46 -0800 (PST)
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: quoted-printable
+From: Sebastian Capella <sebastian.capella@linaro.org>
+In-Reply-To: <alpine.LRH.2.02.1401292001320.9013@file01.intranet.prod.int.rdu2.redhat.com>
 References: <1391039304-3172-1-git-send-email-sebastian.capella@linaro.org>
-	 <1391039304-3172-2-git-send-email-sebastian.capella@linaro.org>
-	 <alpine.LRH.2.02.1401291956510.8304@file01.intranet.prod.int.rdu2.redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <1391039304-3172-2-git-send-email-sebastian.capella@linaro.org>
+ <alpine.LRH.2.02.1401291956510.8304@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.LRH.2.02.1401292001320.9013@file01.intranet.prod.int.rdu2.redhat.com>
+Message-ID: <20140130012742.2769.69633@capellas-linux>
+Subject: Re: [PATCH v4 1/2] mm: add kstrimdup function
+Date: Wed, 29 Jan 2014 17:27:42 -0800
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Sebastian Capella <sebastian.capella@linaro.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Wed, 2014-01-29 at 19:58 -0500, Mikulas Patocka wrote:
-> On Wed, 29 Jan 2014, Sebastian Capella wrote:
-> > kstrimdup will duplicate and trim spaces from the passed in
-> > null terminated string.  This is useful for strings coming from
-> > sysfs that often include trailing whitespace due to user input. 
-[]
-> > diff --git a/mm/util.c b/mm/util.c
-[]
-> >  /**
-> > + * kstrimdup - Trim and copy a %NUL terminated string.
-> > + * @s: the string to trim and duplicate
-> > + * @gfp: the GFP mask used in the kmalloc() call when allocating memory
-> > + *
-> > + * Returns an address, which the caller must kfree, containing
-> > + * a duplicate of the passed string with leading and/or trailing
-> > + * whitespace (as defined by isspace) removed.
-> 
-> It doesn't remove leading whitespace. To remove them, you need to do
-> 
-> char *p = strim(ret);
-> memmove(ret, p, strlen(p) + 1);
-[]
-> > + */
-> > +char *kstrimdup(const char *s, gfp_t gfp)
-> > +{
-> > +	char *ret = kstrdup(skip_spaces(s), gfp);
-> > +
-> > +	if (ret)
-> > +		strim(ret);
-> > +	return ret;
-> > +}
-> > +EXPORT_SYMBOL(kstrimdup);
+Hi Mikulas,
 
-Why not minimize the malloc length too?
+The function body is really verbatim from Andrew's email, as I couldn't
+think of any good improvements to add to it.  I'm not sure how best to
+credit it to him.
 
-maybe something like:
+I appreciate you looking it over so carefully.
 
-char *kstrimdup(const char *s, gfp_t gfp)
-{
-	char *buf;
-	const char *begin = skip_spaces(s);
-	size_t len = strlen(begin);
-
-	while (len && isspace(begin[len - 1]))
-		len--;
-
-	buf = kmalloc_track_caller(len + 1, gfp);
-	if (!buf)
-		return NULL;
-
-	memcpy(buf, begin, len);
-	buf[len] = 0;
-
-	return buf;
-}
-
+Sebastian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
