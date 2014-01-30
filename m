@@ -1,43 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 05AE16B0035
-	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 17:25:51 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id hz1so3655934pad.8
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 14:25:51 -0800 (PST)
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-        by mx.google.com with ESMTPS id ui8si8046298pac.206.2014.01.30.14.25.50
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 55B1C6B0035
+	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 17:39:54 -0500 (EST)
+Received: by mail-pb0-f47.google.com with SMTP id rp16so3699190pbb.20
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 14:39:53 -0800 (PST)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id g5si8093045pav.114.2014.01.30.14.39.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 30 Jan 2014 14:25:51 -0800 (PST)
-Received: by mail-pa0-f46.google.com with SMTP id rd3so3694013pab.33
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 14:25:50 -0800 (PST)
-Content-Type: text/plain; charset="utf-8"
+        Thu, 30 Jan 2014 14:39:53 -0800 (PST)
+Received: by mail-pa0-f43.google.com with SMTP id rd3so3688230pab.16
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 14:39:53 -0800 (PST)
+Date: Thu, 30 Jan 2014 14:39:51 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] memcg: fix mutex not unlocked on memcg_create_kmem_cache
+ fail path
+In-Reply-To: <20140130141538.a9e3977b5e7b76bdcf59a15f@linux-foundation.org>
+Message-ID: <alpine.DEB.2.02.1401301438500.12223@chino.kir.corp.google.com>
+References: <1391097693-31401-1-git-send-email-vdavydov@parallels.com> <20140130130129.6f8bd7fd9da55d17a9338443@linux-foundation.org> <alpine.DEB.2.02.1401301310270.15271@chino.kir.corp.google.com> <20140130132939.96a25a37016a12f9a0093a90@linux-foundation.org>
+ <alpine.DEB.2.02.1401301336530.15271@chino.kir.corp.google.com> <20140130135002.22ce1c12b7136f75e5985df6@linux-foundation.org> <alpine.DEB.2.02.1401301403090.15271@chino.kir.corp.google.com> <20140130140902.93d35d866f9ea1c697811f6e@linux-foundation.org>
+ <alpine.DEB.2.02.1401301411590.15271@chino.kir.corp.google.com> <20140130141538.a9e3977b5e7b76bdcf59a15f@linux-foundation.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-From: Sebastian Capella <sebastian.capella@linaro.org>
-In-Reply-To: <20140130135111.cffc7d8852dd38545bddeb75@linux-foundation.org>
-References: <1391116318-17253-1-git-send-email-sebastian.capella@linaro.org>
- <1391116318-17253-2-git-send-email-sebastian.capella@linaro.org>
- <20140130132251.4f662aeddc09d8410dee4490@linux-foundation.org>
- <20140130214545.18296.69349@capellas-linux>
- <20140130135111.cffc7d8852dd38545bddeb75@linux-foundation.org>
-Message-ID: <20140130222547.19524.88444@capellas-linux>
-Subject: Re: [PATCH v5 1/2] mm: add kstrimdup function
-Date: Thu, 30 Jan 2014 14:25:47 -0800
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Joe Perches <joe@perches.com>, Mikulas Patocka <mpatocka@redhat.com>, Michel Lespinasse <walken@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-I tested it and saw it working for those cases.
+On Thu, 30 Jan 2014, Andrew Morton wrote:
 
-In my comments earlier, I thought Joe was underrunning the buffer, but =
+> > It always was.
+> 
+> eh?  kmem_cache_create_memcg()'s kstrdup() will allocate the minimum
+> needed amount of memory.
+> 
 
-that wasn't the case.
+Ah, good point.  We could this incrementally on my patch:
 
-I like Joe's version better as there's no trick there and it is clearer.
-
-Sebastian
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -637,6 +637,9 @@ int memcg_limited_groups_array_size;
+  * better kept as an internal representation in cgroup.c. In any case, the
+  * cgrp_id space is not getting any smaller, and we don't have to necessarily
+  * increase ours as well if it increases.
++ *
++ * Updates to MAX_SIZE should update the space for the memcg name in
++ * memcg_create_kmem_cache().
+  */
+ #define MEMCG_CACHES_MIN_SIZE 4
+ #define MEMCG_CACHES_MAX_SIZE MEM_CGROUP_ID_MAX
+@@ -3400,8 +3403,10 @@ void mem_cgroup_destroy_cache(struct kmem_cache *cachep)
+ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
+ 						  struct kmem_cache *s)
+ {
+-	char *name = NULL;
+ 	struct kmem_cache *new;
++	const char *cgrp_name;
++	char *name = NULL;
++	size_t len;
+ 
+ 	BUG_ON(!memcg_can_account_kmem(memcg));
+ 
+@@ -3409,9 +3414,22 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
+ 	if (unlikely(!name))
+ 		return NULL;
+ 
++	/*
++	 * Format of a memcg's kmem cache name:
++	 * <cache-name>(<memcg-id>:<cgroup-name>)
++	 */
++	len = strlen(s->name);
++	/* Space for parentheses, colon, terminator */
++	len += 4;
++	/* MEMCG_CACHES_MAX_SIZE is USHRT_MAX */
++	len += 5;
++	BUILD_BUG_ON(MEMCG_CACHES_MAX_SIZE > USHRT_MAX);
++
+ 	rcu_read_lock();
+-	snprintf(name, PATH_MAX, "%s(%d:%s)", s->name, memcg_cache_id(memcg),
+-		 cgroup_name(memcg->css.cgroup));
++	cgrp_name = cgroup_name(memcg->css.cgroup);
++	len += strlen(cgrp_name);
++	snprintf(name, len, "%s(%d:%s)", s->name, memcg_cache_id(memcg),
++		 cgrp_name);
+ 	rcu_read_unlock();
+ 
+ 	new = kmem_cache_create_memcg(memcg, name, s->object_size, s->align,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
