@@ -1,42 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B2586B0036
-	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 17:47:08 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id z10so3595317pdj.33
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 14:47:08 -0800 (PST)
-Received: from mail-pb0-x22b.google.com (mail-pb0-x22b.google.com [2607:f8b0:400e:c01::22b])
-        by mx.google.com with ESMTPS id l8si8118554pao.94.2014.01.30.14.47.07
+Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B69C6B0036
+	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 17:54:13 -0500 (EST)
+Received: by mail-ig0-f174.google.com with SMTP id hl1so18654086igb.1
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 14:54:13 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id v3si11153762ice.20.2014.01.30.14.54.12
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 30 Jan 2014 14:47:07 -0800 (PST)
-Received: by mail-pb0-f43.google.com with SMTP id md12so3697402pbc.16
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 14:47:07 -0800 (PST)
-Date: Thu, 30 Jan 2014 14:47:05 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] kthread: ensure locality of task_struct allocations
-In-Reply-To: <1391062491.28432.68.camel@edumazet-glaptop2.roam.corp.google.com>
-Message-ID: <alpine.DEB.2.02.1401301446320.12223@chino.kir.corp.google.com>
-References: <20140128183808.GB9315@linux.vnet.ibm.com> <alpine.DEB.2.02.1401290012460.10268@chino.kir.corp.google.com> <alpine.DEB.2.10.1401290957350.23856@nuc> <alpine.DEB.2.02.1401291622550.22974@chino.kir.corp.google.com>
- <1391062491.28432.68.camel@edumazet-glaptop2.roam.corp.google.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Jan 2014 14:54:12 -0800 (PST)
+Message-ID: <52EAD810.40204@infradead.org>
+Date: Thu, 30 Jan 2014 14:54:08 -0800
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [BUG] Description for memmap in kernel-parameters.txt is wrong
+References: <CAOvWMLa334E8CYJLrHy6-0ZXBRneoMf-05v422SQw+dbGRubow@mail.gmail.com> <52EAA714.3080809@infradead.org> <CAOvWMLbs-sP+gJHV_5O6ZbV8eTpEKPVRVR238gFcPQeqhCjT3A@mail.gmail.com> <52EAB56E.2030102@infradead.org> <alpine.DEB.2.02.1401301416030.15271@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1401301416030.15271@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, Eric Dumazet <edumazet@google.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Anton Blanchard <anton@samba.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Jan Kara <jack@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ben Herrenschmidt <benh@kernel.crashing.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andiry Xu <andiry@gmail.com>, linux-kernel@vger.kernel.org, Andiry Xu <andiry.xu@gmail.com>, Linux MM <linux-mm@kvack.org>
 
-On Wed, 29 Jan 2014, Eric Dumazet wrote:
-
-> > Eric, did you try this when writing 207205a2ba26 ("kthread: NUMA aware 
-> > kthread_create_on_node()") or was it always numa_node_id() from the 
-> > beginning?
+On 01/30/2014 02:17 PM, David Rientjes wrote:
+> On Thu, 30 Jan 2014, Randy Dunlap wrote:
 > 
-> Hmm, I think I did not try this, its absolutely possible NUMA_NO_NODE
-> was better here.
+>>>>> Hi,
+>>>>>
+>>>>> In kernel-parameters.txt, there is following description:
+>>>>>
+>>>>> memmap=nn[KMG]$ss[KMG]
+>>>>>                         [KNL,ACPI] Mark specific memory as reserved.
+>>>>>                         Region of memory to be used, from ss to ss+nn.
+>>>>
+>>>> Should be:
+>>>>                           Region of memory to be reserved, from ss to ss+nn.
+>>>>
+>>>> but that doesn't help with the problem that you describe, does it?
+>>>>
+>>>
+>>> Actually it should be:
+>>>                              Region of memory to be reserved, from nn to nn+ss.
+>>>
+>>> That is, exchange nn and ss.
+>>
+>> Yes, I understand that that's what you are reporting.  I just haven't yet
+>> worked out how the code manages to exchange those 2 values.
+>>
 > 
+> It doesn't, the documentation is correct as written and could be improved 
+> by your suggestion of "Region of memory to be reserved, from ss to ss+nn."  
+> I think Andiry probably is having a problem with his bootloader 
+> interpreting the '$' incorrectly (or variable expansion if coming from the 
+> shell) or interpreting the resulting user-defined e820 map incorrectly.
+> --
 
-Nishanth, could you change your patch to just return NUMA_NO_NODE for the 
-non-kthreadd case?
+Yeah, I certainly don't see a problem with the code and I would want to
+see/understand that before I exchanged the 2 values in the documentation.
+
+I'll submit a patch to make the wording a bit better.
+
+Thanks.
+
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
