@@ -1,133 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id B85A26B0035
-	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 16:29:42 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id fa1so3637027pad.13
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 13:29:42 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id tq5si7914079pac.211.2014.01.30.13.29.41
-        for <linux-mm@kvack.org>;
-        Thu, 30 Jan 2014 13:29:41 -0800 (PST)
-Date: Thu, 30 Jan 2014 13:29:39 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] memcg: fix mutex not unlocked on
- memcg_create_kmem_cache fail path
-Message-Id: <20140130132939.96a25a37016a12f9a0093a90@linux-foundation.org>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 85B3E6B0035
+	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 16:36:51 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id kx10so3646233pab.35
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 13:36:51 -0800 (PST)
+Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com [2607:f8b0:400e:c02::232])
+        by mx.google.com with ESMTPS id sd3si7956947pbb.102.2014.01.30.13.36.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 30 Jan 2014 13:36:50 -0800 (PST)
+Received: by mail-pd0-f178.google.com with SMTP id y13so3532541pdi.9
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 13:36:50 -0800 (PST)
+Date: Thu, 30 Jan 2014 13:36:48 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] memcg: fix mutex not unlocked on memcg_create_kmem_cache
+ fail path
 In-Reply-To: <alpine.DEB.2.02.1401301310270.15271@chino.kir.corp.google.com>
-References: <1391097693-31401-1-git-send-email-vdavydov@parallels.com>
-	<20140130130129.6f8bd7fd9da55d17a9338443@linux-foundation.org>
-	<alpine.DEB.2.02.1401301310270.15271@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <alpine.DEB.2.02.1401301315060.15271@chino.kir.corp.google.com>
+References: <1391097693-31401-1-git-send-email-vdavydov@parallels.com> <20140130130129.6f8bd7fd9da55d17a9338443@linux-foundation.org> <alpine.DEB.2.02.1401301310270.15271@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vladimir Davydov <vdavydov@parallels.com>, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 30 Jan 2014 13:14:46 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
+On Thu, 30 Jan 2014, David Rientjes wrote:
 
-> On Thu, 30 Jan 2014, Andrew Morton wrote:
-> 
-> > Well gee, how did that one get through?
-> > 
-> > What was the point in permanently allocating tmp_name, btw?  "This
-> > static temporary buffer is used to prevent from pointless shortliving
-> > allocation"?  That's daft - memcg_create_kmem_cache() is not a fastpath
-> > and there are a million places in the kernel where we could permanently
-> > leak memory because it is "pointless" to allocate on demand.
-> > 
-> > The allocation of PATH_MAX bytes is unfortunate - kasprintf() wouild
-> > work well here, but cgroup_name()'s need for rcu_read_lock() screws us
-> > up.
-> > 
-> 
 > What's funnier is that tmp_name isn't required at all since 
 > kmem_cache_create_memcg() is just going to do a kstrdup() on it anyway, so 
 > you could easily just pass in the pointer to memory that has been 
 > allocated for s->name rather than allocating memory twice.
-
-We need a buffer to sprintf() into.
-
-> > --- a/mm/memcontrol.c~mm-memcontrolc-memcg_create_kmem_cache-tweaks
-> > +++ a/mm/memcontrol.c
-> > @@ -3401,17 +3401,14 @@ static struct kmem_cache *memcg_create_k
-> >  						  struct kmem_cache *s)
-> >  {
-> >  	struct kmem_cache *new = NULL;
-> > -	static char *tmp_name = NULL;
-> > +	static char *tmp_name;
 > 
-> You're keeping it static and the mutex so you're still keeping it global, 
-> ok...
 
-oop, I forgot to remove the `static'.
-
-And I suppose the mutex now doesn't do anything, so...
+Something like this untested patch?
 
 
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm/memcontrol.c: memcg_create_kmem_cache() tweaks
+mm, memcg: only allocate memory for kmem slab cache name once
 
-Allocate tmp_name on demand rather than permanently consuming PATH_MAX
-bytes of memory.  Remove the mutex which protected the static tmp_name.
+We must allocate memory to store a slab cache name when using kmem 
+accounting since it involves the name of the memcg itself.  This should be 
+the one and only memory allocation for that name, though.
 
-Cc: Glauber Costa <glommer@parallels.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Vladimir Davydov <vdavydov@parallels.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Currently, we keep around a global buffer to construct the "memcg slab 
+cache name" since it requires rcu protection and then pass it into
+kmem_cache_create_memcg() which does its own kstrdup().
+
+This patch only allocates and creates the slab cache name once and then 
+passes a pointer into kmem_cache_create_memcg() as the name.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
 ---
+ mm/memcontrol.c  | 25 +++++++------------------
+ mm/slab_common.c | 11 +++++------
+ 2 files changed, 12 insertions(+), 24 deletions(-)
 
- mm/memcontrol.c |   23 ++++++++---------------
- 1 file changed, 8 insertions(+), 15 deletions(-)
-
-diff -puN mm/memcontrol.c~mm-memcontrolc-memcg_create_kmem_cache-tweaks mm/memcontrol.c
---- a/mm/memcontrol.c~mm-memcontrolc-memcg_create_kmem_cache-tweaks
-+++ a/mm/memcontrol.c
-@@ -3400,24 +3400,18 @@ void mem_cgroup_destroy_cache(struct kme
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3400,31 +3400,21 @@ void mem_cgroup_destroy_cache(struct kmem_cache *cachep)
  static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
  						  struct kmem_cache *s)
  {
--	struct kmem_cache *new = NULL;
++	char *name = NULL;
+ 	struct kmem_cache *new;
 -	static char *tmp_name = NULL;
 -	static DEFINE_MUTEX(mutex);	/* protects tmp_name */
-+	struct kmem_cache *new;
-+	char *tmp_name;
  
  	BUG_ON(!memcg_can_account_kmem(memcg));
  
 -	mutex_lock(&mutex);
- 	/*
+-	/*
 -	 * kmem_cache_create_memcg duplicates the given name and
 -	 * cgroup_name for this name requires RCU context.
 -	 * This static temporary buffer is used to prevent from
 -	 * pointless shortliving allocation.
-+	 * kmem_cache_create_memcg duplicates the given name and cgroup_name()
-+	 * for this name requires rcu_read_lock().
- 	 */
+-	 */
 -	if (!tmp_name) {
 -		tmp_name = kmalloc(PATH_MAX, GFP_KERNEL);
 -		if (!tmp_name)
--			goto out;
+-			return NULL;
 -	}
-+	tmp_name = kmalloc(PATH_MAX, GFP_KERNEL);
-+	if (!tmp_name)
++	name = kmalloc(PATH_MAX, GFP_KERNEL);
++	if (unlikely(!name))
 +		return NULL;
  
  	rcu_read_lock();
- 	snprintf(tmp_name, PATH_MAX, "%s(%d:%s)", s->name,
-@@ -3430,8 +3424,7 @@ static struct kmem_cache *memcg_create_k
- 		new->allocflags |= __GFP_KMEMCG;
+-	snprintf(tmp_name, PATH_MAX, "%s(%d:%s)", s->name,
+-			 memcg_cache_id(memcg), cgroup_name(memcg->css.cgroup));
++	snprintf(name, PATH_MAX, "%s(%d:%s)", s->name, memcg_cache_id(memcg),
++		 cgroup_name(memcg->css.cgroup));
+ 	rcu_read_unlock();
+ 
+-	new = kmem_cache_create_memcg(memcg, tmp_name, s->object_size, s->align,
++	new = kmem_cache_create_memcg(memcg, name, s->object_size, s->align,
+ 				      (s->flags & ~SLAB_PANIC), s->ctor, s);
+ 
+ 	if (new)
+@@ -3432,7 +3422,6 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
  	else
  		new = s;
--out:
+ 
 -	mutex_unlock(&mutex);
-+	kfree(tmp_name);
  	return new;
  }
  
-_
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -142,7 +142,7 @@ unsigned long calculate_alignment(unsigned long flags,
+ 
+ /*
+  * kmem_cache_create - Create a cache.
+- * @name: A string which is used in /proc/slabinfo to identify this cache.
++ * @name: A string allocated for this cache used in /proc/slabinfo.
+  * @size: The size of objects to be created in this cache.
+  * @align: The required alignment for the objects.
+  * @flags: SLAB flags
+@@ -212,10 +212,7 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
+ 	s->object_size = s->size = size;
+ 	s->align = calculate_alignment(flags, align, size);
+ 	s->ctor = ctor;
+-
+-	s->name = kstrdup(name, GFP_KERNEL);
+-	if (!s->name)
+-		goto out_free_cache;
++	s->name = name;
+ 
+ 	err = memcg_alloc_cache_params(memcg, s, parent_cache);
+ 	if (err)
+@@ -258,7 +255,6 @@ out_unlock:
+ 
+ out_free_cache:
+ 	memcg_free_cache_params(s);
+-	kfree(s->name);
+ 	kmem_cache_free(kmem_cache, s);
+ 	goto out_unlock;
+ }
+@@ -267,6 +263,9 @@ struct kmem_cache *
+ kmem_cache_create(const char *name, size_t size, size_t align,
+ 		  unsigned long flags, void (*ctor)(void *))
+ {
++	const char *cache_name = kstrdup(name, GFP_KERNEL);
++	if (unlikely(!cache_name))
++		return NULL;
+ 	return kmem_cache_create_memcg(NULL, name, size, align, flags, ctor, NULL);
+ }
+ EXPORT_SYMBOL(kmem_cache_create);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
