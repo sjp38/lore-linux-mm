@@ -1,96 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 32A936B0031
-	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 07:30:49 -0500 (EST)
-Received: by mail-wg0-f53.google.com with SMTP id y10so6006801wgg.8
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 04:30:48 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cw3si2905386wjb.23.2014.01.30.04.30.46
+Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
+	by kanga.kvack.org (Postfix) with ESMTP id D43C06B0031
+	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 07:40:35 -0500 (EST)
+Received: by mail-lb0-f169.google.com with SMTP id q8so2541451lbi.28
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 04:40:34 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id 6si2942580laq.40.2014.01.30.04.40.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 30 Jan 2014 04:30:46 -0800 (PST)
-Date: Thu, 30 Jan 2014 13:30:44 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC 0/4] memcg: Low-limit reclaim
-Message-ID: <20140130123044.GB13509@dhcp22.suse.cz>
-References: <1386771355-21805-1-git-send-email-mhocko@suse.cz>
- <xr93sis6obb5.fsf@gthelen.mtv.corp.google.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Jan 2014 04:40:33 -0800 (PST)
+Message-ID: <52EA483F.50105@parallels.com>
+Date: Thu, 30 Jan 2014 16:40:31 +0400
+From: Maxim Patlasov <mpatlasov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <xr93sis6obb5.fsf@gthelen.mtv.corp.google.com>
+Subject: [LSF/MM TOPIC] balancing dirty pages - how to keep growing dirty
+ memory in reasonable limits
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>
+To: lsf-pc@lists.linux-foundation.org
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "fuse-devel@lists.sourceforge.net" <fuse-devel@lists.sourceforge.net>, linux-mm@kvack.org
 
-On Wed 29-01-14 11:08:46, Greg Thelen wrote:
-[...]
-> The series looks useful.  We (Google) have been using something similar.
-> In practice such a low_limit (or memory guarantee), doesn't nest very
-> well.
-> 
-> Example:
->   - parent_memcg: limit 500, low_limit 500, usage 500
->     1 privately charged non-reclaimable page (e.g. mlock, slab)
->   - child_memcg: limit 500, low_limit 500, usage 499
+Hi,
 
-I am not sure this is a good example. Your setup basically say that no
-single page should be reclaimed. I can imagine this might be useful in
-some cases and I would like to allow it but it sounds too extreme (e.g.
-a load which would start trashing heavily once the reclaim starts and it
-makes more sense to start it again rather than crowl - think about some
-mathematical simulation which might diverge).
- 
-> If a streaming file cache workload (e.g. sha1sum) starts gobbling up
-> page cache it will lead to an oom kill instead of reclaiming. 
+A recent patch from Linus limiting global_dirtyable_memory to 1GB (see 
+"Disabling in-memory write cache for x86-64 in Linux" thread) drew 
+attention to a long-standing problem: on a node with a huge amount of 
+RAM installed, the global dirty threshold is high, and existing 
+behaviour of balance_dirty_pages() skips throttling until the global 
+limit is reached. So, by the time balance_dirty_pages() starts 
+throttling, you can easily end up in a huge amount of dirty pages backed 
+up by some (e.g. slow USB) device.
 
-Does it make any sense to protect all of such memory although it is
-easily reclaimable?
+A lot of ideas were proposed, but no conclusion was made. In particular, 
+one of suggested approaches is to develop per-BDI time-based limits and 
+to enable them for all: don't allow dirty cache of BDI to grow over 5s 
+of measured writeback speed. The approach looks pretty straightforward, 
+but in practice it may be tricky to implement: you cannot discover how 
+fast a device is until you load it heavily enough, and conversely, you 
+must go far beyond current per-BDI limit to load the device heavily. And 
+other approaches have other caveats as usual.
 
-> One could
-> argue that this is working as intended because child_memcg was promised
-> 500 but can only get 499.  So child_memcg is oom killed rather than
-> being forced to operate below its promised low limit.
-> 
-> This has led to various internal workarounds like:
-> - don't charge any memory to interior tree nodes (e.g. parent_memcg);
->   only charge memory to cgroup leafs.  This gets tricky when dealing
->   with reparented memory inherited to parent from child during cgroup
->   deletion.
+I'm interested in attending upcoming LSF/MM to discuss the topic above 
+as well as two other unrelated ones:
 
-Do those need any protection at all?
+* future improvements of FUSE. Having "write-back cache policy" 
+patch-set almost adopted and patches for synchronous close(2) and 
+umount(2) in queue, I'd like to keep my efforts in sync with other FUSE 
+developers.
 
-> - don't set low_limit on non leafs (e.g. do not set low limit on
->   parent_memcg).  This constrains the cgroup layout a bit.  Some
->   customers want to purchase $MEM and setup their workload with a few
->   child cgroups.  A system daemon hands out $MEM by setting low_limit
->   for top-level containers (e.g. parent_memcg).  Thereafter such
->   customers are able to partition their workload with sub memcg below
->   child_memcg.  Example:
->      parent_memcg
->          \
->           child_memcg
->             /     \
->         server   backup
+* reboot-less kernel updates. Since memory reset can be avoided by 
+booting the new kernel using Kexec, and almost any application can be 
+checkpointed and then restored by CRIU, the downtime can be diminished 
+significantly by keeping userspace processes' working set in memory 
+while the system gets updated. Questions to discuss are how to prevent 
+the kernel from using some memory regions on boot, what interface can be 
+reused/introduced for managing the regions and how they can be 
+re-installed back into processes' address space on restore.
 
-I think that the low_limit makes sense where you actually want to
-protect something from reclaim. And backup sounds like a bad fit for
-that.
-
->   Thereafter customers often want some weak isolation between server and
->   backup.  To avoid undesired oom kills the server/backup isolation is
->   provided with a softer memory guarantee (e.g. soft_limit).  The soft
->   limit acts like the low_limit until priority becomes desperate.
-
-Johannes was already suggesting that the low_limit should allow for a
-weaker semantic as well. I am not very much inclined to that but I can
-leave with a knob which would say oom_on_lowlimit (on by default but
-allowed to be set to 0). We would fallback to the full reclaim if
-no groups turn out to be reclaimable.
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Maxim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
