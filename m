@@ -1,170 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f42.google.com (mail-oa0-f42.google.com [209.85.219.42])
-	by kanga.kvack.org (Postfix) with ESMTP id F0DB06B0031
-	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 01:37:06 -0500 (EST)
-Received: by mail-oa0-f42.google.com with SMTP id i7so3230304oag.1
-        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 22:37:06 -0800 (PST)
-Received: from g6t0185.atlanta.hp.com (g6t0185.atlanta.hp.com. [15.193.32.62])
-        by mx.google.com with ESMTPS id jb8si2325540obb.66.2014.01.29.22.37.06
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 29 Jan 2014 22:37:06 -0800 (PST)
-Message-ID: <1391063823.2931.3.camel@buesod1.americas.hpqcorp.net>
-Subject: [PATCH] mm, hugetlb: gimme back my page
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Wed, 29 Jan 2014 22:37:03 -0800
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A2506B0037
+	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 01:42:36 -0500 (EST)
+Received: by mail-pb0-f48.google.com with SMTP id rr13so2751668pbb.7
+        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 22:42:36 -0800 (PST)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [2001:44b8:8060:ff02:300:1:2:7])
+        by mx.google.com with ESMTP id zk9si5172806pac.318.2014.01.29.22.42.34
+        for <linux-mm@kvack.org>;
+        Wed, 29 Jan 2014 22:42:35 -0800 (PST)
+Date: Thu, 30 Jan 2014 17:42:30 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v5 00/22] Rewrite XIP code and add XIP support to ext4
+Message-ID: <20140130064230.GG13997@dastard>
+References: <cover.1389779961.git.matthew.r.wilcox@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <cover.1389779961.git.matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jonathan Gonzalez <jgonzalez@linets.cl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
 
-From: Davidlohr Bueso <davidlohr@hp.com>
+On Wed, Jan 15, 2014 at 08:24:18PM -0500, Matthew Wilcox wrote:
+> This series of patches add support for XIP to ext4.  Unfortunately,
+> it turns out to be necessary to rewrite the existing XIP support code
+> first due to races that are unfixable in the current design.
+> 
+> Since v4 of this patchset, I've improved the documentation, fixed a
+> couple of warnings that a newer version of gcc emitted, and fixed a
+> bug where we would read/write the wrong address for I/Os that were not
+> aligned to PAGE_SIZE.
 
-While testing some changes, I noticed an issue triggered by the libhugetlbfs
-test-suite. This is caused by commit 309381fe (mm: dump page when hitting a
-VM_BUG_ON using VM_BUG_ON_PAGE), where an application can unexpectedly OOM due
-to another program that using, or reserving, pool_size-1 pages later triggers
-a VM_BUG_ON_PAGE and thus greedly leaves no memory to the rest of the hugetlb
-aware tasks. For example, in libhugetlbfs 2.14:
+Looks like there's something fundamentally broken with the patch set
+as it stands. I get this same data corruption on both ext4 and XFS
+with XIP using fsx. It's as basic as it gets - the first read after
+a mmapped write fails to see the data written by mmap:
 
-mmap-gettest 10 32783 (2M: 64): <---- hit VM_BUG_ON_PAGE
-mmap-cow 32782 32783 (2M: 32):  FAIL    Failed to create shared mapping: Cannot allocate memory
-mmap-cow 32782 32783 (2M: 64):  FAIL    Failed to create shared mapping: Cannot allocate memory
+$ sudo mkfs.xfs -f /dev/ram0
+meta-data=/dev/ram0              isize=256    agcount=4, agsize=256000 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=0
+data     =                       bsize=4096   blocks=1024000, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0 ftype=0
+log      =internal log           bsize=4096   blocks=12800, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+$ sudo mount -o xip /dev/ram0 /mnt/scr
+$ sudo chmod 777 /mnt/scr
+$ ltp/fsx -d -N 1000 -S 0 /mnt/scr/fsx
+Seed set to 3774
+1 mapwrite      0x3db39 thru    0x3ffff (0x24c7 bytes)
+2 mapread       0x2e947 thru    0x33163 (0x481d bytes)
+3 read  0x2e836 thru    0x3cba1 (0xe36c bytes)
+4 punch from 0x2e7 to 0x5c43, (0x595c bytes)
+5 mapwrite      0xcaea thru     0x13ba9 (0x70c0 bytes)
+6 punch from 0x31645 to 0x38d1d, (0x76d8 bytes)
+7 falloc        from 0x24f92 to 0x2f2b7 (0xa325 bytes)
+fallocating to largest ever: 0x171ac
+8 falloc        from 0xbcf1 to 0x171ac (0xb4bb bytes)
+9 read  0x126f thru     0x11136 (0xfec8 bytes)
+READ BAD DATA: offset = 0x126f, size = 0xfec8, fname = /mnt/scr/fsx
+OFFSET  GOOD    BAD     RANGE
+0x caea 0x05f9  0x0000  0x    0
+operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
+0x caeb 0xf905  0x0000  0x    1
+operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
+0x caec 0x0599  0x0000  0x    2
+operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
+0x caed 0x9905  0x0000  0x    3
+operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
+0x caee 0x05e8  0x0000  0x    4
+operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
+0x caef 0xe805  0x0000  0x    5
+operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
+0x caf0 0x0580  0x0000  0x    6
+operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
+0x caf1 0x8005  0x0000  0x    7
+operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
+0x caf2 0x056c  0x0000  0x    8
+operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
+0x caf3 0x6c05  0x0000  0x    9
+operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
+0x caf4 0x05ad  0x0000  0x    a
+operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
+0x caf5 0xad05  0x0000  0x    b
+operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
+0x caf6 0x0539  0x0000  0x    c
+operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
+0x caf7 0x3905  0x0000  0x    d
+operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
+0x caf8 0x05db  0x0000  0x    e
+operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
+0x caf9 0xdb05  0x0000  0x    f
+operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
+LOG DUMP (9 total operations):
+1(  1 mod 256): MAPWRITE 0x3db39 thru 0x3ffff   (0x24c7 bytes)
+2(  2 mod 256): MAPREAD  0x2e947 thru 0x33163   (0x481d bytes)
+3(  3 mod 256): READ     0x2e836 thru 0x3cba1   (0xe36c bytes)
+4(  4 mod 256): PUNCH    0x2e7 thru 0x5c42      (0x595c bytes)
+5(  5 mod 256): MAPWRITE 0xcaea thru 0x13ba9    (0x70c0 bytes)  ******WWWW
+6(  6 mod 256): PUNCH    0x31645 thru 0x38d1c   (0x76d8 bytes)
+7(  7 mod 256): FALLOC   0x24f92 thru 0x2f2b7   (0xa325 bytes) INTERIOR
+8(  8 mod 256): FALLOC   0xbcf1 thru 0x171ac    (0xb4bb bytes) INTERIOR ******FFFF
+9(  9 mod 256): READ     0x126f thru 0x11136    (0xfec8 bytes)  ***RRRR***
+Correct content saved for comparison
+(maybe hexdump "/mnt/scr/fsx" vs "/mnt/scr/fsx.fsxgood")
 
-While I have not looked into why 'mmap-gettest' keeps failing, it is of no
-importance to this particular issue. This problem is similar to why we have
-the hugetlb_instantiation_mutex, hugepages are quite finite.
+XFS gives a good indication that we aren't doing something correctly
+w.r.t. mapped XIP writes, as trying to fiemap the file ASSERT fails
+with a delayed allocation extent somewhere inside the file after a
+sync. I shall keep digging.
 
-Revert the use of VM_BUG_ON_PAGE back to just VM_BUG_ON.
+Cheers,
 
-Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
----
- include/linux/hugetlb.h        |  3 +--
- include/linux/hugetlb_cgroup.h |  5 ++---
- mm/hugetlb.c                   | 10 +++++-----
- mm/hugetlb_cgroup.c            |  2 +-
- 4 files changed, 9 insertions(+), 11 deletions(-)
-
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 8c43cc4..d01cc97 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -2,7 +2,6 @@
- #define _LINUX_HUGETLB_H
- 
- #include <linux/mm_types.h>
--#include <linux/mmdebug.h>
- #include <linux/fs.h>
- #include <linux/hugetlb_inline.h>
- #include <linux/cgroup.h>
-@@ -355,7 +354,7 @@ static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
- 
- static inline struct hstate *page_hstate(struct page *page)
- {
--	VM_BUG_ON_PAGE(!PageHuge(page), page);
-+	VM_BUG_ON(!PageHuge(page));
- 	return size_to_hstate(PAGE_SIZE << compound_order(page));
- }
- 
-diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
-index 787bba3..ce8217f 100644
---- a/include/linux/hugetlb_cgroup.h
-+++ b/include/linux/hugetlb_cgroup.h
-@@ -15,7 +15,6 @@
- #ifndef _LINUX_HUGETLB_CGROUP_H
- #define _LINUX_HUGETLB_CGROUP_H
- 
--#include <linux/mmdebug.h>
- #include <linux/res_counter.h>
- 
- struct hugetlb_cgroup;
-@@ -29,7 +28,7 @@ struct hugetlb_cgroup;
- 
- static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
- {
--	VM_BUG_ON_PAGE(!PageHuge(page), page);
-+	VM_BUG_ON(!PageHuge(page));
- 
- 	if (compound_order(page) < HUGETLB_CGROUP_MIN_ORDER)
- 		return NULL;
-@@ -39,7 +38,7 @@ static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
- static inline
- int set_hugetlb_cgroup(struct page *page, struct hugetlb_cgroup *h_cg)
- {
--	VM_BUG_ON_PAGE(!PageHuge(page), page);
-+	VM_BUG_ON(!PageHuge(page));
- 
- 	if (compound_order(page) < HUGETLB_CGROUP_MIN_ORDER)
- 		return -1;
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index c01cb9f..04306b9 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -584,7 +584,7 @@ static void update_and_free_page(struct hstate *h, struct page *page)
- 				1 << PG_active | 1 << PG_reserved |
- 				1 << PG_private | 1 << PG_writeback);
- 	}
--	VM_BUG_ON_PAGE(hugetlb_cgroup_from_page(page), page);
-+	VM_BUG_ON(hugetlb_cgroup_from_page(page));
- 	set_compound_page_dtor(page, NULL);
- 	set_page_refcounted(page);
- 	arch_release_hugepage(page);
-@@ -1089,7 +1089,7 @@ retry:
- 		 * no users -- drop the buddy allocator's reference.
- 		 */
- 		put_page_testzero(page);
--		VM_BUG_ON_PAGE(page_count(page), page);
-+		VM_BUG_ON(page_count(page));
- 		enqueue_huge_page(h, page);
- 	}
- free:
-@@ -3503,7 +3503,7 @@ int dequeue_hwpoisoned_huge_page(struct page *hpage)
- 
- bool isolate_huge_page(struct page *page, struct list_head *list)
- {
--	VM_BUG_ON_PAGE(!PageHead(page), page);
-+	VM_BUG_ON(!PageHead(page));
- 	if (!get_page_unless_zero(page))
- 		return false;
- 	spin_lock(&hugetlb_lock);
-@@ -3514,7 +3514,7 @@ bool isolate_huge_page(struct page *page, struct list_head *list)
- 
- void putback_active_hugepage(struct page *page)
- {
--	VM_BUG_ON_PAGE(!PageHead(page), page);
-+	VM_BUG_ON(!PageHead(page));
- 	spin_lock(&hugetlb_lock);
- 	list_move_tail(&page->lru, &(page_hstate(page))->hugepage_activelist);
- 	spin_unlock(&hugetlb_lock);
-@@ -3523,7 +3523,7 @@ void putback_active_hugepage(struct page *page)
- 
- bool is_hugepage_active(struct page *page)
- {
--	VM_BUG_ON_PAGE(!PageHuge(page), page);
-+	VM_BUG_ON(!PageHuge(page));
- 	/*
- 	 * This function can be called for a tail page because the caller,
- 	 * scan_movable_pages, scans through a given pfn-range which typically
-diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
-index cb00829..d747a84 100644
---- a/mm/hugetlb_cgroup.c
-+++ b/mm/hugetlb_cgroup.c
-@@ -390,7 +390,7 @@ void hugetlb_cgroup_migrate(struct page *oldhpage, struct page *newhpage)
- 	if (hugetlb_cgroup_disabled())
- 		return;
- 
--	VM_BUG_ON_PAGE(!PageHuge(oldhpage), oldhpage);
-+	VM_BUG_ON(!PageHuge(oldhpage));
- 	spin_lock(&hugetlb_lock);
- 	h_cg = hugetlb_cgroup_from_page(oldhpage);
- 	set_hugetlb_cgroup(oldhpage, NULL);
+Dave.
 -- 
-1.8.1.4
-
-
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
