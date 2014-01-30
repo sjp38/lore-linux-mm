@@ -1,78 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 0ADCD6B0031
-	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 22:51:06 -0500 (EST)
-Received: by mail-ig0-f175.google.com with SMTP id uq10so16863639igb.2
-        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 19:51:05 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0102.hostedemail.com. [216.40.44.102])
-        by mx.google.com with ESMTP id mg9si6414497icc.115.2014.01.29.19.51.05
-        for <linux-mm@kvack.org>;
-        Wed, 29 Jan 2014 19:51:05 -0800 (PST)
-Message-ID: <1391053859.2422.34.camel@joe-AO722>
-Subject: Re: [PATCH v4 1/2] mm: add kstrimdup function
-From: Joe Perches <joe@perches.com>
-Date: Wed, 29 Jan 2014 19:50:59 -0800
-In-Reply-To: <20140130034137.2769.50210@capellas-linux>
-References: <1391039304-3172-1-git-send-email-sebastian.capella@linaro.org>
-	 <1391039304-3172-2-git-send-email-sebastian.capella@linaro.org>
-	 <alpine.LRH.2.02.1401291956510.8304@file01.intranet.prod.int.rdu2.redhat.com>
-	 <1391045068.2422.30.camel@joe-AO722>
-	 <20140130034137.2769.50210@capellas-linux>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
+	by kanga.kvack.org (Postfix) with ESMTP id BB01C6B0031
+	for <linux-mm@kvack.org>; Wed, 29 Jan 2014 23:52:49 -0500 (EST)
+Received: by mail-yk0-f169.google.com with SMTP id q9so13676504ykb.0
+        for <linux-mm@kvack.org>; Wed, 29 Jan 2014 20:52:49 -0800 (PST)
+Received: from mail.parisc-linux.org (palinux.external.hp.com. [192.25.206.14])
+        by mx.google.com with ESMTPS id 21si3963748yhx.256.2014.01.29.20.52.48
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 29 Jan 2014 20:52:48 -0800 (PST)
+Date: Wed, 29 Jan 2014 21:52:46 -0700
+From: Matthew Wilcox <matthew@wil.cx>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] really large storage sectors - going
+	beyond 4096 bytes
+Message-ID: <20140130045245.GH20939@parisc-linux.org>
+References: <20140122151913.GY4963@suse.de> <1390410233.1198.7.camel@ret.masoncoding.com> <1390411300.2372.33.camel@dabdike.int.hansenpartnership.com> <1390413819.1198.20.camel@ret.masoncoding.com> <1390414439.2372.53.camel@dabdike.int.hansenpartnership.com> <20140123082734.GP13997@dastard> <1390492073.2372.118.camel@dabdike.int.hansenpartnership.com> <20140123164438.GL4963@suse.de> <1390506935.2402.8.camel@dabdike> <20140124105748.GQ4963@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140124105748.GQ4963@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Capella <sebastian.capella@linaro.org>
-Cc: Mikulas Patocka <mpatocka@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, Chris Mason <clm@fb.com>, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-ide@vger.kernel.org" <linux-ide@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, "rwheeler@redhat.com" <rwheeler@redhat.com>
 
-On Wed, 2014-01-29 at 19:41 -0800, Sebastian Capella wrote:
-> Quoting Joe Perches (2014-01-29 17:24:28)
-> > Why not minimize the malloc length too?
-> > 
-
-> I figured it would be mostly for small trimming, but it seems like
-> it could be and advantage and used more generally this way.
+On Fri, Jan 24, 2014 at 10:57:48AM +0000, Mel Gorman wrote:
+> So far on the table is
 > 
-> I have a couple of small changes to return NULL in empty string/all ws
-> cases and fix a buffer underrun.
-> 
-> How does this look?
-[]
-> char *kstrimdup(const char *s, gfp_t gfp)
-> {                                                                                
->         char *buf;                                                               
->         const char *begin = skip_spaces(s);                                      
->         size_t len = strlen(begin);                                              
+> 1. major filesystem overhawl
+> 2. major vm overhawl
+> 3. use compound pages as they are today and hope it does not go
+>    completely to hell, reboot when it does
 
-removing begin and just using s would work
+Is the below paragraph an exposition of option 2, or is it an option 4,
+change the VM unit of allocation?  Other than the names you're using,
+this is basically what I said to Kirill in an earlier thread; either
+scrap the difference between PAGE_SIZE and PAGE_CACHE_SIZE, or start
+making use of it.
 
->         if (len == 0)                                                            
->                 return NULL;                                                     
->                                                                                  
->         while (len > 1 && isspace(begin[len - 1]))                               
->                 len--;                                                           
->                                                                                  
->         buf = kmalloc_track_caller(len + 1, gfp);                                
->         if (!buf)                                                                
->                 return NULL;                                                     
->                                                                                  
->         memcpy(buf, begin, len);                                                 
->         buf[len] = '\0';                                                            
->                                                                                  
->         return buf;                                                              
-> }
+The fact that EVERYBODY in this thread has been using PAGE_SIZE when they
+should have been using PAGE_CACHE_SIZE makes me wonder if part of the
+problem is that the split in naming went the wrong way.  ie use PTE_SIZE
+for 'the amount of memory pointed to by a pte_t' and use PAGE_SIZE for
+'the amount of memory described by a struct page'.
 
-What should the return be to this string?
+(we need to remove the current users of PTE_SIZE; sparc32 and powerpc32,
+but that's just a detail)
 
-" "
+And we need to fix all the places that are currently getting the
+distinction wrong.  SMOP ... ;-)  What would help is correct typing of
+variables, possibly with sparse support to help us out.  Big Job.
 
-Should it be "" or " " or NULL?
+> That's why I suggested that it may be necessary to change the basic unit of
+> allocation the kernel uses to be larger than the MMU page size and restrict
+> how the sub pages are used. The requirement is to preserve the property that
+> "with the exception of slab reclaim that any reclaim action will result
+> in K-sized allocation succeeding" where K is the largest blocksize used by
+> any underlying storage device. From an FS perspective then certain things
+> would look similar to what they do today. Block data would be on physically
+> contiguous pages, buffer_heads would still manage the case where block_size
+> <= PAGEALLOC_PAGE_SIZE (as opposed to MMU_PAGE_SIZE), particularly for
+> dirty tracking and so on. The VM perspective is different because now it
+> has to handle MMU_PAGE_SIZE in a very different way, page reclaim of a page
+> becomes multiple unmap events and so on. There would also be anomalies such
+> as mlock of a range smaller than PAGEALLOC_PAGE_SIZE becomes difficult if
+> not impossible to sensibly manage because mlock of a 4K page effectively
+> pins the rest and it's not obvious how we would deal with the VMAs in that
+> case. It would get more than just the storage gains though. Some of the
+> scalability problems that deal with massive amount of struct pages may
+> magically go away if the base unit of allocation and management changes.
 
-I don't think it should be NULL.
-I don't think it should be " ".
-
-cheers, Joe
+-- 
+Matthew Wilcox				Intel Open Source Technology Centre
+"Bill, look, we understand that you're interested in selling us this
+operating system, but compare it to ours.  We can't possibly take such
+a retrograde step."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
