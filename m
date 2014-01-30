@@ -1,47 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
-	by kanga.kvack.org (Postfix) with ESMTP id DCBD06B0035
-	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 13:01:46 -0500 (EST)
-Received: by mail-ee0-f42.google.com with SMTP id e49so1784712eek.29
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 10:01:46 -0800 (PST)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTP id a9si12406186eem.174.2014.01.30.10.01.45
-        for <linux-mm@kvack.org>;
-        Thu, 30 Jan 2014 10:01:45 -0800 (PST)
-Date: Thu, 30 Jan 2014 19:01:44 +0100
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH v4 2/2] PM / Hibernate: use name_to_dev_t to parse
- resume
-Message-ID: <20140130180144.GB16503@amd.pavel.ucw.cz>
-References: <1391039304-3172-1-git-send-email-sebastian.capella@linaro.org>
- <1391039304-3172-3-git-send-email-sebastian.capella@linaro.org>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 98E176B0035
+	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 13:07:20 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id lf10so3428109pab.32
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 10:07:20 -0800 (PST)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+        by mx.google.com with ESMTPS id eb3si7410742pbc.56.2014.01.30.10.07.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 30 Jan 2014 10:07:19 -0800 (PST)
+Received: by mail-pa0-f48.google.com with SMTP id kx10so3402357pab.21
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 10:07:19 -0800 (PST)
+Content-Type: text/plain; charset="utf-8"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1391039304-3172-3-git-send-email-sebastian.capella@linaro.org>
+Content-Transfer-Encoding: quoted-printable
+From: Sebastian Capella <sebastian.capella@linaro.org>
+In-Reply-To: <1391053859.2422.34.camel@joe-AO722>
+References: <1391039304-3172-1-git-send-email-sebastian.capella@linaro.org>
+ <1391039304-3172-2-git-send-email-sebastian.capella@linaro.org>
+ <alpine.LRH.2.02.1401291956510.8304@file01.intranet.prod.int.rdu2.redhat.com>
+ <1391045068.2422.30.camel@joe-AO722>
+ <20140130034137.2769.50210@capellas-linux>
+ <1391053859.2422.34.camel@joe-AO722>
+Message-ID: <20140130180712.10660.58784@capellas-linux>
+Subject: Re: [PATCH v4 1/2] mm: add kstrimdup function
+Date: Thu, 30 Jan 2014 10:07:12 -0800
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Capella <sebastian.capella@linaro.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Len Brown <len.brown@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Joe Perches <joe@perches.com>
+Cc: Mikulas Patocka <mpatocka@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Wed 2014-01-29 15:48:24, Sebastian Capella wrote:
-> Use the name_to_dev_t call to parse the device name echo'd to
-> to /sys/power/resume.  This imitates the method used in hibernate.c
-> in software_resume, and allows the resume partition to be specified
-> using other equivalent device formats as well.  By allowing
-> /sys/debug/resume to accept the same syntax as the resume=device
-> parameter, we can parse the resume=device in the init script and
-> use the resume device directly from the kernel command line.
-> 
-> Signed-off-by: Sebastian Capella <sebastian.capella@linaro.org>
+Quoting Joe Perches (2014-01-29 19:50:59)
+> What should the return be to this string?
+> " "
+> Should it be "" or " " or NULL?
+> =
 
-Acked-by: Pavel Machek <pavel@ucw.cz>
+> I don't think it should be NULL.
+> I don't think it should be " ".
 
-									Pavel
+Right, thanks for pointing that out.  It should match how trim behaves :)
 
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+Your original looks good. removing the begin declaration adds an
+extra line, and I think it reads nicely the way you had it.
+
+	size_t len;
+	s =3D skip_spaces(s);
+	len =3D strlen(begin);
+
+This is what I have now, basically your original with the len > 1 check
+and the '\0' replacing 0.
+
+char *kstrimdup(const char *s, gfp_t gfp)
+{
+	char *buf;
+	char *begin =3D skip_spaces(s);
+	size_t len =3D strlen(begin);
+
+	while (len > 1 && isspace(begin[len - 1]))
+		len--;
+
+	buf =3D kmalloc_track_caller(len + 1, gfp);
+	if (!buf)
+		return NULL;
+
+	memcpy(buf, begin, len);
+	buf[len] =3D '\0';
+
+	return buf;
+}
+
+Any other comments?
+
+Thanks!
+
+Sebastian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
