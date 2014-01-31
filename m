@@ -1,47 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
-	by kanga.kvack.org (Postfix) with ESMTP id D08CD6B0035
-	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 03:20:28 -0500 (EST)
-Received: by mail-qc0-f169.google.com with SMTP id w7so6634501qcr.28
-        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 00:20:28 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id 75si6876442qgv.147.2014.01.31.00.20.28
-        for <linux-mm@kvack.org>;
-        Fri, 31 Jan 2014 00:20:28 -0800 (PST)
-Date: Fri, 31 Jan 2014 03:20:17 -0500 (EST)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [PATCH] block devices: validate block device capacity
-In-Reply-To: <1391147127.2181.159.camel@dabdike.int.hansenpartnership.com>
-Message-ID: <alpine.LRH.2.02.1401310316560.21451@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1401301531040.29912@file01.intranet.prod.int.rdu2.redhat.com>    <1391122163.2181.103.camel@dabdike.int.hansenpartnership.com>    <alpine.LRH.2.02.1401301805590.19506@file01.intranet.prod.int.rdu2.redhat.com>  
- <1391125027.2181.114.camel@dabdike.int.hansenpartnership.com>   <alpine.LRH.2.02.1401301905520.25766@file01.intranet.prod.int.rdu2.redhat.com>  <1391132609.2181.131.camel@dabdike.int.hansenpartnership.com>  <alpine.LRH.2.02.1401302116180.9767@file01.intranet.prod.int.rdu2.redhat.com>
- <1391147127.2181.159.camel@dabdike.int.hansenpartnership.com>
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F21C6B0035
+	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 05:31:53 -0500 (EST)
+Received: by mail-pb0-f52.google.com with SMTP id jt11so4248680pbb.25
+        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 02:31:52 -0800 (PST)
+Received: from mail-pb0-x22d.google.com (mail-pb0-x22d.google.com [2607:f8b0:400e:c01::22d])
+        by mx.google.com with ESMTPS id va10si9948069pbc.308.2014.01.31.02.31.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 31 Jan 2014 02:31:51 -0800 (PST)
+Received: by mail-pb0-f45.google.com with SMTP id un15so4263416pbc.32
+        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 02:31:51 -0800 (PST)
+Date: Fri, 31 Jan 2014 02:31:48 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v6 1/2] mm: add kstrimdup function
+In-Reply-To: <1391129654-12854-2-git-send-email-sebastian.capella@linaro.org>
+Message-ID: <alpine.DEB.2.02.1401310230310.7183@chino.kir.corp.google.com>
+References: <1391129654-12854-1-git-send-email-sebastian.capella@linaro.org> <1391129654-12854-2-git-send-email-sebastian.capella@linaro.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Jens Axboe <axboe@kernel.dk>, "Alasdair G. Kergon" <agk@redhat.com>, Mike Snitzer <msnitzer@redhat.com>, dm-devel@redhat.com, "David S. Miller" <davem@davemloft.net>, linux-ide@vger.kernel.org, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, Neil Brown <neilb@suse.de>, linux-raid@vger.kernel.org, linux-mm@kvack.org
+To: Sebastian Capella <sebastian.capella@linaro.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Andrew Morton <akpm@linux-foundation.org>, Joe Perches <joe@perches.com>, Mikulas Patocka <mpatocka@redhat.com>, Michel Lespinasse <walken@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
+On Thu, 30 Jan 2014, Sebastian Capella wrote:
 
-
-On Thu, 30 Jan 2014, James Bottomley wrote:
-
-> > So, if you want 64-bit page offsets, you need to increase pgoff_t size, 
-> > and that will increase the limit for both files and block devices.
+> kstrimdup creates a whitespace-trimmed duplicate of the passed
+> in null-terminated string.  This is useful for strings coming
+> from sysfs that often include trailing whitespace due to user
+> input.
 > 
-> No.  The point is the page cache mapping of the device uses a
-> manufactured inode saved in the backing device. It looks fixable in the
-> buffer code before the page cache gets involved.
+> Thanks to Joe Perches for this implementation.
+> 
+> Signed-off-by: Sebastian Capella <sebastian.capella@linaro.org>
 
-So if you think you can support 16TiB devices and leave pgoff_t 32-bit, 
-send a patch that does it.
+Acked-by: David Rientjes <rientjes@google.com>
 
-Until you make it, you should apply the patch that I sent, that prevents 
-kernel lockups or data corruption when the user uses 16TiB device on 
-32-bit kernel.
+> ---
+>  include/linux/string.h |    1 +
+>  mm/util.c              |   30 ++++++++++++++++++++++++++++++
+>  2 files changed, 31 insertions(+)
+> 
+> diff --git a/include/linux/string.h b/include/linux/string.h
+> index ac889c5..f29f9a0 100644
+> --- a/include/linux/string.h
+> +++ b/include/linux/string.h
+> @@ -114,6 +114,7 @@ void *memchr_inv(const void *s, int c, size_t n);
+>  
+>  extern char *kstrdup(const char *s, gfp_t gfp);
+>  extern char *kstrndup(const char *s, size_t len, gfp_t gfp);
+> +extern char *kstrimdup(const char *s, gfp_t gfp);
+>  extern void *kmemdup(const void *src, size_t len, gfp_t gfp);
+>  
+>  extern char **argv_split(gfp_t gfp, const char *str, int *argcp);
+> diff --git a/mm/util.c b/mm/util.c
+> index 808f375..a8b731c 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -1,6 +1,7 @@
+>  #include <linux/mm.h>
+>  #include <linux/slab.h>
+>  #include <linux/string.h>
+> +#include <linux/ctype.h>
+>  #include <linux/export.h>
+>  #include <linux/err.h>
+>  #include <linux/sched.h>
+> @@ -63,6 +64,35 @@ char *kstrndup(const char *s, size_t max, gfp_t gfp)
+>  EXPORT_SYMBOL(kstrndup);
+>  
+>  /**
+> + * kstrimdup - Trim and copy a %NUL terminated string.
+> + * @s: the string to trim and duplicate
+> + * @gfp: the GFP mask used in the kmalloc() call when allocating memory
+> + *
+> + * Returns an address, which the caller must kfree, containing
+> + * a duplicate of the passed string with leading and/or trailing
+> + * whitespace (as defined by isspace) removed.
+> + */
+> +char *kstrimdup(const char *s, gfp_t gfp)
+> +{
+> +	char *buf;
+> +	char *begin = skip_spaces(s);
 
-Mikulas
+This could be const.
+
+> +	size_t len = strlen(begin);
+> +
+> +	while (len && isspace(begin[len - 1]))
+> +		len--;
+> +
+> +	buf = kmalloc_track_caller(len + 1, gfp);
+> +	if (!buf)
+> +		return NULL;
+> +
+> +	memcpy(buf, begin, len);
+> +	buf[len] = '\0';
+> +
+> +	return buf;
+> +}
+> +EXPORT_SYMBOL(kstrimdup);
+> +
+> +/**
+>   * kmemdup - duplicate region of memory
+>   *
+>   * @src: memory region to duplicate
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
