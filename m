@@ -1,89 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f176.google.com (mail-qc0-f176.google.com [209.85.216.176])
-	by kanga.kvack.org (Postfix) with ESMTP id CD87D6B0035
-	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 19:20:57 -0500 (EST)
-Received: by mail-qc0-f176.google.com with SMTP id e16so6162817qcx.35
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 16:20:57 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id t7si5989469qav.36.2014.01.30.16.20.57
-        for <linux-mm@kvack.org>;
-        Thu, 30 Jan 2014 16:20:57 -0800 (PST)
-Date: Thu, 30 Jan 2014 19:20:49 -0500 (EST)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [PATCH] block devices: validate block device capacity
-In-Reply-To: <1391125027.2181.114.camel@dabdike.int.hansenpartnership.com>
-Message-ID: <alpine.LRH.2.02.1401301905520.25766@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1401301531040.29912@file01.intranet.prod.int.rdu2.redhat.com>  <1391122163.2181.103.camel@dabdike.int.hansenpartnership.com>  <alpine.LRH.2.02.1401301805590.19506@file01.intranet.prod.int.rdu2.redhat.com>
- <1391125027.2181.114.camel@dabdike.int.hansenpartnership.com>
+Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 339736B0035
+	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 19:28:30 -0500 (EST)
+Received: by mail-qc0-f169.google.com with SMTP id w7so6182339qcr.28
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 16:28:30 -0800 (PST)
+Received: from mail-qa0-x24a.google.com (mail-qa0-x24a.google.com [2607:f8b0:400d:c00::24a])
+        by mx.google.com with ESMTPS id n10si2626578qci.103.2014.01.30.16.28.29
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 30 Jan 2014 16:28:29 -0800 (PST)
+Received: by mail-qa0-f74.google.com with SMTP id cm18so566857qab.5
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 16:28:29 -0800 (PST)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [RFC 0/4] memcg: Low-limit reclaim
+References: <1386771355-21805-1-git-send-email-mhocko@suse.cz>
+	<xr93sis6obb5.fsf@gthelen.mtv.corp.google.com>
+	<20140130123044.GB13509@dhcp22.suse.cz>
+Date: Thu, 30 Jan 2014 16:28:27 -0800
+Message-ID: <xr931tzphu50.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Jens Axboe <axboe@kernel.dk>, "Alasdair G. Kergon" <agk@redhat.com>, Mike Snitzer <msnitzer@redhat.com>, dm-devel@redhat.com, "David S. Miller" <davem@davemloft.net>, linux-ide@vger.kernel.org, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, Neil Brown <neilb@suse.de>, linux-raid@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>
 
+On Thu, Jan 30 2014, Michal Hocko wrote:
 
+> On Wed 29-01-14 11:08:46, Greg Thelen wrote:
+> [...]
+>> The series looks useful.  We (Google) have been using something similar.
+>> In practice such a low_limit (or memory guarantee), doesn't nest very
+>> well.
+>> 
+>> Example:
+>>   - parent_memcg: limit 500, low_limit 500, usage 500
+>>     1 privately charged non-reclaimable page (e.g. mlock, slab)
+>>   - child_memcg: limit 500, low_limit 500, usage 499
+>
+> I am not sure this is a good example. Your setup basically say that no
+> single page should be reclaimed. I can imagine this might be useful in
+> some cases and I would like to allow it but it sounds too extreme (e.g.
+> a load which would start trashing heavily once the reclaim starts and it
+> makes more sense to start it again rather than crowl - think about some
+> mathematical simulation which might diverge).
 
-On Thu, 30 Jan 2014, James Bottomley wrote:
+Pages will still be reclaimed the usage_in_bytes is exceeds
+limit_in_bytes.  I see the low_limit as a way to tell the kernel: don't
+reclaim my memory due to external pressure, but internal pressure is
+different.
 
-> On Thu, 2014-01-30 at 18:10 -0500, Mikulas Patocka wrote:
-> > 
-> > On Thu, 30 Jan 2014, James Bottomley wrote:
-> > 
-> > > Why is this?  the whole reason for CONFIG_LBDAF is supposed to be to
-> > > allow 64 bit offsets for block devices on 32 bit.  It sounds like
-> > > there's somewhere not using sector_t ... or using it wrongly which needs
-> > > fixing.
-> > 
-> > The page cache uses unsigned long as a page index. Therefore, if unsigned 
-> > long is 32-bit, the block device may have at most 2^32-1 pages.
-> 
-> Um, that's the index into the mapping, not the device; a device can have
-> multiple mappings and each mapping has a radix tree of pages.  For most
-> filesystems a mapping is equivalent to a file, so we can have large
-> filesystems, but they can't have files over actually 4GB on 32 bits
-> otherwise mmap fails.
+>> If a streaming file cache workload (e.g. sha1sum) starts gobbling up
+>> page cache it will lead to an oom kill instead of reclaiming. 
+>
+> Does it make any sense to protect all of such memory although it is
+> easily reclaimable?
 
-A device may be accessed direcly (by opening /dev/sdX) and it creates a 
-mapping too - thus, the size of a mapping limits the size of a block 
-device.
+I think protection makes sense in this case.  If I know my workload
+needs 500 to operate well, then I reserve 500 using low_limit.  My app
+doesn't want to run with less than its reservation.
 
-The main problem is that pgoff_t has 4 bytes - chaning it to 8 bytes may 
-fix it - but there may be some hidden places where pgoff is converted to 
-unsigned long - who knows, if they exist or not?
+>> One could argue that this is working as intended because child_memcg
+>> was promised 500 but can only get 499.  So child_memcg is oom killed
+>> rather than being forced to operate below its promised low limit.
+>> 
+>> This has led to various internal workarounds like:
+>> - don't charge any memory to interior tree nodes (e.g. parent_memcg);
+>>   only charge memory to cgroup leafs.  This gets tricky when dealing
+>>   with reparented memory inherited to parent from child during cgroup
+>>   deletion.
+>
+> Do those need any protection at all?
 
-> Are we running into a problems with struct address_space where we've
-> assumed the inode belongs to the file and lvm is doing something where
-> it's the whole device?
+Interior tree nodes don't need protection from their children.  But
+children and interior nodes need protection from siblings and parents.
 
-lvm creates a 64TiB device, udev runs blkid on that device and blkid opens 
-the device and gets stuck because of unsigned long overflow.
+>> - don't set low_limit on non leafs (e.g. do not set low limit on
+>>   parent_memcg).  This constrains the cgroup layout a bit.  Some
+>>   customers want to purchase $MEM and setup their workload with a few
+>>   child cgroups.  A system daemon hands out $MEM by setting low_limit
+>>   for top-level containers (e.g. parent_memcg).  Thereafter such
+>>   customers are able to partition their workload with sub memcg below
+>>   child_memcg.  Example:
+>>      parent_memcg
+>>          \
+>>           child_memcg
+>>             /     \
+>>         server   backup
+>
+> I think that the low_limit makes sense where you actually want to
+> protect something from reclaim. And backup sounds like a bad fit for
+> that.
 
-> > > > On 32-bit architectures, we must limit block device size to
-> > > > PAGE_SIZE*(2^32-1).
-> > > 
-> > > So you're saying CONFIG_LBDAF can never work, why?
-> > > 
-> > > James
-> > 
-> > CONFIG_LBDAF works, but it doesn't allow unlimited capacity: on x86, 
-> > without CONFIG_LBDAF, the limit is 2TiB. With CONFIG_LBDAF, the limit is 
-> > 16TiB (4096*2^32).
-> 
-> I don't think the people who did the large block device work expected to
-> gain only 3 bits for all their pain.
-> 
-> James
+The backup job would presumably have a small low_limit, but it may still
+have a minimum working set required to make useful forward progress.
 
-One could change it to have three choices:
-2TiB limit - 32-bit sector_t and 32-bit pgoff_t
-16TiB limit - 64-bit sector_t and 32-bit pgoff_t
-32PiB limit - 64-bit sector_t and 64-bit pgoff_t
+Example:
+  parent_memcg
+      \
+       child_memcg limit 500, low_limit 500, usage 500
+         /     \
+         |   backup   limit 10, low_limit 10, usage 10
+         |
+      server limit 490, low_limit 490, usage 490
 
-Though, we need to know if the people who designed memory management agree 
-with changing pgoff_t to 64 bits.
+One could argue that problems appear when
+server.low_limit+backup.lower_limit=child_memcg.limit.  So the safer
+configuration is leave some padding:
+  server.low_limit + backup.low_limit + padding = child_memcg.limit
+but this just defers the problem.  As memory is reparented into parent,
+then padding must grow.
 
-Mikulas
+>>   Thereafter customers often want some weak isolation between server and
+>>   backup.  To avoid undesired oom kills the server/backup isolation is
+>>   provided with a softer memory guarantee (e.g. soft_limit).  The soft
+>>   limit acts like the low_limit until priority becomes desperate.
+>
+> Johannes was already suggesting that the low_limit should allow for a
+> weaker semantic as well. I am not very much inclined to that but I can
+> leave with a knob which would say oom_on_lowlimit (on by default but
+> allowed to be set to 0). We would fallback to the full reclaim if
+> no groups turn out to be reclaimable.
+
+I like the strong semantic of your low_limit at least at level:1 cgroups
+(direct children of root).  But I have also encountered situations where
+a strict guarantee is too strict and a mere preference is desirable.
+Perhaps the best plan is to continue with the proposed strict low_limit
+and eventually provide an additional mechanism which provides weaker
+guarantees (e.g. soft_limit or something else if soft_limit cannot be
+altered).  These two would offer good support for a variety of use
+cases.
+
+I thinking of something like:
+
+bool mem_cgroup_reclaim_eligible(struct mem_cgroup *memcg,
+		struct mem_cgroup *root,
+		int priority)
+{
+	do {
+		if (memcg == root)
+			break;
+		if (!res_counter_low_limit_excess(&memcg->res))
+			return false;
+		if ((priority >= DEF_PRIORITY - 2) &&
+		    !res_counter_soft_limit_exceed(&memcg->res))
+			return false;
+	} while ((memcg = parent_mem_cgroup(memcg)));
+	return true;
+}
+
+But this soft_limit,priority extension can be added later.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
