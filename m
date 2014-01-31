@@ -1,264 +1,505 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f177.google.com (mail-ea0-f177.google.com [209.85.215.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D9DE6B0031
-	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 11:49:18 -0500 (EST)
-Received: by mail-ea0-f177.google.com with SMTP id n15so2491240ead.36
-        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 08:49:17 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id y5si19163035eee.18.2014.01.31.08.49.16
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id A71996B0031
+	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 11:59:05 -0500 (EST)
+Received: by mail-wg0-f47.google.com with SMTP id m15so9200595wgh.2
+        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 08:59:05 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ot6si5516234wjc.45.2014.01.31.08.59.03
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 31 Jan 2014 08:49:16 -0800 (PST)
-Date: Fri, 31 Jan 2014 11:49:01 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v10 00/16] Volatile Ranges v10
-Message-ID: <20140131164901.GG6963@cmpxchg.org>
-References: <1388646744-15608-1-git-send-email-minchan@kernel.org>
- <20140129000359.GZ6963@cmpxchg.org>
- <20140129051102.GA11786@bbox>
+        Fri, 31 Jan 2014 08:59:04 -0800 (PST)
+Date: Fri, 31 Jan 2014 17:59:01 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v5 06/22] Treat XIP like O_DIRECT
+Message-ID: <20140131165901.GB31776@quack.suse.cz>
+References: <cover.1389779961.git.matthew.r.wilcox@intel.com>
+ <8bf2f9014e3d7abecb7b6a46c537b6371557936c.1389779961.git.matthew.r.wilcox@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140129051102.GA11786@bbox>
+In-Reply-To: <8bf2f9014e3d7abecb7b6a46c537b6371557936c.1389779961.git.matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, John Stultz <john.stultz@linaro.org>, Dhaval Giani <dhaval.giani@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Rob Clark <robdclark@gmail.com>, Jason Evans <je@fb.com>
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
 
-On Wed, Jan 29, 2014 at 02:11:02PM +0900, Minchan Kim wrote:
-> It's interesting timing, I posted this patch Yew Year's Day
-> and receives indepth design review Lunar New Year's Day. :)
-> It's almost 0-day review. :)
-
-That's the only way I can do 0-day reviews ;)
-
-> On Tue, Jan 28, 2014 at 07:03:59PM -0500, Johannes Weiner wrote:
-> > Hello Minchan,
-> > 
-> > On Thu, Jan 02, 2014 at 04:12:08PM +0900, Minchan Kim wrote:
-> > > Hey all,
-> > > 
-> > > Happy New Year!
-> > > 
-> > > I know it's bad timing to send this unfamiliar large patchset for
-> > > review but hope there are some guys with freshed-brain in new year
-> > > all over the world. :)
-> > > And most important thing is that before I dive into lots of testing,
-> > > I'd like to make an agreement on design issues and others
-> > > 
-> > > o Syscall interface
-> > 
-> > Why do we need another syscall for this?  Can't we extend madvise to
+On Wed 15-01-14 20:24:24, Matthew Wilcox wrote:
+> Instead of separate read and write methods, use the generic AIO
+> infrastructure.  In addition to giving us support for AIO, this adds
+> the locking between read() and truncate() that was missing.
 > 
-> Yeb. I should have written the reason. Early versions in this patchset
-> had used madvise with VMA handling but it was terrible performance for
-> ebizzy workload by mmap_sem's downside lock due to merging/split VMA.
-> Even it was worse than old so I gave up the VMA approach.
+> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
+> ---
+>  fs/Makefile        |   1 +
+>  fs/ext2/file.c     |   6 +-
+>  fs/ext2/inode.c    |   7 +-
+>  fs/xip.c           | 156 +++++++++++++++++++++++++++++++++++
+>  include/linux/fs.h |  18 ++++-
+>  mm/filemap.c       |   6 +-
+>  mm/filemap_xip.c   | 234 -----------------------------------------------------
+>  7 files changed, 183 insertions(+), 245 deletions(-)
+>  create mode 100644 fs/xip.c
 > 
-> You could see the difference.
-> https://lkml.org/lkml/2013/10/8/63
+...
+> +static ssize_t xip_io(int rw, struct inode *inode, const struct iovec *iov,
+> +			loff_t start, loff_t end, unsigned nr_segs,
+> +			get_block_t get_block, struct buffer_head *bh)
+> +{
+> +	ssize_t retval = 0;
+> +	unsigned seg = 0;
+> +	unsigned len;
+> +	unsigned copied = 0;
+> +	loff_t offset = start;
+> +	loff_t max = start;
+> +	void *addr;
+> +	bool hole = false;
+> +
+> +	while (offset < end) {
+> +		void __user *buf = iov[seg].iov_base + copied;
+> +
+> +		if (max == offset) {
+> +			sector_t block = offset >> inode->i_blkbits;
+> +			long size;
+> +			memset(bh, 0, sizeof(*bh));
+> +			bh->b_size = ALIGN(end - offset, PAGE_SIZE);
+> +			retval = get_block(inode, block, bh, rw == WRITE);
+> +			if (retval)
+> +				break;
+> +			if (buffer_mapped(bh)) {
+> +				retval = xip_get_addr(inode, bh, &addr);
+> +				if (retval < 0)
+> +					break;
+> +				addr += offset - (block << inode->i_blkbits);
+> +				hole = false;
+> +				size = retval;
+  I think you are missing here zeroing out partial pages at the head and
+the tail of the mapped extent when buffer_new(bh). Dave Chinner found this
+in his testing as well I think.
 
-So the compared kernels are 4 releases apart and the test happened
-inside a VM.  It's also not really apparent from that link what the
-tested workload is doing.  We first have to agree that it's doing
-nothing that could be avoided.  E.g. we wouldn't introduce an
-optimized version of write() because an application that writes 4G at
-one byte per call is having problems.
+								Honza
 
-The vroot lock has the same locking granularity as mmap_sem.  Why is
-mmap_sem more contended in this test?
-
-> > take MADV_VOLATILE, MADV_NONVOLATILE, and return -ENOMEM if something
-> > in the range was purged?
+> +			} else {
+> +				if (rw == WRITE) {
+> +					retval = -EIO;
+> +					break;
+> +				}
+> +				addr = NULL;
+> +				hole = true;
+> +				size = bh->b_size;
+> +			}
+> +			max = offset + size;
+> +		}
+> +
+> +		len = min_t(unsigned, iov[seg].iov_len - copied, max - offset);
+> +
+> +		if (rw == WRITE)
+> +			len -= __copy_from_user_nocache(addr, buf, len);
+> +		else if (!hole)
+> +			len -= __copy_to_user(buf, addr, len);
+> +		else
+> +			len -= __clear_user(buf, len);
+> +
+> +		if (!len)
+> +			break;
+> +
+> +		offset += len;
+> +		copied += len;
+> +		if (copied == iov[seg].iov_len) {
+> +			seg++;
+> +			copied = 0;
+> +		}
+> +	}
+> +
+> +	return (offset == start) ? retval : offset - start;
+> +}
+> +
+> +/**
+> + * xip_do_io - Perform I/O to an XIP file
+> + * @rw: READ to read or WRITE to write
+> + * @iocb: The control block for this I/O
+> + * @inode: The file which the I/O is directed at
+> + * @iov: The user addresses to do I/O from or to
+> + * @offset: The file offset where the I/O starts
+> + * @nr_segs: The length of the iov array
+> + * @get_block: The filesystem method used to translate file offsets to blocks
+> + * @end_io: A filesystem callback for I/O completion
+> + * @flags: See below
+> + *
+> + * This function uses the same locking scheme as do_blockdev_direct_IO:
+> + * If @flags has DIO_LOCKING set, we assume that the i_mutex is held by the
+> + * caller for writes.  For reads, we take and release the i_mutex ourselves.
+> + * If DIO_LOCKING is not set, the filesystem takes care of its own locking.
+> + * As with do_blockdev_direct_IO(), we increment i_dio_count while the I/O
+> + * is in progress.
+> + */
+> +ssize_t xip_do_io(int rw, struct kiocb *iocb, struct inode *inode,
+> +		const struct iovec *iov, loff_t offset, unsigned nr_segs,
+> +		get_block_t get_block, dio_iodone_t end_io, int flags)
+> +{
+> +	struct buffer_head bh;
+> +	unsigned seg;
+> +	ssize_t retval = -EINVAL;
+> +	loff_t end = offset;
+> +
+> +	for (seg = 0; seg < nr_segs; seg++)
+> +		end += iov[seg].iov_len;
+> +
+> +	if ((flags & DIO_LOCKING) && (rw == READ)) {
+> +		struct address_space *mapping = inode->i_mapping;
+> +		mutex_lock(&inode->i_mutex);
+> +		retval = filemap_write_and_wait_range(mapping, offset, end - 1);
+> +		if (retval) {
+> +			mutex_unlock(&inode->i_mutex);
+> +			goto out;
+> +		}
+> +	}
+> +
+> +	/* Protects against truncate */
+> +	atomic_inc(&inode->i_dio_count);
+> +
+> +	retval = xip_io(rw, inode, iov, offset, end, nr_segs, get_block, &bh);
+> +
+> +	if ((flags & DIO_LOCKING) && (rw == READ))
+> +		mutex_unlock(&inode->i_mutex);
+> +
+> +	inode_dio_done(inode);
+> +
+> +	if ((retval > 0) && end_io)
+> +		end_io(iocb, offset, retval, bh.b_private);
+> + out:
+> +	return retval;
+> +}
+> +EXPORT_SYMBOL_GPL(xip_do_io);
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index 80cfb42..7cc5bf7 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -2509,17 +2509,22 @@ extern int generic_file_open(struct inode * inode, struct file * filp);
+>  extern int nonseekable_open(struct inode * inode, struct file * filp);
+>  
+>  #ifdef CONFIG_FS_XIP
+> -extern ssize_t xip_file_read(struct file *filp, char __user *buf, size_t len,
+> -			     loff_t *ppos);
+>  extern int xip_file_mmap(struct file * file, struct vm_area_struct * vma);
+> -extern ssize_t xip_file_write(struct file *filp, const char __user *buf,
+> -			      size_t len, loff_t *ppos);
+>  extern int xip_truncate_page(struct address_space *mapping, loff_t from);
+> +ssize_t xip_do_io(int rw, struct kiocb *, struct inode *, const struct iovec *,
+> +		loff_t, unsigned segs, get_block_t, dio_iodone_t, int flags);
+>  #else
+>  static inline int xip_truncate_page(struct address_space *mapping, loff_t from)
+>  {
+>  	return 0;
+>  }
+> +
+> +static inline ssize_t xip_do_io(int rw, struct kiocb *iocb, struct inode *inode,
+> +		const struct iovec *iov, loff_t offset, unsigned nr_segs,
+> +		get_block_t get_block, dio_iodone_t end_io, int flags)
+> +{
+> +	return -ENOTTY;
+> +}
+>  #endif
+>  
+>  #ifdef CONFIG_BLOCK
+> @@ -2669,6 +2674,11 @@ extern int generic_show_options(struct seq_file *m, struct dentry *root);
+>  extern void save_mount_options(struct super_block *sb, char *options);
+>  extern void replace_mount_options(struct super_block *sb, char *options);
+>  
+> +static inline bool io_is_direct(struct file *filp)
+> +{
+> +	return (filp->f_flags & O_DIRECT) || IS_XIP(file_inode(filp));
+> +}
+> +
+>  static inline ino_t parent_ino(struct dentry *dentry)
+>  {
+>  	ino_t res;
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index b7749a9..61a31f0 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -1417,8 +1417,7 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
+>  	if (retval)
+>  		return retval;
+>  
+> -	/* coalesce the iovecs and go direct-to-BIO for O_DIRECT */
+> -	if (filp->f_flags & O_DIRECT) {
+> +	if (io_is_direct(filp)) {
+>  		loff_t size;
+>  		struct address_space *mapping;
+>  		struct inode *inode;
+> @@ -2470,8 +2469,7 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
+>  	if (err)
+>  		goto out;
+>  
+> -	/* coalesce the iovecs and go direct-to-BIO for O_DIRECT */
+> -	if (unlikely(file->f_flags & O_DIRECT)) {
+> +	if (io_is_direct(file)) {
+>  		loff_t endbyte;
+>  		ssize_t written_buffered;
+>  
+> diff --git a/mm/filemap_xip.c b/mm/filemap_xip.c
+> index c8d23e9..f7c37a1 100644
+> --- a/mm/filemap_xip.c
+> +++ b/mm/filemap_xip.c
+> @@ -42,119 +42,6 @@ static struct page *xip_sparse_page(void)
+>  }
+>  
+>  /*
+> - * This is a file read routine for execute in place files, and uses
+> - * the mapping->a_ops->get_xip_mem() function for the actual low-level
+> - * stuff.
+> - *
+> - * Note the struct file* is not used at all.  It may be NULL.
+> - */
+> -static ssize_t
+> -do_xip_mapping_read(struct address_space *mapping,
+> -		    struct file_ra_state *_ra,
+> -		    struct file *filp,
+> -		    char __user *buf,
+> -		    size_t len,
+> -		    loff_t *ppos)
+> -{
+> -	struct inode *inode = mapping->host;
+> -	pgoff_t index, end_index;
+> -	unsigned long offset;
+> -	loff_t isize, pos;
+> -	size_t copied = 0, error = 0;
+> -
+> -	BUG_ON(!mapping->a_ops->get_xip_mem);
+> -
+> -	pos = *ppos;
+> -	index = pos >> PAGE_CACHE_SHIFT;
+> -	offset = pos & ~PAGE_CACHE_MASK;
+> -
+> -	isize = i_size_read(inode);
+> -	if (!isize)
+> -		goto out;
+> -
+> -	end_index = (isize - 1) >> PAGE_CACHE_SHIFT;
+> -	do {
+> -		unsigned long nr, left;
+> -		void *xip_mem;
+> -		unsigned long xip_pfn;
+> -		int zero = 0;
+> -
+> -		/* nr is the maximum number of bytes to copy from this page */
+> -		nr = PAGE_CACHE_SIZE;
+> -		if (index >= end_index) {
+> -			if (index > end_index)
+> -				goto out;
+> -			nr = ((isize - 1) & ~PAGE_CACHE_MASK) + 1;
+> -			if (nr <= offset) {
+> -				goto out;
+> -			}
+> -		}
+> -		nr = nr - offset;
+> -		if (nr > len - copied)
+> -			nr = len - copied;
+> -
+> -		error = mapping->a_ops->get_xip_mem(mapping, index, 0,
+> -							&xip_mem, &xip_pfn);
+> -		if (unlikely(error)) {
+> -			if (error == -ENODATA) {
+> -				/* sparse */
+> -				zero = 1;
+> -			} else
+> -				goto out;
+> -		}
+> -
+> -		/* If users can be writing to this page using arbitrary
+> -		 * virtual addresses, take care about potential aliasing
+> -		 * before reading the page on the kernel side.
+> -		 */
+> -		if (mapping_writably_mapped(mapping))
+> -			/* address based flush */ ;
+> -
+> -		/*
+> -		 * Ok, we have the mem, so now we can copy it to user space...
+> -		 *
+> -		 * The actor routine returns how many bytes were actually used..
+> -		 * NOTE! This may not be the same as how much of a user buffer
+> -		 * we filled up (we may be padding etc), so we can only update
+> -		 * "pos" here (the actor routine has to update the user buffer
+> -		 * pointers and the remaining count).
+> -		 */
+> -		if (!zero)
+> -			left = __copy_to_user(buf+copied, xip_mem+offset, nr);
+> -		else
+> -			left = __clear_user(buf + copied, nr);
+> -
+> -		if (left) {
+> -			error = -EFAULT;
+> -			goto out;
+> -		}
+> -
+> -		copied += (nr - left);
+> -		offset += (nr - left);
+> -		index += offset >> PAGE_CACHE_SHIFT;
+> -		offset &= ~PAGE_CACHE_MASK;
+> -	} while (copied < len);
+> -
+> -out:
+> -	*ppos = pos + copied;
+> -	if (filp)
+> -		file_accessed(filp);
+> -
+> -	return (copied ? copied : error);
+> -}
+> -
+> -ssize_t
+> -xip_file_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
+> -{
+> -	if (!access_ok(VERIFY_WRITE, buf, len))
+> -		return -EFAULT;
+> -
+> -	return do_xip_mapping_read(filp->f_mapping, &filp->f_ra, filp,
+> -			    buf, len, ppos);
+> -}
+> -EXPORT_SYMBOL_GPL(xip_file_read);
+> -
+> -/*
+>   * __xip_unmap is invoked from xip_unmap and
+>   * xip_write
+>   *
+> @@ -340,127 +227,6 @@ int xip_file_mmap(struct file * file, struct vm_area_struct * vma)
+>  }
+>  EXPORT_SYMBOL_GPL(xip_file_mmap);
+>  
+> -static ssize_t
+> -__xip_file_write(struct file *filp, const char __user *buf,
+> -		  size_t count, loff_t pos, loff_t *ppos)
+> -{
+> -	struct address_space * mapping = filp->f_mapping;
+> -	const struct address_space_operations *a_ops = mapping->a_ops;
+> -	struct inode 	*inode = mapping->host;
+> -	long		status = 0;
+> -	size_t		bytes;
+> -	ssize_t		written = 0;
+> -
+> -	BUG_ON(!mapping->a_ops->get_xip_mem);
+> -
+> -	do {
+> -		unsigned long index;
+> -		unsigned long offset;
+> -		size_t copied;
+> -		void *xip_mem;
+> -		unsigned long xip_pfn;
+> -
+> -		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
+> -		index = pos >> PAGE_CACHE_SHIFT;
+> -		bytes = PAGE_CACHE_SIZE - offset;
+> -		if (bytes > count)
+> -			bytes = count;
+> -
+> -		status = a_ops->get_xip_mem(mapping, index, 0,
+> -						&xip_mem, &xip_pfn);
+> -		if (status == -ENODATA) {
+> -			/* we allocate a new page unmap it */
+> -			mutex_lock(&xip_sparse_mutex);
+> -			status = a_ops->get_xip_mem(mapping, index, 1,
+> -							&xip_mem, &xip_pfn);
+> -			mutex_unlock(&xip_sparse_mutex);
+> -			if (!status)
+> -				/* unmap page at pgoff from all other vmas */
+> -				__xip_unmap(mapping, index);
+> -		}
+> -
+> -		if (status)
+> -			break;
+> -
+> -		copied = bytes -
+> -			__copy_from_user_nocache(xip_mem + offset, buf, bytes);
+> -
+> -		if (likely(copied > 0)) {
+> -			status = copied;
+> -
+> -			if (status >= 0) {
+> -				written += status;
+> -				count -= status;
+> -				pos += status;
+> -				buf += status;
+> -			}
+> -		}
+> -		if (unlikely(copied != bytes))
+> -			if (status >= 0)
+> -				status = -EFAULT;
+> -		if (status < 0)
+> -			break;
+> -	} while (count);
+> -	*ppos = pos;
+> -	/*
+> -	 * No need to use i_size_read() here, the i_size
+> -	 * cannot change under us because we hold i_mutex.
+> -	 */
+> -	if (pos > inode->i_size) {
+> -		i_size_write(inode, pos);
+> -		mark_inode_dirty(inode);
+> -	}
+> -
+> -	return written ? written : status;
+> -}
+> -
+> -ssize_t
+> -xip_file_write(struct file *filp, const char __user *buf, size_t len,
+> -	       loff_t *ppos)
+> -{
+> -	struct address_space *mapping = filp->f_mapping;
+> -	struct inode *inode = mapping->host;
+> -	size_t count;
+> -	loff_t pos;
+> -	ssize_t ret;
+> -
+> -	mutex_lock(&inode->i_mutex);
+> -
+> -	if (!access_ok(VERIFY_READ, buf, len)) {
+> -		ret=-EFAULT;
+> -		goto out_up;
+> -	}
+> -
+> -	pos = *ppos;
+> -	count = len;
+> -
+> -	/* We can write back this queue in page reclaim */
+> -	current->backing_dev_info = mapping->backing_dev_info;
+> -
+> -	ret = generic_write_checks(filp, &pos, &count, S_ISBLK(inode->i_mode));
+> -	if (ret)
+> -		goto out_backing;
+> -	if (count == 0)
+> -		goto out_backing;
+> -
+> -	ret = file_remove_suid(filp);
+> -	if (ret)
+> -		goto out_backing;
+> -
+> -	ret = file_update_time(filp);
+> -	if (ret)
+> -		goto out_backing;
+> -
+> -	ret = __xip_file_write (filp, buf, count, pos, ppos);
+> -
+> - out_backing:
+> -	current->backing_dev_info = NULL;
+> - out_up:
+> -	mutex_unlock(&inode->i_mutex);
+> -	return ret;
+> -}
+> -EXPORT_SYMBOL_GPL(xip_file_write);
+> -
+>  /*
+>   * truncate a page used for execute in place
+>   * functionality is analog to block_truncate_page but does use get_xip_mem
+> -- 
+> 1.8.5.2
 > 
-> In that case, -ENOMEM would have duplicated meaning "Purged" and "Out
-> of memory so failed in the middle of the system call processing" and
-> later could be a problem so we need to return value to indicate
-> how many bytes are succeeded so far so it means we need additional
-> out parameter. But yes, we can solve it by modifying semantic and
-> behavior (ex, as you said below, we could just unmark volatile
-> successfully if user pass (offset, len) consistent with marked volatile
-> ranges. (IOW, if we give up overlapping/subrange marking/unmakring
-> usecase. I expect it makes code simple further).
-> It's request from John so If he is okay, I'm no problem.
-
-Yes, I don't insist on using madvise.  And it's too early to decide on
-an interface before we haven't fully nailed the semantics and features.
-
-> > > o Not bind with vma split/merge logic to prevent mmap_sem cost and
-> > > o Not bind with vma split/merge logic to avoid vm_area_struct memory
-> > >   footprint.
-> > 
-> > VMAs are there to track attributes of memory ranges.  Duplicating
-> > large parts of their functionality and co-maintaining both structures
-> > on create, destroy, split, and merge means duplicate code and complex
-> > interactions.
-> > 
-> > 1. You need to define semantics and coordinate what happens when the
-> >    vma underlying a volatile range changes.
-> > 
-> >    Either you have to strictly co-maintain both range objects, or you
-> >    have weird behavior like volatily outliving a vma and then applying
-> >    to a separate vma created in its place.
-> > 
-> >    Userspace won't get this right, and even in the kernel this is
-> >    error prone and adds a lot to the complexity of vma management.
-> 
-> Current semantic is following as,
-> Vma handling logic in mm doesn't need to know vrange handling because
-> vrange's internal logic always checks validity of the vma but
-> one thing to do in vma logic is only clearing old volatile ranges
-> on creating new vma.
-> (Look at  [PATCH v10 02/16] vrange: Clear volatility on new mmaps)
-> Acutally I don't like the idea and suggested following as.
-> https://git.kernel.org/cgit/linux/kernel/git/minchan/linux.git/commit/?h=vrange-working&id=821f58333b381fd88ee7f37fd9c472949756c74e
-> But John didn't like it. I guess if VMA size is really matter,
-> maybe we can embedded the flag into somewhere field of
-> vma(ex, vm_file LSB?)
-
-It's not entirely clear to me how the per-VMA variable can work like
-that when vmas can merge and split by other means (mprotect e.g.)
-
-> > 2. If page reclaim discards a page from the upper end of a a range,
-> >    you mark the whole range as purged.  If the user later marks the
-> >    lower half of the range as non-volatile, the syscall will report
-> >    purged=1 even though all requested pages are still there.
-> 
-> True, The assumption is that basically, user should have a range
-> per object but we gives flexibility for user to handle subranges
-> of a volatile range so it might report false positive as you said.
-> In that case, please user can use mincore(2) for accuracy if he
-> want so he has flexiblity but lose performance a bit.
-> It's a tradeoff, IMO.
-
-Look, we can't present a syscall that takes an exact range of bytes
-and then return results that are not applicable to this range at all.
-
-We can not make performance trade-offs that compromise the semantics
-of the interface, and then recommend using an unrelated system call
-that takes the same byte range but somehow gets it right.
-
-> >    The only way to make these semantics clean is either
-> > 
-> >      a) have vrange() return a range ID so that only full ranges can
-> >      later be marked non-volatile, or
-> 
-> > 
-> >      b) remember individual page purges so that sub-range changes can
-> >      properly report them
-> > 
-> >    I don't like a) much because it's somewhat arbitrarily more
-> >    restrictive than madvise, mprotect, mmap/munmap etc.  And for b),
-> >    the straight-forward solution would be to put purge-cookies into
-> >    the page tables to properly report purges in subrange changes, but
-> >    that would be even more coordination between vmas, page tables, and
-> >    the ad-hoc vranges.
-> 
-> Agree but I don't want to put a accuracy of defalut vrange syscall.
-> Page table lookup needs mmap_sem and O(N) cost so I'm afraid it would
-> make userland folks hesitant using this system call.
-
-If userspace sees nothing but cost in this system call, nothing but a
-voluntary donation for the common good of the system, then it does not
-matter how cheap this is, nobody will use it.  Why would they?  Even
-if it's a lightweight call, they still have to implement a mechanism
-for regenerating content etc.  It's still an investment to make, so
-there has to be a personal benefit or it's flawed from the beginning.
-
-So why do applications want to use it?
-
-> > 3. Page reclaim usually happens on individual pages until an
-> >    allocation can be satisfied, but the shrinker purges entire ranges.
-> 
-> Strictly speaking, not entire rangeS but entire A range.
-> This recent patchset bails out if we discard as much as VM want.
-> 
-> > 
-> >    Should it really take out an entire 1G volatile range even though 4
-> >    pages would have been enough to satisfy an allocation?  Sure, we
-> >    assume a range represents an single "object" and userspace would
-> >    have to regenerate the whole thing with only one page missing, but
-> >    there is still a massive difference in page frees, faults, and
-> >    allocations.
-> 
-> That's why I wanted to introduce full and partial purging flag as system
-> call argument.
-
-I just wonder why we would anything but partial purging.
-
-> > There needs to be a *really* good argument why VMAs are not enough for
-> > this purpose.  I would really like to see anon volatility implemented
-> 
-> Strictly speaking, volatile ranges has two goals.
-> 
-> 1. Avoid unncessary swapping or OOM if system has lots of volatile memory
-> 2. Give advanced free rather than madvise(DONTNEED)
-
-Aren't they the same goal?  Giving applications a cheap way to
-relinquish unused memory.  If there is memory pressure, well, it was
-unused anyway.  If there isn't, the memory range can be reused without
-another mmap() and page faults.
-
-> First goal is very clear so I don't need to say again
-> but it seems second goal isn't clear so that I try elaborate it a bit.
-> 
-> Current allocators really hates frequent calling munmap which is big
-> performance overhead if other threads are allocating new address
-> space or are faulting existing address space so they have used
-> madvise(DONTNEED) as optimization so at least, faulting threads
-> works well in parallel. It's better but allocators couldn't use
-> madvise(DONTNEED) frequently because it still prevent other thread's
-> allocation of new address space for a long time(becuase the overhead
-> of the system call is O(vma_size(vma)).
-
-My suggestion of clearing dirty bits off of page table ranges would
-require only read-side mmap_sem.
-
-> Volatile ranges system call never don't need to hold write-side mmap_sem
-> and the execution time is almost O(log(nr_range))) and if we follow your
-> suggestion(ie, vrange returns ID), it's O(1). It's better.
-
-I already wrote that to John: what if you have an array of objects and
-want to mark them all volatile, but then come back for individual
-objects in the array?  If vrange() creates a single range and returns
-an ID, you can't do this, unless you call vrange() for every single
-object first.
-
-O(1) is great, but we are duplicating VMA functionality, anon reclaim
-functionality, have all these strange interactions, and a very
-restricted interface.
-
-We have to make trade-offs here and I don't want to have all this
-complexity if there isn't a really solid reason for it.
-
-> Another concern is that some of people want to handle range
-> fine-granularity, maybe worst case, PAGE_SIZE, in that case
-> so many VMA could be created if purging happens sparsely so it would
-> be really memory concern.
-
-That's also no problem if we implement it based on dirty page table
-bits.
-
-> > as a VMA attribute, and have regular reclaim decide based on rmap of
-> > individual pages whether it needs to swap or purge.  Something like
-> > this:
-> > 
-> > MADV_VOLATILE:
-> >   split vma if necessary
-> >   set VM_VOLATILE
-> > 
-> > MADV_NONVOLATILE:
-> >   clear VM_VOLATILE
-> >   merge vma if possible
-> >   pte walk to check for pmd_purged()/pte_purged()
-> >   return any_purged
-> 
-> It could make system call really slow so allocator people really
-> would be reluctant to use it.
-
-So what do they do instead?  munmap() and refault the pages?  Or sit
-on a bunch of unused memory and get killed by the OOM killer?  Or wait
-on IO while their unused pages are swapped in and out?
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
