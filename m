@@ -1,124 +1,235 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 759C76B0036
-	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 00:45:36 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id z10so3890238pdj.19
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 21:45:36 -0800 (PST)
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTP id ui8si9137409pac.3.2014.01.30.21.45.34
-        for <linux-mm@kvack.org>;
-        Thu, 30 Jan 2014 21:45:35 -0800 (PST)
-Message-ID: <1391147127.2181.159.camel@dabdike.int.hansenpartnership.com>
-Subject: Re: [PATCH] block devices: validate block device capacity
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Thu, 30 Jan 2014 21:45:27 -0800
-In-Reply-To: <alpine.LRH.2.02.1401302116180.9767@file01.intranet.prod.int.rdu2.redhat.com>
-References: 
-	<alpine.LRH.2.02.1401301531040.29912@file01.intranet.prod.int.rdu2.redhat.com>
-	   <1391122163.2181.103.camel@dabdike.int.hansenpartnership.com>
-	   <alpine.LRH.2.02.1401301805590.19506@file01.intranet.prod.int.rdu2.redhat.com>
-	  <1391125027.2181.114.camel@dabdike.int.hansenpartnership.com>
-	  <alpine.LRH.2.02.1401301905520.25766@file01.intranet.prod.int.rdu2.redhat.com>
-	 <1391132609.2181.131.camel@dabdike.int.hansenpartnership.com>
-	 <alpine.LRH.2.02.1401302116180.9767@file01.intranet.prod.int.rdu2.redhat.com>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
+	by kanga.kvack.org (Postfix) with ESMTP id D3A7F6B0035
+	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 01:16:01 -0500 (EST)
+Received: by mail-ea0-f180.google.com with SMTP id o10so2093418eaj.11
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 22:16:01 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id y48si15524031eew.205.2014.01.30.22.16.00
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 30 Jan 2014 22:16:00 -0800 (PST)
+Date: Fri, 31 Jan 2014 01:15:43 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v10 00/16] Volatile Ranges v10
+Message-ID: <20140131061543.GF6963@cmpxchg.org>
+References: <1388646744-15608-1-git-send-email-minchan@kernel.org>
+ <20140129000359.GZ6963@cmpxchg.org>
+ <52E85CDA.5090102@linaro.org>
+ <20140129183032.GA6963@cmpxchg.org>
+ <52EAFBF6.7020603@linaro.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52EAFBF6.7020603@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Jens Axboe <axboe@kernel.dk>, "Alasdair G. Kergon" <agk@redhat.com>, Mike Snitzer <msnitzer@redhat.com>, dm-devel@redhat.com, "David S. Miller" <davem@davemloft.net>, linux-ide@vger.kernel.org, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, Neil Brown <neilb@suse.de>, linux-raid@vger.kernel.org, linux-mm@kvack.org
+To: John Stultz <john.stultz@linaro.org>
+Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Dhaval Giani <dhaval.giani@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Rob Clark <robdclark@gmail.com>, Jason Evans <je@fb.com>, pliard@google.com
 
-On Thu, 2014-01-30 at 21:43 -0500, Mikulas Patocka wrote:
+On Thu, Jan 30, 2014 at 05:27:18PM -0800, John Stultz wrote:
+> On 01/29/2014 10:30 AM, Johannes Weiner wrote:
+> > On Tue, Jan 28, 2014 at 05:43:54PM -0800, John Stultz wrote:
+> >> On 01/28/2014 04:03 PM, Johannes Weiner wrote:
+> >>> On Thu, Jan 02, 2014 at 04:12:08PM +0900, Minchan Kim wrote:
+> >>>> o Syscall interface
+> >>> Why do we need another syscall for this?  Can't we extend madvise to
+> >>> take MADV_VOLATILE, MADV_NONVOLATILE, and return -ENOMEM if something
+> >>> in the range was purged?
+> >> So the madvise interface is insufficient to provide the semantics
+> >> needed. Not so much for MADV_VOLATILE, but MADV_NONVOLATILE. For the
+> >> NONVOLATILE call, we have to atomically unmark the volatility status of
+> >> the byte range and provide the purge status, which informs the caller if
+> >> any of the data in the specified range was discarded (and thus needs to
+> >> be regenerated).
+> >>
+> >> The problem is that by clearing the range, we may need to allocate
+> >> memory (possibly by splitting in an existing range segment into two),
+> >> which possibly could fail. Unfortunately this could happen after we've
+> >> modified the volatile state of part of that range.  At this point we
+> >> can't just fail, because we've modified state and we also need to return
+> >> the purge status of the modified state.
+> > munmap() can theoretically fail for the same reason (splitting has to
+> > allocate a new vma) but it's not even documented.  The allocator does
+> > not fail allocations of that order.
+> >
+> > I'm not sure this is good enough, but to me it sounds a bit overkill
+> > to design a new system call around a non-existent problem.
 > 
-> On Thu, 30 Jan 2014, James Bottomley wrote:
+> I still think its problematic design issue. With munmap, I think
+> re-calling on failure should be fine. But with _NONVOLATILE we could
+> possibly lose the purge status on a second call (for instance if only
+> the first page of memory was purged, but we errored out mid-call w/
+> ENOMEM, on the second call it will seem like the range was successfully
+> set non-volatile with no memory purged).
 > 
-> > > A device may be accessed direcly (by opening /dev/sdX) and it creates a 
-> > > mapping too - thus, the size of a mapping limits the size of a block 
-> > > device.
-> > 
-> > Right, that's what I suspected below.  We can't damage large block
-> > support on filesystems just because of this corner case.
+> And even if the current allocator never ever fails, I worry at some
+> point in the future that rule might change and then we'd have a broken
+> interface.
+
+Fair enough, we don't have to paint ourselves into a corner.
+
+> >>> 2. If page reclaim discards a page from the upper end of a a range,
+> >>>    you mark the whole range as purged.  If the user later marks the
+> >>>    lower half of the range as non-volatile, the syscall will report
+> >>>    purged=1 even though all requested pages are still there.
+> >> To me this aspect is a non-ideal but acceptable result of the usage pattern.
+> >>
+> >> Semantically, the hard rule would be we never report non-purged if pages
+> >> in a range were purged.  Reporting purged when pages technically weren't
+> >> is not optimal but acceptable side effect of unmarking a sub-range. And
+> >> could be avoided by applications marking and unmarking objects consistently.
+> >>
+> >>
+> >>>    The only way to make these semantics clean is either
+> >>>
+> >>>      a) have vrange() return a range ID so that only full ranges can
+> >>>      later be marked non-volatile, or
+> >>>
+> >>>      b) remember individual page purges so that sub-range changes can
+> >>>      properly report them
+> >>>
+> >>>    I don't like a) much because it's somewhat arbitrarily more
+> >>>    restrictive than madvise, mprotect, mmap/munmap etc.  
+> >> Agreed on A.
+> >>
+> >>> And for b),
+> >>>    the straight-forward solution would be to put purge-cookies into
+> >>>    the page tables to properly report purges in subrange changes, but
+> >>>    that would be even more coordination between vmas, page tables, and
+> >>>    the ad-hoc vranges.
+> >> And for B this would cause way too much overhead for the mark/unmark
+> >> operations, which have to be lightweight.
+> > Yes, and allocators/message passers truly don't need this because at
+> > the time they set a region to volatile the contents are invalidated
+> > and the non-volatile declaration doesn't give a hoot if content has
+> > been destroyed.
+> >
+> > But caches certainly would have to know if they should regenerate the
+> > contents.  And bigger areas should be using huge pages, so we'd check
+> > in 2MB steps.  Is this really more expensive than regenerating the
+> > contents on a false positive?
 > 
-> Devices larger than 16TiB never worked on 32-bit kernel, so this patch 
-> isn't damaging anything.
+> So you make a good argument. I'd counter that the false-positives are
+> only caused when unmarking subranges of larger marked volatile range,
+> and for use cases that would care about regenerating the contents,
+> that's not a likely useage model (as they're probably going to be
+> marking objects in memory volatile/nonvolatile, not just arbitrary
+> ranges of pages).
 
-expectations: 32 bit with CONFIG_LBDAF is supposed to be able to do
-almost everything 64 bits can
+I can imagine that applications have continuous areas of same-sized
+objects and want to mark a whole range of them volatile in one go,
+then later come back for individual objects.
 
-> Note that if you attach a 16TiB block device, don't open it and mount it, 
-> it still won't work, because the buffer cache uses the page cache (see the 
-> function __find_get_block_slow and the variable "pgoff_t index" - that 
-> variable would overflow if the filesystem accessed a buffer beyond 16TiB).
+Otherwise we'd require N adjacent objects to be marked individually
+through N syscalls to create N separate internal ranges, or they'd get
+strange and unexpected results.
 
-That depends on the layout of the fs metadata.
+I'm agreeing with you about what's the most likely and common usecase,
+but it shouldn't get too weird around the edges.
 
-> > > The main problem is that pgoff_t has 4 bytes - chaning it to 8 bytes may 
-> > > fix it - but there may be some hidden places where pgoff is converted to 
-> > > unsigned long - who knows, if they exist or not?
-> > 
-> > I don't think we want to do that ... it will make struct page fatter and
-> > have knock on impacts in the radix tree code.  To fix this, we need to
-> > make the corner case (i.e. opening large block devices without a
-> > filesystem) bear the pain.  It sort of looks like we want to do a linear
-> > array of mappings of 64TB for the device so the page cache calculations
-> > don't overflow.
+> > MADV_NONVOLATILE and MADV_NONVOLATILE_REPORT? (catchy, I know...)
 > 
-> The code that reads and writes data to block devices and files is shared - 
-> the functions in mm/filemap.c work for both files and block devices.
+> Something like this might be doable. I suspect the non-reporting
+> non-volatile is more of a special case (reporting should probably be the
+> default - as its safer), so it should probably have the longer name. 
+
+Sure thing.
+
+> >> As for real-disk-backed file volatility, I'm not particularly interested
+> >> in that, and fine with losing it. However, some have expressed
+> >> theoretical interest that there may be cases where throwing the memory
+> >> away is faster then writing it back to disk, so it might have some value
+> >> there. But I don't have any concrete use cases that need it.
+> > That could also be covered with an interface that clears dirty bits in
+> > a range of pages.
+> 
+> Well.. possibly. The issues with real files are ugly, since you don't
+> want have stale data show up after the purge. In the past I proposed the
+> hole punching for this, but that could be just as costly then writing
+> the data back.
+> 
+> Practically, I really don't see how true-file volatility makes any sense.
+> 
+> The only rational interest was made by Dave Chinner, but what he really
+> wanted was totally different. Something like a file-system persistent
+> (instead of in-memory) volatility, so that filesystems could pick chunks
+> of files to purge when disk space got tight.
+
+Yeah, it might be a good idea to keep this separate and focus on
+memory reclaim behavior for now.
+
+It might even be beneficial if interfaces for memory volatility and
+filesystem volatility are not easily mistaken for each other :)
+
+> > The way I see it, the simplest design, the common denominator for
+> > private anon, true file, shmem, tmpfs, would be for MADV/FADV_VOLATILE
+> > to clear dirty bits off shared pages, or ptes/pmds in the private
+> > mapped case to keep the COW charade intact.  And for the NONVOLATILE
+> > side to set dirty on what's still present and report if something is
+> > missing.
+> 
+> Hrmmm. This sounds reasonable, but I'm not sure its right.  It seems the
+> missing part here is (with anonymous scanning on swapless systems), we
+> still have to set the volatility of the page somewhere so the LRU
+> scanner will actually purge those made-clean pages, no? Otherwise won't
+> anon and tmpfs files either just be swapped or passed over and left in
+> memory? And again, for true-files, we don't want stale data.
+
+During anon page reclaim, we walk all vmas that reference a page to
+check its reference bits, then add it to swap (sets PageDirty), walk
+all vmas again to unmap and install swap entries, then write it out
+and reclaim it.
+
+We should be able to modify the walk for reference bits to also check
+for dirty bits, and then don't add a page without any to swap.  It'll
+be unmapped (AFAICS try_to_unmap_one needs minor tweak) and discarded
+without swap.
+
+Unless I'm missing something, clean shmem pages are discarded like any
+other clean filesystem page.
+
+> > Allocators and message passers don't care about content once volatile,
+> > only about the memory.  They wouldn't even have to go through the
+> > non-volatile step anymore, they could just write to memory again and
+> > it'll set the dirty bits and refault what's missing.
+> 
+> So this would implicitly make any write effectively clear the volatility
+> of a page? That probably would be an ok semantic with the use cases I'm
+> aware of, but its new.
 
 Yes.
 
-> So, if you want 64-bit page offsets, you need to increase pgoff_t size, 
-> and that will increase the limit for both files and block devices.
-
-No.  The point is the page cache mapping of the device uses a
-manufactured inode saved in the backing device. It looks fixable in the
-buffer code before the page cache gets involved.
-
-> You shouldn't have separate functions for managing pages on files and 
-> separate functions for managing pages on block devices - that would 
-> increase code size and cause maintenance problems.
-
-It wouldn't it would add structure to the buffer cache for large
-devices.
-
-> > > Though, we need to know if the people who designed memory management agree 
-> > > with changing pgoff_t to 64 bits.
-> > 
-> > I don't think we can change the size of pgoff_t ... because it won't
-> > just be that, it will be other problems like the radix tree.
+> > Such an interface would be dead simple to use and consistent across
+> > all types.  The basic implementation would require only a couple of
+> > lines of code, and while O(pages), it would still be much cheaper than
+> > thrashing and swapping, and still cheaper than actively giving ranges
+> > back to the kernel and reallocating and repopulating them later on.
+> >
+> > Compare this to the diffstat of the current vrange implementation and
+> > the complexity and inconsistencies it introduces into the VM.  I'm not
+> > sure an O(pages) interface would be unattractive enough to justify it.
 > 
-> If we can't change it, then we must stay with the current 16TiB limit. 
-> There's no other way.
-> 
-> > However, you also have to bear in mind that truncating large block
-> > device support to 64TB on 32 bits is a technical ABI break.  Hopefully
-> > it is only technical because I don't know of any current consumer block
-> > device that is 64TB yet, but anyone who'd created a filesystem >64TB
-> > would find it no-longer mounted on 32 bits.
-> > James
-> 
-> It is not ABI break, because block devices larger than 16TiB never worked 
-> on 32-bit architectures. So it's better to refuse them outright, than to 
-> cause subtle lockups or data corruption.
+> Ok. So I think we're in agreement with:
+> * Moving the volatility state for anonymous volatility into the VMA
+> * Getting anonymous scanning going again on swapless systems
 
-An ABI is a contract between the userspace and the kernel.  Saying we
-can remove a clause in the contract because no-one ever exercised it and
-not call it changing the contract is sophistry.  The correct thing to do
-would be to call it a bug and fix it.
+Cool!
 
-In a couple of short years we'll be over 16TB for hard drives.  I don't
-really want to be the one explaining to the personal storage people that
-the only way to install a 16+TB drive in their arm (or quark) based
-Linux systems is a processor upgrade.
+> I'm still not totally sure about, but willing to try
+> * Page granular volatile tracking
 
-I suppose there are a couple of possibilities: pgoff_t + radix tree
-expansion or double radix tree in the buffer code.  This should probably
-be taken to fsdevel where they might have better ideas.
+Okay.
 
-James
+> I'm still not convinced on:
+> * madvise as a sufficient interface
 
+Me neither :)
+
+> I'll try to work out a draft of what your proposing (probably just for
+> anonymous memory for now) and we can iterate from there?
+
+Sounds good to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
