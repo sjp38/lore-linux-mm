@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id A3EFD6B0039
-	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 13:24:39 -0500 (EST)
-Received: by mail-ig0-f179.google.com with SMTP id c10so10047184igq.0
-        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 10:24:39 -0800 (PST)
-Received: from relay.sgi.com (relay2.sgi.com. [192.48.179.30])
-        by mx.google.com with ESMTP id mk2si16267440igb.39.2014.01.31.10.24.01
+Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id A05726B003B
+	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 13:24:43 -0500 (EST)
+Received: by mail-ie0-f171.google.com with SMTP id as1so4716960iec.30
+        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 10:24:43 -0800 (PST)
+Received: from relay.sgi.com (relay3.sgi.com. [192.48.152.1])
+        by mx.google.com with ESMTP id x10si15624948icp.108.2014.01.31.10.24.03
         for <linux-mm@kvack.org>;
-        Fri, 31 Jan 2014 10:24:01 -0800 (PST)
+        Fri, 31 Jan 2014 10:24:03 -0800 (PST)
 From: Alex Thorlton <athorlton@sgi.com>
 Subject: [PATCH 3/3] exec: kill the unnecessary mm->def_flags setting in load_elf_binary()
-Date: Fri, 31 Jan 2014 12:23:47 -0600
-Message-Id: <1391192628-113858-7-git-send-email-athorlton@sgi.com>
+Date: Fri, 31 Jan 2014 12:23:48 -0600
+Message-Id: <1391192628-113858-8-git-send-email-athorlton@sgi.com>
 In-Reply-To: <1391192628-113858-1-git-send-email-athorlton@sgi.com>
 References: <1391192628-113858-1-git-send-email-athorlton@sgi.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,7 +24,6 @@ def_flags is always zero. Not only this looks strange, this is
 unnecessary because mm_init() has already set ->def_flags = 0.
 
 Signed-off-by: Alex Thorlton <athorlton@sgi.com>
-Suggested-by: Oleg Nesterov <oleg@redhat.com>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>
 Cc: Oleg Nesterov <oleg@redhat.com>
 Cc: linux-fsdevel@vger.kernel.org
