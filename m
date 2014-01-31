@@ -1,19 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id DD99B6B0031
-	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 13:23:56 -0500 (EST)
-Received: by mail-ie0-f171.google.com with SMTP id as1so4700989iec.16
-        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 10:23:55 -0800 (PST)
-Received: from relay.sgi.com (relay1.sgi.com. [192.48.179.29])
-        by mx.google.com with ESMTP id mg9si15620836icc.115.2014.01.31.10.23.54
+Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 135196B0036
+	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 13:24:07 -0500 (EST)
+Received: by mail-ie0-f179.google.com with SMTP id ar20so4662551iec.10
+        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 10:24:06 -0800 (PST)
+Received: from relay.sgi.com (relay3.sgi.com. [192.48.152.1])
+        by mx.google.com with ESMTP id b4si41973068igb.71.2014.01.31.10.23.55
         for <linux-mm@kvack.org>;
         Fri, 31 Jan 2014 10:23:55 -0800 (PST)
 From: Alex Thorlton <athorlton@sgi.com>
 Subject: [PATCHv3 0/3] Add mm flag to control THP
-Date: Fri, 31 Jan 2014 12:23:42 -0600
-Message-Id: <1391192628-113858-2-git-send-email-athorlton@sgi.com>
-In-Reply-To: <1391192628-113858-1-git-send-email-athorlton@sgi.com>
-References: <1391192628-113858-1-git-send-email-athorlton@sgi.com>
+Date: Fri, 31 Jan 2014 12:23:41 -0600
+Message-Id: <1391192628-113858-1-git-send-email-athorlton@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -129,11 +127,6 @@ http://oss.sgi.com/projects/memtests/thp_pthread_mmprctlv3.tar.gz
 
 Let me know if anybody has any further suggestions here.  Thanks!
 
-Alex Thorlton (3):
-  Revert "thp: make MADV_HUGEPAGE check for mm->def_flags"
-  Add VM_INIT_DEF_MASK and PRCTL_THP_DISABLE
-  exec: kill the unnecessary mm->def_flags setting in load_elf_binary()
-
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Christian Borntraeger <borntraeger@de.ibm.com>
@@ -155,6 +148,11 @@ Cc: linux-fsdevel@vger.kernel.org
 Cc: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org
 Cc: linux-s390@vger.kernel.org
+
+Alex Thorlton (3):
+  Revert "thp: make MADV_HUGEPAGE check for mm->def_flags"
+  Add VM_INIT_DEF_MASK and PRCTL_THP_DISABLE
+  exec: kill the unnecessary mm->def_flags setting in load_elf_binary()
 
  arch/s390/mm/pgtable.c     |  3 +++
  fs/binfmt_elf.c            |  4 ----
