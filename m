@@ -1,136 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id A2FDF6B0031
-	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 18:01:34 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id lj1so4958787pab.26
-        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 15:01:34 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id vb2si12066608pbc.247.2014.01.31.15.01.33
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 52BA56B0037
+	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 18:14:13 -0500 (EST)
+Received: by mail-pd0-f179.google.com with SMTP id q10so4847410pdj.10
+        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 15:14:12 -0800 (PST)
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTP id qx4si12126476pbc.15.2014.01.31.15.14.11
         for <linux-mm@kvack.org>;
-        Fri, 31 Jan 2014 15:01:33 -0800 (PST)
-Date: Fri, 31 Jan 2014 15:00:58 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/3] Add VM_INIT_DEF_MASK and PRCTL_THP_DISABLE
-Message-Id: <20140131150058.99a9e70637f9b5112b8ab18f@linux-foundation.org>
-In-Reply-To: <1391192628-113858-5-git-send-email-athorlton@sgi.com>
-References: <1391192628-113858-1-git-send-email-athorlton@sgi.com>
-	<1391192628-113858-5-git-send-email-athorlton@sgi.com>
+        Fri, 31 Jan 2014 15:14:11 -0800 (PST)
+Message-ID: <1391210041.2172.52.camel@dabdike.int.hansenpartnership.com>
+Subject: Re: [LSF/MM TOPIC] Fixing large block devices on 32 bit
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Fri, 31 Jan 2014 15:14:01 -0800
+In-Reply-To: <52EC13A0.2080806@fb.com>
+References: <1391194978.2172.20.camel@dabdike.int.hansenpartnership.com>
+	 <52EC13A0.2080806@fb.com>
+Content-Type: text/plain; charset="ISO-8859-15"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Thorlton <athorlton@sgi.com>
-Cc: linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Jiang Liu <liuj97@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@kernel.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Robin Holt <holt@sgi.com>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, liguang <lig.fnst@cn.fujitsu.com>, linux-mm@kvack.org
+To: Chris Mason <clm@fb.com>
+Cc: linux-scsi <linux-scsi@vger.kernel.org>, linux-ide <linux-ide@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
 
-On Fri, 31 Jan 2014 12:23:45 -0600 Alex Thorlton <athorlton@sgi.com> wrote:
-
-> This patch adds a VM_INIT_DEF_MASK, to allow us to set the default flags
-> for VMs.  It also adds a prctl control which alllows us to set the THP
-> disable bit in mm->def_flags so that VMs will pick up the setting as
-> they are created.
+On Fri, 2014-01-31 at 16:20 -0500, Chris Mason wrote:
+> On 01/31/2014 02:02 PM, James Bottomley wrote:
+> > It has been reported:
+> >
+> > http://marc.info/?t=139111447200006
+> >
+> > That large block devices (specifically devices > 16TB) crash when
+> > mounted on 32 bit systems.  The problem specifically is that although
+> > CONFIG_LBDAF extends the size of sector_t within the block and storage
+> > layers to 64 bits, the buffer cache isn't big enough.  Specifically,
+> > buffers are mapped through a single page cache mapping on the backing
+> > device inode.  The size of the allowed offset in the page cache radix
+> > tree is pgoff_t which is 32 bits, so once the size of device goes beyond
+> > 16TB, this offset wraps and all hell breaks loose.
+> >
+> > The problem is that although the current single drive limit is about
+> > 4TB, it will only be a couple of years before 16TB devices are
+> > available.  By then, I bet that most arm (and other exotic CPU) Linux
+> > based personal file servers are still going to be 32 bit, so they're not
+> > going to be able to take this generation (or beyond) of drives.  The
+> > thing I'd like to discuss is how to fix this.  There are several options
+> > I see, but there might be others.
+> >
+> >       1. Try to pretend that CONFIG_LBDAF is supposed to cap out at 16TB
+> >          and there's nothing we can do about it ... this won't be at all
+> >          popular with arm based file server manufacturers.
+> >       2. Slyly make sure that the buffer cache won't go over 16TB by
+> >          keeping filesystem metadata below that limit ... the horse has
+> >          probably already bolted on this one.
+> >       3. Increase pgoff_t and the radix tree indexes to u64 for
+> >          CONFIG_LBDAF.  This will blow out the size of struct page on 32
+> >          bits by 4 bytes and may have other knock on effects, but at
+> >          least it will be transparent.
+> >       4. add an additional radix tree lookup within the buffer cache, so
+> >          instead of a single inode for the buffer cache, we have a radix
+> >          tree of them which are added and removed at the granularity of
+> >          16TB offsets as entries are requested.
+> >
 > 
-> ...
->
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -177,6 +177,8 @@ extern unsigned int kobjsize(const void *objp);
->   */
->  #define VM_SPECIAL (VM_IO | VM_DONTEXPAND | VM_PFNMAP)
->  
-> +#define VM_INIT_DEF_MASK	VM_NOHUGEPAGE
+> I started typing up that #3 is going to cause problems with RCU radix, 
+> but it looks ok.  I think we'll find a really scarey number of places 
+> that interchange pgoff_t with unsigned long though.
 
-Document this here?
+Yes, beyond the performance issues of doing 64 bits in the radix tree,
+it does look reasonably safe.
 
->  /*
->   * mapping from the currently active vm_flags protection bits (the
->   * low four bits) to a page protection mask..
-> diff --git a/include/uapi/linux/prctl.h b/include/uapi/linux/prctl.h
-> index 289760f..58afc04 100644
-> --- a/include/uapi/linux/prctl.h
-> +++ b/include/uapi/linux/prctl.h
-> @@ -149,4 +149,7 @@
->  
->  #define PR_GET_TID_ADDRESS	40
->  
-> +#define PR_SET_THP_DISABLE	41
-> +#define PR_GET_THP_DISABLE	42
-> +
->  #endif /* _LINUX_PRCTL_H */
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index a17621c..9fc0a30 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -529,8 +529,6 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
->  	atomic_set(&mm->mm_count, 1);
->  	init_rwsem(&mm->mmap_sem);
->  	INIT_LIST_HEAD(&mm->mmlist);
-> -	mm->flags = (current->mm) ?
-> -		(current->mm->flags & MMF_INIT_MASK) : default_dump_filter;
->  	mm->core_state = NULL;
->  	atomic_long_set(&mm->nr_ptes, 0);
->  	memset(&mm->rss_stat, 0, sizeof(mm->rss_stat));
-> @@ -539,8 +537,15 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
->  	mm_init_owner(mm, p);
->  	clear_tlb_flush_pending(mm);
->  
-> -	if (likely(!mm_alloc_pgd(mm))) {
-> +	if (current->mm) {
-> +		mm->flags = current->mm->flags & MMF_INIT_MASK;
-> +		mm->def_flags = current->mm->def_flags & VM_INIT_DEF_MASK;
+> I prefer #4, but it means each FS needs to add code too.  We assume 
+> page_offset(page) maps to the disk in more than a few places.
 
-So VM_INIT_DEF_MASK defines which vm flags a process may inherit from
-its parent?
+Hmm, yes, that's just a few cases of the readahead code, though, isn't
+it?  The necessary fixes look fairly small per filesystem.
 
-> +	} else {
-> +		mm->flags = default_dump_filter;
->  		mm->def_flags = 0;
-> +	}
-> +
-> +	if (likely(!mm_alloc_pgd(mm))) {
->  		mmu_notifier_mm_init(mm);
->  		return mm;
->  	}
-> diff --git a/kernel/sys.c b/kernel/sys.c
-> index c0a58be..d59524a 100644
-> --- a/kernel/sys.c
-> +++ b/kernel/sys.c
-> @@ -1996,6 +1996,23 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
->  		if (arg2 || arg3 || arg4 || arg5)
->  			return -EINVAL;
->  		return current->no_new_privs ? 1 : 0;
-> +	case PR_GET_THP_DISABLE:
-> +		if (arg2 || arg3 || arg4 || arg5)
-> +			return -EINVAL;
+James
 
-Please add
-
-		/* fall through */
-
-here.  So people don't think you added a bug.  Also, iirc there's a
-static checking tool which will complain about this and there was talk
-about using the /* fall through */ to suppress the warning.
-
-> +	case PR_SET_THP_DISABLE:
-> +		if (arg3 || arg4 || arg5)
-> +			return -EINVAL;
-> +		down_write(&me->mm->mmap_sem);
-> +		if (option == PR_SET_THP_DISABLE) {
-> +			if (arg2)
-> +				me->mm->def_flags |= VM_NOHUGEPAGE;
-> +			else
-> +				me->mm->def_flags &= ~VM_NOHUGEPAGE;
-> +		} else {
-> +			error = !!(me->mm->def_flags & VM_NOHUGEPAGE);
-> +		}
-> +		up_write(&me->mm->mmap_sem);
-> +		break;
-
-I suspect it would be simpler to not try to combine the set and get
-code in the same lump.
-
-The prctl() extension should be added to user-facing documentation. 
-Please work with Michael Kerrisk <mtk.manpages@gmail.com> on that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
