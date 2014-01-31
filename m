@@ -1,138 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id E464D6B0031
-	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 10:39:17 -0500 (EST)
-Received: by mail-wg0-f49.google.com with SMTP id a1so8975636wgh.28
-        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 07:39:17 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 18si5364778wjo.128.2014.01.31.07.39.16
+Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 57D806B0036
+	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 10:39:27 -0500 (EST)
+Received: by mail-qc0-f179.google.com with SMTP id e16so7164704qcx.38
+        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 07:39:27 -0800 (PST)
+Received: from omr-d08.mx.aol.com (omr-d08.mx.aol.com. [205.188.109.207])
+        by mx.google.com with ESMTPS id v8si7855712qab.161.2014.01.31.07.39.26
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 31 Jan 2014 07:39:16 -0800 (PST)
-Date: Fri, 31 Jan 2014 15:39:08 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/7] improve robustness on handling migratetype
-Message-ID: <20140131153908.GA14581@suse.de>
-References: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20140109092720.GM27046@suse.de>
- <20140110084854.GA22058@lge.com>
- <52E931D9.8050002@suse.cz>
+        Fri, 31 Jan 2014 07:39:26 -0800 (PST)
+Date: Fri, 31 Jan 2014 09:39:25 -0600
+From: <boxerapp@aol.com>
+Message-ID: <87BDA3C8-659F-4D58-9923-CEF441DDDAEF@aol.com>
+Subject: Re: [PATCH] memcg: fix mutex not unlocked on
+ memcg_create_kmem_cache fail path
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <52E931D9.8050002@suse.cz>
+Content-Type: multipart/alternative; boundary="52ebc3ad_66334873_7f"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jiang Liu <jiang.liu@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Andi Kleen <ak@linux.intel.com>, Wei Yongjun <yongjun_wei@trendmicro.com.cn>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jan 29, 2014 at 05:52:41PM +0100, Vlastimil Babka wrote:
-> On 01/10/2014 09:48 AM, Joonsoo Kim wrote:
-> >On Thu, Jan 09, 2014 at 09:27:20AM +0000, Mel Gorman wrote:
-> >>On Thu, Jan 09, 2014 at 04:04:40PM +0900, Joonsoo Kim wrote:
-> >>>Hello,
-> >>>
-> >>>I found some weaknesses on handling migratetype during code review and
-> >>>testing CMA.
-> >>>
-> >>>First, we don't have any synchronization method on get/set pageblock
-> >>>migratetype. When we change migratetype, we hold the zone lock. So
-> >>>writer-writer race doesn't exist. But while someone changes migratetype,
-> >>>others can get migratetype. This may introduce totally unintended value
-> >>>as migratetype. Although I haven't heard of any problem report about
-> >>>that, it is better to protect properly.
-> >>>
-> >>
-> >>This is deliberate. The migratetypes for the majority of users are advisory
-> >>and aimed for fragmentation avoidance. It was important that the cost of
-> >>that be kept as low as possible and the general case is that migration types
-> >>change very rarely. In many cases, the zone lock is held. In other cases,
-> >>such as splitting free pages, the cost is simply not justified.
-> >>
-> >>I doubt there is any amount of data you could add in support that would
-> >>justify hammering the free fast paths (which call get_pageblock_type).
-> >
-> >Hello, Mel.
-> >
-> >There is a possibility that we can get unintended value such as 6 as migratetype
-> >if reader-writer (get/set pageblock_migratetype) race happends. It can be
-> >possible, because we read the value without any synchronization method. And
-> >this migratetype, 6, has no place in buddy freelist, so array index overrun can
-> >be possible and the system can break, although I haven't heard that it occurs.
-> 
-> Hello,
-> 
-> it seems this can indeed happen. I'm working on memory compaction
-> improvements and in a prototype patch, I'm basically adding calls of
-> start_isolate_page_range() undo_isolate_page_range() some functions
-> under compact_zone(). With this I've seen occurrences of NULL
-> pointers in move_freepages(), free_one_page() in places where
-> free_list[migratetype] is manipulated by e.g. list_move(). That lead
-> me to question the value of migratetype and I found this thread.
-> Adding some debugging in get_pageblock_migratetype() and voila, I
-> get a value of 6 being read.
-> 
-> So is it just my patch adding a dangerous situation, or does it exist in
-> mainline as well? By looking at free_one_page(), it uses zone->lock, but
-> get_pageblock_migratetype() is called by its callers
-> (free_hot_cold_page() or __free_pages_ok()) outside of the lock.
-> This determined migratetype is then used under free_one_page() to
-> access a free_list.
-> 
-> It seems that this could race with set_pageblock_migratetype()
-> called from try_to_steal_freepages() (despite the latter being
-> properly locked). There are also other callers but those seem to be
-> either limited to initialization and isolation, which should be rare
-> (?).
-> However, try_to_steal_freepages can occur repeatedly.
-> So I assume that the race happens but never manifests as a fatal
-> error as long as MIGRATE_UNMOVABLE, MIGRATE_RECLAIMABLE and
-> MIGRATE_MOVABLE
-> values are used. Only MIGRATE_CMA and MIGRATE_ISOLATE have values
-> with bit 4 enabled and can thus result in invalid values due to
-> non-atomic access.
-> 
-> Does that make sense to you and should we thus proceed with patching
-> this race?
-> 
+--52ebc3ad_66334873_7f
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-If you have direct evidence then it is indeed a problem.  the key would be
-to avoid taking the zone->lock just to stabilise this and instead modify
-when get_pageblock_pagetype is called to make it safe. Looking at the
-callers of get_pageblock_pagetype it would appear that
+I've added this to my to-do list. On January 30, 2014 at 4:09:02 PM CST, =
+Andrew Morton  wrote:On Thu, 30 Jan 2014 14:04:12 -0800 (PST) David Rient=
+jes  wrote:> On Thu, 30 Jan 2014, Andrew Morton wrote:> > > > Yeah, it sh=
+ouldn't be temporary it should be the one and only allocation. > > > We s=
+hould construct the name in memcg=5Fcreate=5Fkmem=5Fcache() and be done w=
+ith > > > it.> > > > Could. That would require converting memcg=5Fcreate=5F=
+kmem=5Fcache() to take > > a va=5Flist and call kasprintf() on it.> > > >=
+ Why=3F We already construct the name in memcg=5Fcreate=5Fkmem=5Fcache() =
+> appropriately, we just want to avoid the kstrdup() in > kmem=5Fcache=5F=
+create=5Fmemcg() since it's pointless like my patch does.oh, OK, missed t=
+hat.The problem now is that the string at kmem=5Fcache.name is PATH=5FMAX=
+bytes, and PATH=5FMAX is huuuuuuuge.--To unsubscribe from this list: send=
+ the line =22unsubscribe linux-kernel=22 inthe body of a message to major=
+domo=40vger.kernel.orgMore majordomo info at http://vger.kernel.org/major=
+domo-info.htmlPlease read the =46AQ at http://www.tux.org/lkml/     
+--52ebc3ad_66334873_7f
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-1. __free_pages_ok's call to get_pageblock_pagetype can move into
-   free_one_page() under the zone lock as long as you also move
-   the set_freepage_migratetype call. The migratetype will be read
-   twice by the free_hot_cold_page->free_one_page call but that's
-   ok because you have established that it is necessary
-
-2. rmqueue_bulk calls under zone->lock
-
-3. free_hot_cold_page cannot take zone->lock to stabilise the
-   migratetype read but if it gets a bad read due to a race, it
-   enters the slow path. Force it to call free_one_page() there
-   and take the lock in the event of a race instead of only
-   calling in there due to is_migrate_isolatetype. Consider
-   adding a debug patch that counts with vmstat how often this
-   race occurs and check the value with and without the compaction
-   patches you've added
-
-4. It's not obvious but __isolate_free_page should already hold the zone lock
-
-5. buffered_rmqueue, move the call to get_pageblock_migratetype under
-   the zone lock. It'll just cost a local variable.
-
-6. A race in setup_zone_migrate_reserve is relatively harmless. Check
-   system_state == SYSTEM_BOOTING and take the zone->lock if the system
-   is live. Release, resched and reacquire if need_resched()
-
-7. has_unmovable_pages is harmless, the range should be isolated and
-   not racing against other updates
-
--- 
-Mel Gorman
-SUSE Labs
+<html><body><div>I've added this to my to-do list.</div><br/><br/><div><d=
+iv class=3D=22quote=22>On January 30, 2014 at 4:09:02 PM CST, Andrew Mort=
+on <akpm=40linux-foundation.org> wrote:<br/><blockquote type=3D=22cite=22=
+ style=3D=22border-left-style:solid;border-width:1px;margin-left:0px;padd=
+ing-left:10px;=22>On Thu, 30 Jan 2014 14:04:12 -0800 (PST) David Rientjes=
+ <rientjes=40google.com> wrote:<br /><br />> On Thu, 30 Jan 2014, Andrew =
+Morton wrote:<br />> <br />> > > Yeah, it shouldn't be temporary it shoul=
+d be the one and only allocation.  <br />> > > We should construct the na=
+me in memcg=5Fcreate=5Fkmem=5Fcache() and be done with <br />> > > it.<br=
+ />> > <br />> > Could.  That would require converting memcg=5Fcreate=5Fk=
+mem=5Fcache() to take <br />> > a va=5Flist and call kasprintf() on it.<b=
+r />> > <br />> <br />> Why=3F  We already construct the name in memcg=5F=
+create=5Fkmem=5Fcache() <br />> appropriately, we just want to avoid the =
+kstrdup() in <br />> kmem=5Fcache=5Fcreate=5Fmemcg() since it's pointless=
+ like my patch does.<br /><br />oh, OK, missed that.<br /><br />The probl=
+em now is that the string at kmem=5Fcache.name is PATH=5FMAX<br />bytes, =
+and PATH=5FMAX is huuuuuuuge.<br /><br />--<br />To unsubscribe from this=
+ list: send the line =22unsubscribe linux-kernel=22 in<br />the body of a=
+ message to majordomo=40vger.kernel.org<br />More majordomo info at  http=
+://vger.kernel.org/majordomo-info.html<br />Please read the =46AQ at  htt=
+p://www.tux.org/lkml/<br /></blockquote></div></div></body></html>
+--52ebc3ad_66334873_7f--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
