@@ -1,88 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 28AEE6B0036
-	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 21:43:21 -0500 (EST)
-Received: by mail-qc0-f169.google.com with SMTP id w7so6383569qcr.0
-        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 18:43:21 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id w8si6214683qag.150.2014.01.30.18.43.20
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D12B6B0035
+	for <linux-mm@kvack.org>; Thu, 30 Jan 2014 22:07:27 -0500 (EST)
+Received: by mail-pb0-f42.google.com with SMTP id jt11so3908231pbb.15
+        for <linux-mm@kvack.org>; Thu, 30 Jan 2014 19:07:27 -0800 (PST)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [2001:44b8:8060:ff02:300:1:2:7])
+        by mx.google.com with ESMTP id ui8si8708178pac.206.2014.01.30.19.07.24
         for <linux-mm@kvack.org>;
-        Thu, 30 Jan 2014 18:43:20 -0800 (PST)
-Date: Thu, 30 Jan 2014 21:43:07 -0500 (EST)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [PATCH] block devices: validate block device capacity
-In-Reply-To: <1391132609.2181.131.camel@dabdike.int.hansenpartnership.com>
-Message-ID: <alpine.LRH.2.02.1401302116180.9767@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1401301531040.29912@file01.intranet.prod.int.rdu2.redhat.com>   <1391122163.2181.103.camel@dabdike.int.hansenpartnership.com>   <alpine.LRH.2.02.1401301805590.19506@file01.intranet.prod.int.rdu2.redhat.com>
- <1391125027.2181.114.camel@dabdike.int.hansenpartnership.com>  <alpine.LRH.2.02.1401301905520.25766@file01.intranet.prod.int.rdu2.redhat.com> <1391132609.2181.131.camel@dabdike.int.hansenpartnership.com>
+        Thu, 30 Jan 2014 19:07:25 -0800 (PST)
+Date: Fri, 31 Jan 2014 14:06:52 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v5 00/22] Rewrite XIP code and add XIP support to ext4
+Message-ID: <20140131030652.GK13997@dastard>
+References: <cover.1389779961.git.matthew.r.wilcox@intel.com>
+ <20140130064230.GG13997@dastard>
+ <20140130092537.GH13997@dastard>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140130092537.GH13997@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Jens Axboe <axboe@kernel.dk>, "Alasdair G. Kergon" <agk@redhat.com>, Mike Snitzer <msnitzer@redhat.com>, dm-devel@redhat.com, "David S. Miller" <davem@davemloft.net>, linux-ide@vger.kernel.org, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, Neil Brown <neilb@suse.de>, linux-raid@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
 
-
-
-On Thu, 30 Jan 2014, James Bottomley wrote:
-
-> > A device may be accessed direcly (by opening /dev/sdX) and it creates a 
-> > mapping too - thus, the size of a mapping limits the size of a block 
-> > device.
+On Thu, Jan 30, 2014 at 08:25:37PM +1100, Dave Chinner wrote:
+> On Thu, Jan 30, 2014 at 05:42:30PM +1100, Dave Chinner wrote:
+> > On Wed, Jan 15, 2014 at 08:24:18PM -0500, Matthew Wilcox wrote:
+> > > This series of patches add support for XIP to ext4.  Unfortunately,
+> > > it turns out to be necessary to rewrite the existing XIP support code
+> > > first due to races that are unfixable in the current design.
+> > > 
+> > > Since v4 of this patchset, I've improved the documentation, fixed a
+> > > couple of warnings that a newer version of gcc emitted, and fixed a
+> > > bug where we would read/write the wrong address for I/Os that were not
+> > > aligned to PAGE_SIZE.
+> > 
+> > Looks like there's something fundamentally broken with the patch set
+> > as it stands. I get this same data corruption on both ext4 and XFS
+> > with XIP using fsx. It's as basic as it gets - the first read after
+> > a mmapped write fails to see the data written by mmap:
+> > 
+> > $ sudo mkfs.xfs -f /dev/ram0
+> > meta-data=/dev/ram0              isize=256    agcount=4, agsize=256000 blks
+> >          =                       sectsz=512   attr=2, projid32bit=1
+> >          =                       crc=0
+> > data     =                       bsize=4096   blocks=1024000, imaxpct=25
+> >          =                       sunit=0      swidth=0 blks
+> > naming   =version 2              bsize=4096   ascii-ci=0 ftype=0
+> > log      =internal log           bsize=4096   blocks=12800, version=2
+> >          =                       sectsz=512   sunit=0 blks, lazy-count=1
+> > realtime =none                   extsz=4096   blocks=0, rtextents=0
+> > $ sudo mount -o xip /dev/ram0 /mnt/scr
+> > $ sudo chmod 777 /mnt/scr
+> > $ ltp/fsx -d -N 1000 -S 0 /mnt/scr/fsx
+> ....
+> > operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
+> > LOG DUMP (9 total operations):
+> > 1(  1 mod 256): MAPWRITE 0x3db39 thru 0x3ffff   (0x24c7 bytes)
+> > 2(  2 mod 256): MAPREAD  0x2e947 thru 0x33163   (0x481d bytes)
+> > 3(  3 mod 256): READ     0x2e836 thru 0x3cba1   (0xe36c bytes)
+> > 4(  4 mod 256): PUNCH    0x2e7 thru 0x5c42      (0x595c bytes)
+> > 5(  5 mod 256): MAPWRITE 0xcaea thru 0x13ba9    (0x70c0 bytes)  ******WWWW
+> > 6(  6 mod 256): PUNCH    0x31645 thru 0x38d1c   (0x76d8 bytes)
+> > 7(  7 mod 256): FALLOC   0x24f92 thru 0x2f2b7   (0xa325 bytes) INTERIOR
+> > 8(  8 mod 256): FALLOC   0xbcf1 thru 0x171ac    (0xb4bb bytes) INTERIOR ******FFFF
+> > 9(  9 mod 256): READ     0x126f thru 0x11136    (0xfec8 bytes)  ***RRRR***
+> > Correct content saved for comparison
+> > (maybe hexdump "/mnt/scr/fsx" vs "/mnt/scr/fsx.fsxgood")
+> > 
+> > XFS gives a good indication that we aren't doing something correctly
+> > w.r.t. mapped XIP writes, as trying to fiemap the file ASSERT fails
+> > with a delayed allocation extent somewhere inside the file after a
+> > sync. I shall keep digging.
 > 
-> Right, that's what I suspected below.  We can't damage large block
-> support on filesystems just because of this corner case.
-
-Devices larger than 16TiB never worked on 32-bit kernel, so this patch 
-isn't damaging anything.
-
-Note that if you attach a 16TiB block device, don't open it and mount it, 
-it still won't work, because the buffer cache uses the page cache (see the 
-function __find_get_block_slow and the variable "pgoff_t index" - that 
-variable would overflow if the filesystem accessed a buffer beyond 16TiB).
-
-> > The main problem is that pgoff_t has 4 bytes - chaning it to 8 bytes may 
-> > fix it - but there may be some hidden places where pgoff is converted to 
-> > unsigned long - who knows, if they exist or not?
+> Ok, I understand the XFS ASSERT failure, but I don't really
+> understand the reason for the read failure. XFS assert failed
+> because I was using the delayed allocation enabled xfs_get_blocks()
+> to xip_fault/xip_mkwrite, so it was creating a delalloc extent
+> rather than allocating blocks, and then not having any pages in the
+> page cache to write back to convert the delalloc extent. This
+> doesn't explain the zeros being read, though.
 > 
-> I don't think we want to do that ... it will make struct page fatter and
-> have knock on impacts in the radix tree code.  To fix this, we need to
-> make the corner case (i.e. opening large block devices without a
-> filesystem) bear the pain.  It sort of looks like we want to do a linear
-> array of mappings of 64TB for the device so the page cache calculations
-> don't overflow.
-
-The code that reads and writes data to block devices and files is shared - 
-the functions in mm/filemap.c work for both files and block devices.
-
-So, if you want 64-bit page offsets, you need to increase pgoff_t size, 
-and that will increase the limit for both files and block devices.
-
-You shouldn't have separate functions for managing pages on files and 
-separate functions for managing pages on block devices - that would 
-increase code size and cause maintenance problems.
-
-> > Though, we need to know if the people who designed memory management agree 
-> > with changing pgoff_t to 64 bits.
+> So I changed to use the direct IO version, and that leaves me with
+> an unwritten extent over the mapped write code. Why? Because there's
+> no IO completion being run from either xip_fault() or xip_mkwrite()
+> to zero the buffers and run IO completion to convert the extent to
+> written....
 > 
-> I don't think we can change the size of pgoff_t ... because it won't
-> just be that, it will be other problems like the radix tree.
+> $ xfs_io -f -c "truncate 8k" -c "mmap 0 8k" -c "mwrite 0 4k" \
+> > -c "bmap -vp" -c "pread -v 0 8k" -c "bmap -vp" /mnt/scr/foo
+> ....
+> /mnt/scr/foo:
+>  EXT: FILE-OFFSET      BLOCK-RANGE      AG AG-OFFSET        TOTAL FLAGS
+>    0: [0..7]:          224..231          0 (224..231)           8 10000
+>    1: [8..15]:         hole                                     8
+> $
+> 
+> We're trying to do something that the get_block callback has never
+> supported.  I note that you added zeroing to ext4_map_blocks() when
+> an unwritten extent is found and call xip_clear_blocks() from there
+> to try and handle this within the allocation context without
+> actually making it obvious why it is necessary.
+> 
+> Essentially what we need get_blocks(create = 1) to do here is this:
+> 
+> 	if (hole)
+> 		transactionally allocate and zero block in requested region
+> 	if (unwritten)
+> 		transactionally convert to written and zero block
+> 	if (written)
+> 		map blocks
+> 
+> I think we can get away with this from a crash recovery perspective
+> because the zeroing of the blocks is synchronous and within the
+> allocation transaction. I'm implementing a new xfs_get_blocks_xip to
+> do keep this new behaviour "separate" from the direct IO path
+> semantics.
+> 
+> I also got rid of the read block map followed by the "create" block
+> map. Just a single call with create set appropriately for the caller
+> context is all that is required - the getblock call will do the
+> correct thing for allocation/conversion cases and if there's already
+> a block there it will just return the mapping....
+> 
+> <hack, hack>
+> 
+> OK, I've fixed something. The above xfs_io test returns the correct
+> data on read now, fsx still fails. I'll keep working on it in the
+> morning, and when I have something that works I'll post it....
 
-If we can't change it, then we must stay with the current 16TiB limit. 
-There's no other way.
+The read/write path is broken, Willy. We can't map arbitrary byte
+ranges to the DIO subsystem. I'm now certain that the data
+corruptions I'm seeing are in sub-sector regions from unaligned IOs
+from userspace. We still need to use the buffered IO path for non
+O_DIRECT IO to avoid these problems. I think I've worked out a way
+to short-circuit page cache lookups for the buffered IO path, so
+stay tuned....
 
-> However, you also have to bear in mind that truncating large block
-> device support to 64TB on 32 bits is a technical ABI break.  Hopefully
-> it is only technical because I don't know of any current consumer block
-> device that is 64TB yet, but anyone who'd created a filesystem >64TB
-> would find it no-longer mounted on 32 bits.
-> James
+Cheers,
 
-It is not ABI break, because block devices larger than 16TiB never worked 
-on 32-bit architectures. So it's better to refuse them outright, than to 
-cause subtle lockups or data corruption.
-
-Mikulas
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
