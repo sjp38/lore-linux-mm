@@ -1,47 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f50.google.com (mail-qa0-f50.google.com [209.85.216.50])
-	by kanga.kvack.org (Postfix) with ESMTP id E57136B0031
-	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 14:26:28 -0500 (EST)
-Received: by mail-qa0-f50.google.com with SMTP id cm18so6753333qab.37
-        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 11:26:28 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id 8si8384478qav.114.2014.01.31.11.26.28
-        for <linux-mm@kvack.org>;
-        Fri, 31 Jan 2014 11:26:28 -0800 (PST)
-Date: Fri, 31 Jan 2014 14:26:17 -0500
-From: Dave Jones <davej@redhat.com>
-Subject: Re: [LSF/MM TOPIC] Fixing large block devices on 32 bit
-Message-ID: <20140131192617.GA14098@redhat.com>
-References: <1391194978.2172.20.camel@dabdike.int.hansenpartnership.com>
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id CE4646B0037
+	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 15:00:32 -0500 (EST)
+Received: by mail-pd0-f176.google.com with SMTP id w10so4664661pde.7
+        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 12:00:32 -0800 (PST)
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+        by mx.google.com with ESMTPS id n8si11633775pax.305.2014.01.31.12.00.31
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 31 Jan 2014 12:00:31 -0800 (PST)
+Received: by mail-pd0-f171.google.com with SMTP id g10so4666266pdj.2
+        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 12:00:31 -0800 (PST)
+Content-Type: text/plain; charset="utf-8"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1391194978.2172.20.camel@dabdike.int.hansenpartnership.com>
+Content-Transfer-Encoding: quoted-printable
+From: Sebastian Capella <sebastian.capella@linaro.org>
+In-Reply-To: <20140131122421.GA3305@amd.pavel.ucw.cz>
+References: <1391039304-3172-1-git-send-email-sebastian.capella@linaro.org>
+ <1391039304-3172-2-git-send-email-sebastian.capella@linaro.org>
+ <20140131103232.GB1534@amd.pavel.ucw.cz>
+ <alpine.DEB.2.02.1401310243090.7183@chino.kir.corp.google.com>
+ <20140131122421.GA3305@amd.pavel.ucw.cz>
+Message-ID: <20140131200029.13265.72190@capellas-linux>
+Subject: Re: [PATCH v4 1/2] mm: add kstrimdup function
+Date: Fri, 31 Jan 2014 12:00:29 -0800
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: linux-scsi <linux-scsi@vger.kernel.org>, linux-ide <linux-ide@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
+To: Pavel Machek <pavel@ucw.cz>, David Rientjes <rientjes@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Mikulas Patocka <mpatocka@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>
 
-On Fri, Jan 31, 2014 at 11:02:58AM -0800, James Bottomley wrote:
- 
- > it will only be a couple of years before 16TB devices are
- > available.  By then, I bet that most arm (and other exotic CPU) Linux
- > based personal file servers are still going to be 32 bit, so they're not
- > going to be able to take this generation (or beyond) of drives. 
- > 
- >      1. Try to pretend that CONFIG_LBDAF is supposed to cap out at 16TB
- >         and there's nothing we can do about it ... this won't be at all
- >         popular with arm based file server manufacturers.
+Quoting Pavel Machek (2014-01-31 04:24:21)
+> Well, your /sys/power/resume patch would be nice cleanup, but it
+> changs behaviour, too... which is unnice. Stripping trailing "\n" is
+> probably neccessary, because we did it before. (It probably was a
+> mistake). But kernel is not right place to second-guess what the user
+> meant. Just return -EINVAL. This is kernel ABI, after all, not user
+> facing shell.
 
-Some of the higher end home-NAS's have already moved from arm/ppc -> x86_64[1]
-Unless ARM64 starts appearing at a low enough price point, I wouldn't be 
-surprised to see the smaller vendors do a similar move just to stay competitive.
-(probably while keeping 'legacy' product lines for a while at a cheaper pricepoint
- that won't take bigger disks).
+Thanks guys!  I hadn't thought of these cases.
 
-	Dave
+It sounds like we're really back to stripping one trailing \n to match
+the sysfs behavior to which people have become accustomed, and leave
+the rest of the string untouched in case the whitespace is intentional.
 
-[1] http://forum.synology.com/wiki/index.php/What_kind_of_CPU_does_my_NAS_have
+Should a user intentionally have input ending in a newline, then they
+should add an additional newline, expecting it to be stripped, but
+otherwise, their string is taken as entered.
+
+Does this sound right?
+
+Meanwhile, I'll try a test to see how name_to_dev_t handles files with
+spaces in them.
+
+Thanks,
+
+Sebastian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
