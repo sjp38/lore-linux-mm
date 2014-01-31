@@ -1,60 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id CE4646B0037
-	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 15:00:32 -0500 (EST)
-Received: by mail-pd0-f176.google.com with SMTP id w10so4664661pde.7
-        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 12:00:32 -0800 (PST)
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-        by mx.google.com with ESMTPS id n8si11633775pax.305.2014.01.31.12.00.31
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 31 Jan 2014 12:00:31 -0800 (PST)
-Received: by mail-pd0-f171.google.com with SMTP id g10so4666266pdj.2
-        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 12:00:31 -0800 (PST)
-Content-Type: text/plain; charset="utf-8"
-MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-From: Sebastian Capella <sebastian.capella@linaro.org>
-In-Reply-To: <20140131122421.GA3305@amd.pavel.ucw.cz>
-References: <1391039304-3172-1-git-send-email-sebastian.capella@linaro.org>
- <1391039304-3172-2-git-send-email-sebastian.capella@linaro.org>
- <20140131103232.GB1534@amd.pavel.ucw.cz>
- <alpine.DEB.2.02.1401310243090.7183@chino.kir.corp.google.com>
- <20140131122421.GA3305@amd.pavel.ucw.cz>
-Message-ID: <20140131200029.13265.72190@capellas-linux>
-Subject: Re: [PATCH v4 1/2] mm: add kstrimdup function
-Date: Fri, 31 Jan 2014 12:00:29 -0800
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 309746B0031
+	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 15:24:11 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id kq14so4852207pab.17
+        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 12:24:10 -0800 (PST)
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTP id k3si11698067pbb.324.2014.01.31.12.24.08
+        for <linux-mm@kvack.org>;
+        Fri, 31 Jan 2014 12:24:09 -0800 (PST)
+Message-ID: <1391199846.2172.49.camel@dabdike.int.hansenpartnership.com>
+Subject: Re: Fwd: CGroups and pthreads
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Fri, 31 Jan 2014 12:24:06 -0800
+In-Reply-To: <CALaYU_AA8fMLmp_Ng9Mhm0ztcXA0EHCxkU3p68tKs87G48NrOw@mail.gmail.com>
+References: 
+	<CALaYU_BZ8iuHnAgkss1wO7BK3qULgotYSpmX4nqX=uC+aTnddA@mail.gmail.com>
+	 <CALaYU_AA8fMLmp_Ng9Mhm0ztcXA0EHCxkU3p68tKs87G48NrOw@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-15"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>, David Rientjes <rientjes@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Mikulas Patocka <mpatocka@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>
+To: Dermot McGahon <dmcgahon@waratek.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org
 
-Quoting Pavel Machek (2014-01-31 04:24:21)
-> Well, your /sys/power/resume patch would be nice cleanup, but it
-> changs behaviour, too... which is unnice. Stripping trailing "\n" is
-> probably neccessary, because we did it before. (It probably was a
-> mistake). But kernel is not right place to second-guess what the user
-> meant. Just return -EINVAL. This is kernel ABI, after all, not user
-> facing shell.
+[cc to cgroups@ added]
+On Wed, 2014-01-29 at 17:15 +0000, Dermot McGahon wrote:
+> Forwarding a question that was first asked on cgroups mailing list.
+> Someone recommended asking here instead.
 
-Thanks guys!  I hadn't thought of these cases.
+Right, but you still need to keep cgroups in the cc otherwise the thread
+gets fractured
 
-It sounds like we're really back to stripping one trailing \n to match
-the sysfs behavior to which people have become accustomed, and leave
-the rest of the string untouched in case the whitespace is intentional.
+>  We believe that we received
+> the correct answer, which is that cgroup memory subsystem charges
+> always to the leader of the Process Group rather than to the TID.
+> Could someone confirm that is definitely the case (testing does bear
+> that out).
 
-Should a user intentionally have input ending in a newline, then they
-should add an additional newline, expecting it to be stripped, but
-otherwise, their string is taken as entered.
+Michal Hocko already told you that the memory controller charges per
+address space.  Threads within a process all share the same address
+space so there's no physical way they can get charged separately.
 
-Does this sound right?
+>  It does make sense to us, since who is to say which thread
+> should the process shared memory be accounted to. Unfortunately, in
+> our specific scenario, which is a JVM that generally allocated out of
+> the heap but occasionally loads native libraries that can allocate
+> using malloc() in known threads, we would have that information. But
+> we can see that in the general case it may not be that useful to
+> account per-thread.
 
-Meanwhile, I'll try a test to see how name_to_dev_t handles files with
-spaces in them.
+What is it you're trying to do?  Give a per thread memory allocation
+limit?  That's not possible with cgroups because the threads share an
+address space ... I don't even think it's possible with current glibc
+and limits because heap space is shared between the threads as well.
+This is a consequence of the fact that the brk system call is per
+process not per thread.
 
-Thanks,
+> Would appreciate any comments you may have.
+> 
+> -----------
+> 
+> Question originally posted to cgroups mailing list:
+> 
+> Is it possible to apply cgroup memory subsystem controls to threads
+> created with pthread_create() / clone or only tasks that have been
+> created using fork and exec?
 
-Sebastian
+It is only possible to assert separate controls for things which have
+different address spaces.  Usually fork/exec gives the new process a new
+address space (although it doesn't have to).
+
+> In testing, we seem to be seeing that all allocations are accounted
+> for against the PPID / TGID and never the pthread_create()'d TID, even
+> though the TID is an LWP and can be seen using top (though RSS is
+> aggregate and global of course).
+> 
+> Attached is a simple test program used to print PID / TID and allocate
+> memory from a cloned TID. After setting breakpoints in child and
+> parent and setting up a cgroups hierarchy of 'parent' and 'child',
+> apply memory.limit_in_bytes and memory.memsw.limit_in_bytes to the
+> child cgroup only and adding the PID to the parent group and the TID
+> to the child group we see that behaviour.
+> 
+> Is that expected? I realise that the subsystems are all different but
+> what is confusing us slightly is that we have previously used the CPU
+> subsystem to set cpu_shares and adding LWP / TID's to individual
+> cgroups worked just fine for that
+> 
+> Am I misconfiguring somehow or is this a known difference between CPU
+> and MEMORY subsystems?
+
+Yes, CPU operates within the scheduler and all schedulable entities
+(that's threads or processes) can be accounted separately.  memcg
+operates on address spaces, so only things with separate address spaces
+can be accounted separately.
+
+James
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
