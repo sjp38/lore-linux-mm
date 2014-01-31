@@ -1,139 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D9646B0039
-	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 13:30:45 -0500 (EST)
-Received: by mail-ie0-f175.google.com with SMTP id ar20so4652087iec.20
-        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 10:30:45 -0800 (PST)
-Received: from relay.sgi.com (relay2.sgi.com. [192.48.179.30])
-        by mx.google.com with ESMTP id z10si16269970igl.26.2014.01.31.10.23.59
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D18C6B0031
+	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 14:03:03 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id rd3so4749561pab.16
+        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 11:03:03 -0800 (PST)
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTP id yt9si3533454pab.323.2014.01.31.11.03.01
         for <linux-mm@kvack.org>;
-        Fri, 31 Jan 2014 10:23:59 -0800 (PST)
-From: Alex Thorlton <athorlton@sgi.com>
-Subject: [PATCH 2/3] Add VM_INIT_DEF_MASK and PRCTL_THP_DISABLE
-Date: Fri, 31 Jan 2014 12:23:46 -0600
-Message-Id: <1391192628-113858-6-git-send-email-athorlton@sgi.com>
-In-Reply-To: <1391192628-113858-1-git-send-email-athorlton@sgi.com>
-References: <1391192628-113858-1-git-send-email-athorlton@sgi.com>
+        Fri, 31 Jan 2014 11:03:02 -0800 (PST)
+Message-ID: <1391194978.2172.20.camel@dabdike.int.hansenpartnership.com>
+Subject: [LSF/MM TOPIC] Fixing large block devices on 32 bit
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Fri, 31 Jan 2014 11:02:58 -0800
+Content-Type: text/plain; charset="ISO-8859-15"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Alex Thorlton <athorlton@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Jiang Liu <liuj97@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@kernel.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Robin Holt <holt@sgi.com>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, liguang <lig.fnst@cn.fujitsu.com>, linux-mm@kvack.org
+To: linux-scsi <linux-scsi@vger.kernel.org>, linux-ide <linux-ide@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: lsf-pc@lists.linux-foundation.org
 
-This patch adds a VM_INIT_DEF_MASK, to allow us to set the default flags
-for VMs.  It also adds a prctl control which alllows us to set the THP
-disable bit in mm->def_flags so that VMs will pick up the setting as
-they are created.
+It has been reported:
 
-Signed-off-by: Alex Thorlton <athorlton@sgi.com>
-Suggested-by:  Oleg Nesterov <oleg@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Jiang Liu <liuj97@gmail.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Robin Holt <holt@sgi.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: liguang <lig.fnst@cn.fujitsu.com>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+http://marc.info/?t=139111447200006
 
----
- include/linux/mm.h         |  2 ++
- include/uapi/linux/prctl.h |  3 +++
- kernel/fork.c              | 11 ++++++++---
- kernel/sys.c               | 17 +++++++++++++++++
- 4 files changed, 30 insertions(+), 3 deletions(-)
+That large block devices (specifically devices > 16TB) crash when
+mounted on 32 bit systems.  The problem specifically is that although
+CONFIG_LBDAF extends the size of sector_t within the block and storage
+layers to 64 bits, the buffer cache isn't big enough.  Specifically,
+buffers are mapped through a single page cache mapping on the backing
+device inode.  The size of the allowed offset in the page cache radix
+tree is pgoff_t which is 32 bits, so once the size of device goes beyond
+16TB, this offset wraps and all hell breaks loose.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index f28f46e..c0a94ad 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -177,6 +177,8 @@ extern unsigned int kobjsize(const void *objp);
-  */
- #define VM_SPECIAL (VM_IO | VM_DONTEXPAND | VM_PFNMAP)
- 
-+#define VM_INIT_DEF_MASK	VM_NOHUGEPAGE
-+
- /*
-  * mapping from the currently active vm_flags protection bits (the
-  * low four bits) to a page protection mask..
-diff --git a/include/uapi/linux/prctl.h b/include/uapi/linux/prctl.h
-index 289760f..58afc04 100644
---- a/include/uapi/linux/prctl.h
-+++ b/include/uapi/linux/prctl.h
-@@ -149,4 +149,7 @@
- 
- #define PR_GET_TID_ADDRESS	40
- 
-+#define PR_SET_THP_DISABLE	41
-+#define PR_GET_THP_DISABLE	42
-+
- #endif /* _LINUX_PRCTL_H */
-diff --git a/kernel/fork.c b/kernel/fork.c
-index a17621c..9fc0a30 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -529,8 +529,6 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
- 	atomic_set(&mm->mm_count, 1);
- 	init_rwsem(&mm->mmap_sem);
- 	INIT_LIST_HEAD(&mm->mmlist);
--	mm->flags = (current->mm) ?
--		(current->mm->flags & MMF_INIT_MASK) : default_dump_filter;
- 	mm->core_state = NULL;
- 	atomic_long_set(&mm->nr_ptes, 0);
- 	memset(&mm->rss_stat, 0, sizeof(mm->rss_stat));
-@@ -539,8 +537,15 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
- 	mm_init_owner(mm, p);
- 	clear_tlb_flush_pending(mm);
- 
--	if (likely(!mm_alloc_pgd(mm))) {
-+	if (current->mm) {
-+		mm->flags = current->mm->flags & MMF_INIT_MASK;
-+		mm->def_flags = current->mm->def_flags & VM_INIT_DEF_MASK;
-+	} else {
-+		mm->flags = default_dump_filter;
- 		mm->def_flags = 0;
-+	}
-+
-+	if (likely(!mm_alloc_pgd(mm))) {
- 		mmu_notifier_mm_init(mm);
- 		return mm;
- 	}
-diff --git a/kernel/sys.c b/kernel/sys.c
-index c0a58be..d59524a 100644
---- a/kernel/sys.c
-+++ b/kernel/sys.c
-@@ -1996,6 +1996,23 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
- 		if (arg2 || arg3 || arg4 || arg5)
- 			return -EINVAL;
- 		return current->no_new_privs ? 1 : 0;
-+	case PR_GET_THP_DISABLE:
-+		if (arg2 || arg3 || arg4 || arg5)
-+			return -EINVAL;
-+	case PR_SET_THP_DISABLE:
-+		if (arg3 || arg4 || arg5)
-+			return -EINVAL;
-+		down_write(&me->mm->mmap_sem);
-+		if (option == PR_SET_THP_DISABLE) {
-+			if (arg2)
-+				me->mm->def_flags |= VM_NOHUGEPAGE;
-+			else
-+				me->mm->def_flags &= ~VM_NOHUGEPAGE;
-+		} else {
-+			error = !!(me->mm->def_flags & VM_NOHUGEPAGE);
-+		}
-+		up_write(&me->mm->mmap_sem);
-+		break;
- 	default:
- 		error = -EINVAL;
- 		break;
--- 
-1.7.12.4
+The problem is that although the current single drive limit is about
+4TB, it will only be a couple of years before 16TB devices are
+available.  By then, I bet that most arm (and other exotic CPU) Linux
+based personal file servers are still going to be 32 bit, so they're not
+going to be able to take this generation (or beyond) of drives.  The
+thing I'd like to discuss is how to fix this.  There are several options
+I see, but there might be others.
+
+     1. Try to pretend that CONFIG_LBDAF is supposed to cap out at 16TB
+        and there's nothing we can do about it ... this won't be at all
+        popular with arm based file server manufacturers.
+     2. Slyly make sure that the buffer cache won't go over 16TB by
+        keeping filesystem metadata below that limit ... the horse has
+        probably already bolted on this one.
+     3. Increase pgoff_t and the radix tree indexes to u64 for
+        CONFIG_LBDAF.  This will blow out the size of struct page on 32
+        bits by 4 bytes and may have other knock on effects, but at
+        least it will be transparent.
+     4. add an additional radix tree lookup within the buffer cache, so
+        instead of a single inode for the buffer cache, we have a radix
+        tree of them which are added and removed at the granularity of
+        16TB offsets as entries are requested.
+
+James
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
