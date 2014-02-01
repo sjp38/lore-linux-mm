@@ -1,122 +1,308 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id A491D6B0031
-	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 21:49:39 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id kq14so5138773pab.17
-        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 18:49:39 -0800 (PST)
-Received: from mail-pb0-x22f.google.com (mail-pb0-x22f.google.com [2607:f8b0:400e:c01::22f])
-        by mx.google.com with ESMTPS id ot3si12531202pac.224.2014.01.31.18.49.38
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 621D16B0031
+	for <linux-mm@kvack.org>; Fri, 31 Jan 2014 23:15:57 -0500 (EST)
+Received: by mail-pb0-f43.google.com with SMTP id md12so5169048pbc.2
+        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 20:15:56 -0800 (PST)
+Received: from mail-pb0-x233.google.com (mail-pb0-x233.google.com [2607:f8b0:400e:c01::233])
+        by mx.google.com with ESMTPS id ef2si12701573pbb.221.2014.01.31.20.15.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 31 Jan 2014 18:49:38 -0800 (PST)
-Received: by mail-pb0-f47.google.com with SMTP id rp16so5092034pbb.6
-        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 18:49:38 -0800 (PST)
-Date: Fri, 31 Jan 2014 18:49:03 -0800 (PST)
+        Fri, 31 Jan 2014 20:15:56 -0800 (PST)
+Received: by mail-pb0-f51.google.com with SMTP id un15so5202245pbc.10
+        for <linux-mm@kvack.org>; Fri, 31 Jan 2014 20:15:55 -0800 (PST)
+Date: Fri, 31 Jan 2014 20:15:15 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm/swap: fix race on swap_info reuse between swapoff
- and swapon
-In-Reply-To: <CAL1ERfM82H_n4WF6fnsmbyMDXP1fRkXgcsZOHF7=FqyRxhs+mA@mail.gmail.com>
-Message-ID: <alpine.LSU.2.11.1401311807400.4217@eggly.anvils>
-References: <000001cf0cfd$6d251640$476f42c0$%yang@samsung.com> <20140110171108.32b2be171cd5e54bf22fb2a4@linux-foundation.org> <CAL1ERfPnaROPiRAeWHpvwGezHsqN4R8j=QSyS48xs25ax14AhA@mail.gmail.com> <20140112192744.9bca5c6d.akpm@linux-foundation.org>
- <CAL1ERfOx7NF-GLuCnK4KXYpunKxQnVmSDA6FkPKXH3CxauzQcQ@mail.gmail.com> <20140113062702.GA26880@mguzik.redhat.com> <CAL1ERfM82H_n4WF6fnsmbyMDXP1fRkXgcsZOHF7=FqyRxhs+mA@mail.gmail.com>
+Subject: Re: swap-add-a-simple-detector-for-inappropriate-swapin-readahead.
+ patch
+In-Reply-To: <20140131124159.f4a1c9363c37e4fdfb5fa3e1@linux-foundation.org>
+Message-ID: <alpine.LSU.2.11.1401311925200.5021@eggly.anvils>
+References: <20140131124159.f4a1c9363c37e4fdfb5fa3e1@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang.kh@gmail.com>
-Cc: Mateusz Guzik <mguzik@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Weijie Yang <weijie.yang@samsung.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fusionio.com>, Bob Liu <bob.liu@oracle.com>, stable@vger.kernel.org, Krzysztof Kozlowski <k.kozlowski@samsung.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Shaohua Li <shli@fusionio.com>, Shaohua Li <shli@kernel.org>
 
-On Mon, 13 Jan 2014, Weijie Yang wrote:
-> On Mon, Jan 13, 2014 at 2:27 PM, Mateusz Guzik <mguzik@redhat.com> wrote:
-> >
-> > Newly introduced window:
-> >
-> > p->swap_map == NULL && (p->flags & SWP_USED)
-> >
-> > breaks swap_info_get:
-> >         if (!(p->flags & SWP_USED))
-> >                 goto bad_device;
-> >         offset = swp_offset(entry);
-> >         if (offset >= p->max)
-> >                 goto bad_offset;
-> >         if (!p->swap_map[offset])
-> >                 goto bad_free;
-> >
-> > so that would need a trivial adjustment.
-> >
+On Fri, 31 Jan 2014, Andrew Morton wrote:
 > 
-> Hi, Mateusz. Thanks for review.
-> 
-> It could not happen. swapoff call try_to_unuse() to force all
-> swp_entries unused before
-> set p->swap_map NULL. So if somebody still hold a swp_entry by this
-> time, there must be some error elsewhere.
+> I've been sitting on this one since September 2012 (gad) and I should
+> get it off the books.  I didn't merge it because I really dislike all
+> the magic number heuristics in there.  Can anyone think of anything
+> smarter?
 
-That's not quite the right answer: we would still prefer to issue a
-warning than oops on the NULL pointer; the key is that p->max is reset
-to 0 before p->swap_map is set to NULL.
+I've sometimes noticed it in mmotm, and thought, oh good it's on its way.
+And then a few months later noticed that it isn't in Linus's tree, and
+wondered what had gone wrong.  I'm more conscious of it this time around,
+caught it weeping quietly at home when all the rest had gone to the party,
+and was intending to write you a note.
 
-But those lines were written in the days before we became so aware of
-memory barriers.  If I'm to insist on that p->max argument, I should
-be adding smp_wmb()s and smp_rmb()s to enforce it.
+I'm not going to apologize for the magic numbers any more than the
+comment already admits about the "+ 2".  I think the 1s and 2s and 4s
+are more honest than #define SWAPIN_READAHEAD_HIT_BOOST 2 etc.
 
-But y'know, I'm going to leave it as is, and fall back on your
-"there must be some error elsewhere" argument to justify not adding
-barriers, that have not yet proved to be needed in practice here.
+If someone devises something smarter, and comparably low overhead,
+by all means kick this out; but it started out as my reaction to
+Shaohua's more sophisticated but less effective vma-based swapin
+readahead limiter, and we both think it does a pretty good job
+for something so minimal.
 
-> 
-> Say more about it, I don't think it is a newly introduced window, the
-> current code set
-> p->swap_map NULL and then clear p->flags in swapoff, swap_info_get
-> access these fields
-> without lock, so this impossible window "exist" for many years.
-> 
-> It is really confusing, that is why I plan to resend a patchset to
-> make it clear, by comments
-> at least.
-> 
-> > Another nit is that swap_start and swap_next do the following:
-> > if (!(si->flags & SWP_USED) || !si->swap_map)
-> >         continue;
-> >
-> > Testing for swap_map does not look very nice and regardless of your
-> > patch the latter cannot be true if the former is not, thus the check
-> > can be simplified to mere !si->swap_map.
-> 
-> Yes, mere !si->swap_map is enough. But how about use SWP_WRITEOK, I
-> think it is more clear and hurt nobody.
+But I'm more conscious of it this time around, because I find myself
+relying on it for a totally different reason than it was written for.
+After upgrading the userspace on one machine, I found my old tmpfs
+swapping kbuild tests were now getting OOM-killed when before they
+had plugged along forever; and you can rightly say that I just need
+to retune them a little, and all would be well.
 
-No, I don't like your use of SWP_WRITEOK there in 2/8, for this reason:
-it would exclude an area in try_to_unuse() from being shown, and that
-function can take such a very long time, that it's rather helpful to
-see if it's making slow progress through /proc/swaps or "swapon -s".
+But although they were OOM-killed on the vanilla kernel, they proceeded
+happily with mmotm.  (And although they were OOM-killed when swapping
+to SSD with vanilla kernel, they proceeded happily though sluggishly
+when swapping to HDD: that's a difference I've not yet plumbed.)
 
-Using si->swap_map alone, yes, I guess that would do; or si->max.
-With a comment if you wish.
+What made the difference was this swapin readahead limiter: when you
+are heavily into page reclaim, reading 7 pages in to the head of the
+inactive list for every 1 that you actively want to use, is rather
+bad strategy, and we end up OOMing because the LRU keeps getting
+clogged up with unwanted pages (I think: I'm pretending to have
+investigated it in greater depth than I honestly have).
 
-> 
-> > I'm wondering if it would make sense to dedicate a flag (SWP_ALLOCATED?)
-> > to control whether swapon can use give swap_info. That is, it would be
-> > tested and set in alloc_swap_info & cleared like you clear SWP_USED now.
-> > SWP_USED would be cleared as it is and would be set in _enable_swap_info
-> >
-> > Then swap_info_get would be left unchanged and swap_* would test for
-> > SWP_USED only.
-> 
-> I think SWP_USED and SWP_WRITEOK are enough, introduce another flag
-> would make things more complex.
-
-I share your instinct on that.
+This patch adapts automatically to that, which the vanilla kernel
+currently does not: it's magic.
 
 Hugh
 
-> The first thing in my opition is make the lock and flag usage more
-> clear and readable in swapfile.c
 > 
-> If I miss something, plead let me know. Thanks!
 > 
-> > --
-> > Mateusz Guzik
+> 
+> From: Shaohua Li <shli@kernel.org>
+> Subject: swap: add a simple detector for inappropriate swapin readahead
+> 
+> This is a patch to improve swap readahead algorithm. It's from Hugh and I
+> slightly changed it.
+> 
+> Hugh's original changelog:
+> 
+> swapin readahead does a blind readahead, whether or not the swapin
+> is sequential.  This may be ok on harddisk, because large reads have
+> relatively small costs, and if the readahead pages are unneeded they
+> can be reclaimed easily - though, what if their allocation forced
+> reclaim of useful pages?  But on SSD devices large reads are more
+> expensive than small ones: if the readahead pages are unneeded,
+> reading them in caused significant overhead.
+> 
+> This patch adds very simplistic random read detection.  Stealing
+> the PageReadahead technique from Konstantin Khlebnikov's patch,
+> avoiding the vma/anon_vma sophistications of Shaohua Li's patch,
+> swapin_nr_pages() simply looks at readahead's current success
+> rate, and narrows or widens its readahead window accordingly.
+> There is little science to its heuristic: it's about as stupid
+> as can be whilst remaining effective.
+> 
+> The table below shows elapsed times (in centiseconds) when running
+> a single repetitive swapping load across a 1000MB mapping in 900MB
+> ram with 1GB swap (the harddisk tests had taken painfully too long
+> when I used mem=500M, but SSD shows similar results for that).
+> 
+> Vanilla is the 3.6-rc7 kernel on which I started; Shaohua denotes
+> his Sep 3 patch in mmotm and linux-next; HughOld denotes my Oct 1
+> patch which Shaohua showed to be defective; HughNew this Nov 14
+> patch, with page_cluster as usual at default of 3 (8-page reads);
+> HughPC4 this same patch with page_cluster 4 (16-page reads);
+> HughPC0 with page_cluster 0 (1-page reads: no readahead).
+> 
+> HDD for swapping to harddisk, SSD for swapping to VertexII SSD.
+> Seq for sequential access to the mapping, cycling five times around;
+> Rand for the same number of random touches.  Anon for a MAP_PRIVATE
+> anon mapping; Shmem for a MAP_SHARED anon mapping, equivalent to tmpfs.
+> 
+> One weakness of Shaohua's vma/anon_vma approach was that it did
+> not optimize Shmem: seen below.  Konstantin's approach was perhaps
+> mistuned, 50% slower on Seq: did not compete and is not shown below.
+> 
+> HDD        Vanilla Shaohua HughOld HughNew HughPC4 HughPC0
+> Seq Anon     73921   76210   75611   76904   78191  121542
+> Seq Shmem    73601   73176   73855   72947   74543  118322
+> Rand Anon   895392  831243  871569  845197  846496  841680
+> Rand Shmem 1058375 1053486  827935  764955  764376  756489
+> 
+> SSD        Vanilla Shaohua HughOld HughNew HughPC4 HughPC0
+> Seq Anon     24634   24198   24673   25107   21614   70018
+> Seq Shmem    24959   24932   25052   25703   22030   69678
+> Rand Anon    43014   26146   28075   25989   26935   25901
+> Rand Shmem   45349   45215   28249   24268   24138   24332
+> 
+> These tests are, of course, two extremes of a very simple case:
+> under heavier mixed loads I've not yet observed any consistent
+> improvement or degradation, and wider testing would be welcome.
+> 
+> Shaohua Li:
+> 
+> Test shows Vanilla is slightly better in sequential workload than Hugh's patch.
+> I observed with Hugh's patch sometimes the readahead size is shrinked too fast
+> (from 8 to 1 immediately) in sequential workload if there is no hit. And in
+> such case, continuing doing readahead is good actually.
+> 
+> I don't prepare a sophisticated algorithm for the sequential workload because
+> so far we can't guarantee sequential accessed pages are swap out sequentially.
+> So I slightly change Hugh's heuristic - don't shrink readahead size too fast.
+> 
+> Here is my test result (unit second, 3 runs average):
+> 	Vanilla		Hugh		New
+> Seq	356		370		360
+> Random	4525		2447		2444
+> 
+> Attached graph is the swapin/swapout throughput I collected with 'vmstat 2'.
+> The first part is running a random workload (till around 1200 of the x-axis)
+> and the second part is running a sequential workload. swapin and swapout
+> throughput are almost identical in steady state in both workloads. These are
+> expected behavior. while in Vanilla, swapin is much bigger than swapout
+> especially in random workload (because wrong readahead).
+> 
+> Original patches by: Shaohua Li and Konstantin Khlebnikov.
+> 
+> [fengguang.wu@intel.com: swapin_nr_pages() can be static]
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Signed-off-by: Shaohua Li <shli@fusionio.com>
+> Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Wu Fengguang <fengguang.wu@intel.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  include/linux/page-flags.h |    4 +-
+>  mm/swap_state.c            |   63 +++++++++++++++++++++++++++++++++--
+>  2 files changed, 62 insertions(+), 5 deletions(-)
+> 
+> diff -puN include/linux/page-flags.h~swap-add-a-simple-detector-for-inappropriate-swapin-readahead include/linux/page-flags.h
+> --- a/include/linux/page-flags.h~swap-add-a-simple-detector-for-inappropriate-swapin-readahead
+> +++ a/include/linux/page-flags.h
+> @@ -228,9 +228,9 @@ PAGEFLAG(OwnerPriv1, owner_priv_1) TESTC
+>  TESTPAGEFLAG(Writeback, writeback) TESTSCFLAG(Writeback, writeback)
+>  PAGEFLAG(MappedToDisk, mappedtodisk)
+>  
+> -/* PG_readahead is only used for file reads; PG_reclaim is only for writes */
+> +/* PG_readahead is only used for reads; PG_reclaim is only for writes */
+>  PAGEFLAG(Reclaim, reclaim) TESTCLEARFLAG(Reclaim, reclaim)
+> -PAGEFLAG(Readahead, reclaim)		/* Reminder to do async read-ahead */
+> +PAGEFLAG(Readahead, reclaim) TESTCLEARFLAG(Readahead, reclaim)
+>  
+>  #ifdef CONFIG_HIGHMEM
+>  /*
+> diff -puN mm/swap_state.c~swap-add-a-simple-detector-for-inappropriate-swapin-readahead mm/swap_state.c
+> --- a/mm/swap_state.c~swap-add-a-simple-detector-for-inappropriate-swapin-readahead
+> +++ a/mm/swap_state.c
+> @@ -63,6 +63,8 @@ unsigned long total_swapcache_pages(void
+>  	return ret;
+>  }
+>  
+> +static atomic_t swapin_readahead_hits = ATOMIC_INIT(4);
+> +
+>  void show_swap_cache_info(void)
+>  {
+>  	printk("%lu pages in swap cache\n", total_swapcache_pages());
+> @@ -286,8 +288,11 @@ struct page * lookup_swap_cache(swp_entr
+>  
+>  	page = find_get_page(swap_address_space(entry), entry.val);
+>  
+> -	if (page)
+> +	if (page) {
+>  		INC_CACHE_INFO(find_success);
+> +		if (TestClearPageReadahead(page))
+> +			atomic_inc(&swapin_readahead_hits);
+> +	}
+>  
+>  	INC_CACHE_INFO(find_total);
+>  	return page;
+> @@ -389,6 +394,50 @@ struct page *read_swap_cache_async(swp_e
+>  	return found_page;
+>  }
+>  
+> +static unsigned long swapin_nr_pages(unsigned long offset)
+> +{
+> +	static unsigned long prev_offset;
+> +	unsigned int pages, max_pages, last_ra;
+> +	static atomic_t last_readahead_pages;
+> +
+> +	max_pages = 1 << ACCESS_ONCE(page_cluster);
+> +	if (max_pages <= 1)
+> +		return 1;
+> +
+> +	/*
+> +	 * This heuristic has been found to work well on both sequential and
+> +	 * random loads, swapping to hard disk or to SSD: please don't ask
+> +	 * what the "+ 2" means, it just happens to work well, that's all.
+> +	 */
+> +	pages = atomic_xchg(&swapin_readahead_hits, 0) + 2;
+> +	if (pages == 2) {
+> +		/*
+> +		 * We can have no readahead hits to judge by: but must not get
+> +		 * stuck here forever, so check for an adjacent offset instead
+> +		 * (and don't even bother to check whether swap type is same).
+> +		 */
+> +		if (offset != prev_offset + 1 && offset != prev_offset - 1)
+> +			pages = 1;
+> +		prev_offset = offset;
+> +	} else {
+> +		unsigned int roundup = 4;
+> +		while (roundup < pages)
+> +			roundup <<= 1;
+> +		pages = roundup;
+> +	}
+> +
+> +	if (pages > max_pages)
+> +		pages = max_pages;
+> +
+> +	/* Don't shrink readahead too fast */
+> +	last_ra = atomic_read(&last_readahead_pages) / 2;
+> +	if (pages < last_ra)
+> +		pages = last_ra;
+> +	atomic_set(&last_readahead_pages, pages);
+> +
+> +	return pages;
+> +}
+> +
+>  /**
+>   * swapin_readahead - swap in pages in hope we need them soon
+>   * @entry: swap entry of this memory
+> @@ -412,11 +461,16 @@ struct page *swapin_readahead(swp_entry_
+>  			struct vm_area_struct *vma, unsigned long addr)
+>  {
+>  	struct page *page;
+> -	unsigned long offset = swp_offset(entry);
+> +	unsigned long entry_offset = swp_offset(entry);
+> +	unsigned long offset = entry_offset;
+>  	unsigned long start_offset, end_offset;
+> -	unsigned long mask = (1UL << page_cluster) - 1;
+> +	unsigned long mask;
+>  	struct blk_plug plug;
+>  
+> +	mask = swapin_nr_pages(offset) - 1;
+> +	if (!mask)
+> +		goto skip;
+> +
+>  	/* Read a page_cluster sized and aligned cluster around offset. */
+>  	start_offset = offset & ~mask;
+>  	end_offset = offset | mask;
+> @@ -430,10 +484,13 @@ struct page *swapin_readahead(swp_entry_
+>  						gfp_mask, vma, addr);
+>  		if (!page)
+>  			continue;
+> +		if (offset != entry_offset)
+> +			SetPageReadahead(page);
+>  		page_cache_release(page);
+>  	}
+>  	blk_finish_plug(&plug);
+>  
+>  	lru_add_drain();	/* Push any new pages onto the LRU now */
+> +skip:
+>  	return read_swap_cache_async(entry, gfp_mask, vma, addr);
+>  }
+> _
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
