@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
-	by kanga.kvack.org (Postfix) with ESMTP id D29EB6B0039
-	for <linux-mm@kvack.org>; Sun,  2 Feb 2014 11:34:00 -0500 (EST)
-Received: by mail-lb0-f173.google.com with SMTP id y6so4777132lbh.32
-        for <linux-mm@kvack.org>; Sun, 02 Feb 2014 08:34:00 -0800 (PST)
+Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
+	by kanga.kvack.org (Postfix) with ESMTP id BFA2C6B0039
+	for <linux-mm@kvack.org>; Sun,  2 Feb 2014 11:34:01 -0500 (EST)
+Received: by mail-lb0-f182.google.com with SMTP id w7so4819723lbi.27
+        for <linux-mm@kvack.org>; Sun, 02 Feb 2014 08:34:01 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id b8si8935241lah.53.2014.02.02.08.33.57
+        by mx.google.com with ESMTPS id e10si8937769laa.41.2014.02.02.08.33.57
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Sun, 02 Feb 2014 08:33:58 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH 3/8] memcg, slab: never try to merge memcg caches
-Date: Sun, 2 Feb 2014 20:33:48 +0400
-Message-ID: <27c4e7d7fb6b788b66995d2523225ef2dcbc6431.1391356789.git.vdavydov@parallels.com>
+Subject: [PATCH 2/8] memcg, slab: remove cgroup name from memcg cache names
+Date: Sun, 2 Feb 2014 20:33:47 +0400
+Message-ID: <90b34882d51b18a9dd557d24f6a377df1ba13945.1391356789.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1391356789.git.vdavydov@parallels.com>
 References: <cover.1391356789.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,146 +22,128 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: mhocko@suse.cz, rientjes@google.com, penberg@kernel.org, cl@linux.com, glommer@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org
 
-Suppose we are creating memcg cache A that could be merged with cache B
-of the same memcg. Since any memcg cache has the same parameters as its
-parent cache, parent caches PA and PB of memcg caches A and B must be
-mergeable too. That means PA was merged with PB on creation or vice
-versa, i.e. PA = PB. From that it follows that A = B, and we couldn't
-even try to create cache B, because it already exists - a contradiction.
+The cgroup name is not informative at all in case the cgroup hierarchy
+is not flat. Besides, we can always find the memcg a particular cache
+belongs to by its kmemcg id, which is now exported via "memory.kmem.id"
+cgroup fs file for each memcg.
 
-So let's remove unused code responsible for merging memcg caches.
+So let's remove the cgroup name part from kmem caches names - it will
+greatly simplify the call paths and make the code look clearer.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- mm/slab.h        |   21 ++++-----------------
- mm/slab_common.c |    8 +++++---
- mm/slub.c        |   19 +++++++++----------
- 3 files changed, 18 insertions(+), 30 deletions(-)
+ mm/memcontrol.c  |   63 +++++++++++++-----------------------------------------
+ mm/slab_common.c |    6 +++++-
+ 2 files changed, 20 insertions(+), 49 deletions(-)
 
-diff --git a/mm/slab.h b/mm/slab.h
-index 8184a7cde272..3045316b7c9d 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -55,12 +55,12 @@ extern void create_boot_cache(struct kmem_cache *, const char *name,
- struct mem_cgroup;
- #ifdef CONFIG_SLUB
- struct kmem_cache *
--__kmem_cache_alias(struct mem_cgroup *memcg, const char *name, size_t size,
--		   size_t align, unsigned long flags, void (*ctor)(void *));
-+__kmem_cache_alias(const char *name, size_t size, size_t align,
-+		   unsigned long flags, void (*ctor)(void *));
- #else
- static inline struct kmem_cache *
--__kmem_cache_alias(struct mem_cgroup *memcg, const char *name, size_t size,
--		   size_t align, unsigned long flags, void (*ctor)(void *))
-+__kmem_cache_alias(const char *name, size_t size, size_t align,
-+		   unsigned long flags, void (*ctor)(void *))
- { return NULL; }
- #endif
- 
-@@ -119,13 +119,6 @@ static inline bool is_root_cache(struct kmem_cache *s)
- 	return !s->memcg_params || s->memcg_params->is_root_cache;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 91d242707404..3351c5b5486d 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3405,44 +3405,6 @@ void mem_cgroup_destroy_cache(struct kmem_cache *cachep)
+ 	schedule_work(&cachep->memcg_params->destroy);
  }
  
--static inline bool cache_match_memcg(struct kmem_cache *cachep,
--				     struct mem_cgroup *memcg)
+-static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
+-						  struct kmem_cache *s)
 -{
--	return (is_root_cache(cachep) && !memcg) ||
--				(cachep->memcg_params->memcg == memcg);
+-	struct kmem_cache *new = NULL;
+-	static char *tmp_name = NULL;
+-	static DEFINE_MUTEX(mutex);	/* protects tmp_name */
+-
+-	BUG_ON(!memcg_can_account_kmem(memcg));
+-
+-	mutex_lock(&mutex);
+-	/*
+-	 * kmem_cache_create_memcg duplicates the given name and
+-	 * cgroup_name for this name requires RCU context.
+-	 * This static temporary buffer is used to prevent from
+-	 * pointless shortliving allocation.
+-	 */
+-	if (!tmp_name) {
+-		tmp_name = kmalloc(PATH_MAX, GFP_KERNEL);
+-		if (!tmp_name)
+-			goto out;
+-	}
+-
+-	rcu_read_lock();
+-	snprintf(tmp_name, PATH_MAX, "%s(%d:%s)", s->name,
+-			 memcg_cache_id(memcg), cgroup_name(memcg->css.cgroup));
+-	rcu_read_unlock();
+-
+-	new = kmem_cache_create_memcg(memcg, tmp_name, s->object_size, s->align,
+-				      (s->flags & ~SLAB_PANIC), s->ctor, s);
+-	if (new)
+-		new->allocflags |= __GFP_KMEMCG;
+-	else
+-		new = s;
+-out:
+-	mutex_unlock(&mutex);
+-	return new;
 -}
 -
- static inline void memcg_bind_pages(struct kmem_cache *s, int order)
+ void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
  {
- 	if (!is_root_cache(s))
-@@ -204,12 +197,6 @@ static inline bool is_root_cache(struct kmem_cache *s)
- 	return true;
+ 	struct kmem_cache *c;
+@@ -3489,12 +3451,6 @@ void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
+ 	mutex_unlock(&activate_kmem_mutex);
  }
  
--static inline bool cache_match_memcg(struct kmem_cache *cachep,
--				     struct mem_cgroup *memcg)
--{
--	return true;
--}
+-struct create_work {
+-	struct mem_cgroup *memcg;
+-	struct kmem_cache *cachep;
+-	struct work_struct work;
+-};
 -
- static inline void memcg_bind_pages(struct kmem_cache *s, int order)
+ static void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
  {
+ 	struct kmem_cache *cachep;
+@@ -3512,13 +3468,24 @@ static void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
+ 	mutex_unlock(&memcg->slab_caches_mutex);
  }
+ 
++struct create_work {
++	struct mem_cgroup *memcg;
++	struct kmem_cache *cachep;
++	struct work_struct work;
++};
++
+ static void memcg_create_cache_work_func(struct work_struct *w)
+ {
+-	struct create_work *cw;
++	struct create_work *cw = container_of(w, struct create_work, work);
++	struct mem_cgroup *memcg = cw->memcg;
++	struct kmem_cache *s = cw->cachep;
++	struct kmem_cache *new;
+ 
+-	cw = container_of(w, struct create_work, work);
+-	memcg_create_kmem_cache(cw->memcg, cw->cachep);
+-	css_put(&cw->memcg->css);
++	new = kmem_cache_create_memcg(memcg, s->name, s->object_size, s->align,
++				      (s->flags & ~SLAB_PANIC), s->ctor, s);
++	if (new)
++		new->allocflags |= __GFP_KMEMCG;
++	css_put(&memcg->css);
+ 	kfree(cw);
+ }
+ 
 diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 152d9b118b7a..a75834bb966d 100644
+index 1ec3c619ba04..152d9b118b7a 100644
 --- a/mm/slab_common.c
 +++ b/mm/slab_common.c
-@@ -200,9 +200,11 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
- 	 */
- 	flags &= CACHE_CREATE_MASK;
+@@ -213,7 +213,11 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
+ 	s->align = calculate_alignment(flags, align, size);
+ 	s->ctor = ctor;
  
--	s = __kmem_cache_alias(memcg, name, size, align, flags, ctor);
--	if (s)
--		goto out_unlock;
-+	if (!memcg) {
-+		s = __kmem_cache_alias(name, size, align, flags, ctor);
-+		if (s)
-+			goto out_unlock;
-+	}
+-	s->name = kstrdup(name, GFP_KERNEL);
++	if (!memcg)
++		s->name = kstrdup(name, GFP_KERNEL);
++	else
++		s->name = kasprintf(GFP_KERNEL, "%s:%d",
++				    name, memcg_cache_id(memcg));
+ 	if (!s->name)
+ 		goto out_free_cache;
  
- 	err = -ENOMEM;
- 	s = kmem_cache_zalloc(kmem_cache, GFP_KERNEL);
-diff --git a/mm/slub.c b/mm/slub.c
-index 2b1a6970e46f..962abfdfde06 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -3686,9 +3686,8 @@ static int slab_unmergeable(struct kmem_cache *s)
- 	return 0;
- }
- 
--static struct kmem_cache *find_mergeable(struct mem_cgroup *memcg, size_t size,
--		size_t align, unsigned long flags, const char *name,
--		void (*ctor)(void *))
-+static struct kmem_cache *find_mergeable(size_t size, size_t align,
-+		unsigned long flags, const char *name, void (*ctor)(void *))
- {
- 	struct kmem_cache *s;
- 
-@@ -3707,11 +3706,14 @@ static struct kmem_cache *find_mergeable(struct mem_cgroup *memcg, size_t size,
- 		if (slab_unmergeable(s))
- 			continue;
- 
-+		if (!is_root_cache(s))
-+			continue;
-+
- 		if (size > s->size)
- 			continue;
- 
- 		if ((flags & SLUB_MERGE_SAME) != (s->flags & SLUB_MERGE_SAME))
--				continue;
-+			continue;
- 		/*
- 		 * Check if alignment is compatible.
- 		 * Courtesy of Adrian Drzewiecki
-@@ -3722,21 +3724,18 @@ static struct kmem_cache *find_mergeable(struct mem_cgroup *memcg, size_t size,
- 		if (s->size - size >= sizeof(void *))
- 			continue;
- 
--		if (!cache_match_memcg(s, memcg))
--			continue;
--
- 		return s;
- 	}
- 	return NULL;
- }
- 
- struct kmem_cache *
--__kmem_cache_alias(struct mem_cgroup *memcg, const char *name, size_t size,
--		   size_t align, unsigned long flags, void (*ctor)(void *))
-+__kmem_cache_alias(const char *name, size_t size, size_t align,
-+		   unsigned long flags, void (*ctor)(void *))
- {
- 	struct kmem_cache *s;
- 
--	s = find_mergeable(memcg, size, align, flags, name, ctor);
-+	s = find_mergeable(size, align, flags, name, ctor);
- 	if (s) {
- 		s->refcount++;
- 		/*
 -- 
 1.7.10.4
 
