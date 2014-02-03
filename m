@@ -1,93 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AB986B0035
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 05:05:51 -0500 (EST)
-Received: by mail-pd0-f182.google.com with SMTP id v10so6682994pde.13
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 02:05:51 -0800 (PST)
-Received: from mail-pb0-x229.google.com (mail-pb0-x229.google.com [2607:f8b0:400e:c01::229])
-        by mx.google.com with ESMTPS id sz7si19985059pab.87.2014.02.03.02.05.50
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 25C2C6B0035
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 05:49:36 -0500 (EST)
+Received: by mail-pb0-f46.google.com with SMTP id um1so6951007pbc.33
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 02:49:35 -0800 (PST)
+Received: from mail-pb0-x22a.google.com (mail-pb0-x22a.google.com [2607:f8b0:400e:c01::22a])
+        by mx.google.com with ESMTPS id ds4si20064154pbb.349.2014.02.03.02.49.34
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 03 Feb 2014 02:05:50 -0800 (PST)
-Received: by mail-pb0-f41.google.com with SMTP id up15so6881102pbc.14
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 02:05:50 -0800 (PST)
+        Mon, 03 Feb 2014 02:49:34 -0800 (PST)
+Received: by mail-pb0-f42.google.com with SMTP id jt11so6941698pbb.29
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 02:49:34 -0800 (PST)
+Date: Mon, 3 Feb 2014 02:49:32 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, compaction: avoid isolating pinned pages
+In-Reply-To: <20140203095329.GH6732@suse.de>
+Message-ID: <alpine.DEB.2.02.1402030231590.31061@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1402012145510.2593@chino.kir.corp.google.com> <20140203095329.GH6732@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <52EF3DBF.3000404@parallels.com>
-References: <cover.1391356789.git.vdavydov@parallels.com>
-	<570a97e4dfaded0939a9ddbea49055019dcc5803.1391356789.git.vdavydov@parallels.com>
-	<alpine.DEB.2.02.1402022219101.10847@chino.kir.corp.google.com>
-	<52EF3DBF.3000404@parallels.com>
-Date: Mon, 3 Feb 2014 14:05:50 +0400
-Message-ID: <CAA6-i6p5V4SvmtABw6xC7M4M86tUrAFEVyHaOP8uqse3Az1iHg@mail.gmail.com>
-Subject: Re: [PATCH 1/8] memcg: export kmemcg cache id via cgroup fs
-From: Glauber Costa <glommer@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, devel@openvz.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Feb 3, 2014 at 10:57 AM, Vladimir Davydov
-<vdavydov@parallels.com> wrote:
-> On 02/03/2014 10:21 AM, David Rientjes wrote:
->> On Sun, 2 Feb 2014, Vladimir Davydov wrote:
->>
->>> Per-memcg kmem caches are named as follows:
->>>
->>>   <global-cache-name>(<cgroup-kmem-id>:<cgroup-name>)
->>>
->>> where <cgroup-kmem-id> is the unique id of the memcg the cache belongs
->>> to, <cgroup-name> is the relative name of the memcg on the cgroup fs.
->>> Cache names are exposed to userspace for debugging purposes (e.g. via
->>> sysfs in case of slub or via dmesg).
->>>
->>> Using relative names makes it impossible in general (in case the cgroup
->>> hierarchy is not flat) to find out which memcg a particular cache
->>> belongs to, because <cgroup-kmem-id> is not known to the user. Since
->>> using absolute cgroup names would be an overkill, let's fix this by
->>> exporting the id of kmem-active memcg via cgroup fs file
->>> "memory.kmem.id".
->>>
->> Hmm, I'm not sure exporting additional information is the best way to do
->> it only for this purpose.  I do understand the problem in naming
->> collisions if the hierarchy isn't flat and we typically work around that
->> by ensuring child memcgs still have a unique memcg.  This isn't only a
->> problem in slab cache naming, me also avoid printing the entire absolute
->> names for things like the oom killer.
->
-> AFAIU, cgroup identifiers dumped on oom (cgroup paths, currently) and
-> memcg slab cache names serve for different purposes. The point is oom is
-> a perfectly normal situation for the kernel, and info dumped to dmesg is
-> for admin to find out the cause of the problem (a greedy user or
-> cgroup). On the other hand, slab cache names are dumped to dmesg only on
-> extraordinary situations - like bugs in slab implementation, or double
-> free, or detected memory leaks - where we usually do not need the name
-> of the memcg that triggered the problem, because the bug is likely to be
-> in the kernel subsys using the cache. Plus, the names are exported to
-> sysfs in case of slub, again for debugging purposes, AFAIK. So IMO the
-> use cases for oom vs slab names are completely different - information
-> vs debugging - and I want to export kmem.id only for the ability of
-> debugging kmemcg and slab subsystems.
->
+On Mon, 3 Feb 2014, Mel Gorman wrote:
 
-Then maybe it is better to wrap it into some kind of CONFIG_DEBUG wrap.
-We already have other files like that.
+> > Page migration will fail for memory that is pinned in memory with, for
+> > example, get_user_pages().  In this case, it is unnecessary to take
+> > zone->lru_lock or isolating the page and passing it to page migration
+> > which will ultimately fail.
+> > 
+> > This is a racy check, the page can still change from under us, but in
+> > that case we'll just fail later when attempting to move the page.
+> > 
+> > This avoids very expensive memory compaction when faulting transparent
+> > hugepages after pinning a lot of memory with a Mellanox driver.
+> > 
+> > On a 128GB machine and pinning ~120GB of memory, before this patch we
+> > see the enormous disparity in the number of page migration failures
+> > because of the pinning (from /proc/vmstat):
+> > 
+> > compact_blocks_moved 7609
+> > compact_pages_moved 3431
+> > compact_pagemigrate_failed 133219
+> > compact_stall 13
+> > 
+> > After the patch, it is much more efficient:
+> > 
+> > compact_blocks_moved 7998
+> > compact_pages_moved 6403
+> > compact_pagemigrate_failed 3
+> > compact_stall 15
+> > 
+> > Signed-off-by: David Rientjes <rientjes@google.com>
+> > ---
+> >  mm/compaction.c | 8 ++++++++
+> >  1 file changed, 8 insertions(+)
+> > 
+> > diff --git a/mm/compaction.c b/mm/compaction.c
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -578,6 +578,14 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+> >  			continue;
+> >  		}
+> >  
+> > +		/*
+> > +		 * Migration will fail if an anonymous page is pinned in memory,
+> > +		 * so avoid taking zone->lru_lock and isolating it unnecessarily
+> > +		 * in an admittedly racy check.
+> > +		 */
+> > +		if (!page_mapping(page) && page_count(page))
+> > +			continue;
+> > +
+> 
+> Are you sure about this? The page_count check migration does is this
+> 
+>         int expected_count = 1 + extra_count;
+>         if (!mapping) {
+>                 if (page_count(page) != expected_count)
+>                         return -EAGAIN;
+>                 return MIGRATEPAGE_SUCCESS;
+>         }
+> 
+>         spin_lock_irq(&mapping->tree_lock);
+> 
+>         pslot = radix_tree_lookup_slot(&mapping->page_tree,
+>                                         page_index(page));
+> 
+>         expected_count += 1 + page_has_private(page);
+> 
+> Migration expects and can migrate pages with no mapping and a page count
+> but you are now skipping them. I think you may have intended to split
+> migrations page count into a helper or copy the logic.
+> 
 
->> So it would be nice to have
->> consensus on how people are supposed to identify memcgs with a hierarchy:
->> either by exporting information like the id like you do here (but leave
->> the oom killer still problematic) or by insisting people name their memcgs
->> with unique names if they care to differentiate them.
->
-> Anyway, I agree with you that this needs a consensus, because this is a
-> functional change.
->
-> Thanks.
+Thanks for taking a look!
 
+The patch is correct, it just shows my lack of a complete commit message 
+which I'm struggling with recently.  In the case that this is addressing, 
+get_user_pages() already gives page_count(page) == 1, then 
+__isolate_lru_page() does another get_page() that is dropped in 
+putback_lru_page() after the call into migrate_pages().  So in the code 
+you quote above we always have page_count(page) == 2 and
+expected_count == 1.
 
+So what we desperately need to do is avoid isolating any page where 
+page_count(page) is non-zero and !page_mapping(page) and do that before 
+the get_page() in __isolate_lru_page() because we want to avoid taking 
+zone->lru_lock.  On my 128GB machine filled with ~120GB of pinned memory 
+for the driver, this lock gets highly contended under compaction and even 
+reclaim if the rest of userspace is using a lot of memory.
 
--- 
-E Mare, Libertas
+It's not really relevant to the commit message, but I found that if all 
+that ~120GB is faulted and I manually invoke compaction with the procfs 
+trigger (with my fix to do cc.ignore_skip_hint = true), this lock gets 
+taken ~450,000 times and only 0.05% of isolated pages are actually 
+successfully migrated.
+
+Deferred compaction will certainly help for compaction that isn't induced 
+via procfs, but we've encountered massive amounts of lock contention in 
+this path and extremely low success to failure ratios of page migration on 
+average of 2-3 out of 60 runs and the fault path really does grind to a 
+halt without this patch (or simply doing MADV_NOHUGEPAGE before the driver 
+does ib_umem_get() for 120GB of memory, but we want those hugepages!).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
