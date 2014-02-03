@@ -1,76 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 16CAB6B0035
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 18:31:43 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id lj1so7661753pab.26
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 15:31:42 -0800 (PST)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id s7si11078994pae.243.2014.02.03.15.31.41
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 03 Feb 2014 15:31:42 -0800 (PST)
-Received: by mail-pa0-f47.google.com with SMTP id kp14so7687705pab.34
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 15:31:41 -0800 (PST)
-Date: Mon, 3 Feb 2014 15:31:40 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] Fix lockdep false positive in add_full()
-In-Reply-To: <20140203225725.GA4069@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.02.1402031531160.7643@chino.kir.corp.google.com>
-References: <20140203225725.GA4069@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 530346B0035
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 18:36:31 -0500 (EST)
+Received: by mail-pb0-f50.google.com with SMTP id rq2so7715122pbb.9
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 15:36:31 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id ay1si15078326pbd.186.2014.02.03.15.36.30
+        for <linux-mm@kvack.org>;
+        Mon, 03 Feb 2014 15:36:30 -0800 (PST)
+Date: Mon, 3 Feb 2014 15:36:28 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 3/8] mm/swap: prevent concurrent swapon on the same
+ S_ISBLK blockdev
+Message-Id: <20140203153628.5e186b0e4e81400773faa7ac@linux-foundation.org>
+In-Reply-To: <000c01cf1b47$ce280170$6a780450$%yang@samsung.com>
+References: <000c01cf1b47$ce280170$6a780450$%yang@samsung.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, peterz@infradead.org
+To: Weijie Yang <weijie.yang@samsung.com>
+Cc: hughd@google.com, 'Minchan Kim' <minchan@kernel.org>, shli@kernel.org, 'Bob Liu' <bob.liu@oracle.com>, weijie.yang.kh@gmail.com, 'Seth Jennings' <sjennings@variantweb.net>, 'Heesub Shin' <heesub.shin@samsung.com>, mquzik@redhat.com, 'Linux-MM' <linux-mm@kvack.org>, 'linux-kernel' <linux-kernel@vger.kernel.org>, stable@vger.kernel.org
 
-On Mon, 3 Feb 2014, Paul E. McKenney wrote:
+On Mon, 27 Jan 2014 18:03:04 +0800 Weijie Yang <weijie.yang@samsung.com> wrote:
 
-> Hello!
+> When swapon the same S_ISBLK blockdev concurrent, the allocated two
+> swap_info could hold the same block_device, because claim_swapfile()
+> allow the same holder(here, it is sys_swapon function).
 > 
-> The add_full() function currently has a lockdep_assert_held() requiring
-> that the kmem_cache_node structure's ->list_lock be held.  However,
-> this lock is not acquired by add_full()'s caller deactivate_slab()
-> in the full-node case unless debugging is enabled.  Because full nodes
-> are accessed only by debugging code, this state of affairs results in
-> lockdep false-positive splats like the following:
+> To prevent this situation, This patch adds swap_lock protect to ensure
+> we can find this situation and return -EBUSY for one swapon call.
 > 
-> [   43.942868] WARNING: CPU: 0 PID: 698 at /home/paulmck/public_git/linux-rcu/mm/slub.c:1007 deactivate_slab+0x509/0x720()
-> [   43.943016] Modules linked in:
-> [   43.943016] CPU: 0 PID: 698 Comm: torture_onoff Not tainted 3.14.0-rc1+ #1
-> [   43.943016] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2007
-> [   43.943016]  00000000000003ef ffff88001e3f5ba8 ffffffff818952ec 0000000000000046
-> [   43.943016]  0000000000000000 ffff88001e3f5be8 ffffffff81049517 ffffea0000784e00
-> [   43.943016]  0000000000000000 ffffea00007a9000 0000000000000002 0000000000000000
-> [   43.943016] Call Trace:
-> [   43.943016]  [<ffffffff818952ec>] dump_stack+0x46/0x58
-> [   43.943016]  [<ffffffff81049517>] warn_slowpath_common+0x87/0xb0
-> [   43.943016]  [<ffffffff81049555>] warn_slowpath_null+0x15/0x20
-> [   43.943016]  [<ffffffff8116e679>] deactivate_slab+0x509/0x720
-> [   43.943016]  [<ffffffff8116eebb>] ? slab_cpuup_callback+0x3b/0x100
-> [   43.943016]  [<ffffffff8116ef52>] ? slab_cpuup_callback+0xd2/0x100
-> [   43.943016]  [<ffffffff8116ef24>] slab_cpuup_callback+0xa4/0x100
-> [   43.943016]  [<ffffffff818a4c14>] notifier_call_chain+0x54/0x110
-> [   43.943016]  [<ffffffff81075b79>] __raw_notifier_call_chain+0x9/0x10
-> [   43.943016]  [<ffffffff8104963b>] __cpu_notify+0x1b/0x30
-> [   43.943016]  [<ffffffff81049720>] cpu_notify_nofail+0x10/0x20
-> [   43.943016]  [<ffffffff8188cc5d>] _cpu_down+0x10d/0x2e0
-> [   43.943016]  [<ffffffff8188ce60>] cpu_down+0x30/0x50
-> [   43.943016]  [<ffffffff811205f3>] torture_onoff+0xd3/0x3c0
-> [   43.943016]  [<ffffffff81120520>] ? torture_onoff_stats+0x90/0x90
-> [   43.943016]  [<ffffffff810710df>] kthread+0xdf/0x100
-> [   43.943016]  [<ffffffff818a09cb>] ? _raw_spin_unlock_irq+0x2b/0x40
-> [   43.943016]  [<ffffffff81071000>] ? flush_kthread_worker+0x130/0x130
-> [   43.943016]  [<ffffffff818a983c>] ret_from_fork+0x7c/0xb0
-> [   43.943016]  [<ffffffff81071000>] ? flush_kthread_worker+0x130/0x130
+> As for S_ISREG swapfile, claim_swapfile() already prevent this scenario
+> by holding inode->i_mutex.
 > 
-> This commit therefore does the lockdep check only if debuggging is
-> enabled, thus avoiding the false positives.
+> This patch is just for a rare scenario, aim to correct of code.
 > 
-> Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-This was discussed in http://marc.info/?t=139145791300002, what do you 
-think about the patch in that thread instead?
+hm, OK.  Would it be saner to pass a unique `holder' to
+claim_swapfile()?  Say, `p'?
+
+Truly, I am fed up with silly swapon/swapoff races.  How often does
+anyone call these things?  Let's slap a huge lock around the whole
+thing and be done with it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
