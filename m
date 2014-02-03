@@ -1,92 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F5206B0036
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 08:01:34 -0500 (EST)
-Received: by mail-la0-f43.google.com with SMTP id pv20so5332617lab.2
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 05:01:33 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id ov7si3798310lbb.100.2014.02.03.05.01.32
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id C6D836B0035
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 08:20:04 -0500 (EST)
+Received: by mail-wg0-f53.google.com with SMTP id y10so11903717wgg.20
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 05:20:04 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id oq8si9852305wjc.167.2014.02.03.05.20.02
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Feb 2014 05:01:32 -0800 (PST)
-Message-ID: <52EF932B.3000100@parallels.com>
-Date: Mon, 3 Feb 2014 17:01:31 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 03 Feb 2014 05:20:03 -0800 (PST)
+Date: Mon, 3 Feb 2014 14:20:01 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC 1/5] memcg: cleanup charge routines
+Message-ID: <20140203132001.GE2495@dhcp22.suse.cz>
+References: <1387295130-19771-1-git-send-email-mhocko@suse.cz>
+ <1387295130-19771-2-git-send-email-mhocko@suse.cz>
+ <20140130171837.GD6963@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/8] memcg: export kmemcg cache id via cgroup fs
-References: <cover.1391356789.git.vdavydov@parallels.com> <570a97e4dfaded0939a9ddbea49055019dcc5803.1391356789.git.vdavydov@parallels.com> <alpine.DEB.2.02.1402022219101.10847@chino.kir.corp.google.com> <52EF3DBF.3000404@parallels.com> <CAA6-i6p5V4SvmtABw6xC7M4M86tUrAFEVyHaOP8uqse3Az1iHg@mail.gmail.com>
-In-Reply-To: <CAA6-i6p5V4SvmtABw6xC7M4M86tUrAFEVyHaOP8uqse3Az1iHg@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140130171837.GD6963@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@gmail.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, devel@openvz.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On 02/03/2014 02:05 PM, Glauber Costa wrote:
-> On Mon, Feb 3, 2014 at 10:57 AM, Vladimir Davydov
-> <vdavydov@parallels.com> wrote:
->> On 02/03/2014 10:21 AM, David Rientjes wrote:
->>> On Sun, 2 Feb 2014, Vladimir Davydov wrote:
->>>
->>>> Per-memcg kmem caches are named as follows:
->>>>
->>>>   <global-cache-name>(<cgroup-kmem-id>:<cgroup-name>)
->>>>
->>>> where <cgroup-kmem-id> is the unique id of the memcg the cache belongs
->>>> to, <cgroup-name> is the relative name of the memcg on the cgroup fs.
->>>> Cache names are exposed to userspace for debugging purposes (e.g. via
->>>> sysfs in case of slub or via dmesg).
->>>>
->>>> Using relative names makes it impossible in general (in case the cgroup
->>>> hierarchy is not flat) to find out which memcg a particular cache
->>>> belongs to, because <cgroup-kmem-id> is not known to the user. Since
->>>> using absolute cgroup names would be an overkill, let's fix this by
->>>> exporting the id of kmem-active memcg via cgroup fs file
->>>> "memory.kmem.id".
->>>>
->>> Hmm, I'm not sure exporting additional information is the best way to do
->>> it only for this purpose.  I do understand the problem in naming
->>> collisions if the hierarchy isn't flat and we typically work around that
->>> by ensuring child memcgs still have a unique memcg.  This isn't only a
->>> problem in slab cache naming, me also avoid printing the entire absolute
->>> names for things like the oom killer.
->> AFAIU, cgroup identifiers dumped on oom (cgroup paths, currently) and
->> memcg slab cache names serve for different purposes. The point is oom is
->> a perfectly normal situation for the kernel, and info dumped to dmesg is
->> for admin to find out the cause of the problem (a greedy user or
->> cgroup). On the other hand, slab cache names are dumped to dmesg only on
->> extraordinary situations - like bugs in slab implementation, or double
->> free, or detected memory leaks - where we usually do not need the name
->> of the memcg that triggered the problem, because the bug is likely to be
->> in the kernel subsys using the cache. Plus, the names are exported to
->> sysfs in case of slub, again for debugging purposes, AFAIK. So IMO the
->> use cases for oom vs slab names are completely different - information
->> vs debugging - and I want to export kmem.id only for the ability of
->> debugging kmemcg and slab subsystems.
->>
-> Then maybe it is better to wrap it into some kind of CONFIG_DEBUG wrap.
-> We already have other files like that.
+On Thu 30-01-14 12:18:37, Johannes Weiner wrote:
+> On Tue, Dec 17, 2013 at 04:45:26PM +0100, Michal Hocko wrote:
+[...]
+> > -static int __mem_cgroup_try_charge(struct mm_struct *mm,
+> > -				   gfp_t gfp_mask,
+> > +static int __mem_cgroup_try_charge_memcg(gfp_t gfp_mask,
+> >  				   unsigned int nr_pages,
+> > -				   struct mem_cgroup **ptr,
+> > +				   struct mem_cgroup *memcg,
+> >  				   bool oom)
+> 
+> Why not keep the __mem_cgroup_try_charge() name?  It's shorter and
+> just as descriptive.
 
-May be. However, kmemcg ids are actually exposed to userspace even on
-non-debug kernels (for instance, through /sys/kernel/slub), so I guess
-it's worth having this always enabled - the overhead of this is
-negligible anyway.
+I wanted to have 2 different names with clear reference to _what_ is
+going to be charged. But I am always open to naming suggestions.
 
-Thanks.
+[...]
+> > +static bool mem_cgroup_bypass_charge(void)
+> 
+> The name and parameter list suggests this consults some global memory
+> cgroup state.  current_bypass_charge()?
 
+OK, that sounds better.
+
+> I think ultimately we want to move away from all these mem_cgroup
+> prefixes of static functions in there, they add nothing of value.
+
+Yes, I agree that mem_cgroup prefix is clumsy and we should drop it.
+
+[...]
+> > +/*
+> > + * Charges and returns memcg associated with the given mm (or root_mem_cgroup
+> > + * if mm is NULL). Returns NULL if memcg is under OOM.
+> > + */
+> > +static struct mem_cgroup *mem_cgroup_try_charge_mm(struct mm_struct *mm,
+> > +				   gfp_t gfp_mask,
+> > +				   unsigned int nr_pages,
+> > +				   bool oom)
+> 
+> We already have a try_get_mem_cgroup_from_mm().
 >
->>> So it would be nice to have
->>> consensus on how people are supposed to identify memcgs with a hierarchy:
->>> either by exporting information like the id like you do here (but leave
->>> the oom killer still problematic) or by insisting people name their memcgs
->>> with unique names if they care to differentiate them.
->> Anyway, I agree with you that this needs a consensus, because this is a
->> functional change.
->>
->> Thanks.
->
->
+> After this series, this function basically duplicates that and it
+> would be much cleaner if we only had one try_charge() function and let
+> all the callers use the appropriate try_get_mem_cgroup_from_wherever()
+> themselves.
+
+try_get_mem_cgroup_from_mm doesn't charge memory itself. It just tries
+to get memcg from the given mm. It is called also from a context which
+doesn't charge any memory (task_in_mem_cgroup). Or have I misunderstood
+you?
+
+> If you pull the patch that moves consume_stock() back into
+> try_charge() up front, I think this cleanup would be more obvious and
+> the result even better.
+
+OK, I can move it.
+
+Thanks!
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
