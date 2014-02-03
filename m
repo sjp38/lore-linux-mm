@@ -1,58 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id A3DBD6B0035
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 01:21:31 -0500 (EST)
-Received: by mail-pd0-f172.google.com with SMTP id p10so6518875pdj.3
-        for <linux-mm@kvack.org>; Sun, 02 Feb 2014 22:21:31 -0800 (PST)
-Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com [2607:f8b0:400e:c02::22a])
-        by mx.google.com with ESMTPS id fu1si19240785pbc.254.2014.02.02.22.21.30
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 02 Feb 2014 22:21:30 -0800 (PST)
-Received: by mail-pd0-f170.google.com with SMTP id p10so6528565pdj.29
-        for <linux-mm@kvack.org>; Sun, 02 Feb 2014 22:21:30 -0800 (PST)
-Date: Sun, 2 Feb 2014 22:21:28 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/8] memcg: export kmemcg cache id via cgroup fs
-In-Reply-To: <570a97e4dfaded0939a9ddbea49055019dcc5803.1391356789.git.vdavydov@parallels.com>
-Message-ID: <alpine.DEB.2.02.1402022219101.10847@chino.kir.corp.google.com>
-References: <cover.1391356789.git.vdavydov@parallels.com> <570a97e4dfaded0939a9ddbea49055019dcc5803.1391356789.git.vdavydov@parallels.com>
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EC4B6B0035
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 01:41:43 -0500 (EST)
+Received: by mail-pd0-f179.google.com with SMTP id q10so6484960pdj.24
+        for <linux-mm@kvack.org>; Sun, 02 Feb 2014 22:41:42 -0800 (PST)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id sz7si19306736pab.290.2014.02.02.22.41.39
+        for <linux-mm@kvack.org>;
+        Sun, 02 Feb 2014 22:41:42 -0800 (PST)
+Date: Mon, 3 Feb 2014 15:41:38 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 6/6] mm, hugetlb: improve page-fault scalability
+Message-ID: <20140203064138.GA2360@lge.com>
+References: <1391189806-13319-1-git-send-email-davidlohr@hp.com>
+ <1391189806-13319-7-git-send-email-davidlohr@hp.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1391189806-13319-7-git-send-email-davidlohr@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.cz, penberg@kernel.org, cl@linux.com, glommer@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, mhocko@suse.cz, aneesh.kumar@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, hughd@google.com, david@gibson.dropbear.id.au, liwanp@linux.vnet.ibm.com, n-horiguchi@ah.jp.nec.com, dhillf@gmail.com, rientjes@google.com, aswin@hp.com, scott.norton@hp.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, 2 Feb 2014, Vladimir Davydov wrote:
+On Fri, Jan 31, 2014 at 09:36:46AM -0800, Davidlohr Bueso wrote:
+> From: Davidlohr Bueso <davidlohr@hp.com>
+> 
+> The kernel can currently only handle a single hugetlb page fault at a time.
+> This is due to a single mutex that serializes the entire path. This lock
+> protects from spurious OOM errors under conditions of low of low availability
+> of free hugepages. This problem is specific to hugepages, because it is
+> normal to want to use every single hugepage in the system - with normal pages
+> we simply assume there will always be a few spare pages which can be used
+> temporarily until the race is resolved.
+> 
+> Address this problem by using a table of mutexes, allowing a better chance of
+> parallelization, where each hugepage is individually serialized. The hash key
+> is selected depending on the mapping type. For shared ones it consists of the
+> address space and file offset being faulted; while for private ones the mm and
+> virtual address are used. The size of the table is selected based on a compromise
+> of collisions and memory footprint of a series of database workloads.
 
-> Per-memcg kmem caches are named as follows:
-> 
->   <global-cache-name>(<cgroup-kmem-id>:<cgroup-name>)
-> 
-> where <cgroup-kmem-id> is the unique id of the memcg the cache belongs
-> to, <cgroup-name> is the relative name of the memcg on the cgroup fs.
-> Cache names are exposed to userspace for debugging purposes (e.g. via
-> sysfs in case of slub or via dmesg).
-> 
-> Using relative names makes it impossible in general (in case the cgroup
-> hierarchy is not flat) to find out which memcg a particular cache
-> belongs to, because <cgroup-kmem-id> is not known to the user. Since
-> using absolute cgroup names would be an overkill, let's fix this by
-> exporting the id of kmem-active memcg via cgroup fs file
-> "memory.kmem.id".
-> 
+Hello,
 
-Hmm, I'm not sure exporting additional information is the best way to do 
-it only for this purpose.  I do understand the problem in naming 
-collisions if the hierarchy isn't flat and we typically work around that 
-by ensuring child memcgs still have a unique memcg.  This isn't only a 
-problem in slab cache naming, me also avoid printing the entire absolute 
-names for things like the oom killer.  So it would be nice to have 
-consensus on how people are supposed to identify memcgs with a hierarchy: 
-either by exporting information like the id like you do here (but leave 
-the oom killer still problematic) or by insisting people name their memcgs 
-with unique names if they care to differentiate them.
+Thanks for doing this patchset. :)
+Just one question!
+Why do we need a separate hash key depending on the mapping type?
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
