@@ -1,48 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
-	by kanga.kvack.org (Postfix) with ESMTP id D96016B0035
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 03:15:12 -0500 (EST)
-Received: by mail-qc0-f181.google.com with SMTP id e9so10448145qcy.40
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 00:15:12 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id v46si5242101qgv.150.2014.02.03.00.15.12
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id BBEFD6B0037
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 03:24:33 -0500 (EST)
+Received: by mail-pb0-f43.google.com with SMTP id md12so6781001pbc.2
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 00:24:33 -0800 (PST)
+Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com. [202.81.31.147])
+        by mx.google.com with ESMTPS id r7si19642095pbk.117.2014.02.03.00.24.31
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Feb 2014 00:15:12 -0800 (PST)
-Date: Mon, 3 Feb 2014 00:15:06 -0800
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH] block devices: validate block device capacity
-Message-ID: <20140203081506.GA10961@infradead.org>
-References: <alpine.LRH.2.02.1401301531040.29912@file01.intranet.prod.int.rdu2.redhat.com>
- <1391122163.2181.103.camel@dabdike.int.hansenpartnership.com>
- <alpine.LRH.2.02.1401301805590.19506@file01.intranet.prod.int.rdu2.redhat.com>
- <1391125027.2181.114.camel@dabdike.int.hansenpartnership.com>
- <alpine.LRH.2.02.1401301905520.25766@file01.intranet.prod.int.rdu2.redhat.com>
- <1391132609.2181.131.camel@dabdike.int.hansenpartnership.com>
- <alpine.LRH.2.02.1401302116180.9767@file01.intranet.prod.int.rdu2.redhat.com>
- <1391147127.2181.159.camel@dabdike.int.hansenpartnership.com>
- <alpine.LRH.2.02.1401310316560.21451@file01.intranet.prod.int.rdu2.redhat.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 03 Feb 2014 00:24:32 -0800 (PST)
+Received: from /spool/local
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <raghavendra.kt@linux.vnet.ibm.com>;
+	Mon, 3 Feb 2014 18:24:27 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id BB2F03578052
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 19:24:21 +1100 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s138546o60162170
+	for <linux-mm@kvack.org>; Mon, 3 Feb 2014 19:05:04 +1100
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s138OL4J008571
+	for <linux-mm@kvack.org>; Mon, 3 Feb 2014 19:24:21 +1100
+Message-ID: <52EF53B5.6050203@linux.vnet.ibm.com>
+Date: Mon, 03 Feb 2014 14:00:45 +0530
+From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1401310316560.21451@file01.intranet.prod.int.rdu2.redhat.com>
+Subject: Re: [RFC PATCH V5] mm readahead: Fix readahead fail for no local
+ memory and limit readahead pages
+References: <1390388025-1418-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
+In-Reply-To: <1390388025-1418-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, Jens Axboe <axboe@kernel.dk>, "Alasdair G. Kergon" <agk@redhat.com>, Mike Snitzer <msnitzer@redhat.com>, dm-devel@redhat.com, "David S. Miller" <davem@davemloft.net>, linux-ide@vger.kernel.org, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, Neil Brown <neilb@suse.de>, linux-raid@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, Linus <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jan 31, 2014 at 03:20:17AM -0500, Mikulas Patocka wrote:
-> So if you think you can support 16TiB devices and leave pgoff_t 32-bit, 
-> send a patch that does it.
-> 
-> Until you make it, you should apply the patch that I sent, that prevents 
-> kernel lockups or data corruption when the user uses 16TiB device on 
-> 32-bit kernel.
+On 01/22/2014 04:23 PM, Raghavendra K T wrote:
+> max_sane_readahead returns zero on the cpu having no local memory
+> node. Fix that by returning a sanitized number of pages viz.,
+> minimum of (requested pages, 4k)
+>
+> Result:
+> fadvise experiment with FADV_WILLNEED on a x240 machine with 1GB testfile
+> 32GB* 4G RAM  numa machine ( 12 iterations) yielded
+>
+> Kernel     Avg      Stddev
+> base      7.2963    1.10 %
+> patched   7.2972    1.18 %
+>
+> Reviewed-by: Jan Kara <jack@suse.cz>
+> Signed-off-by: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+> ---
 
-Exactly.  I had actually looked into support for > 16TiB devices for
-a NAS use case a while ago, but when explaining the effort involves
-the idea was dropped quickly.  The Linux block device is too deeply
-tied to the pagecache to make it easily feasible.
+Could you please let me know what do you feel about the patch ?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
