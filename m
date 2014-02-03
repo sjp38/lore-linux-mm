@@ -1,89 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id BAA276B0035
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 17:08:37 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id lj1so7611377pab.40
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 14:08:37 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id ye6si22049053pbc.110.2014.02.03.14.08.36
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 15C6F6B0035
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 17:34:44 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id lf10so7663758pab.4
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 14:34:43 -0800 (PST)
+Received: from qmta14.westchester.pa.mail.comcast.net (qmta14.westchester.pa.mail.comcast.net. [2001:558:fe14:44:76:96:59:212])
+        by mx.google.com with ESMTP id i8si22130941pav.16.2014.02.03.14.34.42
         for <linux-mm@kvack.org>;
-        Mon, 03 Feb 2014 14:08:36 -0800 (PST)
-Date: Mon, 3 Feb 2014 14:08:35 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 2/7] memcg, slab: cleanup memcg cache name creation
-Message-Id: <20140203140835.c414b6222abfd9c349648e2a@linux-foundation.org>
-In-Reply-To: <ec86147b3dfd5bf7da5b34e12b7a4e4881f49690.1391441746.git.vdavydov@parallels.com>
-References: <cover.1391441746.git.vdavydov@parallels.com>
-	<ec86147b3dfd5bf7da5b34e12b7a4e4881f49690.1391441746.git.vdavydov@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 03 Feb 2014 14:34:43 -0800 (PST)
+Date: Mon, 3 Feb 2014 16:34:40 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Kernel WARNING splat in 3.14-rc1
+In-Reply-To: <alpine.DEB.2.02.1402031236250.7898@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.10.1402031634230.5527@nuc>
+References: <52EFF658.2080001@lwfinger.net> <alpine.DEB.2.02.1402031236250.7898@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: mhocko@suse.cz, rientjes@google.com, penberg@kernel.org, cl@linux.com, glommer@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org
+To: David Rientjes <rientjes@google.com>
+Cc: Larry Finger <Larry.Finger@lwfinger.net>, Pekka Enberg <penberg@kernel.org>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 3 Feb 2014 19:54:37 +0400 Vladimir Davydov <vdavydov@parallels.com> wrote:
+On Mon, 3 Feb 2014, David Rientjes wrote:
 
-> The way memcg_create_kmem_cache() creates the name for a memcg cache
-> looks rather strange: it first formats the name in the static buffer
-> tmp_name protected by a mutex, then passes the pointer to the buffer to
-> kmem_cache_create_memcg(), which finally duplicates it to the cache
-> name.
-> 
-> Let's clean this up by moving memcg cache name creation to a separate
-> function to be called by kmem_cache_create_memcg(), and estimating the
-> length of the name string before copying anything to it so that we won't
-> need a temporary buffer.
-> 
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3193,6 +3193,37 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
->  	return 0;
->  }
->  
-> +static int memcg_print_cache_name(char *buf, size_t size,
-> +		struct mem_cgroup *memcg, struct kmem_cache *root_cache)
-> +{
-> +	int ret;
-> +
-> +	rcu_read_lock();
-> +	ret = snprintf(buf, size, "%s(%d:%s)", root_cache->name,
-> +		       memcg_cache_id(memcg), cgroup_name(memcg->css.cgroup));
-> +	rcu_read_unlock();
-> +	return ret;
-> +}
-> +
-> +char *memcg_create_cache_name(struct mem_cgroup *memcg,
-> +			      struct kmem_cache *root_cache)
-> +{
-> +	int len;
-> +	char *name;
-> +
-> +	/*
-> +	 * We cannot use kasprintf() here, because cgroup_name() must be called
-> +	 * under RCU protection.
-> +	 */
-> +	len = memcg_print_cache_name(NULL, 0, memcg, root_cache);
-> +
-> +	name = kmalloc(len + 1, GFP_KERNEL);
-> +	if (name)
-> +		memcg_print_cache_name(name, len + 1, memcg, root_cache);
+> Commit c65c1877bd68 ("slub: use lockdep_assert_held") incorrectly required
+> that add_full() and remove_full() hold n->list_lock.  The lock is only
+> taken when kmem_cache_debug(s), since that's the only time it actually
+> does anything.
 
-but but but this assumes that cgroup_name(memcg->css.cgroup) did not
-change between the two calls to memcg_print_cache_name().  If that is
-the case then the locking was unneeded anyway.
-
-> +	return name;
-> +}
-> +
->  int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
->  			     struct kmem_cache *root_cache)
->  {
-> @@ -3397,44 +3428,6 @@ void mem_cgroup_destroy_cache(struct kmem_cache *cachep)
->  	schedule_work(&cachep->memcg_params->destroy);
->  }
->  
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
