@@ -1,80 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 008876B0035
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 02:19:58 -0500 (EST)
-Received: by mail-lb0-f177.google.com with SMTP id z5so4958003lbh.22
-        for <linux-mm@kvack.org>; Sun, 02 Feb 2014 23:19:58 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id ov7si3252925lbb.70.2014.02.02.23.19.39
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 02 Feb 2014 23:19:39 -0800 (PST)
-Message-ID: <52EF4309.2040103@parallels.com>
-Date: Mon, 3 Feb 2014 11:19:37 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F3CD6B0035
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 02:45:10 -0500 (EST)
+Received: by mail-pd0-f176.google.com with SMTP id w10so6526781pde.21
+        for <linux-mm@kvack.org>; Sun, 02 Feb 2014 23:45:10 -0800 (PST)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id ek3si19520102pbd.115.2014.02.02.23.45.08
+        for <linux-mm@kvack.org>;
+        Sun, 02 Feb 2014 23:45:09 -0800 (PST)
+Date: Mon, 3 Feb 2014 16:45:07 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 0/7] improve robustness on handling migratetype
+Message-ID: <20140203074507.GB2360@lge.com>
+References: <1389251087-10224-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20140109092720.GM27046@suse.de>
+ <20140110084854.GA22058@lge.com>
+ <52E931D9.8050002@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/8] memcg: export kmemcg cache id via cgroup fs
-References: <cover.1391356789.git.vdavydov@parallels.com> <570a97e4dfaded0939a9ddbea49055019dcc5803.1391356789.git.vdavydov@parallels.com> <alpine.DEB.2.02.1402022219101.10847@chino.kir.corp.google.com> <52EF3DBF.3000404@parallels.com>
-In-Reply-To: <52EF3DBF.3000404@parallels.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52E931D9.8050002@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: David Rientjes <rientjes@google.com>, akpm@linux-foundation.org, mhocko@suse.cz, penberg@kernel.org, cl@linux.com, glommer@gmail.com, linux-mm@kvack.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jiang Liu <jiang.liu@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Andi Kleen <ak@linux.intel.com>, Wei Yongjun <yongjun_wei@trendmicro.com.cn>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-[adding Johannes Weiner and Hugh Dickins to cc in case they have
-something to object against this]
+On Wed, Jan 29, 2014 at 05:52:41PM +0100, Vlastimil Babka wrote:
+> On 01/10/2014 09:48 AM, Joonsoo Kim wrote:
+> >On Thu, Jan 09, 2014 at 09:27:20AM +0000, Mel Gorman wrote:
+> >>On Thu, Jan 09, 2014 at 04:04:40PM +0900, Joonsoo Kim wrote:
+> >>>Hello,
+> >>>
+> >>>I found some weaknesses on handling migratetype during code review and
+> >>>testing CMA.
+> >>>
+> >>>First, we don't have any synchronization method on get/set pageblock
+> >>>migratetype. When we change migratetype, we hold the zone lock. So
+> >>>writer-writer race doesn't exist. But while someone changes migratetype,
+> >>>others can get migratetype. This may introduce totally unintended value
+> >>>as migratetype. Although I haven't heard of any problem report about
+> >>>that, it is better to protect properly.
+> >>>
+> >>
+> >>This is deliberate. The migratetypes for the majority of users are advisory
+> >>and aimed for fragmentation avoidance. It was important that the cost of
+> >>that be kept as low as possible and the general case is that migration types
+> >>change very rarely. In many cases, the zone lock is held. In other cases,
+> >>such as splitting free pages, the cost is simply not justified.
+> >>
+> >>I doubt there is any amount of data you could add in support that would
+> >>justify hammering the free fast paths (which call get_pageblock_type).
+> >
+> >Hello, Mel.
+> >
+> >There is a possibility that we can get unintended value such as 6 as migratetype
+> >if reader-writer (get/set pageblock_migratetype) race happends. It can be
+> >possible, because we read the value without any synchronization method. And
+> >this migratetype, 6, has no place in buddy freelist, so array index overrun can
+> >be possible and the system can break, although I haven't heard that it occurs.
+> 
+> Hello,
+> 
+> it seems this can indeed happen. I'm working on memory compaction
+> improvements and in a prototype patch, I'm basically adding calls of
+> start_isolate_page_range() undo_isolate_page_range() some functions
+> under compact_zone(). With this I've seen occurrences of NULL
+> pointers in move_freepages(), free_one_page() in places where
+> free_list[migratetype] is manipulated by e.g. list_move(). That lead
+> me to question the value of migratetype and I found this thread.
+> Adding some debugging in get_pageblock_migratetype() and voila, I
+> get a value of 6 being read.
+> 
+> So is it just my patch adding a dangerous situation, or does it exist in
+> mainline as well? By looking at free_one_page(), it uses zone->lock, but
+> get_pageblock_migratetype() is called by its callers
+> (free_hot_cold_page() or __free_pages_ok()) outside of the lock.
+> This determined migratetype is then used under free_one_page() to
+> access a free_list.
+> 
+> It seems that this could race with set_pageblock_migratetype()
+> called from try_to_steal_freepages() (despite the latter being
+> properly locked). There are also other callers but those seem to be
+> either limited to initialization and isolation, which should be rare
+> (?).
+> However, try_to_steal_freepages can occur repeatedly.
+> So I assume that the race happens but never manifests as a fatal
+> error as long as MIGRATE_UNMOVABLE, MIGRATE_RECLAIMABLE and
+> MIGRATE_MOVABLE
+> values are used. Only MIGRATE_CMA and MIGRATE_ISOLATE have values
+> with bit 4 enabled and can thus result in invalid values due to
+> non-atomic access.
+> 
+> Does that make sense to you and should we thus proceed with patching
+> this race?
+> 
 
-On 02/03/2014 10:57 AM, Vladimir Davydov wrote:
-> On 02/03/2014 10:21 AM, David Rientjes wrote:
->> On Sun, 2 Feb 2014, Vladimir Davydov wrote:
->>
->>> Per-memcg kmem caches are named as follows:
->>>
->>>   <global-cache-name>(<cgroup-kmem-id>:<cgroup-name>)
->>>
->>> where <cgroup-kmem-id> is the unique id of the memcg the cache belongs
->>> to, <cgroup-name> is the relative name of the memcg on the cgroup fs.
->>> Cache names are exposed to userspace for debugging purposes (e.g. via
->>> sysfs in case of slub or via dmesg).
->>>
->>> Using relative names makes it impossible in general (in case the cgroup
->>> hierarchy is not flat) to find out which memcg a particular cache
->>> belongs to, because <cgroup-kmem-id> is not known to the user. Since
->>> using absolute cgroup names would be an overkill, let's fix this by
->>> exporting the id of kmem-active memcg via cgroup fs file
->>> "memory.kmem.id".
->>>
->> Hmm, I'm not sure exporting additional information is the best way to do 
->> it only for this purpose.  I do understand the problem in naming 
->> collisions if the hierarchy isn't flat and we typically work around that 
->> by ensuring child memcgs still have a unique memcg.  This isn't only a 
->> problem in slab cache naming, me also avoid printing the entire absolute 
->> names for things like the oom killer.
-> AFAIU, cgroup identifiers dumped on oom (cgroup paths, currently) and
-> memcg slab cache names serve for different purposes. The point is oom is
-> a perfectly normal situation for the kernel, and info dumped to dmesg is
-> for admin to find out the cause of the problem (a greedy user or
-> cgroup). On the other hand, slab cache names are dumped to dmesg only on
-> extraordinary situations - like bugs in slab implementation, or double
-> free, or detected memory leaks - where we usually do not need the name
-> of the memcg that triggered the problem, because the bug is likely to be
-> in the kernel subsys using the cache. Plus, the names are exported to
-> sysfs in case of slub, again for debugging purposes, AFAIK. So IMO the
-> use cases for oom vs slab names are completely different - information
-> vs debugging - and I want to export kmem.id only for the ability of
-> debugging kmemcg and slab subsystems.
->
->> So it would be nice to have 
->> consensus on how people are supposed to identify memcgs with a hierarchy: 
->> either by exporting information like the id like you do here (but leave 
->> the oom killer still problematic) or by insisting people name their memcgs 
->> with unique names if they care to differentiate them.
-> Anyway, I agree with you that this needs a consensus, because this is a
-> functional change.
->
-> Thanks.
+Hello,
+
+This race is possible without your prototype patch, however, on very low
+probability. Some codes related to memory failure use set_migratetype_isolate()
+which could result in this race.
+
+Although it may be very rare case and not critical, it is better to fix
+this race. I prefer that we don't depend on luck. :)
+
+Mel's suggestion looks good to me. Do you have another idea?
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
