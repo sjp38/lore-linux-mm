@@ -1,129 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 25C2C6B0035
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 05:49:36 -0500 (EST)
-Received: by mail-pb0-f46.google.com with SMTP id um1so6951007pbc.33
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 02:49:35 -0800 (PST)
-Received: from mail-pb0-x22a.google.com (mail-pb0-x22a.google.com [2607:f8b0:400e:c01::22a])
-        by mx.google.com with ESMTPS id ds4si20064154pbb.349.2014.02.03.02.49.34
+Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 538DD6B0035
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 05:55:11 -0500 (EST)
+Received: by mail-we0-f170.google.com with SMTP id w62so2017047wes.29
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 02:55:10 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id wx10si9662400wjc.17.2014.02.03.02.55.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 03 Feb 2014 02:49:34 -0800 (PST)
-Received: by mail-pb0-f42.google.com with SMTP id jt11so6941698pbb.29
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 02:49:34 -0800 (PST)
-Date: Mon, 3 Feb 2014 02:49:32 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, compaction: avoid isolating pinned pages
-In-Reply-To: <20140203095329.GH6732@suse.de>
-Message-ID: <alpine.DEB.2.02.1402030231590.31061@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1402012145510.2593@chino.kir.corp.google.com> <20140203095329.GH6732@suse.de>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 03 Feb 2014 02:55:09 -0800 (PST)
+Date: Mon, 3 Feb 2014 11:55:08 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: That greedy Linux VM cache
+Message-ID: <20140203105508.GB2495@dhcp22.suse.cz>
+References: <CA+sTkh4fYZr-8vBuhA0c1BRt5D7oNiK=KrSF+kJ2KRW7e_LFaA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+sTkh4fYZr-8vBuhA0c1BRt5D7oNiK=KrSF+kJ2KRW7e_LFaA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Igor Podlesny <for.poige+linux@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 3 Feb 2014, Mel Gorman wrote:
+[Adding linux-mm to the CC]
 
-> > Page migration will fail for memory that is pinned in memory with, for
-> > example, get_user_pages().  In this case, it is unnecessary to take
-> > zone->lru_lock or isolating the page and passing it to page migration
-> > which will ultimately fail.
-> > 
-> > This is a racy check, the page can still change from under us, but in
-> > that case we'll just fail later when attempting to move the page.
-> > 
-> > This avoids very expensive memory compaction when faulting transparent
-> > hugepages after pinning a lot of memory with a Mellanox driver.
-> > 
-> > On a 128GB machine and pinning ~120GB of memory, before this patch we
-> > see the enormous disparity in the number of page migration failures
-> > because of the pinning (from /proc/vmstat):
-> > 
-> > compact_blocks_moved 7609
-> > compact_pages_moved 3431
-> > compact_pagemigrate_failed 133219
-> > compact_stall 13
-> > 
-> > After the patch, it is much more efficient:
-> > 
-> > compact_blocks_moved 7998
-> > compact_pages_moved 6403
-> > compact_pagemigrate_failed 3
-> > compact_stall 15
-> > 
-> > Signed-off-by: David Rientjes <rientjes@google.com>
-> > ---
-> >  mm/compaction.c | 8 ++++++++
-> >  1 file changed, 8 insertions(+)
-> > 
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -578,6 +578,14 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-> >  			continue;
-> >  		}
-> >  
-> > +		/*
-> > +		 * Migration will fail if an anonymous page is pinned in memory,
-> > +		 * so avoid taking zone->lru_lock and isolating it unnecessarily
-> > +		 * in an admittedly racy check.
-> > +		 */
-> > +		if (!page_mapping(page) && page_count(page))
-> > +			continue;
-> > +
+On Fri 31-01-14 00:58:16, Igor Podlesny wrote:
+>    Hello!
 > 
-> Are you sure about this? The page_count check migration does is this
-> 
->         int expected_count = 1 + extra_count;
->         if (!mapping) {
->                 if (page_count(page) != expected_count)
->                         return -EAGAIN;
->                 return MIGRATEPAGE_SUCCESS;
->         }
-> 
->         spin_lock_irq(&mapping->tree_lock);
-> 
->         pslot = radix_tree_lookup_slot(&mapping->page_tree,
->                                         page_index(page));
-> 
->         expected_count += 1 + page_has_private(page);
-> 
-> Migration expects and can migrate pages with no mapping and a page count
-> but you are now skipping them. I think you may have intended to split
-> migrations page count into a helper or copy the logic.
-> 
+>    Probably every Linux newcomer's going to have concerns regarding
+> low free memory and hear an explanation from Linux old fellows that's
+> actually there's plenty of -- it's just cached, but when it's needed
+> for applications it's gonna be used -- on demand. I also thought so
+> until recently I noticed that even when free memory's is almost
+> exhausted (~ 75 Mib), and processes are in sleep_on_page_killable, the
 
-Thanks for taking a look!
+This means that the page has to be written back in order to be dropped.
+How much dirty memory you have (comparing to the total size of the page
+cache)?
+What does your /proc/sys/vm/dirty_ratio say?
+How fast is your storage?
 
-The patch is correct, it just shows my lack of a complete commit message 
-which I'm struggling with recently.  In the case that this is addressing, 
-get_user_pages() already gives page_count(page) == 1, then 
-__isolate_lru_page() does another get_page() that is dropped in 
-putback_lru_page() after the call into migrate_pages().  So in the code 
-you quote above we always have page_count(page) == 2 and
-expected_count == 1.
+Also, is this 32b or 64b system?
 
-So what we desperately need to do is avoid isolating any page where 
-page_count(page) is non-zero and !page_mapping(page) and do that before 
-the get_page() in __isolate_lru_page() because we want to avoid taking 
-zone->lru_lock.  On my 128GB machine filled with ~120GB of pinned memory 
-for the driver, this lock gets highly contended under compaction and even 
-reclaim if the rest of userspace is using a lot of memory.
+> cache is somewhat like ~ 500 MiB and it's not going to return back
+> what it's gained. Naturally, vm.drop_caches 3 doesn't squeeze it as
+> well. That drama has been happening on rather
+> outdated-but-yet-still-has-2GiB-of-RAM notebook with kernel from 3.10
+> till 3.12.9 (3.13 is the first release for a long time which simply
+> freezes the notebook so cold, that SysRq_B's not working, but that's
+> another story). Everything RAM demanding just yet crawls, load average
+> is getting higher and there's no paging out, but on going disk mostly
+> _read_ and a bit write activity. If vm.swaPPineSS not 0, it's swapping
+> out, but not much, right now I ran Chromium (in addition to long-run
+> Firefox) and only 32 MiB went to swap, load avg. ~ 7
+> 
+>    Again: 25 % is told (by top, free and finally /proc/meminfo) to be
+> cached, but kinda greedy.
+> 
+>    I came across similar issue report:
+> http://www.spinics.net/lists/linux-btrfs/msg11723.html but still
+> questions remain:
+> 
+>    * How to analyze it? slabtop doesn't mention even 100 MiB of slab
 
-It's not really relevant to the commit message, but I found that if all 
-that ~120GB is faulted and I manually invoke compaction with the procfs 
-trigger (with my fix to do cc.ignore_skip_hint = true), this lock gets 
-taken ~450,000 times and only 0.05% of isolated pages are actually 
-successfully migrated.
+snapshoting /proc/meminfo and /proc/vmstat every second or two while
+your load is bad might tell us more. 
 
-Deferred compaction will certainly help for compaction that isn't induced 
-via procfs, but we've encountered massive amounts of lock contention in 
-this path and extremely low success to failure ratios of page migration on 
-average of 2-3 out of 60 runs and the fault path really does grind to a 
-halt without this patch (or simply doing MADV_NOHUGEPAGE before the driver 
-does ib_umem_get() for 120GB of memory, but we want those hugepages!).
+>    * Why that's possible?
+
+That is hard to tell withou some numbers. But it might be possible that
+you are seeing the same issue as reported and fixed here: 
+http://marc.info/?l=linux-kernel&m=139060103406327&w=2
+
+Especially when you are using tmpfs (e.g. as a backing storage for /tmp)
+
+>    * The system is on Btrfs but /home is on XFS, so disk I/O might be
+> related to text segment paging? But anyway this leads us to question,
+> hey, there's 500 MiB free^Wcached.
+> 
+>    While I'm thinking about moving system back to XFS...
+> 
+>    P. S. While writing these, swapped ~ 100 MiB, and cache reduced(!)
+> to 377 MiB, Firefox is mostly in "D" -- sleep_on_page_killable, so is
+> Chrome, load avg. ~ 7. I had to close Skype to be able to finish that
+> letter, and cached mem. now is 439 MiB. :) I know it's time to
+> upgrade, but hey, cached memory is free memory, right?
+> 
+> -- 
+> End of message. Next message?
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
