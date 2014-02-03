@@ -1,103 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 538DD6B0035
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 05:55:11 -0500 (EST)
-Received: by mail-we0-f170.google.com with SMTP id w62so2017047wes.29
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 02:55:10 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id wx10si9662400wjc.17.2014.02.03.02.55.09
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 76A056B0035
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 06:04:29 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id un15so6872399pbc.24
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 03:04:29 -0800 (PST)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id eb3si20118098pbc.266.2014.02.03.03.04.28
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 03 Feb 2014 02:55:09 -0800 (PST)
-Date: Mon, 3 Feb 2014 11:55:08 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: That greedy Linux VM cache
-Message-ID: <20140203105508.GB2495@dhcp22.suse.cz>
-References: <CA+sTkh4fYZr-8vBuhA0c1BRt5D7oNiK=KrSF+kJ2KRW7e_LFaA@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 03 Feb 2014 03:04:28 -0800 (PST)
+Received: by mail-pa0-f44.google.com with SMTP id kq14so6964573pab.3
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 03:04:28 -0800 (PST)
+Date: Mon, 3 Feb 2014 03:04:26 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/8] memcg: export kmemcg cache id via cgroup fs
+In-Reply-To: <52EF3DBF.3000404@parallels.com>
+Message-ID: <alpine.DEB.2.02.1402030250110.31061@chino.kir.corp.google.com>
+References: <cover.1391356789.git.vdavydov@parallels.com> <570a97e4dfaded0939a9ddbea49055019dcc5803.1391356789.git.vdavydov@parallels.com> <alpine.DEB.2.02.1402022219101.10847@chino.kir.corp.google.com> <52EF3DBF.3000404@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+sTkh4fYZr-8vBuhA0c1BRt5D7oNiK=KrSF+kJ2KRW7e_LFaA@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Podlesny <for.poige+linux@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.cz, penberg@kernel.org, cl@linux.com, glommer@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org
 
-[Adding linux-mm to the CC]
+On Mon, 3 Feb 2014, Vladimir Davydov wrote:
 
-On Fri 31-01-14 00:58:16, Igor Podlesny wrote:
->    Hello!
+> AFAIU, cgroup identifiers dumped on oom (cgroup paths, currently) and
+> memcg slab cache names serve for different purposes.
+
+Sure, you may dump the name for a number of legitimate reasons, but the 
+problem still exists that it's difficult to determine what memcg is being 
+referenced without a flat hierarchy and unique memcg names for all 
+children.
+
+> The point is oom is
+> a perfectly normal situation for the kernel, and info dumped to dmesg is
+> for admin to find out the cause of the problem (a greedy user or
+> cgroup).
+
+Hmm, so if we hand out top-level memcgs to individual jobs or users, like 
+our userspace does, and they are able to configure their child memcgs as 
+they wish, and then they or the admin finds in the kernel log that a 
+memory hog was killed from the memcg with the perfectly anonymous memcg 
+name of "memcg", how do we determine what job or user triggered that kill?  
+User id is not going to be conclusive in a production environment with 
+shared user accounts.
+
+> On the other hand, slab cache names are dumped to dmesg only on
+> extraordinary situations - like bugs in slab implementation, or double
+> free, or detected memory leaks - where we usually do not need the name
+> of the memcg that triggered the problem, because the bug is likely to be
+> in the kernel subsys using the cache.
+
+There's certainly overlap here since slab leaks triggered by a particular 
+workload, perhaps by usage of a particular syscall, can occur and cause 
+oom killing but the problem remains that neither the memcg name nor the 
+slab cache name may be conclusive to determine what job or user triggered 
+the issue.  That's why we make strict demands that memcg names are always 
+unique and encode several key values to identify the user and job and we 
+don't rely on the parent.
+
+I can also see the huge maintenance burden it would be to keep around a 
+mapping of kmem ids to {user, job} pairs just in case we later identify a 
+problem and in 99% of the cases would be just wasted storage.
+
+> Plus, the names are exported to
+> sysfs in case of slub, again for debugging purposes, AFAIK. So IMO the
+> use cases for oom vs slab names are completely different - information
+> vs debugging - and I want to export kmem.id only for the ability of
+> debugging kmemcg and slab subsystems.
 > 
->    Probably every Linux newcomer's going to have concerns regarding
-> low free memory and hear an explanation from Linux old fellows that's
-> actually there's plenty of -- it's just cached, but when it's needed
-> for applications it's gonna be used -- on demand. I also thought so
-> until recently I noticed that even when free memory's is almost
-> exhausted (~ 75 Mib), and processes are in sleep_on_page_killable, the
 
-This means that the page has to be written back in order to be dropped.
-How much dirty memory you have (comparing to the total size of the page
-cache)?
-What does your /proc/sys/vm/dirty_ratio say?
-How fast is your storage?
-
-Also, is this 32b or 64b system?
-
-> cache is somewhat like ~ 500 MiB and it's not going to return back
-> what it's gained. Naturally, vm.drop_caches 3 doesn't squeeze it as
-> well. That drama has been happening on rather
-> outdated-but-yet-still-has-2GiB-of-RAM notebook with kernel from 3.10
-> till 3.12.9 (3.13 is the first release for a long time which simply
-> freezes the notebook so cold, that SysRq_B's not working, but that's
-> another story). Everything RAM demanding just yet crawls, load average
-> is getting higher and there's no paging out, but on going disk mostly
-> _read_ and a bit write activity. If vm.swaPPineSS not 0, it's swapping
-> out, but not much, right now I ran Chromium (in addition to long-run
-> Firefox) and only 32 MiB went to swap, load avg. ~ 7
-> 
->    Again: 25 % is told (by top, free and finally /proc/meminfo) to be
-> cached, but kinda greedy.
-> 
->    I came across similar issue report:
-> http://www.spinics.net/lists/linux-btrfs/msg11723.html but still
-> questions remain:
-> 
->    * How to analyze it? slabtop doesn't mention even 100 MiB of slab
-
-snapshoting /proc/meminfo and /proc/vmstat every second or two while
-your load is bad might tell us more. 
-
->    * Why that's possible?
-
-That is hard to tell withou some numbers. But it might be possible that
-you are seeing the same issue as reported and fixed here: 
-http://marc.info/?l=linux-kernel&m=139060103406327&w=2
-
-Especially when you are using tmpfs (e.g. as a backing storage for /tmp)
-
->    * The system is on Btrfs but /home is on XFS, so disk I/O might be
-> related to text segment paging? But anyway this leads us to question,
-> hey, there's 500 MiB free^Wcached.
-> 
->    While I'm thinking about moving system back to XFS...
-> 
->    P. S. While writing these, swapped ~ 100 MiB, and cache reduced(!)
-> to 377 MiB, Firefox is mostly in "D" -- sleep_on_page_killable, so is
-> Chrome, load avg. ~ 7. I had to close Skype to be able to finish that
-> letter, and cached mem. now is 439 MiB. :) I know it's time to
-> upgrade, but hey, cached memory is free memory, right?
-> 
-> -- 
-> End of message. Next message?
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-
--- 
-Michal Hocko
-SUSE Labs
+Eeek, I'm not sure I agree.  I've often found that reproducing rare slab 
+issues is very difficult without knowledge of the workload so that I can 
+reproduce it.  Whereas X is a very large number of machines and we see 
+this issue on 0.0001% of X machines, I would be required to enable this 
+"debugging" aid unconditionally to ever be able to map the stored kmem id 
+back to a user and job, that mapping would be extremely costly to 
+maintain, and we've gained nothing if we had already demanded that 
+userspace identify their memcg names with unique identifiers regardless of 
+where they are in the hierarchy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
