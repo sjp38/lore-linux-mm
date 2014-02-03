@@ -1,101 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f52.google.com (mail-oa0-f52.google.com [209.85.219.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B192C6B0035
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 17:57:30 -0500 (EST)
-Received: by mail-oa0-f52.google.com with SMTP id i4so9007225oah.11
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 14:57:30 -0800 (PST)
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com. [32.97.110.152])
-        by mx.google.com with ESMTPS id tb9si10585370obc.56.2014.02.03.14.57.29
+Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 8731C6B0035
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 18:00:51 -0500 (EST)
+Received: by mail-qa0-f43.google.com with SMTP id o15so11042461qap.2
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 15:00:51 -0800 (PST)
+Received: from e39.co.us.ibm.com (e39.co.us.ibm.com. [32.97.110.160])
+        by mx.google.com with ESMTPS id d67si15923122qgf.125.2014.02.03.15.00.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 03 Feb 2014 14:57:30 -0800 (PST)
+        Mon, 03 Feb 2014 15:00:50 -0800 (PST)
 Received: from /spool/local
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Mon, 3 Feb 2014 15:57:29 -0700
-Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 7D05E19D8051
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 15:57:26 -0700 (MST)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by b03cxnp07028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s13Mv3L94981066
-	for <linux-mm@kvack.org>; Mon, 3 Feb 2014 23:57:03 +0100
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id s13N0juZ003492
-	for <linux-mm@kvack.org>; Mon, 3 Feb 2014 16:00:45 -0700
-Date: Mon, 3 Feb 2014 14:57:25 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: [PATCH] Fix lockdep false positive in add_full()
-Message-ID: <20140203225725.GA4069@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Mon, 3 Feb 2014 16:00:49 -0700
+Received: from b01cxnp23034.gho.pok.ibm.com (b01cxnp23034.gho.pok.ibm.com [9.57.198.29])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id B3FF238C8027
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 18:00:47 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by b01cxnp23034.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s13N0lgS38273076
+	for <linux-mm@kvack.org>; Mon, 3 Feb 2014 23:00:47 GMT
+Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s13N0lVA023497
+	for <linux-mm@kvack.org>; Mon, 3 Feb 2014 18:00:47 -0500
+Date: Mon, 3 Feb 2014 15:00:26 -0800
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
+ no local memory
+Message-ID: <20140203230026.GA15383@linux.vnet.ibm.com>
+References: <52e1da8f.86f7440a.120f.25f3SMTPIN_ADDED_BROKEN@mx.google.com>
+ <alpine.DEB.2.10.1401240946530.12886@nuc>
+ <alpine.DEB.2.02.1401241301120.10968@chino.kir.corp.google.com>
+ <20140124232902.GB30361@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1401241543100.18620@chino.kir.corp.google.com>
+ <20140125001643.GA25344@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1401241618500.20466@chino.kir.corp.google.com>
+ <20140125011041.GB25344@linux.vnet.ibm.com>
+ <20140127055805.GA2471@lge.com>
+ <20140128182947.GA1591@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20140128182947.GA1591@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, peterz@infradead.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, penberg@kernel.org, linux-mm@kvack.org, paulus@samba.org, Anton Blanchard <anton@samba.org>, mpm@selenic.com, Christoph Lameter <cl@linux.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Hello!
+On 28.01.2014 [10:29:47 -0800], Nishanth Aravamudan wrote:
+> On 27.01.2014 [14:58:05 +0900], Joonsoo Kim wrote:
+> > On Fri, Jan 24, 2014 at 05:10:42PM -0800, Nishanth Aravamudan wrote:
+> > > On 24.01.2014 [16:25:58 -0800], David Rientjes wrote:
+> > > > On Fri, 24 Jan 2014, Nishanth Aravamudan wrote:
+> > > > 
+> > > > > Thank you for clarifying and providing  a test patch. I ran with this on
+> > > > > the system showing the original problem, configured to have 15GB of
+> > > > > memory.
+> > > > > 
+> > > > > With your patch after boot:
+> > > > > 
+> > > > > MemTotal:       15604736 kB
+> > > > > MemFree:         8768192 kB
+> > > > > Slab:            3882560 kB
+> > > > > SReclaimable:     105408 kB
+> > > > > SUnreclaim:      3777152 kB
+> > > > > 
+> > > > > With Anton's patch after boot:
+> > > > > 
+> > > > > MemTotal:       15604736 kB
+> > > > > MemFree:        11195008 kB
+> > > > > Slab:            1427968 kB
+> > > > > SReclaimable:     109184 kB
+> > > > > SUnreclaim:      1318784 kB
+> > > > > 
+> > > > > 
+> > > > > I know that's fairly unscientific, but the numbers are reproducible. 
+> > > > > 
+> > 
+> > Hello,
+> > 
+> > I think that there is one mistake on David's patch although I'm not sure
+> > that it is the reason for this result.
+> > 
+> > With David's patch, get_partial() in new_slab_objects() doesn't work
+> > properly, because we only change node id in !node_match() case. If we
+> > meet just !freelist case, we pass node id directly to
+> > new_slab_objects(), so we always try to allocate new slab page
+> > regardless existence of partial pages. We should solve it.
+> > 
+> > Could you try this one?
+> 
+> This helps about the same as David's patch -- but I found the reason
+> why! ppc64 doesn't set CONFIG_HAVE_MEMORYLESS_NODES :) Expect a patch
+> shortly for that and one other case I found.
+> 
+> This patch on its own seems to help on our test system by saving around
+> 1.5GB of slab.
+> 
+> Tested-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+> Acked-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+> 
+> with the caveat below.
 
-The add_full() function currently has a lockdep_assert_held() requiring
-that the kmem_cache_node structure's ->list_lock be held.  However,
-this lock is not acquired by add_full()'s caller deactivate_slab()
-in the full-node case unless debugging is enabled.  Because full nodes
-are accessed only by debugging code, this state of affairs results in
-lockdep false-positive splats like the following:
+So what's the status of this patch? Christoph, do you think this is fine
+as it is?
 
-[   43.942868] WARNING: CPU: 0 PID: 698 at /home/paulmck/public_git/linux-rcu/mm/slub.c:1007 deactivate_slab+0x509/0x720()
-[   43.943016] Modules linked in:
-[   43.943016] CPU: 0 PID: 698 Comm: torture_onoff Not tainted 3.14.0-rc1+ #1
-[   43.943016] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2007
-[   43.943016]  00000000000003ef ffff88001e3f5ba8 ffffffff818952ec 0000000000000046
-[   43.943016]  0000000000000000 ffff88001e3f5be8 ffffffff81049517 ffffea0000784e00
-[   43.943016]  0000000000000000 ffffea00007a9000 0000000000000002 0000000000000000
-[   43.943016] Call Trace:
-[   43.943016]  [<ffffffff818952ec>] dump_stack+0x46/0x58
-[   43.943016]  [<ffffffff81049517>] warn_slowpath_common+0x87/0xb0
-[   43.943016]  [<ffffffff81049555>] warn_slowpath_null+0x15/0x20
-[   43.943016]  [<ffffffff8116e679>] deactivate_slab+0x509/0x720
-[   43.943016]  [<ffffffff8116eebb>] ? slab_cpuup_callback+0x3b/0x100
-[   43.943016]  [<ffffffff8116ef52>] ? slab_cpuup_callback+0xd2/0x100
-[   43.943016]  [<ffffffff8116ef24>] slab_cpuup_callback+0xa4/0x100
-[   43.943016]  [<ffffffff818a4c14>] notifier_call_chain+0x54/0x110
-[   43.943016]  [<ffffffff81075b79>] __raw_notifier_call_chain+0x9/0x10
-[   43.943016]  [<ffffffff8104963b>] __cpu_notify+0x1b/0x30
-[   43.943016]  [<ffffffff81049720>] cpu_notify_nofail+0x10/0x20
-[   43.943016]  [<ffffffff8188cc5d>] _cpu_down+0x10d/0x2e0
-[   43.943016]  [<ffffffff8188ce60>] cpu_down+0x30/0x50
-[   43.943016]  [<ffffffff811205f3>] torture_onoff+0xd3/0x3c0
-[   43.943016]  [<ffffffff81120520>] ? torture_onoff_stats+0x90/0x90
-[   43.943016]  [<ffffffff810710df>] kthread+0xdf/0x100
-[   43.943016]  [<ffffffff818a09cb>] ? _raw_spin_unlock_irq+0x2b/0x40
-[   43.943016]  [<ffffffff81071000>] ? flush_kthread_worker+0x130/0x130
-[   43.943016]  [<ffffffff818a983c>] ret_from_fork+0x7c/0xb0
-[   43.943016]  [<ffffffff81071000>] ? flush_kthread_worker+0x130/0x130
-
-This commit therefore does the lockdep check only if debuggging is
-enabled, thus avoiding the false positives.
-
-Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org
-Cc: cl@linux-foundation.org
-Cc: penberg@kernel.org
-Cc: mpm@selenic.com
-
-diff --git a/mm/slub.c b/mm/slub.c
-index 7e3e0458bce4..6fff4d980b7c 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1004,7 +1004,8 @@ static inline void slab_free_hook(struct kmem_cache *s, void *x)
- static void add_full(struct kmem_cache *s,
- 	struct kmem_cache_node *n, struct page *page)
- {
--	lockdep_assert_held(&n->list_lock);
-+	if (kmem_cache_debug(s))
-+		lockdep_assert_held(&n->list_lock);
- 
- 	if (!(s->flags & SLAB_STORE_USER))
- 		return;
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
