@@ -1,80 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f175.google.com (mail-ea0-f175.google.com [209.85.215.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C0B56B0036
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 11:40:58 -0500 (EST)
-Received: by mail-ea0-f175.google.com with SMTP id z10so4531074ead.34
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 08:40:57 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id x43si43376281eey.19.2014.02.04.08.40.56
+Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 604A96B003D
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 11:42:46 -0500 (EST)
+Received: by mail-we0-f179.google.com with SMTP id q58so4469857wes.10
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 08:42:45 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fu7si12561461wjb.118.2014.02.04.08.42.44
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 04 Feb 2014 08:40:57 -0800 (PST)
-Date: Tue, 4 Feb 2014 11:40:50 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH -v2 2/6] memcg: cleanup charge routines
-Message-ID: <20140204164050.GR6963@cmpxchg.org>
+        Tue, 04 Feb 2014 08:42:45 -0800 (PST)
+Date: Tue, 4 Feb 2014 17:42:43 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -v2 5/6] memcg, kmem: clean up memcg parameter handling
+Message-ID: <20140204164243.GQ4890@dhcp22.suse.cz>
 References: <1391520540-17436-1-git-send-email-mhocko@suse.cz>
- <1391520540-17436-3-git-send-email-mhocko@suse.cz>
- <20140204160509.GN6963@cmpxchg.org>
- <20140204161230.GN4890@dhcp22.suse.cz>
+ <1391520540-17436-6-git-send-email-mhocko@suse.cz>
+ <20140204163210.GQ6963@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140204161230.GN4890@dhcp22.suse.cz>
+In-Reply-To: <20140204163210.GQ6963@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
+To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Tue, Feb 04, 2014 at 05:12:30PM +0100, Michal Hocko wrote:
-> On Tue 04-02-14 11:05:09, Johannes Weiner wrote:
-> > On Tue, Feb 04, 2014 at 02:28:56PM +0100, Michal Hocko wrote:
-> > > -	/*
-> > > -	 * We always charge the cgroup the mm_struct belongs to.
-> > > -	 * The mm_struct's mem_cgroup changes on task migration if the
-> > > -	 * thread group leader migrates. It's possible that mm is not
-> > > -	 * set, if so charge the root memcg (happens for pagecache usage).
-> > > -	 */
-> > > -	if (!*ptr && !mm)
-> > > -		*ptr = root_mem_cgroup;
-> > 
-> > [...]
-> > 
-> > >  /*
-> > > + * Charges and returns memcg associated with the given mm (or root_mem_cgroup
-> > > + * if mm is NULL). Returns NULL if memcg is under OOM.
-> > > + */
-> > > +static struct mem_cgroup *mem_cgroup_try_charge_mm(struct mm_struct *mm,
-> > > +				   gfp_t gfp_mask,
-> > > +				   unsigned int nr_pages,
-> > > +				   bool oom)
-> > > +{
-> > > +	struct mem_cgroup *memcg;
-> > > +	int ret;
-> > > +
-> > > +	/*
-> > > +	 * We always charge the cgroup the mm_struct belongs to.
-> > > +	 * The mm_struct's mem_cgroup changes on task migration if the
-> > > +	 * thread group leader migrates. It's possible that mm is not
-> > > +	 * set, if so charge the root memcg (happens for pagecache usage).
-> > > +	 */
-> > > +	if (!mm)
-> > > +		goto bypass;
-> > 
-> > Why shuffle it around right before you remove it anyway?  Just start
-> > the series off with the patches that delete stuff without having to
-> > restructure anything, get those out of the way.
+On Tue 04-02-14 11:32:10, Johannes Weiner wrote:
+> On Tue, Feb 04, 2014 at 02:28:59PM +0100, Michal Hocko wrote:
+> > memcg_kmem_newpage_charge doesn't always set the given memcg parameter.
 > 
-> As mentioned in the previous email. I wanted to have this condition
-> removal bisectable. So it is removed in the next patch when it is
-> replaced by VM_BUG_ON.
+> lol, I really don't get your patch order...
 
-I'm not suggesting to sneak the removal into *this* patch, just put
-the simple stand-alone patches that remove stuff first in the series.
+Ok, Ok, I've encountered this mess while double checking #2 and was too
+lazy to rebasing again. I will move it to the front for the merge.
 
-Seems pretty logical to me to first reduce the code base as much as
-possible before reorganizing it.  This does not change bisectability
-but it sure makes the patches easier to read.
+> > Some early escape paths skip setting *memcg while
+> > __memcg_kmem_newpage_charge down the call chain sets *memcg even if no
+> > memcg is charged due to other escape paths.
+> > 
+> > The current code is correct because the memcg is initialized to NULL
+> > at the highest level in __alloc_pages_nodemask but this all is very
+> > confusing and error prone. Let's make the semantic clear and move the
+> > memcg parameter initialization to the highest level of kmem accounting
+> > (memcg_kmem_newpage_charge).
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> 
+> Patch looks good, though.
+> 
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+
+Thanks!
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
