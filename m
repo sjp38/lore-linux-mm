@@ -1,97 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com [209.85.160.178])
-	by kanga.kvack.org (Postfix) with ESMTP id B903C6B0037
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 22:02:14 -0500 (EST)
-Received: by mail-yk0-f178.google.com with SMTP id 79so44469394ykr.9
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 19:02:14 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id t26si18639626yhl.255.2014.02.03.19.02.14
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 03 Feb 2014 19:02:14 -0800 (PST)
-Message-ID: <52F05827.1040401@oracle.com>
-Date: Mon, 03 Feb 2014 22:01:59 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C2C36B0035
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 22:09:20 -0500 (EST)
+Received: by mail-ee0-f51.google.com with SMTP id b57so4036580eek.10
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 19:09:20 -0800 (PST)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTP id d8si39156594eeh.53.2014.02.03.19.09.18
+        for <linux-mm@kvack.org>;
+        Mon, 03 Feb 2014 19:09:19 -0800 (PST)
+From: Jason Evans <je@fb.com>
+Subject: Re: [PATCH v10 00/16] Volatile Ranges v10
+Date: Tue, 4 Feb 2014 03:08:27 +0000
+Message-ID: <CF1584DE.149CA%je@fb.com>
+In-Reply-To: <20140204013151.GB3481@bbox>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <B898BB1CEBE31342A993D9E4609DC6C9@fb.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: mm: BUG in do_huge_pmd_wp_page
-References: <51559150.3040407@oracle.com> <20130410080202.GB21292@blaptop> <5166CEDD.9050301@oracle.com> <20130411151323.89D40E0085@blue.fi.intel.com> <5166D355.2060103@oracle.com> <20130424154607.60e9b9895539eb5668d2f505@linux-foundation.org> <5179CF8F.7000702@oracle.com> <20130426020101.GA21162@redhat.com>
-In-Reply-To: <20130426020101.GA21162@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Mel Gorman <mgorman@suse.de>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: John Stultz <john.stultz@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel
+ Lespinasse <walken@google.com>, Dhaval Giani <dhaval.giani@gmail.com>, "H.
+ Peter Anvin" <hpa@zytor.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Rob Clark <robdclark@gmail.com>, "pliard@google.com" <pliard@google.com>
 
-On 04/25/2013 10:01 PM, Dave Jones wrote:
-> On Thu, Apr 25, 2013 at 08:51:27PM -0400, Sasha Levin wrote:
->   > On 04/24/2013 06:46 PM, Andrew Morton wrote:
->   > > Guys, did this get fixed?
->   >
->   > I've stopped seeing that during fuzzing, so I guess that it got fixed somehow...
+On 2/3/14, 5:31 PM, "Minchan Kim" <minchan@kernel.org> wrote:
+>While I discuss with Johannes, I'm biasing to implemnt MADV_FREE for
+>Linux.
+>instead of vrange syscall for allocator.
+>The reason I preferred vrange syscall over MADV_FREE is vrange syscall
+>is almost O(1) so it's really light weight system call although it needs
+>one more syscall to unmark volatility while MADV_FREE is O(#pages) but
+>as Johannes pointed out, these day kernel trends are using huge pages(ex,
+>2M) so I guess the overhead is really big.
 >
-> We've had reports of users hitting this in 3.8
->
-> eg:
-> https://bugzilla.redhat.com/show_bug.cgi?id=947985
-> https://bugzilla.redhat.com/show_bug.cgi?id=956730
->
-> I'm sure there are other reports of it too.
->
-> Would be good if we can figure out what fixed it (if it is actually fixed)
-> for backporting to stable
+>(Another topic: If application want to use huge pages on Linux,
+>it should mmap the region is aligned to the huge page size but when
+>I read jemalloc source code, it seems not. Do you have any reason?)
 
-It's been a while (7 months?), but this one is back...
+jemalloc uses 4 MiB naturally aligned chunks by default (chunk size can be
+any power of 2 that is at least two pages), so by default jemalloc does
+align its mappings to huge page boundaries.
 
-Just hit it again with today's -next:
+However, chunks have embedded metadata headers, which means that in
+practice, only the second half of each chunk can be madvise()d away if
+only huge pages are in use.  Additionally, the overhead of using even one
+huge page per size class would be unacceptable for most applications (2
+MiB * ~30 size classes * number of active arenas), so adjusting the
+allocator's layout algorithms to use huge pages would require a very
+different strategy than is currently used, and the likelihood of having
+huge pages completely drain of allocations would be quite low.  On top of
+that, the implicit nature of transparent huge pages makes them difficult
+to reliably account for in userland.  In other words, huge pages and
+explicit dirty page purging are for most practical purposes incompatible.
 
-[  762.701278] BUG: unable to handle kernel paging request at ffff88009eae6000
-[  762.702462] IP: [<ffffffff81ae8455>] copy_page_rep+0x5/0x10
-[  762.703369] PGD 84bb067 PUD 22fa81067 PMD 22f98b067 PTE 800000009eae6060
-[  762.704411] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[  762.705873] Dumping ftrace buffer:
-[  762.707606]    (ftrace buffer empty)
-[  762.708311] Modules linked in:
-[  762.708762] CPU: 16 PID: 17920 Comm: trinity-c16 Tainted: G        W    3.13.0-next-2
-0140203-sasha-00007-gf4985e2 #23
-[  762.710135] task: ffff8801ac358000 ti: ffff880199234000 task.ti: ffff880199234000
-[  762.710135] RIP: 0010:[<ffffffff81ae8455>]  [<ffffffff81ae8455>] copy_page_rep+0x5/0x
-10
-[  762.710135] RSP: 0018:ffff880199235c90  EFLAGS: 00010286
-[  762.710135] RAX: 0000000080000002 RBX: 00000000056db980 RCX: 0000000000000200
-[  762.710135] RDX: ffff8801ac358000 RSI: ffff88009eae6000 RDI: ffff88015b6e6000
-[  762.710135] RBP: ffff880199235cd8 R08: 0000000000000000 R09: 0000000000000000
-[  762.710135] R10: 0000000000000001 R11: 0000000000000000 R12: 00000000027ab980
-[  762.710135] R13: 0000000000000200 R14: 00000000000000e6 R15: ffff880000000000
-[  762.710135] FS:  00007fb0804e1700(0000) GS:ffff88003da00000(0000) knlGS:0000000000000
-000
-[  762.710135] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[  762.710135] CR2: ffff88009eae6000 CR3: 0000000199225000 CR4: 00000000000006e0
-[  762.710135] Stack:
-[  762.710135]  ffffffff81298995 ffff8801a841ae00 ffff88003d084520 ffff880199227090
-[  762.710135]  800000009ea008e5 ffff8801a841ae00 ffffea00027a8000 ffff880199227090
-[  762.710135]  ffffea00056d8000 ffff880199235d58 ffffffff812d7260 ffff880199235cf8
-[  762.710135] Call Trace:
-[  762.710135]  [<ffffffff81298995>] ? copy_user_huge_page+0x1a5/0x210
-[  762.710135]  [<ffffffff812d7260>] do_huge_pmd_wp_page+0x3d0/0x650
-[  762.710135]  [<ffffffff811a308e>] ? put_lock_stats+0xe/0x30
-[  762.710135]  [<ffffffff8129b511>] __handle_mm_fault+0x2b1/0x3d0
-[  762.710135]  [<ffffffff8129b763>] handle_mm_fault+0x133/0x1c0
-[  762.710135]  [<ffffffff8129bcf8>] __get_user_pages+0x438/0x630
-[  762.710135]  [<ffffffff811a308e>] ? put_lock_stats+0xe/0x30
-[  762.710135]  [<ffffffff8129cfc4>] __mlock_vma_pages_range+0xd4/0xe0
-[  762.710135]  [<ffffffff8129d0e0>] __mm_populate+0x110/0x190
-[  762.710135]  [<ffffffff8129dcd0>] SyS_mlockall+0x160/0x1b0
-[  762.710135]  [<ffffffff84450650>] tracesys+0xdd/0xe2
-[  762.710135] Code: 90 90 90 90 90 90 9c fa 65 48 3b 06 75 14 65 48 3b 56 08 75 0d 65 48 89 1e 65 
-48 89 4e 08 9d b0 01 c3 9d 30 c0 c3 b9 00 02 00 00 <f3> 48 a5 c3 0f 1f 80 00
-00 00 00 eb ee 66 66 66 90 66 66 66 90
-[  762.710135] RIP  [<ffffffff81ae8455>] copy_page_rep+0x5/0x10
-[  762.710135]  RSP <ffff880199235c90>
-[  762.710135] CR2: ffff88009eae6000
+>As a bonus point, many allocators already has a logic to use MADV_FREE
+>so it's really easy to use it if Linux start to support it.
 
+MADV_FREE is certainly an easy interface to use, and as long as there
+aren't any serious scalability issues in the implementation (e.g.
+concurrent madvise() calls for disjoint virtual addresses from multiple
+threads should be contention-free), I think it's perfectly adequate.
+
+>Do you see other point that light-weight vrange syscall is
+>superior to MADV_FREE of big chunk all at once?
+
+Other than system call overhead, volatile ranges and MADV_FREE are both
+great for jemalloc's purposes.  MADV_FREE is a bit easier to deal with,
+mainly because volatile ranges are distinct from dirty pages and virtual
+memory coalescing in jemalloc will require some additional work to
+logically treat adjacent volatile/dirty ranges as contiguous, but that's a
+solvable problem.
 
 Thanks,
-Sasha
+Jason
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
