@@ -1,112 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id A24DB6B0031
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 16:58:39 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id bj1so9128266pad.11
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 13:58:39 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id to9si26312827pbc.35.2014.02.04.13.58.38
-        for <linux-mm@kvack.org>;
-        Tue, 04 Feb 2014 13:58:38 -0800 (PST)
-Date: Tue, 4 Feb 2014 13:58:36 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/3] mm: vmscan: get rid of DEFAULT_SEEKS and document
- shrink_slab logic
-Message-Id: <20140204135836.05c09c765073513e62edd174@linux-foundation.org>
-In-Reply-To: <e204471853100447541ce36b198c0d45bf06379c.1389982079.git.vdavydov@parallels.com>
-References: <4e2efebe688e06574f6495c634ac45d799e1518d.1389982079.git.vdavydov@parallels.com>
-	<e204471853100447541ce36b198c0d45bf06379c.1389982079.git.vdavydov@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id BDE826B0031
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 17:05:32 -0500 (EST)
+Received: by mail-pb0-f42.google.com with SMTP id jt11so9120517pbb.1
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 14:05:32 -0800 (PST)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+        by mx.google.com with ESMTPS id r3si26293366pbh.40.2014.02.04.14.05.31
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 04 Feb 2014 14:05:31 -0800 (PST)
+Received: by mail-pa0-f48.google.com with SMTP id kx10so9066956pab.35
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 14:05:31 -0800 (PST)
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: quoted-printable
+From: Sebastian Capella <sebastian.capella@linaro.org>
+In-Reply-To: <1391548862.2538.34.camel@joe-AO722>
+References: <1391546631-7715-1-git-send-email-sebastian.capella@linaro.org>
+ <1391546631-7715-3-git-send-email-sebastian.capella@linaro.org>
+ <1391548862.2538.34.camel@joe-AO722>
+Message-ID: <20140204220534.28287.21049@capellas-linux>
+Subject: Re: [PATCH v7 2/3] trivial: PM / Hibernate: clean up checkpatch in
+ hibernate.c
+Date: Tue, 04 Feb 2014 14:05:34 -0800
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@gmail.com>
+To: Joe Perches <joe@perches.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>
 
-On Fri, 17 Jan 2014 23:25:30 +0400 Vladimir Davydov <vdavydov@parallels.com> wrote:
+Quoting Joe Perches (2014-02-04 13:21:02)
+> On Tue, 2014-02-04 at 12:43 -0800, Sebastian Capella wrote:
+> > Checkpatch reports several warnings in hibernate.c
+> > printk use removed, long lines wrapped, whitespace cleanup,
+> > extend short msleeps, while loops on two lines.
+> []
+> > diff --git a/kernel/power/hibernate.c b/kernel/power/hibernate.c
+> []
+> > @@ -765,7 +762,7 @@ static int software_resume(void)
+> >       if (isdigit(resume_file[0]) && resume_wait) {
+> >               int partno;
+> >               while (!get_gendisk(swsusp_resume_device, &partno))
+> > -                     msleep(10);
+> > +                     msleep(20);
+> =
 
-> Each shrinker must define the number of seeks it takes to recreate a
-> shrinkable cache object. It is used to balance slab reclaim vs page
-> reclaim: assuming it costs one seek to replace an LRU page, we age equal
-> percentages of the LRU and ageable caches. So far, everything sounds
-> clear, but the code implementing this behavior is rather confusing.
-> 
-> First, there is the DEFAULT_SEEKS constant, which equals 2 for some
-> reason:
-> 
->   #define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
-> 
-> Most shrinkers define `seeks' to be equal to DEFAULT_SEEKS, some use
-> DEFAULT_SEEKS*N, and there are a few that totally ignore it. What is
-> peculiar, dcache and icache shrinkers have seeks=DEFAULT_SEEKS although
-> recreating an inode typically requires one seek. Does this mean that we
-> scan twice more inodes than we should?
-> 
-> Actually, no. The point is that vmscan handles DEFAULT_SEEKS as if it
-> were 1 (`delta' is the number of objects we are going to scan):
-> 
->   shrink_slab_node():
->     delta = (4 * nr_pages_scanned) / shrinker->seeks;
->     delta *= freeable;
->     do_div(delta, lru_pages + 1);
-> 
-> i.e.
-> 
->             2 * nr_pages_scanned    DEFAULT_SEEKS
->     delta = -------------------- * --------------- * freeable;
->                  lru_pages         shrinker->seeks
-> 
-> Here we double the number of pages scanned in order to take into account
-> moves of on-LRU pages from the inactive list to the active list, which
-> we do not count in nr_pages_scanned.
-> 
-> That said, shrinker->seeks=DEFAULT_SEEKS*N is equivalent to N seeks, so
-> why on the hell do we need it?
-> 
-> IMO, the existence of the DEFAULT_SEEKS constant only causes confusion
-> for both users of the shrinker interface and those trying to understand
-> how slab shrinking works. The meaning of the `seeks' is perfectly
-> explained by the comment to it and there is no need in any obscure
-> constants for using it.
-> 
-> That's why I'm sending this patch which completely removes DEFAULT_SEEKS
-> and makes all shrinkers use N instead of N*DEFAULT_SEEKS, documenting
-> the idea lying behind shrink_slab() in the meanwhile.
-> 
-> Unfortunately, there are a few shrinkers that define seeks=1, which is
-> impossible to transfer to the new interface intact, namely:
-> 
->   nfsd_reply_cache_shrinker
->   ttm_pool_manager::mm_shrink
->   ttm_pool_manager::mm_shrink
->   dm_bufio_client::shrinker
-> 
-> It seems to me their authors were simply deceived by this mysterious
-> DEFAULT_SEEKS constant, because I've found no documentation why these
-> particular caches should be scanned more aggressively than the page and
-> other slab caches. For them, this patch leaves seeks=1. Thus, it DOES
-> introduce a functional change: the shrinkers enumerated above will be
-> scanned twice less intensively than they are now. I do not think that
-> this will cause any problems though.
-> 
+> What good is changing this from 10 to 20?
+> =
 
-um, yes.  DEFAULT_SEEKS is supposed to be "the number of seeks if you
-don't know any better".  Using DEFAULT_SEEKS*n is just daft.
+> > @@ -776,8 +773,9 @@ static int software_resume(void)
+> >               wait_for_device_probe();
+> >  =
 
-So why did I originally make DEFAULT_SEEKS=2?  Because I figured that to
-recreate (say) an inode would require a seek to the inode data then a
-seek back.  Is it legitimate to include the
-seek-back-to-what-you-were-doing-before seek in the cost of an inode
-reclaim?  I guess so...
+> >               if (resume_wait) {
+> > -                     while ((swsusp_resume_device =3D name_to_dev_t(re=
+sume_file)) =3D=3D 0)
+> > -                             msleep(10);
+> > +                     while ((swsusp_resume_device =3D
+> > +                                     name_to_dev_t(resume_file)) =3D=
+=3D 0)
+> > +                             msleep(20);
+> =
 
-If a filesystem were to require a seek to the superblock for every
-inode read (ok, bad example) then the cost of reestablishing that inode
-would be 3.
+> here too.
 
-All that being said, why did you go through and halve everything?  The
-cost of reestablishing an ext2 inode should be "2 seeks", but the patch
-makes it "1".
+Thanks Joe!
+
+I'm happy to make whatever change is best.  I just ran into one
+checkpatch warning around a printk I indented and figured I'd try to get
+them all if I could.
+
+The delays in question didn't appear timing critical as both are looping
+waiting for device discovery to complete.  They're only enabled when using
+the resumewait command line parameter.
+
+Is this an incorrect checkpatch warning?  The message from checkpatch
+implies using msleep for smaller values can be misleading.
+
+WARNING: msleep < 20ms can sleep for up to 20ms; see
+Documentation/timers/timers-howto.txt
++  msleep(10);
+
+From=20Documentation/timers/timers-howto.txt
+
+SLEEPING FOR ~USECS OR SMALL MSECS ( 10us - 20ms):                       =
+
+  * Use usleep_range                                               =
+
+
+  - Why not msleep for (1ms - 20ms)?                               =
+
+    Explained originally here:                               =
+
+      http://lkml.org/lkml/2007/8/3/250                =
+
+    msleep(1~20) may not do what the caller intends, and     =
+
+    will often sleep longer (~20 ms actual sleep for any     =
+
+    value given in the 1~20ms range). In many cases this     =
+
+    is not the desired behavior. =
+
+
+When I look at kernel/timers.c in my current kernel, I see msleep is
+using msecs_to_jiffies + 1, and on my current platform this appears to
+be ~20msec as the jiffies are 10ms.
+
+Thanks,
+
+Sebastian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
