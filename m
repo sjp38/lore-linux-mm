@@ -1,98 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 96CF66B0035
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 11:04:41 -0500 (EST)
-Received: by mail-lb0-f182.google.com with SMTP id w7so6655895lbi.13
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 08:04:40 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id ya3si12990216lbb.11.2014.02.04.08.04.39
+Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
+	by kanga.kvack.org (Postfix) with ESMTP id A31F06B0036
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 11:05:22 -0500 (EST)
+Received: by mail-we0-f175.google.com with SMTP id q59so4273928wes.6
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 08:05:22 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id t5si43149148eeo.64.2014.02.04.08.05.18
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Feb 2014 08:04:39 -0800 (PST)
-Message-ID: <52F10F95.4050204@parallels.com>
-Date: Tue, 4 Feb 2014 20:04:37 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 04 Feb 2014 08:05:19 -0800 (PST)
+Date: Tue, 4 Feb 2014 11:05:09 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH -v2 2/6] memcg: cleanup charge routines
+Message-ID: <20140204160509.GN6963@cmpxchg.org>
+References: <1391520540-17436-1-git-send-email-mhocko@suse.cz>
+ <1391520540-17436-3-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/8] memcg, slab: never try to merge memcg caches
-References: <cover.1391356789.git.vdavydov@parallels.com> <27c4e7d7fb6b788b66995d2523225ef2dcbc6431.1391356789.git.vdavydov@parallels.com> <20140204145210.GH4890@dhcp22.suse.cz> <52F1004B.90307@parallels.com> <20140204151145.GI4890@dhcp22.suse.cz> <52F106D7.3060802@parallels.com> <CAA6-i6p0xPFxPpdM5Q_0Y_HZDdeLO1j4_SDPdZiiPXOZS8dg_g@mail.gmail.com>
-In-Reply-To: <CAA6-i6p0xPFxPpdM5Q_0Y_HZDdeLO1j4_SDPdZiiPXOZS8dg_g@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1391520540-17436-3-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, devel@openvz.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On 02/04/2014 07:43 PM, Glauber Costa wrote:
-> On Tue, Feb 4, 2014 at 7:27 PM, Vladimir Davydov <vdavydov@parallels.com> wrote:
->> On 02/04/2014 07:11 PM, Michal Hocko wrote:
->>> On Tue 04-02-14 18:59:23, Vladimir Davydov wrote:
->>>> On 02/04/2014 06:52 PM, Michal Hocko wrote:
->>>>> On Sun 02-02-14 20:33:48, Vladimir Davydov wrote:
->>>>>> Suppose we are creating memcg cache A that could be merged with cache B
->>>>>> of the same memcg. Since any memcg cache has the same parameters as its
->>>>>> parent cache, parent caches PA and PB of memcg caches A and B must be
->>>>>> mergeable too. That means PA was merged with PB on creation or vice
->>>>>> versa, i.e. PA = PB. From that it follows that A = B, and we couldn't
->>>>>> even try to create cache B, because it already exists - a contradiction.
->>>>> I cannot tell I understand the above but I am totally not sure about the
->>>>> statement bellow.
->>>>>
->>>>>> So let's remove unused code responsible for merging memcg caches.
->>>>> How come the code was unused? find_mergeable called cache_match_memcg...
->>>> Oh, sorry for misleading comment. I mean the code handling merging of
->>>> per-memcg caches is useless, AFAIU: if we find an alias for a per-memcg
->>>> cache on kmem_cache_create_memcg(), the parent of the found alias must
->>>> be the same as the parent_cache passed to kmem_cache_create_memcg(), but
->>>> if it were so, we would never proceed to the memcg cache creation,
->>>> because the cache we want to create already exists.
->>> I am still not sure I understand this correctly. So the outcome of this
->>> patch is that compatible caches of different memcgs can be merged
->>> together? Sorry if this is a stupid question but I am not that familiar
->>> with this area much I am just seeing that cache_match_memcg goes away
->>> and my understanding of the function is that it should prevent from
->>> different memcg's caches merging.
->> Let me try to explain how I understand it.
->>
->> What is cache merging/aliasing? When we create a cache
->> (kmem_cache_create()), we first try to find a compatible cache that
->> already exists and can handle requests from the new cache. If it is, we
->> do not create any new caches, instead we simply increment the old cache
->> refcount and return it.
->>
->> What about memcgs? Currently, it operates in the same way, i.e. on memcg
->> cache creation we also try to find a compatible cache of the same memcg
->> first. But if there were such a cache, they parents would have been
->> merged (i.e. it would be the same cache). That means we would not even
->> get to this memcg cache creation, because it already exists. That's why
->> the code handling memcg caches merging seems pointless to me.
->>
-> IIRC, this may not always hold. Some of the properties are configurable via
-> sysfs, and it might be that you haven't merged two parent caches because they
-> properties differ, but would be fine merging the child caches.
->
-> If all properties we check are compile-time parameters, then it should be okay.
+On Tue, Feb 04, 2014 at 02:28:56PM +0100, Michal Hocko wrote:
+> The current core of memcg charging is wild to say the least.
+> __mem_cgroup_try_charge which is in the center tries to be too clever
+> and it handles two independent cases
+> 	* when the memcg to be charged is known in advance
+> 	* when the given mm_struct is charged
+> The resulting callchains are quite complex:
+> 
+> memcg_charge_kmem(mm=NULL, memcg)  mem_cgroup_newpage_charge(mm)
+>  |                                | _________________________________________ mem_cgroup_cache_charge(current->mm)
+>  |                                |/                                            |
+>  | ______________________________ mem_cgroup_charge_common(mm, memcg=NULL)      |
+>  |/                                                                             /
+>  |                                                                             /
+>  | ____________________________ mem_cgroup_try_charge_swapin(mm, memcg=NULL)  /
+>  |/                               | _________________________________________/
+>  |                                |/
+>  |                                |                         /* swap accounting */   /* no swap accounting */
+>  | _____________________________  __mem_cgroup_try_charge_swapin(mm=NULL, memcg) || (mm, memcg=NULL)
+>  |/
+>  | ____________________________ mem_cgroup_do_precharge(mm=NULL, memcg)
+>  |/
+> __mem_cgroup_try_charge
+>   mem_cgroup_do_charge
+>     res_counter_charge
+>     mem_cgroup_reclaim
+>     mem_cgroup_wait_acct_move
+>     mem_cgroup_oom
+> 
+> This patch splits __mem_cgroup_try_charge into two logical parts.
+> mem_cgroup_try_charge_mm which is responsible for charges for the given
+> mm_struct and it returns the charged memcg or NULL under OOM while
+> mem_cgroup_try_charge_memcg charges a known memcg and returns an error
+> code.
+> 
+> The only tricky part which remains is __mem_cgroup_try_charge_swapin
+> because it can return 0 if PageCgroupUsed is already set and then we do
+> not want to commit the charge. This is done with a magic combination of
+> memcg = NULL and ret = 0. So the function preserves its memcgp parameter
+> and sets the given memcg to NULL when it sees PageCgroupUsed
+> (__mem_cgroup_commit_charge_swapin then ignores such a commit).
+> 
+> Not only the code is easier to follow the change reduces the code size
+> too:
+> size mm/built-in.o.before mm/built-in.o.after
+>    text    data     bss     dec     hex filename
+> 464718   83038   49904  597660   91e9c mm/built-in.o.before
+> 463894   83038   49904  596836   91b64 mm/built-in.o.after
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> ---
+>  mm/memcontrol.c | 205 +++++++++++++++++++++++++++-----------------------------
+>  1 file changed, 98 insertions(+), 107 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 042e4ff36c05..72fbe0fb3320 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2618,7 +2618,7 @@ static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
+>  }
+>  
+>  
+> -/* See __mem_cgroup_try_charge() for details */
+> +/* See mem_cgroup_do_charge() for details */
+>  enum {
+>  	CHARGE_OK,		/* success */
+>  	CHARGE_RETRY,		/* need to retry but retry is not bad */
+> @@ -2691,108 +2691,69 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  	return CHARGE_NOMEM;
+>  }
+>  
+> +static bool current_bypass_charge(void)
+> +{
+> +	/*
+> +	 * Unlike gloval-vm's OOM-kill, we're not in memory shortage
+> +	 * in system level. So, allow to go ahead dying process in addition to
+> +	 * MEMDIE process.
+> +	 */
+> +	if (unlikely(test_thread_flag(TIF_MEMDIE)
+> +		     || fatal_signal_pending(current)))
+> +		return true;
+> +
+> +	return false;
+> +}
 
-AFAIK, we decide if a cache should be merged only basing on its internal
-parameters, such as size, ctor, flags, align (see find_mergeable()), but
-they are the same for root and memcg caches.
+I'd just leave it inline at this point, it lines up nicely with the
+other pre-charge checks in try_charge, which is at this point short
+enough to take this awkward 3-liner.
 
-The only way to disable slub merging is via the "slub_nomerge" kernel
-parameter, so it is impossible to get a situation when parents can not
-be merged, while children can.
+> +static int mem_cgroup_try_charge_memcg(gfp_t gfp_mask,
+>  				   unsigned int nr_pages,
+> -				   struct mem_cgroup **ptr,
+> +				   struct mem_cgroup *memcg,
+>  				   bool oom)
+>  {
+>  	unsigned int batch = max(CHARGE_BATCH, nr_pages);
+>  	int nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
+> -	struct mem_cgroup *memcg = NULL;
+>  	int ret;
+>  
+> -	/*
+> -	 * Unlike gloval-vm's OOM-kill, we're not in memory shortage
+> -	 * in system level. So, allow to go ahead dying process in addition to
+> -	 * MEMDIE process.
+> -	 */
+> -	if (unlikely(test_thread_flag(TIF_MEMDIE)
+> -		     || fatal_signal_pending(current)))
+> +	if (mem_cgroup_is_root(memcg) || current_bypass_charge())
+>  		goto bypass;
+>  
+>  	if (unlikely(task_in_memcg_oom(current)))
+>  		goto nomem;
+>  
+> +	if (consume_stock(memcg, nr_pages))
+> +		return 0;
+> +
+>  	if (gfp_mask & __GFP_NOFAIL)
+>  		oom = false;
+>  
+> -	/*
+> -	 * We always charge the cgroup the mm_struct belongs to.
+> -	 * The mm_struct's mem_cgroup changes on task migration if the
+> -	 * thread group leader migrates. It's possible that mm is not
+> -	 * set, if so charge the root memcg (happens for pagecache usage).
+> -	 */
+> -	if (!*ptr && !mm)
+> -		*ptr = root_mem_cgroup;
 
-The only point of concern may be so called boot caches
-(create_boot_cache()), which are forcefully not allowed to be merged by
-setting refcount = -1. There are actually only two of them kmem_cache
-and kmem_cache_node used for internal slub allocations. I guess it was
-done preliminary, and we should not merge them for memcgs neither.
+[...]
 
-To sum it up, if a particular root cache is allowed to be merged, it was
-allowed to be merged since its creation and all its children caches are
-also allowed to be merged. If merging was not allowed for a root cache
-when it was created, we should not merge its children caches.
+>  /*
+> + * Charges and returns memcg associated with the given mm (or root_mem_cgroup
+> + * if mm is NULL). Returns NULL if memcg is under OOM.
+> + */
+> +static struct mem_cgroup *mem_cgroup_try_charge_mm(struct mm_struct *mm,
+> +				   gfp_t gfp_mask,
+> +				   unsigned int nr_pages,
+> +				   bool oom)
+> +{
+> +	struct mem_cgroup *memcg;
+> +	int ret;
+> +
+> +	/*
+> +	 * We always charge the cgroup the mm_struct belongs to.
+> +	 * The mm_struct's mem_cgroup changes on task migration if the
+> +	 * thread group leader migrates. It's possible that mm is not
+> +	 * set, if so charge the root memcg (happens for pagecache usage).
+> +	 */
+> +	if (!mm)
+> +		goto bypass;
 
-Thanks.
+Why shuffle it around right before you remove it anyway?  Just start
+the series off with the patches that delete stuff without having to
+restructure anything, get those out of the way.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
