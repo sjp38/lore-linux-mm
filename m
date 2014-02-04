@@ -1,80 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C2C36B0035
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 22:09:20 -0500 (EST)
-Received: by mail-ee0-f51.google.com with SMTP id b57so4036580eek.10
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 19:09:20 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTP id d8si39156594eeh.53.2014.02.03.19.09.18
+Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 73BAF6B0035
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 22:38:40 -0500 (EST)
+Received: by mail-qc0-f174.google.com with SMTP id x13so12698333qcv.33
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 19:38:40 -0800 (PST)
+Received: from qmta15.emeryville.ca.mail.comcast.net (qmta15.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:228])
+        by mx.google.com with ESMTP id o97si16418451qge.118.2014.02.03.19.38.39
         for <linux-mm@kvack.org>;
-        Mon, 03 Feb 2014 19:09:19 -0800 (PST)
-From: Jason Evans <je@fb.com>
-Subject: Re: [PATCH v10 00/16] Volatile Ranges v10
-Date: Tue, 4 Feb 2014 03:08:27 +0000
-Message-ID: <CF1584DE.149CA%je@fb.com>
-In-Reply-To: <20140204013151.GB3481@bbox>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <B898BB1CEBE31342A993D9E4609DC6C9@fb.com>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        Mon, 03 Feb 2014 19:38:39 -0800 (PST)
+Date: Mon, 3 Feb 2014 21:38:36 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
+ no local memory
+In-Reply-To: <20140203230026.GA15383@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.10.1402032138070.17997@nuc>
+References: <52e1da8f.86f7440a.120f.25f3SMTPIN_ADDED_BROKEN@mx.google.com> <alpine.DEB.2.10.1401240946530.12886@nuc> <alpine.DEB.2.02.1401241301120.10968@chino.kir.corp.google.com> <20140124232902.GB30361@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1401241543100.18620@chino.kir.corp.google.com> <20140125001643.GA25344@linux.vnet.ibm.com> <alpine.DEB.2.02.1401241618500.20466@chino.kir.corp.google.com> <20140125011041.GB25344@linux.vnet.ibm.com> <20140127055805.GA2471@lge.com>
+ <20140128182947.GA1591@linux.vnet.ibm.com> <20140203230026.GA15383@linux.vnet.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: John Stultz <john.stultz@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel
- Lespinasse <walken@google.com>, Dhaval Giani <dhaval.giani@gmail.com>, "H.
- Peter Anvin" <hpa@zytor.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Rob Clark <robdclark@gmail.com>, "pliard@google.com" <pliard@google.com>
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, penberg@kernel.org, linux-mm@kvack.org, paulus@samba.org, Anton Blanchard <anton@samba.org>, mpm@selenic.com, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On 2/3/14, 5:31 PM, "Minchan Kim" <minchan@kernel.org> wrote:
->While I discuss with Johannes, I'm biasing to implemnt MADV_FREE for
->Linux.
->instead of vrange syscall for allocator.
->The reason I preferred vrange syscall over MADV_FREE is vrange syscall
->is almost O(1) so it's really light weight system call although it needs
->one more syscall to unmark volatility while MADV_FREE is O(#pages) but
->as Johannes pointed out, these day kernel trends are using huge pages(ex,
->2M) so I guess the overhead is really big.
->
->(Another topic: If application want to use huge pages on Linux,
->it should mmap the region is aligned to the huge page size but when
->I read jemalloc source code, it seems not. Do you have any reason?)
+On Mon, 3 Feb 2014, Nishanth Aravamudan wrote:
 
-jemalloc uses 4 MiB naturally aligned chunks by default (chunk size can be
-any power of 2 that is at least two pages), so by default jemalloc does
-align its mappings to huge page boundaries.
+> So what's the status of this patch? Christoph, do you think this is fine
+> as it is?
 
-However, chunks have embedded metadata headers, which means that in
-practice, only the second half of each chunk can be madvise()d away if
-only huge pages are in use.  Additionally, the overhead of using even one
-huge page per size class would be unacceptable for most applications (2
-MiB * ~30 size classes * number of active arenas), so adjusting the
-allocator's layout algorithms to use huge pages would require a very
-different strategy than is currently used, and the likelihood of having
-huge pages completely drain of allocations would be quite low.  On top of
-that, the implicit nature of transparent huge pages makes them difficult
-to reliably account for in userland.  In other words, huge pages and
-explicit dirty page purging are for most practical purposes incompatible.
-
->As a bonus point, many allocators already has a logic to use MADV_FREE
->so it's really easy to use it if Linux start to support it.
-
-MADV_FREE is certainly an easy interface to use, and as long as there
-aren't any serious scalability issues in the implementation (e.g.
-concurrent madvise() calls for disjoint virtual addresses from multiple
-threads should be contention-free), I think it's perfectly adequate.
-
->Do you see other point that light-weight vrange syscall is
->superior to MADV_FREE of big chunk all at once?
-
-Other than system call overhead, volatile ranges and MADV_FREE are both
-great for jemalloc's purposes.  MADV_FREE is a bit easier to deal with,
-mainly because volatile ranges are distinct from dirty pages and virtual
-memory coalescing in jemalloc will require some additional work to
-logically treat adjacent volatile/dirty ranges as contiguous, but that's a
-solvable problem.
-
-Thanks,
-Jason
+Certainly enabling CONFIG_MEMORYLESS_NODES is the right thing to do and I
+already acked the patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
