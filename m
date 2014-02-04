@@ -1,103 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 212086B0035
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 16:25:14 -0500 (EST)
-Received: by mail-ee0-f48.google.com with SMTP id t10so4537187eei.7
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 13:25:13 -0800 (PST)
-Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
-        by mx.google.com with SMTP id q43si44945379eeo.33.2014.02.04.13.25.12
-        for <linux-mm@kvack.org>;
-        Tue, 04 Feb 2014 13:25:13 -0800 (PST)
-From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Subject: Re: [PATCH v7 3/3] PM / Hibernate: use name_to_dev_t to parse resume
-Date: Tue, 04 Feb 2014 22:39:43 +0100
-Message-ID: <1498007.FMXxByppC2@vostro.rjw.lan>
-In-Reply-To: <1391546631-7715-4-git-send-email-sebastian.capella@linaro.org>
-References: <1391546631-7715-1-git-send-email-sebastian.capella@linaro.org> <1391546631-7715-4-git-send-email-sebastian.capella@linaro.org>
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 620336B0035
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 16:27:35 -0500 (EST)
+Received: by mail-pd0-f173.google.com with SMTP id y10so8768510pdj.32
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 13:27:35 -0800 (PST)
+Received: from mail-pb0-x22f.google.com (mail-pb0-x22f.google.com [2607:f8b0:400e:c01::22f])
+        by mx.google.com with ESMTPS id gj4si24064687pac.292.2014.02.04.13.27.34
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 04 Feb 2014 13:27:34 -0800 (PST)
+Received: by mail-pb0-f47.google.com with SMTP id rp16so8999648pbb.34
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 13:27:34 -0800 (PST)
+Date: Tue, 4 Feb 2014 13:27:32 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] fdtable: Avoid triggering OOMs from alloc_fdmem
+In-Reply-To: <871tzirdwf.fsf@xmission.com>
+Message-ID: <alpine.DEB.2.02.1402041312410.26019@chino.kir.corp.google.com>
+References: <87r47jsb2p.fsf@xmission.com> <1391530721.4301.8.camel@edumazet-glaptop2.roam.corp.google.com> <871tzirdwf.fsf@xmission.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Capella <sebastian.capella@linaro.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org
 
-On Tuesday, February 04, 2014 12:43:51 PM Sebastian Capella wrote:
-> Use the name_to_dev_t call to parse the device name echo'd to
-> to /sys/power/resume.  This imitates the method used in hibernate.c
-> in software_resume, and allows the resume partition to be specified
-> using other equivalent device formats as well.  By allowing
-> /sys/debug/resume to accept the same syntax as the resume=device
-> parameter, we can parse the resume=device in the init script and
-> use the resume device directly from the kernel command line.
-> 
-> Signed-off-by: Sebastian Capella <sebastian.capella@linaro.org>
-> Cc: Pavel Machek <pavel@ucw.cz>
-> Cc: Len Brown <len.brown@intel.com>
-> Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-> ---
->  kernel/power/hibernate.c |   33 +++++++++++++++++----------------
->  1 file changed, 17 insertions(+), 16 deletions(-)
-> 
-> diff --git a/kernel/power/hibernate.c b/kernel/power/hibernate.c
-> index cd1e30c..3abd192 100644
-> --- a/kernel/power/hibernate.c
-> +++ b/kernel/power/hibernate.c
-> @@ -970,26 +970,27 @@ static ssize_t resume_show(struct kobject *kobj, struct kobj_attribute *attr,
->  static ssize_t resume_store(struct kobject *kobj, struct kobj_attribute *attr,
->  			    const char *buf, size_t n)
->  {
-> -	unsigned int maj, min;
->  	dev_t res;
-> -	int ret = -EINVAL;
-> +	char *name = kstrdup_trimnl(buf, GFP_KERNEL);
->  
-> -	if (sscanf(buf, "%u:%u", &maj, &min) != 2)
-> -		goto out;
-> +	if (name == NULL)
+On Tue, 4 Feb 2014, Eric W. Biederman wrote:
 
-What about "if (!name)"?
-
-> +		return -ENOMEM;
->  
-> -	res = MKDEV(maj,min);
-> -	if (maj != MAJOR(res) || min != MINOR(res))
-> -		goto out;
-> +	res = name_to_dev_t(name);
->  
-> -	lock_system_sleep();
-> -	swsusp_resume_device = res;
-> -	unlock_system_sleep();
-> -	pr_info("PM: Starting manual resume from disk\n");
-> -	noresume = 0;
-> -	software_resume();
-> -	ret = n;
-> - out:
-> -	return ret;
-> +	if (res != 0) {
-
-What about "if (res)"?
-
-> +		lock_system_sleep();
-> +		swsusp_resume_device = res;
-> +		unlock_system_sleep();
-> +		pr_info("PM: Starting manual resume from disk\n");
-> +		noresume = 0;
-> +		software_resume();
-> +	} else {
-> +		n = -EINVAL;
-> +	}
-> +
-> +	kfree(name);
-> +	return n;
->  }
->  
->  power_attr(resume);
+> My gut feel says if there is a code path that has __GFP_NOWARN and
+> because of PAGE_ALLOC_COSTLY_ORDER we loop forever then there is
+> something fishy going on.
 > 
 
--- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+The __GFP_NOWARN without __GFP_NORETRY in alloc_fdmem() is pointless 
+because we already know that the allocation is PAGE_ALLOC_COSTLY_ORDER or 
+smaller.  That function encodes specific knowledge of the page allocator's 
+implementation so it leads me to believe that __GFP_NOWARN was intended to 
+be __GFP_NORETRY from the start.  Otherwise, it's just set pointlessly and 
+specifically allows for the oom killing that you're now reporting.  Since 
+it can fallback to vmalloc() after exhausting all of the page allocator's 
+capabilities, the __GFP_NOWARN|__GFP_NORETRY seems entirely appropriate.
+
+The vmalloc() has never been called in this function because of the 
+infinite loop in kmalloc() because of its allocation context, but it 
+definitely seems better than oom killing something.
+
+Acked-by: David Rientjes <rientjes@google.com>
+
+> I would love to hear some people who are more current on the mm
+> subsystem than I am chime in.  It might be that the darn fix is going to
+> be to teach __alloc_pages_slowpath to not loop forever, unless order == 0.
+
+It doesn't loop forever, it will either return NULL because of its 
+allocation context or the oom killer will kill something, even for order-3 
+allocations.  In the case that you've modified, you have sane fallback 
+behavior that can be utilized rather than the oom killer and __GFP_NORETRY 
+was reasonable from the start.
+
+The question is simple enough: do we want to change 
+PAGE_ALLOC_COSTLY_ORDER to be smaller so that order-3 does return NULL 
+without oom killing?  Perhaps there's an argument to be made that does 
+exactly that, but by not setting __GFP_NORETRY you are really demanding 
+order-3 memory at the time you allocate it and are willing to accept the 
+consequences to free that memory.  Should we make everything except for 
+order-0 inherently __GFP_NORETRY and introduce a replacement __GFP_RETRY?  
+That's doable as well, but it would be a massive effort.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
