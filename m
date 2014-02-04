@@ -1,44 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id D9D9A6B0035
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 20:20:49 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id kl14so7815299pab.15
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 17:20:49 -0800 (PST)
-Received: from mail-pb0-x22d.google.com (mail-pb0-x22d.google.com [2607:f8b0:400e:c01::22d])
-        by mx.google.com with ESMTPS id ek3si22520650pbd.55.2014.02.03.17.20.48
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 03 Feb 2014 17:20:48 -0800 (PST)
-Received: by mail-pb0-f45.google.com with SMTP id un15so7784139pbc.32
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 17:20:48 -0800 (PST)
-Date: Mon, 3 Feb 2014 17:20:46 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, compaction: avoid isolating pinned pages fix
-In-Reply-To: <20140204000237.GA17331@lge.com>
-Message-ID: <alpine.DEB.2.02.1402031610090.10778@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1402012145510.2593@chino.kir.corp.google.com> <20140203095329.GH6732@suse.de> <alpine.DEB.2.02.1402030231590.31061@chino.kir.corp.google.com> <20140204000237.GA17331@lge.com>
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 888116B0035
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 20:31:51 -0500 (EST)
+Received: by mail-pd0-f180.google.com with SMTP id x10so7548774pdj.25
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 17:31:51 -0800 (PST)
+Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
+        by mx.google.com with ESMTP id yt9si14527077pab.4.2014.02.03.17.31.48
+        for <linux-mm@kvack.org>;
+        Mon, 03 Feb 2014 17:31:49 -0800 (PST)
+Date: Tue, 4 Feb 2014 10:31:51 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v10 00/16] Volatile Ranges v10
+Message-ID: <20140204013151.GB3481@bbox>
+References: <52EAFBF6.7020603@linaro.org>
+ <CF103DE0.14877%je@fb.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CF103DE0.14877%je@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jason Evans <je@fb.com>
+Cc: John Stultz <john.stultz@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Dhaval Giani <dhaval.giani@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Rob Clark <robdclark@gmail.com>, "pliard@google.com" <pliard@google.com>
 
-On Tue, 4 Feb 2014, Joonsoo Kim wrote:
+Hello Jason,
 
-> I think that you need more code to skip this type of page correctly.
-> Without page_mapped() check, this code makes migratable pages be skipped,
-> since if page_mapped() case, page_count() may be more than zero.
+On Fri, Jan 31, 2014 at 01:44:55AM +0000, Jason Evans wrote:
+> On 1/30/14, 5:27 PM, "John Stultz" <john.stultz@linaro.org> wrote:
+> >I'm still not totally sure about, but willing to try
+> >* Page granular volatile tracking
 > 
-> So I think that you need following change.
+> In the malloc case (anonymous unused dirty memory), this would have very
+> similar characteristics to madvise(...MADV_FREE) as on e.g. FreeBSD, but
+> with the extra requirement that memory be marked nonvolatile prior to
+> reuse.  That wouldn't be terrible -- certainly an improvement over
+> madvise(...MADV_DONTNEED), but range-based volatile regions would actually
+> be an improvement over prior art, rather than a more cumbersome equivalent.
 > 
-> (!page_mapping(page) && !page_mapped(page) && page_count(page))
-> 
+> Either way, I'm really looking forward to being able to utilize volatile
+> ranges in jemalloc.
 
-These pages returned by get_user_pages() will have a mapcount of 1 so this 
-wouldn't actually fix the massive lock contention.  page_mapping() is only 
-going to be NULL for pages off the lru like these are for 
-PAGE_MAPPING_ANON.
+First of all, Again, I should thank for your help!
+
+While I discuss with Johannes, I'm biasing to implemnt MADV_FREE for Linux.
+instead of vrange syscall for allocator.
+The reason I preferred vrange syscall over MADV_FREE is vrange syscall
+is almost O(1) so it's really light weight system call although it needs
+one more syscall to unmark volatility while MADV_FREE is O(#pages) but
+as Johannes pointed out, these day kernel trends are using huge pages(ex,
+2M) so I guess the overhead is really big.
+
+(Another topic: If application want to use huge pages on Linux,
+it should mmap the region is aligned to the huge page size but when
+I read jemalloc source code, it seems not. Do you have any reason?)
+
+As a bonus point, many allocators already has a logic to use MADV_FREE
+so it's really easy to use it if Linux start to support it.
+
+Do you see other point that light-weight vrange syscall is
+superior to MADV_FREE of big chunk all at once?
+
+Thanks for the comment, Jason.
+
+> 
+> Thanks,
+> Jason
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
