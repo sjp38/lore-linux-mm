@@ -1,50 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f172.google.com (mail-yk0-f172.google.com [209.85.160.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 4613F6B0035
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 06:48:49 -0500 (EST)
-Received: by mail-yk0-f172.google.com with SMTP id 200so21643939ykr.3
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 03:48:48 -0800 (PST)
-Received: from SMTP02.CITRIX.COM (smtp02.citrix.com. [66.165.176.63])
-        by mx.google.com with ESMTPS id q69si19804701yhd.45.2014.02.04.03.48.48
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 502E46B0035
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 08:29:09 -0500 (EST)
+Received: by mail-we0-f182.google.com with SMTP id u57so4148939wes.13
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 05:29:08 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v8si37848wiw.12.2014.02.04.05.29.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 04 Feb 2014 03:48:48 -0800 (PST)
-Message-ID: <52F0D39D.4050409@citrix.com>
-Date: Tue, 4 Feb 2014 11:48:45 +0000
-From: David Vrabel <david.vrabel@citrix.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] Subject: [PATCH] xen: Properly account for _PAGE_NUMA
- during xen pte translations
-References: <20140122032045.GA22182@falcon.amazon.com> <20140122050215.GC9931@konrad-lan.dumpdata.com> <20140122072914.GA9283@orcus.uplinklabs.net> <52DFD5DB.6060603@iogearbox.net> <CAEr7rXhJf1tf2KUErsGgUyYNUpVwLYD=fKUf8aPm0Dcg21MuNQ@mail.gmail.com> <20140122203337.GA31908@orcus.uplinklabs.net> <CAEr7rXjge6rKzxbwy+0A6-5YhVZL9WGmaLrDYbE8H5hrtwq_4A@mail.gmail.com> <20140124133830.GU4963@suse.de> <CAEr7rXjmVp-F88zQnc4a2tSzBAJFshzR0FPkOBdo1jbQLOv+2A@mail.gmail.com> <CAEr7rXgCoYW7O0E38YGCThUKgmxYFfLfYP-x_KSzVBLOCiHeDg@mail.gmail.com> <20140204114445.GM6732@suse.de>
-In-Reply-To: <20140204114445.GM6732@suse.de>
-Content-Type: text/plain; charset="ISO-8859-15"
-Content-Transfer-Encoding: 7bit
+        Tue, 04 Feb 2014 05:29:07 -0800 (PST)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH -v2 0/6] memcg: some charge path cleanups + css offline vs. charge race fix
+Date: Tue,  4 Feb 2014 14:28:54 +0100
+Message-Id: <1391520540-17436-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Ingo Molnar <mingo@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Steven Noonan <steven@uplinklabs.net>, Andrew Morton <akpm@linux-foundation.org>, George Dunlap <george.dunlap@eu.citrix.com>, Dario Faggioli <dario.faggioli@citrix.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Elena Ufimtseva <ufimtseva@gmail.com>, Linux Kernel mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-X86 <x86@kernel.org>, xen-devel <xen-devel@lists.xenproject.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On 04/02/14 11:44, Mel Gorman wrote:
-> Steven Noonan forwarded a users report where they had a problem starting
-> vsftpd on a Xen paravirtualized guest, with this in dmesg:
-> 
-[...]
-> 
-> The issue could not be reproduced under an HVM instance with the same kernel,
-> so it appears to be exclusive to paravirtual Xen guests. He bisected the
-> problem to commit 1667918b (mm: numa: clear numa hinting information on
-> mprotect) that was also included in 3.12-stable.
-> 
-> The problem was related to how xen translates ptes because it was not
-> accounting for the _PAGE_NUMA bit. This patch splits pte_present to add
-> a pteval_present helper for use by xen so both bare metal and xen use
-> the same code when checking if a PTE is present.
+Hi,
+this is a second version of the series previously posted here:
+http://marc.info/?l=linux-mm&m=138729515304263&w=2. It is based on
+3.14-rc1 and I am still testing it but having another eyes on it would
+be great because this piece of code is really tricky.
 
-Reviewed-by: David Vrabel <david.vrabel@citrix.com>
+The first four patches are an attempt to clean up memcg charging path a
+bit. I am already fed up about all the different combinations of mm vs.
+memcgp parameters so I have split up the function into two parts:
+        * charge mm
+        * charge a known memcg
+More details are in the patch 2. I think that this makes more sense.
+It was also quite surprising that just the code reordering without any
+functional changes made the code smaller by 800B.
+Johannes has suggested (http://marc.info/?l=linux-mm&m=139144269917488&w=2)
+that mem_cgroup_try_charge_mm is not that helpful because the caller
+can resolve the proper memcg by calling try_get_mem_cgroup_from_mm but
+the next patch will require a retry if the css becomes offline and we do
+not want to duplicate the same logic in each caller.
 
-Thanks.
+Patch #4 addresses memcg charge vs. memcg_offline race which is now
+worked around by 96f1c58d8534 (mm: memcg: fix race condition between
+memcg teardown and swapin). The last patch reverts the workaround.
 
-David
+Changes since v1 (based on comments from Johannes)
+- renamed mem_cgroup_bypass_charge to current_bypass_charge
+- get rid of try_get_mem_cgroup_from_mm duplication if the mm is charged
+- fixed rcu_read_lock recursion bug in try_get_mem_cgroup_from_mm
+- dropped memcg->offline and replace it by css_tryget & css_put
+- fixed ref leak for kmem CHARGE_RETRY path
+- kmem accounting cleanup as well
+
+Michal Hocko (6):
+      memcg: do not replicate try_get_mem_cgroup_from_mm in __mem_cgroup_try_charge
+      memcg: cleanup charge routines
+      memcg: mm == NULL is not allowed for mem_cgroup_try_charge_mm
+      memcg: make sure that memcg is not offline when charging
+      memcg, kmem: clean up memcg parameter handling
+      Revert "mm: memcg: fix race condition between memcg teardown and swapin"
+
+Diffstat says:
+ include/linux/memcontrol.h |   4 +-
+ mm/memcontrol.c            | 341 +++++++++++++++++++++------------------------
+ mm/page_alloc.c            |   2 +-
+ 3 files changed, 162 insertions(+), 185 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
