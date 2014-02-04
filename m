@@ -1,112 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E26786B0035
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 23:58:26 -0500 (EST)
-Received: by mail-pb0-f46.google.com with SMTP id um1so8019295pbc.33
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 20:58:26 -0800 (PST)
-Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
-        by mx.google.com with ESMTP id yt9si15038800pab.178.2014.02.03.20.58.18
-        for <linux-mm@kvack.org>;
-        Mon, 03 Feb 2014 20:58:25 -0800 (PST)
-Date: Tue, 4 Feb 2014 13:58:21 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v10 00/16] Volatile Ranges v10
-Message-ID: <20140204045821.GE3481@bbox>
-References: <20140204013151.GB3481@bbox>
- <CF1584DE.149CA%je@fb.com>
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CE376B0035
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 00:26:16 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id v10so7810031pde.0
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 21:26:16 -0800 (PST)
+Received: from out03.mta.xmission.com (out03.mta.xmission.com. [166.70.13.233])
+        by mx.google.com with ESMTPS id wm3si23081759pab.194.2014.02.03.21.26.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 03 Feb 2014 21:26:15 -0800 (PST)
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: Mon, 03 Feb 2014 21:26:06 -0800
+Message-ID: <87r47jsb2p.fsf@xmission.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CF1584DE.149CA%je@fb.com>
+Content-Type: text/plain
+Subject: [PATCH] fdtable: Avoid triggering OOMs from alloc_fdmem
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Evans <je@fb.com>
-Cc: John Stultz <john.stultz@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Dhaval Giani <dhaval.giani@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Rob Clark <robdclark@gmail.com>, "pliard@google.com" <pliard@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Feb 04, 2014 at 03:08:27AM +0000, Jason Evans wrote:
-> On 2/3/14, 5:31 PM, "Minchan Kim" <minchan@kernel.org> wrote:
-> >While I discuss with Johannes, I'm biasing to implemnt MADV_FREE for
-> >Linux.
-> >instead of vrange syscall for allocator.
-> >The reason I preferred vrange syscall over MADV_FREE is vrange syscall
-> >is almost O(1) so it's really light weight system call although it needs
-> >one more syscall to unmark volatility while MADV_FREE is O(#pages) but
-> >as Johannes pointed out, these day kernel trends are using huge pages(ex,
-> >2M) so I guess the overhead is really big.
-> >
-> >(Another topic: If application want to use huge pages on Linux,
-> >it should mmap the region is aligned to the huge page size but when
-> >I read jemalloc source code, it seems not. Do you have any reason?)
-> 
-> jemalloc uses 4 MiB naturally aligned chunks by default (chunk size can be
-> any power of 2 that is at least two pages), so by default jemalloc does
-> align its mappings to huge page boundaries.
-> 
-> However, chunks have embedded metadata headers, which means that in
-> practice, only the second half of each chunk can be madvise()d away if
-> only huge pages are in use.  Additionally, the overhead of using even one
-> huge page per size class would be unacceptable for most applications (2
-> MiB * ~30 size classes * number of active arenas), so adjusting the
-> allocator's layout algorithms to use huge pages would require a very
-> different strategy than is currently used, and the likelihood of having
-> huge pages completely drain of allocations would be quite low.  On top of
-> that, the implicit nature of transparent huge pages makes them difficult
-> to reliably account for in userland.  In other words, huge pages and
-> explicit dirty page purging are for most practical purposes incompatible.
 
-I didn't mean we should use huge pages for all of class but just wanted
-to align chunk with hugepage size. Thanks for the confirmation.
+Recently due to a spike in connections per second memcached on 3
+separate boxes triggered the OOM killer from accept.  At the time the
+OOM killer was triggered there was 4GB out of 36GB free in zone 1. The
+problem was that alloc_fdtable was allocating an order 3 page (32KiB) to
+hold a bitmap, and there was sufficient fragmentation that the largest
+page available was 8KiB.
 
-> 
-> >As a bonus point, many allocators already has a logic to use MADV_FREE
-> >so it's really easy to use it if Linux start to support it.
-> 
-> MADV_FREE is certainly an easy interface to use, and as long as there
-> aren't any serious scalability issues in the implementation (e.g.
-> concurrent madvise() calls for disjoint virtual addresses from multiple
-> threads should be contention-free), I think it's perfectly adequate.
+I find the logic that PAGE_ALLOC_COSTLY_ORDER can't fail pretty dubious
+but I do agree that order 3 allocations are very likely to succeed.
 
-Of course, every thread could do madvise(MADV_FREE) in parallel because
-VM in Linux doesn't need write-side semaphore but read-side semaphore.
-Additionally, page faulting also needs read-side semaphore so
-page faulting, madvise(MADV_FREE) in threads could be done in parallel
-without any scalability issue if they don't overlap same virtual addresses
-within 4M range because they need a page table lock but it's very
-unlikely in allocator, IMO.
+There are always pathologies where order > 0 allocations can fail when
+there are copious amounts of free memory available.  Using the pigeon
+hole principle it is easy to show that it requires 1 page more than 50%
+of the pages being free to guarantee an order 1 (8KiB) allocation will
+succeed, 1 page more than 75% of the pages being free to guarantee an
+order 2 (16KiB) allocation will succeed and 1 page more than 87.5% of
+the pages being free to guarantee an order 3 allocate will succeed.
 
-But it could prevent new chunk allocation which needs write-side semaphore
-but chunk allocation is not common so I think it's not a problem, either.
-So, you don't need to change anything other than that enable
-JEMALLOC_PURGE_MADVISE_FREE for Linux.
+A server churning memory with a lot of small requests and replies like
+memcached is a common case that if anything can will skew the odds
+against large pages being available.
 
-> 
-> >Do you see other point that light-weight vrange syscall is
-> >superior to MADV_FREE of big chunk all at once?
-> 
-> Other than system call overhead, volatile ranges and MADV_FREE are both
-> great for jemalloc's purposes.  MADV_FREE is a bit easier to deal with,
-> mainly because volatile ranges are distinct from dirty pages and virtual
-> memory coalescing in jemalloc will require some additional work to
-> logically treat adjacent volatile/dirty ranges as contiguous, but that's a
-> solvable problem.
+Therefore let's not give external applications a practical way to kill
+linux server applications, and specify __GFP_NORETRY to the kmalloc in
+alloc_fdmem.  Unless I am misreading the code and by the time the code
+reaches should_alloc_retry in __alloc_pages_slowpath (where
+__GFP_NORETRY becomes signification).  We have already tried everything
+reasonable to allocate a page and the only thing left to do is wait.  So
+not waiting and falling back to vmalloc immediately seems like the
+reasonable thing to do even if there wasn't a chance of triggering the
+OOM killer.
 
-Okay, I will implement MADV_FREE and report test result if anybody doesn't
-have a concern.
-Thanks for the feedback!
+Cc: stable@vger.kernel.org
+Signed-off-by: "Eric W. Biederman" <ebiederm@xmission.com>
+---
+ fs/file.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-> 
-> Thanks,
-> Jason
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+diff --git a/fs/file.c b/fs/file.c
+index 771578b33fb6..db25c2bdfe46 100644
+--- a/fs/file.c
++++ b/fs/file.c
+@@ -34,7 +34,7 @@ static void *alloc_fdmem(size_t size)
+ 	 * vmalloc() if the allocation size will be considered "large" by the VM.
+ 	 */
+ 	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
+-		void *data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN);
++		void *data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN|__GFP_NORETRY);
+ 		if (data != NULL)
+ 			return data;
+ 	}
 -- 
-Kind regards,
-Minchan Kim
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
