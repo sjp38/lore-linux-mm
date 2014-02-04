@@ -1,91 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id DF0AD6B0037
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 19:02:39 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id kx10so7711692pab.7
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 16:02:39 -0800 (PST)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id zk9si22318711pac.144.2014.02.03.16.02.37
-        for <linux-mm@kvack.org>;
-        Mon, 03 Feb 2014 16:02:38 -0800 (PST)
-Date: Tue, 4 Feb 2014 09:02:37 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [patch] mm, compaction: avoid isolating pinned pages
-Message-ID: <20140204000237.GA17331@lge.com>
-References: <alpine.DEB.2.02.1402012145510.2593@chino.kir.corp.google.com>
- <20140203095329.GH6732@suse.de>
- <alpine.DEB.2.02.1402030231590.31061@chino.kir.corp.google.com>
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 17BB66B0039
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 19:06:54 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id up15so7751732pbc.28
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 16:06:53 -0800 (PST)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id of8si9536953pbc.133.2014.02.03.16.06.52
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 03 Feb 2014 16:06:53 -0800 (PST)
+Received: by mail-pa0-f47.google.com with SMTP id kp14so7681575pab.6
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 16:06:52 -0800 (PST)
+Date: Mon, 3 Feb 2014 16:06:51 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: Need help in bug in isolate_migratepages_range
+In-Reply-To: <52EFC93D.3030106@suse.cz>
+Message-ID: <alpine.DEB.2.02.1402031602060.10778@chino.kir.corp.google.com>
+References: <alpine.LRH.2.02.1401312037340.6630@diagnostix.dwd.de> <20140203122052.GC2495@dhcp22.suse.cz> <alpine.LRH.2.02.1402031426510.13382@diagnostix.dwd.de> <20140203162036.GJ2495@dhcp22.suse.cz> <52EFC93D.3030106@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1402030231590.31061@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@suse.cz>, Holger Kiehl <Holger.Kiehl@dwd.de>, linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
 
-On Mon, Feb 03, 2014 at 02:49:32AM -0800, David Rientjes wrote:
-> On Mon, 3 Feb 2014, Mel Gorman wrote:
+On Mon, 3 Feb 2014, Vlastimil Babka wrote:
+
+> It seems to come from balloon_page_movable() and its test page_count(page) ==
+> 1.
 > 
-> > > Page migration will fail for memory that is pinned in memory with, for
-> > > example, get_user_pages().  In this case, it is unnecessary to take
-> > > zone->lru_lock or isolating the page and passing it to page migration
-> > > which will ultimately fail.
-> > > 
-> > > This is a racy check, the page can still change from under us, but in
-> > > that case we'll just fail later when attempting to move the page.
-> > > 
-> > > This avoids very expensive memory compaction when faulting transparent
-> > > hugepages after pinning a lot of memory with a Mellanox driver.
-> > > 
-> > > On a 128GB machine and pinning ~120GB of memory, before this patch we
-> > > see the enormous disparity in the number of page migration failures
-> > > because of the pinning (from /proc/vmstat):
-> > > 
-> > > compact_blocks_moved 7609
-> > > compact_pages_moved 3431
-> > > compact_pagemigrate_failed 133219
-> > > compact_stall 13
-> > > 
-> > > After the patch, it is much more efficient:
-> > > 
-> > > compact_blocks_moved 7998
-> > > compact_pages_moved 6403
-> > > compact_pagemigrate_failed 3
-> > > compact_stall 15
-> > > 
-> > > Signed-off-by: David Rientjes <rientjes@google.com>
-> > > ---
-> > >  mm/compaction.c | 8 ++++++++
-> > >  1 file changed, 8 insertions(+)
-> > > 
-> > > diff --git a/mm/compaction.c b/mm/compaction.c
-> > > --- a/mm/compaction.c
-> > > +++ b/mm/compaction.c
-> > > @@ -578,6 +578,14 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-> > >  			continue;
-> > >  		}
-> > >  
-> > > +		/*
-> > > +		 * Migration will fail if an anonymous page is pinned in memory,
-> > > +		 * so avoid taking zone->lru_lock and isolating it unnecessarily
-> > > +		 * in an admittedly racy check.
-> > > +		 */
-> > > +		if (!page_mapping(page) && page_count(page))
-> > > +			continue;
-> > > +
 
-Hello,
+Hmm, I think it might be because compound_head() == NULL here.  Holger, 
+this looks like a race condition when allocating a compound page, did you 
+only see it once or is it actually reproducible?
 
-I think that you need more code to skip this type of page correctly.
-Without page_mapped() check, this code makes migratable pages be skipped,
-since if page_mapped() case, page_count() may be more than zero.
-
-So I think that you need following change.
-
-(!page_mapping(page) && !page_mapped(page) && page_count(page))
-
-Thanks.
+I think this happens when a new compound page is allocated and PageBuddy 
+is cleared before prep_compound_page() and then we see PageTail(p) set but 
+p->first_page is not yet initialized.  Is there any way to avoid memory 
+barriers in compound_page()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
